@@ -8,6 +8,7 @@ use rand::rngs::OsRng;
 use rand::seq::SliceRandom;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 use tracing::instrument;
 
 pub const MIN_PASSWORD_LENGTH: i32 = 1;
@@ -61,6 +62,104 @@ pub struct ParsedRealmPasswordPolicy {
     pub required_special_characters: Option<i32>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PasswordPolicyRule {
+    MinimumLength,
+    MaximumLength,
+    Uppercase,
+    Lowercase,
+    Digits,
+    SpecialCharacters,
+}
+
+impl PasswordPolicyRule {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::MinimumLength => "minimumLength",
+            Self::MaximumLength => "maximumLength",
+            Self::Uppercase => "uppercase",
+            Self::Lowercase => "lowercase",
+            Self::Digits => "digits",
+            Self::SpecialCharacters => "specialCharacters",
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PasswordPolicyViolation {
+    pub rule: PasswordPolicyRule,
+    pub required_count: i32,
+}
+
+impl Display for PasswordPolicyViolation {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        let message = match self.rule {
+            PasswordPolicyRule::MinimumLength => {
+                "Password is shorter than the realm policy minimum"
+            }
+            PasswordPolicyRule::MaximumLength => {
+                "Password is longer than the realm policy maximum"
+            }
+            PasswordPolicyRule::Uppercase => {
+                "Password does not contain enough uppercase characters"
+            }
+            PasswordPolicyRule::Lowercase => {
+                "Password does not contain enough lowercase characters"
+            }
+            PasswordPolicyRule::Digits => {
+                "Password does not contain enough digits"
+            }
+            PasswordPolicyRule::SpecialCharacters => {
+                "Password does not contain enough special characters"
+            }
+        };
+        formatter.write_str(message)
+    }
+}
+
+impl std::error::Error for PasswordPolicyViolation {}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum PasswordPolicyGenerationError {
+    NotConfigured,
+    MinimumLengthMissing,
+    MinimumLengthOutOfRange,
+    MaximumLengthOutOfRange,
+    MinimumExceedsMaximum,
+    CharacterClassMissing,
+    MaximumTooSmallForRequiredCharacters,
+}
+
+impl Display for PasswordPolicyGenerationError {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NotConfigured => formatter.write_str("Password policy is not configured"),
+            Self::MinimumLengthMissing => formatter.write_str(
+                "Password policy must include a minimum length for generation",
+            ),
+            Self::MinimumLengthOutOfRange => write!(
+                formatter,
+                "Minimum password length must be between {MIN_PASSWORD_LENGTH} and {MAX_PASSWORD_LENGTH}"
+            ),
+            Self::MaximumLengthOutOfRange => write!(
+                formatter,
+                "Maximum password length must be between {MIN_PASSWORD_LENGTH} and {MAX_PASSWORD_LENGTH}"
+            ),
+            Self::MinimumExceedsMaximum => formatter.write_str(
+                "Minimum password length cannot exceed maximum password length",
+            ),
+            Self::CharacterClassMissing => formatter.write_str(
+                "Password policy must include at least one character class",
+            ),
+            Self::MaximumTooSmallForRequiredCharacters => formatter.write_str(
+                "Maximum password length is too small for the required character classes",
+            ),
+        }
+    }
+}
+
+impl std::error::Error for PasswordPolicyGenerationError {}
+
 impl Default for RealmPasswordPolicy {
     fn default() -> Self {
         Self {
@@ -94,6 +193,38 @@ fn is_managed_policy_rule(rule: &str) -> bool {
     MANAGED_POLICIES.contains(&policy_rule_name(rule))
 }
 
+fn split_policy_rules(password_policy: &str) -> Vec<&str> {
+    let bytes = password_policy.as_bytes();
+    let separator = POLICY_SEPARATOR.as_bytes();
+    let mut rules = Vec::new();
+    let mut start = 0;
+    let mut index = 0;
+    let mut parenthesis_depth = 0_u32;
+
+    while index < bytes.len() {
+        match bytes[index] {
+            b'\\' => {
+                index = (index + 2).min(bytes.len());
+                continue;
+            }
+            b'(' => parenthesis_depth += 1,
+            b')' => parenthesis_depth = parenthesis_depth.saturating_sub(1),
+            _ => {}
+        }
+
+        if parenthesis_depth == 0 && bytes[index..].starts_with(separator) {
+            rules.push(password_policy[start..index].trim());
+            index += separator.len();
+            start = index;
+            continue;
+        }
+        index += 1;
+    }
+
+    rules.push(password_policy[start..].trim());
+    rules.into_iter().filter(|rule| !rule.is_empty()).collect()
+}
+
 impl ParsedRealmPasswordPolicy {
     pub fn from_keycloak_policy(password_policy: Option<&str>) -> Self {
         let Some(password_policy) = password_policy
@@ -105,11 +236,7 @@ impl ParsedRealmPasswordPolicy {
 
         let mut parsed = Self::default();
 
-        for rule in password_policy
-            .split(POLICY_SEPARATOR)
-            .map(str::trim)
-            .filter(|rule| !rule.is_empty())
-        {
+        for rule in split_policy_rules(password_policy) {
             match policy_rule_name(rule) {
                 LENGTH_POLICY => {
                     parsed.managed_rules_present = true;
@@ -180,27 +307,54 @@ impl RealmPasswordPolicy {
     ) -> Result<String> {
         self.validate()?;
 
-        let mut rules = current_password_policy
-            .unwrap_or_default()
-            .split(POLICY_SEPARATOR)
-            .map(str::trim)
-            .filter(|rule| !rule.is_empty() && !is_managed_policy_rule(rule))
-            .map(str::to_string)
-            .collect::<Vec<_>>();
+        let current_policy = ParsedRealmPasswordPolicy::from_keycloak_policy(
+            current_password_policy,
+        );
+
+        let mut rules =
+            split_policy_rules(current_password_policy.unwrap_or_default())
+                .into_iter()
+                .filter(|rule| !is_managed_policy_rule(rule))
+                .map(str::to_string)
+                .collect::<Vec<_>>();
 
         rules.push(format!("{LENGTH_POLICY}({})", self.minimum_length));
         rules.push(format!("{MAX_LENGTH_POLICY}({})", self.maximum_length));
         if self.include_uppercase {
-            rules.push(format!("{UPPERCASE_POLICY}(1)"));
+            rules.push(format!(
+                "{UPPERCASE_POLICY}({})",
+                current_policy
+                    .required_uppercase
+                    .filter(|value| *value > 0)
+                    .unwrap_or(1)
+            ));
         }
         if self.include_lowercase {
-            rules.push(format!("{LOWERCASE_POLICY}(1)"));
+            rules.push(format!(
+                "{LOWERCASE_POLICY}({})",
+                current_policy
+                    .required_lowercase
+                    .filter(|value| *value > 0)
+                    .unwrap_or(1)
+            ));
         }
         if self.include_digits {
-            rules.push(format!("{DIGITS_POLICY}(1)"));
+            rules.push(format!(
+                "{DIGITS_POLICY}({})",
+                current_policy
+                    .required_digits
+                    .filter(|value| *value > 0)
+                    .unwrap_or(1)
+            ));
         }
         if self.include_special_characters {
-            rules.push(format!("{SPECIAL_CHARACTERS_POLICY}(1)"));
+            rules.push(format!(
+                "{SPECIAL_CHARACTERS_POLICY}({})",
+                current_policy
+                    .required_special_characters
+                    .filter(|value| *value > 0)
+                    .unwrap_or(1)
+            ));
         }
 
         Ok(rules.join(POLICY_SEPARATOR))
@@ -226,6 +380,13 @@ impl RealmPasswordPolicy {
                 "Minimum password length cannot exceed maximum password length"
             );
         }
+        if !self.include_uppercase
+            && !self.include_lowercase
+            && !self.include_digits
+            && !self.include_special_characters
+        {
+            bail!("Password policy must include at least one character class");
+        }
 
         Ok(())
     }
@@ -248,34 +409,32 @@ impl ParsedRealmPasswordPolicy {
         .collect()
     }
 
-    pub fn validate_for_generation(&self) -> Result<()> {
+    pub fn validate_for_generation(
+        &self,
+    ) -> std::result::Result<(), PasswordPolicyGenerationError> {
         if !self.managed_rules_present {
-            bail!("Password policy is not configured");
+            return Err(PasswordPolicyGenerationError::NotConfigured);
         }
 
-        let minimum_length = self.minimum_length.ok_or_else(|| {
-            anyhow!(
-                "Password policy must include a minimum length for generation"
-            )
-        })?;
+        let minimum_length = self
+            .minimum_length
+            .ok_or(PasswordPolicyGenerationError::MinimumLengthMissing)?;
         if !(MIN_PASSWORD_LENGTH..=MAX_PASSWORD_LENGTH)
             .contains(&minimum_length)
         {
-            bail!(
-                "Minimum password length must be between {MIN_PASSWORD_LENGTH} and {MAX_PASSWORD_LENGTH}"
-            );
+            return Err(PasswordPolicyGenerationError::MinimumLengthOutOfRange);
         }
         if let Some(maximum_length) = self.maximum_length {
             if !(MIN_PASSWORD_LENGTH..=MAX_PASSWORD_LENGTH)
                 .contains(&maximum_length)
             {
-                bail!(
-                    "Maximum password length must be between {MIN_PASSWORD_LENGTH} and {MAX_PASSWORD_LENGTH}"
+                return Err(
+                    PasswordPolicyGenerationError::MaximumLengthOutOfRange,
                 );
             }
             if minimum_length > maximum_length {
-                bail!(
-                    "Minimum password length cannot exceed maximum password length"
+                return Err(
+                    PasswordPolicyGenerationError::MinimumExceedsMaximum,
                 );
             }
         }
@@ -286,77 +445,102 @@ impl ParsedRealmPasswordPolicy {
             .map(|(required, _)| *required)
             .sum::<usize>();
         if required_characters == 0 {
-            bail!("Password policy must include at least one character class");
+            return Err(PasswordPolicyGenerationError::CharacterClassMissing);
         }
         if self.maximum_length.is_some_and(|maximum_length| {
             minimum_length.max(required_characters as i32) > maximum_length
         }) {
-            bail!(
-                "Maximum password length is too small for the required character classes"
-            );
+            return Err(PasswordPolicyGenerationError::MaximumTooSmallForRequiredCharacters);
         }
 
         Ok(())
     }
 
-    pub fn validate_password(&self, password: &str) -> Result<()> {
+    pub fn validate_password(
+        &self,
+        password: &str,
+    ) -> std::result::Result<(), PasswordPolicyViolation> {
         let length = password.chars().count() as i32;
-        if self.minimum_length.is_some_and(|minimum_length| {
-            minimum_length > 0 && length < minimum_length
-        }) {
-            bail!("Password is shorter than the realm policy minimum");
+        if let Some(minimum_length) =
+            self.minimum_length.filter(|minimum_length| {
+                *minimum_length > 0 && length < *minimum_length
+            })
+        {
+            return Err(PasswordPolicyViolation {
+                rule: PasswordPolicyRule::MinimumLength,
+                required_count: minimum_length,
+            });
         }
-        if self.maximum_length.is_some_and(|maximum_length| {
-            maximum_length > 0 && length > maximum_length
-        }) {
-            bail!("Password is longer than the realm policy maximum");
+        if let Some(maximum_length) =
+            self.maximum_length.filter(|maximum_length| {
+                *maximum_length > 0 && length > *maximum_length
+            })
+        {
+            return Err(PasswordPolicyViolation {
+                rule: PasswordPolicyRule::MaximumLength,
+                required_count: maximum_length,
+            });
         }
 
         let uppercase = password
             .chars()
             .filter(|value| value.is_ascii_uppercase())
             .count() as i32;
-        if self
+        if let Some(required) = self
             .required_uppercase
-            .is_some_and(|required| required > 0 && uppercase < required)
+            .filter(|required| *required > 0 && uppercase < *required)
         {
-            bail!("Password does not contain enough uppercase characters");
+            return Err(PasswordPolicyViolation {
+                rule: PasswordPolicyRule::Uppercase,
+                required_count: required,
+            });
         }
         let lowercase = password
             .chars()
             .filter(|value| value.is_ascii_lowercase())
             .count() as i32;
-        if self
+        if let Some(required) = self
             .required_lowercase
-            .is_some_and(|required| required > 0 && lowercase < required)
+            .filter(|required| *required > 0 && lowercase < *required)
         {
-            bail!("Password does not contain enough lowercase characters");
+            return Err(PasswordPolicyViolation {
+                rule: PasswordPolicyRule::Lowercase,
+                required_count: required,
+            });
         }
         let digits = password
             .chars()
             .filter(|value| value.is_ascii_digit())
             .count() as i32;
-        if self
+        if let Some(required) = self
             .required_digits
-            .is_some_and(|required| required > 0 && digits < required)
+            .filter(|required| *required > 0 && digits < *required)
         {
-            bail!("Password does not contain enough digits");
+            return Err(PasswordPolicyViolation {
+                rule: PasswordPolicyRule::Digits,
+                required_count: required,
+            });
         }
         let special_characters = password
             .chars()
             .filter(|value| !value.is_ascii_alphanumeric())
             .count() as i32;
-        if self.required_special_characters.is_some_and(|required| {
-            required > 0 && special_characters < required
-        }) {
-            bail!("Password does not contain enough special characters");
+        if let Some(required) = self
+            .required_special_characters
+            .filter(|required| *required > 0 && special_characters < *required)
+        {
+            return Err(PasswordPolicyViolation {
+                rule: PasswordPolicyRule::SpecialCharacters,
+                required_count: required,
+            });
         }
 
         Ok(())
     }
 
     pub fn generate_password(&self) -> Result<String> {
-        self.validate_for_generation()?;
+        self.validate_for_generation()
+            .map_err(anyhow::Error::from)?;
         let mut rng = OsRng;
         let required_sets = self.required_character_sets();
 
@@ -475,7 +659,8 @@ impl KeycloakAdminClient {
 #[cfg(test)]
 mod tests {
     use super::{
-        ParsedRealmPasswordPolicy, RealmPasswordPolicy,
+        ParsedRealmPasswordPolicy, PasswordPolicyGenerationError,
+        PasswordPolicyRule, RealmPasswordPolicy,
         DEFAULT_MAXIMUM_PASSWORD_LENGTH, DEFAULT_MINIMUM_PASSWORD_LENGTH,
     };
 
@@ -542,6 +727,47 @@ mod tests {
     }
 
     #[test]
+    fn round_trip_preserves_existing_character_class_counts() {
+        let current = "digits(3) and upperCase(2)";
+        let admin_configuration =
+            ParsedRealmPasswordPolicy::from_keycloak_policy(Some(current))
+                .to_admin_configuration();
+
+        let merged = admin_configuration
+            .merge_into_keycloak_policy(Some(current))
+            .unwrap();
+        let round_trip =
+            ParsedRealmPasswordPolicy::from_keycloak_policy(Some(&merged));
+
+        assert_eq!(Some(3), round_trip.required_digits);
+        assert_eq!(Some(2), round_trip.required_uppercase);
+    }
+
+    #[test]
+    fn preserves_unmanaged_rules_containing_the_policy_separator() {
+        let policy = RealmPasswordPolicy {
+            configured: true,
+            minimum_length: 12,
+            maximum_length: 72,
+            include_uppercase: false,
+            include_lowercase: false,
+            include_digits: true,
+            include_special_characters: false,
+        };
+
+        let merged = policy
+            .merge_into_keycloak_policy(Some(
+                "regexPattern(^foo and bar$) and hashIterations(27500) and length(8) and digits(2)",
+            ))
+            .unwrap();
+
+        assert_eq!(
+            "regexPattern(^foo and bar$) and hashIterations(27500) and length(12) and maxLength(72) and digits(2)",
+            merged
+        );
+    }
+
+    #[test]
     fn rejects_invalid_length_ranges() {
         let mut policy = RealmPasswordPolicy::default();
         policy.minimum_length = 0;
@@ -554,6 +780,22 @@ mod tests {
         policy.minimum_length = 12;
         policy.maximum_length = 257;
         assert!(policy.validate().is_err());
+    }
+
+    #[test]
+    fn rejects_admin_configuration_without_a_character_class() {
+        let policy = RealmPasswordPolicy {
+            include_uppercase: false,
+            include_lowercase: false,
+            include_digits: false,
+            include_special_characters: false,
+            ..RealmPasswordPolicy::default()
+        };
+
+        assert_eq!(
+            "Password policy must include at least one character class",
+            policy.validate().unwrap_err().to_string()
+        );
     }
 
     #[test]
@@ -602,7 +844,9 @@ mod tests {
 
         policy.validate_password("AB123").unwrap();
         assert!(policy.validate_password("Ab123").is_err());
-        assert!(policy.validate_password("ABc1").is_err());
+        let violation = policy.validate_password("ABc1").unwrap_err();
+        assert_eq!(PasswordPolicyRule::Digits, violation.rule);
+        assert_eq!(3, violation.required_count);
     }
 
     #[test]
@@ -636,19 +880,31 @@ mod tests {
     #[test]
     fn generation_requires_an_explicit_minimum_and_usable_character_set() {
         let missing = ParsedRealmPasswordPolicy::from_keycloak_policy(None);
-        assert!(missing.generate_password().is_err());
+        assert_eq!(
+            PasswordPolicyGenerationError::NotConfigured,
+            missing.validate_for_generation().unwrap_err()
+        );
 
         let unmanaged = ParsedRealmPasswordPolicy::from_keycloak_policy(Some(
             "hashIterations(27500)",
         ));
-        assert!(unmanaged.generate_password().is_err());
+        assert_eq!(
+            PasswordPolicyGenerationError::NotConfigured,
+            unmanaged.validate_for_generation().unwrap_err()
+        );
 
         let length_only =
             ParsedRealmPasswordPolicy::from_keycloak_policy(Some("length(12)"));
-        assert!(length_only.generate_password().is_err());
+        assert_eq!(
+            PasswordPolicyGenerationError::CharacterClassMissing,
+            length_only.validate_for_generation().unwrap_err()
+        );
 
         let character_class_only =
             ParsedRealmPasswordPolicy::from_keycloak_policy(Some("digits(1)"));
-        assert!(character_class_only.generate_password().is_err());
+        assert_eq!(
+            PasswordPolicyGenerationError::MinimumLengthMissing,
+            character_class_only.validate_for_generation().unwrap_err()
+        );
     }
 }

@@ -535,6 +535,8 @@ const frenchTranslation: TranslationType = {
                             "Les longueurs du mot de passe doivent être des nombres entiers compris entre 1 et 256.",
                         minimumExceedsMaximum:
                             "La longueur minimale ne peut pas dépasser la longueur maximale.",
+                        characterClassRequired:
+                            "Sélectionnez au moins une classe de caractères pour le mot de passe.",
                     },
                 },
                 name: "Nom",
@@ -1025,6 +1027,14 @@ const frenchTranslation: TranslationType = {
             editPassword: {
                 passwordPolicyViolation:
                     "Le mot de passe ne respecte pas la Politique de mot de passe de cet événement électoral. Consultez la politique dans Données de l'événement électoral et saisissez un mot de passe conforme.",
+                passwordPolicyRules: {
+                    minimumLength: "La longueur minimale du mot de passe est de {{count}}.",
+                    maximumLength: "La longueur maximale du mot de passe est de {{count}}.",
+                    uppercase: "Caractères majuscules requis : {{count}}.",
+                    lowercase: "Caractères minuscules requis : {{count}}.",
+                    digits: "Chiffres requis : {{count}}.",
+                    specialCharacters: "Caractères spéciaux requis : {{count}}.",
+                },
                 label: "Changer le mot de passe",
                 temporatyLabel: "Temporaire",
                 temporatyInfo:
@@ -1100,6 +1110,10 @@ const frenchTranslation: TranslationType = {
                     generationError: "La Lettre d'information n'a pas pu être générée",
                     policyNotConfigured:
                         "La Politique de mot de passe n'est pas configurée. Configurez-la dans Données de l'événement électoral avant de générer une lettre.",
+                    policyMinimumLengthMissing:
+                        "La Politique de mot de passe doit inclure une longueur minimale avant de générer une lettre.",
+                    policyCharacterClassMissing:
+                        "La Politique de mot de passe doit inclure au moins une classe de caractères avant de générer une lettre.",
                 },
                 title: "Électeurs",
                 subtitle: "Voir et éditer les données de l'électeur",

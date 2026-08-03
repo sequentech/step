@@ -532,6 +532,8 @@ const basqueTranslation: TranslationType = {
                             "Pasahitzaren luzera-balioek 1 eta 256 arteko zenbaki osoak izan behar dute.",
                         minimumExceedsMaximum:
                             "Gutxieneko luzerak ezin du gehieneko luzera gainditu.",
+                        characterClassRequired:
+                            "Hautatu gutxienez karaktere-klase bat pasahitzerako.",
                     },
                 },
                 name: "Izena",
@@ -1020,6 +1022,14 @@ const basqueTranslation: TranslationType = {
             editPassword: {
                 passwordPolicyViolation:
                     "Pasahitzak ez du betetzen hauteskunde-gertaera honetako Pasahitz-politika. Berrikusi politika Hauteskunde-gertaeraren datuak atalean eta idatzi baliozko pasahitz bat.",
+                passwordPolicyRules: {
+                    minimumLength: "Pasahitzaren gutxieneko luzera {{count}} da.",
+                    maximumLength: "Pasahitzaren gehieneko luzera {{count}} da.",
+                    uppercase: "Beharrezko letra larriak: {{count}}.",
+                    lowercase: "Beharrezko letra xeheak: {{count}}.",
+                    digits: "Beharrezko digituak: {{count}}.",
+                    specialCharacters: "Beharrezko karaktere bereziak: {{count}}.",
+                },
                 label: "Aldatu pasahitza",
                 temporatyLabel: "Behin-behinekoa",
                 temporatyInfo:
@@ -1093,6 +1103,10 @@ const basqueTranslation: TranslationType = {
                     generationError: "Ezin izan da informazio-gutuna sortu",
                     policyNotConfigured:
                         "Pasahitz-politika ez dago konfiguratuta. Konfiguratu Hauteskunde-gertaeraren datuak atalean gutuna sortu aurretik.",
+                    policyMinimumLengthMissing:
+                        "Pasahitz-politikak gutxieneko luzera izan behar du gutuna sortu aurretik.",
+                    policyCharacterClassMissing:
+                        "Pasahitz-politikak gutxienez karaktere-klase bat izan behar du gutuna sortu aurretik.",
                 },
                 title: "Bozkatzaileak",
                 subtitle: "Ikusi eta editatu bozkatzaile datuak",

@@ -535,6 +535,8 @@ const catalanTranslation: TranslationType = {
                             "Les longituds de la contrasenya han de ser nombres enters entre 1 i 256.",
                         minimumExceedsMaximum:
                             "La longitud mínima no pot superar la longitud màxima.",
+                        characterClassRequired:
+                            "Seleccioneu almenys una classe de caràcters per a la contrasenya.",
                     },
                 },
                 name: "Nom",
@@ -1024,6 +1026,14 @@ const catalanTranslation: TranslationType = {
             editPassword: {
                 passwordPolicyViolation:
                     "La contrasenya no compleix la Política de contrasenyes d'aquest esdeveniment electoral. Reviseu la política a Dades de l'esdeveniment electoral i introduïu una contrasenya vàlida.",
+                passwordPolicyRules: {
+                    minimumLength: "La longitud mínima de la contrasenya és {{count}}.",
+                    maximumLength: "La longitud màxima de la contrasenya és {{count}}.",
+                    uppercase: "Caràcters en majúscula necessaris: {{count}}.",
+                    lowercase: "Caràcters en minúscula necessaris: {{count}}.",
+                    digits: "Dígits necessaris: {{count}}.",
+                    specialCharacters: "Caràcters especials necessaris: {{count}}.",
+                },
                 label: "Canviar contrasenya",
                 temporatyLabel: "Temporal",
                 temporatyInfo:
@@ -1099,6 +1109,10 @@ const catalanTranslation: TranslationType = {
                     generationError: "No s'ha pogut generar la Carta d'informació",
                     policyNotConfigured:
                         "La Política de contrasenyes no està configurada. Configureu-la a Dades de l'esdeveniment electoral abans de generar una carta.",
+                    policyMinimumLengthMissing:
+                        "La Política de contrasenyes ha d'incloure una longitud mínima abans de generar una carta.",
+                    policyCharacterClassMissing:
+                        "La Política de contrasenyes ha d'incloure almenys una classe de caràcters abans de generar una carta.",
                 },
                 title: "Votants",
                 subtitle: "Veure i editar dades del votant",

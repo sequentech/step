@@ -535,6 +535,8 @@ const spanishTranslation: TranslationType = {
                             "Las longitudes de la contraseña deben ser números enteros entre 1 y 256.",
                         minimumExceedsMaximum:
                             "La longitud mínima no puede superar la longitud máxima.",
+                        characterClassRequired:
+                            "Seleccione al menos una clase de caracteres para la contraseña.",
                     },
                 },
                 name: "Nombre",
@@ -1023,6 +1025,14 @@ const spanishTranslation: TranslationType = {
             editPassword: {
                 passwordPolicyViolation:
                     "La contraseña no cumple la Política de contraseñas de este evento electoral. Revise la política en Datos del evento electoral e introduzca una contraseña válida.",
+                passwordPolicyRules: {
+                    minimumLength: "La longitud mínima de la contraseña es {{count}}.",
+                    maximumLength: "La longitud máxima de la contraseña es {{count}}.",
+                    uppercase: "Caracteres en mayúscula requeridos: {{count}}.",
+                    lowercase: "Caracteres en minúscula requeridos: {{count}}.",
+                    digits: "Dígitos requeridos: {{count}}.",
+                    specialCharacters: "Caracteres especiales requeridos: {{count}}.",
+                },
                 label: "Cambiar contraseña",
                 temporatyLabel: "Temporal",
                 temporatyInfo:
@@ -1098,6 +1108,10 @@ const spanishTranslation: TranslationType = {
                     generationError: "No se pudo generar la Carta de información",
                     policyNotConfigured:
                         "La Política de contraseñas no está configurada. Configúrela en Datos del evento electoral antes de generar una carta.",
+                    policyMinimumLengthMissing:
+                        "La Política de contraseñas debe incluir una longitud mínima antes de generar una carta.",
+                    policyCharacterClassMissing:
+                        "La Política de contraseñas debe incluir al menos una clase de caracteres antes de generar una carta.",
                 },
                 title: "Votantes",
                 subtitle: "Ver y editar datos del votante",

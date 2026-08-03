@@ -29,9 +29,11 @@ import {
     UPDATE_REALM_PASSWORD_POLICY,
     UpdateRealmPasswordPolicyMutation,
 } from "@/queries/RealmPasswordPolicy"
-
-const MIN_PASSWORD_LENGTH = 1
-const MAX_PASSWORD_LENGTH = 256
+import {
+    MAX_PASSWORD_LENGTH,
+    MIN_PASSWORD_LENGTH,
+    validatePasswordPolicy,
+} from "./passwordPolicyValidation"
 
 const DEFAULT_PASSWORD_POLICY: RealmPasswordPolicy = {
     configured: false,
@@ -41,27 +43,6 @@ const DEFAULT_PASSWORD_POLICY: RealmPasswordPolicy = {
     include_lowercase: true,
     include_digits: true,
     include_special_characters: true,
-}
-
-export type PasswordPolicyValidationError = "lengthRange" | "minimumExceedsMaximum"
-
-export const validatePasswordPolicy = (
-    policy: RealmPasswordPolicy
-): PasswordPolicyValidationError | undefined => {
-    if (
-        !Number.isInteger(policy.minimum_length) ||
-        !Number.isInteger(policy.maximum_length) ||
-        policy.minimum_length < MIN_PASSWORD_LENGTH ||
-        policy.minimum_length > MAX_PASSWORD_LENGTH ||
-        policy.maximum_length < MIN_PASSWORD_LENGTH ||
-        policy.maximum_length > MAX_PASSWORD_LENGTH
-    ) {
-        return "lengthRange"
-    }
-    if (policy.minimum_length > policy.maximum_length) {
-        return "minimumExceedsMaximum"
-    }
-    return undefined
 }
 
 export interface PasswordPolicyAccordionHandle {

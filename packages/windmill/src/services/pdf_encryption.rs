@@ -70,6 +70,7 @@ pub fn encrypt_pdf(pdf_bytes: &[u8], user_password: &str) -> Result<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use super::encrypt_pdf;
+    use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
     use lopdf::{dictionary, Document, Object, StringFormat};
 
     fn sample_pdf() -> Vec<u8> {
@@ -107,6 +108,12 @@ mod tests {
         let mut bytes = Vec::new();
         document.save_to(&mut bytes).unwrap();
         bytes
+    }
+
+    fn chromium_pdf() -> Vec<u8> {
+        BASE64
+            .decode(include_str!("fixtures/chromium-generated-without-id.pdf.b64").trim())
+            .unwrap()
     }
 
     #[test]
@@ -172,5 +179,29 @@ mod tests {
         let mut correct_password = Document::load_mem(&encrypted).unwrap();
         correct_password.decrypt("document-password").unwrap();
         assert!(!correct_password.is_encrypted());
+    }
+
+    #[test]
+    fn encrypts_and_round_trips_a_real_chromium_render() {
+        let source = chromium_pdf();
+        let source_document = Document::load_mem(&source).unwrap();
+        assert_eq!("1.4", source_document.version);
+        assert!(source_document.trailer.get(b"ID").is_err());
+        assert_eq!(1, source_document.get_pages().len());
+        assert!(source_document.objects.len() >= 20);
+        assert!(source_document
+            .objects
+            .values()
+            .any(|object| matches!(object, Object::Stream(_))));
+
+        // lopdf only materializes encrypted objects during load when the empty
+        // user password authenticates. The non-empty password behaviour is
+        // covered separately above; this round trip exercises Chromium's real
+        // object graph and serialization.
+        let encrypted = encrypt_pdf(&source, "").unwrap();
+        let decrypted = Document::load_mem(&encrypted).unwrap();
+
+        assert_eq!(1, decrypted.get_pages().len());
+        assert!(decrypted.trailer.get(b"ID").is_ok());
     }
 }

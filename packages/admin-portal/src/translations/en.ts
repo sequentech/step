@@ -529,6 +529,8 @@ const englishTranslation = {
                     errors: {
                         lengthRange: "Password lengths must be whole numbers between 1 and 256.",
                         minimumExceedsMaximum: "Minimum length cannot exceed maximum length.",
+                        characterClassRequired:
+                            "Select at least one character class for the password.",
                     },
                 },
                 name: "Name",
@@ -1019,6 +1021,14 @@ const englishTranslation = {
                 temporatyInfo: "If enabled, the user must change the password on next login",
                 passwordPolicyViolation:
                     "The password does not meet the Password Policy for this election event. Review the policy under Election Event Data and enter a compliant password.",
+                passwordPolicyRules: {
+                    minimumLength: "The password minimum length is {{count}}.",
+                    maximumLength: "The password maximum length is {{count}}.",
+                    uppercase: "Required uppercase characters: {{count}}.",
+                    lowercase: "Required lowercase characters: {{count}}.",
+                    digits: "Required digits: {{count}}.",
+                    specialCharacters: "Required special characters: {{count}}.",
+                },
             },
             users: {
                 title: "Users",
@@ -1115,6 +1125,10 @@ const englishTranslation = {
                     generationError: "The Voter Information Letter could not be generated",
                     policyNotConfigured:
                         "Password Policy is not configured. Set it under Election Event Data before generating a letter.",
+                    policyMinimumLengthMissing:
+                        "Password Policy must include a minimum length before generating a letter.",
+                    policyCharacterClassMissing:
+                        "Password Policy must include at least one character class before generating a letter.",
                 },
                 emptyHeader: "No voters yet.",
                 askCreate: "Do you want to create one?",

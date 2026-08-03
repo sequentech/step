@@ -537,6 +537,8 @@ const tagalogTranslation: TranslationType = {
                             "Ang mga halaga ng haba ng password ay dapat mga buong numero mula 1 hanggang 256.",
                         minimumExceedsMaximum:
                             "Hindi maaaring lumampas ang pinakamababang haba sa pinakamataas na haba.",
+                        characterClassRequired:
+                            "Pumili ng hindi bababa sa isang klase ng karakter para sa password.",
                     },
                 },
                 name: "Pangalan",
@@ -1023,6 +1025,14 @@ const tagalogTranslation: TranslationType = {
             editPassword: {
                 passwordPolicyViolation:
                     "Hindi sumusunod ang password sa Patakaran sa Password para sa kaganapang ito ng halalan. Suriin ang patakaran sa Data ng Kaganapan ng Halalan at maglagay ng wastong password.",
+                passwordPolicyRules: {
+                    minimumLength: "Ang pinakamababang haba ng password ay {{count}}.",
+                    maximumLength: "Ang pinakamataas na haba ng password ay {{count}}.",
+                    uppercase: "Kinakailangang malalaking titik: {{count}}.",
+                    lowercase: "Kinakailangang maliliit na titik: {{count}}.",
+                    digits: "Kinakailangang mga numero: {{count}}.",
+                    specialCharacters: "Kinakailangang espesyal na mga karakter: {{count}}.",
+                },
                 label: "Palitan ang password",
                 temporatyLabel: "Pansamantala",
                 temporatyInfo:
@@ -1099,6 +1109,10 @@ const tagalogTranslation: TranslationType = {
                     generationError: "Hindi mabuo ang Liham ng impormasyon",
                     policyNotConfigured:
                         "Hindi naka-configure ang Patakaran sa Password. I-configure ito sa Data ng Kaganapan ng Halalan bago bumuo ng liham.",
+                    policyMinimumLengthMissing:
+                        "Dapat may pinakamababang haba ang Patakaran sa Password bago bumuo ng liham.",
+                    policyCharacterClassMissing:
+                        "Dapat may hindi bababa sa isang klase ng karakter ang Patakaran sa Password bago bumuo ng liham.",
                 },
                 title: "Mga Botante",
                 subtitle: "Tingnan at i-edit ang data ng botante",

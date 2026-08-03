@@ -97,7 +97,7 @@ import {isEqual} from "lodash"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {GENERATE_VOTER_INFORMATION_LETTER} from "@/queries/VoterInformationLetter"
 import {VoterInformationLetterPasswordAccess} from "@/resources/Tasks/VoterInformationLetterPasswordAccess"
-import {isPasswordPolicyNotConfiguredError} from "./editPasswordError"
+import {getVoterInformationLetterPasswordPolicyError} from "./editPasswordError"
 
 export const AUTHORIZED_ELECTION_IDS = "authorized-election-ids"
 export const VOTED_CHANNEL = "voted-channel"
@@ -420,9 +420,16 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             setRecordIds([])
             setVoterInformationLetterPassword(pdfPassword)
         } catch (error: unknown) {
-            const isPasswordPolicyMissing = isPasswordPolicyNotConfiguredError(error)
-            const notificationKey = isPasswordPolicyMissing
-                ? "usersAndRolesScreen.voters.voterInformationLetter.policyNotConfigured"
+            const passwordPolicyError = getVoterInformationLetterPasswordPolicyError(error)
+            const notificationKey = passwordPolicyError
+                ? {
+                      notConfigured:
+                          "usersAndRolesScreen.voters.voterInformationLetter.policyNotConfigured",
+                      minimumLengthMissing:
+                          "usersAndRolesScreen.voters.voterInformationLetter.policyMinimumLengthMissing",
+                      characterClassMissing:
+                          "usersAndRolesScreen.voters.voterInformationLetter.policyCharacterClassMissing",
+                  }[passwordPolicyError]
                 : "usersAndRolesScreen.voters.voterInformationLetter.generationError"
             notify(t(notificationKey), {type: "error"})
             setOpenVoterInformationLetter(false)

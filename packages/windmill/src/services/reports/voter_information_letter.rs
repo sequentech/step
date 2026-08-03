@@ -10,7 +10,7 @@ use crate::postgres::reports::ReportType;
 use crate::services::temp_path::PUBLIC_ASSETS_LOGO_IMG;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use chrono::Utc;
+use chrono::{DateTime, Datelike, Local, TimeZone};
 use deadpool_postgres::Transaction;
 use sequent_core::services::keycloak::{
     get_event_realm, get_realm_attributes, KeycloakAdminClient,
@@ -121,6 +121,14 @@ impl VoterInformationLetterTemplate {
     }
 }
 
+fn default_language_code(presentation: Option<&Value>) -> &str {
+    presentation
+        .and_then(|presentation| presentation.get("language_conf"))
+        .and_then(|configuration| configuration.get("default_language_code"))
+        .and_then(Value::as_str)
+        .unwrap_or("en")
+}
+
 fn translated_event_name(presentation: Option<&Value>) -> Option<String> {
     let presentation = presentation?;
     let language = presentation
@@ -143,6 +151,144 @@ fn translated_event_name(presentation: Option<&Value>) -> Option<String> {
         .map(str::trim)
         .filter(|name| !name.is_empty())
         .map(str::to_string)
+}
+
+fn localized_issue_date<Tz>(date: DateTime<Tz>, language: &str) -> String
+where
+    Tz: TimeZone,
+{
+    let language = language
+        .split(['-', '_'])
+        .next()
+        .unwrap_or("en")
+        .to_ascii_lowercase();
+    let month_index = date.month0() as usize;
+    let day = date.day();
+    let year = date.year();
+
+    match language.as_str() {
+        "es" => format!(
+            "{day} de {} de {year}",
+            [
+                "enero",
+                "febrero",
+                "marzo",
+                "abril",
+                "mayo",
+                "junio",
+                "julio",
+                "agosto",
+                "septiembre",
+                "octubre",
+                "noviembre",
+                "diciembre",
+            ][month_index]
+        ),
+        "cat" => {
+            let month = [
+                "gener", "febrer", "març", "abril", "maig", "juny", "juliol", "agost", "setembre",
+                "octubre", "novembre", "desembre",
+            ][month_index];
+            let preposition = if matches!(month_index, 3 | 7 | 9) {
+                "d'"
+            } else {
+                "de "
+            };
+            format!("{day} {preposition}{month} de {year}")
+        }
+        "eu" => format!(
+            "{year}ko {} {day}a",
+            [
+                "urtarrilaren",
+                "otsailaren",
+                "martxoaren",
+                "apirilaren",
+                "maiatzaren",
+                "ekainaren",
+                "uztailaren",
+                "abuztuaren",
+                "irailaren",
+                "urriaren",
+                "azaroaren",
+                "abenduaren",
+            ][month_index]
+        ),
+        "fr" => format!(
+            "{day} {} {year}",
+            [
+                "janvier",
+                "février",
+                "mars",
+                "avril",
+                "mai",
+                "juin",
+                "juillet",
+                "août",
+                "septembre",
+                "octobre",
+                "novembre",
+                "décembre",
+            ][month_index]
+        ),
+        "gl" => format!(
+            "{day} de {} de {year}",
+            [
+                "xaneiro", "febreiro", "marzo", "abril", "maio", "xuño", "xullo", "agosto",
+                "setembro", "outubro", "novembro", "decembro",
+            ][month_index]
+        ),
+        "nl" => format!(
+            "{day} {} {year}",
+            [
+                "januari",
+                "februari",
+                "maart",
+                "april",
+                "mei",
+                "juni",
+                "juli",
+                "augustus",
+                "september",
+                "oktober",
+                "november",
+                "december",
+            ][month_index]
+        ),
+        "tl" => format!(
+            "{} {day}, {year}",
+            [
+                "Enero",
+                "Pebrero",
+                "Marso",
+                "Abril",
+                "Mayo",
+                "Hunyo",
+                "Hulyo",
+                "Agosto",
+                "Setyembre",
+                "Oktubre",
+                "Nobyembre",
+                "Disyembre",
+            ][month_index]
+        ),
+        _ => format!(
+            "{} {day}, {year}",
+            [
+                "January",
+                "February",
+                "March",
+                "April",
+                "May",
+                "June",
+                "July",
+                "August",
+                "September",
+                "October",
+                "November",
+                "December",
+            ][month_index]
+        ),
+    }
 }
 
 fn apply_structured_pattern(credential: &str, pattern: &str) -> Option<String> {
@@ -244,6 +390,7 @@ impl TemplateRenderer for VoterInformationLetterTemplate {
             &self.ids.election_event_id,
         )
         .await?;
+        let language = default_language_code(event.presentation.as_ref()).to_string();
         let realm = get_event_realm(&self.ids.tenant_id, &self.ids.election_event_id);
         let voter = KeycloakAdminClient::new()
             .await?
@@ -275,7 +422,7 @@ impl TemplateRenderer for VoterInformationLetterTemplate {
             election_event_name: translated_event_name(event.presentation.as_ref())
                 .or(event.description)
                 .unwrap_or_else(|| "Election".to_string()),
-            issue_date: Utc::now().format("%B %-d, %Y").to_string(),
+            issue_date: localized_issue_date(Local::now(), &language),
             voter_full_name: format!("{} {}", first_name, last_name).trim().to_string(),
             voter_first_name: first_name,
             voter_last_name: last_name,
@@ -315,7 +462,8 @@ impl TemplateRenderer for VoterInformationLetterTemplate {
 
 #[cfg(test)]
 mod tests {
-    use super::credential_for_presentation;
+    use super::{credential_for_presentation, localized_issue_date};
+    use chrono::{FixedOffset, TimeZone, Utc};
 
     #[test]
     fn formats_matching_structured_credentials() {
@@ -359,5 +507,27 @@ mod tests {
             ),
             "12345678",
         );
+    }
+
+    #[test]
+    fn localizes_the_issue_date_using_the_event_language() {
+        let date = FixedOffset::east_opt(8 * 60 * 60)
+            .unwrap()
+            .with_ymd_and_hms(2026, 8, 3, 6, 30, 0)
+            .unwrap();
+
+        assert_eq!("August 3, 2026", localized_issue_date(date, "en"));
+        assert_eq!("3 de agosto de 2026", localized_issue_date(date, "es"));
+        assert_eq!("Agosto 3, 2026", localized_issue_date(date, "tl"));
+    }
+
+    #[test]
+    fn issue_date_uses_the_supplied_timezone_instead_of_utc() {
+        let utc = Utc.with_ymd_and_hms(2026, 8, 3, 2, 30, 0).unwrap();
+        let bogota = utc.with_timezone(&FixedOffset::west_opt(5 * 60 * 60).unwrap());
+        let manila = utc.with_timezone(&FixedOffset::east_opt(8 * 60 * 60).unwrap());
+
+        assert_eq!("2 de agosto de 2026", localized_issue_date(bogota, "es"));
+        assert_eq!("Agosto 3, 2026", localized_issue_date(manila, "tl"));
     }
 }

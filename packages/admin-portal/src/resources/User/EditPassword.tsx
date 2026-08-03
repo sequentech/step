@@ -18,7 +18,7 @@ import {styled} from "@mui/material/styles"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import IconTooltip from "@/components/IconTooltip"
 import FormDialog from "@/components/FormDialog"
-import {isPasswordPolicyViolationError} from "./editPasswordError"
+import {getPasswordPolicyViolation} from "./editPasswordError"
 interface EditPasswordProps {
     open: boolean
     handleClose: () => void
@@ -75,10 +75,10 @@ const EditPassword = ({open, handleClose, id, electionEventId}: EditPasswordProp
     const [temporary, setTemportay] = useState<boolean>(true)
     const [edit_user] = useMutation<EditUsersInput>(EDIT_USER)
     const [errorText, setErrorText] = useState("")
-    const [passwordPolicyError, setPasswordPolicyError] = useState(false)
+    const [passwordPolicyError, setPasswordPolicyError] = useState("")
 
     useEffect(() => {
-        setPasswordPolicyError(false)
+        setPasswordPolicyError("")
     }, [open, id])
 
     const equalToPassword = (allValues: any) => {
@@ -104,7 +104,7 @@ const EditPassword = ({open, handleClose, id, electionEventId}: EditPasswordProp
 
         //only run on password update
         if (name === "confirm_password" || name === "password") {
-            setPasswordPolicyError(false)
+            setPasswordPolicyError("")
             equalToPassword(updatedUser)
         }
 
@@ -163,11 +163,17 @@ const EditPassword = ({open, handleClose, id, electionEventId}: EditPasswordProp
             refresh()
             handleClose?.()
         } catch (error: unknown) {
-            if (isPasswordPolicyViolationError(error)) {
-                setPasswordPolicyError(true)
-                notify(t("usersAndRolesScreen.editPassword.passwordPolicyViolation"), {
-                    type: "error",
-                })
+            const violation = getPasswordPolicyViolation(error)
+            if (violation) {
+                const message =
+                    violation.rule && violation.requiredCount !== undefined
+                        ? t(
+                              `usersAndRolesScreen.editPassword.passwordPolicyRules.${violation.rule}`,
+                              {count: violation.requiredCount}
+                          )
+                        : t("usersAndRolesScreen.editPassword.passwordPolicyViolation")
+                setPasswordPolicyError(message)
+                notify(message, {type: "error"})
                 return
             }
             notify(t("usersAndRolesScreen.voters.errors.editError"), {type: "error"})
@@ -198,7 +204,7 @@ const EditPassword = ({open, handleClose, id, electionEventId}: EditPasswordProp
                                 label={false}
                                 source="password"
                                 onChange={handleChange}
-                                error={!!errorText || passwordPolicyError}
+                                error={!!errorText || !!passwordPolicyError}
                             />
                         </InputContainerStyle>
                         <InputContainerStyle>
@@ -208,8 +214,8 @@ const EditPassword = ({open, handleClose, id, electionEventId}: EditPasswordProp
                             <PasswordInputStyle
                                 label={false}
                                 source="confirm_password"
-                                helperText={errorText}
-                                error={!!errorText || passwordPolicyError}
+                                helperText={errorText || passwordPolicyError}
+                                error={!!errorText || !!passwordPolicyError}
                                 onChange={handleChange}
                             />
                         </InputContainerStyle>

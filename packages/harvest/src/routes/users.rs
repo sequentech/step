@@ -16,7 +16,7 @@ use rocket::Request;
 use sequent_core::services::jwt;
 use sequent_core::services::keycloak::{
     get_event_realm, get_realm_password_policy, get_tenant_realm,
-    is_keycloak_bad_request,
+    is_keycloak_bad_request, PasswordPolicyViolation,
 };
 use sequent_core::services::keycloak::{GroupInfo, KeycloakAdminClient};
 use sequent_core::types::keycloak::{
@@ -549,6 +549,17 @@ impl EditUserError {
             ErrorCode::PasswordPolicyViolation,
         )
     }
+
+    fn password_policy_violation_with_details(
+        violation: &PasswordPolicyViolation,
+    ) -> Self {
+        Self(ErrorResponse::password_policy_violation(
+            Status::BadRequest,
+            &violation.to_string(),
+            violation.rule.as_str(),
+            violation.required_count,
+        ))
+    }
 }
 
 impl From<(Status, String)> for EditUserError {
@@ -695,7 +706,11 @@ pub async fn edit_user(
                 })?;
         password_policy
             .validate_password(password)
-            .map_err(|_| EditUserError::password_policy_violation())?;
+            .map_err(|violation| {
+                EditUserError::password_policy_violation_with_details(
+                    &violation,
+                )
+            })?;
     }
 
     let mut hasura_db_client: DbClient =
@@ -1253,13 +1268,32 @@ pub async fn get_user_profile_attributes(
 mod tests {
     use super::EditUserError;
     use rocket::http::Status;
+    use sequent_core::services::keycloak::{
+        PasswordPolicyRule, PasswordPolicyViolation,
+    };
 
     #[test]
     fn password_policy_violation_is_a_structured_bad_request() {
-        let response = EditUserError::password_policy_violation();
+        let response = EditUserError::password_policy_violation_with_details(
+            &PasswordPolicyViolation {
+                rule: PasswordPolicyRule::Digits,
+                required_count: 3,
+            },
+        );
 
         assert_eq!(response.0 .0, Status::BadRequest);
         assert_eq!(response.0 .1 .0.extensions.code, "PasswordPolicyViolation");
-        assert!(!response.0 .1 .0.message.is_empty());
+        assert_eq!(
+            response.0 .1 .0.extensions.password_policy_rule.as_deref(),
+            Some("digits")
+        );
+        assert_eq!(
+            response.0 .1 .0.extensions.password_policy_required_count,
+            Some(3)
+        );
+        assert_eq!(
+            response.0 .1 .0.message,
+            "Password does not contain enough digits"
+        );
     }
 }

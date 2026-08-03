@@ -11,6 +11,7 @@ use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak::{
     get_event_realm, get_realm_password_policy, KeycloakAdminClient,
+    PasswordPolicyGenerationError,
 };
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
@@ -24,8 +25,12 @@ use windmill::services::electoral_log::ElectoralLogAdminContext;
 use windmill::services::tasks_execution::{post, update_fail};
 use windmill::types::tasks::ETasksExecution;
 
-const POLICY_ERROR: &str =
+const POLICY_NOT_CONFIGURED_ERROR: &str =
     "Password Policy is not configured. Set it under Election Event Data before generating a letter.";
+const POLICY_MINIMUM_LENGTH_MISSING_ERROR: &str =
+    "Password Policy must include a minimum length before generating a letter.";
+const POLICY_CHARACTER_CLASS_MISSING_ERROR: &str =
+    "Password Policy must include at least one character class before generating a letter.";
 
 #[derive(Debug, Deserialize)]
 pub struct GenerateVoterInformationLetterInput {
@@ -33,7 +38,7 @@ pub struct GenerateVoterInformationLetterInput {
     voter_id: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Serialize)]
 pub struct GenerateVoterInformationLetterOutput {
     document_id: String,
     pdf_password: String,
@@ -46,6 +51,34 @@ fn internal_error(message: &str) -> JsonError {
         message,
         ErrorCode::InternalServerError,
     )
+}
+
+fn password_policy_generation_error(
+    error: PasswordPolicyGenerationError,
+) -> JsonError {
+    let (message, code) = match error {
+        PasswordPolicyGenerationError::NotConfigured => (
+            POLICY_NOT_CONFIGURED_ERROR,
+            ErrorCode::PasswordPolicyNotConfigured,
+        ),
+        PasswordPolicyGenerationError::MinimumLengthMissing => (
+            POLICY_MINIMUM_LENGTH_MISSING_ERROR,
+            ErrorCode::PasswordPolicyMinimumLengthMissing,
+        ),
+        PasswordPolicyGenerationError::CharacterClassMissing => (
+            POLICY_CHARACTER_CLASS_MISSING_ERROR,
+            ErrorCode::PasswordPolicyCharacterClassMissing,
+        ),
+        _ => {
+            return ErrorResponse::new(
+                Status::BadRequest,
+                &error.to_string(),
+                ErrorCode::InvalidPasswordPolicy,
+            )
+        }
+    };
+
+    ErrorResponse::new(Status::BadRequest, message, code)
 }
 
 async fn store_document_password(
@@ -117,13 +150,9 @@ pub async fn generate_voter_information_letter(
         error!("Failed to read the election event password policy: {error:#}");
         internal_error("Failed to read the election event password policy")
     })?;
-    policy.validate_for_generation().map_err(|_| {
-        ErrorResponse::new(
-            Status::BadRequest,
-            POLICY_ERROR,
-            ErrorCode::PasswordPolicyNotConfigured,
-        )
-    })?;
+    policy
+        .validate_for_generation()
+        .map_err(password_policy_generation_error)?;
 
     KeycloakAdminClient::new()
         .await
@@ -229,4 +258,55 @@ pub async fn generate_voter_information_letter(
         pdf_password,
         task_execution,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::password_policy_generation_error;
+    use rocket::http::Status;
+    use sequent_core::services::keycloak::PasswordPolicyGenerationError;
+
+    #[test]
+    fn maps_missing_policy_to_its_action_error_code() {
+        let response = password_policy_generation_error(
+            PasswordPolicyGenerationError::NotConfigured,
+        );
+
+        assert_eq!(Status::BadRequest, response.0);
+        assert_eq!(
+            "PasswordPolicyNotConfigured",
+            response.1 .0.extensions.code
+        );
+    }
+
+    #[test]
+    fn maps_generation_preconditions_to_distinct_action_error_codes() {
+        let missing_length = password_policy_generation_error(
+            PasswordPolicyGenerationError::MinimumLengthMissing,
+        );
+        let missing_class = password_policy_generation_error(
+            PasswordPolicyGenerationError::CharacterClassMissing,
+        );
+
+        assert_eq!(
+            "PasswordPolicyMinimumLengthMissing",
+            missing_length.1 .0.extensions.code
+        );
+        assert_eq!(
+            "PasswordPolicyCharacterClassMissing",
+            missing_class.1 .0.extensions.code
+        );
+        assert_ne!(missing_length.1 .0.message, missing_class.1 .0.message);
+    }
+
+    #[test]
+    fn maps_other_invalid_generation_configuration_without_calling_it_missing()
+    {
+        let response = password_policy_generation_error(
+            PasswordPolicyGenerationError::MinimumExceedsMaximum,
+        );
+
+        assert_eq!("InvalidPasswordPolicy", response.1 .0.extensions.code);
+        assert!(response.1 .0.message.contains("cannot exceed maximum"));
+    }
 }

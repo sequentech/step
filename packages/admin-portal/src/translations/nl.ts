@@ -536,6 +536,8 @@ const dutchTranslation: TranslationType = {
                             "De waarden voor de wachtwoordlengte moeten gehele getallen tussen 1 en 256 zijn.",
                         minimumExceedsMaximum:
                             "De minimale lengte mag niet groter zijn dan de maximale lengte.",
+                        characterClassRequired:
+                            "Selecteer ten minste één tekenklasse voor het wachtwoord.",
                     },
                 },
                 name: "Naam",
@@ -1022,6 +1024,14 @@ const dutchTranslation: TranslationType = {
             editPassword: {
                 passwordPolicyViolation:
                     "Het wachtwoord voldoet niet aan het Wachtwoordbeleid voor deze verkiezingsgebeurtenis. Controleer het beleid onder Gegevens verkiezingsgebeurtenis en voer een geldig wachtwoord in.",
+                passwordPolicyRules: {
+                    minimumLength: "De minimale wachtwoordlengte is {{count}}.",
+                    maximumLength: "De maximale wachtwoordlengte is {{count}}.",
+                    uppercase: "Vereiste hoofdletters: {{count}}.",
+                    lowercase: "Vereiste kleine letters: {{count}}.",
+                    digits: "Vereiste cijfers: {{count}}.",
+                    specialCharacters: "Vereiste speciale tekens: {{count}}.",
+                },
                 label: "Wachtwoord wijzigen",
                 temporatyLabel: "Tijdelijk",
                 temporatyInfo:
@@ -1097,6 +1107,10 @@ const dutchTranslation: TranslationType = {
                     generationError: "De Kiezersinformatiebrief kon niet worden gegenereerd",
                     policyNotConfigured:
                         "Het Wachtwoordbeleid is niet geconfigureerd. Stel het in onder Gegevens verkiezingsgebeurtenis voordat u een brief genereert.",
+                    policyMinimumLengthMissing:
+                        "Het Wachtwoordbeleid moet een minimale lengte bevatten voordat u een brief genereert.",
+                    policyCharacterClassMissing:
+                        "Het Wachtwoordbeleid moet ten minste één tekenklasse bevatten voordat u een brief genereert.",
                 },
                 title: "Kiezers",
                 subtitle: "Kiezersgegevens bekijken en bewerken",

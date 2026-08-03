@@ -1051,10 +1051,6 @@ export const EditElectionEventDataForm: React.FC = () => {
         checkCustomDateTimeFormatRef.current()
 
         if (canEdit) {
-            const passwordPolicyUpdated = await passwordPolicyRef.current?.save()
-            if (passwordPolicyUpdated === false) {
-                throw new Error("Password policy could not be updated")
-            }
             await handleUpdateCustomUrls(
                 values.presentation as IElectionEventPresentation,
                 recordId
@@ -1073,6 +1069,12 @@ export const EditElectionEventDataForm: React.FC = () => {
         }
 
         await handleConfigureResultsWebsitePolicy(values.resultsWebsitePolicy, recordId)
+        if (canEdit) {
+            const passwordPolicyUpdated = await passwordPolicyRef.current?.save()
+            if (passwordPolicyUpdated === false) {
+                throw new Error("Password policy could not be updated")
+            }
+        }
         setActivateSave(false)
 
         return {

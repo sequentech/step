@@ -535,6 +535,8 @@ const galegoTranslation: TranslationType = {
                             "As lonxitudes do contrasinal deben ser números enteiros entre 1 e 256.",
                         minimumExceedsMaximum:
                             "A lonxitude mínima non pode superar a lonxitude máxima.",
+                        characterClassRequired:
+                            "Seleccione polo menos unha clase de caracteres para o contrasinal.",
                     },
                 },
                 name: "Nome",
@@ -1022,6 +1024,14 @@ const galegoTranslation: TranslationType = {
             editPassword: {
                 passwordPolicyViolation:
                     "O contrasinal non cumpre a Política de contrasinais deste evento electoral. Revise a política en Datos do evento electoral e introduza un contrasinal válido.",
+                passwordPolicyRules: {
+                    minimumLength: "A lonxitude mínima do contrasinal é {{count}}.",
+                    maximumLength: "A lonxitude máxima do contrasinal é {{count}}.",
+                    uppercase: "Caracteres en maiúscula requiridos: {{count}}.",
+                    lowercase: "Caracteres en minúscula requiridos: {{count}}.",
+                    digits: "Díxitos requiridos: {{count}}.",
+                    specialCharacters: "Caracteres especiais requiridos: {{count}}.",
+                },
                 label: "Cambiar contrasinal",
                 temporatyLabel: "Temporal",
                 temporatyInfo:
@@ -1097,6 +1107,10 @@ const galegoTranslation: TranslationType = {
                     generationError: "Non se puido xerar a Carta de información",
                     policyNotConfigured:
                         "A Política de contrasinais non está configurada. Configúrea en Datos do evento electoral antes de xerar unha carta.",
+                    policyMinimumLengthMissing:
+                        "A Política de contrasinais debe incluír unha lonxitude mínima antes de xerar unha carta.",
+                    policyCharacterClassMissing:
+                        "A Política de contrasinais debe incluír polo menos unha clase de caracteres antes de xerar unha carta.",
                 },
                 title: "Votantes",
                 subtitle: "Ver e editar datos de votantes",
