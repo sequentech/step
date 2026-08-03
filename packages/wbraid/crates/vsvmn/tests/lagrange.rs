@@ -6,7 +6,7 @@
 //!
 //! There is no golden vector for these — the reference corpus has `k = λ = 1`,
 //! where `α = 1` and every coefficient is `1`, so it cannot exercise any of it
-//! (see `testdata/verificatum/README.md`). These tests therefore check the
+//! (see `tests/common/mod.rs`). These tests therefore check the
 //! defining properties directly, and `vmnv` adjudicates the real thing once a
 //! multi-party proof is emitted.
 

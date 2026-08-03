@@ -18,7 +18,7 @@
 //! real VMN-generated corpus at each step.
 //!
 //! Everything here is validated against a real VMN-generated corpus, checked in
-//! at `testdata/verificatum/`.
+//! generated on demand by running Verificatum (see `tests/common/mod.rs`).
 //!
 //! The crate stops at the wire format and the transcript; it knows nothing about
 //! vsc's types. The adapter between the two is the rest of this crate, which keeps

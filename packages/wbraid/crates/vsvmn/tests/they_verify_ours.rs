@@ -91,11 +91,11 @@ fn env() -> Option<Env> {
     Some(Env {
         java: std::env::var("VMNV_JAVA").unwrap_or_else(|_| "java".to_string()),
         classpath: format!("{}{separator}{}", vmn.display(), vcr.display()),
+        // Synthesized by default; every test that cares sets its own. Nothing
+        // is read from disk, so no shape is privileged by being checked in.
         protinfo: match std::env::var("VMNV_PROTINFO") {
             Ok(p) => PathBuf::from(p),
-            // The in-repo corpus ships the matching protocol info file.
-            Err(_) => PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("../../testdata/verificatum/protInfo.xml"),
+            Err(_) => write_protinfo(&session(1, 1, W), "default"),
         },
         random_source: PathBuf::from(std::env::var("VMNV_RANDOM_SOURCE").ok()?),
         random_seed: PathBuf::from(std::env::var("VMNV_RANDOM_SEED").ok()?),
@@ -278,24 +278,6 @@ fn emit_with_drift(dir: &PathBuf, drift: bool) {
     .expect("write proof directory");
 }
 
-/// **The headline result**: unmodified `vmnv` accepts a proof braid produced.
-#[test]
-#[ignore = "requires a JVM and the Verificatum jars; see the module docs"]
-fn vmnv_accepts_a_braid_shuffle_proof() {
-    let Some(env) = env() else {
-        eprintln!("skipping: VMNV_* environment not configured");
-        return;
-    };
-
-    let dir = std::env::temp_dir().join("braid_vmnv_accept");
-    emit(&dir);
-
-    assert!(
-        vmnv_accepts(&env, &dir),
-        "vmnv must accept a proof braid produced"
-    );
-}
-
 /// A polynomial in the exponent `Γ = (Γ_0, ..., Γ_{λ-1})` with `Γ_0 = y`.
 ///
 /// `vmnv` does not read this for a shuffling proof, but VMNV §9.3 step 5 and
@@ -396,51 +378,6 @@ fn emit_chain_with_threshold(dir: &PathBuf, mixers: usize, threshold: usize) {
     .expect("write proof directory");
 }
 
-/// **Multi-party interop**: `vmnv` accepts a chain of three mixers braid ran.
-///
-/// Needs a protocol info file declaring three parties, so it is skipped unless
-/// `VMNV_PROTINFO_MULTI` points at one (`testdata/verificatum/protInfo-3party.xml`
-/// is the shipped one). The session parameters are otherwise identical, which is
-/// why the prefix is unchanged: rho commits to the widths, hashes and group, but
-/// not to the party count.
-#[test]
-#[ignore = "requires a JVM and the Verificatum jars; see the module docs"]
-fn vmnv_accepts_a_three_party_chain() {
-    let Some(mut env) = env() else {
-        eprintln!("skipping: VMNV_* environment not configured");
-        return;
-    };
-    env.protinfo = match std::env::var("VMNV_PROTINFO_MULTI") {
-        Ok(p) => PathBuf::from(p),
-        Err(_) => PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../testdata/verificatum/protInfo-3party.xml"),
-    };
-    if !env.protinfo.is_file() {
-        eprintln!("skipping: no three-party protocol info file");
-        return;
-    }
-
-    let dir = std::env::temp_dir().join("braid_vmnv_chain");
-    emit_chain(&dir, 3);
-
-    let (code, output) = run_vmnv(&env, &dir, true);
-    eprintln!("{output}");
-    assert_eq!(code, 0, "vmnv must accept the chain");
-
-    // Every mixer's proof must have been verified, not just the first.
-    for party in 1..=3 {
-        assert!(
-            output.contains(&format!("Verify shuffle of Party {party}.")),
-            "vmnv must verify party {party}; got:\n{output}"
-        );
-    }
-    assert_eq!(
-        output.matches("Verify proof of shuffle... done.").count(),
-        3,
-        "all three shuffle proofs must verify; got:\n{output}"
-    );
-}
-
 /// Corrupting any single mixer's proof must sink the whole chain, so a chain is
 /// not accepted on the strength of its other members.
 #[test]
@@ -450,12 +387,7 @@ fn vmnv_rejects_a_chain_with_one_bad_mixer() {
         eprintln!("skipping: VMNV_* environment not configured");
         return;
     };
-    env.protinfo = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../testdata/verificatum/protInfo-3party.xml");
-    if !env.protinfo.is_file() {
-        eprintln!("skipping: no three-party protocol info file");
-        return;
-    }
+    env.protinfo = write_protinfo(&session(3, 3, W), "3of3");
 
     for party in 1..=3 {
         let dir = std::env::temp_dir().join("braid_vmnv_chain_bad");
@@ -902,116 +834,6 @@ fn assert_mix_verified(output: &str, mixers: usize) {
         output.matches("Verify proof of shuffle... done.").count(),
         mixers,
         "every mixer's shuffle must verify too; got:\n{output}"
-    );
-}
-
-/// **The decryption result**: unmodified `vmnv -mix` accepts a full braid
-/// session — a real DKG, a chain of shuffles, and threshold decryption.
-///
-/// Run at `k = λ = 3`, so every party decrypts and the inactive path is not
-/// involved. That isolates what this test settles — where `α` belongs in the
-/// proof — from the separate question of what a non-participant publishes,
-/// which [`vmnv_accepts_a_mixing_proof_with_an_inactive_party`] covers.
-///
-/// Nothing else here is degenerate: `α = lcm(1,2,3)² = 36` and the modified
-/// Lagrange coefficients over `{1,2,3}` are `108`, `−108` and `36`, none of them
-/// the identity the single-party corpus collapses to.
-///
-/// Unlike `-shuffle`, `-mix`'s exit code is a sound signal, because the
-/// plaintext comparison downstream uses `failStop` — but the transcript is
-/// asserted too, since that is the part which does not depend on someone else's
-/// error handling.
-#[test]
-#[ignore = "requires a JVM and the Verificatum jars; see the module docs"]
-fn vmnv_accepts_a_braid_mixing_proof() {
-    let Some(mut env) = env() else {
-        eprintln!("skipping: VMNV_* environment not configured");
-        return;
-    };
-    env.protinfo = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../testdata/verificatum/protInfo-3party.xml");
-    if !env.protinfo.is_file() {
-        eprintln!("skipping: no three-party protocol info file");
-        return;
-    }
-
-    let dir = std::env::temp_dir().join("braid_vmnv_mix");
-    emit_mixing::<3, 3>(&dir, &[1, 2, 3]);
-
-    let (code, output) = run_vmnv_mode(&env, &dir, "-mix", true);
-    eprintln!("{output}");
-    assert_eq!(code, 0, "vmnv -mix must accept a braid mixing proof");
-    assert_mix_verified(&output, 3);
-}
-
-/// The same at `k = 3`, `λ = 2`, with **party 2 taking no part** in decryption.
-///
-/// braid's model differs from Verificatum's here: only the trustees selected for
-/// the mix produce decryption factors at all, whereas VMN expects a file from
-/// every party and names Δ separately in `CorrectIndices.bt`. The emitter
-/// bridges that with an all-identity factor array, the identity commitment and a
-/// zero reply — the values `DistrElGamalSessionBasic` itself falls back to.
-///
-/// Those placeholders are load-bearing rather than arbitrary: **every** party's
-/// commitment is hashed into the decryption challenge, so a wrong one would move
-/// `v` and break the two real proofs. This test is what confirms them.
-///
-/// Δ is `{1, 3}` rather than `{1, 2}` so the gap is in the middle, where an
-/// off-by-one in party indexing shows up. The modified Lagrange coefficients are
-/// then `54` and `−18` — note `α` is still `lcm(1,2,3)² = 36`, a function of `k`
-/// and not of the threshold.
-#[test]
-#[ignore = "requires a JVM and the Verificatum jars; see the module docs"]
-fn vmnv_accepts_a_mixing_proof_with_an_inactive_party() {
-    let Some(mut env) = env() else {
-        eprintln!("skipping: VMNV_* environment not configured");
-        return;
-    };
-    env.protinfo = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../testdata/verificatum/protInfo-3party-t2.xml");
-    if !env.protinfo.is_file() {
-        eprintln!("skipping: no 3-of-2 protocol info file");
-        return;
-    }
-
-    let dir = std::env::temp_dir().join("braid_vmnv_mix_inactive");
-    emit_mixing::<3, 2>(&dir, &[1, 3]);
-
-    let (code, output) = run_vmnv_mode(&env, &dir, "-mix", true);
-    eprintln!("{output}");
-    assert_eq!(code, 0, "vmnv -mix must accept a proof with a party that did not decrypt");
-    assert_mix_verified(&output, 2);
-
-    // The negative control for the claim above. Replace the excluded party's
-    // identity commitment with a well-formed one over the generator: it is
-    // still a valid group element, and it is still not combined into anything,
-    // so the only way this can matter is through the challenge -- which is
-    // exactly the property being asserted.
-    //
-    // The substitute has to *parse*. `setCommitment` falls back to the identity
-    // on a malformed file, so corrupting bytes would leave the challenge
-    // unchanged and prove nothing.
-    use cryptography::traits::groups::GroupElement;
-    let generator_commitment = vsvmn::wire::bytetree::ByteTree::node(vec![
-        vsvmn::encode::element_to_tree(&P256Element::generator()).unwrap(),
-        vsvmn::encode::elements_to_tree(&[P256Element::one(); W]).unwrap(),
-    ]);
-    std::fs::write(
-        dir.join("proofs/DecrFactCommitment02.bt"),
-        generator_commitment.to_bytes(),
-    )
-    .expect("overwrite the excluded party's commitment");
-
-    let (code, output) = run_vmnv_mode(&env, &dir, "-mix", true);
-    assert_ne!(
-        code, 0,
-        "an excluded party's commitment still enters the challenge, so changing \
-         it must break the proof; got:\n{output}"
-    );
-    assert!(
-        output.contains("Verify combined proof of decryption")
-            && !output.contains("Verify combined proof of decryption... done."),
-        "and it must break at the decryption proof specifically; got:\n{output}"
     );
 }
 

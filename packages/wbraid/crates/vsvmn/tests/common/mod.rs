@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 // SPDX-FileCopyrightText: 2026 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -98,6 +99,13 @@ pub struct Corpus {
 /// Output is written under the system temporary directory on the *Windows* side
 /// when going through WSL, so the caller can read it with ordinary file I/O.
 pub fn generate(shape: &Shape) -> Option<Corpus> {
+    // VMN's demo binds fixed ports (HINTOFFSET 4040, HTTPOFFSET 8040) and uses a
+    // fixed working directory, so two runs at once fight over both. Cargo runs
+    // the tests in a binary in parallel, which showed up as tests that pass
+    // serially and fail together. Generation is exclusive by nature.
+    static ONE_AT_A_TIME: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    let _guard = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
+
     let source = vmn_source()?;
     let shell = Shell::detect()?;
 
@@ -275,4 +283,179 @@ cp "$WORK/demo/mydemodir/Party01/protInfo.xml" "$OUT/protInfo.xml"
 rm -rf "$WORK"
 "#
     )
+}
+
+// -------------------------------------------------------------------------
+// Test vectors, and sharing a corpus across a test binary
+// -------------------------------------------------------------------------
+
+use std::collections::HashMap;
+use std::sync::OnceLock;
+
+/// `vmnv -t` output: the intermediate values Verificatum computed for a session,
+/// keyed by name (`der.rho`, `PoS.s`, `Dec.v`, …).
+///
+/// These are what the transcript layer is checked against. Taking them from the
+/// *generated* session rather than from a file captured once means they track
+/// whatever VMN is installed: a pinned value from 3.1.0 would keep passing
+/// against a 3.2 that had changed something, which is a check that cannot fail.
+pub type TestVectors = HashMap<String, String>;
+
+/// Parse `vmnv -t`'s three-line records:
+///
+/// ```text
+/// TEST VECTOR
+/// der.rho - Derived prefix bytes to all random oracle queries.
+/// f0504114...
+/// ```
+fn parse_test_vectors(text: &str) -> TestVectors {
+    let lines: Vec<&str> = text.lines().map(str::trim).collect();
+    let mut out = HashMap::new();
+    for (index, line) in lines.iter().enumerate() {
+        if *line != "TEST VECTOR" {
+            continue;
+        }
+        let (Some(header), Some(value)) = (lines.get(index + 1), lines.get(index + 2)) else {
+            continue;
+        };
+        if let Some((name, _)) = header.split_once(" - ") {
+            // A name can recur once per party; the first occurrence is party 1's.
+            out.entry(name.trim().to_string())
+                .or_insert_with(|| (*value).to_string());
+        }
+    }
+    out
+}
+
+impl Corpus {
+    /// Run `vmnv -t` over this corpus and return what Verificatum computed.
+    ///
+    /// Returns `None` if the verifier cannot be run, which is separate from it
+    /// rejecting the proof — the caller skips rather than treating absence as
+    /// agreement.
+    pub fn test_vectors(&self) -> Option<TestVectors> {
+        let text = self.raw_test_vectors()?;
+        let vectors = parse_test_vectors(&text);
+        vectors.contains_key("der.rho").then_some(vectors)
+    }
+
+    /// The whole `vmnv -t` output.
+    ///
+    /// Some vectors -- `bas.pk`, `bas.h` -- are multi-line point lists rather
+    /// than a single value, so a caller that needs those parses the text itself.
+    pub fn raw_test_vectors(&self) -> Option<String> {
+        let jars = vmn_source()?;
+        let java = std::env::var("VMNV_JAVA").unwrap_or_else(|_| "java".to_string());
+        let separator = if cfg!(windows) { ";" } else { ":" };
+        let classpath = format!(
+            "{}{separator}{}",
+            jars.join("verificatum-vmn/verificatum-vmn-3.1.0.jar").display(),
+            jars.join("verificatum-vcr/verificatum-vcr-3.1.0.jar").display()
+        );
+
+        let (source, seed) = random_source()?;
+        let output = Command::new(java)
+            .arg("-cp")
+            .arg(classpath)
+            .arg("com.verificatum.protocol.mixnet.MixNetElGamalVerifyFiatShamirTool")
+            .args(["vmnv"])
+            .arg(&source)
+            .arg(&seed)
+            .args(["-mix", "-t", "par,der,bas,PoS,Dec,u", "-wd"])
+            // Unique per call: concurrent vmnv runs sharing a working directory
+            // delete each other's scratch space (see they_verify_ours.rs).
+            .arg(format!(
+                "vsvmn_tv_{}_{}",
+                std::process::id(),
+                NEXT_WD.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+            ))
+            .args(["-auxsid", "default"])
+            .arg(&self.protinfo)
+            .arg(&self.nizkp)
+            .output()
+            .ok()?;
+
+        let text = String::from_utf8_lossy(&output.stdout).into_owned();
+        text.contains("TEST VECTOR").then_some(text)
+    }
+}
+
+/// The random source `vmnv` insists on, copied per call because it is rewritten
+/// on every run (see `they_verify_ours.rs`).
+fn random_source() -> Option<(PathBuf, PathBuf)> {
+    let source = PathBuf::from(std::env::var("VMNV_RANDOM_SOURCE").ok()?);
+    let seed = PathBuf::from(std::env::var("VMNV_RANDOM_SEED").ok()?);
+    let private = std::env::temp_dir().join(format!(
+        "vsvmn_tv_seed_{}_{:?}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .ok()?
+            .as_nanos()
+    ));
+    std::fs::copy(&seed, &private).ok()?;
+    Some((source, private))
+}
+
+/// A corpus generated **once per test binary** and shared by every test in it.
+///
+/// Generation costs about half a minute, so a file with several format tests
+/// would otherwise spend minutes regenerating the same thing. Three parties with
+/// a threshold of two, which is the smallest shape where α, the Lagrange
+/// coefficients and the decryption combination are all non-trivial.
+pub fn shared() -> Option<&'static Corpus> {
+    static CORPUS: OnceLock<Option<Corpus>> = OnceLock::new();
+    CORPUS
+        .get_or_init(|| generate(&Shape::new(3, 2, 2, 10)))
+        .as_ref()
+}
+
+/// Whether a missing toolchain should fail rather than skip.
+///
+/// With every test dynamic, a machine without VMN runs the whole suite green
+/// having verified nothing — false comfort of the kind this crate exists to
+/// avoid. Setting `VSVMN_REQUIRE_VMN=1` in CI turns that into a failure.
+pub fn required() -> bool {
+    matches!(std::env::var("VSVMN_REQUIRE_VMN").as_deref(), Ok("1"))
+}
+
+/// Skip, or fail if the toolchain was declared to be present.
+///
+/// ```ignore
+/// let Some(corpus) = common::shared() else { return common::skip("no VMN"); };
+/// ```
+pub fn skip(why: &str) {
+    assert!(
+        !required(),
+        "VSVMN_REQUIRE_VMN=1 but the toolchain is unavailable: {why}"
+    );
+    eprintln!("skipping: {why}");
+}
+
+/// Serial number for `vmnv` working directories.
+///
+/// Concurrent runs sharing one delete each other's scratch space, which surfaces
+/// as tests that pass alone and fail together — see `they_verify_ours.rs`.
+static NEXT_WD: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+/// The test vectors for [`shared`], computed once per test binary.
+///
+/// `vmnv -t` costs about as much as verification and several tests want the same
+/// values, so running it per test would multiply the cost for nothing.
+pub fn shared_vectors() -> Option<&'static TestVectors> {
+    static VECTORS: OnceLock<Option<TestVectors>> = OnceLock::new();
+    VECTORS
+        // Parsed from the single raw invocation rather than running `vmnv -t`
+        // again: two concurrent runs collide over their working directories and
+        // one comes back empty or truncated, which surfaces as tests that pass
+        // alone and fail together, or worse, compare against partial output.
+        .get_or_init(|| shared_raw_vectors().map(|text| parse_test_vectors(text)))
+        .as_ref()
+}
+
+/// The raw `vmnv -t` output for [`shared`], likewise computed once.
+pub fn shared_raw_vectors() -> Option<&'static String> {
+    static RAW: OnceLock<Option<String>> = OnceLock::new();
+    RAW.get_or_init(|| shared().and_then(Corpus::raw_test_vectors))
+        .as_ref()
 }

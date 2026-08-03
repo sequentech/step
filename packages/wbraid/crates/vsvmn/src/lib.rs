@@ -49,4 +49,5 @@ pub mod decrypt;
 pub mod encode;
 pub mod generators;
 pub mod proof_dir;
+pub mod session;
 pub mod verify;

@@ -1,8 +1,0 @@
-# The proof directory is byte-exact reference data: the tests re-encode these
-# files and compare byte for byte. Any line-ending normalisation would corrupt
-# them silently, so the whole directory is forced to binary.
-nizkp/** binary
-
-# ASCII parameter files inside the proof directory have no trailing newline and
-# must keep it that way -- covered by the rule above, noted here so it is not
-# "tidied" later.

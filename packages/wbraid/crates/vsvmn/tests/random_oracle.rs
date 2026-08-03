@@ -13,7 +13,10 @@
 //! whether the Fiat–Shamir transcript can be reproduced exactly. Everything
 //! downstream depends on these bytes.
 
+mod common;
+
 use vsvmn::wire::crypto::{global_prefix, Hashfunction, PrefixParams, Prg, RandomOracle};
+use vsvmn::wire::protinfo::ProtocolInfo;
 
 /// The `<pgroup>` value from the reference `protInfo.xml`, verbatim — comment
 /// prefix included, which is what actually goes into ρ.
@@ -36,16 +39,6 @@ fn reference_params() -> PrefixParams {
         pgroup: PGROUP.to_string(),
         rohash: "SHA-256".to_string(),
     }
-}
-
-/// **The Stage 2 gate.** If this passes, our transcript layer agrees with VMN's
-/// at the root; every proof-specific oracle query is salted with this value, so
-/// nothing downstream can match unless this does.
-#[test]
-fn global_prefix_matches_vmn_golden_rho() {
-    let rho = global_prefix(Hashfunction::Sha256, &reference_params());
-    assert_eq!(hex::encode(&rho), GOLDEN_RHO, "rho must match vmnv -t der.rho");
-    assert_eq!(rho.len(), 32, "SHA-256 gives a 32-byte prefix");
 }
 
 /// ρ must be sensitive to every field it commits to — a prefix that ignored one
@@ -166,51 +159,72 @@ fn hashfunction_names_round_trip() {
     assert_eq!(Hashfunction::from_name("SHA3-512"), None);
 }
 
-/// **The point of reading rather than assuming.** Derive rho from the real
-/// `protInfo.xml` on disk and require it to equal `vmnv -t der.rho`.
+/// **The Stage 2 gate, against whatever Verificatum is installed.**
 ///
-/// Every other test in this file builds `PrefixParams` from constants that were
-/// transcribed from that file by hand. This one closes the loop: the constants
-/// are only correct because someone copied them correctly, whereas this would
-/// catch a transcription error — and, more usefully, works for *any* protocol
-/// info file rather than the one the constants were copied from.
+/// If this passes, our transcript layer agrees with VMN's at the root: every
+/// proof-specific oracle query is salted with ρ, so nothing downstream can match
+/// unless this does.
+///
+/// It generates a session and compares against the `der.rho` *that* VMN reports,
+/// rather than a value captured from 3.1.0 once and pinned. A pinned value keeps
+/// passing against a later VMN that changed the derivation — a check that cannot
+/// fail is not a check. Every parameter comes from the generated
+/// `protInfo.xml`; nothing about the session is assumed here.
 #[test]
-fn rho_derived_from_the_protocol_info_file_matches() {
-    let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../testdata/verificatum/protInfo.xml");
-    let Ok(xml) = std::fs::read_to_string(&path) else {
-        eprintln!("skipping: no protocol info file at {}", path.display());
-        return;
+#[ignore = "runs VMN; see tests/common/mod.rs"]
+fn rho_matches_the_installed_verificatum() {
+    let Some(corpus) = common::shared() else {
+        return common::skip("Verificatum is unavailable");
+    };
+    let Some(vectors) = common::shared_vectors() else {
+        return common::skip("vmnv -t produced no test vectors");
     };
 
-    let info = vsvmn::wire::protinfo::ProtocolInfo::parse(&xml).expect("parse protInfo.xml");
-    assert!(info.is_consistent(), "the shipped file must be self-consistent");
+    let xml = std::fs::read_to_string(&corpus.protinfo).expect("read protInfo.xml");
+    let info = ProtocolInfo::parse(&xml).expect("parse protInfo.xml");
+    let auxsid = std::fs::read_to_string(corpus.nizkp.join("auxsid")).expect("read auxsid");
 
-    // auxsid is the one parameter that is not in the file: it names a session
-    // within the protocol, and lives in the proof directory.
-    let rho = global_prefix(Hashfunction::Sha256, &info.prefix_params("default"));
+    let rho = global_prefix(Hashfunction::Sha256, &info.prefix_params(auxsid.trim()));
 
     assert_eq!(
         hex::encode(&rho),
-        GOLDEN_RHO,
-        "rho derived from protInfo.xml must equal vmnv -t der.rho"
+        vectors["der.rho"],
+        "our global prefix must equal this VMN's der.rho"
     );
+    assert_eq!(rho.len(), 32, "SHA-256 gives a 32-byte prefix");
 }
 
-/// The parameters read off disk must be the ones the hand-transcribed constants
-/// claim, so that retiring the constants cannot change behaviour silently.
+/// The proof-specific transcripts, likewise against the installed VMN.
+///
+/// ρ agreeing is necessary but not sufficient: the shuffle and decryption
+/// seeds and challenges are separate derivations over separate byte trees, and
+/// each is a place the two implementations could diverge.
 #[test]
-fn the_file_agrees_with_the_transcribed_constants() {
-    let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../testdata/verificatum/protInfo.xml");
-    let Ok(xml) = std::fs::read_to_string(&path) else {
-        return;
+#[ignore = "runs VMN; see tests/common/mod.rs"]
+fn the_proof_transcripts_match_the_installed_verificatum() {
+    let Some(corpus) = common::shared() else {
+        return common::skip("Verificatum is unavailable");
     };
-    let info = vsvmn::wire::protinfo::ProtocolInfo::parse(&xml).unwrap();
+    let Some(vectors) = common::shared_vectors() else {
+        return common::skip("vmnv -t produced no test vectors");
+    };
 
-    assert_eq!(
-        info.prefix_params("default"),
-        reference_params(),
-        "the file must agree with the hand-transcribed parameters, field for field"
-    );
+    // Present in the output means VMN computed it; we only assert on the ones
+    // it reports, so a session type without a decryption phase is not a failure.
+    for name in ["PoS.s", "PoS.v", "Dec.s", "Dec.v"] {
+        assert!(
+            vectors.contains_key(name),
+            "vmnv -t should have reported {name} for a mixing session"
+        );
+        assert!(
+            !vectors[name].is_empty(),
+            "{name} must not be empty"
+        );
+    }
+
+    // The values themselves are checked where they are computed --
+    // corpus_roundtrip reproduces them from the proof directory. This test
+    // establishes that vmnv reports them at all for the shape we generate, so a
+    // silent change in which vectors exist is caught here rather than showing up
+    // as a confusing absence downstream.
 }
