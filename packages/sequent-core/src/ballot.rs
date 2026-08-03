@@ -36,7 +36,7 @@ use strand::zkp::Schnorr;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
 use strum_macros::{AsRefStr, Display, EnumIter, EnumString, IntoStaticStr};
 
-pub const TYPES_VERSION: u32 = 1;
+pub const TYPES_VERSION: u32 = 2;
 
 pub type I18nContent<T = Option<String>> = HashMap<String, T>;
 

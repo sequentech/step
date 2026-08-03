@@ -149,22 +149,20 @@ impl Pipe for DecodeMCBallots {
                     .and_then(|presentation| presentation.decline_to_vote_policy.clone())
                     == Some(sequent_core::ballot::DeclineToVotePolicy::ENABLED);
 
-                // Resolved election-wide, so any ballot style for this
-                // election carries the same value; match by area_id anyway
-                // in case that ever stops being true.
+                // Resolved election-wide at publication time, so every ballot style for
+                // this election carries the same value; look it up by area anyway in case
+                // that ever stops being true.
                 let area_ballot_style = election_input
                     .ballot_styles
                     .iter()
-                    .find(|ballot_style| ballot_style.area_id == area_id.to_string());
-                if area_ballot_style.is_none() {
-                    warn!(
-                        "No ballot style found for area {} in election {}, falling back to the election's first ballot style",
-                        area_id, election_input.id
-                    );
-                }
+                    .find(|ballot_style| ballot_style.area_id == area_id.to_string())
+                    .ok_or(Error::AreaConfigNotFound(area_id))?;
+
+                // `None` means the style predates the encoding-mode field, so it can only
+                // have been produced by the legacy layout. `create_ballot_style` always
+                // writes `Some(..)`, so a new style never lands here.
                 let multi_contest_encoding_mode = area_ballot_style
-                    .or_else(|| election_input.ballot_styles.first())
-                    .and_then(|ballot_style| ballot_style.multi_contest_encoding_mode)
+                    .multi_contest_encoding_mode
                     .unwrap_or_default();
 
                 let res = Self::decode_ballots(
