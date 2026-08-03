@@ -175,6 +175,47 @@ pub async fn update_task_execution_status(
     Ok(())
 }
 
+/// Merges task annotations using an existing Hasura transaction.
+///
+/// This is used by workflows that must commit their durable retry state in
+/// the same transaction as the resource produced by the task.
+pub async fn merge_task_execution_annotations(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    task_execution_id: &str,
+    annotations: &Value,
+) -> Result<()> {
+    let task_execution_uuid =
+        parse_uuid_v4(task_execution_id).context("Failed to parse task_execution_id as UUID")?;
+    let tenant_uuid = parse_uuid_v4(tenant_id).context("Failed to parse tenant_id as UUID")?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            UPDATE sequent_backend.tasks_execution
+            SET annotations = COALESCE(annotations, '{}'::jsonb) || $1::jsonb
+            WHERE id = $2 AND tenant_id = $3;
+            "#,
+        )
+        .await
+        .context("Failed to prepare task annotation update")?;
+
+    let updated_rows = hasura_transaction
+        .execute(
+            &statement,
+            &[&annotations, &task_execution_uuid, &tenant_uuid],
+        )
+        .await
+        .context("Failed to update task annotations")?;
+    if updated_rows != 1 {
+        return Err(anyhow!(
+            "Expected to update one task execution, updated {updated_rows}"
+        ));
+    }
+
+    Ok(())
+}
+
 #[instrument(skip(), err)]
 pub async fn get_task_by_id(task_id: &str) -> Result<TasksExecution> {
     let db_client: DbClient = get_hasura_pool()
@@ -211,6 +252,37 @@ pub async fn get_task_by_id(task_id: &str) -> Result<TasksExecution> {
         .context("Error converting database row to TasksExecution")?;
 
     Ok(task_execution)
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_task_by_id_with_transaction(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    task_id: &str,
+) -> Result<TasksExecution> {
+    let task_uuid =
+        parse_uuid_v4(task_id).map_err(|err| anyhow!("Error parsing task UUID: {err}"))?;
+    let tenant_uuid =
+        parse_uuid_v4(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {err}"))?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT *
+                FROM sequent_backend.tasks_execution
+                WHERE id = $1 AND tenant_id = $2
+            "#,
+        )
+        .await?;
+
+    let row = hasura_transaction
+        .query_one(&statement, &[&task_uuid, &tenant_uuid])
+        .await
+        .map_err(|err| anyhow!("Error fetching task: {err}"))?;
+
+    row.try_into()
+        .map(|wrapper: TasksExecutionWrapper| wrapper.0)
+        .context("Error converting database row to TasksExecution")
 }
 
 #[instrument(skip(), err)]

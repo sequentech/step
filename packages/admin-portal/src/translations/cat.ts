@@ -222,6 +222,7 @@ const catalanTranslation: TranslationType = {
                 logs: "Registres",
             },
             tasksExecution: {
+                VOTER_INFORMATION_LETTER: "Carta d'informació per al votant",
                 EXPORT_ELECTION_EVENT: "Exportar esdeveniment electoral",
                 CREATE_ELECTION_EVENT: "Crear Esdeveniment Electoral",
                 IMPORT_ELECTION_EVENT: "Importar esdeveniment electoral",
@@ -247,6 +248,19 @@ const catalanTranslation: TranslationType = {
                 EXPORT_TALLY_RESULTS_XLSX: "Exporta els resultats del recompte en format XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Exportar autoritats de certificació",
                 PUBLISH_RESULTS_WEBSITE: "Publicar el lloc web de resultats",
+            },
+            documentAccess: {
+                title: "Accés al document",
+                sensitivityNotice:
+                    "Informació sensible. Compartiu aquesta contrasenya només amb el destinatari previst.",
+                passwordLabel: "Contrasenya per obrir el PDF xifrat",
+                showPassword: "Mostra la contrasenya",
+                copyPassword: "Copia la contrasenya",
+                passwordCopied: "Contrasenya copiada",
+                passwordError: "No s'ha pogut recuperar la contrasenya del PDF",
+                copyError: "No s'ha pogut copiar la contrasenya",
+                guidance:
+                    "La contrasenya només es carrega després de triar Mostra la contrasenya. Després de carregar-la, aquí apareix un camp de només lectura amb l'opció de copiar.",
             },
             widget: {
                 taskTitle: "Tasca: {{title}}",
@@ -459,6 +473,11 @@ const catalanTranslation: TranslationType = {
                 realm_attributes_update_error: "Error updating Keycloak realm attributes",
                 realm_attributes_not_loaded:
                     "Keycloak realm attributes have not loaded, changes were not saved",
+                password_policy: "Password Policy",
+                password_policy_load_error: "Error loading Keycloak password policy",
+                password_policy_update_error: "Error updating Keycloak password policy",
+                password_policy_not_loaded:
+                    "Keycloak password policy has not loaded, changes were not saved",
             },
             customUrls: {
                 login: "Inici de sessió",
@@ -483,6 +502,37 @@ const catalanTranslation: TranslationType = {
                 },
             },
             field: {
+                passwordPolicy: {
+                    minimumLength: "Longitud mínima",
+                    maximumLength: "Longitud màxima",
+                    includeUppercase: "Incloure lletres majúscules",
+                    includeLowercase: "Incloure lletres minúscules",
+                    includeDigits: "Incloure dígits",
+                    includeSpecialCharacters: "Incloure caràcters especials",
+                    help: {
+                        minimumLength:
+                            "El nombre mínim de caràcters necessaris per a la contrasenya.",
+                        maximumLength:
+                            "El nombre màxim de caràcters permesos per a la contrasenya.",
+                        includeUppercase:
+                            "La contrasenya ha d'incloure almenys una lletra majúscula.",
+                        includeLowercase:
+                            "La contrasenya ha d'incloure almenys una lletra minúscula.",
+                        includeDigits: "La contrasenya ha d'incloure almenys un dígit.",
+                        includeSpecialCharacters:
+                            "La contrasenya ha d'incloure almenys un caràcter especial.",
+                    },
+                    notConfigured:
+                        "No hi ha cap política de contrasenyes configurada. En desar, s'aplicaran els valors predeterminats següents.",
+                    errors: {
+                        lengthRange:
+                            "Les longituds de la contrasenya han de ser nombres enters entre 1 i 256.",
+                        minimumExceedsMaximum:
+                            "La longitud mínima no pot superar la longitud màxima.",
+                        characterClassRequired:
+                            "Seleccioneu almenys una classe de caràcters per a la contrasenya.",
+                    },
+                },
                 name: "Nom",
                 alias: "Àlies",
                 description: "Descripció",
@@ -968,6 +1018,16 @@ const catalanTranslation: TranslationType = {
                 mobileNumber: "Mòbil",
             },
             editPassword: {
+                passwordPolicyViolation:
+                    "La contrasenya no compleix la Política de contrasenyes d'aquest esdeveniment electoral. Reviseu la política a Dades de l'esdeveniment electoral i introduïu una contrasenya vàlida.",
+                passwordPolicyRules: {
+                    minimumLength: "La longitud mínima de la contrasenya és {{count}}.",
+                    maximumLength: "La longitud màxima de la contrasenya és {{count}}.",
+                    uppercase: "Caràcters en majúscula necessaris: {{count}}.",
+                    lowercase: "Caràcters en minúscula necessaris: {{count}}.",
+                    digits: "Dígits necessaris: {{count}}.",
+                    specialCharacters: "Caràcters especials necessaris: {{count}}.",
+                },
                 label: "Canviar contrasenya",
                 temporatyLabel: "Temporal",
                 temporatyInfo:
@@ -1034,6 +1094,20 @@ const catalanTranslation: TranslationType = {
                 },
             },
             voters: {
+                voterInformationLetter: {
+                    label: "Carta d'informació per al votant",
+                    generate: "Genera",
+                    confirmation:
+                        "Voleu generar una Carta d'informació per a aquest votant? S'assignarà una contrasenya nova i s'inclourà en un PDF xifrat.",
+                    generationStarted: "S'ha iniciat la generació de la Carta d'informació",
+                    generationError: "No s'ha pogut generar la Carta d'informació",
+                    policyNotConfigured:
+                        "La Política de contrasenyes no està configurada. Configureu-la a Dades de l'esdeveniment electoral abans de generar una carta.",
+                    policyMinimumLengthMissing:
+                        "La Política de contrasenyes ha d'incloure una longitud mínima abans de generar una carta.",
+                    policyCharacterClassMissing:
+                        "La Política de contrasenyes ha d'incloure almenys una classe de caràcters abans de generar una carta.",
+                },
                 title: "Votants",
                 subtitle: "Veure i editar dades del votant",
                 review: {
@@ -1109,6 +1183,7 @@ const catalanTranslation: TranslationType = {
                 },
             },
             permissions: {
+                "voter-information-letter": "Genera una Carta d'informació per al votant",
                 "admin-user": "Administració",
                 "admin-dashboard-view": "Vista del Tauler d'Administració",
                 "application-export": "Exportació d'Aplicacions",
@@ -1165,6 +1240,7 @@ const catalanTranslation: TranslationType = {
                 "keys-read": "Llegir Claus",
                 "document-upload": "Pujar Documents",
                 "document-download": "Descarregar Documents",
+                "document-password-read": "Llegir contrasenyes de documents",
                 "tally-sheet-create": "Crear Acta de Recompte",
                 "tally-sheet-import-create": "Crear importació d'actes de recompte",
                 "tally-sheet-import-review": "Revisar importació d'actes de recompte",

@@ -8,6 +8,7 @@ use crate::services::consolidation::create_transmission_package_service::downloa
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::{get_document_as_temp_file, upload_and_return_document};
 use crate::services::tasks_execution::{update_complete, update_fail};
+use crate::services::tasks_semaphore::acquire_semaphore;
 use crate::types::error::{Error as WrapError, Result as WrapResult};
 use anyhow::{anyhow, Context, Result};
 use celery::error::TaskError;
@@ -182,6 +183,7 @@ pub async fn render_document_pdf(
     output_document_id: String,
     tally_session_id: Option<String>,
 ) -> WrapResult<()> {
+    let _permit = acquire_semaphore().await?;
     // Note, put this in a thread?
     render_document_pdf_task_wrap(
         tenant_id,

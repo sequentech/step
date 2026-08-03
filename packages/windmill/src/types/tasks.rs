@@ -36,6 +36,7 @@ pub enum ETasksExecution {
     PUBLISH_RESULTS_WEBSITE,
     GENERATE_RECONCILIATION_PATCHES,
     APPLY_RECONCILIATION_PATCH,
+    VOTER_INFORMATION_LETTER,
 }
 
 impl ETasksExecution {
@@ -71,6 +72,7 @@ impl ETasksExecution {
             ETasksExecution::PUBLISH_RESULTS_WEBSITE => "Publish Results Website",
             ETasksExecution::GENERATE_RECONCILIATION_PATCHES => "Generate Reconciliation Patches",
             ETasksExecution::APPLY_RECONCILIATION_PATCH => "Apply Reconciliation Changes",
+            ETasksExecution::VOTER_INFORMATION_LETTER => "Voter Information Letter",
         }
     }
 }

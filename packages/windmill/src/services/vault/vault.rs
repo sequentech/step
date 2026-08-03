@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::secret::{get_secret_by_key, insert_secret};
+use crate::postgres::secret::{get_secret_by_id, get_secret_by_key, insert_secret, Secret};
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::vault::{
     aws_secret_manager::AwsSecretManager, env_var_master_secret::EnvVarMasterSecret,
@@ -108,6 +108,19 @@ pub async fn save_secret(
     key: &str,
     value: &str,
 ) -> Result<()> {
+    save_secret_and_return(hasura_transaction, tenant_id, election_event_id, key, value)
+        .await
+        .map(|_| ())
+}
+
+#[instrument(skip(hasura_transaction, value), err)]
+pub async fn save_secret_and_return(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: Option<&str>,
+    key: &str,
+    value: &str,
+) -> Result<Secret> {
     if get_secret_by_key(hasura_transaction, tenant_id, election_event_id, key)
         .await?
         .is_some()
@@ -129,9 +142,16 @@ pub async fn save_secret(
         &encrypted_bytes,
     )
     .await
-    .context("Error saving secret")?;
+    .context("Error saving secret")
+}
 
-    Ok(())
+async fn decrypt_stored_secret(secret: &Secret) -> Result<String> {
+    let encrypted_data = EncryptionData::strand_deserialize(&secret.value)
+        .context("Error deserializing encrypted data")?;
+    let master_secret = get_master_secret().await?;
+    let decrypted_bytes =
+        decrypt(&master_secret, &encrypted_data).context("Error decrypting secret")?;
+    String::from_utf8(decrypted_bytes).context("Error converting decrypted bytes to string")
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -147,14 +167,24 @@ pub async fn read_secret(
         return Ok(None);
     };
 
-    let encrypted_data = EncryptionData::strand_deserialize(&secret.value)
-        .context("Error deserializing encrypted data")?;
-    let master_secret = get_master_secret().await?;
-    let decrypted_bytes =
-        decrypt(&master_secret, &encrypted_data).context("Error decrypting secret")?;
-    let decrypted_str =
-        String::from_utf8(decrypted_bytes).context("Error converting decrypted bytes to string")?;
-    Ok(Some(decrypted_str))
+    decrypt_stored_secret(&secret).await.map(Some)
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn read_secret_by_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: Option<&str>,
+    secret_id: &str,
+) -> Result<Option<(Secret, String)>> {
+    let Some(secret) =
+        get_secret_by_id(hasura_transaction, tenant_id, election_event_id, secret_id).await?
+    else {
+        return Ok(None);
+    };
+
+    let value = decrypt_stored_secret(&secret).await?;
+    Ok(Some((secret, value)))
 }
 
 #[instrument(err)]
