@@ -63,6 +63,28 @@ class TemplateSyntaxTest {
   }
 
   @Test
+  void multiAttributeLoginSupportsStructuredCredentialToggle()
+      throws IOException, TemplateException {
+    Map<String, Object> structuredModel = baseModel("structured");
+    structuredModel.put("matchAttributes", List.of(Map.of("name", "dateOfBirth", "type", "date")));
+    String structuredHtml = renderVotingPortalLogin(structuredModel);
+
+    assertTrue(structuredHtml.contains("name=\"dateOfBirth\" type=\"date\""));
+    assertTrue(structuredHtml.contains("data-structured-credential"));
+    assertTrue(structuredHtml.contains("src=\"/resources/js/structured-credential.js\""));
+    assertFalse(structuredHtml.contains("src=\"/resources/js/passwordVisibility.js\""));
+
+    Map<String, Object> standardModel = baseModel("standard");
+    standardModel.put("matchAttributes", List.of(Map.of("name", "dateOfBirth", "type", "date")));
+    String standardHtml = renderVotingPortalLogin(standardModel);
+
+    assertTrue(standardHtml.contains("name=\"dateOfBirth\" type=\"date\""));
+    assertFalse(standardHtml.contains("data-structured-credential"));
+    assertTrue(standardHtml.contains("src=\"/resources/js/passwordVisibility.js\""));
+    assertFalse(standardHtml.contains("src=\"/resources/js/structured-credential.js\""));
+  }
+
+  @Test
   void deferredLoginRegistrationTemplateEscapesTheSameHostileConfiguration()
       throws IOException, TemplateException {
     Path parent = THEME_ROOT.resolve("sequent.admin-portal/login");
@@ -115,6 +137,21 @@ class TemplateSyntaxTest {
     }
   }
 
+  private static String renderVotingPortalLogin(Map<String, Object> model)
+      throws IOException, TemplateException {
+    Path child = THEME_ROOT.resolve("sequent.voting-portal/login");
+    Path parent = THEME_ROOT.resolve("sequent.admin-portal/login");
+    Configuration configuration = configuration();
+    configuration.setTemplateLoader(
+        new MultiTemplateLoader(
+            new TemplateLoader[] {
+              new FileTemplateLoader(child.toFile()), new FileTemplateLoader(parent.toFile())
+            }));
+    StringWriter rendered = new StringWriter();
+    configuration.getTemplate("login.ftl").process(model, rendered);
+    return rendered.toString();
+  }
+
   private static Configuration configuration() {
     Configuration configuration = new Configuration(Configuration.VERSION_2_3_34);
     configuration.setOutputFormat(HTMLOutputFormat.INSTANCE);
@@ -123,6 +160,10 @@ class TemplateSyntaxTest {
   }
 
   private static Map<String, Object> baseModel() {
+    return baseModel("structured");
+  }
+
+  private static Map<String, Object> baseModel(String credentialInputPolicy) {
     TemplateMethodModelEx falseMethod = arguments -> false;
     TemplateMethodModelEx message =
         arguments -> {
@@ -151,7 +192,7 @@ class TemplateSyntaxTest {
                         "attributes",
                         Map.of(
                             "credential-input-policy",
-                            "structured",
+                            credentialInputPolicy,
                             "credential-input-pattern",
                             "dddd\" onfocus=\"alert(1)")),
                     Map.entry("password", true),

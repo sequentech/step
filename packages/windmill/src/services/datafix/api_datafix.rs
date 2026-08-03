@@ -247,8 +247,9 @@ pub async fn mark_as_voted_via_channel(
     Ok(DatafixResponse::ok())
 }
 
-/// Unmark a voter as having voted, set the attribute to None
-/// Also enables the voter
+/// Unmark a voter as having voted. Re-enable only when MarkVoted was the
+/// operation that disabled the account; an unrelated administrator disable
+/// and its reason must survive this call.
 #[instrument(skip(hasura_transaction, keycloak_transaction))]
 pub async fn unmark_voter_as_voted(
     hasura_transaction: &Transaction<'_>,
@@ -264,23 +265,18 @@ pub async fn unmark_voter_as_voted(
         DatafixResponse::error(DatafixErrorCode::InternalError)
     })?;
 
-    let mut hash_map = HashMap::new();
-    hash_map.insert(
-        VOTED_CHANNEL.to_string(),
-        vec![ATTR_RESET_VALUE.to_string()],
-    );
-    hash_map.insert(
-        DISABLE_COMMENT.to_string(),
-        vec![ATTR_RESET_VALUE.to_string()],
-    );
-    let attributes = Some(hash_map);
     let user_id = get_user_id(keycloak_transaction, realm, &username).await?;
+    let current_user = client.get_user(realm, &user_id).await.map_err(|e| {
+        error!("Error loading user before unmarking voted state: {e:?}");
+        DatafixResponse::error(DatafixErrorCode::InternalError)
+    })?;
+    let (enabled, attributes) = plan_unmark_voter_edit(&current_user);
     let _user = client
         .edit_user(
             realm,
             &user_id,
-            Some(true), // Enable the voter again
-            attributes,
+            enabled,
+            Some(attributes),
             None,
             None,
             None,
@@ -294,6 +290,35 @@ pub async fn unmark_voter_as_voted(
             DatafixResponse::error(DatafixErrorCode::InternalError)
         })?;
     Ok(DatafixResponse::ok())
+}
+
+/// Pure state transition shared by the inbound operation's tests and kept in
+/// lockstep with reconciliation's VOTED_UNMARKED planning. `voted-channel`
+/// is always reset. `disable-comment` and `enabled` are owned by this
+/// operation only when the current reason is MARKVOTED_CALL (or the account
+/// is already enabled and merely carries a stale reason).
+fn plan_unmark_voter_edit(user: &User) -> (Option<bool>, HashMap<String, Vec<String>>) {
+    let enabled = user.enabled.unwrap_or(false);
+    let attributes = user.attributes.as_ref();
+    let disable_comment = attributes
+        .and_then(|values| values.get(DISABLE_COMMENT))
+        .and_then(|values| values.last())
+        .map(String::as_str)
+        .unwrap_or(ATTR_RESET_VALUE);
+    let disabled_by_mark_voted = !enabled && disable_comment == DISABLE_REASON_MARKVOTED_CALL;
+
+    let mut changes = HashMap::from([(
+        VOTED_CHANNEL.to_string(),
+        vec![ATTR_RESET_VALUE.to_string()],
+    )]);
+    if enabled || disabled_by_mark_voted {
+        changes.insert(
+            DISABLE_COMMENT.to_string(),
+            vec![ATTR_RESET_VALUE.to_string()],
+        );
+    }
+
+    (disabled_by_mark_voted.then_some(true), changes)
 }
 
 /// Generate a new password.
@@ -408,7 +433,9 @@ pub async fn acquire_inbound_voter_lock(
     drop(hasura_client);
     let realm = get_event_realm(&claims.tenant_id, &election_event_id);
     let user_id = get_user_id(keycloak_transaction, &realm, username).await?;
-    let lock_key = datafix_voter_lock_key(&claims.tenant_id, &election_event_id, &user_id);
+    let user_id_uuid = parse_uuid_v4(&user_id)
+        .map_err(|_| DatafixResponse::error(DatafixErrorCode::InternalError))?;
+    let lock_key = datafix_voter_lock_key(&claims.tenant_id, &election_event_id, &user_id_uuid);
     let lock = PgLock::acquire(
         lock_key,
         Uuid::new_v4().to_string(),
@@ -640,11 +667,18 @@ pub fn valid_inbound_voting_channel(channel: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{active_vote_error, create_user_error_response, valid_inbound_voting_channel};
+    use super::{
+        active_vote_error, create_user_error_response, plan_unmark_voter_edit,
+        valid_inbound_voting_channel,
+    };
     use crate::postgres::cast_vote::VoterCastVoteState;
     use crate::services::datafix::types::DatafixErrorCode;
     use keycloak::KeycloakError;
     use rocket::http::Status;
+    use sequent_core::types::keycloak::{
+        User, ATTR_RESET_VALUE, DISABLE_COMMENT, DISABLE_REASON_MARKVOTED_CALL, VOTED_CHANNEL,
+    };
+    use std::collections::HashMap;
 
     /// Builds the error `create_user` returns when Keycloak answers with the
     /// given HTTP status.
@@ -719,6 +753,40 @@ mod tests {
                 has_valid_vote: false,
             }),
             None
+        );
+    }
+
+    #[test]
+    fn unmark_only_reenables_accounts_disabled_by_mark_voted() {
+        let mark_voted_user = User {
+            enabled: Some(false),
+            attributes: Some(HashMap::from([(
+                DISABLE_COMMENT.to_string(),
+                vec![DISABLE_REASON_MARKVOTED_CALL.to_string()],
+            )])),
+            ..User::default()
+        };
+        let (enabled, attributes) = plan_unmark_voter_edit(&mark_voted_user);
+        assert_eq!(enabled, Some(true));
+        assert_eq!(
+            attributes.get(DISABLE_COMMENT),
+            Some(&vec![ATTR_RESET_VALUE.to_string()])
+        );
+
+        let manually_disabled_user = User {
+            enabled: Some(false),
+            attributes: Some(HashMap::from([(
+                DISABLE_COMMENT.to_string(),
+                vec!["Disabled manually".to_string()],
+            )])),
+            ..User::default()
+        };
+        let (enabled, attributes) = plan_unmark_voter_edit(&manually_disabled_user);
+        assert_eq!(enabled, None);
+        assert!(!attributes.contains_key(DISABLE_COMMENT));
+        assert_eq!(
+            attributes.get(VOTED_CHANNEL),
+            Some(&vec![ATTR_RESET_VALUE.to_string()])
         );
     }
 }

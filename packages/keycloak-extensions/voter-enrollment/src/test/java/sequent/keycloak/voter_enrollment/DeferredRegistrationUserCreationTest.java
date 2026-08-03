@@ -21,18 +21,22 @@ import static org.mockito.Mockito.when;
 
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
+import jakarta.ws.rs.core.Response;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.keycloak.authentication.AuthenticationFlowException;
+import org.keycloak.authentication.FormContext;
 import org.keycloak.authentication.ValidationContext;
 import org.keycloak.authentication.authenticators.browser.AbstractUsernameFormAuthenticator;
 import org.keycloak.authentication.forms.RegistrationPage;
 import org.keycloak.credential.CredentialInput;
 import org.keycloak.credential.hash.PasswordHashProvider;
 import org.keycloak.events.EventBuilder;
+import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.http.HttpRequest;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
@@ -41,13 +45,19 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.models.SubjectCredentialManager;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.UserProvider;
+import org.keycloak.protocol.oidc.endpoints.AuthorizationEndpoint;
+import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.services.messages.Messages;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.sessions.RootAuthenticationSessionModel;
+import org.keycloak.userprofile.AttributeMetadata;
 import org.keycloak.userprofile.Attributes;
 import org.keycloak.userprofile.UserProfile;
+import org.keycloak.userprofile.UserProfileContext;
+import org.keycloak.userprofile.UserProfileProvider;
 import org.keycloak.userprofile.ValidationException;
 import org.keycloak.validate.ValidationError;
+import org.mockito.ArgumentMatchers;
 import org.mockito.InOrder;
 import org.mockito.MockedStatic;
 
@@ -531,5 +541,123 @@ class DeferredRegistrationUserCreationTest {
     assertFalse(
         DeferredRegistrationUserCreation.isRequiredErrorForHiddenAttribute(
             emailRequiredError, hiddenProfileAttributes));
+  }
+
+  @Test
+  void prefillPolicyDefaultsToIgnore() {
+    ProviderConfigProperty policy =
+        new DeferredRegistrationUserCreation()
+            .getConfigProperties().stream()
+                .filter(
+                    property ->
+                        DeferredRegistrationUserCreation.PREFILL_PARAMETERS_POLICY.equals(
+                            property.getName()))
+                .findFirst()
+                .orElseThrow();
+
+    assertEquals(
+        DeferredRegistrationUserCreation.PrefillPolicy.IGNORE.name(), policy.getDefaultValue());
+    assertEquals(
+        List.of(
+            DeferredRegistrationUserCreation.PrefillPolicy.IGNORE.name(),
+            DeferredRegistrationUserCreation.PrefillPolicy.ACCEPT.name()),
+        policy.getOptions());
+  }
+
+  @Test
+  void prefillPolicyMustBeAcceptedAndOnlyAppliesVisibleAttributesOnGet() {
+    DeferredRegistrationUserCreation action = new DeferredRegistrationUserCreation();
+    FormContext context = mock(FormContext.class);
+    LoginFormsProvider form = mock(LoginFormsProvider.class);
+    AuthenticatorConfigModel config = mock(AuthenticatorConfigModel.class);
+    HttpRequest request = mock(HttpRequest.class);
+    AuthenticationSessionModel authenticationSession = mock(AuthenticationSessionModel.class);
+    KeycloakSession session = mock(KeycloakSession.class);
+    UserProfileProvider profileProvider = mock(UserProfileProvider.class);
+    UserProfile profile = mock(UserProfile.class);
+    Attributes attributes = mock(Attributes.class);
+    AttributeMetadata metadata = mock(AttributeMetadata.class);
+
+    Map<String, String> configValues = new java.util.HashMap<>();
+    configValues.put(DeferredRegistrationUserCreation.FORM_MODE, "REGISTRATION");
+    when(context.getAuthenticatorConfig()).thenReturn(config);
+    when(config.getConfig()).thenReturn(configValues);
+    when(context.getHttpRequest()).thenReturn(request);
+    when(request.getHttpMethod()).thenReturn("GET");
+    when(context.getAuthenticationSession()).thenReturn(authenticationSession);
+    when(authenticationSession.getClientNotes())
+        .thenReturn(
+            Map.of(
+                clientNote("username"), "voter@example.com",
+                clientNote(UserModel.LOCALE), "es"));
+    when(context.getSession()).thenReturn(session);
+    when(session.getProvider(UserProfileProvider.class)).thenReturn(profileProvider);
+    when(profileProvider.create(
+            eq(UserProfileContext.REGISTRATION), ArgumentMatchers.<Map<String, ?>>any()))
+        .thenReturn(profile);
+    when(profile.getAttributes()).thenReturn(attributes);
+    when(attributes.getWritable())
+        .thenReturn(
+            Map.of("username", List.of("voter@example.com"), UserModel.LOCALE, List.of("es")));
+    when(attributes.getUnmanagedAttributes()).thenReturn(Map.of());
+    when(attributes.getMetadata("username")).thenReturn(metadata);
+    when(attributes.getMetadata(UserModel.LOCALE)).thenReturn(metadata);
+
+    action.buildPage(context, form);
+    verify(form, never()).setFormData(any());
+
+    configValues.put(
+        DeferredRegistrationUserCreation.PREFILL_PARAMETERS_POLICY,
+        DeferredRegistrationUserCreation.PrefillPolicy.ACCEPT.name());
+    action.buildPage(context, form);
+    MultivaluedMap<String, String> expectedFormData = new MultivaluedHashMap<>();
+    expectedFormData.putSingle("username", "voter@example.com");
+    verify(form).setFormData(eq(expectedFormData));
+
+    when(request.getHttpMethod()).thenReturn("POST");
+    action.buildPage(context, form);
+    verify(form).setFormData(any());
+  }
+
+  @Test
+  void deferredAcceptRejectsInvalidStoredHintsWhileIgnoreLeavesThemUntouched() {
+    DeferredRegistrationUserCreation action = new DeferredRegistrationUserCreation();
+    FormContext context = mock(FormContext.class);
+    LoginFormsProvider form = mock(LoginFormsProvider.class);
+    AuthenticatorConfigModel config = mock(AuthenticatorConfigModel.class);
+    AuthenticationSessionModel authenticationSession = mock(AuthenticationSessionModel.class);
+
+    Map<String, String> configValues = new java.util.HashMap<>();
+    configValues.put(DeferredRegistrationUserCreation.FORM_MODE, "REGISTRATION");
+    when(context.getAuthenticatorConfig()).thenReturn(config);
+    when(config.getConfig()).thenReturn(configValues);
+    when(context.getAuthenticationSession()).thenReturn(authenticationSession);
+    when(authenticationSession.getClientNotes())
+        .thenReturn(
+            Map.of(
+                clientNote("username"), "voter@example.com",
+                clientNote("invalid field"), "value"));
+
+    action.buildPage(context, form);
+    verify(form, never()).setError(LoginHintAuthorizationRequestFilter.INVALID_REQUEST_DESCRIPTION);
+
+    configValues.put(
+        DeferredRegistrationUserCreation.PREFILL_PARAMETERS_POLICY,
+        DeferredRegistrationUserCreation.PrefillPolicy.ACCEPT.name());
+    Response response = Response.status(Response.Status.BAD_REQUEST).build();
+    when(form.setError(LoginHintAuthorizationRequestFilter.INVALID_REQUEST_DESCRIPTION))
+        .thenReturn(form);
+    when(form.createErrorPage(Response.Status.BAD_REQUEST)).thenReturn(response);
+
+    AuthenticationFlowException failure =
+        assertThrows(AuthenticationFlowException.class, () -> action.buildPage(context, form));
+
+    assertEquals(response, failure.getResponse());
+  }
+
+  private static String clientNote(String attributeName) {
+    return AuthorizationEndpoint.LOGIN_SESSION_NOTE_ADDITIONAL_REQ_PARAMS_PREFIX
+        + LoginHintPrefill.HINT_PREFIX
+        + attributeName;
   }
 }

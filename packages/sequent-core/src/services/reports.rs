@@ -62,6 +62,7 @@ fn get_registry<'reg>() -> Handlebars<'reg> {
         helper_wrapper_or(Box::new(inc2), String::from("-")),
     );
     reg.register_helper("to_json", helper_wrapper(Box::new(to_json)));
+    reg.register_helper("url_encode", helper_wrapper(Box::new(url_encode)));
     reg.register_helper(
         "parse_i64",
         helper_wrapper_or(Box::new(parse_i64), String::from("-")),
@@ -280,6 +281,31 @@ pub fn sanitize_html(
 
     out.write(&cleaned)?;
 
+    Ok(())
+}
+
+/// Percent-encodes a string for use as one dynamic URL query value.
+pub fn url_encode(
+    helper: &Helper,
+    _: &Handlebars,
+    _: &Context,
+    _: &mut RenderContext,
+    out: &mut dyn Output,
+) -> HelperResult {
+    let value = helper
+        .param(0)
+        .ok_or(RenderErrorReason::ParamNotFoundForIndex("url_encode", 0))?
+        .value()
+        .as_str()
+        .ok_or_else(|| {
+            RenderErrorReason::ParamTypeMismatchForName(
+                "url_encode",
+                "0".to_string(),
+                "string".to_string(),
+            )
+        })?;
+
+    out.write(urlencoding::encode(value).as_ref())?;
     Ok(())
 }
 
@@ -800,5 +826,39 @@ impl HelperDef for is_some {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::render_template_text;
+    use serde_json::{json, Map};
+
+    #[test]
+    fn url_encode_keeps_dynamic_data_in_one_query_value() {
+        let mut variables = Map::new();
+        variables
+            .insert("value".to_string(), json!("a&admin=true 50% \"Málaga\""));
+
+        let rendered = render_template_text(
+            "https://vote.example/login?login_hint__reference={{url_encode value}}",
+            variables,
+        )
+        .expect("template should render");
+
+        assert_eq!(
+            rendered,
+            "https://vote.example/login?login_hint__reference=a%26admin%3Dtrue%2050%25%20%22M%C3%A1laga%22"
+        );
+    }
+
+    #[test]
+    fn url_encode_rejects_non_string_values() {
+        let mut variables = Map::new();
+        variables.insert("value".to_string(), json!(["private", "values"]));
+
+        assert!(
+            render_template_text("{{url_encode value}}", variables).is_err()
+        );
     }
 }

@@ -68,6 +68,7 @@ pub enum ReportType {
     ACTIVITY_LOGS,
     MANUAL_VERIFICATION,
     PARTICIPATION_REPORT,
+    CREDENTIALS,
 }
 
 pub struct ReportWrapper(pub Report);

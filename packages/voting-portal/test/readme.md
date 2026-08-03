@@ -22,3 +22,23 @@ SPDX-License-Identifier: AGPL-3.0-only
 ### Run test
 - cwd /voting-portal in local workspace(not codespace)
 - npx nightwatch path/t0.test.ts
+
+### Login hint browser matrix
+
+Configure each variable with a Voting Portal tenant/event URL. The stock registration
+realm must include the `login-hint-registration-prefill` action. The deferred realms
+must configure `prefill-parameters-policy` as `IGNORE` and `ACCEPT`, respectively.
+
+Per-attribute behaviour comes from the `loginHintPrefillPolicy` user profile
+annotation (`EDITABLE`, `READ_ONLY` or `IGNORE`, defaulting to `EDITABLE`).
+
+- `PREFILL_STOCK_LOGIN_URL`: Voting Portal `/login` URL using the stock username form
+- `PREFILL_STOCK_REGISTRATION_URL`: Voting Portal `/enroll` URL using stock registration
+- `PREFILL_REDIRECT_REGISTRATION_URL`: Voting Portal `/login` URL whose flow redirects to registration
+- `PREFILL_DEFERRED_IGNORE_URL`: Voting Portal `/enroll` URL using deferred registration with `IGNORE`
+- `PREFILL_DEFERRED_ACCEPT_URL`: Voting Portal `/enroll` URL using deferred registration with `ACCEPT`
+
+Run `yarn test:login-hints:e2e`. Scenarios without a configured URL are reported
+as skipped. Set `PREFILL_BROWSER_MATRIX_REQUIRED=true` to make a missing scenario
+URL fail visibly instead of reducing the matrix silently, which is what an
+evidence run wants.

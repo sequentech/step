@@ -61,8 +61,13 @@ pub async fn process_cast_vote(
         .voter_id_string
         .as_deref()
         .ok_or("Voter id not found")?;
+    let voter_id = Uuid::parse_str(voter_id).map_err(|err| format!("Invalid voter id: {err}"))?;
     let lock = match PgLock::acquire(
-        datafix_voter_lock_key(&cast_vote.tenant_id, &cast_vote.election_event_id, voter_id),
+        datafix_voter_lock_key(
+            &cast_vote.tenant_id,
+            &cast_vote.election_event_id,
+            &voter_id,
+        ),
         Uuid::new_v4().to_string(),
         ISO8601::now() + Duration::seconds(DATAFIX_VOTER_LOCK_SECS),
     )
@@ -478,16 +483,18 @@ mod tests {
 
     #[test]
     fn voter_lock_is_event_wide() {
-        let first = datafix_voter_lock_key("tenant", "event", "voter");
-        let second = datafix_voter_lock_key("tenant", "event", "voter");
+        let voter = Uuid::new_v4();
+        let other_voter = Uuid::new_v4();
+        let first = datafix_voter_lock_key("tenant", "event", &voter);
+        let second = datafix_voter_lock_key("tenant", "event", &voter);
         assert_eq!(first, second);
         assert_ne!(
             first,
-            datafix_voter_lock_key("tenant", "other-event", "voter")
+            datafix_voter_lock_key("tenant", "other-event", &voter)
         );
         assert_ne!(
             first,
-            datafix_voter_lock_key("tenant", "event", "other-voter")
+            datafix_voter_lock_key("tenant", "event", &other_voter)
         );
     }
 }
