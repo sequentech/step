@@ -52,6 +52,7 @@ use cryptography::groups::p256::element::P256Element;
 use cryptography::cryptosystem::elgamal::{Ciphertext, KeyPair};
 use cryptography::zkp::shuffle::Shuffler;
 use vsvmn::wire::crypto::{global_prefix, Hashfunction, PrefixParams};
+use vsvmn::wire::protinfo::ProtocolInfo;
 
 const W: usize = 2;
 const N: usize = 8;
@@ -323,7 +324,13 @@ fn polynomial_in_exponent(y: &P256Element, threshold: usize) -> Vec<P256Element>
 /// the prefix; every mixer shares them. Only the per-mixer statement differs,
 /// since each batching seed commits to that mixer's own permutation commitment
 /// and its input/output pair.
-fn emit_chain(dir: &PathBuf, parties: usize) {
+fn emit_chain(dir: &PathBuf, mixers: usize) {
+    emit_chain_with_threshold(dir, mixers, mixers);
+}
+
+/// As [`emit_chain`], with the session threshold given separately. `lambda_a >=
+/// lambda` by construction, so `mixers` must be at least `threshold`.
+fn emit_chain_with_threshold(dir: &PathBuf, mixers: usize, threshold: usize) {
     let _ = std::fs::remove_dir_all(dir);
 
     let rho = global_prefix(
@@ -355,9 +362,9 @@ fn emit_chain(dir: &PathBuf, parties: usize) {
 
     // Run the chain, keeping each mixer's output and proof.
     let mut current = input.clone();
-    let mut outputs = Vec::with_capacity(parties);
-    let mut proofs = Vec::with_capacity(parties);
-    for _ in 0..parties {
+    let mut outputs = Vec::with_capacity(mixers);
+    let mut proofs = Vec::with_capacity(mixers);
+    for _ in 0..mixers {
         let challenges = VmnChallenges::new(Hashfunction::Sha256, rho.clone(), N_E, N_V, W);
         let (output, proof) = shuffler
             .shuffle_with(&current, &[], &challenges)
@@ -367,7 +374,7 @@ fn emit_chain(dir: &PathBuf, parties: usize) {
         proofs.push(proof);
     }
 
-    let gamma = polynomial_in_exponent(&keypair.pkey.y, 3);
+    let gamma = polynomial_in_exponent(&keypair.pkey.y, threshold);
 
     let mixers: Vec<MixerStep<W>> = outputs
         .iter()
@@ -379,7 +386,7 @@ fn emit_chain(dir: &PathBuf, parties: usize) {
         version: "3.1.0",
         auxsid: AUXSID,
         width: W,
-        threshold: 3,
+        threshold,
         public_key: &keypair.pkey.y,
         input: &input,
         mixers: &mixers,
@@ -1006,4 +1013,113 @@ fn vmnv_accepts_a_mixing_proof_with_an_inactive_party() {
             && !output.contains("Verify combined proof of decryption... done."),
         "and it must break at the decryption proof specifically; got:\n{output}"
     );
+}
+
+// -------------------------------------------------------------------------
+// Synthesized protocol info files
+// -------------------------------------------------------------------------
+
+/// The session parameters the shipped corpus was generated with, as a
+/// `ProtocolInfo` we can vary.
+fn session(parties: usize, threshold: usize, width: usize) -> ProtocolInfo {
+    ProtocolInfo {
+        version: "3.1.0".to_string(),
+        sid: SID.to_string(),
+        parties,
+        threshold,
+        width,
+        key_width: 1,
+        n_r: N_R as u32,
+        n_v: N_V as u32,
+        n_e: N_E as u32,
+        prg: "SHA-256".to_string(),
+        rohash: "SHA-256".to_string(),
+        pgroup: PGROUP.to_string(),
+    }
+}
+
+/// Write a synthesized protocol info file and return its path.
+fn write_protinfo(info: &ProtocolInfo, name: &str) -> PathBuf {
+    let path = std::env::temp_dir().join(format!("{}_{name}.xml", private_name("protinfo")));
+    std::fs::write(&path, info.to_xml()).expect("write the synthesized protocol info");
+    path
+}
+
+/// **`vmnv` accepts a protocol info file we generated.**
+///
+/// Until now every shape had to be a file checked into `testdata/`, generated
+/// under WSL with `vmni` because the prover-side tools are Unix-bound. That
+/// caps the testable shapes at the three we happened to generate.
+///
+/// A synthesized file gives every party the same signature key, which is sound
+/// here only because Fiat–Shamir verification checks no signatures. This test is
+/// what establishes that `vmnv` agrees — without it the synthesis is an
+/// assumption.
+#[test]
+#[ignore = "requires a JVM and the Verificatum jars; see the module docs"]
+fn vmnv_accepts_a_synthesized_protocol_info_file() {
+    let Some(mut env) = env() else {
+        eprintln!("skipping: VMNV_* environment not configured");
+        return;
+    };
+
+    // The same 3-of-3 session as the shipped file, but written by us.
+    env.protinfo = write_protinfo(&session(3, 3, W), "3of3");
+
+    let dir = std::env::temp_dir().join("braid_vmnv_synth");
+    emit_chain(&dir, 3);
+
+    let (code, output) = run_vmnv(&env, &dir, true);
+    assert_eq!(code, 0, "vmnv must accept a synthesized info file:\n{output}");
+    assert_eq!(
+        output.matches("Verify proof of shuffle... done.").count(),
+        3,
+        "all three shuffles must verify against it; got:\n{output}"
+    );
+}
+
+/// **The parameter sweep the synthesis exists for.**
+///
+/// Cross-implementation testing over a *range* of session shapes rather than the
+/// three that happen to have checked-in info files. Each `(k, λ)` pair gets a
+/// generated file and a chain of `λ` mixers, and unmodified `vmnv` must accept
+/// every one.
+///
+/// This is the part that could not be done before: `vmnv` takes `k` and `λ` from
+/// the info file, so testing a shape means having a file for that shape.
+#[test]
+#[ignore = "requires a JVM and the Verificatum jars; see the module docs"]
+fn vmnv_accepts_a_sweep_of_session_shapes() {
+    let Some(mut env) = env() else {
+        eprintln!("skipping: VMNV_* environment not configured");
+        return;
+    };
+
+    for parties in 1..=4 {
+        for threshold in 1..=parties {
+            let info = session(parties, threshold, W);
+            assert!(info.is_consistent());
+            env.protinfo = write_protinfo(&info, &format!("{parties}of{threshold}"));
+
+            // lambda_a >= lambda, and the emitter derives the active threshold
+            // from the number of mixers.
+            let dir = std::env::temp_dir()
+                .join(format!("braid_vmnv_sweep_{parties}_{threshold}"));
+            emit_chain(&dir, threshold);
+
+            let (code, output) = run_vmnv(&env, &dir, true);
+            assert_eq!(
+                code, 0,
+                "vmnv rejected a {parties}-party threshold-{threshold} session:\n{output}"
+            );
+            assert_eq!(
+                output.matches("Verify proof of shuffle... done.").count(),
+                threshold,
+                "every mixer must verify at k={parties}, lambda={threshold}; got:\n{output}"
+            );
+            eprintln!("ok: k={parties}, lambda={threshold}");
+            let _ = std::fs::remove_dir_all(&dir);
+            let _ = std::fs::remove_file(&env.protinfo);
+        }
+    }
 }
