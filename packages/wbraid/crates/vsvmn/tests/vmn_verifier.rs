@@ -1123,3 +1123,80 @@ fn vmnv_accepts_a_sweep_of_session_shapes() {
         }
     }
 }
+
+/// Runtime `(k, λ)` to the const-generic emitter.
+///
+/// `emit_mixing` is generic over both because the DKG's polynomial degree and
+/// participant count are compile-time in vsc, so a sweep needs one arm per
+/// shape. Unsupported combinations panic rather than being silently skipped.
+fn emit_mixing_shape(dir: &PathBuf, parties: usize, threshold: usize, delta: &[usize]) {
+    match (parties, threshold) {
+        (1, 1) => emit_mixing::<1, 1>(dir, delta),
+        (2, 2) => emit_mixing::<2, 2>(dir, delta),
+        (3, 2) => emit_mixing::<3, 2>(dir, delta),
+        (3, 3) => emit_mixing::<3, 3>(dir, delta),
+        (4, 2) => emit_mixing::<4, 2>(dir, delta),
+        (4, 3) => emit_mixing::<4, 3>(dir, delta),
+        (4, 4) => emit_mixing::<4, 4>(dir, delta),
+        (k, t) => panic!("no emitter arm for k={k}, lambda={t}; add one"),
+    }
+}
+
+/// **The mixing counterpart of [`vmnv_accepts_a_sweep_of_session_shapes`].**
+///
+/// That sweep covers shuffling, where the emitted proof carries no decryption at
+/// all. This one covers the whole session — DKG, chain, threshold decryption —
+/// over a range of `(k, λ)`, so α, the modified Lagrange coefficients and the
+/// inactive-party placeholders are exercised at more than the two shapes the
+/// fixed tests pin.
+///
+/// Where `λ < k` it runs twice: once with Δ as the leading parties, and once
+/// with Δ spread to the ends so the inactive parties fall *between* active ones.
+/// The second is the arrangement that would expose an off-by-one in party
+/// indexing, and it is also the shape where VMN leaves a gap in the mixer slots.
+#[test]
+#[ignore = "requires a JVM and the Verificatum jars; see the module docs"]
+fn vmnv_accepts_a_sweep_of_mixing_shapes() {
+    let Some(mut env) = env() else {
+        eprintln!("skipping: VMNV_* environment not configured");
+        return;
+    };
+
+    for (parties, threshold) in [(1, 1), (2, 2), (3, 2), (3, 3), (4, 2), (4, 3), (4, 4)] {
+        // Leading parties, and -- when some sit out -- a spread set.
+        let leading: Vec<usize> = (1..=threshold).collect();
+        let spread: Vec<usize> = if threshold < parties {
+            let mut d: Vec<usize> = (1..threshold).collect();
+            d.push(parties);
+            d
+        } else {
+            leading.clone()
+        };
+
+        let mut deltas = vec![leading];
+        if deltas[0] != spread {
+            deltas.push(spread);
+        }
+
+        for delta in deltas {
+            let info = session(parties, threshold, W);
+            env.protinfo = write_protinfo(&info, &format!("mix{parties}of{threshold}"));
+
+            let tag: String = delta.iter().map(usize::to_string).collect();
+            let dir = std::env::temp_dir()
+                .join(format!("braid_vmnv_mixsweep_{parties}_{threshold}_{tag}"));
+            emit_mixing_shape(&dir, parties, threshold, &delta);
+
+            let (code, output) = run_vmnv_mode(&env, &dir, "-mix", true);
+            assert_eq!(
+                code, 0,
+                "vmnv rejected k={parties}, lambda={threshold}, delta={delta:?}:\n{output}"
+            );
+            assert_mix_verified(&output, threshold);
+            eprintln!("ok: k={parties}, lambda={threshold}, delta={delta:?}");
+
+            let _ = std::fs::remove_dir_all(&dir);
+            let _ = std::fs::remove_file(&env.protinfo);
+        }
+    }
+}
