@@ -250,3 +250,180 @@ fn combined_batched_proof_satisfies_the_verification_equations() {
         );
     }
 }
+
+/// Verify a `k = 3`, `lambda = 2` decryption with our own verifier, including a
+/// party that took no part.
+///
+/// The reference corpus is a single-party session, so `alpha = 1`, `c_1 = 1`,
+/// and the Lagrange combination in `verify::verify_decryption` is the identity —
+/// `braid_verifies_a_verificatum_decryption_proof` cannot exercise it. Here
+/// `alpha = lcm(1,2,3)^2 = 36` and the coefficients over `{1, 3}` are `54` and
+/// `-18`, and party 2 contributes the all-identity array with an identity
+/// commitment and a zero reply.
+///
+/// This is self-consistency rather than interop: it checks our verifier against
+/// our own construction. What makes it more than that is triangulation —
+/// `vmn_verifier::vmnv_accepts_a_mixing_proof_with_an_inactive_party` builds a
+/// proof exactly this way and has unmodified `vmnv` accept it, so the shape
+/// being checked here is one Verificatum has independently agreed to.
+#[test]
+fn our_verifier_accepts_a_three_party_decryption_with_an_inactive_party() {
+    use cryptography::cryptosystem::elgamal::PublicKey;
+    use cryptography::groups::p256::scalar::P256Scalar;
+    use vsvmn::verify::{verify_decryption, PartyContribution, SessionParams};
+    use vsvmn::wire::bytetree::ByteTree;
+    use vsvmn::wire::crypto::{dec_challenge, dec_seed, global_prefix, Hashfunction, PrefixParams, Prg};
+    use vsvmn::{decrypt::BatchedDecryptionProof, encode};
+
+    const W: usize = 2;
+    const N: usize = 5;
+    const K: usize = 3;
+    const T: usize = 2;
+    const N_E: usize = 256;
+    const N_V: usize = 256;
+
+    let mut rng = P256Ctx::get_rng();
+    let g = P256Element::generator();
+
+    // A degree T-1 sharing; Gamma_s = g^{a_s}, so Gamma_0 is the joint key.
+    let coefficients: Vec<P256Scalar> = (0..T).map(|_| P256Scalar::random(&mut rng)).collect();
+    let gamma: Vec<P256Element> = coefficients.iter().map(|a| g.exp(a)).collect();
+    let share = |party: u64| {
+        let mut point = [0u8; 32];
+        point[24..].copy_from_slice(&party.to_be_bytes());
+        let point = P256Scalar::from_bytes_reduced(&point);
+        let mut acc = P256Scalar::zero();
+        let mut power = P256Scalar::one();
+        for a in &coefficients {
+            acc = acc.add(&a.mul(&power));
+            power = power.mul(&point);
+        }
+        acc
+    };
+
+    let pk = PublicKey::<P256Ctx>::new(gamma[0]);
+    let messages: Vec<[P256Element; W]> = (0..N)
+        .map(|_| std::array::from_fn(|_| P256Ctx::random_element()))
+        .collect();
+    let ciphertexts: Vec<_> = messages.iter().map(|m| pk.encrypt(m)).collect();
+
+    // Delta = {1, 3}: the gap is in the middle, where an off-by-one shows.
+    let delta = [1usize, 3];
+    let inv_alpha = decrypt::inverse_alpha(K).unwrap();
+    let scaled: Vec<Option<P256Scalar>> = (1..=K)
+        .map(|l| delta.contains(&l).then(|| share(l as u64).mul(&inv_alpha)))
+        .collect();
+
+    let u: Vec<[P256Element; W]> = ciphertexts.iter().map(|c| c.0[0]).collect();
+    let factors: Vec<Vec<[P256Element; W]>> = scaled
+        .iter()
+        .map(|z| match z {
+            Some(z) => {
+                let exponent = z.neg();
+                u.iter()
+                    .map(|ui| std::array::from_fn(|w| ui[w].exp(&exponent)))
+                    .collect()
+            }
+            None => decrypt::inactive_factors::<W>(N),
+        })
+        .collect();
+
+    let params = SessionParams {
+        rho: global_prefix(
+            Hashfunction::Sha256,
+            &PrefixParams {
+                version: "3.1.0".into(),
+                sid: "braidpoc".into(),
+                auxsid: "default".into(),
+                n_r: 100,
+                n_v: N_V as u32,
+                n_e: N_E as u32,
+                prg: "SHA-256".into(),
+                pgroup: "ECqPGroup(P-256)".into(),
+                rohash: "SHA-256".into(),
+            },
+        ),
+        hash: Hashfunction::Sha256,
+        n_e: N_E,
+        n_v: N_V,
+        parties: K,
+        threshold: T,
+    };
+
+    // The transcript, exactly as the emitter builds it.
+    let factor_trees: Vec<ByteTree> = factors
+        .iter()
+        .map(|f| encode::component_array_to_tree(f).unwrap())
+        .collect();
+    let seed = dec_seed(
+        Hashfunction::Sha256,
+        &params.rho,
+        &encode::element_to_tree(&g).unwrap(),
+        &encode::ciphertexts_to_tree(&ciphertexts).unwrap(),
+        &encode::elements_to_tree(&gamma).unwrap(),
+        &factor_trees,
+    );
+    let component = N_E / 8;
+    let e: Vec<P256Scalar> = Prg::new(Hashfunction::Sha256, &seed)
+        .generate(component * N)
+        .chunks(component)
+        .map(|c| {
+            let mut b = [0u8; 32];
+            b[32 - c.len()..].copy_from_slice(c);
+            P256Scalar::from_bytes_reduced(&b)
+        })
+        .collect();
+    let a = decrypt::batch(&u, &e).unwrap();
+
+    let randomizers: Vec<Option<P256Scalar>> = scaled
+        .iter()
+        .map(|z| z.as_ref().map(|_| P256Scalar::random(&mut rng)))
+        .collect();
+    let zero = P256Scalar::zero();
+    let commitments: Vec<BatchedDecryptionProof<W>> = randomizers
+        .iter()
+        .map(|r| match r {
+            Some(r) => decrypt::prove_decryption::<W>(&zero, &a, &zero, r),
+            None => decrypt::inactive_proof::<W>(),
+        })
+        .collect();
+    let commitment_trees: Vec<ByteTree> = commitments
+        .iter()
+        .map(|c| {
+            ByteTree::node(vec![
+                encode::element_to_tree(&c.y_prime).unwrap(),
+                encode::elements_to_tree(&c.b_prime).unwrap(),
+            ])
+        })
+        .collect();
+    let v = {
+        let bytes = dec_challenge(Hashfunction::Sha256, N_V, &params.rho, &seed, &commitment_trees);
+        let mut b = [0u8; 32];
+        b[32 - bytes.len()..].copy_from_slice(&bytes);
+        P256Scalar::from_bytes_reduced(&b)
+    };
+
+    let proofs: Vec<BatchedDecryptionProof<W>> = (0..K)
+        .map(|l| match (&scaled[l], &randomizers[l]) {
+            (Some(z), Some(r)) => decrypt::prove_decryption::<W>(z, &a, &v, r),
+            _ => decrypt::inactive_proof::<W>(),
+        })
+        .collect();
+
+    let contributions: Vec<PartyContribution<W>> = (0..K)
+        .map(|l| PartyContribution {
+            factors: &factors[l],
+            proof: &proofs[l],
+        })
+        .collect();
+    let correct = vec![false, true, false, true];
+
+    let plaintexts = verify_decryption(&params, &gamma, &ciphertexts, &contributions, &correct)
+        .expect("well formed")
+        .expect("the decryption proof must verify");
+
+    assert_eq!(
+        plaintexts, messages,
+        "the recovered plaintexts must be the messages that were encrypted"
+    );
+}

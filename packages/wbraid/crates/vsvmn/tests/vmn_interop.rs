@@ -26,6 +26,10 @@ use cryptography::cryptosystem::elgamal::PublicKey;
 use cryptography::zkp::shuffle::{Responses, ShuffleCommitments, ShuffleProof, Shuffler};
 use vsvmn::wire::bytetree::ByteTree;
 use vsvmn::wire::crypto::{global_prefix, Hashfunction, PrefixParams};
+use vsvmn::decrypt::BatchedDecryptionProof;
+use vsvmn::verify::{verify_decryption, PartyContribution, SessionParams};
+use cryptography::groups::p256::element::P256Element;
+use cryptography::traits::groups::{GroupElement, GroupScalar};
 
 const W: usize = 2;
 const N_R: usize = 100;
@@ -215,4 +219,151 @@ fn braid_verifies_a_verificatum_shuffle_proof() {
     );
 
     eprintln!("negative controls rejected as expected");
+}
+
+// -------------------------------------------------------------------------
+// Decryption
+// -------------------------------------------------------------------------
+
+/// Read one party's contribution out of a proof directory.
+fn read_contribution(dir: &PathBuf, party: usize) -> (Vec<[P256Element; W]>, BatchedDecryptionProof<W>) {
+    let factors = encode::tree_to_component_array::<W>(&read_tree(
+        dir,
+        &format!("proofs/DecryptionFactors{party:02}.bt"),
+    ))
+    .expect("decode decryption factors");
+
+    let tau = read_tree(dir, &format!("proofs/DecrFactCommitment{party:02}.bt"));
+    let tau = tau.as_node_of(2).expect("tau^dec = node(y', B')");
+    let proof = BatchedDecryptionProof::<W> {
+        y_prime: encode::tree_to_element(&tau[0]).expect("y'"),
+        b_prime: encode::tree_to_elements(&tau[1])
+            .expect("B'")
+            .try_into()
+            .expect("B' has omega components"),
+        k_x: encode::tree_to_scalar(&read_tree(
+            dir,
+            &format!("proofs/DecrFactReply{party:02}.bt"),
+        ))
+        .expect("k_x"),
+    };
+
+    (factors, proof)
+}
+
+/// **The other half of the interop result.** Verify Verificatum's own proof of
+/// correct decryption using vsc's cryptography, and check that the plaintexts it
+/// implies are the ones the proof publishes.
+///
+/// Until this existed the decryption interop ran one way only: `vmnv` accepted
+/// proofs we emitted, but nothing here checked a proof Verificatum produced. The
+/// transcript was already pinned by `corpus_roundtrip::decryption_transcript_matches_vmn`
+/// — that reproduces `Dec.s` and `Dec.v` — but reproducing a transcript is not
+/// verifying a proof; the verification equations were never evaluated against
+/// real VMN output.
+///
+/// The corpus is a single-party session, so `k = lambda = 1`, `alpha = 1` and
+/// `c_1 = 1`: the Lagrange combination is the identity and is *not* exercised
+/// here. `vmn_decrypt::our_verifier_accepts_a_three_party_decryption_with_an_inactive_party`
+/// covers that, against a construction `vmnv` also accepts.
+#[test]
+fn braid_verifies_a_verificatum_decryption_proof() {
+    let Some(dir) = corpus_dir() else {
+        eprintln!("skipping: set VCOMPAT_CORPUS to a VMN nizkp directory");
+        return;
+    };
+
+    // The list decryption was applied to is the final mixer's output, not the
+    // session input.
+    let mixed = encode::tree_to_ciphertexts::<W>(&read_tree(&dir, "proofs/Ciphertexts01.bt"))
+        .expect("decode the mixed ciphertexts");
+    let gamma = encode::tree_to_elements(&read_tree(&dir, "proofs/PolynomialInExponent.bt"))
+        .expect("decode the polynomial in the exponent");
+
+    // Algorithm 24's cross-check: the polynomial's constant term is the joint key.
+    let pk_tree = read_tree(&dir, "FullPublicKey.bt");
+    let y = encode::tree_to_element(&pk_tree.as_node_of(2).unwrap()[1]).expect("decode y");
+    assert!(gamma[0].equals(&y), "Gamma_0 must be the joint public key");
+
+    let correct = vsvmn::wire::arithm::bool_array_values(&read_tree(&dir, "proofs/CorrectIndices.bt"))
+        .expect("decode CorrectIndices");
+    let parties = correct.len() - 1;
+
+    let contributions: Vec<_> = (1..=parties).map(|l| read_contribution(&dir, l)).collect();
+    let contributions: Vec<PartyContribution<W>> = contributions
+        .iter()
+        .map(|(factors, proof)| PartyContribution { factors, proof })
+        .collect();
+
+    let params = SessionParams {
+        rho: reference_rho(),
+        hash: Hashfunction::Sha256,
+        n_e: N_E,
+        n_v: N_V,
+        parties,
+        threshold: gamma.len(),
+    };
+
+    let plaintexts = verify_decryption(&params, &gamma, &mixed, &contributions, &correct)
+        .expect("the statement must be well formed")
+        .expect("Verificatum's decryption proof must verify");
+
+    // And the plaintexts it implies must be the ones the proof publishes --
+    // Algorithm 28 keeps these separate, and so does vmnv.
+    let published = encode::tree_to_component_array::<W>(&read_tree(&dir, "Plaintexts.bt"))
+        .expect("decode the published plaintexts");
+    assert_eq!(
+        plaintexts, published,
+        "the computed plaintexts must match Plaintexts.bt"
+    );
+}
+
+/// The result above is only meaningful if a wrong proof is rejected, so corrupt
+/// each of the three published pieces in turn.
+#[test]
+fn a_tampered_verificatum_decryption_proof_is_rejected() {
+    let Some(dir) = corpus_dir() else {
+        eprintln!("skipping: set VCOMPAT_CORPUS to a VMN nizkp directory");
+        return;
+    };
+
+    let mixed = encode::tree_to_ciphertexts::<W>(&read_tree(&dir, "proofs/Ciphertexts01.bt"))
+        .expect("decode the mixed ciphertexts");
+    let gamma = encode::tree_to_elements(&read_tree(&dir, "proofs/PolynomialInExponent.bt"))
+        .expect("decode gamma");
+    let correct =
+        vsvmn::wire::arithm::bool_array_values(&read_tree(&dir, "proofs/CorrectIndices.bt"))
+            .expect("decode CorrectIndices");
+    let parties = correct.len() - 1;
+    let params = SessionParams {
+        rho: reference_rho(),
+        hash: Hashfunction::Sha256,
+        n_e: N_E,
+        n_v: N_V,
+        parties,
+        threshold: gamma.len(),
+    };
+
+    for case in ["factor", "commitment", "reply"] {
+        let (mut factors, mut proof) = read_contribution(&dir, 1);
+        match case {
+            // A different but well-formed group element: the proof must fail,
+            // not merely fail to parse.
+            "factor" => factors[0][0] = factors[0][0].mul(&P256Element::generator()),
+            "commitment" => proof.y_prime = proof.y_prime.mul(&P256Element::generator()),
+            "reply" => proof.k_x = proof.k_x.add(&cryptography::groups::p256::scalar::P256Scalar::one()),
+            _ => unreachable!(),
+        }
+
+        let contributions = vec![PartyContribution::<W> {
+            factors: &factors,
+            proof: &proof,
+        }];
+        let verdict = verify_decryption(&params, &gamma, &mixed, &contributions, &correct)
+            .expect("the statement is still well formed");
+        assert!(
+            verdict.is_none(),
+            "a proof with a corrupted {case} must be rejected"
+        );
+    }
 }

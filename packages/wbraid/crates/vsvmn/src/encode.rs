@@ -224,3 +224,24 @@ pub fn component_array_to_tree<const W: usize>(
         .collect::<Result<Vec<_>>>()?;
     arithm::product_array(&rows, W).map_err(|e| anyhow!("transpose failed: {e}"))
 }
+
+/// Decode an array of width-`W` plaintext-group elements, undoing the
+/// transposition (the inverse of [`component_array_to_tree`]).
+///
+/// Reads `Plaintexts.bt` and each `DecryptionFactors<l>.bt`.
+pub fn tree_to_component_array<const W: usize>(tree: &ByteTree) -> Result<Vec<[P256Element; W]>> {
+    arithm::product_array_rows(tree)
+        .map_err(|e| anyhow!("untranspose failed: {e}"))?
+        .iter()
+        .map(|row| {
+            if row.len() != W {
+                return Err(anyhow!("expected width {W}, found {}", row.len()));
+            }
+            let mut components = [P256Element::one(); W];
+            for (slot, component) in components.iter_mut().zip(row) {
+                *slot = tree_to_element(component)?;
+            }
+            Ok(components)
+        })
+        .collect()
+}

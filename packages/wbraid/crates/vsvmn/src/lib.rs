@@ -49,3 +49,4 @@ pub mod decrypt;
 pub mod encode;
 pub mod generators;
 pub mod proof_dir;
+pub mod verify;
