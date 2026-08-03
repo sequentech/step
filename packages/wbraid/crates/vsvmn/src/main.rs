@@ -175,20 +175,12 @@ fn generate(args: &Generate) -> Result<bool> {
     println!();
     println!("Verify it with Verificatum:");
     println!(
-        "  vmnv {mode} -auxsid {} -width {} {} {}",
+        "  vmnv -v {mode} -auxsid {} -width {} {} {}",
         spec.auxsid,
         spec.info.width,
         protinfo.display(),
         nizkp.display()
     );
-    if cfg!(windows) {
-        // `vmnv` itself runs anywhere -- it is Java verification. Its launcher
-        // is a /bin/sh script, and running that under WSL would leave it with
-        // Windows paths it cannot resolve, so the line above is not directly
-        // runnable here.
-        println!("  (on Windows the shipped `vmnv` is a shell script; see this");
-        println!("   crate's README.md for invoking the verifier without WSL)");
-    }
     println!("or with this tool:");
     println!("  vsvmn verify {} {}", protinfo.display(), nizkp.display());
     if kind == emit::Kind::Shuffling {

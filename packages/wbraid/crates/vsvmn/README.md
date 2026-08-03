@@ -26,14 +26,15 @@ cargo build --release -p vsvmn
 ```
 
 The binary lands in the **cargo workspace's** `target/release`, not this
-crate's directory and not the git root's — `packages/wbraid/target/release/vsvmn`,
-`vsvmn.exe` on Windows. It has no runtime dependency on Verificatum; that is
-the point of `verify`.
+crate's directory and not the git root's — `packages/wbraid/target/release/vsvmn`.
+ It has no runtime dependency on Verificatum; that is the point of `verify`.
 
-Every example below writes `vsvmn` as if it were on `PATH`. Put that directory
-there, or call the binary by its path.
+Every example below writes `vsvmn` as if it were on `PATH`. Put the target/release directory
+on the `PATH`, or call the binary by its path.
 
 ## verify
+
+The verify subcommand checks a session Verificatum produced, using vsc cryptography:
 
 ```text
 vsvmn verify <protInfo.xml> <proof-directory>
@@ -71,30 +72,10 @@ where every proof present verifies but the ones missing were never noticed.
 
 ### Sample data to try it on
 
-In production the input comes from a real Verificatum run. To get a session to
-try `verify` against, use VMN's own demo — the point being that the data is
-produced by Verificatum, not by us.
-
-It needs a Unix host — on Windows, run it under WSL — and Verificatum's
-launcher scripts on `PATH`. Those are shell scripts, spread across both
-projects: `vog` comes from VCR, everything named `vmn*` from VMN.
-
-```text
-$VMN_HOME/verificatum-vcr/bin/    vog, vbt, ...
-$VMN_HOME/verificatum-vmn/bin/    vmn, vmni, vmnv, vdemo, ...
-```
-
-**Putting those two directories on `PATH` is not enough by itself.** Each
-launcher hardcodes where the jars were installed:
-
-```sh
-export CLASSPATH=/usr/local/share/java/verificatum-vcr-3.1.0.jar:::${CLASSPATH}
-```
-
-so they work as shipped only after installing Verificatum the way each project
-documents. To run from a built tree without installing, copy the launchers and
-repoint that one line — leaving the rest alone, so how the tools are invoked
-does not change:
+In production the input comes from a real Verificatum run. To run the demo
+from a raw clone of verificatum repositories without installing, copy the
+launchers from vcr and vmn — `$VMN_HOME` below is the directory holding both
+clones, each with the jar its own build produced:
 
 ```sh
 JARS="$VMN_HOME/verificatum-vmn/verificatum-vmn-3.1.0.jar:$VMN_HOME/verificatum-vcr/verificatum-vcr-3.1.0.jar"
@@ -146,9 +127,9 @@ TERM=./vterm
 SILENT=-s
 ```
 
-Six lines, none of them commented. Anything missing or still carrying a
-shipped value means an edit did not apply, and the demo will not say so — it
-runs a long way before failing for a reason that looks unrelated.
+Anything missing or still carrying a shipped value means an edit did not apply, 
+and the demo will not say so — it runs a long way before failing for a reason 
+that looks unrelated.
 
 Then run it:
 
@@ -174,45 +155,7 @@ vsvmn verify demo/mydemodir/Party01/protInfo.xml \
              demo/mydemodir/Party01/dir/nizkp/default
 ```
 
-On Windows this crosses a boundary the paths do not show. The demo has to run
-under WSL; `vsvmn` runs wherever you built it. Pick one and stay there:
-
-- **Built under WSL** — the command above works as written.
-- **Built on Windows** — run it from PowerShell against the same files by
-  their Windows path. A demo run under `/mnt/c/work/...` *is* `C:\work\...`;
-  the two are one directory seen from two sides.
-
-Do not hand a `/mnt/c/...` path to the Windows executable. It cannot resolve
-one, and the error will not say so — from Git Bash the path is rewritten
-before the binary ever sees it, so `/mnt/c/tmp/x.xml` is reported missing as
-`C:/Program Files/Git/mnt/c/tmp/x.xml`.
-
-### If your hostname has capitals in it
-
-`vmni` builds `http://<hostname>:<port>` and validates it against a pattern
-that does not admit uppercase, before anything cryptographic happens:
-
-```text
-InfoException: Value does not match expression! (http://NewKid:8040 is not urlport)
-```
-
-WSL takes its hostname from the Windows machine name, so this is the common
-case on Windows rather than an unusual one. Run the demo in a private UTS
-namespace:
-
-```sh
-unshare -U -u --map-root-user bash -c 'hostname localhost; ./delete; ./demo'
-```
-
-`-U` maps you to root inside a user namespace, so no privileges are needed, and
-`-u` scopes the hostname to that process tree — nothing outside it sees a
-change. Wrap the whole sequence, not just `./demo`: `./sact`, `./delete` and
-`./mix` re-read the info files and need the same hostname.
-
-The alternative is to set it for the distro in `/etc/wsl.conf` under
-`[network]` and `wsl --shutdown`, which is a bigger hammer than the job needs.
-
-### Two more that cost time
+### Two things that cost time
 
 - **Run `./delete` before running again.** A second `./mix` against a spent
   session blocks indefinitely rather than reporting anything.
@@ -226,6 +169,9 @@ checkout needs (CRLF, hostname resolution, rewritten launchers). See
 it by hand.
 
 ## generate
+
+The generate subcommand generates synthetic session data, produced by `vsc`, in Verificatum's 
+format, for `vmnv` to check:
 
 ```text
 vsvmn generate [OPTIONS] <DIR>
@@ -243,60 +189,14 @@ wrote a mixing session: k=3, lambda=2, omega=2, N=20, active=[1, 3]
   /tmp/session/nizkp
 
 Verify it with Verificatum:
-  vmnv -mix -auxsid default -width 2 /tmp/session/protInfo.xml /tmp/session/nizkp
+  vmnv -v -mix -auxsid default -width 2 /tmp/session/protInfo.xml /tmp/session/nizkp
 or with this tool:
   vsvmn verify /tmp/session/protInfo.xml /tmp/session/nizkp
 ```
 
 It generates and stops — running the verifier is yours to do — but prints the
-command, since getting `vmnv`'s arguments right is the fiddly part.
-
-### Running the printed command on Windows
-
-**`vmnv` does not need WSL.** Unlike the demo above, it is Java verification
-with nothing Unix-specific about it. What needs a shell is the *launcher*: the
-shipped `vmnv` is a `/bin/sh` script. Running it under WSL then means the
-Windows paths `generate` printed will not resolve there, so it is the wrong way
-round on Windows.
-
-Run the class directly instead. The launcher does very little — it prepends its
-own name and two paths, then hands over the rest:
-
-```sh
-java ... MixNetElGamalVerifyFiatShamirTool "$COMMAND_NAME" \
-     "$VERIFICATUM_RANDOM_SOURCE" "$VERIFICATUM_RANDOM_SEED" "$@"
-```
-
-so from PowerShell, with `$D` the directory `generate` wrote:
-
-```powershell
-$J  = "...\crates\braid\verificatum"
-$CP = "$J\verificatum-vmn\verificatum-vmn-3.1.0.jar;$J\verificatum-vcr\verificatum-vcr-3.1.0.jar"
-
-java -cp $CP com.verificatum.protocol.mixnet.MixNetElGamalVerifyFiatShamirTool `
-     vmnv "$R\random_source" "$R\random_seed" `
-     -mix -v -auxsid default -width 2 "$D\protInfo.xml" "$D\nizkp"
-```
-
-`$R` is a random source, which `vmnv` insists on even though verification
-consumes none. The launcher would default it to `~/.verificatum_random_source`;
-calling the class directly means saying where it is, and it has to have been
-initialised. `vog -rndinit RandomDevice /dev/urandom` is the documented way and
-has no Windows equivalent, so use a seeded PRG instead:
-
-```powershell
-$R = "$env:TEMP\vmn_random"; New-Item -ItemType Directory -Force $R | Out-Null
-$b = [byte[]]::new(512); [System.Security.Cryptography.RandomNumberGenerator]::Fill($b)
-[System.IO.File]::WriteAllBytes("$R\seed_material", $b)
-
-$desc = (java -cp $CP com.verificatum.ui.gen.GeneratorTool vog ":VERIFICATUM_VOG_BUILTIN" `
-         "$R\random_source" "$R\random_seed" -gen HashfunctionHeuristic SHA-256).Trim()
-java -cp $CP com.verificatum.ui.gen.GeneratorTool vog ":VERIFICATUM_VOG_BUILTIN" `
-     "$R\random_source" "$R\random_seed" -seed "$R\seed_material" -rndinit PRGHeuristic $desc
-```
-
-Do that once; `vmnv` rewrites the seed on each run, which is what a seeded PRG
-source does.
+command, since getting `vmnv`'s arguments right is the fiddly part. The options
+are:
 
 | | |
 | --- | --- |
@@ -317,19 +217,6 @@ them.
 Widths 1–3 and *k* up to 4 are instantiated. The const generics come from vsc's
 ciphertext and DKG types, so each shape is a separate monomorphisation; asking
 for one that is not compiled in is an error naming the function to extend.
-
-### This generates, it does not export
-
-The session is synthetic: the ciphertexts are encryptions of random group
-elements and every party is played by one process. It is not a real braid
-session converted into Verificatum's format.
-
-The shuffle half of a real export would be possible. The decryption half is
-not, and the obstacle is structural: Verificatum's decryption transcript is
-joint over *all k* parties' factors — the batching seed commits to every
-party's factor array before any commitment is formed — so producing one needs
-three rounds among the trustees, which braid's decryption protocol does not
-have.
 
 ### Do not trust `vmnv`'s exit code on a shuffling proof
 
