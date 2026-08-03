@@ -12,3 +12,4 @@ pub mod participation;
 pub mod report_variables;
 pub mod template_renderer;
 pub mod utils;
+pub mod voter_information_letter;
