@@ -30,12 +30,8 @@ crate's directory and not the git root's — `packages/wbraid/target/release/vsv
 `vsvmn.exe` on Windows. It has no runtime dependency on Verificatum; that is
 the point of `verify`.
 
-Every example below writes `vsvmn` as if it were on `PATH`. If it is not, call
-it by path, or put it there for the session:
-
-```sh
-export PATH="$(dirname "$(cargo locate-project --workspace --message-format plain)")/target/release:$PATH"
-```
+Every example below writes `vsvmn` as if it were on `PATH`. Put that directory
+there, or call the binary by its path.
 
 ## verify
 
