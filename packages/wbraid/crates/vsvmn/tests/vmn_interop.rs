@@ -471,3 +471,97 @@ fn braid_verifies_a_multiparty_verificatum_decryption_proof() {
         "the computed plaintexts must match Plaintexts.bt"
     );
 }
+
+/// The three-party corpus with party 2 **genuinely inactive**: `./sact '{1,3}'`
+/// before mixing, so VMN wrote its own placeholder decryption material.
+fn inactive_party_corpus() -> Option<PathBuf> {
+    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../testdata/verificatum-3party-inactive");
+    dir.join("nizkp").is_dir().then_some(dir)
+}
+
+/// **The placeholder convention, checked against Verificatum rather than
+/// against ourselves.**
+///
+/// A party that takes no part still occupies a slot: `DecryptionFactors<l>.bt`
+/// holds an all-identity array of full size, `DecrFactCommitment<l>.bt` holds
+/// `node(1, 1^ω)`, and `DecrFactReply<l>.bt` holds the zero scalar. We derived
+/// that by reading `DistrElGamalSessionBasic`'s fallbacks, and every test of it
+/// so far has been against our own construction of the same values — which
+/// proves consistency, not correctness.
+///
+/// It matters because those values are *not* inert. Every party's factors are
+/// hashed into the batching seed and every party's commitment into the
+/// challenge, including the excluded one's. Get the placeholder wrong and `v`
+/// moves, so the two *participating* parties' proofs fail. This corpus is the
+/// first thing that can catch that.
+#[test]
+fn braid_verifies_a_decryption_with_a_genuinely_inactive_party() {
+    let Some(root) = inactive_party_corpus() else {
+        eprintln!("skipping: no inactive-party corpus");
+        return;
+    };
+    let dir = root.join("nizkp");
+
+    let xml = std::fs::read_to_string(root.join("protInfo.xml")).expect("read protInfo.xml");
+    let info = vsvmn::wire::protinfo::ProtocolInfo::parse(&xml).expect("parse protInfo.xml");
+    let auxsid = std::fs::read_to_string(dir.join("auxsid")).expect("read auxsid");
+    let rho = global_prefix(Hashfunction::Sha256, &info.prefix_params(auxsid.trim()));
+
+    let correct =
+        vsvmn::wire::arithm::bool_array_values(&read_tree(&dir, "proofs/CorrectIndices.bt"))
+            .expect("decode CorrectIndices");
+    assert_eq!(correct.len(), info.parties + 1);
+    assert!(
+        !correct[2],
+        "this corpus exists because party 2 sat out; CorrectIndices must say so"
+    );
+
+    // Party 2's array is present and full length even though it contributed
+    // nothing -- the file cannot be omitted or shortened.
+    let absent = encode::tree_to_component_array::<W>(&read_tree(
+        &dir,
+        "proofs/DecryptionFactors02.bt",
+    ))
+    .expect("decode the inactive party's factors");
+    assert!(
+        absent.iter().flatten().all(|e: &P256Element| e.is_identity()),
+        "VMN writes an all-identity array for a party that took no part"
+    );
+
+    let mixers: usize = std::fs::read_to_string(dir.join("proofs/activethreshold"))
+        .expect("read activethreshold")
+        .trim()
+        .parse()
+        .expect("a number");
+    let mixed = encode::tree_to_ciphertexts::<W>(&read_tree(
+        &dir,
+        &format!("proofs/Ciphertexts{mixers:02}.bt"),
+    ))
+    .expect("decode the mixed ciphertexts");
+    let gamma = encode::tree_to_elements(&read_tree(&dir, "proofs/PolynomialInExponent.bt"))
+        .expect("decode gamma");
+
+    let contributions: Vec<_> = (1..=info.parties).map(|l| read_contribution(&dir, l)).collect();
+    let contributions: Vec<PartyContribution<W>> = contributions
+        .iter()
+        .map(|(factors, proof)| PartyContribution { factors, proof })
+        .collect();
+
+    let params = SessionParams {
+        rho,
+        hash: Hashfunction::Sha256,
+        n_e: info.n_e as usize,
+        n_v: info.n_v as usize,
+        parties: info.parties,
+        threshold: info.threshold,
+    };
+
+    let plaintexts = verify_decryption(&params, &gamma, &mixed, &contributions, &correct)
+        .expect("well formed")
+        .expect("a decryption with an inactive party must verify");
+
+    let published = encode::tree_to_component_array::<W>(&read_tree(&dir, "Plaintexts.bt"))
+        .expect("decode the published plaintexts");
+    assert_eq!(plaintexts, published);
+}
