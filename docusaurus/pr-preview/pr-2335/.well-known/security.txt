@@ -2,20 +2,19 @@
 Hash: SHA512
 
 # Sequent Tech - coordinated vulnerability disclosure (RFC 9116)
-# TODO: clear-sign this file with the security@sequentech.io OpenPGP key once
-# it has been generated (RFC 9116 section 2.3).
+
 Canonical: https://docs.sequentech.io/docusaurus/main/.well-known/security.txt
 Contact: mailto:security@sequentech.io
-Encryption: https://docs.sequentech.io/docusaurus/main/security/pgp-key.txt
+Encryption: https://keys.openpgp.org/vks/v1/by-fingerprint/DB6B035E872AB5DA90C7194A60D3CBE30BAC91ED
 Policy: https://docs.sequentech.io/docusaurus/main/docs/technology/vulnerability-disclosure-policy
 Acknowledgments: https://docs.sequentech.io/docusaurus/main/docs/technology/vulnerability-disclosure-policy#recognition
 Preferred-Languages: en
 Expires: 2028-07-01T00:00:00.000Z
 -----BEGIN PGP SIGNATURE-----
 
-iJEEARYKADkWIQTbawNehyq12pDHGUpg08vjC6yR7QUCamDLWRsUgAAAAAAEAA5t
-YW51MiwyLjUrMS4xMiwwLDMACgkQYNPL4wuske3yjQD8CwQkjlu/UoTBSoPX8nfq
-44sRqo7GitolEHm4hhiot0oA/R5UOCZOBbN/A2l/SFdFzmoZeXqnQdeQoC+rYhtP
-SdsA
-=HxXc
+iJEEARYKADkWIQTbawNehyq12pDHGUpg08vjC6yR7QUCanBJbBsUgAAAAAAEAA5t
+YW51MiwyLjUrMS4xMiwwLDMACgkQYNPL4wuske1G6wD+NziZBacawZPZkYPb3FW8
+RJn48xotxfMRfZsuhaH3zbUBAMxdPqZE5a9ZLpN0gHUvRpUOzKVLeo3lT6y+P1aS
+6zwB
+=H7TJ
 -----END PGP SIGNATURE-----
