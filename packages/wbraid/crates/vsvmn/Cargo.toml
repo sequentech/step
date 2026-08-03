@@ -22,6 +22,9 @@ sha2 = "0.11"
 # `bas.h` output, and the values derived are public generators.
 num-bigint = "0.4"
 anyhow = "1.0"
+# The command-line tool. The library carries no clap types, so a dependent
+# crate takes none of this.
+clap = { version = "4.0", features = ["derive"] }
 
 [dev-dependencies]
 num-traits = "0.2"

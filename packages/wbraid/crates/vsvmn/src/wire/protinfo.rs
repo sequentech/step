@@ -69,7 +69,41 @@ pub struct ProtocolInfo {
     pub pgroup: String,
 }
 
+/// The marshalled `ECqPGroup(P-256)` string, comment prefix included.
+///
+/// ρ commits to this verbatim, so it is stored as VMN writes it rather than
+/// rebuilt from the curve name. The hex is the byte tree of the group's own
+/// marshalling: the class name `com.verificatum.arithm.ECqPGroup` followed by
+/// the curve name `P-256`.
+pub const P256_PGROUP: &str = "ECqPGroup(P-256)::0000000002010000002\
+0636f6d2e766572696669636174756d2e61726974686d2e4543715047726f757001000000\
+05502d323536";
+
 impl ProtocolInfo {
+    /// A P-256 session with Verificatum's own defaults for everything the
+    /// caller has no reason to choose.
+    ///
+    /// The three bit lengths are VMN's defaults rather than ours; changing them
+    /// changes ρ, so a file that disagrees with the one the prover used is
+    /// rejected wholesale rather than in part.
+    #[must_use]
+    pub fn p256(sid: &str, parties: usize, threshold: usize, width: usize) -> Self {
+        ProtocolInfo {
+            version: "3.1.0".to_string(),
+            sid: sid.to_string(),
+            parties,
+            threshold,
+            width,
+            key_width: 1,
+            n_r: 100,
+            n_v: 256,
+            n_e: 256,
+            prg: "SHA-256".to_string(),
+            rohash: "SHA-256".to_string(),
+            pgroup: P256_PGROUP.to_string(),
+        }
+    }
+
     /// Parse a protocol info file.
     ///
     /// # Errors

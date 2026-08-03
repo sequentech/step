@@ -50,26 +50,16 @@ use std::process::Command;
 #[allow(dead_code)]
 mod common;
 
-use vsvmn::proof_dir::{MixerStep, ShufflingProof};
-use vsvmn::{challenges::VmnChallenges, generators::vmn_generators};
-use cryptography::context::{Context, P256Ctx};
-use cryptography::groups::p256::element::P256Element;
-use cryptography::cryptosystem::elgamal::{Ciphertext, KeyPair};
-use cryptography::zkp::shuffle::Shuffler;
-use vsvmn::wire::crypto::{global_prefix, Hashfunction, PrefixParams};
+// The shipped emitter, so these tests exercise what the tool ships rather
+// than a second copy of it.
+use vsvmn::emit::{mixing, shuffling, shuffling_with_prefix, SessionSpec};
 use vsvmn::wire::protinfo::ProtocolInfo;
 
 const W: usize = 2;
 const N: usize = 8;
-const N_R: usize = 100;
-const N_E: usize = 256;
-const N_V: usize = 256;
 const SID: &str = "braidpoc";
 const AUXSID: &str = "default";
 
-const PGROUP: &str = "ECqPGroup(P-256)::0000000002010000002\
-0636f6d2e766572696669636174756d2e61726974686d2e4543715047726f757001000000\
-05502d323536";
 
 const VERIFY_TOOL: &str = "com.verificatum.protocol.mixnet.MixNetElGamalVerifyFiatShamirTool";
 
@@ -93,7 +83,7 @@ fn env() -> Option<Env> {
         // is read from disk, so no shape is privileged by being checked in.
         protinfo: match std::env::var("VMN_PROTINFO") {
             Ok(p) => PathBuf::from(p),
-            Err(_) => write_protinfo(&session(1, 1, W), "default"),
+            Err(_) => write_protinfo(&spec(1, 1).info, "default"),
         },
         random_source: random_source.clone(),
         random_seed: random_seed.clone(),
@@ -217,163 +207,51 @@ fn claim_no_shuffling_happened(dir: &PathBuf) {
     std::fs::write(dir.join("proofs/Ciphertexts01.bt"), &input).unwrap();
 }
 
-/// Produce a shuffle and write it as a Verificatum proof directory.
+/// The session these fixed-shape tests describe.
+///
+/// One specification builds both the proofs and the protocol info file handed
+/// to `vmnv`, so the parameters and the rho it recomputes cannot disagree --
+/// which is the one way to make a correct proof look wrong.
+fn spec(parties: usize, threshold: usize) -> SessionSpec {
+    let mut spec = SessionSpec::p256(parties, threshold, W, N);
+    spec.info.sid = SID.to_string();
+    spec.auxsid = AUXSID.to_string();
+    spec
+}
+
+/// A single-mixer shuffling proof, through the shipped emitter.
 fn emit(dir: &PathBuf) {
-    emit_with_drift(dir, false);
+    let _ = std::fs::remove_dir_all(dir);
+    shuffling::<W>(&spec(1, 1), dir).expect("emit a shuffling proof");
 }
 
 /// As [`emit`], but `drift` perturbs the global prefix to stand in for a
-/// regression in braid's transcript layer — the realistic way this interop
+/// regression in braid's transcript layer -- the realistic way this interop
 /// breaks. The resulting proof is well-formed but does not verify.
+///
+/// The perturbation is applied to rho rather than by using a different emitter,
+/// so what is under test is the shipped one.
 fn emit_with_drift(dir: &PathBuf, drift: bool) {
     let _ = std::fs::remove_dir_all(dir);
-
-    let mut rho = global_prefix(
-        Hashfunction::Sha256,
-        &PrefixParams {
-            version: "3.1.0".into(),
-            sid: SID.into(),
-            auxsid: AUXSID.into(),
-            n_r: N_R as u32,
-            n_v: N_V as u32,
-            n_e: N_E as u32,
-            prg: "SHA-256".into(),
-            pgroup: PGROUP.into(),
-            rohash: "SHA-256".into(),
-        },
-    );
+    let spec = spec(1, 1);
+    let mut rho = spec.prefix();
     if drift {
         rho[0] ^= 0x01;
     }
-
-    let keypair: KeyPair<P256Ctx> = KeyPair::generate();
-    let input: Vec<Ciphertext<P256Ctx, W>> = (0..N)
-        .map(|_| {
-            let m: [<P256Ctx as Context>::Element; W] =
-                std::array::from_fn(|_| P256Ctx::random_element());
-            keypair.encrypt(&m)
-        })
-        .collect();
-
-    let generators = vmn_generators(Hashfunction::Sha256, &rho, N_R, N).expect("generators");
-    let shuffler = Shuffler::<P256Ctx, W>::new(generators, keypair.pkey.clone());
-    let challenges = VmnChallenges::new(Hashfunction::Sha256, rho, N_E, N_V, W);
-    let (output, proof) = shuffler
-        .shuffle_with(&input, &[], &challenges)
-        .expect("shuffle");
-
-    ShufflingProof::<W> {
-        version: "3.1.0",
-        auxsid: AUXSID,
-        width: W,
-        threshold: 1,
-        public_key: &keypair.pkey.y,
-        input: &input,
-        mixers: &[MixerStep { output: &output, proof: &proof }],
-        polynomial_in_exponent: Some(&polynomial_in_exponent(&keypair.pkey.y, 1)),
-    }
-    .write(dir)
-    .expect("write proof directory");
+    shuffling_with_prefix::<W>(&spec, &rho, dir).expect("emit a shuffling proof");
 }
 
-/// A polynomial in the exponent `Γ = (Γ_0, ..., Γ_{λ-1})` with `Γ_0 = y`.
-///
-/// `vmnv` does not read this for a shuffling proof, but VMNV §9.3 step 5 and
-/// §9.1 both say a proof directory contains it, and VMN's own prover writes it
-/// even for shuffling sessions. Emitting it keeps braid's proofs acceptable to a
-/// verifier written strictly to the specification, rather than only to one that
-/// shares `vmnv`'s leniency — which is the entire point of the exercise.
-///
-/// The higher coefficients are arbitrary group elements. Every element of a
-/// prime-order group is `g^γ` for some `γ`, so this is a well-formed degree
-/// `λ-1` polynomial whose constant term is the real secret; a shuffling session
-/// never decrypts, so the coefficients above it are never used.
-fn polynomial_in_exponent(y: &P256Element, threshold: usize) -> Vec<P256Element> {
-    let mut gamma = Vec::with_capacity(threshold);
-    gamma.push(*y);
-    for _ in 1..threshold {
-        gamma.push(P256Ctx::random_element());
-    }
-    gamma
-}
-
-/// A chain of `parties` mixers, each shuffling the previous output, written as
-/// one multi-party shuffling proof.
-///
-/// The independent generators are a **session-level** value derived once from
-/// the prefix; every mixer shares them. Only the per-mixer statement differs,
-/// since each batching seed commits to that mixer's own permutation commitment
-/// and its input/output pair.
+/// A chain of `mixers` mixers, written as one multi-party shuffling proof.
 fn emit_chain(dir: &PathBuf, mixers: usize) {
     emit_chain_with_threshold(dir, mixers, mixers);
 }
 
-/// As [`emit_chain`], with the session threshold given separately. `lambda_a >=
-/// lambda` by construction, so `mixers` must be at least `threshold`.
-fn emit_chain_with_threshold(dir: &PathBuf, mixers: usize, threshold: usize) {
+/// As [`emit_chain`], with the session party count given separately. The
+/// emitter runs one mixer per active party, and lambda_a >= lambda, so
+/// `parties >= mixers`.
+fn emit_chain_with_threshold(dir: &PathBuf, mixers: usize, parties: usize) {
     let _ = std::fs::remove_dir_all(dir);
-
-    let rho = global_prefix(
-        Hashfunction::Sha256,
-        &PrefixParams {
-            version: "3.1.0".into(),
-            sid: SID.into(),
-            auxsid: AUXSID.into(),
-            n_r: N_R as u32,
-            n_v: N_V as u32,
-            n_e: N_E as u32,
-            prg: "SHA-256".into(),
-            pgroup: PGROUP.into(),
-            rohash: "SHA-256".into(),
-        },
-    );
-
-    let keypair: KeyPair<P256Ctx> = KeyPair::generate();
-    let input: Vec<Ciphertext<P256Ctx, W>> = (0..N)
-        .map(|_| {
-            let m: [<P256Ctx as Context>::Element; W] =
-                std::array::from_fn(|_| P256Ctx::random_element());
-            keypair.encrypt(&m)
-        })
-        .collect();
-
-    let generators = vmn_generators(Hashfunction::Sha256, &rho, N_R, N).expect("generators");
-    let shuffler = Shuffler::<P256Ctx, W>::new(generators, keypair.pkey.clone());
-
-    // Run the chain, keeping each mixer's output and proof.
-    let mut current = input.clone();
-    let mut outputs = Vec::with_capacity(mixers);
-    let mut proofs = Vec::with_capacity(mixers);
-    for _ in 0..mixers {
-        let challenges = VmnChallenges::new(Hashfunction::Sha256, rho.clone(), N_E, N_V, W);
-        let (output, proof) = shuffler
-            .shuffle_with(&current, &[], &challenges)
-            .expect("shuffle");
-        current = output.clone();
-        outputs.push(output);
-        proofs.push(proof);
-    }
-
-    let gamma = polynomial_in_exponent(&keypair.pkey.y, threshold);
-
-    let mixers: Vec<MixerStep<W>> = outputs
-        .iter()
-        .zip(proofs.iter())
-        .map(|(output, proof)| MixerStep { output, proof })
-        .collect();
-
-    ShufflingProof::<W> {
-        version: "3.1.0",
-        auxsid: AUXSID,
-        width: W,
-        threshold,
-        public_key: &keypair.pkey.y,
-        input: &input,
-        mixers: &mixers,
-        polynomial_in_exponent: Some(&gamma),
-    }
-    .write(dir)
-    .expect("write proof directory");
+    shuffling::<W>(&spec(parties, mixers), dir).expect("emit a shuffling chain");
 }
 
 /// Corrupting any single mixer's proof must sink the whole chain, so a chain is
@@ -384,7 +262,7 @@ fn vmnv_rejects_a_chain_with_one_bad_mixer() {
     let Some(mut env) = env() else {
         return common::skip("Verificatum cannot be run here");
     };
-    env.protinfo = write_protinfo(&session(3, 3, W), "3of3");
+    env.protinfo = write_protinfo(&spec(3, 3).info, "3of3");
 
     for party in 1..=3 {
         let dir = std::env::temp_dir().join("braid_vmnv_chain_bad");
@@ -557,261 +435,18 @@ fn vmnv_is_silent_about_a_failed_shuffle() {
     );
 }
 
-/// Emit a complete `type = mixing` proof: a real DKG, a chain of shuffles, and
-/// threshold decryption with the batched proof.
+/// A complete mixing session at `(K, T)`, through the shipped emitter.
 ///
-/// `K` is the party count `k` and `T` the threshold λ, which must match the
-/// protocol info file's `<nopart>` and `<thres>`. `delta` names the 1-based
-/// indices of the λ parties that decrypt; any party not listed contributes the
-/// all-identity factor array and the identity commitment/zero reply that
-/// Verificatum records for an absent contribution.
-///
-/// The chain runs `T` mixers, since `λ_a ≥ λ` and braid mixes with exactly its
-/// selected trustees.
+/// `delta` names the 1-based indices of the T parties that decrypt; any party
+/// not listed contributes the all-identity factor array and the identity
+/// commitment and zero reply Verificatum records for an absent contribution.
 fn emit_mixing<const K: usize, const T: usize>(dir: &PathBuf, delta: &[usize]) {
-    use vsvmn::decrypt::{self, batch, inactive_proof, prove_decryption};
-    use vsvmn::encode;
-    use vsvmn::proof_dir::{DecryptingParty, MixingProof};
-    use cryptography::cryptosystem::elgamal::PublicKey;
-    use cryptography::dkgd::dealer::{Dealer, VerifiableShare};
-    use cryptography::dkgd::recipient::{ParticipantPosition, Recipient};
-    use cryptography::groups::p256::scalar::P256Scalar;
-    use cryptography::traits::groups::{GroupElement, GroupScalar};
-    use vsvmn::wire::bytetree::ByteTree;
-    use vsvmn::wire::crypto::{dec_challenge, dec_seed, Prg};
-
-    assert_eq!(delta.len(), T, "exactly lambda parties may decrypt");
     let _ = std::fs::remove_dir_all(dir);
-
-    let rho = global_prefix(
-        Hashfunction::Sha256,
-        &PrefixParams {
-            version: "3.1.0".into(),
-            sid: SID.into(),
-            auxsid: AUXSID.into(),
-            n_r: N_R as u32,
-            n_v: N_V as u32,
-            n_e: N_E as u32,
-            prg: "SHA-256".into(),
-            pgroup: PGROUP.into(),
-            rohash: "SHA-256".into(),
-        },
-    );
-
-    // --- the distributed key generation ---------------------------------
-    let dealers: Vec<Dealer<P256Ctx, T, K>> = (0..K).map(|_| Dealer::generate()).collect();
-    let dealt: Vec<_> = dealers.iter().map(|d| d.get_verifiable_shares()).collect();
-
-    let gamma = decrypt::polynomial_in_exponent(
-        &dealt
-            .iter()
-            .map(|s| s.checking_values.to_vec())
-            .collect::<Vec<_>>(),
-    )
-    .expect("polynomial in the exponent");
-
-    // Each party verifies every dealer's contribution and keeps its share.
-    let mut secrets = Vec::with_capacity(K);
-    let mut joint_key = None;
-    for party in 1..=K {
-        let shares: [VerifiableShare<P256Ctx, T>; K] = std::array::from_fn(|d| {
-            VerifiableShare::new(
-                dealt[d].shares[party - 1].clone(),
-                dealt[d].checking_values.clone(),
-            )
-        });
-        let (y, _vk, x_l) = Recipient::<P256Ctx, T, K>::verify_shares(
-            &ParticipantPosition::from_usize(party),
-            &shares,
-        )
-        .expect("shares must verify");
-        joint_key = Some(y);
-        secrets.push(x_l);
-    }
-    let y = joint_key.expect("a joint public key");
-    assert!(gamma[0].equals(&y), "Gamma_0 must be the joint public key");
-
-    // --- the shuffle chain ------------------------------------------------
-    let pk = PublicKey::<P256Ctx>::new(y);
-    let input: Vec<Ciphertext<P256Ctx, W>> = (0..N)
-        .map(|_| {
-            let m: [<P256Ctx as Context>::Element; W] =
-                std::array::from_fn(|_| P256Ctx::random_element());
-            pk.encrypt(&m)
-        })
-        .collect();
-
-    let generators = vmn_generators(Hashfunction::Sha256, &rho, N_R, N).expect("generators");
-    let shuffler = Shuffler::<P256Ctx, W>::new(generators, pk.clone());
-
-    let mut current = input.clone();
-    let mut outputs = Vec::with_capacity(T);
-    let mut shuffle_proofs = Vec::with_capacity(T);
-    for _ in 0..T {
-        let challenges = VmnChallenges::new(Hashfunction::Sha256, rho.clone(), N_E, N_V, W);
-        let (output, proof) = shuffler
-            .shuffle_with(&current, &[], &challenges)
-            .expect("shuffle");
-        current = output.clone();
-        outputs.push(output);
-        shuffle_proofs.push(proof);
-    }
-    let mixed = outputs.last().expect("a non-empty chain").clone();
-
-    // --- decryption factors, in Verificatum's convention -------------------
-    // A participant scales its share by 1/alpha once: the factors use the
-    // negation of that scalar and the proof reply uses it directly. A
-    // non-participant publishes an all-identity array of the same shape, which
-    // it must, since the verifier reads a file for every party.
-    let inv_alpha = decrypt::inverse_alpha(K).expect("1/alpha");
-    let u: Vec<[P256Element; W]> = mixed.iter().map(|c| c.0[0]).collect();
-
-    let scaled: Vec<Option<P256Scalar>> = (1..=K)
-        .map(|party| delta.contains(&party).then(|| secrets[party - 1].mul(&inv_alpha)))
-        .collect();
-    let factors: Vec<Vec<[P256Element; W]>> = scaled
-        .iter()
-        .map(|z| match z {
-            Some(z) => {
-                let exponent = z.neg();
-                u.iter()
-                    .map(|ui| std::array::from_fn(|w| ui[w].exp(&exponent)))
-                    .collect()
-            }
-            None => decrypt::inactive_factors::<W>(N),
-        })
-        .collect();
-
-    // --- the batched proof transcript --------------------------------------
-    let factor_trees: Vec<ByteTree> = factors
-        .iter()
-        .map(|f| encode::component_array_to_tree(f).expect("encode factors"))
-        .collect();
-    let seed = dec_seed(
-        Hashfunction::Sha256,
-        &rho,
-        &encode::element_to_tree(&P256Element::generator()).expect("encode g"),
-        &encode::ciphertexts_to_tree(&mixed).expect("encode ciphertexts"),
-        &encode::elements_to_tree(&gamma).expect("encode gamma"),
-        &factor_trees,
-    );
-
-    // One n_e-bit batching exponent per ciphertext, as in the shuffle.
-    let component = N_E.div_ceil(8);
-    let stream = Prg::new(Hashfunction::Sha256, &seed).generate(component * N);
-    let e: Vec<P256Scalar> = stream.chunks(component).map(scalar_from).collect();
-    let a = batch(&u, &e).expect("batch the first components");
-
-    // Commitments do not depend on the challenge, so they are fixed first and
-    // then hashed into it -- including the non-participants', which is why
-    // their placeholder values are not free to choose.
-    let mut rng = P256Ctx::get_rng();
-    let zero = P256Scalar::zero();
-    let randomizers: Vec<Option<P256Scalar>> = scaled
-        .iter()
-        .map(|z| z.as_ref().map(|_| P256Scalar::random(&mut rng)))
-        .collect();
-    let commitments: Vec<_> = randomizers
-        .iter()
-        .map(|r| match r {
-            Some(r) => prove_decryption::<W>(&zero, &a, &zero, r),
-            None => inactive_proof::<W>(),
-        })
-        .collect();
-    let commitment_trees: Vec<ByteTree> = commitments
-        .iter()
-        .map(|c| {
-            ByteTree::node(vec![
-                encode::element_to_tree(&c.y_prime).expect("encode y'"),
-                encode::elements_to_tree(&c.b_prime).expect("encode B'"),
-            ])
-        })
-        .collect();
-
-    let v = scalar_from(&dec_challenge(
-        Hashfunction::Sha256,
-        N_V,
-        &rho,
-        &seed,
-        &commitment_trees,
-    ));
-    let proofs: Vec<_> = (0..K)
-        .map(|l| match (&scaled[l], &randomizers[l]) {
-            (Some(z), Some(r)) => prove_decryption::<W>(z, &a, &v, r),
-            _ => inactive_proof::<W>(),
-        })
-        .collect();
-
-    // --- the plaintexts -----------------------------------------------------
-    let alpha_c: Vec<P256Scalar> =
-        vsvmn::wire::lagrange::p256_modified_lagrange_coefficients(delta, K)
-            .into_iter()
-            .map(|(negative, magnitude)| {
-                let s = P256Scalar::from_bytes_reduced(&magnitude);
-                if negative {
-                    s.neg()
-                } else {
-                    s
-                }
-            })
-            .collect();
-    let plaintexts: Vec<[P256Element; W]> = (0..N)
-        .map(|i| {
-            let mut combined: [P256Element; W] = std::array::from_fn(|_| P256Element::one());
-            for (position, &party) in delta.iter().enumerate() {
-                for w in 0..W {
-                    let contribution = factors[party - 1][i][w].exp(&alpha_c[position]);
-                    combined[w] = combined[w].mul(&contribution);
-                }
-            }
-            std::array::from_fn(|w| mixed[i].0[1][w].mul(&combined[w]))
-        })
-        .collect();
-
-    // --- write it out -------------------------------------------------------
-    let mixers: Vec<MixerStep<W>> = outputs
-        .iter()
-        .zip(shuffle_proofs.iter())
-        .map(|(output, proof)| MixerStep { output, proof })
-        .collect();
-    let parties: Vec<DecryptingParty<W>> = (0..K)
-        .map(|l| DecryptingParty {
-            factors: &factors[l],
-            proof: &proofs[l],
-            participated: delta.contains(&(l + 1)),
-        })
-        .collect();
-
-    MixingProof::<W> {
-        shuffle: ShufflingProof {
-            version: "3.1.0",
-            auxsid: AUXSID,
-            width: W,
-            threshold: T,
-            public_key: &y,
-            input: &input,
-            mixers: &mixers,
-            polynomial_in_exponent: Some(&gamma),
-        },
-        plaintexts: &plaintexts,
-        parties: &parties,
-    }
-    .write(dir)
-    .expect("write the mixing proof");
+    let mut spec = spec(K, T);
+    spec.active = delta.to_vec();
+    mixing::<W, K, T>(&spec, dir).expect("emit a mixing proof");
 }
 
-/// Interpret a big-endian byte string as a scalar, reducing modulo the group
-/// order.
-///
-/// Verificatum reads these as unbounded non-negative integers and exponentiates
-/// by them, which is the same thing in a group of prime order.
-fn scalar_from(bytes: &[u8]) -> cryptography::groups::p256::scalar::P256Scalar {
-    use cryptography::groups::p256::scalar::P256Scalar;
-    assert!(bytes.len() <= 32, "value wider than a P-256 scalar");
-    let mut fixed = [0u8; 32];
-    fixed[32 - bytes.len()..].copy_from_slice(bytes);
-    P256Scalar::from_bytes_reduced(&fixed)
-}
 
 /// Assert that `vmnv -mix` verified every phase, and say which one failed if not.
 fn assert_mix_verified(output: &str, mixers: usize) {
@@ -834,24 +469,6 @@ fn assert_mix_verified(output: &str, mixers: usize) {
 // Synthesized protocol info files
 // -------------------------------------------------------------------------
 
-/// The session parameters the shipped corpus was generated with, as a
-/// `ProtocolInfo` we can vary.
-fn session(parties: usize, threshold: usize, width: usize) -> ProtocolInfo {
-    ProtocolInfo {
-        version: "3.1.0".to_string(),
-        sid: SID.to_string(),
-        parties,
-        threshold,
-        width,
-        key_width: 1,
-        n_r: N_R as u32,
-        n_v: N_V as u32,
-        n_e: N_E as u32,
-        prg: "SHA-256".to_string(),
-        rohash: "SHA-256".to_string(),
-        pgroup: PGROUP.to_string(),
-    }
-}
 
 /// Write a synthesized protocol info file and return its path.
 fn write_protinfo(info: &ProtocolInfo, name: &str) -> PathBuf {
@@ -878,7 +495,7 @@ fn vmnv_accepts_a_synthesized_protocol_info_file() {
     };
 
     // The same 3-of-3 session as the shipped file, but written by us.
-    env.protinfo = write_protinfo(&session(3, 3, W), "3of3");
+    env.protinfo = write_protinfo(&spec(3, 3).info, "3of3");
 
     let dir = std::env::temp_dir().join("braid_vmnv_synth");
     emit_chain(&dir, 3);
@@ -910,7 +527,7 @@ fn vmnv_accepts_a_sweep_of_session_shapes() {
 
     for parties in 1..=4 {
         for threshold in 1..=parties {
-            let info = session(parties, threshold, W);
+            let info = spec(parties, threshold).info;
             assert!(info.is_consistent());
             env.protinfo = write_protinfo(&info, &format!("{parties}of{threshold}"));
 
@@ -991,7 +608,7 @@ fn vmnv_accepts_a_sweep_of_mixing_shapes() {
         }
 
         for delta in deltas {
-            let info = session(parties, threshold, W);
+            let info = spec(parties, threshold).info;
             env.protinfo = write_protinfo(&info, &format!("mix{parties}of{threshold}"));
 
             let tag: String = delta.iter().map(usize::to_string).collect();

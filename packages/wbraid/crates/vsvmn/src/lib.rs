@@ -46,6 +46,7 @@ pub mod wire;
 
 pub mod challenges;
 pub mod decrypt;
+pub mod emit;
 pub mod encode;
 pub mod generators;
 pub mod proof_dir;
