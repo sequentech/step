@@ -2287,6 +2287,7 @@ const englishTranslation = {
                 ko: "Cancel",
                 error: "Error loading ballot publication",
                 error_publish: "Error publishing ballot publication",
+                error_capacity: "Ballot style generation failed: {{message}}",
                 error_status: "Error change ballot publication status",
                 error_preview: "Error previewing publication",
                 diff: "Rendering all changes might make the page unresponsive. Are you sure you want to continue?",

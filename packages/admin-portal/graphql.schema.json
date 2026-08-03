@@ -3733,6 +3733,50 @@
       },
       {
         "kind": "OBJECT",
+        "name": "GenerateBallotPublicationOutput",
+        "description": null,
+        "isOneOf": null,
+        "fields": [
+          {
+            "name": "ballot_publication_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "uuid",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "task_execution",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "tasks_execution_type",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
         "name": "GenerateGoogleMeetOutput",
         "description": null,
         "isOneOf": null,
@@ -17407,7 +17451,7 @@
             ],
             "type": {
               "kind": "OBJECT",
-              "name": "PublishBallotOutput",
+              "name": "GenerateBallotPublicationOutput",
               "ofType": null
             },
             "isDeprecated": false,

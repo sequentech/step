@@ -2316,6 +2316,7 @@ const frenchTranslation: TranslationType = {
                 ko: "Annuler",
                 error: "Erreur lors du chargement des bulletins publiés",
                 error_publish: "Erreur lors de la publication du bulletin",
+                error_capacity: "Échec de la génération du style de bulletin : {{message}}",
                 error_status: "Erreur lors du changement d'état de la publication",
                 error_preview: "Erreur lors de l'aperçu de la publication",
                 diff: "Afficher tous les changements pourrait rendre la page non réactive. Êtes-vous sûr de vouloir continuer ?",

@@ -2308,6 +2308,7 @@ const galegoTranslation: TranslationType = {
                 ko: "Cancelar",
                 error: "Erro ao cargar a publicación de papeletas",
                 error_publish: "Erro ao publicar a publicación de papeletas",
+                error_capacity: "Erro ao xerar o estilo de papeleta: {{message}}",
                 error_status: "Erro ao cambiar o estado da publicación de papeletas",
                 error_preview: "Erro ao previsualizar a publicación",
                 diff: "Renderizar todos os cambios pode facer que a páxina non responda. ¿Estás seguro de que queres continuar?",
