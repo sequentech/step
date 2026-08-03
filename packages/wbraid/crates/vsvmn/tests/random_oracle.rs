@@ -24,9 +24,6 @@ const PGROUP: &str = "ECqPGroup(P-256)::0000000002010000002\
 0636f6d2e766572696669636174756d2e61726974686d2e4543715047726f757001000000\
 05502d323536";
 
-/// Golden `der.rho` from `vmnv -t der.rho`.
-const GOLDEN_RHO: &str = "f0504114a1266503e264fb2b034782ea835a0e0d5e6e17641ad10150ba4419b0";
-
 fn reference_params() -> PrefixParams {
     PrefixParams {
         version: "3.1.0".to_string(),
@@ -202,9 +199,9 @@ fn rho_matches_the_installed_verificatum() {
 #[test]
 #[ignore = "runs VMN; see tests/common/mod.rs"]
 fn the_proof_transcripts_match_the_installed_verificatum() {
-    let Some(corpus) = common::shared() else {
+    if common::shared().is_none() {
         return common::skip("Verificatum is unavailable");
-    };
+    }
     let Some(vectors) = common::shared_vectors() else {
         return common::skip("vmnv -t produced no test vectors");
     };

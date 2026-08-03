@@ -134,8 +134,10 @@ $env:VMNV_RANDOM_SEED = $randomSeed
 $cargoArgs = @(
     "test", "--release",
     "-p", "vsvmn",
-    "--test", "vmn_verifier",
-    "--", "--ignored", "--nocapture"
+    # Every test file, not one: the interop tests are split by direction
+    # (they_verify_ours, we_verify_theirs) and the transcript checks live
+    # alongside them. --include-ignored so the fast tests run too.
+    "--", "--include-ignored", "--nocapture"
 )
 if (-not $All) { $cargoArgs += $Test }
 

@@ -18,7 +18,7 @@
 //! it goes through WSL, and skips if that is unavailable.
 //!
 //! ```text
-//! cargo test -p vsvmn --test vmn_generated -- --ignored --nocapture
+//! cargo test -p vsvmn --test we_verify_theirs -- --ignored --nocapture
 //! ```
 
 mod common;
@@ -210,7 +210,7 @@ fn a_tampered_verificatum_proof_is_rejected() {
 #[test]
 #[ignore = "runs VMN's prover: needs a JVM and a Unix host (WSL on Windows)"]
 fn an_inactive_party_gets_identity_factors_and_a_zero_reply() {
-    use cryptography::traits::groups::{GroupElement, GroupScalar};
+    use cryptography::traits::groups::GroupScalar;
 
     let shape = Shape::new(3, 2, 2, 4).with_active(vec![1, 3]);
     let Some(corpus) = common::generate(&shape) else {

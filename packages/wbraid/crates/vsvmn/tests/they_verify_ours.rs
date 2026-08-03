@@ -4,8 +4,8 @@
 
 //! Run Verificatum's `vmnv` against a proof braid produced.
 //!
-//! `vmn_interop.rs` covers the direction that needs no external tooling — braid
-//! verifying Verificatum's proof. This is the other direction, and it is the
+//! `we_verify_theirs.rs` covers the opposite direction — our verifier against a
+//! session Verificatum generated. This is the other direction, and it is the
 //! claim the whole exercise rests on: **an independently written verifier, in a
 //! different language, accepts braid's output.** Without this test that claim
 //! would only be reproducible by hand.
@@ -15,18 +15,18 @@
 //!
 //! ```text
 //! VMNV_JAR_DIR=.../verificatum \
-//! VMNV_PROTINFO=.../protInfo.xml \
 //! VMNV_RANDOM_SOURCE=.../random_source \
 //! VMNV_RANDOM_SEED=.../random_seed \
-//! cargo test -p braid --test vmn_verifier -- --ignored --nocapture
+//! cargo test -p vsvmn --test they_verify_ours -- --ignored --nocapture
 //! ```
 //!
 //! `VMNV_JAR_DIR` must contain `verificatum-vmn-3.1.0.jar` and
 //! `verificatum-vcr-3.1.0.jar`; the random source/seed are the files
 //! `vog -rndinit` writes. `VMNV_JAVA` overrides the `java` binary.
 //!
-//! The session parameters below must match `VMNV_PROTINFO`, because the global
-//! prefix rho is derived from them and the verifier recomputes it.
+//! The protocol info file is synthesized per session, so its parameters and the
+//! global prefix rho the verifier recomputes cannot drift apart. `VMNV_PROTINFO`
+//! overrides it, which is only useful for checking a file from elsewhere.
 //!
 //! # Never check `vmnv`'s exit code on its own
 //!

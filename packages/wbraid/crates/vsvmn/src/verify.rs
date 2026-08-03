@@ -20,7 +20,7 @@
 //! than skipping it. That is not a stylistic preference: `vmnv` itself has a
 //! defect of exactly that shape — it evaluates "too few proofs are valid" and
 //! then routes the conclusion to a handler that only prints (see
-//! `tests/vmn_verifier.rs`). A verifier that silently passes what it did not
+//! `tests/they_verify_ours.rs`). A verifier that silently passes what it did not
 //! check is worse than one that is honestly incomplete.
 
 use anyhow::{anyhow, Result};

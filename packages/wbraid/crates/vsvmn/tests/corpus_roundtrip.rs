@@ -224,7 +224,6 @@ fn shuffle_challenge_matches_vmn() {
 /// parses the raw `vmnv -t` output rather than the single-value map.
 #[test]
 #[ignore = "runs VMN; see tests/common/mod.rs"]
-#[ignore = "runs VMN; see tests/common/mod.rs"]
 fn shuffle_seed_matches_vmn() {
     let Some(dir) = corpus_dir() else {
         return common::skip("Verificatum is unavailable");
@@ -367,9 +366,9 @@ fn decryption_transcript_matches_vmn() {
 #[test]
 #[ignore = "runs VMN; see tests/common/mod.rs"]
 fn independent_generators_match_vmn() {
-    let Some(dir) = corpus_dir() else {
+    if corpus_dir().is_none() {
         return common::skip("Verificatum is unavailable");
-    };
+    }
     let Some(text) = common::shared_raw_vectors() else {
         return common::skip("vmnv -t produced no test vectors");
     };

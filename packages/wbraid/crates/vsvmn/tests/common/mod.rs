@@ -382,7 +382,24 @@ impl Corpus {
 
 /// The random source `vmnv` insists on, copied per call because it is rewritten
 /// on every run (see `they_verify_ours.rs`).
+///
+/// Corpus *generation* builds its own source inside the shell it runs VMN in, so
+/// it needs nothing from the environment; running `vmnv` natively does. When
+/// these are unset the result is a skip whose stated reason ("no test vectors")
+/// is true but unhelpful, so name the actual cause here.
 fn random_source() -> Option<(PathBuf, PathBuf)> {
+    let missing = ["VMNV_RANDOM_SOURCE", "VMNV_RANDOM_SEED"]
+        .into_iter()
+        .filter(|v| std::env::var(v).is_err())
+        .collect::<Vec<_>>();
+    if !missing.is_empty() {
+        eprintln!(
+            "{} unset, so `vmnv -t` cannot be run; see vmnv.ps1, which writes a \
+             random source and exports them",
+            missing.join(" and ")
+        );
+        return None;
+    }
     let source = PathBuf::from(std::env::var("VMNV_RANDOM_SOURCE").ok()?);
     let seed = PathBuf::from(std::env::var("VMNV_RANDOM_SEED").ok()?);
     let private = std::env::temp_dir().join(format!(

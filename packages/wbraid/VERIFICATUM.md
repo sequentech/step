@@ -587,7 +587,7 @@ decrypting (§2.4). Accepting one in which no mixing occurred means accepting a 
 no privacy, silently, with a zero exit status. §10.1 designates the exit code as *the* accept/reject
 signal, so a conforming integration would be misled.
 
-**Status.** Understood, reproduced, and pinned by two tests in `braid/tests/vmn_verifier.rs`
+**Status.** Understood, reproduced, and pinned by two tests in `vsvmn/tests/they_verify_ours.rs`
 (`vmnv_exit_code_alone_is_not_sufficient` and `vmnv_is_silent_about_a_failed_shuffle`) that will fail
 if it is ever fixed upstream. **Not yet reported to the Verificatum maintainers** — that is the
 outstanding action.
@@ -596,7 +596,7 @@ outstanding action.
 braid's transcript layer ever drifts, the emitted proofs stop verifying and `vmnv` reports that by
 exiting 0, so an exit-code-only check would stay green while the interop was silently broken. So:
 
-- `vmnv_accepts()` in `vmn_verifier.rs` is the single place that decides acceptance, and it requires
+- `vmnv_accepts()` in `they_verify_ours.rs` is the single place that decides acceptance, and it requires
   a zero exit **and** `Verify proof of shuffle... done.` in the output. Every test asks through it.
 - `vmnv_would_catch_emitter_drift` perturbs the prefix to simulate exactly that regression, asserts
   `vmnv` exits 0 on the result — confirming the trap is real — and asserts our check rejects anyway.
@@ -776,8 +776,8 @@ threshold decryption, board union — runs over it.
 three shuffles, and threshold decryption with the batched proof. This is the whole exercise, not
 just the shuffle half.
 
-`vmn_verifier.rs::vmnv_accepts_a_braid_mixing_proof` runs it at `k = λ = 3` against
-`protInfo-3party.xml`:
+`they_verify_ours.rs::vmnv_accepts_a_sweep_of_mixing_shapes` runs it across ten shapes,
+including `k = λ = 3`, each against a protocol info file synthesized for it:
 
 ```text
 ============ Verify decryption. ================================
