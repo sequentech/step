@@ -96,6 +96,59 @@ pub async fn get_secret_by_key(
 }
 
 #[instrument(skip(hasura_transaction), err)]
+pub async fn get_secret_by_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: Option<&str>,
+    secret_id: &str,
+) -> Result<Option<Secret>> {
+    let tenant_uuid = parse_uuid_v4(tenant_id)
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+    let election_event_uuid = election_event_id
+        .map(|id| {
+            parse_uuid_v4(id)
+                .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))
+        })
+        .transpose()?;
+    let secret_uuid = parse_uuid_v4(secret_id)
+        .map_err(|err| anyhow!("Error parsing secret_id as UUID: {}", err))?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT
+                *
+            FROM
+                "sequent_backend".secret
+            WHERE
+                id = $1 AND
+                tenant_id = $2 AND
+                election_event_id IS NOT DISTINCT FROM $3
+            "#,
+        )
+        .await?;
+
+    let rows = hasura_transaction
+        .query(
+            &statement,
+            &[&secret_uuid, &tenant_uuid, &election_event_uuid],
+        )
+        .await
+        .map_err(|err| anyhow!("Error reading secret: {err}"))?;
+    let secrets = rows
+        .into_iter()
+        .map(Secret::try_from)
+        .collect::<Result<Vec<_>>>()
+        .with_context(|| "Error converting rows into Secrets")?;
+
+    match secrets.as_slice() {
+        [] => Ok(None),
+        [secret] => Ok(Some(secret.clone())),
+        _ => Err(anyhow!("Found too many secrets: {}", secrets.len())),
+    }
+}
+
+#[instrument(skip(hasura_transaction), err)]
 pub async fn insert_secret(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,

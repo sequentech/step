@@ -193,6 +193,34 @@ pub struct Candidate {
     pub external_id: Option<String>,
 }
 
+#[derive(PartialEq, Eq, Debug, Clone, Default, Serialize, Deserialize)]
+pub struct DocumentAnnotations {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub access: Option<DocumentAccess>,
+}
+
+impl DocumentAnnotations {
+    pub fn password_protected(password_secret_id: impl Into<String>) -> Self {
+        Self {
+            access: Some(DocumentAccess {
+                password_secret_id: Some(password_secret_id.into()),
+            }),
+        }
+    }
+
+    pub fn password_secret_id(&self) -> Option<&str> {
+        self.access
+            .as_ref()
+            .and_then(|access| access.password_secret_id.as_deref())
+    }
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Default, Serialize, Deserialize)]
+pub struct DocumentAccess {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub password_secret_id: Option<String>,
+}
+
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Document {
     pub id: String,
@@ -206,6 +234,27 @@ pub struct Document {
     pub created_at: Option<DateTime<Local>>,
     pub last_updated_at: Option<DateTime<Local>>,
     pub is_public: Option<bool>,
+}
+
+#[cfg(test)]
+mod document_annotations_tests {
+    use super::DocumentAnnotations;
+    use serde_json::json;
+
+    #[test]
+    fn serializes_password_access_with_the_document() {
+        let annotations = DocumentAnnotations::password_protected("secret-id");
+
+        assert_eq!(
+            serde_json::to_value(&annotations).unwrap(),
+            json!({
+                "access": {
+                    "password_secret_id": "secret-id",
+                },
+            })
+        );
+        assert_eq!(Some("secret-id"), annotations.password_secret_id());
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]

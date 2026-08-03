@@ -2,14 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::document::insert_document;
+use crate::postgres::document::{insert_document, insert_document_with_annotations};
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use deadpool_postgres::Transaction;
 use deadpool_postgres::{Client as DbClient, Transaction as _};
 
 use sequent_core::services::connection;
-use sequent_core::types::hasura::core::Document;
+use sequent_core::types::hasura::core::{Document, DocumentAnnotations};
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 
@@ -30,7 +30,62 @@ pub async fn upload_and_return_document(
     document_id: Option<String>,
     is_public: bool,
 ) -> AnyhowResult<Document> {
-    let document = insert_document(
+    upload_and_return_document_inner(
+        hasura_transaction,
+        file_path,
+        file_size,
+        media_type,
+        tenant_id,
+        election_event_id,
+        name,
+        document_id,
+        is_public,
+        None,
+    )
+    .await
+}
+
+#[instrument(skip(hasura_transaction, annotations), err)]
+pub async fn upload_and_return_document_with_annotations(
+    hasura_transaction: &Transaction<'_>,
+    file_path: &str,
+    file_size: u64,
+    media_type: &str,
+    tenant_id: &str,
+    election_event_id: Option<String>,
+    name: &str,
+    document_id: Option<String>,
+    is_public: bool,
+    annotations: &DocumentAnnotations,
+) -> AnyhowResult<Document> {
+    upload_and_return_document_inner(
+        hasura_transaction,
+        file_path,
+        file_size,
+        media_type,
+        tenant_id,
+        election_event_id,
+        name,
+        document_id,
+        is_public,
+        Some(annotations),
+    )
+    .await
+}
+
+async fn upload_and_return_document_inner(
+    hasura_transaction: &Transaction<'_>,
+    file_path: &str,
+    file_size: u64,
+    media_type: &str,
+    tenant_id: &str,
+    election_event_id: Option<String>,
+    name: &str,
+    document_id: Option<String>,
+    is_public: bool,
+    annotations: Option<&DocumentAnnotations>,
+) -> AnyhowResult<Document> {
+    let document = insert_document_with_annotations(
         hasura_transaction,
         tenant_id,
         election_event_id.clone(),
@@ -39,6 +94,7 @@ pub async fn upload_and_return_document(
         file_size.try_into()?,
         is_public,
         document_id,
+        annotations,
     )
     .await?;
 
