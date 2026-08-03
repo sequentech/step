@@ -18,12 +18,12 @@
 //! ```
 //!
 //! Nothing else is required: the jars are in the tree, and the random source
-//! `vmnv` insists on is provisioned by `common::random_source`. `VMNV_JAR_DIR`
-//! points at jars elsewhere, `VMNV_JAVA` at a different `java`, and
-//! `VMNV_RANDOM_SOURCE`/`VMNV_RANDOM_SEED` at a source initialised by hand.
+//! `vmnv` insists on is provisioned by `common::random_source`. `VMN_SOURCE`
+//! points at jars elsewhere, `VMN_JAVA` at a different `java`, and
+//! `VMN_RANDOM_SOURCE`/`VMN_RANDOM_SEED` at a source initialised by hand.
 //!
 //! The protocol info file is synthesized per session, so its parameters and the
-//! global prefix rho the verifier recomputes cannot drift apart. `VMNV_PROTINFO`
+//! global prefix rho the verifier recomputes cannot drift apart. `VMN_PROTINFO`
 //! overrides it, which is only useful for checking a file from elsewhere.
 //!
 //! # Never check `vmnv`'s exit code on its own
@@ -89,7 +89,7 @@ fn env() -> Option<Env> {
         classpath: common::classpath()?,
         // Synthesized by default; every test that cares sets its own. Nothing
         // is read from disk, so no shape is privileged by being checked in.
-        protinfo: match std::env::var("VMNV_PROTINFO") {
+        protinfo: match std::env::var("VMN_PROTINFO") {
             Ok(p) => PathBuf::from(p),
             Err(_) => write_protinfo(&session(1, 1, W), "default"),
         },
@@ -380,8 +380,7 @@ fn emit_chain_with_threshold(dir: &PathBuf, mixers: usize, threshold: usize) {
 #[ignore = "requires a JVM and the Verificatum jars; see the module docs"]
 fn vmnv_rejects_a_chain_with_one_bad_mixer() {
     let Some(mut env) = env() else {
-        eprintln!("skipping: VMNV_* environment not configured");
-        return;
+        return common::skip("Verificatum cannot be run here");
     };
     env.protinfo = write_protinfo(&session(3, 3, W), "3of3");
 
@@ -418,8 +417,7 @@ fn vmnv_rejects_a_chain_with_one_bad_mixer() {
 #[ignore = "requires a JVM and the Verificatum jars; see the module docs"]
 fn vmnv_would_catch_emitter_drift() {
     let Some(env) = env() else {
-        eprintln!("skipping: VMNV_* environment not configured");
-        return;
+        return common::skip("Verificatum cannot be run here");
     };
 
     let dir = std::env::temp_dir().join("braid_vmnv_drift");
@@ -447,8 +445,7 @@ fn vmnv_would_catch_emitter_drift() {
 #[ignore = "requires a JVM and the Verificatum jars; see the module docs"]
 fn vmnv_rejects_tampered_braid_proofs() {
     let Some(env) = env() else {
-        eprintln!("skipping: VMNV_* environment not configured");
-        return;
+        return common::skip("Verificatum cannot be run here");
     };
 
     for (name, offset) in [
@@ -503,8 +500,7 @@ fn vmnv_rejects_tampered_braid_proofs() {
 #[ignore = "requires a JVM and the Verificatum jars; see the module docs"]
 fn vmnv_exit_code_alone_is_not_sufficient() {
     let Some(env) = env() else {
-        eprintln!("skipping: VMNV_* environment not configured");
-        return;
+        return common::skip("Verificatum cannot be run here");
     };
 
     let dir = std::env::temp_dir().join("braid_vmnv_identity");
@@ -544,8 +540,7 @@ fn vmnv_exit_code_alone_is_not_sufficient() {
 #[ignore = "requires a JVM and the Verificatum jars; see the module docs"]
 fn vmnv_is_silent_about_a_failed_shuffle() {
     let Some(env) = env() else {
-        eprintln!("skipping: VMNV_* environment not configured");
-        return;
+        return common::skip("Verificatum cannot be run here");
     };
 
     let dir = std::env::temp_dir().join("braid_vmnv_silent");
@@ -877,8 +872,7 @@ fn write_protinfo(info: &ProtocolInfo, name: &str) -> PathBuf {
 #[ignore = "requires a JVM and the Verificatum jars; see the module docs"]
 fn vmnv_accepts_a_synthesized_protocol_info_file() {
     let Some(mut env) = env() else {
-        eprintln!("skipping: VMNV_* environment not configured");
-        return;
+        return common::skip("Verificatum cannot be run here");
     };
 
     // The same 3-of-3 session as the shipped file, but written by us.
@@ -909,8 +903,7 @@ fn vmnv_accepts_a_synthesized_protocol_info_file() {
 #[ignore = "requires a JVM and the Verificatum jars; see the module docs"]
 fn vmnv_accepts_a_sweep_of_session_shapes() {
     let Some(mut env) = env() else {
-        eprintln!("skipping: VMNV_* environment not configured");
-        return;
+        return common::skip("Verificatum cannot be run here");
     };
 
     for parties in 1..=4 {
@@ -976,8 +969,7 @@ fn emit_mixing_shape(dir: &PathBuf, parties: usize, threshold: usize, delta: &[u
 #[ignore = "requires a JVM and the Verificatum jars; see the module docs"]
 fn vmnv_accepts_a_sweep_of_mixing_shapes() {
     let Some(mut env) = env() else {
-        eprintln!("skipping: VMNV_* environment not configured");
-        return;
+        return common::skip("Verificatum cannot be run here");
     };
 
     for (parties, threshold) in [(1, 1), (2, 2), (3, 2), (3, 3), (4, 2), (4, 3), (4, 4)] {

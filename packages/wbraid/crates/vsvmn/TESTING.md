@@ -156,13 +156,24 @@ build for themselves, and each is set the same way as above — `$env:NAME =
 
 | | |
 | --- | --- |
-| `VMNV_JAR_DIR` | jars and demo elsewhere; defaults to `crates/braid/verificatum` |
-| `VMNV_JAVA` | a different `java` |
-| `VMNV_RANDOM_SOURCE`, `VMNV_RANDOM_SEED` | a source initialised by hand |
-| `VMNV_PROTINFO` | a protocol info file from elsewhere, instead of the synthesized one |
+| `VMN_SOURCE` | an unpacked Verificatum tree elsewhere; defaults to `crates/braid/verificatum` |
+| `VMN_JAVA` | a different `java` |
+| `VMN_RANDOM_SOURCE`, `VMN_RANDOM_SEED` | a source initialised by hand |
+| `VMN_PROTINFO` | a protocol info file from elsewhere, instead of the synthesized one |
 
-Windows paths go in these as-is; the WSL side converts them (`C:\x` →
-`/mnt/c/x`) when it hands them to the demo.
+`VMN_SOURCE` is the **tree**, not the directory the jars sit in — the level
+holding `verificatum-vmn/` and `verificatum-vcr/`, since the demo is needed as
+well as the jars:
+
+```text
+$VMN_SOURCE/
+  verificatum-vmn/verificatum-vmn-3.1.0.jar
+  verificatum-vmn/demo/mixnet/conf        <- what the path is validated against
+  verificatum-vcr/verificatum-vcr-3.1.0.jar
+```
+
+Windows paths go in as-is; the WSL side converts them (`C:\x` → `/mnt/c/x`)
+when it hands them to the demo.
 
 ## If tests pass alone and fail together
 

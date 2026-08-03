@@ -136,7 +136,7 @@ pub fn generate(shape: &Shape) -> Option<Corpus> {
 
 /// The Verificatum source tree, which holds both the jars and the demo.
 fn vmn_source() -> Option<PathBuf> {
-    let dir = match std::env::var("VMNV_JAR_DIR") {
+    let dir = match std::env::var("VMN_SOURCE") {
         Ok(d) => PathBuf::from(d),
         Err(_) => PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../braid/verificatum"),
     };
@@ -388,8 +388,8 @@ pub fn random_source() -> Option<&'static (PathBuf, PathBuf)> {
     SOURCE
         .get_or_init(|| {
             match (
-                std::env::var("VMNV_RANDOM_SOURCE"),
-                std::env::var("VMNV_RANDOM_SEED"),
+                std::env::var("VMN_RANDOM_SOURCE"),
+                std::env::var("VMN_RANDOM_SEED"),
             ) {
                 (Ok(source), Ok(seed)) => Some((PathBuf::from(source), PathBuf::from(seed))),
                 _ => provision_random_source(),
@@ -476,9 +476,9 @@ pub fn private_seed() -> Option<PathBuf> {
     Some(private)
 }
 
-/// The `java` binary to run. `VMNV_JAVA` overrides `java` from `PATH`.
+/// The `java` binary to run. `VMN_JAVA` overrides `java` from `PATH`.
 pub fn java() -> String {
-    std::env::var("VMNV_JAVA").unwrap_or_else(|_| "java".to_string())
+    std::env::var("VMN_JAVA").unwrap_or_else(|_| "java".to_string())
 }
 
 /// The two Verificatum jars, in the form `java -cp` wants.
