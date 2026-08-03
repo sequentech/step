@@ -14,15 +14,13 @@
 //! HTTP protocol tests that need a live b4. Run with:
 //!
 //! ```text
-//! VMNV_JAR_DIR=.../verificatum \
-//! VMNV_RANDOM_SOURCE=.../random_source \
-//! VMNV_RANDOM_SEED=.../random_seed \
 //! cargo test -p vsvmn --test they_verify_ours -- --ignored --nocapture
 //! ```
 //!
-//! `VMNV_JAR_DIR` must contain `verificatum-vmn-3.1.0.jar` and
-//! `verificatum-vcr-3.1.0.jar`; the random source/seed are the files
-//! `vog -rndinit` writes. `VMNV_JAVA` overrides the `java` binary.
+//! Nothing else is required: the jars are in the tree, and the random source
+//! `vmnv` insists on is provisioned by `common::random_source`. `VMNV_JAR_DIR`
+//! points at jars elsewhere, `VMNV_JAVA` at a different `java`, and
+//! `VMNV_RANDOM_SOURCE`/`VMNV_RANDOM_SEED` at a source initialised by hand.
 //!
 //! The protocol info file is synthesized per session, so its parameters and the
 //! global prefix rho the verifier recomputes cannot drift apart. `VMNV_PROTINFO`
@@ -44,6 +42,11 @@
 
 use std::path::PathBuf;
 use std::process::Command;
+
+// Shared with the other interop tests: locating Verificatum, and the random
+// source it refuses to start without.
+#[allow(dead_code)]
+mod common;
 
 use vsvmn::proof_dir::{MixerStep, ShufflingProof};
 use vsvmn::{challenges::VmnChallenges, generators::vmn_generators};
@@ -79,26 +82,19 @@ struct Env {
 /// Collect the external configuration, or `None` if this environment cannot run
 /// the verifier.
 fn env() -> Option<Env> {
-    let jar_dir = PathBuf::from(std::env::var("VMNV_JAR_DIR").ok()?);
-    let vmn = jar_dir.join("verificatum-vmn/verificatum-vmn-3.1.0.jar");
-    let vcr = jar_dir.join("verificatum-vcr/verificatum-vcr-3.1.0.jar");
-    if !vmn.is_file() || !vcr.is_file() {
-        eprintln!("skipping: jars not found under {}", jar_dir.display());
-        return None;
-    }
-    let separator = if cfg!(windows) { ";" } else { ":" };
+    let (random_source, random_seed) = common::random_source()?;
 
     Some(Env {
-        java: std::env::var("VMNV_JAVA").unwrap_or_else(|_| "java".to_string()),
-        classpath: format!("{}{separator}{}", vmn.display(), vcr.display()),
+        java: common::java(),
+        classpath: common::classpath()?,
         // Synthesized by default; every test that cares sets its own. Nothing
         // is read from disk, so no shape is privileged by being checked in.
         protinfo: match std::env::var("VMNV_PROTINFO") {
             Ok(p) => PathBuf::from(p),
             Err(_) => write_protinfo(&session(1, 1, W), "default"),
         },
-        random_source: PathBuf::from(std::env::var("VMNV_RANDOM_SOURCE").ok()?),
-        random_seed: PathBuf::from(std::env::var("VMNV_RANDOM_SEED").ok()?),
+        random_source: random_source.clone(),
+        random_seed: random_seed.clone(),
     })
 }
 

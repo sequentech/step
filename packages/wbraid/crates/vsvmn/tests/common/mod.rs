@@ -344,19 +344,11 @@ impl Corpus {
     /// Some vectors -- `bas.pk`, `bas.h` -- are multi-line point lists rather
     /// than a single value, so a caller that needs those parses the text itself.
     pub fn raw_test_vectors(&self) -> Option<String> {
-        let jars = vmn_source()?;
-        let java = std::env::var("VMNV_JAVA").unwrap_or_else(|_| "java".to_string());
-        let separator = if cfg!(windows) { ";" } else { ":" };
-        let classpath = format!(
-            "{}{separator}{}",
-            jars.join("verificatum-vmn/verificatum-vmn-3.1.0.jar").display(),
-            jars.join("verificatum-vcr/verificatum-vcr-3.1.0.jar").display()
-        );
-
-        let (source, seed) = random_source()?;
-        let output = Command::new(java)
+        let (source, _) = random_source()?;
+        let seed = private_seed()?;
+        let output = Command::new(java())
             .arg("-cp")
-            .arg(classpath)
+            .arg(classpath()?)
             .arg("com.verificatum.protocol.mixnet.MixNetElGamalVerifyFiatShamirTool")
             .args(["vmnv"])
             .arg(&source)
@@ -380,38 +372,126 @@ impl Corpus {
     }
 }
 
-/// The random source `vmnv` insists on, copied per call because it is rewritten
-/// on every run (see `they_verify_ours.rs`).
+/// The random source and seed `vmnv` refuses to start without, even though
+/// verification consumes no randomness.
 ///
-/// Corpus *generation* builds its own source inside the shell it runs VMN in, so
-/// it needs nothing from the environment; running `vmnv` natively does. When
-/// these are unset the result is a skip whose stated reason ("no test vectors")
-/// is true but unhelpful, so name the actual cause here.
-fn random_source() -> Option<(PathBuf, PathBuf)> {
-    let missing = ["VMNV_RANDOM_SOURCE", "VMNV_RANDOM_SEED"]
-        .into_iter()
-        .filter(|v| std::env::var(v).is_err())
-        .collect::<Vec<_>>();
-    if !missing.is_empty() {
+/// Provisioned here rather than supplied by the caller. Corpus *generation*
+/// already builds its own inside the shell it runs VMN in; making the native
+/// path do the same is what lets `cargo test` run the suite unaided. An
+/// externally initialised source is still honoured through the two environment
+/// variables, which is the only way to point at one built differently.
+///
+/// The pair is canonical and shared — callers must copy the *seed* before use,
+/// because `vmnv` rewrites it on every run.
+pub fn random_source() -> Option<&'static (PathBuf, PathBuf)> {
+    static SOURCE: OnceLock<Option<(PathBuf, PathBuf)>> = OnceLock::new();
+    SOURCE
+        .get_or_init(|| {
+            match (
+                std::env::var("VMNV_RANDOM_SOURCE"),
+                std::env::var("VMNV_RANDOM_SEED"),
+            ) {
+                (Ok(source), Ok(seed)) => Some((PathBuf::from(source), PathBuf::from(seed))),
+                _ => provision_random_source(),
+            }
+        })
+        .as_ref()
+}
+
+/// Build a random source with `vog`, the way Verificatum's own documentation
+/// does — except for the initialiser.
+///
+/// `vog -rndinit RandomDevice /dev/urandom` is what the manual says, and it is
+/// what corpus generation uses because it runs under a Unix shell. There is no
+/// `/dev/urandom` on Windows, so this takes the portable route instead: 512
+/// bytes from the OS into a file, handed to a seeded PRG. The seed material is
+/// only ever consumed by `vmnv`, which verifies deterministically.
+fn provision_random_source() -> Option<(PathBuf, PathBuf)> {
+    // Per process: two test binaries provisioning at once must not collide, and
+    // `vog` writes both files non-atomically.
+    let dir = std::env::temp_dir().join(format!("vsvmn_rnd_{}", std::process::id()));
+    std::fs::create_dir_all(&dir).ok()?;
+    let (source, seed) = (dir.join("random_source"), dir.join("random_seed"));
+
+    let material = dir.join("seed_material");
+    let mut bytes = [0u8; 512];
+    getrandom::fill(&mut bytes).ok()?;
+    std::fs::write(&material, bytes).ok()?;
+
+    // The hash function descriptor the PRG is built from, then the PRG itself;
+    // `vog` writes the source and seed as a side effect of the second call.
+    let descriptor = vog(&source, &seed, &["-gen", "HashfunctionHeuristic", "SHA-256"])?;
+    vog(
+        &source,
+        &seed,
+        &[
+            "-seed",
+            material.to_str()?,
+            "-rndinit",
+            "PRGHeuristic",
+            descriptor.trim(),
+        ],
+    )?;
+
+    if !source.is_file() || !seed.is_file() {
+        eprintln!("vog did not write a random source under {}", dir.display());
+        return None;
+    }
+    eprintln!("initialised a random source in {}", dir.display());
+    Some((source, seed))
+}
+
+/// One `vog` invocation, returning its standard output.
+fn vog(source: &Path, seed: &Path, args: &[&str]) -> Option<String> {
+    let output = Command::new(java())
+        .arg("-cp")
+        .arg(classpath()?)
+        .arg("com.verificatum.ui.gen.GeneratorTool")
+        .args(["vog", ":VERIFICATUM_VOG_BUILTIN"])
+        .args([source, seed])
+        .args(args)
+        .output()
+        .ok()?;
+    if !output.status.success() {
         eprintln!(
-            "{} unset, so `vmnv -t` cannot be run; see vmnv.ps1, which writes a \
-             random source and exports them",
-            missing.join(" and ")
+            "vog {} failed: {}",
+            args.join(" "),
+            String::from_utf8_lossy(&output.stderr).trim()
         );
         return None;
     }
-    let source = PathBuf::from(std::env::var("VMNV_RANDOM_SOURCE").ok()?);
-    let seed = PathBuf::from(std::env::var("VMNV_RANDOM_SEED").ok()?);
+    Some(String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
+/// A private copy of the seed, since `vmnv` rewrites it on every run and the
+/// tests run concurrently.
+pub fn private_seed() -> Option<PathBuf> {
+    let (_, seed) = random_source()?;
     let private = std::env::temp_dir().join(format!(
-        "vsvmn_tv_seed_{}_{:?}",
+        "vsvmn_seed_{}_{}",
         std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .ok()?
-            .as_nanos()
+        NEXT_WD.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
     ));
-    std::fs::copy(&seed, &private).ok()?;
-    Some((source, private))
+    std::fs::copy(seed, &private).ok()?;
+    Some(private)
+}
+
+/// The `java` binary to run. `VMNV_JAVA` overrides `java` from `PATH`.
+pub fn java() -> String {
+    std::env::var("VMNV_JAVA").unwrap_or_else(|_| "java".to_string())
+}
+
+/// The two Verificatum jars, in the form `java -cp` wants.
+pub fn classpath() -> Option<String> {
+    let jars = vmn_source()?;
+    let vmn = jars.join("verificatum-vmn/verificatum-vmn-3.1.0.jar");
+    let vcr = jars.join("verificatum-vcr/verificatum-vcr-3.1.0.jar");
+    if !vmn.is_file() || !vcr.is_file() {
+        eprintln!("skipping: jars not found under {}", jars.display());
+        return None;
+    }
+    let separator = if cfg!(windows) { ";" } else { ":" };
+    Some(format!("{}{separator}{}", vmn.display(), vcr.display()))
 }
 
 /// A corpus generated **once per test binary** and shared by every test in it.

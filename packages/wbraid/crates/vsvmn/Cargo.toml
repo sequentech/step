@@ -25,4 +25,7 @@ anyhow = "1.0"
 
 [dev-dependencies]
 num-traits = "0.2"
+# The tests provision the random source `vmnv` refuses to start without
+# (tests/common/mod.rs), so the suite needs no external setup.
+getrandom = "0.4"
 hex = "0.4"
