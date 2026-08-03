@@ -114,19 +114,37 @@ cp -r "$VMN_HOME/verificatum-vmn/demo/mixnet" demo
 find demo -type f -exec sed -i 's|\r$||' {} +
 cd demo
 
-# conf already says three parties, threshold two. Set the width, which ships
-# commented out, and shorten the run.
-sed -i 's|^#WIDTH=2$|WIDTH=2|; s|^NO_CIPHERTEXTS=100$|NO_CIPHERTEXTS=10|' conf
-# No X server, and no terminal to open. Supported, but documented only in a
-# comment inside conf.
-sed -i 's|^TERM=xterm$|TERM=./vterm|; s|^#SILENT=-s$|SILENT=-s|' conf
-# Other shapes: NO_MIXSERVERS is k, THRESHOLD is lambda.
+# conf already says three parties, threshold two; NO_MIXSERVERS is k and
+# THRESHOLD is lambda if you want another shape. WIDTH ships commented out, so
+# omega is 1 until it is set. TERM and SILENT are what let the demo run without
+# an X server -- supported, but documented only in a comment inside conf.
+sed -i 's|^#*WIDTH=.*|WIDTH=2|
+        s|^NO_CIPHERTEXTS=.*|NO_CIPHERTEXTS=10|
+        s|^TERM=.*|TERM=./vterm|
+        s|^#*SILENT=.*|SILENT=-s|' conf
+
+# Confirm they took. Each matches on the key rather than the shipped value, so
+# this is re-runnable over an already-edited conf -- but a typo or an upstream
+# rename would leave a line unchanged, and the demo says nothing about it until
+# it fails several steps later for an unrelated-looking reason.
+grep -E '^(NO_MIXSERVERS|THRESHOLD|WIDTH|NO_CIPHERTEXTS|TERM|SILENT)=' conf
 
 export VERIFICATUM_RANDOM_SOURCE="$PWD/random_source"
 export VERIFICATUM_RANDOM_SEED="$PWD/random_seed"
 vog -rndinit RandomDevice /dev/urandom
 
 ./demo
+```
+
+which should print
+
+```text
+NO_MIXSERVERS=3
+THRESHOLD=2
+NO_CIPHERTEXTS=10
+WIDTH=2
+TERM=./vterm
+SILENT=-s
 ```
 
 That leaves a session at:
@@ -143,7 +161,32 @@ vsvmn verify demo/mydemodir/Party01/protInfo.xml \
              demo/mydemodir/Party01/dir/nizkp/default
 ```
 
-Two things that cost time if you meet them by surprise:
+### If your hostname has capitals in it
+
+`vmni` builds `http://<hostname>:<port>` and validates it against a pattern
+that does not admit uppercase, before anything cryptographic happens:
+
+```text
+InfoException: Value does not match expression! (http://NewKid:8040 is not urlport)
+```
+
+WSL takes its hostname from the Windows machine name, so this is the common
+case on Windows rather than an unusual one. Run the demo in a private UTS
+namespace:
+
+```sh
+unshare -U -u --map-root-user bash -c 'hostname localhost; ./delete; ./demo'
+```
+
+`-U` maps you to root inside a user namespace, so no privileges are needed, and
+`-u` scopes the hostname to that process tree — nothing outside it sees a
+change. Wrap the whole sequence, not just `./demo`: `./sact`, `./delete` and
+`./mix` re-read the info files and need the same hostname.
+
+The alternative is to set it for the distro in `/etc/wsl.conf` under
+`[network]` and `wsl --shutdown`, which is a bigger hammer than the job needs.
+
+### Two more that cost time
 
 - **Run `./delete` before running again.** A second `./mix` against a spent
   session blocks indefinitely rather than reporting anything.
