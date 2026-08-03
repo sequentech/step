@@ -13,14 +13,14 @@ use serde::Serialize;
 use tracing::{error, instrument};
 use windmill::services;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
-use windmill::services::external::api_datafix::{
+use windmill::services::datafix::api_datafix::{
     acquire_inbound_voter_lock, audit_inbound_operation,
     audit_inbound_operation_standalone, ensure_inbound_reenable_is_safe,
     ensure_voter_has_no_active_vote, release_inbound_voter_lock,
     valid_inbound_voting_channel, InboundVoterLock,
 };
-use windmill::services::external::datafix_types::*;
-use windmill::services::external::utils::get_event_id_and_datafix_annotations;
+use windmill::services::datafix::types::*;
+use windmill::services::datafix::utils::get_event_id_and_datafix_annotations;
 
 #[instrument(skip_all)]
 #[post("/add-voter", format = "json", data = "<body>")]
@@ -61,7 +61,7 @@ pub async fn add_voter(
     .await?;
     let realm = get_event_realm(&claims.tenant_id, &election_event_id);
 
-    let result = services::external::api_datafix::add_datafix_voter(
+    let result = services::datafix::api_datafix::add_datafix_voter(
         &hasura_transaction,
         &claims.tenant_id,
         &claims.datafix_event_id,
@@ -212,7 +212,7 @@ pub async fn update_voter(
         release_inbound_voter_lock(lock).await;
         return Err(err);
     }
-    let result = services::external::api_datafix::update_datafix_voter(
+    let result = services::datafix::api_datafix::update_datafix_voter(
         &hasura_transaction,
         &keycloak_transaction,
         &claims.tenant_id,
@@ -353,7 +353,7 @@ pub async fn delete_voter(
         release_inbound_voter_lock(lock).await;
         return Err(err);
     }
-    let result = services::external::api_datafix::disable_datafix_voter(
+    let result = services::datafix::api_datafix::disable_datafix_voter(
         &hasura_transaction,
         &keycloak_transaction,
         &claims.tenant_id,
@@ -488,7 +488,7 @@ pub async fn unmark_voted(
         release_inbound_voter_lock(lock).await;
         return Err(err);
     }
-    let result = services::external::api_datafix::unmark_voter_as_voted(
+    let result = services::datafix::api_datafix::unmark_voter_as_voted(
         &hasura_transaction,
         &keycloak_transaction,
         &claims.tenant_id,
@@ -634,7 +634,7 @@ pub async fn mark_voted(
         release_inbound_voter_lock(lock).await;
         return Err(err);
     }
-    let result = services::external::api_datafix::mark_as_voted_via_channel(
+    let result = services::datafix::api_datafix::mark_as_voted_via_channel(
         &hasura_transaction,
         &keycloak_transaction,
         &claims.tenant_id,
@@ -756,7 +756,7 @@ pub async fn replace_pin(
     let hasura_transaction =
         transaction_result.expect("transaction result was checked above");
 
-    let result = services::external::api_datafix::replace_voter_pin(
+    let result = services::datafix::api_datafix::replace_voter_pin(
         &hasura_transaction,
         &keycloak_transaction,
         &claims.tenant_id,

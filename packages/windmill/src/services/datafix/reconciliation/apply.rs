@@ -25,10 +25,12 @@
 
 use crate::postgres::area::{get_area_by_id, get_area_id_from_event_by_name};
 use crate::postgres::cast_vote::get_voter_cast_vote_state;
-use crate::services::external::reconciliation::diff::DiffItem;
-use crate::services::external::types::{ReconciliationChangeCategory, SequentReconciliationField};
-use crate::services::external::utils::{
-    external_voter_lock_key, voted_via_internet, voted_via_not_internet_channel,
+use crate::services::datafix::reconciliation::diff::DiffItem;
+use crate::services::datafix::reconciliation::types::{
+    ReconciliationChangeCategory, SequentReconciliationField,
+};
+use crate::services::datafix::utils::{
+    datafix_voter_lock_key, voted_via_internet, voted_via_not_internet_channel,
     DATAFIX_VOTER_LOCK_SECS,
 };
 use crate::services::pg_lock::PgLock;
@@ -76,7 +78,7 @@ pub async fn apply_voter_changes(
     };
 
     let lock = PgLock::acquire(
-        external_voter_lock_key(tenant_id, election_event_id, &user_id),
+        datafix_voter_lock_key(tenant_id, election_event_id, &user_id),
         Uuid::new_v4().to_string(),
         ISO8601::now() + chrono::Duration::seconds(DATAFIX_VOTER_LOCK_SECS),
     )
@@ -197,7 +199,7 @@ async fn apply_voter_changes_locked(
 /// `enabled` transition and Keycloak attributes `items` carry, and write them
 /// in a single `edit_user` call. Has no notion of *why* — that judgment
 /// belongs entirely to whichever origin produced the diff (see
-/// `SequentReconciliationField` in `services::external::types`).
+/// `SequentReconciliationField` in `services::datafix::reconciliation::types`).
 #[instrument(skip(hasura_transaction, items), err)]
 async fn apply_generic_voter_edit(
     hasura_transaction: &Transaction<'_>,
@@ -384,7 +386,7 @@ async fn resolve_area_attribute(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::services::external::types::ReconciliationPatchTarget;
+    use crate::services::datafix::reconciliation::types::ReconciliationPatchTarget;
     use sequent_core::types::keycloak::{DATE_OF_BIRTH, DISABLE_COMMENT};
 
     fn item(field: SequentReconciliationField) -> DiffItem {

@@ -24,7 +24,7 @@
 //! listens for Keycloak admin events fires for these voters.
 
 use crate::postgres::keycloak_realm::get_realm_id;
-use crate::services::external::reconciliation::diff::DiffItem;
+use crate::services::datafix::reconciliation::diff::DiffItem;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::types::keycloak::{
@@ -421,7 +421,7 @@ async fn insert_voter_batch(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::services::external::types::{
+    use crate::services::datafix::reconciliation::types::{
         ReconciliationChangeCategory, ReconciliationPatchTarget, SequentReconciliationField,
     };
     use sequent_core::types::keycloak::{ATTR_RESET_VALUE, DISABLE_REASON_MARKVOTED_CALL};

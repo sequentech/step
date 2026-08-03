@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::datafix_types::*;
+use super::types::*;
 use super::utils::*;
 
 use crate::postgres::cast_vote::{get_voter_cast_vote_state, VoterCastVoteState};
@@ -435,7 +435,7 @@ pub async fn acquire_inbound_voter_lock(
     let user_id = get_user_id(keycloak_transaction, &realm, username).await?;
     let user_id_uuid = parse_uuid_v4(&user_id)
         .map_err(|_| DatafixResponse::error(DatafixErrorCode::InternalError))?;
-    let lock_key = external_voter_lock_key(&claims.tenant_id, &election_event_id, &user_id_uuid);
+    let lock_key = datafix_voter_lock_key(&claims.tenant_id, &election_event_id, &user_id_uuid);
     let lock = PgLock::acquire(
         lock_key,
         Uuid::new_v4().to_string(),
@@ -672,7 +672,7 @@ mod tests {
         valid_inbound_voting_channel,
     };
     use crate::postgres::cast_vote::VoterCastVoteState;
-    use crate::services::external::datafix_types::DatafixErrorCode;
+    use crate::services::datafix::types::DatafixErrorCode;
     use keycloak::KeycloakError;
     use rocket::http::Status;
     use sequent_core::types::keycloak::{
