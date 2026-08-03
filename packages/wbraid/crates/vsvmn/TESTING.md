@@ -5,13 +5,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Testing vsvmn
 
-```sh
+```text
 cargo test --release -p vsvmn -- --include-ignored
 ```
 
 69 tests, about five minutes, nothing to set up first. `--release` matters:
 the DKG, shuffle and decryption are compute-intensive and a debug build turns
 seconds into minutes.
+
+On Windows this runs from PowerShell as written; only the environment
+variables below differ, since PowerShell has no `VAR=value cmd` prefix.
 
 Without `--include-ignored` you get the 47 tests that need no external tooling
 (under a second). The other 22 run Verificatum and are `#[ignore]`d.
@@ -130,6 +133,11 @@ having verified nothing against Verificatum. That is the right default for a
 contributor who only touched the wire format, and the wrong one for anyone
 checking interop.
 
+```powershell
+$env:VSVMN_REQUIRE_VMN = "1"
+cargo test --release -p vsvmn -- --include-ignored
+```
+
 ```sh
 VSVMN_REQUIRE_VMN=1 cargo test --release -p vsvmn -- --include-ignored
 ```
@@ -137,10 +145,14 @@ VSVMN_REQUIRE_VMN=1 cargo test --release -p vsvmn -- --include-ignored
 turns every skip into a failure naming what was missing. **Use it before
 believing a green run.**
 
+`$env:` assignments persist for the rest of the session, so unset it with
+`$env:VSVMN_REQUIRE_VMN = $null` when you want skipping back.
+
 ## Overrides
 
 None are required. Each replaces something the tests otherwise work out or
-build for themselves.
+build for themselves, and each is set the same way as above — `$env:NAME =
+"value"` in PowerShell, `NAME=value` inline in a POSIX shell.
 
 | | |
 | --- | --- |
@@ -148,6 +160,9 @@ build for themselves.
 | `VMNV_JAVA` | a different `java` |
 | `VMNV_RANDOM_SOURCE`, `VMNV_RANDOM_SEED` | a source initialised by hand |
 | `VMNV_PROTINFO` | a protocol info file from elsewhere, instead of the synthesized one |
+
+Windows paths go in these as-is; the WSL side converts them (`C:\x` →
+`/mnt/c/x`) when it hands them to the demo.
 
 ## If tests pass alone and fail together
 
