@@ -11,6 +11,16 @@ use crate::services::datafix;
 use crate::services::datafix::types::{SoapRequest, SoapRequestResponse, SoapRequestResult};
 use crate::services::datafix::utils::{
     datafix_voter_lock_key, post_operation_result_to_electoral_log, voted_via_internet,
+};
+use crate::services::electoral_log::{
+    post_voter_password_change, ElectoralLogAdminContext, VoterPasswordChangeSource,
+};
+use crate::services::external;
+use crate::services::external::datafix_types::{
+    SoapRequest, SoapRequestResponse, SoapRequestResult,
+};
+use crate::services::external::utils::{
+    external_voter_lock_key, post_operation_result_to_electoral_log, voted_via_internet,
     voted_via_not_internet_channel, DATAFIX_VOTER_LOCK_SECS,
 };
 use crate::services::datafix::voterview_requests::SoapSendError;
@@ -50,6 +60,8 @@ pub struct EditUserTaskBody {
     pub username: Option<String>,
     pub password: Option<String>,
     pub temporary: Option<bool>,
+    #[serde(default)]
+    pub password_change_initiator: Option<ElectoralLogAdminContext>,
 }
 
 /// Response of the `/edit-user` route. For Datafix election events the edit is
@@ -434,7 +446,32 @@ async fn run_datafix_voter_edit(
     )?;
     info!("Voter edit plan: {plan:?}, cast-vote state: {cast_vote_state:?}");
 
+    let password_change_initiator = if body.password.is_some() {
+        Some(
+            body.password_change_initiator
+                .as_ref()
+                .ok_or("Missing initiating admin for voter password-change audit")?,
+        )
+    } else {
+        None
+    };
+
     edit_keycloak_voter(ctx, client).await?;
+
+    if let Some(admin) = password_change_initiator {
+        post_voter_password_change(
+            &body.tenant_id,
+            &body.election_event_id,
+            &body.user_id,
+            current_user.username.clone(),
+            admin,
+            VoterPasswordChangeSource::AdminPortal,
+        )
+        .await
+        .map_err(|err| {
+            format!("Voter password changed, but its electoral-log entry failed: {err:#}")
+        })?;
+    }
 
     if !plan.release_attempt {
         return Ok(());
@@ -659,6 +696,7 @@ mod tests {
             username: username.map(str::to_string),
             password: None,
             temporary: None,
+            password_change_initiator: None,
         }
     }
 

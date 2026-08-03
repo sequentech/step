@@ -119,6 +119,8 @@ pub enum Permissions {
     DOCUMENT_UPLOAD,
     #[strum(serialize = "document-download")]
     DOCUMENT_DOWNLOAD,
+    #[strum(serialize = "document-password-read")]
+    DOCUMENT_PASSWORD_READ,
     #[strum(serialize = "admin-ceremony")]
     ADMIN_CEREMONY,
     #[strum(serialize = "admin-dashboard-view")]
@@ -273,6 +275,8 @@ pub enum Permissions {
     VOTER_MANUALLY_VERIFY,
     #[strum(serialize = "voter-change-password")]
     VOTER_CHANGE_PASSWORD,
+    #[strum(serialize = "voter-information-letter")]
+    VOTER_INFORMATION_LETTER,
     #[strum(serialize = "election-event-localization-selector")]
     EE_LOCALIZATION_SELECTOR,
     #[strum(serialize = "localization-create")]

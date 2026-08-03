@@ -148,8 +148,10 @@ jobs:
             test_args: --runInBand
           - package: admin-portal
             test_args: --runInBand
+          - package: voting-portal
+            test_args: --runInBand
           - package: keycloak-extensions/sequent-theme
-            test_args: ""
+            test_args: ''
       fail-fast: false
     steps:
       - name: Check out code

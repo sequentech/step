@@ -255,6 +255,7 @@ const frenchTranslation: TranslationType = {
                 logs: "Journaux",
             },
             tasksExecution: {
+                VOTER_INFORMATION_LETTER: "Lettre d'information de l'électeur",
                 EXPORT_ELECTION_EVENT: "Exporter l'événement électoral",
                 CREATE_ELECTION_EVENT: "Créer Événement Électoral",
                 IMPORT_ELECTION_EVENT: "Importer l'événement électoral",
@@ -280,6 +281,19 @@ const frenchTranslation: TranslationType = {
                 EXPORT_TALLY_RESULTS_XLSX: "Exporter les résultats du dépouillement au format XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Exporter les autorités de certification",
                 PUBLISH_RESULTS_WEBSITE: "Publier le site des résultats",
+            },
+            documentAccess: {
+                title: "Accès au document",
+                sensitivityNotice:
+                    "Informations sensibles. Ne partagez ce mot de passe qu'avec le destinataire prévu.",
+                passwordLabel: "Mot de passe pour ouvrir le PDF chiffré",
+                showPassword: "Afficher le mot de passe",
+                copyPassword: "Copier le mot de passe",
+                passwordCopied: "Mot de passe copié",
+                passwordError: "Impossible de récupérer le mot de passe du PDF",
+                copyError: "Impossible de copier le mot de passe",
+                guidance:
+                    "Le mot de passe n'est chargé qu'après avoir choisi Afficher le mot de passe. Une fois chargé, un champ en lecture seule avec une option de copie apparaît ici.",
             },
             widget: {
                 taskTitle: "Tâche: {{title}}",
@@ -459,6 +473,11 @@ const frenchTranslation: TranslationType = {
                 realm_attributes_update_error: "Error updating Keycloak realm attributes",
                 realm_attributes_not_loaded:
                     "Keycloak realm attributes have not loaded, changes were not saved",
+                password_policy: "Password Policy",
+                password_policy_load_error: "Error loading Keycloak password policy",
+                password_policy_update_error: "Error updating Keycloak password policy",
+                password_policy_not_loaded:
+                    "Keycloak password policy has not loaded, changes were not saved",
             },
             customUrls: {
                 login: "Connexion",
@@ -483,6 +502,37 @@ const frenchTranslation: TranslationType = {
                 },
             },
             field: {
+                passwordPolicy: {
+                    minimumLength: "Longueur minimale",
+                    maximumLength: "Longueur maximale",
+                    includeUppercase: "Inclure des lettres majuscules",
+                    includeLowercase: "Inclure des lettres minuscules",
+                    includeDigits: "Inclure des chiffres",
+                    includeSpecialCharacters: "Inclure des caractères spéciaux",
+                    help: {
+                        minimumLength:
+                            "Le nombre minimal de caractères requis pour le mot de passe.",
+                        maximumLength:
+                            "Le nombre maximal de caractères autorisés dans le mot de passe.",
+                        includeUppercase:
+                            "Le mot de passe doit contenir au moins une lettre majuscule.",
+                        includeLowercase:
+                            "Le mot de passe doit contenir au moins une lettre minuscule.",
+                        includeDigits: "Le mot de passe doit contenir au moins un chiffre.",
+                        includeSpecialCharacters:
+                            "Le mot de passe doit contenir au moins un caractère spécial.",
+                    },
+                    notConfigured:
+                        "Aucune politique de mot de passe n'est configurée. L'enregistrement appliquera les valeurs par défaut ci-dessous.",
+                    errors: {
+                        lengthRange:
+                            "Les longueurs du mot de passe doivent être des nombres entiers compris entre 1 et 256.",
+                        minimumExceedsMaximum:
+                            "La longueur minimale ne peut pas dépasser la longueur maximale.",
+                        characterClassRequired:
+                            "Sélectionnez au moins une classe de caractères pour le mot de passe.",
+                    },
+                },
                 name: "Nom",
                 alias: "Alias",
                 description: "Description",
@@ -969,6 +1019,16 @@ const frenchTranslation: TranslationType = {
                 mobileNumber: "Mobile",
             },
             editPassword: {
+                passwordPolicyViolation:
+                    "Le mot de passe ne respecte pas la Politique de mot de passe de cet événement électoral. Consultez la politique dans Données de l'événement électoral et saisissez un mot de passe conforme.",
+                passwordPolicyRules: {
+                    minimumLength: "La longueur minimale du mot de passe est de {{count}}.",
+                    maximumLength: "La longueur maximale du mot de passe est de {{count}}.",
+                    uppercase: "Caractères majuscules requis : {{count}}.",
+                    lowercase: "Caractères minuscules requis : {{count}}.",
+                    digits: "Chiffres requis : {{count}}.",
+                    specialCharacters: "Caractères spéciaux requis : {{count}}.",
+                },
                 label: "Changer le mot de passe",
                 temporatyLabel: "Temporaire",
                 temporatyInfo:
@@ -1035,6 +1095,20 @@ const frenchTranslation: TranslationType = {
                 },
             },
             voters: {
+                voterInformationLetter: {
+                    label: "Lettre d'information de l'électeur",
+                    generate: "Générer",
+                    confirmation:
+                        "Générer une Lettre d'information pour cet électeur ? Un nouveau mot de passe sera attribué et inclus dans un PDF chiffré.",
+                    generationStarted: "La génération de la Lettre d'information a commencé",
+                    generationError: "La Lettre d'information n'a pas pu être générée",
+                    policyNotConfigured:
+                        "La Politique de mot de passe n'est pas configurée. Configurez-la dans Données de l'événement électoral avant de générer une lettre.",
+                    policyMinimumLengthMissing:
+                        "La Politique de mot de passe doit inclure une longueur minimale avant de générer une lettre.",
+                    policyCharacterClassMissing:
+                        "La Politique de mot de passe doit inclure au moins une classe de caractères avant de générer une lettre.",
+                },
                 title: "Électeurs",
                 subtitle: "Voir et éditer les données de l'électeur",
                 review: {
@@ -1111,6 +1185,7 @@ const frenchTranslation: TranslationType = {
                 },
             },
             permissions: {
+                "voter-information-letter": "Générer une Lettre d'information de l'électeur",
                 "admin-user": "Administration",
                 "admin-dashboard-view": "Vue du Tableau de Bord d'Administration",
                 "application-export": "Exportation d'Applications",
@@ -1167,6 +1242,7 @@ const frenchTranslation: TranslationType = {
                 "keys-read": "Lire Clés",
                 "document-upload": "Télécharger Documents",
                 "document-download": "Télécharger Documents",
+                "document-password-read": "Lire les mots de passe des documents",
                 "tally-sheet-create": "Créer Acte de Comptage",
                 "tally-sheet-import-create": "Créer une importation d'actes de comptage",
                 "tally-sheet-import-review": "Examiner une importation d'actes de comptage",
@@ -2225,6 +2301,7 @@ const frenchTranslation: TranslationType = {
                 ko: "Annuler",
                 error: "Erreur lors du chargement des bulletins publiés",
                 error_publish: "Erreur lors de la publication du bulletin",
+                error_capacity: "Échec de la génération du style de bulletin : {{message}}",
                 error_status: "Erreur lors du changement d'état de la publication",
                 error_preview: "Erreur lors de l'aperçu de la publication",
                 diff: "Afficher tous les changements pourrait rendre la page non réactive. Êtes-vous sûr de vouloir continuer ?",

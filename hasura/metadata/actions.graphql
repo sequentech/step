@@ -32,6 +32,10 @@ type Query {
     get_realm_attributes(election_event_id: String!): GetRealmAttributesOutput!
 }
 
+type Query {
+    get_realm_password_policy(election_event_id: String!): RealmPasswordPolicy!
+}
+
 type Mutation {
     configureResultsWebsitePolicy(
         election_event_id: String!
@@ -169,6 +173,18 @@ type Mutation {
         election_event_id: String!
         attributes: jsonb!
     ): UpdateRealmAttributesOutput
+}
+
+type Mutation {
+    update_realm_password_policy(
+        election_event_id: String!
+        minimum_length: Int!
+        maximum_length: Int!
+        include_uppercase: Boolean!
+        include_lowercase: Boolean!
+        include_digits: Boolean!
+        include_special_characters: Boolean!
+    ): UpdateRealmPasswordPolicyOutput!
 }
 
 type Mutation {
@@ -328,7 +344,7 @@ type Mutation {
     generate_ballot_publication(
         election_event_id: uuid!
         election_id: uuid
-    ): PublishBallotOutput
+    ): GenerateBallotPublicationOutput
 }
 
 type Mutation {
@@ -1393,6 +1409,11 @@ type PublishBallotOutput {
     ballot_publication_id: uuid!
 }
 
+type GenerateBallotPublicationOutput {
+    ballot_publication_id: uuid!
+    task_execution: tasks_execution_type!
+}
+
 type UpdateEventVotingStatusOutput {
     election_event_id: uuid
 }
@@ -1839,6 +1860,16 @@ type GetRealmAttributesOutput {
     attributes: jsonb!
 }
 
+type RealmPasswordPolicy {
+    configured: Boolean!
+    minimum_length: Int!
+    maximum_length: Int!
+    include_uppercase: Boolean!
+    include_lowercase: Boolean!
+    include_digits: Boolean!
+    include_special_characters: Boolean!
+}
+
 type Mutation {
     export_certificate_authority(
         ids: [uuid!]!
@@ -1852,6 +1883,10 @@ type ExportCertificateAuthorityOutput {
 }
 
 type UpdateRealmAttributesOutput {
+    updated: Boolean!
+}
+
+type UpdateRealmPasswordPolicyOutput {
     updated: Boolean!
 }
 
@@ -1937,4 +1972,25 @@ type RevokeResultsPublicationOutput {
 type RefreshResultsPublicationIndexOutput {
     election_event_id: String!
     results_enabled: Boolean!
+}
+
+type Mutation {
+    generate_voter_information_letter(
+        election_event_id: String!
+        voter_id: String!
+    ): VoterInformationLetterOutput!
+}
+
+type Query {
+    get_document_password(document_id: String!): DocumentPasswordOutput!
+}
+
+type VoterInformationLetterOutput {
+    document_id: String!
+    pdf_password: String!
+    task_execution: tasks_execution_type!
+}
+
+type DocumentPasswordOutput {
+    password: String!
 }

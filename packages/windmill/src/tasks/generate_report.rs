@@ -17,6 +17,7 @@ use crate::services::reports::{
     initialization::InitializationTemplate,
     manual_verification::ManualVerificationTemplate,
     participation::ParticipationReportTemplate,
+    voter_information_letter::VoterInformationLetterTemplate,
 };
 use crate::services::tasks_execution::update_fail;
 use crate::services::tasks_semaphore::acquire_semaphore;
@@ -144,6 +145,15 @@ pub async fn generate_report(
         }
         Ok(ReportType::PARTICIPATION_REPORT) => {
             let report = ParticipationReportTemplate::new(ids);
+            execute_report!(report);
+        }
+        Ok(ReportType::CREDENTIALS) => {
+            if report_mode != GenerateReportMode::PREVIEW {
+                return Err(anyhow!(
+                    "Voter Information Letters must be generated from the voter action"
+                ));
+            }
+            let report = VoterInformationLetterTemplate::new_preview(ids);
             execute_report!(report);
         }
         Err(err) => return Err(anyhow!("{:?}", err)),
