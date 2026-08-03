@@ -784,6 +784,7 @@ pub async fn count_keycloak_users(
         {authorized_alias_join_clause}
         WHERE
             ra.name = $1 AND
+            u.service_account_client_link IS NULL AND
             {filters_clause}
             (u.id = ANY($2) OR $2 IS NULL)
             {area_ids_where_clause}
@@ -963,6 +964,7 @@ pub async fn list_users(
             {authorized_alias_join_clause}
             WHERE
                 ra.name = $1 AND
+                u.service_account_client_link IS NULL AND
                 {filters_clause}
                 (u.id = ANY($2) OR $2 IS NULL)
                 {area_ids_where_clause}
@@ -1025,6 +1027,7 @@ pub async fn list_users(
     {authorized_alias_join_clause}
     WHERE
         ra.name = $1 AND
+        u.service_account_client_link IS NULL AND
         {filters_clause}
         (u.id = ANY($2) OR $2 IS NULL)
         {area_ids_where_clause}
@@ -1323,8 +1326,9 @@ pub async fn count_keycloak_enabled_users(
                 INNER JOIN
                     realm AS ra ON ra.id = u.realm_id
                 WHERE
-                    ra.name = $1 AND 
-                    u.enabled IS TRUE
+                    ra.name = $1 AND
+                    u.enabled IS TRUE AND
+                    u.service_account_client_link IS NULL
                 "#
             )
             .as_str(),
@@ -1603,8 +1607,9 @@ pub async fn count_keycloak_enabled_users_by_attrs(
             INNER JOIN
                 realm AS ra ON ra.id = u.realm_id
             WHERE
-                ra.name = $1 
+                ra.name = $1
                 AND u.enabled IS TRUE
+                AND u.service_account_client_link IS NULL
                 AND ({attr_conditions_sql})
             "#
             )
