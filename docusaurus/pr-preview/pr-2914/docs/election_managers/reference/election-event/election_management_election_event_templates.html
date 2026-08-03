@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Templates | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-2914/docs/election_managers/reference/election-event/election_management_election_event_templates"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Templates | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2914/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2914/docs/election_managers/reference/election-event/election_management_election_event_templates"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2914/docs/election_managers/reference/election-event/election_management_election_event_templates" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2914/docs/election_managers/reference/election-event/election_management_election_event_templates" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Templates","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-2914/docs/election_managers/reference/election-event/election_management_election_event_templates"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2914/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/pr-preview/pr-2914/assets/js/runtime~main.dd1aa784.js" defer="defer"></script>
-<script src="/docusaurus/pr-preview/pr-2914/assets/js/main.f8404242.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2914/assets/js/runtime~main.0b5ec2c0.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2914/assets/js/main.4f202fdf.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
 <svg style="display: none;"><defs>
@@ -46,8 +46,77 @@
 <li class="">For document templates, ensure any required assets (logos, images) are accessible and correctly referenced.</li>
 <li class="">If your system supports previewing or templating languages (e.g., handlebars, Liquid), include sample data to verify rendering.</li>
 </ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="voter-variables-in-notification-templates">Voter variables in notification templates<a href="#voter-variables-in-notification-templates" class="hash-link" aria-label="Direct link to Voter variables in notification templates" title="Direct link to Voter variables in notification templates" translate="no">​</a></h2>
+<p>Email and SMS Handlebars templates can use these standard voter variables:</p>
+<ul>
+<li class=""><code>user.first_name</code></li>
+<li class=""><code>user.last_name</code></li>
+<li class=""><code>user.username</code></li>
+<li class=""><code>user.email</code></li>
+</ul>
+<p>Custom Keycloak user attributes are also available. The first value is exposed
+as <code>user.&lt;attribute&gt;</code>. The complete value list remains available as
+<code>user.attributes.&lt;attribute&gt;</code>. Standard variables take precedence if a custom
+attribute uses the same name. The <code>attributes</code> name is reserved for the complete
+attribute map. Empty custom value lists are present only under <code>user.attributes</code>.</p>
+<p>Dot notation works for simple names such as <code>dateOfBirth</code>. Use Handlebars
+<code>lookup</code> for names containing dots or dashes. For example:</p>
+<div class="language-handlebars codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-handlebars codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">{{lookup user &quot;sequent.read-only.mobile-number&quot;}}</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">{{#each (lookup user.attributes &quot;sequent.read-only.mobile-number&quot;)}}{{this}} {{/each}}</span><br></span></code></pre></div></div>
+<p>For example, a <code>reference</code> attribute with values <code>ABC-123</code> and <code>legacy-456</code> can
+be rendered as follows:</p>
+<div class="language-handlebars codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-handlebars codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">Primary reference: {{user.reference}}</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">All references: {{#each user.attributes.reference}}{{this}} {{/each}}</span><br></span></code></pre></div></div>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="prefilled-voting-links">Prefilled voting links<a href="#prefilled-voting-links" class="hash-link" aria-label="Direct link to Prefilled voting links" title="Direct link to Prefilled voting links" translate="no">​</a></h3>
+<p>Voting Portal <code>/login</code> and <code>/enroll</code> links accept up to five prefilled fields
+named <code>login_hint__&lt;field&gt;</code>. Field names may contain letters, numbers, <code>.</code>, <code>_</code>,
+and <code>-</code>; names are limited to 128 characters and values to 255 characters.</p>
+<p>Use the <code>url_encode</code> helper around every dynamic query value. Keep the parameter
+names and URL structure static:</p>
+<div class="language-handlebars codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-handlebars codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">https://vote.example/tenant/TENANT_ID/event/EVENT_ID/login?login_hint__username={{url_encode user.username}}&amp;login_hint__reference={{url_encode user.reference}}</span><br></span></code></pre></div></div>
+<div class="language-handlebars codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-handlebars codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">https://vote.example/tenant/TENANT_ID/event/EVENT_ID/enroll?login_hint__username={{url_encode user.username}}&amp;login_hint__dateOfBirth={{url_encode user.dateOfBirth}}</span><br></span></code></pre></div></div>
+<p>The Voting Portal removes accepted hint parameters from its visible URL before
+redirecting to Keycloak. Invalid, duplicate, or over-limit hint sets are rejected
+as a whole.</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="per-field-prefill-policy">Per-field prefill policy<a href="#per-field-prefill-policy" class="hash-link" aria-label="Direct link to Per-field prefill policy" title="Direct link to Per-field prefill policy" translate="no">​</a></h4>
+<p>Each registration field decides how it accepts a prefilled value through the
+<code>loginHintPrefillPolicy</code> annotation of its Keycloak user profile attribute:</p>
+<table><thead><tr><th>Policy</th><th>Behaviour</th></tr></thead><tbody><tr><td><code>EDITABLE</code></td><td>Prefill the field and let the voter change the value. Applied when the annotation is absent.</td></tr><tr><td><code>READ_ONLY</code></td><td>Prefill the field, render it read-only, and reject the registration if the submitted value was changed.</td></tr><tr><td><code>IGNORE</code></td><td>Never prefill the field from a voting link.</td></tr></tbody></table>
+<p>Set the annotation in <strong>Realm settings → User profile → Attributes → <em>(attribute)</em>
+→ Annotations</strong>, for example <code>loginHintPrefillPolicy</code> = <code>READ_ONLY</code>. An
+unrecognised value is treated as <code>IGNORE</code>, so a typo never prefills a field.</p>
+<p>Some attributes are never prefilled, whatever the policy says: credential
+fields, unmanaged attributes, attributes the voter cannot write, and attributes
+the voter would not be able to see or edit on the form. The last group covers an
+attribute annotated <code>hidden</code>, one rendered as a hidden or password input, and one
+whose annotations set <code>html-attribute:disabled</code>, <code>hidden</code>, <code>inert</code>, <code>readonly</code>,
+<code>aria-hidden=&quot;true&quot;</code>, or an inline <code>html-attribute:style</code> that hides it
+(<code>display:none</code>, <code>visibility:hidden</code>, <code>visibility:collapse</code> or <code>opacity:0</code>).</p>
+<p>Cosmetic annotations do not affect prefill — <code>html-attribute:class</code> and inline
+styles that only change appearance leave the field prefillable. When an
+attribute is skipped, Keycloak logs the attribute name and the reason at <code>DEBUG</code>
+level under <code>sequent.keycloak.voter_enrollment.LoginHintPrefill</code>; hint values are
+never logged.</p>
+<p>The policy applies to registration forms once the <strong>Sequent: Login hint
+registration prefill</strong> action is part of the registration flow.</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="locking-the-username-on-the-login-page">Locking the username on the login page<a href="#locking-the-username-on-the-login-page" class="hash-link" aria-label="Direct link to Locking the username on the login page" title="Direct link to Locking the username on the login page" translate="no">​</a></h4>
+<p>The login page is not rendered from the user profile, so it cannot read attribute
+annotations. Set the realm attribute <code>loginHintUsernamePolicy</code> to <code>READ_ONLY</code>
+(default <code>EDITABLE</code>) to render a prefilled username read-only. A username
+restored by <em>remember me</em> stays editable, so voters can still sign in as somebody
+else.</p>
+<p>This is a presentation-only lock: it stops a voter from editing the field by
+accident, but Keycloak still authenticates whichever username is submitted. That
+is the same guarantee as an unprefilled login page — the password decides which
+account is entered. Registration is different: there the value is stored, so
+<code>READ_ONLY</code> is enforced on the server as well.</p>
+<div class="theme-admonition theme-admonition-warning admonition_xJq3 alert alert--warning"><div class="admonitionHeading_Gvgb"><span class="admonitionIcon_Rf37"><svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8.893 1.5c-.183-.31-.52-.5-.887-.5s-.703.19-.886.5L.138 13.499a.98.98 0 0 0 0 1.001c.193.31.53.501.886.501h13.964c.367 0 .704-.19.877-.5a1.03 1.03 0 0 0 .01-1.002L8.893 1.5zm.133 11.497H6.987v-2.003h2.039v2.003zm0-3.004H6.987V5.987h2.039v4.006z"></path></svg></span>warning</div><div class="admonitionContent_BuS1"><p>Prefilled values are convenience data, not verified identity claims. They never
+bypass authentication, registration validation, or required actions. <code>READ_ONLY</code>
+stops a voter from changing a prefilled field; it does not make the value
+trustworthy, because whoever built the link chose it. Do not include passwords,
+one-time passwords (OTPs), tokens, secrets, government identifiers, or other
+inappropriate sensitive values. Percent encoding protects URL structure; it
+does not provide confidentiality or authenticity.</p></div></div>
 <blockquote>
-<p><strong>Note:</strong> For further guidance on template fields or syntax, refer to the Reports section of the guide where Template usage in report configuration is detailed. ```</p>
-</blockquote></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/02-election_managers/02-reference/02-election-event/13-02-election_management_election-event_templates.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-2914/docs/election_managers/reference/election-event/election_management_election_event_reports"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Reports</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-2914/docs/election_managers/reference/election/election_management_election_dashboard"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Dashboard</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#adding-a-new-template" class="table-of-contents__link toc-highlight">Adding a New Template</a></li><li><a href="#key-points" class="table-of-contents__link toc-highlight">Key Points</a></li><li><a href="#tips" class="table-of-contents__link toc-highlight">Tips</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
+<p><strong>Note:</strong> For further guidance on template fields or syntax, refer to the Reports section of the guide where Template usage in report configuration is detailed.</p>
+</blockquote></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/02-election_managers/02-reference/02-election-event/13-02-election_management_election-event_templates.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-2914/docs/election_managers/reference/election-event/election_management_election_event_reports"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Reports</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-2914/docs/election_managers/reference/election/election_management_election_dashboard"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Dashboard</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#adding-a-new-template" class="table-of-contents__link toc-highlight">Adding a New Template</a></li><li><a href="#key-points" class="table-of-contents__link toc-highlight">Key Points</a></li><li><a href="#tips" class="table-of-contents__link toc-highlight">Tips</a></li><li><a href="#voter-variables-in-notification-templates" class="table-of-contents__link toc-highlight">Voter variables in notification templates</a><ul><li><a href="#prefilled-voting-links" class="table-of-contents__link toc-highlight">Prefilled voting links</a></li></ul></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
 </body>
 </html>
