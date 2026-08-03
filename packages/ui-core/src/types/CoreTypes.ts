@@ -278,6 +278,8 @@ export interface IExtensionErrorInternal {
 export interface IExtensionError {
     code?: string | null
     internal?: IExtensionErrorInternal | null
+    password_policy_rule?: string | null
+    password_policy_required_count?: number | null
 }
 
 export interface IGraphQLError {

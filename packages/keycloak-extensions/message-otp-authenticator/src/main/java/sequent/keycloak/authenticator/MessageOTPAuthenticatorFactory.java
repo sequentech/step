@@ -145,6 +145,14 @@ public class MessageOTPAuthenticatorFactory
             ProviderConfigProperty.BOOLEAN_TYPE,
             "false"),
         new ProviderConfigProperty(
+            Utils.AUTO_CREATE_CREDENTIAL_ATTRIBUTE,
+            "Auto-create OTP credential",
+            "If enabled, the message-otp credential is automatically created during login for"
+                + " non-deferred users that have a mobile phone number or email address configured,"
+                + " so that no credential enrollment required action is needed.",
+            ProviderConfigProperty.BOOLEAN_TYPE,
+            "false"),
+        new ProviderConfigProperty(
             Utils.OTL_RESTORED_AUTH_NOTES_ATTRIBUTE,
             "Comma Separated Names of the Auth Notes to Restore",
             "When loading an OTL, these are the Auth Notes that will be restored from the previous session",

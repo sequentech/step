@@ -7,6 +7,9 @@ use crate::postgres::cast_vote::{
 };
 use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDatafix};
 use crate::services::database::get_hasura_pool;
+use crate::services::electoral_log::{
+    post_voter_password_change, ElectoralLogAdminContext, VoterPasswordChangeSource,
+};
 use crate::services::external;
 use crate::services::external::datafix_types::{
     SoapRequest, SoapRequestResponse, SoapRequestResult,
@@ -52,6 +55,8 @@ pub struct EditUserTaskBody {
     pub username: Option<String>,
     pub password: Option<String>,
     pub temporary: Option<bool>,
+    #[serde(default)]
+    pub password_change_initiator: Option<ElectoralLogAdminContext>,
 }
 
 /// Response of the `/edit-user` route. For Datafix election events the edit is
@@ -436,7 +441,32 @@ async fn run_datafix_voter_edit(
     )?;
     info!("Voter edit plan: {plan:?}, cast-vote state: {cast_vote_state:?}");
 
+    let password_change_initiator = if body.password.is_some() {
+        Some(
+            body.password_change_initiator
+                .as_ref()
+                .ok_or("Missing initiating admin for voter password-change audit")?,
+        )
+    } else {
+        None
+    };
+
     edit_keycloak_voter(ctx, client).await?;
+
+    if let Some(admin) = password_change_initiator {
+        post_voter_password_change(
+            &body.tenant_id,
+            &body.election_event_id,
+            &body.user_id,
+            current_user.username.clone(),
+            admin,
+            VoterPasswordChangeSource::AdminPortal,
+        )
+        .await
+        .map_err(|err| {
+            format!("Voter password changed, but its electoral-log entry failed: {err:#}")
+        })?;
+    }
 
     if !plan.release_attempt {
         return Ok(());
@@ -661,6 +691,7 @@ mod tests {
             username: username.map(str::to_string),
             password: None,
             temporary: None,
+            password_change_initiator: None,
         }
     }
 

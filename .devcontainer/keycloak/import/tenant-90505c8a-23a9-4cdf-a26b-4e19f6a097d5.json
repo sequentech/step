@@ -339,6 +339,15 @@
         "attributes": {}
       },
       {
+        "id": "27bdcdfa-0e11-4e79-881f-02fc252bec77",
+        "name": "document-password-read",
+        "description": "Allows reading a password associated with an authorized document",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "12250c04-0e34-4b76-8910-cfcc26323c18",
         "name": "document-read",
         "description": "",
@@ -1788,6 +1797,15 @@
         "attributes": {}
       },
       {
+        "id": "a7ed90f3-bfb8-4775-88df-aa910071c90a",
+        "name": "voter-information-letter",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "c1571748-eb6a-4234-929a-0da717139e80",
         "name": "voter-create",
         "description": "",
@@ -2448,6 +2466,7 @@
         "election-voters-tab",
         "election-approvals-tab",
         "permission-label-write",
+        "document-password-read",
         "document-read",
         "notification-read",
         "election-event-keys-tab",
@@ -2541,6 +2560,7 @@
         "ee-voters-filters",
         "ee-voters-logs",
         "voter-change-password",
+        "voter-information-letter",
         "voter-export",
         "voter-import",
         "voter-manually-verify",

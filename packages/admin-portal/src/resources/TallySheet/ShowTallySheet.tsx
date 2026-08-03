@@ -27,14 +27,16 @@ import {
 } from "@mui/material"
 import {IAreaContestResults, ICandidateResults, IInvalidVotes} from "@/types/TallySheets"
 import {sortFunction} from "./utils"
-import {EEnableCheckableLists, IContestPresentation} from "@sequentech/ui-core"
+import {
+    EEnableCheckableLists,
+    IContestPresentation,
+    isTallySheetVotingChannel,
+    TallySheetVotingChannel,
+} from "@sequentech/ui-core"
 import {filterCandidateByCheckableLists} from "@/services/CandidatesFilter"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
-const votingChannels = [
-    {id: "PAPER", name: "PAPER"},
-    {id: "POSTAL", name: "POSTAL"},
-]
+const votingChannels = [TallySheetVotingChannel.Paper, TallySheetVotingChannel.Postal] as const
 
 interface ShowTallySheetProps {
     tallySheet?: Sequent_Backend_Tally_Sheet | Sequent_Backend_Tally_Sheet_Insert_Input
@@ -67,7 +69,7 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
     const aliasRenderer = useAliasRenderer()
 
     const [areasList, setAreasList] = useState<IArea[]>([])
-    const [channel, setChannel] = React.useState<string | null>(null)
+    const [channel, setChannel] = React.useState<TallySheetVotingChannel | null>(null)
     const [results, setResults] = useState<IAreaContestResults>({
         area_id: "",
         contest_id: "-",
@@ -133,9 +135,11 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                 setResults(contentTemp)
             }
 
-            if (tallySheetTemp.channel) {
-                setChannel(tallySheetTemp.channel)
-            }
+            setChannel(
+                tallySheetTemp.channel && isTallySheetVotingChannel(tallySheetTemp.channel)
+                    ? tallySheetTemp.channel
+                    : null
+            )
         }
     }, [tallySheet, candidates, i18n.language])
 
@@ -305,12 +309,15 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                         name="channel"
                         value={channel || ""}
                         label={String(t("tallysheet.label.channel"))}
-                        onChange={(e: SelectChangeEvent) => setChannel(e.target.value)}
+                        onChange={(e: SelectChangeEvent) => {
+                            const value = e.target.value
+                            setChannel(isTallySheetVotingChannel(value) ? value : null)
+                        }}
                         disabled
                     >
-                        {votingChannels.map((item) => (
-                            <MenuItem key={item.id} value={item.id}>
-                                {item.name}
+                        {votingChannels.map((votingChannel) => (
+                            <MenuItem key={votingChannel} value={votingChannel}>
+                                {votingChannel}
                             </MenuItem>
                         ))}
                     </Select>

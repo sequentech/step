@@ -81,6 +81,7 @@ phf = { version = "0.11", features = ["macros"], default-features = false }
 handlebars = { version = "6.1", optional = true }
 handlebars-chrono = { version = "0.2", features = [ "locale", "timezone" ], optional = true }
 num-format = { version = "0.4", optional = true }
+urlencoding = { version = "2.1", optional = true }
 headless_chrome = { version = "1.0", optional = true }
 reqwest = { version="0.12", features = ["blocking", "json", "rustls-tls"], optional = true, default-features = false }
 reqwest-retry = { version = "0.7", optional = true }
@@ -138,7 +139,7 @@ wasm = ["dep:wasm-bindgen", "areas", "dep:serde-wasm-bindgen"]
 signatures=["dep:tracing"]
 default = []
 areas = []
-reports = ["dep:handlebars", "dep:handlebars-chrono", "dep:headless_chrome", "dep:reqwest", "dep:tracing", "dep:tokio", "dep:num-format", "dep:aws-config", "dep:aws-sdk-sesv2", "dep:aws-sdk-sns", "dep:aws-sdk-s3", "dep:aws-smithy-types", "dep:sha256", "dep:ammonia"]
+reports = ["dep:handlebars", "dep:handlebars-chrono", "dep:headless_chrome", "dep:reqwest", "dep:tracing", "dep:tokio", "dep:num-format", "dep:urlencoding", "dep:aws-config", "dep:aws-sdk-sesv2", "dep:aws-sdk-sns", "dep:aws-sdk-s3", "dep:aws-smithy-types", "dep:sha256", "dep:ammonia"]
 reports_sync = []
 s3 = ["dep:reqwest", "dep:aws-config", "dep:aws-sdk-sesv2", "dep:aws-sdk-sns", "dep:aws-sdk-s3", "dep:aws-smithy-types"]
 keycloak = ["jwt", "dep:openid", "dep:reqwest", "dep:reqwest-retry", "dep:reqwest-middleware", "dep:serde_urlencoded", "dep:rocket", "dep:keycloak", "dep:tracing", "dep:uuid", "dep:regex", "dep:jsonwebtoken", "dep:tokio-postgres", "dep:time"]

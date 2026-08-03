@@ -58,10 +58,12 @@ export default function CardChart({
     title,
     children,
     collapsible = false,
+    actions,
 }: {
     title: string
     children: React.ReactNode
     collapsible?: boolean
+    actions?: React.ReactNode
 }) {
     const [expanded, setExpanded] = useState(true)
 
@@ -88,6 +90,18 @@ export default function CardChart({
                 >
                     {title}
                 </Typography>
+                {actions && (
+                    <Box
+                        sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            marginLeft: "auto",
+                        }}
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        {actions}
+                    </Box>
+                )}
                 {collapsible && (
                     <ExpandIcon expanded={expanded} size="small">
                         <ExpandMoreIcon />

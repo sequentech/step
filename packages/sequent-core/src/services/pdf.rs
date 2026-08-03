@@ -66,6 +66,14 @@ pub enum PdfTransport {
     InPlace,
 }
 
+fn must_render_in_place(
+    transport: &PdfTransport,
+    contains_sensitive_data: bool,
+) -> bool {
+    contains_sensitive_data
+        && matches!(transport, PdfTransport::AWSLambda { .. })
+}
+
 pub struct PdfRenderer {
     pub transport: PdfTransport,
 }
@@ -85,9 +93,21 @@ pub mod sync {
             html: String,
             pdf_options: Option<PrintToPdfOptions>,
         ) -> Result<Vec<u8>> {
+            Self::render_pdf_with_sensitivity(html, pdf_options, false)
+        }
+
+        pub fn render_pdf_with_sensitivity(
+            html: String,
+            pdf_options: Option<PrintToPdfOptions>,
+            contains_sensitive_data: bool,
+        ) -> Result<Vec<u8>> {
             let _html_sha256 = sha256::digest(&html);
             // We call our synchronous do_render_pdf
-            Ok(PdfRenderer::new()?.do_render_pdf(html, pdf_options)?)
+            PdfRenderer::new()?.do_render_pdf(
+                html,
+                pdf_options,
+                contains_sensitive_data,
+            )
         }
 
         pub fn new() -> Result<Self> {
@@ -180,7 +200,15 @@ pub mod sync {
             &self,
             html: String,
             pdf_options: Option<PrintToPdfOptions>,
+            contains_sensitive_data: bool,
         ) -> Result<Vec<u8>> {
+            if must_render_in_place(&self.transport, contains_sensitive_data) {
+                warn!(
+                    "Sensitive PDF content cannot use the AWS Lambda S3 transport; rendering in place"
+                );
+                return render_pdf_in_place(html, pdf_options);
+            }
+
             let (endpoint, basic_auth) = match &self.transport {
                 PdfTransport::AWSLambda { endpoint } => {
                     (endpoint.clone(), None)
@@ -294,32 +322,7 @@ pub mod sync {
                         _ => unreachable!(),
                     }
                 }
-                PdfTransport::InPlace => {
-                    info!("Using InPlace backend for PDF rendering");
-                    let result =
-                        html_to_pdf(html, pdf_options).map_err(|e| {
-                            warn!("html_to_pdf failed: {e:?}");
-                            anyhow!("InPlace PDF rendering failed: {e:?}")
-                        })?;
-
-                    if !result.starts_with(b"%PDF") {
-                        warn!("Result is not a valid PDF, checking fallback");
-                        let timestamp =
-                            chrono::Local::now().format("%Y%m%d_%H%M%S");
-                        let fallback_path =
-                            format!("/tmp/output/fallback_{timestamp:?}.pdf");
-
-                        if let Ok(fallback_content) = fs::read(&fallback_path) {
-                            if fallback_content.starts_with(b"%PDF") {
-                                info!("Using fallback PDF from: {fallback_path:?}");
-                                return Ok(fallback_content);
-                            }
-                        }
-                        error!("No valid PDF found in fallback");
-                    }
-
-                    Ok(result)
-                }
+                PdfTransport::InPlace => render_pdf_in_place(html, pdf_options),
             }
         }
     }
@@ -332,7 +335,20 @@ impl PdfRenderer {
         html: String,
         pdf_options: Option<PrintToPdfOptions>,
     ) -> Result<Vec<u8>> {
-        Ok(PdfRenderer::new()?.do_render_pdf(html, pdf_options).await?)
+        Self::render_pdf_with_sensitivity(html, pdf_options, false).await
+    }
+
+    /// Render a PDF while ensuring sensitive HTML and the unencrypted PDF do
+    /// not pass through the AWS Lambda S3 transport. OpenWhisk and InPlace do
+    /// not use the private S3 input/output objects used by that transport.
+    pub async fn render_pdf_with_sensitivity(
+        html: String,
+        pdf_options: Option<PrintToPdfOptions>,
+        contains_sensitive_data: bool,
+    ) -> Result<Vec<u8>> {
+        PdfRenderer::new()?
+            .do_render_pdf(html, pdf_options, contains_sensitive_data)
+            .await
     }
 
     /// Creates a new PdfRenderer based on environment configuration.
@@ -386,7 +402,15 @@ impl PdfRenderer {
         &self,
         html: String,
         pdf_options: Option<PrintToPdfOptions>,
+        contains_sensitive_data: bool,
     ) -> Result<Vec<u8>> {
+        if must_render_in_place(&self.transport, contains_sensitive_data) {
+            warn!(
+                "Sensitive PDF content cannot use the AWS Lambda S3 transport; rendering in place"
+            );
+            return render_pdf_in_place(html, pdf_options);
+        }
+
         let (endpoint, basic_auth) = match &self.transport {
             PdfTransport::AWSLambda { endpoint } => (endpoint.clone(), None),
             PdfTransport::OpenWhisk {
@@ -541,33 +565,36 @@ impl PdfRenderer {
                     _ => unreachable!(),
                 }
             }
-            PdfTransport::InPlace => {
-                info!("Using InPlace backend for PDF rendering");
-                let result = html_to_pdf(html, pdf_options).map_err(|e| {
-                    error!("html_to_pdf failed: {e:?}");
-                    anyhow!("InPlace PDF rendering failed: {e:?}")
-                })?;
-
-                if !result.starts_with(b"%PDF") {
-                    warn!("Result is not a valid PDF, checking fallback");
-                    let timestamp =
-                        chrono::Local::now().format("%Y%m%d_%H%M%S");
-                    let fallback_path =
-                        format!("/tmp/output/fallback_{timestamp:?}.pdf");
-
-                    if let Ok(fallback_content) = fs::read(&fallback_path) {
-                        if fallback_content.starts_with(b"%PDF") {
-                            info!("Using fallback PDF from: {fallback_path:?}");
-                            return Ok(fallback_content);
-                        }
-                    }
-                    error!("No valid PDF found in fallback");
-                }
-
-                Ok(result)
-            }
+            PdfTransport::InPlace => render_pdf_in_place(html, pdf_options),
         }
     }
+}
+
+fn render_pdf_in_place(
+    html: String,
+    pdf_options: Option<PrintToPdfOptions>,
+) -> Result<Vec<u8>> {
+    info!("Using InPlace backend for PDF rendering");
+    let result = html_to_pdf(html, pdf_options).map_err(|error| {
+        error!("html_to_pdf failed: {error:?}");
+        anyhow!("InPlace PDF rendering failed: {error:?}")
+    })?;
+
+    if !result.starts_with(b"%PDF") {
+        warn!("Result is not a valid PDF, checking fallback");
+        let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
+        let fallback_path = format!("/tmp/output/fallback_{timestamp:?}.pdf");
+
+        if let Ok(fallback_content) = fs::read(&fallback_path) {
+            if fallback_content.starts_with(b"%PDF") {
+                info!("Using fallback PDF from: {fallback_path:?}");
+                return Ok(fallback_content);
+            }
+        }
+        error!("No valid PDF found in fallback");
+    }
+
+    Ok(result)
 }
 
 /// S3 helper functions.
@@ -741,6 +768,24 @@ mod tests {
 
     use super::*;
     use anyhow::Result;
+
+    #[test]
+    fn sensitive_content_never_uses_the_aws_lambda_s3_transport() {
+        let transport = PdfTransport::AWSLambda {
+            endpoint: "https://renderer.example".to_string(),
+        };
+
+        assert!(must_render_in_place(&transport, true));
+        assert!(!must_render_in_place(&transport, false));
+        assert!(!must_render_in_place(&PdfTransport::InPlace, true));
+        assert!(!must_render_in_place(
+            &PdfTransport::OpenWhisk {
+                endpoint: "https://renderer.example".to_string(),
+                basic_auth: None,
+            },
+            true,
+        ));
+    }
 
     #[test]
     fn test_pdf_generation() -> Result<()> {

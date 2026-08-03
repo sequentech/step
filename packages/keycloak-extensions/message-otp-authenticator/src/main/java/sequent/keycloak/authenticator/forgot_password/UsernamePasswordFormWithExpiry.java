@@ -173,10 +173,7 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
           currentTime, passwordExpirationInt);
       context.failureChallenge(
           AuthenticationFlowError.INVALID_CREDENTIALS,
-          context
-              .form()
-              .setError(Messages.INVALID_PASSWORD)
-              .createErrorPage(Response.Status.BAD_REQUEST));
+          challenge(context, Messages.INVALID_PASSWORD, Validation.FIELD_PASSWORD));
       return false;
     }
 

@@ -367,33 +367,53 @@ public class MessageOTPAuthenticator
   @Override
   public boolean configuredFor(KeycloakSession session, RealmModel realm, UserModel user) {
     log.info("configuredFor() called");
-    MessageOTPCredentialProvider provider = getCredentialProvider(session);
-    if (provider == null || !provider.isConfiguredFor(realm, user, getType(session))) {
-      return false;
-    }
-
     Optional<AuthenticatorConfigModel> config = Utils.getConfig(realm);
+    Map<String, String> configMap =
+        MessageOTPAuthenticatorFactory.getConfigMap(config.orElse(null));
+    boolean deferredUser = "true".equals(configMap.get(Utils.DEFERRED_USER_ATTRIBUTE));
 
-    // If no configuration is found, fall back to default behavior
-    if (!config.isPresent() && user != null) {
-      return user.getFirstAttribute(MOBILE_NUMBER_FIELD) != null;
-    }
-    boolean deferredUser =
-        "true".equals(config.get().getConfig().get(Utils.DEFERRED_USER_ATTRIBUTE));
     String mobileNumber = null;
     String emailAddress = null;
-
     if (deferredUser) {
       AuthenticationSessionModel authSession = session.getContext().getAuthenticationSession();
-      String mobileNumberAttribute = config.get().getConfig().get(Utils.TEL_USER_ATTRIBUTE);
+      String mobileNumberAttribute = configMap.get(Utils.TEL_USER_ATTRIBUTE);
       mobileNumber = authSession.getAuthNote(mobileNumberAttribute);
       emailAddress = authSession.getAuthNote("email");
     } else if (user != null) {
-      mobileNumber = Utils.getMobile(config.get(), user);
-      emailAddress = user.getEmail();
+      mobileNumber = Utils.getMobile(config.orElse(null), user);
+      emailAddress = config.isPresent() ? user.getEmail() : null;
+    }
+    boolean hasOtpAddress = mobileNumber != null || emailAddress != null;
+
+    // In deferred mode the OTP address comes from the auth session notes (set during
+    // deferred registration/login), not from a stored credential, so a
+    // MessageOTPCredential must not be required. Otherwise, deferred users (which
+    // never get a credential created for them) would silently be filtered out of the
+    // authentication selection list, failing the flow with `invalid_user_credentials`.
+    if (!deferredUser) {
+      if (user == null) {
+        return false;
+      }
+      MessageOTPCredentialProvider provider = getCredentialProvider(session);
+      if (provider == null) {
+        return false;
+      }
+      if (!provider.isConfiguredFor(realm, user, getType(session))) {
+        // If enabled, automatically create the message-otp credential for users
+        // that have a mobile phone number or email address configured, so that
+        // imported/edited voters don't need a credential enrollment required action.
+        boolean autoCreateCredential =
+            "true".equals(configMap.get(Utils.AUTO_CREATE_CREDENTIAL_ATTRIBUTE));
+        if (!autoCreateCredential || !hasOtpAddress) {
+          return false;
+        }
+        log.info("Auto-creating MessageOTPCredential for user with configured mobile/email");
+        provider.createCredential(
+            realm, user, MessageOTPCredentialModel.create(/* isSetup= */ true));
+      }
     }
 
-    return mobileNumber != null || emailAddress != null;
+    return hasOtpAddress;
   }
 
   @Override
