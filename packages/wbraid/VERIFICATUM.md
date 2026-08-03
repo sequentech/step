@@ -608,6 +608,41 @@ exiting 0, so an exit-code-only check would stay green while the interop was sil
 
 (Separately, `vmnv` exits 1 on rejection, not the `-1`/255 that §10.1 specifies.)
 
+### A second silent skip: a mixer is verified only if its proof file exists
+
+Found later, while generating corpora at arbitrary shapes, and the same shape of problem.
+
+Mixer slots are numbered by **party index**, not sequentially. A party that takes no part in
+shuffling leaves a gap: with the active set `{1,3}`, the directory holds `PermutationCommitment01`
+and `03` but no `02`, and `activethreshold` is `3` — the highest active index, *not* the count. So a
+verifier cannot iterate `1..=activethreshold` and assume a proof for each; ours did, and broke on the
+first such corpus.
+
+How `vmnv` knows which to skip is the interesting part:
+
+```java
+public boolean getPoSCActive(final int l) {
+    final File file = PermutationCommitment.PCfile(proofs, l);
+    return file.exists();
+}
+```
+
+**Presence of a file decides whether a mixer is verified.** The whole body of the loop — reading the
+permutation commitment, reading the output list, checking the proof — sits inside that condition, so
+a slot with no proof file contributes nothing and is passed over without comment. Remove a mixer's
+`PermutationCommitment<l>.bt` and `PoSCommitment<l>.bt` and `vmnv` does not reject: it verifies a
+shorter chain and reports success.
+
+That is not a soundness break — the remaining shuffles are still checked, and the output is still
+tied to them — but the *privacy* claim quietly weakens, since a session presented as an `n`-mixer mix
+may have had its output produced by fewer. Nothing in the transcript binds the number of mixers,
+because `activethreshold` is read from the same directory an attacker would be editing.
+
+**What we do about it.** Skipping absent slots is necessary — otherwise valid VMN proofs are rejected
+— so we match the behaviour but count what was actually verified and require it to meet the
+threshold. The rule for our verifier stays the one stated in `verify.rs`: match VMN where a valid
+proof depends on it, but never inherit a silence.
+
 ### Caveats
 
 **Multiple parties — DONE.** `vmnv` accepts a chain of three braid mixers, each shuffling the
@@ -930,7 +965,13 @@ after it would have been moot; it did not.
   a complete braid session (Stage 4), at `k = λ = 3` and again at `k = 3, λ = 2` with a party that
   did not decrypt. What that covers is the cryptography and the emitter over P-256 at width 2; what
   it does not cover is the live protocol plumbing, or any other group or width.
-- **The specification alone is not enough to write a verifier.** Two places where a strict reading of
-  VMNV would produce a verifier that disagrees with `vmnv`: the α placement in the decryption proof
-  (Stage 4), and `Γ`, which Algorithm 24 checks but `vmnv -shuffle` does not read. Both were found
-  only by reading Verificatum's Java. Anyone reusing this work should expect more of them.
+- **The specification alone is not enough to write a verifier.** Three places where a strict reading
+  of VMNV would produce a verifier that disagrees with `vmnv`: the α placement in the decryption
+  proof (Stage 4); `Γ`, which Algorithm 24 checks but `vmnv -shuffle` does not read; and mixer slots
+  being indexed by party rather than sequentially, with absent ones skipped by file existence. Each
+  was found only by reading Verificatum's Java or by running it at a shape the corpus did not cover.
+  Anyone reusing this work should expect more of them.
+- **Three silent skips, one pattern.** `validProofs < threshold` routed to a print-only handler; a
+  mixer omitted because its file is missing; and — the same instinct in the specification rather than
+  the code — Algorithm 24's `Γ` check that `vmnv` does not perform. A verifier built on this work
+  should treat "condition evaluated, conclusion not enforced" as the failure mode to look for first.
