@@ -5,6 +5,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Testing vsvmn
 
+For the tool itself rather than its tests, see [README.md](README.md).
+
 ```text
 cargo test --release -p vsvmn -- --include-ignored
 ```
