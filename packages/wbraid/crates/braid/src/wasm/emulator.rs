@@ -6,14 +6,14 @@
 //!
 //! The emulator is **interactive** and runs against a **live b4** (over HTTP+S3
 //! via [`WasmHttpTransport`], with per-trustee IndexedDB persistence) — the
-//! production-shaped setting. It manages a single [`Setup`](Emulator) (one
-//! committee: manager + trustee keys + `Configuration`) and drives the protocol
-//! one round at a time, letting a page inspect what the board and each trustee
-//! hold between rounds.
+//! production-shaped setting. It manages a single [`Setup`](Emulator) — one
+//! `Configuration` and the keys behind it — and drives the protocol one round at
+//! a time, letting a page inspect what the board and each trustee hold between
+//! rounds.
 //!
 //! ## One DKG, many tallies (§8.2)
 //!
-//! The committee runs the DKG **once** on a hidden parent board; each **tally**
+//! The trustees run the DKG **once** on a hidden parent board; each **tally**
 //! then runs on its own hidden child board, unioned with the DKG parent and
 //! seeded with the trustees' own committed DKG digests (the anti-rewrite seed,
 //! §8.2). This is the board-union batch mechanism: a single DKG backs many
@@ -22,14 +22,14 @@
 //!
 //! ## Bridging a browser refresh
 //!
-//! To test persistence-based anti-rewrite across a page refresh the committee
+//! To test persistence-based anti-rewrite across a page refresh the setup's
 //! identity must survive it — a fresh `create` would mint new keys, a new
 //! `Configuration`, and new board/IndexedDB names, orphaning everything persisted
 //! before. So a `Setup` has a **stable id** from which every board name and every
 //! per-trustee IndexedDB name is derived deterministically, and it can be
 //! [`export`](Emulator::export)ed to / [`import`](Emulator::import)ed from a paste
-//! string. Import rebuilds the exact same committee and reconnects to the same
-//! boards + IndexedDB stores, so persisted state reloads.
+//! string. Import rebuilds the identical keys and `Configuration`, and reconnects
+//! to the same boards + IndexedDB stores, so persisted state reloads.
 //!
 //! One-shot pass/fail runs belong in tests, not the emulator. Coverage: the
 //! protocol logic is covered natively by `protocol_test_memory[_union]` /
@@ -107,77 +107,79 @@ fn tally_db_name(id: &str, tally: usize, trustee: usize) -> String {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// Committee (key material + configuration).
+// Key material, and the Configuration it describes.
 ///////////////////////////////////////////////////////////////////////////
 
-/// A committee's key material and its shared `Configuration`.
-struct Committee {
+/// Every private key in the emulated deployment.
+///
+/// No real participant holds these together — the manager's signing key and
+/// each trustee's signing and share-decryption keys live on separate machines.
+/// The emulator plays every role in one process, so it holds the lot.
+///
+/// The public counterpart is the [`Configuration`], which these keys determine:
+/// see [`configuration_for`].
+struct Keys {
     pm: ProtocolManager<RistrettoCtx>,
-    signing_keys: Vec<EmuSigner>,
-    share_keypairs: Vec<KeyPair<RistrettoCtx>>,
-    cfg: Configuration<RistrettoCtx>,
-    cfg_hash: ConfigurationHash,
+    signing: Vec<EmuSigner>,
+    share: Vec<KeyPair<RistrettoCtx>>,
 }
 
-/// Assemble a committee from existing key material: derive the trustee verifying
-/// keys and share-encryption keys, build the `Configuration`, and hash it. Shared
-/// by fresh generation and import (deterministic given the same material).
-fn build_committee(
-    pm: ProtocolManager<RistrettoCtx>,
-    signing_keys: Vec<EmuSigner>,
-    share_keypairs: Vec<KeyPair<RistrettoCtx>>,
+impl Keys {
+    /// A fresh manager and `n_trustees` trustees.
+    fn generate(n_trustees: usize) -> Self {
+        let mut key_rng = RistrettoCtx::get_rng();
+        let pm = ProtocolManager::<RistrettoCtx>::new(Sig::gen_signing_key(&mut key_rng));
+
+        let mut signing = Vec::with_capacity(n_trustees);
+        let mut share = Vec::with_capacity(n_trustees);
+        for _ in 0..n_trustees {
+            signing.push(Sig::gen_signing_key(&mut key_rng));
+            share.push(KeyPair::<RistrettoCtx>::generate());
+        }
+        Keys { pm, signing, share }
+    }
+}
+
+/// The `Configuration` a set of keys describes, and its hash: the public
+/// verifying keys, the share-encryption keys, and the election parameters.
+///
+/// Deterministic in its inputs, which is what lets an imported setup rebuild
+/// the identical `Configuration` — and therefore the same hash, which every
+/// message on the board is bound to.
+fn configuration_for(
+    keys: &Keys,
     threshold: usize,
     width: usize,
-) -> Result<Committee> {
-    let trustee_vks = signing_keys.iter().map(Sig::verifying_key).collect();
-    let share_enc_keys = share_keypairs.iter().map(|kp| kp.pkey.y.clone()).collect();
+) -> Result<(Configuration<RistrettoCtx>, ConfigurationHash)> {
     let cfg = Configuration::<RistrettoCtx>::new(
         0,
-        Sig::verifying_key(&pm.signing_key),
-        trustee_vks,
+        Sig::verifying_key(&keys.pm.signing_key),
+        keys.signing.iter().map(Sig::verifying_key).collect(),
         threshold,
         width,
-        share_enc_keys,
+        keys.share.iter().map(|kp| kp.pkey.y.clone()).collect(),
         PhantomData,
     );
     let cfg_hash = ConfigurationHash::from_configuration(&cfg)?;
-    Ok(Committee {
-        pm,
-        signing_keys,
-        share_keypairs,
-        cfg,
-        cfg_hash,
-    })
+    Ok((cfg, cfg_hash))
 }
 
-/// Generate a fresh manager + `n_trustees` key pairs and the shared configuration.
-fn generate_committee(n_trustees: usize, n_threshold: usize, width: usize) -> Result<Committee> {
-    let mut key_rng = RistrettoCtx::get_rng();
-    let pm = ProtocolManager::<RistrettoCtx>::new(Sig::gen_signing_key(&mut key_rng));
-
-    let mut signing_keys = Vec::with_capacity(n_trustees);
-    let mut share_keypairs = Vec::with_capacity(n_trustees);
-    for _ in 0..n_trustees {
-        signing_keys.push(Sig::gen_signing_key(&mut key_rng));
-        share_keypairs.push(KeyPair::<RistrettoCtx>::generate());
-    }
-    build_committee(pm, signing_keys, share_keypairs, n_threshold, width)
-}
-
-/// Build the (pure, reusable) trustees from a committee's material (§8.2 — the
-/// same trustees drive the DKG and every tally; only the board client changes).
-fn build_trustees(committee: &Committee) -> Result<Vec<Trustee<RistrettoCtx>>> {
-    committee
-        .signing_keys
+/// Build the (pure, reusable) trustees (§8.2 — the same trustees drive the DKG
+/// and every tally; only the board client changes).
+fn build_trustees(
+    keys: &Keys,
+    cfg: &Configuration<RistrettoCtx>,
+) -> Result<Vec<Trustee<RistrettoCtx>>> {
+    keys.signing
         .iter()
-        .zip(&committee.share_keypairs)
+        .zip(&keys.share)
         .enumerate()
         .map(|(i, (signing_key, keypair))| {
             Trustee::new(
                 (i + 1).to_string(),
                 signing_key.clone(),
                 keypair.clone(),
-                &committee.cfg,
+                cfg,
             )
         })
         .collect()
@@ -235,7 +237,7 @@ fn plaintexts_match<C: Context, const W: usize>(
     Ok((*expected == actual, actual.len()))
 }
 
-/// Validate the committee parameters against the dispatch-macro ranges.
+/// Validate the election parameters against the dispatch-macro ranges.
 fn validate_params(trustees: usize, threshold: usize, width: usize) -> Result<()> {
     if !(1..=MAX_TRUSTEES).contains(&width) {
         return Err(anyhow!(
@@ -356,10 +358,10 @@ struct VerifyReport {
 // Emulator
 ///////////////////////////////////////////////////////////////////////////
 
-/// An interactive in-browser emulator for a single `Setup` (one committee) against
-/// a live b4.
+/// An interactive in-browser emulator for a single `Setup` (one `Configuration`)
+/// against a live b4.
 ///
-/// `create` generates a committee, creates its DKG board on b4, posts the
+/// `create` generates the keys, creates the DKG board on b4, posts the
 /// `Configuration` (as manager), and connects one DKG session per trustee over
 /// [`WasmHttpTransport`] with its own IndexedDB store. The protocol is driven a
 /// round at a time (`step`); once the DKG reaches its fixpoint, `new_tally`
@@ -375,7 +377,11 @@ struct VerifyReport {
 pub struct Emulator {
     b4_url: String,
     setup_id: String,
-    committee: Committee,
+    keys: Keys,
+    /// Only the hash is kept: the `Configuration` itself is posted to the board
+    /// and consumed by [`build_trustees`] at construction, and is derivable from
+    /// `keys` again should anything need it.
+    cfg_hash: ConfigurationHash,
     mixing_trustees: Vec<TrusteeIndex>,
     trustees_n: usize,
     threshold: usize,
@@ -459,7 +465,7 @@ impl Emulator {
 
 #[wasm_bindgen]
 impl Emulator {
-    /// Create a committee, create its DKG board on b4, post the `Configuration`,
+    /// Generate the keys, create the DKG board on b4, post the `Configuration`,
     /// and connect one DKG session per trustee (each with its own IndexedDB store).
     pub async fn create(
         b4_url: String,
@@ -469,14 +475,14 @@ impl Emulator {
         width: usize,
     ) -> Result<Emulator, JsValue> {
         validate_params(trustees, threshold, width).map_err(js)?;
-        let committee = generate_committee(trustees, threshold, width).map_err(js)?;
+        let keys = Keys::generate(trustees);
         // A stable id so board names and IndexedDB names are deterministic (and so
         // a re-import reconnects to the very same stores). Random per fresh Setup.
         let setup_id = format!("{:x}", js_sys::Date::now() as u64);
         Self::start(
             b4_url,
             setup_id,
-            committee,
+            keys,
             trustees,
             threshold,
             ciphertexts,
@@ -495,18 +501,18 @@ impl Emulator {
             let inner = self.inner.try_borrow().map_err(|_| busy())?;
             inner.tally_index
         };
-        let manager_sk = Sig::signer_to_base64_string(&self.committee.pm.signing_key)
+        let manager_sk = Sig::signer_to_base64_string(&self.keys.pm.signing_key)
             .map_err(|e| JsValue::from_str(&format!("encode manager key: {e}")))?;
         let trustee_sks = self
-            .committee
-            .signing_keys
+            .keys
+            .signing
             .iter()
             .map(|sk| Sig::signer_to_base64_string(sk))
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| JsValue::from_str(&format!("encode trustee key: {e}")))?;
         let share_sks = self
-            .committee
-            .share_keypairs
+            .keys
+            .share
             .iter()
             .map(|kp| general_purpose::STANDARD_NO_PAD.encode(kp.skey.ser()))
             .collect();
@@ -527,8 +533,8 @@ impl Emulator {
     }
 
     /// Rebuild a Setup from an [`export`](Self::export)ed string and reconnect it to
-    /// the same b4 boards + IndexedDB stores. The committee (keys, `Configuration`,
-    /// hash) is deterministic in the blob; the DKG public key, the anti-rewrite
+    /// the same b4 boards + IndexedDB stores. The keys, and the `Configuration`
+    /// they determine, are deterministic in the blob; the DKG public key, the anti-rewrite
     /// seeds, and the board contents reload from b4/IndexedDB when the DKG clients
     /// reconnect. Lands in the DKG phase; if the DKG is already complete, `new_tally`
     /// starts fresh tallies (continuing the child-board index).
@@ -543,14 +549,14 @@ impl Emulator {
             .map_err(|e| JsValue::from_str(&format!("decode manager key: {e}")))?;
         let pm = ProtocolManager::<RistrettoCtx>::new(manager_sk);
 
-        let mut signing_keys = Vec::with_capacity(blob.trustees);
+        let mut signing = Vec::with_capacity(blob.trustees);
         for s in &blob.trustee_sks {
-            signing_keys.push(
+            signing.push(
                 Sig::signer_from_base64_string(s)
                     .map_err(|e| JsValue::from_str(&format!("decode trustee key: {e}")))?,
             );
         }
-        let mut share_keypairs = Vec::with_capacity(blob.trustees);
+        let mut share = Vec::with_capacity(blob.trustees);
         for s in &blob.share_sks {
             let raw = general_purpose::STANDARD_NO_PAD
                 .decode(s)
@@ -558,16 +564,13 @@ impl Emulator {
             let skey = <RistrettoCtx as Context>::Scalar::deser(&raw)
                 .map_err(|e| JsValue::from_str(&format!("deserialize share key: {e:?}")))?;
             let pkey = <RistrettoCtx as Context>::G::g_exp(&skey);
-            share_keypairs.push(KeyPair::<RistrettoCtx>::new(skey, pkey));
+            share.push(KeyPair::<RistrettoCtx>::new(skey, pkey));
         }
 
-        let committee =
-            build_committee(pm, signing_keys, share_keypairs, blob.threshold, blob.width)
-                .map_err(js)?;
         Self::start(
             b4_url,
             blob.id,
-            committee,
+            Keys { pm, signing, share },
             blob.trustees,
             blob.threshold,
             blob.ciphertexts,
@@ -588,7 +591,7 @@ impl Emulator {
     async fn start(
         b4_url: String,
         setup_id: String,
-        committee: Committee,
+        keys: Keys,
         trustees: usize,
         threshold: usize,
         ciphertexts: u32,
@@ -596,24 +599,26 @@ impl Emulator {
         tally_index: usize,
         fresh: bool,
     ) -> Result<Emulator, JsValue> {
+        let (cfg, cfg_hash) = configuration_for(&keys, threshold, width).map_err(js)?;
         let parent_board = parent_board_name(&setup_id);
         if fresh {
             WasmHttpTransport::create_board(&b4_url, &parent_board)
                 .await
                 .map_err(js)?;
             let cfg_message =
-                ProtocolMessage::<RistrettoCtx>::configuration(&committee.pm, DATE, &committee.cfg);
+                ProtocolMessage::<RistrettoCtx>::configuration(&keys.pm, DATE, &cfg);
             let manager = WasmHttpTransport::new(&b4_url, &parent_board);
             Transport::<RistrettoCtx>::post(&manager, vec![cfg_message])
                 .await
                 .map_err(js)?;
         }
 
-        let trustee_sessions = build_trustees(&committee).map_err(js)?;
+        let trustee_sessions = build_trustees(&keys, &cfg).map_err(js)?;
         let emulator = Emulator {
             b4_url,
             setup_id,
-            committee,
+            keys,
+            cfg_hash,
             mixing_trustees: (1..=threshold).collect(),
             trustees_n: trustees,
             threshold,
@@ -726,8 +731,8 @@ impl Emulator {
                 &pk_body,
                 self.ciphertexts,
                 self.mixing_trustees.clone(),
-                &self.committee.pm,
-                self.committee.cfg_hash,
+                &self.keys.pm,
+                self.cfg_hash,
             )
         })
         .map_err(js)?;
