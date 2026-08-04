@@ -63,25 +63,193 @@ class TemplateSyntaxTest {
   }
 
   @Test
+  void socialProvidersFilterDigitalCertificatesUnlessRealmOptsIn()
+      throws IOException, TemplateException {
+    List<Map<String, Object>> providers =
+        List.of(
+            Map.of(
+                "alias", "google",
+                "loginUrl", "/broker/google",
+                "iconClasses", "",
+                "displayName", "Google"),
+            Map.of(
+                "alias", "digital-certificates",
+                "loginUrl", "/broker/digital-certificates",
+                "iconClasses", "",
+                "displayName", "Digital Certificate"));
+
+    Map<String, Object> disabledModel = baseModel("standard");
+    disabledModel.put("social", Map.of("providers", providers));
+    String disabledHtml = renderVotingPortalLogin(disabledModel);
+
+    assertTrue(disabledHtml.contains("id=\"social-google\""));
+    assertFalse(disabledHtml.contains("id=\"social-digital-certificates\""));
+
+    Map<String, Object> enabledModel = baseModel("standard");
+    enabledModel.put("social", Map.of("providers", providers));
+    enabledModel.put(
+        "realm",
+        Map.ofEntries(
+            Map.entry(
+                "attributes",
+                Map.of(
+                    "credential-input-policy", "standard",
+                    "credential-input-pattern", "dddd-dddd-dddd-dddd",
+                    "voter-certificate-policy", "enabled")),
+            Map.entry("password", true),
+            Map.entry("registrationAllowed", false),
+            Map.entry("loginWithEmailAllowed", false),
+            Map.entry("registrationEmailAsUsername", false),
+            Map.entry("rememberMe", false),
+            Map.entry("resetPasswordAllowed", false),
+            Map.entry("internationalizationEnabled", false),
+            Map.entry("displayName", "Realm"),
+            Map.entry("defaultLocale", "en")));
+    String enabledHtml = renderVotingPortalLogin(enabledModel);
+
+    assertTrue(enabledHtml.contains("id=\"social-google\""));
+    assertTrue(enabledHtml.contains("id=\"social-digital-certificates\""));
+  }
+
+  @Test
   void multiAttributeLoginSupportsStructuredCredentialToggle()
       throws IOException, TemplateException {
     Map<String, Object> structuredModel = baseModel("structured");
-    structuredModel.put("matchAttributes", List.of(Map.of("name", "dateOfBirth", "type", "date")));
+    structuredModel.put("matchAttributes", List.of("dateOfBirth"));
+    structuredModel.put(
+        "profile",
+        profileWithAttributes(
+            mockAttribute("dateOfBirth", "${dateOfBirth}", Map.of("inputType", "html5-date"))));
     String structuredHtml = renderVotingPortalLogin(structuredModel);
 
-    assertTrue(structuredHtml.contains("name=\"dateOfBirth\" type=\"date\""));
+    assertTrue(structuredHtml.contains("type=\"date\" id=\"dateOfBirth\" name=\"dateOfBirth\""));
     assertTrue(structuredHtml.contains("data-structured-credential"));
     assertTrue(structuredHtml.contains("src=\"/resources/js/structured-credential.js\""));
     assertFalse(structuredHtml.contains("src=\"/resources/js/passwordVisibility.js\""));
 
     Map<String, Object> standardModel = baseModel("standard");
-    standardModel.put("matchAttributes", List.of(Map.of("name", "dateOfBirth", "type", "date")));
+    standardModel.put("matchAttributes", List.of("dateOfBirth"));
+    standardModel.put(
+        "profile",
+        profileWithAttributes(
+            mockAttribute("dateOfBirth", "${dateOfBirth}", Map.of("inputType", "html5-date"))));
     String standardHtml = renderVotingPortalLogin(standardModel);
 
-    assertTrue(standardHtml.contains("name=\"dateOfBirth\" type=\"date\""));
+    assertTrue(standardHtml.contains("type=\"date\" id=\"dateOfBirth\" name=\"dateOfBirth\""));
     assertFalse(standardHtml.contains("data-structured-credential"));
     assertTrue(standardHtml.contains("src=\"/resources/js/passwordVisibility.js\""));
     assertFalse(standardHtml.contains("src=\"/resources/js/structured-credential.js\""));
+  }
+
+  @Test
+  void multiAttributeLoginRendersConfiguredHelperText() throws IOException, TemplateException {
+    Map<String, Object> model = baseModel("standard");
+    model.put("matchAttributes", List.of("dateOfBirth"));
+    model.put(
+        "profile",
+        profileWithAttributes(
+            mockAttribute(
+                "dateOfBirth",
+                "${dateOfBirth}",
+                Map.of(
+                    "inputType", "html5-date",
+                    "inputHelperTextBefore", "Enter as printed on your ID",
+                    "inputHelperTextAfter", "Format: DD/MM/YYYY"))));
+    String html = renderVotingPortalLogin(model);
+
+    assertTrue(
+        html.contains(
+            "id=\"form-help-text-before-dateOfBirth\" aria-live=\"polite\">Enter as printed on your"
+                + " ID</div>"));
+    assertTrue(
+        html.contains(
+            "id=\"form-help-text-after-dateOfBirth\" aria-live=\"polite\">Format: DD/MM/YYYY</div>"));
+  }
+
+  @Test
+  void multiAttributeLoginOmitsHelperTextWhenNotConfigured() throws IOException, TemplateException {
+    Map<String, Object> model = baseModel("standard");
+    model.put("matchAttributes", List.of("dateOfBirth"));
+    model.put(
+        "profile",
+        profileWithAttributes(
+            mockAttribute("dateOfBirth", "${dateOfBirth}", Map.of("inputType", "html5-date"))));
+    String html = renderVotingPortalLogin(model);
+
+    assertFalse(html.contains("form-help-text-before-dateOfBirth"));
+    assertFalse(html.contains("form-help-text-after-dateOfBirth"));
+  }
+
+  @Test
+  void multiAttributeLoginFallsBackToPlainTextFieldWhenNotInUserProfile()
+      throws IOException, TemplateException {
+    Map<String, Object> model = baseModel("standard");
+    model.put("matchAttributes", List.of("nationalId"));
+    model.put("profile", profileWithAttributes());
+    String html = renderVotingPortalLogin(model);
+
+    assertTrue(html.contains("id=\"nationalId\""));
+    assertTrue(html.contains("name=\"nationalId\""));
+    assertTrue(html.contains("type=\"text\""));
+  }
+
+  @Test
+  void multiAttributeLoginMarksRequiredAttributeWhenEnabled()
+      throws IOException, TemplateException {
+    Map<String, Object> model = baseModel("standard");
+    model.put("matchAttributes", List.of("dateOfBirth"));
+    model.put("honorUserProfileRequired", true);
+    model.put(
+        "profile",
+        profileWithAttributes(
+            mockAttribute(
+                "dateOfBirth", "${dateOfBirth}", Map.of("inputType", "html5-date"), true)));
+    String html = renderVotingPortalLogin(model);
+    String normalized = html.replaceAll("\\s+", " ");
+
+    assertTrue(normalized.contains("aria-invalid=\"\" required"));
+    assertTrue(html.contains("requiredFields"));
+    assertTrue(normalized.contains("</label> *"));
+  }
+
+  @Test
+  void multiAttributeLoginOmitsRequiredMarkingWhenNotEnabled()
+      throws IOException, TemplateException {
+    // dateOfBirth is required=true in the realm's User Profile, but honorUserProfileRequired is
+    // not set - neither the HTML5 required attribute nor the "*" marker should appear, since
+    // matching-mandatoriness here comes entirely from matchAttributes, not User Profile.
+    Map<String, Object> model = baseModel("standard");
+    model.put("matchAttributes", List.of("dateOfBirth"));
+    model.put(
+        "profile",
+        profileWithAttributes(
+            mockAttribute(
+                "dateOfBirth", "${dateOfBirth}", Map.of("inputType", "html5-date"), true)));
+    String html = renderVotingPortalLogin(model);
+    String normalized = html.replaceAll("\\s+", " ");
+
+    assertFalse(normalized.contains("aria-invalid=\"\" required"));
+    assertFalse(html.contains("requiredFields"));
+    assertFalse(normalized.contains("</label> *"));
+  }
+
+  @Test
+  void multiAttributeLoginDoesNotMarkNonRequiredAttributeEvenWhenEnabled()
+      throws IOException, TemplateException {
+    Map<String, Object> model = baseModel("standard");
+    model.put("matchAttributes", List.of("dateOfBirth"));
+    model.put("honorUserProfileRequired", true);
+    model.put(
+        "profile",
+        profileWithAttributes(
+            mockAttribute(
+                "dateOfBirth", "${dateOfBirth}", Map.of("inputType", "html5-date"), false)));
+    String html = renderVotingPortalLogin(model);
+    String normalized = html.replaceAll("\\s+", " ");
+
+    assertFalse(normalized.contains("aria-invalid=\"\" required"));
+    assertFalse(html.contains("requiredFields"));
+    assertFalse(normalized.contains("</label> *"));
   }
 
   @Test
@@ -89,7 +257,6 @@ class TemplateSyntaxTest {
       throws IOException, TemplateException {
     Path parent = THEME_ROOT.resolve("sequent.admin-portal/login");
     StringTemplateLoader baseThemeStubs = new StringTemplateLoader();
-    baseThemeStubs.putTemplate("intl-tel-input.ftl", "");
     baseThemeStubs.putTemplate("register-commons.ftl", "<#macro termsAcceptance></#macro>");
     Configuration configuration = configuration();
     configuration.setTemplateLoader(
@@ -150,6 +317,39 @@ class TemplateSyntaxTest {
     StringWriter rendered = new StringWriter();
     configuration.getTemplate("login.ftl").process(model, rendered);
     return rendered.toString();
+  }
+
+  /** Mimics {@code AbstractUserProfileBean}'s {@code attributesByName} shape - see LoginBean. */
+  private static Map<String, Object> profileWithAttributes(Map<String, Object>... attributes) {
+    Map<String, Object> attributesByName = new HashMap<>();
+    for (Map<String, Object> attribute : attributes) {
+      attributesByName.put((String) attribute.get("name"), attribute);
+    }
+    return Map.of("attributesByName", attributesByName);
+  }
+
+  /**
+   * Mimics one {@code AbstractUserProfileBean.Attribute} - the fields user-profile-commons.ftl
+   * reads.
+   */
+  private static Map<String, Object> mockAttribute(
+      String name, String displayName, Map<String, Object> annotations) {
+    return mockAttribute(name, displayName, annotations, false);
+  }
+
+  private static Map<String, Object> mockAttribute(
+      String name, String displayName, Map<String, Object> annotations, boolean required) {
+    Map<String, Object> attribute = new HashMap<>();
+    attribute.put("name", name);
+    attribute.put("displayName", displayName);
+    attribute.put("required", required);
+    attribute.put("readOnly", false);
+    attribute.put("multivalued", false);
+    attribute.put("value", "");
+    attribute.put("values", List.of());
+    attribute.put("annotations", annotations);
+    attribute.put("html5DataAnnotations", Map.of());
+    return attribute;
   }
 
   private static Configuration configuration() {
