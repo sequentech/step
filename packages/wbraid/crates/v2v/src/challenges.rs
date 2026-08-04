@@ -165,3 +165,58 @@ pub fn commitments_to_tree<const W: usize>(
         encode::ciphertext_to_tree(commitments.big_f_prime()).map_err(encode_err)?,
     ]))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use num_bigint::BigUint;
+
+    /// VMN's `e_i = t_i mod 2^{n_e}`, computed independently of the masking
+    /// under test.
+    fn truncate(bytes: &[u8], bits: usize) -> P256Scalar {
+        let value = BigUint::from_bytes_be(bytes) % (BigUint::from(1u8) << bits);
+        let be = value.to_bytes_be();
+        let mut fixed = [0u8; 32];
+        fixed[32 - be.len()..].copy_from_slice(&be);
+        P256Scalar::from_bytes_reduced(&fixed)
+    }
+
+    /// The PRG hands out whole bytes, so a challenge whose bit length is not a
+    /// multiple of eight has to be truncated to `n_e` before it is used.
+    ///
+    /// This has its own test because nothing else reaches it. Every session this
+    /// crate runs uses `n_e = n_v = 256` — VMN's default and the one
+    /// `ProtocolInfo::p256` writes — so `excess` is zero and the mask below is
+    /// skipped entirely. The branch is correct by construction rather than by
+    /// observation, and a session configured with, say, `ebitlenro = 100` would
+    /// be the first to execute it. VMN permits that, and a mismatch would
+    /// surface as proofs `vmnv` rejects with nothing said about why.
+    ///
+    /// Note this is *not* about reducing mod `q`. Reduction is a representation
+    /// choice — exponents act on a group of prime order, so `g^t = g^(t mod q)`,
+    /// and Verificatum's unreduced `BigInteger` yields the same group element.
+    /// The truncation is the part that changes the integer, so it is the part
+    /// that has to agree.
+    #[test]
+    fn challenges_are_truncated_to_a_non_byte_aligned_bit_length() {
+        // Distinct bytes with the high bits set: a mask of the wrong width, or
+        // applied to the wrong end, changes the result rather than preserving it.
+        let chunk: Vec<u8> = (0..13u8).map(|i| 0xF0 | i).collect();
+
+        for bits in [97usize, 100, 103] {
+            assert_eq!(
+                scalar_from_bits(&chunk, bits).expect("13 bytes is within a scalar"),
+                truncate(&chunk, bits),
+                "n_e = {bits} must truncate to the low {bits} bits"
+            );
+        }
+
+        // 8 * 13 = 104: the byte-aligned case every session actually takes,
+        // where masking must be a no-op rather than clearing a byte.
+        assert_eq!(
+            scalar_from_bits(&chunk, 104).expect("13 bytes is within a scalar"),
+            truncate(&chunk, 104),
+            "a byte-aligned n_e must leave the value untouched"
+        );
+    }
+}
