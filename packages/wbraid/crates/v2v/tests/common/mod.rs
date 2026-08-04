@@ -145,7 +145,7 @@ pub fn generate(shape: &Shape) -> Option<Corpus> {
 fn vmn_home() -> Option<PathBuf> {
     let dir = match std::env::var("VMN_HOME") {
         Ok(d) => PathBuf::from(d),
-        Err(_) => PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../braid/verificatum"),
+        Err(_) => PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../verificatum"),
     };
     dir.join("verificatum-vmn/demo/mixnet/conf")
         .is_file()

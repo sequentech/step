@@ -12,9 +12,9 @@ buys us, what has been built on it, and what a reader working in this area
 needs to know that is not in either system's documentation.
 
 Section references of the form "VMNV §N" point into
-`crates/braid/verificatum/papers/vmnv-3.1.0.md`, the stand-alone verifier
+`crates/verificatum/papers/vmnv-3.1.0.md`, the stand-alone verifier
 specification. The Verificatum source and jars are under
-`crates/braid/verificatum/`, which is assembled by hand and not part of this
+`crates/verificatum/`, which is assembled by hand and not part of this
 repository — see [`crates/v2v/TESTING.md`](crates/v2v/TESTING.md).
 
 ---

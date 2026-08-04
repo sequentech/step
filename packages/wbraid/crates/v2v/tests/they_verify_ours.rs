@@ -19,7 +19,7 @@
 //!
 //! Nothing needs setting up beyond Verificatum itself: the random source
 //! `vmnv` insists on is provisioned by `common::random_source`. Verificatum is
-//! looked for at `crates/braid/verificatum`, which is not part of this
+//! looked for at `crates/verificatum`, which is not part of this
 //! repository — see TESTING.md for what goes in it. `VMN_HOME` points
 //! elsewhere, `VMN_JAVA` at a different `java`, and
 //! `VMN_RANDOM_SOURCE`/`VMN_RANDOM_SEED` at a source initialised by hand.

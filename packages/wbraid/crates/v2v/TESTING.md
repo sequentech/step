@@ -24,7 +24,7 @@ prerequisites below — without them they skip.
 ## Prerequisites
 
 A JDK on `PATH`, WSL if you are on Windows, and a directory holding
-Verificatum. The tests look for that last one at `crates/braid/verificatum`,
+Verificatum. The tests look for that last one at `crates/verificatum`,
 which is **not in this repository** — you assemble it, or point `VMN_HOME`
 somewhere else.
 
@@ -186,7 +186,7 @@ believing a green run.**
 ## Overrides
 
 Only `VMN_HOME` is likely to matter, and only if you keep Verificatum
-somewhere other than `crates/braid/verificatum`. Each is set the same way as
+somewhere other than `crates/verificatum`. Each is set the same way as
 above — `$env:NAME = "value"` in PowerShell, `NAME=value` inline in a POSIX
 shell.
 
