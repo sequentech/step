@@ -34,7 +34,7 @@ use strand::signature::StrandSignaturePk;
 use strand::signature::StrandSignatureSk;
 use strand::zkp::Schnorr;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
-use strum_macros::{Display, EnumIter, EnumString, IntoStaticStr};
+use strum_macros::{AsRefStr, Display, EnumIter, EnumString, IntoStaticStr};
 
 pub const TYPES_VERSION: u32 = 2;
 
@@ -2179,11 +2179,13 @@ pub enum AllowTallyStatus {
     Debug,
     PartialEq,
     Eq,
+    Hash,
     Clone,
     Copy,
     EnumString,
     JsonSchema,
     IntoStaticStr,
+    AsRefStr,
 )]
 pub enum VotingStatusChannel {
     ONLINE,

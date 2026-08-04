@@ -951,6 +951,8 @@ input ElectionEventStatsInput {
     start_date: String!
     end_date: String!
     user_timezone: String!
+    time_resolution: String
+    bucket_count: Int
 }
 
 input ElectionStatsInput {
@@ -959,6 +961,8 @@ input ElectionStatsInput {
     start_date: String!
     end_date: String!
     user_timezone: String!
+    time_resolution: String
+    bucket_count: Int
 }
 
 input GetPrivateKeyInput {
@@ -1164,6 +1168,7 @@ type GetPrivateKeyOutput {
 
 type CastVotesPerDay {
     day: date!
+    bucket: String!
     channel: String!
     day_count: Int!
 }
