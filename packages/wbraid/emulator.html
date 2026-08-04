@@ -15,7 +15,11 @@ SPDX-License-Identifier: AGPL-3.0-only
        protocol produces. Vertical space is what runs out first, horizontal
        space is what there is most of. */
     .page { display: flex; gap: 1.5rem; align-items: flex-start; padding: 1.25rem; }
-    .sidebar { flex: 0 0 23rem; position: sticky; top: 1.25rem; }
+    /* Bounded by the viewport so it stays wholly visible: a sticky column
+       taller than the screen loses its bottom, and the log is now at the
+       bottom. */
+    .sidebar { flex: 0 0 23rem; position: sticky; top: 1.25rem;
+               max-height: calc(100vh - 2.5rem); overflow-y: auto; }
     /* min-width:0 so wide tables scroll inside main rather than stretching it. */
     main { flex: 1; min-width: 0; }
     @media (max-width: 60rem) {
@@ -38,9 +42,8 @@ SPDX-License-Identifier: AGPL-3.0-only
     .ok { color: #137333; }
     .fail { color: #b3261e; }
 
-    /* Single-digit fields, so they fit on one line with their labels. */
+    /* Single-digit values, so the fields stay narrow. */
     input.tiny { width: 2.6rem; }
-    .triple label { margin-right: 0.5rem; white-space: nowrap; }
     .boardctl { margin-top: 0.5rem; }
     tr.active td, tr.active th { background: #e8f0fe; font-weight: 600; }
     .tallies button.open { font-size: 0.75rem; padding: 0.1rem 0.45rem; margin: 0; }
@@ -78,11 +81,9 @@ SPDX-License-Identifier: AGPL-3.0-only
       <fieldset>
         <legend>b4</legend>
         <div><label>URL <input id="b4url" class="url" type="text" value="http://127.0.0.1:3000" /></label></div>
-        <div class="triple">
-          <label>Trustees <input id="trustees" class="tiny" type="number" min="2" max="8" value="3" /></label>
-          <label>Threshold <input id="threshold" class="tiny" type="number" min="2" max="8" value="2" /></label>
-          <label>Width <input id="width" class="tiny" type="number" min="1" max="8" value="2" /></label>
-        </div>
+        <div><label>Trustees <input id="trustees" class="tiny" type="number" min="2" max="8" value="3" /></label></div>
+        <div><label>Threshold <input id="threshold" class="tiny" type="number" min="2" max="8" value="2" /></label></div>
+        <div><label>Width <input id="width" class="tiny" type="number" min="1" max="8" value="2" /></label></div>
         <div style="margin-top:0.5rem;">
           <button id="create" disabled>Create new board</button>
         </div>
@@ -97,6 +98,11 @@ SPDX-License-Identifier: AGPL-3.0-only
           <button id="newTally" disabled>New tally</button>
         </div>
       </fieldset>
+
+      <fieldset>
+        <legend>Log</legend>
+        <pre class="log" id="log"></pre>
+      </fieldset>
     </aside>
 
     <main>
@@ -110,11 +116,6 @@ SPDX-License-Identifier: AGPL-3.0-only
           <button id="stepFix" disabled>Step to fixpoint</button>
           <button id="verify" disabled>Verify plaintexts</button>
         </div>
-      </fieldset>
-
-      <fieldset>
-        <legend>Log</legend>
-        <pre class="log" id="log"></pre>
       </fieldset>
 
       <div id="trusteePanels"></div>
