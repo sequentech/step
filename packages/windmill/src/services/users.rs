@@ -239,6 +239,7 @@ async fn get_area_ids(
     if election_event_uuid.is_none() {
         return Ok((None, "".to_string(), "".to_string()));
     }
+    let is_explicit_election_filter = election_id.is_some();
     let election_uuid: Option<Uuid> = election_id
         .map(|val| parse_uuid_v4(&val))
         .transpose()
@@ -248,6 +249,13 @@ async fn get_area_ids(
     let area_ids: Vec<String> = match area_id {
         Some(area_id_value) => vec![area_id_value],
         None => {
+            // LEFT JOINed (not INNER) so areas with no contest at all still come back
+            // when no specific election is requested ($3 IS NULL) — otherwise voters
+            // in such an area silently vanish from the list instead of showing up so
+            // an admin can reassign them. When $3 IS a specific election, the WHERE
+            // still requires a matching contest, so callers like get_total_voters
+            // (participation report denominator) keep excluding areas that can't
+            // vote in that election — this must stay that way, or reports miscount.
             let areas_statement = hasura_transaction
                 .prepare(
                     r#"
@@ -255,17 +263,13 @@ async fn get_area_ids(
                     a.id::VARCHAR
                 FROM
                     sequent_backend.area a
-                JOIN
-                    sequent_backend.area_contest ac ON a.id = ac.area_id
-                JOIN
-                    sequent_backend.contest c ON ac.contest_id = c.id
+                LEFT JOIN
+                    sequent_backend.area_contest ac ON a.id = ac.area_id AND ac.tenant_id = $1 AND ac.election_event_id = $2
+                LEFT JOIN
+                    sequent_backend.contest c ON ac.contest_id = c.id AND c.tenant_id = $1 AND c.election_event_id = $2
                 WHERE
                     a.tenant_id = $1 AND
-                    ac.tenant_id = $1 AND
-                    c.tenant_id = $1 AND
                     a.election_event_id = $2 AND
-                    ac.election_event_id = $2 AND
-                    c.election_event_id = $2 AND
                     ($3::uuid IS NULL OR c.election_id = $3::uuid);
             "#,
                 )
@@ -299,7 +303,13 @@ async fn get_area_ids(
         user_attribute AS area_attr ON u.id = area_attr.user_id AND area_attr.name = '{AREA_ID_ATTR_NAME}'
     "#,
     );
-    let area_ids_where_clause = if is_explicit_area_filter {
+    let area_ids_where_clause = if is_explicit_area_filter || is_explicit_election_filter {
+        // A specific area, or a specific election within the event, was
+        // requested — keep strict matching. Relaxing this for the
+        // election-scoped case would let voters with no area attribute
+        // count toward that election's totals (e.g. get_total_voters,
+        // the participation report denominator) even though they have no
+        // contest to vote in for it.
         format!(
             r#"
     AND area_attr.value = ANY(${})
@@ -307,7 +317,8 @@ async fn get_area_ids(
             param_number,
         )
     } else {
-        // No area explicitly requested: include voters with no area assigned too.
+        // Fully unscoped request (no area, no election): also surface voters
+        // with no area assigned so they show up to be reviewed/reassigned.
         format!(
             r#"
     AND (
