@@ -46,6 +46,44 @@ The two braid improvements this work produced — completing the P-256 backend
 and replacing the per-ciphertext decryption proofs with a batched one — were
 separated onto their own branch, since they stand on their own merits.
 
+### emit, reprove, export
+
+How much of a production system survives into an interop path is decided by
+what the *other* side's verifier is rigid about. Three arrangements, in
+decreasing order of what has to be rebuilt:
+
+| | the verifier demands | what you keep | what you write |
+|---|---|---|---|
+| **emit** | its own statement *and* transcript | nothing | a second prover |
+| **reprove** | its own transcript; the statement already agrees | the production prover | a pluggable challenge derivation |
+| **export** | nothing — it parses the foreign format | the proofs themselves | nothing at proving time |
+
+Export is not hypothetical, and its cost is known, because **`v2v verify` is
+export, inbound**: proofs VMN's own prover produced pass through unmodified.
+`v2v::wire` is the foreign transcript layer that makes that possible, and it is
+most of the crate. What makes the outbound direction hard is not that the
+arrangement is unproven but that we do not control `vmnv`.
+
+Which arrangement applies is a property of an *artifact*, not of a session.
+Today:
+
+- the shuffle chain is **reprove** — braid's own `Shuffler` with
+  `VmnChallenges` plugged in through the `ShuffleChallenges` trait;
+- the decryption is **emit** — `v2v::decrypt::prove_decryption` is a separate
+  implementation, because the statement itself differs (VMN's is joint over all
+  `k` parties, braid's is per party).
+
+So one `v2v generate --kind mixing` run uses two of the three at once.
+
+Whether the input is **real or synthetic is an independent axis**, and both our
+paths currently run on synthetic input. Reproving the shuffle over a real
+session needs no new mechanism — only the permutation and re-encryption
+randomizers, which the mixer holds — and is simply not built. Emitting over a
+real session is a different matter: a statement shape cannot be retrofitted
+onto data already produced, so it would take a fresh proving protocol among the
+trustees after the fact. That, and not the challenge derivation, is why
+decryption is the half that is stuck.
+
 ### What is not covered
 
 - **P-256 at widths 1–3 only.** Inherent: `vmnv` supports no group braid also
@@ -54,11 +92,10 @@ separated onto their own branch, since they stand on their own merits.
   specific configuration, not for production as currently deployed.
 - **Version 3.1.0 only.** `vmnv` rejects unless `version` matches exactly
   (VMNV §9.3 step 2b), so any VMN upgrade is a re-validation event.
-- **Sessions are generated, not exported.** `v2v generate` runs our
-  cryptography on synthetic input; it does not take a real braid session. The
-  shuffle half of a real export *would* be possible and is unbuilt; the
-  decryption half is blocked by the protocol shape — see
-  [What can be exported from a real session](#what-can-be-exported-from-a-real-session).
+- **Input is synthetic.** `v2v generate` runs our cryptography on generated
+  ciphertexts; it does not take a real braid session. Reproving a real shuffle
+  is available and unbuilt; the decryption cannot follow — see
+  [What can be taken from a real session](#what-can-be-taken-from-a-real-session).
 - **The live protocol is not wired in.** The tests drive the DKG, shuffle and
   decryption directly rather than through `Trustee::step` and the board.
 
@@ -324,14 +361,14 @@ sender — while `PartialDecryption` deliberately carries no position, so a
 trustee cannot claim another's. A party is therefore pinned to a key it did not
 supply, which is what makes a per-party proof meaningful.
 
-### What can be exported from a real session
+### What can be taken from a real session
 
-`v2v generate` produces a synthetic session, but the two halves of a real one
-are not equally out of reach. **The shuffle could be exported; the decryption
-could not.**
+`v2v generate` runs on synthetic input, but the two halves of a real session
+are not equally out of reach. **The shuffle can be reproved; the decryption
+cannot be reproved or exported.**
 
 **The shuffle can**, because a shuffle proof needs only one party's own secrets.
-Not by translating braid's existing proof — that is the Fiat–Shamir problem
+Not by translating braid's existing proof — that is the transcript problem
 above, and it is impossible — but by producing a *second* proof, in VMN's
 transcript, over the real lists. The mixer holds the witness the statement is
 about, so the same real shuffle can be proved twice in two formats.
@@ -350,9 +387,10 @@ run after the factors already exist.
 
 braid publishes factors and proof together in one round, and keeps proofs per
 party so a failure names its author — which the board needs in order to make
-progress. That is a deliberate difference, not a gap. It blocks export only
-because the emitter arrangement requires braid to speak VMN's transcript; see
-[Outstanding](#outstandingfuture-work) for the arrangement that would not.
+progress. That is a deliberate difference, not a gap, and it is why decryption
+sits in **emit** while the shuffle sits in **reprove**. Only moving it to
+**export** — a verifier that accepts braid's statement — removes the obstacle
+rather than working around it; see [Outstanding](#outstandingfuture-work).
 
 ### Smaller things that will cost time
 
@@ -416,17 +454,20 @@ depends on it, and report everything else.
   both.
 
   The better arrangement is that each project **produces only its own format
-  and accepts both**. Neither needs a second emitter, neither prover is written
+  and accepts both** — every artifact in **export**, in the vocabulary above.
+  Neither needs a second emitter, neither prover is written
   to the other's document, and interop data is *exported* from real protocol
   runs rather than regenerated synthetically. Our half of it already exists —
   `v2v verify` accepts VMN sessions. The other half is upstream work in
   Verificatum, which we do not control, so this is a direction rather than a
   plan.
 
-  It also dissolves the decryption blocker rather than working around it. Real
-  decryption data cannot be exported today only because we require braid to
-  produce VMN's *joint* transcript; a verifier that accepted braid's per-party
-  proofs would take the real data as it stands.
+  It also dissolves the decryption blocker rather than working around it.
+  Decryption is the one artifact still in **emit**, and it is there because we
+  require braid to produce VMN's *joint* statement; a verifier that accepted
+  braid's per-party one would take a real session's factors as they stand. The
+  shuffle would not even need that much — it is already **reprove**, and only
+  wants real input.
 
 - **Make the interop generic over the curve.** Everything in `v2v` is P-256
   only — `wire::marshal::p256`, and `encode.rs` says as much in its module
