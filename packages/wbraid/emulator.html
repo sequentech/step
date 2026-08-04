@@ -48,9 +48,13 @@ SPDX-License-Identifier: AGPL-3.0-only
     tr.active td, tr.active th { background: #e8f0fe; font-weight: 600; }
     .tallies button.open { font-size: 0.75rem; padding: 0.1rem 0.45rem; margin: 0; }
 
-    /* Row 2: the log, kept short. */
+    /* The board is as wide as its tables need; the log takes what is left, which
+       is where its longer lines stop wrapping. */
+    .mainrow { display: flex; gap: 1.25rem; align-items: flex-start; flex-wrap: wrap; }
+    .mainrow .board { flex: 0 1 auto; min-width: 26rem; }
+    .mainrow .logpanel { flex: 1 1 20rem; min-width: 18rem; }
     pre.log { background: #f5f5f5; border-radius: 6px; padding: 0.5rem 0.75rem; overflow: auto;
-              white-space: pre-wrap; height: 6.5rem; font-size: 0.78rem; margin: 0; }
+              white-space: pre-wrap; height: 15rem; font-size: 0.78rem; margin: 0; }
 
     /* Row 3: one panel per trustee, stacked. */
     .trustee { border: 1px solid #ccc; border-radius: 6px; padding: 0.5rem 0.9rem; margin-bottom: 0.6rem; }
@@ -98,25 +102,27 @@ SPDX-License-Identifier: AGPL-3.0-only
           <button id="newTally" disabled>New tally</button>
         </div>
       </fieldset>
-
-      <fieldset>
-        <legend>Log</legend>
-        <pre class="log" id="log"></pre>
-      </fieldset>
     </aside>
 
     <main>
       <p id="status" class="status">Loading wasm…</p>
 
-      <fieldset class="board">
-        <legend id="boardLegend">Board</legend>
-        <div id="boardView"></div>
-        <div class="boardctl">
-          <button id="stepOne" disabled>Step once</button>
-          <button id="stepFix" disabled>Step to fixpoint</button>
-          <button id="verify" disabled>Verify plaintexts</button>
-        </div>
-      </fieldset>
+      <div class="mainrow">
+        <fieldset class="board">
+          <legend id="boardLegend">Board</legend>
+          <div id="boardView"></div>
+          <div class="boardctl">
+            <button id="stepOne" disabled>Step once</button>
+            <button id="stepFix" disabled>Step to fixpoint</button>
+            <button id="verify" disabled>Verify plaintexts</button>
+          </div>
+        </fieldset>
+
+        <fieldset class="logpanel">
+          <legend>Log</legend>
+          <pre class="log" id="log"></pre>
+        </fieldset>
+      </div>
 
       <div id="trusteePanels"></div>
     </main>
