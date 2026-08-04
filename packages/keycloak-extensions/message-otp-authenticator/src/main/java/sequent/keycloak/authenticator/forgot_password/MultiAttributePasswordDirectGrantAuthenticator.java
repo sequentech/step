@@ -46,7 +46,14 @@ import org.keycloak.provider.ProviderConfigProperty;
 @AutoService(AuthenticatorFactory.class)
 public class MultiAttributePasswordDirectGrantAuthenticator
     extends AbstractDirectGrantAuthenticator {
-  public static final String PROVIDER_ID = "multi-attribute-password-direct-grant";
+  /**
+   * Must stay at or under 36 characters: Keycloak persists a flow step's authenticator in {@code
+   * AUTHENTICATION_EXECUTION.AUTHENTICATOR}, which is {@code varchar(36)}. A longer id registers
+   * fine and shows up in {@code /admin/serverinfo}, but adding the step to any flow fails with
+   * SQLSTATE 22001 (surfacing as an opaque HTTP 500), via the console, the Admin API and realm
+   * import alike.
+   */
+  public static final String PROVIDER_ID = "multi-attribute-password-direct";
 
   /**
    * Config keys read by {@code ivr-config-provider}'s {@code Constants} - kept in sync manually
