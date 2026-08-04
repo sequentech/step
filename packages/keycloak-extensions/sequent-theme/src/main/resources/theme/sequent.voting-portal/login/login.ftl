@@ -5,10 +5,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <#import "template.ftl" as layout>
+<#import "user-profile-commons.ftl" as userProfileCommons>
+<#import "tel-input-widget.ftl" as telInputWidget>
+<#import "select-filter-widget.ftl" as selectFilterWidget>
+<#import "social-providers.ftl" as socialProviders>
 <#assign structuredCredential = (realm.attributes['credential-input-policy']!'standard') == 'structured'>
 <#assign credentialFieldError = messagesPerField.existsError('username','password')>
 <#assign structuredCredentialHasError = structuredCredential && credentialFieldError>
-<@layout.registrationLayout displayMessage=!credentialFieldError displayInfo=realm.password && realm.registrationAllowed && !registrationDisabled?? displaySocialProviders=social.providers?has_content; section>
+<#assign matchAttributesHaveRequired = honorUserProfileRequired?? && matchAttributes?? && matchAttributes?filter(name -> profile.attributesByName[name]?? && profile.attributesByName[name].required)?has_content>
+<@layout.registrationLayout displayMessage=!credentialFieldError displayInfo=realm.password && realm.registrationAllowed && !registrationDisabled?? displayRequiredFields=matchAttributesHaveRequired displaySocialProviders=social.providers?has_content; section>
     <#if section = "header">
         ${msg("loginAccountTitle")}
     <#elseif section = "form">
@@ -23,28 +28,25 @@ SPDX-License-Identifier: AGPL-3.0-only
           <div id="kc-form-wrapper">
             <#if realm.password>
                 <form id="kc-form-login" <#if !structuredCredential>onsubmit="login.disabled = true; return true;"</#if> action="${url.loginAction}" method="post">
-                    <#-- Number of fields rendered ahead of the password field -->
-                    <#assign fieldCount = (matchAttributes?? && matchAttributes?has_content)?then(matchAttributes?size, 1)>
                     <#if !usernameHidden??>
                         <#if matchAttributes?? && matchAttributes?has_content>
-                            <#if matchAttributes?filter(f -> f.type == "tel")?has_content>
-                                <#include "intl-tel-input.ftl">
-                            </#if>
-                            <#list matchAttributes as field>
-                                <div class="${properties.kcFormGroupClass!}">
-                                    <label for="${field.name}" class="${properties.kcLabelClass!}">${msg(field.name)}</label>
+                            <@telInputWidget.assets/>
+                            <@selectFilterWidget.assets/>
 
-                                    <#if field.type == "tel">
-                                        <@renderIntlTelInput id=field.name name=field.name autofocus=(field?index == 0)/>
-                                    <#else>
-                                        <input tabindex="${field?index + 1}" id="${field.name}" class="${properties.kcInputClass!}" name="${field.name}" type="${field.type!'text'}"
-                                               <#-- see user-profile-commons.ftl: date inputs accept 5+ digit years -->
-                                               <#if (field.type!'') == 'date'>max="${field.max!'9999-12-31'}"</#if>
-                                               <#if field?index == 0>autofocus</#if> autocomplete="off"
+                            <#list matchAttributes as name>
+                                <#if profile.attributesByName[name]??>
+                                    <#assign matchAttribute = profile.attributesByName[name]>
+                                    <#assign matchAttributeRequired = honorUserProfileRequired?? && matchAttribute.required>
+                                    <@userProfileCommons.inputFieldWithLabel attribute=matchAttribute name=name values=matchAttribute.values required=matchAttributeRequired requiredMarker=matchAttributeRequired/>
+                                <#else>
+                                    <#-- Not declared in the realm's User Profile - still usable for matching, rendered as a plain text field -->
+                                    <div class="${properties.kcFormGroupClass!}">
+                                        <label for="${name}" class="${properties.kcLabelClass!}">${msg(name)}</label>
+                                        <input id="${name}" class="${properties.kcInputClass!}" name="${name}" type="text" autocomplete="off"
                                                <#if credentialFieldError>aria-invalid="true"</#if>
                                         />
-                                    </#if>
-                                </div>
+                                    </div>
+                                </#if>
                             </#list>
 
                             <#if credentialFieldError && !structuredCredential>
@@ -57,7 +59,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                                 <label for="username" class="${properties.kcLabelClass!}"><#if !realm.loginWithEmailAllowed>${msg("username")}<#elseif !realm.registrationEmailAsUsername>${msg("usernameOrEmail")}<#else>${msg("email")}</#if></label>
 
                                 <#-- readonly rather than disabled so the locked value is still submitted -->
-                                <input tabindex="1" id="username" class="${properties.kcInputClass!}" name="username" value="${(login.username!'')}" type="text" autofocus autocomplete="<#if structuredCredential>username<#else>off</#if>"
+                                <input id="username" class="${properties.kcInputClass!}" name="username" value="${(login.username!'')}" type="text" autofocus autocomplete="<#if structuredCredential>username<#else>off</#if>"
                                        <#if usernameReadOnly>readonly</#if>
                                        <#if credentialFieldError>aria-invalid="true"</#if>
                                 />
@@ -85,14 +87,14 @@ SPDX-License-Identifier: AGPL-3.0-only
                              data-label-id="structured-credential-label"
                              data-hint-id="structured-credential-hint"
                              data-error-id="structured-credential-error"</#if>>
-                            <input tabindex="${fieldCount + 2}" id="password" class="${properties.kcInputClass!}" name="password" type="password"
+                            <input id="password" class="${properties.kcInputClass!}" name="password" type="password"
                                    autocomplete="<#if structuredCredential>current-password<#else>off</#if>"
                                    <#if structuredCredential>inputmode="numeric"</#if>
                                    <#if structuredCredential>aria-describedby="structured-credential-hint structured-credential-error"</#if>
                                    <#if structuredCredentialHasError || credentialFieldError>aria-invalid="true"</#if>
                             />
                             <button class="${properties.kcFormPasswordVisibilityButtonClass!}" type="button" aria-label="<#if structuredCredential>${msg('showStructuredCredential')}<#else>${msg('showPassword')}</#if>"
-                                    aria-controls="password" <#if structuredCredential>data-structured-credential-toggle<#else>data-password-toggle</#if> tabindex="${fieldCount + 3}"
+                                    aria-controls="password" <#if structuredCredential>data-structured-credential-toggle<#else>data-password-toggle</#if>
                                     data-icon-show="${properties.kcFormPasswordVisibilityIconShow!}" data-icon-hide="${properties.kcFormPasswordVisibilityIconHide!}"
                                     data-label-show="<#if structuredCredential>${msg('showStructuredCredential')}<#else>${msg('showPassword')}</#if>"
                                     data-label-hide="<#if structuredCredential>${msg('hideStructuredCredential')}<#else>${msg('hidePassword')}</#if>">
@@ -119,9 +121,9 @@ SPDX-License-Identifier: AGPL-3.0-only
                                 <div class="checkbox">
                                     <label>
                                         <#if login.rememberMe??>
-                                            <input tabindex="3" id="rememberMe" name="rememberMe" type="checkbox" checked> ${msg("rememberMe")}
+                                            <input id="rememberMe" name="rememberMe" type="checkbox" checked> ${msg("rememberMe")}
                                         <#else>
-                                            <input tabindex="3" id="rememberMe" name="rememberMe" type="checkbox"> ${msg("rememberMe")}
+                                            <input id="rememberMe" name="rememberMe" type="checkbox"> ${msg("rememberMe")}
                                         </#if>
                                     </label>
                                 </div>
@@ -129,7 +131,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                             </div>
                             <div class="${properties.kcFormOptionsWrapperClass!}">
                                 <#if realm.resetPasswordAllowed>
-                                    <span><a tabindex="5" href="${url.loginResetCredentialsUrl}">${msg("doForgotPassword")}</a></span>
+                                    <span><a href="${url.loginResetCredentialsUrl}">${msg("doForgotPassword")}</a></span>
                                 </#if>
                             </div>
 
@@ -160,7 +162,6 @@ SPDX-License-Identifier: AGPL-3.0-only
                       <div id="kc-form-buttons" class="${properties.kcFormGroupClass!}">
                           <input type="hidden" id="id-hidden-input" name="credentialId" <#if auth.selectedCredential?has_content>value="${auth.selectedCredential}"</#if>/>
                           <input
-                            tabindex="4"
                             class="g-recaptcha ${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonBlockClass!} ${properties.kcButtonLargeClass!}"
                             name="login"
                             id="kc-login"
@@ -181,34 +182,12 @@ SPDX-License-Identifier: AGPL-3.0-only
         <#if realm.password && realm.registrationAllowed && !registrationDisabled??>
             <div id="kc-registration-container">
                 <div id="kc-registration">
-                    <span>${msg("noAccount")} <a tabindex="6"
-                                                 href="${url.registrationUrl}">${msg("doRegister")}</a></span>
+                    <span>${msg("noAccount")} <a href="${url.registrationUrl}">${msg("doRegister")}</a></span>
                 </div>
             </div>
         </#if>
     <#elseif section = "socialProviders" >
-        <#assign visibleProviders = social.providers?filter(p -> p.alias != 'digital-certificates' || (realm.attributes['voter-certificate-policy']!'disabled') == 'enabled')>
-        <#if realm.password && visibleProviders?has_content>
-            <hr/>
-            <h4 style="text-align: center;">${msg("identity-provider-login-label")}</h4>
-            <div id="kc-social-providers" class="${properties.kcFormSocialAccountSectionClass!}">
-                <#list visibleProviders as p>
-                    <ul class="${properties.kcFormSocialAccountListClass!} <#if visibleProviders?size gt 3>${properties.kcFormSocialAccountListGridClass!}</#if>">
-                        <li>
-                            <a id="social-${p.alias}" class="${properties.kcFormSocialAccountListButtonClass!} <#if visibleProviders?size gt 3>${properties.kcFormSocialAccountGridItem!}</#if>"
-                                    type="button" href="${p.loginUrl}">
-                                <#if p.iconClasses?has_content>
-                                    <i class="${properties.kcCommonLogoIdP!} ${p.iconClasses!}" aria-hidden="true"></i>
-                                    <span class="${properties.kcFormSocialAccountNameClass!} kc-social-icon-text"><#if p.alias == 'digital-certificates'>${msg("digitalCertificateButton")}<#else>${msg(p.displayName)!}</#if></span>
-                                <#else>
-                                    <span class="${properties.kcFormSocialAccountNameClass!}"><#if p.alias == 'digital-certificates'>${msg("digitalCertificateButton")}<#else>${msg(p.displayName)!}</#if></span>
-                                </#if>
-                            </a>
-                        </li>
-                    </ul>
-                </#list>
-            </div>
-        </#if>
+        <@socialProviders.render/>
     </#if>
 
 </@layout.registrationLayout>

@@ -6,6 +6,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <#--  Source: https://github.com/keycloak/keycloak/blob/24.0.0/themes/src/main/resources/theme/base/login/user-profile-commons.ftl  -->
 
+<#import "field-helper-text.ftl" as fieldHelperText>
+
 <#--  True when the attribute was prefilled from a login hint annotated as READ_ONLY,
       in which case the voter must not be able to change the submitted value.  -->
 <#function isLoginHintReadOnly attributeName>
@@ -132,7 +134,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</#list>
 </#macro>
 
-<#macro inputFieldWithLabel attribute name values>
+<#--  requiredMarker controls the "*" label only; required controls the actual HTML5 required
+      attribute (see inputTag). They default to the same, always-on value register.ftl has always
+      used (attribute.required, unconditionally) so its rendering is unaffected. login.ftl passes
+      both explicitly, gated by honorUserProfileRequired, so the asterisk and the real enforcement
+      never disagree there - see login.ftl's matchAttributes loop.  -->
+<#macro inputFieldWithLabel attribute name values required=false requiredMarker=attribute.required>
 	<div class="${properties.kcFormGroupClass!}">
 		<div class="${properties.kcLabelWrapperClass!}">
 			<label for="${name}" class="${properties.kcLabelClass!}">
@@ -142,26 +149,26 @@ SPDX-License-Identifier: AGPL-3.0-only
 					${advancedMsg(attribute.displayName!'')}
 				</#if>
 			</label>
-			<#if attribute.required>*</#if>
+			<#if requiredMarker>*</#if>
 		</div>
 		<div class="${properties.kcInputWrapperClass!}">
 			<#if attribute.annotations.inputHelperTextBefore??>
-				<div class="${properties.kcInputHelperTextBeforeClass!}" id="form-help-text-before-${name}" aria-live="polite">${kcSanitize(advancedMsg(attribute.annotations.inputHelperTextBefore))?no_esc}</div>
+				<@fieldHelperText.helperTextBefore id=name text=attribute.annotations.inputHelperTextBefore/>
 			</#if>
-			<@inputFieldByType attribute=attribute name=name values=values/>
+			<@inputFieldByType attribute=attribute name=name values=values required=required/>
 			<#if messagesPerField.existsError('${name}')>
 				<span id="input-error-${name}" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
 					${kcSanitize(messagesPerField.get('${name}'))?no_esc}
 				</span>
 			</#if>
 			<#if attribute.annotations.inputHelperTextAfter??>
-				<div class="${properties.kcInputHelperTextAfterClass!}" id="form-help-text-after-${name}" aria-live="polite">${kcSanitize(advancedMsg(attribute.annotations.inputHelperTextAfter))?no_esc}</div>
+				<@fieldHelperText.helperTextAfter id=name text=attribute.annotations.inputHelperTextAfter/>
 			</#if>
 		</div>
 	</div>
 </#macro>
 
-<#macro inputFieldByType attribute name values>
+<#macro inputFieldByType attribute name values required=false>
 	<#switch attribute.annotations.inputType!''>
 	<#case 'textarea'>
 		<@textareaTag attribute=attribute name=name values=values/>
@@ -177,17 +184,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<#default>
 		<#if attribute.multivalued && values?has_content>
 			<#list values as value>
-				<@inputTag attribute=attribute name=name value=value!''/>
+				<@inputTag attribute=attribute name=name value=value!'' required=required/>
 			</#list>
 		<#else>
-			<@inputTag attribute=attribute name=name value=attribute.value!''/>
+			<@inputTag attribute=attribute name=name value=attribute.value!'' required=required/>
 		</#if>
 	</#switch>
 </#macro>
 
-<#macro inputTag attribute name value>
+<#macro inputTag attribute name value required=false>
 	<input type="<@inputTagType attribute=attribute/>" id="${name}" name="${name}" value="${(value!'')}" class="${properties.kcInputClass!}"
 		aria-invalid="<#if messagesPerField.existsError('${name}')>true</#if>"
+		<#if required>required</#if>
 		<#if attribute.readOnly>disabled</#if>
 		<#-- readonly rather than disabled so the locked value is still submitted -->
 		<#if isLoginHintReadOnly(attribute.name)>readonly</#if>

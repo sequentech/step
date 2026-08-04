@@ -9,7 +9,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 <#import "template.ftl" as layout>
 <#import "user-profile-commons.ftl" as userProfileCommons>
 <#import "register-commons.ftl" as registerCommons>
-<#include "intl-tel-input.ftl">
+<#import "field-helper-text.ftl" as fieldHelperText>
+<#import "tel-input-widget.ftl" as telInputWidget>
+<#import "select-filter-widget.ftl" as selectFilterWidget>
+<#import "social-providers.ftl" as socialProviders>
 <#assign loginMode = formMode?? && formMode == 'LOGIN'>
 <#assign passwordRequired = passwordRequired!false>
 <#assign structuredCredentialLogin = loginMode && passwordRequired && (realm.attributes['credential-input-policy']!'standard') == 'structured'>
@@ -27,18 +30,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
             <@userProfileCommons.userProfileFormFields; callback, attribute>
                 <#if callback = "afterField">
-                    <#if attribute.name == 'mobile'>
-                        <div class="${properties.kcFormGroupClass!}">
-                            <div class="${properties.kcLabelWrapperClass!}">
-                                <label for="mobile" class="${properties.kcLabelClass!}">${msg("mobileOtp.auth.enterMobileLabel")}</label>
-                            </div>
-                            <div class="${properties.kcInputWrapperClass!}">
-                                <@renderIntlTelInput id="mobile" name="mobile" value=attribute.value />
-                            </div>
-                        </div>
-                    <#else>
-                        <#-- render password fields just under the username or email (if used as username) -->
-                        <#if passwordRequired && (attribute.name == 'username' || (attribute.name == 'email' && realm.registrationEmailAsUsername)) && (attribute.annotations.showPasswordAfterThis!'true') != 'false' || (attribute.annotations.showPasswordAfterThis!'false') == 'true'>
+                    <#-- render password fields just under the username or email (if used as username) -->
+                    <#if passwordRequired && (attribute.name == 'username' || (attribute.name == 'email' && realm.registrationEmailAsUsername)) && (attribute.annotations.showPasswordAfterThis!'true') != 'false' || (attribute.annotations.showPasswordAfterThis!'false') == 'true'>
                             <div class="${properties.kcFormGroupClass!}">
                                 <div class="${properties.kcLabelWrapperClass!}">
                                     <label id="structured-credential-label" for="password" class="${properties.kcLabelClass!}"><#if structuredCredentialLogin>${msg("structuredCredentialLabel")}<#else>${msg("password")}</#if></label> *
@@ -46,7 +39,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                                 <div class="${properties.kcInputWrapperClass!}">
                                     <#--  You can add a custom passwordHelperTextBefore to either username or email depending on realm.registrationEmailAsUsername settings to add a helpertext -->
                                     <#if attribute.annotations.passwordHelperTextBefore??>
-                                        <div class="${properties.kcInputHelperTextBeforeClass!}" id="form-help-text-before-${attribute.name}" aria-live="polite">${kcSanitize(advancedMsg(attribute.annotations.passwordHelperTextBefore))?no_esc}</div>
+                                        <@fieldHelperText.helperTextBefore id=attribute.name text=attribute.annotations.passwordHelperTextBefore/>
                                     </#if>
 
                                     <div class="${properties.kcInputGroup!}"<#if structuredCredentialLogin>
@@ -98,7 +91,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
                                     <#--  You can add a custom passwordHelperTextAfter to either username or email depending on realm.registrationEmailAsUsername settings to add a helpertext -->
                                     <#if attribute.annotations.passwordHelperTextAfter??>
-                                        <div class="${properties.kcInputHelperTextAfterClass!}" id="form-help-text-after-${attribute.name}" aria-live="polite">${kcSanitize(advancedMsg(attribute.annotations.passwordHelperTextAfter))?no_esc}</div>
+                                        <@fieldHelperText.helperTextAfter id=attribute.name text=attribute.annotations.passwordHelperTextAfter/>
                                     </#if>
                                 </div>
                             </div>
@@ -132,7 +125,6 @@ SPDX-License-Identifier: AGPL-3.0-only
                                 </div>
                             </#if>
                         </#if>
-                    </#if>
                 </#if>
             </@userProfileCommons.userProfileFormFields>
 
@@ -171,101 +163,14 @@ SPDX-License-Identifier: AGPL-3.0-only
             <script type="module" src="${url.resourcesPath}/js/passwordVisibility.js"></script>
         </#if>
 
-        <#--  Adding intel-tel-input  -->
-        <#--  https://github.com/jackocnr/intl-tel-input/tree/master  -->
-
-        <link rel="stylesheet" href="${url.resourcesPath}/intl-tel-input-23.3.2/css/intlTelInput.css">
-        <link rel="stylesheet" href="${url.resourcesPath}/intl-tel-input-23.3.2/css/customized.css">
-        <script type="text/javascript" src="${url.resourcesPath}/intl-tel-input-23.3.2/js/intlTelInput.min.js"></script>
-
-        <#--  Timezone country code data  -->
-        <script type="text/javascript" src="${url.resourcesPath}/js/timezone-countrycode-data.js"></script>
-
-        <#-- jQuery -->
-        <script type="text/javascript" src="${url.resourcesPath}/js/jquery-3.7.1.slim.min.js"></script>
-
-        <script>
-            // Get all inputs that use type tel
-            const listTelInputs = document.querySelectorAll("input[type='tel']");
-            listTelInputs.forEach(function (input) {
-                // Change id and name to use the correctly formatted phone number in the form
-                let id = input.id;
-                input.id = id + "-input";
-                input.name = id + "-input";
-
-                // Use intel-tel-input
-                window.intlTelInput(input, {
-                    utilsScript: "${url.resourcesPath}/intl-tel-input-23.3.2/js/utils.js",
-                    initialCountry: "auto",
-                    separateDialCode: true,
-					customPlaceholder: function(selectedCountryPlaceholder, selectedCountryData) {
-						return selectedCountryPlaceholder.replace(/\d/g, '0');
-					},
-                    hiddenInput: () => ({ phone: id, country: "country_code" }),
-                    geoIpLookup: function(success, failure) {
-                        const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-                        let timezoneCountrycodeData = JSON.parse(data);
-                        let countryCode = timezoneCountrycodeData[userTimeZone].toString();
-
-                        if (countryCode) {
-                            return success(countryCode);
-                        }
-                        return failure();
-                    },
-                });
-            });
-        </script>
-
-        <#-- Filter for select inputs -->
-        <script>
-            function filterSelectAttribute(e, elementId) {
-                e = e || window.event;
-                var selectElement = e.target;
-                var value = selectElement.value;
-
-                let first = null;
-                $('#' + elementId + ' option').hide();
-                $('#' + elementId).find('option').filter(function() {
-                    var optionValue = $(this)[0].value;
-                    let found = optionValue.indexOf(value) != -1;
-                    if (found && first === null) {
-                        first = optionValue;
-                    }
-                    return found;
-                }).show();
-                
-                // Set default value
-                $('#' + elementId).val(first);
-            }
-        </script>
+        <@telInputWidget.assets/>
+        <@selectFilterWidget.assets/>
 
         <#--  Password strength  -->
         <#--  https://github.com/dropbox/zxcvbn  -->
         <script type="text/javascript" src="${url.resourcesPath}/js/zxcvbn.js"></script>
         <script type="text/javascript" src="${url.resourcesPath}/js/keycloak-password-strength.js"></script>
     <#elseif section = "socialProviders" >
-        <#assign visibleProviders = social.providers?filter(p -> p.alias != 'digital-certificates' || (realm.attributes['voter-certificate-policy']!'disabled') == 'enabled')>
-        <#if realm.password && visibleProviders?has_content>
-            <hr/>
-            <h4 style="text-align: center;">${msg("identity-provider-login-label")}</h4>
-            <div id="kc-social-providers" class="${properties.kcFormSocialAccountSectionClass!}">
-                <#list visibleProviders as p>
-                    <ul class="${properties.kcFormSocialAccountListClass!} <#if visibleProviders?size gt 3>${properties.kcFormSocialAccountListGridClass!}</#if>">
-                        <li>
-                            <a id="social-${p.alias}" class="${properties.kcFormSocialAccountListButtonClass!} <#if visibleProviders?size gt 3>${properties.kcFormSocialAccountGridItem!}</#if>"
-                                    type="button" href="${p.loginUrl}">
-                                <#if p.iconClasses?has_content>
-                                    <i class="${properties.kcCommonLogoIdP!} ${p.iconClasses!}" aria-hidden="true"></i>
-                                    <span class="${properties.kcFormSocialAccountNameClass!} kc-social-icon-text"><#if p.alias == 'digital-certificates'>${msg("digitalCertificateButton")}<#else>${msg(p.displayName)!}</#if></span>
-                                <#else>
-                                    <span class="${properties.kcFormSocialAccountNameClass!}"><#if p.alias == 'digital-certificates'>${msg("digitalCertificateButton")}<#else>${msg(p.displayName)!}</#if></span>
-                                </#if>
-                            </a>
-                        </li>
-                    </ul>
-                </#list>
-            </div>
-        </#if>
+        <@socialProviders.render/>
     </#if>
 </@layout.registrationLayout>
