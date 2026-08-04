@@ -1,10 +1,16 @@
 # Run b4 against localstack, or clear everything it has accumulated.
 #
-#   .\b4.ps1            # run the service
-#   .\b4.ps1 -Reset     # delete all stored data, then run
-#   .\b4.ps1 -Reset:$true -NoRun   # delete and stop
+#   .\b4.ps1                # run the service
+#   .\b4.ps1 -Reset         # delete all stored data, then run
+#   .\b4.ps1 -Reset -NoRun  # delete and stop
+#
+# One dash, as PowerShell wants: `--Reset` is an argument, not a flag.
+# CmdletBinding is what makes that an error instead of a silent no-op -- a
+# script without it swallows unmatched arguments into $args and carries on, so
+# a mistyped flag would quietly run without clearing anything.
 #
 # Dev tool: emulator runs leave boards behind that nothing will open again.
+[CmdletBinding()]
 param(
     [Alias("Clear")]
     [switch] $Reset,
@@ -35,11 +41,22 @@ if ($Reset) {
     # b4 holds b4.db open, so this only works with the service stopped.
     Write-Host "Clearing b4 data..." -ForegroundColor Cyan
 
+    # The database goes first, and a failure here stops the whole reset: the
+    # bucket must not be emptied while the database still points into it, or b4
+    # comes back serving metadata for bodies that are gone -- worse than not
+    # having cleared at all.
     $db = Join-Path $workspaceRoot "b4.db"
     if (Test-Path $db) {
-        # b4.db* also catches -wal and -shm, which sqlite may have left behind.
-        Remove-Item "$db*" -Force -ErrorAction Stop
-        Write-Host "  removed $db" -ForegroundColor DarkGray
+        try {
+            # b4.db* also catches -wal and -shm, which sqlite may have left.
+            Remove-Item "$db*" -Force -ErrorAction Stop
+            Write-Host "  removed $db" -ForegroundColor DarkGray
+        } catch {
+            Write-Host "  could not remove $db" -ForegroundColor Red
+            Write-Host "  b4 holds it open while running - stop the service and try again." -ForegroundColor Red
+            Write-Host "  (nothing was cleared; S3 was left alone so it still matches the database)" -ForegroundColor DarkGray
+            return
+        }
     } else {
         Write-Host "  no b4.db to remove" -ForegroundColor DarkGray
     }
