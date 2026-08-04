@@ -29,10 +29,13 @@ SPDX-License-Identifier: AGPL-3.0-only
     /* Row 1: the two narrow, fixed-size panels stacked on the left; the board
        takes the rest, which is what lets its tables sit side by side. */
     .top { display: flex; gap: 1.25rem; align-items: flex-start; flex-wrap: wrap; }
-    .top .side { flex: 0 0 20rem; }
+    .top .side { flex: 0 0 24rem; }
+    /* Single-digit fields, so they fit on one line with their labels. */
+    input.tiny { width: 2.6rem; }
+    .triple label { margin-right: 0.5rem; white-space: nowrap; }
     .top .side fieldset { margin-bottom: 0.75rem; }
     .top .board { flex: 1; min-width: 24rem; }
-    .boardctl { margin-bottom: 0.4rem; }
+    .boardctl { margin-top: 0.5rem; }
     tr.active td, tr.active th { background: #e8f0fe; font-weight: 600; }
     .tallies button.open { font-size: 0.75rem; padding: 0.1rem 0.45rem; margin: 0; }
 
@@ -69,35 +72,35 @@ SPDX-License-Identifier: AGPL-3.0-only
       <fieldset>
         <legend>b4</legend>
         <div><label>URL <input id="b4url" class="url" type="text" value="http://127.0.0.1:3000" /></label></div>
-        <label>Trustees <input id="trustees" class="num" type="number" min="2" max="8" value="3" /></label>
-        <label>Threshold <input id="threshold" class="num" type="number" min="2" max="8" value="2" /></label>
-        <label>Width <input id="width" class="num" type="number" min="1" max="8" value="2" /></label>
+        <div class="triple">
+          <label>Trustees <input id="trustees" class="tiny" type="number" min="2" max="8" value="3" /></label>
+          <label>Threshold <input id="threshold" class="tiny" type="number" min="2" max="8" value="2" /></label>
+          <label>Width <input id="width" class="tiny" type="number" min="1" max="8" value="2" /></label>
+        </div>
         <div style="margin-top:0.5rem;">
-          <button id="create" disabled>Create board</button>
+          <button id="create" disabled>Create new board</button>
         </div>
         <div id="setupId" style="color:#666; margin-top:0.4rem; font-size:0.78rem;"></div>
       </fieldset>
 
       <fieldset>
         <legend>Tallies</legend>
-        <div>
-          <label>Ciphertexts <input id="ciphertexts" class="num" type="number" min="1" value="50" /></label>
-        </div>
-        <div>
-          <button id="newTally" disabled>New tally</button>
-          <button id="verify" disabled>Verify plaintexts</button>
-        </div>
         <div id="tallyList"></div>
+        <div style="margin-top:0.5rem;">
+          <label>Ciphertexts <input id="ciphertexts" class="num" type="number" min="1" value="50" /></label>
+          <button id="newTally" disabled>New tally</button>
+        </div>
       </fieldset>
     </div>
 
     <fieldset class="board">
       <legend id="boardLegend">Board</legend>
+      <div id="boardView"></div>
       <div class="boardctl">
         <button id="stepOne" disabled>Step once</button>
         <button id="stepFix" disabled>Step to fixpoint</button>
+        <button id="verify" disabled>Verify plaintexts</button>
       </div>
-      <div id="boardView"></div>
     </fieldset>
   </div>
 
@@ -176,11 +179,12 @@ SPDX-License-Identifier: AGPL-3.0-only
           <tr class="${t.active ? "active" : ""}">
             <th class="l">tally ${t.index}</th>
             <td>${t.ciphertexts}</td>
+            <td>${plaintextResults[t.index] ?? "—"}</td>
             <td class="l">${t.active ? "open" : `<button class="open" data-tally="${t.index}">Open</button>`}</td>
           </tr>`)
         .join("");
       tallyListEl.innerHTML =
-        `<table><tr><th class="l">tally</th><th class="l">ciphertexts</th><th class="l"></th></tr>${rows}</table>`;
+        `<table><tr><th class="l">tally</th><th class="l">ciphertexts</th><th class="l">plaintexts</th><th class="l"></th></tr>${rows}</table>`;
       for (const btn of tallyListEl.querySelectorAll("button.open")) {
         btn.addEventListener("click", async () => {
           if (!emu) return;
@@ -286,6 +290,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 
     let wasm;
     let emu = null;
+    // Plaintext-check outcomes by tally index. Held here rather than recomputed
+    // so a result survives re-rendering the table, and so several tallies can be
+    // compared at once. Cleared with the setup they belong to.
+    let plaintextResults = {};
 
     try {
       const timestamp = new Date().getTime();
@@ -333,6 +341,7 @@ SPDX-License-Identifier: AGPL-3.0-only
       boardLegendEl.textContent = "Board";
       trusteesEl.innerHTML = "";
       tallyListEl.innerHTML = "";
+      plaintextResults = {};
       emu = null;
       try {
         emu = await wasm.Emulator.create(p.b4url, p.trustees, p.threshold, p.width);
@@ -394,8 +403,13 @@ SPDX-License-Identifier: AGPL-3.0-only
       if (!emu) return;
       setControls({ busy: true });
       try {
+        const open = emu.tallies().find((t) => t.active);
         const v = await emu.verify_plaintexts();
-        log(`plaintexts: expected=${v.expected}, actual=${v.actual}, match=${v.success}`);
+        log(`tally ${open ? open.index : "?"} plaintexts: expected=${v.expected}, actual=${v.actual}, match=${v.success}`);
+        if (open) {
+          plaintextResults[open.index] = v.success ? "✓" : "✗";
+          renderTallies();
+        }
         statusEl.textContent = v.success
           ? "PASS — plaintexts out match ballots in"
           : "FAIL — plaintexts do not match";
