@@ -46,17 +46,27 @@ The two braid improvements this work produced — completing the P-256 backend
 and replacing the per-ciphertext decryption proofs with a batched one — were
 separated onto their own branch, since they stand on their own merits.
 
-### emit, reprove, export
+### emit, reprove, convert, export
 
 How much of a production system survives into an interop path is decided by
-what the *other* side's verifier is rigid about. Three arrangements, in
-decreasing order of what has to be rebuilt:
+what the *other* side's verifier is rigid about, in decreasing order of what
+has to be rebuilt:
 
 | | the verifier demands | what you keep | what you write |
 |---|---|---|---|
 | **emit** | its own statement *and* transcript | nothing | a second prover |
-| **reprove** | its own transcript; the statement already agrees | the production prover | a pluggable challenge derivation |
+| **reprove** | its own transcript; the statement agrees | the production prover | a foreign transcript, run after the fact |
+| **convert** | *the same as reprove* | the production **proofs** | the same transcript, run **in production**, plus a serializer |
 | **export** | nothing — it parses the foreign format | the proofs themselves | nothing at proving time |
+
+**Convert and reprove make identical demands of the verifier.** They differ in
+where the foreign transcript runs: in a side path, so a second proof is
+produced from the witness — or in production, so the proofs are born
+conforming and only their encoding has to change. That is why convert is
+reachable without any upstream agreement wherever reprove already is, and it
+is the reason it matters: converting needs no witness and no proving, so
+**anyone holding the published proofs can do it**, not only the party that
+made them.
 
 Export is not hypothetical, and its cost is known, because **`v2v verify` is
 export, inbound**: proofs VMN's own prover produced pass through unmodified.
@@ -73,7 +83,8 @@ Today:
   implementation, because the statement itself differs (VMN's is joint over all
   `k` parties, braid's is per party).
 
-So one `v2v generate --kind mixing` run uses two of the three at once.
+So one `v2v generate --kind mixing` run uses two of the four at once. Convert
+is not in use, and export is used only inbound, as above.
 
 Whether the input is **real or synthetic is an independent axis**, and both our
 paths currently run on synthetic input. Reproving the shuffle over a real
@@ -442,32 +453,54 @@ depends on it, and report everything else.
 - **Report the `vmnv` findings upstream.** The exit-code defect, the
   file-existence mixer skip, and the α discrepancy between VMNV §8.6 and
   `DistrElGamalSessionBasic`. None has been reported yet.
-- **Verify both formats instead of emitting the other's.** The shape this work
-  took — braid carrying a Verificatum-compatible emitter alongside its native
-  prover — is not the best one available, and its costs are structural rather
-  than incidental. Two proof paths must not drift, which is a permanent
-  maintenance burden the tests can hold but not remove. And because our emitter
-  is written *against Verificatum's specification*, the two codebases are no
-  longer conceptually independent even though they share no source: the
-  verifier stays genuinely independent, which is the property that catches
-  braid bugs, but a flaw in the shared specification would be invisible to
-  both.
+- **Get to convert, so real proofs are what gets verified.** The assurance this
+  work delivers today is about braid's *cryptography*: an independently written
+  verifier accepts sessions our code produced. It says nothing about any
+  particular election, because those artifacts are never shown to `vmnv`.
+  **Convert** changes the object of the claim from the implementation to the
+  run, and that is a different statement rather than a stronger version of the
+  same one. It is the outcome worth aiming at.
 
-  The better arrangement is that each project **produces only its own format
-  and accepts both** — every artifact in **export**, in the vocabulary above.
-  Neither needs a second emitter, neither prover is written
-  to the other's document, and interop data is *exported* from real protocol
-  runs rather than regenerated synthetically. Our half of it already exists —
-  `v2v verify` accepts VMN sessions. The other half is upstream work in
-  Verificatum, which we do not control, so this is a direction rather than a
-  plan.
+  The two halves are shaped very differently.
 
-  It also dissolves the decryption blocker rather than working around it.
-  Decryption is the one artifact still in **emit**, and it is there because we
-  require braid to produce VMN's *joint* statement; a verifier that accepted
-  braid's per-party one would take a real session's factors as they stand. The
-  shuffle would not even need that much — it is already **reprove**, and only
-  wants real input.
+  **The shuffle needs nothing from Verificatum.** The statement already agrees
+  term for term, so a production mixer using `VmnChallenges` and
+  `vmn_generators` against a fixed parameter identity would emit proofs
+  `vmnv` accepts once serialized — which is what the tests already demonstrate,
+  the only difference being that their input is synthetic. This is a unilateral
+  decision, available now.
+
+  **The decryption needs `vmnv` to accept a per-party, one-round statement.**
+  That is the minimum ask, *given that braid will not adopt a three-round
+  decryption*: the zero-ask option is braid taking VMN's joint protocol
+  wholesale, which is rejected on its merits, since per-party proofs are what
+  let a failure name its author and let the board make progress. Beyond the
+  transcript, four things would change on our side: `partial_decrypt` has no
+  strategy parameter, so the seam `ShuffleChallenges` provides for the shuffle
+  has to be built; that seam needs *two* derivations, the batching exponents
+  and the challenge; VMN's decryption seed commits to `Γ` and the mixed
+  ciphertext list, which braid's proof does not bind today, so what the proof
+  asserts changes and not merely how it is hashed; and byte-tree encoding moves
+  into the proving path. The proof objects themselves already correspond field
+  for field — `DlogEqProof { big_a_0, big_a_1, k }` against
+  `BatchedDecryptionProof { y_prime, b_prime, k_x }` — so there is nothing
+  structural to map.
+
+  **What it costs.** braid's production transcript *becomes* Verificatum's:
+  their serialization, their generator derivation, their bit lengths, and
+  **SHA-256 where braid uses SHA3-512 today**. That last one is sound at the
+  security level but would arrive as a side effect of an interop decision, and
+  should be signed off on its own terms. Production soundness then leans on
+  VMN's specification rather than only the interop path doing so — the verifier
+  stays an independent implementation and still catches braid bugs, but a
+  specification flaw would no longer be confined to a side path. Set against
+  that: one proof path instead of two, so the drift risk the tests currently
+  hold back disappears. And braid gains a global prefix binding version, sid,
+  the bit lengths, PRG, group and hash — which its own transcripts bind
+  nowhere today.
+
+  **Export** remains the ideal, and would ask Verificatum to parse braid's
+  format outright. Our half of it exists: `v2v verify` is export, inbound.
 
 - **Make the interop generic over the curve.** Everything in `v2v` is P-256
   only — `wire::marshal::p256`, and `encode.rs` says as much in its module
