@@ -55,9 +55,10 @@ separated onto their own branch, since they stand on their own merits.
 - **Version 3.1.0 only.** `vmnv` rejects unless `version` matches exactly
   (VMNV §9.3 step 2b), so any VMN upgrade is a re-validation event.
 - **Sessions are generated, not exported.** `v2v generate` runs our
-  cryptography on synthetic input; it does not convert a real braid session.
-  The shuffle half of a real export would be possible. The decryption half is
-  not — see [Why a real session cannot be exported](#why-a-real-session-cannot-be-exported).
+  cryptography on synthetic input; it does not take a real braid session. The
+  shuffle half of a real export *would* be possible and is unbuilt; the
+  decryption half is blocked by the protocol shape — see
+  [What can be exported from a real session](#what-can-be-exported-from-a-real-session).
 - **The live protocol is not wired in.** The tests drive the DKG, shuffle and
   decryption directly rather than through `Trustee::step` and the board.
 
@@ -292,25 +293,38 @@ sender — while `PartialDecryption` deliberately carries no position, so a
 trustee cannot claim another's. A party is therefore pinned to a key it did not
 supply, which is what makes a per-party proof meaningful.
 
-### Why a real session cannot be exported
+### What can be exported from a real session
 
-VMN's decryption transcript is joint over **all `k`** parties' factors: the
-batching seed commits to every party's factor array before any commitment is
-formed. Producing one therefore takes three rounds among the trustees.
+`v2v generate` produces a synthetic session, but the two halves of a real one
+are not equally out of reach. **The shuffle could be exported; the decryption
+could not.**
+
+**The shuffle can**, because a shuffle proof needs only one party's own secrets.
+Not by translating braid's existing proof — that is the Fiat–Shamir problem
+above, and it is impossible — but by producing a *second* proof, in VMN's
+transcript, over the real lists. The mixer holds the witness the statement is
+about, so the same real shuffle can be proved twice in two formats.
+
+The practical condition is that the witness is still available: re-proving
+needs the permutation and the re-encryption randomizers, not just the published
+lists. So this has to happen at shuffle time, or the mixer has to retain them
+deliberately.
+
+**The decryption cannot**, because VMN's transcript is joint over **all `k`**
+parties' factors. The batching seed commits to every party's factor array;
+every party's commitment is then hashed into a single challenge; only then can
+any party reply. No trustee can produce its piece alone, so this is not a
+serialization step but a fresh two-round proving protocol among the trustees,
+run after the factors already exist.
 
 braid publishes factors and proof together in one round, and keeps proofs per
 party so a failure names its author — which the board needs in order to make
-progress. That is a deliberate difference, not a gap, and it is why
-`v2v generate` produces a synthetic session rather than converting a real one.
+progress. That is a deliberate difference, not a gap. It blocks export only
+because the emitter arrangement requires braid to speak VMN's transcript; see
+[Outstanding](#outstandingfuture-work) for the arrangement that would not.
 
 ### Smaller things that will cost time
 
-- **P-256 coordinates occupy 33 bytes, not 32.** The integer encoding is signed
-  (§6.1) and `p` has its top bit set, so every coordinate carries a leading
-  `0x00`. `FullPublicKey.bt` is 167 bytes, not the 163 a 32-byte assumption
-  predicts.
-- **Arrays of product-group elements transpose.** An array of ω-wide
-  ciphertexts is stored as ω arrays, not N tuples (§6.6).
 - **Δ is the first λ true entries** of `CorrectIndices.bt`, not an arbitrary
   subset — the loops in `modifiedLagrangeCoefficients` stop at `threshold`.
   Marking more than λ silently selects a prefix.
@@ -321,14 +335,20 @@ progress. That is a deliberate difference, not a gap, and it is why
   identity and zero respectively, because the commitment container is built
   over **all `k`** parties and hashed into the decryption challenge: a
   different placeholder moves `v` and breaks the *participants'* proofs.
-- **Modified Lagrange coefficients may be negative.** The integer is reduced to
-  the representative of smallest absolute value, choosing between `res` and
-  `res − q`.
 - **`vmnv` refuses to start without a random source**, even though verification
   consumes none.
 - **VMN's prover-side tooling is Unix-bound** — `/dev/urandom` and a
   lowercase-only hostname regex, both evaluated before argument parsing. Only
   the verifier runs natively on Windows.
+- **Modified Lagrange coefficients may be negative.** The integer is reduced to
+  the representative of smallest absolute value, choosing between `res` and
+  `res − q`.
+- **P-256 coordinates occupy 33 bytes, not 32.** The integer encoding is signed
+  (§6.1) and `p` has its top bit set, so every coordinate carries a leading
+  `0x00`. `FullPublicKey.bt` is 167 bytes, not the 163 a 32-byte assumption
+  predicts.
+- **Arrays of product-group elements transpose.** An array of ω-wide
+  ciphertexts is stored as ω arrays, not N tuples (§6.6).
 - **The §8.6 equations in the specification are garbled by OCR.** Take them
   from `DistrElGamalSessionBasic` instead.
 
@@ -348,27 +368,46 @@ depends on it, and report everything else.
 
 ---
 
-## Honest caveats
-
-- **Independence is preserved, but asymmetrically.** Our emitter is written
-  *against Verificatum's specification*, so the two codebases are no longer
-  conceptually independent even though they share no source. The verifier
-  remains genuinely independent — different language, different authors,
-  different implementation of every primitive — which is the property that
-  catches braid bugs. It would not catch a flaw in the shared *specification*.
-- **A second emitter is a maintenance burden.** braid carries a
-  Verificatum-compatible proof path alongside its native one, and they must not
-  drift. The tests are what hold that line.
-- **The specification alone is not enough to write a verifier**, on the
-  evidence of the α placement, the unread `Γ`, and the file-existence mixer
-  skip. Each was found by reading Java or by running VMN at a shape its own
-  corpus does not cover.
-
-## Outstanding
+## Outstanding/future work
 
 - **Report the `vmnv` findings upstream.** The exit-code defect, the
   file-existence mixer skip, and the α discrepancy between VMNV §8.6 and
   `DistrElGamalSessionBasic`. None has been reported yet.
+- **Verify both formats instead of emitting the other's.** The shape this work
+  took — braid carrying a Verificatum-compatible emitter alongside its native
+  prover — is not the best one available, and its costs are structural rather
+  than incidental. Two proof paths must not drift, which is a permanent
+  maintenance burden the tests can hold but not remove. And because our emitter
+  is written *against Verificatum's specification*, the two codebases are no
+  longer conceptually independent even though they share no source: the
+  verifier stays genuinely independent, which is the property that catches
+  braid bugs, but a flaw in the shared specification would be invisible to
+  both.
+
+  The better arrangement is that each project **produces only its own format
+  and accepts both**. Neither needs a second emitter, neither prover is written
+  to the other's document, and interop data is *exported* from real protocol
+  runs rather than regenerated synthetically. Our half of it already exists —
+  `v2v verify` accepts VMN sessions. The other half is upstream work in
+  Verificatum, which we do not control, so this is a direction rather than a
+  plan.
+
+  It also dissolves the decryption blocker rather than working around it. Real
+  decryption data cannot be exported today only because we require braid to
+  produce VMN's *joint* transcript; a verifier that accepted braid's per-party
+  proofs would take the real data as it stands.
+
+- **Make the interop generic over the curve.** Everything in `v2v` is P-256
+  only — `wire::marshal::p256`, and `encode.rs` says as much in its module
+  docs — while `vsc` and braid are generic over `Context`. Lifting that would
+  cover the rest of the curve list both sides support (P-224, P-384, P-521,
+  the brainpool and `secp*` families). It would **not** make braid's native
+  Ristretto255 path verifiable: `vmnv` has no such group, and that limit is
+  permanent regardless.
+
+  Ciphertext width is the same problem, smaller: widths are const generic, so
+  each is a separate monomorphisation and `emit::generate` dispatches over a
+  fixed set of arms. That bound is a compile-time cost, not a design limit.
 - **α in braid's native path.** Deferred, not rejected. It would live entirely
   inside `combine` and is worth roughly a fifth of it, but realising that needs
   a small-exponent entry point in the group API — `C::Scalar` is fixed-width,
