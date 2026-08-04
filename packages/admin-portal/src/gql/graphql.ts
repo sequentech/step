@@ -5584,6 +5584,7 @@ export type Query_RootGet_Realm_Password_PolicyArgs = {
   election_event_id: Scalars['String']['input'];
 };
 
+
 export type Query_RootGet_RolesArgs = {
   body: GetRolesInput;
 };

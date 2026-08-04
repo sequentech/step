@@ -9,7 +9,9 @@ import {IPermissions} from "@/types/keycloak"
 import {PhoneBlacklist} from "./PhoneBlacklist"
 import {IvrConfig} from "./IvrConfig"
 import {IvrPrompts} from "./IvrPrompts"
+import {IvrEmulator} from "./IvrEmulator"
 import {Box} from "@mui/material"
+import {IvrEmulatorContextProvider} from "@/providers/IvrEmulatorContextProvider"
 
 const ConfigTab: React.FC = () => (
     <Suspense fallback={<div>Loading...</div>}>
@@ -26,6 +28,14 @@ const BlacklistTab: React.FC = () => (
 const PromptsTab: React.FC = () => (
     <Suspense fallback={<div>Loading...</div>}>
         <IvrPrompts />
+    </Suspense>
+)
+
+const EmulatorTab: React.FC = () => (
+    <Suspense fallback={<div>Loading...</div>}>
+        <IvrEmulatorContextProvider>
+            <IvrEmulator />
+        </IvrEmulatorContextProvider>
     </Suspense>
 )
 
@@ -51,6 +61,11 @@ export const EditElectionEventIvr: React.FC = () => {
             component: BlacklistTab,
         })
     }
+
+    tabs.push({
+        label: t("electionEventScreen.ivr.tabs.emulator"),
+        component: EmulatorTab,
+    })
 
     return (
         <Box sx={{margin: "-1.5rem 0 0 0"}}>

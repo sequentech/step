@@ -48,3 +48,4 @@ src/gql/
 public/tinymce/
 public/intl-tel-input/
 public/sql-wasm.js
+src/services/generated/ivr_emulator_wasm.d.ts

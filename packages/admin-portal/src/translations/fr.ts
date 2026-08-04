@@ -689,6 +689,7 @@ const frenchTranslation: TranslationType = {
                     config: "Configuration",
                     blacklist: "Liste de blocage",
                     prompts: "Messages vocaux",
+                    emulator: "Émulateur",
                 },
                 common: {
                     saveSuccess: "Enregistré avec succès",
@@ -723,6 +724,36 @@ const frenchTranslation: TranslationType = {
 
                     noFilterMatch: "Aucune entrée ne correspond aux filtres indiqués",
                     phoneRequired: "Le numéro de téléphone est obligatoire",
+                },
+                emulator: {
+                    infoMsg:
+                        "Sélectionnez une zone et les élections souhaitées pour tester la session IVR.",
+                    apiStatus: {
+                        unavailable:
+                            "Le système d'émulation n'est pas disponible dans votre environnement",
+                        loading: "Chargement du système d'émulation",
+                        error: "Erreur lors du chargement du système d'émulation",
+                    },
+                    hints: {
+                        title: "Conseils",
+                        publishRequired:
+                            "Toute modification apportée aux élections, aux scrutins ou aux candidats doit d'abord être publiée pour être disponible. Seuls les styles de bulletin publiés les plus récents correspondant à la zone seront utilisés dans l'émulateur.",
+                        eventChangesImmediate:
+                            "Les modifications apportées à l'événement électoral, telles que la configuration IVR ou la personnalisation des messages, sont disponibles immédiatement après le redémarrage de la session de l'émulateur.",
+                        credentials:
+                            'L\'identifiant d\'électeur et le code PIN valides sont "123" et "123".',
+                    },
+                    sendDtmf: "Envoyer une entrée DTMF",
+                    sendTimeout: "Envoyer l'expiration du délai",
+                    disconnected: "Déconnecté",
+                    startSession: "Démarrer une nouvelle session",
+                    endSession: "Terminer la session",
+                    noStylesFound: "Aucun style de bulletin publié ne correspond à vos sélections",
+                    inputPlaceholder:
+                        "Saisissez votre entrée (nombre maximal de chiffres={{maxDigits}}, entrées valides={{validInputs}}, délai d'expiration={{timeout}} s)",
+                    blacklistCaller: "Bloquer l'appelant",
+                    elections: "Élections",
+                    area: "Zone",
                 },
             },
             stats: {
