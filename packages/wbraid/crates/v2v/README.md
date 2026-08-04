@@ -96,9 +96,9 @@ checkout it is a no-op.
 Then the demo itself, stripped the same way:
 
 ```sh
-cp -r "$VMN_HOME/verificatum-vmn/demo/mixnet" demo
-find demo -type f -exec sed -i 's|\r$||' {} +
-cd demo
+cp -r "$VMN_HOME/verificatum-vmn/demo/mixnet" vmndemo
+find vmndemo -type f -exec sed -i 's|\r$||' {} +
+cd vmndemo
 
 # conf already says three parties, threshold two; NO_MIXSERVERS is k and
 # THRESHOLD is lambda if you want another shape. WIDTH ships commented out, so
@@ -144,15 +144,16 @@ vog -rndinit RandomDevice /dev/urandom
 That leaves a session at:
 
 ```text
-demo/mydemodir/Party01/dir/nizkp/default    # the proof directory
-demo/mydemodir/Party01/protInfo.xml         # the protocol info file
+vmndemo/mydemodir/Party01/dir/nizkp/default    # the proof directory
+vmndemo/mydemodir/Party01/protInfo.xml         # the protocol info file
 ```
 
-so, from the directory you copied the demo into:
+The recipe leaves you inside `vmndemo`, so step back out first:
 
 ```text
-v2v verify demo/mydemodir/Party01/protInfo.xml \
-             demo/mydemodir/Party01/dir/nizkp/default
+cd ..
+v2v verify vmndemo/mydemodir/Party01/protInfo.xml \
+           vmndemo/mydemodir/Party01/dir/nizkp/default
 ```
 
 ### Two things that cost time
