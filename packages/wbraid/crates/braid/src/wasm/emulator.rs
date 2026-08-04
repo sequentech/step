@@ -30,7 +30,7 @@
 //!
 //! The setup is kept in `localStorage`, so a reload just reconnects: same keys,
 //! same `Configuration`, same boards and IndexedDB stores, and the same tally if
-//! one was under way. Only the secrets and the session are stored — the board
+//! one was under way. Only the secrets and the setup are stored — the board
 //! contents, the committed sets and the DKG public key all reload from b4 and
 //! IndexedDB, and a tally's plaintexts are derived rather than kept (see
 //! [`ballot_plaintexts`]).
@@ -338,7 +338,7 @@ const STORAGE_KEY: &str = "braid_emulator_setup";
 /// none of it is recorded here. The ballot plaintexts are not recorded either:
 /// they are derived from `id` and the tally index (see [`ballot_plaintexts`]).
 #[derive(Serialize, Deserialize, Clone)]
-struct Session {
+struct Setup {
     id: String,
     trustees: usize,
     threshold: usize,
@@ -353,13 +353,13 @@ struct Session {
     active_tally: Option<usize>,
 }
 
-/// A `Session` plus the secret key material, which is the whole of what has to
+/// A `Setup` plus the secret key material, which is the whole of what has to
 /// survive a page load. Stored as base64(JSON) in `localStorage`, and the same
 /// bytes are what [`export`](Emulator::export) hands over for moving a setup to
 /// another browser.
 #[derive(Serialize, Deserialize)]
 struct SetupBlob {
-    session: Session,
+    setup: Setup,
     /// Manager signing key (base64).
     manager_sk: String,
     /// Trustee signing keys (base64), in index order.
@@ -411,6 +411,20 @@ fn keys_from_blob(blob: &SetupBlob) -> Result<Keys> {
 struct TrusteeActivity {
     trustee: usize,
     produced: Vec<String>,
+}
+
+/// One trustee's result from being stepped on its own.
+///
+/// No round number: a round is every trustee having had a turn, and stepping
+/// one is not that. The protocol has no notion of a round either — each trustee
+/// runs update-first against whatever the board holds when it looks (§6), so
+/// driving them one at a time is if anything the more faithful picture.
+#[derive(Serialize)]
+struct TrusteeStepReport {
+    trustee: usize,
+    advanced: bool,
+    produced: Vec<String>,
+    phase: String,
 }
 
 /// One round's result, including per-trustee activity.
@@ -469,11 +483,11 @@ struct PlaintextsReport {
 /// against a live b4.
 ///
 /// `create` generates the keys, creates the DKG board on b4, posts the
-/// `Configuration` (as manager), and connects one DKG session per trustee over
+/// `Configuration` (as manager), and connects one DKG board client per trustee over
 /// [`WasmHttpTransport`] with its own IndexedDB store. The protocol is driven a
 /// round at a time (`step`); once the DKG reaches its fixpoint, `new_tally`
 /// creates a fresh child board (unioned with the DKG parent, §8.2), posts a fresh
-/// ciphertext set, and rebuilds the sessions to run that tally. `state`/`verify`
+/// ciphertext set, and rebuilds the clients to run that tally. `state`/`verify_plaintexts`
 /// inspect the current board; `export`/`import` bridge the Setup across a refresh.
 ///
 /// All methods do real HTTP, so they are async; mutable state sits behind a
@@ -534,6 +548,27 @@ impl Inner {
     }
 }
 
+/// Drive trustee `index` one update-first cycle and report the message types it
+/// produced.
+///
+/// Takes `&mut Inner` rather than the `RefCell` so the caller decides how long
+/// the borrow is held: a full round holds it across every trustee, a single
+/// step across one. Split borrows are why the trustee and its client are reached
+/// through separate fields rather than a pair.
+async fn drive(inner: &mut Inner, index: usize) -> Result<Vec<String>, JsValue> {
+    let trustee = &inner.trustees[index];
+    let client = &mut inner.clients[index];
+
+    client.update().await.map_err(js)?;
+    let produced = trustee.step(client.view()).map_err(js)?;
+    let kinds: Vec<String> = produced
+        .iter()
+        .map(|m| format!("{:?}", m.message_type))
+        .collect();
+    client.post(produced).await.map_err(js)?;
+    Ok(kinds)
+}
+
 /// Map an `anyhow::Error` to a JS error.
 fn js(e: anyhow::Error) -> JsValue {
     JsValue::from_str(&format!("{e:#}"))
@@ -561,12 +596,12 @@ impl Emulator {
     }
 
     /// Write the current setup to `localStorage`, returning the same bytes so
-    /// `export` can hand them over. Called whenever the session changes, so a
+    /// `export` can hand them over. Called whenever the setup changes, so a
     /// refresh always finds the setup as it stood.
     fn save(&self) -> Result<String> {
-        let session = {
+        let setup = {
             let inner = self.inner.try_borrow().map_err(|_| anyhow!("emulator is busy"))?;
-            Session {
+            Setup {
                 id: self.setup_id.clone(),
                 trustees: self.trustees_n,
                 threshold: self.threshold,
@@ -577,7 +612,7 @@ impl Emulator {
             }
         };
         let blob = SetupBlob {
-            session,
+            setup,
             manager_sk: Sig::signer_to_base64_string(&self.keys.pm.signing_key)
                 .map_err(|e| anyhow!("encode manager key: {e}"))?,
             trustee_sks: self
@@ -678,7 +713,7 @@ impl Emulator {
 #[wasm_bindgen]
 impl Emulator {
     /// Generate the keys, create the DKG board on b4, post the `Configuration`,
-    /// and connect one DKG session per trustee (each with its own IndexedDB store).
+    /// and connect one DKG board client per trustee (each with its own IndexedDB store).
     ///
     /// Replaces whatever setup was saved: the emulator holds one at a time.
     pub async fn create(
@@ -690,7 +725,7 @@ impl Emulator {
     ) -> Result<Emulator, JsValue> {
         validate_params(trustees, threshold, width).map_err(js)?;
         let keys = Keys::generate(trustees);
-        let session = Session {
+        let setup = Setup {
             // A stable id so board names and IndexedDB names are deterministic,
             // and so a later restore reconnects to the very same stores.
             id: format!("{:x}", js_sys::Date::now() as u64),
@@ -701,7 +736,7 @@ impl Emulator {
             tally_index: 0,
             active_tally: None,
         };
-        Self::start(b4_url, keys, session, true).await
+        Self::start(b4_url, keys, setup, true).await
     }
 
     /// Whether a setup is saved and [`restore`](Self::restore) would find one.
@@ -758,12 +793,12 @@ impl Emulator {
         let blob: SetupBlob = serde_json::from_slice(&bytes)
             .map_err(|e| JsValue::from_str(&format!("parse setup: {e}")))?;
         let keys = keys_from_blob(&blob).map_err(js)?;
-        Self::start(b4_url, keys, blob.session, false).await
+        Self::start(b4_url, keys, blob.setup, false).await
     }
 
     /// Shared constructor. When `fresh`, creates the DKG board on b4 and posts the
     /// `Configuration`; otherwise the board is assumed to exist. Then connects the
-    /// per-trustee DKG clients, and reconnects an in-progress tally if the session
+    /// per-trustee DKG clients, and reconnects an in-progress tally if the setup
     /// records one. Their message stores stay empty until the first `step`
     /// (update-first, §6): `connect` reloads only the persisted committed set (the
     /// anti-rewrite baseline) and the `Configuration`, not the board contents —
@@ -771,12 +806,12 @@ impl Emulator {
     async fn start(
         b4_url: String,
         keys: Keys,
-        session: Session,
+        setup: Setup,
         fresh: bool,
     ) -> Result<Emulator, JsValue> {
         let (cfg, cfg_hash) =
-            configuration_for(&keys, session.threshold, session.width).map_err(js)?;
-        let parent_board = parent_board_name(&session.id);
+            configuration_for(&keys, setup.threshold, setup.width).map_err(js)?;
+        let parent_board = parent_board_name(&setup.id);
         if fresh {
             WasmHttpTransport::create_board(&b4_url, &parent_board)
                 .await
@@ -788,22 +823,22 @@ impl Emulator {
                 .map_err(js)?;
         }
 
-        let trustee_sessions = build_trustees(&keys, &cfg).map_err(js)?;
+        let trustees = build_trustees(&keys, &cfg).map_err(js)?;
         let emulator = Emulator {
             b4_url,
-            setup_id: session.id.clone(),
+            setup_id: setup.id.clone(),
             keys,
             cfg_hash,
-            mixing_trustees: (1..=session.threshold).collect(),
-            trustees_n: session.trustees,
-            threshold: session.threshold,
-            width: session.width,
-            ciphertexts: session.ciphertexts,
+            mixing_trustees: (1..=setup.threshold).collect(),
+            trustees_n: setup.trustees,
+            threshold: setup.threshold,
+            width: setup.width,
+            ciphertexts: setup.ciphertexts,
             inner: RefCell::new(Inner {
-                trustees: trustee_sessions,
+                trustees,
                 clients: Vec::new(),
                 round: 0,
-                tally_index: session.tally_index,
+                tally_index: setup.tally_index,
                 seeds: None,
                 pk_body: None,
                 child_board: None,
@@ -816,7 +851,7 @@ impl Emulator {
         // A tally was under way when the page went away. The DKG clients above
         // have just reloaded their committed sets, so the anti-rewrite seed is
         // available again and the tally's own stores reload with its clients.
-        if let Some(tally) = session.active_tally {
+        if let Some(tally) = setup.active_tally {
             emulator.attach_tally(tally).await?;
         }
 
@@ -839,22 +874,11 @@ impl Emulator {
             let mut activity = Vec::with_capacity(inner.clients.len());
             {
                 let inner = &mut *inner;
-                for (i, (trustee, client)) in inner
-                    .trustees
-                    .iter()
-                    .zip(inner.clients.iter_mut())
-                    .enumerate()
-                {
-                    client.update().await.map_err(js)?;
-                    let produced = trustee.step(client.view()).map_err(js)?;
-                    let kinds: Vec<String> = produced
-                        .iter()
-                        .map(|m| format!("{:?}", m.message_type))
-                        .collect();
-                    if !produced.is_empty() {
+                for i in 0..inner.clients.len() {
+                    let kinds = drive(inner, i).await?;
+                    if !kinds.is_empty() {
                         advanced = true;
                     }
-                    client.post(produced).await.map_err(js)?;
                     activity.push(TrusteeActivity {
                         trustee: i + 1,
                         produced: kinds,
@@ -874,8 +898,36 @@ impl Emulator {
             .map_err(|e| JsValue::from_str(&format!("failed to serialize: {e}")))
     }
 
+    /// Drive one trustee through update -> step -> post, leaving the others where
+    /// they are.
+    ///
+    /// Trustees are independent: each runs the pure `step` over its own board
+    /// client's view, so stepping one produces exactly what it would have
+    /// produced in its turn of a full round. What this buys is the interleavings
+    /// a lockstep round cannot show — one trustee running ahead, another left
+    /// behind, a message observed by some and not yet by others.
+    pub async fn step_trustee(&self, index: usize) -> Result<JsValue, JsValue> {
+        let (produced, phase) = {
+            let mut inner = self.inner.try_borrow_mut().map_err(|_| busy())?;
+            if index >= inner.clients.len() {
+                return Err(JsValue::from_str("trustee index out of range"));
+            }
+            let phase = inner.phase().to_string();
+            let inner = &mut *inner;
+            (drive(inner, index).await?, phase)
+        };
+        let report = TrusteeStepReport {
+            trustee: index + 1,
+            advanced: !produced.is_empty(),
+            produced,
+            phase,
+        };
+        serde_wasm_bindgen::to_value(&report)
+            .map_err(|e| JsValue::from_str(&format!("failed to serialize: {e}")))
+    }
+
     /// Start a new tally over the completed DKG (§8.2): create a fresh child board,
-    /// post a fresh ciphertext set (as manager), and reconnect the sessions as union
+    /// post a fresh ciphertext set (as manager), and reconnect the clients as union
     /// clients (child ∪ DKG parent, seeded with the trustees' own DKG digests).
     /// Requires the DKG to have produced a public key (step it to a fixpoint first).
     pub async fn new_tally(&self) -> Result<JsValue, JsValue> {
