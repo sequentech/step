@@ -72,7 +72,7 @@ use crate::wasm::transport::WasmHttpTransport;
 /// Wire `date` for every emulator message (§3.1 — timestamps are wire-only).
 const DATE: Timestamp = 0;
 
-use crate::messages::newtypes::MAX_TRUSTEES;
+use crate::messages::newtypes::{MAX_CIPHERTEXT_WIDTH, MAX_TRUSTEES};
 
 /// The context's signature scheme (Ed25519) and its signing-key type.
 type Sig = <RistrettoCtx as Context>::SignatureScheme;
@@ -197,51 +197,109 @@ fn find_body<C: Context>(messages: &[ProtocolMessage<C>], kind: MessageType) -> 
         .and_then(|m| m.body.as_ref())
 }
 
-/// Encrypt `ciphertexts` random plaintexts under the DKG public key (`pk_body`)
-/// and build the manager's `Ballots` message. Returns the message plus the set of
-/// expected plaintexts (as serialized bytes) for later verification.
+/// Domain separation for the derived ballot plaintexts. They are demo data, but
+/// they must not collide with any element derived elsewhere.
+const BALLOT_TAG: &[u8] = b"braid_emulator_ballot_plaintext";
+
+/// The plaintext set for one tally, **derived** rather than drawn at random.
+///
+/// A tally's plaintexts are known only to the manager — the board carries the
+/// ciphertexts — so verifying a tally after a page refresh would otherwise mean
+/// persisting the whole set. Deriving them from `(setup_id, tally, index)`
+/// instead makes the set reproducible from what the setup already knows, so
+/// nothing about a tally in progress has to be stored to verify it later.
+///
+/// The *encryption* randomness stays random; only the plaintexts are determined.
+fn ballot_plaintexts<C: Context, const W: usize>(
+    setup_id: &str,
+    tally: usize,
+    ciphertexts: u32,
+) -> Result<Vec<[C::Element; W]>> {
+    (0..ciphertexts)
+        .map(|i| {
+            let mut components = Vec::with_capacity(W);
+            for w in 0..W {
+                components.push(
+                    C::G::hash_to_element(
+                        &[
+                            setup_id.as_bytes(),
+                            &tally.to_be_bytes(),
+                            &i.to_be_bytes(),
+                            &w.to_be_bytes(),
+                        ],
+                        &[BALLOT_TAG],
+                    )
+                    .map_err(|e| anyhow!("derive ballot plaintext: {:?}", e))?,
+                );
+            }
+            Ok(std::array::from_fn(|w| components[w].clone()))
+        })
+        .collect()
+}
+
+/// The serialized form of a derived plaintext set, for comparison with a tally's
+/// decrypted output.
+fn expected_plaintexts<C: Context, const W: usize>(
+    setup_id: &str,
+    tally: usize,
+    ciphertexts: u32,
+) -> Result<HashSet<Vec<u8>>> {
+    Ok(ballot_plaintexts::<C, W>(setup_id, tally, ciphertexts)?
+        .iter()
+        .map(|p| p.ser())
+        .collect())
+}
+
+/// Encrypt this tally's derived plaintexts under the DKG public key (`pk_body`)
+/// and build the manager's `Ballots` message.
 fn encrypt_ballots<C: Context, const W: usize>(
     pk_body: &[u8],
+    setup_id: &str,
+    tally: usize,
     ciphertexts: u32,
     mixing_trustees: Vec<TrusteeIndex>,
     pm: &ProtocolManager<C>,
     cfg_hash: ConfigurationHash,
-) -> Result<(ProtocolMessage<C>, HashSet<Vec<u8>>)> {
+) -> Result<ProtocolMessage<C>> {
     let dkg_pk = DkgPublicKey::<C>::deser(pk_body)
         .map_err(|e| anyhow!("deserialize public key: {:?}", e))?;
     let pk_hash = PublicKeyHash(hash_bytes(pk_body));
     let pk = PublicKey::<C>::new(dkg_pk.pk.clone());
 
-    let mut enc_rng = C::get_rng();
-    let plaintexts_in: Vec<[C::Element; W]> = (0..ciphertexts)
-        .map(|_| std::array::from_fn(|_| C::G::random_element(&mut enc_rng)))
-        .collect();
+    let plaintexts_in = ballot_plaintexts::<C, W>(setup_id, tally, ciphertexts)?;
     let encrypted: Vec<Ciphertext<C, W>> = plaintexts_in.iter().map(|p| pk.encrypt(p)).collect();
-    let expected: HashSet<Vec<u8>> = plaintexts_in.iter().map(|p| p.ser()).collect();
 
     let ballots = Ballots::<C, W>::new(encrypted);
-    let message =
-        ProtocolMessage::<C>::ballots(pm, DATE, cfg_hash, pk_hash, mixing_trustees, &ballots);
-    Ok((message, expected))
+    Ok(ProtocolMessage::<C>::ballots(
+        pm,
+        DATE,
+        cfg_hash,
+        pk_hash,
+        mixing_trustees,
+        &ballots,
+    ))
 }
 
-/// Compare decrypted plaintexts (`pt_body`) against the `expected` set. Returns
-/// `(match, actual_count)`.
+/// Compare a tally's decrypted plaintexts (`pt_body`) against the set its
+/// parameters derive. Returns `(match, expected_count, actual_count)`.
 fn plaintexts_match<C: Context, const W: usize>(
     pt_body: &[u8],
-    expected: &HashSet<Vec<u8>>,
-) -> Result<(bool, usize)> {
+    setup_id: &str,
+    tally: usize,
+    ciphertexts: u32,
+) -> Result<(bool, usize, usize)> {
+    let expected = expected_plaintexts::<C, W>(setup_id, tally, ciphertexts)?;
     let plaintexts = Plaintexts::<C, W>::deser(pt_body)
         .map_err(|e| anyhow!("deserialize plaintexts: {:?}", e))?;
     let actual: HashSet<Vec<u8>> = plaintexts.0.iter().map(|p| p.ser()).collect();
-    Ok((*expected == actual, actual.len()))
+    Ok((expected == actual, expected.len(), actual.len()))
 }
 
 /// Validate the election parameters against the dispatch-macro ranges.
 fn validate_params(trustees: usize, threshold: usize, width: usize) -> Result<()> {
-    if !(1..=MAX_TRUSTEES).contains(&width) {
+    if !(1..=MAX_CIPHERTEXT_WIDTH).contains(&width) {
         return Err(anyhow!(
-            "unsupported ciphertext width {width} (expected 1..={MAX_TRUSTEES})"
+            "unsupported ciphertext width {width} (expected 1..={MAX_CIPHERTEXT_WIDTH})"
         ));
     }
     if !(2..=MAX_TRUSTEES).contains(&trustees) {
@@ -406,8 +464,6 @@ struct Inner {
     pk_body: Option<Vec<u8>>,
     /// The current tally's child board name (for `state`/`verify`).
     child_board: Option<String>,
-    /// The current tally's expected plaintexts (for `verify`).
-    expected: Option<HashSet<Vec<u8>>>,
 }
 
 /// Map an `anyhow::Error` to a JS error.
@@ -633,7 +689,6 @@ impl Emulator {
                 seeds: None,
                 pk_body: None,
                 child_board: None,
-                expected: None,
             }),
         };
 
@@ -726,9 +781,11 @@ impl Emulator {
         WasmHttpTransport::create_board(&self.b4_url, &child_board)
             .await
             .map_err(js)?;
-        let (ballots_message, expected) = crate::dispatch_ciphertext_width!(self.width, {
+        let ballots_message = crate::dispatch_ciphertext_width!(self.width, {
             encrypt_ballots::<RistrettoCtx, W>(
                 &pk_body,
+                &self.setup_id,
+                tally,
                 self.ciphertexts,
                 self.mixing_trustees.clone(),
                 &self.keys.pm,
@@ -764,7 +821,6 @@ impl Emulator {
             inner.phase = Phase::Tally;
             inner.round = 0;
             inner.child_board = Some(child_board);
-            inner.expected = Some(expected);
             inner.tally_index = tally + 1;
         }
         self.state().await
@@ -833,17 +889,13 @@ impl Emulator {
 
     /// Compare the current tally's decrypted plaintexts with its encrypted inputs.
     pub async fn verify(&self) -> Result<JsValue, JsValue> {
-        let (expected, board_name) = {
+        let (tally, board_name) = {
             let inner = self.inner.try_borrow().map_err(|_| busy())?;
-            let expected = inner
-                .expected
-                .clone()
-                .ok_or_else(|| JsValue::from_str("no tally started yet"))?;
             let board = inner
                 .child_board
                 .clone()
                 .ok_or_else(|| JsValue::from_str("no tally started yet"))?;
-            (expected, board)
+            (inner.tally_index.saturating_sub(1), board)
         };
         let transport = WasmHttpTransport::new(&self.b4_url, &board_name);
         let messages = Transport::<RistrettoCtx>::fetch(&transport)
@@ -852,13 +904,13 @@ impl Emulator {
         let pt_body = find_body(&messages, MessageType::Plaintexts).ok_or_else(|| {
             JsValue::from_str("no plaintexts on the board yet (finish the tally first)")
         })?;
-        let (success, actual) = crate::dispatch_ciphertext_width!(self.width, {
-            plaintexts_match::<RistrettoCtx, W>(pt_body, &expected)
+        let (success, expected, actual) = crate::dispatch_ciphertext_width!(self.width, {
+            plaintexts_match::<RistrettoCtx, W>(pt_body, &self.setup_id, tally, self.ciphertexts)
         })
         .map_err(js)?;
         let report = VerifyReport {
             success,
-            expected: expected.len(),
+            expected,
             actual,
         };
         serde_wasm_bindgen::to_value(&report)
