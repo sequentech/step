@@ -143,10 +143,17 @@ no part of the transcript the two systems share:
 | Global prefix | `ρ` over version, sid, the three bit lengths, PRG, group and hash (§9.3 step 4) | none — nothing binds the protocol parameters |
 | Independent generators | quadratic-residue walk over derived x-coordinates (§6.8) | hash-to-curve |
 
-The bit-length rows are the ones most easily missed: braid's `hash_to_scalar`
-reduces into the scalar field, while Verificatum works with fixed-bit-length
-non-negative integers and deliberately does *not* reduce mod `q`. Identical
-hashes would still give different values.
+The bit-length rows are subtler than they look, and it is worth being precise
+about which half matters. Reducing into the scalar field is *not* itself a
+divergence: exponents act on a group of prime order `q`, so `g^t = g^(t mod q)`.
+Verificatum carries an unreduced `BigInteger` and we reduce only because
+`P256Scalar` is a field element — the group element is the same either way.
+
+What has to match exactly is the **integer**: the PRG stream it is taken from,
+and the truncation to `n_e` bits (`challenges::scalar_from_bits`). braid's
+`hash_to_scalar` fails on that count and not on the reduction — a different
+hash, a different framing, and a full-width output where VMN wants a
+fixed-bit-length one.
 
 `wire` is therefore built to depend on **nothing from `vsc`** — it is byte
 trees, hashes and integers, with no group or scalar types in its signatures.
