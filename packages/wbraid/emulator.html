@@ -9,32 +9,38 @@ SPDX-License-Identifier: AGPL-3.0-only
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>braid v0.6 — mixnet emulator</title>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 1200px; margin: 1.5rem auto; padding: 0 1rem; }
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 0; }
+
+    /* A fixed left frame for the controls and a main column for everything the
+       protocol produces. Vertical space is what runs out first, horizontal
+       space is what there is most of. */
+    .page { display: flex; gap: 1.5rem; align-items: flex-start; padding: 1.25rem; }
+    .sidebar { flex: 0 0 23rem; position: sticky; top: 1.25rem; }
+    /* min-width:0 so wide tables scroll inside main rather than stretching it. */
+    main { flex: 1; min-width: 0; }
+    @media (max-width: 60rem) {
+      .page { flex-wrap: wrap; }
+      .sidebar { flex: 1 1 100%; position: static; }
+    }
     h1 { font-size: 1.3rem; margin-bottom: 0.2rem; }
     h2 { font-size: 1.05rem; margin: 0 0 0.4rem; }
     h3 { font-size: 0.9rem; margin: 0.6rem 0 0.2rem; color: #444; }
-    .subtitle { color: #666; margin: 0 0 1rem; font-size: 0.9rem; }
+    .subtitle { color: #666; margin: 0 0 1rem; font-size: 0.82rem; }
     fieldset { border: 1px solid #ccc; border-radius: 6px; margin: 0 0 1rem; padding: 0.6rem 0.9rem; }
     legend { font-weight: 600; font-size: 0.9rem; color: #333; }
     #boardLegend { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.82rem; }
     label { display: inline-block; margin: 0.2rem 0.7rem 0.2rem 0; font-size: 0.9rem; }
     input.num { width: 4.5rem; }
-    input.url { width: 15rem; }
+    input.url { width: 100%; box-sizing: border-box; }
     button { padding: 0.35rem 0.8rem; font-size: 0.9rem; cursor: pointer; margin: 0.15rem 0.15rem 0.15rem 0; }
     button:disabled, select:disabled { opacity: 0.5; cursor: default; }
     .status { font-weight: bold; margin: 0.5rem 0; font-size: 0.9rem; }
     .ok { color: #137333; }
     .fail { color: #b3261e; }
 
-    /* Row 1: the two narrow, fixed-size panels stacked on the left; the board
-       takes the rest, which is what lets its tables sit side by side. */
-    .top { display: flex; gap: 1.25rem; align-items: flex-start; flex-wrap: wrap; }
-    .top .side { flex: 0 0 24rem; }
     /* Single-digit fields, so they fit on one line with their labels. */
     input.tiny { width: 2.6rem; }
     .triple label { margin-right: 0.5rem; white-space: nowrap; }
-    .top .side fieldset { margin-bottom: 0.75rem; }
-    .top .board { flex: 1; min-width: 24rem; }
     .boardctl { margin-top: 0.5rem; }
     tr.active td, tr.active th { background: #e8f0fe; font-weight: 600; }
     .tallies button.open { font-size: 0.75rem; padding: 0.1rem 0.45rem; margin: 0; }
@@ -60,15 +66,15 @@ SPDX-License-Identifier: AGPL-3.0-only
   </style>
 </head>
 <body>
-  <h1>braid v0.6 — mixnet emulator</h1>
-  <p class="subtitle">
-    interactive, browser-hosted trustees against a live b4 — one committee, one
-    DKG, many tallies (§8.2). Needs <code>localstack.ps1</code> +
-    <code>b4.ps1</code>. Everything is saved, so a refresh reconnects by itself.
-  </p>
-
-  <div class="top">
-    <div class="side">
+  <div class="page">
+    <aside class="sidebar">
+      <h1>braid v0.6 — mixnet emulator</h1>
+      <p class="subtitle">
+        interactive, browser-hosted trustees against a live b4 — one committee,
+        one DKG, many tallies (§8.2). Needs <code>localstack.ps1</code> +
+        <code>b4.ps1</code>. Everything is saved, so a refresh reconnects by
+        itself.
+      </p>
       <fieldset>
         <legend>b4</legend>
         <div><label>URL <input id="b4url" class="url" type="text" value="http://127.0.0.1:3000" /></label></div>
@@ -91,27 +97,29 @@ SPDX-License-Identifier: AGPL-3.0-only
           <button id="newTally" disabled>New tally</button>
         </div>
       </fieldset>
-    </div>
+    </aside>
 
-    <fieldset class="board">
-      <legend id="boardLegend">Board</legend>
-      <div id="boardView"></div>
-      <div class="boardctl">
-        <button id="stepOne" disabled>Step once</button>
-        <button id="stepFix" disabled>Step to fixpoint</button>
-        <button id="verify" disabled>Verify plaintexts</button>
-      </div>
-    </fieldset>
+    <main>
+      <p id="status" class="status">Loading wasm…</p>
+
+      <fieldset class="board">
+        <legend id="boardLegend">Board</legend>
+        <div id="boardView"></div>
+        <div class="boardctl">
+          <button id="stepOne" disabled>Step once</button>
+          <button id="stepFix" disabled>Step to fixpoint</button>
+          <button id="verify" disabled>Verify plaintexts</button>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Log</legend>
+        <pre class="log" id="log"></pre>
+      </fieldset>
+
+      <div id="trusteePanels"></div>
+    </main>
   </div>
-
-  <p id="status" class="status">Loading wasm…</p>
-
-  <fieldset>
-    <legend>Log</legend>
-    <pre class="log" id="log"></pre>
-  </fieldset>
-
-  <div id="trusteePanels"></div>
 
   <script type="module">
     const statusEl = document.getElementById("status");
