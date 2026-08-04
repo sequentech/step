@@ -463,13 +463,15 @@ struct TallyReport {
     active: bool,
 }
 
-/// A snapshot of the board: per-type counts plus the message list.
+/// A snapshot of the board: which board, per-type counts, and the message list.
+///
+/// The board's *name* carries the rest — `emu_<id>_dkg` against
+/// `emu_<id>_tally_<k>` says both which phase and which tally — so none of that
+/// is repeated here. Nor is the round: only the whole-committee `step` advances
+/// it, so once trustees are also stepped individually it counts something other
+/// than how far the protocol has come.
 #[derive(Serialize)]
 struct StateReport {
-    phase: String,
-    round: usize,
-    /// The open tally, or `None` while on the DKG board.
-    tally: Option<usize>,
     board: String,
     configuration: usize,
     shares: usize,
@@ -1034,24 +1036,11 @@ impl Emulator {
     /// A snapshot of the current board's contents by message type (fetched from b4):
     /// the DKG parent while in the DKG phase, or the active tally's child board.
     pub async fn state(&self) -> Result<JsValue, JsValue> {
-        let (phase, round, tally, board_name, is_child) = {
+        let (board_name, is_child) = {
             let inner = self.inner.try_borrow().map_err(|_| busy())?;
-            let phase = inner.phase().to_string();
             match inner.active {
-                Some(tally) => (
-                    phase,
-                    inner.round,
-                    Some(tally),
-                    child_board_name(&self.setup_id, tally),
-                    true,
-                ),
-                None => (
-                    phase,
-                    inner.round,
-                    None,
-                    parent_board_name(&self.setup_id),
-                    false,
-                ),
+                Some(tally) => (child_board_name(&self.setup_id, tally), true),
+                None => (parent_board_name(&self.setup_id), false),
             }
         };
         let transport = WasmHttpTransport::new(&self.b4_url, &board_name);
@@ -1074,9 +1063,6 @@ impl Emulator {
             })
             .collect();
         let report = StateReport {
-            phase,
-            round,
-            tally,
             board: board_name,
             // The Configuration lives on the parent (DKG) board; `fetch` excludes it.
             configuration: if is_child { 0 } else { 1 },
