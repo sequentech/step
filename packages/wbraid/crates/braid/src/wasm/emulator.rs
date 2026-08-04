@@ -342,15 +342,25 @@ struct Setup {
     id: String,
     trustees: usize,
     threshold: usize,
-    ciphertexts: u32,
     width: usize,
-    /// How many tallies have been started, and so the next child-board index.
-    /// A restored setup allocates fresh child boards rather than colliding with
-    /// pre-refresh ones.
-    tally_index: usize,
-    /// The tally currently under way, if any. This is what lets a refresh
+    /// Every tally started, in order; the index into this is the child-board
+    /// index. Recording them rather than counting them is what lets an earlier
+    /// tally be reopened without disturbing where the next one goes.
+    tallies: Vec<TallyInfo>,
+    /// The tally currently attached, if any. This is what lets a refresh
     /// mid-tally reconnect to that tally instead of stranding it.
-    active_tally: Option<usize>,
+    active: Option<usize>,
+}
+
+/// What a tally needs beyond its index.
+///
+/// The ciphertext count is kept rather than read back from the tally's own
+/// `Ballots` message: [`verify_plaintexts`](Emulator::verify_plaintexts) derives
+/// the expected set from it, and a verifier must not take the size of what it
+/// expects from the artifact it is checking.
+#[derive(Serialize, Deserialize, Clone, Copy)]
+struct TallyInfo {
+    ciphertexts: u32,
 }
 
 /// A `Setup` plus the secret key material, which is the whole of what has to
@@ -444,12 +454,22 @@ struct MessageSummary {
     digest: String,
 }
 
+/// One tally, for the tally list.
+#[derive(Serialize)]
+struct TallyReport {
+    index: usize,
+    ciphertexts: u32,
+    board: String,
+    active: bool,
+}
+
 /// A snapshot of the board: per-type counts plus the message list.
 #[derive(Serialize)]
 struct StateReport {
     phase: String,
     round: usize,
-    tally: usize,
+    /// The open tally, or `None` while on the DKG board.
+    tally: Option<usize>,
     board: String,
     configuration: usize,
     shares: usize,
@@ -507,7 +527,6 @@ pub struct Emulator {
     trustees_n: usize,
     threshold: usize,
     width: usize,
-    ciphertexts: u32,
     inner: RefCell<Inner>,
 }
 
@@ -517,34 +536,27 @@ struct Inner {
     /// The active phase's board clients, trustee `i` paired with client `i`.
     clients: Vec<EmuClient>,
     round: usize,
-    /// Next child-board index (also the count of tallies started).
-    tally_index: usize,
+    /// Every tally started, in order.
+    tallies: Vec<TallyInfo>,
     /// Each trustee's committed DKG digests — the union anti-rewrite seed (§8.2),
     /// captured when the DKG completes and reused by every tally.
     seeds: Option<Vec<Vec<Predicate>>>,
     /// The DKG public-key body, captured when the DKG completes.
     pk_body: Option<Vec<u8>>,
-    /// The current tally's child board name, which is also what says whether a
-    /// tally is under way: there is no separate phase, because the datalog has
-    /// none — it derives everything from the message store.
-    child_board: Option<String>,
+    /// Which tally the clients are attached to, if any. There is no separate
+    /// phase: the datalog has none either — it derives everything from the
+    /// message store — so this is the only thing that says where we are.
+    active: Option<usize>,
 }
 
 impl Inner {
     /// The phase label for the UI. Derived, not tracked.
     fn phase(&self) -> &'static str {
-        if self.child_board.is_some() {
+        if self.active.is_some() {
             "tally"
         } else {
             "dkg"
         }
-    }
-
-    /// The tally under way, if any.
-    fn active_tally(&self) -> Option<usize> {
-        self.child_board
-            .as_ref()
-            .map(|_| self.tally_index.saturating_sub(1))
     }
 }
 
@@ -605,10 +617,9 @@ impl Emulator {
                 id: self.setup_id.clone(),
                 trustees: self.trustees_n,
                 threshold: self.threshold,
-                ciphertexts: self.ciphertexts,
                 width: self.width,
-                tally_index: inner.tally_index,
-                active_tally: inner.active_tally(),
+                tallies: inner.tallies.clone(),
+                active: inner.active,
             }
         };
         let blob = SetupBlob {
@@ -678,8 +689,7 @@ impl Emulator {
         let mut inner = self.inner.try_borrow_mut().map_err(|_| busy())?;
         inner.clients = clients;
         inner.round = 0;
-        inner.child_board = Some(child_board);
-        inner.tally_index = tally + 1;
+        inner.active = Some(tally);
         Ok(())
     }
 
@@ -720,7 +730,6 @@ impl Emulator {
         b4_url: String,
         trustees: usize,
         threshold: usize,
-        ciphertexts: u32,
         width: usize,
     ) -> Result<Emulator, JsValue> {
         validate_params(trustees, threshold, width).map_err(js)?;
@@ -731,10 +740,9 @@ impl Emulator {
             id: format!("{:x}", js_sys::Date::now() as u64),
             trustees,
             threshold,
-            ciphertexts,
             width,
-            tally_index: 0,
-            active_tally: None,
+            tallies: Vec::new(),
+            active: None,
         };
         Self::start(b4_url, keys, setup, true).await
     }
@@ -833,15 +841,14 @@ impl Emulator {
             trustees_n: setup.trustees,
             threshold: setup.threshold,
             width: setup.width,
-            ciphertexts: setup.ciphertexts,
             inner: RefCell::new(Inner {
                 trustees,
                 clients: Vec::new(),
                 round: 0,
-                tally_index: setup.tally_index,
+                tallies: setup.tallies.clone(),
+                active: None,
                 seeds: None,
                 pk_body: None,
-                child_board: None,
             }),
         };
 
@@ -851,7 +858,7 @@ impl Emulator {
         // A tally was under way when the page went away. The DKG clients above
         // have just reloaded their committed sets, so the anti-rewrite seed is
         // available again and the tally's own stores reload with its clients.
-        if let Some(tally) = setup.active_tally {
+        if let Some(tally) = setup.active {
             emulator.attach_tally(tally).await?;
         }
 
@@ -930,7 +937,10 @@ impl Emulator {
     /// post a fresh ciphertext set (as manager), and reconnect the clients as union
     /// clients (child ∪ DKG parent, seeded with the trustees' own DKG digests).
     /// Requires the DKG to have produced a public key (step it to a fixpoint first).
-    pub async fn new_tally(&self) -> Result<JsValue, JsValue> {
+    pub async fn new_tally(&self, ciphertexts: u32) -> Result<JsValue, JsValue> {
+        if ciphertexts == 0 {
+            return Err(JsValue::from_str("a tally needs at least one ciphertext"));
+        }
         // Capturing the DKG here rather than inside `attach_tally` because the
         // public key is needed to encrypt before any client is rebuilt.
         let need_capture = {
@@ -947,7 +957,7 @@ impl Emulator {
                     .pk_body
                     .clone()
                     .ok_or_else(|| js(anyhow!("no DKG public key")))?,
-                inner.tally_index,
+                inner.tallies.len(),
             )
         };
 
@@ -961,7 +971,7 @@ impl Emulator {
                 &pk_body,
                 &self.setup_id,
                 tally,
-                self.ciphertexts,
+                ciphertexts,
                 self.mixing_trustees.clone(),
                 &self.keys.pm,
                 self.cfg_hash,
@@ -973,9 +983,52 @@ impl Emulator {
             .await
             .map_err(js)?;
 
+        self.inner
+            .try_borrow_mut()
+            .map_err(|_| busy())?
+            .tallies
+            .push(TallyInfo { ciphertexts });
         self.attach_tally(tally).await?;
         self.save().map_err(js)?;
         self.state().await
+    }
+
+    /// Reattach the trustees to a tally already started, leaving its board and
+    /// per-trustee stores as they are.
+    ///
+    /// The child board and each trustee's IndexedDB store outlive the clients
+    /// pointing at them, so returning to an earlier tally is a reconnect rather
+    /// than a rebuild — it resumes where that tally was left, and does not
+    /// disturb where the next new one goes.
+    pub async fn open_tally(&self, index: usize) -> Result<JsValue, JsValue> {
+        let count = self.inner.try_borrow().map_err(|_| busy())?.tallies.len();
+        if index >= count {
+            return Err(JsValue::from_str(&format!(
+                "no tally {index} (started {count})"
+            )));
+        }
+        self.attach_tally(index).await?;
+        self.save().map_err(js)?;
+        self.state().await
+    }
+
+    /// Every tally started: index, ciphertext count, board, and which is
+    /// attached.
+    pub fn tallies(&self) -> Result<JsValue, JsValue> {
+        let inner = self.inner.try_borrow().map_err(|_| busy())?;
+        let list: Vec<TallyReport> = inner
+            .tallies
+            .iter()
+            .enumerate()
+            .map(|(i, info)| TallyReport {
+                index: i,
+                ciphertexts: info.ciphertexts,
+                board: child_board_name(&self.setup_id, i),
+                active: inner.active == Some(i),
+            })
+            .collect();
+        serde_wasm_bindgen::to_value(&list)
+            .map_err(|e| JsValue::from_str(&format!("failed to serialize: {e}")))
     }
 
     /// A snapshot of the current board's contents by message type (fetched from b4):
@@ -983,18 +1036,19 @@ impl Emulator {
     pub async fn state(&self) -> Result<JsValue, JsValue> {
         let (phase, round, tally, board_name, is_child) = {
             let inner = self.inner.try_borrow().map_err(|_| busy())?;
-            match (&inner.child_board, inner.active_tally()) {
-                (Some(child), Some(tally)) => (
-                    inner.phase().to_string(),
+            let phase = inner.phase().to_string();
+            match inner.active {
+                Some(tally) => (
+                    phase,
                     inner.round,
-                    tally,
-                    child.clone(),
+                    Some(tally),
+                    child_board_name(&self.setup_id, tally),
                     true,
                 ),
-                _ => (
-                    inner.phase().to_string(),
+                None => (
+                    phase,
                     inner.round,
-                    inner.tally_index,
+                    None,
                     parent_board_name(&self.setup_id),
                     false,
                 ),
@@ -1046,16 +1100,20 @@ impl Emulator {
     /// The trustees' proofs are checked by each other during the protocol; this
     /// asks only whether the plaintexts that came out are the ones that went in.
     pub async fn verify_plaintexts(&self) -> Result<JsValue, JsValue> {
-        let (tally, board_name) = {
+        let (tally, ciphertexts, board_name) = {
             let inner = self.inner.try_borrow().map_err(|_| busy())?;
-            let board = inner
-                .child_board
-                .clone()
-                .ok_or_else(|| JsValue::from_str("no tally started yet"))?;
             let tally = inner
-                .active_tally()
-                .ok_or_else(|| JsValue::from_str("no tally started yet"))?;
-            (tally, board)
+                .active
+                .ok_or_else(|| JsValue::from_str("no tally is open"))?;
+            let info = inner
+                .tallies
+                .get(tally)
+                .ok_or_else(|| JsValue::from_str("the open tally has no record"))?;
+            (
+                tally,
+                info.ciphertexts,
+                child_board_name(&self.setup_id, tally),
+            )
         };
         let transport = WasmHttpTransport::new(&self.b4_url, &board_name);
         let messages = Transport::<RistrettoCtx>::fetch(&transport)
@@ -1065,7 +1123,7 @@ impl Emulator {
             JsValue::from_str("no plaintexts on the board yet (finish the tally first)")
         })?;
         let (success, expected, actual) = crate::dispatch_ciphertext_width!(self.width, {
-            plaintexts_match::<RistrettoCtx, W>(pt_body, &self.setup_id, tally, self.ciphertexts)
+            plaintexts_match::<RistrettoCtx, W>(pt_body, &self.setup_id, tally, ciphertexts)
         })
         .map_err(js)?;
         let report = PlaintextsReport {

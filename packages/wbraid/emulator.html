@@ -27,8 +27,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 
     /* Row 1: setup on the left, the board it corresponds to on the right. */
     .top { display: flex; gap: 1.25rem; align-items: flex-start; flex-wrap: wrap; }
-    .top .setup { flex: 0 0 22rem; }
-    .top .board { flex: 1; min-width: 22rem; }
+    .top .setup { flex: 0 0 20rem; }
+    .top .tallies { flex: 0 0 19rem; }
+    .top .board { flex: 1; min-width: 20rem; }
+    tr.active td, tr.active th { background: #e8f0fe; font-weight: 600; }
+    .tallies button.open { font-size: 0.75rem; padding: 0.1rem 0.45rem; margin: 0; }
 
     /* Row 2: the log, kept short. */
     pre.log { background: #f5f5f5; border-radius: 6px; padding: 0.5rem 0.75rem; overflow: auto;
@@ -64,7 +67,6 @@ SPDX-License-Identifier: AGPL-3.0-only
       <div><label>b4 URL <input id="b4url" class="url" type="text" value="http://127.0.0.1:3000" /></label></div>
       <label>Trustees <input id="trustees" class="num" type="number" min="2" max="8" value="3" /></label>
       <label>Threshold <input id="threshold" class="num" type="number" min="2" max="8" value="2" /></label>
-      <label>Ciphertexts <input id="ciphertexts" class="num" type="number" min="1" value="50" /></label>
       <label>Width <input id="width" class="num" type="number" min="1" max="8" value="2" /></label>
       <div id="setupId" style="color:#666; margin-top:0.4rem; font-size:0.82rem;"></div>
       <div style="margin-top:0.5rem;">
@@ -72,11 +74,17 @@ SPDX-License-Identifier: AGPL-3.0-only
         <button id="stepOne" disabled>Step once</button>
         <button id="stepFix" disabled>Step to fixpoint</button>
       </div>
+      <p id="status" class="status">Loading wasm…</p>
+    </fieldset>
+
+    <fieldset class="tallies">
+      <legend>Tallies</legend>
       <div>
+        <label>Ciphertexts <input id="ciphertexts" class="num" type="number" min="1" value="50" /></label>
         <button id="newTally" disabled>New tally</button>
         <button id="verify" disabled>Verify plaintexts</button>
       </div>
-      <p id="status" class="status">Loading wasm…</p>
+      <div id="tallyList"></div>
     </fieldset>
 
     <fieldset class="board">
@@ -103,6 +111,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     const stepFixBtn = document.getElementById("stepFix");
     const newTallyBtn = document.getElementById("newTally");
     const verifyBtn = document.getElementById("verify");
+    const tallyListEl = document.getElementById("tallyList");
 
     function params() {
       return {
@@ -122,7 +131,7 @@ SPDX-License-Identifier: AGPL-3.0-only
       const counts = `
         <tr><th class="l">phase</th><td class="l">${s.phase}</td></tr>
         <tr><th class="l">round</th><td>${s.round}</td></tr>
-        <tr><th class="l">tally</th><td>${s.tally}</td></tr>
+        <tr><th class="l">tally</th><td>${s.tally ?? "—"}</td></tr>
         <tr><th class="l">board</th><td class="l">${s.board}</td></tr>`;
       const types = `
         <tr><th class="l">Configuration</th><td>${s.configuration}</td></tr>
@@ -142,6 +151,42 @@ SPDX-License-Identifier: AGPL-3.0-only
           <table>${types}</table>
           <table><tr><th class="l">type</th><th class="l">sender</th><th class="l">digest</th></tr>${msgs}</table>
         </div>`;
+    }
+
+    // Every tally started, so it is visible what exists, which is open, and how
+    // big each one is -- none of which was apparent from "New tally" alone.
+    function renderTallies() {
+      if (!emu) { tallyListEl.innerHTML = ""; return; }
+      const list = emu.tallies();
+      if (!list.length) {
+        tallyListEl.innerHTML = `<p style="color:#666; font-size:0.82rem; margin:0.4rem 0 0;">none yet — run the DKG to a fixpoint, then New tally</p>`;
+        return;
+      }
+      const rows = list
+        .map((t) => `
+          <tr class="${t.active ? "active" : ""}">
+            <th class="l">tally ${t.index}</th>
+            <td>${t.ciphertexts}</td>
+            <td class="l">${t.active ? "open" : `<button class="open" data-tally="${t.index}">Open</button>`}</td>
+          </tr>`)
+        .join("");
+      tallyListEl.innerHTML =
+        `<table><tr><th class="l">tally</th><th class="l">ciphertexts</th><th class="l"></th></tr>${rows}</table>`;
+      for (const btn of tallyListEl.querySelectorAll("button.open")) {
+        btn.addEventListener("click", async () => {
+          if (!emu) return;
+          const k = Number(btn.dataset.tally);
+          setControls({ busy: true });
+          try {
+            const s = await emu.open_tally(k);
+            log(`opened tally ${k} on ${s.board}`);
+            renderBoard(s);
+            renderTallies();
+            refreshTrustees();
+          } catch (err) { log("open_tally error: " + err); }
+          finally { setControls({ busy: false }); }
+        });
+      }
     }
 
     // One panel per trustee, stacked, so every message store is visible at once
@@ -219,10 +264,14 @@ SPDX-License-Identifier: AGPL-3.0-only
       for (const btn of trusteesEl.querySelectorAll("button.tstep")) {
         btn.disabled = !canRun;
       }
+      for (const btn of tallyListEl.querySelectorAll("button.open")) {
+        btn.disabled = !canRun;
+      }
     }
 
     async function refreshAll() {
       renderBoard(await emu.state());
+      renderTallies();
       refreshTrustees();
     }
 
@@ -268,11 +317,12 @@ SPDX-License-Identifier: AGPL-3.0-only
       logEl.textContent = "";
       boardView.innerHTML = "";
       trusteesEl.innerHTML = "";
+      tallyListEl.innerHTML = "";
       emu = null;
       try {
-        emu = await wasm.Emulator.create(p.b4url, p.trustees, p.threshold, p.ciphertexts, p.width);
+        emu = await wasm.Emulator.create(p.b4url, p.trustees, p.threshold, p.width);
         renderTrustees();
-        log(`created: ${p.trustees} trustees, threshold ${p.threshold}, ${p.ciphertexts} ciphertexts, width ${p.width}`);
+        log(`created: ${p.trustees} trustees, threshold ${p.threshold}, width ${p.width}`);
         statusEl.textContent = "Created. Step to run the DKG, then New tally.";
         await refreshAll();
       } catch (err) {
@@ -315,9 +365,11 @@ SPDX-License-Identifier: AGPL-3.0-only
       if (!emu) return;
       setControls({ busy: true });
       try {
-        const s = await emu.new_tally();
-        log(`started tally ${s.tally} on ${s.board}; posted ballots`);
+        const n = params().ciphertexts;
+        const s = await emu.new_tally(n);
+        log(`started tally ${s.tally} on ${s.board} with ${n} ciphertexts`);
         renderBoard(s);
+        renderTallies();
         refreshTrustees();
       } catch (err) { log("new_tally error: " + err); }
       finally { setControls({ busy: false }); }
