@@ -26,11 +26,13 @@ SPDX-License-Identifier: AGPL-3.0-only
     .ok { color: #137333; }
     .fail { color: #b3261e; }
 
-    /* Row 1: setup on the left, the board it corresponds to on the right. */
+    /* Row 1: the two narrow, fixed-size panels stacked on the left; the board
+       takes the rest, which is what lets its tables sit side by side. */
     .top { display: flex; gap: 1.25rem; align-items: flex-start; flex-wrap: wrap; }
-    .top .setup { flex: 0 0 20rem; }
-    .top .tallies { flex: 0 0 19rem; }
-    .top .board { flex: 1; min-width: 20rem; }
+    .top .side { flex: 0 0 20rem; }
+    .top .side fieldset { margin-bottom: 0.75rem; }
+    .top .board { flex: 1; min-width: 24rem; }
+    .boardctl { margin-bottom: 0.4rem; }
     tr.active td, tr.active th { background: #e8f0fe; font-weight: 600; }
     .tallies button.open { font-size: 0.75rem; padding: 0.1rem 0.45rem; margin: 0; }
 
@@ -57,42 +59,49 @@ SPDX-License-Identifier: AGPL-3.0-only
 <body>
   <h1>braid v0.6 — mixnet emulator</h1>
   <p class="subtitle">
-    interactive, browser-hosted trustees against a live b4 — one setup, one DKG,
-    many tallies (§8.2). Needs <code>localstack.ps1</code> + <code>b4.ps1</code>.
-    The setup is saved, so a refresh reconnects by itself.
+    interactive, browser-hosted trustees against a live b4 — one committee, one
+    DKG, many tallies (§8.2). Needs <code>localstack.ps1</code> +
+    <code>b4.ps1</code>. Everything is saved, so a refresh reconnects by itself.
   </p>
 
   <div class="top">
-    <fieldset class="setup">
-      <legend>Setup</legend>
-      <div><label>b4 URL <input id="b4url" class="url" type="text" value="http://127.0.0.1:3000" /></label></div>
-      <label>Trustees <input id="trustees" class="num" type="number" min="2" max="8" value="3" /></label>
-      <label>Threshold <input id="threshold" class="num" type="number" min="2" max="8" value="2" /></label>
-      <label>Width <input id="width" class="num" type="number" min="1" max="8" value="2" /></label>
-      <div id="setupId" style="color:#666; margin-top:0.4rem; font-size:0.82rem;"></div>
-      <div style="margin-top:0.5rem;">
-        <button id="create" disabled>Create setup</button>
-        <button id="stepOne" disabled>Step once</button>
-        <button id="stepFix" disabled>Step to fixpoint</button>
-      </div>
-      <p id="status" class="status">Loading wasm…</p>
-    </fieldset>
+    <div class="side">
+      <fieldset>
+        <legend>b4</legend>
+        <div><label>URL <input id="b4url" class="url" type="text" value="http://127.0.0.1:3000" /></label></div>
+        <label>Trustees <input id="trustees" class="num" type="number" min="2" max="8" value="3" /></label>
+        <label>Threshold <input id="threshold" class="num" type="number" min="2" max="8" value="2" /></label>
+        <label>Width <input id="width" class="num" type="number" min="1" max="8" value="2" /></label>
+        <div style="margin-top:0.5rem;">
+          <button id="create" disabled>Create board</button>
+        </div>
+        <div id="setupId" style="color:#666; margin-top:0.4rem; font-size:0.78rem;"></div>
+      </fieldset>
 
-    <fieldset class="tallies">
-      <legend>Tallies</legend>
-      <div>
-        <label>Ciphertexts <input id="ciphertexts" class="num" type="number" min="1" value="50" /></label>
-        <button id="newTally" disabled>New tally</button>
-        <button id="verify" disabled>Verify plaintexts</button>
-      </div>
-      <div id="tallyList"></div>
-    </fieldset>
+      <fieldset>
+        <legend>Tallies</legend>
+        <div>
+          <label>Ciphertexts <input id="ciphertexts" class="num" type="number" min="1" value="50" /></label>
+        </div>
+        <div>
+          <button id="newTally" disabled>New tally</button>
+          <button id="verify" disabled>Verify plaintexts</button>
+        </div>
+        <div id="tallyList"></div>
+      </fieldset>
+    </div>
 
     <fieldset class="board">
       <legend id="boardLegend">Board</legend>
+      <div class="boardctl">
+        <button id="stepOne" disabled>Step once</button>
+        <button id="stepFix" disabled>Step to fixpoint</button>
+      </div>
       <div id="boardView"></div>
     </fieldset>
   </div>
+
+  <p id="status" class="status">Loading wasm…</p>
 
   <fieldset>
     <legend>Log</legend>
@@ -297,11 +306,11 @@ SPDX-License-Identifier: AGPL-3.0-only
           setControls({ busy: false });
         } catch (err) {
           emu = null;
-          statusEl.textContent = "Saved setup could not be reconnected (" + err + "). Create a new one to replace it.";
+          statusEl.textContent = "Could not reconnect (" + err + "). Create a board to start over.";
           statusEl.className = "status fail";
         }
       } else {
-        statusEl.textContent = "Ready. Create a setup.";
+        statusEl.textContent = "Ready. Create a board.";
       }
     } catch (err) {
       statusEl.textContent = "Failed to load wasm: " + err;
@@ -310,10 +319,15 @@ SPDX-License-Identifier: AGPL-3.0-only
     }
 
     createBtn.addEventListener("click", async () => {
+      // New keys and a new id: the boards already on b4 stay there, but their
+      // keys are replaced here, so the previous committee becomes unreachable.
+      if (emu && !confirm("Create a new board? This mints a new committee and replaces the saved one; the current boards stay on b4 but become unreachable.")) {
+        return;
+      }
       const p = params();
       setControls({ busy: true });
       statusEl.className = "status";
-      statusEl.textContent = "Creating setup (DKG board on b4, posting configuration)…";
+      statusEl.textContent = "Creating the DKG board on b4 and posting the configuration…";
       logEl.textContent = "";
       boardView.innerHTML = "";
       boardLegendEl.textContent = "Board";
@@ -324,7 +338,7 @@ SPDX-License-Identifier: AGPL-3.0-only
         emu = await wasm.Emulator.create(p.b4url, p.trustees, p.threshold, p.width);
         renderTrustees();
         log(`created: ${p.trustees} trustees, threshold ${p.threshold}, width ${p.width}`);
-        statusEl.textContent = "Created. Step to run the DKG, then New tally.";
+        statusEl.textContent = "Board created. Step to run the DKG, then New tally.";
         await refreshAll();
       } catch (err) {
         statusEl.textContent = "Error: " + err;
