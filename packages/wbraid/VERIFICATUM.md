@@ -119,19 +119,43 @@ of the dealers' commitment vectors**, `Γ_s = ∏_d C_{d,s}` — derived by
 `v2v::decrypt::polynomial_in_exponent` and cross-checked against the DKG's own
 joint key.
 
-### Fiat–Shamir is why a converter cannot work
+### Transcript (challenges) must be produced VMN's way at proving time
 
 Every challenge in both systems is derived by hashing a transcript, and the
-verifier *recomputes* it. So the transcripts must agree byte for byte, and
-they disagree in every particular: byte trees versus VSer, SHA-256 versus
-SHA3-512, `n_e`-bit integers versus full-width scalars, a global prefix ρ
-binding the protocol parameters versus nothing.
-
+verifier *recomputes* it. So the transcripts must agree byte for byte.
 A proof's challenges are fixed when the proof is created. Translating braid's
 serialization afterwards changes the bytes `vmnv` will hash, so the challenges
 it recomputes are not the ones braid used, and every equation fails. **The
-transcript has to be produced VMN's way at proving time**, which is why this is
-an emitter and not a converter.
+transcript has to be produced VMN's way at proving time**.
+
+This is why the interop layer reimplements Verificatum's serialization and
+random oracles outright, in `v2v::wire`, rather than adapting braid's. There is
+no part of the transcript the two systems share:
+
+| | Verificatum | braid |
+|---|---|---|
+| Serialization | byte trees (§4) | VSer |
+| Hash | SHA-256/384/512; §5.1 calls SHA-3 "future" | SHA3-512 |
+| PRG | `r_i = H(s ‖ bytes₄(i))` (§5.2) | hash and counter, different framing |
+| Random oracle | output length prefixed, expanded, masked (§5.3) | `hash_to_scalar` with domain-separation tags |
+| Batching exponents `e_i` | `n_e`-bit integers, not reduced mod `q` | full-width scalars |
+| Challenge `v` | `n_v`-bit integer | full-width scalar |
+| Global prefix | `ρ` over version, sid, the three bit lengths, PRG, group and hash (§9.3 step 4) | none — nothing binds the protocol parameters |
+| Independent generators | quadratic-residue walk over derived x-coordinates (§6.8) | hash-to-curve |
+
+The bit-length rows are the ones most easily missed: braid's `hash_to_scalar`
+reduces into the scalar field, while Verificatum works with fixed-bit-length
+non-negative integers and deliberately does *not* reduce mod `q`. Identical
+hashes would still give different values.
+
+`wire` is therefore built to depend on **nothing from `vsc`** — it is byte
+trees, hashes and integers, with no group or scalar types in its signatures.
+That is what lets it be checked directly against `vmnv -t`, which dumps the
+intermediate values VMN computed for a session: `der.rho`, `bas.h`, the shuffle
+and decryption seeds and challenges. Each layer is confirmed against
+Verificatum's own numbers before any braid cryptography is involved, so a
+mismatch is localised to the transcript rather than discovered later as a proof
+that will not verify.
 
 ---
 
