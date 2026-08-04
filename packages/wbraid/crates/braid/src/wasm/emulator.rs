@@ -20,16 +20,24 @@
 //! tallies, each over a different ciphertext set. The trustees are pure and are
 //! reused across the DKG and every tally; only the board clients change.
 //!
-//! ## Bridging a browser refresh
+//! ## Surviving a browser refresh
 //!
 //! To test persistence-based anti-rewrite across a page refresh the setup's
 //! identity must survive it — a fresh `create` would mint new keys, a new
 //! `Configuration`, and new board/IndexedDB names, orphaning everything persisted
 //! before. So a `Setup` has a **stable id** from which every board name and every
-//! per-trustee IndexedDB name is derived deterministically, and it can be
-//! [`export`](Emulator::export)ed to / [`import`](Emulator::import)ed from a paste
-//! string. Import rebuilds the identical keys and `Configuration`, and reconnects
-//! to the same boards + IndexedDB stores, so persisted state reloads.
+//! per-trustee IndexedDB name is derived deterministically.
+//!
+//! The setup is kept in `localStorage`, so a reload just reconnects: same keys,
+//! same `Configuration`, same boards and IndexedDB stores, and the same tally if
+//! one was under way. Only the secrets and the session are stored — the board
+//! contents, the committed sets and the DKG public key all reload from b4 and
+//! IndexedDB, and a tally's plaintexts are derived rather than kept (see
+//! [`ballot_plaintexts`]).
+//!
+//! [`export`](Emulator::export) hands over the same bytes as a paste string, for
+//! moving a setup to a *different* browser. It is not on the path back from a
+//! refresh.
 //!
 //! One-shot pass/fail runs belong in tests, not the emulator. Coverage: the
 //! protocol logic is covered natively by `protocol_test_memory[_union]` /
@@ -319,20 +327,39 @@ fn validate_params(trustees: usize, threshold: usize, width: usize) -> Result<()
 // Export / import blob (the bridge across a browser refresh).
 ///////////////////////////////////////////////////////////////////////////
 
-/// The serializable identity of a `Setup`: its stable id, parameters, and secret
-/// key material. Everything else (boards, persisted committed sets, the DKG public
-/// key) is reconstructable from b4 + IndexedDB given the same id, so it is not in
-/// the blob. Exported base64(JSON); pasted back on another page load.
-#[derive(Serialize, Deserialize)]
-struct SetupBlob {
+/// Where the setup is kept between page loads. One at a time: creating or
+/// importing a setup replaces whatever was here.
+const STORAGE_KEY: &str = "braid_emulator_setup";
+
+/// A `Setup`'s identity and progress, with no secrets in it.
+///
+/// Everything else — board contents, the persisted committed sets, the DKG
+/// public key — is reconstructable from b4 + IndexedDB given the same `id`, so
+/// none of it is recorded here. The ballot plaintexts are not recorded either:
+/// they are derived from `id` and the tally index (see [`ballot_plaintexts`]).
+#[derive(Serialize, Deserialize, Clone)]
+struct Session {
     id: String,
     trustees: usize,
     threshold: usize,
     ciphertexts: u32,
     width: usize,
-    /// How many tallies have been started, so re-imported runs allocate fresh
-    /// child boards instead of colliding with pre-refresh ones.
+    /// How many tallies have been started, and so the next child-board index.
+    /// A restored setup allocates fresh child boards rather than colliding with
+    /// pre-refresh ones.
     tally_index: usize,
+    /// The tally currently under way, if any. This is what lets a refresh
+    /// mid-tally reconnect to that tally instead of stranding it.
+    active_tally: Option<usize>,
+}
+
+/// A `Session` plus the secret key material, which is the whole of what has to
+/// survive a page load. Stored as base64(JSON) in `localStorage`, and the same
+/// bytes are what [`export`](Emulator::export) hands over for moving a setup to
+/// another browser.
+#[derive(Serialize, Deserialize)]
+struct SetupBlob {
+    session: Session,
     /// Manager signing key (base64).
     manager_sk: String,
     /// Trustee signing keys (base64), in index order.
@@ -342,25 +369,42 @@ struct SetupBlob {
     share_sks: Vec<String>,
 }
 
+/// The browser's `localStorage`, or an error naming why it is unavailable.
+fn storage() -> Result<web_sys::Storage> {
+    web_sys::window()
+        .ok_or_else(|| anyhow!("no window"))?
+        .local_storage()
+        .map_err(|e| anyhow!("localStorage unavailable: {e:?}"))?
+        .ok_or_else(|| anyhow!("localStorage is disabled"))
+}
+
+/// Reconstruct the keys a blob carries. The public side of each share keypair is
+/// recomputed rather than stored, so the blob holds only true secrets.
+fn keys_from_blob(blob: &SetupBlob) -> Result<Keys> {
+    let pm = ProtocolManager::<RistrettoCtx>::new(
+        Sig::signer_from_base64_string(&blob.manager_sk)
+            .map_err(|e| anyhow!("decode manager key: {e}"))?,
+    );
+    let mut signing = Vec::with_capacity(blob.trustee_sks.len());
+    for s in &blob.trustee_sks {
+        signing.push(Sig::signer_from_base64_string(s).map_err(|e| anyhow!("decode trustee key: {e}"))?);
+    }
+    let mut share = Vec::with_capacity(blob.share_sks.len());
+    for s in &blob.share_sks {
+        let raw = general_purpose::STANDARD_NO_PAD
+            .decode(s)
+            .map_err(|e| anyhow!("decode share key: {e}"))?;
+        let skey = <RistrettoCtx as Context>::Scalar::deser(&raw)
+            .map_err(|e| anyhow!("deserialize share key: {e:?}"))?;
+        let pkey = <RistrettoCtx as Context>::G::g_exp(&skey);
+        share.push(KeyPair::<RistrettoCtx>::new(skey, pkey));
+    }
+    Ok(Keys { pm, signing, share })
+}
+
 ///////////////////////////////////////////////////////////////////////////
 // Reports (serialized to JS).
 ///////////////////////////////////////////////////////////////////////////
-
-/// Which phase the emulator is in (a UI label; the datalog itself is stateless).
-#[derive(Clone, Copy, PartialEq)]
-enum Phase {
-    Dkg,
-    Tally,
-}
-
-impl Phase {
-    fn as_str(self) -> &'static str {
-        match self {
-            Phase::Dkg => "dkg",
-            Phase::Tally => "tally",
-        }
-    }
-}
 
 /// What one trustee produced in a round (message types it posted).
 #[derive(Serialize)]
@@ -453,7 +497,6 @@ struct Inner {
     trustees: Vec<Trustee<RistrettoCtx>>,
     /// The active phase's board clients, trustee `i` paired with client `i`.
     clients: Vec<EmuClient>,
-    phase: Phase,
     round: usize,
     /// Next child-board index (also the count of tallies started).
     tally_index: usize,
@@ -462,8 +505,28 @@ struct Inner {
     seeds: Option<Vec<Vec<Predicate>>>,
     /// The DKG public-key body, captured when the DKG completes.
     pk_body: Option<Vec<u8>>,
-    /// The current tally's child board name (for `state`/`verify`).
+    /// The current tally's child board name, which is also what says whether a
+    /// tally is under way: there is no separate phase, because the datalog has
+    /// none — it derives everything from the message store.
     child_board: Option<String>,
+}
+
+impl Inner {
+    /// The phase label for the UI. Derived, not tracked.
+    fn phase(&self) -> &'static str {
+        if self.child_board.is_some() {
+            "tally"
+        } else {
+            "dkg"
+        }
+    }
+
+    /// The tally under way, if any.
+    fn active_tally(&self) -> Option<usize> {
+        self.child_board
+            .as_ref()
+            .map(|_| self.tally_index.saturating_sub(1))
+    }
 }
 
 /// Map an `anyhow::Error` to a JS error.
@@ -490,6 +553,94 @@ impl Emulator {
             clients.push(BoardClient::connect(transport, persistence).await?);
         }
         Ok(clients)
+    }
+
+    /// Write the current setup to `localStorage`, returning the same bytes so
+    /// `export` can hand them over. Called whenever the session changes, so a
+    /// refresh always finds the setup as it stood.
+    fn save(&self) -> Result<String> {
+        let session = {
+            let inner = self.inner.try_borrow().map_err(|_| anyhow!("emulator is busy"))?;
+            Session {
+                id: self.setup_id.clone(),
+                trustees: self.trustees_n,
+                threshold: self.threshold,
+                ciphertexts: self.ciphertexts,
+                width: self.width,
+                tally_index: inner.tally_index,
+                active_tally: inner.active_tally(),
+            }
+        };
+        let blob = SetupBlob {
+            session,
+            manager_sk: Sig::signer_to_base64_string(&self.keys.pm.signing_key)
+                .map_err(|e| anyhow!("encode manager key: {e}"))?,
+            trustee_sks: self
+                .keys
+                .signing
+                .iter()
+                .map(|sk| Sig::signer_to_base64_string(sk))
+                .collect::<std::result::Result<Vec<_>, _>>()
+                .map_err(|e| anyhow!("encode trustee key: {e}"))?,
+            share_sks: self
+                .keys
+                .share
+                .iter()
+                .map(|kp| general_purpose::STANDARD_NO_PAD.encode(kp.skey.ser()))
+                .collect(),
+        };
+        let json = serde_json::to_string(&blob).map_err(|e| anyhow!("serialize setup: {e}"))?;
+        let encoded = general_purpose::STANDARD_NO_PAD.encode(json);
+        storage()?
+            .set_item(STORAGE_KEY, &encoded)
+            .map_err(|e| anyhow!("save setup: {e:?}"))?;
+        Ok(encoded)
+    }
+
+    /// Connect one union client per trustee against tally `tally`: child (tally)
+    /// board ∪ parent (DKG) board, each seeded with that trustee's own committed
+    /// DKG digests (§8.2). Captures the DKG seeds first if not already held.
+    ///
+    /// Shared by starting a tally and by reattaching to one after a refresh — the
+    /// two differ only in whether the board and its ballots are created first.
+    async fn attach_tally(&self, tally: usize) -> Result<(), JsValue> {
+        let need_capture = {
+            let inner = self.inner.try_borrow().map_err(|_| busy())?;
+            inner.pk_body.is_none()
+        };
+        if need_capture {
+            self.capture_dkg().await.map_err(js)?;
+        }
+        let seeds = {
+            let inner = self.inner.try_borrow().map_err(|_| busy())?;
+            inner
+                .seeds
+                .clone()
+                .ok_or_else(|| js(anyhow!("no DKG seeds")))?
+        };
+
+        let child_board = child_board_name(&self.setup_id, tally);
+        let parent_board = parent_board_name(&self.setup_id);
+        let mut clients = Vec::with_capacity(self.trustees_n);
+        for (i, seed) in seeds.into_iter().enumerate() {
+            let child_transport = WasmHttpTransport::new(&self.b4_url, &child_board);
+            let parent_transport = WasmHttpTransport::new(&self.b4_url, &parent_board);
+            let persistence = IndexedDbPersistence::open(&tally_db_name(&self.setup_id, tally, i))
+                .await
+                .map_err(|e| JsValue::from_str(&format!("failed to open IndexedDB: {e:#}")))?;
+            clients.push(
+                BoardClient::connect_union(child_transport, parent_transport, persistence, seed)
+                    .await
+                    .map_err(js)?,
+            );
+        }
+
+        let mut inner = self.inner.try_borrow_mut().map_err(|_| busy())?;
+        inner.clients = clients;
+        inner.round = 0;
+        inner.child_board = Some(child_board);
+        inner.tally_index = tally + 1;
+        Ok(())
     }
 
     /// Capture the DKG anti-rewrite seeds and public key, transitioning out of the
@@ -523,6 +674,8 @@ impl Emulator {
 impl Emulator {
     /// Generate the keys, create the DKG board on b4, post the `Configuration`,
     /// and connect one DKG session per trustee (each with its own IndexedDB store).
+    ///
+    /// Replaces whatever setup was saved: the emulator holds one at a time.
     pub async fn create(
         b4_url: String,
         trustees: usize,
@@ -532,137 +685,98 @@ impl Emulator {
     ) -> Result<Emulator, JsValue> {
         validate_params(trustees, threshold, width).map_err(js)?;
         let keys = Keys::generate(trustees);
-        // A stable id so board names and IndexedDB names are deterministic (and so
-        // a re-import reconnects to the very same stores). Random per fresh Setup.
-        let setup_id = format!("{:x}", js_sys::Date::now() as u64);
-        Self::start(
-            b4_url,
-            setup_id,
-            keys,
+        let session = Session {
+            // A stable id so board names and IndexedDB names are deterministic,
+            // and so a later restore reconnects to the very same stores.
+            id: format!("{:x}", js_sys::Date::now() as u64),
             trustees,
             threshold,
             ciphertexts,
             width,
-            0,
-            true,
-        )
-        .await
+            tally_index: 0,
+            active_tally: None,
+        };
+        Self::start(b4_url, keys, session, true).await
     }
 
-    /// Serialize this Setup's identity + secret key material to a paste string
-    /// (base64 of JSON) so it can survive a browser refresh — the bridge needed to
-    /// test persistence-based anti-rewrite (§6.2–6.3).
+    /// Whether a setup is saved and [`restore`](Self::restore) would find one.
+    pub fn has_saved() -> bool {
+        storage()
+            .ok()
+            .and_then(|s| s.get_item(STORAGE_KEY).ok().flatten())
+            .is_some()
+    }
+
+    /// Reconnect to the saved setup, resuming a tally if one was under way.
+    ///
+    /// This is the ordinary way back after a page refresh — no paste involved.
+    /// The keys and `Configuration` come from storage; the board contents, the
+    /// committed sets and the DKG public key reload from b4 and IndexedDB.
+    pub async fn restore(b4_url: String) -> Result<Emulator, JsValue> {
+        let saved = storage()
+            .map_err(js)?
+            .get_item(STORAGE_KEY)
+            .map_err(|e| JsValue::from_str(&format!("read saved setup: {e:?}")))?
+            .ok_or_else(|| JsValue::from_str("no saved setup"))?;
+        Self::from_blob(b4_url, &saved).await
+    }
+
+    /// Forget the saved setup. The boards and IndexedDB stores it named are left
+    /// alone on b4 — this only drops the way back to them.
+    pub fn forget() -> Result<(), JsValue> {
+        storage()
+            .map_err(js)?
+            .remove_item(STORAGE_KEY)
+            .map_err(|e| JsValue::from_str(&format!("clear saved setup: {e:?}")))
+    }
+
+    /// The saved setup as a paste string, for moving it to another browser.
+    ///
+    /// The same bytes storage holds, so this is a copy rather than a separate
+    /// mechanism: a refresh needs no export, and [`restore`](Self::restore)
+    /// happens without it.
     pub fn export(&self) -> Result<String, JsValue> {
-        let tally_index = {
-            let inner = self.inner.try_borrow().map_err(|_| busy())?;
-            inner.tally_index
-        };
-        let manager_sk = Sig::signer_to_base64_string(&self.keys.pm.signing_key)
-            .map_err(|e| JsValue::from_str(&format!("encode manager key: {e}")))?;
-        let trustee_sks = self
-            .keys
-            .signing
-            .iter()
-            .map(|sk| Sig::signer_to_base64_string(sk))
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| JsValue::from_str(&format!("encode trustee key: {e}")))?;
-        let share_sks = self
-            .keys
-            .share
-            .iter()
-            .map(|kp| general_purpose::STANDARD_NO_PAD.encode(kp.skey.ser()))
-            .collect();
-        let blob = SetupBlob {
-            id: self.setup_id.clone(),
-            trustees: self.trustees_n,
-            threshold: self.threshold,
-            ciphertexts: self.ciphertexts,
-            width: self.width,
-            tally_index,
-            manager_sk,
-            trustee_sks,
-            share_sks,
-        };
-        let json = serde_json::to_string(&blob)
-            .map_err(|e| JsValue::from_str(&format!("serialize setup: {e}")))?;
-        Ok(general_purpose::STANDARD_NO_PAD.encode(json))
+        self.save().map_err(js)
     }
 
-    /// Rebuild a Setup from an [`export`](Self::export)ed string and reconnect it to
-    /// the same b4 boards + IndexedDB stores. The keys, and the `Configuration`
-    /// they determine, are deterministic in the blob; the DKG public key, the anti-rewrite
-    /// seeds, and the board contents reload from b4/IndexedDB when the DKG clients
-    /// reconnect. Lands in the DKG phase; if the DKG is already complete, `new_tally`
-    /// starts fresh tallies (continuing the child-board index).
+    /// Rebuild a setup from an [`export`](Self::export)ed string and reconnect it
+    /// to the same b4 boards + IndexedDB stores, saving it as the current setup.
     pub async fn import(b4_url: String, blob: String) -> Result<Emulator, JsValue> {
+        Self::from_blob(b4_url, blob.trim()).await
+    }
+
+    /// Rebuild a setup from a stored/exported blob and reconnect it.
+    async fn from_blob(b4_url: String, blob: &str) -> Result<Emulator, JsValue> {
         let bytes = general_purpose::STANDARD_NO_PAD
-            .decode(blob.trim())
+            .decode(blob)
             .map_err(|e| JsValue::from_str(&format!("decode setup: {e}")))?;
         let blob: SetupBlob = serde_json::from_slice(&bytes)
             .map_err(|e| JsValue::from_str(&format!("parse setup: {e}")))?;
-
-        let manager_sk = Sig::signer_from_base64_string(&blob.manager_sk)
-            .map_err(|e| JsValue::from_str(&format!("decode manager key: {e}")))?;
-        let pm = ProtocolManager::<RistrettoCtx>::new(manager_sk);
-
-        let mut signing = Vec::with_capacity(blob.trustees);
-        for s in &blob.trustee_sks {
-            signing.push(
-                Sig::signer_from_base64_string(s)
-                    .map_err(|e| JsValue::from_str(&format!("decode trustee key: {e}")))?,
-            );
-        }
-        let mut share = Vec::with_capacity(blob.trustees);
-        for s in &blob.share_sks {
-            let raw = general_purpose::STANDARD_NO_PAD
-                .decode(s)
-                .map_err(|e| JsValue::from_str(&format!("decode share key: {e}")))?;
-            let skey = <RistrettoCtx as Context>::Scalar::deser(&raw)
-                .map_err(|e| JsValue::from_str(&format!("deserialize share key: {e:?}")))?;
-            let pkey = <RistrettoCtx as Context>::G::g_exp(&skey);
-            share.push(KeyPair::<RistrettoCtx>::new(skey, pkey));
-        }
-
-        Self::start(
-            b4_url,
-            blob.id,
-            Keys { pm, signing, share },
-            blob.trustees,
-            blob.threshold,
-            blob.ciphertexts,
-            blob.width,
-            blob.tally_index,
-            false,
-        )
-        .await
+        let keys = keys_from_blob(&blob).map_err(js)?;
+        Self::start(b4_url, keys, blob.session, false).await
     }
 
-    /// Shared constructor for `create`/`import`. When `fresh`, creates the DKG
-    /// board on b4 and posts the `Configuration`; otherwise the board is assumed to
-    /// exist. Then connects the per-trustee DKG clients. Their message stores stay
-    /// empty until the first `step` (update-first, §6): `connect` reloads only the
-    /// persisted committed set (the anti-rewrite baseline) and the `Configuration`,
-    /// not the board contents — those are shown on the global board panel instead.
-    #[allow(clippy::too_many_arguments)]
+    /// Shared constructor. When `fresh`, creates the DKG board on b4 and posts the
+    /// `Configuration`; otherwise the board is assumed to exist. Then connects the
+    /// per-trustee DKG clients, and reconnects an in-progress tally if the session
+    /// records one. Their message stores stay empty until the first `step`
+    /// (update-first, §6): `connect` reloads only the persisted committed set (the
+    /// anti-rewrite baseline) and the `Configuration`, not the board contents —
+    /// those are shown on the global board panel instead.
     async fn start(
         b4_url: String,
-        setup_id: String,
         keys: Keys,
-        trustees: usize,
-        threshold: usize,
-        ciphertexts: u32,
-        width: usize,
-        tally_index: usize,
+        session: Session,
         fresh: bool,
     ) -> Result<Emulator, JsValue> {
-        let (cfg, cfg_hash) = configuration_for(&keys, threshold, width).map_err(js)?;
-        let parent_board = parent_board_name(&setup_id);
+        let (cfg, cfg_hash) =
+            configuration_for(&keys, session.threshold, session.width).map_err(js)?;
+        let parent_board = parent_board_name(&session.id);
         if fresh {
             WasmHttpTransport::create_board(&b4_url, &parent_board)
                 .await
                 .map_err(js)?;
-            let cfg_message =
-                ProtocolMessage::<RistrettoCtx>::configuration(&keys.pm, DATE, &cfg);
+            let cfg_message = ProtocolMessage::<RistrettoCtx>::configuration(&keys.pm, DATE, &cfg);
             let manager = WasmHttpTransport::new(&b4_url, &parent_board);
             Transport::<RistrettoCtx>::post(&manager, vec![cfg_message])
                 .await
@@ -672,20 +786,19 @@ impl Emulator {
         let trustee_sessions = build_trustees(&keys, &cfg).map_err(js)?;
         let emulator = Emulator {
             b4_url,
-            setup_id,
+            setup_id: session.id.clone(),
             keys,
             cfg_hash,
-            mixing_trustees: (1..=threshold).collect(),
-            trustees_n: trustees,
-            threshold,
-            width,
-            ciphertexts,
+            mixing_trustees: (1..=session.threshold).collect(),
+            trustees_n: session.trustees,
+            threshold: session.threshold,
+            width: session.width,
+            ciphertexts: session.ciphertexts,
             inner: RefCell::new(Inner {
                 trustees: trustee_sessions,
                 clients: Vec::new(),
-                phase: Phase::Dkg,
                 round: 0,
-                tally_index,
+                tally_index: session.tally_index,
                 seeds: None,
                 pk_body: None,
                 child_board: None,
@@ -694,6 +807,15 @@ impl Emulator {
 
         let clients = emulator.connect_dkg_clients().await.map_err(js)?;
         emulator.inner.borrow_mut().clients = clients;
+
+        // A tally was under way when the page went away. The DKG clients above
+        // have just reloaded their committed sets, so the anti-rewrite seed is
+        // available again and the tally's own stores reload with its clients.
+        if let Some(tally) = session.active_tally {
+            emulator.attach_tally(tally).await?;
+        }
+
+        emulator.save().map_err(js)?;
         Ok(emulator)
     }
 
@@ -707,7 +829,7 @@ impl Emulator {
         // -> post so we can report what it produced this round.
         let (advanced, round, phase, activity) = {
             let mut inner = self.inner.try_borrow_mut().map_err(|_| busy())?;
-            let phase = inner.phase.as_str().to_string();
+            let phase = inner.phase().to_string();
             let mut advanced = false;
             let mut activity = Vec::with_capacity(inner.clients.len());
             {
@@ -748,11 +870,12 @@ impl Emulator {
     }
 
     /// Start a new tally over the completed DKG (§8.2): create a fresh child board,
-    /// post a fresh ciphertext set (as manager), and rebuild the sessions as union
+    /// post a fresh ciphertext set (as manager), and reconnect the sessions as union
     /// clients (child ∪ DKG parent, seeded with the trustees' own DKG digests).
-    /// Requires the DKG to have produced a public key (step it to a fixpoint first);
-    /// the first call captures the DKG seeds + public key.
+    /// Requires the DKG to have produced a public key (step it to a fixpoint first).
     pub async fn new_tally(&self) -> Result<JsValue, JsValue> {
+        // Capturing the DKG here rather than inside `attach_tally` because the
+        // public key is needed to encrypt before any client is rebuilt.
         let need_capture = {
             let inner = self.inner.try_borrow().map_err(|_| busy())?;
             inner.pk_body.is_none()
@@ -760,14 +883,9 @@ impl Emulator {
         if need_capture {
             self.capture_dkg().await.map_err(js)?;
         }
-
-        let (seeds, pk_body, tally) = {
+        let (pk_body, tally) = {
             let inner = self.inner.try_borrow().map_err(|_| busy())?;
             (
-                inner
-                    .seeds
-                    .clone()
-                    .ok_or_else(|| js(anyhow!("no DKG seeds")))?,
                 inner
                     .pk_body
                     .clone()
@@ -776,7 +894,7 @@ impl Emulator {
             )
         };
 
-        // A fresh child board + ciphertext set for this tally.
+        // A fresh child board, and this tally's derived ciphertext set.
         let child_board = child_board_name(&self.setup_id, tally);
         WasmHttpTransport::create_board(&self.b4_url, &child_board)
             .await
@@ -798,31 +916,8 @@ impl Emulator {
             .await
             .map_err(js)?;
 
-        // One union client per trustee: child (tally) ∪ parent (DKG), seeded with
-        // that trustee's own committed DKG digests (§8.2).
-        let parent_board = parent_board_name(&self.setup_id);
-        let mut clients = Vec::with_capacity(self.trustees_n);
-        for (i, seed) in seeds.into_iter().enumerate() {
-            let child_transport = WasmHttpTransport::new(&self.b4_url, &child_board);
-            let parent_transport = WasmHttpTransport::new(&self.b4_url, &parent_board);
-            let persistence = IndexedDbPersistence::open(&tally_db_name(&self.setup_id, tally, i))
-                .await
-                .map_err(|e| JsValue::from_str(&format!("failed to open IndexedDB: {e:#}")))?;
-            clients.push(
-                BoardClient::connect_union(child_transport, parent_transport, persistence, seed)
-                    .await
-                    .map_err(js)?,
-            );
-        }
-
-        {
-            let mut inner = self.inner.try_borrow_mut().map_err(|_| busy())?;
-            inner.clients = clients;
-            inner.phase = Phase::Tally;
-            inner.round = 0;
-            inner.child_board = Some(child_board);
-            inner.tally_index = tally + 1;
-        }
+        self.attach_tally(tally).await?;
+        self.save().map_err(js)?;
         self.state().await
     }
 
@@ -831,16 +926,16 @@ impl Emulator {
     pub async fn state(&self) -> Result<JsValue, JsValue> {
         let (phase, round, tally, board_name, is_child) = {
             let inner = self.inner.try_borrow().map_err(|_| busy())?;
-            match (&inner.child_board, inner.phase) {
-                (Some(child), Phase::Tally) => (
-                    inner.phase.as_str().to_string(),
+            match (&inner.child_board, inner.active_tally()) {
+                (Some(child), Some(tally)) => (
+                    inner.phase().to_string(),
                     inner.round,
-                    inner.tally_index.saturating_sub(1),
+                    tally,
                     child.clone(),
                     true,
                 ),
                 _ => (
-                    inner.phase.as_str().to_string(),
+                    inner.phase().to_string(),
                     inner.round,
                     inner.tally_index,
                     parent_board_name(&self.setup_id),
@@ -895,7 +990,10 @@ impl Emulator {
                 .child_board
                 .clone()
                 .ok_or_else(|| JsValue::from_str("no tally started yet"))?;
-            (inner.tally_index.saturating_sub(1), board)
+            let tally = inner
+                .active_tally()
+                .ok_or_else(|| JsValue::from_str("no tally started yet"))?;
+            (tally, board)
         };
         let transport = WasmHttpTransport::new(&self.b4_url, &board_name);
         let messages = Transport::<RistrettoCtx>::fetch(&transport)

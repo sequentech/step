@@ -66,10 +66,11 @@ SPDX-License-Identifier: AGPL-3.0-only
   <fieldset>
     <legend>Bridge (survive a refresh)</legend>
     <div>
-      <button id="exportBtn" disabled>Export setup</button>
+      <button id="exportBtn" disabled>Copy setup</button>
       <button id="importBtn" disabled>Import setup</button>
+      <button id="forgetBtn">Forget saved setup</button>
     </div>
-    <div><textarea id="blob" rows="3" style="width:100%; font-family:monospace; font-size:0.75rem;" placeholder="Setup blob (base64) — Export writes it here; paste one and Import to reconnect after a refresh."></textarea></div>
+    <div><textarea id="blob" rows="3" style="width:100%; font-family:monospace; font-size:0.75rem;" placeholder="Setup blob (base64) — Export writes it here; for moving a setup to another browser. A refresh on this one reconnects by itself."></textarea></div>
   </fieldset>
 
   <p id="status" class="status">Loading wasm…</p>
@@ -108,6 +109,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     const verifyBtn = document.getElementById("verify");
     const exportBtn = document.getElementById("exportBtn");
     const importBtn = document.getElementById("importBtn");
+    const forgetBtn = document.getElementById("forgetBtn");
 
     function params() {
       return {
@@ -188,9 +190,25 @@ SPDX-License-Identifier: AGPL-3.0-only
       if (wasm.initThreadPool) {
         await wasm.initThreadPool(navigator.hardwareConcurrency || 4);
       }
-      statusEl.textContent = "Ready. Start localstack.ps1 + b4.ps1, then Create a setup (or Import one).";
       createBtn.disabled = false;
       importBtn.disabled = false;
+      if (wasm.Emulator.has_saved()) {
+        statusEl.textContent = "Reconnecting to the saved setup...";
+        try {
+          emu = await wasm.Emulator.restore(document.getElementById("b4url").value.trim());
+          populateTrustees();
+          log(`restored setup ${emu.setup_id()}`);
+          statusEl.textContent = "Setup restored. Continue stepping, or New tally.";
+          await refreshAll();
+          setControls({ busy: false });
+        } catch (err) {
+          emu = null;
+          statusEl.textContent = "Saved setup could not be reconnected (" + err + "). Create a new one, or Forget it.";
+          statusEl.className = "status fail";
+        }
+      } else {
+        statusEl.textContent = "Ready. Start localstack.ps1 + b4.ps1, then Create a setup.";
+      }
     } catch (err) {
       statusEl.textContent = "Failed to load wasm: " + err;
       statusEl.className = "status fail";
@@ -243,7 +261,7 @@ SPDX-License-Identifier: AGPL-3.0-only
       if (!emu) return;
       try {
         blobEl.value = emu.export();
-        log("exported setup to the blob field (copy it to bridge a refresh)");
+        log("copied the saved setup to the blob field (for moving it to another browser; a refresh here reconnects by itself)");
       } catch (err) { log("export error: " + err); }
     });
 
@@ -271,6 +289,15 @@ SPDX-License-Identifier: AGPL-3.0-only
       } finally {
         setControls({ busy: false });
       }
+    });
+
+    forgetBtn.addEventListener("click", () => {
+      try {
+        wasm.Emulator.forget();
+        log("forgot the saved setup (its boards and IndexedDB stores are left on b4)");
+        statusEl.textContent = "Saved setup forgotten. Create a new one.";
+        statusEl.className = "status";
+      } catch (err) { log("forget error: " + err); }
     });
 
     stepOneBtn.addEventListener("click", async () => {

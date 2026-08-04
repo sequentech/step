@@ -54,6 +54,8 @@ web-sys = { version = "0.3", optional = true, features = [
     "IdbTransactionMode",
     "IdbCursorWithValue",
     "IdbVersionChangeEvent",
+    # localStorage, where the emulator keeps its setup so a refresh resumes
+    "Storage",
     # OPFS (Origin Private File System) support
     "Navigator",
     "StorageManager",
