@@ -9,107 +9,99 @@ SPDX-License-Identifier: AGPL-3.0-only
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>braid v0.6 — mixnet emulator</title>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
-    h1 { font-size: 1.4rem; }
-    h2 { font-size: 1.1rem; margin-top: 1.5rem; }
-    h3 { font-size: 0.95rem; margin: 0.75rem 0 0.25rem; color: #444; }
-    .subtitle { color: #666; margin-top: -0.5rem; }
-    fieldset { border: 1px solid #ccc; border-radius: 6px; margin: 1rem 0; }
-    label { display: inline-block; margin: 0.25rem 0.75rem 0.25rem 0; }
-    input.num { width: 5rem; }
-    input.url { width: 16rem; }
-    button { padding: 0.4rem 0.9rem; font-size: 0.95rem; cursor: pointer; margin: 0.15rem; }
+    body { font-family: system-ui, sans-serif; max-width: 1200px; margin: 1.5rem auto; padding: 0 1rem; }
+    h1 { font-size: 1.3rem; margin-bottom: 0.2rem; }
+    h2 { font-size: 1.05rem; margin: 0 0 0.4rem; }
+    h3 { font-size: 0.9rem; margin: 0.6rem 0 0.2rem; color: #444; }
+    .subtitle { color: #666; margin: 0 0 1rem; font-size: 0.9rem; }
+    fieldset { border: 1px solid #ccc; border-radius: 6px; margin: 0 0 1rem; padding: 0.6rem 0.9rem; }
+    legend { font-weight: 600; font-size: 0.9rem; color: #333; }
+    label { display: inline-block; margin: 0.2rem 0.7rem 0.2rem 0; font-size: 0.9rem; }
+    input.num { width: 4.5rem; }
+    input.url { width: 15rem; }
+    button { padding: 0.35rem 0.8rem; font-size: 0.9rem; cursor: pointer; margin: 0.15rem 0.15rem 0.15rem 0; }
     button:disabled, select:disabled { opacity: 0.5; cursor: default; }
-    .status { font-weight: bold; margin: 0.75rem 0; }
+    .status { font-weight: bold; margin: 0.5rem 0; font-size: 0.9rem; }
     .ok { color: #137333; }
     .fail { color: #b3261e; }
-    .cols { display: flex; gap: 1.5rem; align-items: flex-start; flex-wrap: wrap; }
-    .col { flex: 1; min-width: 18rem; }
-    pre { background: #f5f5f5; border-radius: 6px; padding: 0.75rem; overflow-x: auto; white-space: pre-wrap; max-height: 18rem; font-size: 0.8rem; }
-    table { border-collapse: collapse; margin: 0.5rem 0; font-size: 0.85rem; }
-    td, th { border: 1px solid #ddd; padding: 0.15rem 0.5rem; text-align: right; font-variant-numeric: tabular-nums; }
+
+    /* Row 1: setup on the left, the board it corresponds to on the right. */
+    .top { display: flex; gap: 1.25rem; align-items: flex-start; flex-wrap: wrap; }
+    .top .setup { flex: 0 0 22rem; }
+    .top .board { flex: 1; min-width: 22rem; }
+
+    /* Row 2: the log, kept short. */
+    pre.log { background: #f5f5f5; border-radius: 6px; padding: 0.5rem 0.75rem; overflow: auto;
+              white-space: pre-wrap; height: 6.5rem; font-size: 0.78rem; margin: 0; }
+
+    /* Row 3: one panel per trustee, stacked. */
+    .trustee { border: 1px solid #ccc; border-radius: 6px; padding: 0.5rem 0.9rem; margin-bottom: 0.6rem; }
+    .trustee > h2 { display: flex; align-items: baseline; gap: 0.6rem; }
+    .trustee .count { font-weight: normal; color: #666; font-size: 0.8rem; }
+    pre.store { background: #f5f5f5; border-radius: 6px; padding: 0.5rem 0.75rem; overflow: auto;
+                white-space: pre-wrap; max-height: 11rem; font-size: 0.78rem; margin: 0; }
+    details > summary { cursor: pointer; font-size: 0.9rem; color: #444; margin: 0.5rem 0 0.3rem; }
+
+    table { border-collapse: collapse; margin: 0.3rem 0; font-size: 0.82rem; }
+    td, th { border: 1px solid #ddd; padding: 0.12rem 0.5rem; text-align: right; font-variant-numeric: tabular-nums; }
     th { text-align: left; background: #f5f5f5; }
     td.l, th.l { text-align: left; }
+    .boardtables { display: flex; gap: 1rem; align-items: flex-start; flex-wrap: wrap; }
   </style>
 </head>
 <body>
   <h1>braid v0.6 — mixnet emulator</h1>
-  <p class="subtitle">interactive, browser-hosted trustees against a live b4</p>
-
-  <p>
-    Manages one <strong>Setup</strong> (a committee: manager + trustee keys +
-    configuration) and drives the protocol one round at a time, with each browser
-    trustee talking to a running b4 over HTTP+S3 and persisting to its own
-    IndexedDB store. The DKG runs once; each <strong>tally</strong> then runs over
-    its own child board unioned with the DKG (§8.2). Requires
-    <code>localstack.ps1</code> + <code>b4.ps1</code> running.
+  <p class="subtitle">
+    interactive, browser-hosted trustees against a live b4 — one setup, one DKG,
+    many tallies (§8.2). Needs <code>localstack.ps1</code> + <code>b4.ps1</code>.
+    The setup is saved, so a refresh reconnects by itself.
   </p>
 
-  <fieldset>
-    <legend>Setup</legend>
-    <div><label>b4 URL <input id="b4url" class="url" type="text" value="http://127.0.0.1:3000" /></label></div>
-    <label>Trustees <input id="trustees" class="num" type="number" min="2" max="8" value="3" /></label>
-    <label>Threshold <input id="threshold" class="num" type="number" min="2" max="8" value="2" /></label>
-    <label>Ciphertexts <input id="ciphertexts" class="num" type="number" min="1" value="50" /></label>
-    <label>Width <input id="width" class="num" type="number" min="1" max="8" value="2" /></label>
-    <div id="setupId" style="color:#666; margin-top:0.5rem;"></div>
-  </fieldset>
+  <div class="top">
+    <fieldset class="setup">
+      <legend>Setup</legend>
+      <div><label>b4 URL <input id="b4url" class="url" type="text" value="http://127.0.0.1:3000" /></label></div>
+      <label>Trustees <input id="trustees" class="num" type="number" min="2" max="8" value="3" /></label>
+      <label>Threshold <input id="threshold" class="num" type="number" min="2" max="8" value="2" /></label>
+      <label>Ciphertexts <input id="ciphertexts" class="num" type="number" min="1" value="50" /></label>
+      <label>Width <input id="width" class="num" type="number" min="1" max="8" value="2" /></label>
+      <div id="setupId" style="color:#666; margin-top:0.4rem; font-size:0.82rem;"></div>
+      <div style="margin-top:0.5rem;">
+        <button id="create" disabled>Create setup</button>
+        <button id="stepOne" disabled>Step once</button>
+        <button id="stepFix" disabled>Step to fixpoint</button>
+      </div>
+      <div>
+        <button id="newTally" disabled>New tally</button>
+        <button id="verify" disabled>Verify plaintexts</button>
+      </div>
+      <p id="status" class="status">Loading wasm…</p>
+    </fieldset>
 
-  <div>
-    <button id="create" disabled>Create setup</button>
-    <button id="stepOne" disabled>Step once</button>
-    <button id="stepFix" disabled>Step to fixpoint</button>
-    <button id="newTally" disabled>New tally</button>
-    <button id="verify" disabled>Verify</button>
-  </div>
-
-  <fieldset>
-    <legend>Bridge (survive a refresh)</legend>
-    <div>
-      <button id="exportBtn" disabled>Copy setup</button>
-      <button id="importBtn" disabled>Import setup</button>
-      <button id="forgetBtn">Forget saved setup</button>
-    </div>
-    <div><textarea id="blob" rows="3" style="width:100%; font-family:monospace; font-size:0.75rem;" placeholder="Setup blob (base64) — Export writes it here; for moving a setup to another browser. A refresh on this one reconnects by itself."></textarea></div>
-  </fieldset>
-
-  <p id="status" class="status">Loading wasm…</p>
-
-  <div class="cols">
-    <div class="col">
-      <h2>Board (global)</h2>
+    <fieldset class="board">
+      <legend>Board</legend>
       <div id="boardView"></div>
-    </div>
-    <div class="col">
-      <h2>Trustee</h2>
-      <label>Selected <select id="trusteeSel" disabled></select></label>
-      <h3>Message store (predicates)</h3>
-      <pre id="storeView"></pre>
-      <h3>Committed (anti-rewrite)</h3>
-      <pre id="committedView"></pre>
-    </div>
+    </fieldset>
   </div>
 
-  <h2>Log</h2>
-  <pre id="log"></pre>
+  <fieldset>
+    <legend>Log</legend>
+    <pre class="log" id="log"></pre>
+  </fieldset>
+
+  <div id="trustees"></div>
 
   <script type="module">
     const statusEl = document.getElementById("status");
     const logEl = document.getElementById("log");
     const boardView = document.getElementById("boardView");
-    const trusteeSel = document.getElementById("trusteeSel");
-    const storeView = document.getElementById("storeView");
-    const committedView = document.getElementById("committedView");
+    const trusteesEl = document.getElementById("trustees");
     const setupIdEl = document.getElementById("setupId");
-    const blobEl = document.getElementById("blob");
     const createBtn = document.getElementById("create");
     const stepOneBtn = document.getElementById("stepOne");
     const stepFixBtn = document.getElementById("stepFix");
     const newTallyBtn = document.getElementById("newTally");
     const verifyBtn = document.getElementById("verify");
-    const exportBtn = document.getElementById("exportBtn");
-    const importBtn = document.getElementById("importBtn");
-    const forgetBtn = document.getElementById("forgetBtn");
 
     function params() {
       return {
@@ -120,40 +112,72 @@ SPDX-License-Identifier: AGPL-3.0-only
         width: Number(document.getElementById("width").value),
       };
     }
-    function log(msg) { logEl.textContent += msg + "\n"; }
+    function log(msg) {
+      logEl.textContent += msg + "\n";
+      logEl.scrollTop = logEl.scrollHeight;
+    }
 
     function renderBoard(s) {
       const counts = `
-        <tr><th>phase</th><td>${s.phase}</td></tr>
-        <tr><th>round</th><td>${s.round}</td></tr>
-        <tr><th>tally</th><td>${s.tally}</td></tr>
-        <tr><th>board</th><td>${s.board}</td></tr>
-        <tr><th>Configuration</th><td>${s.configuration}</td></tr>
-        <tr><th>Shares</th><td>${s.shares}</td></tr>
-        <tr><th>PublicKey</th><td>${s.public_key}</td></tr>
-        <tr><th>Ballots</th><td>${s.ballots}</td></tr>
-        <tr><th>Mix</th><td>${s.mix}</td></tr>
-        <tr><th>MixSignature</th><td>${s.mix_signature}</td></tr>
-        <tr><th>PartialDecryptions</th><td>${s.partial_decryptions}</td></tr>
-        <tr><th>Plaintexts</th><td>${s.plaintexts}</td></tr>`;
+        <tr><th class="l">phase</th><td class="l">${s.phase}</td></tr>
+        <tr><th class="l">round</th><td>${s.round}</td></tr>
+        <tr><th class="l">tally</th><td>${s.tally}</td></tr>
+        <tr><th class="l">board</th><td class="l">${s.board}</td></tr>`;
+      const types = `
+        <tr><th class="l">Configuration</th><td>${s.configuration}</td></tr>
+        <tr><th class="l">Shares</th><td>${s.shares}</td></tr>
+        <tr><th class="l">PublicKey</th><td>${s.public_key}</td></tr>
+        <tr><th class="l">Ballots</th><td>${s.ballots}</td></tr>
+        <tr><th class="l">Mix</th><td>${s.mix}</td></tr>
+        <tr><th class="l">MixSignature</th><td>${s.mix_signature}</td></tr>
+        <tr><th class="l">PartialDecryptions</th><td>${s.partial_decryptions}</td></tr>
+        <tr><th class="l">Plaintexts</th><td>${s.plaintexts}</td></tr>`;
       const msgs = s.messages
         .map((m) => `<tr><td class="l">${m.kind}</td><td class="l">${m.sender}</td><td class="l">${m.digest}</td></tr>`)
         .join("");
       boardView.innerHTML = `
-        <table>${counts}</table>
-        <table><tr><th class="l">type</th><th class="l">sender</th><th class="l">digest</th></tr>${msgs}</table>`;
+        <div class="boardtables">
+          <table>${counts}</table>
+          <table>${types}</table>
+          <table><tr><th class="l">type</th><th class="l">sender</th><th class="l">digest</th></tr>${msgs}</table>
+        </div>`;
     }
 
-    function refreshTrustee() {
-      if (!emu || trusteeSel.value === "") return;
-      const i = Number(trusteeSel.value);
-      try {
-        const preds = emu.trustee_predicates(i);
-        const committed = emu.trustee_committed(i);
-        storeView.textContent = preds.length ? preds.join("\n") : "(empty)";
-        committedView.textContent = committed.length ? committed.join("\n") : "(empty)";
-      } catch (err) {
-        storeView.textContent = "error: " + err;
+    // One panel per trustee, stacked, so every message store is visible at once
+    // instead of one at a time behind a selector.
+    function renderTrustees() {
+      const n = emu.trustee_count();
+      trusteesEl.innerHTML = "";
+      for (let i = 0; i < n; i++) {
+        const panel = document.createElement("fieldset");
+        panel.className = "trustee";
+        panel.innerHTML = `
+          <h2>Trustee ${i + 1} <span class="count" id="count${i}"></span></h2>
+          <h3>Message store (predicates)</h3>
+          <pre class="store" id="store${i}"></pre>
+          <details>
+            <summary>Committed (anti-rewrite baseline)</summary>
+            <pre class="store" id="committed${i}"></pre>
+          </details>`;
+        trusteesEl.appendChild(panel);
+      }
+      setupIdEl.textContent = "setup id: " + emu.setup_id();
+    }
+
+    function refreshTrustees() {
+      if (!emu) return;
+      const n = emu.trustee_count();
+      for (let i = 0; i < n; i++) {
+        try {
+          const preds = emu.trustee_predicates(i);
+          const committed = emu.trustee_committed(i);
+          document.getElementById(`store${i}`).textContent = preds.length ? preds.join("\n") : "(empty)";
+          document.getElementById(`committed${i}`).textContent = committed.length ? committed.join("\n") : "(empty)";
+          document.getElementById(`count${i}`).textContent =
+            `${preds.length} predicates, ${committed.length} committed`;
+        } catch (err) {
+          document.getElementById(`store${i}`).textContent = "error: " + err;
+        }
       }
     }
 
@@ -166,18 +190,20 @@ SPDX-License-Identifier: AGPL-3.0-only
       return acts || "advanced";
     }
 
-    // Disable all controls while an async op runs so the page never re-enters the
-    // emulator mid-await.
+    // A single page-level lock: every control goes down while any operation
+    // runs, so the emulator is never re-entered mid-await.
     function setControls({ busy }) {
       createBtn.disabled = busy;
-      importBtn.disabled = busy;
       const canRun = !!emu && !busy;
       stepOneBtn.disabled = !canRun;
       stepFixBtn.disabled = !canRun;
       newTallyBtn.disabled = !canRun;
       verifyBtn.disabled = !canRun;
-      exportBtn.disabled = !canRun;
-      trusteeSel.disabled = !canRun;
+    }
+
+    async function refreshAll() {
+      renderBoard(await emu.state());
+      refreshTrustees();
     }
 
     let wasm;
@@ -191,23 +217,22 @@ SPDX-License-Identifier: AGPL-3.0-only
         await wasm.initThreadPool(navigator.hardwareConcurrency || 4);
       }
       createBtn.disabled = false;
-      importBtn.disabled = false;
       if (wasm.Emulator.has_saved()) {
-        statusEl.textContent = "Reconnecting to the saved setup...";
+        statusEl.textContent = "Reconnecting to the saved setup…";
         try {
-          emu = await wasm.Emulator.restore(document.getElementById("b4url").value.trim());
-          populateTrustees();
+          emu = await wasm.Emulator.restore(params().b4url);
+          renderTrustees();
           log(`restored setup ${emu.setup_id()}`);
-          statusEl.textContent = "Setup restored. Continue stepping, or New tally.";
+          statusEl.textContent = "Restored. Continue stepping, or New tally.";
           await refreshAll();
           setControls({ busy: false });
         } catch (err) {
           emu = null;
-          statusEl.textContent = "Saved setup could not be reconnected (" + err + "). Create a new one, or Forget it.";
+          statusEl.textContent = "Saved setup could not be reconnected (" + err + "). Create a new one to replace it.";
           statusEl.className = "status fail";
         }
       } else {
-        statusEl.textContent = "Ready. Start localstack.ps1 + b4.ps1, then Create a setup.";
+        statusEl.textContent = "Ready. Create a setup.";
       }
     } catch (err) {
       statusEl.textContent = "Failed to load wasm: " + err;
@@ -215,39 +240,20 @@ SPDX-License-Identifier: AGPL-3.0-only
       throw err;
     }
 
-    async function refreshAll() {
-      renderBoard(await emu.state());
-      refreshTrustee();
-    }
-
-    function populateTrustees() {
-      const n = emu.trustee_count();
-      trusteeSel.innerHTML = "";
-      for (let i = 0; i < n; i++) {
-        const opt = document.createElement("option");
-        opt.value = String(i);
-        opt.textContent = "trustee " + (i + 1);
-        trusteeSel.appendChild(opt);
-      }
-      trusteeSel.value = "0";
-      setupIdEl.textContent = "setup id: " + emu.setup_id();
-    }
-
     createBtn.addEventListener("click", async () => {
       const p = params();
       setControls({ busy: true });
       statusEl.className = "status";
-      statusEl.textContent = "Creating setup (creating DKG board on b4, posting configuration)…";
+      statusEl.textContent = "Creating setup (DKG board on b4, posting configuration)…";
       logEl.textContent = "";
       boardView.innerHTML = "";
-      storeView.textContent = "";
-      committedView.textContent = "";
+      trusteesEl.innerHTML = "";
       emu = null;
       try {
         emu = await wasm.Emulator.create(p.b4url, p.trustees, p.threshold, p.ciphertexts, p.width);
-        populateTrustees();
-        log(`created: ${p.trustees} trustees, threshold ${p.threshold}, ${p.ciphertexts} ciphertexts, width ${p.width}, b4 ${p.b4url}`);
-        statusEl.textContent = "Setup created. Step to run the DKG, then New tally.";
+        renderTrustees();
+        log(`created: ${p.trustees} trustees, threshold ${p.threshold}, ${p.ciphertexts} ciphertexts, width ${p.width}`);
+        statusEl.textContent = "Created. Step to run the DKG, then New tally.";
         await refreshAll();
       } catch (err) {
         statusEl.textContent = "Error: " + err;
@@ -255,49 +261,6 @@ SPDX-License-Identifier: AGPL-3.0-only
       } finally {
         setControls({ busy: false });
       }
-    });
-
-    exportBtn.addEventListener("click", () => {
-      if (!emu) return;
-      try {
-        blobEl.value = emu.export();
-        log("copied the saved setup to the blob field (for moving it to another browser; a refresh here reconnects by itself)");
-      } catch (err) { log("export error: " + err); }
-    });
-
-    importBtn.addEventListener("click", async () => {
-      const blob = blobEl.value.trim();
-      if (!blob) { log("paste a setup blob first"); return; }
-      const b4url = document.getElementById("b4url").value.trim();
-      setControls({ busy: true });
-      statusEl.className = "status";
-      statusEl.textContent = "Importing setup (reconnecting to boards + IndexedDB)…";
-      logEl.textContent = "";
-      boardView.innerHTML = "";
-      storeView.textContent = "";
-      committedView.textContent = "";
-      emu = null;
-      try {
-        emu = await wasm.Emulator.import(b4url, blob);
-        populateTrustees();
-        log(`imported setup ${emu.setup_id()} (b4 ${b4url})`);
-        statusEl.textContent = "Setup imported. Step the DKG if needed, then New tally.";
-        await refreshAll();
-      } catch (err) {
-        statusEl.textContent = "Import error: " + err;
-        statusEl.className = "status fail";
-      } finally {
-        setControls({ busy: false });
-      }
-    });
-
-    forgetBtn.addEventListener("click", () => {
-      try {
-        wasm.Emulator.forget();
-        log("forgot the saved setup (its boards and IndexedDB stores are left on b4)");
-        statusEl.textContent = "Saved setup forgotten. Create a new one.";
-        statusEl.className = "status";
-      } catch (err) { log("forget error: " + err); }
     });
 
     stepOneBtn.addEventListener("click", async () => {
@@ -335,7 +298,7 @@ SPDX-License-Identifier: AGPL-3.0-only
         const s = await emu.new_tally();
         log(`started tally ${s.tally} on ${s.board}; posted ballots`);
         renderBoard(s);
-        refreshTrustee();
+        refreshTrustees();
       } catch (err) { log("new_tally error: " + err); }
       finally { setControls({ busy: false }); }
     });
@@ -344,19 +307,19 @@ SPDX-License-Identifier: AGPL-3.0-only
       if (!emu) return;
       setControls({ busy: true });
       try {
-        const v = await emu.verify();
-        log(`verify: expected=${v.expected}, actual=${v.actual}, success=${v.success}`);
-        statusEl.textContent = v.success ? "PASS — plaintexts match" : "FAIL — mismatch";
+        const v = await emu.verify_plaintexts();
+        log(`plaintexts: expected=${v.expected}, actual=${v.actual}, match=${v.success}`);
+        statusEl.textContent = v.success
+          ? "PASS — plaintexts out match ballots in"
+          : "FAIL — plaintexts do not match";
         statusEl.className = v.success ? "status ok" : "status fail";
       } catch (err) {
-        statusEl.textContent = "verify error: " + err;
+        statusEl.textContent = "plaintexts error: " + err;
         statusEl.className = "status fail";
       } finally {
         setControls({ busy: false });
       }
     });
-
-    trusteeSel.addEventListener("change", refreshTrustee);
   </script>
 </body>
 </html>

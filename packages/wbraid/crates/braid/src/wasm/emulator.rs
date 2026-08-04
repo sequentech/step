@@ -448,9 +448,14 @@ struct StateReport {
     messages: Vec<MessageSummary>,
 }
 
-/// Result of a verification.
+/// Result of comparing a tally's decrypted plaintexts against the set its
+/// parameters derive.
+///
+/// This is **not** proof verification — no proof is checked here. It answers
+/// "did this tally output what was put into it", which is a different question
+/// from "are the mixing and decryption proofs sound".
 #[derive(Serialize)]
-struct VerifyReport {
+struct PlaintextsReport {
     success: bool,
     expected: usize,
     actual: usize,
@@ -982,8 +987,13 @@ impl Emulator {
             .map_err(|e| JsValue::from_str(&format!("failed to serialize: {e}")))
     }
 
-    /// Compare the current tally's decrypted plaintexts with its encrypted inputs.
-    pub async fn verify(&self) -> Result<JsValue, JsValue> {
+    /// Compare the current tally's decrypted plaintexts with the set its
+    /// parameters derive.
+    ///
+    /// Deliberately not called `verify`: this checks an *outcome*, not a proof.
+    /// The trustees' proofs are checked by each other during the protocol; this
+    /// asks only whether the plaintexts that came out are the ones that went in.
+    pub async fn verify_plaintexts(&self) -> Result<JsValue, JsValue> {
         let (tally, board_name) = {
             let inner = self.inner.try_borrow().map_err(|_| busy())?;
             let board = inner
@@ -1006,7 +1016,7 @@ impl Emulator {
             plaintexts_match::<RistrettoCtx, W>(pt_body, &self.setup_id, tally, self.ciphertexts)
         })
         .map_err(js)?;
-        let report = VerifyReport {
+        let report = PlaintextsReport {
             success,
             expected,
             actual,
