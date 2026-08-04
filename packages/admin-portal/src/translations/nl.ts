@@ -682,6 +682,7 @@ const dutchTranslation: TranslationType = {
                     config: "Configuratie",
                     blacklist: "Blokkeerlijst",
                     prompts: "Spraakprompts",
+                    emulator: "Emulator",
                 },
                 common: {
                     saveSuccess: "Succesvol opgeslagen",

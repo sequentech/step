@@ -682,6 +682,7 @@ const tagalogTranslation: TranslationType = {
                     config: "Configuration",
                     blacklist: "Listahan ng pag-block",
                     prompts: "Mga voice prompt",
+                    emulator: "Emulator",
                 },
                 common: {
                     saveSuccess: "Matagumpay na na-save",

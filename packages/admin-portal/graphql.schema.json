@@ -4128,6 +4128,34 @@
         "possibleTypes": null
       },
       {
+        "kind": "OBJECT",
+        "name": "GetRealmAttributesOutput",
+        "description": null,
+        "isOneOf": null,
+        "fields": [
+          {
+            "name": "attributes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "jsonb",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
         "kind": "INPUT_OBJECT",
         "name": "GetRolesInput",
         "description": null,

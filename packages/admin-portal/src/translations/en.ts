@@ -677,6 +677,7 @@ const englishTranslation = {
                     config: "Configuration",
                     blacklist: "Blocklist",
                     prompts: "Prompts",
+                    emulator: "Emulator",
                 },
                 common: {
                     saveSuccess: "Saved successfully",

@@ -60,11 +60,15 @@ const ConfigFormBody: React.FC<{
             pagination: {page: 1, perPage: 300},
             // Sort in ascending order so newer styles overwrite older ones
             //  when constructing the map.
-            sort: {field: "created_at", order: "ASC"},
+            sort: {field: "created_at", order: "DESC"},
             filter: {
                 tenant_id: electionEvent.tenant_id,
                 election_event_id: electionEvent.id,
                 area_id: areaId,
+                deleted_at: {
+                    format: "hasura-raw-query",
+                    value: {_is_null: true},
+                },
             },
         },
         {

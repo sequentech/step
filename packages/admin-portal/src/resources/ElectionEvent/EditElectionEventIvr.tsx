@@ -63,7 +63,7 @@ export const EditElectionEventIvr: React.FC = () => {
     }
 
     tabs.push({
-        label: "Emulator",
+        label: t("electionEventScreen.ivr.tabs.emulator"),
         component: EmulatorTab,
     })
 

@@ -683,6 +683,7 @@ const catalanTranslation: TranslationType = {
                     config: "Configuració",
                     blacklist: "Llista de bloqueig",
                     prompts: "Locucions",
+                    emulator: "Emulador",
                 },
                 common: {
                     saveSuccess: "S'ha desat correctament",

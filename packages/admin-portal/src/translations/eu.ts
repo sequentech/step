@@ -679,6 +679,7 @@ const basqueTranslation: TranslationType = {
                     config: "Konfigurazioa",
                     blacklist: "Blokeatze-zerrenda",
                     prompts: "Ahots-mezuak",
+                    emulator: "Emuladorea",
                 },
                 common: {
                     saveSuccess: "Behar bezala gorde da",

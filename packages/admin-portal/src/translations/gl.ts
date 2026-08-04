@@ -682,6 +682,7 @@ const galegoTranslation: TranslationType = {
                     config: "Configuración",
                     blacklist: "Lista de bloqueo",
                     prompts: "Locucións",
+                    emulator: "Emulador",
                 },
                 common: {
                     saveSuccess: "Gardado correctamente",

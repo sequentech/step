@@ -683,6 +683,7 @@ const frenchTranslation: TranslationType = {
                     config: "Configuration",
                     blacklist: "Liste de blocage",
                     prompts: "Messages vocaux",
+                    emulator: "Émulateur",
                 },
                 common: {
                     saveSuccess: "Enregistré avec succès",
