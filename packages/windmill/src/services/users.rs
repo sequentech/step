@@ -244,6 +244,7 @@ async fn get_area_ids(
         .transpose()
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
 
+    let is_explicit_area_filter = area_id.is_some();
     let area_ids: Vec<String> = match area_id {
         Some(area_id_value) => vec![area_id_value],
         None => {
@@ -290,21 +291,32 @@ async fn get_area_ids(
     };
 
     debug!("area_ids: {area_ids:?}");
-    let area_ids_join_clause = String::from(
+    // LEFT JOIN so voters with no area-id attribute still produce a row
+    // (area_attr.user_id IS NULL) instead of being dropped by the join.
+    let area_ids_join_clause = format!(
         r#"
-    INNER JOIN 
-        user_attribute AS area_attr ON u.id = area_attr.user_id
+    LEFT JOIN
+        user_attribute AS area_attr ON u.id = area_attr.user_id AND area_attr.name = '{AREA_ID_ATTR_NAME}'
     "#,
     );
-    let area_ids_where_clause = format!(
-        r#"
+    let area_ids_where_clause = if is_explicit_area_filter {
+        format!(
+            r#"
+    AND area_attr.value = ANY(${})
+    "#,
+            param_number,
+        )
+    } else {
+        // No area explicitly requested: include voters with no area assigned too.
+        format!(
+            r#"
     AND (
-        area_attr.name = '{AREA_ID_ATTR_NAME}' AND
-        area_attr.value = ANY(${})
+        area_attr.value = ANY(${}) OR area_attr.user_id IS NULL
     )
     "#,
-        param_number,
-    );
+            param_number,
+        )
+    };
 
     Ok((Some(area_ids), area_ids_join_clause, area_ids_where_clause))
 }
