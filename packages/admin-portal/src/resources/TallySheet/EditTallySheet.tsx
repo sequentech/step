@@ -408,19 +408,6 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
             }
         )
 
-        const codes = new Set(sharedValidationErrors.map((error) => error.code))
-        setTotalValidError(codes.has("invalid_total_valid_votes"))
-        setCensusError(codes.has("total_votes_exceeds_census"))
-        setSharedValidationMessages(
-            sharedValidationErrors
-                .filter(
-                    (error) =>
-                        error.code !== "invalid_total_valid_votes" &&
-                        error.code !== "total_votes_exceeds_census"
-                )
-                .map((error) => error.message)
-        )
-
         setSharedValidationErrors(sharedValidationErrors)
         setIsButtonDisabled(sharedValidationErrors.length > 0)
 
