@@ -7,6 +7,7 @@ import {
     ballotSelectionsSlice,
     BallotSelectionsState,
     resetBallotSelection,
+    setBallotSelectionBlankVote,
     setBallotSelectionInvalidVote,
     setBallotSelectionVoteChoice,
 } from "./ballotSelectionsSlice"
@@ -15,6 +16,9 @@ import {IBallotStyle} from "../ballotStyles/ballotStylesSlice"
 const contest = ELECTION_WITH_INVALID.contests[0]
 const CONTEST_ID = contest.id
 const REGULAR_CANDIDATE_ID = contest.candidates[0].id
+// ELECTION_WITH_INVALID has no explicit-blank candidate of its own; borrow
+// a regular candidate slot and mark it explicit-blank for these tests.
+const BLANK_CANDIDATE_ID = contest.candidates[1].id
 
 const buildBallotStyle = (
     exclusivityPolicy: EInvalidVoteExclusivityPolicy | undefined
@@ -33,6 +37,22 @@ const buildBallotStyle = (
         created_at: "2026-01-01T00:00:00.000Z",
         last_updated_at: "2026-01-01T00:00:00.000Z",
     }
+}
+
+const buildBallotStyleWithBlankCandidate = (
+    exclusivityPolicy: EInvalidVoteExclusivityPolicy | undefined
+): IBallotStyle => {
+    const ballotStyle = buildBallotStyle(exclusivityPolicy)
+    const blankCandidate = ballotStyle.ballot_eml.contests[0].candidates.find(
+        (candidate) => candidate.id === BLANK_CANDIDATE_ID
+    )
+    if (blankCandidate) {
+        blankCandidate.presentation = {
+            ...blankCandidate.presentation,
+            is_explicit_blank: true,
+        }
+    }
+    return ballotStyle
 }
 
 const initState = (ballotStyle: IBallotStyle): BallotSelectionsState =>
@@ -174,6 +194,101 @@ describe("ballotSelectionsSlice mutual exclusion driven by invalid_vote_exclusiv
             expect(contestState?.choices.find((c) => c.id === REGULAR_CANDIDATE_ID)?.selected).toBe(
                 0
             )
+        }
+    )
+
+    // Explicit-blank selection is unconditionally exclusive against
+    // explicit-invalid via setBallotSelectionBlankVote, independent of
+    // invalid_vote_exclusivity_policy -- this predates and is orthogonal
+    // to that policy, unlike regular-candidate bundling above.
+    it.each([
+        undefined,
+        EInvalidVoteExclusivityPolicy.INCLUSIVE,
+        EInvalidVoteExclusivityPolicy.EXCLUSIVE,
+    ])(
+        "selecting explicit blank via setBallotSelectionBlankVote always clears a previously selected explicit invalid, regardless of policy (%s)",
+        (policy) => {
+            const ballotStyle = buildBallotStyleWithBlankCandidate(policy)
+            let state = initState(ballotStyle)
+            state = ballotSelectionsSlice.reducer(
+                state,
+                setBallotSelectionInvalidVote({
+                    ballotStyle,
+                    contestId: CONTEST_ID,
+                    isExplicitInvalid: true,
+                })
+            )
+
+            state = ballotSelectionsSlice.reducer(
+                state,
+                setBallotSelectionBlankVote({
+                    ballotStyle,
+                    contestId: CONTEST_ID,
+                    candidateId: BLANK_CANDIDATE_ID,
+                })
+            )
+
+            const contestState = getContestState(state, ballotStyle)
+            expect(contestState?.is_explicit_invalid).toBe(false)
+            expect(contestState?.choices.find((c) => c.id === BLANK_CANDIDATE_ID)?.selected).toBe(0)
+        }
+    )
+
+    // setBallotSelectionVoteChoice is never invoked for a blank-candidate
+    // check in the current UI (Answer.tsx routes that through
+    // setBallotSelectionBlankVote instead), but the reducer should still
+    // behave correctly if it ever is: under EXCLUSIVE any selection clears
+    // explicit invalid, regardless of which candidate was selected.
+    it("selecting explicit blank via setBallotSelectionVoteChoice clears a previously selected explicit invalid under EXCLUSIVE", () => {
+        const ballotStyle = buildBallotStyleWithBlankCandidate(
+            EInvalidVoteExclusivityPolicy.EXCLUSIVE
+        )
+        let state = initState(ballotStyle)
+        state = ballotSelectionsSlice.reducer(
+            state,
+            setBallotSelectionInvalidVote({
+                ballotStyle,
+                contestId: CONTEST_ID,
+                isExplicitInvalid: true,
+            })
+        )
+
+        state = ballotSelectionsSlice.reducer(
+            state,
+            setBallotSelectionVoteChoice({
+                ballotStyle,
+                contestId: CONTEST_ID,
+                voteChoice: {id: BLANK_CANDIDATE_ID, selected: 0},
+            })
+        )
+
+        expect(getContestState(state, ballotStyle)?.is_explicit_invalid).toBe(false)
+    })
+
+    it.each([undefined, EInvalidVoteExclusivityPolicy.INCLUSIVE])(
+        "selecting explicit blank via setBallotSelectionVoteChoice does NOT clear a previously selected explicit invalid under %s",
+        (policy) => {
+            const ballotStyle = buildBallotStyleWithBlankCandidate(policy)
+            let state = initState(ballotStyle)
+            state = ballotSelectionsSlice.reducer(
+                state,
+                setBallotSelectionInvalidVote({
+                    ballotStyle,
+                    contestId: CONTEST_ID,
+                    isExplicitInvalid: true,
+                })
+            )
+
+            state = ballotSelectionsSlice.reducer(
+                state,
+                setBallotSelectionVoteChoice({
+                    ballotStyle,
+                    contestId: CONTEST_ID,
+                    voteChoice: {id: BLANK_CANDIDATE_ID, selected: 0},
+                })
+            )
+
+            expect(getContestState(state, ballotStyle)?.is_explicit_invalid).toBe(true)
         }
     )
 })

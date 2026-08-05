@@ -8,8 +8,12 @@ module.exports = {
     testMatch: ["<rootDir>/src/**/*.test.ts"],
     // The real sequent-core WASM package is plain ESM and gets pulled in
     // transitively by @sequentech/ui-core; see src/__mocks__/sequentCoreMock.js.
+    // @sequentech/ui-core itself resolves to its built dist/, which CI never
+    // builds before running this package's tests; see
+    // src/__mocks__/uiCoreTestShim.ts.
     moduleNameMapper: {
         "^sequent-core$": "<rootDir>/src/__mocks__/sequentCoreMock.js",
+        "^@sequentech/ui-core$": "<rootDir>/src/__mocks__/uiCoreTestShim.ts",
     },
     transform: {
         "^.+\\.(t|j)sx?$": [

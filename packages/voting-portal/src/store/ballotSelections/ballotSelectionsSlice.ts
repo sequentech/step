@@ -209,15 +209,22 @@ export const ballotSelectionsSlice = createSlice({
                     explicitBlankCandidateIds.has(action.payload.voteChoice.id) &&
                     action.payload.voteChoice.selected > -1
 
-                if (action.payload.voteChoice.selected > -1 && !isSelectingExplicitBlank) {
-                    currentQuestion.choices = currentQuestion.choices.map((choice) =>
-                        explicitBlankCandidateIds.has(choice.id)
-                            ? {...choice, selected: -1}
-                            : choice
-                    )
+                if (action.payload.voteChoice.selected > -1) {
+                    if (!isSelectingExplicitBlank) {
+                        currentQuestion.choices = currentQuestion.choices.map((choice) =>
+                            explicitBlankCandidateIds.has(choice.id)
+                                ? {...choice, selected: -1}
+                                : choice
+                        )
+                    }
 
-                    // Under EXCLUSIVE, selecting a real candidate is
-                    // mutually exclusive with explicit invalid.
+                    // Under EXCLUSIVE, any selection (including explicit
+                    // blank, if ever routed through this reducer) is
+                    // mutually exclusive with explicit invalid. Note that
+                    // explicit blank stays unconditionally exclusive against
+                    // explicit invalid via setBallotSelectionBlankVote,
+                    // independent of this policy — that predates and is
+                    // orthogonal to it.
                     if (
                         ballotEmlContest.presentation?.invalid_vote_exclusivity_policy ===
                         EInvalidVoteExclusivityPolicy.EXCLUSIVE
