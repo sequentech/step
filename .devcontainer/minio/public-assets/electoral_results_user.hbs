@@ -101,6 +101,27 @@
       </tr>
     </table>
     {{/if}}
+
+    {{#if report.participation_by_channel}}
+    <table class="section">
+      <tr>
+        <th colspan="3">Participation by channel</th>
+      </tr>
+      <tr>
+        <td style="width: 55%;">Channel</td>
+        <td style="width: 22.5%;">Total</td>
+        <td style="width: 22.5%;">%</td>
+      </tr>
+      {{#each report.participation_by_channel}}
+      <tr>
+        <td style="width: 55%;">{{ sanitize_html label }}</td>
+        <td style="width: 22.5%;">{{ format_u64 total }}</td>
+        <td style="width: 22.5%;">{{ format_percentage_one percentage }}%</td>
+      </tr>
+      {{/each}}
+    </table>
+    {{/if}}
+
     {{#if report.election_results}}
     <table>
       <tr>

@@ -7,15 +7,16 @@ use crate::postgres::cast_vote::{
 };
 use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDatafix};
 use crate::services::database::get_hasura_pool;
-use crate::services::external;
-use crate::services::external::datafix_types::{
-    SoapRequest, SoapRequestResponse, SoapRequestResult,
-};
-use crate::services::external::utils::{
-    external_voter_lock_key, post_operation_result_to_electoral_log, voted_via_internet,
+use crate::services::datafix;
+use crate::services::datafix::types::{SoapRequest, SoapRequestResponse, SoapRequestResult};
+use crate::services::datafix::utils::{
+    datafix_voter_lock_key, post_operation_result_to_electoral_log, voted_via_internet,
     voted_via_not_internet_channel, DATAFIX_VOTER_LOCK_SECS,
 };
-use crate::services::external::voterview_requests::SoapSendError;
+use crate::services::datafix::voterview_requests::SoapSendError;
+use crate::services::electoral_log::{
+    post_voter_password_change, ElectoralLogAdminContext, VoterPasswordChangeSource,
+};
 use crate::services::pg_lock::PgLock;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::{Error, Result};
@@ -52,6 +53,8 @@ pub struct EditUserTaskBody {
     pub username: Option<String>,
     pub password: Option<String>,
     pub temporary: Option<bool>,
+    #[serde(default)]
+    pub password_change_initiator: Option<ElectoralLogAdminContext>,
 }
 
 /// Response of the `/edit-user` route. For Datafix election events the edit is
@@ -345,7 +348,7 @@ async fn send_set_not_voted(
     election_event: ElectionEvent,
     username: &str,
 ) {
-    let prepared = match external::voterview_requests::prepare(
+    let prepared = match datafix::voterview_requests::prepare(
         SoapRequest::SetNotVoted,
         ElectionEventDatafix(election_event),
         &Some(username.to_string()),
@@ -365,7 +368,7 @@ async fn send_set_not_voted(
         }
     };
     let template_sha256 = prepared.template_sha256().to_string();
-    let operation = match external::voterview_requests::send_prepared(prepared).await {
+    let operation = match datafix::voterview_requests::send_prepared(prepared).await {
         Ok(SoapRequestResult {
             response,
             template_sha256,
@@ -436,7 +439,32 @@ async fn run_datafix_voter_edit(
     )?;
     info!("Voter edit plan: {plan:?}, cast-vote state: {cast_vote_state:?}");
 
+    let password_change_initiator = if body.password.is_some() {
+        Some(
+            body.password_change_initiator
+                .as_ref()
+                .ok_or("Missing initiating admin for voter password-change audit")?,
+        )
+    } else {
+        None
+    };
+
     edit_keycloak_voter(ctx, client).await?;
+
+    if let Some(admin) = password_change_initiator {
+        post_voter_password_change(
+            &body.tenant_id,
+            &body.election_event_id,
+            &body.user_id,
+            current_user.username.clone(),
+            admin,
+            VoterPasswordChangeSource::AdminPortal,
+        )
+        .await
+        .map_err(|err| {
+            format!("Voter password changed, but its electoral-log entry failed: {err:#}")
+        })?;
+    }
 
     if !plan.release_attempt {
         return Ok(());
@@ -482,7 +510,7 @@ async fn apply_datafix_voter_edit(body: &EditUserTaskBody) -> std::result::Resul
     let user_id_uuid =
         parse_uuid_v4(&body.user_id).map_err(|err| format!("Invalid voter id: {err}"))?;
     let lock = PgLock::acquire(
-        external_voter_lock_key(&body.tenant_id, &body.election_event_id, &user_id_uuid),
+        datafix_voter_lock_key(&body.tenant_id, &body.election_event_id, &user_id_uuid),
         Uuid::new_v4().to_string(),
         ISO8601::now() + Duration::seconds(DATAFIX_VOTER_LOCK_SECS),
     )
@@ -661,6 +689,7 @@ mod tests {
             username: username.map(str::to_string),
             password: None,
             temporary: None,
+            password_change_initiator: None,
         }
     }
 

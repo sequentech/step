@@ -42,7 +42,7 @@ use std::default::Default;
 use strand::info;
 use tracing::{event, info, instrument, Level};
 
-#[instrument(err)]
+#[instrument(skip_all, err)]
 fn get_variables(
     user: &User,
     election_event: Option<ElectionEvent>,
@@ -50,16 +50,22 @@ fn get_variables(
     auth_action: AuthAction,
 ) -> Result<Map<String, Value>> {
     let mut variables: Map<String, Value> = Default::default();
-    variables.insert(
-        "user".to_string(),
-        json!({
-            "first_name": user.first_name.clone(),
-            "last_name": user.last_name.clone(),
-            "username": user.username.clone(),
-            "first_name": user.first_name.clone(),
-            "email": user.email.clone(),
-        }),
-    );
+    let mut user_variables = Map::new();
+    user_variables.insert("first_name".to_string(), json!(user.first_name));
+    user_variables.insert("last_name".to_string(), json!(user.last_name));
+    user_variables.insert("username".to_string(), json!(user.username));
+    user_variables.insert("email".to_string(), json!(user.email));
+
+    let attributes = user.attributes.clone().unwrap_or_default();
+    for (attribute_name, values) in &attributes {
+        if let Some(first_value) = values.first() {
+            user_variables
+                .entry(attribute_name.clone())
+                .or_insert_with(|| json!(first_value));
+        }
+    }
+    user_variables.insert("attributes".to_string(), json!(attributes));
+    variables.insert("user".to_string(), Value::Object(user_variables));
     variables.insert("tenant_id".to_string(), json!(tenant_id.clone()));
     if let Some(ref election_event) = election_event {
         let default_language = election_event.get_default_language();
@@ -85,7 +91,23 @@ fn get_variables(
     Ok(variables)
 }
 
-#[instrument(skip(sender), err)]
+/// Builds the delivery record posted to the immutable electoral log.
+///
+/// The record keeps what an auditor needs to confirm a delivery — the channel, the address it
+/// went to, and the rendered subject — but never the rendered bodies. Those bodies carry the
+/// notification URL, including any `login_hint__*` values, and the electoral log cannot be
+/// redacted once written.
+fn delivery_audit_message(channel: &str, receiver: &str, subject: Option<&str>) -> String {
+    let mut record = Map::new();
+    record.insert("channel".to_string(), json!(channel));
+    record.insert("receiver".to_string(), json!(receiver));
+    if let Some(subject) = subject {
+        record.insert("subject".to_string(), json!(subject));
+    }
+    Value::Object(record).to_string()
+}
+
+#[instrument(skip_all, err)]
 async fn send_template_sms(
     receiver: &Option<String>,
     template: &Option<SmsConfig>,
@@ -97,20 +119,14 @@ async fn send_template_sms(
             .map_err(|err| anyhow!("{}", err))?;
 
         sender.send(receiver.into(), message.clone()).await?;
-        return Ok(Some(
-            json!({
-                "receiver": receiver,
-                "message": message
-            })
-            .to_string(),
-        ));
+        return Ok(Some(delivery_audit_message("sms", receiver, None)));
     } else {
         event!(Level::INFO, "Receiver empty, ignoring..");
     }
     Ok(None)
 }
 
-#[instrument(skip(sender), err)]
+#[instrument(skip_all, err)]
 pub async fn send_template_email(
     receiver: &Option<String>,
     template: &Option<EmailConfig>,
@@ -132,8 +148,6 @@ pub async fn send_template_email(
             ),
             None => None,
         };
-        info!("html_body: {html_body:?}");
-
         sender
             .send(
                 vec![receiver.to_string()],
@@ -145,15 +159,11 @@ pub async fn send_template_email(
             .await
             .map_err(|err| anyhow!("error sending email: {err:?}"))?;
 
-        return Ok(Some(
-            json!({
-                "receiver": receiver,
-                "subject": subject,
-                "html_body": html_body,
-                "plaintext_body": plaintext_body
-            })
-            .to_string(),
-        ));
+        return Ok(Some(delivery_audit_message(
+            "email",
+            receiver,
+            Some(&subject),
+        )));
     } else {
         // Log the event if the receiver or template is missing
         event!(
@@ -318,7 +328,7 @@ async fn on_success_send_message(
     Ok(())
 }
 
-#[instrument(err)]
+#[instrument(skip_all, err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn send_template(
@@ -529,7 +539,7 @@ pub async fn send_template(
 ///
 /// In the case of acceptance:
 /// All the fields are required.
-#[instrument(err, skip(election_event, email_sender, sms_sender))]
+#[instrument(skip_all, err)]
 pub async fn send_template_email_or_sms(
     hasura_transaction: &Transaction<'_>,
     user: &User,
@@ -642,5 +652,71 @@ pub async fn send_template_email_or_sms(
             //nothing to do
             Ok(())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{delivery_audit_message, get_variables};
+    use sequent_core::services::generate_urls::AuthAction;
+    use sequent_core::types::keycloak::User;
+    use serde_json::json;
+    use std::collections::HashMap;
+
+    #[test]
+    fn get_variables_exposes_dynamic_and_multivalued_user_attributes() {
+        let user = User {
+            username: Some("canonical-user".to_string()),
+            attributes: Some(HashMap::from([
+                (
+                    "dateOfBirth".to_string(),
+                    vec!["2000-01-01".to_string(), "ignored-first-value".to_string()],
+                ),
+                (
+                    "username".to_string(),
+                    vec!["untrusted-collision".to_string()],
+                ),
+                ("empty".to_string(), Vec::new()),
+            ])),
+            ..User::default()
+        };
+
+        let variables = get_variables(&user, None, "tenant-id".to_string(), AuthAction::Login)
+            .expect("variables should be generated");
+
+        assert_eq!(variables["user"]["username"], json!("canonical-user"));
+        assert_eq!(variables["user"]["dateOfBirth"], json!("2000-01-01"));
+        assert!(variables["user"].get("empty").is_none());
+        assert_eq!(
+            variables["user"]["attributes"]["dateOfBirth"],
+            json!(["2000-01-01", "ignored-first-value"])
+        );
+        assert_eq!(
+            variables["user"]["attributes"]["username"],
+            json!(["untrusted-collision"])
+        );
+        assert_eq!(variables["user"]["attributes"]["empty"], json!([]));
+    }
+
+    #[test]
+    fn delivery_audit_message_keeps_delivery_metadata_without_rendered_bodies() {
+        let email = delivery_audit_message("email", "voter@example.com", Some("Your voting link"));
+
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&email).expect("valid audit JSON"),
+            json!({
+                "channel": "email",
+                "receiver": "voter@example.com",
+                "subject": "Your voting link",
+            })
+        );
+        assert!(!email.contains("login_hint__"));
+
+        let sms = delivery_audit_message("sms", "+34600000000", None);
+
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&sms).expect("valid audit JSON"),
+            json!({"channel": "sms", "receiver": "+34600000000"})
+        );
     }
 }

@@ -240,6 +240,7 @@ pub async fn insert_ballots_messages(
 
                     // Use a join function to filter and extract the ballot content
                     let ballots_output_index = 1;
+                    let ballots_channel_index = 2;
                     let ballots_join_indexes = 0;
                     let users_join_idexes = 0;
                     let contest_id = tally_session_contest.contest_id.clone();
@@ -247,20 +248,21 @@ pub async fn insert_ballots_messages(
                     // Add the index where the username of the delegated vote is if the election has delegation enabled.
                     let delegate_count_index = if is_delegated { Some(1) } else { None };
 
-                    let (ballot_contents, elegible_voters, ballots_without_voter, casted_ballots) =
-                        merge_join_csv(
-                            &ballots_temp_file,
-                            &users_temp_file,
-                            ballots_join_indexes,
-                            users_join_idexes,
-                            ballots_output_index,
-                            delegate_count_index,
-                        )?;
+                    let merge_result = merge_join_csv(
+                        &ballots_temp_file,
+                        &users_temp_file,
+                        ballots_join_indexes,
+                        users_join_idexes,
+                        ballots_output_index,
+                        Some(ballots_channel_index),
+                        delegate_count_index,
+                    )?;
 
                     let annotations = TallySessionContestAnnotations {
-                        elegible_voters,
-                        ballots_without_voter,
-                        casted_ballots,
+                        elegible_voters: merge_result.eligible_voters,
+                        ballots_without_voter: merge_result.ballots_without_voter,
+                        casted_ballots: merge_result.casted_ballots,
+                        votes_by_channel: Some(merge_result.casted_ballots_by_channel),
                     };
 
                     let annotations = serde_json::to_value(&annotations)?;
@@ -281,7 +283,8 @@ pub async fn insert_ballots_messages(
                     };
 
                     if !skip_board_posting {
-                        let ciphertexts = ballot_contents
+                        let ciphertexts = merge_result
+                            .ballot_contents
                             .into_iter()
                             .map(|ballot_str| {
                                 info!("ballot_str: {ballot_str}");

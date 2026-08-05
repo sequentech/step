@@ -16,7 +16,12 @@ import {
     TALLY_RESULTS_PIE_PANEL_WIDTH,
 } from "./constants"
 import {Chart, ChartPanel} from "./ChartPanel"
-import type {CandidateResultRow, NumericValue, ResultsAndParticipationLabels} from "./types"
+import type {
+    CandidateResultRow,
+    NumericValue,
+    ResultsAndParticipationLabelOverrides,
+    ResultsAndParticipationLabels,
+} from "./types"
 import {
     mergeLabels,
     percentOrDash,
@@ -28,13 +33,13 @@ import {
 interface CandidateResultsChartProps {
     results: CandidateResultRow[]
     chartName: string
-    labels?: Partial<ResultsAndParticipationLabels>
+    labels?: ResultsAndParticipationLabelOverrides
 }
 
 interface CandidateResultsProps {
     candidates: CandidateResultRow[]
     chartName: string
-    labels?: Partial<ResultsAndParticipationLabels>
+    labels?: ResultsAndParticipationLabelOverrides
 }
 
 const buildCandidateChartData = (

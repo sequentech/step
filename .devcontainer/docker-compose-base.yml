@@ -149,7 +149,7 @@ services:
       context: ./minio
       dockerfile: Dockerfile
     volumes:
-      - ./keycloak/import:/realm-configs:ro,z
+      - "${LOCAL_WORKSPACE_FOLDER:-..}/.devcontainer/keycloak/import:/realm-configs:ro,z"
     depends_on:
       minio:
         condition: service_healthy

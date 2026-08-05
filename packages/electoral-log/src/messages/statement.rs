@@ -8,7 +8,6 @@ use std::fmt::Debug;
 use strum_macros::Display;
 
 use crate::messages::newtypes::{CertificateAuthEventAction, *};
-use tracing::info;
 
 #[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Debug)]
 pub struct Statement {
@@ -46,6 +45,14 @@ impl StatementHead {
             StatementBody::CastVote(_, _, _, _, _) => StatementHead {
                 kind: StatementType::CastVote,
                 description: "Inserted cast vote.".to_string(),
+                ..default_head
+            },
+            StatementBody::CastVoteWithChannel(_, _, _, _, _, channel) => StatementHead {
+                kind: StatementType::CastVote,
+                description: format!(
+                    "Inserted cast vote. Voting channel: {channel}.",
+                    channel = channel.0
+                ),
                 ..default_head
             },
             StatementBody::CastVoteError(_, _, _, _, _) => StatementHead {
@@ -408,13 +415,10 @@ pub enum StatementBody {
     /// `ChangesApplied` entry — there is exactly one entry per phase per run,
     /// not one per voter.
     ///
-    /// Borsh discriminant note for release/10.0: this variant is discriminant
-    /// 27 here, whereas on `main` it is 28 because `CastVoteWithChannel`
-    /// occupies 27 there. When the `CastVoteWithChannel` topic is ported to
-    /// this branch, append it AFTER this variant (as discriminant 28) — do
-    /// not insert it before to match `main`'s order, as that would shift this
-    /// variant and break decoding of statements already written by this
-    /// branch. The resulting cross-branch order mismatch with `main` is the
+    /// Borsh discriminant note for release/10.0: this variant remains at
+    /// discriminant 27. `CastVoteWithChannel` is appended after it rather than
+    /// inserted before it, so statements already written by this branch remain
+    /// decodable. The resulting cross-branch order mismatch with `main` is the
     /// accepted trade-off.
     ExternalReconciliation(
         EventIdString,
@@ -423,6 +427,21 @@ pub enum StatementBody {
         ExternalReconciliationGeneratedAtString,
         ExternalReconciliationInputHashString,
         ExternalReconciliationOutputHashString,
+    ),
+    /// Cast-vote statement carrying its source channel. This separate,
+    /// append-only variant keeps existing Borsh-encoded `CastVote` messages
+    /// deserializable.
+    ///
+    /// Rollout invariant: every electoral-log reader (including released
+    /// `step-cli` and external auditors) must be upgraded before writers emit
+    /// this variant. Older readers cannot decode a variant they do not know.
+    CastVoteWithChannel(
+        ElectionIdString,
+        PseudonymHash,
+        CastVoteHash,
+        VoterIpString,
+        VoterCountryString,
+        VotingChannelString,
     ),
 }
 
@@ -467,7 +486,7 @@ pub enum StatementEventType {
 }
 
 #[cfg(test)]
-mod tests {
+mod statement_compatibility_tests {
     use super::*;
 
     fn external_api_request_description(operation: &str) -> String {
@@ -541,6 +560,14 @@ mod tests {
             ExternalReconciliationInputHashString(String::new()),
             ExternalReconciliationOutputHashString(None),
         );
+        let cast_vote_with_channel = StatementBody::CastVoteWithChannel(
+            ElectionIdString(None),
+            PseudonymHash::new([0; 64]),
+            CastVoteHash::new([0; 64]),
+            VoterIpString(String::new()),
+            VoterCountryString(String::new()),
+            VotingChannelString(String::new()),
+        );
 
         assert_eq!(borsh::to_vec(&election_publish).unwrap()[0], 2);
         assert_eq!(borsh::to_vec(&certificate).unwrap()[0], 23);
@@ -550,6 +577,23 @@ mod tests {
         // rebase that introduced `ExternalApiRequest`.
         assert_eq!(borsh::to_vec(&external).unwrap()[0], 26);
         assert_eq!(borsh::to_vec(&external_reconciliation).unwrap()[0], 27);
+        assert_eq!(borsh::to_vec(&cast_vote_with_channel).unwrap()[0], 28);
+    }
+
+    #[test]
+    fn legacy_cast_vote_body_remains_deserializable() {
+        let legacy = StatementBody::CastVote(
+            ElectionIdString(Some("election-id".to_string())),
+            PseudonymHash::new([1; 64]),
+            CastVoteHash::new([2; 64]),
+            VoterIpString("ip".to_string()),
+            VoterCountryString("country".to_string()),
+        );
+
+        let bytes = borsh::to_vec(&legacy).unwrap();
+        assert_eq!(bytes[0], 0);
+        let decoded: StatementBody = borsh::from_slice(&bytes).unwrap();
+        assert!(matches!(decoded, StatementBody::CastVote(_, _, _, _, _)));
     }
 
     #[test]
@@ -567,8 +611,16 @@ mod tests {
             25
         );
         assert_eq!(
-            borsh::to_vec(&StatementType::ExternalApiRequest).unwrap()[0],
+            borsh::to_vec(&StatementType::ResultsPublicationAction).unwrap()[0],
             26
+        );
+        assert_eq!(
+            borsh::to_vec(&StatementType::ExternalApiRequest).unwrap()[0],
+            27
+        );
+        assert_eq!(
+            borsh::to_vec(&StatementType::ExternalReconciliation).unwrap()[0],
+            28
         );
     }
 
@@ -609,7 +661,7 @@ pub enum StatementLogType {
 }
 
 #[cfg(test)]
-mod tests {
+mod results_publication_tests {
     use super::*;
 
     #[test]

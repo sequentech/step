@@ -7,6 +7,7 @@ use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use sequent_core::{
     ballot::{ElectionEventPresentation, LockedDown},
@@ -36,6 +37,7 @@ pub struct GenerateBallotPublicationInput {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GenerateBallotPublicationOutput {
     ballot_publication_id: String,
+    task_execution: TasksExecution,
 }
 
 #[instrument(skip(claims))]
@@ -101,12 +103,18 @@ pub async fn generate_ballot_publication(
         }
     }
 
-    let ballot_publication_id = add_ballot_publication(
+    let executer_name = claims
+        .name
+        .clone()
+        .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
+
+    let (ballot_publication_id, task_execution) = add_ballot_publication(
         &hasura_transaction,
         tenant_id.clone(),
         input.election_event_id.clone(),
         input.election_id.clone(),
         user_id.clone(),
+        &executer_name,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
@@ -117,6 +125,7 @@ pub async fn generate_ballot_publication(
 
     Ok(Json(GenerateBallotPublicationOutput {
         ballot_publication_id,
+        task_execution,
     }))
 }
 

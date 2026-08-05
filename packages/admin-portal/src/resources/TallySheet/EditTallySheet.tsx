@@ -36,6 +36,8 @@ import {
     EEnableCheckableLists,
     ICandidatePresentation,
     IContestPresentation,
+    TallySheetVotingChannel,
+    isTallySheetVotingChannel,
 } from "@sequentech/ui-core"
 import {validate_area_contest_results_js} from "sequent-core"
 import {filterCandidateByCheckableLists} from "@/services/CandidatesFilter"
@@ -44,6 +46,7 @@ import {createTree, getContestMatches} from "@/services/AreaService"
 import {styled} from "@mui/material/styles"
 import {IPermissions} from "@/types/keycloak"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {normalizeAreaContestResults} from "./validation"
 
 const StyledError = styled(Typography)`
     color: ${({theme}) => theme.palette.red.main};
@@ -51,10 +54,7 @@ const StyledError = styled(Typography)`
     font-size: 0.85rem;
 `
 
-const votingChannels = [
-    {id: "PAPER", name: "PAPER"},
-    {id: "POSTAL", name: "POSTAL"},
-]
+const votingChannels = [TallySheetVotingChannel.Paper, TallySheetVotingChannel.Postal] as const
 
 interface EditTallySheetProps {
     election: Sequent_Backend_Election
@@ -98,7 +98,8 @@ interface IContestMarkBounds {
 const validateAreaContestResults = (
     content: IAreaContestResults,
     contestBounds: IContestMarkBounds
-): SharedValidationError[] => validate_area_contest_results_js(content, contestBounds)
+): SharedValidationError[] =>
+    validate_area_contest_results_js(normalizeAreaContestResults(content), contestBounds)
 
 const numbersRegExp = /^[0-9]+$/
 
@@ -121,17 +122,19 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
 
     const [areasList, setAreasList] = useState<IArea[]>([])
     const [contestList, setContestList] = useState<IContest[]>([])
-    const [channel, setChannel] = React.useState<string | null>(null)
-    const [results, setResults] = useState<IAreaContestResults>({
-        area_id: tallySheet?.area_id || "",
-        contest_id: choosenContest?.id ?? tallySheet?.contest_id ?? "",
-        total_votes: tallySheet?.content?.total_votes || 0,
-        total_valid_votes: tallySheet?.content?.total_valid_votes || 0,
-        invalid_votes: tallySheet?.content?.invalid_votes || {},
-        total_blank_votes: tallySheet?.content?.total_blank_votes || 0,
-        census: tallySheet?.content?.census,
-        candidate_results: tallySheet?.content?.candidate_results || {},
-    })
+    const [channel, setChannel] = React.useState<TallySheetVotingChannel | null>(null)
+    const [results, setResults] = useState<IAreaContestResults>(() =>
+        normalizeAreaContestResults({
+            area_id: tallySheet?.area_id || "",
+            contest_id: choosenContest?.id ?? tallySheet?.contest_id ?? "",
+            total_votes: tallySheet?.content?.total_votes || 0,
+            total_valid_votes: tallySheet?.content?.total_valid_votes || 0,
+            invalid_votes: tallySheet?.content?.invalid_votes || {},
+            total_blank_votes: tallySheet?.content?.total_blank_votes || 0,
+            census: tallySheet?.content?.census,
+            candidate_results: tallySheet?.content?.candidate_results || {},
+        })
+    )
     const [invalids, setInvalids] = useState<IInvalidVotes>({})
     const [candidatesResults, setCandidatesResults] = useState<ICandidateResultsExtended[]>([])
     const [areaNameFilter, setAreaNameFilter] = useState<string | null>(null)
@@ -281,11 +284,8 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         if ((tallySheet || tallySaved) && candidates) {
             const tallySheetTemp = tallySaved ? JSON.parse(tallySaved || "") : tallySheet
             if (tallySheetTemp.content) {
-                const contentTemp: IAreaContestResults = {...tallySheetTemp.content}
-                if (contentTemp.invalid_votes) {
-                    const invalidsTemp = {...contentTemp.invalid_votes}
-                    setInvalids(invalidsTemp)
-                }
+                const contentTemp = normalizeAreaContestResults({...tallySheetTemp.content})
+                setInvalids(contentTemp.invalid_votes ?? {})
                 if (contentTemp.candidate_results) {
                     let candidatesResultsTemp: ICandidateResultsExtended[] = []
                     for (const candidate of candidates) {
@@ -309,7 +309,11 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                 }
                 setResults(contentTemp)
             }
-            setChannel(tallySheetTemp.channel)
+            setChannel(
+                tallySheetTemp.channel && isTallySheetVotingChannel(tallySheetTemp.channel)
+                    ? tallySheetTemp.channel
+                    : null
+            )
         }
     }, [tallySheet, candidates, i18n.language])
 
@@ -372,12 +376,14 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     }, [candidates, tallySheet, i18n.language])
 
     const recalculateTotals = () => {
-        let newResults = {...results}
-        let totalValidVotes = newResults.total_valid_votes ?? 0
-        let totalVotes = totalValidVotes + (invalids?.total_invalid ?? 0)
+        const normalizedResults = normalizeAreaContestResults(results)
+        const normalizedInvalids =
+            normalizeAreaContestResults({...normalizedResults, invalid_votes: invalids})
+                .invalid_votes ?? {}
+        const totalValidVotes = normalizedResults.total_valid_votes ?? 0
+        const totalVotes = totalValidVotes + (normalizedInvalids.total_invalid ?? 0)
 
-        newResults.total_valid_votes = totalValidVotes
-        newResults.total_votes = totalVotes
+        const newResults = {...normalizedResults, total_votes: totalVotes}
 
         const candidateResultsForValidation: {[id: string]: ICandidateResults} = {}
         for (const candidateResult of candidatesResults) {
@@ -391,7 +397,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         const sharedValidationErrors = validateAreaContestResults(
             {
                 ...newResults,
-                invalid_votes: invalids,
+                invalid_votes: normalizedInvalids,
                 candidate_results: candidateResultsForValidation,
             },
             {
@@ -400,6 +406,19 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                 cumulative_number_of_checkboxes:
                     contestPresentation?.cumulative_number_of_checkboxes,
             }
+        )
+
+        const codes = new Set(sharedValidationErrors.map((error) => error.code))
+        setTotalValidError(codes.has("invalid_total_valid_votes"))
+        setCensusError(codes.has("total_votes_exceeds_census"))
+        setSharedValidationMessages(
+            sharedValidationErrors
+                .filter(
+                    (error) =>
+                        error.code !== "invalid_total_valid_votes" &&
+                        error.code !== "total_votes_exceeds_census"
+                )
+                .map((error) => error.message)
         )
 
         setSharedValidationErrors(sharedValidationErrors)
@@ -458,7 +477,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         if (event.target.value === "") {
             setResults((prev: IAreaContestResults) => ({
                 ...prev,
-                [event.target.name as string]: "",
+                [event.target.name as string]: undefined,
             }))
         } else if (event.target.value === "0") {
             setResults((prev: IAreaContestResults) => ({...prev, [event.target.name as string]: 0}))
@@ -539,8 +558,6 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     }
 
     const onSubmit: SubmitHandler<FieldValues> = async (result) => {
-        const resultsTemp = {...results}
-        const invalidsTemp = {...invalids}
         const candidatesResultsTemp: {[id: string]: ICandidateResults} = {}
         for (const candidate of candidatesResults) {
             const candidateTemp: ICandidateResults = {
@@ -549,8 +566,11 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
             }
             candidatesResultsTemp[candidate.candidate_id] = candidateTemp
         }
-        resultsTemp.invalid_votes = invalidsTemp
-        resultsTemp.candidate_results = candidatesResultsTemp
+        const resultsTemp = normalizeAreaContestResults({
+            ...results,
+            invalid_votes: invalids,
+            candidate_results: candidatesResultsTemp,
+        })
 
         const tallySheetData:
             | Sequent_Backend_Tally_Sheet
@@ -663,18 +683,21 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                     />
                 </FormControl>
 
-                <FormControl fullWidth size="small">
+                <FormControl size="small" sx={{width: 300}}>
                     <InputLabel>{t("tallysheet.label.channel")}</InputLabel>
                     <Select
                         name="channel"
                         value={channel || ""}
                         label={String(t("tallysheet.label.channel"))}
-                        onChange={(e: SelectChangeEvent) => setChannel(e.target.value)}
+                        onChange={(e: SelectChangeEvent) => {
+                            const value = e.target.value
+                            setChannel(isTallySheetVotingChannel(value) ? value : null)
+                        }}
                         required
                     >
-                        {votingChannels.map((item) => (
-                            <MenuItem key={item.id} value={item.id}>
-                                {item.name}
+                        {votingChannels.map((votingChannel) => (
+                            <MenuItem key={votingChannel} value={votingChannel}>
+                                {votingChannel}
                             </MenuItem>
                         ))}
                     </Select>

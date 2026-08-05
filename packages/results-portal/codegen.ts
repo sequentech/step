@@ -20,6 +20,11 @@ const config: CodegenConfig = {
         "src/gql/": {
             preset: "client",
             plugins: [],
+            config: {
+                enumValues: {
+                    VotingStatusChannel: "@sequentech/ui-core#VotingStatusChannel",
+                },
+            },
         },
         "./graphql.schema.json": {
             plugins: ["introspection"],

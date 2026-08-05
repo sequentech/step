@@ -12,8 +12,8 @@ import {Sequent_Backend_Candidate_Extended} from "./types"
 import {useAtomValue} from "jotai"
 import {sortCandidates} from "@/utils/candidateSort"
 import {tallyQueryData} from "@/atoms/tally-candidates"
-import {ICountingAlgorithm} from "@sequentech/ui-core"
-import {parseProcessResults} from "./utils"
+import {ICountingAlgorithm, TallySheetVotingChannel, VotingStatusChannel} from "@sequentech/ui-core"
+import {parseProcessResults, parseResultAnnotations} from "./utils"
 import {RunoffStatus} from "./types"
 import {LoadingResults} from "./TallyElectionsResults"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
@@ -22,7 +22,7 @@ import {
     CandidateResultRow,
     PreferentialProcessResults,
     ResultsAndParticipation,
-    ResultsAndParticipationLabels,
+    ResultsAndParticipationLabelOverrides,
     ResultsParticipationSummary,
 } from "@sequentech/ui-essentials"
 
@@ -147,6 +147,8 @@ export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesPro
             explicitBlankVotesPercent: result.explicit_blank_votes_percent,
             implicitBlankVotes: result.implicit_blank_votes,
             implicitBlankVotesPercent: result.implicit_blank_votes_percent,
+            votesByChannel: parseResultAnnotations(result.annotations)?.extended_metrics
+                ?.votes_by_channel,
         }
     }, [general])
 
@@ -162,7 +164,7 @@ export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesPro
         [orderedResultsData]
     )
 
-    const labels = useMemo<Partial<ResultsAndParticipationLabels>>(
+    const labels = useMemo<ResultsAndParticipationLabelOverrides>(
         () => ({
             participationSummary: t("tally.table.global"),
             candidateResults: t("tally.table.candidates"),
@@ -192,6 +194,17 @@ export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesPro
             winner: t("tally.table.preferential.winner"),
             eliminated: t("tally.table.preferential.eliminated"),
             empty: t("common.label.noResult"),
+            participationByChannel: t("tally.table.participation_by_channel"),
+            channel: t("tally.table.channel"),
+            channelNames: {
+                [VotingStatusChannel.Online]: t("tally.table.channel_online"),
+                [VotingStatusChannel.Kiosk]: t("tally.table.channel_kiosk"),
+                [VotingStatusChannel.EarlyVoting]: t("tally.table.channel_early_voting"),
+                [VotingStatusChannel.Telephone]: t("tally.table.channel_telephone"),
+                [TallySheetVotingChannel.Paper]: t("tally.table.channel_paper"),
+                [TallySheetVotingChannel.Postal]: t("tally.table.channel_postal"),
+                [TallySheetVotingChannel.InPerson]: t("tally.table.channel_in_person"),
+            },
         }),
         [t]
     )
