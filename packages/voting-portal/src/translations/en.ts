@@ -276,7 +276,7 @@ const englishTranslation = {
         },
         electionSelectionScreen: {
             title: "Ballot list",
-            description: "Select the Ballot you want to vote on",
+            description: "Select the ballot you want to vote on",
             chooserHelpDialog: {
                 title: "Information: Ballot List",
                 content:
