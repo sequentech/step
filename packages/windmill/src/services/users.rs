@@ -145,6 +145,8 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
     let area_id_escaped = escape_sql_literal(area_id);
     let election_alias_escaped = escape_sql_literal(election_alias);
 
+    let no_service_accounts = service_account_exclusion("u");
+
     let statement = format!(
         r#"
         SELECT
@@ -159,6 +161,7 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
             user_attribute ua_elections ON u.id = ua_elections.user_id AND ua_elections.name = '{AUTHORIZED_ELECTION_IDS_NAME}'
         WHERE
             ra.name = '{realm_escaped}' AND
+            {no_service_accounts} AND
             u.enabled IS TRUE AND
             ua_area.value = '{area_id_escaped}' AND
             (ua_elections.value = '{election_alias_escaped}' OR ua_elections.value IS NULL)
@@ -412,6 +415,28 @@ fn get_query_bool_condition(field: &str, value: Option<bool>) -> String {
     }
 }
 
+/// Keycloak materialises a `user_entity` row for every client that has service accounts
+/// enabled (`service-account-ivr-service`, `service-account-realm-management`, ...). Those
+/// rows live in the same realm as the voters but are not voters, so they must never reach a
+/// voter count or listing. `service_account_client_link` holds the owning client's id and is
+/// null for real users, which makes it an exact test rather than a username-prefix guess.
+fn service_account_exclusion(alias: &str) -> String {
+    format!("{alias}.service_account_client_link IS NULL")
+}
+
+/// WHERE-clause head shared by the voter count and voter listing queries: scope to the realm,
+/// drop service accounts, then apply the caller's filters. `filters_clause` is the caller's
+/// already-composed column filters, which carries its own trailing boolean operator when set.
+fn voter_scope_clause(filters_clause: &str) -> String {
+    let no_service_accounts = service_account_exclusion("u");
+    format!(
+        r#"ra.name = $1 AND
+            {no_service_accounts} AND
+            {filters_clause}
+            (u.id = ANY($2) OR $2 IS NULL)"#
+    )
+}
+
 /// Gets sort clause ORDER BY, and the field parameter (column name or configurable attribute).
 /// Checks if the field is valid and return None otherwise.
 ///
@@ -573,6 +598,8 @@ pub async fn count_keycloak_users(
         format!("AND ({})", dynamic_attr_conditions.join(" OR "))
     };
 
+    let scope_clause = voter_scope_clause(&filters_clause);
+
     // Build the count query using only the necessary filtering clauses.
     let count_query = format!(
         r#"
@@ -582,9 +609,7 @@ pub async fn count_keycloak_users(
         {area_ids_join_clause}
         {authorized_alias_join_clause}
         WHERE
-            ra.name = $1 AND
-            {filters_clause}
-            (u.id = ANY($2) OR $2 IS NULL)
+            {scope_clause}
             {area_ids_where_clause}
             {authorized_alias_where_clause}
             {enabled_condition}
@@ -741,6 +766,7 @@ pub async fn list_users(
 
     debug!("parameters count: {}", next_param_number - 1);
     debug!("params {:?}", params);
+    let scope_clause = voter_scope_clause(&filters_clause);
     let statement_str = format!(
         r#"
         WITH limited_users AS MATERIALIZED (
@@ -761,9 +787,7 @@ pub async fn list_users(
             {area_ids_join_clause}
             {authorized_alias_join_clause}
             WHERE
-                ra.name = $1 AND
-                {filters_clause}
-                (u.id = ANY($2) OR $2 IS NULL)
+                {scope_clause}
                 {area_ids_where_clause}
                 {authorized_alias_where_clause}
                 {enabled_condition}
@@ -823,9 +847,7 @@ pub async fn list_users(
     {area_ids_join_clause}
     {authorized_alias_join_clause}
     WHERE
-        ra.name = $1 AND
-        {filters_clause}
-        (u.id = ANY($2) OR $2 IS NULL)
+        {scope_clause}
         {area_ids_where_clause}
         {authorized_alias_where_clause}
         {enabled_condition}
@@ -1029,6 +1051,7 @@ pub async fn list_users_ids(
 
     debug!("parameters count: {}", next_param_number - 1);
     debug!("params {:?}", params);
+    let scope_clause = voter_scope_clause(&filters_clause);
     let statement_str = format!(
         r#"
             SELECT
@@ -1040,9 +1063,7 @@ pub async fn list_users_ids(
             {area_ids_join_clause}
             {authorized_alias_join_clause}
             WHERE
-                ra.name = $1 AND
-                {filters_clause}
-                (u.id = ANY($2) OR $2 IS NULL)
+                {scope_clause}
                 {area_ids_where_clause}
                 {authorized_alias_where_clause}
                 {enabled_condition}
@@ -1111,6 +1132,7 @@ pub async fn count_keycloak_enabled_users(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
 ) -> Result<i64> {
+    let no_service_accounts = service_account_exclusion("u");
     let statement = keycloak_transaction
         .prepare(
             format!(
@@ -1122,7 +1144,8 @@ pub async fn count_keycloak_enabled_users(
                 INNER JOIN
                     realm AS ra ON ra.id = u.realm_id
                 WHERE
-                    ra.name = $1 AND 
+                    ra.name = $1 AND
+                    {no_service_accounts} AND
                     u.enabled IS TRUE
                 "#
             )
@@ -1228,6 +1251,7 @@ pub async fn lookup_users(
         true => "".to_string(),
         false => dynamic_attr_conditions.join(" OR "),
     };
+    let no_service_accounts = service_account_exclusion("u");
 
     debug!("parameters count: {}", next_param_number - 1);
     debug!("params {:?}", params);
@@ -1248,6 +1272,7 @@ pub async fn lookup_users(
             LEFT JOIN realm ra ON ra.id = u.realm_id
             WHERE
                 ra.name = $1
+                AND {no_service_accounts}
                 {enabled_condition}
             GROUP BY mu.id
         )
@@ -1391,6 +1416,7 @@ pub async fn count_keycloak_enabled_users_by_attrs(
         attr_conditions.join(r#" AND "#)
     };
 
+    let no_service_accounts = service_account_exclusion("u");
     let statement = keycloak_transaction
         .prepare(
             format!(
@@ -1402,7 +1428,8 @@ pub async fn count_keycloak_enabled_users_by_attrs(
             INNER JOIN
                 realm AS ra ON ra.id = u.realm_id
             WHERE
-                ra.name = $1 
+                ra.name = $1
+                AND {no_service_accounts}
                 AND u.enabled IS TRUE
                 AND ({attr_conditions_sql})
             "#
@@ -1785,5 +1812,37 @@ mod tests {
     fn test_sql_boolean_operator_none_format() {
         let clause = format!("(col = $1){}", SqlBooleanOperator::None);
         assert_eq!(clause, "(col = $1)");
+    }
+
+    #[test]
+    fn test_service_account_exclusion_targets_the_given_alias() {
+        // The tally eligibility query joins user_entity twice, as `u` and as `delegator`.
+        assert_eq!(
+            service_account_exclusion("u"),
+            "u.service_account_client_link IS NULL"
+        );
+        assert_eq!(
+            service_account_exclusion("delegator"),
+            "delegator.service_account_client_link IS NULL"
+        );
+    }
+
+    #[test]
+    fn test_voter_scope_clause_excludes_service_accounts() {
+        let clause = voter_scope_clause("");
+        assert!(
+            clause.contains("u.service_account_client_link IS NULL"),
+            "voter queries must not report Keycloak service accounts as voters: {clause}"
+        );
+    }
+
+    #[test]
+    fn test_voter_scope_clause_keeps_realm_and_caller_filters() {
+        let filters_clause = format!(r#"("email" = $3){}"#, SqlBooleanOperator::And);
+        let clause = voter_scope_clause(&filters_clause);
+
+        assert!(clause.contains("ra.name = $1"));
+        assert!(clause.contains(r#"("email" = $3) AND"#));
+        assert!(clause.contains("(u.id = ANY($2) OR $2 IS NULL)"));
     }
 }
