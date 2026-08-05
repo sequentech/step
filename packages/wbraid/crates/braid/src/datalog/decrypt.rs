@@ -81,7 +81,8 @@ pub mod infer {
         // given ciphertexts, and it has not yet posted its plaintexts.
         action(Action::ComputePlaintexts(*cfg_hash, *pk_hash, *ciphertexts_hash, partial_decryptions.extract(), *self_index)) <--
             configuration_valid(cfg_hash, _, _, self_index),
-            // uncomment to restrict to selected trustees only
+            // comment this line out to have all trustees, not just the mixing
+            // participants, compute the plaintexts
             mixing_position(cfg_hash, pk_hash, _, _, self_index),
             partial_decryptions_all(cfg_hash, partial_decryptions),
             mix_complete(cfg_hash, pk_hash, _, ciphertexts_hash),

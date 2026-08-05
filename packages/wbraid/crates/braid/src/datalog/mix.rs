@@ -8,11 +8,15 @@
 //! rewritten to destructure our named-field predicate structs
 //! ([`Ballots`](crate::messages::predicate::Ballots),
 //! [`Mix`](crate::messages::predicate::Mix),
-//! [`MixSignature`](crate::messages::predicate::MixSignature)); the intermediate,
-//! protocol, and error rules are ported verbatim. The mixing-set is a
-//! `Vec<TrusteeIndex>` (not a fixed array) so the rules can recursively unpack
-//! it into per-position facts. The `#[cfg(test)] mod stateright` harness is
-//! dropped.
+//! [`MixSignature`](crate::messages::predicate::MixSignature)); the
+//! intermediate rules are ported verbatim; the mix/sign protocol rules
+//! additionally tag their actions with a [`MixSource`](super::MixSource),
+//! splitting `SignMix` by input provenance (see below); the error rules add
+//! two rules over the original: the ballots mixing-trustee list must be
+//! exactly threshold-sized, and its entries must name existing trustees
+//! (1..=trustee_count). The mixing-set is a `Vec<TrusteeIndex>` (not a fixed
+//! array) so the rules can recursively unpack it into per-position facts. The
+//! `#[cfg(test)] mod stateright` harness is dropped.
 
 /// Ascent inference rules for the mixing phase, as a reusable source template.
 pub mod infer {
@@ -183,6 +187,23 @@ pub mod infer {
             mix_chain(cfg_hash, pk_hash, ciphertexts_hash, out_ciphertexts_hash, threshold);
 
         // Errors //////////////////////////////////////////////////
+
+        // A mixing-trustee list whose size is not exactly the threshold. The
+        // mixing set is the decryption quorum: the chain completes at position
+        // threshold (mix_complete), so a shorter list can never complete and a
+        // longer one would strand mixes beyond the completed chain.
+        error(format!("mixing set size {} does not match threshold {}", mixing_trustees.len(), threshold)) <--
+            configuration_valid(cfg_hash, threshold, _, _),
+            ballots(cfg_hash, _, _, mixing_trustees),
+            if mixing_trustees.len() != *threshold;
+
+        // A mixing-trustee index that names no existing trustee (indices are
+        // 1-based, §4.3). Without this check a nonexistent index would stall
+        // the mix chain forever instead of halting.
+        error(format!("mixing trustee index {} out of range 1..={}", trustee, trustee_count)) <--
+            configuration_valid(cfg_hash, _, trustee_count, _),
+            mixing_position(cfg_hash, _, _, _, trustee),
+            if *trustee == 0 || *trustee > *trustee_count;
 
         // A trustee assigned to two different mixing positions.
         error(format!("Multiple mixing positions for trustee {:?}: {:?}, {:?}", trustee, position1, position2)) <--

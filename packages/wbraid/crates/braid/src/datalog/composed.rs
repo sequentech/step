@@ -51,8 +51,10 @@ pub fn run(predicates: &[Predicate]) -> Result<Vec<Action>, String> {
 mod tests {
     use super::run;
     use crate::datalog::Action;
-    use crate::messages::newtypes::{zero_hash, ConfigurationHash};
-    use crate::messages::predicate::{ConfigurationValid, Predicate};
+    use crate::messages::newtypes::{
+        zero_hash, CiphertextsHash, ConfigurationHash, PublicKeyHash, TrusteeIndex,
+    };
+    use crate::messages::predicate::{Ballots, ConfigurationValid, Predicate};
 
     /// A lone `ConfigurationValid` predicate should make the trustee compute its
     /// DKG shares: the first action of the protocol.
@@ -75,5 +77,58 @@ mod tests {
             "expected ComputeShares(cfg, 1), got {:?}",
             actions
         );
+    }
+
+    /// A `ConfigurationValid` (threshold 2 of 3, self index 1) plus a `Ballots`
+    /// naming the given mixing trustees.
+    fn config_and_ballots(trustees: Vec<TrusteeIndex>) -> Vec<Predicate> {
+        let cfg = ConfigurationHash(zero_hash());
+        vec![
+            Predicate::ConfigurationValid(ConfigurationValid {
+                configuration: cfg,
+                threshold: 2,
+                trustee_count: 3,
+                self_index: 1,
+            }),
+            Predicate::Ballots(Ballots {
+                configuration: cfg,
+                public_key: PublicKeyHash(zero_hash()),
+                ciphertexts: CiphertextsHash(zero_hash()),
+                trustees,
+            }),
+        ]
+    }
+
+    /// The ballots mixing-trustee list is the decryption quorum, so its size
+    /// must be exactly the threshold: a shorter or longer list is a malformed
+    /// manager input and must halt the protocol.
+    #[test]
+    fn mixing_set_size_must_match_threshold() {
+        run(&config_and_ballots(vec![1, 2]))
+            .expect("a threshold-sized mixing set must not error");
+
+        for trustees in [vec![1], vec![1, 2, 3]] {
+            let err = run(&config_and_ballots(trustees.clone()))
+                .expect_err(&format!("mixing set {:?} must error", trustees));
+            assert!(
+                err.contains("mixing set size"),
+                "expected a mixing-set size error, got: {err}"
+            );
+        }
+    }
+
+    /// Every entry of the ballots mixing-trustee list must name an existing
+    /// trustee (1-based, at most trustee_count): a nonexistent index is a
+    /// malformed manager input and must halt rather than stall the mix chain.
+    #[test]
+    fn mixing_trustee_index_must_be_in_range() {
+        for trustees in [vec![0, 1], vec![1, 9]] {
+            let err = run(&config_and_ballots(trustees.clone()))
+                .expect_err(&format!("mixing set {:?} must error", trustees));
+            assert!(
+                err.contains("out of range"),
+                "expected an out-of-range error, got: {err}"
+            );
+        }
     }
 }
