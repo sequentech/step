@@ -280,7 +280,7 @@ const englishTranslation = {
             chooserHelpDialog: {
                 title: "Information: Ballot List",
                 content:
-                    "Welcome to the Voting Booth. This screen shows the Ballots you can vote on. Ballots displayed in this list can be open to voting, scheduled, or closed. You will be able to access the ballot only if the voting period is open.",
+                    "Welcome to the Voting Booth. This screen shows the ballots you can vote on. Ballots displayed in this list can be open to voting, scheduled, or closed. You will be able to access the ballot only if the voting period is open.",
                 ok: "OK",
             },
             noResults: "No ballots for now.",
