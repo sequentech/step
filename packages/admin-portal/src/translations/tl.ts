@@ -1805,6 +1805,8 @@ const tagalogTranslation: TranslationType = {
                 "warn-invalid-implicit-and-explicit":
                     "Magbigay ng Babala sa Di-wastong Implicit at Explicit",
                 "not-allowed": "Hindi Pinapayagan",
+                "allowed-with-exclusive-explicit":
+                    "Pinapayagan na may Eksklusibong Di-wastong Boto",
             },
             candidatesIconCheckboxPolicy: {
                 "label": "An porma kan icon kan kahon kan mga kandidato",
