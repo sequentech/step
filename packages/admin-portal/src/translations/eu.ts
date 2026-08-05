@@ -1797,6 +1797,11 @@ const basqueTranslation: TranslationType = {
                     "Abisatu Baliogabeko Inplizitu eta Esplizitua",
                 "not-allowed": "Ez Baimenduta",
             },
+            invalidVoteExclusivityPolicy: {
+                label: "Baliogabeko Boto Esklusibotasun Politika",
+                inclusive: "Barnebiltzailea",
+                exclusive: "Esklusiboa",
+            },
             candidatesIconCheckboxPolicy: {
                 "label": "Hautagaien kontrol-laukiaren ikono forma",
                 "square-checkbox": "Kontrol-lauki Karratua",

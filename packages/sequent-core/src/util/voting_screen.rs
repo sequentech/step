@@ -455,6 +455,7 @@ pub fn get_contest_plurality(
             sort_order: None,
             under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
             invalid_vote_policy: Some(invalid_vote_policy),
+            invalid_vote_exclusivity_policy: None,
             blank_vote_policy: Some(blank_vote_policy),
             over_vote_policy: Some(over_vote_policy),
             duplicated_rank_policy: None,

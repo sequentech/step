@@ -1806,6 +1806,11 @@ const tagalogTranslation: TranslationType = {
                     "Magbigay ng Babala sa Di-wastong Implicit at Explicit",
                 "not-allowed": "Hindi Pinapayagan",
             },
+            invalidVoteExclusivityPolicy: {
+                label: "Patakaran sa Eksklusibidad ng Di-wastong Boto",
+                inclusive: "Kasama",
+                exclusive: "Eksklusibo",
+            },
             candidatesIconCheckboxPolicy: {
                 "label": "An porma kan icon kan kahon kan mga kandidato",
                 "square-checkbox": "Square Checkbox",

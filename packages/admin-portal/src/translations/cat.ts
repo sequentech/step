@@ -1815,6 +1815,11 @@ const catalanTranslation: TranslationType = {
                 "warn-invalid-implicit-and-explicit": "Advertir Invàlids Implícits i Explícits",
                 "not-allowed": "No Permesa",
             },
+            invalidVoteExclusivityPolicy: {
+                label: "Política d'Exclusivitat de Vot Invàlid",
+                inclusive: "Inclusiu",
+                exclusive: "Exclusiu",
+            },
             candidatesIconCheckboxPolicy: {
                 "label": "Forma de la icona de la casella de verificació dels candidats",
                 "square-checkbox": "Caixa de verificació quadrada",

@@ -1813,6 +1813,11 @@ const frenchTranslation: TranslationType = {
                 "warn-invalid-implicit-and-explicit": "Avertir Inválidos Implicites et Explicites",
                 "not-allowed": "Non Permis",
             },
+            invalidVoteExclusivityPolicy: {
+                label: "Politique d'Exclusivité de Vote Invalide",
+                inclusive: "Inclusif",
+                exclusive: "Exclusif",
+            },
             candidatesIconCheckboxPolicy: {
                 "label": "Forme d’icône de case à cocher pour les candidats",
                 "square-checkbox": "Case à cocher carrée",

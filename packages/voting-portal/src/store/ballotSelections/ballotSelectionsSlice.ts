@@ -8,6 +8,7 @@ import {
     IDecodedVoteContest,
     IDecodedVoteChoice,
     BallotSelection,
+    EInvalidVoteExclusivityPolicy,
 } from "@sequentech/ui-core"
 import {IBallotStyle} from "../ballotStyles/ballotStylesSlice"
 
@@ -111,6 +112,21 @@ export const ballotSelectionsSlice = createSlice({
             // update state
             if (!isUndefined(currentQuestion)) {
                 currentQuestion.is_explicit_invalid = action.payload.isExplicitInvalid
+
+                // Under EXCLUSIVE, marking the ballot explicit-invalid is
+                // mutually exclusive with any other selection in the
+                // contest, mirroring how blank vote already clears
+                // everything else when selected.
+                if (
+                    action.payload.isExplicitInvalid &&
+                    ballotEmlContest.presentation?.invalid_vote_exclusivity_policy ===
+                        EInvalidVoteExclusivityPolicy.EXCLUSIVE
+                ) {
+                    currentQuestion.choices = currentQuestion.choices.map((choice) => ({
+                        ...choice,
+                        selected: -1,
+                    }))
+                }
             }
             return state
         },
@@ -199,6 +215,15 @@ export const ballotSelectionsSlice = createSlice({
                             ? {...choice, selected: -1}
                             : choice
                     )
+
+                    // Under EXCLUSIVE, selecting a real candidate is
+                    // mutually exclusive with explicit invalid.
+                    if (
+                        ballotEmlContest.presentation?.invalid_vote_exclusivity_policy ===
+                        EInvalidVoteExclusivityPolicy.EXCLUSIVE
+                    ) {
+                        currentQuestion.is_explicit_invalid = false
+                    }
                 }
             }
 

@@ -1805,6 +1805,11 @@ const galegoTranslation: TranslationType = {
                 "warn-invalid-implicit-and-explicit": "Avisar Votos Nulos Implícitos e Explícitos",
                 "not-allowed": "Non Permitido",
             },
+            invalidVoteExclusivityPolicy: {
+                label: "Política de Exclusividade de Voto Nulo",
+                inclusive: "Inclusivo",
+                exclusive: "Exclusivo",
+            },
             candidatesIconCheckboxPolicy: {
                 "label": "Forma do Icono de Caixa de Selección dos Candidatos",
                 "square-checkbox": "Caixa de Selección Cadrada",

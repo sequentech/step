@@ -886,6 +886,38 @@ pub enum InvalidVotePolicy {
     NOT_ALLOWED,
 }
 
+/// Governs whether the explicit-invalid marker candidate can be combined
+/// with other selections in the same contest, orthogonal to
+/// `InvalidVotePolicy` (which governs whether an explicit-invalid ballot
+/// can be submitted at all). EXCLUSIVE makes the marker mutually exclusive
+/// with other selections, mirroring how blank vote already behaves; the
+/// enforcement lives in `ballotSelectionsSlice.ts` on the frontend, since
+/// this policy only affects selection-time UI behavior, not validation.
+#[allow(non_camel_case_types)]
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum EInvalidVoteExclusivityPolicy {
+    #[strum(serialize = "inclusive")]
+    #[serde(rename = "inclusive")]
+    #[default]
+    INCLUSIVE,
+    #[strum(serialize = "exclusive")]
+    #[serde(rename = "exclusive")]
+    EXCLUSIVE,
+}
+
 #[derive(
     Debug,
     BorshSerialize,
@@ -1568,6 +1600,8 @@ pub struct ContestPresentation {
     pub allow_writeins: Option<bool>,
     pub base32_writeins: Option<bool>,
     pub invalid_vote_policy: Option<InvalidVotePolicy>, /* allowed|warn|warn-invalid-implicit-and-explicit */
+    #[serde(default)]
+    pub invalid_vote_exclusivity_policy: Option<EInvalidVoteExclusivityPolicy>, /* inclusive|exclusive */
     pub under_vote_policy: Option<EUnderVotePolicy>,
     pub blank_vote_policy: Option<EBlankVotePolicy>,
     pub over_vote_policy: Option<EOverVotePolicy>,
@@ -1596,6 +1630,9 @@ impl ContestPresentation {
             allow_writeins: Some(true),
             base32_writeins: Some(true),
             invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
+            invalid_vote_exclusivity_policy: Some(
+                EInvalidVoteExclusivityPolicy::INCLUSIVE,
+            ),
             blank_vote_policy: Some(EBlankVotePolicy::ALLOWED),
             over_vote_policy: Some(EOverVotePolicy::ALLOWED),
             pagination_policy: Some("".to_owned()),

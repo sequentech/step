@@ -20,6 +20,16 @@ export enum EInvalidVotePolicy {
     NOT_ALLOWED = "not-allowed",
 }
 
+// Governs whether the explicit-invalid marker candidate can be combined with
+// other selections in the same contest, orthogonal to EInvalidVotePolicy
+// (which governs whether an explicit-invalid ballot can be submitted at
+// all). EXCLUSIVE makes the marker mutually exclusive with other
+// selections, mirroring how blank vote already behaves.
+export enum EInvalidVoteExclusivityPolicy {
+    INCLUSIVE = "inclusive",
+    EXCLUSIVE = "exclusive",
+}
+
 export enum EEnableCheckableLists {
     CANDIDATES_AND_LISTS = "allow-selecting-candidates-and-lists",
     CANDIDATES_ONLY = "allow-selecting-candidates",
@@ -82,6 +92,7 @@ export interface IContestPresentation {
     allow_writeins?: boolean
     base32_writeins?: boolean
     invalid_vote_policy?: EInvalidVotePolicy
+    invalid_vote_exclusivity_policy?: EInvalidVoteExclusivityPolicy
     blank_vote_policy?: EBlankVotePolicy
     over_vote_policy?: EOverVotePolicy
     pagination_policy?: String

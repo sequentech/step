@@ -118,6 +118,11 @@ When voter selection is invalid (e.g., null vote or too many selections):
 - **Warn Implicit and Explicit**: Warning for explicitly invalid (null/spoiled) and implicitly invalid (e.g., too many).
 - **Not Allowed**: Cannot submit if invalid options selected.
 
+#### Invalid Vote Exclusivity Policy
+Controls whether selecting the explicit-invalid option can be combined with other selections in the same contest. Independent from Invalid Vote Policy above, which controls whether an explicit-invalid ballot can be submitted at all.
+- **Inclusive**: Selecting the explicit-invalid option does not affect other selections, and vice versa — a voter can combine it with candidate selections.
+- **Exclusive**: Selecting the explicit-invalid option clears any other selected candidates, and selecting a candidate clears the explicit-invalid option, mirroring how blank vote already behaves.
+
 ##### Preferential systems (e.g. Instant Runoff)
 
 ###### What is considered Implicit invalid error?

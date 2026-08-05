@@ -1803,6 +1803,11 @@ const dutchTranslation: TranslationType = {
                     "Waarschuwen bij Impliciet en Expliciet Ongeldig",
                 "not-allowed": "Niet Toegestaan",
             },
+            invalidVoteExclusivityPolicy: {
+                label: "Beleid Exclusiviteit Ongeldige Stem",
+                inclusive: "Inclusief",
+                exclusive: "Exclusief",
+            },
             candidatesIconCheckboxPolicy: {
                 "label": "Vorm icoon selectievakje kandidaten",
                 "square-checkbox": "Vierkant Selectievakje",

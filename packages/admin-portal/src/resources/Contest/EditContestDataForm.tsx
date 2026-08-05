@@ -48,6 +48,7 @@ import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {
     CandidatesOrder,
     EInvalidVotePolicy,
+    EInvalidVoteExclusivityPolicy,
     EUnderVotePolicy,
     EEnableCheckableLists,
     IContestPresentation,
@@ -385,6 +386,15 @@ export const ContestDataForm: React.FC = () => {
         }))
     }
 
+    const invalidVoteExclusivityPolicyChoices = (): Array<
+        EnumChoice<EInvalidVoteExclusivityPolicy>
+    > => {
+        return Object.values(EInvalidVoteExclusivityPolicy).map((value) => ({
+            id: value,
+            name: t(`contestScreen.invalidVoteExclusivityPolicy.${value.toLowerCase()}`),
+        }))
+    }
+
     const candidatesIconCheckboxPolicy = (): Array<EnumChoice<ECandidatesIconCheckboxPolicy>> => {
         return Object.values(ECandidatesIconCheckboxPolicy).map((value) => ({
             id: value,
@@ -482,6 +492,10 @@ export const ContestDataForm: React.FC = () => {
 
             newContest.presentation.invalid_vote_policy =
                 newContest.presentation.invalid_vote_policy || EInvalidVotePolicy.ALLOWED
+
+            newContest.presentation.invalid_vote_exclusivity_policy =
+                newContest.presentation.invalid_vote_exclusivity_policy ||
+                EInvalidVoteExclusivityPolicy.INCLUSIVE
 
             newContest.presentation.enable_checkable_lists =
                 newContest.presentation.enable_checkable_lists ||
@@ -851,6 +865,16 @@ export const ContestDataForm: React.FC = () => {
                                     source="presentation.invalid_vote_policy"
                                     choices={invalidVotePolicyChoices()}
                                     label={String(t(`contestScreen.invalidVotePolicy.label`))}
+                                    validate={required()}
+                                />
+
+                                <SelectInput
+                                    source="presentation.invalid_vote_exclusivity_policy"
+                                    choices={invalidVoteExclusivityPolicyChoices()}
+                                    label={String(
+                                        t(`contestScreen.invalidVoteExclusivityPolicy.label`)
+                                    )}
+                                    defaultValue={EInvalidVoteExclusivityPolicy.INCLUSIVE}
                                     validate={required()}
                                 />
 

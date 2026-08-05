@@ -1785,6 +1785,11 @@ const englishTranslation = {
                 "warn-invalid-implicit-and-explicit": "Warn Invalid Implicit And Explicit",
                 "not-allowed": "Not Allowed",
             },
+            invalidVoteExclusivityPolicy: {
+                label: "Invalid Vote Exclusivity Policy",
+                inclusive: "Inclusive",
+                exclusive: "Exclusive",
+            },
             candidatesIconCheckboxPolicy: {
                 "label": "Candidates checkbox icon shape",
                 "square-checkbox": "Square Checkbox",

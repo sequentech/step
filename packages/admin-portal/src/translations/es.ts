@@ -1805,6 +1805,11 @@ const spanishTranslation: TranslationType = {
                 "warn-invalid-implicit-and-explicit": "Advertir Inválidos Implícitos y Explícitos",
                 "not-allowed": "No Permitido",
             },
+            invalidVoteExclusivityPolicy: {
+                label: "Política de Exclusividad de Voto Inválido",
+                inclusive: "Inclusivo",
+                exclusive: "Exclusivo",
+            },
             candidatesIconCheckboxPolicy: {
                 "label": "Forma del icono de la casilla de verificación de los candidatos",
                 "square-checkbox": "Casilla de verificación cuadrada",
