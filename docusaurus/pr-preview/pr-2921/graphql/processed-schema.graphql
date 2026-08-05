@@ -80,6 +80,7 @@ type CastVotesByIp {
 }
 
 type CastVotesPerDay {
+  channel: String!
   day: date!
   day_count: Int!
 }
@@ -246,6 +247,7 @@ type ElectionEventStatsOutput {
   total_distinct_voters: Int!
   total_elections: Int!
   total_eligible_voters: Int!
+  voters_by_channel: [VotersByChannel!]!
   votes_per_day: [CastVotesPerDay]!
 }
 
@@ -260,6 +262,7 @@ input ElectionStatsInput {
 type ElectionStatsOutput {
   total_areas: Int!
   total_distinct_voters: Int!
+  voters_by_channel: [VotersByChannel!]!
   votes_per_day: [CastVotesPerDay]!
 }
 
@@ -386,6 +389,11 @@ type FetchResultsArtifactOutput {
   urls: [String!]!
 }
 
+type GenerateBallotPublicationOutput {
+  ballot_publication_id: uuid!
+  task_execution: tasks_execution_type!
+}
+
 type GenerateGoogleMeetOutput {
   meet_link: String
 }
@@ -434,6 +442,10 @@ input GetPrivateKeyInput {
 
 type GetPrivateKeyOutput {
   private_key_base64: String!
+}
+
+type GetRealmAttributesOutput {
+  attributes: jsonb!
 }
 
 input GetRolesInput {
@@ -1001,6 +1013,11 @@ type UserProfileAttribute {
   required: jsonb
   selector: jsonb
   validations: jsonb
+}
+
+type VotersByChannel {
+  channel: String!
+  count: Int!
 }
 
 type VotesInfo {
@@ -1681,7 +1698,7 @@ type mutation_root {
   export_tenant_config(tenant_id: String): documentTaskOutput
   export_tenant_users(tenant_id: String!): ExportTenantUsersOutput
   export_users(election_event_id: String, election_id: String, tenant_id: String!): ExportUsersOutput
-  generate_ballot_publication(election_event_id: uuid!, election_id: uuid): PublishBallotOutput
+  generate_ballot_publication(election_event_id: uuid!, election_id: uuid): GenerateBallotPublicationOutput
   """generate Google Meet link for election events"""
   generate_google_meet(attendee_emails: [String!]!, description: String!, end_date_time: String!, start_date_time: String!, summary: String!, time_zone: String!): GenerateGoogleMeetOutput
   generate_preview_url(document_id: String!, tenant_id: String!): GeneratePreviewUrlOutput
@@ -4944,6 +4961,7 @@ type query_root {
   getElectionStats(object: ElectionStatsInput!): ElectionStatsOutput
   """list permissions"""
   get_permissions(body: GetPermissionsInput!): GetPermissionsOutput!
+  get_realm_attributes(election_event_id: String!): GetRealmAttributesOutput!
   get_roles(body: GetRolesInput!): GetRolesOutput!
   get_top_votes_by_ip(body: GetTopCastVotesByIpInput!): GetTopCastVotesByIpOutput
   get_user_profile_attributes(election_event_id: String, tenant_id: String!): [UserProfileAttribute!]!

@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">DOB + PIN Authentication (Direct Grant) | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-2921/docs/developers/ivr/dob-pin-direct-grant-authenticator"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="DOB + PIN Authentication (Direct Grant) | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2921/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2921/docs/developers/ivr/dob-pin-direct-grant-authenticator"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2921/docs/developers/ivr/dob-pin-direct-grant-authenticator" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2921/docs/developers/ivr/dob-pin-direct-grant-authenticator" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"DOB + PIN Authentication (Direct Grant)","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-2921/docs/developers/ivr/dob-pin-direct-grant-authenticator"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2921/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/pr-preview/pr-2921/assets/js/runtime~main.11182cb8.js" defer="defer"></script>
-<script src="/docusaurus/pr-preview/pr-2921/assets/js/main.97bbfe4d.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2921/assets/js/runtime~main.3f63a0c1.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2921/assets/js/main.c133242f.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
 <svg style="display: none;"><defs>
@@ -17,7 +17,7 @@
 a PIN (<code>direct-grant-validate-password</code>). Some elections instead want voters to authenticate with
 one or more attributes they already know - a date of birth, a national ID - plus a PIN, without a
 separate voter ID step. <code>MultiAttributePasswordDirectGrantAuthenticator</code>
-(provider ID <code>multi-attribute-password-direct-grant</code>) is the IVR/Direct Grant counterpart of the
+(provider ID <code>multi-attribute-password-direct</code>) is the IVR/Direct Grant counterpart of the
 web login&#x27;s <a class="" href="/docusaurus/pr-preview/pr-2921/docs/election_managers/tutorials/admin_portal_tutorials_multi_attribute_password_login">Multi-Attribute + Password Form</a> -
 both share the same resolution logic (<code>MultiAttributeCredentialResolver</code>): every configured
 identifying attribute must match the same user, and the PIN then disambiguates among candidates.</p>
@@ -27,32 +27,29 @@ identifying attribute must match the same user, and the PIN then disambiguates a
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="current-ivr-lambda-compatibility">Current IVR Lambda compatibility<a href="#current-ivr-lambda-compatibility" class="hash-link" aria-label="Direct link to Current IVR Lambda compatibility" title="Direct link to Current IVR Lambda compatibility" translate="no">​</a></h2>
 <p>The Keycloak side (this authenticator and <code>ivr-config-provider</code>) supports any number of
 <code>identifier</code> fields plus one <code>secret</code> field, each with an independently configurable <code>maps_to</code>.
-<strong>As validated against <code>beyond</code> at <code>feat/meta-10554/main</code>
-(<code>packages/ivr-core/src/execution/phases/auth.rs</code>), the IVR Lambda does not yet exercise that full
-range:</strong></p>
+As of <code>beyond</code> commit <code>0975acfe</code> (&quot;IVR: Prepare the first release (auth maps_to)&quot;, on
+<code>feat/meta-10554/release/10.0</code>), the IVR Lambda
+(<code>packages/ivr-core/src/execution/phases/auth.rs</code>) exercises that range:</p>
 <ul>
-<li class=""><strong>Only one identifier field is collected.</strong> <code>AuthState::IdentifierPrompt</code> picks the <em>first</em>
-<code>identifier</code>-kind step (<code>.find(...)</code>) and moves straight to the secret step after collecting it.
-A second <code>identifier</code> entry in the config is accepted by <code>/ivr-config</code> but never prompted for or
-collected by the Lambda. Until that loop is added, configure <strong>exactly one</strong> <code>identifier</code> field.</li>
-<li class=""><strong><code>maps_to</code> is not yet honored when submitting to Keycloak.</strong> The token request is hardcoded to
-<code>(&quot;username&quot;, &lt;identifier value&gt;)</code> and <code>(&quot;password&quot;, &lt;secret value&gt;)</code>
-(<code>// TODO: Use maps_to</code> in <code>auth.rs</code>), regardless of what <code>maps_to</code> says. Until that&#x27;s fixed,
-<code>maps_to</code> must literally be <code>username</code> for the identifier field and <code>password</code> for the secret
-field for a voter to actually authenticate through IVR - anything else (e.g. <code>maps_to: dob</code>)
-will pass <code>/ivr-config</code> validation but silently fail token requests, because the value never
-arrives under the parameter name this authenticator expects.</li>
-<li class=""><strong>There&#x27;s no automatic prompt for non-standard fields.</strong> <code>map_auth_prompt()</code> only has a built-in
-spoken prompt for the literal field names <code>voter_id</code> and <code>pin</code>. Any other <code>field</code> value (e.g.
-<code>dob</code>) falls back to an &quot;external&quot; prompt, whose text an admin must configure separately via the
-IVR prompt-override admin interface - there is no automatic <code>auth_enter_dob</code>-style default.</li>
+<li class=""><strong>All identifier fields are collected.</strong> <code>AuthState::IdentifierPrompt</code> repeatedly selects the
+next <code>identifier</code>-kind step whose <code>maps_to</code> has not been collected yet, and only moves to the
+secret step once they are all filled. Note that identifier steps are keyed by <code>maps_to</code>, so two
+identifier entries sharing one <code>maps_to</code> collapse into a single prompt.</li>
+<li class=""><strong><code>maps_to</code> is honored when submitting to Keycloak.</strong> Each collected value is sent under its own
+<code>maps_to</code> as the ROPC form parameter name. For an identifier field, <code>maps_to</code> is therefore <em>both</em>
+the form parameter name <em>and</em> the Keycloak user attribute matched against, so it must be the real
+attribute name (e.g. <code>dateOfBirth</code>, not <code>dob</code>). The secret field should use <code>password</code>.</li>
+<li class=""><strong>Prompts for non-standard fields must be authored.</strong> A step with no <code>prompt_key</code> defaults to
+<code>auth_enter_{field}</code>. Only <code>auth_enter_voter_id</code> and <code>auth_enter_pin</code> have built-in spoken text;
+any other key resolves as an &quot;external&quot; prompt that an admin must author per language under
+Admin Portal → election event → IVR → Prompts (the <code>ivr:prompts</code> annotation). A missing external
+prompt is <em>not</em> caught by the flow&#x27;s pre-flight prompt validation - at runtime the Lambda logs an
+error and reads the literal key string aloud to the caller. Built-in keys are overridable too:
+prompt resolution consults the authored prompts first and falls back to the built-in text.</li>
 </ul>
-<p>None of this limits what this authenticator can be configured to <em>express</em> (it&#x27;s designed for the
-target end state), but until <code>beyond</code> closes the gaps above, the only IVR-usable configuration
-today is one <code>identifier</code> field mapped to <code>username</code> plus the <code>secret</code> field mapped to <code>password</code> -
-functionally equivalent to the default voter-ID + PIN flow, just collected through a single
-combined step instead of two, and letting the &quot;identifier&quot; be any user attribute (not necessarily
-the username) as long as it&#x27;s submitted as <code>username</code>.</p>
+<p>Deployments therefore need a Lambda build containing <code>0975acfe</code>. An older build ignores <code>maps_to</code>,
+submits the identifier under <code>username</code>, and fails every call against a configuration that
+otherwise looks correct.</p>
 <hr>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="how-field-configuration-works">How field configuration works<a href="#how-field-configuration-works" class="hash-link" aria-label="Direct link to How field configuration works" title="Direct link to How field configuration works" translate="no">​</a></h2>
 <p>Unlike the web form, this authenticator has no separate &quot;which attributes to match&quot; setting.
@@ -78,12 +75,12 @@ blank) for identifier fields that aren&#x27;t dates.</li>
 <p><strong>Example (target design)</strong> - DOB + national ID + PIN, no voter ID. Requires the <code>beyond</code> fixes
 described above; not usable end-to-end today:</p>
 <table><thead><tr><th>Property</th><th>Value</th></tr></thead><tbody><tr><td><code>field</code></td><td><code>dob##nationalId##pin</code></td></tr><tr><td><code>max_digits</code></td><td><code>8##10##8</code></td></tr><tr><td><code>kind</code></td><td><code>identifier##identifier##secret</code></td></tr><tr><td><code>maps_to</code></td><td><code>dob##nationalId##password</code></td></tr><tr><td><code>prompt_key</code></td><td><code>auth_enter_dob##auth_enter_national_id##auth_enter_pin</code> (optional; each prompt&#x27;s text must still be configured via the IVR prompt-override admin interface)</td></tr></tbody></table>
-<p><strong>Example (works today)</strong> - a single identifying attribute, submitted the way the current Lambda
-expects:</p>
-<table><thead><tr><th>Property</th><th>Value</th></tr></thead><tbody><tr><td><code>field</code></td><td><code>dob</code></td></tr><tr><td><code>max_digits</code></td><td><code>8</code></td></tr><tr><td><code>kind</code></td><td><code>identifier</code></td></tr><tr><td><code>maps_to</code></td><td><code>username</code></td></tr></tbody></table>
-<p>(then a second entry for the PIN: <code>field=pin</code>, <code>max_digits=8</code>, <code>kind=secret</code>,
-<code>maps_to=password</code> - i.e. <code>field=dob##pin</code>, <code>max_digits=8##8</code>, <code>kind=identifier##secret</code>,
-<code>maps_to=username##password</code>)</p>
+<p><strong>Example</strong> - a single identifying attribute (date of birth) plus a PIN:</p>
+<table><thead><tr><th>Property</th><th>Value</th></tr></thead><tbody><tr><td><code>field</code></td><td><code>dob##pin</code></td></tr><tr><td><code>max_digits</code></td><td><code>8##16</code></td></tr><tr><td><code>kind</code></td><td><code>identifier##secret</code></td></tr><tr><td><code>maps_to</code></td><td><code>dateOfBirth##password</code></td></tr><tr><td><code>prompt_key</code></td><td><code>auth_enter_dob##auth_enter_pin</code></td></tr><tr><td><code>date_format</code></td><td><code>DDMMYYYY</code></td></tr></tbody></table>
+<p>Note that <code>maps_to</code> for the identifier is the real Keycloak user attribute name (<code>dateOfBirth</code>),
+not the display label in <code>field</code> - it doubles as the ROPC form parameter name. <code>max_digits</code> for the
+PIN must cover the realm&#x27;s <code>credential-input-pattern</code>: <code>dddd-dddd-dddd-dddd</code> is 16 bare digits,
+since the dashes are display-only and the stored credential has none.</p>
 <p>Either way, the authenticator resolves the voter by intersecting candidates matching every
 <code>identifier</code> field&#x27;s submitted value, then checking the submitted secret (PIN) against that
 candidate set.</p>
@@ -101,10 +98,10 @@ requirement <strong>REQUIRED</strong>.</li>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="step-2---configure-the-fields">Step 2 - Configure the Fields<a href="#step-2---configure-the-fields" class="hash-link" aria-label="Direct link to Step 2 - Configure the Fields" title="Direct link to Step 2 - Configure the Fields" translate="no">​</a></h2>
 <ol>
 <li class="">Click <strong>⚙ Config</strong> next to the new step.</li>
-<li class="">Fill in <code>field</code>, <code>max_digits</code>, <code>kind</code>, <code>maps_to</code> (and optionally <code>prompt_key</code>). Use the
-&quot;works today&quot; example above (<code>maps_to=username##password</code>) unless the deployment&#x27;s <code>beyond</code>
-version has already picked up the fixes described in
-<a href="#current-ivr-lambda-compatibility" class="">Current IVR Lambda compatibility</a>.</li>
+<li class="">Fill in <code>field</code>, <code>max_digits</code>, <code>kind</code>, <code>maps_to</code> (and optionally <code>prompt_key</code>), following the
+example above. Confirm the deployment&#x27;s <code>beyond</code> version satisfies
+<a href="#current-ivr-lambda-compatibility" class="">Current IVR Lambda compatibility</a> first - on an older
+Lambda, <code>maps_to</code> is ignored and every call fails.</li>
 <li class="">Optionally adjust the DoS-mitigation settings below (sensible defaults are pre-filled - see
 <a href="#denial-of-service-considerations" class="">Denial-of-Service Considerations</a>):<!-- -->
 <ul>
