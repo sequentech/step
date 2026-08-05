@@ -78,12 +78,6 @@ add-dotenv-to-tarball() {
     tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL .env
 }
 
-
-add-janitor-to-tarball() {
-    JANITOR_PARENT="${PROJECT_ROOT}/packages/windmill/external-bin/"
-    tar --append -C $JANITOR_PARENT --file=$DELIVERABLE_TARBALL janitor
-}
-
 add-database-init-to-tarball() {
     tmpdir=$(mktemp -d)
     mkdir -p $tmpdir/initdb
@@ -111,7 +105,7 @@ add-keycloak-data-to-tarball() {
     tmpdir=$(mktemp -d)
     mkdir -p $tmpdir/keycloak
     cp -r $PROJECT_ROOT/.devcontainer/keycloak/import $tmpdir/keycloak
-    $PROJECT_ROOT/scripts/replacements.sh $PROJECT_ROOT/packages/windmill/external-bin/janitor/config/baseConfig.json $tmpdir/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json
+    $PROJECT_ROOT/scripts/replacements.sh $PROJECT_ROOT/packages/windmill/external-bin/keycloak-replacements/baseConfig.json $tmpdir/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json
     tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL keycloak
 }
 
@@ -173,7 +167,6 @@ add-hasura-data-to-tarball
 add-up-script-to-tarball
 add-database-init-to-tarball
 add-readme-to-tarball
-add-janitor-to-tarball
 
 clean-artifacts-root
 

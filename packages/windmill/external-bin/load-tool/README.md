@@ -238,7 +238,7 @@ Set these in your shell or via a `.env` file if you are using `python-dotenv`.
 
 To generate 100 fake voter records, run:
 
-`python load_tool.py generate-voters --working-directory "/workspaces/step/packages/windmill/external-bin/janitor/scripts" --num-users 100` 
+`python load_tool.py generate-voters --working-directory "/workspaces/step/packages/windmill/external-bin/load-tool" --num-users 100` 
 
 To duplicate 50,000 vote records, run:
 
@@ -247,4 +247,4 @@ To duplicate 50,000 vote records, run:
 To generate 100,000 applications with status REJECTED and verification type MANUAL, run:
 
 
-`python load_tool.py generate-applications --working-directory "/workspaces/step/packages/windmill/external-bin/janitor/scripts" --num-applications 100000 --status REJECTED --type MANUAL`
+`python load_tool.py generate-applications --working-directory "/workspaces/step/packages/windmill/external-bin/load-tool" --num-applications 100000 --status REJECTED --type MANUAL`
