@@ -3,128 +3,112 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 {
-	"name": "step",
-	"dockerComposeFile": "docker-compose.yml",
-	"service": "devcontainer",
-	"forwardPorts": [
-		"minio-proxy:9002",
-		"minio:9001",
-		"minio:9000",
-		"keycloak:8090",
-		"keycloak-nginx:8443",
-		"hasura:8080",
-		"vault:8200",
-		"vault:8201",
-		"immudb:3322",
-		"immudb:3324",
-		"immudb:3325",
-		"rabbitmq:5672",
-		"rabbitmq:15672",
-		"b3:50051",
-		"simplesamlphp:8083"
-	],
-
-	// Fixes usage of LOCAL_WORKSPACE_FOLDER. See:
-	// https://github.com/microsoft/vscode-remote-release/issues/6844#issuecomment-1252288457
-	"initializeCommand": [
-		".devcontainer/scripts/initialize-command.sh"
-	],
-	// Use this environment variable if you need to bind mount your local source
-	// code into a new container
-	"remoteEnv": {
-		"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
-	},
-
-	// Mount claude code config from developer folder (if existing) to ensure
-	// config and credentials work well
-    "mounts": [
-      "source=${localEnv:HOME}/.config/claude,target=/home/vscode/.config/claude,type=bind,consistency=cached"
-    ],
-
-	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
-
-	"userEnvProbe": "loginShell",
-	"updateRemoteUserUID": true,
-
-	"onCreateCommand": "direnv allow && devenv shell bash -- -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
-	"updateContentCommand": "direnv allow && devenv shell bash -- -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
-	"postCreateCommand": "direnv allow && devenv shell bash -- -c './.devcontainer/scripts/init-cli.sh'",
-
-	// Adding host requirements so that there is no need to manually select the
-	// machine to run on all the time
-	"hostRequirements": {
-		"storage": "40gb",
-		"cpus": 4
-	},
-
-	"features": {
-		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
-		"ghcr.io/devcontainers/features/sshd:1": {
-            "version": "latest"
+  "name": "step",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "devcontainer",
+  "forwardPorts": [
+    "minio-proxy:9002",
+    "minio:9001",
+    "minio:9000",
+    "keycloak:8090",
+    "keycloak-nginx:8443",
+    "hasura:8080",
+    "vault:8200",
+    "vault:8201",
+    "immudb:3322",
+    "immudb:3324",
+    "immudb:3325",
+    "rabbitmq:5672",
+    "rabbitmq:15672",
+    "b3:50051",
+    "simplesamlphp:8083"
+  ],
+  // Fixes usage of LOCAL_WORKSPACE_FOLDER. See:
+  // https://github.com/microsoft/vscode-remote-release/issues/6844#issuecomment-1252288457
+  "initializeCommand": [
+    ".devcontainer/scripts/initialize-command.sh"
+  ],
+  // Use this environment variable if you need to bind mount your local source
+  // code into a new container
+  "remoteEnv": {
+    "LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
+  },
+  // Mount claude code config from developer folder (if existing) to ensure
+  // config and credentials work well
+  "mounts": [
+    "source=${localEnv:HOME}/.config/claude,target=/home/vscode/.config/claude,type=bind,consistency=cached"
+  ],
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "userEnvProbe": "loginShell",
+  "updateRemoteUserUID": true,
+  "onCreateCommand": "direnv allow && devenv shell bash -- -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
+  "updateContentCommand": "direnv allow && devenv shell bash -- -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
+  "postCreateCommand": "direnv allow && devenv shell bash -- -c './.devcontainer/scripts/init-cli.sh'",
+  // Adding host requirements so that there is no need to manually select the
+  // machine to run on all the time
+  "hostRequirements": {
+    "storage": "40gb",
+    "cpus": 4
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
+    "ghcr.io/devcontainers/features/sshd:1": {
+      "version": "latest"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        // run commands on save
+        // https://marketplace.visualstudio.com/items?itemName=fsevenm.run-it-on
+        "fsevenm.run-it-on",
+        // Docker for Visual Studio Code
+        "ms-azuretools.vscode-docker",
+        // select nix environment
+        "arrterian.nix-env-selector",
+        // Nix language support
+        "jnoortheen.nix-ide",
+        // Rust language support
+        "rust-lang.rust-analyzer",
+        // Markdown support and previsualization
+        "yzhang.markdown-all-in-one",
+        // Toml support
+        "tamasfe.even-better-toml",
+        // SQL formatter, useful for .sql files in hasura
+        "adpyke.vscode-sql-formatter",
+        // Debugging
+        "vadimcn.vscode-lldb",
+        // Allows to use Alt+Q (or Option+Q in mac) to rewrap lines
+        "stkb.rewrap",
+        // Mermaid support in markdown
+        "bierner.markdown-mermaid",
+        // For Keycloak SPIs
+        "vscjava.vscode-java-pack",
+        // To support multiple settings file and merge them, so that our
+        // fworkaround to support rust analyzer works fine
+        "swellaby.workspace-config-plus",
+        // Git blame support on hover of a line
+        "eamodio.gitlens",
+        // HTML preview
+        "george-alisson.html-preview-vscode",
+        // Python
+        "ms-python.python",
+        // Useful to check interactions with keyloak´s DB or other SQL databases
+        "cweijan.vscode-database-client2",
+        // Rewarp lines with Alt+Q or Cmd+Q
+        "stkb.rewrap",
+      ]
+    },
+    "codespaces": {
+      "repositories": {
+        // Allow checking out private submodules
+        "sequentech/beyond": {
+          "contents": "read"
         }
-	},
-	"customizations": {
-        "vscode": {
-    	    "extensions": [
-                // run commands on save
-                // https://marketplace.visualstudio.com/items?itemName=fsevenm.run-it-on
-        		"fsevenm.run-it-on",
-				
-                // Docker for Visual Studio Code
-        		"ms-azuretools.vscode-docker",
-				
-                // select nix environment
-        		"arrterian.nix-env-selector",
-				
-                // Nix language support
-        		"jnoortheen.nix-ide",
-				
-                // Rust language support
-        		"rust-lang.rust-analyzer",
-				
-                // Markdown support and previsualization
-        		"yzhang.markdown-all-in-one",
-				
-                // Toml support
-        		"tamasfe.even-better-toml",
-
-				// SQL formatter, useful for .sql files in hasura
-				"adpyke.vscode-sql-formatter",
-				
-                // Debugging
-        		"vadimcn.vscode-lldb",
-
-                // Allows to use Alt+Q (or Option+Q in mac) to rewrap lines
-                "stkb.rewrap",
-
-				// Mermaid support in markdown
-				"bierner.markdown-mermaid",
-
-				// For Keycloak SPIs
-				"vscjava.vscode-java-pack",
-
-				// To support multiple settings file and merge them, so that our
-				// fworkaround to support rust analyzer works fine
-				"swellaby.workspace-config-plus",
-
-				// Git blame support on hover of a line
-				"eamodio.gitlens",
-
-				// HTML preview
-				"george-alisson.html-preview-vscode",
-
-				// Python
-				"ms-python.python",
-
-				// Useful to check interactions with keyloak´s DB or other SQL databases
-				"cweijan.vscode-database-client2",
-
-				// Rewarp lines with Alt+Q or Cmd+Q
-				"stkb.rewrap",
-    		]
-		},
-		"devpod": {
-			"prebuildRepository": "ghcr.io/sequentech/step"
-			}
-	}
+      }
+    },
+    "devpod": {
+      "prebuildRepository": "ghcr.io/sequentech/step"
+    }
+  }
 }

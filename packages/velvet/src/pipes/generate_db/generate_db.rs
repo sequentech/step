@@ -418,12 +418,15 @@ pub async fn save_results(
                 contest_result.percentage_invalid_votes_implicit / 100.0;
             let total_blank_votes_percent: f64 =
                 contest_result.percentage_total_blank_votes / 100.0;
+            let explicit_blank_votes_percent: f64 =
+                contest_result.percentage_blank_votes_explicit / 100.0;
+            let implicit_blank_votes_percent: f64 =
+                contest_result.percentage_blank_votes_implicit / 100.0;
 
             let contest_result_ext_metrics =
                 contest_result.extended_metrics.clone().unwrap_or_default();
             let extended_metrics_value = serde_json::to_value(contest_result_ext_metrics.clone())
                 .expect("Failed to convert to JSON");
-            let votes_base: f64 = cmp::max(contest_result_ext_metrics.total_weight, 1) as f64;
             let mut annotations = json!({});
             annotations[EXTENDED_METRICS] = extended_metrics_value;
             if let Some(process_results) = contest_result.process_results.clone() {
@@ -462,9 +465,17 @@ pub async fn save_results(
                     implicit_invalid_votes_percent: Some(
                         implicit_invalid_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
-                    blank_votes: Some(contest_result.total_blank_votes as i64),
-                    blank_votes_percent: Some(
+                    total_blank_votes: Some(contest_result.total_blank_votes as i64),
+                    explicit_blank_votes: Some(contest_result.blank_votes.explicit as i64),
+                    implicit_blank_votes: Some(contest_result.blank_votes.implicit as i64),
+                    total_blank_votes_percent: Some(
                         total_blank_votes_percent.clamp(0.0, 1.0).try_into()?,
+                    ),
+                    explicit_blank_votes_percent: Some(
+                        explicit_blank_votes_percent.clamp(0.0, 1.0).try_into()?,
+                    ),
+                    implicit_blank_votes_percent: Some(
+                        implicit_blank_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
                     created_at: None,
                     last_updated_at: None,
@@ -474,7 +485,7 @@ pub async fn save_results(
                 });
 
                 for candidate in &contest.candidate_result {
-                    let cast_votes_percent: f64 = (candidate.total_count as f64) / votes_base;
+                    let cast_votes_percent: f64 = candidate.percentage_votes / 100.0;
                     results_area_contest_candidates.push(ResultsAreaContestCandidate {
                         id: Uuid::new_v4().into(),
                         tenant_id: tenant_id.into(),
@@ -507,7 +518,9 @@ pub async fn save_results(
                     total_valid_votes: Some(contest_result.total_valid_votes as i64),
                     explicit_invalid_votes: Some(contest_result.invalid_votes.explicit as i64),
                     implicit_invalid_votes: Some(contest_result.invalid_votes.implicit as i64),
-                    blank_votes: Some(contest_result.total_blank_votes as i64),
+                    total_blank_votes: Some(contest_result.total_blank_votes as i64),
+                    explicit_blank_votes: Some(contest_result.blank_votes.explicit as i64),
+                    implicit_blank_votes: Some(contest_result.blank_votes.implicit as i64),
                     voting_type: current_contest.voting_type.clone(),
                     counting_algorithm: Some(
                         current_contest
@@ -533,8 +546,14 @@ pub async fn save_results(
                     implicit_invalid_votes_percent: Some(
                         implicit_invalid_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
-                    blank_votes_percent: Some(
+                    total_blank_votes_percent: Some(
                         total_blank_votes_percent.clamp(0.0, 1.0).try_into()?,
+                    ),
+                    explicit_blank_votes_percent: Some(
+                        explicit_blank_votes_percent.clamp(0.0, 1.0).try_into()?,
+                    ),
+                    implicit_blank_votes_percent: Some(
+                        implicit_blank_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
                     total_votes: Some(contest_result.total_votes as i64),
                     total_votes_percent: Some(total_votes_percent.clamp(0.0, 1.0).try_into()?),
@@ -546,7 +565,7 @@ pub async fn save_results(
                 });
 
                 for candidate in &contest.candidate_result {
-                    let cast_votes_percent: f64 = (candidate.total_count as f64) / votes_base;
+                    let cast_votes_percent: f64 = candidate.percentage_votes / 100.0;
                     results_contest_candidates.push(ResultsContestCandidate {
                         id: Uuid::new_v4().into(),
                         tenant_id: tenant_id.into(),

@@ -12,9 +12,11 @@ import {theme} from "../../services/theme"
 
 interface DropFileProps {
     handleFiles: (files: FileList) => void | Promise<void>
+    accept?: string
+    formatLabel?: string
 }
 
-const DropFile: React.FC<DropFileProps> = ({handleFiles}) => {
+const DropFile: React.FC<DropFileProps> = ({handleFiles, accept, formatLabel}) => {
     const {t} = useTranslation()
     const inputRef = useRef<HTMLInputElement | null>(null)
 
@@ -24,7 +26,7 @@ const DropFile: React.FC<DropFileProps> = ({handleFiles}) => {
     // }
 
     return (
-        <CustomDropFile handleFiles={handleFiles} ref={inputRef}>
+        <CustomDropFile handleFiles={handleFiles} accept={accept} ref={inputRef}>
             <div
                 className="drop-file-container"
                 // variant="responsive"
@@ -72,7 +74,7 @@ const DropFile: React.FC<DropFileProps> = ({handleFiles}) => {
                             color: theme.palette.customGrey.dark,
                         }}
                     >
-                        {t("dragNDrop.format")}
+                        {formatLabel || t("dragNDrop.format")}
                     </Typography>
                 </Box>
             </div>

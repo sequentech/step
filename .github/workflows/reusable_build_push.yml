@@ -18,17 +18,15 @@ on:
 
 jobs:
   build-and-push:
-    runs-on:
-      - env=infra-euw1
-      - runs-on=${{ github.run_id }}
-      - runner=2cpu-linux-x64
-      - image=ubuntu24-full-x64
+    runs-on: aws-selfhosted-ubuntu24
     strategy:
       matrix:
         include:
           - service: keycloak
             context: packages
             file: packages/Dockerfile.keycloak
+            build_contexts: |
+              beyond=./beyond
 
           - service: voting-portal
             context: packages
@@ -44,6 +42,11 @@ jobs:
             context: packages
             file: packages/Dockerfile.prod
             spa_name: "ballot-verifier"
+
+          - service: results-portal
+            context: packages
+            file: packages/Dockerfile.prod
+            spa_name: "results-portal"
 
           - service: harvest
             context: packages
@@ -83,6 +86,22 @@ jobs:
     - name: Check Out Repo
       uses: actions/checkout@v4
 
+    - name: Resolve beyond submodule commit
+      if: matrix.service == 'keycloak'
+      id: beyond
+      run: echo "sha=$(git rev-parse HEAD:beyond)" >> "$GITHUB_OUTPUT"
+
+    - name: Check out beyond submodule
+      if: matrix.service == 'keycloak'
+      uses: actions/checkout@v4
+      with:
+        repository: sequentech/beyond
+        ref: ${{ steps.beyond.outputs.sha }}
+        token: ${{ secrets.PAT }}
+        path: beyond
+        submodules: recursive
+        persist-credentials: false
+
     - name: Set short SHA
       run: echo "SHORT_SHA=$(echo $GITHUB_SHA | cut -c 1-7)" >> $GITHUB_ENV
 
@@ -118,6 +137,7 @@ jobs:
           ${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:${{ inputs.tag || github.run_number }}
         cache-from: type=registry,ref=${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:buildcache
         cache-to: type=registry,ref=${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:buildcache,mode=max
+        build-contexts: ${{ matrix.build_contexts }}
         build-args: |
           SPA_NAME=${{ matrix.spa_name }}
           FEATURES=${{ matrix.features }}

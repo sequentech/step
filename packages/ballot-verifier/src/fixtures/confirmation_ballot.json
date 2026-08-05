@@ -228,6 +228,7 @@
        {
           "contest_id":"fae0b09e-1b78-4118-b99c-7955f8ef2a52",
           "is_explicit_invalid":false,
+          "is_decline_to_vote":false,
           "choices":[
              {
                 "id":"0",
@@ -256,6 +257,7 @@
        {
           "contest_id":"837993a6-1d7d-473c-82b7-5fc5a128f0a4",
           "is_explicit_invalid":false,
+          "is_decline_to_vote":false,
           "choices":[
              {
                 "id":"0",

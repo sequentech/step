@@ -10,11 +10,13 @@ export interface ElectionVoteStepState {
 export interface ExtraState {
     bypassChooser: boolean
     isVoted: ElectionVoteStepState
+    declinedToVote: ElectionVoteStepState
 }
 
 const initialState: ExtraState = {
     bypassChooser: false,
     isVoted: {},
+    declinedToVote: {},
 }
 
 export const extraSlice = createSlice({
@@ -29,19 +31,42 @@ export const extraSlice = createSlice({
             state.isVoted[action.payload] = true
             return state
         },
+        setDeclinedToVote: (state: ExtraState, action: PayloadAction<string>): ExtraState => {
+            state.declinedToVote[action.payload] = true
+            return state
+        },
+        clearDeclinedToVoteForElection: (
+            state: ExtraState,
+            action: PayloadAction<string>
+        ): ExtraState => {
+            delete state.declinedToVote[action.payload]
+            return state
+        },
         clearIsVoted: (state: ExtraState): ExtraState => {
             state.isVoted = {}
+            state.declinedToVote = {}
             return state
         },
     },
 })
 
-export const {setBypassChooser, setIsVoted, clearIsVoted} = extraSlice.actions
+export const {
+    setBypassChooser,
+    setIsVoted,
+    setDeclinedToVote,
+    clearDeclinedToVoteForElection,
+    clearIsVoted,
+} = extraSlice.actions
 
 export const selectBypassChooser = () => (state: RootState) => state.extra.bypassChooser
 
 export const isVotedByElectionId = (electionId: string | undefined) => (state: RootState) => {
     return electionId ? state.extra.isVoted[electionId] : false
 }
+
+export const isDeclineToVoteByElectionId =
+    (electionId: string | undefined) => (state: RootState) => {
+        return electionId ? Boolean(state.extra.declinedToVote[electionId]) : false
+    }
 
 export default extraSlice.reducer

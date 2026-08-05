@@ -20,6 +20,7 @@ export const GET_ELECTIONS = gql`
             spoil_ballot_option
             status
             tenant_id
+            voting_channels
         }
     }
 `

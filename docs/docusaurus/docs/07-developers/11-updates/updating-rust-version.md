@@ -13,7 +13,7 @@ This guide explains how to update the Rust version across the entire Step Reposi
 
 ## Overview
 
-The Step Repository uses **Rust stable version 1.90.0** throughout the entire codebase. We maintain a single, consistent version across:
+The Step Repository uses **Rust stable version 1.96.0** throughout the entire codebase. We maintain a single, consistent version across:
 
 - GitHub Actions (CI/CD pipelines)
 - All Dockerfiles (development and production)
@@ -99,46 +99,93 @@ Update the `FROM rust:X.Y.Z` line in **all** Dockerfiles:
 - **`packages/Dockerfile.immudb-init-vstl-dependencies`**
 - **`packages/Dockerfile.immudb-init.prod`**
 - **`packages/step-cli/Dockerfile`**
+- **`packages/orare/doc_renderer/Dockerfile`**
 
 **Important**: Remove any `rustup toolchain install nightly-*` commands if present. We only use stable Rust.
 
 ### 3. Nix Configuration
 
-Update the Rust channel in the Nix development environment:
+Update the pinned Rust version in the Nix development environment:
 
-- **`devenv.nix`** (line 98)
+- **`devenv.nix`** (lines 4–15) — update the `rust-overlay` commit and the version string in `rust-bin.stable`:
   ```nix
-  languages.rust = {
-    enable = true;
-    # https://devenv.sh/reference/options/#languagesrustchannel
-    channel = "stable";  # ← Should be "stable"
-    toolchain.rust-src = pkgs.rustPlatform.rustLibSrc;
-  };
+  let
+    rustOverlay = import (builtins.fetchTarball {
+      # Replace with a commit from oxalica/rust-overlay made after the target Rust release
+      url = "https://github.com/oxalica/rust-overlay/archive/<COMMIT_HASH>.tar.gz";
+      # Leave as "" or a dummy hash first, then paste the hash Nix reports
+      sha256 = "<SHA256_HASH>";
+    });
+
+    pkgs' = pkgs.extend rustOverlay;
+
+    # Pinned to stable version X.Y.Z
+    rustStable = pkgs'.rust-bin.stable."X.Y.Z".default.override {
+      targets    = [ "wasm32-unknown-unknown" "wasm32-wasip1" "wasm32-wasip2" ];
+      extensions = [ "rust-src" "rust-analyzer-preview" ];
+    };
+  in
   ```
 
-**Note**: Nix uses channel names (`stable`, `beta`, `nightly`) rather than specific versions. The actual version is determined by the nixpkgs snapshot. To pin a specific Rust version in Nix, you would need to override the `rustc` package.
+**How to update the `sha256` hash**: set it to `""` (empty string), run `devenv shell`, and Nix will fail with the actual hash — paste that value back in.
+
+**Note**: Because `rust-overlay` is pinned to a specific commit, the Rust version is fully reproducible and does **not** depend on the nixpkgs snapshot. The version in `rust-bin.stable."X.Y.Z"` is the authoritative source — this is the same version number that must be used in GitHub Actions and Dockerfiles.
+
+- **`packages/sequent-core/flake.nix`** — used to build the `sequent-core` WASM package (`nix develop` + `wasm-pack build`, see `.github/workflows/build_wasm.yml`). Update `configureRustTargets` to point at `rust-bin.stable."X.Y.Z"`:
+  ```nix
+  configureRustTargets = targets : pkgs
+    .rust-bin
+    .stable
+    ."X.Y.Z"
+    .default
+    .override {
+        extensions = [ "rust-src" ];
+        ${if (builtins.length targets) > 0 then "targets" else null} = targets;
+    };
+  ```
+  This flake's `rust-overlay` input is pinned via `packages/sequent-core/flake.lock`. If the target Rust version isn't available yet in that pinned revision, refresh it with:
+  ```bash
+  cd packages/sequent-core && nix flake update rust-overlay
+  ```
 
 ## Step-by-Step Update Process
 
 ### 1. Update Nix First
 
-**Always start by updating the Nix environment first**, as this will determine the Rust version for local development. Since Nix uses channel names rather than specific versions, you need to check what version you're actually getting.
+**Always start by updating the Nix environment first**, as this pins the Rust version for local development.
 
 #### Update devenv.nix
 
-Ensure your `devenv.nix` is using the stable channel:
+In `devenv.nix`, two things must be updated together:
+
+1. **`rust-overlay` commit** — find a recent commit from [oxalica/rust-overlay](https://github.com/oxalica/rust-overlay) that was pushed *after* the target Rust release, and update the `url` and `sha256` fields in the `rustOverlay` block.
+2. **Version string** — update the version number inside `pkgs'.rust-bin.stable."X.Y.Z"`.
 
 ```nix
-languages.rust = {
-  enable = true;
-  channel = "stable";  # Make sure this is set to "stable"
-  toolchain.rust-src = pkgs.rustPlatform.rustLibSrc;
+rustOverlay = import (builtins.fetchTarball {
+  url = "https://github.com/oxalica/rust-overlay/archive/<NEW_COMMIT_HASH>.tar.gz";
+  sha256 = "";  # leave empty first — Nix will print the correct hash
+});
+
+# ...
+
+rustStable = pkgs'.rust-bin.stable."X.Y.Z".default.override {
+  targets    = [ "wasm32-unknown-unknown" "wasm32-wasip1" "wasm32-wasip2" ];
+  extensions = [ "rust-src" "rust-analyzer-preview" ];
 };
 ```
 
-#### Check the Actual Rust Version in Nix
+#### Get the sha256 Hash
 
-After updating or verifying your Nix configuration, check the actual Rust version that Nix provides:
+After setting the new commit URL, leave `sha256 = ""` and run:
+
+```bash
+devenv shell
+```
+
+Nix will fail and print the actual hash. Paste it into `sha256`, then run `devenv shell` again — it should succeed.
+
+#### Verify the Rust Version in Nix
 
 ```bash
 # Enter the devenv shell
@@ -147,13 +194,9 @@ devenv shell
 # Check the actual Rust version
 rustc --version
 # Output example: rustc 1.90.0 (abc123def 2024-10-01)
-
-# Note the version number (e.g., 1.90.0)
 ```
 
-The version shown by `rustc --version` inside `devenv shell` is the version determined by your nixpkgs snapshot. **This is the version you should use for all other files** (GitHub Actions and Dockerfiles).
-
-**Important**: Simply checking `devenv.nix` will only show `channel = "stable"`, which doesn't tell you the specific version. You must run `rustc --version` inside the devenv shell to see the actual version.
+The version shown must match the string in `rust-bin.stable."X.Y.Z"`. **This is the version you should use for all other files** (GitHub Actions and Dockerfiles).
 
 ### 2. Check Current Versions in Other Files
 
@@ -173,12 +216,12 @@ Compare these versions with what you found in Nix. They should all match.
 
 If you need to update to a newer Rust version:
 
-1. **Check the Nix version first** - Run `devenv shell` then `rustc --version`
-2. **Decide if you need to update Nix** - If you need a newer version, you may need to update your nixpkgs snapshot
+1. **Choose the target version** - Pick the stable Rust version you want (e.g. `1.91.0`)
+2. **Find a `rust-overlay` commit** - Browse [oxalica/rust-overlay](https://github.com/oxalica/rust-overlay) commits and pick one made after the target release date
 3. **Review breaking changes** - Check https://www.rust-lang.org/ and release notes
 4. **Ensure compatibility** - Verify existing dependencies work with the target version
 
-The target version should be whatever Nix provides. If Nix is giving you an older version than you need, you'll need to update your nixpkgs or override the Rust package in Nix.
+With `rust-overlay`, the version is fully explicit — `devenv.nix` is the authoritative source and Dockerfiles / GitHub Actions must match it.
 
 ### 4. Update All Other Files to Match Nix
 
@@ -272,10 +315,11 @@ Here's the complete list of files that need updating:
 - `.github/workflows/lint_prettify.yml`
 - `.github/workflows/step_cli_build.yml`
 
-### Nix Configuration (1 file)
+### Nix Configuration (2 files)
 - `devenv.nix`
+- `packages/sequent-core/flake.nix` (plus `packages/sequent-core/flake.lock` if `rust-overlay` needs updating)
 
-### Dockerfiles (18 files)
+### Dockerfiles (19 files)
 - `packages/Dockerfile.cargo-packages`
 - `packages/braid/Dockerfile`
 - `packages/braid/Dockerfile.prod`
@@ -293,6 +337,7 @@ Here's the complete list of files that need updating:
 - `packages/Dockerfile.immudb-init-vstl-dependencies`
 - `packages/Dockerfile.immudb-init.prod`
 - `packages/step-cli/Dockerfile`
+- `packages/orare/doc_renderer/Dockerfile`
 
 ## Best Practices
 

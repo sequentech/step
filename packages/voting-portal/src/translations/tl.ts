@@ -58,6 +58,14 @@ const tagalogTranslation: TranslationType = {
         },
         startScreen: {
             startButton: "Simulan ang Pagboto",
+            declineToVoteButton: "Tumangging bumoto",
+            declineToVoteDialog: {
+                title: "Kumpirmahin ang pagtangging bumoto",
+                content:
+                    "Sigurado ka bang nais mong tumangging bumoto?<br />Dadalhin ka diretso sa review at mase-save ang iyong status ng partisipasyon bilang <b>Tumangging bumoto</b>.",
+                continue: "Tumangging bumoto",
+                cancel: "Kanselahin",
+            },
             instructionsTitle: "Mga Tagubilin",
             instructionsDescription: "Sundin ang mga hakbang na ito upang ikaw ay makaboto:",
             step1Title: "1. Piliin ang iyong mga sagot",
@@ -95,7 +103,7 @@ const tagalogTranslation: TranslationType = {
             auditBallotHelpDialog: {
                 title: "Nais mo bang i-audit ang balota?",
                 content:
-                    "<p>Pakitandaan na ang pag-audit ng iyong balota ay magpapawalang-bisa dito, at kakailanganin mong magsimulang muli sa proseso ng pagboto. Sa proseso ng audit, maari mong tiyakin na ang iyong balota ay tamang naka-encode, ngunit ito ay nangangailangan ng mga advanced na teknikal na hakbang. Inirerekomenda naming magpatuloy ka lang kung ikaw ay kumpiyansa sa iyong kakayahang teknikal. Kung nais mo lamang i-submit ang iyong balota, i-click ang <u>Kanselahin</u> upang bumalik sa screen ng pagsusuri ng balota.</b></p>",
+                    "<p>Pakitandaan na ang pag-audit ng iyong balota ay magpapawalang-bisa dito, at kakailanganin mong magsimulang muli sa proseso ng pagboto. Sa proseso ng audit, maari mong tiyakin na ang iyong balota ay tamang naka-encode, ngunit ito ay nangangailangan ng mga advanced na teknikal na hakbang. Inirerekomenda naming magpatuloy ka lang kung ikaw ay kumpiyansa sa iyong kakayahang teknikal. Kung nais mo lamang i-submit ang iyong balota, i-click ang <u>Kanselahin</u> upang bumalik sa screen ng pagsusuri ng balota.</p>",
                 ok: "Oo, nais kong IBASURA ang aking balota upang i-audit ito",
                 cancel: "Kanselahin",
             },
@@ -194,6 +202,7 @@ const tagalogTranslation: TranslationType = {
                 INTERNAL_ERROR:
                     "Nagkaroon ng internal error habang nagboboto. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
             },
+            declineToVote: "Tumangging bumoto",
         },
         confirmationScreen: {
             title: "Ang iyong boto ay nai-submit na",
@@ -278,6 +287,7 @@ const tagalogTranslation: TranslationType = {
                 ok: "OK",
             },
             noResults: "Walang mga balota sa ngayon.",
+            resultsButton: "Tingnan ang mga resulta",
             demoDialog: {
                 title: "Demo Voting Booth",
                 content:
@@ -331,6 +341,8 @@ const tagalogTranslation: TranslationType = {
             locateAgain: "Hanapin ang Isa Pang Balota",
             found: "Ang iyong ballot ID {{ballotId}} ay natagpuan",
             notFound: "Ang iyong ballot ID {{ballotId}} ay hindi natagpuan",
+            ambiguous:
+                "Higit sa isa sa iyong mga balota ang tumutugma sa {{ballotId}}. Gamitin ang buong Ballot ID.",
             contentDesc: "Ito ang nilalaman ng iyong balota: ",
             wrongFormatBallotId: "Mali ang format para sa Ballot ID",
             ballotIdNotFoundAtFilter: "Hindi natagpuan ang iyong ballot ID sa filter",

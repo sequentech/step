@@ -16,6 +16,8 @@ Sequent Voting Platform — an end-to-end verifiable, secure online voting syste
 
 > **Note:** `cargo` is not on PATH by default. Use `devenv shell` (from the repo root) to enter the nix environment, and use the package-specific `rust-local-target/` dir to avoid permission errors (the shared `packages/target/` is owned by root because Docker service containers build into it as root).
 
+> **Do not run `cargo build` manually to check that code compiles.** The `windmill` and `harvest` containers (and `sequent-core`, which both depend on) already auto-rebuild on file changes inside the dev container. After editing code in one of these, check that container's logs instead (`docker logs windmill --tail 100` / `docker logs harvest --tail 100`) to confirm it compiled — don't kick off a separate `cargo build`, which just duplicates that work. `cargo test`, `cargo fmt`, and `cargo clippy` are unaffected by this and still run manually as usual.
+
 ```bash
 # Run any cargo command inside devenv:
 cd /workspaces/step && devenv shell bash -- -c 'cd packages && CARGO_TARGET_DIR=/workspaces/step/packages/<pkg>/rust-local-target cargo <command> -p <package>'
@@ -129,7 +131,7 @@ reuse lint                           # Every file must have SPDX headers
 - **Pinned crate**: `wasm-bindgen` 0.2.104 — do not change
 - **Forked crate**: `celery` uses a custom fork (Findeton/rusty-celery)
 - **Hasura changes must go through** `hasura console` (not the web UI directly) for migrations to be tracked
-- **Rust toolchain**: 1.90.0 stable, WASM targets: `wasm32-unknown-unknown`
+- **Rust toolchain**: 1.96.0 stable, WASM targets: `wasm32-unknown-unknown`
 - **Node.js**: 20.x, package manager: Yarn (workspaces)
 - **Java**: JDK 17 for Keycloak extensions
 
@@ -199,4 +201,4 @@ Dev service URLs (inside dev container):
 - MinIO: http://127.0.0.1:9001
 - RabbitMQ: http://127.0.0.1:15672
 
-**Dev container tips**: When editing Rust code in harvest, windmill, or sequent-core, check the pod logs to see if it compiles successfully — the services auto-rebuild on changes inside the dev container.
+**Dev container tips**: When editing Rust code in harvest, windmill, or sequent-core, don't run `cargo build` to verify it — check the container logs (`docker logs windmill` / `docker logs harvest`) instead, since those services auto-rebuild on changes inside the dev container. See the note under Build Commands → Rust.

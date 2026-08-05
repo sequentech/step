@@ -1,14 +1,15 @@
 { pkgs, ... }:
-# ── 1. pin rust-overlay ──────────────────────────────────────────────
+
+# Check docs/docusaurus/docs/07-developers/11-updates/updating-rust-version.md on how to update rust version.
 let
   rustOverlay = import (builtins.fetchTarball {
-  url = "https://github.com/oxalica/rust-overlay/archive/cb24c5cc207ba8e9a4ce245eedd2d37c3a988bc1.tar.gz";
-  sha256 = "096lirg41f5vgq9rrfg5b6vzyrya8v472v6cqfh1hjfi9ys20hc4";
+    url = "https://github.com/oxalica/rust-overlay/archive/107c334f141854f563f8adf1db781dc453d92639.tar.gz";
+    sha256 = "138jwq564qji7dc5yav2j2c1c1mr65smqqk00mni9lvqhx0n45w4";
   });
 
   pkgs' = pkgs.extend rustOverlay;
 
-  rustStable = pkgs'.rust-bin.stable.latest.default.override {
+  rustStable = pkgs'.rust-bin.stable."1.96.0".default.override {
     targets    = [ "wasm32-unknown-unknown" "wasm32-wasip1" "wasm32-wasip2"];
     extensions = [ "rust-src" "rust-analyzer-preview" ];
   };

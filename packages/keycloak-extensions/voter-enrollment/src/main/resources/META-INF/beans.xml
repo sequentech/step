@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+SPDX-FileCopyrightText: 2026 Sequent Tech <legal@sequentech.io>
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+<beans xmlns="https://jakarta.ee/xml/ns/jakartaee"
+       bean-discovery-mode="annotated"
+       version="4.0"/>

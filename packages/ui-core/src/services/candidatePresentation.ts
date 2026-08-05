@@ -11,3 +11,12 @@ export const checkIsWriteIn = (answer: ICandidate): boolean =>
 
 export const checkIsInvalidVote = (answer: ICandidate): boolean =>
     answer.presentation?.is_explicit_invalid || false
+
+export const checkIsCategoryList = (candidate: ICandidate): boolean =>
+    candidate.presentation?.is_category_list || false
+
+export const checkIsExplicitBlankVote = (candidate: ICandidate): boolean =>
+    candidate.presentation?.is_explicit_blank || false
+
+export const checkIsDisabled = (candidate: ICandidate): boolean =>
+    candidate.presentation?.is_disabled || false

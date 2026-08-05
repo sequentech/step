@@ -15,6 +15,7 @@ import {
     useNotify,
     Button,
     SelectInput,
+    RadioButtonGroupInput,
     required,
     FormDataConsumer,
     useGetList,
@@ -32,7 +33,8 @@ import {
 import {styled} from "@mui/material/styles"
 import DownloadIcon from "@mui/icons-material/Download"
 import VideoCallIcon from "@mui/icons-material/VideoCall"
-import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
+import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} from "react"
+import {useFormContext} from "react-hook-form"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {ETemplateType} from "@/types/templates"
 import {useTranslation} from "react-i18next"
@@ -55,8 +57,19 @@ import {
     EShowCastVoteLogsPolicy,
     EElectionEventDecodedBallots,
     EElectionEventCeremoniesPolicy,
+    EElectionEventAutomaticRecountPolicy,
     EElectionEventWeightedVotingPolicy,
     EElectionEventDelegatedVotingPolicy,
+    EResultsWebsiteAccess,
+    EResultsWebsiteStatus,
+    EResultsWebsiteVisibilityScope,
+    IResultsWebsitePolicy,
+    defaultResultsWebsitePolicy,
+    parseResultsWebsitePolicy,
+    EVotingPortalDateTimeFormat,
+    VotingPortalDateTimeFormat,
+    isCustomVotingPortalDateTimeFormat,
+    isValidVotingPortalDateTimePattern,
     ELanguageDetectionPolicy,
     getDefaultLanguageDetectionPolicy,
     REALM_ATTR_VOTER_CERTIFICATE_POLICY,
@@ -74,7 +87,7 @@ import {
     Sequent_Backend_Template,
 } from "@/gql/graphql"
 import {ElectionStyles} from "@/components/styles/ElectionStyles"
-import {FetchResult, useMutation} from "@apollo/client"
+import {FetchResult, useMutation, useQuery} from "@apollo/client"
 import {IMPORT_CANDIDTATES} from "@/queries/ImportCandidates"
 import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 import {convertToNumber} from "@/lib/helpers"
@@ -95,14 +108,90 @@ import {
     UPDATE_REALM_ATTRIBUTES,
     UpdateRealmAttributesMutation,
 } from "@/queries/UpdateRealmAttributes"
+import {GET_REALM_ATTRIBUTES, GetRealmAttributesQuery} from "@/queries/GetRealmAttributes"
 import {GoogleMeetLinkGenerator} from "@/components/election-event/google-meet/GoogleMeetLinkGenerator"
+import {
+    PasswordPolicyAccordion,
+    PasswordPolicyAccordionHandle,
+} from "@/components/election-event/PasswordPolicyAccordion"
 import {SettingsLanguageSelector} from "../../components/SettingsLanguageSelector"
+import {
+    CONFIGURE_RESULTS_WEBSITE_POLICY,
+    ConfigureResultsWebsitePolicyData,
+    ConfigureResultsWebsitePolicyVariables,
+} from "@/queries/ResultsWebsitePublication"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
     defaultLanguage?: string
     electionsOrder?: Array<Sequent_Backend_Election>
+    resultsWebsitePolicy?: IResultsWebsitePolicy
 } & Sequent_Backend_Election_Event
+
+const ResultsWebsitePolicyFields: React.FC = () => {
+    const {t} = useTranslation()
+    const statusOptions = [
+        {id: EResultsWebsiteStatus.DISABLED, name: t("tally.resultsPublication.disabled")},
+        {id: EResultsWebsiteStatus.ENABLED, name: t("tally.resultsPublication.enabled")},
+    ]
+    const accessOptions = [
+        {id: EResultsWebsiteAccess.PUBLIC, name: t("tally.resultsPublication.publicAccess")},
+        {
+            id: EResultsWebsiteAccess.AUTHENTICATED,
+            name: t("tally.resultsPublication.authenticatedAccess"),
+        },
+    ]
+    const visibilityOptions = [
+        {
+            id: EResultsWebsiteVisibilityScope.FULL_EVENT,
+            name: t("tally.resultsPublication.fullEvent"),
+        },
+        {
+            id: EResultsWebsiteVisibilityScope.AREA_BASED,
+            name: t("tally.resultsPublication.areaBased"),
+        },
+    ]
+
+    return (
+        <>
+            <Typography
+                variant="body1"
+                component="span"
+                sx={{
+                    fontWeight: "bold",
+                    margin: 0,
+                    display: {xs: "none", sm: "block"},
+                }}
+            >
+                {t("tally.resultsPublication.policyTitle")}
+            </Typography>
+            <SelectInput
+                source={"resultsWebsitePolicy.status"}
+                choices={statusOptions}
+                label={t("tally.resultsPublication.policyTitle")}
+                defaultValue={EResultsWebsiteStatus.DISABLED}
+                emptyText={undefined}
+                validate={required()}
+            />
+            <SelectInput
+                source={"resultsWebsitePolicy.access"}
+                choices={accessOptions}
+                label={t("tally.resultsPublication.policyAccess")}
+                defaultValue={EResultsWebsiteAccess.PUBLIC}
+                emptyText={undefined}
+                validate={required()}
+            />
+            <SelectInput
+                source={"resultsWebsitePolicy.visibility_scope"}
+                choices={visibilityOptions}
+                label={t("tally.resultsPublication.policyVisibility")}
+                defaultValue={EResultsWebsiteVisibilityScope.FULL_EVENT}
+                emptyText={undefined}
+                validate={required()}
+            />
+        </>
+    )
+}
 
 const ElectionRows = styled("div")`
     display: flex;
@@ -113,6 +202,37 @@ const ElectionRows = styled("div")`
     padding: 1rem;
 `
 
+// Mirrors the Localization tab's notify.invalidDateTimeFormat feedback for the
+// main custom date/time format field. Reads live form values via getValues()
+// at click time (like the Localization tab's own save handlers do) instead of
+// watching react-hook-form state: submitCount/errors get reset whenever
+// react-admin's SimpleForm receives a new `record` reference (e.g. an Apollo
+// refetch), which happens far more often than actual submit attempts here.
+const CustomDateTimeFormatInvalidNotifier: React.FC<{
+    checkRef: React.MutableRefObject<() => void>
+}> = ({checkRef}) => {
+    const {t} = useTranslation()
+    const notify = useNotify()
+    const {getValues} = useFormContext()
+
+    checkRef.current = () => {
+        const configured = getValues(
+            "presentation.voting_portal_datetime_format"
+        ) as VotingPortalDateTimeFormat
+
+        if (
+            isCustomVotingPortalDateTimeFormat(configured) &&
+            !isValidVotingPortalDateTimePattern(configured.custom)
+        ) {
+            notify(t("electionEventScreen.localization.notify.invalidDateTimeFormat"), {
+                type: "error",
+            })
+        }
+    }
+
+    return null
+}
+
 export const EditElectionEventDataForm: React.FC = () => {
     const {t} = useTranslation()
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
@@ -121,17 +241,41 @@ export const EditElectionEventDataForm: React.FC = () => {
     const {globalSettings} = useContext(SettingsContext)
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const notify = useNotify()
+    const checkCustomDateTimeFormatRef = useRef<() => void>(() => {})
+    const passwordPolicyRef = useRef<PasswordPolicyAccordionHandle | null>(null)
 
     const canEdit = authContext.isAuthorized(
         true,
         authContext.tenantId,
         IPermissions.ELECTION_EVENT_WRITE
     )
+    const canReadPasswordPolicy = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.ELECTION_EVENT_READ
+    )
+    const canReadRealmAttributes = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.KEYCLOAK_REALM_ATTRIBUTES_READ
+    )
+    const canEditRealmAttributes = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.KEYCLOAK_REALM_ATTRIBUTES_WRITE
+    )
+    const canSave = canEdit || (canReadRealmAttributes && canEditRealmAttributes)
 
     const canCreateGoogleMeeting = authContext.isAuthorized(
         true,
         authContext.tenantId,
         IPermissions.GOOGLE_MEET_LINK
+    )
+
+    const canConfigureResultsWebsite = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.PUBLISH_RESULTS_WRITE
     )
 
     const [value, setValue] = useState(0)
@@ -159,9 +303,9 @@ export const EditElectionEventDataForm: React.FC = () => {
         enrollment: "",
         otp: "",
     })
-    const [voterCertificatePolicy, setVoterCertificatePolicy] = useState<EVoterCertificatePolicy>(
-        EVoterCertificatePolicy.DISABLED
-    )
+    const [realmAttributes, setRealmAttributes] = useState<Record<string, string>>({})
+    const [realmAttributesError, setRealmAttributesError] = useState<string>()
+    const [realmAttributesDirty, setRealmAttributesDirty] = useState(false)
     const [manageCustomUrls, response] = useMutation<SetCustomUrlsMutation>(SET_CUSTOM_URLS, {
         context: {
             headers: {
@@ -171,16 +315,43 @@ export const EditElectionEventDataForm: React.FC = () => {
     })
 
     const [manageVoterAuthentication] = useMutation<SetCustomUrlsMutation>(SET_VOTER_AOTHENTICATION)
+    const {
+        data: realmAttributesData,
+        loading: isRealmAttributesLoading,
+        error: realmAttributesQueryError,
+        refetch: refetchRealmAttributes,
+    } = useQuery<GetRealmAttributesQuery>(GET_REALM_ATTRIBUTES, {
+        variables: {
+            election_event_id: record?.id,
+        },
+        skip: !record?.id || !canReadRealmAttributes,
+        fetchPolicy: "network-only",
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.KEYCLOAK_REALM_ATTRIBUTES_READ,
+            },
+        },
+    })
     const [manageRealmAttributes] = useMutation<UpdateRealmAttributesMutation>(
         UPDATE_REALM_ATTRIBUTES,
         {
             context: {
                 headers: {
-                    "x-hasura-role": IPermissions.ELECTION_EVENT_WRITE,
+                    "x-hasura-role": IPermissions.KEYCLOAK_REALM_ATTRIBUTES_WRITE,
                 },
             },
         }
     )
+    const [configureResultsWebsitePolicy] = useMutation<
+        ConfigureResultsWebsitePolicyData,
+        ConfigureResultsWebsitePolicyVariables
+    >(CONFIGURE_RESULTS_WEBSITE_POLICY, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.PUBLISH_RESULTS_WRITE,
+            },
+        },
+    })
 
     const {record: tenant} = useEditController({
         resource: "sequent_backend_tenant",
@@ -199,6 +370,7 @@ export const EditElectionEventDataForm: React.FC = () => {
         online: tenant?.voting_channels?.online || true,
         kiosk: tenant?.voting_channels?.kiosk || false,
         early_voting: tenant?.voting_channels?.early_voting || false,
+        telephone: tenant?.voting_channels?.telephone || false,
     })
 
     useEffect(() => {
@@ -273,6 +445,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                 online: true,
                 kiosk: false,
                 early_voting: false,
+                telephone: false,
             }
             for (const channel of Object.keys(defaultChannels)) {
                 temp.voting_channels[channel] =
@@ -288,6 +461,9 @@ export const EditElectionEventDataForm: React.FC = () => {
             }
 
             temp.presentation.custom_urls ??= {}
+            temp.resultsWebsitePolicy =
+                parseResultsWebsitePolicy(temp.presentation.results_website) ??
+                defaultResultsWebsitePolicy()
 
             return temp
         },
@@ -312,8 +488,30 @@ export const EditElectionEventDataForm: React.FC = () => {
         setValueMaterials(newValue)
     }
 
-    const formValidator = (values: any): any => {
-        const errors: any = {dates: {}}
+    // This form uses form-level validation: react-admin turns this `validate`
+    // prop into a react-hook-form resolver, and react-hook-form ignores all
+    // input-level `validate` props when a resolver is present. Any field
+    // validation for this form must therefore live here, keyed by the field's
+    // source path so the error reaches the input's helper text.
+    const formValidator = (values: {
+        presentation?: {voting_portal_datetime_format?: VotingPortalDateTimeFormat}
+    }): Record<string, unknown> => {
+        const errors: Record<string, unknown> = {}
+        const dateTimeFormat = values?.presentation?.voting_portal_datetime_format
+        if (
+            isCustomVotingPortalDateTimeFormat(dateTimeFormat) &&
+            !isValidVotingPortalDateTimePattern(dateTimeFormat.custom)
+        ) {
+            errors.presentation = {
+                voting_portal_datetime_format: {
+                    custom: String(
+                        t(
+                            "electionEventScreen.field.votingPortalDateTimeFormat.customFormat.invalid"
+                        )
+                    ),
+                },
+            }
+        }
         return errors
     }
 
@@ -487,12 +685,13 @@ export const EditElectionEventDataForm: React.FC = () => {
     }, [parsedValue?.enabled_languages, setValue, setValueMaterials])
 
     useEffect(() => {
-        const policy = (parsedValue?.presentation as IElectionEventPresentation)
-            ?.voter_certificate_policy
-        if (policy) {
-            setVoterCertificatePolicy(policy)
+        const attributes = realmAttributesData?.get_realm_attributes?.attributes
+        if (attributes) {
+            setRealmAttributes(attributes)
+            setRealmAttributesError(undefined)
+            setRealmAttributesDirty(false)
         }
-    }, [parsedValue?.presentation])
+    }, [realmAttributesData])
 
     const decodedBallotsStateChoices = () => {
         return Object.values(EElectionEventDecodedBallots).map((value) => ({
@@ -521,6 +720,27 @@ export const EditElectionEventDataForm: React.FC = () => {
             name: t(`electionEventScreen.field.countDownPolicyOptions.${value}`),
         }))
     }
+
+    const votingPortalDateTimeFormatChoices = () => {
+        return Object.values(EVotingPortalDateTimeFormat).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.votingPortalDateTimeFormat.options.${value}`),
+        }))
+    }
+
+    // The policy dropdown edits a scalar discriminant, but the CUSTOM policy stores its
+    // pattern inline as `{custom: "..."}`. These map between the two representations so the
+    // preset and custom variants share the single `voting_portal_datetime_format` field.
+    const dateTimePolicyToSelectValue = (
+        value: VotingPortalDateTimeFormat | undefined
+    ): EVotingPortalDateTimeFormat | "" =>
+        isCustomVotingPortalDateTimeFormat(value)
+            ? EVotingPortalDateTimeFormat.CUSTOM
+            : (value ?? "")
+
+    const selectValueToDateTimePolicy = (
+        id: EVotingPortalDateTimeFormat
+    ): VotingPortalDateTimeFormat => (id === EVotingPortalDateTimeFormat.CUSTOM ? {custom: ""} : id)
 
     const voterSigningPolicyChoices = () => {
         return Object.values(EVoterSigningPolicy).map((value) => ({
@@ -557,6 +777,13 @@ export const EditElectionEventDataForm: React.FC = () => {
         }))
     }
 
+    const automaticRecountPolicyOptions = () => {
+        return Object.values(EElectionEventAutomaticRecountPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.automaticRecountPolicy.options.${value}`),
+        }))
+    }
+
     const weightedVotingPolicyOptions = () => {
         return Object.values(EElectionEventWeightedVotingPolicy).map((value) => ({
             id: value,
@@ -587,6 +814,57 @@ export const EditElectionEventDataForm: React.FC = () => {
         values.presentation.custom_filters = newData
         setCustomFilters(newData as CustomFilter[])
         setActivateSave(true)
+    }
+
+    const normalizeRealmAttributes = (data: unknown): Record<string, string> => {
+        if (!data || Array.isArray(data) || typeof data !== "object") {
+            throw new Error("Realm attributes must be a JSON object")
+        }
+
+        return Object.entries(data).reduce<Record<string, string>>((acc, [key, value]) => {
+            if (key.trim().length === 0) {
+                throw new Error("Realm attribute names cannot be blank")
+            }
+            let hasControlCharacter = false
+            for (let index = 0; index < key.length; index++) {
+                const code = key.charCodeAt(index)
+                if (code <= 31 || (code >= 127 && code <= 159)) {
+                    hasControlCharacter = true
+                    break
+                }
+            }
+            if (hasControlCharacter) {
+                throw new Error("Realm attribute names cannot contain control characters")
+            }
+            if (typeof value !== "string") {
+                throw new Error("Realm attribute values must be strings")
+            }
+
+            acc[key] = value
+            return acc
+        }, {})
+    }
+
+    const updateRealmAttributesDraft = ({newData}: UpdateFunctionProps) => {
+        try {
+            setRealmAttributes(normalizeRealmAttributes(newData))
+            setRealmAttributesError(undefined)
+            setRealmAttributesDirty(true)
+            setActivateSave(true)
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Invalid realm attributes"
+            setRealmAttributesError(message)
+            setActivateSave(true)
+            return false
+        }
+    }
+
+    const setRealmAttributeDraftValue = (key: string, value: string) => {
+        if (!canEditRealmAttributes) {
+            return
+        }
+        setRealmAttributes((prev) => ({...prev, [key]: value}))
+        setRealmAttributesDirty(true)
     }
 
     const handleEnrollmentChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -707,38 +985,107 @@ export const EditElectionEventDataForm: React.FC = () => {
         }
     }
 
-    const handleUpdateRealmAttributes = async (
-        presentation: IElectionEventPresentation,
-        recordId: string
-    ) => {
+    const handleUpdateRealmAttributes = async (recordId: string) => {
+        if (realmAttributesError) {
+            notify(realmAttributesError, {type: "error"})
+            return false
+        }
+        // Never push a draft based on attributes that failed to load: the
+        // edits were made against incomplete data.
+        if (canReadRealmAttributes && (isRealmAttributesLoading || realmAttributesQueryError)) {
+            notify(t("electionEventScreen.edit.realm_attributes_not_loaded"), {type: "error"})
+            return false
+        }
+
         try {
             await manageRealmAttributes({
                 variables: {
                     election_event_id: recordId,
-                    attributes: {
-                        [REALM_ATTR_VOTER_CERTIFICATE_POLICY]: voterCertificatePolicy,
-                    },
+                    attributes: normalizeRealmAttributes(realmAttributes),
                 },
             })
+            if (canReadRealmAttributes) {
+                await refetchRealmAttributes()
+            }
+            setRealmAttributesDirty(false)
+            return true
         } catch (err: any) {
             console.error(err)
+            notify(t("electionEventScreen.edit.realm_attributes_update_error"), {type: "error"})
+            return false
         }
     }
 
-    const onSave = async () => {
-        await handleUpdateCustomUrls(
-            parsedValue.presentation as IElectionEventPresentation,
-            record?.id
-        )
-        await handleUpdateVoterAuthentication(
-            parsedValue.presentation as IElectionEventPresentation,
-            record?.id
-        )
-        await handleUpdateRealmAttributes(
-            parsedValue.presentation as IElectionEventPresentation,
-            record?.id
-        )
+    const handleConfigureResultsWebsitePolicy = async (
+        policy: IResultsWebsitePolicy | undefined,
+        recordId: string
+    ) => {
+        if (!canConfigureResultsWebsite) {
+            return
+        }
+        if (!policy) {
+            throw new Error("Results website policy is missing")
+        }
+        if (
+            policy.access === EResultsWebsiteAccess.PUBLIC &&
+            policy.visibility_scope !== EResultsWebsiteVisibilityScope.FULL_EVENT
+        ) {
+            throw new Error("Public results must use full event visibility")
+        }
+
+        await configureResultsWebsitePolicy({
+            variables: {
+                election_event_id: recordId,
+                status: policy.status,
+                access: policy.access,
+                visibility_scope: policy.visibility_scope,
+            },
+        })
+    }
+
+    const onSave = async (values: Sequent_Backend_Election_Event_Extended) => {
+        const recordId = values.id?.toString() ?? record?.id?.toString()
+        if (!recordId) {
+            throw new Error("Election event ID is missing")
+        }
+        checkCustomDateTimeFormatRef.current()
+
+        if (canEdit) {
+            await handleUpdateCustomUrls(
+                values.presentation as IElectionEventPresentation,
+                recordId
+            )
+            await handleUpdateVoterAuthentication(
+                values.presentation as IElectionEventPresentation,
+                recordId
+            )
+        }
+
+        if (canEditRealmAttributes && realmAttributesDirty) {
+            const updatedRealmAttributes = await handleUpdateRealmAttributes(recordId)
+            if (!updatedRealmAttributes) {
+                throw new Error("Realm attributes could not be updated")
+            }
+        }
+
+        await handleConfigureResultsWebsitePolicy(values.resultsWebsitePolicy, recordId)
+        if (canEdit) {
+            const passwordPolicyUpdated = await passwordPolicyRef.current?.save()
+            if (passwordPolicyUpdated === false) {
+                throw new Error("Password policy could not be updated")
+            }
+        }
         setActivateSave(false)
+
+        return {
+            ...values,
+            presentation: {
+                ...values.presentation,
+                ...(canConfigureResultsWebsite && values.resultsWebsitePolicy
+                    ? {results_website: JSON.stringify(values.resultsWebsitePolicy)}
+                    : {}),
+            },
+        }
     }
     return (
         <>
@@ -766,10 +1113,10 @@ export const EditElectionEventDataForm: React.FC = () => {
                 record={parsedValue}
                 toolbar={
                     <Toolbar>
-                        {canEdit && (
+                        {canSave && (
                             <SaveButton
-                                onClick={onSave}
                                 type="button"
+                                transform={onSave}
                                 alwaysEnable={activateSave}
                             />
                         )}
@@ -960,6 +1307,20 @@ export const EditElectionEventDataForm: React.FC = () => {
                     <AccordionDetails>
                         <Grid container spacing={4}>
                             <Grid size={{xs: 12, md: 6}}>{renderVotingChannels(parsedValue)}</Grid>
+                            <Grid size={{xs: 12, md: 6}}>
+                                <RadioButtonGroupInput
+                                    disabled={!canEdit}
+                                    source={"presentation.automatic_recount_policy"}
+                                    choices={automaticRecountPolicyOptions()}
+                                    label={String(
+                                        t(
+                                            "electionEventScreen.field.automaticRecountPolicy.policyLabel"
+                                        )
+                                    )}
+                                    defaultValue={EElectionEventAutomaticRecountPolicy.DISABLED}
+                                    validate={required()}
+                                />
+                            </Grid>
                         </Grid>
                     </AccordionDetails>
                 </Accordion>
@@ -1094,6 +1455,65 @@ export const EditElectionEventDataForm: React.FC = () => {
                     </AccordionDetails>
                 </Accordion>
 
+                {canReadRealmAttributes && (
+                    <Accordion
+                        sx={{width: "100%"}}
+                        expanded={expanded === "election-event-data-realm-attributes"}
+                        onChange={() =>
+                            setExpanded((prev) =>
+                                prev === "election-event-data-realm-attributes"
+                                    ? ""
+                                    : "election-event-data-realm-attributes"
+                            )
+                        }
+                    >
+                        <AccordionSummary
+                            expandIcon={
+                                <ExpandMoreIcon id="election-event-data-realm-attributes" />
+                            }
+                        >
+                            <ElectionHeaderStyles.Wrapper>
+                                <ElectionHeaderStyles.Title>
+                                    {t("electionEventScreen.edit.realm_attributes")}
+                                </ElectionHeaderStyles.Title>
+                            </ElectionHeaderStyles.Wrapper>
+                        </AccordionSummary>
+                        <AccordionDetails>
+                            {realmAttributesQueryError && (
+                                <Typography color="error">
+                                    {t("electionEventScreen.edit.realm_attributes_load_error")}
+                                </Typography>
+                            )}
+                            {realmAttributesError && (
+                                <Typography color="error">{realmAttributesError}</Typography>
+                            )}
+                            {isRealmAttributesLoading ? (
+                                <Typography>{t("loading")}</Typography>
+                            ) : canEditRealmAttributes ? (
+                                <JsonEditor
+                                    data={realmAttributes}
+                                    onUpdate={(data) =>
+                                        updateRealmAttributesDraft(data as UpdateFunctionProps)
+                                    }
+                                />
+                            ) : (
+                                <Box
+                                    component="pre"
+                                    sx={{
+                                        backgroundColor: "rgba(0, 0, 0, 0.04)",
+                                        borderRadius: "4px",
+                                        margin: 0,
+                                        overflowX: "auto",
+                                        padding: "1rem",
+                                    }}
+                                >
+                                    {JSON.stringify(realmAttributes, null, 2)}
+                                </Box>
+                            )}
+                        </AccordionDetails>
+                    </Accordion>
+                )}
+
                 <Accordion
                     sx={{width: "100%"}}
                     expanded={expanded === "election-event-data-materials"}
@@ -1129,6 +1549,23 @@ export const EditElectionEventDataForm: React.FC = () => {
                         </Box>
                     </AccordionDetails>
                 </Accordion>
+
+                {canReadPasswordPolicy && (
+                    <PasswordPolicyAccordion
+                        ref={passwordPolicyRef}
+                        electionEventId={record?.id?.toString()}
+                        canEdit={canEdit}
+                        expanded={expanded === "election-event-data-password-policy"}
+                        onChange={() =>
+                            setExpanded((previous) =>
+                                previous === "election-event-data-password-policy"
+                                    ? ""
+                                    : "election-event-data-password-policy"
+                            )
+                        }
+                        onDirty={() => setActivateSave(true)}
+                    />
+                )}
 
                 <Accordion
                     sx={{width: "100%"}}
@@ -1207,6 +1644,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                             emptyText={undefined}
                             validate={required()}
                         />
+                        {canConfigureResultsWebsite ? <ResultsWebsitePolicyFields /> : null}
                         <Typography
                             variant="body1"
                             component="span"
@@ -1218,6 +1656,54 @@ export const EditElectionEventDataForm: React.FC = () => {
                         >
                             {t("electionEventScreen.field.countDownPolicyOptions.sectionTitle")}
                         </Typography>
+                        <SelectInput
+                            source={"presentation.voting_portal_datetime_format"}
+                            choices={votingPortalDateTimeFormatChoices()}
+                            label={String(
+                                t(
+                                    "electionEventScreen.field.votingPortalDateTimeFormat.policyLabel"
+                                )
+                            )}
+                            helperText={String(
+                                t("electionEventScreen.field.votingPortalDateTimeFormat.helperText")
+                            )}
+                            defaultValue={EVotingPortalDateTimeFormat.LEGACY_GB_24H}
+                            format={dateTimePolicyToSelectValue}
+                            parse={selectValueToDateTimePolicy}
+                            emptyText={undefined}
+                            validate={required()}
+                            slotProps={{
+                                input: {error: false},
+                                inputLabel: {error: false},
+                                formHelperText: {error: false},
+                            }}
+                            sx={{marginBottom: "1.5em"}}
+                        />
+                        <FormDataConsumer>
+                            {({formData}) =>
+                                isCustomVotingPortalDateTimeFormat(
+                                    formData?.presentation?.voting_portal_datetime_format
+                                ) ? (
+                                    <TextInput
+                                        source={"presentation.voting_portal_datetime_format.custom"}
+                                        label={String(
+                                            t(
+                                                "electionEventScreen.field.votingPortalDateTimeFormat.customFormat.label"
+                                            )
+                                        )}
+                                        helperText={String(
+                                            t(
+                                                "electionEventScreen.field.votingPortalDateTimeFormat.customFormat.helperText"
+                                            )
+                                        )}
+                                        sx={{marginBottom: "1.5em"}}
+                                    />
+                                ) : null
+                            }
+                        </FormDataConsumer>
+                        <CustomDateTimeFormatInvalidNotifier
+                            checkRef={checkCustomDateTimeFormatRef}
+                        />
                         <SelectInput
                             source={`presentation.voting_portal_countdown_policy.policy`}
                             choices={votingPortalCountDownPolicies()}
@@ -1248,7 +1734,10 @@ export const EditElectionEventDataForm: React.FC = () => {
                             emptyText={undefined}
                             validate={required()}
                             onChange={(e) =>
-                                setVoterCertificatePolicy(e.target.value as EVoterCertificatePolicy)
+                                setRealmAttributeDraftValue(
+                                    REALM_ATTR_VOTER_CERTIFICATE_POLICY,
+                                    e.target.value as EVoterCertificatePolicy
+                                )
                             }
                         />
                         <Box

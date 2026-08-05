@@ -4,6 +4,7 @@
 
 package sequent.keycloak.theme;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -28,5 +29,49 @@ class RegisterTemplateTest {
     assertTrue(template.contains("msg(\"identity-provider-login-label\")"));
     assertTrue(template.contains("href=\"${p.loginUrl}\""));
     assertTrue(template.contains("${msg(p.displayName)!}"));
+  }
+
+  @Test
+  void structuredCredentialIsRestrictedToDeferredLoginMode() throws IOException {
+    String template = Files.readString(REGISTER_TEMPLATE);
+
+    assertTrue(
+        template.contains(
+            "<#assign structuredCredentialLogin = loginMode && passwordRequired && (realm.attributes['credential-input-policy']!'standard') == 'structured'>"));
+    assertTrue(template.contains("data-structured-credential"));
+    assertTrue(
+        template.contains("realm.attributes['credential-input-pattern']!'dddd-dddd-dddd-dddd'"));
+    assertFalse(template.contains("?html"));
+    assertTrue(template.contains("msg(\"structuredCredentialError\")"));
+    assertTrue(template.contains("data-paste-error=\"${msg('structuredCredentialPasteError')}\""));
+    assertTrue(
+        template.contains("data-format-error=\"${msg('structuredCredentialFormatError')}\""));
+    assertTrue(template.contains("<#if structuredCredentialLogin>inputmode=\"numeric\"</#if>"));
+    assertTrue(template.contains("src=\"${url.resourcesPath}/js/structured-credential.js\""));
+    assertTrue(template.contains("<#if structuredCredentialLogin>"));
+    assertTrue(
+        template.contains("<#if structuredCredentialLogin>autocomplete=\"current-password\""));
+    assertTrue(
+        template.contains(
+            "<#if structuredCredentialHasError || messagesPerField.existsError('password','password-confirm')>aria-invalid=\"true\"</#if>"));
+    assertFalse(
+        template.contains(
+            "aria-invalid=\"<#if structuredCredentialHasError || messagesPerField.existsError('password','password-confirm')>true</#if>\""));
+    assertTrue(
+        template.contains(
+            "displayMessage=messagesPerField.exists('global') displayRequiredFields=true"));
+    assertFalse(template.contains("credentialGlobalError"));
+    assertFalse(template.contains("segmentedCredential"));
+    assertFalse(template.contains("credential-segment-layout"));
+  }
+
+  @Test
+  void ordinaryRegistrationKeepsPasswordCreationControls() throws IOException {
+    String template = Files.readString(REGISTER_TEMPLATE);
+
+    assertTrue(template.contains("autocomplete=\"new-password\""));
+    assertTrue(template.contains("id=\"password-confirm\""));
+    assertTrue(template.contains("id=\"password-progress\""));
+    assertTrue(template.contains("src=\"${url.resourcesPath}/js/passwordVisibility.js\""));
   }
 }

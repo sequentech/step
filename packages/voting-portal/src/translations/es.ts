@@ -58,6 +58,14 @@ const spanishTranslation: TranslationType = {
         },
         startScreen: {
             startButton: "Empezar a votar",
+            declineToVoteButton: "Declinar votar",
+            declineToVoteDialog: {
+                title: "Confirmar declinación de voto",
+                content:
+                    "¿Estás seguro de que deseas declinar votar?<br />Irás directamente a la revisión y tu estado de participación se guardará como <b>Ha declinado votar</b>.",
+                continue: "Declinar votar",
+                cancel: "Cancelar",
+            },
             instructionsTitle: "Instrucciones",
             instructionsDescription: "Por favor, siga estos pasos para emitir su voto:",
             step1Title: "1. Seleccione su opción de voto",
@@ -90,7 +98,7 @@ const spanishTranslation: TranslationType = {
                 content:
                     "<p>Está a punto de copiar el Localizador del Voto, pero <b>su voto aún no se ha emitido</b>. Si intenta buscar el Localizador del Voto, no lo encontrará.</p><p>La razón por la que mostramos el Localizador del Voto en este momento es para que pueda auditar la corrección del voto cifrado antes de emitirlo. Si esa es la razón por la que desea copiar el Localizador del Voto, proceda a copiarlo y luego audite su voto.</p>",
                 ok: "Acepto que mi voto NO ha sido emitido",
-                cancel: "Cancelq4",
+                cancel: "Cancelar",
             },
             auditBallotHelpDialog: {
                 title: "¿Realmente quieres Auditar tu papeleta?",
@@ -197,6 +205,7 @@ const spanishTranslation: TranslationType = {
                 INTERNAL_ERROR:
                     "Hubo un error interno al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
             },
+            declineToVote: "Declinar votar",
         },
         confirmationScreen: {
             title: "Su voto ha sido emitido",
@@ -280,6 +289,7 @@ const spanishTranslation: TranslationType = {
                 ok: "OK",
             },
             noResults: "No hay elecciones por ahora.",
+            resultsButton: "Ver resultados",
             demoDialog: {
                 title: "Cabina de votación de demostración",
                 content:
@@ -326,13 +336,15 @@ const spanishTranslation: TranslationType = {
             },
         },
         ballotLocator: {
-            title: "Localiza tu Papeleta",
-            titleResult: "Resultado de la búsqueda de tu Papeleta",
-            description: "Verifique que su Papeleta ha sido emitida correctamente",
-            locate: "Localiza tu Papeleta",
-            locateAgain: "Localiza otra Papeleta",
-            found: "Tu ID de Papeleta {{ballotId}} ha sido localizada",
-            notFound: "Tu ID de Papeleta {{ballotId}} no ha sido localizada",
+            title: "Encuentra tu Papeleta",
+            titleResult: "Resultados de tu búsqueda de Papeleta",
+            description: "Confirme que su papeleta fue emitida correctamente",
+            locate: "Encuentra tu Papeleta",
+            locateAgain: "Encuentra otra Papeleta",
+            found: "Tu ID de Papeleta {{ballotId}} ha sido encontrada",
+            notFound: "Tu ID de Papeleta {{ballotId}} no fue encontrada",
+            ambiguous:
+                "Más de una de tus papeletas coincide con {{ballotId}}. Usa el ID de papeleta completo.",
             contentDesc: "Este es el contenido de tu Papeleta: ",
             wrongFormatBallotId: "Formato incorrecto para el ID de la Papeleta",
             ballotIdNotFoundAtFilter:

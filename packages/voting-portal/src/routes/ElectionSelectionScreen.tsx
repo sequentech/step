@@ -16,6 +16,9 @@ import {
     IElectionStatus,
     EEarlyVotingPolicy,
     IAreaPresentation,
+    EResultsWebsiteStatus,
+    parseResultsWebsitePolicy,
+    formatVotingPortalDateTime,
 } from "@sequentech/ui-core"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
@@ -31,7 +34,11 @@ import {
 import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
 import {selectElectionById, setElection, selectElectionIds} from "../store/elections/electionsSlice"
 import {AppDispatch} from "../store/store"
-import {addCastVotes, selectCastVotesByElectionId} from "../store/castVotes/castVotesSlice"
+import {
+    addCastVotes,
+    CastVoteStatus,
+    selectCastVotesByElectionId,
+} from "../store/castVotes/castVotesSlice"
 import {useLocation, useNavigate, useParams} from "react-router-dom"
 import {useQuery} from "@apollo/client/react"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
@@ -62,6 +69,7 @@ import {TenantEventType} from ".."
 import Stepper from "../components/Stepper"
 import {clearIsVoted, selectBypassChooser, setBypassChooser} from "../store/extra/extraSlice"
 import {updateBallotStyleAndSelection} from "../services/BallotStyles"
+import {BallotStyleConfigurationError} from "../services/BallotStyles"
 import useUpdateTranslation from "../hooks/useUpdateTranslation"
 import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
 import {setSupportMaterial} from "../store/supportMaterials/supportMaterialsSlice"
@@ -84,6 +92,47 @@ const ElectionContainer = styled(Box)`
     flex-direction: column;
     gap: 30px;
     margin-bottom: 30px;
+`
+
+const TitleSection = styled(Box)`
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 32px;
+    min-height: 100px;
+
+    @media (max-width: ${({theme}) => theme.breakpoints.values.sm}px) {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 16px;
+        min-height: unset;
+        padding: 24px 0;
+    }
+`
+
+const PageActions = styled(Box)`
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    gap: 16px;
+
+    .election-event-results-button {
+        min-width: 150px;
+        padding: 10px 24px;
+        justify-content: center;
+        font-weight: 500;
+        line-height: 24px;
+        white-space: nowrap;
+    }
+
+    @media (max-width: ${({theme}) => theme.breakpoints.values.sm}px) {
+        width: 100%;
+
+        > .MuiButton-root {
+            flex: 1;
+        }
+    }
 `
 
 interface ElectionWrapperProps {
@@ -113,6 +162,21 @@ const isElectionEventEarlyVotingOpen = (electionEvent?: IElectionEvent): boolean
     )
 }
 
+const isResultsWebsiteEnabled = (electionEvent?: IElectionEvent): boolean => {
+    return (
+        parseResultsWebsitePolicy(electionEvent?.presentation?.results_website)?.status ===
+        EResultsWebsiteStatus.ENABLED
+    )
+}
+
+const isElectionEventVotingClosed = (electionEvent?: IElectionEvent): boolean => {
+    return (
+        !isElectionEventOnlineVotingOpen(electionEvent) &&
+        !isElectionEventKioskOpen(electionEvent) &&
+        !isElectionEventEarlyVotingOpen(electionEvent)
+    )
+}
+
 const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     electionId,
     bypassChooser,
@@ -129,6 +193,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     const castVotes = useAppSelector(selectCastVotesByElectionId(String(electionId)))
     const [visitedBypassChooser, setVisitedBypassChooser] = useState(false)
     const authContext = useContext(AuthContext)
+    const {globalSettings} = useContext(SettingsContext)
     const isKiosk = authContext.isKiosk()
     let [getElectionClassName] = useElectionClassName()
 
@@ -136,6 +201,9 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         throw new VotingPortalError(VotingPortalErrorType.INTERNAL_ERROR)
     }
 
+    const defaultLanguageCode =
+        election.presentation?.language_conf?.default_language_code ??
+        electionEvent?.presentation?.language_conf?.default_language_code
     let electionClassName = getElectionClassName(election)
 
     const electionStatus = election?.status as IElectionStatus | null
@@ -209,6 +277,14 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         navigate(`../election/${electionId}/ballot-locator${location.search}`)
     }
 
+    const resultsUrl =
+        globalSettings.RESULTS_PORTAL_URL &&
+        eventId &&
+        !isVotingOpen() &&
+        isResultsWebsiteEnabled(electionEvent)
+            ? `${globalSettings.RESULTS_PORTAL_URL.replace(/\/+$/, "")}/${eventId}/elections/${electionId}`
+            : undefined
+
     useEffect(() => {
         if (visitedBypassChooser) {
             console.log("visitedBypassChooser")
@@ -225,13 +301,25 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         <SelectElection
             isActive={canVote()}
             isOpen={isVotingOpen()}
-            title={translateFromPresentation(election, "name", i18n.language) || "-"}
+            title={
+                translateFromPresentation(election, "name", i18n.language, {
+                    defaultLanguageCode,
+                }) || "-"
+            }
             hasVoted={castVotes.length > 0}
             onClickToVote={canVote() ? onClickToVote : undefined}
             onClickBallotLocator={handleClickBallotLocator}
+            resultsUrl={resultsUrl}
             electionDates={ballotStyle?.ballot_eml?.election_dates}
             isStarted={isVotingStarted()}
             className={electionClassName}
+            formatDateTime={(input) =>
+                formatVotingPortalDateTime(
+                    input,
+                    electionEvent,
+                    i18n.resolvedLanguage || i18n.language
+                )
+            }
         />
     )
 }
@@ -276,6 +364,8 @@ const ElectionSelectionScreen: React.FC = () => {
         useContext(SettingsContext)
     const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
+    const eventDefaultLanguageCode =
+        electionEvent?.presentation?.language_conf?.default_language_code
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
     //Handle both transalations from presentation and i18n language change.
     useUpdateTranslation({electionEvent}, defaultLanguageTouched, setDefaultLanguageTouched) // Overwrite translations
@@ -292,7 +382,21 @@ const ElectionSelectionScreen: React.FC = () => {
     const bypassChooser = useAppSelector(selectBypassChooser())
     const [errorMsg, setErrorMsg] = useState<ElectionScreenErrorType>()
     const [errorMsgElectionIds, setErrorMsgElectionIds] = useState<string | undefined>(undefined)
+    const [ballotStyleConfigurationError, setBallotStyleConfigurationError] = useState<
+        | {
+              translationKey: string
+              translationParams: Record<string, string>
+          }
+        | undefined
+    >(undefined)
     const [alertMsg, setAlertMsg] = useState<ElectionScreenMsgType>()
+    const eventResultsUrl =
+        globalSettings.RESULTS_PORTAL_URL &&
+        eventId &&
+        isResultsWebsiteEnabled(electionEvent) &&
+        isElectionEventVotingClosed(electionEvent)
+            ? `${globalSettings.RESULTS_PORTAL_URL.replace(/\/+$/, "")}/${eventId}`
+            : undefined
 
     const {
         error: errorBallotStyles,
@@ -338,7 +442,12 @@ const ElectionSelectionScreen: React.FC = () => {
         skip: globalSettings.DISABLE_AUTH || !isMaterialsActivated, // Skip query if in demo mode
     })
 
-    const {data: castVotes, error: errorCastVote} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES, {
+    const {
+        data: castVotes,
+        error: errorCastVote,
+        startPolling: startCastVotePolling,
+        stopPolling: stopCastVotePolling,
+    } = useQuery<GetCastVotesQuery>(GET_CAST_VOTES, {
         skip: globalSettings.DISABLE_AUTH,
     })
 
@@ -410,8 +519,18 @@ const ElectionSelectionScreen: React.FC = () => {
         if (dataBallotStyles && dataBallotStyles.sequent_backend_ballot_style.length > 0) {
             try {
                 updateBallotStyleAndSelection(dataBallotStyles, dispatch)
-            } catch {
-                setErrorMsg(ElectionScreenErrorType.BALLOT_STYLES_EML)
+                setBallotStyleConfigurationError(undefined)
+            } catch (error: unknown) {
+                if (error instanceof BallotStyleConfigurationError) {
+                    setBallotStyleConfigurationError({
+                        translationKey: error.translationKey,
+                        translationParams: error.translationParams,
+                    })
+                    setErrorMsg(undefined)
+                } else {
+                    setBallotStyleConfigurationError(undefined)
+                    setErrorMsg(ElectionScreenErrorType.BALLOT_STYLES_EML)
+                }
             }
         } else if (globalSettings.DISABLE_AUTH) {
             //fakeUpdateBallotStyleAndSelection(dispatch)
@@ -431,7 +550,12 @@ const ElectionSelectionScreen: React.FC = () => {
                             ? translateFromPresentation(
                                   election.presentation,
                                   "alias",
-                                  i18n.language
+                                  i18n.language,
+                                  {
+                                      defaultLanguageCode:
+                                          election.presentation.language_conf
+                                              ?.default_language_code ?? eventDefaultLanguageCode,
+                                  }
                               )
                             : undefined,
                     })
@@ -440,7 +564,11 @@ const ElectionSelectionScreen: React.FC = () => {
 
             let foundTestElection = dataElections.sequent_backend_election.find((election) => {
                 const name = election.presentation
-                    ? translateFromPresentation(election.presentation, "name", i18n.language)
+                    ? translateFromPresentation(election.presentation, "name", i18n.language, {
+                          defaultLanguageCode:
+                              election.presentation.language_conf?.default_language_code ??
+                              eventDefaultLanguageCode,
+                      })
                     : undefined
                 return name?.includes("TEST") ?? false
             })
@@ -451,7 +579,7 @@ const ElectionSelectionScreen: React.FC = () => {
 
             setTestElectionId(foundTestElection?.id || null)
         }
-    }, [dataElections, dispatch, i18n.language])
+    }, [dataElections, dispatch, eventDefaultLanguageCode, i18n.language])
 
     useEffect(() => {
         if (!testElectionId) {
@@ -473,9 +601,25 @@ const ElectionSelectionScreen: React.FC = () => {
 
     useEffect(() => {
         if (castVotes?.sequent_backend_cast_vote) {
-            dispatch(addCastVotes(castVotes.sequent_backend_cast_vote))
+            const castVoteList = castVotes.sequent_backend_cast_vote
+            dispatch(addCastVotes(castVoteList))
+
+            const hasUnresolvedCastVotes = castVoteList.some(
+                (castVote) => castVote.status === CastVoteStatus.IN_PROGRESS
+            )
+            if (hasUnresolvedCastVotes) {
+                startCastVotePolling(globalSettings.QUERY_POLL_INTERVAL_MS)
+            } else {
+                stopCastVotePolling()
+            }
         }
-    }, [castVotes, dispatch])
+    }, [
+        castVotes,
+        dispatch,
+        globalSettings.QUERY_POLL_INTERVAL_MS,
+        startCastVotePolling,
+        stopCastVotePolling,
+    ])
 
     useEffect(() => {
         const skipPolicy =
@@ -503,6 +647,19 @@ const ElectionSelectionScreen: React.FC = () => {
         oneBallotStyle,
     ])
 
+    const warningMsg = errorMsg
+        ? t(`electionSelectionScreen.errors.${errorMsg}`, {
+              electionIds: errorMsgElectionIds,
+          })
+        : ballotStyleConfigurationError
+          ? t(
+                ballotStyleConfigurationError.translationKey,
+                ballotStyleConfigurationError.translationParams
+            )
+          : alertMsg
+            ? t(`electionSelectionScreen.alerts.${alertMsg}`)
+            : undefined
+
     if (loadingElectionEvent || loadingElections || loadingBallotStyles) return <CircularProgress />
 
     return (
@@ -511,17 +668,8 @@ const ElectionSelectionScreen: React.FC = () => {
                 <Stepper selected={0} />
             </Box>
 
-            <Box
-                sx={{
-                    display: "flex",
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    minHeight: "100px",
-                }}
-                className="title-section"
-            >
-                <Box sx={{width: "100%"}}>
+            <TitleSection className="title-section">
+                <Box sx={{flex: 1, minWidth: 0}} className="election-selection-heading">
                     <StyledTitle variant="h1">
                         <Box>{t("electionSelectionScreen.title")}</Box>
                         <IconButton
@@ -540,16 +688,8 @@ const ElectionSelectionScreen: React.FC = () => {
                             {stringToHtml(t("electionSelectionScreen.chooserHelpDialog.content"))}
                         </Dialog>
                     </StyledTitle>
-                    {errorMsg || alertMsg ? (
-                        <Alert severity="warning">
-                            {errorMsg
-                                ? t(`electionSelectionScreen.errors.${errorMsg}`, {
-                                      electionIds: errorMsgElectionIds,
-                                  })
-                                : alertMsg
-                                  ? t(`electionSelectionScreen.alerts.${alertMsg}`)
-                                  : ""}
-                        </Alert>
+                    {warningMsg ? (
+                        <Alert severity="warning">{warningMsg}</Alert>
                     ) : (
                         <Typography
                             variant="body1"
@@ -559,10 +699,26 @@ const ElectionSelectionScreen: React.FC = () => {
                         </Typography>
                     )}
                 </Box>
-                {isMaterialsActivated ? (
-                    <Button onClick={handleNavigateMaterials}>{t("materials.common.label")}</Button>
-                ) : null}
-            </Box>
+                <PageActions className="election-event-actions">
+                    {eventResultsUrl ? (
+                        <Button
+                            className="results-button election-event-results-button"
+                            variant="secondary"
+                            component="a"
+                            href={eventResultsUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                        >
+                            {t("electionSelectionScreen.resultsButton")}
+                        </Button>
+                    ) : null}
+                    {isMaterialsActivated ? (
+                        <Button onClick={handleNavigateMaterials}>
+                            {t("materials.common.label")}
+                        </Button>
+                    ) : null}
+                </PageActions>
+            </TitleSection>
             <ElectionContainer className="elections-list">
                 {!hasNoElections ? (
                     electionIds.map((electionId) => (

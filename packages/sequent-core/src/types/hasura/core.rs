@@ -16,9 +16,11 @@ use crate::{
     serialization::deserialize_with_path::deserialize_value,
     types::{
         ceremonies::{
-            CeremoniesPolicy, KeysCeremonyExecutionStatus, KeysCeremonyStatus,
+            AutomaticRecountPolicy, CeremoniesPolicy,
+            KeysCeremonyExecutionStatus, KeysCeremonyStatus,
         },
-        tally_sheets::AreaContestResults,
+        participation::VotesByChannel,
+        tally_sheets::{AreaContestResults, TallySheetStatus},
     },
 };
 
@@ -107,6 +109,19 @@ pub struct ElectionEvent {
     pub external_id: Option<String>,
 }
 
+impl ElectionEvent {
+    pub fn automatic_recount_policy(&self) -> AutomaticRecountPolicy {
+        let presentation = self.presentation.as_ref().unwrap_or(&Value::Null);
+        presentation
+            .get("automatic_recount_policy")
+            .and_then(|value: &Value| value.as_str())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| AutomaticRecountPolicy::DISABLED.to_string())
+            .parse::<AutomaticRecountPolicy>()
+            .unwrap_or(AutomaticRecountPolicy::DISABLED)
+    }
+}
+
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Election {
     pub id: String,
@@ -178,6 +193,34 @@ pub struct Candidate {
     pub external_id: Option<String>,
 }
 
+#[derive(PartialEq, Eq, Debug, Clone, Default, Serialize, Deserialize)]
+pub struct DocumentAnnotations {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub access: Option<DocumentAccess>,
+}
+
+impl DocumentAnnotations {
+    pub fn password_protected(password_secret_id: impl Into<String>) -> Self {
+        Self {
+            access: Some(DocumentAccess {
+                password_secret_id: Some(password_secret_id.into()),
+            }),
+        }
+    }
+
+    pub fn password_secret_id(&self) -> Option<&str> {
+        self.access
+            .as_ref()
+            .and_then(|access| access.password_secret_id.as_deref())
+    }
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Default, Serialize, Deserialize)]
+pub struct DocumentAccess {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub password_secret_id: Option<String>,
+}
+
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Document {
     pub id: String,
@@ -191,6 +234,27 @@ pub struct Document {
     pub created_at: Option<DateTime<Local>>,
     pub last_updated_at: Option<DateTime<Local>>,
     pub is_public: Option<bool>,
+}
+
+#[cfg(test)]
+mod document_annotations_tests {
+    use super::DocumentAnnotations;
+    use serde_json::json;
+
+    #[test]
+    fn serializes_password_access_with_the_document() {
+        let annotations = DocumentAnnotations::password_protected("secret-id");
+
+        assert_eq!(
+            serde_json::to_value(&annotations).unwrap(),
+            json!({
+                "access": {
+                    "password_secret_id": "secret-id",
+                },
+            })
+        );
+        assert_eq!(Some("secret-id"), annotations.password_secret_id());
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -295,6 +359,18 @@ pub struct AreaContest {
     pub contest_id: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
+pub struct PhoneBlacklistEntry {
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub phone_e164: String,
+    pub reason: Option<String>,
+    pub created_at: DateTime<Local>,
+    pub created_by: String,
+    pub updated_at: DateTime<Local>,
+}
+
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct TallySheet {
     pub id: String,
@@ -307,12 +383,16 @@ pub struct TallySheet {
     pub last_updated_at: Option<DateTime<Local>>,
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
-    pub published_at: Option<DateTime<Local>>,
-    pub published_by_user_id: Option<String>,
+    pub reviewed_at: Option<DateTime<Local>>,
+    pub reviewed_by_user_id: Option<String>,
     pub content: Option<AreaContestResults>,
     pub channel: Option<String>,
-    pub deleted_at: Option<DateTime<Local>>,
+    pub deleted_at: Option<DateTime<Local>>, /* Mark as deleted when a new
+                                              * version is created. */
     pub created_by_user_id: String,
+    pub status: TallySheetStatus,
+    pub version: i32,
+    pub import_id: Option<String>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -413,6 +493,8 @@ pub struct TallySessionContestAnnotations {
     pub elegible_voters: u64,
     pub ballots_without_voter: u64,
     pub casted_ballots: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub votes_by_channel: Option<VotesByChannel>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -489,4 +571,30 @@ pub struct Tenant {
     pub voting_channels: Option<Value>,
     pub settings: Option<Value>,
     pub test: Option<i32>,
+}
+
+#[cfg(test)]
+mod tally_session_contest_annotations_tests {
+    use super::*;
+
+    #[test]
+    fn distinguishes_legacy_missing_channels_from_a_current_empty_breakdown() {
+        let legacy: TallySessionContestAnnotations =
+            serde_json::from_value(serde_json::json!({
+                "elegible_voters": 0,
+                "ballots_without_voter": 0,
+                "casted_ballots": 0
+            }))
+            .unwrap();
+        assert_eq!(legacy.votes_by_channel, None);
+
+        let current = TallySessionContestAnnotations {
+            elegible_voters: 0,
+            ballots_without_voter: 0,
+            casted_ballots: 0,
+            votes_by_channel: Some(VotesByChannel::new()),
+        };
+        let serialized = serde_json::to_value(current).unwrap();
+        assert_eq!(serialized["votes_by_channel"], serde_json::json!({}));
+    }
 }

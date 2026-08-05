@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {GridComparatorFn} from "@mui/x-data-grid"
 import {ParsedAnnotations, RunoffStatus} from "./types"
 import {Sequent_Backend_Candidate, Sequent_Backend_Contest} from "@/gql/graphql"
 import {ICandidate, IContest, ICountingAlgorithm} from "@sequentech/ui-core"
@@ -63,18 +62,15 @@ export function convertContestsArray(contests: Array<Sequent_Backend_Contest>): 
     return contests.map(convertSequentContestToIContest)
 }
 
-/**
- * Comparator function for sorting winning positions in DataGrid.
- * Positions are sorted numerically, with non-numeric values sorted to the end.
- */
-export const winningPositionComparator: GridComparatorFn<string> = (v1, v2) => {
-    const maxInt = Number.MAX_SAFE_INTEGER
+export const parseResultAnnotations = (annotations: unknown): ParsedAnnotations | null => {
+    if (!annotations) return null
 
-    // Convert stringified numbers to integers, non-numeric strings to maxInt
-    const pos1 = isNaN(parseInt(v1)) ? maxInt : parseInt(v1)
-    const pos2 = isNaN(parseInt(v2)) ? maxInt : parseInt(v2)
-
-    return pos1 - pos2
+    try {
+        const parsed = typeof annotations === "string" ? JSON.parse(annotations) : annotations
+        return typeof parsed === "object" && parsed !== null ? (parsed as ParsedAnnotations) : null
+    } catch {
+        return null
+    }
 }
 
 /**
@@ -90,9 +86,7 @@ export const parseProcessResults = (
     counting_algorithm: ICountingAlgorithm
 ): RunoffStatus | unknown | null => {
     try {
-        const parsedAnnotations: ParsedAnnotations | null = annotations
-            ? (JSON.parse(annotations as string) as ParsedAnnotations)
-            : null
+        const parsedAnnotations = parseResultAnnotations(annotations)
 
         const results = parsedAnnotations?.process_results ?? null
 

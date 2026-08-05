@@ -1,9 +1,8 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::{ballot::*, types::ceremonies::CountingAlgType};
+use crate::{ballot::Contest, ballot_codec::ContestCodecContext};
 use anyhow::Result;
-use std::convert::TryInto;
 
 pub trait BasesCodec {
     // get bases (no write-ins)
@@ -12,46 +11,10 @@ pub trait BasesCodec {
 
 impl BasesCodec for Contest {
     fn get_bases(&self) -> Result<Vec<u64>> {
-        // Calculate the base for candidates. It depends on the
-        // `contest.counting_algorithm`:
-        // - plurality-at-large: base 2 (value can be either 0 o 1)
-        // - preferential (*bordas*): contest.max + 1
-        // - cummulative: contest.extra_options.cumulative_number_of_checkboxes
-        //   + 1
+        let context = ContestCodecContext::new(self)
+            .map_err(|message| anyhow::anyhow!("{}", message))?;
 
-        let candidate_base: u64 = match self.get_counting_algorithm() {
-            CountingAlgType::PluralityAtLarge => 2,
-            CountingAlgType::Cumulative => {
-                self.cumulative_number_of_checkboxes() + 1u64
-            }
-            _ => (self.max_votes + 1i64).try_into().unwrap(),
-        };
-
-        let num_valid_candidates: usize = self
-            .candidates
-            .iter()
-            .filter(|candidate| !candidate.is_explicit_invalid())
-            .count();
-
-        // Set the initial bases and raw ballot, populate bases using the valid
-        // candidates list
-        let mut bases: Vec<u64> = vec![2];
-        for _i in 0..num_valid_candidates {
-            bases.push(candidate_base);
-        }
-
-        // Add bases for null terminators.
-        if self.allow_writeins() {
-            let char_map = self.get_char_map();
-            let write_in_base = char_map.base();
-            for candidate in self.candidates.iter() {
-                if candidate.is_write_in() {
-                    bases.push(write_in_base);
-                }
-            }
-        }
-
-        Ok(bases)
+        Ok(context.single_contest_bases())
     }
 }
 

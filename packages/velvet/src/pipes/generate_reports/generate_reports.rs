@@ -7,12 +7,13 @@ use rand::thread_rng;
 use rayon::prelude::*;
 use sequent_core::{
     ballot::{
-        Candidate, CandidatesOrder, ConsolidatedReportPolicy, Contest, StringifiedPeriodDates,
+        Candidate, CandidatesOrder, ConsolidatedReportPolicy, Contest, ContestEncryptionPolicy,
+        DeclineToVotePolicy, StringifiedPeriodDates,
     },
     serialization::deserialize_with_path::{deserialize_str, deserialize_value},
     services::{area_tree::TreeNodeArea, pdf, reports},
     sqlite::results_election_area,
-    types::{ceremonies::TallyType, to_map::ToMap},
+    types::{ceremonies::TallyType, participation::ParticipationChannel, to_map::ToMap},
     util::{date_time::get_date_and_time, path::list_subfolders},
 };
 use serde::{Deserialize, Serialize};
@@ -218,6 +219,10 @@ impl GenerateReports {
                     };
                     contest_result_opt = Some(contest_result);
                 }
+                let participation_by_channel = contest_result_opt
+                    .as_ref()
+                    .map(participation_by_channel_rows)
+                    .unwrap_or_default();
 
                 ReportDataComputed {
                     election_name: report.election_name.clone(),
@@ -238,6 +243,7 @@ impl GenerateReports {
                     tally_sheet_id: None,
                     channel_type: report.channel_type.clone(),
                     election_results: report.election_results.clone(),
+                    participation_by_channel,
                 }
             })
             .collect::<Vec<ReportDataComputed>>();
@@ -902,11 +908,58 @@ struct InputConfigAreaContest<'a> {
     contests: Vec<&'a InputContestConfig>,
 }
 
+/// Helper function to calculate percentage of a number
+#[allow(clippy::cast_precision_loss, clippy::arithmetic_side_effects)]
+fn percentage_of(count: u64, base: u64) -> f64 {
+    let safe_base = cmp::max(1, base);
+
+    ((count as f64) * 100.0 / (safe_base as f64)).clamp(0.0, 100.0)
+}
+
+fn participation_by_channel_rows(result: &ContestResult) -> Vec<ParticipationByChannelRow> {
+    let total_channel_votes = result
+        .extended_metrics
+        .as_ref()
+        .map(|metrics| {
+            metrics
+                .votes_by_channel
+                .values()
+                .copied()
+                .fold(0u64, u64::saturating_add)
+        })
+        .unwrap_or_default();
+    let mut rows: Vec<ParticipationByChannelRow> = result
+        .extended_metrics
+        .as_ref()
+        .map(|metrics| {
+            metrics
+                .votes_by_channel
+                .iter()
+                .filter(|(_, total)| **total > 0)
+                .map(|(channel, total)| ParticipationByChannelRow {
+                    channel: channel.clone(),
+                    label: channel.report_label().into_owned(),
+                    total: *total,
+                    percentage: percentage_of(*total, total_channel_votes),
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    rows.sort_by(|left, right| left.channel.cmp(&right.channel));
+    rows
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ElectionResultReport {
     pub census: u64,
+    pub percentage_census: f64,
     pub total_votes: u64,
     pub percentage_total_votes: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total_decline_to_vote: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub percentage_total_decline_to_vote: Option<f64>,
 }
 
 impl Pipe for GenerateReports {
@@ -921,6 +974,16 @@ impl Pipe for GenerateReports {
 
         let config = self.get_config()?; // Assuming config is shareable (Sync+Clone) or created/cloned per thread if needed
         let tally_type = config.tally_type; // Assuming config is shareable (Sync+Clone) or created/cloned per thread if needed
+
+        let multi_contest_encrypt = config
+            .tally_session_configuration
+            .clone()
+            .map(|c| {
+                c.contest_encryption_policy
+                    .map(|c| c == ContestEncryptionPolicy::MULTIPLE_CONTESTS)
+                    .unwrap_or(false)
+            })
+            .unwrap_or(false);
 
         // 1. Parallelize processing of each election_input
         self.pipe_inputs
@@ -943,7 +1006,7 @@ impl Pipe for GenerateReports {
                     .collect();
 
                 // 2. Parallelize processing of contest_list for generating initial contest_reports
-                let contest_reports: Vec<ReportData> = election_input // Ensure ReportData is Send
+                let mut contest_reports: Vec<ReportData> = election_input // Ensure ReportData is Send
                     .contest_list
                     .par_iter() // <- PARALLELIZED
                     .map(|contest_input| {
@@ -1070,6 +1133,71 @@ impl Pipe for GenerateReports {
                     })
                     .collect::<Result<Vec<ReportData>>>()?; // Collect contest-level reports
 
+                // add summary election report
+                let election_census = election_input.clone().census;
+                let total_votes = election_input.total_votes.clone();
+
+                let is_decline_to_vote_enabled = multi_contest_encrypt
+                    && election_input
+                        .presentation
+                        .clone()
+                        .and_then(|p| p.decline_to_vote_policy)
+                        == Some(DeclineToVotePolicy::ENABLED);
+
+                let total_decline_to_vote = if is_decline_to_vote_enabled {
+                    contest_reports
+                        .first()
+                        .and_then(|r| {
+                            r.contest_result
+                                .clone()
+                                .map(|r| r.extended_metrics.map(|m| m.total_declined_to_vote))
+                        })
+                        .unwrap_or(None)
+                } else {
+                    None
+                };
+
+                let percentage_total_decline_to_vote =
+                    total_decline_to_vote.map(|count| percentage_of(count, election_census));
+                let percentage_total_votes = percentage_of(total_votes, election_census);
+                let percentage_census = 100.0;
+
+                let election_results = ElectionResultReport {
+                    census: election_census.clone(),
+                    percentage_census,
+                    total_votes: total_votes.clone(),
+                    percentage_total_votes,
+                    total_decline_to_vote,
+                    percentage_total_decline_to_vote,
+                };
+
+                let summary_election_report = contest_reports
+                    .first()
+                    .and_then(|r| r.contest.clone())
+                    .map(|contest| ReportData {
+                        election_name: election_input.name.clone(),
+                        election_alias: election_input.alias.clone(),
+                        election_id: election_input.id.to_string(),
+                        tenant_id: contest.tenant_id.clone(),
+                        election_event_id: contest.election_event_id.clone(),
+                        election_description: election_input.description.to_string(),
+                        election_dates: election_input.dates.clone(),
+                        election_annotations: election_input.annotations.clone(),
+                        election_event_annotations: election_input
+                            .election_event_annotations
+                            .clone(),
+                        contest: None,
+                        contest_result: None,
+                        area: None,
+                        winners: vec![],
+                        channel_type: None,
+                        election_results: Some(election_results),
+                    });
+
+                if (summary_election_report.is_some()) {
+                    contest_reports.push(summary_election_report.unwrap());
+                }
+
                 // write report for the current election (remains sequential for this election_input task)
                 let result_hash = self.write_report(
                     &election_input.id,
@@ -1167,41 +1295,6 @@ impl Pipe for GenerateReports {
                     .collect(); // End of par_iter().try_for_each over area_contests_map
 
                 if (is_consolidated_report && area_contests_reports.len() > 0) {
-                    let election_census = election_input.clone().census;
-                    let total_votes = election_input.total_votes.clone();
-                    let census_base = cmp::max(1, election_census) as f64;
-
-                    let election_results = ElectionResultReport {
-                        census: election_census.clone(),
-                        total_votes: total_votes.clone(),
-                        percentage_total_votes: (total_votes as f64) * 100.0 / census_base,
-                    };
-
-                    let contest = area_contests_reports
-                        .first()
-                        .map(|r| r.contest.clone().unwrap())
-                        .expect("area_contests_reports is empty");
-
-                    let summary_election_report = ReportData {
-                        election_name: election_input.name.clone(),
-                        election_alias: election_input.alias.clone(),
-                        election_id: election_input.id.to_string(),
-                        tenant_id: contest.tenant_id.clone(),
-                        election_event_id: contest.election_event_id.clone(),
-                        election_description: election_input.description.to_string(),
-                        election_dates: election_input.dates.clone(),
-                        election_annotations: election_input.annotations.clone(),
-                        election_event_annotations: election_input
-                            .election_event_annotations
-                            .clone(),
-                        contest: None,
-                        contest_result: None,
-                        area: None,
-                        winners: vec![],
-                        channel_type: None,
-                        election_results: Some(election_results),
-                    };
-                    area_contests_reports.push(summary_election_report);
                     area_contests_reports.extend(contest_reports);
 
                     let result_hash = self.write_report(
@@ -1287,6 +1380,16 @@ pub struct ReportDataComputed {
     pub candidate_result: Vec<CandidateResultForReport>,
     pub channel_type: Option<String>,
     pub election_results: Option<ElectionResultReport>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub participation_by_channel: Vec<ParticipationByChannelRow>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ParticipationByChannelRow {
+    pub channel: ParticipationChannel,
+    pub label: String,
+    pub total: u64,
+    pub percentage: f64,
 }
 
 impl From<ReportDataComputed> for ReportData {
@@ -1378,6 +1481,168 @@ fn sort_candidates(candidates: &mut Vec<CandidateResult>, order_field: Candidate
 
         CandidatesOrder::Random => {
             // We don't randomize in results
+        }
+    }
+}
+
+#[cfg(test)]
+mod participation_by_channel_tests {
+    use super::*;
+    use crate::pipes::do_tally::ExtendedMetricsContest;
+    use sequent_core::{
+        ballot::VotingStatusChannel,
+        types::{
+            participation::VotesByChannel, tally_sheets::VotingChannel as TallySheetVotingChannel,
+        },
+    };
+
+    fn report_with_channels(
+        participation_by_channel: Vec<ParticipationByChannelRow>,
+    ) -> ReportDataComputed {
+        ReportDataComputed {
+            election_name: "Election".to_string(),
+            election_alias: "Election".to_string(),
+            election_id: "election-1".to_string(),
+            election_event_id: "event-1".to_string(),
+            tenant_id: "tenant-1".to_string(),
+            election_description: String::new(),
+            election_dates: None,
+            election_annotations: HashMap::new(),
+            election_event_annotations: HashMap::new(),
+            contest: None,
+            area: None,
+            area_annotations: HashMap::new(),
+            is_aggregate: false,
+            tally_sheet_id: None,
+            contest_result: None,
+            candidate_result: vec![],
+            channel_type: None,
+            election_results: None,
+            participation_by_channel,
+        }
+    }
+
+    #[test]
+    fn builds_ordered_rows_with_total_vote_percentages_and_future_channel_fallbacks() {
+        let result = ContestResult {
+            census: 20,
+            extended_metrics: Some(ExtendedMetricsContest {
+                votes_by_channel: VotesByChannel::from([
+                    (ParticipationChannel::Unknown("AA".to_string()), 1),
+                    (ParticipationChannel::Unknown("A_B".to_string()), 1),
+                    (
+                        ParticipationChannel::Unknown("FUTURE_CHANNEL".to_string()),
+                        2,
+                    ),
+                    (VotingStatusChannel::ONLINE.into(), 5),
+                    (TallySheetVotingChannel::PAPER.into(), 3),
+                    (TallySheetVotingChannel::POSTAL.into(), 0),
+                ]),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let rows = participation_by_channel_rows(&result);
+
+        assert_eq!(
+            rows.iter()
+                .map(|row| row.channel.as_str())
+                .collect::<Vec<_>>(),
+            vec!["ONLINE", "PAPER", "AA", "A_B", "FUTURE_CHANNEL"]
+        );
+        assert_eq!(rows[0].percentage, percentage_of(5, 12));
+        assert_eq!(rows[1].percentage, percentage_of(3, 12));
+        assert_eq!(rows[4].label, "Future Channel");
+    }
+
+    #[test]
+    fn channel_percentages_use_total_channel_votes_independently_of_census() {
+        for census in [0, 1, 100] {
+            let result = ContestResult {
+                census,
+                extended_metrics: Some(ExtendedMetricsContest {
+                    votes_by_channel: VotesByChannel::from([
+                        (VotingStatusChannel::ONLINE.into(), 3),
+                        (TallySheetVotingChannel::PAPER.into(), 1),
+                    ]),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            };
+
+            let rows = participation_by_channel_rows(&result);
+
+            assert_eq!(rows[0].percentage, 75.0);
+            assert_eq!(rows[1].percentage, 25.0);
+        }
+    }
+
+    #[test]
+    fn serializes_channel_participation_into_report_json() {
+        let report = report_with_channels(vec![ParticipationByChannelRow {
+            channel: VotingStatusChannel::ONLINE.into(),
+            label: "Online".to_string(),
+            total: 5,
+            percentage: 25.0,
+        }]);
+        let json = serde_json::to_value(TemplateData {
+            execution_annotations: HashMap::new(),
+            reports: vec![report],
+        })
+        .unwrap();
+
+        assert_eq!(
+            json["reports"][0]["participation_by_channel"][0]["channel"],
+            "ONLINE"
+        );
+        assert_eq!(
+            json["reports"][0]["participation_by_channel"][0]["total"],
+            5
+        );
+        assert_eq!(
+            json["reports"][0]["participation_by_channel"][0]["percentage"],
+            25.0
+        );
+    }
+
+    #[test]
+    fn renders_channel_participation_in_the_built_in_and_default_html_pdf_templates() {
+        let variables = serde_json::json!({
+            "reports": [{
+                "election_name": "Election",
+                "contest": {
+                    "name": "Contest",
+                    "description": "",
+                    "counting_algorithm": "other",
+                    "min_votes": 0,
+                    "max_votes": 1
+                },
+                "contest_result": {},
+                "candidate_result": [],
+                "participation_by_channel": [{
+                    "channel": "ONLINE",
+                    "label": "Online",
+                    "total": 5,
+                    "percentage": 25.0
+                }]
+            }]
+        });
+        let serde_json::Value::Object(variables) = variables else {
+            panic!("report variables must be an object");
+        };
+
+        for template in [
+            include_str!("../../resources/report_content.hbs"),
+            include_str!(
+                "../../../../../.devcontainer/minio/public-assets/electoral_results_user.hbs"
+            ),
+        ] {
+            let rendered = reports::render_template_text(template, variables.clone()).unwrap();
+
+            assert!(rendered.contains("Participation by channel"));
+            assert!(rendered.contains("Online"));
+            assert!(rendered.contains("25.0%"));
         }
     }
 }

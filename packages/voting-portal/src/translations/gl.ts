@@ -59,6 +59,14 @@ const galegoTranslation: TranslationType = {
         },
         startScreen: {
             startButton: "Comezar a votar",
+            declineToVoteButton: "Absterse de votar",
+            declineToVoteDialog: {
+                title: "Confirmar abstención de voto",
+                content:
+                    "Seguro que queres absterte de votar?<br />Irás directamente á revisión e o teu estado de participación gardarase como <b>Abstívose de votar</b>.",
+                continue: "Absterse de votar",
+                cancel: "Cancelar",
+            },
             instructionsTitle: "Instrucións",
             instructionsDescription: "Siga estes pasos para emitir a súa papeleta:",
             step1Title: "1. Selecciona as túas opcións",
@@ -195,6 +203,7 @@ const galegoTranslation: TranslationType = {
                 INTERNAL_ERROR:
                     "Houbo un erro interno ao emitir o voto. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
             },
+            declineToVote: "Absterse de votar",
         },
         confirmationScreen: {
             title: "O teu voto foi emitido",
@@ -278,6 +287,7 @@ const galegoTranslation: TranslationType = {
                 ok: "OK",
             },
             noResults: "Sen papeletas por agora.",
+            resultsButton: "Ver resultados",
             demoDialog: {
                 title: "Cabina de votación de demostración",
                 content:
@@ -329,8 +339,10 @@ const galegoTranslation: TranslationType = {
             description: "Verifica que a túa Papeleta foi correctamente enviada",
             locate: "Localiza a túa Papeleta",
             locateAgain: "Buscar outra Papeleta",
-            found: "O teu ID de papeleta {{ballotId}} foi localizado",
-            notFound: "O teu ID de papeleta {{ballotId}} non foi localizado",
+            found: "O teu ID de papeleta {{ballotId}} foi atopado",
+            notFound: "O teu ID de papeleta {{ballotId}} non foi atopado",
+            ambiguous:
+                "Máis dunha das túas papeletas coincide con {{ballotId}}. Usa o ID completo da papeleta.",
             contentDesc: "Este é o contido da túa Papeleta:",
             wrongFormatBallotId: "Formato incorrecto para o ID da Papeleta",
             ballotIdNotFoundAtFilter:

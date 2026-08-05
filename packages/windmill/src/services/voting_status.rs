@@ -85,6 +85,13 @@ pub async fn update_election_status(
             election_channels.push(VotingStatusChannel::EARLY_VOTING)
         }
 
+        if VotingStatusChannel::TELEPHONE
+            .channel_from(&voting_channels)
+            .unwrap_or(false)
+        {
+            election_channels.push(VotingStatusChannel::TELEPHONE)
+        }
+
         election_channels
     } else {
         info!("Default voting channels");
@@ -93,6 +100,7 @@ pub async fn update_election_status(
             VotingStatusChannel::ONLINE,
             VotingStatusChannel::KIOSK,
             VotingStatusChannel::EARLY_VOTING,
+            VotingStatusChannel::TELEPHONE,
         ]
     };
 

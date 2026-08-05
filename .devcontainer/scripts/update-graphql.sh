@@ -3,10 +3,12 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-set -ex -o pipefail
+set -e -o pipefail
 
 source .devcontainer/.env
-docker compose restart graphql-engine
+# devenv prepends its Nix OpenSSL to LD_LIBRARY_PATH, but the devcontainer's
+# system Docker CLI must load the Ubuntu-compatible OpenSSL libraries.
+env -u LD_LIBRARY_PATH docker compose restart graphql-engine
 
 # graphql-engine needs some waiting time before it's up and working
 sleep 10
@@ -23,6 +25,7 @@ gq http://graphql-engine:8080/v1/graphql \
 cd ..
 cp admin-portal/graphql.schema.json voting-portal/graphql.schema.json
 cp admin-portal/graphql.schema.json ballot-verifier/graphql.schema.json
+cp admin-portal/graphql.schema.json results-portal/graphql.schema.json
 cp admin-portal/graphql.schema.json step-cli/src/graphql/schema.json
 cp admin-portal/graphql.schema.json .
 
@@ -32,6 +35,7 @@ yarn
 yarn generate:admin-portal
 yarn generate:voting-portal
 yarn generate:ballot-verifier
+yarn generate:results-portal
 
 # Format the generated source files
 yarn lint:fix && yarn prettify:fix

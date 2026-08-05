@@ -174,9 +174,9 @@ if *max_wins > act_ballots / 2 {
 The final `ContestResult` includes:
 
 - **Vote counts** - Total votes for each candidate in the final/winning round
-- **Percentages** - Calculated based on valid votes (excluding blanks)
+- **Percentages** - Regular candidate rows use valid votes excluding blanks
 - **Invalid votes** - Separated into explicit and implicit
-- **Blank votes** - Counted separately
+- **Blank votes** - Counted separately and included in `total_valid_votes`
 - **Extended metrics** - Total ballots, participation rates, etc.
 
 Percentages are calculated as:
@@ -184,6 +184,10 @@ Percentages are calculated as:
 - **For regular candidates**: `(total_count / (count_valid - count_blank)) * 100`
 - **For explicit blank**: `(count_blank / total_ballots) * 100`
 - **For explicit invalid**: `(explicit_invalid / total_ballots) * 100`
+
+`count_valid` includes explicit and implicit blank ballots. The
+`count_valid - count_blank` denominator is the number of valid non-blank ballots
+that can contribute candidate preferences.
 
 ### Results for each round
 

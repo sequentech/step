@@ -6,6 +6,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <#--  Source: https://github.com/keycloak/keycloak/blob/24.0.0/themes/src/main/resources/theme/base/login/user-profile-commons.ftl  -->
 
+<#--  True when the attribute was prefilled from a login hint annotated as READ_ONLY,
+      in which case the voter must not be able to change the submitted value.  -->
+<#function isLoginHintReadOnly attributeName>
+	<#return loginHintReadOnlyAttributes?? && loginHintReadOnlyAttributes?seq_contains(attributeName)>
+</#function>
+
 <#macro userProfileFormFields>
 	<#assign currentGroup="">
 	<#assign readonlyElements = []>
@@ -183,6 +189,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<input type="<@inputTagType attribute=attribute/>" id="${name}" name="${name}" value="${(value!'')}" class="${properties.kcInputClass!}"
 		aria-invalid="<#if messagesPerField.existsError('${name}')>true</#if>"
 		<#if attribute.readOnly>disabled</#if>
+		<#-- readonly rather than disabled so the locked value is still submitted -->
+		<#if isLoginHintReadOnly(attribute.name)>readonly</#if>
 		<#--  Checks for attribute annotations that start with "html-attribute:" and sets them as input attributes  -->
 		<#list attribute.annotations as key, value>
 			<#if key?starts_with("html-attribute:")>${key[15..]}=${value}</#if>
@@ -220,6 +228,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<textarea id="${name}" name="${name}" class="${properties.kcInputClass!}"
 		aria-invalid="<#if messagesPerField.existsError('${name}')>true</#if>"
 		<#if attribute.readOnly>disabled</#if>
+		<#if isLoginHintReadOnly(attribute.name)>readonly</#if>
 		<#if attribute.annotations.inputTypeCols??>cols="${attribute.annotations.inputTypeCols}"</#if>
 		<#if attribute.annotations.inputTypeRows??>rows="${attribute.annotations.inputTypeRows}"</#if>
 		<#if attribute.annotations.inputTypeMaxlength??>maxlength="${attribute.annotations.inputTypeMaxlength}"</#if>
@@ -229,7 +238,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <#macro selectTag attribute name values>
 	<select id="${name}" name="${name}" class="${properties.kcInputClass!}"
 		aria-invalid="<#if messagesPerField.existsError('${name}')>true</#if>"
-		<#if attribute.readOnly>disabled</#if>
+		<#if attribute.readOnly || isLoginHintReadOnly(attribute.name)>disabled</#if>
 		<#if attribute.annotations.inputType=='multiselect'>multiple</#if>
 		<#if attribute.annotations.inputTypeSize??>size="${attribute.annotations.inputTypeSize}"</#if>
 		<#if attribute.annotations.filterSelectAttribute??>onchange="filterSelectAttribute(event, '${attribute.annotations.filterSelectAttribute}')"</#if>
@@ -251,6 +260,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</#list>
 
 	</select>
+	<#-- A disabled select submits nothing, so mirror the locked value in a hidden input -->
+	<@loginHintLockedValues attribute=attribute name=name values=values/>
+</#macro>
+
+<#macro loginHintLockedValues attribute name values>
+	<#if isLoginHintReadOnly(attribute.name)>
+		<#list values as value>
+			<input type="hidden" name="${name}" value="${value}"/>
+		</#list>
+	</#if>
 </#macro>
 
 <#macro inputTagSelects attribute name values>
@@ -278,7 +297,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div class="${classDiv}">
 			<input type="${inputType}" id="${name}-${option}" name="${name}" value="${option}" class="${classInput}"
 				aria-invalid="<#if messagesPerField.existsError('${name}')>true</#if>"
-				<#if attribute.readOnly>disabled</#if>
+				<#if attribute.readOnly || isLoginHintReadOnly(attribute.name)>disabled</#if>
 				<#if values?seq_contains(option)>checked</#if>
 				<#if attribute.annotations.disableAttribute??>onclick="readOnlyElementById(event, '${option}')"</#if>
 				<#if attribute.annotations.disableElement??>onclick="disableElementById(event, '${option}')"</#if>
@@ -292,6 +311,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<#assign disabledElements += [{"id":"${option}","checked":"${values?seq_contains(option)?c}"}]>
 		</#if>
 	</#list>
+	<#-- Disabled radios and checkboxes submit nothing, so mirror the locked value -->
+	<@loginHintLockedValues attribute=attribute name=name values=values/>
 </#macro>
 
 <#macro selectOptionLabelText attribute option>

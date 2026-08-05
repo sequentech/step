@@ -37,6 +37,7 @@ export const SettingsVotingChannels: React.FC<void> = () => {
     const [voting, setVoting] = useState<any>({
         online: record?.voting_channels?.online || true,
         kiosk: record?.voting_channels?.kiosk || false,
+        telephone: record?.voting_channels?.telephone || false,
     })
 
     const handleToggle = (method: any) => {
@@ -54,6 +55,7 @@ export const SettingsVotingChannels: React.FC<void> = () => {
                 voting_channels: {
                     online: updatedVoting.online,
                     kiosk: updatedVoting.kiosk,
+                    telephone: updatedVoting.telephone,
                 },
             })
         }
@@ -65,6 +67,7 @@ export const SettingsVotingChannels: React.FC<void> = () => {
             setVoting({
                 online: record?.voting_channels?.online || true,
                 kiosk: record?.voting_channels?.kiosk || false,
+                telephone: record?.voting_channels?.telephone || false,
             })
         }
     }, [record])

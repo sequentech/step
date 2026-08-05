@@ -32,7 +32,6 @@ import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {
     CreateUserMutation,
     DeleteUserRoleMutation,
-    EditUsersInput,
     ListUserRolesQuery,
     Sequent_Backend_Cast_Vote,
     Sequent_Backend_Election,
@@ -62,18 +61,18 @@ import {InputContainerStyle, InputLabelStyle, PasswordInputStyle} from "./EditPa
 import IconTooltip from "@/components/IconTooltip"
 import {faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 import {useUsersPermissions} from "./useUsersPermissions"
-import debounce from "lodash/debounce"
-import {CustomAutocompleteArrayInput} from "@sequentech/ui-essentials"
+import {CustomAutocompleteArrayInput, ReviewChangesTable} from "@sequentech/ui-essentials"
 import {useCustomNotify} from "@/hooks/useCustomNotify"
+import {VOTED_CHANNEL} from "./ListUsers"
+import {WizardStyles} from "@/components/styles/WizardStyles"
+import {computeRoleDiff, computeUserDiff, UserBaseline} from "@/services/UserEditReviewChanges"
 
 interface ListUserRolesProps {
     userId?: string
     userRoles?: ListUserRolesQuery
     rolesList: Array<IRole>
-    refetch: () => void
-    createMode?: boolean
-    setUserRoles?: (id: string) => void
-    selectedRolesOnCreate?: string[]
+    activeRoleIds?: string[]
+    onToggleRole?: (id: string) => void
 }
 
 export interface Trustee {
@@ -89,40 +88,36 @@ const getAttributeStringValue = (value: string | string[] | null | undefined): s
     return value ?? ""
 }
 
-interface DateAttributeInputProps {
+interface AttributeTextInputProps {
     disabled: boolean
     label: string
     onCommit: (value: string) => void
     required: boolean
     value: string | string[] | null | undefined
+    type?: string
 }
 
-const DateAttributeInput: React.FC<DateAttributeInputProps> = ({
+// Uncontrolled by design: the DOM owns the value while the user types, so a
+// re-render triggered by anything else can never fight the input over its
+// current text. The parent's attribute value is only read on mount (via
+// defaultValue/key) and only written back on blur.
+const AttributeTextInput: React.FC<AttributeTextInputProps> = ({
     disabled,
     label,
     onCommit,
     required,
     value,
+    type,
 }) => {
     const normalizedValue = getAttributeStringValue(value)
-    const [draftValue, setDraftValue] = useState(normalizedValue)
-    const [isFocused, setIsFocused] = useState(false)
-
-    useEffect(() => {
-        if (!isFocused) {
-            setDraftValue(normalizedValue)
-        }
-    }, [isFocused, normalizedValue])
 
     return (
         <FormStyles.TextField
-            type="date"
+            key={normalizedValue}
+            type={type}
             label={label}
-            value={draftValue}
-            onChange={(event) => setDraftValue(event.target.value)}
-            onFocus={() => setIsFocused(true)}
+            defaultValue={normalizedValue}
             onBlur={(event) => {
-                setIsFocused(false)
                 if (event.target.value !== normalizedValue) {
                     onCommit(event.target.value)
                 }
@@ -130,7 +125,7 @@ const DateAttributeInput: React.FC<DateAttributeInputProps> = ({
             disabled={disabled}
             required={required}
             fullWidth
-            InputLabelProps={{shrink: true}}
+            InputLabelProps={type === "date" ? {shrink: true} : undefined}
         />
     )
 }
@@ -138,62 +133,24 @@ const DateAttributeInput: React.FC<DateAttributeInputProps> = ({
 export const ListUserRoles: React.FC<ListUserRolesProps> = ({
     userRoles,
     rolesList,
-    userId,
-    refetch,
-    createMode,
-    setUserRoles,
-    selectedRolesOnCreate,
+    activeRoleIds,
+    onToggleRole,
 }) => {
-    const [tenantId] = useTenantStore()
-    const {t} = useTranslation()
-    const [deleteUserRole] = useMutation<DeleteUserRoleMutation>(DELETE_USER_ROLE)
-    const [setUserRole] = useMutation<SetUserRoleMutation>(SET_USER_ROLE)
-    const refresh = useRefresh()
-    const notify = useCustomNotify()
-
-    const activeRoleIds = createMode
-        ? selectedRolesOnCreate
-        : userRoles?.list_user_roles.map((role) => role.id || "")
+    const effectiveActiveRoleIds =
+        activeRoleIds ?? userRoles?.list_user_roles.map((role) => role.id || "") ?? []
 
     let rows: Array<IRole & {id: string; active: boolean}> = rolesList.map((role) => ({
         ...role,
         id: role.id || "",
-        active: activeRoleIds?.includes(role.id || "") || false,
+        active: effectiveActiveRoleIds.includes(role.id || "") || false,
     }))
 
     const editRolePermission = (props: GridRenderCellParams<any, boolean>) => async () => {
         const role = (rolesList || []).find((el) => el.id === props.row.id)
-        if (!role?.name) {
+        if (!role?.id) {
             return
         }
-        if (createMode && setUserRoles && role.id) {
-            setUserRoles(role.id)
-        }
-
-        // remove/add permission to role
-        if (!createMode && userId) {
-            const {errors} = await (props.value ? deleteUserRole : setUserRole)({
-                variables: {
-                    tenantId: tenantId,
-                    roleId: role.id,
-                    userId: userId,
-                },
-            })
-            if (errors) {
-                notify(`usersAndRolesScreen.roles.notifications.permissionEditError`, {
-                    type: "error",
-                })
-                console.log(`Error editing permission: ${errors}`)
-                return
-            }
-            notify("usersAndRolesScreen.roles.notifications.permissionEditSuccess", {
-                type: "success",
-            })
-            refresh()
-            if (refetch) {
-                refetch()
-            }
-        }
+        onToggleRole?.(role.id)
     }
 
     const columns: GridColDef[] = [
@@ -248,6 +205,16 @@ const convertRecordToUser = (record: RaRecord<Identifier>): IUser => {
     return user
 }
 
+// Datafix voter edits are deferred to a task; the mutation then returns a
+// task_execution instead of the edited user, which the caller surfaces as a
+// progress widget.
+interface EditUserMutationResult {
+    edit_user: {
+        user?: IUser | null
+        task_execution?: {id: string} | null
+    }
+}
+
 interface EditUserFormProps {
     id?: string
     electionEventId?: string
@@ -257,6 +224,7 @@ interface EditUserFormProps {
     userAttributes: UserProfileAttribute[]
     createMode?: boolean
     record?: RaRecord<Identifier>
+    onTaskLaunched?: (taskExecutionId: string) => void
 }
 
 export const EditUserForm: React.FC<EditUserFormProps> = ({
@@ -268,8 +236,10 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     userAttributes,
     createMode = false,
     record,
+    onTaskLaunched,
 }) => {
     const {t} = useTranslation()
+    const reviewI18nContext = electionEventId ? "voters" : "users"
 
     const [user, setUser] = useState<IUser | undefined>(
         createMode
@@ -283,6 +253,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const [selectedArea, setSelectedArea] = useState<string>("")
     const [selectedActedTrustee, setSelectedActedTrustee] = useState<string>("")
     const [selectedRolesOnCreate, setSelectedRolesOnCreate] = useState<string[]>([])
+    const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([])
     const [phoneInputs, setPhoneInputs] = useState<{[key: string]: string[]}>({})
     const {canEditVoters, canEditVotersWhoVoted, canEditVotersEmailTlf} = useUsersPermissions()
     const [tenantId] = useTenantStore()
@@ -290,7 +261,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const notify = useNotify()
     const authContext = useContext(AuthContext)
     const [createUser] = useMutation<CreateUserMutation>(CREATE_USER)
-    const [edit_user] = useMutation<EditUsersInput>(EDIT_USER)
+    const [edit_user] = useMutation<EditUserMutationResult>(EDIT_USER)
+    const [deleteUserRole] = useMutation<DeleteUserRoleMutation>(DELETE_USER_ROLE)
+    const [setUserRole] = useMutation<SetUserRoleMutation>(SET_USER_ROLE)
     const [permissionLabels, setPermissionLabels] = useState<string[]>(
         (user?.attributes?.permission_labels as string[]) || []
     )
@@ -302,6 +275,64 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         })) || []
     )
     const [errorText, setErrorText] = useState("")
+
+    const [step, setStep] = useState<"edit" | "review">("edit")
+    const baselineRef = useRef<UserBaseline>({
+        user: createMode
+            ? {enabled: true, attributes: {}}
+            : (record && convertRecordToUser(record)) || {attributes: {}},
+        phoneInputs: {},
+    })
+    const baselineRoleIdsRef = useRef<string[]>([])
+    const rolesInitializedRef = useRef(false)
+    const reviewHeadingRef = useRef<HTMLHeadingElement>(null)
+
+    // Derived (not snapshotted) so the review table always reflects the live
+    // user/phoneInputs/selectedActedTrustee state that handleConfirmChanges
+    // actually submits, even if a debounced field update lands after Save.
+    const reviewRows = useMemo(() => {
+        if (step !== "review") {
+            return []
+        }
+        const userRows = computeUserDiff(
+            baselineRef.current,
+            {user, phoneInputs, selectedActedTrustee},
+            userAttributes,
+            t
+        )
+        const roleRows = computeRoleDiff(
+            {activeRoleIds: baselineRoleIdsRef.current},
+            {activeRoleIds: selectedRoleIds},
+            rolesList,
+            t
+        )
+        return [...userRows, ...roleRows]
+    }, [
+        step,
+        user,
+        phoneInputs,
+        selectedActedTrustee,
+        userAttributes,
+        selectedRoleIds,
+        rolesList,
+        t,
+    ])
+
+    useEffect(() => {
+        setStep("edit")
+    }, [id])
+
+    useEffect(() => {
+        rolesInitializedRef.current = false
+        baselineRoleIdsRef.current = []
+        setSelectedRoleIds([])
+    }, [id])
+
+    useEffect(() => {
+        if (step === "review" && reviewHeadingRef.current) {
+            reviewHeadingRef.current.focus()
+        }
+    }, [step])
 
     const equalToPassword = (allValues: any) => {
         if (!allValues.password || allValues.password.length == 0) {
@@ -336,6 +367,17 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         },
         skip: !id || !tenantId,
     })
+
+    useEffect(() => {
+        if (createMode || rolesInitializedRef.current || !userRoles) {
+            return
+        }
+
+        const initialRoleIds = userRoles.list_user_roles.map((role) => role.id || "")
+        baselineRoleIdsRef.current = initialRoleIds
+        setSelectedRoleIds(initialRoleIds)
+        rolesInitializedRef.current = true
+    }, [createMode, userRoles])
 
     const {data: voterCastVotes} = useGetList<Sequent_Backend_Cast_Vote>(
         "sequent_backend_cast_vote",
@@ -392,6 +434,12 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         [setSelectedRolesOnCreate, selectedRolesOnCreate]
     )
 
+    const handleSelectedRoles = useCallback((roleId: string) => {
+        setSelectedRoleIds((prev) =>
+            prev.includes(roleId) ? prev.filter((id) => id !== roleId) : [...prev, roleId]
+        )
+    }, [])
+
     const onSubmitCreateUser = async () => {
         try {
             let {errors, data} = await createUser({
@@ -438,20 +486,27 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const onSubmit = async () => {
         if (createMode) {
             onSubmitCreateUser()
-        } else {
-            try {
-                await handleEditUser()
-                if (authContext.userId === user?.id) {
-                    authContext.updateTokenAndPermissionLabels()
-                }
-                notify(t("usersAndRolesScreen.voters.errors.editSuccess"), {type: "success"})
-                refresh()
-                close?.()
-            } catch (error) {
-                notify(t("usersAndRolesScreen.voters.errors.editError"), {type: "error"})
-                close?.()
-            }
+            return
         }
+        const diff = computeUserDiff(
+            baselineRef.current,
+            {user, phoneInputs, selectedActedTrustee},
+            userAttributes,
+            t
+        )
+        const roleDiff = computeRoleDiff(
+            {activeRoleIds: baselineRoleIdsRef.current},
+            {activeRoleIds: selectedRoleIds},
+            rolesList,
+            t
+        )
+        if (diff.length === 0 && roleDiff.length === 0) {
+            notify(t(`usersAndRolesScreen.${reviewI18nContext}.review.noChanges`), {
+                type: "info",
+            })
+            return
+        }
+        setStep("review")
     }
 
     const handleUpdateUserPassword = async (id: string) => {
@@ -494,6 +549,62 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         })
     }
 
+    const handleConfirmChanges = async () => {
+        try {
+            const result = await handleEditUser()
+
+            const baselineRoleIds = baselineRoleIdsRef.current
+            const rolesToRemove = baselineRoleIds.filter(
+                (roleId) => !selectedRoleIds.includes(roleId)
+            )
+            const rolesToAdd = selectedRoleIds.filter((roleId) => !baselineRoleIds.includes(roleId))
+
+            for (const roleId of rolesToRemove) {
+                await deleteUserRole({
+                    variables: {
+                        tenantId,
+                        roleId,
+                        userId: user?.id,
+                    },
+                })
+            }
+
+            for (const roleId of rolesToAdd) {
+                await setUserRole({
+                    variables: {
+                        tenantId,
+                        roleId,
+                        userId: user?.id,
+                    },
+                })
+            }
+
+            baselineRoleIdsRef.current = selectedRoleIds
+            if (authContext.userId === user?.id) {
+                authContext.updateTokenAndPermissionLabels()
+            }
+            // Datafix edits run as a task: surface it so ListUsers can show
+            // the progress widget, and let the widget report the outcome
+            // instead of a premature success toast. Non-Datafix edits return
+            // no task and are done synchronously here.
+            const taskExecutionId = result?.data?.edit_user?.task_execution?.id
+            if (taskExecutionId) {
+                onTaskLaunched?.(taskExecutionId)
+            } else {
+                notify(t("usersAndRolesScreen.voters.errors.editSuccess"), {type: "success"})
+            }
+            refresh()
+            close?.()
+        } catch (error) {
+            notify(t("usersAndRolesScreen.voters.errors.editError"), {type: "error"})
+            close?.()
+        }
+    }
+
+    const handleBackToEdit = () => {
+        setStep("edit")
+    }
+
     const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const {name, value} = e.target
 
@@ -509,27 +620,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
         setUser(updatedUser)
     }
-
-    const handleAttrChange =
-        (attrName: string) => async (e: React.ChangeEvent<HTMLInputElement>) => {
-            const {value} = e.target
-            debouncedHandleChange(attrName, value)
-        }
-
-    const debouncedHandleChange = useCallback(
-        debounce((name: string, value: string) => {
-            setUser((prev) => {
-                return {
-                    ...prev,
-                    attributes: {
-                        ...(prev?.attributes ?? {}),
-                        [name]: [value],
-                    },
-                }
-            })
-        }, 300),
-        [user, equalToPassword]
-    )
 
     const handleDateChange = (attrName: string) => (value: string) => {
         setUser((prev) => {
@@ -631,6 +721,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
     const renderFormField = useCallback(
         (attr: UserProfileAttribute, index: number) => {
+            if (attr.name === VOTED_CHANNEL) {
+                return
+            }
             if (attr.name) {
                 const isCustomAttribute = !userBasicInfo.includes(attr.name)
                 const value = isCustomAttribute
@@ -748,8 +841,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     )
                 } else if (attr.annotations?.inputType === "html5-date") {
                     return (
-                        <DateAttributeInput
+                        <AttributeTextInput
                             key={attr.name ?? index}
+                            type="date"
                             label={getTranslationLabel(attr.name, attr.display_name, t)}
                             value={value}
                             onCommit={handleDateChange(attr.name)}
@@ -843,11 +937,21 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 return (
                     <>
                         {isCustomAttribute ? (
-                            <FormStyles.TextField
+                            <AttributeTextInput
                                 key={index}
                                 label={getTranslationLabel(attr.name, attr.display_name, t)}
                                 value={value}
-                                onChange={handleAttrChange(attr.name)}
+                                onCommit={(newValue) => {
+                                    const attrName = attr.name as string
+                                    setUser((prev) => ({
+                                        ...prev,
+                                        attributes: {
+                                            ...(prev?.attributes ?? {}),
+                                            [attrName]: [newValue],
+                                        },
+                                    }))
+                                }}
+                                required={isRequired}
                                 disabled={
                                     !(
                                         createMode ||
@@ -911,10 +1015,16 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     }
 
     // Update the area selection handler
-    const handleAreaSelection = (areaId: string) => {
+    const handleAreaSelection = (areaId: string, areaRecord?: {name?: string}) => {
+        setSelectedArea(areaId)
+
         if (createMode) {
             setUser((prev) => ({
                 ...prev,
+                area: {
+                    id: areaId,
+                    name: areaRecord?.name,
+                },
                 attributes: {
                     ...(prev?.attributes || {}),
                     "area-id": [areaId],
@@ -925,6 +1035,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 ...prev,
                 area: {
                     id: areaId,
+                    name: areaRecord?.name,
                 },
                 attributes: {
                     ...(prev?.attributes || {}),
@@ -937,18 +1048,18 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     return (
         <PageHeaderStyles.Wrapper>
             <SimpleForm
-                toolbar={<SaveButton alwaysEnable={!errorText} />}
+                toolbar={step === "edit" ? <SaveButton alwaysEnable={!errorText} /> : false}
                 record={user}
                 onSubmit={onSubmit}
                 sanitizeEmptyValues
             >
-                <>
-                    <PageHeaderStyles.Title>
-                        {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.title`)}
-                    </PageHeaderStyles.Title>
-                    <PageHeaderStyles.SubTitle>
-                        {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.subtitle`)}
-                    </PageHeaderStyles.SubTitle>
+                <PageHeaderStyles.Title>
+                    {t(`usersAndRolesScreen.${reviewI18nContext}.title`)}
+                </PageHeaderStyles.Title>
+                <PageHeaderStyles.SubTitle>
+                    {t(`usersAndRolesScreen.${reviewI18nContext}.subtitle`)}
+                </PageHeaderStyles.SubTitle>
+                <Box sx={{display: step === "review" ? "none" : undefined}}>
                     {formFields}
                     <FormStyles.CheckboxControlLabel
                         label={`${t("usersAndRolesScreen.users.fields.enabled")} *`}
@@ -998,86 +1109,122 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             />
                         </FormControl>
                     )}
-                    <>
-                        <FormControl fullWidth>
-                            <ElectionHeaderStyles.Title>
-                                {t("usersAndRolesScreen.users.fields.password")}:
-                            </ElectionHeaderStyles.Title>
-                            <PasswordInputStyle
-                                label={false}
-                                source="password"
-                                onChange={handleChange}
-                                error={!!errorText}
-                                disabled={
-                                    !(
-                                        createMode ||
-                                        !electionEventId ||
-                                        canEditVoters ||
-                                        enabledByVoteNum
-                                    )
-                                }
-                            />
-                        </FormControl>
-                        <FormControl fullWidth>
-                            <ElectionHeaderStyles.Title>
-                                {t("usersAndRolesScreen.users.fields.repeatPassword")}:
-                            </ElectionHeaderStyles.Title>
-                            <PasswordInputStyle
-                                label={false}
-                                source="confirm_password"
-                                onChange={handleChange}
-                                helperText={errorText}
-                                error={!!errorText}
-                                disabled={
-                                    !(
-                                        createMode ||
-                                        !electionEventId ||
-                                        canEditVoters ||
-                                        enabledByVoteNum
-                                    )
-                                }
-                            />
-                        </FormControl>
-                        <InputContainerStyle sx={{flexDirection: "row !important"}}>
-                            <InputLabelStyle paddingTop={false}>
-                                <Box sx={{display: "flex", gap: "8px"}}>
-                                    {t(`usersAndRolesScreen.editPassword.temporatyLabel`)}
-                                    <IconTooltip
-                                        icon={faInfoCircle as any}
-                                        info={String(
-                                            t(`usersAndRolesScreen.editPassword.temporatyInfo`)
-                                        )}
-                                    />
-                                </Box>
-                            </InputLabelStyle>
-                            <BooleanInput
-                                source=""
-                                label={false}
-                                onChange={(e) => setTemportay(!temporary)}
-                                checked={temporary}
-                                disabled={
-                                    !(
-                                        createMode ||
-                                        !electionEventId ||
-                                        canEditVoters ||
-                                        enabledByVoteNum
-                                    )
-                                }
-                            />
-                        </InputContainerStyle>
-                    </>
+                    {createMode && (
+                        <>
+                            <FormControl fullWidth>
+                                <ElectionHeaderStyles.Title>
+                                    {t("usersAndRolesScreen.users.fields.password")}:
+                                </ElectionHeaderStyles.Title>
+                                <PasswordInputStyle
+                                    label={false}
+                                    source="password"
+                                    onChange={handleChange}
+                                    error={!!errorText}
+                                    disabled={
+                                        !(
+                                            createMode ||
+                                            !electionEventId ||
+                                            canEditVoters ||
+                                            enabledByVoteNum
+                                        )
+                                    }
+                                />
+                            </FormControl>
+                            <FormControl fullWidth>
+                                <ElectionHeaderStyles.Title>
+                                    {t("usersAndRolesScreen.users.fields.repeatPassword")}:
+                                </ElectionHeaderStyles.Title>
+                                <PasswordInputStyle
+                                    label={false}
+                                    source="confirm_password"
+                                    onChange={handleChange}
+                                    helperText={errorText}
+                                    error={!!errorText}
+                                    disabled={
+                                        !(
+                                            createMode ||
+                                            !electionEventId ||
+                                            canEditVoters ||
+                                            enabledByVoteNum
+                                        )
+                                    }
+                                />
+                            </FormControl>
+                            <InputContainerStyle sx={{flexDirection: "row !important"}}>
+                                <InputLabelStyle paddingTop={false}>
+                                    <Box sx={{display: "flex", gap: "8px"}}>
+                                        {t(`usersAndRolesScreen.editPassword.temporatyLabel`)}
+                                        <IconTooltip
+                                            icon={faInfoCircle as any}
+                                            info={String(
+                                                t(`usersAndRolesScreen.editPassword.temporatyInfo`)
+                                            )}
+                                        />
+                                    </Box>
+                                </InputLabelStyle>
+                                <BooleanInput
+                                    source=""
+                                    label={false}
+                                    onChange={(e) => setTemportay(!temporary)}
+                                    checked={temporary}
+                                    disabled={
+                                        !(
+                                            createMode ||
+                                            !electionEventId ||
+                                            canEditVoters ||
+                                            enabledByVoteNum
+                                        )
+                                    }
+                                />
+                            </InputContainerStyle>
+                        </>
+                    )}
                     {isUndefined(electionEventId) ? (
                         <ListUserRoles
                             userRoles={userRoles}
                             rolesList={rolesList}
-                            userId={id}
-                            refetch={() => refetch()}
-                            createMode={createMode}
-                            setUserRoles={createMode ? handleSelectedRolesOnCreate : undefined}
-                            selectedRolesOnCreate={selectedRolesOnCreate}
+                            activeRoleIds={createMode ? selectedRolesOnCreate : selectedRoleIds}
+                            onToggleRole={
+                                createMode ? handleSelectedRolesOnCreate : handleSelectedRoles
+                            }
                         />
                     ) : null}
-                </>
+                </Box>
+                {!createMode && step === "review" && (
+                    <Box sx={{width: "100%"}}>
+                        <ReviewChangesTable
+                            title={t(`usersAndRolesScreen.${reviewI18nContext}.review.title`)}
+                            subtitle={t(`usersAndRolesScreen.${reviewI18nContext}.review.subtitle`)}
+                            fieldLabel={t(`usersAndRolesScreen.${reviewI18nContext}.review.field`)}
+                            currentValueLabel={t(
+                                `usersAndRolesScreen.${reviewI18nContext}.review.currentValue`
+                            )}
+                            newValueLabel={t(
+                                `usersAndRolesScreen.${reviewI18nContext}.review.newValue`
+                            )}
+                            rows={reviewRows}
+                            headingRef={reviewHeadingRef}
+                        />
+                        <WizardStyles.FooterContainer>
+                            <WizardStyles.StyledFooter>
+                                <WizardStyles.BackButton
+                                    type="button"
+                                    onClick={handleBackToEdit}
+                                    className="edit-voter-review-edit-button"
+                                >
+                                    {t("common.label.edit")}
+                                </WizardStyles.BackButton>
+                                <WizardStyles.NextButton
+                                    type="button"
+                                    onClick={handleConfirmChanges}
+                                    className="edit-voter-review-confirm-button"
+                                >
+                                    {t(`usersAndRolesScreen.${reviewI18nContext}.review.confirm`)}
+                                </WizardStyles.NextButton>
+                            </WizardStyles.StyledFooter>
+                        </WizardStyles.FooterContainer>
+                    </Box>
+                )}
             </SimpleForm>
         </PageHeaderStyles.Wrapper>
     )

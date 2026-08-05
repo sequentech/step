@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect, useContext, useMemo, useCallback} from "react"
+import React, {useEffect, useContext, useMemo, useCallback, useState} from "react"
 import {Outlet, ScrollRestoration, useLocation, useParams} from "react-router-dom"
 import {styled} from "@mui/material/styles"
 import {Footer, Header, PageBanner} from "@sequentech/ui-essentials"
@@ -33,6 +33,12 @@ import WatermarkBackground from "./components/WaterMark/Watermark"
 import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
 import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
 import {useElectionClassName} from "./hooks/useElectionClassName"
+import {
+    InvalidLoginHintsError,
+    parseLoginHints,
+    removeLoginHintsFromSearch,
+    routeAcceptsLoginHints,
+} from "./utils/loginHints"
 interface ElectionEventConfigDocument {
     id: string
     tenant_id: string
@@ -132,6 +138,31 @@ const App = () => {
     const location = useLocation()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {isAuthenticated, setTenantEvent} = useContext(AuthContext)
+    const [loginHintRequest] = useState(() => {
+        const acceptsLoginHints = routeAcceptsLoginHints(location.pathname)
+
+        try {
+            const parsed = acceptsLoginHints
+                ? parseLoginHints(location.search)
+                : {hints: {}, remainingSearch: location.search}
+            return {...parsed, pathname: location.pathname, hash: location.hash}
+        } catch (error) {
+            if (error instanceof InvalidLoginHintsError) {
+                const remainingSearch = removeLoginHintsFromSearch(location.search)
+                window.history.replaceState(
+                    window.history.state,
+                    "",
+                    `${location.pathname}${remainingSearch}${location.hash}`
+                )
+                throw new VotingPortalError(VotingPortalErrorType.INVALID_LOGIN_HINT_PARAMETERS)
+            }
+            throw error
+        }
+    })
+    const loginHintsForCurrentRoute = useMemo(
+        () => (loginHintRequest.pathname === location.pathname ? loginHintRequest.hints : {}),
+        [location.pathname, loginHintRequest]
+    )
 
     const electionIds = useAppSelector(selectElectionIds)
     const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
@@ -143,6 +174,22 @@ const App = () => {
     })
 
     useElectionClassName()
+
+    useEffect(() => {
+        if (Object.keys(loginHintRequest.hints).length === 0) {
+            return
+        }
+
+        // Keep validated hints in memory while removing PII from browser history and redirect URIs.
+        navigate(
+            {
+                pathname: loginHintRequest.pathname,
+                search: loginHintRequest.remainingSearch,
+                hash: loginHintRequest.hash,
+            },
+            {replace: true}
+        )
+    }, [loginHintRequest, navigate])
 
     useEffect(() => {
         if (location.pathname === "/") {
@@ -185,12 +232,19 @@ const App = () => {
                     ? languageConf.default_language_code
                     : undefined
 
-            setTenantEvent(tenantId, eventId, mode, defaultLocale)
+            setTenantEvent(tenantId, eventId, mode, defaultLocale, loginHintsForCurrentRoute)
         } catch (error) {
             console.error("Error loading election event config:", error)
-            setTenantEvent(tenantId, eventId, mode, undefined)
+            setTenantEvent(tenantId, eventId, mode, undefined, loginHintsForCurrentRoute)
         }
-    }, [tenantId, eventId, electionEventConfigUrl, location.pathname, setTenantEvent])
+    }, [
+        tenantId,
+        eventId,
+        electionEventConfigUrl,
+        location.pathname,
+        loginHintsForCurrentRoute,
+        setTenantEvent,
+    ])
 
     useEffect(() => {
         if (isAuthenticated) {

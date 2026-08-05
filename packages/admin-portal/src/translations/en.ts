@@ -11,6 +11,194 @@ const englishTranslation = {
         driversLicense: "Driver's License",
         loading: "Loading...",
         loadingDataProvider: "Loading data provider...",
+        tallySheetImport: {
+            title: "Tally sheet imports",
+            subtitle:
+                "Import ES&S or CSV tally sheet files, preview the generated ballot boxes, and approve them before they create tally sheets.",
+            createTitle: "Import tally sheets",
+            detailTitle: "Tally sheet import",
+            empty: "No tally sheet imports yet.",
+            emptyBody:
+                "Start by importing an ES&S Enhanced XML or canonical CSV file for this election event.",
+            sourceFormat: {
+                ESS_ENHANCED_XML: "ES&S Enhanced XML",
+                CANONICAL_CSV: "Canonical CSV",
+            },
+            channel: {
+                PAPER: "Paper",
+                POSTAL: "Postal",
+                IN_PERSON: "In person",
+            },
+            table: {
+                created: "Created",
+                createdBy: "Created by",
+                file: "File",
+                format: "Format",
+                channel: "Channel",
+                status: "Status",
+                labels: "Labels",
+                annotations: "Annotations",
+                actions: "Actions",
+            },
+            summary: {
+                imported: "Imported",
+                changed: "Changed",
+                new: "New",
+                unchanged: "Unchanged",
+                conflicted: "Conflicted",
+                errors: "Errors",
+            },
+            status: {
+                PENDING_REVIEW: "Pending review",
+                APPROVED: "Approved",
+                DISAPPROVED: "Disapproved",
+                FAILED_VALIDATION: "Failed validation",
+                CONFLICTED: "Conflicted",
+                NEW: "New",
+                CHANGED: "Changed",
+                UNCHANGED: "Unchanged",
+            },
+            fields: {
+                format: "Format",
+                channel: "Channel",
+                supportedFormats: "Supported formats: XML, CSV",
+                generatedTallySheet: "Generated tally sheet",
+                sourceCandidates: "Source candidate IDs",
+                none: "None",
+            },
+            actions: {
+                create: "Import tally sheets",
+                review: "Review",
+                source: "Source",
+                cancel: "Cancel",
+                preview: "Preview",
+                save: "Save import",
+                approve: "Approve",
+                disapprove: "Disapprove",
+                close: "Close",
+                openExisting: "Open existing",
+            },
+            notifications: {
+                selectFile: "Select an import file before previewing it",
+                duplicateSource:
+                    "This source file hash already appears in a previous tally sheet import.",
+                uploadUrlError: "Could not create upload URL",
+                uploadError: "Could not upload import file",
+                previewEmpty: "Preview response was empty",
+                previewError: "Could not preview import",
+                importEmpty: "Import response was empty",
+                created: "Tally sheet import created",
+                createError: "Could not create import",
+                reviewEmpty: "Review response was empty",
+                conflicted: "Import has stale baseline conflicts",
+                approved: "Import approved",
+                disapproved: "Import disapproved",
+                reviewError: "Could not review import",
+                sourceUrlError: "Could not create source download URL",
+                sourceDownloadError: "Could not download source file",
+            },
+            pagination: {
+                range: "{{rangeStart}}-{{rangeEnd}} of {{total}}",
+                previous: "Previous",
+                next: "Next",
+            },
+        },
+        reconciliation: {
+            menuButton: "Ext. voters sync",
+            categories: {
+                VOTED_INTERNET: "Voted via Internet",
+                VOTED_OTHER_CHANNEL: "Voted via other channel",
+                DISABLED_DELETE_CALL: "Voter disabled",
+                DELETION_REVERTED: "Deletion reverted",
+                PROFILE_UPDATE: "Profile update",
+                VOTER_ADDED: "Voter added",
+                REENABLED: "Voter re-enabled",
+                VOTED_UNMARKED: "Voter unmarked as voted",
+                ROW_FAILURE: "Row failure",
+            },
+            table: {
+                voterId: "Voter ID",
+                field: "Field",
+                category: "Category",
+                currentValue: "Current value",
+                newValue: "New value",
+                reason: "Reason",
+                rowLabel: "Row",
+                noDifferences: "No differences found - the systems are in sync.",
+            },
+            wizard: {
+                title: "External reconciliation sync",
+                subtitle: "Synchronize the voter list with the external system",
+                drop: {
+                    description:
+                        "Drop the reconciliation file the external system produced - both diffs (external-side and Sequent-side) are calculated automatically and shown in separate tables.",
+                    fileFormatLabel: "CSV file",
+                    uploading: "Uploading {{fileName}} and calculating both diffs...",
+                },
+                review: {
+                    fileSummary: "{{fileName}} - Sequence {{sequence}}, generated {{generatedAt}}",
+                    rowFailuresWarning:
+                        "{{count}} row(s) could not be reconciled safely and are excluded from both diffs - see below for details.",
+                    noDifferences: "No differences - the two systems are already in sync.",
+                    diffOnlyDifferences:
+                        "This is a convergence check for an already applied Sequence. Differences are shown for follow-up, but this round cannot be applied again.",
+                    externalDiffTitle: "External diff",
+                    sequentDiffTitle: "Sequent diff",
+                    downloadExternalPatch: "Download external patch",
+                    externalDiffCaption:
+                        "Download the patch and deliver it to the external system outside this tool. Once it applies the patch and produces the next reconciliation file, click 'Back' and drop that file in - 'Apply' unlocks once this table is empty.",
+                    noExternalDifferences: "No external-side differences.",
+                    sequentDiffCaption:
+                        "Apply changes directly to Sequent by clicking 'Apply' - no patch file is generated for these.",
+                    noSequentDifferences: "No Sequent-side differences.",
+                },
+                applying: {
+                    inProgress: "Applying Sequent-side changes...",
+                    rowFailures:
+                        "{{count}} row(s) were excluded from this round and need manual follow-up - see below for details.",
+                    rowFailuresTruncated:
+                        "Showing the first {{shown}} of {{count}} row failures. Resolve the shared cause and retry to see any remaining failures.",
+                    success: "All Sequent-side changes applied successfully.",
+                },
+                actions: {
+                    cancel: "Cancel",
+                    back: "Back",
+                    apply: "Apply",
+                    next: "Next",
+                    startOver: "Start over",
+                    close: "Close",
+                },
+                confirm: {
+                    title: "Confirm reconciliation changes",
+                    categoriesNote:
+                        "Categories outlined in orange ({{categories}}) touch voted status or disable voters.",
+                    applyChanges: "Apply changes",
+                    continue: "Continue",
+                },
+                summary: {
+                    votedOtherChannel: "marks {{count}} voter(s) as voted via other channels",
+                    disabled: "disables {{count}} voter(s)",
+                    reenabled: "re-enables {{count}} voter(s)",
+                    votedUnmarked: "unmarks {{count}} voter(s) as voted",
+                    profileUpdated: "updates {{count}} profile(s)",
+                    voterAdded: "adds {{count}} voter(s)",
+                    prefix: "This will apply changes that {{parts}}.",
+                    empty: "There are no Sequent-side changes to apply.",
+                },
+                notifications: {
+                    envelopeLoadError: "Failed to load the reconciliation diff - please try again.",
+                    generateFailed:
+                        "Failed to calculate the reconciliation diff - see the task widget for details.",
+                    applyFailed:
+                        "Failed to apply the Sequent-side changes - see the task widget for details.",
+                    uploadUrlError: "Failed to get an upload URL",
+                    generateTaskError: "Failed to start the reconciliation diff task",
+                    uploadError: "Failed to upload the reconciliation file",
+                    applyTaskError: "Failed to start the apply task",
+                    applyError: "Failed to apply the reconciliation changes",
+                },
+            },
+        },
         logsScreen: {
             noPermissions: "You don't have permission to access logs.",
             title: "Logs",
@@ -68,6 +256,7 @@ const englishTranslation = {
                 CREATE_ELECTION_EVENT: "Create Election Event",
                 IMPORT_ELECTION_EVENT: "Import Election Event",
                 IMPORT_USERS: "Import Users",
+                EDIT_USER: "Edit Voter",
                 IMPORT_CANDIDATES: "Import Candidates",
                 EXPORT_VOTERS: "Export Voters",
                 CREATE_TRANSMISSION_PACKAGE: "Create Transmission Package",
@@ -87,6 +276,21 @@ const englishTranslation = {
                 PREPARE_PUBLICATION_PREVIEW: "Prepare Publication Preview",
                 EXPORT_TALLY_RESULTS_XLSX: "Export Tally Results in XLSX format",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Export Certificate Authorities",
+                PUBLISH_RESULTS_WEBSITE: "Publish Results Website",
+                VOTER_INFORMATION_LETTER: "Voter Information Letter",
+            },
+            documentAccess: {
+                title: "Document access",
+                sensitivityNotice:
+                    "Sensitive information. Share this password only with the intended recipient.",
+                passwordLabel: "Password to open the encrypted PDF",
+                showPassword: "Show password",
+                copyPassword: "Copy password",
+                passwordCopied: "Password copied",
+                passwordError: "The PDF password could not be retrieved",
+                copyError: "The password could not be copied",
+                guidance:
+                    "The password is loaded only after you choose Show password. After it loads, a read-only field with copy appears here.",
             },
             widget: {
                 taskTitle: "Task: {{title}}",
@@ -142,6 +346,7 @@ const englishTranslation = {
                 subtitle: "Election type configuration",
                 onlineVoting: "Online Voting",
                 kioskVoting: "Kiosk Voting",
+                telephoneVoting: "Telephone Voting",
                 settingTitle: "Settings",
                 settingSubtitle: "General Configuration",
                 sms: "SMS",
@@ -222,6 +427,12 @@ const englishTranslation = {
         },
         dashboard: {
             voteByDay: "Votes by day",
+            votesOverTime: "Votes over time",
+            timeResolution: "Time resolution",
+            timeRange: "Time range",
+            minute: "Minute",
+            hour: "Hour",
+            day: "Day",
             votersByChannels: "Voters by channel",
             voterLoginURL: "Voter Login URL",
             voterEnrollURL: "Voter Enroll URL",
@@ -260,6 +471,16 @@ const englishTranslation = {
                 importCandidates: "Import Candidates",
                 custom_filters: "Custom filters",
                 voter_authentication: "Voter Authentication",
+                realm_attributes: "Keycloak realm attributes",
+                realm_attributes_load_error: "Error loading Keycloak realm attributes",
+                realm_attributes_update_error: "Error updating Keycloak realm attributes",
+                realm_attributes_not_loaded:
+                    "Keycloak realm attributes have not loaded, changes were not saved",
+                password_policy: "Password Policy",
+                password_policy_load_error: "Error loading Keycloak password policy",
+                password_policy_update_error: "Error updating Keycloak password policy",
+                password_policy_not_loaded:
+                    "Keycloak password policy has not loaded, changes were not saved",
             },
             customUrls: {
                 login: "Login",
@@ -271,6 +492,8 @@ const englishTranslation = {
                 notify: {
                     success: "Localization updated Successfully",
                     error: "Localization update failed",
+                    invalidDateTimeFormat:
+                        "Invalid date/time format. Use tokens yyyy, MM, dd, HH, mm, ss (e.g. dd/MM/yyyy HH:mm).",
                 },
                 common: {
                     title: "Localization",
@@ -282,6 +505,34 @@ const englishTranslation = {
                 },
             },
             field: {
+                passwordPolicy: {
+                    minimumLength: "Minimum length",
+                    maximumLength: "Maximum length",
+                    includeUppercase: "Include uppercase letters",
+                    includeLowercase: "Include lowercase letters",
+                    includeDigits: "Include digits",
+                    includeSpecialCharacters: "Include special characters",
+                    help: {
+                        minimumLength:
+                            "The minimum number of characters required for the password.",
+                        maximumLength: "The maximum number of characters allowed for the password.",
+                        includeUppercase:
+                            "Require at least one uppercase character in the password.",
+                        includeLowercase:
+                            "Require at least one lowercase character in the password.",
+                        includeDigits: "Require at least one digit in the password.",
+                        includeSpecialCharacters:
+                            "Require at least one special character in the password string.",
+                    },
+                    notConfigured:
+                        "No password policy is configured. Saving will apply the defaults below.",
+                    errors: {
+                        lengthRange: "Password lengths must be whole numbers between 1 and 256.",
+                        minimumExceedsMaximum: "Minimum length cannot exceed maximum length.",
+                        characterClassRequired:
+                            "Select at least one character class for the password.",
+                    },
+                },
                 name: "Name",
                 alias: "Alias",
                 description: "Description",
@@ -327,6 +578,26 @@ const englishTranslation = {
                     },
                     policyLabel: "Contest encryption policy",
                 },
+                votingPortalDateTimeFormat: {
+                    policyLabel: "Voting Portal date & time format",
+                    helperText:
+                        'Applies event-wide. To override per language, add the key "votingPortalDateTimeFormat" in the Localization tab using tokens yyyy, MM, dd, HH, mm, ss (e.g. dd/MM/yyyy HH:mm). See the docs for details.',
+                    options: {
+                        "legacy-gb-24h": "Legacy GB 24h (dd/MM/yyyy HH:mm, 24h)",
+                        "iso-local": "ISO Local (yyyy-MM-dd HH:mm)",
+                        "us-12h": "US 12h (MM/dd/yyyy h:mm AM/PM)",
+                        "locale-medium": "Locale Medium (medium date, short time)",
+                        "date-only": "Date Only (no time)",
+                        "custom": "Custom format",
+                    },
+                    customFormat: {
+                        label: "Custom date & time format",
+                        helperText:
+                            "Use tokens yyyy, MM, dd, HH, mm, ss (e.g. dd/MM/yyyy HH:mm). Any other characters are shown literally.",
+                        invalid:
+                            "Invalid format. Use at least one of the tokens yyyy, MM, dd, HH, mm, ss.",
+                    },
+                },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "No Countdown",
                     COUNTDOWN: "Countdown",
@@ -367,6 +638,13 @@ const englishTranslation = {
                         "manual-ceremonies": "Manual Ceremonies",
                     },
                 },
+                automaticRecountPolicy: {
+                    policyLabel: "Automatic Recount After Import Approval",
+                    options: {
+                        enabled: "Enabled",
+                        disabled: "Disabled",
+                    },
+                },
                 weightedVotingPolicy: {
                     policyLabel: "Weighted Voting Policy",
                     options: {
@@ -400,6 +678,74 @@ const englishTranslation = {
             },
             createElectionEventSuccess: "Election Event created",
             createElectionEventError: "Error creating election event",
+            ivr: {
+                tabs: {
+                    config: "Configuration",
+                    blacklist: "Blocklist",
+                    prompts: "Prompts",
+                    emulator: "Emulator",
+                },
+                common: {
+                    saveSuccess: "Saved successfully",
+                    saveError: "Failed to save",
+                    deleteSuccess: "Deleted successfully",
+                    deleteError: "Failed to delete",
+                },
+                config: {
+                    configuredPhone: "Configured phone number",
+                    infoMsg:
+                        "Configure the IVR flow and its properties below. For more details, please contact Sequent.",
+                },
+                prompts: {
+                    emptyMsg: "No prompts created yet",
+                    infoMsg:
+                        "Configure the prompts used by the IVR. Announcement prompts are required, and system prompts can be overridden for desired languages. SSML is supported, including for mixing languages.",
+                    editorTitle: "Prompt",
+                    editorSubtitle: "Prompt configuration",
+                },
+                blacklist: {
+                    columns: {
+                        phone: "Phone number",
+                        reason: "Reason",
+                        createdAt: "Created at",
+                        createdBy: "Created by",
+                        createdBefore: "Created before",
+                        createdAfter: "Created after",
+                    },
+                    emptyMsg: "There are no entries in the blocklist",
+                    infoMsg:
+                        "Configure the blocklist for the IVR. Calls from these numbers will be disconnected automatically by the system.",
+                    noFilterMatch: "No entries match the given filters",
+                    phoneRequired: "Phone number is required",
+                },
+                emulator: {
+                    infoMsg: "Select an area and desired elections to experience the IVR session.",
+                    apiStatus: {
+                        unavailable: "The emulator system is not available in your environment",
+                        loading: "Loading the emulator system",
+                        error: "Error loading the emulator system",
+                    },
+                    hints: {
+                        title: "Hints",
+                        publishRequired:
+                            "Any changes made to elections, contests or candidates must be published first to be available. Only the latest published ballot styles for the matching area will be used in the emulator.",
+                        eventChangesImmediate:
+                            "Changes made to the election event, such as IVR configuration or prompt overrides, are available immediately upon emulator session restart.",
+                        credentials: 'The valid voter id and pin are "123" and "123".',
+                    },
+                    sendDtmf: "Send DTMF input",
+                    sendTimeout: "Send timeout",
+                    disconnected: "Disconnected",
+                    startSession: "Start new session",
+                    endSession: "End the session",
+                    noStylesFound: "No published ballot styles found matching your selections",
+                    inputPlaceholder:
+                        "Enter your input (max digits={{maxDigits}}, valid inputs={{validInputs}}, timeout={{timeout}}s)",
+                    blacklistCaller: "Blocklist the caller",
+                    elections: "Elections",
+                    area: "Area",
+                },
+            },
             stats: {
                 elegibleVoters: "Eligible Voters",
                 voters: "Actual Voters",
@@ -438,11 +784,13 @@ const englishTranslation = {
                 dashboard: "Dashboard",
                 monitoring: "Monitoring",
                 data: "Data",
+                ivr: "IVR",
                 localization: "Localization",
                 voters: "Voters",
                 areas: "Areas",
                 keys: "Keys",
                 tally: "Tally",
+                tallySheetImports: "Tally sheet imports",
                 publish: "Publish",
                 logs: "Logs",
                 tasks: "Tasks",
@@ -599,6 +947,7 @@ const englishTranslation = {
                 alias: "Alias",
                 description: "Description",
                 securityConfirmationHtml: "Security Confirmation Html",
+                ivrPrompt: "IVR prompt",
                 externalId: "External ID",
             },
             securityConfirmationPolicy: {
@@ -623,6 +972,7 @@ const englishTranslation = {
                 publish: "Publish",
                 logs: "Logs",
                 approvals: "Approvals",
+                tallySheets: "Tally Sheets",
             },
             gracePeriodPolicy: {
                 "label": "Grace Period Policy",
@@ -661,6 +1011,20 @@ const englishTranslation = {
                     "do-not-generate": "Do Not Generate",
                 },
             },
+            declineToVotePolicy: {
+                label: "Decline to Vote Policy",
+                options: {
+                    enabled: "Enabled",
+                    disabled: "Disabled",
+                },
+            },
+            votingScreenBackPolicy: {
+                label: "Voting Screen Back Button Policy",
+                options: {
+                    "election-selection-screen": "Go to the election selection screen",
+                    "start-screen": "Go to the election start screen",
+                },
+            },
         },
         tenantScreen: {
             common: {
@@ -683,10 +1047,29 @@ const englishTranslation = {
                 label: "Change password",
                 temporatyLabel: "Temporary",
                 temporatyInfo: "If enabled, the user must change the password on next login",
+                passwordPolicyViolation:
+                    "The password does not meet the Password Policy for this election event. Review the policy under Election Event Data and enter a compliant password.",
+                passwordPolicyRules: {
+                    minimumLength: "The password minimum length is {{count}}.",
+                    maximumLength: "The password maximum length is {{count}}.",
+                    uppercase: "Required uppercase characters: {{count}}.",
+                    lowercase: "Required lowercase characters: {{count}}.",
+                    digits: "Required digits: {{count}}.",
+                    specialCharacters: "Required special characters: {{count}}.",
+                },
             },
             users: {
                 title: "Users",
                 subtitle: "View and edit user data",
+                review: {
+                    title: "Review changes",
+                    subtitle: "Confirm these updates before submitting.",
+                    confirm: "Confirm changes",
+                    noChanges: "No changes to review",
+                    field: "Field",
+                    currentValue: "Current value",
+                    newValue: "New value",
+                },
                 edit: {
                     title: "User Data",
                     subtitle: "View and edit user",
@@ -697,6 +1080,8 @@ const englishTranslation = {
                 },
                 fields: {
                     "has_voted": "Voted",
+                    "voted-channel": "Voted Channel",
+                    "disable-comment": "Disable Comment",
                     "username": "Username",
                     "first_name": "First Name",
                     "last_name": "Last Name",
@@ -736,6 +1121,15 @@ const englishTranslation = {
             voters: {
                 title: "Voters",
                 subtitle: "View and edit voter data",
+                review: {
+                    title: "Review changes",
+                    subtitle: "Confirm these updates before submitting.",
+                    confirm: "Confirm changes",
+                    noChanges: "No changes to review",
+                    field: "Field",
+                    currentValue: "Current value",
+                    newValue: "New value",
+                },
                 logs: {
                     label: "User's Logs",
                 },
@@ -749,6 +1143,20 @@ const englishTranslation = {
                     body: "Manually Verify this voter. You will obtain a PDF with a QR Code link that allows the voter to login skipping online KYC.",
                     noEmailOrPhone:
                         "This voter can not be manually verified because they do not have an email address or phone number attributed to them.",
+                },
+                voterInformationLetter: {
+                    label: "Voter Information Letter",
+                    generate: "Generate",
+                    confirmation:
+                        "Generate a Voter Information Letter for this voter? A new password will be assigned and included in an encrypted PDF.",
+                    generationStarted: "Voter Information Letter generation started",
+                    generationError: "The Voter Information Letter could not be generated",
+                    policyNotConfigured:
+                        "Password Policy is not configured. Set it under Election Event Data before generating a letter.",
+                    policyMinimumLengthMissing:
+                        "Password Policy must include a minimum length before generating a letter.",
+                    policyCharacterClassMissing:
+                        "Password Policy must include at least one character class before generating a letter.",
                 },
                 emptyHeader: "No voters yet.",
                 askCreate: "Do you want to create one?",
@@ -810,6 +1218,8 @@ const englishTranslation = {
                 "election-event-create": "Create Election Event",
                 "election-event-read": "Read Election Event",
                 "election-event-write": "Edit Election Event",
+                "keycloak-realm-attributes-read": "Read Keycloak realm attributes",
+                "keycloak-realm-attributes-write": "Edit Keycloak realm attributes",
                 "election-event-delete": "Delete Election Event",
                 "voter-create": "Create Voter",
                 "voter-read": "Read Voter",
@@ -847,14 +1257,21 @@ const englishTranslation = {
                 "tally-results-read": "Read Tally Results",
                 "publish-read": "Read Publish",
                 "publish-write": "Edit Publish",
+                "publish-results-read": "Read Results Publication",
+                "publish-results-write": "Edit Results Publication",
                 "logs-read": "Read Logs",
                 "tasks-read": "Read Tasks Execution",
                 "keys-read": "Read Keys",
                 "document-upload": "Upload Documents",
                 "document-download": "Download Documents",
+                "document-password-read": "Read Document Passwords",
                 "tally-sheet-create": "Create Tally Sheet",
+                "tally-sheet-import-create": "Create Tally Sheet Import",
+                "tally-sheet-import-review": "Review Tally Sheet Import",
+                "tally-sheet-import-view": "View Tally Sheet Import",
+                "tally-recount-execute": "Execute Tally Recount",
                 "trustee-ceremony": "Trustee Ceremony",
-                "tally-sheet-publish": "Publish Tally Sheet",
+                "tally-sheet-review": "Review Tally Sheet",
                 "tally-sheet-view": "View Tally Sheet",
                 "admin-ceremony": "Admin Ceremony",
                 "tally-sheet-delete": "Delete Tally Sheet",
@@ -916,6 +1333,7 @@ const englishTranslation = {
                 "ee-voters-filters": "View Election Event Voters Filters",
                 "voter-delete": "Delete Voter",
                 "voter-change-password": "Change Voter Password",
+                "voter-information-letter": "Generate Voter Information Letter",
                 "election-event-localization-selector": "Election Event Localization Selector",
                 "localization-create": "Create Localization",
                 "localization-read": "Read Localization",
@@ -1161,6 +1579,8 @@ const englishTranslation = {
                 unarchive: "Unarchive",
                 cancel: "Cancel",
                 edit: "Edit",
+                yes: "Yes",
+                no: "No",
                 save: "Save",
                 close: "Close",
                 back: "Back",
@@ -1199,6 +1619,8 @@ const englishTranslation = {
                 online: "Online",
                 kiosk: "Kiosk",
                 early_voting: "Early voting",
+                telephone: "Telephone voting",
+                other: "Other",
             },
             message: {
                 delete: "Are you sure you want to delete this item?",
@@ -1277,6 +1699,7 @@ const englishTranslation = {
                 subtitle: "Candidate configuration.",
             },
             edit: {
+                externalId: "External ID",
                 general: "General",
                 type: "Type",
                 image: "Image",
@@ -1316,6 +1739,7 @@ const englishTranslation = {
                 subtitle: "Contest configuration.",
             },
             edit: {
+                externalId: "External ID",
                 general: "General",
                 type: "Type",
                 image: "Image",
@@ -1532,6 +1956,56 @@ const englishTranslation = {
         tally: {
             errorUploadingSignature: "There was an error uploading signature",
             downloadTransmissionPackage: "Download Transmission Package",
+            resultsPublication: {
+                sectionTitle: "Publish to results website",
+                policyTitle: "Results Website",
+                policyAccess: "Results Website Access",
+                policyVisibility: "Results Website Visibility",
+                enabled: "Enabled",
+                disabled: "Disabled",
+                fullEvent: "Full event",
+                areaBased: "Area based",
+                publishStarted: "Results publication started",
+                publishError: "Could not start results publication",
+                revoked: "Results publication revoked",
+                revokeError: "Could not revoke results publication",
+                waitingForTally: "Results can be published after this tally has completed.",
+                writePermissionRequired:
+                    "You need publish-results-write permission to publish or revoke results.",
+                readPermissionRequired:
+                    "You need publish-results-read permission to view publication history.",
+                disabledPolicy:
+                    "Results website publishing is disabled for this election event. Enable it in the election event data before publishing results.",
+                loadingElectionContext: "Results publication is loading election context.",
+                route: "Route",
+                eventResults: "Event results",
+                electionResults: "Election results",
+                election: "Election",
+                access: "Access",
+                publicAccess: "Public access",
+                authenticatedAccess: "Authenticated access",
+                visibility: "Visibility",
+                fullPublishedScope: "Full published scope",
+                personalVisibility: "Personal visibility",
+                contests: "Contests",
+                noTalliedContests: "No tallied contests available.",
+                publishSelectedContests: "Publish selected contests",
+                selectedContestCount: "{{count}} contest selected",
+                selectedContestCount_plural: "{{count}} contests selected",
+                history: "Publication history",
+                version: "Version",
+                status: "Status",
+                published: "Published",
+                revokedAt: "Revoked",
+                actions: "Actions",
+                open: "Open",
+                revoke: "Revoke",
+                noPublications: "No publications yet.",
+                confirmTitle: "Start publish to results website?",
+                confirmDescription:
+                    "This will create a new publication from the current tally execution. The existing voter-facing results stay active until this publish task succeeds.",
+                close: "Close",
+            },
             transmissionPackage: {
                 title: "Transmission Package for Area '{{name}}' and Election '{{eventName}}'",
                 description:
@@ -1632,6 +2106,13 @@ const englishTranslation = {
             startTallyCeremonyError: "Could not start Tally Ceremony",
             cancelTallyCeremonySuccess: "Tally Ceremony canceled",
             cancelTallyCeremonyError: "Could not cancel Tally Ceremony",
+            recountTallyCeremony: "Recount tally",
+            recountTallyCeremonyMessage:
+                "This will generate a fresh results event for the completed tally session.",
+            recountTallyCeremonyStarting: "Starting recount...",
+            recountTallyCeremonySuccess: "Recount started",
+            recountTallyCeremonyError: "Could not start recount",
+            recountTallyCeremonyOk: "Recount",
             trusteeTitle: "Trustees process",
             trusteeSubTitle: "Please upload you key fragment",
             invited: "You have been invited to participate in a Tally ceremony. Please ",
@@ -1705,6 +2186,8 @@ const englishTranslation = {
                 implicit_invalid_votes: "Implicitly Invalid Votes",
                 implicit_invalid_votes_percent: "Implicitly Invalid Votes Percent",
                 blank_votes: "Blank Votes",
+                explicit_blank_votes: "Explicit Blank Votes",
+                implicit_blank_votes: "Implicit Blank Votes",
                 blank_votes_percent: "Blank Votes Percent",
                 number_of_votes: "Number of Votes",
                 winning_position: "Winning position",
@@ -1715,6 +2198,16 @@ const englishTranslation = {
                     eliminated: "Eliminated",
                     round: "Round",
                 },
+                total_declined_to_vote: "Total Declined to Vote",
+                participation_by_channel: "Participation by channel",
+                channel: "Channel",
+                channel_online: "Online",
+                channel_kiosk: "Kiosk",
+                channel_early_voting: "Early voting",
+                channel_telephone: "Telephone",
+                channel_paper: "Paper",
+                channel_postal: "Postal",
+                channel_in_person: "In person",
             },
             pendingResolutions: {
                 round: "Round {{round}}",
@@ -1776,14 +2269,17 @@ const englishTranslation = {
                 startKioskVoting: "Start Kiosk Voting",
                 startOnlineVoting: "Start Online Voting",
                 startEarlyVoting: "Start Early Voting",
+                startTelephoneVoting: "Start Telephone Voting",
                 stopVotingPeriod: "Stop Voting",
                 stopOnlineVoting: "Stop Online Voting",
                 stopEarlyVoting: "Stop Early Voting",
+                stopTelephoneVoting: "Stop Telephone Voting",
                 stopKioskVotingPeriod: "Stop Kiosk Voting",
                 pauseVotingPeriod: "Pause Voting",
                 pauseKioskVoting: "Pause Kiosk Voting",
                 pauseOnlineVoting: "Pause Online Voting",
                 pauseEarlyVoting: "Pause Early Voting",
+                pauseTelephoneVoting: "Pause Telephone Voting",
                 generate: "Regenerate",
                 publish: "Publish Changes",
                 back: "Back",
@@ -1819,6 +2315,7 @@ const englishTranslation = {
                 ko: "Cancel",
                 error: "Error loading ballot publication",
                 error_publish: "Error publishing ballot publication",
+                error_capacity: "Ballot style generation failed: {{message}}",
                 error_status: "Error change ballot publication status",
                 error_preview: "Error previewing publication",
                 diff: "Rendering all changes might make the page unresponsive. Are you sure you want to continue?",
@@ -1879,8 +2376,12 @@ const englishTranslation = {
             },
         },
         tallysheet: {
+            title: "Ballot boxes",
+            subtitle: "Digitalized ballot boxes by channel",
             createTallySuccess: "Tally Sheet saved",
             createTallyError: "Error saving Tally Sheet",
+            createTallyErrorSameKindExists:
+                "Tally Sheet already exists for this contest with the same channel and area",
             allFieldsRequired: "All fields are required",
             header: {
                 change: "Changes to be Published",
@@ -1894,6 +2395,11 @@ const englishTranslation = {
                 generate: "Regenerate",
                 publish: "Publish Changes",
                 back: "Back",
+            },
+            inputError: {
+                totalValidDoesNotMatch:
+                    "Total valid votes does not match the sum of the candidate votes plus blank votes",
+                censusTooSmall: "Census must be greater or equal than the total votes",
             },
             label: {
                 area: "Area",
@@ -1923,10 +2429,13 @@ const englishTranslation = {
                 subtitle: "Tally Sheet configuration.",
                 candidates: "Candidates",
                 save: "Save",
-                publish: "Publish",
-                unpublish: "Unpublish",
-                warningUnPublish: "Are you sure tu unpublish this Tally Sheet?",
-                warningPublish: "Are you sure tu publish this Tally Sheet?",
+                approve: "Approve",
+                disapprove: "Disapprove",
+                show: "Show",
+                add: "Add",
+                versions: "Versions",
+                warningDisapprove: "Are you sure to disapprove this Tally Sheet?",
+                warningApprove: "Are you sure to approve this Tally Sheet?",
             },
             empty: {
                 header: "No Tally Sheet Yet.",
@@ -1942,11 +2451,26 @@ const englishTranslation = {
             table: {
                 area: "Area",
                 contest: "Contest",
-                published: "Published",
+                approvedVersion: "Approved version",
+                latestVersion: "Latest version",
+                labels: "Labels",
+                annotations: "Annotations",
+            },
+            versionsTable: {
+                title: "Versions for ballot box",
+                version: "Version",
+                createdBy: "Created by",
+                reviewedBy: "Reviewed by",
+                createdAt: "Created at",
+                reviewedAt: "Reviewed at",
+                sourceImport: "Source import",
+                importStatus: "Import status",
+                openImport: "Open import",
+                sourceFile: "Source file",
             },
             message: {
-                publishError: "Error publishing tally sheet",
-                publishSuccess: "Tally sheet published",
+                reviewError: "Error reviewing tally sheet",
+                reviewSuccess: "Tally sheet reviewed",
             },
         },
         application: {
@@ -2202,8 +2726,9 @@ const englishTranslation = {
                 importButton: "Import",
             },
             notify: {
-                importSuccess:
-                    "Imported {{inserted}} certificate(s). {{skipped}} skipped (already present).",
+                importSuccess: "Imported {{inserted}} certificate(s).",
+                importSkipped: "{{count}} certificate(s) skipped (already present).",
+                importErrors: "Import issues: {{errors}}",
                 importError: "Import failed: {{error}}",
                 deleteSuccess: "Certificate deleted.",
                 deleteError: "Error deleting certificate.",

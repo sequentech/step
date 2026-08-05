@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 // use crate::hasura::trustee::get_trustees_by_name;
+use crate::postgres::cast_vote::count_unresolved_cast_votes;
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::trustee::get_trustees_by_name;
@@ -33,6 +34,7 @@ use sequent_core::serialization::base64::{Base64Deserialize, Base64Serialize};
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::{TallySessionContest, TallySessionContestAnnotations};
 use serde_json::json;
 use std::collections::HashMap;
@@ -169,6 +171,33 @@ pub async fn insert_ballots_messages(
                         ballots_temp_file.path()
                     );
 
+                    // Backstop for the tally-session guard: never extract
+                    // ballots while this contest area has an unresolved vote.
+                    let tenant_uuid = parse_uuid_v4(&tenant_id_clone)
+                        .with_context(|| "Error parsing tenant_id")?;
+                    let election_event_uuid = parse_uuid_v4(&election_event_id_clone)
+                        .with_context(|| "Error parsing election_event_id")?;
+                    let election_uuid = parse_uuid_v4(&tally_session_contest.election_id)
+                        .with_context(|| "Error parsing election_id")?;
+                    let area_uuid = parse_uuid_v4(&tally_session_contest.area_id)
+                        .with_context(|| "Error parsing area_id")?;
+                    let unresolved_count = count_unresolved_cast_votes(
+                        &hasura_transaction_clone,
+                        &tenant_uuid,
+                        &election_event_uuid,
+                        &election_uuid,
+                        &area_uuid,
+                    )
+                    .await?;
+                    if unresolved_count > 0 {
+                        return Err(anyhow!(
+                            "Refusing to extract ballots for election {} area {}: \
+                             {unresolved_count} cast vote(s) have an unresolved Datafix outcome",
+                            tally_session_contest.election_id,
+                            tally_session_contest.area_id,
+                        ));
+                    }
+
                     find_area_ballots(
                         &hasura_transaction_clone,
                         &tenant_id_clone,
@@ -211,6 +240,7 @@ pub async fn insert_ballots_messages(
 
                     // Use a join function to filter and extract the ballot content
                     let ballots_output_index = 1;
+                    let ballots_channel_index = 2;
                     let ballots_join_indexes = 0;
                     let users_join_idexes = 0;
                     let contest_id = tally_session_contest.contest_id.clone();
@@ -218,20 +248,21 @@ pub async fn insert_ballots_messages(
                     // Add the index where the username of the delegated vote is if the election has delegation enabled.
                     let delegate_count_index = if is_delegated { Some(1) } else { None };
 
-                    let (ballot_contents, elegible_voters, ballots_without_voter, casted_ballots) =
-                        merge_join_csv(
-                            &ballots_temp_file,
-                            &users_temp_file,
-                            ballots_join_indexes,
-                            users_join_idexes,
-                            ballots_output_index,
-                            delegate_count_index,
-                        )?;
+                    let merge_result = merge_join_csv(
+                        &ballots_temp_file,
+                        &users_temp_file,
+                        ballots_join_indexes,
+                        users_join_idexes,
+                        ballots_output_index,
+                        Some(ballots_channel_index),
+                        delegate_count_index,
+                    )?;
 
                     let annotations = TallySessionContestAnnotations {
-                        elegible_voters,
-                        ballots_without_voter,
-                        casted_ballots,
+                        elegible_voters: merge_result.eligible_voters,
+                        ballots_without_voter: merge_result.ballots_without_voter,
+                        casted_ballots: merge_result.casted_ballots,
+                        votes_by_channel: Some(merge_result.casted_ballots_by_channel),
                     };
 
                     let annotations = serde_json::to_value(&annotations)?;
@@ -252,7 +283,8 @@ pub async fn insert_ballots_messages(
                     };
 
                     if !skip_board_posting {
-                        let ciphertexts = ballot_contents
+                        let ciphertexts = merge_result
+                            .ballot_contents
                             .into_iter()
                             .map(|ballot_str| {
                                 info!("ballot_str: {ballot_str}");

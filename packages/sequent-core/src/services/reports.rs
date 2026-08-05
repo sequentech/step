@@ -31,6 +31,10 @@ fn get_registry<'reg>() -> Handlebars<'reg> {
         helper_wrapper_or(Box::new(format_percentage), String::from("-")),
     );
     reg.register_helper(
+        "format_percentage_one",
+        helper_wrapper_or(Box::new(format_percentage_one), String::from("-")),
+    );
+    reg.register_helper(
         "format_dec_percentage",
         helper_wrapper_or(Box::new(format_dec_percentage), String::from("-")),
     );
@@ -62,6 +66,7 @@ fn get_registry<'reg>() -> Handlebars<'reg> {
         helper_wrapper_or(Box::new(inc2), String::from("-")),
     );
     reg.register_helper("to_json", helper_wrapper(Box::new(to_json)));
+    reg.register_helper("url_encode", helper_wrapper(Box::new(url_encode)));
     reg.register_helper(
         "parse_i64",
         helper_wrapper_or(Box::new(parse_i64), String::from("-")),
@@ -84,6 +89,7 @@ fn get_registry<'reg>() -> Handlebars<'reg> {
     );
     reg.register_helper("next", Box::new(next));
     reg.register_helper("eq", Box::new(eq));
+    reg.register_helper("is_some", Box::new(is_some));
     reg
 }
 
@@ -279,6 +285,31 @@ pub fn sanitize_html(
 
     out.write(&cleaned)?;
 
+    Ok(())
+}
+
+/// Percent-encodes a string for use as one dynamic URL query value.
+pub fn url_encode(
+    helper: &Helper,
+    _: &Handlebars,
+    _: &Context,
+    _: &mut RenderContext,
+    out: &mut dyn Output,
+) -> HelperResult {
+    let value = helper
+        .param(0)
+        .ok_or(RenderErrorReason::ParamNotFoundForIndex("url_encode", 0))?
+        .value()
+        .as_str()
+        .ok_or_else(|| {
+            RenderErrorReason::ParamTypeMismatchForName(
+                "url_encode",
+                "0".to_string(),
+                "string".to_string(),
+            )
+        })?;
+
+    out.write(urlencoding::encode(value).as_ref())?;
     Ok(())
 }
 
@@ -578,6 +609,27 @@ pub fn format_percentage(
     Ok(())
 }
 
+pub fn format_percentage_one(
+    helper: &Helper,
+    _: &Handlebars,
+    _: &Context,
+    _: &mut RenderContext,
+    out: &mut dyn Output,
+) -> HelperResult {
+    let val_json = helper
+        .param(0)
+        .ok_or(RenderErrorReason::ParamNotFoundForIndex(
+            "format_percentage_one",
+            0,
+        ))?
+        .value();
+
+    let val = parse_f64_value(val_json)?;
+    out.write(&format!("{val:.1}"))?;
+
+    Ok(())
+}
+
 pub fn format_date(
     helper: &Helper,
     _: &Handlebars,
@@ -770,5 +822,68 @@ impl HelperDef for eq {
         }
 
         Ok(())
+    }
+}
+
+#[allow(non_camel_case_types)]
+pub struct is_some;
+
+impl HelperDef for is_some {
+    fn call<'reg: 'rc, 'rc>(
+        &self,
+        h: &Helper<'rc>,
+        r: &'reg Handlebars<'reg>,
+        ctx: &'rc Context,
+        rc: &mut RenderContext<'reg, 'rc>,
+        out: &mut dyn Output,
+    ) -> HelperResult {
+        let has_value = h
+            .param(0)
+            .map(|param| !param.value().is_null())
+            .unwrap_or(false);
+
+        if has_value {
+            if let Some(template) = h.template() {
+                template.render(r, ctx, rc, out)?;
+            }
+        } else if let Some(template) = h.inverse() {
+            template.render(r, ctx, rc, out)?;
+        }
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::render_template_text;
+    use serde_json::{json, Map};
+
+    #[test]
+    fn url_encode_keeps_dynamic_data_in_one_query_value() {
+        let mut variables = Map::new();
+        variables
+            .insert("value".to_string(), json!("a&admin=true 50% \"Málaga\""));
+
+        let rendered = render_template_text(
+            "https://vote.example/login?login_hint__reference={{url_encode value}}",
+            variables,
+        )
+        .expect("template should render");
+
+        assert_eq!(
+            rendered,
+            "https://vote.example/login?login_hint__reference=a%26admin%3Dtrue%2050%25%20%22M%C3%A1laga%22"
+        );
+    }
+
+    #[test]
+    fn url_encode_rejects_non_string_values() {
+        let mut variables = Map::new();
+        variables.insert("value".to_string(), json!(["private", "values"]));
+
+        assert!(
+            render_template_text("{{url_encode value}}", variables).is_err()
+        );
     }
 }
