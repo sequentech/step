@@ -359,20 +359,6 @@ services:
       ROCKET_PORT: ${MOCK_SERVER_PORT}
       MOCK_SERVER_PORT: ${MOCK_SERVER_PORT}
 
-  load-tool:
-    profiles: ["full"]
-    container_name: load-tool
-    build:
-      context: ../packages/windmill/external-bin/load-tool
-      dockerfile: Dockerfile.load-tool
-    image: sequentech.local/load-tool
-    stdin_open: true
-    tty: true
-    working_dir: /opt/sequent-step
-    entrypoint: ["/bin/bash"]
-    environment:
-      - PYTHONUNBUFFERED=1
-  
   harvest:
     profiles: ["full", "base"]
     stdin_open: true

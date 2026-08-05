@@ -29,12 +29,25 @@ WORKDIR /opt/sequentech
 RUN mkdir -p /opt/sequentech
 COPY --from=builder /app/packages/target/release/step-cli /opt/sequentech/step-cli
 COPY --from=builder /app/packages/target/release/e2e /opt/sequentech/e2e
-COPY ./packages/windmill/external-bin/janitor/scripts/setup.sh /opt/sequentech/janitor-setup
-RUN mkdir -p /opt/sequentech/janitor
-COPY ./packages/windmill/external-bin/janitor/ /opt/sequentech/janitor
-RUN chmod +x /opt/sequentech/janitor-setup
-RUN DEBIAN_FRONTEND=noninteractive /opt/sequentech/janitor-setup
-RUN rm /opt/sequentech/janitor-setup
+# The load-testing tool lives in beyond/packages/load-tool. Its dependencies and
+# the tool itself are installed here rather than copied from this repo, which is
+# what the janitor setup.sh this replaces already did: it downloaded load_tool.py
+# from a gist, so the copy that used to sit in step was never the one that ran.
+#
+# FIXME the gist is not a versioned artifact. Publish load_tool.py from beyond
+# and pin it here — see https://github.com/sequentech/meta/issues/12744.
+ARG LOAD_TOOL_URL=https://gist.githubusercontent.com/edulix/875a9a5d26407e1530f7769419dd8961/raw/341d7bab0482913d6b56efad512f383e5869eb85/load_tool.py
+RUN mkdir -p /opt/sequent-step && \
+    python3 -m venv /opt/sequent-step/venv && \
+    /opt/sequent-step/venv/bin/pip install --upgrade pip && \
+    /opt/sequent-step/venv/bin/pip install \
+        Faker==13.3.4 \
+        psycopg2==2.9.10 \
+        openpyxl==3.1.5 \
+        pyzipper==0.3.6 \
+        python-dotenv==1.0.1 \
+        pybars3==0.9.7 && \
+    wget -q -O /opt/sequent-step/load_tool.py "$LOAD_TOOL_URL"
 ENV CHROME=/usr/bin/chromium-browser
 ENV PATH="$PATH:/opt/sequentech"
 RUN echo '#!/bin/bash\nsource /opt/sequent-step/venv/bin/activate\nexec python /opt/sequent-step/load_tool.py "$@"' > /opt/sequent-step/load-tool && \
