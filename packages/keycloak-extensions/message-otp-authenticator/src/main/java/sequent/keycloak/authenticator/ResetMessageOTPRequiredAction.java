@@ -123,15 +123,12 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
     Optional<AuthenticatorConfigModel> config = Utils.getConfig(context.getRealm());
     java.util.Map<String, String> cfgMap =
         config.map(AuthenticatorConfigModel::getConfig).orElseGet(java.util.Collections::emptyMap);
-    String codeLength =
-        Optional.ofNullable(cfgMap.get(Utils.CODE_LENGTH)).orElse(Utils.CODE_LENGTH_DEFAULT);
+    String codeLength = Utils.getConfigValue(cfgMap, Utils.CODE_LENGTH, Utils.CODE_LENGTH_DEFAULT);
     KeycloakSession session = context.getSession();
     UserModel user = context.getUser();
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
-    String resendTimer =
-        Optional.ofNullable(cfgMap.get(Utils.RESEND_ACTIVATION_TIMER))
-            .orElse(Utils.RESEND_ACTIVATION_TIMER_DEFAULT);
-    String ttl = Optional.ofNullable(cfgMap.get(Utils.CODE_TTL)).orElse(Utils.CODE_TTL_DEFAULT);
+    String resendTimer = Utils.getResendTimer(cfgMap);
+    String ttl = Utils.getConfigValue(cfgMap, Utils.CODE_TTL, Utils.CODE_TTL_DEFAULT);
     boolean isOtl =
         Optional.ofNullable(cfgMap.get(Utils.ONE_TIME_LINK)).map("true"::equals).orElse(false);
 

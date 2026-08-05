@@ -20,7 +20,7 @@ SPDX-License-Identifier: AGPL-3.0-only
             </div>
             <div class="${properties.kcFormGroupClass!} otp-input-row">
                 <div class="otp-container" id="otp-inputs">
-                    <#assign otpLength = codeLength?number>
+                    <#assign otpLength = (codeLength!"6")?number>
                     <#list 1..otpLength as i>
                         <input
                             autocomplete="off"
@@ -65,7 +65,7 @@ SPDX-License-Identifier: AGPL-3.0-only
         <script>
             let resendTimerI18n = "${msg(i18nPrefix + ".auth.resend.timer")}";
             let resendButtonI18n = "${msg(i18nPrefix + ".auth.resend.button.link")}";
-            let resendTimerTimeout = ${(resendTimer)};
+            let resendTimerTimeout = ${(resendTimer)!60};
             let codeJustSent = "${(codeJustSent?string('true', 'false'))}";
             <#noparse>
             function resendOtp(resendTimerTimeout) {

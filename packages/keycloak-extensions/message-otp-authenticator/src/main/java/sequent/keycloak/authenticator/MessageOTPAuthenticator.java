@@ -185,11 +185,9 @@ public class MessageOTPAuthenticator
             .error(INVALID_CODE + " code input: " + enteredCode + " code should be: " + code);
 
         AuthenticationExecutionModel execution = context.getExecution();
-        String codeLength = configMap.get(Utils.CODE_LENGTH);
-        String resendTimer = configMap.get(Utils.RESEND_ACTIVATION_TIMER);
-        if (resendTimer == null) {
-          resendTimer = System.getenv("KC_OTP_RESEND_INTERVAL");
-        }
+        String codeLength =
+            Utils.getConfigValue(configMap, Utils.CODE_LENGTH, Utils.CODE_LENGTH_DEFAULT);
+        String resendTimer = Utils.getResendTimer(configMap);
         if (execution.isRequired()) {
           context.failureChallenge(
               AuthenticationFlowError.INVALID_CREDENTIALS,
@@ -206,8 +204,10 @@ public class MessageOTPAuthenticator
                   .setAttribute(
                       "address",
                       Utils.getOtpAddress(messageCourier, deferredUser, config, authSession, user))
-                  .setAttribute("resendTimer", configMap.get(Utils.RESEND_ACTIVATION_TIMER))
-                  .setAttribute("ttl", configMap.get(Utils.CODE_TTL))
+                  .setAttribute("resendTimer", resendTimer)
+                  .setAttribute(
+                      "ttl",
+                      Utils.getConfigValue(configMap, Utils.CODE_TTL, Utils.CODE_TTL_DEFAULT))
                   .setAttribute("codeLength", codeLength)
                   .createForm(TPL_CODE));
 
@@ -279,16 +279,18 @@ public class MessageOTPAuthenticator
             .setAttribute("realm", context.getRealm())
             .setAttribute("courier", messageCourier)
             .setAttribute("isOtl", isOtl)
-            .setAttribute("ttl", configMap.get(Utils.CODE_TTL));
+            .setAttribute(
+                "ttl", Utils.getConfigValue(configMap, Utils.CODE_TTL, Utils.CODE_TTL_DEFAULT));
 
     try {
       // if we have a code in the session and it has not expired, then we don't
       // resend the message
       String code = authSession.getAuthNote(Utils.CODE);
-      String resendTimer = configMap.get(Utils.RESEND_ACTIVATION_TIMER);
-      String configTtl = configMap.get(Utils.CODE_TTL);
+      String resendTimer = Utils.getResendTimer(configMap);
+      String configTtl = Utils.getConfigValue(configMap, Utils.CODE_TTL, Utils.CODE_TTL_DEFAULT);
       String ttl = authSession.getAuthNote(Utils.CODE_TTL);
-      String codeLength = configMap.get(Utils.CODE_LENGTH);
+      String codeLength =
+          Utils.getConfigValue(configMap, Utils.CODE_LENGTH, Utils.CODE_LENGTH_DEFAULT);
       long currentTime = System.currentTimeMillis();
       log.info(
           "code="
@@ -343,7 +345,7 @@ public class MessageOTPAuthenticator
           form.setAttribute(
                   "address",
                   Utils.getOtpAddress(messageCourier, deferredUser, config, authSession, user))
-              .setAttribute("resendTimer", configMap.get(Utils.RESEND_ACTIVATION_TIMER))
+              .setAttribute("resendTimer", resendTimer)
               .setAttribute("codeJustSent", codeJustSent)
               .setAttribute("codeLength", codeLength)
               .createForm(TPL_CODE));
