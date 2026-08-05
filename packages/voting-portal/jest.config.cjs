@@ -6,10 +6,10 @@
 module.exports = {
     testEnvironment: "node",
     testMatch: ["<rootDir>/src/**/*.test.ts"],
-    // The real sequent-core WASM package is plain ESM and gets pulled in
-    // transitively by @sequentech/ui-core; see src/__mocks__/sequentCoreMock.js.
+    // @sequentech/ui-core resolves to its built dist/ bundle, which a clean
+    // `yarn install` doesn't produce; see src/__mocks__/uiCoreTestEntry.ts.
     moduleNameMapper: {
-        "^sequent-core$": "<rootDir>/src/__mocks__/sequentCoreMock.js",
+        "^@sequentech/ui-core$": "<rootDir>/src/__mocks__/uiCoreTestEntry.ts",
     },
     transform: {
         "^.+\\.(t|j)sx?$": [
