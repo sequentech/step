@@ -247,6 +247,10 @@ pub async fn create_tally_sheet_import(
     source_bytes: &[u8],
     created_by_user_id: &str,
     conversion_validation_errors: Vec<TallySheetImportValidationError>,
+    // Free-form record of how this import was produced (e.g. which ES&S
+    // element supplied the area names). Written verbatim to the import's
+    // `annotations` — a derived record, never an input to the conversion.
+    annotations: Option<Value>,
 ) -> Result<TallySheetImport> {
     let preview = preview_tally_sheet_import(
         transaction,
@@ -275,6 +279,7 @@ pub async fn create_tally_sheet_import(
             &preview.summary,
             Some(&serde_json::to_value(&preview.validation_errors)?),
             Some(&hash_bytes(canonical_csv_bytes)),
+            annotations.as_ref(),
         )
         .await;
     }
@@ -293,6 +298,7 @@ pub async fn create_tally_sheet_import(
         &preview.summary,
         None,
         Some(&hash_bytes(canonical_csv_bytes)),
+        annotations.as_ref(),
     )
     .await?;
 
