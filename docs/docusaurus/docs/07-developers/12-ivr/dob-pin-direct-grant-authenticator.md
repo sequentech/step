@@ -16,7 +16,7 @@ By default, IVR voters authenticate with a voter ID (`direct-grant-validate-user
 a PIN (`direct-grant-validate-password`). Some elections instead want voters to authenticate with
 one or more attributes they already know - a date of birth, a national ID - plus a PIN, without a
 separate voter ID step. `MultiAttributePasswordDirectGrantAuthenticator`
-(provider ID `multi-attribute-password-direct-grant`) is the IVR/Direct Grant counterpart of the
+(provider ID `multi-attribute-password-direct`) is the IVR/Direct Grant counterpart of the
 web login's [Multi-Attribute + Password Form](../../02-election_managers/01-tutorials/101-admin_portal_tutorials_multi-attribute-password-login.md) -
 both share the same resolution logic (`MultiAttributeCredentialResolver`): every configured
 identifying attribute must match the same user, and the PIN then disambiguates among candidates.
@@ -30,32 +30,29 @@ This is a single Direct Grant flow step - it replaces both `direct-grant-validat
 
 The Keycloak side (this authenticator and `ivr-config-provider`) supports any number of
 `identifier` fields plus one `secret` field, each with an independently configurable `maps_to`.
-**As validated against `beyond` at `feat/meta-10554/main`
-(`packages/ivr-core/src/execution/phases/auth.rs`), the IVR Lambda does not yet exercise that full
-range:**
+As of `beyond` commit `0975acfe` ("IVR: Prepare the first release (auth maps_to)", on
+`feat/meta-10554/release/10.0`), the IVR Lambda
+(`packages/ivr-core/src/execution/phases/auth.rs`) exercises that range:
 
-- **Only one identifier field is collected.** `AuthState::IdentifierPrompt` picks the *first*
-  `identifier`-kind step (`.find(...)`) and moves straight to the secret step after collecting it.
-  A second `identifier` entry in the config is accepted by `/ivr-config` but never prompted for or
-  collected by the Lambda. Until that loop is added, configure **exactly one** `identifier` field.
-- **`maps_to` is not yet honored when submitting to Keycloak.** The token request is hardcoded to
-  `("username", <identifier value>)` and `("password", <secret value>)`
-  (`// TODO: Use maps_to` in `auth.rs`), regardless of what `maps_to` says. Until that's fixed,
-  `maps_to` must literally be `username` for the identifier field and `password` for the secret
-  field for a voter to actually authenticate through IVR - anything else (e.g. `maps_to: dob`)
-  will pass `/ivr-config` validation but silently fail token requests, because the value never
-  arrives under the parameter name this authenticator expects.
-- **There's no automatic prompt for non-standard fields.** `map_auth_prompt()` only has a built-in
-  spoken prompt for the literal field names `voter_id` and `pin`. Any other `field` value (e.g.
-  `dob`) falls back to an "external" prompt, whose text an admin must configure separately via the
-  IVR prompt-override admin interface - there is no automatic `auth_enter_dob`-style default.
+- **All identifier fields are collected.** `AuthState::IdentifierPrompt` repeatedly selects the
+  next `identifier`-kind step whose `maps_to` has not been collected yet, and only moves to the
+  secret step once they are all filled. Note that identifier steps are keyed by `maps_to`, so two
+  identifier entries sharing one `maps_to` collapse into a single prompt.
+- **`maps_to` is honored when submitting to Keycloak.** Each collected value is sent under its own
+  `maps_to` as the ROPC form parameter name. For an identifier field, `maps_to` is therefore *both*
+  the form parameter name *and* the Keycloak user attribute matched against, so it must be the real
+  attribute name (e.g. `dateOfBirth`, not `dob`). The secret field should use `password`.
+- **Prompts for non-standard fields must be authored.** A step with no `prompt_key` defaults to
+  `auth_enter_{field}`. Only `auth_enter_voter_id` and `auth_enter_pin` have built-in spoken text;
+  any other key resolves as an "external" prompt that an admin must author per language under
+  Admin Portal → election event → IVR → Prompts (the `ivr:prompts` annotation). A missing external
+  prompt is *not* caught by the flow's pre-flight prompt validation - at runtime the Lambda logs an
+  error and reads the literal key string aloud to the caller. Built-in keys are overridable too:
+  prompt resolution consults the authored prompts first and falls back to the built-in text.
 
-None of this limits what this authenticator can be configured to *express* (it's designed for the
-target end state), but until `beyond` closes the gaps above, the only IVR-usable configuration
-today is one `identifier` field mapped to `username` plus the `secret` field mapped to `password` -
-functionally equivalent to the default voter-ID + PIN flow, just collected through a single
-combined step instead of two, and letting the "identifier" be any user attribute (not necessarily
-the username) as long as it's submitted as `username`.
+Deployments therefore need a Lambda build containing `0975acfe`. An older build ignores `maps_to`,
+submits the identifier under `username`, and fails every call against a configuration that
+otherwise looks correct.
 
 ---
 
@@ -92,19 +89,21 @@ described above; not usable end-to-end today:
 | `maps_to` | `dob##nationalId##password` |
 | `prompt_key` | `auth_enter_dob##auth_enter_national_id##auth_enter_pin` (optional; each prompt's text must still be configured via the IVR prompt-override admin interface) |
 
-**Example (works today)** - a single identifying attribute, submitted the way the current Lambda
-expects:
+**Example** - a single identifying attribute (date of birth) plus a PIN:
 
 | Property | Value |
 |---|---|
-| `field` | `dob` |
-| `max_digits` | `8` |
-| `kind` | `identifier` |
-| `maps_to` | `username` |
+| `field` | `dob##pin` |
+| `max_digits` | `8##16` |
+| `kind` | `identifier##secret` |
+| `maps_to` | `dateOfBirth##password` |
+| `prompt_key` | `auth_enter_dob##auth_enter_pin` |
+| `date_format` | `DDMMYYYY` |
 
-(then a second entry for the PIN: `field=pin`, `max_digits=8`, `kind=secret`,
-`maps_to=password` - i.e. `field=dob##pin`, `max_digits=8##8`, `kind=identifier##secret`,
-`maps_to=username##password`)
+Note that `maps_to` for the identifier is the real Keycloak user attribute name (`dateOfBirth`),
+not the display label in `field` - it doubles as the ROPC form parameter name. `max_digits` for the
+PIN must cover the realm's `credential-input-pattern`: `dddd-dddd-dddd-dddd` is 16 bare digits,
+since the dashes are display-only and the stored credential has none.
 
 Either way, the authenticator resolves the voter by intersecting candidates matching every
 `identifier` field's submitted value, then checking the submitted secret (PIN) against that
@@ -125,10 +124,10 @@ candidate set.
 ## Step 2 - Configure the Fields
 
 1. Click **⚙ Config** next to the new step.
-2. Fill in `field`, `max_digits`, `kind`, `maps_to` (and optionally `prompt_key`). Use the
-   "works today" example above (`maps_to=username##password`) unless the deployment's `beyond`
-   version has already picked up the fixes described in
-   [Current IVR Lambda compatibility](#current-ivr-lambda-compatibility).
+2. Fill in `field`, `max_digits`, `kind`, `maps_to` (and optionally `prompt_key`), following the
+   example above. Confirm the deployment's `beyond` version satisfies
+   [Current IVR Lambda compatibility](#current-ivr-lambda-compatibility) first - on an older
+   Lambda, `maps_to` is ignored and every call fails.
 3. Optionally adjust the DoS-mitigation settings below (sensible defaults are pre-filled - see
    [Denial-of-Service Considerations](#denial-of-service-considerations)):
    - **Max candidates per request** (default `10`)
