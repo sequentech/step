@@ -1773,6 +1773,7 @@ const galegoTranslation: TranslationType = {
                 "warn": "Avisar",
                 "warn-invalid-implicit-and-explicit": "Avisar Votos Nulos Implícitos e Explícitos",
                 "not-allowed": "Non Permitido",
+                "allowed-with-exclusive-explicit": "Permitido con Voto Nulo Explícito Exclusivo",
             },
             candidatesIconCheckboxPolicy: {
                 "label": "Forma do Icono de Caixa de Selección dos Candidatos",

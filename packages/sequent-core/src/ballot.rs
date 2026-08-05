@@ -884,6 +884,14 @@ pub enum InvalidVotePolicy {
     #[strum(serialize = "not-allowed")]
     #[serde(rename = "not-allowed")]
     NOT_ALLOWED,
+    // Same as ALLOWED, except the explicit-invalid marker becomes a
+    // mutually exclusive selection: picking it clears any other selected
+    // candidates (and vice versa), so it can't be bundled with them. See
+    // `ballotSelectionsSlice.ts` for the enforcement, which mirrors how
+    // blank vote is already exclusive against other selections.
+    #[strum(serialize = "allowed-with-exclusive-explicit")]
+    #[serde(rename = "allowed-with-exclusive-explicit")]
+    ALLOWED_WITH_EXCLUSIVE_EXPLICIT,
 }
 
 #[derive(
