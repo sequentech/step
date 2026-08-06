@@ -790,13 +790,14 @@ fn canonical_csv_bytes(
             })
         }
         TallySheetImportSourceFormat::ESS_ENHANCED_XML => {
-            let conversion = convert_ess_enhanced_xml_to_csv_for_reporting_group(
-                source_bytes,
-                selected_channel.clone(),
-                DEFAULT_IMPORT_REPORTING_GROUP_ID,
-                contest_vote_config,
-                configured_area_names,
-            )?;
+            let conversion =
+                convert_ess_enhanced_xml_to_csv_for_reporting_group(
+                    source_bytes,
+                    selected_channel.clone(),
+                    DEFAULT_IMPORT_REPORTING_GROUP_ID,
+                    contest_vote_config,
+                    configured_area_names,
+                )?;
             Ok(CanonicalCsvConversion {
                 canonical_csv: conversion.canonical_csv,
                 validation_errors: conversion.validation_errors,
