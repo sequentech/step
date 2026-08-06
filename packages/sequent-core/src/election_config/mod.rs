@@ -24,6 +24,7 @@
 //! and <https://github.com/sequentech/meta/issues/12769>.
 
 pub mod emit;
+pub mod ids;
 pub mod paths;
 pub mod problem;
 pub mod report;
@@ -40,6 +41,7 @@ pub mod xlsx;
 mod validate_tests;
 
 pub use emit::{json_csv, plain_csv, JsonField};
+pub use ids::IdFactory;
 pub use paths::{coerce_cell, deep_merge, expand, Cell};
 pub use problem::{Code, Problem, Report as ValidationReport, Severity};
 pub use report::{EReportEncryption, Report, ReportCronConfig, ReportType};

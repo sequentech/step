@@ -9129,6 +9129,7 @@ dependencies = [
  "serde_json",
  "serde_path_to_error",
  "serde_urlencoded",
+ "sha1",
  "sha256",
  "strand",
  "strum 0.27.2",
