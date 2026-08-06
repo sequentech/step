@@ -24,5 +24,7 @@
 //! and <https://github.com/sequentech/meta/issues/12769>.
 
 pub mod report;
+pub mod schema;
 
 pub use report::{EReportEncryption, Report, ReportCronConfig, ReportType};
+pub use schema::ImportElectionEventSchema;

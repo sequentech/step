@@ -110,28 +110,20 @@ use sequent_core::types::keycloak::{
 };
 use sequent_core::types::scheduled_event::*;
 use sequent_core::util::temp_path::{generate_temp_file, get_file_size};
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ImportElectionEventSchema {
-    pub tenant_id: Uuid,
-    pub keycloak_event_realm: Option<RealmRepresentation>,
-    pub election_event: ElectionEvent,
-    pub elections: Vec<Election>,
-    pub contests: Vec<Contest>,
-    pub candidates: Vec<Candidate>,
-    pub areas: Vec<Area>,
-    pub area_contests: Vec<AreaContest>,
-    pub scheduled_events: Option<Vec<ScheduledEvent>>,
-    pub reports: Vec<Report>,
-    pub keys_ceremonies: Option<Vec<KeysCeremony>>,
-    pub applications: Option<Vec<Application>>,
-    #[serde(default = "default_version")]
-    pub version: String,
-}
-
-/// Set the default version of an imported election event to be compatible with version 9, which is the first version to include this feature.
-fn default_version() -> String {
-    HISTORICAL_DEFAULT_VERSION.to_string()
-}
+// The bundle schema now lives in sequent_core::election_config, so that the tools
+// which write an import describe it the same way this importer reads it.
+// Re-exported because windmill refers to it by this path throughout.
+//
+// Two field types differ from the struct that used to be here, both so the module
+// can compile to WASM for the browser-side tools:
+//
+//   tenant_id            String, not Uuid. Import replaces it with the importing
+//                        request's tenant regardless, and every use here
+//                        stringifies it. Its format is checked by validation.
+//   keycloak_event_realm serde_json::Value, not RealmRepresentation. That type
+//                        comes from the keycloak crate, which pulls reqwest.
+//                        Deserialized into the typed form where it is used.
+pub use sequent_core::election_config::ImportElectionEventSchema;
 
 #[instrument(err)]
 pub async fn upsert_b3_and_elog(
@@ -579,7 +571,7 @@ pub async fn get_election_event_schema(
     // with a more obscure error when trying to deserialize data that is incompatible with the current version.
     let raw: serde_json::Value = serde_json::from_str(data_str)
         .map_err(|e| anyhow!("Failed to parse import data as JSON: {e}"))?;
-    let default_ver = default_version();
+    let default_ver = HISTORICAL_DEFAULT_VERSION.to_string();
     let imported_version = raw
         .get(VERSION_KEY)
         .and_then(|v| v.as_str())
@@ -670,10 +662,18 @@ pub async fn process_election_event_file(
         default_language = Some(data.election_event.get_default_language());
     }
 
+    // The bundle carries the realm opaquely; this is where it becomes typed.
+    let keycloak_event_realm: Option<RealmRepresentation> = data
+        .keycloak_event_realm
+        .clone()
+        .map(deserialize_value)
+        .transpose()
+        .with_context(|| "Error deserializing keycloak_event_realm")?;
+
     upsert_keycloak_realm(
         tenant_id.as_str(),
         &election_event_id,
-        data.keycloak_event_realm.clone(),
+        keycloak_event_realm,
         default_language
     )
     .await
@@ -1421,7 +1421,8 @@ pub async fn process_document(
             if file_name.contains(EDocuments::CERTIFICATES.to_file_name()) {
                 let pem_content = String::from_utf8(file_contents.clone())
                     .context("Failed to decode certificates PEM as UTF-8")?;
-                let tenant_uuid = election_event_schema.tenant_id;
+                let tenant_uuid = Uuid::parse_str(&election_event_schema.tenant_id)
+                    .context("Invalid tenant_id in the imported bundle")?;
                 let election_event_uuid = Uuid::parse_str(&election_event_schema.election_event.id)
                     .context("Failed to parse election event UUID")?;
                 let pem_chunks = split_pem_bundle(&pem_content);

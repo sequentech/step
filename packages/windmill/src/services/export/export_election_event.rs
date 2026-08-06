@@ -147,8 +147,10 @@ pub async fn read_export_data(
         std::env::var(ENV_VAR_APP_VERSION).unwrap_or_else(|_| DEV_APP_VERSION.to_string());
 
     let import_election_event_schema = ImportElectionEventSchema {
-        tenant_id: parse_uuid_v4(&tenant_id)?,
-        keycloak_event_realm: Some(realm),
+        // parse_uuid_v4 still runs: the schema now carries a String, but an
+        // export must not emit a tenant id that is not a UUID.
+        tenant_id: parse_uuid_v4(&tenant_id)?.to_string(),
+        keycloak_event_realm: Some(serde_json::to_value(realm)?),
         election_event: election_event,
         elections: export_elections,
         contests: contests.clone(),
