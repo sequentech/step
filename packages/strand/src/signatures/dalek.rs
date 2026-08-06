@@ -40,8 +40,11 @@ use ed25519_dalek::Signer;
 use ed25519_dalek::SigningKey;
 use ed25519_dalek::Verifier;
 use ed25519_dalek::VerifyingKey;
+#[cfg(feature = "certs")]
 use rcgen::CertificateSigningRequestParams;
+#[cfg(feature = "certs")]
 use rustls_pki_types::CertificateSigningRequestDer;
+#[cfg(feature = "certs")]
 use rustls_pki_types::PrivatePkcs8KeyDer;
 use serde::de::{self, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -53,7 +56,9 @@ use crate::rng::StrandRng;
 use crate::util;
 use crate::util::StrandError;
 
+#[cfg(feature = "certs")]
 use x509_parser::certificate::X509Certificate;
+#[cfg(feature = "certs")]
 use x509_parser::prelude::FromDer;
 
 /// An ed25519-dalek backed signature.
@@ -154,6 +159,7 @@ impl StrandSignaturePk {
     }
 
     /// Parses a x509 der representation and extracts a StrandSignaturePk.
+    #[cfg(feature = "certs")]
     pub fn from_x509_der(
         x509: &[u8],
     ) -> Result<StrandSignaturePk, StrandError> {
@@ -170,6 +176,7 @@ impl StrandSignaturePk {
     /// If a CA StrandSignaturePk is passed the verification will be
     /// with respect to it, otherwise it is assumed this is a self-signed
     /// certificate.
+    #[cfg(feature = "certs")]
     pub fn verify_x509_der(
         x509: &[u8],
         ca_pk: Option<&StrandSignaturePk>,
@@ -253,6 +260,7 @@ impl StrandSignatureSk {
     }
 
     /// Returns a pkcs#10 csr der representation.
+    #[cfg(feature = "certs")]
     pub fn csr_der(&self, name: String) -> Result<Vec<u8>, StrandError> {
         let cert_sk_der = self.to_der()?;
         let der_sk = PrivatePkcs8KeyDer::from(cert_sk_der);
@@ -279,6 +287,7 @@ impl StrandSignatureSk {
     }
 
     /// Signs a certificate csr and returns a x509 der representation.
+    #[cfg(feature = "certs")]
     pub fn sign_csr(
         &self,
         self_der: &[u8],
@@ -487,6 +496,7 @@ pub(crate) mod tests {
 
     // openssl req -key test25519.der -new -x509 -days 365 -outform der -out
     // cert.der
+    #[cfg(feature = "certs")]
     const CERT_B64: &'static str = "MIIBnzCCAVGgAwIBAgIUCh7appwg9HoaP4N4EQoL+s3M/2AwBQYDK2VwMEUxCzAJBgNVBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQwHhcNMjMxMTEwMTcyNzA5WhcNMjQxMTA5MTcyNzA5WjBFMQswCQYDVQQGEwJBVTETMBEGA1UECAwKU29tZS1TdGF0ZTEhMB8GA1UECgwYSW50ZXJuZXQgV2lkZ2l0cyBQdHkgTHRkMCowBQYDK2VwAyEADntlxtaHoKmOPGnBb5nxPVrjTnj4BvQP6xBiW6r5EIqjUzBRMB0GA1UdDgQWBBTb8bPCHkrsXroe/AMIzoFT1F3SQjAfBgNVHSMEGDAWgBTb8bPCHkrsXroe/AMIzoFT1F3SQjAPBgNVHRMBAf8EBTADAQH/MAUGAytlcANBAEGyHlwmhiu8KC/Lo3pDUnkmOab3rbNUFV70U0Ae1NQEclLTuqNRO6OiIQALk06ri032wQCkVc2zSkK7EMJ+5g0=";
     /*
         openssl genpkey -algorithm ed25519 -outform DER -out test25519.der
@@ -629,6 +639,7 @@ pub(crate) mod tests {
     }
 
     #[test]
+    #[cfg(feature = "certs")]
     fn test_parse_x509() {
         let cert_der: Vec<u8> =
             general_purpose::STANDARD.decode(CERT_B64).unwrap();
