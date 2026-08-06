@@ -124,6 +124,10 @@ kuchiki = { version = "0.8", optional = true }
 rusqlite = { version = "0.32", features = ["bundled"], optional = true }
 csv = "1.3.0"
 
+# reading authoring spreadsheets; optional so front ends with no workbook to read
+# do not carry it into their WASM bundle
+calamine = { version = "0.26", features = ["dates"], optional = true }
+
 
 # WASM plugin management
 wasmtime = {version = "41.0.2", optional = true}
@@ -132,6 +136,8 @@ wasmtime-wasi = {version = "41.0.2", optional = true}
 [dev-dependencies]
 ptree = "0.5"
 wasm-bindgen-test = "0.3.42"
+# writes the tiny .xlsx the reader's tests read, so no binary fixture is committed
+zip = "2.1"
 
 [features]
 wasmtest = ["wasm", "dep:web-sys", "strand/wasmtest"]
@@ -151,6 +157,10 @@ lambda_openwhisk = []
 lambda_aws_lambda = []
 plugins_wit = ["dep:wasmtime", "dep:wasmtime-wasi"]
 default_features = ["dep:strand", "dep:num-bigint", "dep:tempfile", "dep:ammonia"]
+# Reading .xlsx into an election_config::sheet::Workbook. Separate from
+# default_features because admin-portal and voting-portal have no workbook to
+# read and should not pay for a spreadsheet parser in their bundle.
+election_config_xlsx = ["default_features", "dep:calamine"]
 
 sqlite = ["dep:tokio", "dep:rusqlite"]
 time = ["dep:time"]

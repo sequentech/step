@@ -28,7 +28,13 @@ pub mod paths;
 pub mod problem;
 pub mod report;
 pub mod schema;
+pub mod sheet;
 pub mod validate;
+
+/// Reading `.xlsx`, behind its own feature so front ends with no workbook to read
+/// do not carry a spreadsheet library.
+#[cfg(feature = "election_config_xlsx")]
+pub mod xlsx;
 
 #[cfg(test)]
 mod validate_tests;
@@ -38,4 +44,5 @@ pub use paths::{coerce_cell, deep_merge, expand, Cell};
 pub use problem::{Code, Problem, Report as ValidationReport, Severity};
 pub use report::{EReportEncryption, Report, ReportCronConfig, ReportType};
 pub use schema::ImportElectionEventSchema;
+pub use sheet::{Origin, Row, Sheet, Workbook};
 pub use validate::validate;
