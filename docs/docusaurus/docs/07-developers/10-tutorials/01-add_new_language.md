@@ -13,6 +13,60 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 This guide outlines the steps to add a new language to the system. When adding a new language, replace `[lang_code]` with the new language's ISO 639-1 code (e.g., `fr` for French) and `[LangNameInEnglish]` (e.g., `French`), `[LangNameInNative]` (e.g., `Français`) as appropriate.
 
+## Pluralisation
+
+A string that contains a number needs one entry per plural form of the target language. Do not write one entry
+and choose between two keys in the component: `count === 1` is English's rule and it is wrong in most other
+languages. French counts zero as singular, and Filipino counts two as singular.
+
+Instead, give the key a `_one` and an `_other` suffix and pass a numeric `count`. i18next asks
+`Intl.PluralRules` for the category of `count` in the current language and picks the matching suffix:
+
+```typescript
+// translations/en.ts
+selectedCandidates_one: "{{count}} candidate selected",
+selectedCandidates_other: "{{count}} candidates selected",
+```
+
+```tsx
+// the component never decides which form to use
+t("candidatesList.selectedCandidates", {count: selectedCandidatesCount})
+```
+
+Rules to follow:
+
+* **`count` must be a number.** i18next skips pluralisation entirely when `count` is a string, and silently
+  falls back to the unsuffixed key. `{count: String(n)}` and `{count: n.toString()}` are bugs.
+* **The variable must be called `count`.** No other name triggers plural selection.
+* **Use `_one` and `_other`.** `_plural` is the i18next v3 suffix and is never selected by the version in use
+  here — an entry under `_plural` is dead code.
+* **Declare both suffixes even when the text is identical.** Basque and Tagalog do not inflect a noun after a
+  numeral, so their two forms are the same string. They are both still required, because the non-English files
+  are typed `TranslationType = typeof englishTranslation` and must carry the same key set as `en.ts`.
+* **A language with more forms needs more entries.** If a language you add has a `few`, `many` or `zero`
+  category for the values the string can actually take, add `_few` / `_many` / `_zero` as well. Check with
+  `new Intl.PluralRules("[lang_code]").resolvedOptions().pluralCategories`.
+
+### Ballot validation messages
+
+The warnings a voter sees while marking a ballot come from the Rust checker in `sequent-core` as a message key
+plus a `message_map`. Every value in that map is a string, and the map describes the *state* of the selection
+(`numSelected`, `min`, `max`) rather than the number the sentence is about.
+
+`getBallotErrorOptions` in `ui-core` bridges the two: it coerces the numeric values and derives `count` per
+message key — `max - numSelected` for an undervote, `numSelected - max` for an overvote, and so on. Render these
+messages through it:
+
+```tsx
+import {getBallotErrorOptions} from "@sequentech/ui-core"
+
+t(error.message || "", getBallotErrorOptions(error.message, error.message_map))
+```
+
+If you add a new ballot validation message whose sentence contains a number, add its derivation to
+`COUNT_DERIVATIONS` in `packages/ui-core/src/services/ballotErrorMessages.ts`. Adding the key to Rust is not
+enough on its own.
+
 ## 1. Admin Portal (`packages/admin-portal`)
 
 ### 1.1. Add Main Translation File
