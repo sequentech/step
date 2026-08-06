@@ -82,16 +82,9 @@ pub enum ReportOriginatedFrom {
     ReportsTab,
 }
 
-#[allow(non_camel_case_types)]
-#[derive(
-    Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString, IntoStaticStr,
-)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum EReportEncryption {
-    Unencrypted,
-    ConfiguredPassword,
-}
+// Moved to sequent_core::election_config so the import writers and the importer
+// agree on the wire form. Re-exported: windmill refers to it by this path.
+pub use sequent_core::election_config::EReportEncryption;
 
 pub const DEFAULT_ITEMS_PER_REPORT_LIMIT: usize = 1000;
 /// Trait that defines the behavior for rendering templates
