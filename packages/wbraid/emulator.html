@@ -232,8 +232,12 @@ SPDX-License-Identifier: AGPL-3.0-only
           <h3>Message store (predicates)</h3>
           <pre class="store" id="store${i}"></pre>
           <details>
-            <summary>Committed (anti-rewrite baseline)</summary>
+            <summary>Committed in (anti-rewrite baseline)</summary>
             <pre class="store" id="committed${i}"></pre>
+          </details>
+          <details>
+            <summary>Committed out (own posts, anti-self-equivocation)</summary>
+            <pre class="store" id="ownposts${i}"></pre>
           </details>`;
         trusteesEl.appendChild(panel);
       }
@@ -261,10 +265,15 @@ SPDX-License-Identifier: AGPL-3.0-only
         try {
           const preds = emu.trustee_predicates(i);
           const committed = emu.trustee_committed(i);
+          const ownPosts = emu.trustee_own_posts(i);
           document.getElementById(`store${i}`).textContent = preds.length ? preds.join("\n") : "(empty)";
           document.getElementById(`committed${i}`).textContent = committed.length ? committed.join("\n") : "(empty)";
+          document.getElementById(`ownposts${i}`).textContent = ownPosts.length ? ownPosts.join("\n") : "(empty)";
+          // "out" counts what this trustee has handed b4; "in" what b4 has shown
+          // it back. Out running ahead of in is the loop-back lag - and if it
+          // stays ahead, b4 is withholding the trustee's own message.
           document.getElementById(`count${i}`).textContent =
-            `${preds.length} predicates, ${committed.length} committed`;
+            `${preds.length} predicates, ${committed.length} in, ${ownPosts.length} out`;
         } catch (err) {
           document.getElementById(`store${i}`).textContent = "error: " + err;
         }

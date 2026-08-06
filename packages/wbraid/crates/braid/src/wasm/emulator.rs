@@ -828,7 +828,7 @@ impl Emulator {
                 .map_err(js)?;
             let cfg_message = ProtocolMessage::<RistrettoCtx>::configuration(&keys.pm, DATE, &cfg);
             let manager = WasmHttpTransport::new(&b4_url, &parent_board);
-            Transport::<RistrettoCtx>::post(&manager, vec![cfg_message])
+            Transport::<RistrettoCtx>::publish(&manager, &cfg_message)
                 .await
                 .map_err(js)?;
         }
@@ -981,7 +981,7 @@ impl Emulator {
         })
         .map_err(js)?;
         let manager = WasmHttpTransport::new(&self.b4_url, &child_board);
-        Transport::<RistrettoCtx>::post(&manager, vec![ballots_message])
+        Transport::<RistrettoCtx>::publish(&manager, &ballots_message)
             .await
             .map_err(js)?;
 
@@ -1164,6 +1164,31 @@ impl Emulator {
             .map(|p| format!("{p:?}"))
             .collect();
         serde_wasm_bindgen::to_value(&committed)
+            .map_err(|e| JsValue::from_str(&format!("failed to serialize: {e}")))
+    }
+
+    /// The given trustee's persisted **own-post** record (§6.4) — the outbound
+    /// counterpart of [`trustee_committed`](Self::trustee_committed): what this
+    /// trustee has staged for b4, rather than what b4 has shown it.
+    ///
+    /// In the happy path each entry appears in the committed set too, one cycle
+    /// later, once the message loops back. An entry that stays here *without* a
+    /// committed counterpart is the interesting state: b4 took the message and is
+    /// not serving it back, and the record is what stops the trustee recomputing
+    /// a second artifact for that slot. Each entry is rendered as the predicate
+    /// followed by its staging handle.
+    pub fn trustee_own_posts(&self, index: usize) -> Result<JsValue, JsValue> {
+        let inner = self.inner.try_borrow().map_err(|_| busy())?;
+        let client = inner
+            .clients
+            .get(index)
+            .ok_or_else(|| JsValue::from_str("trustee index out of range"))?;
+        let own_posts: Vec<String> = client
+            .own_posts()
+            .iter()
+            .map(|(predicate, staged)| format!("{predicate:?} [staged {}]", staged.0))
+            .collect();
+        serde_wasm_bindgen::to_value(&own_posts)
             .map_err(|e| JsValue::from_str(&format!("failed to serialize: {e}")))
     }
 }
