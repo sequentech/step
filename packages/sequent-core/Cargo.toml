@@ -167,6 +167,9 @@ default_features = ["dep:strand", "dep:num-bigint", "dep:tempfile", "dep:ammonia
 # default_features because admin-portal and voting-portal have no workbook to
 # read and should not pay for a spreadsheet parser in their bundle.
 election_config_xlsx = ["default_features", "dep:calamine"]
+# Rendering the base entity templates. Separate from `reports`, which also brings
+# a headless browser and three AWS SDKs; this needs only the template engine.
+election_config_templates = ["default_features", "dep:handlebars"]
 
 sqlite = ["dep:tokio", "dep:rusqlite"]
 time = ["dep:time"]

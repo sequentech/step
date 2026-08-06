@@ -27,6 +27,12 @@ pub mod emit;
 pub mod ids;
 pub mod paths;
 pub mod problem;
+
+/// Rendering the base entity templates, behind its own feature so a front end
+/// that only validates an existing bundle carries no template engine.
+#[cfg(feature = "election_config_templates")]
+pub mod render;
+
 pub mod report;
 pub mod schema;
 pub mod sheet;
@@ -44,6 +50,8 @@ pub use emit::{json_csv, plain_csv, JsonField};
 pub use ids::IdFactory;
 pub use paths::{coerce_cell, deep_merge, expand, Cell};
 pub use problem::{Code, Problem, Report as ValidationReport, Severity};
+#[cfg(feature = "election_config_templates")]
+pub use render::TemplateSet;
 pub use report::{EReportEncryption, Report, ReportCronConfig, ReportType};
 pub use schema::ImportElectionEventSchema;
 pub use sheet::{Origin, Row, Sheet, Workbook};

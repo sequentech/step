@@ -1,0 +1,27 @@
+{{!--
+SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+SPDX-License-Identifier: AGPL-3.0-only
+
+Base report definition.
+
+cron_config is null by default: a report with a cron config is a scheduled
+report that will mail documents to its recipients, which is not something a
+default should switch on.  Supply the whole cron_config object in one workbook
+cell to enable it.
+
+permission_label is a list here (Report takes Option<Vec<String>>), unlike
+Election, which takes a single Option<String>.  The workbook's ||-separated cell
+becomes that list.
+--}}
+{
+    "id": "{{id}}",
+    "tenant_id": "{{tenant_id}}",
+    "election_event_id": "{{election_event_id}}",
+    "election_id": null,
+    "created_at": "{{created_at}}",
+    "report_type": "{{report_type}}",
+    "template_alias": null,
+    "encryption_policy": "unencrypted",
+    "cron_config": null,
+    "permission_label": null
+}

@@ -1,0 +1,118 @@
+{{!--
+SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+SPDX-License-Identifier: AGPL-3.0-only
+
+Base election.  See election_event.hbs for why only ids are interpolated.
+--}}
+{
+    "id": "{{id}}",
+    "tenant_id": "{{tenant_id}}",
+    "election_event_id": "{{election_event_id}}",
+    "created_at": "{{created_at}}",
+    "last_updated_at": "{{created_at}}",
+    "labels": null,
+    "annotations": null,
+    "description": "",
+    "presentation": {
+        "i18n": {
+            "en": {}
+        },
+        "dates": {},
+        "tally": null,
+        "sort_order": null,
+        "init_report": null,
+        "language_conf": {
+            "default_language_code": "en",
+            "enabled_language_codes": ["en"]
+        },
+        "contests_order": "custom",
+        "audit_button_cfg": "show",
+        "cast_vote_confirm": true,
+        "voting_period_end": null,
+        "grace_period_policy": "no-grace-period",
+        "cast_vote_gold_level": "no-gold-level",
+        "decline_to_vote_policy": "disabled",
+        "start_screen_title_policy": "election",
+        "voting_screen_back_policy": "election-selection-screen",
+        "consolidated_report_policy": "do-not-generate",
+        "manual_start_voting_period": null,
+        "initialization_report_policy": "not-required",
+        "security_confirmation_policy": "none"
+    },
+    "status": {
+        "allow_tally": "requires-voting-period-end",
+        "init_report": "allowed",
+        "is_published": false,
+        "voting_status": "NOT_STARTED",
+        "early_voting_status": "NOT_STARTED",
+        "kiosk_voting_status": "NOT_STARTED",
+        "voting_period_dates": {
+            "last_paused_at": null,
+            "first_paused_at": null,
+            "last_started_at": null,
+            "last_stopped_at": null,
+            "first_started_at": null,
+            "first_stopped_at": null
+        },
+        "telephone_voting_status": "NOT_STARTED",
+        "early_voting_period_dates": {
+            "last_paused_at": null,
+            "first_paused_at": null,
+            "last_started_at": null,
+            "last_stopped_at": null,
+            "first_started_at": null,
+            "first_stopped_at": null
+        },
+        "kiosk_voting_period_dates": {
+            "last_paused_at": null,
+            "first_paused_at": null,
+            "last_started_at": null,
+            "last_stopped_at": null,
+            "first_started_at": null,
+            "first_stopped_at": null
+        },
+        "telephone_voting_period_dates": {
+            "last_paused_at": null,
+            "first_paused_at": null,
+            "last_started_at": null,
+            "last_stopped_at": null,
+            "first_started_at": null,
+            "first_stopped_at": null
+        }
+    },
+    "eml": null,
+    "external_id": null,
+    {{!-- One vote per voter by default; a revote allowance is a deliberate choice. --}}
+    "num_allowed_revotes": 0,
+    "is_consolidated_ballot_encoding": null,
+    "spoil_ballot_option": null,
+    "is_kiosk": false,
+    "voting_channels": {
+        "kiosk": false,
+        "online": true,
+        "telephone": false,
+        "early_voting": false
+    },
+    "image_document_id": null,
+    "statistics": {
+        "num_sms_sent": 0,
+        "num_emails_sent": 0
+    },
+    "receipts": {
+        "SMS": {
+            "allowed": false,
+            "template": null
+        },
+        "EMAIL": {
+            "allowed": false,
+            "template": null
+        },
+        "DOCUMENT": {
+            "allowed": false,
+            "template": null
+        }
+    },
+    "permission_label": null,
+    "initialization_report_generated": false,
+    "keys_ceremony_id": null
+}
