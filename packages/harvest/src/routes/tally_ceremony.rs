@@ -12,11 +12,8 @@ use sequent_core::ballot::{
 };
 use sequent_core::serialization::deserialize_with_path;
 use sequent_core::services::jwt::decode_permission_labels;
-use sequent_core::types::ceremonies::TallyElection;
-use sequent_core::types::ceremonies::TallyElectionStatus;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::ceremonies::TallyResolution;
-use sequent_core::types::ceremonies::TallySessionDocuments;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::permissions::Permissions;
 use sequent_core::{
@@ -25,14 +22,8 @@ use sequent_core::{
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use windmill::postgres::election::get_elections_by_ids;
-use windmill::postgres::tally_session::{
-    get_tally_session_by_id, update_tally_session_status,
-};
-use windmill::postgres::tally_session_execution::{
-    get_last_tally_session_execution, insert_tally_session_execution,
-};
+use windmill::postgres::tally_session::get_tally_session_by_id;
 use windmill::services::celery_app::get_celery_app;
-use windmill::services::ceremonies::serialize_logs::append_tally_recount_log;
 use windmill::services::ceremonies::tally_ceremony::{self};
 use windmill::services::ceremonies::tally_resolution;
 use windmill::services::database::get_hasura_pool;
@@ -332,83 +323,22 @@ pub async fn recount_tally_session(
         ));
     }
 
-    let last_execution = get_last_tally_session_execution(
-        &hasura_transaction,
-        &tenant_id,
-        &input.election_event_id,
-        &input.tally_session_id,
-    )
-    .await
-    .map_err(|err| {
-        (
-            Status::InternalServerError,
-            format!("Error getting last tally session execution: {err:?}"),
-        )
-    })?
-    .ok_or_else(|| {
-        (
-            Status::InternalServerError,
-            "No tally session execution found to recount".to_string(),
-        )
-    })?;
-
-    let original_status = tally_ceremony::get_tally_ceremony_status(
-        last_execution.status.clone(),
-    )
-    .map_err(|err| {
-        (
-            Status::InternalServerError,
-            format!("Error parsing tally session execution status: {err:?}"),
-        )
-    })?;
-
     let election_ids = tally_session.election_ids.clone().unwrap_or_default();
-    let mut recount_status = original_status.clone();
-    recount_status.logs =
-        append_tally_recount_log(&recount_status.logs, &election_ids);
-    recount_status.elections_status = election_ids
-        .iter()
-        .map(|election_id| TallyElection {
-            election_id: election_id.clone(),
-            status: TallyElectionStatus::WAITING,
-            progress: 0.0,
-        })
-        .collect();
-
-    insert_tally_session_execution(
-        &hasura_transaction,
-        &tenant_id,
-        &input.election_event_id,
-        last_execution.current_message_id,
-        &input.tally_session_id,
-        Some(recount_status),
-        None,
-        None,
-        None,
-    )
-    .await
-    .map_err(|err| {
-        (
-            Status::InternalServerError,
-            format!("Error inserting recount tally session execution: {err:?}"),
+    let (last_execution, original_status) =
+        tally_ceremony::begin_tally_session_recount(
+            &hasura_transaction,
+            &tenant_id,
+            &input.election_event_id,
+            &input.tally_session_id,
+            &election_ids,
         )
-    })?;
-
-    update_tally_session_status(
-        &hasura_transaction,
-        &tenant_id,
-        &input.election_event_id,
-        &input.tally_session_id,
-        TallyExecutionStatus::IN_PROGRESS,
-        false,
-    )
-    .await
-    .map_err(|err| {
-        (
-            Status::InternalServerError,
-            format!("Error marking tally session for recount: {err:?}"),
-        )
-    })?;
+        .await
+        .map_err(|err| {
+            (
+                Status::InternalServerError,
+                format!("Error starting tally session recount: {err:?}"),
+            )
+        })?;
 
     hasura_transaction.commit().await.map_err(|err| {
         (Status::InternalServerError, format!("Commit failed: {err}"))
@@ -427,82 +357,20 @@ pub async fn recount_tally_session(
         .await;
 
     if let Err(err) = task {
-        let mut reset_db_client: DbClient = get_hasura_pool().await.get().await.map_err(|pool_err| {
-            (
-                Status::InternalServerError,
-                format!(
-                    "Failed to send recount task ({err:?}) and failed to get hasura db pool for reset: {pool_err}"
-                ),
-            )
-        })?;
-        let reset_transaction = reset_db_client.transaction().await.map_err(|txn_err| {
-            (
-                Status::InternalServerError,
-                format!(
-                    "Failed to send recount task ({err:?}) and failed to start reset transaction: {txn_err}"
-                ),
-            )
-        })?;
-        update_tally_session_status(
-            &reset_transaction,
+        tally_ceremony::reset_tally_session_status_after_failed_recount_task(
             &tenant_id,
             &input.election_event_id,
             &input.tally_session_id,
-            TallyExecutionStatus::SUCCESS,
-            true,
+            &last_execution,
+            original_status,
+            &format!("{err:?}"),
         )
         .await
         .map_err(|reset_err| {
             (
                 Status::InternalServerError,
                 format!(
-                    "Failed to send recount task ({err:?}) and failed to reset tally status: {reset_err:?}"
-                ),
-            )
-        })?;
-
-        // Restore the previous (completed) execution row so the tally session
-        // details don't keep showing the reset "in progress" placeholder
-        // inserted above once the session status itself has been reverted.
-        let restored_documents: Option<TallySessionDocuments> = last_execution
-            .documents
-            .clone()
-            .map(serde_json::from_value)
-            .transpose()
-            .map_err(|documents_err| {
-                (
-                    Status::InternalServerError,
-                    format!(
-                        "Failed to send recount task ({err:?}) and failed to parse previous execution documents: {documents_err:?}"
-                    ),
-                )
-            })?;
-        insert_tally_session_execution(
-            &reset_transaction,
-            &tenant_id,
-            &input.election_event_id,
-            last_execution.current_message_id,
-            &input.tally_session_id,
-            Some(original_status),
-            last_execution.results_event_id.clone(),
-            last_execution.session_ids.clone(),
-            restored_documents,
-        )
-        .await
-        .map_err(|insert_err| {
-            (
-                Status::InternalServerError,
-                format!(
-                    "Failed to send recount task ({err:?}) and failed to restore previous execution: {insert_err:?}"
-                ),
-            )
-        })?;
-
-        reset_transaction.commit().await.map_err(|commit_err| {
-            (
-                Status::InternalServerError,
-                format!(
-                    "Failed to send recount task ({err:?}) and failed to commit reset: {commit_err}"
+                    "Failed to send recount task ({err:?}) and failed to reset tally session: {reset_err:?}"
                 ),
             )
         })?;
