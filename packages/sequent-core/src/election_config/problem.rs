@@ -58,6 +58,11 @@ pub enum Code {
     PermissionLabel,
     /// An election has no scheduled voting window.
     MissingSchedule,
+    /// Two spreadsheet columns disagree about the shape of the same field.
+    ///
+    /// Raised while reading a source document rather than while validating a
+    /// bundle: the bundle cannot be built at all until the author picks one.
+    ConflictingColumns,
 }
 
 /// One thing wrong with a bundle.
