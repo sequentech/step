@@ -5,31 +5,31 @@ import {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
-        welcome: "Comencemos: Importa la papeleta auditable...",
+        welcome: "Comencemos: Importe la papeleta auditable...",
         404: {
             title: "Página no encontrada",
             subtitle: "La página que busca no existe",
         },
         homeScreen: {
-            step1: "Paso 1: Importa tu papeleta electoral.",
+            step1: "Paso 1: Importe su papeleta electoral.",
             description1:
                 "Para continuar, por favor importe los datos de las papeletas encriptadas proporcionados en el Portal de Votación:",
             importBallotHelpDialog: {
-                title: "Información: Importa tu papeleta electoral",
+                title: "Información: Importe su papeleta electoral",
                 ok: "OK",
                 content:
                     "Para continuar, por favor importe los datos de las papeletas encriptadas proporcionados en el Portal de Votación.",
             },
-            step2: "Paso 2: Inserta tu ID de papeleta.",
+            step2: "Paso 2: Inserte su ID de papeleta.",
             description2:
                 "Por favor ingrese el ID de la papeleta proporcionado en el Portal de Votación:",
             ballotIdHelpDialog: {
-                title: "Information: Tu ID de papeleta",
+                title: "Información: Su ID de papeleta",
                 ok: "OK",
                 content:
                     "Por favor ingrese el ID de la papeleta proporcionado en el Portal de Votación.",
             },
-            startButton: "Selecciona fichero",
+            startButton: "Seleccione fichero",
             dragDropOption: "O arrastre el fichero aquí",
             importErrorDescription:
                 "Hubo un problema al importar el voto auditable. ¿Elegiste el archivo correcto?",
@@ -38,7 +38,7 @@ const spanishTranslation: TranslationType = {
             useSampleLink: "Use voto de ejemplo",
             nextButton: "Continuar",
             ballotIdLabel: "ID de papeleta",
-            ballotIdPlaceholder: "Escribe aquí tu ID de papeleta",
+            ballotIdPlaceholder: "Escriba aquí su ID de papeleta",
             fileUploaded: "Cargado",
         },
         confirmationScreen: {
@@ -63,14 +63,14 @@ const spanishTranslation: TranslationType = {
             backButton: "Atrás",
             printButton: "Imprimir",
             finishButton: "Verificado",
-            verifySelectionsTitle: "Verifica tus selecciones en la papeleta",
+            verifySelectionsTitle: "Verifique sus selecciones en la papeleta",
             verifySelectionsDescription:
-                "Las siguientes selecciones de la papeleta han sido descodificadas de la papeleta que importaste. Por favor, revísalas y asegúrate de que coincidan con las selecciones que hiciste en el Portal de Votación. Si tus selecciones no coinciden, por favor, contacta a las autoridades electorales...",
+                "Las siguientes selecciones de la papeleta han sido descodificadas de la papeleta que importó. Por favor, revíselas y asegúrese de que coincidan con las selecciones que hizo en el Portal de Votación. Si sus selecciones no coinciden, por favor, contacte con las autoridades electorales...",
             verifySelectionsHelpDialog: {
-                title: "Información: Verifica tus selecciones en la papeleta",
+                title: "Información: Verifique sus selecciones en la papeleta",
                 ok: "OK",
                 content:
-                    "Las siguientes selecciones de la papeleta han sido descodificadas de la papeleta que importaste. Por favor, revísalas y asegúrate de que coincidan con las selecciones que hiciste en el Portal de Votación. Si tus selecciones no coinciden, por favor, contacta a las autoridades electorales...",
+                    "Las siguientes selecciones de la papeleta han sido descodificadas de la papeleta que importó. Por favor, revíselas y asegúrese de que coincidan con las selecciones que hizo en el Portal de Votación. Si sus selecciones no coinciden, por favor, contacte con las autoridades electorales...",
             },
             markedInvalid: "Voto explícitamente marcado inválido",
             points_one: "({{count}} Punto)",

@@ -19,8 +19,8 @@ const catalanTranslation: TranslationType = {
         logout: {
             buttonText: "Tancar sessió",
             modal: {
-                title: "Segur que vols tancar la sessió?",
-                content: "Estàs a punt de tancar aquesta aplicació.",
+                title: "Segur que voleu tancar la sessió?",
+                content: "Esteu a punt de tancar aquesta aplicació.",
                 ok: "D'acord",
                 close: "Tancar",
             },
@@ -29,8 +29,8 @@ const catalanTranslation: TranslationType = {
             profile: "Perfil",
             welcome: "Benvingut/uda,<br><span>{{name}}</span>",
             session: {
-                title: "La teva sessió està a punt de caducar.",
-                timeLeft: "Et queda {{time}}.",
+                title: "La vostra sessió està a punt de caducar.",
+                timeLeft: "Us queda {{time}}.",
                 timeLeftMinutesAndSeconds: "{{timeLeftInMinutes}} minuts i {{time}} segons",
                 timeLeftSeconds: "{{timeLeft}} segons",
             },
@@ -56,15 +56,15 @@ const catalanTranslation: TranslationType = {
             state: {
                 unexpectedErrorTitle: "Error inesperat",
                 loadErrorMessage:
-                    "No hem pogut carregar els resultats ara mateix. Torna-ho a provar d'aquí a uns minuts.",
+                    "No hem pogut carregar els resultats ara mateix. Torneu-ho a provar d'aquí a uns minuts.",
                 signInErrorMessage:
-                    "No hem pogut completar l'inici de sessió per als resultats ara mateix. Torna-ho a provar d'aquí a uns minuts.",
+                    "No hem pogut completar l'inici de sessió per als resultats ara mateix. Torneu-ho a provar d'aquí a uns minuts.",
                 signInRequiredTitle: "Cal iniciar sessió",
                 signInRequiredMessage:
-                    "Inicia sessió amb el teu compte de votant per veure aquests resultats.",
+                    "Inicieu la sessió amb el vostre compte de votant per veure aquests resultats.",
                 notPublishedTitle: "Resultats encara no publicats",
                 notPublishedMessage:
-                    "Els resultats no estan disponibles en aquest moment. Torna-ho a comprovar més tard.",
+                    "Els resultats no estan disponibles en aquest moment. Torneu-ho a comprovar més tard.",
             },
             summary: {
                 title: "Informació general",

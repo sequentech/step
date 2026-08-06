@@ -5,40 +5,40 @@ import {TranslationType} from "./en"
 
 const catalanTranslation: TranslationType = {
     translations: {
-        "welcome": "Comencem: Importa la papereta auditable...",
+        "welcome": "Comencem: Importeu la papereta auditable...",
         "404": {
             title: "Pàgina no trobada",
             subtitle: "La pàgina que busques no existeix",
         },
         "homeScreen": {
-            step1: "Pas 1: Importa la teva papereta electoral.",
+            step1: "Pas 1: Importeu la vostra papereta electoral.",
             description1:
-                "Per continuar, si us plau importa les dades de les paperetes encriptades proporcionades al Portal de Votació:",
+                "Per continuar, si us plau importeu les dades de les paperetes encriptades proporcionades al Portal de Votació:",
             importBallotHelpDialog: {
-                title: "Informació: Importa la teva papereta electoral",
+                title: "Informació: Importeu la vostra papereta electoral",
                 ok: "D'acord",
                 content:
-                    "Per continuar, si us plau importa les dades de les paperetes encriptades proporcionades al Portal de Votació.",
+                    "Per continuar, si us plau importeu les dades de les paperetes encriptades proporcionades al Portal de Votació.",
             },
-            step2: "Pas 2: Insereix el teu ID de papereta.",
+            step2: "Pas 2: Introduïu el vostre ID de papereta.",
             description2:
-                "Si us plau introdueix l'ID de la papereta proporcionat al Portal de Votació:",
+                "Si us plau, introduïu l'ID de la papereta proporcionat al Portal de Votació:",
             ballotIdHelpDialog: {
-                title: "Informació: El teu ID de papereta",
+                title: "Informació: El vostre ID de papereta",
                 ok: "D'acord",
                 content:
-                    "Si us plau introdueix l'ID de la papereta proporcionat al Portal de Votació.",
+                    "Si us plau, introduïu l'ID de la papereta proporcionat al Portal de Votació.",
             },
-            startButton: "Selecciona fitxer",
+            startButton: "Seleccioneu fitxer",
             dragDropOption: "O arrossega el fitxer aquí",
             importErrorDescription:
-                "Hi ha hagut un problema en importar el vot auditable. Has triat el fitxer correcte?",
+                "Hi ha hagut un problema en importar el vot auditable. Heu triat el fitxer correcte?",
             importErrorMoreInfo: "Més informació",
             importErrorTitle: "Error",
-            useSampleLink: "Utilitza vot d'exemple",
+            useSampleLink: "Utilitzeu vot d'exemple",
             nextButton: "Continuar",
             ballotIdLabel: "ID de papereta",
-            ballotIdPlaceholder: "Escriu aquí el teu ID de papereta",
+            ballotIdPlaceholder: "Escriviu aquí el vostre ID de papereta",
             fileUploaded: "Carregat",
         },
         "confirmationScreen": {
@@ -63,14 +63,14 @@ const catalanTranslation: TranslationType = {
             backButton: "Enrere",
             printButton: "Imprimir",
             finishButton: "Verificat",
-            verifySelectionsTitle: "Verifica les teves seleccions a la papereta",
+            verifySelectionsTitle: "Verifiqueu les vostres seleccions a la papereta",
             verifySelectionsDescription:
-                "Les següents seleccions de la papereta han estat descodificades de la papereta que vas importar. Si us plau, revisa-les i assegura't que coincideixin amb les seleccions que vas fer al Portal de Votació. Si les teves seleccions no coincideixen, si us plau, contacta amb les autoritats electorals...",
+                "Les següents seleccions de la papereta han estat descodificades de la papereta que vau importar. Si us plau, reviseu-les i assegureu-vos que coincideixin amb les seleccions que vau fer al Portal de Votació. Si les vostres seleccions no coincideixen, si us plau, contacteu amb les autoritats electorals...",
             verifySelectionsHelpDialog: {
-                title: "Informació: Verifica les teves seleccions a la papereta",
+                title: "Informació: Verifiqueu les vostres seleccions a la papereta",
                 ok: "D'acord",
                 content:
-                    "Les següents seleccions de la papereta han estat descodificades de la papereta que vas importar. Si us plau, revisa-les i assegura't que coincideixin amb les seleccions que vas fer al Portal de Votació. Si les teves seleccions no coincideixen, si us plau, contacta amb les autoritats electorals...",
+                    "Les següents seleccions de la papereta han estat descodificades de la papereta que vau importar. Si us plau, reviseu-les i assegureu-vos que coincideixin amb les seleccions que vau fer al Portal de Votació. Si les vostres seleccions no coincideixen, si us plau, contacteu amb les autoritats electorals...",
             },
             markedInvalid: "Vot explícitament marcat invàlid",
             points_one: "({{count}} Punt)",

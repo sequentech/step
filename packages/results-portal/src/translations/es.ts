@@ -19,8 +19,8 @@ const spanishTranslation: TranslationType = {
         logout: {
             buttonText: "Cerrar sesión",
             modal: {
-                title: "¿Seguro que quieres cerrar sesión?",
-                content: "Estás a punto de cerrar esta aplicación.",
+                title: "¿Seguro que quiere cerrar sesión?",
+                content: "Está a punto de cerrar esta aplicación.",
                 ok: "OK",
                 close: "Cerrar",
             },
@@ -29,8 +29,8 @@ const spanishTranslation: TranslationType = {
             profile: "Perfil",
             welcome: "Bienvenido/a,<br><span>{{name}}</span>",
             session: {
-                title: "Tu sesión va a caducar.",
-                timeLeft: "Te queda {{time}}.",
+                title: "Su sesión va a caducar.",
+                timeLeft: "Le queda {{time}}.",
                 timeLeftMinutesAndSeconds: "{{timeLeftInMinutes}} minutos y {{time}} segundos",
                 timeLeftSeconds: "{{timeLeft}} segundos",
             },
@@ -56,15 +56,15 @@ const spanishTranslation: TranslationType = {
             state: {
                 unexpectedErrorTitle: "Error inesperado",
                 loadErrorMessage:
-                    "No hemos podido cargar los resultados ahora mismo. Inténtalo de nuevo en unos minutos.",
+                    "No hemos podido cargar los resultados ahora mismo. Inténtelo de nuevo en unos minutos.",
                 signInErrorMessage:
-                    "No hemos podido completar el inicio de sesión para los resultados ahora mismo. Inténtalo de nuevo en unos minutos.",
+                    "No hemos podido completar el inicio de sesión para los resultados ahora mismo. Inténtelo de nuevo en unos minutos.",
                 signInRequiredTitle: "Inicio de sesión requerido",
                 signInRequiredMessage:
-                    "Inicia sesión con tu cuenta de votante para ver estos resultados.",
+                    "Inicie sesión con su cuenta de votante para ver estos resultados.",
                 notPublishedTitle: "Resultados todavía no publicados",
                 notPublishedMessage:
-                    "Los resultados no están disponibles en este momento. Vuelve a comprobarlo más tarde.",
+                    "Los resultados no están disponibles en este momento. Vuelva a comprobarlo más tarde.",
             },
             summary: {
                 title: "Información general",
