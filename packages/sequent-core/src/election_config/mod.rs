@@ -52,7 +52,9 @@ pub mod xlsx;
 mod validate_tests;
 
 #[cfg(feature = "election_config_templates")]
-pub use build::{build, BuildOptions, Bundle};
+pub use build::{
+    build, BuildOptions, Bundle, CommunicationTemplate, JsonTable, PlainTable,
+};
 pub use emit::{json_csv, plain_csv, JsonField};
 pub use ids::IdFactory;
 pub use paths::{coerce_cell, deep_merge, expand, Cell};

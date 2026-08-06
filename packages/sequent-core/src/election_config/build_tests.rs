@@ -6,6 +6,7 @@
 //! there is builder.
 
 use super::*;
+use crate::election_config::emit::JsonField;
 use crate::election_config::paths::Cell;
 use crate::election_config::sheet::Sheet;
 
@@ -661,7 +662,14 @@ fn a_row_with_no_key_is_a_note_to_the_author_and_is_skipped() {
             ],
         ],
     ));
-    assert!(bundle.warnings.is_empty(), "{}", bundle.warnings);
+    assert!(
+        !bundle
+            .warnings
+            .warnings()
+            .any(|problem| problem.message.contains("parameter")),
+        "{}",
+        bundle.warnings
+    );
 }
 
 // -- base export ----------------------------------------------------------
@@ -815,4 +823,823 @@ fn columns_that_disagree_about_a_shape_are_reported_against_the_cell() {
     let problem = report.errors().next().unwrap();
     assert_eq!(problem.code, Code::ConflictingColumns);
     assert!(problem.path.contains("sheet 'Elections' row 2"));
+}
+
+// -- voters ---------------------------------------------------------------
+
+/// The sound document with a Voters sheet added.
+fn with_voters(grid: Vec<Vec<Cell>>) -> Workbook {
+    with_sheet("Voters", grid)
+}
+
+#[test]
+fn a_voter_row_becomes_a_csv_row_the_importer_understands() {
+    let bundle = built(&with_voters(vec![
+        vec![
+            text("username"),
+            text("email"),
+            text("first_name"),
+            text("last_name"),
+            text("area.external_id"),
+        ],
+        vec![
+            text("m-1001"),
+            text("alice@example.org"),
+            text("Alice"),
+            text("Adams"),
+            text("area-north"),
+        ],
+    ]));
+
+    let voters = &bundle.voters;
+    let column = |name: &str| voters.column(name).expect(name);
+    let row = &voters.rows[0];
+
+    assert_eq!(row[column("username")], "m-1001");
+    assert_eq!(row[column("email")], "alice@example.org");
+    // The area travels as a name, because that is what the importer resolves by.
+    assert_eq!(row[column("area_name")], "North");
+    assert!(!row[column("id")].is_empty());
+}
+
+#[test]
+fn a_voter_with_an_address_is_treated_as_verified() {
+    // An unverified address blocks delivery of the one-time code, and a census
+    // address is one the client asserts is correct.
+    let bundle = built(&with_voters(vec![
+        vec![text("username"), text("email"), text("area.external_id")],
+        vec![text("with"), text("a@example.org"), text("area-north")],
+        vec![text("without"), Cell::Blank, text("area-north")],
+    ]));
+    let verified = bundle.voters.column("email_verified").unwrap();
+    assert_eq!(bundle.voters.rows[0][verified], "true");
+    assert_eq!(bundle.voters.rows[1][verified], "false");
+}
+
+#[test]
+fn a_voter_is_enabled_unless_the_source_says_otherwise() {
+    let bundle = built(&with_voters(vec![
+        vec![text("username"), text("enabled"), text("area.external_id")],
+        vec![text("default"), Cell::Blank, text("area-north")],
+        vec![text("ticked"), text("x"), text("area-north")],
+        vec![text("off"), text("no"), text("area-north")],
+    ]));
+    let enabled = bundle.voters.column("enabled").unwrap();
+    assert_eq!(bundle.voters.rows[0][enabled], "true");
+    assert_eq!(bundle.voters.rows[1][enabled], "true");
+    assert_eq!(bundle.voters.rows[2][enabled], "false");
+}
+
+#[test]
+fn a_voter_with_no_election_restriction_is_authorized_for_all_of_them() {
+    // Writing an empty attribute would deny access to every election instead.
+    let bundle = built(&with_voters(vec![
+        vec![text("username"), text("area.external_id")],
+        vec![text("m-1001"), text("area-north")],
+    ]));
+    let column = bundle.voters.column("authorized-election-ids").unwrap();
+    assert_eq!(
+        bundle.voters.rows[0][column],
+        bundle.export["elections"][0]["id"].as_str().unwrap()
+    );
+}
+
+#[test]
+fn a_restricted_voter_gets_the_elections_named_resolved_to_ids() {
+    let bundle = built(&with_voters(vec![
+        vec![
+            text("username"),
+            text("authorized-election-ids"),
+            text("area.external_id"),
+        ],
+        vec![text("m-1001"), text("statewide"), text("area-north")],
+    ]));
+    let column = bundle.voters.column("authorized-election-ids").unwrap();
+    assert_eq!(
+        bundle.voters.rows[0][column],
+        bundle.export["elections"][0]["id"].as_str().unwrap()
+    );
+}
+
+#[test]
+fn a_voter_naming_an_election_nobody_configured_is_refused() {
+    let report = refused(&with_voters(vec![
+        vec![
+            text("username"),
+            text("authorized-election-ids"),
+            text("area.external_id"),
+        ],
+        vec![text("m-1001"), text("no-such-election"), text("area-north")],
+    ]));
+    assert!(has_error_saying(
+        &report,
+        "no election has external_id 'no-such-election'"
+    ));
+}
+
+#[test]
+fn a_voter_needs_a_username_and_an_area() {
+    let report = refused(&with_voters(vec![
+        vec![text("username"), text("area.external_id")],
+        vec![Cell::Blank, text("area-north")],
+        vec![text("m-1002"), Cell::Blank],
+        vec![text("m-1003"), text("nowhere")],
+    ]));
+    assert!(has_error_saying(&report, "a voter needs a username"));
+    assert!(has_error_saying(&report, "a voter needs an area"));
+    assert!(has_error_saying(
+        &report,
+        "no area has external_id 'nowhere'"
+    ));
+}
+
+#[test]
+fn two_voters_may_not_share_a_username() {
+    let report = refused(&with_voters(vec![
+        vec![text("username"), text("area.external_id")],
+        vec![text("m-1001"), text("area-north")],
+        vec![text("m-1001"), text("area-south")],
+    ]));
+    assert!(has_error_saying(&report, "already used by row 2"));
+}
+
+#[test]
+fn an_unknown_column_is_carried_through_as_a_voter_attribute() {
+    // How a client adds a reporting breakout column with no code change.
+    let bundle = built(&with_voters(vec![
+        vec![
+            text("username"),
+            text("area.external_id"),
+            text("local-number"),
+        ],
+        vec![text("m-1001"), text("area-north"), text("1000")],
+    ]));
+    let column = bundle.voters.column("local-number").expect("local-number");
+    assert_eq!(bundle.voters.rows[0][column], "1000");
+    // And it lands after the derived columns, not among them.
+    assert!(column >= VOTER_LEADING_COLUMNS.len());
+}
+
+#[test]
+fn a_passthrough_column_blank_for_every_voter_is_dropped() {
+    // Not cosmetic: get_copy_from_query treats the mere presence of a `password`
+    // header as "hash a password for each of these voters", so a blank one would
+    // give every voter an empty credential.
+    let bundle = built(&with_voters(vec![
+        vec![
+            text("username"),
+            text("area.external_id"),
+            text("password"),
+            text("local-number"),
+        ],
+        vec![
+            text("m-1001"),
+            text("area-north"),
+            Cell::Blank,
+            text("1000"),
+        ],
+    ]));
+    assert!(bundle.voters.column("password").is_none());
+    assert!(bundle.voters.column("local-number").is_some());
+    assert!(bundle
+        .warnings
+        .warnings()
+        .any(|problem| problem.message.contains("password")));
+}
+
+#[test]
+fn a_derived_column_is_kept_even_when_every_voter_leaves_it_blank() {
+    // The importer expects them, and an absent `email` header is not the same as
+    // an empty one.
+    let bundle = built(&with_voters(vec![
+        vec![text("username"), text("area.external_id")],
+        vec![text("m-1001"), text("area-north")],
+    ]));
+    for column in VOTER_LEADING_COLUMNS {
+        assert!(bundle.voters.column(column).is_some(), "{column}");
+    }
+}
+
+#[test]
+fn voters_with_no_way_to_receive_a_code_are_warned_about() {
+    // Not an error: credentials are sometimes distributed on paper.
+    let bundle = built(&with_voters(vec![
+        vec![text("username"), text("email"), text("area.external_id")],
+        vec![text("reachable"), text("a@example.org"), text("area-north")],
+        vec![text("not"), Cell::Blank, text("area-north")],
+    ]));
+    assert!(bundle.warnings.warnings().any(|problem| problem
+        .message
+        .contains("1 of 2 voters have neither an email address")));
+}
+
+#[test]
+fn a_census_with_no_contact_column_at_all_makes_every_voter_unreachable() {
+    // `email` is a derived column, so it is in the table whether or not the
+    // source has it — which is why there is no separate "no contact column"
+    // case. Every voter simply has an empty one.
+    let bundle = built(&with_voters(vec![
+        vec![text("username"), text("area.external_id")],
+        vec![text("m-1001"), text("area-north")],
+        vec![text("m-1002"), text("area-south")],
+    ]));
+    assert!(bundle.voters.column("email").is_some());
+    assert!(bundle.warnings.warnings().any(|problem| problem
+        .message
+        .contains("2 of 2 voters have neither an email address")));
+}
+
+#[test]
+fn a_column_name_the_importer_would_reject_is_caught_before_the_upload() {
+    // Otherwise it fails mid-import with nothing naming the column.
+    let report = refused(&with_voters(vec![
+        vec![
+            text("username"),
+            text("area.external_id"),
+            text("home address"),
+        ],
+        vec![text("m-1001"), text("area-north"), text("1 Main St")],
+    ]));
+    assert!(has_error_saying(
+        &report,
+        "the importer rejects this column name"
+    ));
+}
+
+// -- scheduled events -----------------------------------------------------
+
+fn with_schedule(grid: Vec<Vec<Cell>>) -> Workbook {
+    with_sheet("ScheduledEvents", grid)
+}
+
+#[test]
+fn a_voting_window_becomes_two_rows_of_the_scheduled_events_csv() {
+    let bundle = built(&with_schedule(vec![
+        vec![
+            text("event_type"),
+            text("scheduled_datetime"),
+            text("election.external_id"),
+        ],
+        vec![
+            text("START_VOTING_PERIOD"),
+            text("2027-03-01T16:00:00Z"),
+            text("statewide"),
+        ],
+        vec![
+            text("END_VOTING_PERIOD"),
+            text("2027-03-15T23:59:00Z"),
+            text("statewide"),
+        ],
+    ]));
+    assert_eq!(bundle.scheduled_events.len(), 2);
+
+    let row = &bundle.scheduled_events.rows[0];
+    assert_eq!(row.len(), 12);
+    assert_eq!(row[8], JsonField::string("START_VOTING_PERIOD"));
+    assert_eq!(
+        row[9],
+        JsonField::Value(json!({
+            "cron": Value::Null,
+            "scheduled_date": "2027-03-01T16:00:00Z",
+        }))
+    );
+    // A SQL NULL, written bare rather than as a quoted JSON null.
+    assert_eq!(row[4], JsonField::Null);
+}
+
+#[test]
+fn the_payload_names_the_election_and_the_task_id_matches_the_platform() {
+    // The platform looks its task up by this name; a different shape means a task
+    // that never fires.
+    let bundle = built(&with_schedule(vec![
+        vec![
+            text("event_type"),
+            text("scheduled_datetime"),
+            text("election.external_id"),
+        ],
+        vec![
+            text("START_VOTING_PERIOD"),
+            text("2027-03-01T16:00:00Z"),
+            text("statewide"),
+        ],
+    ]));
+    let election_id = bundle.export["elections"][0]["id"].as_str().unwrap();
+    let row = &bundle.scheduled_events.rows[0];
+
+    assert_eq!(
+        row[10],
+        JsonField::Value(json!({"election_id": election_id}))
+    );
+    assert_eq!(
+        row[11],
+        JsonField::string(format!(
+            "tenant_{}_event_{}_election_{election_id}_START_VOTING_PERIOD",
+            bundle.tenant_id, bundle.event_id
+        ))
+    );
+}
+
+#[test]
+fn an_event_wide_schedule_leaves_the_election_out_of_both() {
+    let bundle = built(&with_schedule(vec![
+        vec![text("event_type"), text("scheduled_datetime")],
+        vec![text("START_VOTING_PERIOD"), text("2027-03-01T16:00:00Z")],
+    ]));
+    let row = &bundle.scheduled_events.rows[0];
+    assert_eq!(row[10], JsonField::Value(json!({"election_id": null})));
+    assert_eq!(
+        row[11],
+        JsonField::string(format!(
+            "tenant_{}_event_{}_START_VOTING_PERIOD",
+            bundle.tenant_id, bundle.event_id
+        ))
+    );
+}
+
+#[test]
+fn an_author_may_write_an_event_type_the_way_they_speak_it() {
+    let bundle = built(&with_schedule(vec![
+        vec![text("event_type"), text("scheduled_datetime")],
+        vec![text("start voting period"), text("2027-03-01T16:00:00Z")],
+        vec![text("end-voting-period"), text("2027-03-15T23:59:00Z")],
+    ]));
+    assert_eq!(
+        bundle.scheduled_events.rows[0][8],
+        JsonField::string("START_VOTING_PERIOD")
+    );
+    assert_eq!(
+        bundle.scheduled_events.rows[1][8],
+        JsonField::string("END_VOTING_PERIOD")
+    );
+}
+
+#[test]
+fn an_event_type_nothing_processes_is_refused_with_the_list() {
+    let report = refused(&with_schedule(vec![
+        vec![text("event_type"), text("scheduled_datetime")],
+        vec![text("OPEN_THE_POLLS"), text("2027-03-01T16:00:00Z")],
+    ]));
+    assert!(has_error_saying(&report, "is not an event processor"));
+    assert!(has_error_saying(&report, "START_VOTING_PERIOD"));
+}
+
+#[test]
+fn a_scheduled_event_with_no_time_is_refused() {
+    let report = refused(&with_schedule(vec![
+        vec![text("event_type"), text("scheduled_datetime")],
+        vec![text("START_VOTING_PERIOD"), Cell::Blank],
+    ]));
+    assert!(has_error_saying(&report, "needs a scheduled_datetime"));
+}
+
+#[test]
+fn an_event_name_is_kept_as_an_annotation_so_the_csv_reads_like_the_source() {
+    let bundle = built(&with_schedule(vec![
+        vec![
+            text("event_name"),
+            text("event_type"),
+            text("scheduled_datetime"),
+        ],
+        vec![
+            text("Polls open"),
+            text("START_VOTING_PERIOD"),
+            text("2027-03-01T16:00:00Z"),
+        ],
+    ]));
+    assert_eq!(
+        bundle.scheduled_events.rows[0][7],
+        JsonField::Value(json!({"janitor.event_name": "Polls open"}))
+    );
+}
+
+#[test]
+fn an_election_whose_window_never_opens_is_warned_about() {
+    // It imports fine and then quietly never opens.
+    let bundle = built(&with_schedule(vec![
+        vec![
+            text("event_type"),
+            text("scheduled_datetime"),
+            text("election.external_id"),
+        ],
+        vec![
+            text("START_VOTING_PERIOD"),
+            text("2027-03-01T16:00:00Z"),
+            text("statewide"),
+        ],
+    ]));
+    assert!(bundle.warnings.warnings().any(|problem| problem
+        .message
+        .contains("no END_VOTING_PERIOD scheduled event")));
+}
+
+#[test]
+fn an_event_wide_window_covers_every_election() {
+    let bundle = built(&with_schedule(vec![
+        vec![text("event_type"), text("scheduled_datetime")],
+        vec![text("START_VOTING_PERIOD"), text("2027-03-01T16:00:00Z")],
+        vec![text("END_VOTING_PERIOD"), text("2027-03-15T23:59:00Z")],
+    ]));
+    assert!(
+        !bundle
+            .warnings
+            .warnings()
+            .any(|problem| problem.message.contains("voting period will not")),
+        "{}",
+        bundle.warnings
+    );
+}
+
+#[test]
+fn a_document_with_no_schedule_at_all_says_it_will_need_hands() {
+    let bundle = built(&sound());
+    assert!(bundle.scheduled_events.is_empty());
+    assert!(bundle.warnings.warnings().any(|problem| problem
+        .message
+        .contains("by hand in the Admin Portal")));
+}
+
+// -- reports --------------------------------------------------------------
+
+#[test]
+fn no_reports_sheet_means_no_reports_member() {
+    // Absent and empty are the same thing, and an empty CSV is not a valid one.
+    assert!(built(&sound()).reports.is_none());
+}
+
+#[test]
+fn a_report_row_becomes_a_positional_csv_row() {
+    let bundle = built(&with_sheet(
+        "Reports",
+        vec![
+            vec![
+                text("report_type"),
+                text("election.external_id"),
+                text("encryption_policy"),
+                text("permission_label"),
+            ],
+            vec![
+                text("tally"),
+                text("statewide"),
+                text("configured_password"),
+                text("statewide-officers || auditors"),
+            ],
+        ],
+    ));
+    let reports = bundle.reports.expect("a reports table");
+    let row = &reports.rows[0];
+
+    assert_eq!(row.len(), 8);
+    assert_eq!(
+        row[1],
+        bundle.export["elections"][0]["id"].as_str().unwrap()
+    );
+    assert_eq!(row[2], "tally");
+    // Read from the row, not from the template's default: this is the field that
+    // silently became `unencrypted` once.
+    assert_eq!(row[5], "configured_password");
+    // Option<Vec<String>>, split on "|" by process_reports_file.
+    assert_eq!(row[7], "statewide-officers|auditors");
+}
+
+#[test]
+fn a_report_with_no_policy_falls_back_to_unencrypted() {
+    let bundle = built(&with_sheet(
+        "Reports",
+        vec![vec![text("report_type")], vec![text("tally")]],
+    ));
+    let reports = bundle.reports.expect("a reports table");
+    assert_eq!(reports.rows[0][5], "unencrypted");
+}
+
+#[test]
+fn a_report_needs_a_type() {
+    let report = refused(&with_sheet(
+        "Reports",
+        vec![
+            vec![text("report_type"), text("election.external_id")],
+            vec![Cell::Blank, text("statewide")],
+        ],
+    ));
+    assert!(has_error_saying(&report, "a report needs a report_type"));
+}
+
+#[test]
+fn a_report_naming_a_template_nobody_defined_is_refused() {
+    let report = refused(&with_sheet(
+        "Reports",
+        vec![
+            vec![text("report_type"), text("template.alias")],
+            vec![text("tally"), text("no-such-template")],
+        ],
+    ));
+    assert!(has_error_saying(
+        &report,
+        "no Templates row has alias 'no-such-template'"
+    ));
+}
+
+#[test]
+fn a_report_password_is_flagged_as_a_secret() {
+    let mut sheets: Vec<Sheet> = sound().sheets().to_vec();
+    sheets.push(
+        Sheet::from_grid(
+            "Reports",
+            &[
+                vec![text("report_type"), text("password")],
+                vec![text("tally"), text("s3cret")],
+            ],
+        )
+        .unwrap(),
+    );
+    let bundle = built(&Workbook::new(sheets).unwrap());
+    assert!(bundle
+        .warnings
+        .warnings()
+        .any(|problem| problem.message.contains("clear text")));
+}
+
+// -- admin users, permissions, templates ----------------------------------
+
+#[test]
+fn admin_users_keep_their_own_columns() {
+    // Not an event-import member: the sheet is the shape, whatever it holds.
+    let bundle = built(&with_sheet(
+        "Admin Users",
+        vec![
+            vec![text("username"), text("email"), text("permission_labels")],
+            vec![
+                text("admin1"),
+                text("admin@example.org"),
+                text("statewide-officers || auditors"),
+            ],
+        ],
+    ));
+    let admins = bundle.admin_users.expect("an admin users table");
+    assert_eq!(admins.columns, ["username", "email", "permission_labels"]);
+    // "||" in, "|" out.
+    assert_eq!(admins.rows[0][2], "statewide-officers|auditors");
+}
+
+#[test]
+fn an_admin_user_needs_a_username() {
+    let report = refused(&with_sheet(
+        "Admin Users",
+        vec![
+            vec![text("username"), text("email")],
+            vec![Cell::Blank, text("a@b.c")],
+        ],
+    ));
+    assert!(has_error_saying(&report, "an admin user needs a username"));
+}
+
+#[test]
+fn admin_passwords_are_flagged_once_however_many_rows_carry_them() {
+    let bundle = built(&with_sheet(
+        "Admin Users",
+        vec![
+            vec![text("username"), text("password")],
+            vec![text("admin1"), text("s3cret")],
+            vec![text("admin2"), text("s3cret2")],
+        ],
+    ));
+    assert_eq!(
+        bundle
+            .warnings
+            .warnings()
+            .filter(|problem| problem.message.contains("clear-text passwords"))
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn the_permission_matrix_is_transposed_into_the_platform_shape() {
+    // A matrix is what a human can check at a glance; role,permissions is what
+    // export_tenant_config.rs writes.
+    let bundle = built(&with_sheet(
+        "Permissions",
+        vec![
+            vec![text("permission"), text("admin"), text("auditor")],
+            vec![text("election:read"), text("x"), text("x")],
+            vec![text("election:write"), text("x"), Cell::Blank],
+        ],
+    ));
+    let permissions = bundle.role_permissions.expect("a permissions table");
+    assert_eq!(permissions.columns, ["role", "permissions"]);
+    assert_eq!(
+        permissions.rows,
+        vec![
+            vec![
+                "admin".to_string(),
+                "election:read|election:write".to_string()
+            ],
+            vec!["auditor".to_string(), "election:read".to_string()],
+        ]
+    );
+}
+
+#[test]
+fn a_permission_matrix_with_no_roles_says_what_it_expected() {
+    let report = refused(&with_sheet(
+        "Permissions",
+        vec![vec![text("permission")], vec![text("election:read")]],
+    ));
+    assert!(has_error_saying(&report, "has no role columns"));
+}
+
+#[test]
+fn a_template_becomes_a_file_beside_the_bundle() {
+    // The event zip has no member for communication templates.
+    let bundle = built(&with_sheet(
+        "Templates",
+        vec![
+            vec![
+                text("name"),
+                text("alias"),
+                text("type"),
+                text("communication_method"),
+                text("template.document"),
+            ],
+            vec![
+                text("Voter Credentials"),
+                text("voter_credentials"),
+                text("VOTER_CREDENTIALS"),
+                text("EMAIL"),
+                text(r"Dear {{name}},\n\nYour code is {{code}}."),
+            ],
+        ],
+    ));
+    assert_eq!(bundle.templates.len(), 1);
+    let template = &bundle.templates[0];
+    assert_eq!(template.alias, "voter_credentials");
+    assert_eq!(template.name, "Voter Credentials");
+    assert_eq!(template.template_type.as_deref(), Some("VOTER_CREDENTIALS"));
+    assert_eq!(template.communication_method.as_deref(), Some("EMAIL"));
+    // The literal \n a copy-paste out of a JSON export leaves behind.
+    assert_eq!(
+        template.document,
+        "Dear {{name}},\n\nYour code is {{code}}."
+    );
+    assert_eq!(template.file_name(), "voter_credentials.hbs");
+}
+
+#[test]
+fn a_template_falls_back_to_its_name_when_it_has_no_alias() {
+    let bundle = built(&with_sheet(
+        "Templates",
+        vec![
+            vec![text("name"), text("template.document")],
+            vec![text("Reminder"), text("hello")],
+        ],
+    ));
+    assert_eq!(bundle.templates[0].alias, "Reminder");
+    assert_eq!(bundle.templates[0].name, "Reminder");
+}
+
+#[test]
+fn a_template_needs_a_name_and_a_document() {
+    let report = refused(&with_sheet(
+        "Templates",
+        vec![
+            vec![text("name"), text("alias"), text("template.document")],
+            vec![Cell::Blank, Cell::Blank, text("orphan")],
+            vec![text("No document"), text("nodoc"), Cell::Blank],
+        ],
+    ));
+    assert!(has_error_saying(&report, "needs a name or an alias"));
+    assert!(has_error_saying(&report, "a template needs a document"));
+}
+
+#[test]
+fn two_templates_may_not_share_an_alias() {
+    let report = refused(&with_sheet(
+        "Templates",
+        vec![
+            vec![text("alias"), text("template.document")],
+            vec![text("otp"), text("one")],
+            vec![text("otp"), text("two")],
+        ],
+    ));
+    assert!(has_error_saying(&report, "already used by row 2"));
+}
+
+// -- everything together --------------------------------------------------
+
+#[test]
+fn a_full_document_builds_every_member_and_still_validates() {
+    // The whole surface at once, because the members share resolved ids and a
+    // mistake in one shows up in another.
+    let mut sheets: Vec<Sheet> = sound().sheets().to_vec();
+    for (name, grid) in [
+        (
+            "Voters",
+            vec![
+                vec![
+                    text("username"),
+                    text("email"),
+                    text("area.external_id"),
+                    text("local-number"),
+                ],
+                vec![
+                    text("m-1001"),
+                    text("alice@example.org"),
+                    text("area-north"),
+                    text("1000"),
+                ],
+                vec![
+                    text("m-1002"),
+                    text("bob@example.org"),
+                    text("area-south"),
+                    text("2000"),
+                ],
+            ],
+        ),
+        (
+            "ScheduledEvents",
+            vec![
+                vec![text("event_type"), text("scheduled_datetime")],
+                vec![text("START_VOTING_PERIOD"), text("2027-03-01T16:00:00Z")],
+                vec![text("END_VOTING_PERIOD"), text("2027-03-15T23:59:00Z")],
+            ],
+        ),
+        (
+            "Templates",
+            vec![
+                vec![text("alias"), text("template.document")],
+                vec![text("tally_report"), text("Results for {{election}}")],
+            ],
+        ),
+        (
+            "Reports",
+            vec![
+                vec![text("report_type"), text("template.alias")],
+                vec![text("tally"), text("tally_report")],
+            ],
+        ),
+        (
+            "Admin Users",
+            vec![
+                vec![text("username"), text("permission_labels")],
+                vec![text("admin1"), text("statewide-officers")],
+            ],
+        ),
+        (
+            "Permissions",
+            vec![
+                vec![text("permission"), text("admin")],
+                vec![text("election:read"), text("x")],
+            ],
+        ),
+    ] {
+        sheets.push(Sheet::from_grid(name, &grid).unwrap());
+    }
+
+    let bundle = built(&Workbook::new(sheets).unwrap());
+
+    assert_eq!(bundle.voters.len(), 2);
+    assert_eq!(bundle.scheduled_events.len(), 2);
+    assert_eq!(bundle.reports.as_ref().map(PlainTable::len), Some(1));
+    assert_eq!(bundle.admin_users.as_ref().map(PlainTable::len), Some(1));
+    assert_eq!(
+        bundle.role_permissions.as_ref().map(PlainTable::len),
+        Some(1)
+    );
+    assert_eq!(bundle.templates.len(), 1);
+
+    // And the JSON document is still one the platform accepts.
+    let schema: crate::election_config::ImportElectionEventSchema =
+        serde_json::from_value(bundle.export.clone()).unwrap();
+    let report = crate::election_config::validate(&schema);
+    assert!(!report.has_errors(), "{report}");
+}
+
+#[test]
+fn the_csv_members_render_through_the_shared_writers() {
+    // The tables exist to be written by emit, so the join has to hold.
+    use crate::election_config::emit::{json_csv, plain_csv};
+
+    let bundle = built(&with_voters(vec![
+        vec![text("username"), text("email"), text("area.external_id")],
+        vec![
+            text("m-1001"),
+            text("alice@example.org"),
+            text("area-north"),
+        ],
+    ]));
+
+    let columns: Vec<&str> =
+        bundle.voters.columns.iter().map(String::as_str).collect();
+    let rendered = plain_csv(&columns, &bundle.voters.rows);
+    assert!(rendered.starts_with("id,email,email_verified"));
+    assert!(rendered.contains("alice@example.org"));
+    assert!(rendered.ends_with('\n'));
+
+    let schedule_columns: Vec<&str> = bundle
+        .scheduled_events
+        .columns
+        .iter()
+        .map(String::as_str)
+        .collect();
+    let schedule = json_csv(&schedule_columns, &bundle.scheduled_events.rows);
+    assert!(schedule.starts_with("id,tenant_id,election_event_id"));
 }

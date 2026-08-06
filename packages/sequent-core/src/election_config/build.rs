@@ -15,10 +15,12 @@
 //! problem carries the sheet and row it came from, because a bundle path is no
 //! use to whoever has to edit the file.
 //!
-//! This level builds the JSON document — the event and its elections, contests,
-//! candidates, areas and ballot links. The CSV members (voters, scheduled events,
-//! reports, admin users), the auth presets and the Keycloak realm are the next
-//! levels of the same port; `keycloak_event_realm` is left null until then.
+//! The CSV members and the files that travel beside a bundle are in
+//! `build_tables.rs`, a child module, so that this file stays readable; the two
+//! are one unit of code split across two files.
+//!
+//! The auth presets and the Keycloak realm are the next level of the same port;
+//! `keycloak_event_realm` is left null until then.
 
 use crate::election_config::ids::IdFactory;
 use crate::election_config::paths::{deep_merge, set_path, split_path};
@@ -27,9 +29,18 @@ use crate::election_config::render::TemplateSet;
 use crate::election_config::sheet::{
     normalise_sheet_name, Origin, Row, Workbook, SHEET_AREAS,
     SHEET_AREA_CONTESTS, SHEET_CANDIDATES, SHEET_CONTESTS, SHEET_ELECTIONS,
-    SHEET_ELECTION_EVENT, SHEET_PARAMETERS,
+    SHEET_ELECTION_EVENT, SHEET_PARAMETERS, SHEET_REPORTS,
+    SHEET_SCHEDULED_EVENTS,
 };
 use serde_json::{json, Map, Value};
+
+#[path = "build_tables.rs"]
+mod tables;
+
+pub use tables::{
+    CommunicationTemplate, JsonTable, PlainTable, EVENT_PROCESSORS,
+    VOTER_LEADING_COLUMNS,
+};
 
 /// Timestamp on every generated entity.
 ///
@@ -53,6 +64,21 @@ pub fn control_columns(sheet_key: &str) -> &'static [&'static str] {
         SHEET_CANDIDATES => &["contest.external_id"],
         SHEET_AREAS => &["parent.external_id"],
         SHEET_AREA_CONTESTS => &["area.external_id", "contest.external_id"],
+        SHEET_SCHEDULED_EVENTS => &[
+            "event_name",
+            "event_type",
+            "election.external_id",
+            "scheduled_datetime",
+        ],
+        SHEET_REPORTS => &[
+            "election.external_id",
+            "template.alias",
+            "report_type",
+            "cron_config",
+            "encryption_policy",
+            "password",
+            "permission_label",
+        ],
         _ => &[],
     }
 }
@@ -166,6 +192,30 @@ pub struct Bundle {
 
     /// The `export_election_event-<id>.json` document.
     pub export: Value,
+
+    /// `export_voters-<id>.csv`.
+    pub voters: PlainTable,
+
+    /// `export_scheduled_events-<id>.csv`, the JSON-in-CSV member.
+    ///
+    /// Where the voting window actually lives: `scheduled_events` in the JSON
+    /// document is not read by the importer.
+    pub scheduled_events: JsonTable,
+
+    /// `export_reports-<id>.csv`, or nothing when the source names no reports.
+    pub reports: Option<PlainTable>,
+
+    /// Admin users, tenant-scoped rather than part of the event import.
+    ///
+    /// A secret: it carries clear-text passwords when the source does.
+    pub admin_users: Option<PlainTable>,
+
+    /// The role/permission matrix, transposed into the platform's own shape.
+    pub role_permissions: Option<PlainTable>,
+
+    /// Communication and report templates, loaded through the Admin Portal
+    /// rather than imported — the event zip has no member for them.
+    pub templates: Vec<CommunicationTemplate>,
 
     /// Warnings. Not errors: the bundle imports, but something about it looks
     /// unintended.
@@ -309,6 +359,15 @@ impl<'a> Builder<'a> {
             "version": version,
         });
 
+        // Built after the entities, because every one of these resolves an
+        // external_id against them.
+        let voters = self.build_voters();
+        let scheduled_events = self.build_scheduled_events();
+        let reports = self.build_reports();
+        let admin_users = self.build_admin_users();
+        let role_permissions = self.build_role_permissions();
+        let templates = self.build_templates();
+
         if self.report.has_errors() {
             return Err(self.report);
         }
@@ -320,6 +379,12 @@ impl<'a> Builder<'a> {
             event_id: self.event_id,
             event_external_id: self.event_external_id,
             export,
+            voters,
+            scheduled_events,
+            reports,
+            admin_users,
+            role_permissions,
+            templates,
             warnings: self.report,
         })
     }
@@ -327,7 +392,7 @@ impl<'a> Builder<'a> {
     // -- problems ---------------------------------------------------------
 
     /// Record a problem and keep going, so one run reports every issue.
-    fn problem(
+    pub(super) fn problem(
         &mut self,
         origin: Origin,
         code: Code,
@@ -337,7 +402,11 @@ impl<'a> Builder<'a> {
             .push(Problem::error(code, origin.to_string(), message));
     }
 
-    fn warn(&mut self, path: impl Into<String>, message: impl Into<String>) {
+    pub(super) fn warn(
+        &mut self,
+        path: impl Into<String>,
+        message: impl Into<String>,
+    ) {
         self.report
             .push(Problem::warning(Code::InvalidValue, path, message));
     }
@@ -455,7 +524,7 @@ impl<'a> Builder<'a> {
     // -- entities ---------------------------------------------------------
 
     /// Render a template, then merge the row's dotted paths over it.
-    fn render(
+    pub(super) fn render(
         &mut self,
         template: &str,
         row: Option<&Row>,
@@ -979,7 +1048,7 @@ impl<'a> Builder<'a> {
     }
 
     /// `external_id` -> UUID, recording a problem when it does not resolve.
-    fn resolve(
+    pub(super) fn resolve(
         &mut self,
         row: &Row,
         column: &str,
