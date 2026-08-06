@@ -50,6 +50,16 @@ pub mod schema;
 pub mod sheet;
 pub mod validate;
 
+/// The browser's view of this module: thin wrappers over the same functions
+/// `step-cli` and windmill call.
+///
+/// Gated the way `crate::wasm` is, so it appears in exactly the builds that have a
+/// JavaScript side. What it exposes depends on the other features — checking an
+/// existing bundle needs neither a template engine nor a spreadsheet parser, and a
+/// front end that only does that should carry neither.
+#[cfg(all(feature = "wasm", feature = "default_features"))]
+pub mod wasm;
+
 /// Reading `.xlsx`, behind its own feature so front ends with no workbook to read
 /// do not carry a spreadsheet library.
 #[cfg(feature = "election_config_xlsx")]
