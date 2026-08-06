@@ -343,10 +343,10 @@ fn check_contests(bundle: &ImportElectionEventSchema, report: &mut Report) {
             .unwrap_or(0);
         if available == 0 {
             report.push(
-                Problem::error(
+                Problem::warning(
                     Code::BallotCoverage,
                     path("id"),
-                    "the contest has no candidates",
+                    "the contest has no candidates, so nobody can vote in it",
                 )
                 .about(about),
             );
@@ -406,7 +406,7 @@ fn check_ballot_coverage(
     for (index, contest) in bundle.contests.iter().enumerate() {
         if !linked_contests.contains(contest.id.as_str()) {
             report.push(
-                Problem::error(
+                Problem::warning(
                     Code::BallotCoverage,
                     format!("contests[{index}]"),
                     "appears on no area's ballot, so nobody can vote in it",
@@ -423,7 +423,7 @@ fn check_ballot_coverage(
         {
             continue;
         }
-        report.push(Problem::error(
+        report.push(Problem::warning(
             Code::BallotCoverage,
             format!("areas[{index}]"),
             format!(

@@ -123,6 +123,7 @@ use sequent_core::util::temp_path::{generate_temp_file, get_file_size};
 //   keycloak_event_realm serde_json::Value, not RealmRepresentation. That type
 //                        comes from the keycloak crate, which pulls reqwest.
 //                        Deserialized into the typed form where it is used.
+use sequent_core::election_config;
 pub use sequent_core::election_config::ImportElectionEventSchema;
 
 #[instrument(err)]
@@ -580,7 +581,45 @@ pub async fn get_election_event_schema(
         .map_err(|_| anyhow!("Environment variable {ENV_VAR_APP_VERSION} should be set"))?;
     check_version_compatibility(imported_version, &current_version)?;
     let original_data: ImportElectionEventSchema = deserialize_str(data_str)?;
+    check_bundle(&original_data)?;
     replace_ids(data_str, &original_data, event_id, tenant_id.clone())
+}
+
+/// Run the shared validation, refusing the import if it found anything fatal.
+///
+/// The same code answers in the browser before an upload, so a bundle the
+/// configuration tools accepted reaches this and passes. When one does not, the
+/// operator gets every problem at once rather than the first — and the same
+/// wording they would have seen client-side.
+///
+/// Validates the bundle as written, before `replace_ids` rewrites the
+/// identifiers: a problem naming an id the author never chose is not much use to
+/// them.
+///
+/// This is deliberately additive. It does not replace the checks that follow —
+/// those need the database, and this pass by design does not touch it.
+#[instrument(err, skip_all)]
+fn check_bundle(data: &ImportElectionEventSchema) -> Result<()> {
+    let report = election_config::validate(data);
+
+    for problem in report.warnings() {
+        event!(Level::WARN, "election event import: {problem}");
+    }
+
+    if report.has_errors() {
+        let listing = report
+            .errors()
+            .map(|problem| format!("  {problem}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let count = report.errors().count();
+        let noun = if count == 1 { "problem" } else { "problems" };
+        return Err(anyhow!(
+            "The election event bundle cannot be imported; {count} {noun} found:\n{listing}"
+        ));
+    }
+
+    Ok(())
 }
 
 #[instrument(err, skip_all)]

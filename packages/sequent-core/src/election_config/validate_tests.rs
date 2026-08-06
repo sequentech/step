@@ -253,10 +253,16 @@ fn a_negative_vote_count_does_not_wrap_into_a_huge_number() {
 }
 
 #[test]
-fn a_contest_with_no_candidates_is_rejected() {
+fn a_contest_with_no_candidates_is_a_warning_not_an_error() {
+    // An event still being configured has these, and the platform's own export of
+    // one has to re-import. See the round-trip test at the bottom.
     let mut bundle = sound();
     bundle.candidates.clear();
-    assert!(error_codes(&bundle).contains(&Code::BallotCoverage));
+    let report = validate(&bundle);
+    assert!(!report.has_errors());
+    assert!(report
+        .warnings()
+        .any(|problem| problem.code == Code::BallotCoverage));
 }
 
 // -- tally system -----------------------------------------------------------
@@ -326,15 +332,19 @@ fn every_non_preferential_algorithm_is_accepted_with_unranked_voting() {
 // -- ballot coverage --------------------------------------------------------
 
 #[test]
-fn a_contest_on_no_ballot_is_rejected() {
+fn a_contest_on_no_ballot_is_a_warning_not_an_error() {
     // Does not break the import; means nobody can vote in it.
     let mut bundle = sound();
     bundle.area_contests.clear();
-    assert!(error_codes(&bundle).contains(&Code::BallotCoverage));
+    let report = validate(&bundle);
+    assert!(!report.has_errors());
+    assert!(report
+        .warnings()
+        .any(|problem| problem.code == Code::BallotCoverage));
 }
 
 #[test]
-fn a_leaf_area_with_no_ballot_is_rejected() {
+fn a_leaf_area_with_no_ballot_is_a_warning_not_an_error() {
     let mut bundle = sound();
     let orphan = bundle.areas[1].clone();
     let mut orphan = orphan;
@@ -344,9 +354,9 @@ fn a_leaf_area_with_no_ballot_is_rejected() {
     bundle.areas.push(orphan);
 
     let report = validate(&bundle);
+    assert!(!report.has_errors());
     assert!(report
-        .problems
-        .iter()
+        .warnings()
         .any(|problem| problem.code == Code::BallotCoverage
             && problem.message.contains("Nowhere")));
 }
@@ -443,4 +453,40 @@ fn the_report_serializes_for_a_front_end() {
     assert!(first["severity"].is_string());
     assert!(first["path"].is_string());
     assert!(first["message"].is_string());
+}
+
+// -- round tripping ---------------------------------------------------------
+
+#[test]
+fn an_event_still_being_configured_can_be_re_imported() {
+    // The property that decides where the severity line falls. windmill refuses an
+    // import on errors, so anything the platform can itself export must validate
+    // without them — otherwise this check breaks disaster recovery to enforce a
+    // rule about authoring.
+    //
+    // A half-built event: a contest with no candidates yet, one not yet on a
+    // ballot, and an area nobody has assigned contests to.
+    let mut bundle = sound();
+    bundle.candidates.clear();
+    bundle.area_contests.clear();
+
+    let report = validate(&bundle);
+    assert!(
+        !report.has_errors(),
+        "a mid-configuration export must still import, but got:\n{report}"
+    );
+    assert!(
+        !report.is_empty(),
+        "it should still be reported, just not fatally"
+    );
+}
+
+#[test]
+fn an_inconsistent_bundle_is_still_refused() {
+    // The other side of that line: warnings are for consistent-but-odd, not for
+    // anything goes.
+    let mut bundle = sound();
+    bundle.candidates[0].contest_id =
+        Some("f0000000-0000-5000-8000-000000000000".into());
+    assert!(validate(&bundle).has_errors());
 }
