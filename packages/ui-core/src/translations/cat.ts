@@ -106,7 +106,7 @@ const catalanTranslation: TranslationType = {
                     "Vot invàlid! La mateixa posició va ser seleccionada per a dos o més candidats.",
             },
             explicit: {
-                notAllowed: "Vot marcat explícitament com a invàlid però la pregunta no ho permet",
+                notAllowed: "Vot marcat explícitament com a invàlid però la contesa no ho permet",
                 alert: "La selecció marcada es considerarà vot invàlid.",
             },
             configuration: {

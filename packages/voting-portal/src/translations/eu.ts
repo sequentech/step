@@ -42,7 +42,7 @@ const basqueTranslation: TranslationType = {
             nonVotedDialog: {
                 title: "Baliogabeko edo boto zuria",
                 content:
-                    "Zure erantzun batzuek bozketa galdera batean edo gehiagotan baliogabea edo zuria bihurtuko dute.",
+                    "Zure erantzun batzuek bozketa lehiaketa batean edo gehiagotan baliogabea edo zuria bihurtuko dute.",
                 ok: "Itzuli eta berrikusi",
                 continue: "Jarraitu",
                 cancel: "Ezeztatu",
@@ -70,7 +70,7 @@ const basqueTranslation: TranslationType = {
             instructionsDescription: "Jarraitu urrats hauek bozkatzeko:",
             step1Title: "1. Hautatu zure aukerak",
             step1Description:
-                "Aukeratu zure hautagaiak eta erantzun galderak. Editatu bozketa prest egon arte.",
+                "Aukeratu zure hautagaiak eta erantzun lehiaketa bakoitza. Editatu bozketa prest egon arte.",
             step2Title: "2. Berrikusi zure bozketa",
             step2Description:
                 "Zure bozketa zifratu eta berrikuspena erakutsiko dizugu. Bozketa ID jarraitzaile bakarra jasoko duzu.",
@@ -295,7 +295,8 @@ const basqueTranslation: TranslationType = {
                 ok: "Ulertzen dut nire botoa ez dela emango",
             },
             errors: {
-                noVotingArea: "Hauteskunde eremua ez da esleitu. Saiatu berriro geroago.",
+                noVotingArea:
+                    "Ez zaude bozkatzaile gisa erregistratuta hauteskunde honetan. Mesedez, jarri harremanetan laguntzarekin.",
                 networkError:
                     "Sare arazoa izan da. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
                 unableToFetchData:
@@ -325,7 +326,7 @@ const basqueTranslation: TranslationType = {
             },
             explicit: {
                 notAllowed:
-                    "Bozketa berariaz baliogabetzat markatu da, baina galderak ez du hori onartzen",
+                    "Bozketa berariaz baliogabetzat markatu da, baina lehiaketak ez du hori onartzen",
                 alert: "Hautaketa hau boto baliogabe gisa zenbatuko da",
             },
             page: {
@@ -334,7 +335,7 @@ const basqueTranslation: TranslationType = {
                 somethingWrong: "Zerbait oker joan da.",
                 certAuthFailedTitle: "Ziurtagiriaren Autentifikazio Errorea",
                 certAuthFailedMessage:
-                    "Ezin izan da zure ziurtagiria egiaztatu. Mesedez, egiaztatu boto-emaile ziurtagiri baliogarri bat erabiltzen ari zarela eta saiatu berriro.",
+                    "Ezin izan da zure ziurtagiria egiaztatu. Mesedez, egiaztatu bozkatzaile ziurtagiri baliogarri bat erabiltzen ari zarela eta saiatu berriro.",
             },
         },
         materials: {

@@ -109,7 +109,7 @@ const spanishTranslation: TranslationType = {
             },
             explicit: {
                 notAllowed:
-                    "Voto marcado explícitamente como inválido pero la pregunta no lo permite",
+                    "Voto marcado explícitamente como inválido pero la contienda no lo permite",
                 alert: "La selección marcada será considerada voto inválido.",
             },
             configuration: {

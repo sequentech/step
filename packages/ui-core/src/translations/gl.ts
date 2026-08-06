@@ -109,7 +109,7 @@ const galegoTranslation: TranslationType = {
             },
             explicit: {
                 notAllowed:
-                    "A papeleta está marcada como explícitamente inválida, pero a pregunta non o permite",
+                    "A papeleta está marcada como explícitamente inválida, pero a contenda non o permite",
                 alert: "A selección marcada será considerada voto inválido.",
             },
             configuration: {

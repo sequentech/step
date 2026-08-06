@@ -313,7 +313,7 @@ const galegoTranslation: TranslationType = {
             createAreaSuccess: "Área creada",
             updateAreaSuccess: "Área actualizada",
             createAreaError: "Non se puido crear a área",
-            sequent_backend_area_contest: "Concursos",
+            sequent_backend_area_contest: "Contendas",
             empty: {
                 header: "Aínda non hai áreas.",
                 action: "Crear Área",
@@ -576,10 +576,10 @@ const galegoTranslation: TranslationType = {
                 },
                 contestEncryptionPolicy: {
                     options: {
-                        "single-contest": "Concurso único",
-                        "multiple-contests": "Varios concursos",
+                        "single-contest": "Contenda única",
+                        "multiple-contests": "Varias contendas",
                     },
-                    policyLabel: "Política de cifrado de concurso",
+                    policyLabel: "Política de cifrado de contenda",
                 },
                 votingPortalDateTimeFormat: {
                     policyLabel: "Formato de data e hora do portal de votación",
@@ -759,7 +759,7 @@ const galegoTranslation: TranslationType = {
                 elegibleVoters: "Votantes Elixibles",
                 voters: "Votantes Actuais",
                 elections: "Eleccións",
-                contests: "Concursos",
+                contests: "Contendas",
                 areas: "Áreas",
                 sentEmails: "Correos enviados",
                 sentSMS: "SMS enviados",
@@ -936,7 +936,7 @@ const galegoTranslation: TranslationType = {
                 image: "Imaxe",
                 advanced: "Configuración Avanzada",
                 numAllowedVotes: "Número de votos permitidos",
-                reorder: "Reordenar concursos",
+                reorder: "Reordenar contendas",
                 castVoteConfirm: "Modal de Confirmación de Voto Emitido",
                 gracePeriodPolicy: "Período de Gracia",
                 allowTallyPolicy: "Permitir Recuento",
@@ -1295,14 +1295,14 @@ const galegoTranslation: TranslationType = {
                 "miru-download": "Miru Download",
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
-                "contest-write": "Editar Concurso",
-                "contest-read": "Leer Concurso",
+                "contest-write": "Editar Contenda",
+                "contest-read": "Ler Contenda",
                 "candidate-write": "Editar Candidatos",
                 "candidate-read": "Leer Candidatos",
                 "permission-label-write": "Editar la etiqueta de permiso",
                 "scheduled-event-write": "Editar Eventos Programados",
-                "contest-create": "Create Contest",
-                "contest-delete": "Delete Contest",
+                "contest-create": "Crear Contenda",
+                "contest-delete": "Eliminar Contenda",
                 "candidate-create": "Create Candidate",
                 "candidate-delete": "Delete Candidate",
                 "election-create": "Create Election",
@@ -1584,7 +1584,7 @@ const galegoTranslation: TranslationType = {
             resources: {
                 electionEvent: "Evento Electoral",
                 election: "Elección",
-                contest: "Concurso",
+                contest: "Contenda",
                 candidate: "Candidato",
                 noResult: {
                     askCreate: "¿Queres crear un?",
@@ -1650,13 +1650,13 @@ const galegoTranslation: TranslationType = {
         createResource: {
             electionEvent: "Crear un Evento Electoral",
             election: "Crear unha Elección",
-            contest: "Crear un Concurso",
+            contest: "Crear unha Contenda",
             candidate: "Crear un Candidato",
         },
         importResource: {
             electionEvent: "Importar un Evento Electoral",
             election: "Importar una Elección",
-            contest: "Importar un Concurso",
+            contest: "Importar unha Contenda",
             candidate: "Importar un Candidato",
             ImportHashMismatch: "Hashes don't match. Integrity check failure.",
         },
@@ -1673,7 +1673,7 @@ const galegoTranslation: TranslationType = {
             addResource: {
                 electionEvent: "Crear un Evento Electoral",
                 election: "Crear unha Elección",
-                contest: "Crear un Concurso",
+                contest: "Crear unha Contenda",
                 candidate: "Crear un Candidato",
             },
             menuActions: {
@@ -1683,13 +1683,13 @@ const galegoTranslation: TranslationType = {
                 unarchive: {
                     electionEvent: "Desarquivar este Evento Electoral",
                     election: "Desarquivar esta Elección",
-                    contest: "Desarquivar este Concurso",
+                    contest: "Desarquivar esta Contenda",
                     candidate: "Desarquivar este Candidato",
                 },
                 remove: {
                     electionEvent: "Eliminar este Evento Electoral",
                     election: "Eliminar esta Elección",
-                    contest: "Eliminar este Concurso",
+                    contest: "Eliminar esta Contenda",
                     candidate: "Eliminar este Candidato",
                 },
                 messages: {
@@ -1756,7 +1756,7 @@ const galegoTranslation: TranslationType = {
         },
         contestScreen: {
             common: {
-                subtitle: "Configuración do concurso.",
+                subtitle: "Configuración da contenda.",
             },
             edit: {
                 externalId: "ID externo",
@@ -1863,7 +1863,7 @@ const galegoTranslation: TranslationType = {
                     "Posición de rango máis alta dispoñible para os votantes (ex. '5' significa posicións 1–5). Debe ser polo menos igual ao número de candidatos a ordenar (votación preferencial).",
             },
             error: {},
-            createContestSuccess: "Concurso creado",
+            createContestSuccess: "Contenda creada",
             createContestError: "Erro ao crear o concurso",
         },
         keysGeneration: {
@@ -2008,11 +2008,11 @@ const galegoTranslation: TranslationType = {
                 visibility: "Visibility",
                 fullPublishedScope: "Full published scope",
                 personalVisibility: "Personal visibility",
-                contests: "Contests",
-                noTalliedContests: "No tallied contests available.",
-                publishSelectedContests: "Publish selected contests",
-                selectedContestCount_one: "{{count}} contest selected",
-                selectedContestCount_other: "{{count}} contests selected",
+                contests: "Contendas",
+                noTalliedContests: "Non hai contendas escrutadas dispoñibles.",
+                publishSelectedContests: "Publicar as contendas seleccionadas",
+                selectedContestCount_one: "{{count}} contenda seleccionada",
+                selectedContestCount_other: "{{count}} contendas seleccionadas",
                 history: "Publication history",
                 version: "Version",
                 status: "Status",
@@ -2250,7 +2250,7 @@ const galegoTranslation: TranslationType = {
                 save: "Gardar",
                 pendingApplyStatus: "Cálculo pendente",
                 filterElection: "Elección",
-                filterContest: "Concurso",
+                filterContest: "Contenda",
                 filterArea: "Área",
                 filterStatusLabel: "Estado",
                 clearFilters: "Borrar filtros",
@@ -2405,7 +2405,7 @@ const galegoTranslation: TranslationType = {
             createTallySuccess: "Acta de Escrutinio gardada",
             createTallyError: "Erro ao gardar a Acta de Escrutinio",
             createTallyErrorSameKindExists:
-                "A folla de reconto xa existe para este concurso co mesmo canal e área",
+                "A folla de reconto xa existe para esta contenda co mesmo canal e área",
             allFieldsRequired: "Todos os campos son obrigatorios",
             header: {
                 change: "Cambios a Publicar",
@@ -2474,7 +2474,7 @@ const galegoTranslation: TranslationType = {
             },
             table: {
                 area: "Área",
-                contest: "Concurso",
+                contest: "Contenda",
                 approvedVersion: "Versión aprobada",
                 latestVersion: "Última versión",
                 labels: "Etiquetas",

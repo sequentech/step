@@ -36,13 +36,13 @@ const tagalogTranslation: TranslationType = {
             ballotHelpDialog: {
                 title: "Tungkol sa screen ng balota",
                 content:
-                    "Ipinapakita sa screen na ito ang mga paligsahan na maaari mong botohan. I-activate ang checkbox sa kanan para pumili ng Kandidato/Sagot. I-reset sa “<b>Burahin ang pagpili</b>”, pumunta sa susunod sa “<b>Susunod</b>”.",
+                    "Ipinapakita sa screen na ito ang mga paligsahan na maaari mong botohan. I-activate ang checkbox sa kanan para pumili ng Kandidato/Sagot. I-reset sa “<b>Burahin ang mga napili</b>”, pumunta sa susunod sa “<b>Susunod</b>”.",
                 ok: "OK",
             },
             nonVotedDialog: {
                 title: "Di-wasto o blangkong boto",
                 content:
-                    "Ang ilan sa iyong mga sagot ay magreresulta sa pagkaka-invalidate o pagkakaroon ng blangko sa balota sa isa o higit pang mga tanong.",
+                    "Ang ilan sa iyong mga sagot ay magreresulta sa pagkaka-invalidate o pagkakaroon ng blangko sa balota sa isa o higit pang mga paligsahan.",
                 ok: "Bumalik at suriin",
                 continue: "Ipagpatuloy",
                 cancel: "Kanselahin",
@@ -70,7 +70,7 @@ const tagalogTranslation: TranslationType = {
             instructionsDescription: "Sundin ang mga hakbang na ito para bumoto:",
             step1Title: "1. Piliin ang iyong mga sagot",
             step1Description:
-                "Sagutin ang mga tanong isa-isa. Maaari mong i-edit ang iyong balota hanggang handa ka.",
+                "Sagutin ang bawat paligsahan isa-isa. Maaari mong i-edit ang iyong balota hanggang handa ka.",
             step2Title: "2. Suriin ang iyong balota",
             step2Description:
                 "Ie-encrypt namin ang iyong balota at ipapakita ang huling pagsusuri. Makakatanggap ka ng natatanging tracker ID.",
@@ -119,7 +119,7 @@ const tagalogTranslation: TranslationType = {
                 UNABLE_TO_FETCH_DATA:
                     "Nagkaroon ng problema sa pagkuha ng data. Pakisubukan ulit mamaya o makipag-ugnayan sa helpdesk para sa tulong.",
                 LOAD_ELECTION_EVENT:
-                    "Hindi ma-load ang kaganapan ng eleksyon. Pakisubukan ulit mamaya.",
+                    "Hindi ma-load ang kaganapan ng halalan. Pakisubukan ulit mamaya.",
                 CAST_VOTE:
                     "Nagkaroon ng hindi inaasahang error habang bumoboto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
                 CAST_VOTE_CheckStatusFailed:
@@ -165,13 +165,13 @@ const tagalogTranslation: TranslationType = {
                 CAST_VOTE_UnknownError:
                     "Nagkaroon ng hindi kilalang error habang bumoboto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
                 NO_BALLOT_SELECTION:
-                    "Walang estado ng pagpili para sa eleksyon na ito. Pakitiyak na tama ang iyong pagpili o makipag-ugnayan sa helpdesk.",
+                    "Walang estado ng pagpili para sa halalan na ito. Pakitiyak na tama ang iyong pagpili o makipag-ugnayan sa helpdesk.",
                 NO_BALLOT_STYLE: "Walang estilo ng balota. Pakikontak ang helpdesk.",
                 NO_AUDITABLE_BALLOT: "Walang balota na maaring suriin. Pakikontak ang helpdesk.",
                 INCONSISTENT_HASH:
                     "Nagkaroon ng error kaugnay sa proseso ng pag-hash ng balota. BallotId: {{ballotId}} ay hindi tugma sa sinusuring Hash ng Balota: {{auditableBallotHash}}. Pakireport itong isyu sa helpdesk.",
                 ELECTION_EVENT_NOT_OPEN:
-                    "Ang kaganapan ng eleksyon ay sarado na. Pakikontak ang helpdesk.",
+                    "Ang kaganapan ng halalan ay sarado na. Pakikontak ang helpdesk.",
                 PARSE_ERROR:
                     "Nagkaroon ng error sa pag-parse ng balota. Pakisubukan ulit mamaya o makipag-ugnayan sa helpdesk para sa tulong.",
                 DESERIALIZE_AUDITABLE_ERROR:
@@ -294,7 +294,8 @@ const tagalogTranslation: TranslationType = {
                 ok: "Naiintindihan ko na ang aking boto ay hindi mai-susubmit",
             },
             errors: {
-                noVotingArea: "Walang nakatalagang lugar ng halalan. Subukan muli mamaya.",
+                noVotingArea:
+                    "Hindi ka nakalista bilang botante sa halalan na ito. Mangyaring makipag-ugnayan sa suporta.",
                 networkError:
                     "Nagkaroon ng problema sa network. Mangyaring subukan muli mamaya o makipag-ugnayan sa helpdesk para sa tulong.",
                 unableToFetchData:
@@ -324,7 +325,7 @@ const tagalogTranslation: TranslationType = {
             },
             explicit: {
                 notAllowed:
-                    "Ang balota ay tahasang minarkahang hindi wasto ngunit hindi ito pinapayagan ng tanong",
+                    "Ang balota ay tahasang minarkahang hindi wasto ngunit hindi ito pinapayagan ng paligsahan",
                 alert: "Ang pagpiling ito ay biblangin bilang isang hindi wastong boto",
             },
             page: {

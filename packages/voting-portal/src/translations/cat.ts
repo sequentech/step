@@ -32,17 +32,17 @@ const catalanTranslation: TranslationType = {
         votingScreen: {
             backButton: "Enrere",
             reviewButton: "Següent",
-            clearButton: "Netejar opcions",
+            clearButton: "Netejar seleccions",
             ballotHelpDialog: {
                 title: "Sobre aquesta pantalla",
                 content:
-                    "Aquesta pantalla mostra la votació en la qual vostè és elegible per votar. Pot seleccionar la seva secció activant la casella de la dreta Candidat/Resposta. Per restablir les seves seleccions, faci clic al botó “<b>Netejar selecció</b>”, per passar al següent pas, faci clic al botó “<b>Següent</b>”.",
+                    "Aquesta pantalla mostra les conteses en les quals vostè és elegible per votar. Pot fer la seva selecció activant la casella a la dreta del Candidat/Resposta. Per restablir les seves seleccions, faci clic al botó “<b>Netejar seleccions</b>”, per passar al següent pas, faci clic al botó “<b>Següent</b>”.",
                 ok: "D'acord",
             },
             nonVotedDialog: {
                 title: "El teu vot és invàlid o en blanc",
                 content:
-                    "Algunes de les seves respostes podrien fer que la papereta en una o més preguntes sigui invàlida o en blanc.",
+                    "Algunes de les seves respostes podrien fer que la papereta en una o més conteses sigui invàlida o en blanc.",
                 ok: "Revisar selecció",
                 continue: "Continuar",
                 cancel: "Cancel·lar",
@@ -70,7 +70,7 @@ const catalanTranslation: TranslationType = {
             instructionsDescription: "Seguiu aquests passos per emetre el vostre vot",
             step1Title: "1. Escolliu les vostres opcions",
             step1Description:
-                "Escolliu els vostres candidats preferits i responeu cada pregunta de la papereta segons aparegui. Podeu canviar les vostres opcions en qualsevol moment abans d'emetre el vostre vot",
+                "Escolliu els vostres candidats preferits i responeu cada contesa de la papereta segons aparegui. Podeu canviar les vostres opcions en qualsevol moment abans d'emetre el vostre vot",
             step2Title: "2. Reviseu les vostres eleccions",
             step2Description:
                 "Quan estigueu satisfets amb les vostres seleccions, xifrem la vostra papereta de forma segura i us mostrarem una revisió final. També rebreu un ID de seguiment únic com a referència",
@@ -328,7 +328,7 @@ const catalanTranslation: TranslationType = {
             },
             explicit: {
                 notAllowed:
-                    "La papereta està marcada com explícitament invàlida, però la pregunta no ho permet",
+                    "La papereta està marcada com explícitament invàlida, però la contesa no ho permet",
                 alert: "Aquesta selecció es comptarà com un vot invàlid",
             },
             page: {

@@ -75,7 +75,7 @@ const catalanTranslation: TranslationType = {
             markedInvalid: "Vot explícitament marcat invàlid",
             points_one: "({{count}} Punt)",
             points_other: "({{count}} Punts)",
-            contestNotFound: "Pregunta no trobada: {{contestId}}",
+            contestNotFound: "Contesa no trobada: {{contestId}}",
             declineToVote: "Vot no emès",
         },
         "errors": {
@@ -88,7 +88,7 @@ const catalanTranslation: TranslationType = {
                 ballotTooLarge: "Vot més gran de l'esperat",
             },
             explicit: {
-                notAllowed: "Vot marcat explícitament com a invàlid però la pregunta no ho permet",
+                notAllowed: "Vot marcat explícitament com a invàlid però la contesa no ho permet",
             },
         },
         "footer": {

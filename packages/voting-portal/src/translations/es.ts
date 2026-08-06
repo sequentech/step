@@ -32,17 +32,17 @@ const spanishTranslation: TranslationType = {
         votingScreen: {
             backButton: "Atrás",
             reviewButton: "Siguiente",
-            clearButton: "Limpiar opciones",
+            clearButton: "Limpiar selecciones",
             ballotHelpDialog: {
                 title: "Sobre esta pantalla",
                 content:
-                    "Esta pantalla muestra la votación en la que usted es elegible para votar. Puede seleccionar su sección activando la casilla de la derecha Candidato/Respuesta. Para restablecer sus selecciones, haga clic en el botón “<b>Borrar selección</b>”, para pasar al siguiente paso, haga clic en el botón “<b>Siguiente</b>”.",
+                    "Esta pantalla muestra las contiendas en las que usted es elegible para votar. Puede hacer su selección activando la casilla a la derecha del Candidato/Respuesta. Para restablecer sus selecciones, haga clic en el botón “<b>Limpiar selecciones</b>”, para pasar al siguiente paso, haga clic en el botón “<b>Siguiente</b>”.",
                 ok: "OK",
             },
             nonVotedDialog: {
                 title: "Tu voto es inválido o está en blanco",
                 content:
-                    "Algunas de sus respuestas harán que la papeleta en una o más preguntas sea inválida o en blanco.",
+                    "Algunas de sus respuestas harán que la papeleta en una o más contiendas sea inválida o en blanco.",
                 ok: "Revisar selección",
                 continue: "Continuar",
                 cancel: "Cancelar",
@@ -70,7 +70,7 @@ const spanishTranslation: TranslationType = {
             instructionsDescription: "Siga estos pasos para emitir su voto",
             step1Title: "1. Elija sus opciones",
             step1Description:
-                "Elija a sus candidatos preferidos y responda cada pregunta de la papeleta según aparezca. Puede cambiar sus opciones en cualquier momento antes de emitir su voto",
+                "Elija a sus candidatos preferidos y responda cada contienda de la papeleta según aparezca. Puede cambiar sus opciones en cualquier momento antes de emitir su voto",
             step2Title: "2. Revise sus elecciones",
             step2Description:
                 "Cuando esté satisfecho con sus selecciones, cifraremos su papeleta de forma segura y le mostraremos una revisión final. También recibirá un ID de seguimiento único como referencia",
@@ -327,7 +327,7 @@ const spanishTranslation: TranslationType = {
             },
             explicit: {
                 notAllowed:
-                    "La papeleta está marcada como explícitamente inválida, pero la pregunta no lo permite",
+                    "La papeleta está marcada como explícitamente inválida, pero la contienda no lo permite",
                 alert: "Esta selección se contará como un voto inválido",
             },
             page: {

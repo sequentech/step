@@ -39,9 +39,9 @@ const basqueTranslation: TranslationType = {
         homeScreen: {
             title: "Sequent Txartel Egiaztatzailea",
             description1:
-                "Txartel egiaztatzailea hautesleak kabinan txartela auditatzea aukeratzen duenean erabiltzen da. Egiaztapenak 1-2 minutu iraun beharko luke.",
+                "Txartel egiaztatzailea bozkatzaileak kabinan txartela auditatzea aukeratzen duenean erabiltzen da. Egiaztapenak 1-2 minutu iraun beharko luke.",
             description2:
-                "Txartel egiaztatzaileak hautesleari aukera ematen dio enkriptatutako txartelak kabinan egindako hautaketak zuzen jasotzen dituela ziurtatzeko. Egiaztapen hau egiteari nahi bezala emandakoaren egiaztagarritasuna deitzen zaio eta txartelaren enkriptazioan akatsak eta jarduera maltzurrak saihesten ditu.",
+                "Txartel egiaztatzaileak bozkatzaileari aukera ematen dio enkriptatutako txartelak kabinan egindako hautaketak zuzen jasotzen dituela ziurtatzeko. Egiaztapen hau egiteari nahi bezala emandakoaren egiaztagarritasuna deitzen zaio eta txartelaren enkriptazioan akatsak eta jarduera maltzurrak saihesten ditu.",
             descriptionMore: "Gehiago ikasi",
             startButton: "Arakatu fitxategia",
             dragDropOption: "Edo arrastatu eta jaregin hemen",
@@ -107,7 +107,7 @@ const basqueTranslation: TranslationType = {
             },
             explicit: {
                 notAllowed:
-                    "Bozketa espresuki baliogabe markatu da baina galderak ez du baimentzen",
+                    "Bozketa espresuki baliogabe markatu da baina lehiaketak ez du baimentzen",
                 alert: "Markatutako hautaketa baliogabeko bototzat hartuko da.",
             },
             configuration: {

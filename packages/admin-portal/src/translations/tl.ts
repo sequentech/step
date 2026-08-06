@@ -735,7 +735,7 @@ const tagalogTranslation: TranslationType = {
                     hints: {
                         title: "Mga pahiwatig",
                         publishRequired:
-                            "Ang anumang pagbabagong ginawa sa mga halalan, mga contest, o mga kandidato ay dapat munang i-publish para maging available. Tanging ang pinakabagong na-publish na mga ballot style para sa tumutugmang lugar ang gagamitin sa emulator.",
+                            "Ang anumang pagbabagong ginawa sa mga halalan, mga paligsahan, o mga kandidato ay dapat munang i-publish para maging available. Tanging ang pinakabagong na-publish na mga ballot style para sa tumutugmang lugar ang gagamitin sa emulator.",
                         eventChangesImmediate:
                             "Ang mga pagbabagong ginawa sa election event, gaya ng IVR configuration o mga pagbabago sa prompt, ay available kaagad kapag ni-restart ang emulator session.",
                         credentials: 'Ang valid na voter ID at PIN ay "123" at "123".',
@@ -842,7 +842,7 @@ const tagalogTranslation: TranslationType = {
                     participateNow:
                         "Naanyayahan kang makibahagi sa seremonya ng Tally. Mangyaring <1>i-click ang Aksyon ng Key ng seremonya</1> upang makilahok.",
                     startDisabled:
-                        "Hindi mo maaaring ipagpatuloy ang seremonya dahil walang napiling eleksyon o ang eleksyon ay hindi pa na-publish.",
+                        "Hindi mo maaaring ipagpatuloy ang seremonya dahil walang napiling halalan o ang halalan ay hindi pa na-publish.",
                     ceremonyDisabled:
                         "Hindi mo maaaring ipagpatuloy ang seremonya dahil ang tally session ay hindi konektado o ang pagsisimula ng seremonya ay hindi pinapayagan.",
                 },
@@ -1388,7 +1388,7 @@ const tagalogTranslation: TranslationType = {
                 "monitor-posts-already-closed-voting":
                     "Basahin ang Pagmamatyag sa Mga Post na Sarado na ang Botohan",
                 "monitor-posts-already-generated-election-results":
-                    "Basahin ang Pagmamatyag sa Mga Post na Naglabas na ng Resulta ng Eleksyon",
+                    "Basahin ang Pagmamatyag sa Mga Post na Naglabas na ng Resulta ng Halalan",
                 "monitor-posts-already-opened-voting":
                     "Basahin ang Pagmamatyag sa Mga Post na Binuksan na ang Botohan",
                 "monitor-posts-already-started-counting-votes":
@@ -1503,7 +1503,7 @@ const tagalogTranslation: TranslationType = {
             },
             reportType: {
                 BALLOT_RECEIPT: "Resibo ng Balota",
-                ELECTORAL_RESULTS: "Mga Resulta ng Eleksyon",
+                ELECTORAL_RESULTS: "Mga Resulta ng Halalan",
                 MANUAL_VERIFICATION: "Manwal na Pag-verify",
                 PARTICIPATION_REPORT: "Ulat ng Pakikilahok",
                 STATISTICAL_REPORT: "Ulat ng Istatistika",
@@ -2011,11 +2011,11 @@ const tagalogTranslation: TranslationType = {
                 visibility: "Visibility",
                 fullPublishedScope: "Full published scope",
                 personalVisibility: "Personal visibility",
-                contests: "Contests",
-                noTalliedContests: "No tallied contests available.",
-                publishSelectedContests: "Publish selected contests",
-                selectedContestCount_one: "{{count}} contest selected",
-                selectedContestCount_other: "{{count}} contests selected",
+                contests: "Mga Paligsahan",
+                noTalliedContests: "Walang available na mga naibilang na paligsahan.",
+                publishSelectedContests: "I-publish ang mga napiling paligsahan",
+                selectedContestCount_one: "{{count}} paligsahan ang napili",
+                selectedContestCount_other: "{{count}} paligsahan ang napili",
                 history: "Publication history",
                 version: "Version",
                 status: "Status",
@@ -2252,7 +2252,7 @@ const tagalogTranslation: TranslationType = {
                 filter: "I-filter",
                 save: "I-save",
                 pendingApplyStatus: "Nakabinbing kalkulasyon",
-                filterElection: "Eleksyon",
+                filterElection: "Halalan",
                 filterContest: "Paligsahan",
                 filterArea: "Lugar",
                 filterStatusLabel: "Katayuan",
@@ -2418,8 +2418,8 @@ const tagalogTranslation: TranslationType = {
                 history: "Kasaysayan ng Paglalathala",
             },
             action: {
-                start: "Simulan ang Eleksyon",
-                stop: "Itigil ang Eleksyon",
+                start: "Simulan ang Halalan",
+                stop: "Itigil ang Halalan",
                 pause: "Pansamantala",
                 generate: "I-regenerate",
                 publish: "I-publish ang mga Pagbabago",
@@ -2728,7 +2728,7 @@ const tagalogTranslation: TranslationType = {
         certificateAuthorities: {
             title: "Mga Sertipiko",
             subtitle:
-                "Mga pinagkakatiwalaang awtoridad sa sertipikasyon (CA) para sa kaganapang ito ng eleksyon. Ang mga na-import na CA ay ginagamit upang mapatunayan ang mga sertipiko ng botante.",
+                "Mga pinagkakatiwalaang awtoridad sa sertipikasyon (CA) para sa kaganapang ito ng halalan. Ang mga na-import na CA ay ginagamit upang mapatunayan ang mga sertipiko ng botante.",
             importButton: "Mag-import ng mga sertipiko",
             type: {
                 root: "Ugat",

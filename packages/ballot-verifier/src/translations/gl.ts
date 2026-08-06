@@ -90,7 +90,7 @@ const galegoTranslation: TranslationType = {
                 ballotTooLarge: "A papeleta é máis grande do esperado",
             },
             explicit: {
-                notAllowed: "A papeleta está marcada como inválida pero a pregunta non o permite",
+                notAllowed: "A papeleta está marcada como inválida pero a contenda non o permite",
             },
         },
     },

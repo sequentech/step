@@ -88,7 +88,7 @@ const tagalogTranslation = {
             },
             explicit: {
                 notAllowed:
-                    "Ang balota ay minarkahan nang tahasan bilang hindi wasto ngunit hindi ito pinapayagan ng tanong",
+                    "Ang balota ay minarkahan nang tahasan bilang hindi wasto ngunit hindi ito pinapayagan ng paligsahan",
             },
         },
     },

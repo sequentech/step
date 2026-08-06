@@ -255,12 +255,12 @@ const basqueTranslation: TranslationType = {
                 logs: "Egunkariak",
             },
             tasksExecution: {
-                VOTER_INFORMATION_LETTER: "Hauteslearen informazio-gutuna",
+                VOTER_INFORMATION_LETTER: "Bozkatzailearen informazio-gutuna",
                 EXPORT_ELECTION_EVENT: "Esportatu Hauteskunde Gertaera",
                 CREATE_ELECTION_EVENT: "Sortu Hauteskunde Gertaera",
                 IMPORT_ELECTION_EVENT: "Inportatu Hauteskunde Gertaera",
                 IMPORT_USERS: "Inportatu Erabiltzaileak",
-                EDIT_USER: "Editatu Hauteslea",
+                EDIT_USER: "Editatu Bozkatzailea",
                 IMPORT_CANDIDATES: "Inportatu Hautagaiak",
                 EXPORT_VOTERS: "Esportatu Bozkatzaileak",
                 CREATE_TRANSMISSION_PACKAGE: "Sortu Transmisio Paketea",
@@ -735,7 +735,7 @@ const basqueTranslation: TranslationType = {
                             "Hauteskundeetan, lehiaketetan edo hautagaietan egindako edozein aldaketa lehenik argitaratu behar da erabilgarri egon dadin. Dagokion eremurako azkenik argitaratutako boto-paper estiloak soilik erabiliko dira emuladorean.",
                         eventChangesImmediate:
                             "Hauteskunde-ekitaldian egindako aldaketak, hala nola IVR konfigurazioa edo mezuen gainidazketak, berehala egongo dira erabilgarri emuladorearen saioa berrabiaraztean.",
-                        credentials: 'Baliozko hautesle-IDa eta PINa "123" eta "123" dira.',
+                        credentials: 'Baliozko bozkatzaile-IDa eta PINa "123" eta "123" dira.',
                     },
                     sendDtmf: "Bidali DTMF sarrera",
                     sendTimeout: "Bidali denbora-muga",
@@ -1125,10 +1125,10 @@ const basqueTranslation: TranslationType = {
             },
             voters: {
                 voterInformationLetter: {
-                    label: "Hauteslearen informazio-gutuna",
+                    label: "Bozkatzailearen informazio-gutuna",
                     generate: "Sortu",
                     confirmation:
-                        "Hautesle honentzako informazio-gutuna sortu? Pasahitz berri bat esleituko da eta PDF zifratu batean sartuko da.",
+                        "Bozkatzaile honentzako informazio-gutuna sortu? Pasahitz berri bat esleituko da eta PDF zifratu batean sartuko da.",
                     generationStarted: "Informazio-gutuna sortzen hasi da",
                     generationError: "Ezin izan da informazio-gutuna sortu",
                     policyNotConfigured:
@@ -1213,7 +1213,7 @@ const basqueTranslation: TranslationType = {
                 },
             },
             permissions: {
-                "voter-information-letter": "Hauteslearen informazio-gutuna sortu",
+                "voter-information-letter": "Bozkatzailearen informazio-gutuna sortu",
                 "admin-user": "Admin Erabiltzailea",
                 "admin-dashboard-view": "Admin Panela Ikusi",
                 "application-export": "Aplikazio Esportazioa",
@@ -1852,9 +1852,9 @@ const basqueTranslation: TranslationType = {
             },
             maxVotes: {
                 helperText:
-                    "Hautesleak aukeratu ahal dituen hautagai kopuru maximoa (ez-hobesentziazko botazioa).",
+                    "Bozkatzaileak aukeratu ahal dituen hautagai kopuru maximoa (ez-hobesentziazko botazioa).",
                 helperTextPreferential:
-                    "Hautesleek erabil dezaketen posizio altuena (adib. '5' 1-5 posizioak ahalbidetzen ditu). Ordenatu beharreko hautagai kopurua baino gehiago izan behar du (hobesentziazko botazioa).",
+                    "Bozkatzaileek erabil dezaketen posizio altuena (adib. '5' 1-5 posizioak ahalbidetzen ditu). Ordenatu beharreko hautagai kopurua baino gehiago izan behar du (hobesentziazko botazioa).",
             },
             error: {},
             createContestSuccess: "Lehiaketa sortua",
@@ -2002,11 +2002,11 @@ const basqueTranslation: TranslationType = {
                 visibility: "Visibility",
                 fullPublishedScope: "Full published scope",
                 personalVisibility: "Personal visibility",
-                contests: "Contests",
-                noTalliedContests: "No tallied contests available.",
-                publishSelectedContests: "Publish selected contests",
-                selectedContestCount_one: "{{count}} contest selected",
-                selectedContestCount_other: "{{count}} contests selected",
+                contests: "Lehiaketak",
+                noTalliedContests: "Ez dago zenbatutako lehiaketarik erabilgarri.",
+                publishSelectedContests: "Argitaratu hautatutako lehiaketak",
+                selectedContestCount_one: "{{count}} lehiaketa hautatuta",
+                selectedContestCount_other: "{{count}} lehiaketa hautatuta",
                 history: "Publication history",
                 version: "Version",
                 status: "Status",
@@ -2711,7 +2711,7 @@ const basqueTranslation: TranslationType = {
         certificateAuthorities: {
             title: "Ziurtagiriak",
             subtitle:
-                "Hauteskunde-ekitaldi honetarako fidagarriak diren ziurtagiri-agintariak (CA). Inportatutako CA-k hautesleen ziurtagiriak egiaztatzeko erabiltzen dira.",
+                "Hauteskunde-ekitaldi honetarako fidagarriak diren ziurtagiri-agintariak (CA). Inportatutako CA-k bozkatzaileen ziurtagiriak egiaztatzeko erabiltzen dira.",
             importButton: "Ziurtagiriak inportatu",
             type: {
                 root: "Erroa",
