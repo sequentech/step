@@ -28,6 +28,11 @@
 #[cfg(feature = "election_config_templates")]
 pub mod build;
 
+/// What a bundle becomes as files. Needs the builder, so it shares its feature;
+/// the zip writer itself is behind `election_config_archive`.
+#[cfg(feature = "election_config_templates")]
+pub mod archive;
+
 pub mod branding;
 pub mod emit;
 pub mod ids;
@@ -53,6 +58,8 @@ pub mod xlsx;
 #[cfg(test)]
 mod validate_tests;
 
+#[cfg(feature = "election_config_templates")]
+pub use archive::{layout, Artifact, Layout};
 #[cfg(feature = "election_config_templates")]
 pub use build::{
     build, BuildOptions, Bundle, CommunicationTemplate, JsonTable, PlainTable,

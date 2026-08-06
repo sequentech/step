@@ -134,6 +134,10 @@ calamine = { version = "0.26", features = ["dates"], optional = true }
 # randomness.
 sha1 = { version = "0.10", optional = true }
 
+# writing the importable archive; optional so a front end that only validates a
+# bundle carries no zip writer
+zip = { version = "2.1", optional = true }
+
 
 # WASM plugin management
 wasmtime = {version = "41.0.2", optional = true}
@@ -142,8 +146,6 @@ wasmtime-wasi = {version = "41.0.2", optional = true}
 [dev-dependencies]
 ptree = "0.5"
 wasm-bindgen-test = "0.3.42"
-# writes the tiny .xlsx the reader's tests read, so no binary fixture is committed
-zip = "2.1"
 
 [features]
 wasmtest = ["wasm", "dep:web-sys", "strand/wasmtest"]
@@ -166,10 +168,13 @@ default_features = ["dep:strand", "dep:num-bigint", "dep:tempfile", "dep:ammonia
 # Reading .xlsx into an election_config::sheet::Workbook. Separate from
 # default_features because admin-portal and voting-portal have no workbook to
 # read and should not pay for a spreadsheet parser in their bundle.
-election_config_xlsx = ["default_features", "dep:calamine"]
+election_config_xlsx = ["default_features", "dep:calamine", "dep:zip"]
 # Rendering the base entity templates. Separate from `reports`, which also brings
 # a headless browser and three AWS SDKs; this needs only the template engine.
 election_config_templates = ["default_features", "dep:handlebars"]
+# Writing the importable zip. Separate again: a front end that only validates an
+# existing bundle has nothing to write.
+election_config_archive = ["election_config_templates", "dep:zip"]
 
 sqlite = ["dep:tokio", "dep:rusqlite"]
 time = ["dep:time"]

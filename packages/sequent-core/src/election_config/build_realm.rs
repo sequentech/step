@@ -519,8 +519,8 @@ impl Builder<'_> {
         // Insertion-ordered so the message does not depend on a hash.
         let mut used: Vec<(String, Vec<String>)> = Vec::new();
         let note = |used: &mut Vec<(String, Vec<String>)>,
-                        label: String,
-                        entity: String| {
+                    label: String,
+                    entity: String| {
             match used.iter_mut().find(|(seen, _)| seen == &label) {
                 Some((_, entities)) => entities.push(entity),
                 None => used.push((label, vec![entity])),
