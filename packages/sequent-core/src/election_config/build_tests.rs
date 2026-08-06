@@ -617,8 +617,11 @@ fn a_parameter_nothing_interprets_is_recorded_and_said_out_loud() {
             vec![text("client"), text("helpdesk_phone"), text("555-0100")],
         ],
     ));
+    // Namespaced the way the SEIU1000 bundle already carries them, so a
+    // regenerated event does not move its annotations.
     assert_eq!(
-        bundle.export["election_event"]["annotations"]["client.helpdesk_phone"],
+        bundle.export["election_event"]["annotations"]
+            ["janitor.param.client.helpdesk_phone"],
         json!("555-0100")
     );
     assert!(bundle
@@ -642,9 +645,8 @@ fn a_parameter_with_no_value_is_ignored_with_a_warning() {
         .contains("has no value and is ignored")));
     assert!(bundle.export["election_event"]
         .get("annotations")
-        .and_then(
-            |annotations| annotations.get("settings.saml_idp_metadata_url")
-        )
+        .and_then(|annotations| annotations
+            .get("janitor.param.settings.saml_idp_metadata_url"))
         .is_none());
 }
 
@@ -1642,4 +1644,713 @@ fn the_csv_members_render_through_the_shared_writers() {
         .collect();
     let schedule = json_csv(&schedule_columns, &bundle.scheduled_events.rows);
     assert!(schedule.starts_with("id,tenant_id,election_event_id"));
+}
+
+// -- the realm ------------------------------------------------------------
+
+/// A realm with the pieces the presets expect, small enough to read.
+fn base_realm() -> Value {
+    json!({
+        "realm": "some-other-realm",
+        "id": "99999999-9999-4999-8999-999999999999",
+        "identityProviders": [{"alias": "environment-idp", "enabled": true}],
+        "authenticationFlows": [{
+            "alias": "browser",
+            "authenticationExecutions": [
+                {"authenticator": "message-otp-authenticator"},
+            ],
+        }, {
+            "alias": "saml-first-broker-flow",
+            "authenticationExecutions": [],
+        }],
+        "authenticatorConfig": [{"alias": "deferred", "config": {}}],
+        "components": {
+            "org.keycloak.userprofile.UserProfileProvider": [{
+                "config": {"kc.user.profile.config": [
+                    r#"{"attributes":[{"name":"username"},{"name":"dateOfBirth"}]}"#
+                ]},
+            }],
+        },
+        "clients": [{
+            "clientId": "voting-portal",
+            "rootUrl": "https://vote.example.org/99999999-9999-4999-8999-999999999999",
+        }],
+    })
+}
+
+fn with_options(workbook: &Workbook, options: BuildOptions) -> Bundle {
+    let templates = TemplateSet::builtin().unwrap();
+    match build(workbook, &templates, &options) {
+        Ok(bundle) => bundle,
+        Err(report) => panic!("expected a clean build, got:\n{report}"),
+    }
+}
+
+#[test]
+fn no_base_export_means_no_realm_at_all() {
+    // The importer takes keycloak_event_realm wholesale, so a realm invented here
+    // would replace the environment's provisioned default rather than merge into
+    // it. Emitting none is the safe answer.
+    let bundle = built(&sound());
+    assert_eq!(bundle.export["keycloak_event_realm"], Value::Null);
+}
+
+#[test]
+fn what_the_document_asked_of_the_realm_is_kept_even_with_no_realm_to_apply_it_to(
+) {
+    // Otherwise an auth_type or a login stylesheet is silently lost.
+    let bundle = built(&with_sheet(
+        "Parameters",
+        vec![
+            vec![text("type"), text("key"), text("value")],
+            vec![
+                text("settings"),
+                text("auth_type"),
+                text("otp_email_or_sms"),
+            ],
+        ],
+    ));
+    assert_eq!(bundle.auth_preset, Some("otp_email_or_sms"));
+    assert!(!bundle.realm_patch.patch.is_empty());
+    assert!(bundle.realm_patch.bind_authenticator_config.is_some());
+    assert!(bundle.warnings.warnings().any(|problem| problem
+        .message
+        .contains(
+            "no base export, so nothing here configures the login page"
+        )));
+}
+
+#[test]
+fn the_realms_name_is_derived_from_the_tenant_and_the_event() {
+    // Structural: the voting portal and the smart-link URLs derive it the same
+    // way, so it is not a free choice.
+    let bundle = with_options(
+        &sound(),
+        BuildOptions {
+            base_export: Some(json!({"keycloak_event_realm": base_realm()})),
+            ..BuildOptions::default()
+        },
+    );
+    let realm = &bundle.export["keycloak_event_realm"];
+    assert_eq!(
+        realm["realm"],
+        json!(format!(
+            "tenant-{}-event-{}",
+            bundle.tenant_id, bundle.event_id
+        ))
+    );
+    assert_eq!(realm["id"], json!(bundle.event_id));
+}
+
+#[test]
+fn a_stale_event_id_in_the_realms_urls_is_swapped_for_this_events() {
+    // Hosts belong to the environment and stay, but the base export embeds its own
+    // event id in those URLs, and import remaps every UUID it finds — so a stale
+    // one would be remapped to something unrelated.
+    let bundle = with_options(
+        &sound(),
+        BuildOptions {
+            base_export: Some(json!({
+                "keycloak_event_realm": base_realm(),
+                "election_event": {"id": "99999999-9999-4999-8999-999999999999"},
+            })),
+            ..BuildOptions::default()
+        },
+    );
+    let root = bundle.export["keycloak_event_realm"]["clients"][0]["rootUrl"]
+        .as_str()
+        .unwrap();
+    assert!(root.starts_with("https://vote.example.org/"), "{root}");
+    assert!(root.ends_with(&bundle.event_id), "{root}");
+    assert!(!root.contains("99999999-9999-4999-8999-999999999999"));
+}
+
+#[test]
+fn a_preset_adds_its_provider_without_removing_the_environments() {
+    // identityProviders is referenced by alias from elsewhere in the realm;
+    // replacing the list would strip what the environment configured on purpose.
+    let workbook = with_sheet(
+        "Parameters",
+        vec![
+            vec![text("type"), text("key"), text("value")],
+            vec![
+                text("settings"),
+                text("auth_type"),
+                text("saml_sso_idp_initiated"),
+            ],
+            vec![
+                text("settings"),
+                text("saml_idp_metadata_url"),
+                text("https://idp.example.org/metadata"),
+            ],
+        ],
+    );
+    let bundle = with_options(
+        &workbook,
+        BuildOptions {
+            base_export: Some(json!({"keycloak_event_realm": base_realm()})),
+            ..BuildOptions::default()
+        },
+    );
+
+    let providers = bundle.export["keycloak_event_realm"]["identityProviders"]
+        .as_array()
+        .unwrap();
+    let aliases: Vec<&str> = providers
+        .iter()
+        .map(|provider| provider["alias"].as_str().unwrap())
+        .collect();
+    assert_eq!(aliases, ["environment-idp", "client-saml-idp"]);
+}
+
+#[test]
+fn the_otp_preset_binds_its_config_to_the_authenticator_in_the_realm() {
+    // Registering the config without binding it leaves the step unconfigured, and
+    // nothing about the realm would say so.
+    let workbook = with_sheet(
+        "Parameters",
+        vec![
+            vec![text("type"), text("key"), text("value")],
+            vec![
+                text("settings"),
+                text("auth_type"),
+                text("otp_email_or_sms"),
+            ],
+        ],
+    );
+    let bundle = with_options(
+        &workbook,
+        BuildOptions {
+            base_export: Some(json!({"keycloak_event_realm": base_realm()})),
+            ..BuildOptions::default()
+        },
+    );
+
+    let realm = &bundle.export["keycloak_event_realm"];
+    assert_eq!(
+        realm["authenticationFlows"][0]["authenticationExecutions"][0]
+            ["authenticatorConfig"],
+        json!("janitor-otp-by-availability")
+    );
+    // And the config it points at is present alongside the realm's own.
+    let aliases: Vec<&str> = realm["authenticatorConfig"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|config| config["alias"].as_str().unwrap())
+        .collect();
+    assert!(aliases.contains(&"deferred"));
+    assert!(aliases.contains(&"janitor-otp-by-availability"));
+}
+
+#[test]
+fn the_link_preset_patches_the_user_profile_inside_its_stringified_blob() {
+    // It lives inside a Keycloak component as a single JSON string, so it has to
+    // be parsed, patched and re-serialised rather than merged.
+    let workbook = with_sheet(
+        "Parameters",
+        vec![
+            vec![text("type"), text("key"), text("value")],
+            vec![
+                text("settings"),
+                text("auth_type"),
+                text("voter_link_plus_dob"),
+            ],
+        ],
+    );
+    let bundle = with_options(
+        &workbook,
+        BuildOptions {
+            base_export: Some(json!({"keycloak_event_realm": base_realm()})),
+            ..BuildOptions::default()
+        },
+    );
+
+    let raw = bundle.export["keycloak_event_realm"]["components"]
+        ["org.keycloak.userprofile.UserProfileProvider"][0]["config"]
+        ["kc.user.profile.config"][0]
+        .as_str()
+        .unwrap();
+    let profile: Value = serde_json::from_str(raw).unwrap();
+    let attributes = profile["attributes"].as_array().unwrap();
+
+    let date_of_birth = attributes
+        .iter()
+        .find(|attribute| attribute["name"] == json!("dateOfBirth"))
+        .unwrap();
+    assert_eq!(
+        date_of_birth["annotations"]["loginHintPrefillPolicy"],
+        json!("IGNORE")
+    );
+    let username = attributes
+        .iter()
+        .find(|attribute| attribute["name"] == json!("username"))
+        .unwrap();
+    assert_eq!(
+        username["annotations"]["loginHintPrefillPolicy"],
+        json!("READ_ONLY")
+    );
+}
+
+#[test]
+fn a_preset_whose_flow_the_realm_lacks_is_warned_about_rather_than_applied_blindly(
+) {
+    let workbook = with_sheet(
+        "Parameters",
+        vec![
+            vec![text("type"), text("key"), text("value")],
+            vec![
+                text("settings"),
+                text("auth_type"),
+                text("digital_certificates"),
+            ],
+        ],
+    );
+    let bundle = with_options(
+        &workbook,
+        BuildOptions {
+            base_export: Some(json!({"keycloak_event_realm": base_realm()})),
+            ..BuildOptions::default()
+        },
+    );
+    assert!(bundle.warnings.warnings().any(|problem| problem
+        .message
+        .contains("has no flow 'certificate-first-login-flow'")));
+}
+
+#[test]
+fn a_preset_missing_a_required_parameter_refuses_the_build() {
+    // The SEIU document's own case: it declares SAML and leaves the IdP metadata
+    // URL blank pending the client's identity provider.
+    let report = refused(&with_sheet(
+        "Parameters",
+        vec![
+            vec![text("type"), text("key"), text("value")],
+            vec![
+                text("settings"),
+                text("auth_type"),
+                text("saml_sso_idp_initiated"),
+            ],
+        ],
+    ));
+    assert!(has_error_saying(
+        &report,
+        "needs a 'saml_idp_metadata_url' parameter"
+    ));
+}
+
+#[test]
+fn selecting_the_none_preset_ignores_what_the_document_declares() {
+    // Which is how a document declaring SAML still builds while the client has not
+    // supplied their metadata URL.
+    let workbook = with_sheet(
+        "Parameters",
+        vec![
+            vec![text("type"), text("key"), text("value")],
+            vec![
+                text("settings"),
+                text("auth_type"),
+                text("saml_sso_idp_initiated"),
+            ],
+        ],
+    );
+    let bundle = with_options(
+        &workbook,
+        BuildOptions {
+            auth_preset: Some("none".to_string()),
+            ..BuildOptions::default()
+        },
+    );
+    assert_eq!(bundle.auth_preset, None);
+    assert!(bundle.realm_patch.bind_authenticator_config.is_none());
+}
+
+#[test]
+fn a_preset_nobody_wrote_is_refused_with_the_list() {
+    let report = refused(&with_sheet(
+        "Parameters",
+        vec![
+            vec![text("type"), text("key"), text("value")],
+            vec![text("settings"), text("auth_type"), text("magic_link")],
+        ],
+    ));
+    assert!(has_error_saying(&report, "is not an authentication preset"));
+    assert!(has_error_saying(&report, "otp_email_or_sms"));
+}
+
+#[test]
+fn a_preset_that_authenticates_the_voter_elsewhere_stops_asking_for_contacts() {
+    // Under SAML the client's IdP authenticates the voter, so "no voter can be
+    // sent a code" is noise rather than a finding.
+    let mut sheets: Vec<Sheet> = sound().sheets().to_vec();
+    sheets.push(
+        Sheet::from_grid(
+            "Voters",
+            &[
+                vec![text("username"), text("area.external_id")],
+                vec![text("m-1001"), text("area-north")],
+            ],
+        )
+        .unwrap(),
+    );
+    sheets.push(
+        Sheet::from_grid(
+            "Parameters",
+            &[
+                vec![text("type"), text("key"), text("value")],
+                vec![
+                    text("settings"),
+                    text("auth_type"),
+                    text("saml_sso_idp_initiated"),
+                ],
+                vec![
+                    text("settings"),
+                    text("saml_idp_metadata_url"),
+                    text("https://idp.example.org/metadata"),
+                ],
+            ],
+        )
+        .unwrap(),
+    );
+    let bundle = built(&Workbook::new(sheets).unwrap());
+    assert!(
+        !bundle
+            .warnings
+            .warnings()
+            .any(|problem| problem.message.contains("one-time code")),
+        "{}",
+        bundle.warnings
+    );
+}
+
+#[test]
+fn the_event_languages_become_the_login_pages() {
+    // The platform never syncs supportedLocales, so this is the only thing that
+    // puts a language in Keycloak's picker.
+    let bundle = built(&with_sheet(
+        "ElectionEvent",
+        vec![
+            vec![
+                text("external_id"),
+                text("presentation.i18n.en.name"),
+                text("presentation.language_conf.enabled_language_codes"),
+                text("presentation.language_conf.default_language_code"),
+            ],
+            vec![
+                text("union-2027"),
+                text("Union Election 2027"),
+                text(r#"["eng", "spa"]"#),
+                text("spa"),
+            ],
+        ],
+    ));
+    assert_eq!(
+        bundle.realm_patch.patch["supportedLocales"],
+        json!(["en", "es"])
+    );
+    assert_eq!(bundle.realm_patch.patch["defaultLocale"], json!("es"));
+    assert_eq!(
+        bundle.realm_patch.patch["internationalizationEnabled"],
+        json!(true)
+    );
+}
+
+#[test]
+fn the_event_title_becomes_the_realms_display_name() {
+    // Otherwise every client's voters see "Election Event" above the login form.
+    let bundle = built(&sound());
+    assert_eq!(
+        bundle.realm_patch.patch["displayName"],
+        json!("Union Election 2027")
+    );
+}
+
+#[test]
+fn login_css_reaches_every_enabled_language_escaped_for_message_format() {
+    let bundle = built(&with_sheet(
+        "Parameters",
+        vec![
+            vec![text("type"), text("key"), text("value")],
+            vec![
+                text("settings"),
+                text("login_custom_css"),
+                text(".logo { display: none; }"),
+            ],
+        ],
+    ));
+    let texts = &bundle.realm_patch.patch["localizationTexts"];
+    assert_eq!(
+        texts["en"]["loginCustomCss"],
+        json!(".logo '{' display: none; '}'")
+    );
+}
+
+#[test]
+fn an_explicit_realm_parameter_wins_over_anything_derived() {
+    let bundle = built(&with_sheet(
+        "Parameters",
+        vec![
+            vec![text("type"), text("key"), text("value")],
+            vec![
+                text("settings"),
+                text("keycloak_event_realm.displayName"),
+                text("Chosen By Hand"),
+            ],
+        ],
+    ));
+    assert_eq!(
+        bundle.realm_patch.patch["displayName"],
+        json!("Chosen By Hand")
+    );
+}
+
+#[test]
+fn admin_realm_parameters_travel_separately_because_they_are_tenant_scoped() {
+    let bundle = built(&with_sheet(
+        "Parameters",
+        vec![
+            vec![text("type"), text("key"), text("value")],
+            vec![
+                text("settings"),
+                text("keycloak_admin_realm.smtpServer.host"),
+                text("smtp.example.org"),
+            ],
+        ],
+    ));
+    assert_eq!(
+        bundle.admin_realm_patch["smtpServer"]["host"],
+        json!("smtp.example.org")
+    );
+    // And not into the event's realm patch.
+    assert!(bundle.realm_patch.patch.get("smtpServer").is_none());
+}
+
+#[test]
+fn a_parameter_a_preset_consumes_is_not_also_reported_as_uninterpreted() {
+    // Reporting it as ignored while a preset acts on it contradicts itself.
+    let bundle = built(&with_sheet(
+        "Parameters",
+        vec![
+            vec![text("type"), text("key"), text("value")],
+            vec![
+                text("settings"),
+                text("auth_type"),
+                text("otp_email_or_sms"),
+            ],
+            vec![text("settings"), text("otp_length"), Cell::Int(8)],
+        ],
+    ));
+    // Nothing was carried, so annotations stays whatever the template said —
+    // null, not an object with the preset's own parameters in it.
+    let annotations = &bundle.export["election_event"]["annotations"];
+    let carried: Vec<&String> = annotations
+        .as_object()
+        .map(|annotations| annotations.keys().collect())
+        .unwrap_or_default();
+    assert!(
+        carried.is_empty(),
+        "a preset's own parameters were carried as uninterpreted: {carried:?}"
+    );
+}
+
+// -- permission labels ----------------------------------------------------
+
+#[test]
+fn a_permission_label_no_administrator_holds_is_warned_about() {
+    // The failure this guards against is quiet and expensive: the event imports
+    // cleanly and the Elections list is empty. It happened on the first real
+    // import, where a document labelled an election 'dlc-officers-dburs' while its
+    // own administrators carried 'dlc-officers'.
+    let mut sheets: Vec<Sheet> = sound()
+        .sheets()
+        .iter()
+        .filter(|sheet| sheet.name != "Elections")
+        .cloned()
+        .collect();
+    sheets.push(
+        Sheet::from_grid(
+            "Elections",
+            &[
+                vec![text("external_id"), text("permission_label")],
+                vec![text("statewide"), text("dlc-officers-dburs")],
+            ],
+        )
+        .unwrap(),
+    );
+    sheets.push(
+        Sheet::from_grid(
+            "Admin Users",
+            &[
+                vec![text("username"), text("permission_labels")],
+                vec![text("admin1"), text("dlc-officers")],
+            ],
+        )
+        .unwrap(),
+    );
+
+    let bundle = built(&Workbook::new(sheets).unwrap());
+    assert!(bundle.warnings.warnings().any(|problem| problem
+        .message
+        .contains("no administrator in the Admin Users sheet carries it")));
+    assert!(bundle
+        .warnings
+        .warnings()
+        .any(|problem| problem.message.contains("permission labels in use")));
+}
+
+#[test]
+fn a_label_an_administrator_does_hold_is_only_noted_not_flagged() {
+    let mut sheets: Vec<Sheet> = sound()
+        .sheets()
+        .iter()
+        .filter(|sheet| sheet.name != "Elections")
+        .cloned()
+        .collect();
+    sheets.push(
+        Sheet::from_grid(
+            "Elections",
+            &[
+                vec![text("external_id"), text("permission_label")],
+                vec![text("statewide"), text("statewide-officers")],
+            ],
+        )
+        .unwrap(),
+    );
+    sheets.push(
+        Sheet::from_grid(
+            "Admin Users",
+            &[
+                vec![text("username"), text("permission_labels")],
+                vec![text("admin1"), text("statewide-officers")],
+            ],
+        )
+        .unwrap(),
+    );
+
+    let bundle = built(&Workbook::new(sheets).unwrap());
+    assert!(!bundle
+        .warnings
+        .warnings()
+        .any(|problem| problem.message.contains("carries it")));
+    // Whoever imports still needs the label on their own attribute.
+    assert!(bundle
+        .warnings
+        .warnings()
+        .any(|problem| problem.message.contains("permission labels in use")));
+}
+
+#[test]
+fn a_document_that_grants_no_labels_at_all_says_so_differently() {
+    let mut sheets: Vec<Sheet> = sound()
+        .sheets()
+        .iter()
+        .filter(|sheet| sheet.name != "Elections")
+        .cloned()
+        .collect();
+    sheets.push(
+        Sheet::from_grid(
+            "Elections",
+            &[
+                vec![text("external_id"), text("permission_label")],
+                vec![text("statewide"), text("statewide-officers")],
+            ],
+        )
+        .unwrap(),
+    );
+    let bundle = built(&Workbook::new(sheets).unwrap());
+    assert!(bundle.warnings.warnings().any(|problem| problem
+        .message
+        .contains("grants no permission labels to anyone")));
+}
+
+#[test]
+fn a_document_with_no_labels_says_nothing_about_them() {
+    let bundle = built(&sound());
+    assert!(!bundle
+        .warnings
+        .warnings()
+        .any(|problem| problem.message.contains("permission label")));
+}
+
+// -- inherited branding ---------------------------------------------------
+
+#[test]
+fn voter_facing_copy_inherited_from_a_base_export_is_named() {
+    // Useful when the base is a reference event and wrong when it is another
+    // client's: their login title and instruction copy would come along silently.
+    let bundle = with_options(
+        &sound(),
+        BuildOptions {
+            base_export: Some(json!({
+                "election_event": {
+                    "presentation": {
+                        "i18n": {"en": {
+                            "login_instructions": "Ring the other client's helpdesk",
+                        }},
+                        "theme": "other-client",
+                    },
+                },
+            })),
+            ..BuildOptions::default()
+        },
+    );
+    assert!(bundle.warnings.warnings().any(|problem| problem
+        .message
+        .contains("presentation.i18n.en.login_instructions")));
+    assert!(bundle.warnings.warnings().any(|problem| problem
+        .message
+        .contains("presentation settings inherited from the base export")));
+}
+
+#[test]
+fn copy_the_document_sets_itself_is_not_reported_as_inherited() {
+    let mut sheets: Vec<Sheet> = sound()
+        .sheets()
+        .iter()
+        .filter(|sheet| sheet.name != "ElectionEvent")
+        .cloned()
+        .collect();
+    sheets.push(
+        Sheet::from_grid(
+            "ElectionEvent",
+            &[
+                vec![
+                    text("external_id"),
+                    text("presentation.i18n.en.name"),
+                    text("presentation.i18n.en.login_instructions"),
+                ],
+                vec![
+                    text("union-2027"),
+                    text("Union Election 2027"),
+                    text("Ring our helpdesk"),
+                ],
+            ],
+        )
+        .unwrap(),
+    );
+
+    let bundle = with_options(
+        &Workbook::new(sheets).unwrap(),
+        BuildOptions {
+            base_export: Some(json!({
+                "election_event": {"presentation": {"i18n": {"en": {
+                    "login_instructions": "Ring the other client's helpdesk",
+                }}}},
+            })),
+            ..BuildOptions::default()
+        },
+    );
+    assert!(
+        !bundle
+            .warnings
+            .warnings()
+            .any(|problem| problem.message.contains("login_instructions")),
+        "{}",
+        bundle.warnings
+    );
+    assert_eq!(
+        bundle.export["election_event"]["presentation"]["i18n"]["en"]
+            ["login_instructions"],
+        json!("Ring our helpdesk")
+    );
 }

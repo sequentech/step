@@ -373,6 +373,13 @@ impl Builder<'_> {
             return;
         }
 
+        // Under an identity provider that authenticates the voter itself there is
+        // no code to send, so the whole question is noise. With no preset named,
+        // checking is the safer default.
+        if self.auth_preset.is_some_and(|preset| !preset.uses_otp) {
+            return;
+        }
+
         // There is always at least one contact column: `email` is derived, so it
         // is present whether or not the source has it. The Python this was ported
         // from also carried a "no contact column at all" warning, which for the

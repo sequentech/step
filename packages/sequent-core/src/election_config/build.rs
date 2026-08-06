@@ -15,15 +15,14 @@
 //! problem carries the sheet and row it came from, because a bundle path is no
 //! use to whoever has to edit the file.
 //!
-//! The CSV members and the files that travel beside a bundle are in
-//! `build_tables.rs`, a child module, so that this file stays readable; the two
-//! are one unit of code split across two files.
-//!
-//! The auth presets and the Keycloak realm are the next level of the same port;
-//! `keycloak_event_realm` is left null until then.
+//! Split across three files so each stays readable, all one unit of code: the CSV
+//! members and the files that travel beside a bundle are in `build_tables.rs`, and
+//! everything to do with the Keycloak realm is in `build_realm.rs`. Both are child
+//! modules, so both can reach the resolved ids without any of it being public.
 
 use crate::election_config::ids::IdFactory;
 use crate::election_config::paths::{deep_merge, set_path, split_path};
+use crate::election_config::presets::{self, AuthPreset, RealmPatch};
 use crate::election_config::problem::{Code, Problem, Report};
 use crate::election_config::render::TemplateSet;
 use crate::election_config::sheet::{
@@ -34,9 +33,13 @@ use crate::election_config::sheet::{
 };
 use serde_json::{json, Map, Value};
 
+#[path = "build_realm.rs"]
+mod realm;
+
 #[path = "build_tables.rs"]
 mod tables;
 
+pub use realm::PARAM_LOGIN_CUSTOM_CSS;
 pub use tables::{
     CommunicationTemplate, JsonTable, PlainTable, EVENT_PROCESSORS,
     VOTER_LEADING_COLUMNS,
@@ -92,7 +95,8 @@ pub const PARAMETER_PREFIXES: &[&str] = &[
 ];
 
 /// Parameters the builder acts on directly rather than carrying as metadata.
-pub const HANDLED_PARAMETERS: &[&str] = &["tenant_id", "login_custom_css"];
+pub const HANDLED_PARAMETERS: &[&str] =
+    &["tenant_id", realm::PARAM_LOGIN_CUSTOM_CSS];
 
 /// Fields of a base entity that describe *that* event rather than the platform's
 /// defaults, and so must not leak into a new one.
@@ -180,6 +184,13 @@ pub struct BuildOptions {
 
     /// Timestamp for every entity. [`DEFAULT_CREATED_AT`] when absent.
     pub created_at: Option<String>,
+
+    /// Which authentication preset to apply, overriding the document's
+    /// `auth_type`.
+    ///
+    /// [`presets::NONE`] leaves the realm alone whatever the document declares —
+    /// worth having while a client has not yet supplied what a preset needs.
+    pub auth_preset: Option<String>,
 }
 
 /// A built bundle: the JSON document and what was worth saying about it.
@@ -217,6 +228,20 @@ pub struct Bundle {
     /// rather than imported — the event zip has no member for them.
     pub templates: Vec<CommunicationTemplate>,
 
+    /// Everything the document asked of the event's Keycloak realm.
+    ///
+    /// Kept whether or not it could be applied here, so that an `auth_type` or a
+    /// `keycloak_event_realm.*` parameter is never lost just because no base
+    /// export was given.
+    pub realm_patch: RealmPatch,
+
+    /// `keycloak_admin_realm.*` parameters. Tenant-scoped, so not part of the
+    /// event import.
+    pub admin_realm_patch: Map<String, Value>,
+
+    /// The preset that was applied, if any.
+    pub auth_preset: Option<&'static str>,
+
     /// Warnings. Not errors: the bundle imports, but something about it looks
     /// unintended.
     pub warnings: Report,
@@ -244,6 +269,9 @@ struct Builder<'a> {
 
     /// `(type, key) -> value` from the Parameters sheet, in sheet order.
     parameters: Vec<(String, String, Value)>,
+
+    auth_preset: Option<&'static AuthPreset>,
+    realm_patch: RealmPatch,
 
     event_row: Row,
     event_external_id: String,
@@ -301,6 +329,8 @@ impl<'a> Builder<'a> {
                 .unwrap_or_else(|| DEFAULT_CREATED_AT.to_string()),
             report,
             parameters: Vec::new(),
+            auth_preset: None,
+            realm_patch: RealmPatch::default(),
             event_row,
             event_external_id: event_external_id.clone(),
             event_id,
@@ -319,16 +349,27 @@ impl<'a> Builder<'a> {
         builder.parameters = builder.read_parameters();
         builder.tenant_id =
             builder.resolve_tenant_id(options.tenant_id.as_deref());
+        builder.auth_preset =
+            builder.resolve_auth_preset(options.auth_preset.as_deref());
         Ok(builder)
     }
 
     fn build(mut self) -> Result<Bundle, Report> {
+        // Built before the realm, because the realm applies it, and before the
+        // entities so that a preset's requirements are reported first.
+        self.realm_patch = self.build_realm_patch();
+        self.warn_permission_labels();
+
         let elections = self.build_elections();
         let contests = self.build_contests();
         let candidates = self.build_candidates();
         let areas = self.build_areas();
         let area_contests = self.build_area_contests();
         let event = self.build_election_event();
+        // After the event, because a stale base event id is swapped out of the
+        // realm's URLs and that id comes from the base export.
+        let realm = self.build_realm();
+        let admin_realm_patch = self.admin_realm_patch();
 
         let version = self
             .base_export
@@ -339,8 +380,7 @@ impl<'a> Builder<'a> {
 
         let export = json!({
             "tenant_id": self.tenant_id,
-            // Filled in by the realm level of this port.
-            "keycloak_event_realm": Value::Null,
+            "keycloak_event_realm": realm,
             "election_event": event,
             "elections": elections,
             "contests": contests,
@@ -385,6 +425,9 @@ impl<'a> Builder<'a> {
             admin_users,
             role_permissions,
             templates,
+            realm_patch: self.realm_patch,
+            admin_realm_patch,
+            auth_preset: self.auth_preset.map(|preset| preset.name),
             warnings: self.report,
         })
     }
@@ -482,23 +525,36 @@ impl<'a> Builder<'a> {
     /// something to them, and silently ignoring it is how a setting goes missing
     /// on election day.
     fn uninterpreted_parameters(&self) -> Vec<(String, Value)> {
-        self.parameters
+        // A key a preset takes is not uninterpreted, whether or not a preset was
+        // selected: reporting it as ignored while a preset would have acted on it
+        // contradicts itself.
+        let consumed = presets::all_preset_parameters();
+
+        let mut carried: Vec<(String, Value)> = self
+            .parameters
             .iter()
             .filter(|(_, key, _)| {
                 !HANDLED_PARAMETERS.contains(&key.as_str())
+                    && !consumed.contains(&key.as_str())
                     && !PARAMETER_PREFIXES
                         .iter()
                         .any(|prefix| key.starts_with(prefix))
             })
             .map(|(kind, key, value)| {
-                let name = if kind.is_empty() {
-                    key.clone()
-                } else {
-                    format!("{kind}.{key}")
-                };
-                (name, value.clone())
+                let kind = if kind.is_empty() { "event" } else { kind };
+                // The prefix is what the SEIU1000 bundle already carries; keeping
+                // it means a regenerated event does not move its annotations.
+                (
+                    format!("janitor.param.{kind}.{key}"),
+                    match value {
+                        Value::String(_) => value.clone(),
+                        other => Value::String(other.to_string()),
+                    },
+                )
             })
-            .collect()
+            .collect();
+        carried.sort_by(|left, right| left.0.cmp(&right.0));
+        carried
     }
 
     fn resolve_tenant_id(&self, explicit: Option<&str>) -> String {
@@ -622,12 +678,18 @@ impl<'a> Builder<'a> {
 
         let event_id = self.event_id.clone();
         let tenant_id = self.tenant_id.clone();
+        let base = self.base("election_event", SCRUB_EVENT);
         let mut event = self.under_base(
             event,
             "election_event",
             SCRUB_EVENT,
             &[("id", &event_id), ("tenant_id", &tenant_id)],
         );
+        if let Some(base) = base {
+            // Say out loud what the base contributed to the voter's screen.
+            let merged = event.clone();
+            self.warn_inherited_branding(&base, &merged);
+        }
 
         event.insert("external_id".to_string(), json!(self.event_external_id));
 
