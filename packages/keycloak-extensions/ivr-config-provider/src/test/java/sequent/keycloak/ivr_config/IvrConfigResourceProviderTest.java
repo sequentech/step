@@ -141,7 +141,7 @@ class IvrConfigResourceProviderTest {
   void customAuthenticatorMultivaluedConfig_fansOutMultipleSteps() {
     AuthenticationExecutionModel custom =
         exec(
-            "multi-attribute-password-direct-grant",
+            "multi-attribute-password-direct",
             AuthenticationExecutionModel.Requirement.REQUIRED,
             "cfg-multi");
     stubExecutions(custom);
@@ -173,7 +173,7 @@ class IvrConfigResourceProviderTest {
   void customAuthenticatorMultivaluedConfig_noPromptKey_stepsHaveNullPromptKey() {
     AuthenticationExecutionModel custom =
         exec(
-            "multi-attribute-password-direct-grant",
+            "multi-attribute-password-direct",
             AuthenticationExecutionModel.Requirement.REQUIRED,
             "cfg-multi");
     stubExecutions(custom);
@@ -204,7 +204,7 @@ class IvrConfigResourceProviderTest {
   void customAuthenticatorMultivaluedConfig_mismatchedCountsYields500() {
     AuthenticationExecutionModel custom =
         exec(
-            "multi-attribute-password-direct-grant",
+            "multi-attribute-password-direct",
             AuthenticationExecutionModel.Requirement.REQUIRED,
             "cfg-mismatch");
     stubExecutions(custom);

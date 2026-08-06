@@ -12,13 +12,12 @@ pub fn get_election_config_1(election_event_id: &Uuid, areas: Vec<Uuid>) -> Elec
     let tenant_id = Uuid::new_v4();
     let election_id = Uuid::new_v4();
 
-    let first_area_id = areas.first().cloned().unwrap();
-    let ballot_style = ballot_styles::get_ballot_style_1(
-        &tenant_id,
-        election_event_id,
-        &election_id,
-        &first_area_id,
-    );
+    let area_ballot_styles = areas
+        .iter()
+        .map(|area_id| {
+            ballot_styles::get_ballot_style_1(&tenant_id, election_event_id, &election_id, area_id)
+        })
+        .collect();
 
     ElectionConfig {
         id: election_id,
@@ -32,7 +31,7 @@ pub fn get_election_config_1(election_event_id: &Uuid, areas: Vec<Uuid>) -> Elec
         election_event_id: *election_event_id,
         census: 0,
         total_votes: 0,
-        ballot_styles: vec![ballot_style],
+        ballot_styles: area_ballot_styles,
         areas: areas
             .iter()
             .map(|area| TreeNodeArea {
