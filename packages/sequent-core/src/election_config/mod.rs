@@ -23,6 +23,11 @@
 //! See `beyond/docs/docusaurus/docs/engineering/election-config-architecture.md`
 //! and <https://github.com/sequentech/meta/issues/12769>.
 
+/// Turning a source document's rows into a bundle. Needs the templates, so it
+/// shares their feature.
+#[cfg(feature = "election_config_templates")]
+pub mod build;
+
 pub mod emit;
 pub mod ids;
 pub mod paths;
@@ -46,6 +51,8 @@ pub mod xlsx;
 #[cfg(test)]
 mod validate_tests;
 
+#[cfg(feature = "election_config_templates")]
+pub use build::{build, BuildOptions, Bundle};
 pub use emit::{json_csv, plain_csv, JsonField};
 pub use ids::IdFactory;
 pub use paths::{coerce_cell, deep_merge, expand, Cell};
