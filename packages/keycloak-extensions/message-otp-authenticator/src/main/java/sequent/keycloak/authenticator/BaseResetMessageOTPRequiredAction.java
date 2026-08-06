@@ -230,20 +230,20 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
     String resend = context.getHttpRequest().getDecodedFormParameters().getFirst("resend");
     String code = authSession.getAuthNote(Utils.CODE);
     String ttl = authSession.getAuthNote(Utils.CODE_TTL);
-    String codeLengthStr = config != null ? config.getConfig().get(Utils.CODE_LENGTH) : "6";
+    String codeLengthStr = getConfigValue(config, Utils.CODE_LENGTH, Utils.CODE_LENGTH_DEFAULT);
     int codeLength = Integer.parseInt(codeLengthStr);
     String enteredCode = context.getHttpRequest().getDecodedFormParameters().getFirst("code");
     if (resend != null && resend.equals("true")) {
       // Handle resend logic: only allow if enough time has passed
       String resendTimerStr =
-          config != null ? config.getConfig().get(Utils.RESEND_ACTIVATION_TIMER) : "60";
+          getConfigValue(
+              config, Utils.RESEND_ACTIVATION_TIMER, Utils.RESEND_ACTIVATION_TIMER_DEFAULT);
       long resendTimer = Long.parseLong(resendTimerStr);
       long lastSent =
           ttl != null
               ? Long.parseLong(ttl)
-                  - (config != null
-                      ? Long.parseLong(config.getConfig().get(Utils.CODE_TTL)) * 1000L
-                      : 300000L)
+                  - Long.parseLong(getConfigValue(config, Utils.CODE_TTL, Utils.CODE_TTL_DEFAULT))
+                      * 1000L
               : 0;
       long now = System.currentTimeMillis();
       if (now - lastSent < resendTimer) {
@@ -407,6 +407,18 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
     return form.createForm(getEntryFtl());
   }
 
+  /**
+   * Reads a config value, falling back to the default when the realm's saved config has no entry
+   * for the key: the defaults declared in {@link MessageOTPAuthenticatorFactory} are applied by the
+   * admin console only, so a realm configured before a key existed simply doesn't have it, and the
+   * OTP template crashes with InvalidReferenceException on a missing attribute.
+   */
+  private String getConfigValue(AuthenticatorConfigModel config, String key, String defaultValue) {
+    Map<String, String> configMap = config == null ? null : config.getConfig();
+    String value = configMap == null ? null : configMap.get(key);
+    return value == null ? defaultValue : value;
+  }
+
   /** Creates the OTP entry form, setting all required attributes for the template. */
   protected Response createOTPForm(
       RequiredActionContext context,
@@ -415,13 +427,14 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
     LoginFormsProvider form = context.form();
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     String noteKey = getNoteKey(authSession);
-    String codeLength = config != null ? config.getConfig().get(Utils.CODE_LENGTH) : "6";
+    String codeLength = getConfigValue(config, Utils.CODE_LENGTH, Utils.CODE_LENGTH_DEFAULT);
     String resendTimer =
-        config != null ? config.getConfig().get(Utils.RESEND_ACTIVATION_TIMER) : "60";
+        getConfigValue(
+            config, Utils.RESEND_ACTIVATION_TIMER, Utils.RESEND_ACTIVATION_TIMER_DEFAULT);
     form.setAttribute("contact", authSession.getAuthNote(noteKey));
     form.setAttribute("codeLength", codeLength);
     form.setAttribute("resendTimer", resendTimer);
-    form.setAttribute("ttl", config.getConfig().get(Utils.CODE_TTL));
+    form.setAttribute("ttl", getConfigValue(config, Utils.CODE_TTL, Utils.CODE_TTL_DEFAULT));
     form.setAttribute("codeJustSent", true);
     form.setAttribute("i18nPrefix", getI18nPrefix());
     if (formConsumer != null) {
