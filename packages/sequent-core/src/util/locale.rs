@@ -334,7 +334,9 @@ mod tests {
 
     #[test]
     fn test_bcp47_and_internal_code_round_trip() {
-        for internal in ["en", "es", "cat", "eu", "gl", "nl", "tl", "fr", "es-tu", "cat-tu"] {
+        for internal in [
+            "en", "es", "cat", "eu", "gl", "nl", "tl", "fr", "es-tu", "cat-tu",
+        ] {
             let tag = internal_language_code_to_bcp47(internal);
             assert_eq!(
                 locale_to_internal_language_code(&tag),
