@@ -9,36 +9,7 @@ use csv::Writer;
 use roxmltree::{Document, Node};
 use sequent_core::types::tally_sheet_import::TallySheetImportValidationError;
 use sequent_core::types::tally_sheets::VotingChannel;
-use strum::IntoEnumIterator;
-use strum_macros::{Display, EnumIter, EnumString};
 use tracing::instrument;
-
-/// The extra, non-canonical `field` values this converter emits alongside
-/// the canonical scalars: ES&S's raw selection-*slot* counts, before they
-/// are divided by `max_votes` into the ballot counts STEP stores. They are
-/// carried through the import as unvalidated annotation data so a ballot
-/// box stays auditable back to the source file.
-///
-/// This lives here, with the ES&S conversion, rather than in the canonical
-/// CSV parser: which extra fields exist is a property of the source format
-/// that produced them, so a new source format declares its own without the
-/// generic parser needing to learn about it. `parse_canonical_csv` is
-/// handed the permitted set (see `allowed_annotation_fields`) instead of
-/// hardcoding one.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Display, EnumString, EnumIter)]
-#[strum(serialize_all = "snake_case")]
-pub enum EssAnnotationField {
-    OverVotes,
-    UnderVotes,
-}
-
-impl EssAnnotationField {
-    /// Every field this converter can emit, as the strings they appear as
-    /// in the canonical CSV's `field` column.
-    pub fn all_names() -> HashSet<String> {
-        Self::iter().map(|field| field.to_string()).collect()
-    }
-}
 
 /// ES&S Enhanced XML files can carry vote totals for multiple reporting
 /// groups (e.g. election-day vs. absentee); this is the reporting group id
@@ -817,29 +788,6 @@ fn convert_party_grouped(
                 "census",
                 party_ballots_cast,
             )?;
-            // ES&S's raw selection-slot counts, carried through as
-            // annotations (see `ANNOTATION_FIELDS` in the canonical CSV
-            // parser) rather than canonical scalars. Every figure above is
-            // derived *from* these by dividing by max_votes, so keeping the
-            // originals is what makes an imported ballot box auditable back
-            // to the source file.
-            write_scalar_row(
-                &mut writer,
-                &selected_channel,
-                party_name,
-                &contest_external_id,
-                &EssAnnotationField::OverVotes.to_string(),
-                totals.over_votes,
-            )?;
-            write_scalar_row(
-                &mut writer,
-                &selected_channel,
-                party_name,
-                &contest_external_id,
-                &EssAnnotationField::UnderVotes.to_string(),
-                totals.under_votes,
-            )?;
-
             for candidate in &candidates {
                 writer.write_record([
                     selected_channel.to_string(),
@@ -1475,25 +1423,6 @@ mod tests {
         assert!(csv.contains("PAPER,Area A,CC,implicit_invalid,,1"));
         assert!(csv.contains("PAPER,Area A,CC,total_blank_votes,,1"));
         assert!(csv.contains("PAPER,Area A,CC,total_valid_votes,,2"));
-    }
-
-    #[test]
-    fn writes_ess_raw_slot_counts_as_annotation_rows() {
-        // Every derived figure above is these counts divided by max_votes,
-        // so the originals are carried through unmodified to keep an
-        // imported ballot box auditable back to the source file.
-        let (csv, errors) = convert_for_test(
-            VOTE_FOR_FOUR_FILE,
-            VotingChannel::PAPER,
-            &HashMap::from([("CC".to_string(), ContestVoteConfig { max_votes: 4 })]),
-            &party_area_names(),
-        )
-        .unwrap();
-        let csv = String::from_utf8(csv).unwrap();
-
-        assert!(errors.is_empty());
-        assert!(csv.contains("PAPER,Area A,CC,over_votes,,4"));
-        assert!(csv.contains("PAPER,Area A,CC,under_votes,,4"));
     }
 
     #[test]

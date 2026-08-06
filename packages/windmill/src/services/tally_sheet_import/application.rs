@@ -41,7 +41,6 @@ use crate::postgres::{
 };
 
 use super::{
-    annotations::allowed_annotation_fields,
     csv::parse_canonical_csv,
     diff::{classify_change, render_ballot_box_csv},
     errors::TallySheetImportError,
@@ -91,10 +90,7 @@ pub async fn preview_tally_sheet_import(
     // surfaces here instead, same as any other validation error).
     conversion_validation_errors: Vec<TallySheetImportValidationError>,
 ) -> Result<TallySheetImportPreview> {
-    let (parsed_imports, parse_errors) = parse_canonical_csv(
-        canonical_csv_bytes,
-        &allowed_annotation_fields(&source_format),
-    );
+    let (parsed_imports, parse_errors) = parse_canonical_csv(canonical_csv_bytes);
     let mut validation_errors = conversion_validation_errors;
     validation_errors.extend(parse_errors);
     let mut items = Vec::new();
