@@ -37,8 +37,8 @@ pub struct BuildElectionEvent {
 
     /// Directory to write the bundle into, under a subdirectory named after the
     /// event
-    #[arg(short = 'o', long, value_name = "OUT_DIR", default_value = "out")]
-    out_dir: PathBuf,
+    #[arg(short = 'o', long, value_name = "OUT", default_value = "out")]
+    out: PathBuf,
 
     /// Tenant id to write into the file
     ///
@@ -78,8 +78,19 @@ pub struct BuildElectionEvent {
     strict: bool,
 
     /// Validate and report, writing nothing
+    ///
+    /// Named after the importer's own `check_only`, which does the same thing on
+    /// the server.
     #[arg(long)]
     check_only: bool,
+
+    /// Timestamp for every generated entity
+    ///
+    /// Fixed by default so regenerating an unchanged workbook produces
+    /// byte-identical output. The importer overwrites these, so this only exists
+    /// to make a rebuild diffable.
+    #[arg(long, value_name = "CREATED_AT")]
+    created_at: Option<String>,
 }
 
 impl BuildElectionEvent {
@@ -128,7 +139,7 @@ impl BuildElectionEvent {
             tenant_id: self.tenant_id.clone(),
             base_export: self.base_export()?,
             slug: self.slug.clone(),
-            created_at: None,
+            created_at: self.created_at.clone(),
             auth_preset: self.auth_preset.clone(),
         };
 
@@ -277,7 +288,7 @@ impl BuildElectionEvent {
     /// Write the bundle, the archive, and everything that travels beside it.
     fn write(&self, bundle: &Bundle) -> Result<()> {
         let layout = archive::layout(bundle);
-        let directory = self.out_dir.join(&bundle.slug);
+        let directory = self.out.join(&bundle.slug);
 
         // Replaced rather than merged into: a stale member left over from a
         // previous run is a file someone would upload.
