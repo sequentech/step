@@ -49,8 +49,8 @@ const basqueTranslation: TranslationType = {
             signedInAccess: "Saioa hasita sartzea",
             published: "Argitaratua",
             notPublishedYet: "Oraindik argitaratu gabe",
-            position: "{{count}} postu",
-            position_plural: "{{count}} postu",
+            position_one: "{{count}} postu",
+            position_other: "{{count}} postu",
             fallbackElectionName: "Hauteskundea",
             fallbackContestName: "{{contestId}} lehiaketa",
             state: {

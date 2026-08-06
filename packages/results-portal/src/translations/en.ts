@@ -47,8 +47,8 @@ const englishTranslation = {
             signedInAccess: "Signed-in access",
             published: "Published",
             notPublishedYet: "Not published yet",
-            position: "{{count}} position",
-            position_plural: "{{count}} positions",
+            position_one: "{{count}} position",
+            position_other: "{{count}} positions",
             fallbackElectionName: "Election",
             fallbackContestName: "Contest {{contestId}}",
             state: {

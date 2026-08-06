@@ -385,7 +385,7 @@ const ElectionSelectionScreen: React.FC = () => {
     const [ballotStyleConfigurationError, setBallotStyleConfigurationError] = useState<
         | {
               translationKey: string
-              translationParams: Record<string, string>
+              translationParams: Record<string, string | number>
           }
         | undefined
     >(undefined)

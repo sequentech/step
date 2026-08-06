@@ -284,12 +284,9 @@ export const ContestResultsBlock: React.FC<ContestResultsBlockProps> = ({
                     >
                         {electionName}
                         {manifestContest.positions
-                            ? ` - ${t(
-                                  manifestContest.positions === 1
-                                      ? "resultsPortal.position"
-                                      : "resultsPortal.position_plural",
-                                  {count: manifestContest.positions}
-                              )}`
+                            ? ` - ${t("resultsPortal.position", {
+                                  count: manifestContest.positions,
+                              })}`
                             : ""}
                         {areaName ? ` - ${areaName}` : ""}
                     </Typography>

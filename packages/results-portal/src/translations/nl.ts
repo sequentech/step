@@ -49,8 +49,8 @@ const dutchTranslation: TranslationType = {
             signedInAccess: "Toegang na inloggen",
             published: "Gepubliceerd",
             notPublishedYet: "Nog niet gepubliceerd",
-            position: "{{count}} positie",
-            position_plural: "{{count}} posities",
+            position_one: "{{count}} positie",
+            position_other: "{{count}} posities",
             fallbackElectionName: "Verkiezing",
             fallbackContestName: "Wedstrijd {{contestId}}",
             state: {
