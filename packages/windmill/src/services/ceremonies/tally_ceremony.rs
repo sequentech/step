@@ -21,7 +21,7 @@ use crate::postgres::tally_session_execution::{
 use crate::postgres::tally_sheet::get_approved_tally_sheets_by_event;
 use crate::services::ceremonies::keys_ceremony::find_trustee_private_key;
 use crate::services::ceremonies::serialize_logs::{
-    append_tally_trustee_log, generate_tally_initial_log,
+    append_tally_recount_log, append_tally_trustee_log, generate_tally_initial_log,
 };
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::get_election_event_board;
@@ -990,13 +990,86 @@ pub async fn set_tally_session_completed(
     Ok(())
 }
 
+/// Marks a completed tally session as `IN_PROGRESS` for a recount (manual or
+/// automatic): inserts a fresh `tally_session_execution` row with
+/// `elections_status` reset to `WAITING`/0% and a "recount launched" log
+/// entry appended, then flips the session status. Without this, the tally
+/// session details keep showing the previous completed run (status, progress,
+/// results) until the celery task produces its own first update, which can
+/// be a long time (or never, if it bails out early).
+///
+/// Returns the pre-recount execution row and parsed status so the caller can
+/// restore them via [`reset_tally_session_status_after_failed_recount_task`]
+/// if it fails to enqueue the celery task afterwards.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn begin_tally_session_recount(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+    election_ids: &[String],
+) -> Result<(TallySessionExecution, TallyCeremonyStatus)> {
+    let last_execution = get_last_tally_session_execution(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+    )
+    .await?
+    .ok_or_else(|| anyhow!("No tally session execution found to recount"))?;
+
+    let original_status = get_tally_ceremony_status(last_execution.status.clone())?;
+
+    let mut recount_status = original_status.clone();
+    let election_ids_vec = election_ids.to_vec();
+    recount_status.logs = append_tally_recount_log(&recount_status.logs, &election_ids_vec);
+    recount_status.elections_status = election_ids_vec
+        .iter()
+        .map(|election_id| TallyElection {
+            election_id: election_id.clone(),
+            status: TallyElectionStatus::WAITING,
+            progress: 0.0,
+        })
+        .collect();
+
+    insert_tally_session_execution(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        last_execution.current_message_id,
+        tally_session_id,
+        Some(recount_status),
+        None,
+        None,
+        None,
+    )
+    .await?;
+
+    update_tally_session_status(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+        TallyExecutionStatus::IN_PROGRESS,
+        false,
+    )
+    .await?;
+
+    Ok((last_execution, original_status))
+}
+
 /// Resets a tally session back to a completed `SUCCESS` state after a recount
 /// (manual or automatic) failed to enqueue its celery task, so the session
-/// isn't left stuck `IN_PROGRESS`.
+/// isn't left stuck `IN_PROGRESS`. Also restores the pre-recount execution
+/// row returned by [`begin_tally_session_recount`], so the tally session
+/// details don't keep showing the reset "in progress" placeholder once the
+/// session status itself has been reverted.
 pub async fn reset_tally_session_status_after_failed_recount_task(
     tenant_id: &str,
     election_event_id: &str,
     tally_session_id: &str,
+    previous_execution: &TallySessionExecution,
+    previous_status: TallyCeremonyStatus,
     task_error: &str,
 ) -> Result<()> {
     let mut reset_db_client: DbClient = get_hasura_pool().await.get().await.with_context(|| {
@@ -1019,6 +1092,35 @@ pub async fn reset_tally_session_status_after_failed_recount_task(
     .with_context(|| {
         format!("failed to send recount task ({task_error}) and failed to reset tally status")
     })?;
+
+    let restored_documents: Option<TallySessionDocuments> = previous_execution
+        .documents
+        .clone()
+        .map(serde_json::from_value)
+        .transpose()
+        .with_context(|| {
+            format!(
+                "failed to send recount task ({task_error}) and failed to parse previous execution documents"
+            )
+        })?;
+    insert_tally_session_execution(
+        &reset_transaction,
+        tenant_id,
+        election_event_id,
+        previous_execution.current_message_id,
+        tally_session_id,
+        Some(previous_status),
+        previous_execution.results_event_id.clone(),
+        previous_execution.session_ids.clone(),
+        restored_documents,
+    )
+    .await
+    .with_context(|| {
+        format!(
+            "failed to send recount task ({task_error}) and failed to restore previous execution"
+        )
+    })?;
+
     reset_transaction.commit().await.with_context(|| {
         format!("failed to send recount task ({task_error}) and failed to commit reset")
     })?;

@@ -30,15 +30,16 @@ use windmill::postgres::{
     contest::get_contest_by_id,
     document::get_document,
     election_event::get_election_event_by_id,
-    tally_session::{
-        get_tally_sessions_by_election_event_id, update_tally_session_status,
-    },
+    tally_session::get_tally_sessions_by_election_event_id,
     tally_sheet,
     tally_sheet_import::get_tally_sheet_import_items_for_review,
 };
 use windmill::services::{
     celery_app::get_celery_app,
-    ceremonies::tally_ceremony::reset_tally_session_status_after_failed_recount_task,
+    ceremonies::tally_ceremony::{
+        begin_tally_session_recount,
+        reset_tally_session_status_after_failed_recount_task,
+    },
     database::get_hasura_pool,
     documents::get_document_as_temp_file,
     ess_xml_converter::convert_ess_enhanced_xml_to_csv,
@@ -616,6 +617,7 @@ async fn enqueue_automatic_recount_tally_session(
     tally_session: &TallySession,
 ) -> Result<()> {
     let tally_session_id = tally_session.id.clone();
+    let election_ids = tally_session.election_ids.clone().unwrap_or_default();
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.with_context(|| {
             "error getting hasura db pool for automatic recount status update"
@@ -625,15 +627,15 @@ async fn enqueue_automatic_recount_tally_session(
             "error starting automatic recount status transaction"
         })?;
 
-    update_tally_session_status(
+    let (last_execution, original_status) = begin_tally_session_recount(
         &hasura_transaction,
         tenant_id,
         election_event_id,
         &tally_session_id,
-        TallyExecutionStatus::IN_PROGRESS,
-        false,
+        &election_ids,
     )
-    .await?;
+    .await
+    .with_context(|| "error starting automatic tally session recount")?;
 
     hasura_transaction
         .commit()
@@ -657,6 +659,8 @@ async fn enqueue_automatic_recount_tally_session(
             tenant_id,
             election_event_id,
             &tally_session_id,
+            &last_execution,
+            original_status,
             &format!("{err:?}"),
         )
         .await?;
