@@ -191,9 +191,12 @@ impl<C: Context, T: Transport<C>, P: Persistence> BoardClient<C, T, P> {
     /// For each outgoing message, one of two paths:
     ///
     /// - **The slot is already in the own-post record** ⇒ publish the *recorded*
-    ///   message (`commit` its handle) and discard the one just computed. b4
-    ///   already holds those bytes, so nothing is re-uploaded, and the trustee
-    ///   cannot put a second artifact in a slot it has already filled.
+    ///   message (`commit` its handle) and discard the one just computed. The
+    ///   body was uploaded when it was staged, so committing sends only the
+    ///   handle — no body crosses the wire again, which is what lets a recorded
+    ///   post be published long after its bytes have left memory. Whatever the
+    ///   failure was, the only message that can ever appear for that slot is the
+    ///   recorded one.
     /// - **The slot is unrecorded** ⇒ `stage` the bytes, **record** the
     ///   `(predicate, handle)` pair durably — this write is the commit point —
     ///   then `commit`. A failure before the record means nothing was published
