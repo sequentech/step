@@ -19,6 +19,7 @@ use crate::postgres::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
 use crate::postgres::tally_sheet::get_approved_tally_sheets_by_event;
+use crate::services::ceremonies::errors::TallyRecountError;
 use crate::services::ceremonies::keys_ceremony::find_trustee_private_key;
 use crate::services::ceremonies::serialize_logs::{
     append_tally_recount_log, append_tally_trustee_log, generate_tally_initial_log,
@@ -1016,7 +1017,9 @@ pub async fn begin_tally_session_recount(
         tally_session_id,
     )
     .await?
-    .ok_or_else(|| anyhow!("No tally session execution found to recount"))?;
+    .ok_or_else(|| TallyRecountError::NoExecutionHistory {
+        tally_session_id: tally_session_id.to_string(),
+    })?;
 
     let original_status = get_tally_ceremony_status(last_execution.status.clone())?;
 
@@ -1064,6 +1067,12 @@ pub async fn begin_tally_session_recount(
 /// row returned by [`begin_tally_session_recount`], so the tally session
 /// details don't keep showing the reset "in progress" placeholder once the
 /// session status itself has been reverted.
+///
+/// The status reset is committed on its own, before attempting the execution
+/// row restore: that reset is the safety-critical part (it's what keeps the
+/// session from being stuck `IN_PROGRESS` forever), so it must not be
+/// rolled back by a failure in the best-effort restore step that follows
+/// (e.g. a `documents` blob that fails to deserialize on an older session).
 pub async fn reset_tally_session_status_after_failed_recount_task(
     tenant_id: &str,
     election_event_id: &str,
@@ -1092,19 +1101,59 @@ pub async fn reset_tally_session_status_after_failed_recount_task(
     .with_context(|| {
         format!("failed to send recount task ({task_error}) and failed to reset tally status")
     })?;
+    reset_transaction.commit().await.with_context(|| {
+        format!("failed to send recount task ({task_error}) and failed to commit reset")
+    })?;
+
+    if let Err(err) = restore_previous_tally_session_execution(
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+        previous_execution,
+        previous_status,
+    )
+    .await
+    {
+        event!(
+            Level::ERROR,
+            "failed to send recount task ({task_error}) and failed to restore previous tally \
+             session execution (tally session status was still reset to SUCCESS): {err:?}"
+        );
+    }
+
+    Ok(())
+}
+
+/// Best-effort restore of the pre-recount `tally_session_execution` row.
+/// Runs in its own transaction, independent from the status reset above, so
+/// a failure here (e.g. malformed legacy `documents`) can't roll back the
+/// status reset.
+async fn restore_previous_tally_session_execution(
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+    previous_execution: &TallySessionExecution,
+    previous_status: TallyCeremonyStatus,
+) -> Result<()> {
+    let mut db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "failed to get hasura db pool to restore previous execution")?;
+    let transaction = db_client
+        .transaction()
+        .await
+        .with_context(|| "failed to start transaction to restore previous execution")?;
 
     let restored_documents: Option<TallySessionDocuments> = previous_execution
         .documents
         .clone()
         .map(serde_json::from_value)
         .transpose()
-        .with_context(|| {
-            format!(
-                "failed to send recount task ({task_error}) and failed to parse previous execution documents"
-            )
-        })?;
+        .with_context(|| "failed to parse previous execution documents")?;
+
     insert_tally_session_execution(
-        &reset_transaction,
+        &transaction,
         tenant_id,
         election_event_id,
         previous_execution.current_message_id,
@@ -1115,14 +1164,11 @@ pub async fn reset_tally_session_status_after_failed_recount_task(
         restored_documents,
     )
     .await
-    .with_context(|| {
-        format!(
-            "failed to send recount task ({task_error}) and failed to restore previous execution"
-        )
-    })?;
+    .with_context(|| "failed to insert restored previous execution")?;
 
-    reset_transaction.commit().await.with_context(|| {
-        format!("failed to send recount task ({task_error}) and failed to commit reset")
-    })?;
+    transaction
+        .commit()
+        .await
+        .with_context(|| "failed to commit restored previous execution")?;
     Ok(())
 }

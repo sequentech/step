@@ -24,11 +24,27 @@ use tracing::{event, instrument, Level};
 use windmill::postgres::election::get_elections_by_ids;
 use windmill::postgres::tally_session::get_tally_session_by_id;
 use windmill::services::celery_app::get_celery_app;
+use windmill::services::ceremonies::errors::TallyRecountError;
 use windmill::services::ceremonies::tally_ceremony::{self};
 use windmill::services::ceremonies::tally_resolution;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::providers::transactions_provider::provide_hasura_transaction;
 use windmill::tasks::execute_tally_session::execute_tally_session;
+
+/// Maps domain errors raised by [`tally_ceremony::begin_tally_session_recount`]
+/// to a specific 4xx status rather than a generic 500, mirroring
+/// `map_tally_sheet_import_error` in `tally_sheets.rs`.
+fn map_recount_error(error: anyhow::Error) -> (Status, String) {
+    match error.downcast_ref::<TallyRecountError>() {
+        Some(TallyRecountError::NoExecutionHistory { .. }) => {
+            (Status::Conflict, format!("{error}"))
+        }
+        None => (
+            Status::InternalServerError,
+            format!("Error starting tally session recount: {error:?}"),
+        ),
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateTallyCeremonyInput {
@@ -333,12 +349,7 @@ pub async fn recount_tally_session(
             &election_ids,
         )
         .await
-        .map_err(|err| {
-            (
-                Status::InternalServerError,
-                format!("Error starting tally session recount: {err:?}"),
-            )
-        })?;
+        .map_err(map_recount_error)?;
 
     hasura_transaction.commit().await.map_err(|err| {
         (Status::InternalServerError, format!("Commit failed: {err}"))
