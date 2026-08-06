@@ -872,11 +872,11 @@ async fn configured_area_names(
 }
 
 /// Fetches every contest in the election event and maps its external id to
-/// its `min_votes`/`max_votes`, for the ES&S converter to consult when
-/// classifying under-votes and checking vote reconciliation (see
-/// `convert_ess_enhanced_xml_to_csv`'s doc comment). Contests missing an
-/// external id are skipped — the converter can't match ES&S rows to them
-/// anyway.
+/// its `max_votes`, the "vote for N" bound the ES&S converter needs to turn
+/// selection-slot counts into ballot counts (see
+/// `resolve_contest_max_votes`). Contests missing an external id are
+/// skipped — the converter can't match ES&S rows to them anyway, and will
+/// report each one it can't resolve as `ess_contest_not_configured`.
 async fn contest_vote_config_by_external_id(
     hasura_transaction: &deadpool_postgres::Transaction<'_>,
     tenant_id: &str,
@@ -892,7 +892,6 @@ async fn contest_vote_config_by_external_id(
                 (
                     external_id,
                     ContestVoteConfig {
-                        min_votes: contest.min_votes.unwrap_or(0),
                         max_votes: contest.max_votes.unwrap_or(1),
                     },
                 )

@@ -2422,7 +2422,7 @@ const galegoTranslation: TranslationType = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "O total de votos válidos non coincide coa suma dos votos dos candidatos máis os votos en branco",
+                    "Os votos de candidatos ({{candidateVotesSum}}) deben estar entre {{lowerBound}} e {{upperBound}} segundo as regras de votación desta contenda ({{nonBlankValidVotes}} votos válidos non en branco × ata {{maxMarks}} marcas por papeleta)",
                 censusTooSmall: "O censo debe ser maior ou igual ao total de votos",
                 totalInvalidDoesNotMatch:
                     "O total de votos non válidos ({{totalInvalid}}) debe ser igual aos votos non válidos implícitos ({{implicitInvalid}}) máis os votos non válidos explícitos ({{explicitInvalid}})",

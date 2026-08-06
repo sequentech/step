@@ -2418,7 +2418,7 @@ const dutchTranslation: TranslationType = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "Het totaal aantal geldige stemmen komt niet overeen met de som van de stemmen voor kandidaten plus blanco stemmen",
+                    "Kandidaatstemmen ({{candidateVotesSum}}) moeten tussen {{lowerBound}} en {{upperBound}} liggen volgens de stemregels van deze verkiezing ({{nonBlankValidVotes}} geldige niet-blanco stemmen × maximaal {{maxMarks}} markeringen per stembiljet)",
                 censusTooSmall:
                     "De census moet groter dan of gelijk zijn aan het totaal aantal stemmen",
                 totalInvalidDoesNotMatch:

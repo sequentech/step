@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 
 use csv::ReaderBuilder;
@@ -36,18 +36,27 @@ enum CanonicalField {
     TotalValidVotes,
     TotalVotes,
     Census,
-    /// Any field name outside the fixed set above. Carried through as an
-    /// unvalidated `annotations` entry (no duplicate-row or
-    /// required-field checks) so source-specific extra data (e.g. ES&S's
-    /// `over_votes`/`under_votes`) — or fields added in the future — don't
-    /// need a parser change to flow through.
+    /// A field the source format's converter declared it emits (see
+    /// `allowed_annotation_fields`). Carried through as an unvalidated
+    /// `annotations` entry (no duplicate-row or required-field checks) so
+    /// source-specific extra data — e.g. ES&S's raw slot counts — flows
+    /// through without becoming a canonical scalar.
     Annotation(String),
 }
 
-impl FromStr for CanonicalField {
-    type Err = ();
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
+impl CanonicalField {
+    /// Parses a `field` column value. `allowed_annotation_fields` is the
+    /// set declared by whichever converter produced this file; anything
+    /// outside both it and the canonical set above is rejected.
+    ///
+    /// Deliberately not a `FromStr` impl: which annotations are valid
+    /// depends on where the file came from, so it can't be decided from the
+    /// string alone. Accepting any unrecognised name as an annotation (the
+    /// obvious alternative) means a mistyped canonical field like
+    /// `total_vots` parses happily, silently dropping the scalar it was
+    /// meant to set — the ballot box then fails later with a confusing
+    /// "missing required field", or worse, passes carrying a stale value.
+    fn parse(value: &str, allowed_annotation_fields: &HashSet<String>) -> Result<Self, ()> {
         match value {
             "candidate_votes" => Ok(Self::CandidateVotes),
             "total_blank_votes" => Ok(Self::TotalBlankVotes),
@@ -56,7 +65,10 @@ impl FromStr for CanonicalField {
             "total_valid_votes" => Ok(Self::TotalValidVotes),
             "total_votes" => Ok(Self::TotalVotes),
             "census" => Ok(Self::Census),
-            other => Ok(Self::Annotation(other.to_string())),
+            other if allowed_annotation_fields.contains(other) => {
+                Ok(Self::Annotation(other.to_string()))
+            }
+            _ => Err(()),
         }
     }
 }
@@ -86,9 +98,14 @@ struct BallotBoxAccumulator {
     annotations: HashMap<String, u64>,
 }
 
+/// `allowed_annotation_fields` is the set of extra, non-canonical `field`
+/// values the source format's converter declared it emits — see
+/// `super::annotations::allowed_annotation_fields`. Anything outside it and
+/// the canonical set is reported as `invalid_field`.
 #[instrument(skip_all)]
 pub fn parse_canonical_csv(
     bytes: &[u8],
+    allowed_annotation_fields: &HashSet<String>,
 ) -> (
     Vec<ParsedBallotBoxImport>,
     Vec<TallySheetImportValidationError>,
@@ -130,7 +147,7 @@ pub fn parse_canonical_csv(
             }
         };
 
-        let field = match CanonicalField::from_str(row.field.trim()) {
+        let field = match CanonicalField::parse(row.field.trim(), allowed_annotation_fields) {
             Ok(field) => field,
             Err(_) => {
                 validation_errors.push(error_for_row(
@@ -403,6 +420,7 @@ fn error_for_row(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::services::ess_xml_converter::EssAnnotationField;
 
     #[test]
     fn parses_candidate_and_scalar_rows_into_ballot_box_import() {
@@ -416,7 +434,7 @@ mod tests {
 \nPAPER,Precinct 1,contest-1,total_votes,,17\
 \nPAPER,Precinct 1,contest-1,census,,20\n";
 
-        let (imports, errors) = parse_canonical_csv(csv);
+        let (imports, errors) = parse_canonical_csv(csv, &HashSet::new());
 
         assert!(errors.is_empty());
         assert_eq!(imports.len(), 1);
@@ -451,7 +469,7 @@ mod tests {
         let csv = b"channel,area_name,contest_external_id,field,candidate_external_id,value\
 \nPAPER,Precinct 1,contest-1,candidate_votes,,7\n";
 
-        let (_imports, errors) = parse_canonical_csv(csv);
+        let (_imports, errors) = parse_canonical_csv(csv, &HashSet::new());
 
         assert_eq!(errors.len(), 1);
         assert_eq!(errors[0].code, "missing_candidate_external_id");
@@ -463,7 +481,7 @@ mod tests {
 \nPAPER,Precinct 1,contest-1,candidate_votes,cand-1,0\
 \nPAPER,Precinct 1,contest-1,total_votes,,0\n";
 
-        let (_imports, errors) = parse_canonical_csv(csv);
+        let (_imports, errors) = parse_canonical_csv(csv, &HashSet::new());
         let missing_fields = errors
             .into_iter()
             .filter(|error| error.code == "missing_scalar_field")
@@ -479,6 +497,69 @@ mod tests {
                 Some("total_blank_votes".to_string()),
                 Some("census".to_string()),
             ]
+        );
+    }
+
+    #[test]
+    fn carries_known_annotation_fields_through_unvalidated() {
+        let csv = b"channel,area_name,contest_external_id,field,candidate_external_id,value\
+\nPAPER,Area A,contest-1,candidate_votes,cand-1,4\
+\nPAPER,Area A,contest-1,total_blank_votes,,1\
+\nPAPER,Area A,contest-1,implicit_invalid,,1\
+\nPAPER,Area A,contest-1,explicit_invalid,,0\
+\nPAPER,Area A,contest-1,total_valid_votes,,2\
+\nPAPER,Area A,contest-1,total_votes,,3\
+\nPAPER,Area A,contest-1,census,,3\
+\nPAPER,Area A,contest-1,over_votes,,4\
+\nPAPER,Area A,contest-1,under_votes,,4\n";
+
+        let (imports, errors) = parse_canonical_csv(csv, &EssAnnotationField::all_names());
+
+        assert!(errors.is_empty());
+        let annotations = imports[0].content.annotations.as_ref().unwrap();
+        assert_eq!(annotations["over_votes"], 4);
+        assert_eq!(annotations["under_votes"], 4);
+    }
+
+    #[test]
+    fn reports_a_typod_field_name_instead_of_absorbing_it_as_an_annotation() {
+        // `total_vots` used to parse as an annotation, so the row it was
+        // meant to set was silently dropped and the ballot box failed later
+        // with a confusing "missing required field" instead. Checked with
+        // the ES&S allowlist active, so it's the name not being *declared*
+        // that rejects it, not the absence of any annotations at all.
+        let csv = b"channel,area_name,contest_external_id,field,candidate_external_id,value\
+\nPAPER,Area A,contest-1,total_vots,,17\n";
+
+        let (_imports, errors) = parse_canonical_csv(csv, &EssAnnotationField::all_names());
+
+        let invalid_field_errors = errors
+            .iter()
+            .filter(|error| error.code == "invalid_field")
+            .collect::<Vec<_>>();
+        assert_eq!(invalid_field_errors.len(), 1);
+        assert_eq!(
+            invalid_field_errors[0].field,
+            Some("total_vots".to_string())
+        );
+    }
+
+    #[test]
+    fn rejects_another_formats_annotation_fields_for_a_canonical_csv_source() {
+        // A canonical CSV source declares no annotation fields, so ES&S's
+        // extra columns aren't silently accepted just because some other
+        // source format happens to emit them.
+        let csv = b"channel,area_name,contest_external_id,field,candidate_external_id,value\
+\nPAPER,Area A,contest-1,over_votes,,4\n";
+
+        let (_imports, errors) = parse_canonical_csv(csv, &HashSet::new());
+
+        assert_eq!(
+            errors
+                .iter()
+                .filter(|error| error.code == "invalid_field")
+                .count(),
+            1
         );
     }
 }

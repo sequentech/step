@@ -2411,7 +2411,7 @@ const basqueTranslation: TranslationType = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "Baliozko botoen guztizko kopurua ez dator bat hautagaien botoen eta boto zurien baturarekin",
+                    "Hautagaien botoek ({{candidateVotesSum}}) {{lowerBound}} eta {{upperBound}} artean egon behar dute lehiaketa honen bozketa-arauen arabera ({{nonBlankValidVotes}} baliozko boto ez-zuri × gehienez {{maxMarks}} marka boto-txartel bakoitzeko)",
                 censusTooSmall:
                     "Erroldak boto guztien kopurua baino handiagoa edo berdina izan behar du",
                 totalInvalidDoesNotMatch:

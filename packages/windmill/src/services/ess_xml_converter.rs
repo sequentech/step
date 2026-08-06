@@ -9,7 +9,36 @@ use csv::Writer;
 use roxmltree::{Document, Node};
 use sequent_core::types::tally_sheet_import::TallySheetImportValidationError;
 use sequent_core::types::tally_sheets::VotingChannel;
+use strum::IntoEnumIterator;
+use strum_macros::{Display, EnumIter, EnumString};
 use tracing::instrument;
+
+/// The extra, non-canonical `field` values this converter emits alongside
+/// the canonical scalars: ES&S's raw selection-*slot* counts, before they
+/// are divided by `max_votes` into the ballot counts STEP stores. They are
+/// carried through the import as unvalidated annotation data so a ballot
+/// box stays auditable back to the source file.
+///
+/// This lives here, with the ES&S conversion, rather than in the canonical
+/// CSV parser: which extra fields exist is a property of the source format
+/// that produced them, so a new source format declares its own without the
+/// generic parser needing to learn about it. `parse_canonical_csv` is
+/// handed the permitted set (see `allowed_annotation_fields`) instead of
+/// hardcoding one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Display, EnumString, EnumIter)]
+#[strum(serialize_all = "snake_case")]
+pub enum EssAnnotationField {
+    OverVotes,
+    UnderVotes,
+}
+
+impl EssAnnotationField {
+    /// Every field this converter can emit, as the strings they appear as
+    /// in the canonical CSV's `field` column.
+    pub fn all_names() -> HashSet<String> {
+        Self::iter().map(|field| field.to_string()).collect()
+    }
+}
 
 /// ES&S Enhanced XML files can carry vote totals for multiple reporting
 /// groups (e.g. election-day vs. absentee); this is the reporting group id
@@ -40,15 +69,30 @@ pub struct EssConversion {
     pub area_grouping: &'static str,
 }
 
-/// The STEP contest config this converter needs — `min_votes` decides
-/// whether undervoting can invalidate a ballot; `max_votes` is the "vote
-/// for N" bound used to check ES&S's reported totals reconcile exactly.
-/// Missing/non-positive values default conservatively (`min_votes` to `0`,
-/// `max_votes` to `1`, i.e. single-choice).
+/// The STEP contest config this converter needs: `max_votes`, the "vote
+/// for N" bound every derived figure depends on (see
+/// `resolve_contest_max_votes`). A non-positive value is treated as `1`,
+/// i.e. single-choice.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ContestVoteConfig {
-    pub min_votes: i64,
     pub max_votes: i64,
+}
+
+/// What to do about a contest that the election event's contest config
+/// doesn't mention at all. `max_votes` is not a detail — `implicit_invalid`,
+/// `total_blank_votes` and `total_valid_votes` are all derived by dividing
+/// ES&S's selection-slot counts by it — so guessing it wrong silently
+/// corrupts every figure for that contest. Which way to resolve that
+/// depends on whether an election event exists to be authoritative.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MissingContestConfigPolicy {
+    /// Offline conversion (`step-cli`): there is no election event, so the
+    /// file's own `Contest@voteFor` is the only authority available.
+    UseFileVoteFor,
+    /// An election event exists: a contest it doesn't configure is a real
+    /// disagreement between the file and the event, so the contest is
+    /// skipped and reported rather than converted on a guessed `max_votes`.
+    Reject,
 }
 
 /// A single party's totals for one contest, aggregated across every
@@ -295,13 +339,93 @@ fn check_blank_votes_at_least_precinct_minimum(
     })
 }
 
+/// Resolves the `max_votes` ("vote for N") bound to use for one contest,
+/// reconciling the two authorities that can carry it: the election event's
+/// contest config, and the file's own `Contest@voteFor`.
+///
+/// This matters more than its size suggests. `implicit_invalid`,
+/// `total_blank_votes` and `total_valid_votes` are all
+/// `over_votes`/`under_votes` divided by `max_votes`, so a wrong value
+/// silently corrupts every derived figure for the contest — a "vote for 4"
+/// contest read as single-choice reports 4x the invalid and blank ballots
+/// it should, and `total_valid_votes` saturates to zero. Previously a
+/// contest missing from the config defaulted to `1` with no signal at all,
+/// and the damage only surfaced downstream as a confusing
+/// `ess_vote_reconciliation_mismatch`.
+///
+/// Returns `Err(validation_error)` when the two authorities disagree, or
+/// when there is no authority at all — the caller skips the contest rather
+/// than emitting rows built on a guessed bound.
+fn resolve_contest_max_votes(
+    contest: Node<'_, '_>,
+    contest_external_id: &str,
+    contest_vote_config: &HashMap<String, ContestVoteConfig>,
+    missing_config_policy: MissingContestConfigPolicy,
+    selected_channel: &VotingChannel,
+) -> std::result::Result<u64, TallySheetImportValidationError> {
+    // Absent or unparseable `voteFor` just means "no cross-check available"
+    // — it is not required by every ES&S export, so its absence alone is
+    // not a data problem.
+    let file_vote_for: Option<u64> = contest
+        .attribute("voteFor")
+        .and_then(|value| value.trim().parse::<u64>().ok())
+        .filter(|vote_for| *vote_for > 0);
+
+    let configured_max_votes = contest_vote_config
+        .get(contest_external_id)
+        .map(|config| config.max_votes.max(1) as u64);
+
+    match (configured_max_votes, file_vote_for) {
+        (Some(configured), Some(vote_for)) if configured != vote_for => {
+            Err(TallySheetImportValidationError {
+                code: "ess_vote_for_does_not_match_contest_config".to_string(),
+                message: format!(
+                    "this file reports the contest as vote-for-{vote_for}, but the election event configures it as vote-for-{configured} — every derived figure (invalid, blank and valid vote counts) depends on that number, so the contest was skipped rather than converted with the wrong one"
+                ),
+                channel: Some(selected_channel.clone()),
+                area_name: None,
+                contest_external_id: Some(contest_external_id.to_string()),
+                candidate_external_id: None,
+                field: None,
+                params: HashMap::from([
+                    ("fileVoteFor".to_string(), vote_for.to_string()),
+                    ("configuredMaxVotes".to_string(), configured.to_string()),
+                ]),
+            })
+        }
+        (Some(configured), _) => Ok(configured),
+        (None, file_vote_for) => match missing_config_policy {
+            MissingContestConfigPolicy::UseFileVoteFor => Ok(file_vote_for.unwrap_or(1)),
+            MissingContestConfigPolicy::Reject => Err(TallySheetImportValidationError {
+                code: "ess_contest_not_configured".to_string(),
+                message: format!(
+                    "contest '{contest_external_id}' is not configured in this election event, so its vote-for bound is unknown — every derived figure (invalid, blank and valid vote counts) depends on it, so the contest was skipped rather than converted with a guessed one"
+                ),
+                channel: Some(selected_channel.clone()),
+                area_name: None,
+                contest_external_id: Some(contest_external_id.to_string()),
+                candidate_external_id: None,
+                field: None,
+                params: HashMap::from([(
+                    "contestExternalId".to_string(),
+                    contest_external_id.to_string(),
+                )]),
+            }),
+        },
+    }
+}
+
 /// Converts using the default reporting group.
 ///
 /// This is the offline entry point (`step-cli`): with no election event
 /// there are no configured Area names to check the file's party names
-/// against, so it converts without that check. Anything running with an
+/// against, so it converts without that check. For the same reason a
+/// contest missing from `contest_vote_config` falls back to the file's own
+/// `Contest@voteFor` rather than being rejected — there is no election
+/// event here to be authoritative about it. Anything running with an
 /// election event calls
-/// `convert_ess_enhanced_xml_to_csv_for_reporting_group`, which performs it.
+/// `convert_ess_enhanced_xml_to_csv_for_reporting_group`, which performs
+/// both checks.
 #[instrument(skip_all, err)]
 pub fn convert_ess_enhanced_xml_to_csv(
     xml_bytes: &[u8],
@@ -315,6 +439,7 @@ pub fn convert_ess_enhanced_xml_to_csv(
         selected_channel,
         DEFAULT_IMPORT_REPORTING_GROUP_ID,
         contest_vote_config,
+        MissingContestConfigPolicy::UseFileVoteFor,
     )
 }
 
@@ -329,12 +454,12 @@ pub fn convert_ess_enhanced_xml_to_csv(
 /// does for a bad CSV row — so a file with one broken contest still
 /// converts and imports every other contest in it.
 ///
-/// `contest_vote_config` maps a contest's external id to its `min_votes`/
-/// `max_votes` (STEP contest config); a contest missing from the map uses
-/// the defaults documented on `ContestVoteConfig`. `min_votes` decides
-/// whether undervoting can invalidate a ballot — see the comment above
-/// `implicit_invalid` below. `max_votes` is used to check ES&S's reported
-/// totals reconcile exactly — see the comment above `check_vote_reconciliation`.
+/// `contest_vote_config` maps a contest's external id to its `max_votes`
+/// (STEP contest config). `max_votes` is cross-checked against
+/// the file's own `Contest@voteFor`, and a contest the event doesn't
+/// configure at all is skipped rather than guessed at — see
+/// `resolve_contest_max_votes` for why that number can't be defaulted
+/// safely.
 ///
 /// `total_votes` is each party's `<PrecinctParty ballotsCast>` — an
 /// authoritative ballot count for every contest on that party's ballot,
@@ -375,6 +500,7 @@ pub fn convert_ess_enhanced_xml_to_csv_for_reporting_group(
         selected_channel,
         reporting_group_id,
         contest_vote_config,
+        MissingContestConfigPolicy::Reject,
     )?;
 
     Ok(EssConversion {
@@ -480,6 +606,7 @@ fn convert_party_grouped(
     selected_channel: VotingChannel,
     reporting_group_id: &str,
     contest_vote_config: &HashMap<String, ContestVoteConfig>,
+    missing_config_policy: MissingContestConfigPolicy,
 ) -> Result<(Vec<u8>, Vec<TallySheetImportValidationError>)> {
     let mut writer = Writer::from_writer(Vec::new());
     let mut validation_errors = Vec::new();
@@ -545,11 +672,19 @@ fn convert_party_grouped(
                 }
             };
 
-        let vote_config = contest_vote_config
-            .get(&contest_external_id)
-            .copied()
-            .unwrap_or_default();
-        let max_votes = vote_config.max_votes.max(1) as u64;
+        let max_votes = match resolve_contest_max_votes(
+            contest,
+            &contest_external_id,
+            contest_vote_config,
+            missing_config_policy,
+            &selected_channel,
+        ) {
+            Ok(max_votes) => max_votes,
+            Err(error) => {
+                validation_errors.push(error);
+                continue;
+            }
+        };
 
         for (party_id, totals) in totals_by_party {
             let Some(party_name) = party_names.get(&party_id) else {
@@ -681,6 +816,28 @@ fn convert_party_grouped(
                 &contest_external_id,
                 "census",
                 party_ballots_cast,
+            )?;
+            // ES&S's raw selection-slot counts, carried through as
+            // annotations (see `ANNOTATION_FIELDS` in the canonical CSV
+            // parser) rather than canonical scalars. Every figure above is
+            // derived *from* these by dividing by max_votes, so keeping the
+            // originals is what makes an imported ballot box auditable back
+            // to the source file.
+            write_scalar_row(
+                &mut writer,
+                &selected_channel,
+                party_name,
+                &contest_external_id,
+                &EssAnnotationField::OverVotes.to_string(),
+                totals.over_votes,
+            )?;
+            write_scalar_row(
+                &mut writer,
+                &selected_channel,
+                party_name,
+                &contest_external_id,
+                &EssAnnotationField::UnderVotes.to_string(),
+                totals.under_votes,
             )?;
 
             for candidate in &candidates {
@@ -1072,6 +1229,23 @@ mod tests {
         ["Area A", "Area B"].into_iter().map(String::from).collect()
     }
 
+    /// Declares the named contests as single-choice ("vote for 1"). Every
+    /// contest an election-event conversion touches has to be configured
+    /// now — a contest missing from the map is rejected rather than
+    /// silently defaulted to 1, since guessing `max_votes` corrupts every
+    /// derived figure (see `resolve_contest_max_votes`).
+    fn single_choice_config(contest_external_ids: &[&str]) -> HashMap<String, ContestVoteConfig> {
+        contest_external_ids
+            .iter()
+            .map(|contest_external_id| {
+                (
+                    contest_external_id.to_string(),
+                    ContestVoteConfig { max_votes: 1 },
+                )
+            })
+            .collect()
+    }
+
     /// Most tests only care about the CSV and the validation errors, not the
     /// recorded area grouping (that is asserted on its own below).
     fn convert_for_test(
@@ -1123,7 +1297,7 @@ mod tests {
             PARTY_AND_PRECINCT_FILE,
             VotingChannel::PAPER,
             DEFAULT_IMPORT_REPORTING_GROUP_ID,
-            &HashMap::new(),
+            &single_choice_config(&["contest-1"]),
             area_names,
         )
         .unwrap()
@@ -1172,7 +1346,8 @@ mod tests {
     #[test]
     fn offline_conversion_without_an_election_event_is_party_grouped() {
         // step-cli has no election event, so there are no Area names to check
-        // the file's parties against — it converts without that check.
+        // the file's parties against — it converts without that check, and
+        // falls back to the file's own voteFor for max_votes.
         let (csv, errors) = convert_ess_enhanced_xml_to_csv(
             PARTY_AND_PRECINCT_FILE,
             VotingChannel::PAPER,
@@ -1183,6 +1358,142 @@ mod tests {
 
         assert!(errors.is_empty());
         assert!(csv.contains("PAPER,Area A,contest-1,candidate_votes,cand-1,4"));
+    }
+
+    /// A "vote for 4" contest shaped like the CC race in a real Woodstock
+    /// export: 3 ballots, 4 candidate marks, and overVotes/underVotes of 4
+    /// each (selection-slot counts, i.e. one overvoted and one blank
+    /// ballot). Reconciles exactly at max_votes 4: 4 + 4 + 4 == 3 * 4.
+    const VOTE_FOR_FOUR_FILE: &[u8] = br#"
+        <ElectionReport>
+            <JurisdictionMap>
+                <Precinct id="p1" name="Precinct 1">
+                    <PrecinctReportingGroup reportingGroupId="1" ballotsCast="3" blanksCast="1" />
+                    <PrecinctParty partyId="1" ballotsCast="3" blanksCast="1">
+                        <PrecinctPartySplit refBStyleId="b1" ballotsCast="3" blanksCast="1" />
+                    </PrecinctParty>
+                </Precinct>
+            </JurisdictionMap>
+            <PartyMap>
+                <Party id="1" name="Area A" />
+            </PartyMap>
+            <Contest altId1="CC" voteFor="4">
+                <Candidate altId1="CCC1" type="NORMAL">
+                    <CandidatePrecinctVotes refPrecinctId="p1" votes="1">
+                        <CandidatePrecinctSplitVotes refBStyleId="b1" votes="1" />
+                    </CandidatePrecinctVotes>
+                </Candidate>
+                <Candidate altId1="CCC2" type="NORMAL">
+                    <CandidatePrecinctVotes refPrecinctId="p1" votes="1">
+                        <CandidatePrecinctSplitVotes refBStyleId="b1" votes="1" />
+                    </CandidatePrecinctVotes>
+                </Candidate>
+                <Candidate altId1="CCC3" type="NORMAL">
+                    <CandidatePrecinctVotes refPrecinctId="p1" votes="1">
+                        <CandidatePrecinctSplitVotes refBStyleId="b1" votes="1" />
+                    </CandidatePrecinctVotes>
+                </Candidate>
+                <Candidate altId1="CCC4" type="NORMAL">
+                    <CandidatePrecinctVotes refPrecinctId="p1" votes="1">
+                        <CandidatePrecinctSplitVotes refBStyleId="b1" votes="1" />
+                    </CandidatePrecinctVotes>
+                </Candidate>
+                <Candidate altId1="ovr" type="OVERVOTES">
+                    <CandidatePrecinctVotes refPrecinctId="p1" votes="4">
+                        <CandidatePrecinctSplitVotes refBStyleId="b1" votes="4" />
+                    </CandidatePrecinctVotes>
+                </Candidate>
+                <Candidate altId1="und" type="UNDERVOTES">
+                    <CandidatePrecinctVotes refPrecinctId="p1" votes="4">
+                        <CandidatePrecinctSplitVotes refBStyleId="b1" votes="4" />
+                    </CandidatePrecinctVotes>
+                </Candidate>
+            </Contest>
+        </ElectionReport>
+    "#;
+
+    #[test]
+    fn skips_contest_whose_vote_for_disagrees_with_the_configured_max_votes() {
+        // The file says vote-for-4, the event says vote-for-1. Converting on
+        // the wrong bound is what silently corrupts every derived figure
+        // (implicit_invalid 4 instead of 1, total_valid_votes saturating to
+        // 0), so the contest is skipped and the disagreement named directly
+        // rather than surfacing later as a confusing reconciliation error.
+        let (csv, errors) = convert_for_test(
+            VOTE_FOR_FOUR_FILE,
+            VotingChannel::PAPER,
+            &single_choice_config(&["CC"]),
+            &party_area_names(),
+        )
+        .unwrap();
+
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "ess_vote_for_does_not_match_contest_config");
+        assert_eq!(errors[0].contest_external_id, Some("CC".to_string()));
+        assert_eq!(errors[0].params.get("fileVoteFor"), Some(&"4".to_string()));
+        assert_eq!(
+            errors[0].params.get("configuredMaxVotes"),
+            Some(&"1".to_string())
+        );
+        assert!(csv_has_no_rows(&csv));
+    }
+
+    #[test]
+    fn skips_contest_absent_from_the_election_events_contest_config() {
+        // Nothing configures this contest, so its vote-for bound is unknown.
+        // Defaulting it to 1 is what previously turned a config mismatch
+        // into silently wrong numbers.
+        let (csv, errors) = convert_for_test(
+            VOTE_FOR_FOUR_FILE,
+            VotingChannel::PAPER,
+            &single_choice_config(&["some-other-contest"]),
+            &party_area_names(),
+        )
+        .unwrap();
+
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "ess_contest_not_configured");
+        assert_eq!(errors[0].contest_external_id, Some("CC".to_string()));
+        assert!(csv_has_no_rows(&csv));
+    }
+
+    #[test]
+    fn offline_conversion_falls_back_to_the_files_vote_for() {
+        // step-cli has no election event to configure contests, so the
+        // file's own voteFor is the only authority — it must be used rather
+        // than rejecting every contest or defaulting to 1.
+        let (csv, errors) = convert_ess_enhanced_xml_to_csv(
+            VOTE_FOR_FOUR_FILE,
+            VotingChannel::PAPER,
+            &HashMap::new(),
+        )
+        .unwrap();
+        let csv = String::from_utf8(csv).unwrap();
+
+        assert!(errors.is_empty());
+        // Derived at max_votes 4, not 1.
+        assert!(csv.contains("PAPER,Area A,CC,implicit_invalid,,1"));
+        assert!(csv.contains("PAPER,Area A,CC,total_blank_votes,,1"));
+        assert!(csv.contains("PAPER,Area A,CC,total_valid_votes,,2"));
+    }
+
+    #[test]
+    fn writes_ess_raw_slot_counts_as_annotation_rows() {
+        // Every derived figure above is these counts divided by max_votes,
+        // so the originals are carried through unmodified to keep an
+        // imported ballot box auditable back to the source file.
+        let (csv, errors) = convert_for_test(
+            VOTE_FOR_FOUR_FILE,
+            VotingChannel::PAPER,
+            &HashMap::from([("CC".to_string(), ContestVoteConfig { max_votes: 4 })]),
+            &party_area_names(),
+        )
+        .unwrap();
+        let csv = String::from_utf8(csv).unwrap();
+
+        assert!(errors.is_empty());
+        assert!(csv.contains("PAPER,Area A,CC,over_votes,,4"));
+        assert!(csv.contains("PAPER,Area A,CC,under_votes,,4"));
     }
 
     #[test]
@@ -1226,7 +1537,7 @@ mod tests {
         let (csv, errors) = convert_for_test(
             xml,
             VotingChannel::PAPER,
-            &HashMap::new(),
+            &single_choice_config(&["contest-1"]),
             &party_area_names(),
         )
         .unwrap();
@@ -1281,13 +1592,8 @@ mod tests {
             </ElectionReport>
         "#;
 
-        let contest_vote_config = HashMap::from([(
-            "contest-1".to_string(),
-            ContestVoteConfig {
-                min_votes: 0,
-                max_votes: 4,
-            },
-        )]);
+        let contest_vote_config =
+            HashMap::from([("contest-1".to_string(), ContestVoteConfig { max_votes: 4 })]);
         let (_csv, errors) = convert_for_test(
             xml,
             VotingChannel::PAPER,
@@ -1337,13 +1643,8 @@ mod tests {
             </ElectionReport>
         "#;
 
-        let contest_vote_config = HashMap::from([(
-            "contest-1".to_string(),
-            ContestVoteConfig {
-                min_votes: 0,
-                max_votes: 2,
-            },
-        )]);
+        let contest_vote_config =
+            HashMap::from([("contest-1".to_string(), ContestVoteConfig { max_votes: 2 })]);
         let (_csv, errors) = convert_for_test(
             xml,
             VotingChannel::PAPER,
@@ -1409,7 +1710,7 @@ mod tests {
         let (csv, errors) = convert_for_test(
             xml,
             VotingChannel::PAPER,
-            &HashMap::new(),
+            &single_choice_config(&["contest-1"]),
             &party_area_names(),
         )
         .unwrap();
@@ -1475,7 +1776,7 @@ mod tests {
         let (csv, errors) = convert_for_test(
             xml,
             VotingChannel::PAPER,
-            &HashMap::new(),
+            &single_choice_config(&["mayor"]),
             &party_area_names(),
         )
         .unwrap();
@@ -1539,13 +1840,8 @@ mod tests {
             </ElectionReport>
         "#;
 
-        let contest_vote_config = HashMap::from([(
-            "contest-1".to_string(),
-            ContestVoteConfig {
-                min_votes: 1,
-                max_votes: 1,
-            },
-        )]);
+        let contest_vote_config =
+            HashMap::from([("contest-1".to_string(), ContestVoteConfig { max_votes: 1 })]);
         let (csv, errors) = convert_for_test(
             xml,
             VotingChannel::PAPER,
@@ -1608,13 +1904,8 @@ mod tests {
             </ElectionReport>
         "#;
 
-        let contest_vote_config = HashMap::from([(
-            "council".to_string(),
-            ContestVoteConfig {
-                min_votes: 0,
-                max_votes: 3,
-            },
-        )]);
+        let contest_vote_config =
+            HashMap::from([("council".to_string(), ContestVoteConfig { max_votes: 3 })]);
         let (csv, errors) = convert_for_test(
             xml,
             VotingChannel::PAPER,
@@ -1907,7 +2198,7 @@ mod tests {
         let (csv, errors) = convert_for_test(
             xml,
             VotingChannel::PAPER,
-            &HashMap::new(),
+            &single_choice_config(&["contest-1"]),
             &party_area_names(),
         )
         .unwrap();
@@ -1955,7 +2246,7 @@ mod tests {
         let (csv, errors) = convert_for_test(
             xml,
             VotingChannel::PAPER,
-            &HashMap::new(),
+            &single_choice_config(&["contest-1", "contest-2"]),
             &party_area_names(),
         )
         .unwrap();
