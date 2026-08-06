@@ -314,7 +314,7 @@ const frenchTranslation: TranslationType = {
             createAreaSuccess: "Zone créée",
             updateAreaSuccess: "Zone mise à jour",
             createAreaError: "Erreur lors de la création de la zone",
-            sequent_backend_area_contest: "Questions de la Zone",
+            sequent_backend_area_contest: "Scrutins de la Zone",
             empty: {
                 header: "Aucune Zone pour l'instant.",
                 action: "Créer une Zone",
@@ -577,10 +577,10 @@ const frenchTranslation: TranslationType = {
                 },
                 contestEncryptionPolicy: {
                     options: {
-                        "single-contest": "Concours unique",
-                        "multiple-contests": "Plusieurs concours",
+                        "single-contest": "Scrutin unique",
+                        "multiple-contests": "Plusieurs scrutins",
                     },
-                    policyLabel: "Politique de chiffrement de concours",
+                    policyLabel: "Politique de chiffrement de scrutin",
                 },
                 votingPortalDateTimeFormat: {
                     policyLabel: "Format de date et d'heure du portail de vote",
@@ -760,7 +760,7 @@ const frenchTranslation: TranslationType = {
                 elegibleVoters: "Électeurs",
                 voters: "Votants",
                 elections: "Élections",
-                contests: "Questions",
+                contests: "Scrutins",
                 areas: "Zones",
                 sentEmails: "Emails Envoyés",
                 sentSMS: "SMS Envoyés",
@@ -939,7 +939,7 @@ const frenchTranslation: TranslationType = {
                 image: "Image",
                 advanced: "Configuration Avancée",
                 numAllowedVotes: "Nombre de votes permis",
-                reorder: "Réorganiser les concours",
+                reorder: "Réorganiser les scrutins",
                 castVoteConfirm: "Modal de Confirmation de Vote",
                 gracePeriodPolicy: "Politique de période de grâce",
                 allowTallyPolicy: "Autoriser le décompte",
@@ -1299,14 +1299,14 @@ const frenchTranslation: TranslationType = {
                 "miru-download": "Miru Download",
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
-                "contest-write": "Éditer Concours",
-                "contest-read": "Lire le Concours",
+                "contest-write": "Éditer le Scrutin",
+                "contest-read": "Lire le Scrutin",
                 "candidate-write": "Éditer le candidats",
                 "candidate-read": "Lire le candidats",
                 "permission-label-write": "Modifier l'étiquette de permission",
                 "scheduled-event-write": "Modifier des Événements Planifiés",
-                "contest-create": "Create Contest",
-                "contest-delete": "Delete Contest",
+                "contest-create": "Créer un Scrutin",
+                "contest-delete": "Supprimer le Scrutin",
                 "candidate-create": "Create Candidate",
                 "candidate-delete": "Delete Candidate",
                 "election-create": "Create Election",
@@ -1591,7 +1591,7 @@ const frenchTranslation: TranslationType = {
             resources: {
                 electionEvent: "Événement Électoral",
                 election: "Élection",
-                contest: "Concours",
+                contest: "Scrutin",
                 candidate: "Candidat",
                 noResult: {
                     askCreate: "Voulez-vous en créer un ?",
@@ -1657,13 +1657,13 @@ const frenchTranslation: TranslationType = {
         createResource: {
             electionEvent: "Créer un Événement Électoral",
             election: "Créer une Élection",
-            contest: "Créer un Concours",
+            contest: "Créer un Scrutin",
             candidate: "Créer un Candidat",
         },
         importResource: {
             electionEvent: "Importer un Événement Électoral",
             election: "Importer une Élection",
-            contest: "Importer un Concours",
+            contest: "Importer un Scrutin",
             candidate: "Importer un Candidat",
             ImportHashMismatch: "Hashes don't match. Integrity check failure.",
         },
@@ -1680,7 +1680,7 @@ const frenchTranslation: TranslationType = {
             addResource: {
                 electionEvent: "Créer un Événement Électoral",
                 election: "Créer une Élection",
-                contest: "Créer un Concours",
+                contest: "Créer un Scrutin",
                 candidate: "Créer un Candidat",
             },
             menuActions: {
@@ -1690,13 +1690,13 @@ const frenchTranslation: TranslationType = {
                 unarchive: {
                     electionEvent: "Désarchiver cet Événement Électoral",
                     election: "Désarchiver cette Élection",
-                    contest: "Désarchiver ce Concours",
+                    contest: "Désarchiver ce Scrutin",
                     candidate: "Désarchiver ce Candidat",
                 },
                 remove: {
                     electionEvent: "Supprimer cet Événement Électoral",
                     election: "Supprimer cette Élection",
-                    contest: "Supprimer ce Concours",
+                    contest: "Supprimer ce Scrutin",
                     candidate: "Supprimer ce Candidat",
                 },
                 messages: {
@@ -1764,7 +1764,7 @@ const frenchTranslation: TranslationType = {
         },
         contestScreen: {
             common: {
-                subtitle: "Configuration des questions.",
+                subtitle: "Configuration du scrutin.",
             },
             edit: {
                 externalId: "ID externe",
@@ -1875,7 +1875,7 @@ const frenchTranslation: TranslationType = {
                     "Position de classement la plus haute disponible (ex. '5' signifie positions 1 à 5). Doit être au moins égal au nombre de candidats à classer (vote préférentiel).",
             },
             error: {},
-            createContestSuccess: "Question créée",
+            createContestSuccess: "Scrutin créé",
             createContestError: "Erreur lors de la création de la question",
         },
         keysGeneration: {
@@ -2022,11 +2022,11 @@ const frenchTranslation: TranslationType = {
                 visibility: "Visibility",
                 fullPublishedScope: "Full published scope",
                 personalVisibility: "Personal visibility",
-                contests: "Contests",
-                noTalliedContests: "No tallied contests available.",
-                publishSelectedContests: "Publish selected contests",
-                selectedContestCount_one: "{{count}} contest selected",
-                selectedContestCount_other: "{{count}} contests selected",
+                contests: "Scrutins",
+                noTalliedContests: "Aucun scrutin dépouillé disponible.",
+                publishSelectedContests: "Publier les scrutins sélectionnés",
+                selectedContestCount_one: "{{count}} scrutin sélectionné",
+                selectedContestCount_other: "{{count}} scrutins sélectionnés",
                 history: "Publication history",
                 version: "Version",
                 status: "Status",
@@ -2264,7 +2264,7 @@ const frenchTranslation: TranslationType = {
                 save: "Enregistrer",
                 pendingApplyStatus: "Calcul en attente",
                 filterElection: "Élection",
-                filterContest: "Concours",
+                filterContest: "Scrutin",
                 filterArea: "Zone",
                 filterStatusLabel: "Statut",
                 clearFilters: "Effacer les filtres",
@@ -2489,7 +2489,7 @@ const frenchTranslation: TranslationType = {
             },
             table: {
                 area: "Zone",
-                contest: "Cotienda",
+                contest: "Scrutin",
                 approvedVersion: "Version approuvée",
                 latestVersion: "Dernière version",
                 labels: "Étiquettes",

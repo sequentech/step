@@ -110,7 +110,7 @@ const frenchTranslation: TranslationType = {
             },
             explicit: {
                 notAllowed:
-                    "Vote marqué explicitement comme invalide mais la question ne le permet pas",
+                    "Vote marqué explicitement comme invalide mais le scrutin ne le permet pas",
                 alert: "La sélection marquée sera considérée comme un vote invalide.",
             },
             configuration: {

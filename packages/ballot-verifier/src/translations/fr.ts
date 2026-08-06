@@ -73,7 +73,7 @@ const frenchTranslation: TranslationType = {
             markedInvalid: "Vote explicitement marqué invalide",
             points_one: "({{count}} Point)",
             points_other: "({{count}} Points)",
-            contestNotFound: "Question non trouvée : {{contestId}}",
+            contestNotFound: "Scrutin non trouvé : {{contestId}}",
             declineToVote: "A choisi de ne pas voter",
         },
         "footer": {
@@ -90,7 +90,7 @@ const frenchTranslation: TranslationType = {
             },
             explicit: {
                 notAllowed:
-                    "Vote marqué explicitement comme invalide mais la question ne le permet pas",
+                    "Vote marqué explicitement comme invalide mais le scrutin ne le permet pas",
             },
         },
     },
