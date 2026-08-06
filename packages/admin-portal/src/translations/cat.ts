@@ -2107,7 +2107,7 @@ const catalanTranslation: TranslationType = {
                         trusteeName: "Nom del Fiduciari",
                         signed: "Ha Signat",
                     },
-                    status: "{{signed}} de {{total}} Han Signat",
+                    status: "{{signed}} de {{total}} Han Signat, mínim {{minimum}}",
                 },
             },
             sendToTransmissionPackageServers:
@@ -2390,7 +2390,7 @@ const catalanTranslation: TranslationType = {
                 ALL_USERS: "Tots",
                 NOT_VOTED: "Els que no han votat",
                 VOTED: "Els que ja han votat",
-                SELECTED: "A {{total}} Votants seleccionats",
+                SELECTED: "A {{total}} {{voters}} seleccionats",
             },
             path: {
                 users: "usuaris",

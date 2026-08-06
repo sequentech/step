@@ -37,7 +37,7 @@ const galegoTranslation: TranslationType = {
             ballotHelpDialog: {
                 title: "Sobre a pantalla da papeleta",
                 content:
-                    "Esta pantalla mostra o concurso no que es elixible para votar. Activa a caixa á dereita para seleccionar un Candidato/Resposta. Para restablecer, fai clic en “<b>Limpar selección</b>”; para continuar, fai clic en “<b>Seguinte</b>”.",
+                    "Esta pantalla mostra a contenda na que es elixible para votar. Activa a caixa á dereita para seleccionar un Candidato/Resposta. Para restablecer, fai clic en “<b>Limpar selección</b>”; para continuar, fai clic en “<b>Seguinte</b>”.",
                 ok: "Aceptar",
             },
             nonVotedDialog: {
@@ -267,7 +267,7 @@ const galegoTranslation: TranslationType = {
             downloadButton: "Descargar",
             step2Title: "2. Verifica a túa papeleta",
             step2Description:
-                '<a class="link" href="{{linkToBallotVerifier}}" target="_blank">Accede ao verificador de papeletas</a>, abrirase unha nova pestana no teu navegador.',
+                "<VerifierLink>Accede ao verificador de papeletas</VerifierLink>, abrirase unha nova pestana no teu navegador.",
             step2HelpDialog: {
                 title: "Tutorial de auditoría da papeleta",
                 content:
@@ -309,7 +309,7 @@ const galegoTranslation: TranslationType = {
             },
             alerts: {
                 noElections:
-                    "Non hai eleccións nas que poidas votar. Isto pode deberse a que a área non ten ningún concurso asociado. Inténteo de novo máis tarde ou contacte co soporte para obter asistencia.",
+                    "Non hai eleccións nas que poidas votar. Isto pode deberse a que a área non ten ningunha contenda asociada. Inténteo de novo máis tarde ou contacte co soporte para obter asistencia.",
                 electionEventNotPublished:
                     "O evento electoral aínda non foi publicado. Inténteo de novo máis tarde ou contacte co soporte para obter asistencia.",
             },
@@ -329,7 +329,7 @@ const galegoTranslation: TranslationType = {
                 alert: "Esta selección contarase como un voto inválido",
             },
             page: {
-                oopsWithStatus: "Oops! {{status}}",
+                oopsWithStatus: "¡Vaia! {{status}}",
                 oopsWithoutStatus: "Oops! Erro inesperado",
                 somethingWrong: "Algo saiu mal.",
                 certAuthFailedTitle: "Erro de Autenticación con Certificado",

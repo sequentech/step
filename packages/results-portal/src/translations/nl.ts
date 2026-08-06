@@ -40,7 +40,7 @@ const dutchTranslation: TranslationType = {
             publishedResultsDescription: "Gepubliceerde resultaten voor dit verkiezingsevenement.",
             resultsAndParticipationTitle: "Resultaten en deelname",
             electionsTitle: "Verkiezingen",
-            contestsTitle: "Wedstrijden",
+            contestsTitle: "Stemmingen",
             areasTitle: "Gebieden",
             globalArea: "Globaal",
             noResultsForSelection: "Er zijn geen resultaten beschikbaar voor deze selectie.",
@@ -52,7 +52,7 @@ const dutchTranslation: TranslationType = {
             position_one: "{{count}} positie",
             position_other: "{{count}} posities",
             fallbackElectionName: "Verkiezing",
-            fallbackContestName: "Wedstrijd {{contestId}}",
+            fallbackContestName: "Stemming {{contestId}}",
             state: {
                 unexpectedErrorTitle: "Onverwachte fout",
                 loadErrorMessage:

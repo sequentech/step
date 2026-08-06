@@ -2067,8 +2067,8 @@ const galegoTranslation: TranslationType = {
                     },
                     download: {
                         title: "Descargar",
-                        emlTitle: "Descargar EML",
-                        transmissionPackageTitle: "Descargar Paquete de Transmisión",
+                        emlTitle: "Descargar EML {{date}}",
+                        transmissionPackageTitle: "Descargar Paquete de Transmisión {{date}}",
                         transmissionReportTitle: "Descargar informe de transmisión",
                         dialog: {
                             title: "¿Queres Descargar o Paquete de Transmisión?",

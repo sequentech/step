@@ -40,7 +40,7 @@ const galegoTranslation: TranslationType = {
             publishedResultsDescription: "Resultados publicados para este evento electoral.",
             resultsAndParticipationTitle: "Resultados e participación",
             electionsTitle: "Eleccións",
-            contestsTitle: "Concursos",
+            contestsTitle: "Contendas",
             areasTitle: "Áreas",
             globalArea: "Global",
             noResultsForSelection: "Non hai resultados dispoñibles para esta selección.",
@@ -52,7 +52,7 @@ const galegoTranslation: TranslationType = {
             position_one: "{{count}} posto",
             position_other: "{{count}} postos",
             fallbackElectionName: "Elección",
-            fallbackContestName: "Concurso {{contestId}}",
+            fallbackContestName: "Contenda {{contestId}}",
             state: {
                 unexpectedErrorTitle: "Erro inesperado",
                 loadErrorMessage:

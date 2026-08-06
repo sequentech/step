@@ -2099,7 +2099,7 @@ const spanishTranslation: TranslationType = {
                         trusteeName: "Nombre del Fideicomisario",
                         signed: "Ha Firmado",
                     },
-                    status: "{{signed}} de {{total}} Han Firmado",
+                    status: "{{signed}} de {{total}} Han Firmado, mínimo {{minimum}}",
                 },
             },
             sendToTransmissionPackageServers:
@@ -2382,7 +2382,7 @@ const spanishTranslation: TranslationType = {
                 ALL_USERS: "Todos",
                 NOT_VOTED: "Los que no votaron",
                 VOTED: "Los que ya votaron",
-                SELECTED: "A {{total}} Votantes seleccionados",
+                SELECTED: "A {{total}} {{voters}} seleccionados",
             },
             path: {
                 users: "usuarios",
