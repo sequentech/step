@@ -65,9 +65,9 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
     boolean isOtl = "true".equals(config.getConfig().get(Utils.ONE_TIME_LINK));
     String code = authSession.getAuthNote(Utils.CODE);
     String ttl = authSession.getAuthNote(Utils.CODE_TTL);
-    String codeLength = Utils.getConfigValue(config, Utils.CODE_LENGTH, Utils.CODE_LENGTH_DEFAULT);
+    String codeLength = config.getConfig().get(Utils.CODE_LENGTH);
     UserModel user = context.getUser();
-    String resendTimer = Utils.getResendTimer(config);
+    String resendTimer = config.getConfig().get(Utils.RESEND_ACTIVATION_TIMER);
     if (code == null || ttl == null) {
       context.failure();
       context.challenge(context.form().createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
@@ -126,10 +126,9 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     String sessionId = context.getAuthenticationSession().getParentSession().getId();
     AuthenticatorConfigModel config = Utils.getConfig(authSession.getRealm()).get();
-    String resendTimer = Utils.getResendTimer(config);
+    String resendTimer = config.getConfig().get(Utils.RESEND_ACTIVATION_TIMER);
     boolean isOtl = "true".equals(config.getConfig().get(Utils.ONE_TIME_LINK));
-    String codeLength = Utils.getConfigValue(config, Utils.CODE_LENGTH, Utils.CODE_LENGTH_DEFAULT);
-    String configTtl = Utils.getConfigValue(config, Utils.CODE_TTL, Utils.CODE_TTL_DEFAULT);
+    String codeLength = config.getConfig().get(Utils.CODE_LENGTH);
     // initial form
     LoginFormsProvider form =
         context
@@ -138,7 +137,7 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
             .setAttribute("codeJustSent", true)
             .setAttribute("user", context.getUser())
             .setAttribute("isOtl", isOtl)
-            .setAttribute("ttl", configTtl)
+            .setAttribute("ttl", config.getConfig().get(Utils.CODE_TTL))
             .setAttribute("codeLength", codeLength)
             .setAttribute("resendTimer", resendTimer);
 
@@ -158,7 +157,7 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
           form.setAttribute(
                   "address",
                   Utils.getOtpAddress(Utils.MessageCourier.EMAIL, false, config, authSession, user))
-              .setAttribute("ttl", configTtl)
+              .setAttribute("ttl", config.getConfig().get(Utils.CODE_TTL))
               .setAttribute("codeJustSent", false)
               .setAttribute("resendTimer", resendTimer)
               .createForm(TPL_CODE));

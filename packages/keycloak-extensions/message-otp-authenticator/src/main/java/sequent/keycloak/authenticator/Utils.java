@@ -92,14 +92,11 @@ public class Utils {
   public final String SEND_CODE_EMAIL_SUBJECT = "messageOtp.sendCode.email.subject";
   public final String SEND_CODE_EMAIL_FTL = "send-code-email.ftl";
   public final String RESEND_ACTIVATION_TIMER = "resendCoudActivationTimer";
-  // Deployment-wide fallback for the resend timer, set in the docker-compose
-  // files and in the keycloakx chart's env.yaml.
-  public final String RESEND_ACTIVATION_TIMER_ENV = "KC_OTP_RESEND_INTERVAL";
 
   // Default values for message-otp authenticator configuration. Referenced
-  // from both MessageOTPAuthenticatorFactory (admin UI default) and the
-  // getConfigValue()/getResendTimer() readers below (runtime fallback when the
-  // realm's saved config is missing the key).
+  // from both MessageOTPAuthenticatorFactory (admin UI default) and
+  // ResetMessageOTPRequiredAction (runtime fallback when the realm's saved
+  // config is missing the key).
   public final String CODE_LENGTH_DEFAULT = "6";
   public final String CODE_TTL_DEFAULT = "300";
   public final String RESEND_ACTIVATION_TIMER_DEFAULT = "60";
@@ -207,51 +204,6 @@ public class Utils {
     }
   }
 
-  /**
-   * Reads a single configuration value, falling back to the given default when the realm's saved
-   * config has no value for the key. Realms configured before a key was introduced simply don't
-   * have it, and the defaults declared in {@link MessageOTPAuthenticatorFactory} are only applied
-   * by the admin console, never materialized into the stored config.
-   */
-  public String getConfigValue(
-      AuthenticatorConfigModel config, String configKey, String defaultValue) {
-    return getConfigValue(config == null ? null : config.getConfig(), configKey, defaultValue);
-  }
-
-  /**
-   * @see #getConfigValue(AuthenticatorConfigModel, String, String)
-   */
-  public String getConfigValue(
-      Map<String, String> configMap, String configKey, String defaultValue) {
-    if (configMap == null) {
-      return defaultValue;
-    }
-    String value = configMap.get(configKey);
-    return value == null || value.isBlank() ? defaultValue : value;
-  }
-
-  /**
-   * Resolves the seconds to wait before the resend link is re-activated: the realm's authenticator
-   * config first, then the deployment-wide {@code KC_OTP_RESEND_INTERVAL} environment variable, and
-   * finally the built-in default.
-   */
-  public String getResendTimer(AuthenticatorConfigModel config) {
-    return getResendTimer(config == null ? null : config.getConfig());
-  }
-
-  /**
-   * @see #getResendTimer(AuthenticatorConfigModel)
-   */
-  public String getResendTimer(Map<String, String> configMap) {
-    return getResendTimer(configMap, System.getenv(RESEND_ACTIVATION_TIMER_ENV));
-  }
-
-  String getResendTimer(Map<String, String> configMap, String envValue) {
-    String fallback =
-        envValue == null || envValue.isBlank() ? RESEND_ACTIVATION_TIMER_DEFAULT : envValue;
-    return getConfigValue(configMap, RESEND_ACTIVATION_TIMER, fallback);
-  }
-
   public List<String> getMultivalueString(
       AuthenticatorConfigModel config, String configKey, List<String> defaultValue) {
     log.infov("getMultivalueString(configKey={0}, defaultValue={1})", configKey, defaultValue);
@@ -328,9 +280,8 @@ public class Utils {
     log.infov("sendCode(): mobileNumber=`{0}`", mobileNumber);
     log.infov("sendCode(): emailAddress=`{0}`", emailAddress);
 
-    int length =
-        Integer.parseInt(getConfigValue(configMap, Utils.CODE_LENGTH, Utils.CODE_LENGTH_DEFAULT));
-    int ttl = Integer.parseInt(getConfigValue(configMap, Utils.CODE_TTL, Utils.CODE_TTL_DEFAULT));
+    int length = Integer.parseInt(configMap.get(Utils.CODE_LENGTH));
+    int ttl = Integer.parseInt(configMap.get(Utils.CODE_TTL));
     authSession.setAuthNote(
         Utils.CODE_TTL, Long.toString(System.currentTimeMillis() + (ttl * 1000L)));
 

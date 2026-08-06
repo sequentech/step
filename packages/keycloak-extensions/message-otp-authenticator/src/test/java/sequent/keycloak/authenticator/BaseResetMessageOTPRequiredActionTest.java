@@ -3,8 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package sequent.keycloak.authenticator;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.HashMap;
@@ -23,15 +25,26 @@ import org.keycloak.sessions.AuthenticationSessionModel;
 class BaseResetMessageOTPRequiredActionTest {
 
   private final ResetEmailOTPRequiredAction action = new ResetEmailOTPRequiredAction();
-  private final LoginFormsProvider form = mock(LoginFormsProvider.class);
+  private final Map<String, Object> attributes = new HashMap<>();
 
-  private RequiredActionContext mockContext() {
+  /** Runs the OTP form and returns the attributes it handed to the template. */
+  private Map<String, Object> renderWith(AuthenticatorConfigModel config) {
+    LoginFormsProvider form = mock(LoginFormsProvider.class);
+    when(form.setAttribute(anyString(), any()))
+        .thenAnswer(
+            invocation -> {
+              attributes.put(invocation.getArgument(0), invocation.getArgument(1));
+              return form;
+            });
+
     RequiredActionContext context = mock(RequiredActionContext.class);
     AuthenticationSessionModel authSession = mock(AuthenticationSessionModel.class);
     when(context.form()).thenReturn(form);
     when(context.getAuthenticationSession()).thenReturn(authSession);
     when(authSession.getAuthNote("email")).thenReturn("voter@example.com");
-    return context;
+
+    action.createOTPForm(context, null, config);
+    return attributes;
   }
 
   private AuthenticatorConfigModel configWith(Map<String, String> values) {
@@ -42,33 +55,33 @@ class BaseResetMessageOTPRequiredActionTest {
 
   @Test
   void otpFormFallsBackToDefaultsWhenTheConfigIsMissingKeys() {
-    action.createOTPForm(mockContext(), null, configWith(new HashMap<>()));
+    renderWith(configWith(new HashMap<>()));
 
-    verify(form).setAttribute("resendTimer", Utils.RESEND_ACTIVATION_TIMER_DEFAULT);
-    verify(form).setAttribute("codeLength", Utils.CODE_LENGTH_DEFAULT);
-    verify(form).setAttribute("ttl", Utils.CODE_TTL_DEFAULT);
+    assertEquals(Utils.CODE_LENGTH_DEFAULT, attributes.get("codeLength"));
+    assertEquals(Utils.RESEND_ACTIVATION_TIMER_DEFAULT, attributes.get("resendTimer"));
+    assertEquals(Utils.CODE_TTL_DEFAULT, attributes.get("ttl"));
   }
 
   @Test
   void otpFormFallsBackToDefaultsWhenThereIsNoConfig() {
-    action.createOTPForm(mockContext(), null, null);
+    renderWith(null);
 
-    verify(form).setAttribute("resendTimer", Utils.RESEND_ACTIVATION_TIMER_DEFAULT);
-    verify(form).setAttribute("codeLength", Utils.CODE_LENGTH_DEFAULT);
-    verify(form).setAttribute("ttl", Utils.CODE_TTL_DEFAULT);
+    assertEquals(Utils.CODE_LENGTH_DEFAULT, attributes.get("codeLength"));
+    assertEquals(Utils.RESEND_ACTIVATION_TIMER_DEFAULT, attributes.get("resendTimer"));
+    assertEquals(Utils.CODE_TTL_DEFAULT, attributes.get("ttl"));
   }
 
   @Test
   void otpFormUsesTheConfiguredValues() {
     Map<String, String> values = new HashMap<>();
-    values.put(Utils.RESEND_ACTIVATION_TIMER, "90");
     values.put(Utils.CODE_LENGTH, "4");
+    values.put(Utils.RESEND_ACTIVATION_TIMER, "90");
     values.put(Utils.CODE_TTL, "120");
 
-    action.createOTPForm(mockContext(), null, configWith(values));
+    renderWith(configWith(values));
 
-    verify(form).setAttribute("resendTimer", "90");
-    verify(form).setAttribute("codeLength", "4");
-    verify(form).setAttribute("ttl", "120");
+    assertEquals("4", attributes.get("codeLength"));
+    assertEquals("90", attributes.get("resendTimer"));
+    assertEquals("120", attributes.get("ttl"));
   }
 }
