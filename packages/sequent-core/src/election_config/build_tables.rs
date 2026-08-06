@@ -798,11 +798,7 @@ impl Builder<'_> {
 
         if roles.is_empty() {
             self.problem(
-                Origin {
-                    sheet: sheet.name.clone(),
-                    row: 1,
-                    column: None,
-                },
+                Origin::sheet(sheet.name.clone()),
                 Code::MissingField,
                 "the Permissions matrix has no role columns; expected the first \
                  column to hold permissions and one further column per role",
@@ -948,11 +944,7 @@ impl Builder<'_> {
 
         for column in offenders {
             self.problem(
-                Origin {
-                    sheet: sheet.to_string(),
-                    row: 1,
-                    column: Some(column),
-                },
+                Origin::column(sheet, column),
                 Code::InvalidValue,
                 "the importer rejects this column name; only letters, digits, \
                  '.', '_' and '-' are allowed",

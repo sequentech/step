@@ -18,7 +18,7 @@ strum_macros = "0.27"
 reqwest = { version = "0.12", features = ["blocking", "json"] }
 graphql_client = "0.14"
 rayon = "1.5"
-sequent-core = { path="../sequent-core", features = ["keycloak", "probe", "reports","default_features"] }
+sequent-core = { path="../sequent-core", features = ["keycloak", "probe", "reports", "default_features", "election_config_xlsx", "election_config_archive"] }
 windmill = { path="../windmill" }
 strand = { path="../strand" }
 immudb-rs = { path="../immudb-rs" }
@@ -27,6 +27,8 @@ electoral-log = { path="../electoral-log" }
 uuid = { version = "1.5", features = ["v4", "fast-rng"] }
 fake = { version = "4", features = ["derive"] }
 csv = "1.1"
+# reading a base export straight out of an export archive
+zip = "2.1"
 rand = "0.9"
 chrono = "0.4"
 tokio = { version = "1.38", features = ["full"] }

@@ -256,8 +256,15 @@ mod tests {
                         // actually exercised. Anything else is an inline string,
                         // which avoids needing a shared-string table. A value
                         // wrapped in single quotes is forced to text, for the
-                        // codes an author formats as text on purpose.
-                        if let Some(literal) = value.strip_prefix('\'') {
+                        // codes an author formats as text on purpose, and one
+                        // opening with `=` becomes a formula whose cached result
+                        // is a string — the shape real workbooks use for a phone
+                        // number, and the one that used to lose its leading plus.
+                        if let Some(result) = value.strip_prefix('=') {
+                            xml.push_str(&format!(
+                                r#"<c r="{reference}" t="str"><f>"{result}"</f><v>{result}</v></c>"#
+                            ));
+                        } else if let Some(literal) = value.strip_prefix('\'') {
                             xml.push_str(&format!(
                                 r#"<c r="{reference}" t="inlineStr"><is><t>{literal}</t></is></c>"#
                             ));
@@ -322,6 +329,45 @@ mod tests {
 
         // And the documentation tab is reported rather than silently ignored.
         assert_eq!(workbook.unread_sheets(), vec!["Read Me"]);
+    }
+
+    #[test]
+    fn an_international_phone_number_keeps_its_leading_plus() {
+        // Real workbooks compute contact details with a formula, and its cached
+        // result is a string in the file. calamine before 0.36 tried a float parse
+        // on that string first — and Rust's float parser accepts a leading plus —
+        // so "+33645312453" arrived as the number 33645312453. A voter's phone
+        // number silently lost its country prefix, and nothing said so.
+        let bytes = tiny_xlsx(&[(
+            "Admin Users",
+            &[
+                &["username", "sequent.read-only.mobile-number"],
+                &["admin1", "=+33645312453"],
+            ],
+        )]);
+        let workbook = read_xlsx(&bytes).unwrap();
+        assert_eq!(
+            workbook.rows("adminusers")[0]
+                .get("sequent.read-only.mobile-number"),
+            Some(&json!("+33645312453"))
+        );
+    }
+
+    #[test]
+    fn a_formula_whose_result_is_text_stays_text_even_when_it_looks_numeric() {
+        // What `t="str"` means in the file: the cached result *is* a string. A
+        // formula that computes a number is written as a numeric cell instead, so
+        // trusting the marker is right — and it is what keeps a member id computed
+        // by a formula from losing its leading zeros.
+        let bytes = tiny_xlsx(&[(
+            "Voters",
+            &[&["username", "member_id"], &["v1", "=007"]],
+        )]);
+        let workbook = read_xlsx(&bytes).unwrap();
+        assert_eq!(
+            workbook.rows("voters")[0].get("member_id"),
+            Some(&json!("007"))
+        );
     }
 
     #[test]
