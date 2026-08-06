@@ -4,6 +4,8 @@
 
 import i18next from "i18next"
 import {getBallotErrorOptions} from "./ballotErrorMessages"
+import englishTranslation from "../translations/en"
+import frenchTranslation from "../translations/fr"
 
 describe("getBallotErrorOptions", () => {
     it("accepts every shape a message_map can cross the WASM boundary in", () => {
@@ -153,5 +155,81 @@ describe("i18next plural selection", () => {
 
         await t.changeLanguage("en")
         expect(t.t("selected", {count: 0})).toBe("0 candidates selected")
+    })
+})
+
+/**
+ * End to end over the real bundles: a `message_map` as the Rust checker emits
+ * it, through the helper, into the shipped copy.
+ */
+describe("ballot validation messages", () => {
+    const t = i18next.createInstance()
+
+    beforeAll(async () => {
+        await t.init({
+            lng: "en",
+            fallbackLng: "en",
+            ns: ["translations"],
+            defaultNS: "translations",
+            keySeparator: ".",
+            interpolation: {escapeValue: false},
+            resources: {en: englishTranslation, fr: frenchTranslation},
+        })
+    })
+
+    const render = (message: string, messageMap: Record<string, string>) =>
+        t.t(message, getBallotErrorOptions(message, messageMap))
+
+    it("tells the voter how many more may be selected", () => {
+        expect(render("errors.implicit.underVote", {numSelected: "2", max: "4"})).toBe(
+            "Select up to 2 more candidates."
+        )
+        expect(render("errors.implicit.underVote", {numSelected: "3", max: "4"})).toBe(
+            "Select up to 1 more candidate."
+        )
+    })
+
+    it("tells the voter how many more are required", () => {
+        expect(render("errors.implicit.selectedMin", {numSelected: "0", min: "2"})).toBe(
+            "Select 2 more candidates."
+        )
+        expect(render("errors.implicit.selectedMin", {numSelected: "1", min: "2"})).toBe(
+            "Select 1 more candidate."
+        )
+    })
+
+    it("tells the voter how many to deselect", () => {
+        expect(render("errors.implicit.selectedMax", {numSelected: "2", max: "1"})).toBe(
+            "Deselect 1 candidate."
+        )
+        expect(
+            render("errors.implicit.maxSelectionsPerType", {
+                numSelected: "4",
+                max: "2",
+                type: "Party A",
+            })
+        ).toBe("Deselect 2 candidates from Party A.")
+    })
+
+    it("names the maximum when further selection is disabled", () => {
+        expect(render("errors.implicit.overVoteDisabled", {numSelected: "3", max: "3"})).toBe(
+            "You have selected the maximum of 3 candidates. Deselect one to choose another."
+        )
+        expect(render("errors.implicit.overVoteDisabled", {numSelected: "1", max: "1"})).toBe(
+            "You have selected the maximum of 1 candidate. Deselect it to choose another."
+        )
+    })
+
+    it("follows the plural rules of the language, not English's", async () => {
+        await t.changeLanguage("fr")
+        // French counts zero as singular, so an exhausted allowance reads
+        // "candidat", not "candidats".
+        expect(render("errors.implicit.underVote", {numSelected: "4", max: "4"})).toBe(
+            "Sélectionnez jusqu'à 0 candidat de plus."
+        )
+        expect(render("errors.implicit.underVote", {numSelected: "2", max: "4"})).toBe(
+            "Sélectionnez jusqu'à 2 candidats de plus."
+        )
+        await t.changeLanguage("en")
     })
 })

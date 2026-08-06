@@ -322,24 +322,9 @@ const catalanTranslation: TranslationType = {
                 notEnoughChoices: "No hi ha prou opcions per descodificar",
                 writeInChoiceOutOfRange: "Opció d'escriptura lliure fora de rang: {{index}}",
                 writeInNotEndInZero: "L'escriptura lliure no acaba en 0",
-                writeInCharsExceeded:
-                    "L'escriptura lliure supera la longitud màxima en {{numCharsExceeded}} caràcters. Si us plau, escurceu-la.",
                 bytesToUtf8Conversion:
                     "Error en convertir l'escriptura lliure de bytes a cadena UTF-8: {{errorMessage}}",
                 ballotTooLarge: "La papereta és més gran de l'esperada",
-            },
-            implicit: {
-                selectedMax:
-                    "Vot en excés: el nombre d'opcions seleccionades {{numSelected}} supera el màxim {{max}}",
-                selectedMin:
-                    "El nombre d'opcions seleccionades {{numSelected}} és inferior al mínim {{min}}",
-                maxSelectionsPerType:
-                    "El nombre d'opcions seleccionades {{numSelected}} per a la llista {{type}} supera el màxim {{max}}",
-                underVote:
-                    "Vot incomplet: el nombre d'opcions seleccionades {{numSelected}} és inferior al màxim {{max}}",
-                overVoteDisabled:
-                    "Màxim assolit: heu seleccionat el màxim de {{numSelected}} opcions. Per canviar la vostra selecció, desseleccioneu primer una altra opció.",
-                blankVote: "Vot en blanc: 0 opcions seleccionades",
             },
             explicit: {
                 notAllowed:

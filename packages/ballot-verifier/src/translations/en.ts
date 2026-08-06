@@ -86,12 +86,6 @@ const englishTranslation = {
                     "Error converting write-in from bytes to UTF-8 string: {{errorMessage}}",
                 ballotTooLarge: "Ballot larger than expected",
             },
-            implicit: {
-                selectedMax:
-                    "Number of selected choices {{numSelected}} is more than the maximum {{max}}",
-                selectedMin:
-                    "Number of selected choices {{numSelected}} is less than the minimum {{min}}",
-            },
             explicit: {
                 notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",
             },

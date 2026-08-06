@@ -88,12 +88,6 @@ const frenchTranslation: TranslationType = {
                     "Erreur de conversion des octets de l'option de vote écrite en chaîne UTF-8 : {{errorMessage}}",
                 ballotTooLarge: "Vote plus grand que prévu",
             },
-            implicit: {
-                selectedMax:
-                    "Le nombre d'options sélectionnées {{numSelected}} est supérieur au maximum {{max}}",
-                selectedMin:
-                    "Le nombre d'options sélectionnées {{numSelected}} est inférieur au minimum {{min}}",
-            },
             explicit: {
                 notAllowed:
                     "Vote marqué explicitement comme invalide mais la question ne le permet pas",

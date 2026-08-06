@@ -319,24 +319,9 @@ const dutchTranslation: TranslationType = {
                 notEnoughChoices: "Niet genoeg keuzes om te decoderen",
                 writeInChoiceOutOfRange: "Ingevulde keuze buiten bereik: {{index}}",
                 writeInNotEndInZero: "De ingevulde tekst eindigt niet op 0",
-                writeInCharsExceeded:
-                    "De ingevulde tekst overschrijdt de maximale lengte met {{numCharsExceeded}} tekens. Verkorting alstublieft.",
                 bytesToUtf8Conversion:
                     "Fout bij het converteren van de ingevulde tekst van bytes naar UTF-8-tekenreeks: {{errorMessage}}",
                 ballotTooLarge: "Stembiljet groter dan verwacht",
-            },
-            implicit: {
-                selectedMax:
-                    "Overstemming: het aantal geselecteerde keuzes {{numSelected}} is groter dan het maximum {{max}}",
-                selectedMin:
-                    "Het aantal geselecteerde keuzes {{numSelected}} is kleiner dan het minimum {{min}}",
-                maxSelectionsPerType:
-                    "Het aantal geselecteerde keuzes {{numSelected}} voor lijst {{type}} is groter dan het maximum {{max}}",
-                underVote:
-                    "Onderstemming: het aantal geselecteerde keuzes {{numSelected}} is kleiner dan het maximum {{max}}",
-                overVoteDisabled:
-                    "Maximum bereikt: u heeft het maximum van {{numSelected}} keuzes geselecteerd. Om uw selectie te wijzigen, deselecteert u eerst een andere optie.",
-                blankVote: "Blanco stem: 0 keuzes geselecteerd",
             },
             explicit: {
                 notAllowed:

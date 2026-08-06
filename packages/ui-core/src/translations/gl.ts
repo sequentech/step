@@ -82,24 +82,26 @@ const galegoTranslation: TranslationType = {
                 notEnoughChoices: "Non hai suficientes opcións para descodificar",
                 writeInChoiceOutOfRange: "A opción escrita está fóra do rango: {{index}}",
                 writeInNotEndInZero: "A opción escrita non remata en 0",
-                writeInCharsExceeded:
-                    "Supera o límite de caracteres permitidos por {{numCharsExceeded}}. Precísase corrixilo.",
+                writeInCharsExceeded_one: "Acurta a escritura libre en {{count}} carácter.",
+                writeInCharsExceeded_other: "Acurta a escritura libre en {{count}} caracteres.",
                 bytesToUtf8Conversion:
                     "Erro ao converter a opción escrita de bytes a unha cadea UTF-8: {{errorMessage}}",
                 ballotTooLarge: "A papeleta é máis grande do esperado",
             },
             implicit: {
-                selectedMax:
-                    "Voto excedido: Número de opcións seleccionadas {{numSelected}} supera o máximo {{max}}",
-                selectedMin:
-                    "Número de opcións seleccionadas {{numSelected}} está por debaixo do mínimo {{min}}",
-                maxSelectionsPerType:
-                    "Número de opcións seleccionadas {{numSelected}} para a lista {{type}} supera o máximo {{max}}",
-                underVote:
-                    "Voto insuficiente: Número de opcións seleccionadas {{numSelected}} está por debaixo do máximo {{max}}",
-                overVoteDisabled:
-                    "Máximo alcanzado: Seleccionaches o máximo {{numSelected}} opcións. Para cambiar a selección, deselecciona primeiro outra opción.",
-                blankVote: "Voto en branco: 0 opcións seleccionadas",
+                selectedMax_one: "Desmarca {{count}} candidato.",
+                selectedMax_other: "Desmarca {{count}} candidatos.",
+                selectedMin_one: "Selecciona {{count}} candidato máis.",
+                selectedMin_other: "Selecciona {{count}} candidatos máis.",
+                maxSelectionsPerType_one: "Desmarca {{count}} candidato de {{type}}.",
+                maxSelectionsPerType_other: "Desmarca {{count}} candidatos de {{type}}.",
+                underVote_one: "Selecciona ata {{count}} candidato máis.",
+                underVote_other: "Selecciona ata {{count}} candidatos máis.",
+                overVoteDisabled_one:
+                    "Seleccionaches o máximo de {{count}} candidato. Desmárcao para elixir outro.",
+                overVoteDisabled_other:
+                    "Seleccionaches o máximo de {{count}} candidatos. Desmarca un para elixir outro.",
+                blankVote: "Non seleccionaches ningún candidato.",
                 preferenceOrderWithGaps:
                     "Voto non válido! A orde de preferencia ten un ou máis ocos.",
                 duplicatedPosition:

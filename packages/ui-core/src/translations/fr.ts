@@ -82,24 +82,27 @@ const frenchTranslation: TranslationType = {
                 notEnoughChoices: "Il n'y a pas assez d'options pour décoder",
                 writeInChoiceOutOfRange: "Option de vote écrite hors de portée : {{index}}",
                 writeInNotEndInZero: "Option de vote écrite ne finit pas en 0",
-                writeInCharsExceeded:
-                    "Option de vote écrite dépasse le nombre de caractères de {{numCharsExceeded}} caractères. Nécessite une correction.",
+                writeInCharsExceeded_one: "Raccourcissez le texte saisi de {{count}} caractère.",
+                writeInCharsExceeded_other: "Raccourcissez le texte saisi de {{count}} caractères.",
                 bytesToUtf8Conversion:
                     "Erreur de conversion des octets de l'option de vote écrite en chaîne UTF-8 : {{errorMessage}}",
                 ballotTooLarge: "Bulletin plus grand que prévu",
             },
             implicit: {
-                selectedMax:
-                    "Survote: Le nombre d'options sélectionnées {{numSelected}} est supérieur au maximum {{max}}",
-                selectedMin:
-                    "Le nombre d'options sélectionnées {{numSelected}} est inférieur au maximum {{min}}",
-                maxSelectionsPerType:
-                    "Le nombre d'options sélectionnées {{numSelected}} pour la liste {{type}} est supérieur au maximum {{max}}",
-                underVote:
-                    "Sous-vote: Le nombre de choix sélectionnés {{numSelected}} est inférieur au maximum autorisé de {{max}}",
-                overVoteDisabled:
-                    "Maximum atteint : Vous avez sélectionné le maximum de {{numSelected}} choix. Pour changer votre sélection, veuillez d'abord désélectionner une autre option.",
-                blankVote: "Vote Blanc: 0 options sélectionnées",
+                selectedMax_one: "Désélectionnez {{count}} candidat.",
+                selectedMax_other: "Désélectionnez {{count}} candidats.",
+                selectedMin_one: "Sélectionnez {{count}} candidat de plus.",
+                selectedMin_other: "Sélectionnez {{count}} candidats de plus.",
+                maxSelectionsPerType_one: "Désélectionnez {{count}} candidat de la liste {{type}}.",
+                maxSelectionsPerType_other:
+                    "Désélectionnez {{count}} candidats de la liste {{type}}.",
+                underVote_one: "Sélectionnez jusqu'à {{count}} candidat de plus.",
+                underVote_other: "Sélectionnez jusqu'à {{count}} candidats de plus.",
+                overVoteDisabled_one:
+                    "Vous avez sélectionné le maximum de {{count}} candidat. Désélectionnez-le pour en choisir un autre.",
+                overVoteDisabled_other:
+                    "Vous avez sélectionné le maximum de {{count}} candidats. Désélectionnez-en un pour en choisir un autre.",
+                blankVote: "Vous n'avez sélectionné aucun candidat.",
                 preferenceOrderWithGaps:
                     "Vote invalide! L'ordre de préférence comporte un ou plusieurs trous.",
                 duplicatedPosition:

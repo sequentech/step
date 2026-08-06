@@ -86,11 +86,6 @@ const tagalogTranslation = {
                     "Error sa pag-convert ng write-in mula sa bytes papuntang UTF-8 string: {{errorMessage}}",
                 ballotTooLarge: "Ang balota ay mas malaki kaysa sa inaasahan",
             },
-            implicit: {
-                selectedMax: "Bilang ng mga napili {{numSelected}} ay higit sa maximum {{max}}",
-                selectedMin:
-                    "Bilang ng mga napili {{numSelected}} ay mas mababa sa minimum {{min}}",
-            },
             explicit: {
                 notAllowed:
                     "Ang balota ay minarkahan nang tahasan bilang hindi wasto ngunit hindi ito pinapayagan ng tanong",

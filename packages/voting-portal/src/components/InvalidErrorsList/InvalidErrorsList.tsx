@@ -230,7 +230,7 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                     warnType={IInvalidPlaintextErrorType.EncodingError}
                 >
                     {t("errors.encoding.writeInCharsExceeded", {
-                        numCharsExceeded: -numAvailableChars,
+                        count: -numAvailableChars,
                     })}
                 </WarnBox>
             ) : null}

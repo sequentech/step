@@ -89,12 +89,6 @@ const galegoTranslation: TranslationType = {
                     "Erro ao converter a opción escrita de bytes a cadea UTF-8: {{errorMessage}}",
                 ballotTooLarge: "A papeleta é máis grande do esperado",
             },
-            implicit: {
-                selectedMax:
-                    "Número de opcións seleccionadas {{numSelected}} é máis do máximo permitido {{max}}",
-                selectedMin:
-                    "Número de opcións seleccionadas {{numSelected}} é menor do mínimo {{min}}",
-            },
             explicit: {
                 notAllowed: "A papeleta está marcada como inválida pero a pregunta non o permite",
             },

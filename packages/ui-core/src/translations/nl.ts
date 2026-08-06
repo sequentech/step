@@ -82,24 +82,26 @@ const dutchTranslation: TranslationType = {
                 notEnoughChoices: "Niet genoeg keuzes om te decoderen",
                 writeInChoiceOutOfRange: "In te vullen keuze buiten bereik: {{index}}",
                 writeInNotEndInZero: "In te vullen tekst eindigt niet op 0",
-                writeInCharsExceeded:
-                    "In te vullen tekst overschrijdt maximum aantal tekens met {{numCharsExceeded}}. Moet worden aangepast.",
+                writeInCharsExceeded_one: "Maak de ingevulde tekst {{count}} teken korter.",
+                writeInCharsExceeded_other: "Maak de ingevulde tekst {{count}} tekens korter.",
                 bytesToUtf8Conversion:
                     "Fout bij het converteren van in te vullen tekst van bytes naar UTF-8 string: {{errorMessage}}",
                 ballotTooLarge: "Stembiljet groter dan verwacht",
             },
             implicit: {
-                selectedMax:
-                    "Te veel stemmen: Aantal geselecteerde keuzes {{numSelected}} is meer dan het maximum {{max}}",
-                selectedMin:
-                    "Aantal geselecteerde keuzes {{numSelected}} is minder dan het minimum {{min}}",
-                maxSelectionsPerType:
-                    "Aantal geselecteerde keuzes {{numSelected}} voor lijst {{type}} is meer dan het maximum {{max}}",
-                underVote:
-                    "Te weinig stemmen: Aantal geselecteerde keuzes {{numSelected}} is minder dan het maximum {{max}}",
-                overVoteDisabled:
-                    "Maximum bereikt: U heeft het maximum aantal keuzes {{numSelected}} geselecteerd. Om uw selectie te wijzigen, deselecteer eerst een andere optie.",
-                blankVote: "Blanco stem: 0 keuzes geselecteerd",
+                selectedMax_one: "Deselecteer {{count}} kandidaat.",
+                selectedMax_other: "Deselecteer {{count}} kandidaten.",
+                selectedMin_one: "Selecteer nog {{count}} kandidaat.",
+                selectedMin_other: "Selecteer nog {{count}} kandidaten.",
+                maxSelectionsPerType_one: "Deselecteer {{count}} kandidaat uit {{type}}.",
+                maxSelectionsPerType_other: "Deselecteer {{count}} kandidaten uit {{type}}.",
+                underVote_one: "Selecteer nog maximaal {{count}} kandidaat.",
+                underVote_other: "Selecteer nog maximaal {{count}} kandidaten.",
+                overVoteDisabled_one:
+                    "U heeft het maximum van {{count}} kandidaat geselecteerd. Deselecteer deze om een andere te kiezen.",
+                overVoteDisabled_other:
+                    "U heeft het maximum van {{count}} kandidaten geselecteerd. Deselecteer er een om een andere te kiezen.",
+                blankVote: "U heeft geen kandidaat geselecteerd.",
                 preferenceOrderWithGaps:
                     "Ongeldige stem! De voorkeursvolgorde heeft een of meer hiaten.",
                 duplicatedPosition:

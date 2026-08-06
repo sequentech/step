@@ -82,24 +82,26 @@ const tagalogTranslation: TranslationType = {
                 notEnoughChoices: "Hindi sapat ang mga pagpipilian para ma-decode",
                 writeInChoiceOutOfRange: "Write-in na napili ay wala sa saklaw: {{index}}",
                 writeInNotEndInZero: "Ang Write-in ay hindi nagtatapos sa 0",
-                writeInCharsExceeded:
-                    "Ang Write-in ay lumampas ng {{numCharsExceeded}} sa maximum na bilang ng mga karakter. Kailangang ayusin.",
+                writeInCharsExceeded_one: "Paikliin ang write-in ng {{count}} karakter.",
+                writeInCharsExceeded_other: "Paikliin ang write-in ng {{count}} karakter.",
                 bytesToUtf8Conversion:
                     "Error sa pag-convert ng write-in mula bytes patungong UTF-8 na string: {{errorMessage}}",
                 ballotTooLarge: "Ang balota ay mas malaki kaysa sa inaasahan",
             },
             implicit: {
-                selectedMax:
-                    "Overvote: Ang bilang ng mga napili {{numSelected}} ay higit sa maximum na {{max}}",
-                selectedMin:
-                    "Ang bilang ng mga napili {{numSelected}} ay mas mababa sa minimum na {{min}}",
-                maxSelectionsPerType:
-                    "Ang bilang ng mga napili {{numSelected}} para sa listahan {{type}} ay higit sa maximum na {{max}}",
-                underVote:
-                    "Undervote: Ang bilang ng mga napili {{numSelected}} ay mas mababa sa maximum na {{max}}",
-                overVoteDisabled:
-                    "Naabot na ang maximum: Napili mo na ang maximum na {{numSelected}} na mga opsyon. Upang baguhin ang iyong pagpili, mangyaring alisin muna ang isa pang opsyon.",
-                blankVote: "Blank Vote: Walang pinili",
+                selectedMax_one: "Alisin ang {{count}} kandidato.",
+                selectedMax_other: "Alisin ang {{count}} kandidato.",
+                selectedMin_one: "Pumili pa ng {{count}} kandidato.",
+                selectedMin_other: "Pumili pa ng {{count}} kandidato.",
+                maxSelectionsPerType_one: "Alisin ang {{count}} kandidato mula sa {{type}}.",
+                maxSelectionsPerType_other: "Alisin ang {{count}} kandidato mula sa {{type}}.",
+                underVote_one: "Maaari ka pang pumili ng hanggang {{count}} kandidato.",
+                underVote_other: "Maaari ka pang pumili ng hanggang {{count}} kandidato.",
+                overVoteDisabled_one:
+                    "Napili mo na ang maximum na {{count}} kandidato. Alisin ang isa upang pumili ng iba.",
+                overVoteDisabled_other:
+                    "Napili mo na ang maximum na {{count}} kandidato. Alisin ang isa upang pumili ng iba.",
+                blankVote: "Wala kang napiling kandidato.",
                 preferenceOrderWithGaps:
                     "Di-wastong boto! Ang pagkakasunod-sunod ng kagustuhan ay may isa o higit pang puwang.",
                 duplicatedPosition:

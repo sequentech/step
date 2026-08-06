@@ -80,24 +80,26 @@ const englishTranslation = {
                 notEnoughChoices: "Not enough choices to decode",
                 writeInChoiceOutOfRange: "Write-in choice out of range: {{index}}",
                 writeInNotEndInZero: "Write-in doesn't end on 0",
-                writeInCharsExceeded:
-                    "Write-in exceed by {{numCharsExceeded}} the maximum number of chars. Requires fixing.",
+                writeInCharsExceeded_one: "Shorten your write-in by {{count}} character.",
+                writeInCharsExceeded_other: "Shorten your write-in by {{count}} characters.",
                 bytesToUtf8Conversion:
                     "Error converting write-in from bytes to UTF-8 string: {{errorMessage}}",
                 ballotTooLarge: "Ballot larger than expected",
             },
             implicit: {
-                selectedMax:
-                    "Overvote: Number of selected choices {{numSelected}} is more than the maximum {{max}}",
-                selectedMin:
-                    "Number of selected choices {{numSelected}} is less than the minimum {{min}}",
-                maxSelectionsPerType:
-                    "Number of selected choices {{numSelected}} for list {{type}} is more than the maximum {{max}}",
-                underVote:
-                    "You have not used all {{max}} of your selections in this contest. You may continue, or go back to make another selection.",
-                overVoteDisabled:
-                    "Maximum reached: You have selected the maximum of {{numSelected}} allowed. To change your selection, please deselect an option first.",
-                blankVote: "Blank Vote: 0 choices selected",
+                selectedMax_one: "Deselect {{count}} candidate.",
+                selectedMax_other: "Deselect {{count}} candidates.",
+                selectedMin_one: "Select {{count}} more candidate.",
+                selectedMin_other: "Select {{count}} more candidates.",
+                maxSelectionsPerType_one: "Deselect {{count}} candidate from {{type}}.",
+                maxSelectionsPerType_other: "Deselect {{count}} candidates from {{type}}.",
+                underVote_one: "Select up to {{count}} more candidate.",
+                underVote_other: "Select up to {{count}} more candidates.",
+                overVoteDisabled_one:
+                    "You have selected the maximum of {{count}} candidate. Deselect it to choose another.",
+                overVoteDisabled_other:
+                    "You have selected the maximum of {{count}} candidates. Deselect one to choose another.",
+                blankVote: "You have not selected any candidate.",
                 preferenceOrderWithGaps:
                     "Invalid vote! The order of preference has one or more gaps.",
                 duplicatedPosition:

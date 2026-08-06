@@ -318,24 +318,9 @@ const tagalogTranslation: TranslationType = {
                 notEnoughChoices: "Hindi sapat ang mga pagpili para ma-decode",
                 writeInChoiceOutOfRange: "Ang write-in na pagpili ay wala sa saklaw: {{index}}",
                 writeInNotEndInZero: "Ang write-in ay hindi nagtatapos sa 0",
-                writeInCharsExceeded:
-                    "Ang write-in ay lumagpas sa pinakamataas na haba ng {{numCharsExceeded}} na karakter. Pakipaikliin ito.",
                 bytesToUtf8Conversion:
                     "Error sa pag-convert ng write-in mula sa bytes patungong UTF-8 na string: {{errorMessage}}",
                 ballotTooLarge: "Ang balota ay mas malaki kaysa sa inaasahan",
-            },
-            implicit: {
-                selectedMax:
-                    "Labis na pagboto: ang bilang ng mga napiling pagpili {{numSelected}} ay mas malaki kaysa sa maximum na {{max}}",
-                selectedMin:
-                    "Ang bilang ng mga napiling pagpili {{numSelected}} ay mas mababa kaysa sa minimum na {{min}}",
-                maxSelectionsPerType:
-                    "Ang bilang ng mga napiling pagpili {{numSelected}} para sa listahan {{type}} ay mas malaki kaysa sa maximum na {{max}}",
-                underVote:
-                    "Kulang na pagboto: ang bilang ng mga napiling pagpili {{numSelected}} ay mas mababa kaysa sa maximum na {{max}}",
-                overVoteDisabled:
-                    "Naabot na ang maximum: napili mo na ang maximum na {{numSelected}} na pagpili. Upang baguhin ang iyong pagpili, alisin muna ang isa pang opsyon.",
-                blankVote: "Blangkong boto: 0 na pagpili ang napili",
             },
             explicit: {
                 notAllowed:
