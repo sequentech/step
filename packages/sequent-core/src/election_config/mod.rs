@@ -23,8 +23,15 @@
 //! See `beyond/docs/docusaurus/docs/engineering/election-config-architecture.md`
 //! and <https://github.com/sequentech/meta/issues/12769>.
 
+pub mod problem;
 pub mod report;
 pub mod schema;
+pub mod validate;
 
+#[cfg(test)]
+mod validate_tests;
+
+pub use problem::{Code, Problem, Report as ValidationReport, Severity};
 pub use report::{EReportEncryption, Report, ReportCronConfig, ReportType};
 pub use schema::ImportElectionEventSchema;
+pub use validate::validate;
