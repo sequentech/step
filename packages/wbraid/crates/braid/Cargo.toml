@@ -110,6 +110,9 @@ tikv-jemalloc-ctl = { version = "0.6", features = ["stats"], optional = true }
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = {version = "0.5", features=["html_reports"]}
 serial_test = "3.2"
+# Explicit-state model checking over the REAL trustee + datalog (the harness in
+# tests/model/): explores interleavings of Session cycles, no model of the rules.
+stateright = "0.31"
 
 # wasm-only: the headless-browser test harness for the IndexedDB backend (M3).
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
