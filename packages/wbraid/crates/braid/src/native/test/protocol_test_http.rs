@@ -110,7 +110,7 @@ async fn run_with_width<C: Context, const W: usize>(ciphertexts: u32) -> Result<
     info!("Creating board {} on b4", board);
     HttpTransport::create_board(HTTP_URL, &board).await?;
     let manager_tx = HttpTransport::new(HTTP_URL, &board);
-    Transport::<C>::post(&manager_tx, vec![cfg_message]).await?;
+    Transport::<C>::publish(&manager_tx, &cfg_message).await?;
 
     // --- one Session (trustee + board client) per configured trustee ---
     let mut sessions: Vec<HttpSession<C>> = Vec::with_capacity(n_trustees);
@@ -162,7 +162,7 @@ async fn run_with_width<C: Context, const W: usize>(ciphertexts: u32) -> Result<
         mixing_trustees.clone(),
         &ballots,
     );
-    Transport::<C>::post(&manager_tx, vec![ballots_message]).await?;
+    Transport::<C>::publish(&manager_tx, &ballots_message).await?;
 
     // --- phase 2: mixing + threshold decryption ---
     info!("Mixing and decrypting");

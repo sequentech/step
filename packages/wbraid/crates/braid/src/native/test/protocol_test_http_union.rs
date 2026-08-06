@@ -127,7 +127,7 @@ async fn run_with_width<C: Context, const W: usize>(
     info!("Creating DKG board {} on b4", dkg_board);
     HttpTransport::create_board(HTTP_URL, &dkg_board).await?;
     let dkg_manager_tx = HttpTransport::new(HTTP_URL, &dkg_board);
-    Transport::<C>::post(&dkg_manager_tx, vec![cfg_message]).await?;
+    Transport::<C>::publish(&dkg_manager_tx, &cfg_message).await?;
 
     let mut dkg_clients: Vec<BoardClient<C, HttpTransport, SqlitePersistence>> =
         Vec::with_capacity(n_trustees);
@@ -186,7 +186,7 @@ async fn run_with_width<C: Context, const W: usize>(
             &ballots,
         );
         let tally_manager_tx = HttpTransport::new(HTTP_URL, &tally_board);
-        Transport::<C>::post(&tally_manager_tx, vec![ballots_message]).await?;
+        Transport::<C>::publish(&tally_manager_tx, &ballots_message).await?;
 
         // One union client per trustee: child (tally) ∪ parent (DKG), seeded with
         // that trustee's own DKG digests, into a fresh SQLite store.

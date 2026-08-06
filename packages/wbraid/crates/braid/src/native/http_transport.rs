@@ -24,7 +24,7 @@ use b4::api_types::{
     InitiateMessageRequest, InitiateMessageResponse,
 };
 
-use crate::board::transport::Transport;
+use crate::board::transport::{StagedRef, Transport};
 
 /// HTTP client for a single b4 board. Not parameterized by `C`: it moves opaque
 /// bytes, and the `Transport<C>` impl (de)serializes per `C`.
@@ -100,11 +100,18 @@ impl HttpTransport {
         Ok(out)
     }
 
-    /// Post one message's bytes via the two-step flow (initiate → S3 PUT or
-    /// inline → confirm).
-    async fn post_bytes(&self, bytes: Vec<u8>) -> Result<()> {
-        let version = schema_version();
-
+    /// Stage bytes (§6.4): `initiate` to reserve an id and a presigned URL, then
+    /// upload the body to S3. Nothing is visible on the board yet — b4 records
+    /// no row until `confirm` — so a failure here has published nothing and
+    /// claimed no slot.
+    ///
+    /// b4 only offers the S3 path for bodies above `MAX_INLINE_MESSAGE_SIZE`,
+    /// which is `0`, so every real message is staged. If b4 ever answers with the
+    /// inline path we refuse loudly rather than silently degrade: an inline
+    /// message's bytes travel in the `confirm` request, so it could not be
+    /// re-sent later from the durable record alone (§6.2 forbids keeping the
+    /// body), which is precisely the guarantee staging exists to provide.
+    async fn stage_bytes(&self, bytes: Vec<u8>) -> Result<StagedRef> {
         let initiate_url = format!("{}/boards/{}/messages/initiate", self.base_url, self.board);
         let init: InitiateMessageResponse = {
             let resp = self
@@ -119,44 +126,43 @@ impl HttpTransport {
             resp.json().await?
         };
 
+        if !init.should_upload {
+            bail!(
+                "b4 offered inline storage for a {}-byte message; the outgoing mailbox \
+                 requires staged (S3) bodies so a recorded post can be re-sent without \
+                 retaining the body locally (§6.4)",
+                bytes.len()
+            );
+        }
+        let upload_url = init
+            .upload_url
+            .ok_or_else(|| anyhow!("server asked to upload but gave no URL"))?;
+        let put = self.client.put(&upload_url).body(bytes).send().await?;
+        if !put.status().is_success() {
+            bail!("S3 upload failed: HTTP {}", put.status());
+        }
+        Ok(StagedRef(init.message_id))
+    }
+
+    /// Commit a staged message (§6.4): `confirm` by id. b4 reconstructs the S3
+    /// key from the board name and the id, so the body is not re-sent, and this
+    /// is exactly what makes a recorded post re-publishable after a restart.
+    async fn commit_staged(&self, staged: &StagedRef) -> Result<()> {
         let confirm_url = format!(
             "{}/boards/{}/messages/{}/confirm",
-            self.base_url, self.board, init.message_id
+            self.base_url, self.board, staged.0
         );
-
-        if init.should_upload {
-            let upload_url = init
-                .upload_url
-                .ok_or_else(|| anyhow!("server asked to upload but gave no URL"))?;
-            let put = self.client.put(&upload_url).body(bytes).send().await?;
-            if !put.status().is_success() {
-                bail!("S3 upload failed: HTTP {}", put.status());
-            }
-            let confirm = self
-                .client
-                .post(&confirm_url)
-                .json(&ConfirmMessageRequest {
-                    data: None,
-                    version,
-                })
-                .send()
-                .await?;
-            if !confirm.status().is_success() {
-                bail!("confirm (S3) failed: HTTP {}", confirm.status());
-            }
-        } else {
-            let confirm = self
-                .client
-                .post(&confirm_url)
-                .json(&ConfirmMessageRequest {
-                    data: Some(bytes),
-                    version,
-                })
-                .send()
-                .await?;
-            if !confirm.status().is_success() {
-                bail!("confirm (inline) failed: HTTP {}", confirm.status());
-            }
+        let confirm = self
+            .client
+            .post(&confirm_url)
+            .json(&ConfirmMessageRequest {
+                data: None,
+                version: schema_version(),
+            })
+            .send()
+            .await?;
+        if !confirm.status().is_success() {
+            bail!("confirm failed: HTTP {}", confirm.status());
         }
         Ok(())
     }
@@ -187,10 +193,11 @@ impl<C: Context> Transport<C> for HttpTransport {
         Ok(out)
     }
 
-    async fn post(&self, messages: Vec<ProtocolMessage<C>>) -> Result<()> {
-        for message in &messages {
-            self.post_bytes(message.ser()).await?;
-        }
-        Ok(())
+    async fn stage(&self, message: &ProtocolMessage<C>) -> Result<StagedRef> {
+        self.stage_bytes(message.ser()).await
+    }
+
+    async fn commit(&self, staged: &StagedRef) -> Result<()> {
+        self.commit_staged(staged).await
     }
 }

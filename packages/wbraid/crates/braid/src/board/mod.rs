@@ -32,7 +32,7 @@ use crate::messages::wire::ProtocolMessage;
 use crate::messages::predicate::Predicate;
 use persistence::Persistence;
 use store::MessageStore;
-use transport::Transport;
+use transport::{StagedRef, Transport};
 use verify::verify;
 
 /// The unified board client: owns the in-memory store, a persistence backend, and
@@ -52,6 +52,11 @@ pub struct BoardClient<C: Context, T: Transport<C>, P: Persistence> {
     /// purpose is the boundary anti-rewrite check (§6.3). For a union it is
     /// additionally **seeded** with the parent's predicates (§8.2).
     committed: Vec<Predicate>,
+    /// The **own-post record** (§6.4): the slots this trustee has already staged
+    /// for b4, and the handle that publishes each. Durable, predicate-sized, and
+    /// loaded on construction — the outbound analogue of [`committed`], and the
+    /// reason a restart cannot lose track of what was already handed over.
+    own_posts: Vec<(Predicate, StagedRef)>,
 }
 
 impl<C: Context, T: Transport<C>, P: Persistence> BoardClient<C, T, P> {
@@ -64,12 +69,14 @@ impl<C: Context, T: Transport<C>, P: Persistence> BoardClient<C, T, P> {
         let configuration_message = transport.fetch_configuration().await?;
         let store = MessageStore::from_configuration_message(&configuration_message)?;
         let committed = persistence.load().await?;
+        let own_posts = persistence.load_own_posts().await?;
         Ok(Self {
             store,
             transport,
             parent: None,
             persistence,
             committed,
+            own_posts,
         })
     }
 
@@ -95,12 +102,14 @@ impl<C: Context, T: Transport<C>, P: Persistence> BoardClient<C, T, P> {
         let configuration_message = parent_transport.fetch_configuration().await?;
         let store = MessageStore::from_configuration_message(&configuration_message)?;
         let committed = persistence.load().await?;
+        let own_posts = persistence.load_own_posts().await?;
         let mut client = Self {
             store,
             transport: child_transport,
             parent: Some(parent_transport),
             persistence,
             committed,
+            own_posts,
         };
         client.seed_parent_predicates(parent_predicates).await?;
         Ok(client)
@@ -175,10 +184,64 @@ impl<C: Context, T: Transport<C>, P: Persistence> BoardClient<C, T, P> {
         Ok(())
     }
 
-    /// Post messages to b4. Per the loop-back rule they take no local effect here;
-    /// they become visible only after a subsequent [`update`](Self::update).
+    /// Post messages to b4 — **compute-once, send-until-acked** (§6.4). Per the
+    /// loop-back rule they take no local effect here; they become visible only
+    /// after a subsequent [`update`](Self::update).
+    ///
+    /// For each outgoing message, one of two paths:
+    ///
+    /// - **The slot is already in the own-post record** ⇒ publish the *recorded*
+    ///   message (`commit` its handle) and discard the one just computed. b4
+    ///   already holds those bytes, so nothing is re-uploaded, and the trustee
+    ///   cannot put a second artifact in a slot it has already filled.
+    /// - **The slot is unrecorded** ⇒ `stage` the bytes, **record** the
+    ///   `(predicate, handle)` pair durably — this write is the commit point —
+    ///   then `commit`. A failure before the record means nothing was published
+    ///   and no slot was claimed, so recomputing next cycle is safe.
+    ///
+    /// Why this exists: a successful post is a durable handoff (the body is
+    /// stored and the row committed before b4 answers), but the author cannot
+    /// tell "my post failed" from "my post landed and b4 is not serving it back
+    /// to me". In the second case the datalog re-enables the action, since the
+    /// slot still reads unfilled in the trustee's own view. Recomputing there
+    /// would put two artifacts in one slot — exactly what `collides()` halts on
+    /// (§5.2) — so a transport hiccup, a lost ack, or a crash could turn into a
+    /// halt. Re-sending the recorded message instead makes the outcome the same
+    /// as if the ack had arrived.
+    ///
+    /// The record is matched with the same `collides()` the datalog uses (§5.1 —
+    /// one slot definition, reused), so "same slot" means exactly what it means
+    /// everywhere else. Note that the recomputation itself is *not* avoided: the
+    /// datalog has no knowledge of the record, so it keeps deriving the action
+    /// and the action layer keeps producing an artifact, which this method then
+    /// discards. Suppressing that work would require the record to reach into
+    /// inference; it is left as a possible optimisation, not a requirement.
     pub async fn post(&mut self, messages: Vec<ProtocolMessage<C>>) -> Result<()> {
-        self.transport.post(messages).await
+        for message in messages {
+            let (predicate, _body) = verify(&message, self.store.configuration())?;
+            if let Some((_, staged)) = self
+                .own_posts
+                .iter()
+                .find(|(recorded, _)| *recorded == predicate || recorded.collides(&predicate))
+            {
+                let staged = staged.clone();
+                self.transport.commit(&staged).await?;
+                continue;
+            }
+            let staged = self.transport.stage(&message).await?;
+            self.persistence
+                .persist_own_post(&predicate, &staged)
+                .await?;
+            self.own_posts.push((predicate, staged.clone()));
+            self.transport.commit(&staged).await?;
+        }
+        Ok(())
+    }
+
+    /// The slots this trustee has staged for b4, with their publish handles
+    /// (§6.4). Exposed for diagnostics and tests.
+    pub fn own_posts(&self) -> &[(Predicate, StagedRef)] {
+        &self.own_posts
     }
 
     /// The accepted board `Configuration`.
@@ -213,6 +276,8 @@ mod tests {
     use crate::messages::newtypes::{zero_hash, ConfigurationHash, PublicKeyHash};
     use crate::protocol_manager::ProtocolManager;
     use crate::messages::wire::ProtocolMessage;
+
+    use cryptography::utils::serialization::VSerializable;
 
     use crate::board::persistence::NoOpPersistence;
     use crate::board::transport::{MemoryBoard, MemoryTransport};
@@ -262,6 +327,60 @@ mod tests {
             cfg_hash,
             cfg_message,
         })
+    }
+
+    /// Compute-once (§6.4): once a slot is in the own-post record, a *recomputed*
+    /// artifact for that slot is never published — the recorded message is
+    /// re-sent instead. This is the state b4 can create by accepting a message
+    /// and then not serving it back to its author: the author's own view still
+    /// shows the slot unfilled, so the datalog re-enables the action and the
+    /// action layer produces a fresh artifact. Publishing that would put two
+    /// artifacts in one slot, which the datalog treats as equivocation (§5.2).
+    #[tokio::test]
+    async fn recorded_slot_publishes_the_recorded_message() -> Result<()> {
+        run_recorded_slot::<RistrettoCtx>().await
+    }
+
+    async fn run_recorded_slot<C: Context>() -> Result<()> {
+        let Setup {
+            signing_keys,
+            cfg,
+            cfg_hash,
+            cfg_message,
+            ..
+        } = setup::<C>(2)?;
+        let sk1 = signing_keys.into_iter().next().unwrap();
+        let trustee1 = Trustee::<C>::new("1".to_string(), sk1, KeyPair::<C>::generate(), &cfg)?;
+
+        let board = MemoryBoard::<C>::new();
+        board.push(cfg_message);
+        let mut client =
+            BoardClient::connect(MemoryTransport::new(board.clone()), NoOpPersistence).await?;
+
+        let first = ProtocolMessage::<C>::shares(&trustee1, DATE, cfg_hash, &vec![1u8, 2, 3]);
+        let first_bytes = first.ser();
+        client.post(vec![first]).await?;
+        assert_eq!(board.snapshot().len(), 2, "Configuration + the first Shares");
+        assert_eq!(client.own_posts().len(), 1, "the slot is now recorded");
+
+        // A recomputed sharing for the same slot: fresh randomness, so a different
+        // body and a different predicate, but the same slot.
+        let recomputed = ProtocolMessage::<C>::shares(&trustee1, DATE, cfg_hash, &vec![4u8, 5, 6]);
+        client.post(vec![recomputed]).await?;
+
+        let snapshot = board.snapshot();
+        assert_eq!(
+            snapshot.len(),
+            2,
+            "the recomputed artifact must not reach the board"
+        );
+        assert_eq!(
+            snapshot[1].ser(),
+            first_bytes,
+            "the board still holds the originally recorded message"
+        );
+        assert_eq!(client.own_posts().len(), 1, "still one slot recorded");
+        Ok(())
     }
 
     /// A union client (§8.2) reads BOTH boards into one store and writes only to

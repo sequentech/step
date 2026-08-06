@@ -17,6 +17,7 @@ use async_trait::async_trait;
 use cryptography::utils::serialization::{VDeserializable, VSerializable};
 
 use crate::board::persistence::Persistence;
+use crate::board::transport::StagedRef;
 use crate::messages::predicate::Predicate;
 
 /// SQLite-backed persistence (native, M2).
@@ -37,6 +38,16 @@ impl SqlitePersistence {
         let conn = rusqlite::Connection::open(path)?;
         conn.execute(
             "CREATE TABLE IF NOT EXISTS predicates (bytes BLOB PRIMARY KEY)",
+            [],
+        )?;
+        // The outbound record (§6.4): predicate bytes -> the handle that
+        // publishes the staged message. Keyed by the predicate, so re-recording
+        // the same post is idempotent.
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS own_posts (
+                 bytes BLOB PRIMARY KEY,
+                 staged_ref TEXT NOT NULL
+             )",
             [],
         )?;
         Ok(Self {
@@ -67,6 +78,33 @@ impl Persistence for SqlitePersistence {
         conn.execute(
             "INSERT OR IGNORE INTO predicates (bytes) VALUES (?1)",
             rusqlite::params![bytes],
+        )?;
+        Ok(())
+    }
+
+    async fn load_own_posts(&self) -> Result<Vec<(Predicate, StagedRef)>> {
+        let conn = self.conn.lock().expect("predicate store mutex poisoned");
+        let mut statement = conn.prepare("SELECT bytes, staged_ref FROM own_posts")?;
+        let rows = statement
+            .query_map([], |row| {
+                Ok((row.get::<_, Vec<u8>>(0)?, row.get::<_, String>(1)?))
+            })?;
+        let mut out = Vec::new();
+        for row in rows {
+            let (bytes, staged) = row?;
+            let predicate = Predicate::deser(&bytes)
+                .map_err(|e| anyhow::anyhow!("failed to deserialize own-post predicate: {e}"))?;
+            out.push((predicate, StagedRef(staged)));
+        }
+        Ok(out)
+    }
+
+    async fn persist_own_post(&mut self, predicate: &Predicate, staged: &StagedRef) -> Result<()> {
+        let bytes = predicate.ser();
+        let conn = self.conn.lock().expect("predicate store mutex poisoned");
+        conn.execute(
+            "INSERT OR IGNORE INTO own_posts (bytes, staged_ref) VALUES (?1, ?2)",
+            rusqlite::params![bytes, staged.0],
         )?;
         Ok(())
     }

@@ -31,7 +31,7 @@ use b4::api_types::{
     InitiateMessageRequest, InitiateMessageResponse,
 };
 
-use crate::board::transport::Transport;
+use crate::board::transport::{StagedRef, Transport};
 
 /// Browser `fetch` client for a single b4 board. Not parameterized by `C`: it
 /// moves opaque bytes, and the `Transport<C>` impl (de)serializes per `C`.
@@ -107,11 +107,12 @@ impl WasmHttpTransport {
         Ok(out)
     }
 
-    /// Post one message's bytes via the two-step flow (initiate → S3 PUT or
-    /// inline → confirm).
-    async fn post_bytes(&self, bytes: Vec<u8>) -> Result<()> {
-        let version = schema_version();
-
+    /// Stage bytes (§6.4): `initiate`, then upload the body to S3. Nothing is on
+    /// the board until `commit`, so a failure here publishes nothing and claims no
+    /// slot. Mirrors `native::http_transport::stage_bytes`, including the refusal
+    /// of b4's inline path — an inline body travels inside `confirm` and so could
+    /// not be re-sent from the durable record alone (§6.2, §6.4).
+    async fn stage_bytes(&self, bytes: Vec<u8>) -> Result<StagedRef> {
         let initiate_url = format!("{}/boards/{}/messages/initiate", self.base_url, self.board);
         let init_body = serde_json::to_string(&InitiateMessageRequest { size: bytes.len() })?;
         let resp = fetch_with_body("POST", &initiate_url, Some(&init_body))
@@ -126,40 +127,38 @@ impl WasmHttpTransport {
         let init: InitiateMessageResponse = serde_wasm_bindgen::from_value(json)
             .map_err(|e| anyhow!("failed to parse initiate response: {e}"))?;
 
+        if !init.should_upload {
+            bail!(
+                "b4 offered inline storage for a {}-byte message; the outgoing mailbox \
+                 requires staged (S3) bodies (§6.4)",
+                bytes.len()
+            );
+        }
+        let upload_url = init
+            .upload_url
+            .ok_or_else(|| anyhow!("server asked to upload but gave no URL"))?;
+        let put = fetch_put_bytes(&upload_url, &bytes).await.map_err(js_err)?;
+        if !put.ok() {
+            bail!("S3 upload failed: HTTP {}", put.status());
+        }
+        Ok(StagedRef(init.message_id))
+    }
+
+    /// Commit a staged message (§6.4): `confirm` by id, no body re-sent.
+    async fn commit_staged(&self, staged: &StagedRef) -> Result<()> {
         let confirm_url = format!(
             "{}/boards/{}/messages/{}/confirm",
-            self.base_url, self.board, init.message_id
+            self.base_url, self.board, staged.0
         );
-
-        if init.should_upload {
-            let upload_url = init
-                .upload_url
-                .ok_or_else(|| anyhow!("server asked to upload but gave no URL"))?;
-            let put = fetch_put_bytes(&upload_url, &bytes).await.map_err(js_err)?;
-            if !put.ok() {
-                bail!("S3 upload failed: HTTP {}", put.status());
-            }
-            let confirm_body = serde_json::to_string(&ConfirmMessageRequest {
-                data: None,
-                version,
-            })?;
-            let confirm = fetch_with_body("POST", &confirm_url, Some(&confirm_body))
-                .await
-                .map_err(js_err)?;
-            if !confirm.ok() {
-                bail!("confirm (S3) failed: HTTP {}", confirm.status());
-            }
-        } else {
-            let confirm_body = serde_json::to_string(&ConfirmMessageRequest {
-                data: Some(bytes),
-                version,
-            })?;
-            let confirm = fetch_with_body("POST", &confirm_url, Some(&confirm_body))
-                .await
-                .map_err(js_err)?;
-            if !confirm.ok() {
-                bail!("confirm (inline) failed: HTTP {}", confirm.status());
-            }
+        let confirm_body = serde_json::to_string(&ConfirmMessageRequest {
+            data: None,
+            version: schema_version(),
+        })?;
+        let confirm = fetch_with_body("POST", &confirm_url, Some(&confirm_body))
+            .await
+            .map_err(js_err)?;
+        if !confirm.ok() {
+            bail!("confirm failed: HTTP {}", confirm.status());
         }
         Ok(())
     }
@@ -190,11 +189,12 @@ impl<C: Context> Transport<C> for WasmHttpTransport {
         Ok(out)
     }
 
-    async fn post(&self, messages: Vec<ProtocolMessage<C>>) -> Result<()> {
-        for message in &messages {
-            self.post_bytes(message.ser()).await?;
-        }
-        Ok(())
+    async fn stage(&self, message: &ProtocolMessage<C>) -> Result<StagedRef> {
+        self.stage_bytes(message.ser()).await
+    }
+
+    async fn commit(&self, staged: &StagedRef) -> Result<()> {
+        self.commit_staged(staged).await
     }
 }
 

@@ -35,9 +35,44 @@ pub trait Transport<C: Context> {
     async fn fetch_configuration(&self) -> Result<ProtocolMessage<C>>;
     /// All protocol (non-`Configuration`) messages currently on the board.
     async fn fetch(&self) -> Result<Vec<ProtocolMessage<C>>>;
-    /// Post messages to the board.
-    async fn post(&self, messages: Vec<ProtocolMessage<C>>) -> Result<()>;
+    /// **Stage** a message (§6.4): put the bytes where b4 will read them from,
+    /// without making the message visible on the board, and return the handle
+    /// needed to publish it later.
+    ///
+    /// This is the *persist-before-send* half of posting. Splitting it from
+    /// [`commit`](Self::commit) is what lets the outgoing mailbox re-send a
+    /// message it has already produced without re-uploading the body — and
+    /// therefore without holding the body in local durable storage, which §6.2
+    /// forbids.
+    async fn stage(&self, message: &ProtocolMessage<C>) -> Result<StagedRef>;
+    /// **Commit** a staged message: make it visible on the board.
+    ///
+    /// Safe to repeat with the same handle. A repeat may leave b4 holding two
+    /// copies of identical bytes, which is protocol-identical and deduplicated on
+    /// read (§8.5 Note 2).
+    async fn commit(&self, staged: &StagedRef) -> Result<()>;
+
+    /// Publish a message in one shot: `stage` then `commit`.
+    ///
+    /// For callers that keep no own-post record — the manager seeding a board
+    /// with its `Configuration` or `Ballots`. A *trustee's* own artifacts must go
+    /// through [`BoardClient::post`](crate::board::BoardClient::post) instead, so
+    /// they get the mailbox discipline (§6.4).
+    async fn publish(&self, message: &ProtocolMessage<C>) -> Result<()> {
+        let staged = self.stage(message).await?;
+        self.commit(&staged).await
+    }
 }
+
+/// Opaque, persistable reference to a **staged** message (§6.4).
+///
+/// Whatever the transport needs to publish the message later without re-sending
+/// the body: the b4 message id for HTTP/wasm (b4 reconstructs the S3 key from
+/// it), a placeholder for the in-memory board. Deliberately small — it lives in
+/// the durable own-post record, which must stay predicate-sized on every
+/// platform (§6.2).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StagedRef(pub String);
 
 /// In-memory stand-in for b4 (M1 + tests): an ordered, shared message log. Every
 /// trustee's [`MemoryTransport`] points at one shared `MemoryBoard`; the harness
@@ -111,8 +146,19 @@ impl<C: Context> Transport<C> for MemoryTransport<C> {
             .collect())
     }
 
-    async fn post(&self, messages: Vec<ProtocolMessage<C>>) -> Result<()> {
-        self.board.lock().extend(messages);
+    /// The in-memory board has no staging area to separate from publication, so
+    /// staging *is* the append and [`commit`](Self::commit) has nothing left to
+    /// do. That collapses the two phases, which is harmless here: this backend
+    /// models neither the S3/b4 split nor restarts (it is paired with
+    /// `NoOpPersistence`). The externally visible behaviour the mailbox relies on
+    /// is preserved — a staged message is published exactly once, and committing
+    /// its handle again does not duplicate it.
+    async fn stage(&self, message: &ProtocolMessage<C>) -> Result<StagedRef> {
+        self.board.lock().push(message.clone());
+        Ok(StagedRef("memory".to_string()))
+    }
+
+    async fn commit(&self, _staged: &StagedRef) -> Result<()> {
         Ok(())
     }
 }
