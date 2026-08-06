@@ -23,6 +23,7 @@
 //! See `beyond/docs/docusaurus/docs/engineering/election-config-architecture.md`
 //! and <https://github.com/sequentech/meta/issues/12769>.
 
+pub mod emit;
 pub mod problem;
 pub mod report;
 pub mod schema;
@@ -31,6 +32,7 @@ pub mod validate;
 #[cfg(test)]
 mod validate_tests;
 
+pub use emit::{json_csv, plain_csv, JsonField};
 pub use problem::{Code, Problem, Report as ValidationReport, Severity};
 pub use report::{EReportEncryption, Report, ReportCronConfig, ReportType};
 pub use schema::ImportElectionEventSchema;
