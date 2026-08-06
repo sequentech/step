@@ -598,24 +598,43 @@ async fn maybe_trigger_automatic_recount_for_import(
         .await
         .with_context(|| "error committing automatic recount selection")?;
 
-    let recount_count = sessions_to_recount.len();
+    // Each session's recount is independent: one session failing (e.g. a
+    // corrupt/legacy status blob) must not stop the rest of the batch from
+    // being attempted, or later sessions would silently miss their
+    // automatic recount for this import with no retry.
+    let mut enqueued_recount_count = 0usize;
     for tally_session in sessions_to_recount {
-        enqueue_automatic_recount_tally_session(
+        let tally_session_id = tally_session.id.clone();
+        match enqueue_automatic_recount_tally_session(
             tenant_id,
             election_event_id,
             &tally_session,
         )
-        .await?;
+        .await
+        {
+            Ok(true) => enqueued_recount_count += 1,
+            Ok(false) => {}
+            Err(err) => {
+                event!(
+                    Level::ERROR,
+                    "Failed to enqueue automatic recount for tally session {}: {err:?}",
+                    tally_session_id,
+                );
+            }
+        }
     }
 
-    Ok(recount_count)
+    Ok(enqueued_recount_count)
 }
 
+/// Returns `Ok(true)` if a recount task was enqueued, `Ok(false)` if the
+/// session has no execution history to recount (skipped, not an error — see
+/// `begin_tally_session_recount`), or `Err` on a genuine failure.
 async fn enqueue_automatic_recount_tally_session(
     tenant_id: &str,
     election_event_id: &str,
     tally_session: &TallySession,
-) -> Result<()> {
+) -> Result<bool> {
     let tally_session_id = tally_session.id.clone();
     let election_ids = tally_session.election_ids.clone().unwrap_or_default();
     let mut hasura_db_client: DbClient =
@@ -627,7 +646,7 @@ async fn enqueue_automatic_recount_tally_session(
             "error starting automatic recount status transaction"
         })?;
 
-    let (last_execution, original_status) = begin_tally_session_recount(
+    let Some((last_execution, original_status)) = begin_tally_session_recount(
         &hasura_transaction,
         tenant_id,
         election_event_id,
@@ -635,7 +654,22 @@ async fn enqueue_automatic_recount_tally_session(
         &election_ids,
     )
     .await
-    .with_context(|| "error starting automatic tally session recount")?;
+    .with_context(|| "error starting automatic tally session recount")?
+    else {
+        // The session is marked SUCCESS/completed but has no execution
+        // history, so it was never actually tallied: nothing to recount.
+        // Note this session is also permanently inert for a *first* tally —
+        // process_board_impl only enqueues sessions that are still
+        // IN_PROGRESS with is_execution_completed = false — so log at WARN
+        // to make an import bundle that produced a batch of these visible.
+        event!(
+            Level::WARN,
+            "Tally session {} is marked completed but has no execution history \
+             (never actually tallied); skipping automatic recount",
+            tally_session_id,
+        );
+        return Ok(false);
+    };
 
     hasura_transaction
         .commit()
@@ -676,7 +710,7 @@ async fn enqueue_automatic_recount_tally_session(
         tally_session_id,
     );
 
-    Ok(())
+    Ok(true)
 }
 
 const MAX_TALLY_SHEET_IMPORT_BYTES: u64 = 50 * 1024 * 1024;

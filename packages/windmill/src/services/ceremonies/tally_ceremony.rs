@@ -18,7 +18,6 @@ use crate::postgres::tally_session_contest::{
 use crate::postgres::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
-use crate::services::ceremonies::errors::TallyRecountError;
 use crate::services::ceremonies::keys_ceremony::find_trustee_private_key;
 use crate::services::ceremonies::serialize_logs::{
     append_tally_recount_log, append_tally_trustee_log, generate_tally_initial_log,
@@ -857,9 +856,19 @@ pub async fn set_tally_session_completed(
 /// results) until the celery task produces its own first update, which can
 /// be a long time (or never, if it bails out early).
 ///
-/// Returns the pre-recount execution row and parsed status so the caller can
-/// restore them via [`reset_tally_session_status_after_failed_recount_task`]
-/// if it fails to enqueue the celery task afterwards.
+/// Returns `None` if the session has no `tally_session_execution` row at all.
+/// `insert_tally_session` and the first `insert_tally_session_execution`
+/// always land in the same transaction (see `create_tally_ceremony` below),
+/// so a live session can't reach `SUCCESS`/completed without one — the only
+/// way to hit this is a tally session imported from a bundle whose
+/// `execution_status`/`is_execution_completed` (read off one CSV) disagree
+/// with its execution history (read off another). In that case the tally
+/// never actually ran, so there is nothing to recount.
+///
+/// On `Some`, also returns the pre-recount execution row and parsed status
+/// so the caller can restore them via
+/// [`reset_tally_session_status_after_failed_recount_task`] if it fails to
+/// enqueue the celery task afterwards.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn begin_tally_session_recount(
     hasura_transaction: &Transaction<'_>,
@@ -867,17 +876,17 @@ pub async fn begin_tally_session_recount(
     election_event_id: &str,
     tally_session_id: &str,
     election_ids: &[String],
-) -> Result<(TallySessionExecution, TallyCeremonyStatus)> {
-    let last_execution = get_last_tally_session_execution(
+) -> Result<Option<(TallySessionExecution, TallyCeremonyStatus)>> {
+    let Some(last_execution) = get_last_tally_session_execution(
         hasura_transaction,
         tenant_id,
         election_event_id,
         tally_session_id,
     )
     .await?
-    .ok_or_else(|| TallyRecountError::NoExecutionHistory {
-        tally_session_id: tally_session_id.to_string(),
-    })?;
+    else {
+        return Ok(None);
+    };
 
     let original_status = get_tally_ceremony_status(last_execution.status.clone())?;
 
@@ -916,7 +925,7 @@ pub async fn begin_tally_session_recount(
     )
     .await?;
 
-    Ok((last_execution, original_status))
+    Ok(Some((last_execution, original_status)))
 }
 
 /// Resets a tally session back to a completed `SUCCESS` state after a recount

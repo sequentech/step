@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 pub mod encrypter;
-pub mod errors;
 pub mod insert_ballots;
 pub mod keys_ceremony;
 pub mod renamer;
