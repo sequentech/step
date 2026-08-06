@@ -825,7 +825,7 @@ pub async fn count_keycloak_users(
     };
 
     // Build the count query using only the necessary filtering clauses.
-    let no_service_accounts = service_account_exclusion("u");
+    let voter_scope = voter_scope_clause(&filters_clause);
     let count_query = format!(
         r#"
         SELECT COUNT(*) AS total_count
@@ -834,10 +834,7 @@ pub async fn count_keycloak_users(
         {area_ids_join_clause}
         {authorized_alias_join_clause}
         WHERE
-            ra.name = $1 AND
-            {no_service_accounts} AND
-            {filters_clause}
-            (u.id = ANY($2) OR $2 IS NULL)
+            {voter_scope}
             {area_ids_where_clause}
             {authorized_alias_where_clause}
             {enabled_condition}
@@ -994,7 +991,7 @@ pub async fn list_users(
 
     debug!("parameters count: {}", next_param_number - 1);
     debug!("params {:?}", params);
-    let no_service_accounts = service_account_exclusion("u");
+    let voter_scope = voter_scope_clause(&filters_clause);
     let statement_str = format!(
         r#"
         WITH limited_users AS MATERIALIZED (
@@ -1015,10 +1012,7 @@ pub async fn list_users(
             {area_ids_join_clause}
             {authorized_alias_join_clause}
             WHERE
-                ra.name = $1 AND
-                {no_service_accounts} AND
-                {filters_clause}
-                (u.id = ANY($2) OR $2 IS NULL)
+                {voter_scope}
                 {area_ids_where_clause}
                 {authorized_alias_where_clause}
                 {enabled_condition}
@@ -1078,10 +1072,7 @@ pub async fn list_users(
     {area_ids_join_clause}
     {authorized_alias_join_clause}
     WHERE
-        ra.name = $1 AND
-        {no_service_accounts} AND
-        {filters_clause}
-        (u.id = ANY($2) OR $2 IS NULL)
+        {voter_scope}
         {area_ids_where_clause}
         {authorized_alias_where_clause}
         {enabled_condition}
@@ -1507,6 +1498,7 @@ pub async fn lookup_users(
             LEFT JOIN realm ra ON ra.id = u.realm_id
             WHERE
                 ra.name = $1
+                AND {no_service_accounts}
                 {enabled_condition}
             GROUP BY mu.id
         )
