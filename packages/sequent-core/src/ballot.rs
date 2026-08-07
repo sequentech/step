@@ -10,6 +10,7 @@ use crate::plaintext::{
 };
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use crate::serialization::deserialize_with_path::deserialize_value;
+use crate::services::tally_sheet_validation::effective_max_marks_per_ballot;
 use crate::types::ceremonies::TallySessionResolutionData;
 use crate::types::ceremonies::{
     CeremoniesPolicy, CountingAlgType, TallyOperation,
@@ -1672,6 +1673,24 @@ impl Contest {
 
     pub fn get_counting_algorithm(&self) -> CountingAlgType {
         self.counting_algorithm.unwrap_or_default()
+    }
+
+    /// Maximum number of candidate marks one non-blank ballot can
+    /// legitimately contribute in this contest. The `Contest` flavour read
+    /// from Hasura has its own equivalent in
+    /// `windmill::services::tally_sheet_import::validation::contest_max_marks_per_ballot`;
+    /// both delegate to `effective_max_marks_per_ballot` so the two
+    /// representations can't disagree about the same contest.
+    pub fn max_marks_per_ballot(&self) -> u64 {
+        let cumulative_number_of_checkboxes =
+            self.presentation.as_ref().and_then(|presentation| {
+                presentation.cumulative_number_of_checkboxes
+            });
+        effective_max_marks_per_ballot(
+            Some(self.max_votes),
+            Some(self.get_counting_algorithm().to_string().as_str()),
+            cumulative_number_of_checkboxes,
+        )
     }
 
     pub fn base32_writeins(&self) -> bool {
