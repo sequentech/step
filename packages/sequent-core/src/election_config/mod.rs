@@ -33,6 +33,11 @@ pub mod build;
 #[cfg(feature = "election_config_templates")]
 pub mod archive;
 
+/// The Election Architect's plan, and how it becomes rows the builder reads.
+/// Needs the builder's feature, since compiling a plan means building a bundle.
+#[cfg(feature = "election_config_templates")]
+pub mod architect;
+
 pub mod branding;
 pub mod emit;
 pub mod ids;
@@ -63,8 +68,10 @@ pub mod xlsx;
 mod validate_tests;
 
 #[cfg(feature = "election_config_templates")]
-pub use archive::{layout, Artifact, Layout};
 #[cfg(feature = "election_config_templates")]
+pub use architect::{validate_plan, Blueprint};
+#[cfg(feature = "election_config_templates")]
+pub use archive::{layout, Artifact, Layout};
 pub use build::{
     build, BuildOptions, Bundle, CommunicationTemplate, JsonTable, PlainTable,
 };

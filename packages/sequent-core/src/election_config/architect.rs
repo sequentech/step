@@ -1,0 +1,917 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+//! The Election Architect's plan, and how it becomes a bundle.
+//!
+//! The architect is a wizard: somebody answers questions and gets an importable
+//! election event. This module is the half of it that decides what the answers
+//! mean. The other half — what the questions look like — is React, in
+//! `beyond/packages/election-architect`, and it contains no mapping, no CSV and no
+//! zip.
+//!
+//! # Why this is so small
+//!
+//! A [`Blueprint`] does not become a bundle here. It becomes a
+//! [`Workbook`] — the same rows the spreadsheet reader produces — and the existing
+//! [`super::build`] takes it from there.
+//!
+//! That is the whole design. A wizard is not a different kind of election event;
+//! it is a different way of filling in the same fields. Going through the workbook
+//! shape means the architect inherits the entity templates, the deterministic ids,
+//! the CSV byte shapes, the Keycloak realm handling, the archive layout and every
+//! validation rule, for free and without a second copy of any of them. What is
+//! left here is only what is genuinely the architect's own: its plan, the checks
+//! that apply to a plan rather than to a bundle, and the three files it produces
+//! that are not part of an import at all.
+//!
+//! # What the TypeScript version got wrong, and why
+//!
+//! Its output was not the importable format: `election_config.json` inside a
+//! nested `official_election_setup.zip`, where the importer looks for
+//! `export_election_event-<uuid>.json` at the archive root. Its scheduled-events
+//! CSV was built by string interpolation, one of three hand-written copies of that
+//! byte shape. It stamped `new Date()` into every entity, so no two runs of the
+//! same answers produced the same file. It embedded a Keycloak realm copied from
+//! one environment, which the importer takes wholesale and would have used to
+//! replace whatever the target environment had provisioned. And it validated
+//! nothing.
+//!
+//! None of those are mistakes anybody made twice. They are what happens when a
+//! format is implemented a second time, which is why this implementation does not.
+
+use crate::election_config::paths::Cell;
+use crate::election_config::problem::{Code, Problem, Report};
+use crate::election_config::sheet::{Sheet, Workbook};
+use serde::{Deserialize, Serialize};
+
+/// The plan format's version.
+///
+/// Written into every saved plan and checked on load. A plan is a document
+/// somebody spent an afternoon on; being able to say "this is from an older
+/// version" beats failing to deserialize it with a serde error about a missing
+/// field.
+pub const BLUEPRINT_VERSION: u32 = 1;
+
+/// What the wizard collected.
+///
+/// This is the artifact worth keeping. The bundle is derived from it and is
+/// disposable; the plan is what somebody edits next month when a candidate
+/// withdraws.
+///
+/// The TypeScript version had no such thing — it reconstructed the wizard's state
+/// by parsing its own generated bundle back in. That loses every answer the bundle
+/// has no field for (the trustee threshold, the ceremony dates, the points of
+/// contact) and breaks whenever the bundle's shape changes. Saving the plan is both
+/// simpler and lossless.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Blueprint {
+    /// [`BLUEPRINT_VERSION`] at the time it was saved.
+    pub version: u32,
+
+    /// Stable identifier for the event, and the seed for every generated id.
+    ///
+    /// Not shown to voters. Two plans with the same one produce the same
+    /// identifiers, which is what makes regenerating diffable.
+    pub external_id: String,
+
+    /// The event's name, per language. `en` is the fallback.
+    #[serde(default)]
+    pub name: Translated,
+
+    /// BCP 47 or ISO 639-2/T codes, in the order the picker should show them.
+    #[serde(default)]
+    pub languages: Vec<String>,
+
+    #[serde(default)]
+    pub logo_url: Option<String>,
+
+    #[serde(default)]
+    pub contacts: Vec<Contact>,
+
+    #[serde(default)]
+    pub trustees: Vec<Trustee>,
+
+    /// How many trustees must take part to open the tally.
+    #[serde(default = "default_threshold")]
+    pub trustee_threshold: u32,
+
+    #[serde(default)]
+    pub schedule: Schedule,
+
+    #[serde(default)]
+    pub elections: Vec<PlannedElection>,
+
+    #[serde(default)]
+    pub policies: Policies,
+
+    /// Anything the wizard has no field for. Carried, not interpreted.
+    #[serde(default)]
+    pub notes: String,
+}
+
+fn default_threshold() -> u32 {
+    2
+}
+
+/// Text in as many languages as the plan enables.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct Translated {
+    /// `language code -> text`.
+    #[serde(flatten)]
+    pub by_language: std::collections::BTreeMap<String, String>,
+}
+
+impl Translated {
+    pub fn new(english: &str) -> Self {
+        let mut by_language = std::collections::BTreeMap::new();
+        by_language.insert("en".to_string(), english.to_string());
+        Translated { by_language }
+    }
+
+    /// The text in `language`, falling back to English and then to anything.
+    ///
+    /// A missing translation shows the English rather than an empty ballot line.
+    /// Blank is never the right answer for a candidate's name.
+    pub fn get(&self, language: &str) -> Option<&str> {
+        self.by_language
+            .get(language)
+            .or_else(|| self.by_language.get("en"))
+            .or_else(|| self.by_language.values().next())
+            .map(String::as_str)
+            .filter(|text| !text.is_empty())
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.by_language.values().all(|text| text.is_empty())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Contact {
+    pub name: String,
+    #[serde(default)]
+    pub role: String,
+    #[serde(default)]
+    pub email: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Trustee {
+    pub name: String,
+    #[serde(default)]
+    pub email: String,
+}
+
+/// The dates an election runs to.
+///
+/// Timestamps as text rather than parsed, deliberately: this module has no clock
+/// and no timezone database, and the platform wants ISO 8601 anyway. Validation
+/// checks the shape and the ordering; it does not reinterpret them.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct Schedule {
+    /// When the trustees generate the election key. Not an imported event: it is
+    /// something people have to attend, so it travels in the ceremony file.
+    #[serde(default)]
+    pub key_ceremony: Option<String>,
+
+    #[serde(default)]
+    pub voting_opens: Option<String>,
+
+    #[serde(default)]
+    pub voting_closes: Option<String>,
+
+    #[serde(default)]
+    pub tally_ceremony: Option<String>,
+
+    /// Anything else with a date on it, for the schedule the client is handed.
+    #[serde(default)]
+    pub milestones: Vec<Milestone>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Milestone {
+    pub event: String,
+    pub date: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlannedElection {
+    pub external_id: String,
+    #[serde(default)]
+    pub name: Translated,
+    #[serde(default)]
+    pub contests: Vec<PlannedContest>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlannedContest {
+    pub external_id: String,
+    #[serde(default)]
+    pub name: Translated,
+    #[serde(default)]
+    pub description: String,
+
+    /// How many candidates a voter may choose.
+    #[serde(default = "one")]
+    pub max_votes: i64,
+
+    /// How many candidates the contest elects.
+    ///
+    /// The TypeScript hard-coded this to 1 while letting `max_votes` be anything,
+    /// so a "choose 3" contest silently elected one person.
+    #[serde(default = "one")]
+    pub winners: i64,
+
+    #[serde(default)]
+    pub candidates: Vec<PlannedCandidate>,
+}
+
+fn one() -> i64 {
+    1
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlannedCandidate {
+    pub external_id: String,
+    #[serde(default)]
+    pub name: Translated,
+    /// A "none of the above" option rather than a person.
+    #[serde(default)]
+    pub explicit_blank: bool,
+    /// A "spoil my ballot" option rather than a person.
+    #[serde(default)]
+    pub explicit_invalid: bool,
+}
+
+/// What the ballot does when a voter does something unusual.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Policy {
+    /// Let it happen without comment.
+    Allowed,
+    /// Let it happen, but say something first.
+    Warn,
+    /// Do not let it happen.
+    Restricted,
+}
+
+impl Default for Policy {
+    fn default() -> Self {
+        Policy::Warn
+    }
+}
+
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize,
+)]
+pub struct Policies {
+    /// Choosing more than `max_votes`.
+    #[serde(default)]
+    pub over_vote: Policy,
+    /// Choosing nothing at all.
+    #[serde(default)]
+    pub blank_vote: Policy,
+    /// Choosing fewer than `max_votes`.
+    #[serde(default)]
+    pub under_vote: Policy,
+    /// Deliberately spoiling the ballot.
+    #[serde(default)]
+    pub invalid_vote: Policy,
+}
+
+impl Policies {
+    /// The platform's `over_vote_policy` values.
+    fn over_vote(self) -> &'static str {
+        match self.over_vote {
+            Policy::Allowed => "allowed",
+            Policy::Warn => "allowed-with-msg",
+            Policy::Restricted => "not-allowed-with-msg-and-disable",
+        }
+    }
+
+    fn under_vote(self) -> &'static str {
+        match self.under_vote {
+            Policy::Allowed => "allowed",
+            Policy::Warn => "warn",
+            Policy::Restricted => "warn-only-in-review",
+        }
+    }
+
+    fn blank_vote(self) -> &'static str {
+        match self.blank_vote {
+            Policy::Allowed => "allowed",
+            Policy::Warn => "warn",
+            Policy::Restricted => "not-allowed",
+        }
+    }
+
+    fn invalid_vote(self) -> &'static str {
+        match self.invalid_vote {
+            Policy::Allowed => "allowed",
+            Policy::Warn => "warn",
+            Policy::Restricted => "not-allowed",
+        }
+    }
+}
+
+/// The area every contest is put on.
+///
+/// The wizard does not do districting: it asks who is standing, not who may vote
+/// for them. A bundle still needs an area and a ballot link, so one is made,
+/// covering everybody.
+///
+/// Named rather than anonymous because the voters CSV resolves an area by name,
+/// and because a delivery engineer opening the generated event should be able to
+/// tell that nobody chose this.
+pub const DEFAULT_AREA_EXTERNAL_ID: &str = "all-voters";
+pub const DEFAULT_AREA_NAME: &str = "All voters";
+
+/// Check a plan, before anything is built from it.
+///
+/// These are questions about the *plan*, in the wizard's own vocabulary — a
+/// trustee threshold higher than the number of trustees, a voting window that
+/// closes before it opens. [`super::validate`] then checks the bundle, and a
+/// problem there is phrased in the bundle's vocabulary. Both run; they are asking
+/// different questions and an author needs both answers.
+pub fn validate_plan(plan: &Blueprint) -> Report {
+    let mut report = Report::default();
+
+    if plan.version > BLUEPRINT_VERSION {
+        report.push(Problem::error(
+            Code::InvalidValue,
+            "version",
+            format!(
+                "this plan was saved by a newer version ({} against {}). Opening \
+                 it here would silently drop whatever that version added.",
+                plan.version, BLUEPRINT_VERSION
+            ),
+        ));
+    }
+
+    if plan.external_id.trim().is_empty() {
+        report.push(Problem::error(
+            Code::MissingField,
+            "external_id",
+            "the event needs an identifier: every generated id is derived from it, \
+             so without one nothing can be built twice the same way",
+        ));
+    }
+
+    if plan.name.is_empty() {
+        report.push(Problem::error(
+            Code::MissingField,
+            "name",
+            "the event needs a name. Voters see it above the ballot, and it \
+             becomes the login page's title.",
+        ));
+    }
+
+    check_trustees(plan, &mut report);
+    check_schedule(plan, &mut report);
+    check_ballot(plan, &mut report);
+
+    if plan.contacts.is_empty() {
+        report.push(Problem::warning(
+            Code::MissingField,
+            "contacts",
+            "nobody is listed as a point of contact. On election day this is who \
+             gets called.",
+        ));
+    }
+
+    report
+}
+
+fn check_trustees(plan: &Blueprint, report: &mut Report) {
+    if plan.trustees.is_empty() {
+        report.push(Problem::warning(
+            Code::MissingField,
+            "trustees",
+            "no trustees. The election key needs somebody to hold it, and the \
+             tally needs them to come back.",
+        ));
+        return;
+    }
+
+    if plan.trustee_threshold == 0 {
+        report.push(Problem::error(
+            Code::InvalidValue,
+            "trustee_threshold",
+            "a threshold of zero means the tally can be opened by nobody at all",
+        ));
+    }
+
+    if plan.trustee_threshold as usize > plan.trustees.len() {
+        // The failure mode is the worst kind: everything works until the tally,
+        // and then the result cannot be decrypted by anyone.
+        report.push(Problem::error(
+            Code::ContestArithmetic,
+            "trustee_threshold",
+            format!(
+                "{} of {} trustees are required, which cannot be met. The key \
+                 would be generated and the result could never be decrypted.",
+                plan.trustee_threshold,
+                plan.trustees.len()
+            ),
+        ));
+    }
+
+    if plan.trustee_threshold == 1 && plan.trustees.len() > 1 {
+        report.push(Problem::warning(
+            Code::InvalidValue,
+            "trustee_threshold",
+            "one trustee alone can open the tally, which is the same guarantee as \
+             having a single trustee",
+        ));
+    }
+}
+
+fn check_schedule(plan: &Blueprint, report: &mut Report) {
+    let schedule = &plan.schedule;
+
+    match (&schedule.voting_opens, &schedule.voting_closes) {
+        (None, _) | (_, None) => report.push(Problem::warning(
+            Code::MissingSchedule,
+            "schedule",
+            "the voting window is incomplete, so the period will have to be opened \
+             or closed by hand in the Admin Portal",
+        )),
+        (Some(opens), Some(closes)) => {
+            // Compared as text on purpose: ISO 8601 sorts correctly as a string,
+            // and parsing would mean a timezone database this module cannot have.
+            if !opens.is_empty() && !closes.is_empty() && closes <= opens {
+                report.push(Problem::error(
+                    Code::InvalidValue,
+                    "schedule.voting_closes",
+                    "voting closes before it opens, so it would never be open",
+                ));
+            }
+        }
+    }
+
+    if let (Some(ceremony), Some(opens)) =
+        (&schedule.key_ceremony, &schedule.voting_opens)
+    {
+        if !ceremony.is_empty() && !opens.is_empty() && ceremony >= opens {
+            report.push(Problem::error(
+                Code::InvalidValue,
+                "schedule.key_ceremony",
+                "the key ceremony is not before voting opens. The election key has \
+                 to exist before a vote can be encrypted with it.",
+            ));
+        }
+    }
+
+    if let (Some(tally), Some(closes)) =
+        (&schedule.tally_ceremony, &schedule.voting_closes)
+    {
+        if !tally.is_empty() && !closes.is_empty() && tally <= closes {
+            report.push(Problem::error(
+                Code::InvalidValue,
+                "schedule.tally_ceremony",
+                "the tally ceremony is not after voting closes, so it would count \
+                 votes that had not been cast yet",
+            ));
+        }
+    }
+}
+
+fn check_ballot(plan: &Blueprint, report: &mut Report) {
+    if plan.elections.is_empty() {
+        report.push(Problem::error(
+            Code::MissingField,
+            "elections",
+            "an election event needs at least one election",
+        ));
+        return;
+    }
+
+    for (index, election) in plan.elections.iter().enumerate() {
+        let at = format!("elections[{index}]");
+
+        if election.contests.is_empty() {
+            report.push(
+                Problem::warning(
+                    Code::BallotCoverage,
+                    &at,
+                    "this election has no contests, so nobody votes in it",
+                )
+                .about(Some(&election.external_id)),
+            );
+        }
+
+        for (contest_index, contest) in election.contests.iter().enumerate() {
+            let at = format!("{at}.contests[{contest_index}]");
+            let choices = contest
+                .candidates
+                .iter()
+                .filter(|candidate| {
+                    !candidate.explicit_blank && !candidate.explicit_invalid
+                })
+                .count();
+
+            if contest.max_votes < 1 {
+                report.push(
+                    Problem::error(
+                        Code::ContestArithmetic,
+                        &at,
+                        "a voter may choose fewer than one candidate, so there is \
+                         nothing to vote for",
+                    )
+                    .about(Some(&contest.external_id)),
+                );
+            }
+
+            if contest.winners < 1 {
+                report.push(
+                    Problem::error(
+                        Code::ContestArithmetic,
+                        &at,
+                        "the contest elects nobody",
+                    )
+                    .about(Some(&contest.external_id)),
+                );
+            }
+
+            // The bug the TypeScript shipped: winners was fixed at 1 while
+            // max_votes was free, so "choose 3" quietly elected one person.
+            if contest.winners > contest.max_votes {
+                report.push(
+                    Problem::error(
+                        Code::ContestArithmetic,
+                        &at,
+                        format!(
+                            "the contest elects {} but a voter may only choose {}",
+                            contest.winners, contest.max_votes
+                        ),
+                    )
+                    .about(Some(&contest.external_id)),
+                );
+            }
+
+            if choices == 0 {
+                report.push(
+                    Problem::warning(
+                        Code::BallotCoverage,
+                        &at,
+                        "no candidates yet",
+                    )
+                    .about(Some(&contest.external_id)),
+                );
+            } else if (contest.winners as usize) > choices {
+                report.push(
+                    Problem::error(
+                        Code::ContestArithmetic,
+                        &at,
+                        format!(
+                            "the contest elects {} from a field of {choices}",
+                            contest.winners
+                        ),
+                    )
+                    .about(Some(&contest.external_id)),
+                );
+            }
+        }
+    }
+}
+
+/// Turn a plan into the rows the builder reads.
+///
+/// This is the only mapping in the architect, and it produces a
+/// [`Workbook`] rather than a bundle so that everything downstream — templates,
+/// ids, CSV shapes, the realm, the archive — is the code the workbook reader
+/// already uses.
+pub fn to_workbook(plan: &Blueprint) -> Result<Workbook, Problem> {
+    let languages = plan.languages_or_english();
+
+    let mut sheets = vec![
+        event_sheet(plan, &languages)?,
+        elections_sheet(plan, &languages)?,
+        contests_sheet(plan, &languages)?,
+        candidates_sheet(plan, &languages)?,
+        areas_sheet()?,
+        area_contests_sheet(plan)?,
+    ];
+
+    if let Some(schedule) = scheduled_events_sheet(plan)? {
+        sheets.push(schedule);
+    }
+
+    Workbook::new(sheets)
+}
+
+impl Blueprint {
+    /// The languages to write, never empty.
+    ///
+    /// A plan with no language still has to produce a ballot somebody can read.
+    fn languages_or_english(&self) -> Vec<String> {
+        let chosen: Vec<String> = self
+            .languages
+            .iter()
+            .map(|code| code.trim().to_string())
+            .filter(|code| !code.is_empty())
+            .collect();
+        if chosen.is_empty() {
+            vec!["en".to_string()]
+        } else {
+            chosen
+        }
+    }
+}
+
+/// A header and its column of values, as the sheet reader wants them.
+fn sheet_of(
+    name: &str,
+    columns: Vec<String>,
+    rows: Vec<Vec<Cell>>,
+) -> Result<Sheet, Problem> {
+    let mut grid =
+        vec![columns.iter().map(|c| Cell::text(c.clone())).collect()];
+    grid.extend(rows);
+    Sheet::from_grid(name, &grid)
+}
+
+/// `presentation.i18n.<lang>.name` columns, one per language.
+fn i18n_columns(prefix: &str, languages: &[String]) -> Vec<String> {
+    languages
+        .iter()
+        .map(|language| format!("{prefix}.i18n.{language}.name"))
+        .collect()
+}
+
+fn i18n_values(text: &Translated, languages: &[String]) -> Vec<Cell> {
+    languages
+        .iter()
+        .map(|language| match text.get(language) {
+            Some(value) => Cell::text(value),
+            None => Cell::Blank,
+        })
+        .collect()
+}
+
+fn event_sheet(
+    plan: &Blueprint,
+    languages: &[String],
+) -> Result<Sheet, Problem> {
+    let mut columns = vec!["external_id".to_string()];
+    columns.extend(i18n_columns("presentation", languages));
+    columns
+        .push("presentation.language_conf.enabled_language_codes".to_string());
+    columns
+        .push("presentation.language_conf.default_language_code".to_string());
+
+    let mut row = vec![Cell::text(plan.external_id.clone())];
+    row.extend(i18n_values(&plan.name, languages));
+    // A JSON array in one cell: the reader parses bracketed text as JSON, which is
+    // how a list fits in a spreadsheet and therefore in a synthesised one too.
+    row.push(Cell::text(
+        serde_json::to_string(languages).unwrap_or_else(|_| "[]".to_string()),
+    ));
+    row.push(Cell::text(
+        languages
+            .first()
+            .cloned()
+            .unwrap_or_else(|| "en".to_string()),
+    ));
+
+    if let Some(logo) = plan.logo_url.as_ref().filter(|url| !url.is_empty()) {
+        columns.push("presentation.logo_url".to_string());
+        row.push(Cell::text(logo.clone()));
+    }
+
+    sheet_of("ElectionEvent", columns, vec![row])
+}
+
+fn elections_sheet(
+    plan: &Blueprint,
+    languages: &[String],
+) -> Result<Sheet, Problem> {
+    let mut columns = vec!["external_id".to_string()];
+    columns.extend(i18n_columns("presentation", languages));
+
+    let rows = plan
+        .elections
+        .iter()
+        .map(|election| {
+            let mut row = vec![Cell::text(election.external_id.clone())];
+            row.extend(i18n_values(&election.name, languages));
+            row
+        })
+        .collect();
+
+    sheet_of("Elections", columns, rows)
+}
+
+fn contests_sheet(
+    plan: &Blueprint,
+    languages: &[String],
+) -> Result<Sheet, Problem> {
+    let mut columns = vec![
+        "external_id".to_string(),
+        "election.external_id".to_string(),
+        "max_votes".to_string(),
+        "min_votes".to_string(),
+        "winning_candidates_num".to_string(),
+        "description".to_string(),
+        "presentation.over_vote_policy".to_string(),
+        "presentation.under_vote_policy".to_string(),
+        "presentation.blank_vote_policy".to_string(),
+        "presentation.invalid_vote_policy".to_string(),
+        "presentation.sort_order".to_string(),
+    ];
+    columns.extend(i18n_columns("presentation", languages));
+
+    let mut rows = Vec::new();
+    for election in &plan.elections {
+        for (order, contest) in election.contests.iter().enumerate() {
+            let mut row = vec![
+                Cell::text(contest.external_id.clone()),
+                Cell::text(election.external_id.clone()),
+                Cell::Int(contest.max_votes),
+                // The wizard does not ask, and a required minimum is a way to
+                // stop somebody voting at all.
+                Cell::Int(0),
+                Cell::Int(contest.winners),
+                Cell::text(contest.description.clone()),
+                Cell::text(plan.policies.over_vote()),
+                Cell::text(plan.policies.under_vote()),
+                Cell::text(plan.policies.blank_vote()),
+                Cell::text(plan.policies.invalid_vote()),
+                Cell::Int(order as i64),
+            ];
+            row.extend(i18n_values(&contest.name, languages));
+            rows.push(row);
+        }
+    }
+
+    sheet_of("Contests", columns, rows)
+}
+
+fn candidates_sheet(
+    plan: &Blueprint,
+    languages: &[String],
+) -> Result<Sheet, Problem> {
+    let mut columns = vec![
+        "external_id".to_string(),
+        "contest.external_id".to_string(),
+        "presentation.sort_order".to_string(),
+        "presentation.is_explicit_blank".to_string(),
+        "presentation.is_explicit_invalid".to_string(),
+    ];
+    columns.extend(i18n_columns("presentation", languages));
+
+    let mut rows = Vec::new();
+    for election in &plan.elections {
+        for contest in &election.contests {
+            for (order, candidate) in contest.candidates.iter().enumerate() {
+                let mut row = vec![
+                    Cell::text(candidate.external_id.clone()),
+                    Cell::text(contest.external_id.clone()),
+                    Cell::Int(order as i64),
+                    Cell::Bool(candidate.explicit_blank),
+                    Cell::Bool(candidate.explicit_invalid),
+                ];
+                row.extend(i18n_values(&candidate.name, languages));
+                rows.push(row);
+            }
+        }
+    }
+
+    sheet_of("Candidates", columns, rows)
+}
+
+/// One area, covering everybody. See [`DEFAULT_AREA_EXTERNAL_ID`].
+fn areas_sheet() -> Result<Sheet, Problem> {
+    sheet_of(
+        "Areas",
+        vec!["external_id".to_string(), "name".to_string()],
+        vec![vec![
+            Cell::text(DEFAULT_AREA_EXTERNAL_ID),
+            Cell::text(DEFAULT_AREA_NAME),
+        ]],
+    )
+}
+
+fn area_contests_sheet(plan: &Blueprint) -> Result<Sheet, Problem> {
+    let rows = plan
+        .elections
+        .iter()
+        .flat_map(|election| &election.contests)
+        .map(|contest| {
+            vec![
+                Cell::text(DEFAULT_AREA_EXTERNAL_ID),
+                Cell::text(contest.external_id.clone()),
+            ]
+        })
+        .collect();
+
+    sheet_of(
+        "AreaContests",
+        vec![
+            "area.external_id".to_string(),
+            "contest.external_id".to_string(),
+        ],
+        rows,
+    )
+}
+
+/// The voting window, or nothing.
+///
+/// Event-wide rather than per election: the wizard asks once, and an event-wide
+/// scheduled event covers every election in it.
+fn scheduled_events_sheet(plan: &Blueprint) -> Result<Option<Sheet>, Problem> {
+    let mut rows = Vec::new();
+
+    for (name, processor, at) in [
+        (
+            "Voting opens",
+            "START_VOTING_PERIOD",
+            &plan.schedule.voting_opens,
+        ),
+        (
+            "Voting closes",
+            "END_VOTING_PERIOD",
+            &plan.schedule.voting_closes,
+        ),
+    ] {
+        if let Some(at) = at.as_ref().filter(|at| !at.is_empty()) {
+            rows.push(vec![
+                Cell::text(name),
+                Cell::text(processor),
+                Cell::text(at.clone()),
+            ]);
+        }
+    }
+
+    if rows.is_empty() {
+        return Ok(None);
+    }
+
+    sheet_of(
+        "ScheduledEvents",
+        vec![
+            "event_name".to_string(),
+            "event_type".to_string(),
+            "scheduled_datetime".to_string(),
+        ],
+        rows,
+    )
+    .map(Some)
+}
+
+/// The files the architect produces that are not part of an import.
+///
+/// A ceremony schedule, a list of who to call, and a list of who holds the key.
+/// None of them has a home in an election event, and all three are what the client
+/// actually asks for — so they travel beside the archive, like the administrator
+/// and template files the workbook reader produces.
+///
+/// The plan itself is written out too. That is what makes the wizard resumable
+/// without parsing its own output back, which is how the TypeScript version did it
+/// and why its round trip lost the trustee threshold and every ceremony date.
+pub fn side_files(plan: &Blueprint) -> Vec<(String, String)> {
+    let mut files = Vec::new();
+
+    let plan_json =
+        serde_json::to_string_pretty(plan).unwrap_or_else(|_| "{}".to_string());
+    files.push(("blueprint.json".to_string(), plan_json + "\n"));
+
+    let ceremony = serde_json::json!({
+        "_comment": "Dates people have to attend. Not part of the import.",
+        "key_ceremony": plan.schedule.key_ceremony,
+        "tally_ceremony": plan.schedule.tally_ceremony,
+        "voting_opens": plan.schedule.voting_opens,
+        "voting_closes": plan.schedule.voting_closes,
+        "milestones": plan.schedule.milestones,
+    });
+    files.push(("ceremony_schedule.json".to_string(), pretty(&ceremony)));
+
+    if !plan.contacts.is_empty() {
+        files.push((
+            "points_of_contact.json".to_string(),
+            pretty(&serde_json::json!(plan.contacts)),
+        ));
+    }
+
+    if !plan.trustees.is_empty() {
+        files.push((
+            "trustees_list.json".to_string(),
+            pretty(&serde_json::json!({
+                "threshold": plan.trustee_threshold,
+                "trustees": plan.trustees,
+            })),
+        ));
+    }
+
+    files
+}
+
+fn pretty(value: &serde_json::Value) -> String {
+    serde_json::to_string_pretty(value).unwrap_or_else(|_| "{}".to_string())
+        + "\n"
+}
+
+#[cfg(test)]
+#[path = "architect_tests.rs"]
+mod architect_tests;
