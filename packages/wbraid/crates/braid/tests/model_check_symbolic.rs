@@ -409,9 +409,6 @@ impl SymbolicModel {
                     t, DATE, *cfg, *pk, *cts, &token,
                 )]
             }
-            Action::ComputeBallots(_, _) => {
-                unreachable!("ComputeBallots is a test-only composition action")
-            }
         }
     }
 

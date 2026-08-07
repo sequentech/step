@@ -182,9 +182,6 @@ impl<C: Context> Trustee<C> {
                 decryptions_hashes,
                 *self_index,
             ),
-            Action::ComputeBallots(..) => Err(anyhow!(
-                "ComputeBallots is authored by the protocol manager, not executed by a trustee"
-            )),
         }
     }
 }
