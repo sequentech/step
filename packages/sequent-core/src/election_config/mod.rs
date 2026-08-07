@@ -77,18 +77,24 @@ pub mod xlsx;
 #[cfg(test)]
 mod validate_tests;
 
-#[cfg(feature = "election_config_templates")]
+// Every re-export below carries the same gate as the module it names. A
+// re-export gated differently from its module is not a style question: `pub use
+// build::…` without a gate does not compile at all once the module is absent,
+// and `default_features` does not imply `election_config_templates` — so the
+// crate was broken for every feature set windmill, harvest, velvet and the
+// browser builds actually declare. `cargo build --workspace` hid it by unifying
+// step-cli's features across the graph, which is why only CI saw it.
 #[cfg(feature = "election_config_templates")]
 pub use architect::{validate_plan, Blueprint};
 #[cfg(feature = "election_config_templates")]
 pub use archive::{layout, Artifact, Layout};
+#[cfg(feature = "election_config_templates")]
 pub use build::{
     build, BuildOptions, Bundle, CommunicationTemplate, JsonTable, PlainTable,
 };
 pub use emit::{json_csv, plain_csv, JsonField};
 pub use ids::IdFactory;
 pub use paths::{coerce_cell, deep_merge, expand, Cell};
-#[cfg(feature = "election_config_templates")]
 pub use presets::{AuthPreset, RealmPatch};
 pub use problem::{Code, Problem, Report as ValidationReport, Severity};
 #[cfg(feature = "election_config_templates")]
