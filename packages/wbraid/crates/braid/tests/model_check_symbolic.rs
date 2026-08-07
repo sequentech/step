@@ -47,6 +47,18 @@
 //! harness's tree, a structural cross-validation of the symbolic layer
 //! (identical actions, identical branching, before folding).
 //!
+//! # The transport model
+//!
+//! Unlike the crypto harness (which reuses the production `MemoryTransport`,
+//! where staging IS the board append), this harness models b4's real shape
+//! ([`ModelTransport`]): a **staging area** (the S3-analogue, carried in the
+//! state) distinct from the **board** (committed rows), and a per-trustee
+//! **view** (the board minus what b4 withholds). Fault-free this changes
+//! nothing — the staging area is a deterministic function of the board and
+//! nothing is withheld, measured as identical state counts — but it is the
+//! seam fault actions need: crash between stage and commit, dropped commits,
+//! withheld messages, split views.
+//!
 //! # What this cannot see
 //!
 //! The symbolic axioms are stipulated, not checked: that honestly computed
@@ -59,8 +71,10 @@
 
 mod common;
 
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::marker::PhantomData;
+use std::rc::Rc;
 use std::sync::Mutex;
 
 use common::MemoryPersistence;
@@ -71,7 +85,7 @@ use cryptography::utils::signatures::SignatureScheme;
 use stateright::{Checker, Model, Property};
 
 use braid::board::store::MessageStore;
-use braid::board::transport::{MemoryBoard, MemoryTransport, StagedRef};
+use braid::board::transport::{StagedRef, Transport};
 use braid::board::BoardClient;
 use braid::datalog::action::Action;
 use braid::messages::artifact::Configuration;
@@ -112,11 +126,21 @@ struct TrusteeDurable {
     own_posts: Vec<(Vec<u8>, String)>,
 }
 
-/// The whole system's durable state: the board plus every trustee's records.
+/// The whole system's durable state: the board, the staging area, what b4
+/// withholds from whom, and every trustee's records.
 #[derive(Clone, PartialEq, Eq, Hash)]
 struct SystemState {
-    /// Serialized `ProtocolMessage`s, in board order.
+    /// Serialized `ProtocolMessage`s: what b4 has **committed** (board rows).
     board: Vec<Vec<u8>>,
+    /// The staging area (S3-analogue), `(handle, message bytes)`: bodies that
+    /// have been staged (§6.4), whether or not their commit has landed. In
+    /// fault-free runs this is exactly the non-Configuration board content —
+    /// the crash-between-stage-and-commit fault is what will make them differ.
+    staged: Vec<(String, Vec<u8>)>,
+    /// Per-trustee visibility: handles (see [`staged_handle`]) of board rows b4
+    /// withholds from trustee `i`. Empty in fault-free runs; adversarial-board
+    /// fault actions (drops, split views) populate it.
+    withheld: Vec<Vec<String>>,
     trustees: Vec<TrusteeDurable>,
     /// Datalog halts observed so far. A healthy run leaves this empty; the
     /// safety property is exactly that it stays empty.
@@ -130,13 +154,23 @@ impl SystemState {
     /// interleavings that produce the same message set are the same state, and
     /// sorting is what lets stateright's fingerprint dedup see that (the tree
     /// → graph collapse). The Configuration message stays pinned first: the
-    /// board client reads it at connect.
+    /// board client reads it at connect. Duplicate board rows (a re-committed
+    /// handle leaves b4 holding two copies of identical bytes) are removed:
+    /// they are protocol-identical and deduplicated on read (§8.5 Note 2), so
+    /// the state identity dedups them too.
     ///
     /// Every state in the system is canonical: the initial state trivially,
     /// successors by construction in [`SymbolicModel::successor`].
     fn canonicalize(&mut self) {
         if self.board.len() > 1 {
             self.board[1..].sort_unstable();
+        }
+        self.board.dedup();
+        self.staged.sort_unstable();
+        self.staged.dedup();
+        for w in &mut self.withheld {
+            w.sort_unstable();
+            w.dedup();
         }
         for t in &mut self.trustees {
             t.committed.sort_unstable();
@@ -158,14 +192,19 @@ impl std::fmt::Debug for SystemState {
                 Err(_) => "??".to_string(),
             })
             .collect();
-        write!(f, "board[{}]", types.join(","))?;
+        write!(f, "board[{}] staged={}", types.join(","), self.staged.len())?;
         for (i, t) in self.trustees.iter().enumerate() {
             write!(
                 f,
-                " t{}(in={},out={})",
+                " t{}(in={},out={}{})",
                 i + 1,
                 t.committed.len(),
-                t.own_posts.len()
+                t.own_posts.len(),
+                if self.withheld[i].is_empty() {
+                    String::new()
+                } else {
+                    format!(",hidden={}", self.withheld[i].len())
+                }
             )?;
         }
         if !self.halts.is_empty() {
@@ -183,6 +222,85 @@ enum Turn {
     /// The manager posts the ballots (a token), which it can only do once the
     /// DKG has published a public key.
     PostBallots,
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Transport
+///////////////////////////////////////////////////////////////////////////
+
+/// A message's staging handle: hex of its content hash. Content-derived so it
+/// is deterministic across paths (canonical-identity-friendly), and so
+/// re-staging the same bytes maps to the same S3 object, as in production. The
+/// same scheme identifies board rows in [`SystemState::withheld`].
+fn staged_handle(bytes: &[u8]) -> String {
+    hex::encode(&hash_bytes(bytes)[..])
+}
+
+/// The model's b4: what one actor sees and can do during one cycle.
+///
+/// Reads serve the actor's **view** — the true board minus whatever b4
+/// withholds from it. `stage` writes the body into the staging area (the
+/// S3-analogue carried in [`SystemState::staged`]) *without* touching the
+/// board; `commit` looks the handle up in the staging area and appends the
+/// message to the commit sink, which the harness merges into the true board
+/// after the cycle (so, as with real b4, an actor's own post becomes visible
+/// to it on its next fetch, not within the posting cycle).
+///
+/// This is the split the production `MemoryTransport` deliberately collapses
+/// (staging *is* the append there — see its docs for why that is fine in M1):
+/// modeling the §6.4 seam — a crash after stage, before commit — and the
+/// dropped-commit fault requires the two phases to be genuinely distinct.
+/// Committing an unknown handle is an error: the staged body is gone, which is
+/// the (out-of-model, §6.2-trust-class) S3-loss scenario.
+struct ModelTransport<C: Context> {
+    /// The messages this actor can see, Configuration included.
+    view: Vec<ProtocolMessage<C>>,
+    /// The staging area: seeded from the state, grown by `stage`.
+    staged: Rc<RefCell<HashMap<String, Vec<u8>>>>,
+    /// Messages made board-visible during this cycle, in commit order.
+    committed: Rc<RefCell<Vec<ProtocolMessage<C>>>>,
+}
+
+#[async_trait::async_trait(?Send)]
+impl<C: Context> Transport<C> for ModelTransport<C> {
+    async fn fetch_configuration(&self) -> anyhow::Result<ProtocolMessage<C>> {
+        self.view
+            .iter()
+            .find(|m| m.message_type == MessageType::Configuration)
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("board has no Configuration message"))
+    }
+
+    async fn fetch(&self) -> anyhow::Result<Vec<ProtocolMessage<C>>> {
+        Ok(self
+            .view
+            .iter()
+            .filter(|m| m.message_type != MessageType::Configuration)
+            .cloned()
+            .collect())
+    }
+
+    async fn stage(&self, message: &ProtocolMessage<C>) -> anyhow::Result<StagedRef> {
+        let bytes = message.ser();
+        let handle = staged_handle(&bytes);
+        self.staged.borrow_mut().insert(handle.clone(), bytes);
+        Ok(StagedRef(handle))
+    }
+
+    async fn commit(&self, staged: &StagedRef) -> anyhow::Result<()> {
+        let bytes = self
+            .staged
+            .borrow()
+            .get(&staged.0)
+            .cloned()
+            .ok_or_else(|| {
+                anyhow::anyhow!("commit of unknown staged handle {} (body lost?)", staged.0)
+            })?;
+        let message = ProtocolMessage::<C>::deser(&bytes)
+            .map_err(|e| anyhow::anyhow!("staged bytes do not decode: {e:?}"))?;
+        self.committed.borrow_mut().push(message);
+        Ok(())
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -288,15 +406,58 @@ impl SymbolicModel {
         }
     }
 
-    /// Rebuild the shared board from a state's bytes.
-    fn board_from(&self, state: &SystemState) -> std::sync::Arc<MemoryBoard<C>> {
-        let board = MemoryBoard::<C>::new();
-        for bytes in &state.board {
-            board.push(
-                ProtocolMessage::<C>::deser(bytes).expect("board holds well-formed message bytes"),
-            );
-        }
-        board
+    /// The board as trustee `i` sees it: the true board minus rows b4 withholds
+    /// from it. Fault-free, `withheld[i]` is empty and this is the whole board.
+    fn visible_board(&self, state: &SystemState, i: usize) -> Vec<ProtocolMessage<C>> {
+        state
+            .board
+            .iter()
+            .filter(|bytes| !state.withheld[i].contains(&staged_handle(bytes)))
+            .map(|bytes| {
+                ProtocolMessage::<C>::deser(bytes).expect("board holds well-formed message bytes")
+            })
+            .collect()
+    }
+
+    /// A transport for one actor's cycle, plus the handles the harness reads
+    /// back afterwards: the staging area (seeded from the state) and the
+    /// commit sink.
+    #[allow(clippy::type_complexity)]
+    fn transport_for(
+        &self,
+        state: &SystemState,
+        view: Vec<ProtocolMessage<C>>,
+    ) -> (
+        ModelTransport<C>,
+        Rc<RefCell<HashMap<String, Vec<u8>>>>,
+        Rc<RefCell<Vec<ProtocolMessage<C>>>>,
+    ) {
+        let staged: Rc<RefCell<HashMap<String, Vec<u8>>>> =
+            Rc::new(RefCell::new(state.staged.iter().cloned().collect()));
+        let committed: Rc<RefCell<Vec<ProtocolMessage<C>>>> = Rc::new(RefCell::new(Vec::new()));
+        let transport = ModelTransport {
+            view,
+            staged: Rc::clone(&staged),
+            committed: Rc::clone(&committed),
+        };
+        (transport, staged, committed)
+    }
+
+    /// Merge a cycle's transport effects into the successor state: the grown
+    /// staging area, and the committed messages appended to the board (order
+    /// is irrelevant — `canonicalize` runs before the state is used).
+    fn merge_transport(
+        next: &mut SystemState,
+        staged: Rc<RefCell<HashMap<String, Vec<u8>>>>,
+        committed: Rc<RefCell<Vec<ProtocolMessage<C>>>>,
+    ) {
+        next.staged = staged
+            .borrow()
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
+        next.board
+            .extend(committed.borrow().iter().map(|m| m.ser()));
     }
 
     /// Rebuild trustee `i`'s persistence from a state's records.
@@ -417,19 +578,16 @@ impl SymbolicModel {
     /// before durable updates (observation-timing compression), productive
     /// cycles only if they changed nothing (`next == *state`).
     fn successor(&self, state: &SystemState, turn: &Turn) -> Option<SystemState> {
-        let board = self.board_from(state);
         let mut next = state.clone();
 
         match turn {
             Turn::Trustee(i) => {
                 let i = *i;
                 let persistence = self.persistence_from(&state.trustees[i]);
+                let (transport, staged, committed) =
+                    self.transport_for(state, self.visible_board(state, i));
                 let outcome = block_on(async {
-                    let mut client = BoardClient::connect(
-                        MemoryTransport::new(board.clone()),
-                        persistence.clone(),
-                    )
-                    .await?;
+                    let mut client = BoardClient::connect(transport, persistence.clone()).await?;
                     client.update().await?;
                     let produced = self.symbolic_step(i, client.view())?;
                     let produced_any = !produced.is_empty();
@@ -448,22 +606,28 @@ impl SymbolicModel {
                     Err(e) => next.halts.push(format!("t{}: {e:#}", i + 1)),
                 }
                 next.trustees[i] = Self::durable_from(&persistence);
+                Self::merge_transport(&mut next, staged, committed);
             }
             Turn::PostBallots => {
                 let pk_hash = self.public_key_hash_on(state)?;
                 let token = format!("ballots:{pk_hash:?}").into_bytes();
-                board.push(ProtocolMessage::<C>::ballots(
+                let message = ProtocolMessage::<C>::ballots(
                     &self.manager,
                     DATE,
                     self.configuration_hash,
                     pk_hash,
                     self.mixing_trustees.clone(),
                     &token,
-                ));
+                );
+                // The manager keeps no own-post record (Transport::publish =
+                // stage + commit), but its message takes the same staged path.
+                let (transport, staged, committed) = self.transport_for(state, Vec::new());
+                block_on(transport.publish(&message))
+                    .expect("fault-free manager publish cannot fail");
+                Self::merge_transport(&mut next, staged, committed);
             }
         }
 
-        next.board = board.snapshot().iter().map(|m| m.ser()).collect();
         next.canonicalize();
         if next == *state {
             return None;
@@ -491,6 +655,8 @@ impl Model for SymbolicModel {
             ProtocolMessage::<C>::configuration(&self.manager, DATE, &self.configuration);
         vec![SystemState {
             board: vec![configuration_message.ser()],
+            staged: Vec::new(),
+            withheld: vec![Vec::new(); self.n],
             trustees: (0..self.n)
                 .map(|_| TrusteeDurable {
                     committed: Vec::new(),
