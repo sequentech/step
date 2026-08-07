@@ -490,3 +490,31 @@ fn an_inconsistent_bundle_is_still_refused() {
         Some("f0000000-0000-5000-8000-000000000000".into());
     assert!(validate(&bundle).has_errors());
 }
+
+/// A policy the Admin Portal does not know imports without complaint and then
+/// behaves as whatever the voting portal falls back to. Both hand-written
+/// mappings that fed this format emitted at least one such value.
+#[test]
+fn a_contest_with_a_policy_the_platform_does_not_have_is_refused() {
+    let mut bundle = sound();
+    bundle.contests[0].presentation = Some(serde_json::json!({
+        // `EUnderVotePolicy` has no `not-allowed` — an under-vote cannot be
+        // refused, only warned about.
+        "under_vote_policy": "not-allowed"
+    }));
+
+    let report = validate(&bundle);
+    assert!(report.has_errors());
+    assert!(report
+        .problems
+        .iter()
+        .any(|problem| problem.message.contains("is not a under_vote_policy")));
+}
+
+#[test]
+fn a_contest_with_no_presentation_policies_is_fine() {
+    // The platform has its own default for each; a bundle need not state one.
+    let mut bundle = sound();
+    bundle.contests[0].presentation = Some(serde_json::json!({}));
+    assert!(!validate(&bundle).has_errors());
+}

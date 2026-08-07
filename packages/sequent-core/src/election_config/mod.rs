@@ -40,6 +40,10 @@ pub mod architect;
 
 pub mod branding;
 
+/// How a ballot behaves, in the platform's own words. Ungated: the bundle
+/// validator needs the value space and carries no feature.
+pub mod policy;
+
 /// What a client's build of the wizard may say. Shares the architect's feature,
 /// since applying a profile means having a plan to apply it to.
 #[cfg(feature = "election_config_templates")]
@@ -105,6 +109,7 @@ pub use build::{
 pub use emit::{json_csv, plain_csv, JsonField};
 pub use ids::IdFactory;
 pub use paths::{coerce_cell, deep_merge, expand, Cell};
+pub use policy::{Policies as ContestPolicies, PolicyPatch, PolicyValue};
 pub use presets::{AuthPreset, RealmPatch};
 pub use problem::{Code, Problem, Report as ValidationReport, Severity};
 #[cfg(feature = "election_config_templates")]

@@ -28,6 +28,7 @@ fn plan() -> Blueprint {
         ],
         trustee_threshold: 2,
         elections: vec![PlannedElection {
+            shared: None,
             external_id: "officers".to_string(),
             name: Translated::new("Officers"),
             contests: vec![

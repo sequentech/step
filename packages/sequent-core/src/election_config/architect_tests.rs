@@ -5,6 +5,9 @@
 //! Tests for [`super`].
 
 use super::*;
+use crate::election_config::policy::{
+    Behaviour, CandidatesOrder, OverVote, Overrides, PolicyPatch, TallyPatch,
+};
 use crate::election_config::{
     build, validate, BuildOptions, Bundle, ImportElectionEventSchema,
     TemplateSet,
@@ -61,6 +64,7 @@ fn sound() -> Blueprint {
             }],
         },
         elections: vec![PlannedElection {
+            shared: None,
             external_id: "officers".to_string(),
             name: Translated::new("Officers"),
             contests: vec![PlannedContest {
@@ -84,9 +88,10 @@ fn sound() -> Blueprint {
                     },
                 ],
                 areas: vec![],
+                overrides: Overrides::default(),
             }],
         }],
-        policies: Policies::default(),
+        defaults: Behaviour::default(),
         notes: String::new(),
     }
 }
@@ -361,18 +366,138 @@ fn every_contest_lands_on_the_one_area() {
     assert_eq!(bundle.export["area_contests"].as_array().unwrap().len(), 1);
 }
 
+/// The event's defaults reach every contest, in the platform's own words —
+/// no mapping step, so nothing to be lossy about.
 #[test]
-fn the_policies_become_the_platforms_own_values() {
+fn the_event_defaults_reach_every_contest() {
     let mut plan = sound();
-    plan.policies = Policies {
-        over_vote: Policy::Restricted,
-        blank_vote: Policy::Allowed,
-        under_vote: Policy::Warn,
-        invalid_vote: Policy::Restricted,
-    };
+    plan.defaults.policies.over_vote = OverVote::Allowed;
+    plan.defaults.policies.candidates_order = CandidatesOrder::Random;
+
     let presentation =
         compiled(&plan).export["contests"][0]["presentation"].clone();
 
+    assert_eq!(
+        presentation["over_vote_policy"],
+        serde_json::json!("allowed")
+    );
+    assert_eq!(
+        presentation["candidates_order"],
+        serde_json::json!("random")
+    );
+}
+
+/// The gap that made this worth doing: until contests carried a tally, every
+/// one of them took the template's plurality-at-large, so the wizard could not
+/// produce a ranked election at all.
+#[test]
+fn a_contest_can_be_preferential() {
+    let mut plan = sound();
+    plan.elections[0].contests[0].overrides.tally = TallyPatch {
+        voting_type: Some("preferential".to_string()),
+        counting_algorithm: Some("instant-runoff".to_string()),
+        ..Default::default()
+    };
+
+    let contest = compiled(&plan).export["contests"][0].clone();
+
+    assert_eq!(contest["voting_type"], serde_json::json!("preferential"));
+    assert_eq!(
+        contest["counting_algorithm"],
+        serde_json::json!("instant-runoff")
+    );
+}
+
+#[test]
+fn a_contest_overrides_the_event_default() {
+    let mut plan = sound();
+    plan.defaults.policies.over_vote = OverVote::Allowed;
+    plan.elections[0].contests[0].overrides.policies = PolicyPatch {
+        over_vote: Some(OverVote::NotAllowedWithMsgAndDisable),
+        ..Default::default()
+    };
+
+    let presentation =
+        compiled(&plan).export["contests"][0]["presentation"].clone();
+    assert_eq!(
+        presentation["over_vote_policy"],
+        serde_json::json!("not-allowed-with-msg-and-disable")
+    );
+}
+
+/// An election that has claimed the decision does not consult its contests.
+/// The alternative — copying the shared value onto each contest — is how
+/// "shared" goes stale the first time somebody edits one of them.
+#[test]
+fn an_election_that_shares_one_set_ignores_its_contests() {
+    let mut plan = sound();
+    plan.elections[0].shared = Some(Overrides {
+        policies: PolicyPatch {
+            over_vote: Some(OverVote::Allowed),
+            ..Default::default()
+        },
+        ..Default::default()
+    });
+    plan.elections[0].contests[0].overrides.policies = PolicyPatch {
+        over_vote: Some(OverVote::NotAllowedWithMsgAndDisable),
+        ..Default::default()
+    };
+
+    let presentation =
+        compiled(&plan).export["contests"][0]["presentation"].clone();
+    assert_eq!(
+        presentation["over_vote_policy"],
+        serde_json::json!("allowed"),
+        "the election claimed it, so the contest is not consulted"
+    );
+}
+
+/// Was hard-coded to zero with a comment saying the wizard does not ask, so
+/// "rank at least three" was unexpressible.
+#[test]
+fn a_contest_can_require_a_minimum_number_of_choices() {
+    let mut plan = sound();
+    plan.elections[0].contests[0].overrides.tally.min_votes = Some(3);
+
+    assert_eq!(
+        compiled(&plan).export["contests"][0]["min_votes"],
+        serde_json::json!(3)
+    );
+}
+
+/// A plan saved under version 1 has already been reviewed by somebody. It has
+/// to compile to the bytes it always did — including where version 1's mapping
+/// was wrong, because fixing it here would change an approved election.
+#[test]
+fn a_version_one_plan_compiles_to_the_bytes_it_used_to() {
+    let document = r#"{
+        "version": 1,
+        "external_id": "old",
+        "name": {"en": "Old"},
+        "elections": [{
+            "external_id": "e",
+            "name": {"en": "E"},
+            "contests": [{
+                "external_id": "c",
+                "name": {"en": "C"},
+                "max_votes": 1,
+                "winners": 1,
+                "candidates": [{"external_id": "a", "name": {"en": "A"}}]
+            }]
+        }],
+        "policies": {
+            "over_vote": "restricted",
+            "blank_vote": "allowed",
+            "under_vote": "restricted",
+            "invalid_vote": "restricted"
+        }
+    }"#;
+
+    let plan = read_plan(document).expect("an older plan still opens");
+    assert_eq!(plan.version, BLUEPRINT_VERSION);
+
+    let presentation =
+        compiled(&plan).export["contests"][0]["presentation"].clone();
     assert_eq!(
         presentation["over_vote_policy"],
         serde_json::json!("not-allowed-with-msg-and-disable")
@@ -381,7 +506,11 @@ fn the_policies_become_the_platforms_own_values() {
         presentation["blank_vote_policy"],
         serde_json::json!("allowed")
     );
-    assert_eq!(presentation["under_vote_policy"], serde_json::json!("warn"));
+    assert_eq!(
+        presentation["under_vote_policy"],
+        serde_json::json!("warn-only-in-review"),
+        "version 1 mapped 'restricted' here to a warning; reproduced, not fixed"
+    );
     assert_eq!(
         presentation["invalid_vote_policy"],
         serde_json::json!("not-allowed")
@@ -771,6 +900,7 @@ fn districted() -> Blueprint {
     ];
     // The president is everywhere; the local officer is one local's business.
     plan.elections[0].contests.push(PlannedContest {
+        overrides: Overrides::default(),
         external_id: "local-officer".to_string(),
         name: Translated::new("Local Officer"),
         description: String::new(),
