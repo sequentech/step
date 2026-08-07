@@ -1001,11 +1001,9 @@ pub async fn set_tally_session_completed(
 /// Returns `None` if the session has no `tally_session_execution` row at all.
 /// `insert_tally_session` and the first `insert_tally_session_execution`
 /// always land in the same transaction (see `create_tally_ceremony` below),
-/// so a live session can't reach `SUCCESS`/completed without one — the only
-/// way to hit this is a tally session imported from a bundle whose
-/// `execution_status`/`is_execution_completed` (read off one CSV) disagree
-/// with its execution history (read off another). In that case the tally
-/// never actually ran, so there is nothing to recount.
+/// so a session created here can't reach `SUCCESS`/completed without one;
+/// a session whose status disagrees with its execution history never
+/// actually ran, and so has nothing to recount.
 ///
 /// On `Some`, also returns the pre-recount execution row and parsed status
 /// so the caller can restore them via
