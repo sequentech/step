@@ -31,6 +31,7 @@ result
 /pkg/
 
 pkg
+pkg-election-config
 .direnv
 
 # Devenv
