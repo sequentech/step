@@ -39,6 +39,7 @@ fn sound() -> Blueprint {
             },
         ],
         trustee_threshold: 2,
+        areas: vec![],
         schedule: Schedule {
             key_ceremony: Some("2027-02-01T10:00".to_string()),
             voting_opens: Some("2027-03-01T09:00".to_string()),
@@ -72,6 +73,7 @@ fn sound() -> Blueprint {
                         explicit_invalid: false,
                     },
                 ],
+                areas: vec![],
             }],
         }],
         policies: Policies::default(),
@@ -592,4 +594,225 @@ fn a_plan_with_nobody_in_it_writes_no_empty_lists() {
     assert!(!names.contains(&"trustees_list.json".to_string()));
     // The plan and the ceremony dates are always worth writing.
     assert!(names.contains(&"blueprint.json".to_string()));
+}
+
+// -- districting -----------------------------------------------------------
+
+/// The sound plan, districted: two locals inside a region, and a contest that
+/// only one of them votes on.
+fn districted() -> Blueprint {
+    let mut plan = sound();
+    plan.areas = vec![
+        PlannedArea {
+            external_id: "region-north".to_string(),
+            name: "North Region".to_string(),
+            parent_external_id: None,
+        },
+        PlannedArea {
+            external_id: "local-1".to_string(),
+            name: "North Local 1".to_string(),
+            parent_external_id: Some("region-north".to_string()),
+        },
+        PlannedArea {
+            external_id: "local-2".to_string(),
+            name: "North Local 2".to_string(),
+            parent_external_id: Some("region-north".to_string()),
+        },
+    ];
+    // The president is everywhere; the local officer is one local's business.
+    plan.elections[0].contests.push(PlannedContest {
+        external_id: "local-officer".to_string(),
+        name: Translated::new("Local Officer"),
+        description: String::new(),
+        max_votes: 1,
+        winners: 1,
+        candidates: vec![PlannedCandidate {
+            external_id: "carol".to_string(),
+            name: Translated::new("Carol"),
+            explicit_blank: false,
+            explicit_invalid: false,
+        }],
+        areas: vec!["local-1".to_string()],
+    });
+    plan
+}
+
+#[test]
+fn a_plan_with_no_areas_still_puts_every_contest_on_one_ballot() {
+    // Districting is optional. Without an area and a link, no voter sees anything.
+    let bundle = compiled(&sound());
+    assert_eq!(bundle.export["areas"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        bundle.export["areas"][0]["name"],
+        serde_json::json!(DEFAULT_AREA_NAME)
+    );
+    assert_eq!(bundle.export["area_contests"].as_array().unwrap().len(), 1);
+}
+
+#[test]
+fn a_districted_plan_becomes_a_bundle_the_platform_accepts() {
+    let bundle = compiled(&districted());
+    let schema: ImportElectionEventSchema =
+        serde_json::from_value(bundle.export.clone()).unwrap();
+    let report = validate(&schema);
+    assert!(!report.has_errors(), "{report}");
+}
+
+#[test]
+fn the_areas_arrive_with_their_tree_intact() {
+    let bundle = compiled(&districted());
+    let areas = bundle.export["areas"].as_array().unwrap();
+    assert_eq!(areas.len(), 3);
+
+    let region = areas
+        .iter()
+        .find(|area| area["name"] == serde_json::json!("North Region"))
+        .unwrap();
+    let local = areas
+        .iter()
+        .find(|area| area["name"] == serde_json::json!("North Local 1"))
+        .unwrap();
+
+    assert_eq!(region["parent_id"], serde_json::Value::Null);
+    assert_eq!(local["parent_id"], region["id"]);
+}
+
+#[test]
+fn a_contest_assigned_to_no_area_is_on_every_ballot() {
+    // What a plan that has not thought about it wants, and what dropping the
+    // contest instead would silently cost.
+    let bundle = compiled(&districted());
+    let president = &bundle.export["contests"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|contest| {
+            contest["external_id"] == serde_json::json!("president")
+        })
+        .unwrap()["id"];
+
+    let on: Vec<&serde_json::Value> = bundle.export["area_contests"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|link| &link["contest_id"] == president)
+        .collect();
+    assert_eq!(on.len(), 3, "the president should be on all three ballots");
+}
+
+#[test]
+fn a_local_contest_is_only_on_the_ballots_it_names() {
+    let bundle = compiled(&districted());
+    let local_officer = &bundle.export["contests"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|contest| {
+            contest["external_id"] == serde_json::json!("local-officer")
+        })
+        .unwrap()["id"];
+
+    let links: Vec<&serde_json::Value> = bundle.export["area_contests"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|link| &link["contest_id"] == local_officer)
+        .collect();
+    assert_eq!(links.len(), 1);
+
+    let local_1 = bundle.export["areas"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|area| area["name"] == serde_json::json!("North Local 1"))
+        .unwrap();
+    assert_eq!(links[0]["area_id"], local_1["id"]);
+}
+
+#[test]
+fn assigning_a_contest_to_the_same_area_twice_produces_one_link() {
+    // Both rows would mint the same id and one would overwrite the other.
+    let mut plan = districted();
+    plan.elections[0].contests[1].areas =
+        vec!["local-1".to_string(), "local-1".to_string()];
+    let bundle = compiled(&plan);
+    let local_officer = &bundle.export["contests"][1]["id"];
+    assert_eq!(
+        bundle.export["area_contests"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|link| &link["contest_id"] == local_officer)
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn a_contest_naming_an_area_nobody_defined_is_refused() {
+    let mut plan = districted();
+    plan.elections[0].contests[1].areas = vec!["nowhere".to_string()];
+    let report = validate_plan(&plan);
+    assert!(says(&report, "no area has the identifier 'nowhere'"));
+    assert!(report.has_errors());
+}
+
+#[test]
+fn two_areas_may_not_share_a_name() {
+    // The voters CSV resolves by name, so voters would land in whichever the
+    // importer found first.
+    let mut plan = districted();
+    plan.areas[1].name = "North Region".to_string();
+    let report = validate_plan(&plan);
+    assert!(says(&report, "both named 'North Region'"));
+}
+
+#[test]
+fn an_area_needs_a_name_because_that_is_what_a_voter_is_matched_on() {
+    let mut plan = districted();
+    plan.areas[0].name = "  ".to_string();
+    let report = validate_plan(&plan);
+    assert!(says(&report, "identifies a voter's area by name"));
+}
+
+#[test]
+fn an_area_cannot_be_inside_itself() {
+    let mut plan = districted();
+    plan.areas[0].parent_external_id = Some("region-north".to_string());
+    let report = validate_plan(&plan);
+    assert!(says(&report, "cannot be inside itself"));
+    assert!(codes(&report).contains(&"AreaCycle".to_string()));
+}
+
+#[test]
+fn a_parent_that_does_not_exist_is_refused() {
+    let mut plan = districted();
+    plan.areas[1].parent_external_id = Some("region-south".to_string());
+    let report = validate_plan(&plan);
+    assert!(says(&report, "no area has the identifier 'region-south'"));
+}
+
+#[test]
+fn a_districted_plan_survives_being_saved_and_opened() {
+    let plan = districted();
+    let opened: Blueprint =
+        serde_json::from_str(&serde_json::to_string(&plan).unwrap()).unwrap();
+    assert_eq!(plan, opened);
+}
+
+#[test]
+fn a_plan_saved_before_districting_existed_still_opens() {
+    // Everything about areas is optional, so an older plan reads as one ballot
+    // for everybody — which is what it was.
+    let older = serde_json::json!({
+        "version": 1,
+        "external_id": "union-2027",
+        "elections": [{
+            "external_id": "officers",
+            "contests": [{"external_id": "president"}],
+        }],
+    });
+    let plan: Blueprint = serde_json::from_value(older).unwrap();
+    assert!(plan.areas.is_empty());
+    assert!(plan.elections[0].contests[0].areas.is_empty());
 }
