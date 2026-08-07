@@ -59,14 +59,23 @@ async fn get_area_ids(
     if election_event_uuid.is_none() {
         return Ok((None, "".to_string(), "".to_string()));
     }
+    let is_explicit_election_filter = election_id.is_some();
     let election_uuid: Option<Uuid> = election_id
         .map(|val| parse_uuid_v4(&val))
         .transpose()
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
 
+    let is_explicit_area_filter = area_id.is_some();
     let area_ids: Vec<String> = match area_id {
         Some(area_id_value) => vec![area_id_value],
         None => {
+            // LEFT JOINed (not INNER) so areas with no contest at all still come back
+            // when no specific election is requested ($3 IS NULL) — otherwise voters
+            // in such an area silently vanish from the list instead of showing up so
+            // an admin can reassign them. When $3 IS a specific election, the WHERE
+            // still requires a matching contest, so callers like get_total_voters
+            // (participation report denominator) keep excluding areas that can't
+            // vote in that election — this must stay that way, or reports miscount.
             let areas_statement = hasura_transaction
                 .prepare(
                     r#"
@@ -74,17 +83,13 @@ async fn get_area_ids(
                     a.id::VARCHAR
                 FROM
                     sequent_backend.area a
-                JOIN
-                    sequent_backend.area_contest ac ON a.id = ac.area_id
-                JOIN
-                    sequent_backend.contest c ON ac.contest_id = c.id
+                LEFT JOIN
+                    sequent_backend.area_contest ac ON a.id = ac.area_id AND ac.tenant_id = $1 AND ac.election_event_id = $2
+                LEFT JOIN
+                    sequent_backend.contest c ON ac.contest_id = c.id AND c.tenant_id = $1 AND c.election_event_id = $2
                 WHERE
                     a.tenant_id = $1 AND
-                    ac.tenant_id = $1 AND
-                    c.tenant_id = $1 AND
                     a.election_event_id = $2 AND
-                    ac.election_event_id = $2 AND
-                    c.election_event_id = $2 AND
                     ($3::uuid IS NULL OR c.election_id = $3::uuid);
             "#,
                 )
@@ -110,21 +115,39 @@ async fn get_area_ids(
     };
 
     debug!("area_ids: {area_ids:?}");
-    let area_ids_join_clause = String::from(
+    // LEFT JOIN so voters with no area-id attribute still produce a row
+    // (area_attr.user_id IS NULL) instead of being dropped by the join.
+    let area_ids_join_clause = format!(
         r#"
-    INNER JOIN 
-        user_attribute AS area_attr ON u.id = area_attr.user_id
+    LEFT JOIN
+        user_attribute AS area_attr ON u.id = area_attr.user_id AND area_attr.name = '{AREA_ID_ATTR_NAME}'
     "#,
     );
-    let area_ids_where_clause = format!(
-        r#"
+    let area_ids_where_clause = if is_explicit_area_filter || is_explicit_election_filter {
+        // A specific area, or a specific election within the event, was
+        // requested — keep strict matching. Relaxing this for the
+        // election-scoped case would let voters with no area attribute
+        // count toward that election's totals (e.g. get_total_voters,
+        // the participation report denominator) even though they have no
+        // contest to vote in for it.
+        format!(
+            r#"
+    AND area_attr.value = ANY(${})
+    "#,
+            param_number,
+        )
+    } else {
+        // Fully unscoped request (no area, no election): also surface voters
+        // with no area assigned so they show up to be reviewed/reassigned.
+        format!(
+            r#"
     AND (
-        area_attr.name = '{AREA_ID_ATTR_NAME}' AND
-        area_attr.value = ANY(${})
+        area_attr.value = ANY(${}) OR area_attr.user_id IS NULL
     )
     "#,
-        param_number,
-    );
+            param_number,
+        )
+    };
 
     Ok((Some(area_ids), area_ids_join_clause, area_ids_where_clause))
 }
@@ -598,9 +621,8 @@ pub async fn count_keycloak_users(
         format!("AND ({})", dynamic_attr_conditions.join(" OR "))
     };
 
-    let scope_clause = voter_scope_clause(&filters_clause);
-
     // Build the count query using only the necessary filtering clauses.
+    let scope_clause = voter_scope_clause(&filters_clause);
     let count_query = format!(
         r#"
         SELECT COUNT(*) AS total_count
