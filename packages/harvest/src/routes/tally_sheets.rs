@@ -658,10 +658,10 @@ async fn enqueue_automatic_recount_tally_session(
     else {
         // The session is marked SUCCESS/completed but has no execution
         // history, so it was never actually tallied: nothing to recount.
-        // Note this session is also permanently inert for a *first* tally —
-        // process_board_impl only enqueues sessions that are still
-        // IN_PROGRESS with is_execution_completed = false — so log at WARN
-        // to make an import bundle that produced a batch of these visible.
+        // Such a session is also inert for a *first* tally, since
+        // process_board_impl only enqueues sessions still IN_PROGRESS with
+        // is_execution_completed = false. Logged at WARN so the mismatch
+        // stays visible rather than being silently skipped.
         event!(
             Level::WARN,
             "Tally session {} is marked completed but has no execution history \
