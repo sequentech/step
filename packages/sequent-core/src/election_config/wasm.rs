@@ -43,7 +43,7 @@ use crate::election_config::render::TemplateSet;
 use crate::election_config::xlsx::read_xlsx;
 #[cfg(feature = "election_config_archive")]
 use crate::election_config::{
-    architect, archive, build, presets, BuildOptions,
+    architect, archive, build, presets, profile, BuildOptions,
 };
 
 #[wasm_bindgen(typescript_custom_section)]
@@ -285,6 +285,7 @@ pub fn validate_plan_js(plan: JsValue) -> Result<IReport, JsError> {
 pub fn compile_plan_js(
     plan: JsValue,
     options: JsValue,
+    profile: JsValue,
 ) -> Result<IBuildOutput, JsError> {
     let plan: architect::Blueprint = serde_wasm_bindgen::from_value(plan)
         .map_err(|error| {
@@ -293,12 +294,24 @@ pub fn compile_plan_js(
 
     let options = build_options(options)?;
 
+    let read = match read_profile(profile) {
+        Ok(read) => read,
+        Err(report) => {
+            return to_js(&Output::refused(report)).map(IBuildOutput::from)
+        }
+    };
+
     let templates = match TemplateSet::builtin() {
         Ok(templates) => templates,
         Err(problem) => return failed(problem).map(IBuildOutput::from),
     };
 
-    let compiled = match architect::compile_plan(&plan, &templates, &options) {
+    let compiled = match architect::compile_plan(
+        &plan,
+        &templates,
+        &options,
+        read.as_ref(),
+    ) {
         Ok(compiled) => compiled,
         Err(report) => {
             return to_js(&Output::refused(report)).map(IBuildOutput::from)
@@ -321,6 +334,73 @@ pub fn compile_plan_js(
         event_external_id: Some(compiled.bundle.event_external_id.clone()),
     })
     .map(IBuildOutput::from)
+}
+
+/// Read a client profile, or none.
+///
+/// A malformed profile comes back as a report rather than an exception, for the
+/// same reason a malformed plan does: it is a document somebody wrote, and its
+/// problems are a list a page can render.
+#[cfg(feature = "election_config_archive")]
+fn read_profile(profile: JsValue) -> Result<Option<profile::Profile>, Report> {
+    if profile.is_undefined() || profile.is_null() {
+        return Ok(None);
+    }
+
+    let document: profile::ClientProfile =
+        serde_wasm_bindgen::from_value(profile).map_err(|error| {
+            let mut report = Report::default();
+            report.push(Problem::error(
+                Code::InvalidValue,
+                "profile",
+                format!("this is not a client profile: {error}"),
+            ));
+            report
+        })?;
+
+    profile::Profile::read(&document).map(Some)
+}
+
+/// What a profile hides, so the wizard knows what not to draw.
+///
+/// Rust decides which *paths*, because that is a statement about the plan.
+/// Which screens that empties is a question about screens, and belongs to
+/// whoever draws them.
+#[cfg(feature = "election_config_archive")]
+#[wasm_bindgen(js_name = readProfile)]
+pub fn read_profile_js(profile: JsValue) -> Result<JsValue, JsError> {
+    #[derive(Serialize)]
+    struct Read {
+        id: String,
+        display_name: Option<String>,
+        hidden: Vec<String>,
+        locked: Vec<String>,
+        warnings: Report,
+    }
+
+    let document: profile::ClientProfile =
+        serde_wasm_bindgen::from_value(profile).map_err(|error| {
+            JsError::new(&format!("this is not a client profile: {error}"))
+        })?;
+
+    match profile::Profile::read(&document) {
+        Ok(read) => to_js(&Read {
+            id: read.id.clone(),
+            display_name: read.display_name.clone(),
+            hidden: read
+                .hidden_paths()
+                .into_iter()
+                .map(str::to_string)
+                .collect(),
+            locked: read
+                .locked_paths()
+                .into_iter()
+                .map(str::to_string)
+                .collect(),
+            warnings: read.warnings.clone(),
+        }),
+        Err(report) => to_js(&report),
+    }
 }
 
 /// The options both entry points take, read once.

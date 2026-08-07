@@ -39,6 +39,12 @@ pub mod archive;
 pub mod architect;
 
 pub mod branding;
+
+/// What a client's build of the wizard may say. Shares the architect's feature,
+/// since applying a profile means having a plan to apply it to.
+#[cfg(feature = "election_config_templates")]
+pub mod profile;
+
 pub mod emit;
 pub mod ids;
 pub mod paths;
@@ -101,6 +107,8 @@ pub use ids::IdFactory;
 pub use paths::{coerce_cell, deep_merge, expand, Cell};
 pub use presets::{AuthPreset, RealmPatch};
 pub use problem::{Code, Problem, Report as ValidationReport, Severity};
+#[cfg(feature = "election_config_templates")]
+pub use profile::{apply_profile, ClientProfile, Profile};
 #[cfg(feature = "election_config_templates")]
 pub use render::TemplateSet;
 pub use report::{EReportEncryption, Report, ReportCronConfig, ReportType};

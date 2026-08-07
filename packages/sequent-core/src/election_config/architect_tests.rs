@@ -123,8 +123,9 @@ fn says(report: &Report, needle: &str) -> bool {
 #[test]
 fn a_plan_compiles_to_an_archive_the_importer_dispatches_on() {
     let templates = TemplateSet::builtin().unwrap();
-    let compiled = compile_plan(&sound(), &templates, &BuildOptions::default())
-        .expect("a sound plan compiles");
+    let compiled =
+        compile_plan(&sound(), &templates, &BuildOptions::default(), None)
+            .expect("a sound plan compiles");
 
     let importable: Vec<&str> = compiled
         .layout
@@ -144,8 +145,9 @@ fn a_plan_compiles_to_an_archive_the_importer_dispatches_on() {
 #[test]
 fn the_plans_own_files_travel_beside_the_archive_not_inside_it() {
     let templates = TemplateSet::builtin().unwrap();
-    let compiled = compile_plan(&sound(), &templates, &BuildOptions::default())
-        .expect("a sound plan compiles");
+    let compiled =
+        compile_plan(&sound(), &templates, &BuildOptions::default(), None)
+            .expect("a sound plan compiles");
 
     let auxiliary: Vec<&str> = compiled
         .layout
@@ -183,8 +185,9 @@ fn a_plan_with_errors_produces_no_files_and_says_why() {
     plan.trustee_threshold = 9; // more than there are trustees
 
     let templates = TemplateSet::builtin().unwrap();
-    let report = compile_plan(&plan, &templates, &BuildOptions::default())
-        .expect_err("a plan nobody could decrypt must not compile");
+    let report =
+        compile_plan(&plan, &templates, &BuildOptions::default(), None)
+            .expect_err("a plan nobody could decrypt must not compile");
 
     assert!(report.has_errors());
     assert!(says(&report, "could never be decrypted"));

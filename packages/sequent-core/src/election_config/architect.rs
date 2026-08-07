@@ -46,6 +46,7 @@ use crate::election_config::archive::{Artifact, Layout};
 use crate::election_config::build::{build, BuildOptions, Bundle};
 use crate::election_config::paths::Cell;
 use crate::election_config::problem::{Code, Problem, Report, Severity};
+use crate::election_config::profile::{apply_profile, check_required, Profile};
 use crate::election_config::render::TemplateSet;
 use crate::election_config::schema::ImportElectionEventSchema;
 use crate::election_config::sheet::{Sheet, Workbook};
@@ -71,7 +72,7 @@ pub const BLUEPRINT_VERSION: u32 = 1;
 /// has no field for (the trustee threshold, the ceremony dates, the points of
 /// contact) and breaks whenever the bundle's shape changes. Saving the plan is both
 /// simpler and lossless.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Blueprint {
     /// [`BLUEPRINT_VERSION`] at the time it was saved.
     pub version: u32,
@@ -161,7 +162,7 @@ impl Translated {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Contact {
     pub name: String,
     #[serde(default)]
@@ -170,7 +171,7 @@ pub struct Contact {
     pub email: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Trustee {
     pub name: String,
     #[serde(default)]
@@ -207,7 +208,7 @@ pub struct Schedule {
     pub milestones: Vec<Milestone>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Milestone {
     pub event: String,
     pub date: String,
@@ -219,7 +220,7 @@ pub struct Milestone {
 /// the voters CSV identifies a voter's area *by name*, so it is an identifier the
 /// importer matches on. Two areas sharing a name would silently put voters in
 /// whichever one the importer found first.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct PlannedArea {
     pub external_id: String,
 
@@ -238,7 +239,7 @@ pub struct PlannedArea {
     pub parent_external_id: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct PlannedElection {
     pub external_id: String,
     #[serde(default)]
@@ -247,7 +248,7 @@ pub struct PlannedElection {
     pub contests: Vec<PlannedContest>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct PlannedContest {
     pub external_id: String,
     #[serde(default)]
@@ -282,7 +283,7 @@ fn one() -> i64 {
     1
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct PlannedCandidate {
     pub external_id: String,
     #[serde(default)]
@@ -1207,8 +1208,27 @@ pub fn compile_plan(
     plan: &Blueprint,
     templates: &TemplateSet,
     options: &BuildOptions,
+    profile: Option<&Profile>,
 ) -> Result<Compiled, Report> {
+    // The profile first, so a locked value is the one that gets validated and
+    // the one that gets built. Checking the plan as written and then forcing the
+    // value afterwards would report problems about text nobody will ship.
+    let applied;
+    let plan = match profile {
+        Some(profile) => {
+            applied = apply_profile(plan, profile)?;
+            &applied
+        }
+        None => plan,
+    };
+
     let mut report = validate_plan(plan);
+    if let Some(profile) = profile {
+        for problem in profile.warnings.problems.clone() {
+            report.push(problem);
+        }
+        check_required(plan, profile, &mut report);
+    }
     if report.has_errors() {
         return Err(report);
     }
