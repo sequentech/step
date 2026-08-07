@@ -21,6 +21,7 @@
 //! leaves the browser. That is not a side effect of the design; it is the reason
 //! for it.
 
+use crate::election_config::fixtures;
 use crate::election_config::problem::{Code, Problem, Report};
 use crate::election_config::schema::ImportElectionEventSchema;
 use crate::election_config::validate;
@@ -50,6 +51,21 @@ export interface Problem {
 
 export interface Report {
     problems: Problem[];
+}
+
+/** The verdict every caller of the validator must reach on a fixture. */
+export interface Expect {
+    errors: string[];
+    warnings: string[];
+}
+
+/** A bundle with a known verdict, for a front end's own test suite. */
+export interface FixtureCase {
+    name: string;
+    /** Why the case exists. Read this before changing what it expects. */
+    why: string;
+    bundle: unknown;
+    expect: Expect;
 }
 
 /** One file to offer as a download. */
@@ -98,6 +114,18 @@ pub fn check_bundle(document: &str) -> Result<IReport, JsError> {
         })?;
 
     to_js(&validate(&bundle)).map(IReport::from)
+}
+
+/// The bundles a front end's own tests should agree with.
+///
+/// The same list the Rust tests run, handed over as data rather than reimplemented
+/// in TypeScript. A front end asserting `checkBundle(case.bundle)` matches
+/// `case.expect` is checking that the browser and the server reach the same verdict
+/// — which is the only thing that makes one validator worth having. A suite written
+/// separately would prove only that each side agrees with itself.
+#[wasm_bindgen(js_name = fixtureCases)]
+pub fn fixture_cases() -> Result<JsValue, JsError> {
+    to_js(&fixtures::cases())
 }
 
 /// The authentication presets a front end can offer.
