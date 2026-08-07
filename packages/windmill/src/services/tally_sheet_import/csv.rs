@@ -42,11 +42,11 @@ impl FromStr for CanonicalField {
     type Err = ();
 
     /// The canonical set is closed: every `field` value must be one of the
-    /// above. Accepting unrecognised names as free-form extra data (an
-    /// earlier design) meant a mistyped canonical field like `total_vots`
-    /// parsed happily, silently dropping the scalar it was meant to set —
-    /// the ballot box then failed later with a confusing "missing required
-    /// field", or worse, passed carrying a stale value.
+    /// above. Unrecognised names are rejected rather than carried through as
+    /// free-form extra data, so that a mistyped canonical field name is
+    /// reported instead of silently dropping the scalar it was meant to set
+    /// — which would surface later as a confusing "missing required field",
+    /// or leave the ballot box carrying a stale value.
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value {
             "candidate_votes" => Ok(Self::CandidateVotes),
@@ -466,9 +466,9 @@ mod tests {
 
     #[test]
     fn reports_a_typod_field_name_rather_than_ignoring_the_row() {
-        // `total_vots` used to parse as free-form extra data, so the row it
-        // was meant to set was silently dropped and the ballot box failed
-        // later with a confusing "missing required field" instead.
+        // `total_vots` is a near-miss of `total_votes`. Reporting it keeps
+        // the row from being silently dropped, which would otherwise
+        // surface later as a confusing "missing required field".
         let csv = b"channel,area_name,contest_external_id,field,candidate_external_id,value\
 \nPAPER,Area A,contest-1,total_vots,,17\n";
 
@@ -486,12 +486,12 @@ mod tests {
     }
 
     #[test]
-    fn rejects_ess_raw_slot_count_fields() {
-        // The ES&S converter no longer emits these, and the canonical field
-        // set is closed, so a file still carrying them is reported rather
-        // than silently accepted.
+    fn rejects_a_field_name_outside_the_canonical_set() {
+        // Unlike the typo case above, this name isn't a near-miss of any
+        // canonical field: the set is closed, so it is reported rather than
+        // carried through as extra data.
         let csv = b"channel,area_name,contest_external_id,field,candidate_external_id,value\
-\nPAPER,Area A,contest-1,over_votes,,4\n";
+\nPAPER,Area A,contest-1,extra_counts,,4\n";
 
         let (_imports, errors) = parse_canonical_csv(csv);
 

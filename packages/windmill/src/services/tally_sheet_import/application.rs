@@ -247,7 +247,7 @@ pub async fn create_tally_sheet_import(
     source_bytes: &[u8],
     created_by_user_id: &str,
     conversion_validation_errors: Vec<TallySheetImportValidationError>,
-    // Free-form record of how this import was produced (e.g. which ES&S
+    // Free-form record of how this import was produced (e.g. which source
     // element supplied the area names). Written verbatim to the import's
     // `annotations` — a derived record, never an input to the conversion.
     annotations: Option<Value>,

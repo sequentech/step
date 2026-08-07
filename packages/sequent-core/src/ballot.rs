@@ -1676,11 +1676,10 @@ impl Contest {
     }
 
     /// Maximum number of candidate marks one non-blank ballot can
-    /// legitimately contribute in this contest. The `Contest` flavour read
-    /// from Hasura has its own equivalent in
-    /// `windmill::services::tally_sheet_import::validation::contest_max_marks_per_ballot`;
-    /// both delegate to `effective_max_marks_per_ballot` so the two
-    /// representations can't disagree about the same contest.
+    /// legitimately contribute in this contest. Delegates to
+    /// `effective_max_marks_per_ballot`, which the Hasura `Contest`
+    /// representation also uses, so the two cannot disagree about the same
+    /// contest.
     pub fn max_marks_per_ballot(&self) -> u64 {
         let cumulative_number_of_checkboxes =
             self.presentation.as_ref().and_then(|presentation| {

@@ -20,13 +20,11 @@ pub fn validate_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resu
     };
 
     // The numeric invariants are shared with the import pipeline, which
-    // validates the very sheets this later tallies — so they must be one
-    // implementation. They were not: this used to require
-    // `total_valid_votes == sum(candidate_votes) + blank`, an equality that
-    // only holds for single-choice contests. A "vote for N" sheet that
-    // imported cleanly under the shared range rule then failed here, and
-    // because nothing resets the session on a failed execution, the tally
-    // session was left stuck IN_PROGRESS.
+    // validates the very sheets this later tallies, so both go through one
+    // implementation: a sheet accepted at import must not be rejected here.
+    // In particular the candidate-vote total is bounded by a range rather
+    // than an equality, since a "vote for N" contest legitimately carries
+    // more marks than ballots.
     let errors = validate_area_contest_results(&content, Some(contest.max_marks_per_ballot()));
     if let Some(error) = errors.first() {
         return Err(anyhow!("Invalid {tally_sheet_ref}: {}", error.message).into());
@@ -146,11 +144,9 @@ mod tests {
 
     #[test]
     fn accepts_a_vote_for_n_sheet_whose_marks_exceed_the_ballot_count() {
-        // The exact sheet that made execute_tally_session fail on repeat and
-        // strand its session at IN_PROGRESS: the "City Councillors"
-        // vote-for-4 contest, 10 valid ballots of which 2 were blank, so 8
-        // non-blank ballots carrying 32 marks (the upper bound, 8 x 4).
-        // The old equality rule read this as 10 != 32 + 2 and rejected it.
+        // A vote-for-4 contest: 10 valid ballots of which 2 are blank, so 8
+        // non-blank ballots carrying 32 marks — the upper bound of 8 x 4.
+        // An equality rule would read this as 10 != 32 + 2 and reject it.
         let result = validate_tally_sheet(&tally_sheet(10, 10, 2, &[8, 8, 8, 8]), &contest(4, 4));
 
         assert!(result.is_ok(), "vote-for-4 sheet rejected: {result:?}");
@@ -166,8 +162,8 @@ mod tests {
 
     #[test]
     fn still_requires_equality_for_a_single_choice_contest() {
-        // With max_votes 1 the range collapses to a single value, so the
-        // strict behaviour ordinary contests relied on is unchanged.
+        // With max_votes 1 the range collapses to a single value, so a
+        // single-choice contest is still validated strictly.
         let ok = validate_tally_sheet(&tally_sheet(10, 10, 2, &[8]), &contest(1, 1));
         assert!(ok.is_ok(), "single-choice sheet rejected: {ok:?}");
 

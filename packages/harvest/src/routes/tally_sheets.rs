@@ -846,19 +846,17 @@ fn canonical_csv_bytes(
 }
 
 /// A source file turned into canonical CSV. `area_grouping` records which
-/// ES&S element supplied the area names, for the import's annotations; it is
-/// `None` for canonical CSV sources, which carry their area names directly
-/// and so have nothing to detect.
+/// source element supplied the area names, for the import's annotations; it
+/// is `None` for canonical CSV sources, which carry their area names
+/// directly and so have nothing to detect.
 struct CanonicalCsvConversion {
     canonical_csv: Vec<u8>,
     validation_errors: Vec<TallySheetImportValidationError>,
     area_grouping: Option<&'static str>,
 }
 
-/// Every area name configured on the election event, for the ES&S converter
-/// to work out which of the file's own area concepts (`<Precinct name>` vs
-/// `<Party name>`) this event is actually organised by — see
-/// `convert_ess_enhanced_xml_to_csv_for_reporting_group`. Areas without a
+/// Every area name configured on the election event, for a source-format
+/// converter to match the file's own area names against. Areas without a
 /// name are skipped; they could never be matched by name anyway.
 async fn configured_area_names(
     hasura_transaction: &deadpool_postgres::Transaction<'_>,
@@ -872,11 +870,10 @@ async fn configured_area_names(
 }
 
 /// Fetches every contest in the election event and maps its external id to
-/// its `max_votes`, the "vote for N" bound the ES&S converter needs to turn
-/// selection-slot counts into ballot counts (see
-/// `resolve_contest_max_votes`). Contests missing an external id are
-/// skipped — the converter can't match ES&S rows to them anyway, and will
-/// report each one it can't resolve as `ess_contest_not_configured`.
+/// its `max_votes`, the "vote for N" bound a source-format converter needs
+/// to turn per-selection counts into ballot counts. Contests missing an
+/// external id are skipped — rows can't be matched to them by external id
+/// anyway, and the converter reports each one it can't resolve.
 async fn contest_vote_config_by_external_id(
     hasura_transaction: &deadpool_postgres::Transaction<'_>,
     tenant_id: &str,
