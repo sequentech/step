@@ -57,6 +57,10 @@ pub mod render;
 pub mod report;
 pub mod schema;
 pub mod sheet;
+
+/// A moment a plan names, and the instant the platform acts on. Ungated: the
+/// scheduler's requirements are not a template concern.
+pub mod time;
 pub mod validate;
 
 /// The browser's view of this module: thin wrappers over the same functions
@@ -102,4 +106,5 @@ pub use render::TemplateSet;
 pub use report::{EReportEncryption, Report, ReportCronConfig, ReportType};
 pub use schema::ImportElectionEventSchema;
 pub use sheet::{Origin, Row, Sheet, Workbook};
+pub use time::Timestamp;
 pub use validate::validate;

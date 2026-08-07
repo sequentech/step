@@ -40,9 +40,12 @@
 //! None of those are mistakes anybody made twice. They are what happens when a
 //! format is implemented a second time, which is why this implementation does not.
 
+use std::cmp::Ordering;
+
 use crate::election_config::paths::Cell;
-use crate::election_config::problem::{Code, Problem, Report};
+use crate::election_config::problem::{Code, Problem, Report, Severity};
 use crate::election_config::sheet::{Sheet, Workbook};
+use crate::election_config::time::{self, Timestamp};
 use serde::{Deserialize, Serialize};
 
 /// The plan format's version.
@@ -172,24 +175,28 @@ pub struct Trustee {
 
 /// The dates an election runs to.
 ///
-/// Timestamps as text rather than parsed, deliberately: this module has no clock
-/// and no timezone database, and the platform wants ISO 8601 anyway. Validation
-/// checks the shape and the ordering; it does not reinterpret them.
+/// Each moment carries the zone it was written in, because the platform acts on
+/// an instant and a wall clock is not one. See [`super::time`] — a plan that
+/// says `2027-03-01T09:00` produced a `scheduled_date` the scheduler could not
+/// parse, so voting never opened and nothing said why.
+///
+/// A plan written before zones existed still opens: a bare string reads as UTC,
+/// which is what it always meant, and validation says so rather than guessing.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Schedule {
     /// When the trustees generate the election key. Not an imported event: it is
     /// something people have to attend, so it travels in the ceremony file.
     #[serde(default)]
-    pub key_ceremony: Option<String>,
+    pub key_ceremony: Option<Timestamp>,
 
     #[serde(default)]
-    pub voting_opens: Option<String>,
+    pub voting_opens: Option<Timestamp>,
 
     #[serde(default)]
-    pub voting_closes: Option<String>,
+    pub voting_closes: Option<Timestamp>,
 
     #[serde(default)]
-    pub tally_ceremony: Option<String>,
+    pub tally_ceremony: Option<Timestamp>,
 
     /// Anything else with a date on it, for the schedule the client is handed.
     #[serde(default)]
@@ -470,6 +477,29 @@ fn check_trustees(plan: &Blueprint, report: &mut Report) {
 fn check_schedule(plan: &Blueprint, report: &mut Report) {
     let schedule = &plan.schedule;
 
+    // Each moment on its own first: an ordering complaint about a time that is
+    // not a time would send somebody looking at the wrong field.
+    let mut found = Vec::new();
+    for (at, moment) in [
+        ("schedule.key_ceremony", &schedule.key_ceremony),
+        ("schedule.voting_opens", &schedule.voting_opens),
+        ("schedule.voting_closes", &schedule.voting_closes),
+        ("schedule.tally_ceremony", &schedule.tally_ceremony),
+    ] {
+        if let Some(moment) = moment {
+            time::check(moment, at, &mut found);
+        }
+    }
+    let unreadable = found
+        .iter()
+        .any(|problem| problem.severity == Severity::Error);
+    for problem in found {
+        report.push(problem);
+    }
+    if unreadable {
+        return;
+    }
+
     match (&schedule.voting_opens, &schedule.voting_closes) {
         (None, _) | (_, None) => report.push(Problem::warning(
             Code::MissingSchedule,
@@ -478,13 +508,31 @@ fn check_schedule(plan: &Blueprint, report: &mut Report) {
              or closed by hand in the Admin Portal",
         )),
         (Some(opens), Some(closes)) => {
-            // Compared as text on purpose: ISO 8601 sorts correctly as a string,
-            // and parsing would mean a timezone database this module cannot have.
-            if !opens.is_empty() && !closes.is_empty() && closes <= opens {
+            // By instant, not by text. Two moments in different zones sort by
+            // their strings in whatever order the digits happen to fall.
+            if !opens.is_empty()
+                && !closes.is_empty()
+                && time::compare(closes, opens) != Ordering::Greater
+            {
                 report.push(Problem::error(
                     Code::InvalidValue,
                     "schedule.voting_closes",
                     "voting closes before it opens, so it would never be open",
+                ));
+            }
+
+            // Both endpoints in one zone but at different offsets means the
+            // window crosses a daylight-saving change — legitimate, and worth
+            // knowing about, because an hour moves under whoever planned it.
+            if opens.zone == closes.zone
+                && !opens.zone.trim().is_empty()
+                && opens.offset_minutes != closes.offset_minutes
+            {
+                report.push(Problem::warning(
+                    Code::InvalidValue,
+                    "schedule",
+                    "the voting window crosses a daylight-saving change, so it is \
+                     an hour longer or shorter than the clock times suggest",
                 ));
             }
         }
@@ -493,7 +541,10 @@ fn check_schedule(plan: &Blueprint, report: &mut Report) {
     if let (Some(ceremony), Some(opens)) =
         (&schedule.key_ceremony, &schedule.voting_opens)
     {
-        if !ceremony.is_empty() && !opens.is_empty() && ceremony >= opens {
+        if !ceremony.is_empty()
+            && !opens.is_empty()
+            && time::compare(ceremony, opens) != Ordering::Less
+        {
             report.push(Problem::error(
                 Code::InvalidValue,
                 "schedule.key_ceremony",
@@ -506,7 +557,10 @@ fn check_schedule(plan: &Blueprint, report: &mut Report) {
     if let (Some(tally), Some(closes)) =
         (&schedule.tally_ceremony, &schedule.voting_closes)
     {
-        if !tally.is_empty() && !closes.is_empty() && tally <= closes {
+        if !tally.is_empty()
+            && !closes.is_empty()
+            && time::compare(tally, closes) != Ordering::Greater
+        {
             report.push(Problem::error(
                 Code::InvalidValue,
                 "schedule.tally_ceremony",
@@ -1028,10 +1082,15 @@ fn scheduled_events_sheet(plan: &Blueprint) -> Result<Option<Sheet>, Problem> {
         ),
     ] {
         if let Some(at) = at.as_ref().filter(|at| !at.is_empty()) {
+            // An instant, not the wall clock somebody typed. The scheduler reads
+            // this back through `DateTime::parse_from_rfc3339`, which requires an
+            // offset — so a bare `2027-03-01T09:00` yields no date, the poller
+            // drops the event, and the voting period never opens. Nothing on that
+            // path reports anything.
             rows.push(vec![
                 Cell::text(name),
                 Cell::text(processor),
-                Cell::text(at.clone()),
+                Cell::text(at.to_rfc3339()?),
             ]);
         }
     }

@@ -10,6 +10,16 @@ use crate::election_config::{
     TemplateSet,
 };
 
+/// A moment in a zone that does not observe daylight saving.
+///
+/// Phoenix rather than Los Angeles on purpose: a March window in California
+/// crosses the clock change, which is a real thing worth warning about and a
+/// distraction in a fixture every other test builds on. The crossing has its
+/// own test.
+fn at(local: &str) -> Timestamp {
+    Timestamp::new(local, "America/Phoenix", -420)
+}
+
 /// A plan somebody could plausibly have filled in, and which has nothing wrong
 /// with it. Every test breaks one thing about it.
 fn sound() -> Blueprint {
@@ -41,10 +51,10 @@ fn sound() -> Blueprint {
         trustee_threshold: 2,
         areas: vec![],
         schedule: Schedule {
-            key_ceremony: Some("2027-02-01T10:00".to_string()),
-            voting_opens: Some("2027-03-01T09:00".to_string()),
-            voting_closes: Some("2027-03-15T17:00".to_string()),
-            tally_ceremony: Some("2027-03-16T10:00".to_string()),
+            key_ceremony: Some(at("2027-02-01T10:00")),
+            voting_opens: Some(at("2027-03-01T09:00")),
+            voting_closes: Some(at("2027-03-15T17:00")),
+            tally_ceremony: Some(at("2027-03-16T10:00")),
             milestones: vec![Milestone {
                 event: "Candidate nominations close".to_string(),
                 date: "2027-01-15".to_string(),
@@ -404,7 +414,7 @@ fn a_threshold_of_zero_is_refused() {
 #[test]
 fn voting_that_closes_before_it_opens_is_refused() {
     let mut plan = sound();
-    plan.schedule.voting_closes = Some("2027-01-01T00:00".to_string());
+    plan.schedule.voting_closes = Some(at("2027-01-01T00:00"));
     let report = validate_plan(&plan);
     assert!(says(&report, "closes before it opens"));
 }
@@ -413,7 +423,7 @@ fn voting_that_closes_before_it_opens_is_refused() {
 fn a_key_ceremony_after_voting_opens_is_refused() {
     // The key has to exist before a vote can be encrypted with it.
     let mut plan = sound();
-    plan.schedule.key_ceremony = Some("2027-03-02T10:00".to_string());
+    plan.schedule.key_ceremony = Some(at("2027-03-02T10:00"));
     let report = validate_plan(&plan);
     assert!(says(&report, "before voting opens"));
 }
@@ -421,9 +431,71 @@ fn a_key_ceremony_after_voting_opens_is_refused() {
 #[test]
 fn a_tally_before_voting_closes_is_refused() {
     let mut plan = sound();
-    plan.schedule.tally_ceremony = Some("2027-03-01T10:00".to_string());
+    plan.schedule.tally_ceremony = Some(at("2027-03-01T10:00"));
     let report = validate_plan(&plan);
     assert!(says(&report, "votes that had not been cast"));
+}
+
+/// The whole reason this plan carries offsets. The scheduler reads the emitted
+/// date with `DateTime::parse_from_rfc3339`, which requires one — a wall clock
+/// yields no date, the poller drops the event, and voting never opens with
+/// nothing anywhere saying why.
+#[test]
+fn the_voting_window_is_emitted_as_an_instant_the_scheduler_can_read() {
+    let workbook = to_workbook(&sound()).expect("a sound plan should compile");
+    let rows = workbook.rows("scheduledevents");
+    assert_eq!(rows.len(), 2, "an opening and a closing");
+
+    for row in rows {
+        let written = row.text("scheduled_datetime").expect("a date");
+        assert!(
+            chrono::DateTime::parse_from_rfc3339(&written).is_ok(),
+            "the platform's own parser rejects {written:?}"
+        );
+    }
+}
+
+/// Real, common, and invisible in the clock times: a March window in California
+/// is an hour shorter than it looks. Said out loud rather than refused.
+#[test]
+fn a_voting_window_crossing_a_clock_change_is_said_out_loud() {
+    let mut plan = sound();
+    plan.schedule.voting_opens = Some(Timestamp::new(
+        "2027-03-01T09:00",
+        "America/Los_Angeles",
+        -480,
+    ));
+    plan.schedule.voting_closes = Some(Timestamp::new(
+        "2027-03-15T17:00",
+        "America/Los_Angeles",
+        -420,
+    ));
+
+    let report = validate_plan(&plan);
+
+    assert!(says(&report, "daylight-saving change"));
+    assert!(!report.has_errors(), "legitimate, so not an error");
+}
+
+/// A plan written before the wizard knew about zones still opens, and still
+/// means what it meant — UTC — rather than failing or silently shifting.
+#[test]
+fn a_plan_saved_before_timezones_existed_still_opens() {
+    let text = r#"{
+        "version": 1,
+        "external_id": "old",
+        "schedule": {
+            "voting_opens": "2027-03-01T09:00",
+            "voting_closes": "2027-03-15T17:00"
+        }
+    }"#;
+
+    let plan: Blueprint = serde_json::from_str(text).expect("an older plan");
+    let opens = plan.schedule.voting_opens.as_ref().expect("a time");
+
+    assert_eq!(opens.local, "2027-03-01T09:00");
+    assert_eq!(opens.offset_minutes, 0);
+    assert_eq!(opens.to_rfc3339().unwrap(), "2027-03-01T09:00:00+00:00");
 }
 
 #[test]
