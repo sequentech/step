@@ -59,6 +59,32 @@
 //! seam fault actions need: crash between stage and commit, dropped commits,
 //! withheld messages, split views.
 //!
+//! # Faults
+//!
+//! Faults are **actions** — never randomness inside a transition (edges must
+//! stay deterministic). Each fault class is a [`Turn`] variant offered by
+//! `actions()` while its **budget** ([`FaultBudgets`], model config) exceeds
+//! its **spent counter** ([`FaultRecord`], in the state): bounded
+//! nondeterminism, explored adversarially like everything else, so a property
+//! that survives is a claim over *every* pattern of at most budget-many
+//! faults. The counters double as provenance — properties can condition on
+//! what has fired — and per-class `sometimes` guards (emitted only when a
+//! budget enables the class) keep the machinery honest: a fault model that
+//! never actually fires cannot silently pass its properties. With all budgets
+//! zero the model is unchanged (measured: identical state counts).
+//!
+//! Implemented classes:
+//! - [`Turn::DropCommit`] (benign): trustee `i` runs a full cycle whose
+//!   commits never land. One action covers two stories with identical
+//!   resulting state — crash after the §6.4 commit point before the send, and
+//!   b4 losing an acked commit: either way the own-post record is written,
+//!   the body is staged, and no board row exists. One budget unit per faulty
+//!   cycle (not per message). The fault is transport-level and silent (a real
+//!   `Session` retries; only datalog errors halt), and the mailbox's
+//!   compute-once/send-until-acked discipline is what recovers it — so the
+//!   unconditional properties must still hold: no halts, every path
+//!   completes.
+//!
 //! # What this cannot see
 //!
 //! The symbolic axioms are stipulated, not checked: that honestly computed
@@ -142,6 +168,9 @@ struct SystemState {
     /// fault actions (drops, split views) populate it.
     withheld: Vec<Vec<String>>,
     trustees: Vec<TrusteeDurable>,
+    /// Fault provenance: what has fired on this path (see the module's Faults
+    /// section).
+    faults: FaultRecord,
     /// Datalog halts observed so far. A healthy run leaves this empty; the
     /// safety property is exactly that it stays empty.
     halts: Vec<String>,
@@ -207,6 +236,9 @@ impl std::fmt::Debug for SystemState {
                 }
             )?;
         }
+        if self.faults.dropped_commits > 0 {
+            write!(f, " drops={}", self.faults.dropped_commits)?;
+        }
         if !self.halts.is_empty() {
             write!(f, " HALTS={:?}", self.halts)?;
         }
@@ -214,14 +246,37 @@ impl std::fmt::Debug for SystemState {
     }
 }
 
-/// One step of the system: whose turn it is.
+/// One step of the system: whose turn it is, and under which fault.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 enum Turn {
     /// Trustee `i` (0-based) runs one full update/infer/post cycle.
     Trustee(usize),
+    /// Trustee `i` runs a full cycle whose commits are silently lost (benign
+    /// fault, budgeted): records are written and bodies staged, but nothing
+    /// becomes board-visible. See the module's Faults section.
+    DropCommit(usize),
     /// The manager posts the ballots (a token), which it can only do once the
     /// DKG has published a public key.
     PostBallots,
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Faults
+///////////////////////////////////////////////////////////////////////////
+
+/// How many faults of each class the exploration may inject (model config).
+/// Zero everywhere by default: the fault-free model.
+#[derive(Clone, Default)]
+struct FaultBudgets {
+    /// Maximum [`Turn::DropCommit`] cycles across a run.
+    dropped_commits: usize,
+}
+
+/// How many faults of each class have fired on this path (state). Doubles as
+/// provenance for conditioned properties and the `sometimes` guards.
+#[derive(Clone, Default, PartialEq, Eq, Hash)]
+struct FaultRecord {
+    dropped_commits: usize,
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -259,6 +314,9 @@ struct ModelTransport<C: Context> {
     staged: Rc<RefCell<HashMap<String, Vec<u8>>>>,
     /// Messages made board-visible during this cycle, in commit order.
     committed: Rc<RefCell<Vec<ProtocolMessage<C>>>>,
+    /// [`Turn::DropCommit`]: commits validate but never land, silently — the
+    /// client believes b4 has the message. Staging is unaffected.
+    drop_commits: bool,
 }
 
 #[async_trait::async_trait(?Send)]
@@ -298,7 +356,9 @@ impl<C: Context> Transport<C> for ModelTransport<C> {
             })?;
         let message = ProtocolMessage::<C>::deser(&bytes)
             .map_err(|e| anyhow::anyhow!("staged bytes do not decode: {e:?}"))?;
-        self.committed.borrow_mut().push(message);
+        if !self.drop_commits {
+            self.committed.borrow_mut().push(message);
+        }
         Ok(())
     }
 }
@@ -334,6 +394,7 @@ impl WireSigner<C> for SymbolicTrustee {
 /// state — none of it changes.
 struct SymbolicModel {
     n: usize,
+    budgets: FaultBudgets,
     manager: ProtocolManager<C>,
     trustees: Vec<SymbolicTrustee>,
     configuration: Configuration<C>,
@@ -397,6 +458,7 @@ impl SymbolicModel {
 
         Self {
             n,
+            budgets: FaultBudgets::default(),
             manager,
             trustees,
             configuration,
@@ -404,6 +466,12 @@ impl SymbolicModel {
             mixing_trustees: (1..=threshold).collect(),
             memo: Mutex::new(HashMap::new()),
         }
+    }
+
+    /// Allow up to `budget` [`Turn::DropCommit`] cycles in the exploration.
+    fn with_dropped_commit_budget(mut self, budget: usize) -> Self {
+        self.budgets.dropped_commits = budget;
+        self
     }
 
     /// The board as trustee `i` sees it: the true board minus rows b4 withholds
@@ -427,6 +495,7 @@ impl SymbolicModel {
         &self,
         state: &SystemState,
         view: Vec<ProtocolMessage<C>>,
+        drop_commits: bool,
     ) -> (
         ModelTransport<C>,
         Rc<RefCell<HashMap<String, Vec<u8>>>>,
@@ -439,6 +508,7 @@ impl SymbolicModel {
             view,
             staged: Rc::clone(&staged),
             committed: Rc::clone(&committed),
+            drop_commits,
         };
         (transport, staged, committed)
     }
@@ -577,36 +647,53 @@ impl SymbolicModel {
     /// Same two-clause guard as the crypto harness: idle cycles are discarded
     /// before durable updates (observation-timing compression), productive
     /// cycles only if they changed nothing (`next == *state`).
+    /// One trustee's full update/infer/post cycle against the (possibly
+    /// fault-configured) transport, its effects merged into `next`. `None`
+    /// means the cycle was idle — not a transition (see the guard notes).
+    fn trustee_cycle(
+        &self,
+        state: &SystemState,
+        next: &mut SystemState,
+        i: usize,
+        drop_commits: bool,
+    ) -> Option<()> {
+        let persistence = self.persistence_from(&state.trustees[i]);
+        let (transport, staged, committed) =
+            self.transport_for(state, self.visible_board(state, i), drop_commits);
+        let outcome = block_on(async {
+            let mut client = BoardClient::connect(transport, persistence.clone()).await?;
+            client.update().await?;
+            let produced = self.symbolic_step(i, client.view())?;
+            let produced_any = !produced.is_empty();
+            if produced_any {
+                client.post(produced).await?;
+            }
+            Ok::<bool, anyhow::Error>(produced_any)
+        });
+
+        match outcome {
+            Ok(produced_any) => {
+                if !produced_any {
+                    return None;
+                }
+            }
+            Err(e) => next.halts.push(format!("t{}: {e:#}", i + 1)),
+        }
+        next.trustees[i] = Self::durable_from(&persistence);
+        Self::merge_transport(next, staged, committed);
+        Some(())
+    }
+
     fn successor(&self, state: &SystemState, turn: &Turn) -> Option<SystemState> {
         let mut next = state.clone();
 
         match turn {
             Turn::Trustee(i) => {
-                let i = *i;
-                let persistence = self.persistence_from(&state.trustees[i]);
-                let (transport, staged, committed) =
-                    self.transport_for(state, self.visible_board(state, i));
-                let outcome = block_on(async {
-                    let mut client = BoardClient::connect(transport, persistence.clone()).await?;
-                    client.update().await?;
-                    let produced = self.symbolic_step(i, client.view())?;
-                    let produced_any = !produced.is_empty();
-                    if produced_any {
-                        client.post(produced).await?;
-                    }
-                    Ok::<bool, anyhow::Error>(produced_any)
-                });
-
-                match outcome {
-                    Ok(produced_any) => {
-                        if !produced_any {
-                            return None;
-                        }
-                    }
-                    Err(e) => next.halts.push(format!("t{}: {e:#}", i + 1)),
-                }
-                next.trustees[i] = Self::durable_from(&persistence);
-                Self::merge_transport(&mut next, staged, committed);
+                self.trustee_cycle(state, &mut next, *i, false)?;
+            }
+            Turn::DropCommit(i) => {
+                self.trustee_cycle(state, &mut next, *i, true)?;
+                next.faults.dropped_commits += 1;
             }
             Turn::PostBallots => {
                 let pk_hash = self.public_key_hash_on(state)?;
@@ -621,7 +708,7 @@ impl SymbolicModel {
                 );
                 // The manager keeps no own-post record (Transport::publish =
                 // stage + commit), but its message takes the same staged path.
-                let (transport, staged, committed) = self.transport_for(state, Vec::new());
+                let (transport, staged, committed) = self.transport_for(state, Vec::new(), false);
                 block_on(transport.publish(&message))
                     .expect("fault-free manager publish cannot fail");
                 Self::merge_transport(&mut next, staged, committed);
@@ -663,6 +750,7 @@ impl Model for SymbolicModel {
                     own_posts: Vec::new(),
                 })
                 .collect(),
+            faults: FaultRecord::default(),
             halts: Vec::new(),
         }]
     }
@@ -674,6 +762,12 @@ impl Model for SymbolicModel {
             return;
         }
         let mut candidates: Vec<Turn> = (0..self.n).map(Turn::Trustee).collect();
+        // Fault turns, while their budget lasts. The lookahead prunes the
+        // pointless ones for free: a faulty cycle of an idle trustee produces
+        // nothing and is not a transition.
+        if state.faults.dropped_commits < self.budgets.dropped_commits {
+            candidates.extend((0..self.n).map(Turn::DropCommit));
+        }
         // The manager posts ballots once, after the DKG yields a public key.
         let has_ballots = state.board.iter().any(|bytes| {
             ProtocolMessage::<C>::deser(bytes)
@@ -695,13 +789,19 @@ impl Model for SymbolicModel {
     }
 
     fn properties(&self) -> Vec<Property<Self>> {
-        vec![
-            // Safety, on every reachable state.
+        let mut props = vec![
+            // Safety, on every reachable state — UNCONDITIONAL over the
+            // benign-fault space: no pattern of at most budget-many dropped
+            // commits may ever halt a trustee. (Adversarial fault classes,
+            // when added, get conditioned variants instead.)
             Property::<Self>::always("no trustee halts", |_, state| state.halts.is_empty()),
             // Liveness, in its strong form: on EVERY path the protocol
             // completes. Sound here, unlike in the crypto harness, because the
             // exploration is exhaustive (deterministic edges + dedup) and
-            // acyclic (the board only grows), with no depth cap.
+            // acyclic (the board only grows), with no depth cap. Also
+            // UNCONDITIONAL over the benign-fault space — this is the k-fault-
+            // tolerance claim: the mailbox's send-until-acked discipline
+            // recovers every dropped commit.
             //
             // Completion is plaintexts from every MIXING trustee, not every
             // trustee: the post-DKG quorum is the mixing list (of size ==
@@ -709,45 +809,76 @@ impl Model for SymbolicModel {
             // `ComputePlaintexts` require `mixing_position` (decrypt.rs).
             // Non-mixing trustees go quiet after the DKG by design.
             Property::<Self>::eventually("protocol completes", |model, state| {
-                let plaintexts = state
-                    .board
-                    .iter()
-                    .filter(|bytes| {
-                        ProtocolMessage::<C>::deser(bytes)
-                            .map(|m| m.message_type == MessageType::Plaintexts)
-                            .unwrap_or(false)
-                    })
-                    .count();
-                plaintexts == model.mixing_trustees.len()
+                plaintexts_on(state) == model.mixing_trustees.len()
             }),
-        ]
+        ];
+        // Non-vacuity guards, emitted only when a budget enables the class: a
+        // fault model that never fires would otherwise pass everything above
+        // without testing anything.
+        if self.budgets.dropped_commits > 0 {
+            props.push(Property::<Self>::sometimes(
+                "a commit is dropped",
+                |_, state| state.faults.dropped_commits > 0,
+            ));
+            props.push(Property::<Self>::sometimes(
+                "the protocol completes despite a dropped commit",
+                |model, state| {
+                    state.faults.dropped_commits > 0
+                        && plaintexts_on(state) == model.mixing_trustees.len()
+                },
+            ));
+        }
+        props
     }
+}
+
+/// The number of `Plaintexts` messages on the board.
+fn plaintexts_on(state: &SystemState) -> usize {
+    state
+        .board
+        .iter()
+        .filter(|bytes| {
+            ProtocolMessage::<C>::deser(bytes)
+                .map(|m| m.message_type == MessageType::Plaintexts)
+                .unwrap_or(false)
+        })
+        .count()
 }
 
 /// Explore ALL interleavings over the real datalog with symbolic artifacts.
 /// Not `#[ignore]`d: with tokens instead of crypto this is meant to be fast
 /// enough for the ordinary test suite — that speed is part of what the test
 /// demonstrates.
-fn check(n: usize, threshold: usize) -> usize {
-    let model = SymbolicModel::new(n, threshold);
+fn check(model: SymbolicModel, label: &str) -> usize {
     let checker = model.checker().threads(1).spawn_bfs().join();
     checker.assert_properties();
     let states = checker.unique_state_count();
-    println!("n={n} t={threshold}: explored {states} unique states");
+    println!("{label}: explored {states} unique states");
     states
 }
 
 #[test]
 fn model_check_symbolic_two_trustees() {
-    check(2, 2);
+    check(SymbolicModel::new(2, 2), "n=2 t=2");
 }
 
 #[test]
 fn model_check_symbolic_three_trustees() {
-    check(3, 3);
+    check(SymbolicModel::new(3, 3), "n=3 t=3");
 }
 
 #[test]
 fn model_check_symbolic_three_trustees_threshold_two() {
-    check(3, 2);
+    check(SymbolicModel::new(3, 2), "n=3 t=2");
+}
+
+/// The k-fault-tolerance run: every pattern of at most 2 dropped commits, at
+/// every reachable point, interleaved every possible way — no halts, every
+/// path still completes, and the guards confirm the faults actually fired.
+#[test]
+fn model_check_symbolic_two_trustees_dropped_commits() {
+    check(
+        SymbolicModel::new(2, 2).with_dropped_commit_budget(2),
+        "n=2 t=2 drops<=2",
+    );
 }
