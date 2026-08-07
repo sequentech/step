@@ -38,6 +38,10 @@ pub mod emit;
 pub mod ids;
 pub mod paths;
 pub mod presets;
+
+/// Bundles with known verdicts, shared by every caller of [`validate`] so the two
+/// reach the same answer rather than each agreeing with itself.
+pub mod fixtures;
 pub mod problem;
 
 /// Rendering the base entity templates, behind its own feature so a front end
