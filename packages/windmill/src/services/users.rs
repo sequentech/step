@@ -825,7 +825,7 @@ pub async fn count_keycloak_users(
     };
 
     // Build the count query using only the necessary filtering clauses.
-    let voter_scope = voter_scope_clause(&filters_clause);
+    let scope_clause = voter_scope_clause(&filters_clause);
     let count_query = format!(
         r#"
         SELECT COUNT(*) AS total_count
@@ -834,7 +834,7 @@ pub async fn count_keycloak_users(
         {area_ids_join_clause}
         {authorized_alias_join_clause}
         WHERE
-            {voter_scope}
+            {scope_clause}
             {area_ids_where_clause}
             {authorized_alias_where_clause}
             {enabled_condition}
@@ -991,7 +991,7 @@ pub async fn list_users(
 
     debug!("parameters count: {}", next_param_number - 1);
     debug!("params {:?}", params);
-    let voter_scope = voter_scope_clause(&filters_clause);
+    let scope_clause = voter_scope_clause(&filters_clause);
     let statement_str = format!(
         r#"
         WITH limited_users AS MATERIALIZED (
@@ -1012,7 +1012,7 @@ pub async fn list_users(
             {area_ids_join_clause}
             {authorized_alias_join_clause}
             WHERE
-                {voter_scope}
+                {scope_clause}
                 {area_ids_where_clause}
                 {authorized_alias_where_clause}
                 {enabled_condition}
@@ -1072,7 +1072,7 @@ pub async fn list_users(
     {area_ids_join_clause}
     {authorized_alias_join_clause}
     WHERE
-        {voter_scope}
+        {scope_clause}
         {area_ids_where_clause}
         {authorized_alias_where_clause}
         {enabled_condition}
@@ -1276,6 +1276,7 @@ pub async fn list_users_ids(
 
     debug!("parameters count: {}", next_param_number - 1);
     debug!("params {:?}", params);
+    let scope_clause = voter_scope_clause(&filters_clause);
     let statement_str = format!(
         r#"
             SELECT
@@ -1287,9 +1288,7 @@ pub async fn list_users_ids(
             {area_ids_join_clause}
             {authorized_alias_join_clause}
             WHERE
-                ra.name = $1 AND
-                {filters_clause}
-                (u.id = ANY($2) OR $2 IS NULL)
+                {scope_clause}
                 {area_ids_where_clause}
                 {authorized_alias_where_clause}
                 {enabled_condition}
