@@ -99,6 +99,13 @@ pub struct Blueprint {
     #[serde(default)]
     pub schedule: Schedule,
 
+    /// The areas voters belong to.
+    ///
+    /// Empty means one ballot for everybody, and one is synthesised. See
+    /// [`DEFAULT_AREA_EXTERNAL_ID`].
+    #[serde(default)]
+    pub areas: Vec<PlannedArea>,
+
     #[serde(default)]
     pub elections: Vec<PlannedElection>,
 
@@ -195,6 +202,31 @@ pub struct Milestone {
     pub date: String,
 }
 
+/// A group of voters who get the same ballot.
+///
+/// The name is plain text rather than translated, and that is not an oversight:
+/// the voters CSV identifies a voter's area *by name*, so it is an identifier the
+/// importer matches on. Two areas sharing a name would silently put voters in
+/// whichever one the importer found first.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlannedArea {
+    pub external_id: String,
+
+    /// What the importer matches a voter's `area_name` against.
+    #[serde(default)]
+    pub name: String,
+
+    /// The area this one sits inside, if any.
+    ///
+    /// A tree, because that is how districting is actually described — a local
+    /// inside a region inside a state — and because the platform models it that
+    /// way. A contest assigned to a parent is not automatically on its children's
+    /// ballots; assignment is explicit, so that "who votes on this" is answerable
+    /// by reading one list rather than walking a tree.
+    #[serde(default)]
+    pub parent_external_id: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlannedElection {
     pub external_id: String,
@@ -225,6 +257,14 @@ pub struct PlannedContest {
 
     #[serde(default)]
     pub candidates: Vec<PlannedCandidate>,
+
+    /// Which areas put this contest on their ballot.
+    ///
+    /// Empty means every area, which is what a plan that has never thought about
+    /// districting wants and what one with a single area always wants. Naming
+    /// areas explicitly is how a contest becomes local to some of them.
+    #[serde(default)]
+    pub areas: Vec<String>,
 }
 
 fn one() -> i64 {
@@ -315,15 +355,14 @@ impl Policies {
     }
 }
 
-/// The area every contest is put on.
+/// The area used when a plan names none.
 ///
-/// The wizard does not do districting: it asks who is standing, not who may vote
-/// for them. A bundle still needs an area and a ballot link, so one is made,
-/// covering everybody.
+/// A bundle needs an area and a ballot link or no voter sees anything, so a plan
+/// that has never thought about districting gets one covering everybody.
 ///
 /// Named rather than anonymous because the voters CSV resolves an area by name,
 /// and because a delivery engineer opening the generated event should be able to
-/// tell that nobody chose this.
+/// tell nobody chose it.
 pub const DEFAULT_AREA_EXTERNAL_ID: &str = "all-voters";
 pub const DEFAULT_AREA_NAME: &str = "All voters";
 
@@ -369,6 +408,7 @@ pub fn validate_plan(plan: &Blueprint) -> Report {
 
     check_trustees(plan, &mut report);
     check_schedule(plan, &mut report);
+    check_areas(plan, &mut report);
     check_ballot(plan, &mut report);
 
     if plan.contacts.is_empty() {
@@ -477,6 +517,84 @@ fn check_schedule(plan: &Blueprint, report: &mut Report) {
     }
 }
 
+/// Districting: the areas themselves, before any contest points at one.
+fn check_areas(plan: &Blueprint, report: &mut Report) {
+    for (index, area) in plan.areas.iter().enumerate() {
+        let at = format!("areas[{index}]");
+
+        if area.external_id.trim().is_empty() {
+            report.push(Problem::error(
+                Code::MissingField,
+                &at,
+                "an area needs an identifier",
+            ));
+        }
+
+        if area.name.trim().is_empty() {
+            report.push(
+                Problem::error(
+                    Code::MissingField,
+                    format!("{at}.name"),
+                    "an area needs a name: the voters CSV identifies a voter's \
+                     area by name, not by id, so an unnamed area is one no voter \
+                     can be put in",
+                )
+                .about(Some(&area.external_id)),
+            );
+        }
+
+        // The voters CSV resolves by name, so a duplicate silently assigns voters
+        // to whichever one the importer happens to find first.
+        if let Some(earlier) = plan.areas[..index].iter().find(|other| {
+            !other.name.trim().is_empty() && other.name == area.name
+        }) {
+            report.push(
+                Problem::error(
+                    Code::DuplicateId,
+                    format!("{at}.name"),
+                    format!(
+                        "two areas are both named '{}' ('{}' and '{}'). The voters \
+                         CSV resolves an area by name, so voters would land in \
+                         whichever the importer found first.",
+                        area.name, earlier.external_id, area.external_id
+                    ),
+                )
+                .about(Some(&area.external_id)),
+            );
+        }
+
+        if let Some(parent) = area
+            .parent_external_id
+            .as_ref()
+            .filter(|parent| !parent.is_empty())
+        {
+            if parent == &area.external_id {
+                report.push(
+                    Problem::error(
+                        Code::AreaCycle,
+                        format!("{at}.parent_external_id"),
+                        "an area cannot be inside itself",
+                    )
+                    .about(Some(&area.external_id)),
+                );
+            } else if !plan
+                .areas
+                .iter()
+                .any(|other| &other.external_id == parent)
+            {
+                report.push(
+                    Problem::error(
+                        Code::DanglingReference,
+                        format!("{at}.parent_external_id"),
+                        format!("no area has the identifier '{parent}'"),
+                    )
+                    .about(Some(&area.external_id)),
+                );
+            }
+        }
+    }
+}
+
 fn check_ballot(plan: &Blueprint, report: &mut Report) {
     if plan.elections.is_empty() {
         report.push(Problem::error(
@@ -550,6 +668,23 @@ fn check_ballot(plan: &Blueprint, report: &mut Report) {
                 );
             }
 
+            for area in &contest.areas {
+                if !plan
+                    .areas
+                    .iter()
+                    .any(|planned| &planned.external_id == area)
+                {
+                    report.push(
+                        Problem::error(
+                            Code::DanglingReference,
+                            format!("{at}.areas"),
+                            format!("no area has the identifier '{area}'"),
+                        )
+                        .about(Some(&contest.external_id)),
+                    );
+                }
+            }
+
             if choices == 0 {
                 report.push(
                     Problem::warning(
@@ -590,7 +725,7 @@ pub fn to_workbook(plan: &Blueprint) -> Result<Workbook, Problem> {
         elections_sheet(plan, &languages)?,
         contests_sheet(plan, &languages)?,
         candidates_sheet(plan, &languages)?,
-        areas_sheet()?,
+        areas_sheet(plan)?,
         area_contests_sheet(plan)?,
     ];
 
@@ -781,30 +916,87 @@ fn candidates_sheet(
     sheet_of("Candidates", columns, rows)
 }
 
-/// One area, covering everybody. See [`DEFAULT_AREA_EXTERNAL_ID`].
-fn areas_sheet() -> Result<Sheet, Problem> {
-    sheet_of(
-        "Areas",
-        vec!["external_id".to_string(), "name".to_string()],
-        vec![vec![
-            Cell::text(DEFAULT_AREA_EXTERNAL_ID),
-            Cell::text(DEFAULT_AREA_NAME),
-        ]],
-    )
-}
+/// The plan's areas, or the one that covers everybody.
+///
+/// A plan that has never thought about districting still needs an area and a
+/// ballot link, or no voter sees anything. See [`DEFAULT_AREA_EXTERNAL_ID`].
+fn areas_sheet(plan: &Blueprint) -> Result<Sheet, Problem> {
+    let columns = vec![
+        "external_id".to_string(),
+        "name".to_string(),
+        "parent.external_id".to_string(),
+    ];
 
-fn area_contests_sheet(plan: &Blueprint) -> Result<Sheet, Problem> {
-    let rows = plan
-        .elections
-        .iter()
-        .flat_map(|election| &election.contests)
-        .map(|contest| {
-            vec![
+    if plan.areas.is_empty() {
+        return sheet_of(
+            "Areas",
+            columns,
+            vec![vec![
                 Cell::text(DEFAULT_AREA_EXTERNAL_ID),
-                Cell::text(contest.external_id.clone()),
+                Cell::text(DEFAULT_AREA_NAME),
+                Cell::Blank,
+            ]],
+        );
+    }
+
+    let rows = plan
+        .areas
+        .iter()
+        .map(|area| {
+            vec![
+                Cell::text(area.external_id.clone()),
+                Cell::text(area.name.clone()),
+                match &area.parent_external_id {
+                    Some(parent) if !parent.is_empty() => {
+                        Cell::text(parent.clone())
+                    }
+                    _ => Cell::Blank,
+                },
             ]
         })
         .collect();
+
+    sheet_of("Areas", columns, rows)
+}
+
+/// Which contests appear on which area's ballot.
+fn area_contests_sheet(plan: &Blueprint) -> Result<Sheet, Problem> {
+    let every_area: Vec<String> = if plan.areas.is_empty() {
+        vec![DEFAULT_AREA_EXTERNAL_ID.to_string()]
+    } else {
+        plan.areas
+            .iter()
+            .map(|area| area.external_id.clone())
+            .collect()
+    };
+
+    let mut rows = Vec::new();
+    for contest in plan
+        .elections
+        .iter()
+        .flat_map(|election| &election.contests)
+    {
+        // An empty list means everywhere. A contest nobody assigned is one
+        // somebody has not got to yet, and dropping it off every ballot would be
+        // a silent way of losing it.
+        let on: Vec<&String> = if contest.areas.is_empty() {
+            every_area.iter().collect()
+        } else {
+            contest.areas.iter().collect()
+        };
+
+        for area in on {
+            // A contest may not be listed twice for the same area: both rows
+            // would mint the same id and one would overwrite the other.
+            let link = vec![
+                Cell::text(area.clone()),
+                Cell::text(contest.external_id.clone()),
+            ];
+            if !rows.contains(&link) {
+                rows.push(link);
+            }
+        }
+    }
 
     sheet_of(
         "AreaContests",
