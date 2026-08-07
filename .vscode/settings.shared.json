@@ -4,7 +4,8 @@
 {
     "rust-analyzer.linkedProjects": [
         "/workspaces/step/packages/Cargo.toml",
-        "./packages/sequent-core/Cargo.toml"
+        "./packages/sequent-core/Cargo.toml",
+        "./beyond/packages/Cargo.toml"
     ],
     "rust-analyzer.cargo.allFeatures": true,
     "rust-analyzer.check.command": "clippy",

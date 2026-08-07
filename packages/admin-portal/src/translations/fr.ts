@@ -1812,6 +1812,7 @@ const frenchTranslation: TranslationType = {
                 "warn": "Avertissement",
                 "warn-invalid-implicit-and-explicit": "Avertir Inválidos Implicites et Explicites",
                 "not-allowed": "Non Permis",
+                "allowed-with-exclusive-explicit": "Permis avec Vote Invalide Explicite Exclusif",
             },
             candidatesIconCheckboxPolicy: {
                 "label": "Forme d’icône de case à cocher pour les candidats",
