@@ -403,6 +403,77 @@ pub fn read_profile_js(profile: JsValue) -> Result<JsValue, JsError> {
     }
 }
 
+/// The ballot-behaviour values a picker may offer.
+///
+/// Returned rather than duplicated in TypeScript, for the same reason
+/// [`auth_presets`] is: a dropdown cannot list a value the platform does not
+/// have, and cannot miss one it does. `labels` is the namespace the Admin
+/// Portal's translations are keyed by, so a front end labels a value without a
+/// second table of its own.
+///
+/// This is the third place the value space appears — `ContestPresentation.ts`
+/// and `contest.hbs` being the others — and handing it over as data is what
+/// stops a fourth.
+#[cfg(feature = "election_config_archive")]
+#[wasm_bindgen(js_name = policyCatalog)]
+pub fn policy_catalog() -> Result<JsValue, JsError> {
+    use crate::election_config::policy::{
+        BlankVote, CandidatesOrder, DuplicatedRank, InvalidVote, OverVote,
+        Policies, PolicyValue, PreferenceGaps, UnderVote,
+    };
+    use strum::IntoEnumIterator;
+
+    #[derive(Serialize)]
+    struct Kind {
+        /// The plan field this sets, e.g. `over_vote`.
+        field: &'static str,
+        /// The bundle column it becomes.
+        column: &'static str,
+        /// The Admin Portal translation namespace.
+        labels: &'static str,
+        /// Every value, most permissive first.
+        values: Vec<&'static str>,
+        /// What a plan gets when it says nothing.
+        default: &'static str,
+    }
+
+    fn kind<T: PolicyValue + IntoEnumIterator + Default>(
+        field: &'static str,
+    ) -> Kind {
+        Kind {
+            field,
+            column: T::COLUMN,
+            labels: T::LABELS,
+            values: T::iter().map(PolicyValue::as_str).collect(),
+            default: T::default().as_str(),
+        }
+    }
+
+    #[derive(Serialize)]
+    struct Catalog {
+        kinds: Vec<Kind>,
+        /// Named sets, so a wizard can offer a decision rather than seven.
+        presets: Vec<(&'static str, Policies)>,
+    }
+
+    to_js(&Catalog {
+        kinds: vec![
+            kind::<OverVote>("over_vote"),
+            kind::<BlankVote>("blank_vote"),
+            kind::<UnderVote>("under_vote"),
+            kind::<InvalidVote>("invalid_vote"),
+            kind::<DuplicatedRank>("duplicated_rank"),
+            kind::<PreferenceGaps>("preference_gaps"),
+            kind::<CandidatesOrder>("candidates_order"),
+        ],
+        presets: vec![
+            ("permissive", Policies::permissive()),
+            ("standard", Policies::standard()),
+            ("strict", Policies::strict()),
+        ],
+    })
+}
+
 /// The options both entry points take, read once.
 ///
 /// Declared here rather than inside each function so the two cannot drift the

@@ -206,3 +206,41 @@ fn the_patch_covers_exactly_the_policies_that_exist() {
         patch.as_object().unwrap().len()
     );
 }
+
+/// The catalog is what stops the value space acquiring a fourth copy, so it has
+/// to actually carry every kind and every value.
+#[test]
+fn the_catalog_covers_every_policy_the_columns_write() {
+    let columns: Vec<&str> = Policies::default()
+        .columns()
+        .into_iter()
+        .map(|(column, _)| column)
+        .collect();
+
+    // One catalog entry per column written, or a picker would be missing a
+    // control for something the bundle carries.
+    let kinds = [
+        OverVote::COLUMN,
+        BlankVote::COLUMN,
+        UnderVote::COLUMN,
+        InvalidVote::COLUMN,
+        DuplicatedRank::COLUMN,
+        PreferenceGaps::COLUMN,
+        CandidatesOrder::COLUMN,
+    ];
+    assert_eq!(columns, kinds);
+
+    // And every kind names a translation namespace, or a front end has nothing
+    // to label its values with and invents its own wording.
+    for labels in [
+        OverVote::LABELS,
+        BlankVote::LABELS,
+        UnderVote::LABELS,
+        InvalidVote::LABELS,
+        DuplicatedRank::LABELS,
+        PreferenceGaps::LABELS,
+        CandidatesOrder::LABELS,
+    ] {
+        assert!(!labels.is_empty());
+    }
+}
