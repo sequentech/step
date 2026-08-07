@@ -115,6 +115,81 @@ fn says(report: &Report, needle: &str) -> bool {
         .any(|problem| problem.message.contains(needle))
 }
 
+// -- compiling a plan ------------------------------------------------------
+
+/// Until `compile_plan` existed, `to_workbook` and `side_files` had no callers
+/// outside this file: the plan could be validated and mapped, but nothing joined
+/// those steps to the builder, so no wizard could actually produce anything.
+#[test]
+fn a_plan_compiles_to_an_archive_the_importer_dispatches_on() {
+    let templates = TemplateSet::builtin().unwrap();
+    let compiled = compile_plan(&sound(), &templates, &BuildOptions::default())
+        .expect("a sound plan compiles");
+
+    let importable: Vec<&str> = compiled
+        .layout
+        .importable
+        .iter()
+        .map(|artifact| artifact.name.as_str())
+        .collect();
+
+    assert!(importable
+        .iter()
+        .any(|name| name.starts_with("export_election_event")));
+    assert!(!compiled.report.has_errors());
+}
+
+/// The ceremony schedule, the contacts, the trustees and the plan itself are not
+/// part of an import. Inside the archive they would suggest otherwise.
+#[test]
+fn the_plans_own_files_travel_beside_the_archive_not_inside_it() {
+    let templates = TemplateSet::builtin().unwrap();
+    let compiled = compile_plan(&sound(), &templates, &BuildOptions::default())
+        .expect("a sound plan compiles");
+
+    let auxiliary: Vec<&str> = compiled
+        .layout
+        .auxiliary
+        .iter()
+        .map(|artifact| artifact.name.as_str())
+        .collect();
+    let importable: Vec<&str> = compiled
+        .layout
+        .importable
+        .iter()
+        .map(|artifact| artifact.name.as_str())
+        .collect();
+
+    for expected in [
+        "blueprint.json",
+        "ceremony_schedule.json",
+        "points_of_contact.json",
+        "trustees_list.json",
+    ] {
+        assert!(
+            auxiliary.contains(&expected),
+            "{expected} should sit beside the archive; found {auxiliary:?}"
+        );
+        assert!(
+            !importable.contains(&expected),
+            "{expected} must not be inside the importable archive"
+        );
+    }
+}
+
+#[test]
+fn a_plan_with_errors_produces_no_files_and_says_why() {
+    let mut plan = sound();
+    plan.trustee_threshold = 9; // more than there are trustees
+
+    let templates = TemplateSet::builtin().unwrap();
+    let report = compile_plan(&plan, &templates, &BuildOptions::default())
+        .expect_err("a plan nobody could decrypt must not compile");
+
+    assert!(report.has_errors());
+    assert!(says(&report, "could never be decrypted"));
+}
+
 // -- the property the whole design rests on --------------------------------
 
 #[test]

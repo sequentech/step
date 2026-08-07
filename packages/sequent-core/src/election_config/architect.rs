@@ -42,8 +42,12 @@
 
 use std::cmp::Ordering;
 
+use crate::election_config::archive::{Artifact, Layout};
+use crate::election_config::build::{build, BuildOptions, Bundle};
 use crate::election_config::paths::Cell;
 use crate::election_config::problem::{Code, Problem, Report, Severity};
+use crate::election_config::render::TemplateSet;
+use crate::election_config::schema::ImportElectionEventSchema;
 use crate::election_config::sheet::{Sheet, Workbook};
 use crate::election_config::time::{self, Timestamp};
 use serde::{Deserialize, Serialize};
@@ -1161,6 +1165,101 @@ pub fn side_files(plan: &Blueprint) -> Vec<(String, String)> {
 fn pretty(value: &serde_json::Value) -> String {
     serde_json::to_string_pretty(value).unwrap_or_else(|_| "{}".to_string())
         + "\n"
+}
+
+/// Everything a plan produces.
+#[derive(Debug, Clone)]
+pub struct Compiled {
+    pub bundle: Bundle,
+
+    /// The files, split into what goes inside the importable archive and what
+    /// must not. [`side_files`] is already folded into `auxiliary`.
+    pub layout: Layout,
+
+    /// Warnings from every pass. Errors are returned as `Err` instead, so a
+    /// caller holding a `Compiled` is holding something worth writing out.
+    pub report: Report,
+}
+
+/// Turn a plan into what it is for.
+///
+/// This is the function the wizard and the CLI both call, and until it existed
+/// there was nothing joining the two halves of this module: [`to_workbook`] and
+/// [`side_files`] had no callers outside the tests, so a plan could be validated
+/// and mapped but never actually built.
+///
+/// Six steps, none of them new — which is the point. A plan becomes the same rows
+/// a spreadsheet produces, and everything after that is the existing builder:
+///
+/// 1. [`validate_plan`], in the plan's own vocabulary. Errors stop here, because
+///    a problem phrased as `contests[2].winning_candidates_num` is no use to
+///    somebody looking at a wizard.
+/// 2. [`to_workbook`].
+/// 3. [`super::build`].
+/// 4. Deserialize the export into [`ImportElectionEventSchema`] and
+///    [`super::validate`] it — the same second pass `step-cli` and
+///    `buildFromWorkbook` each make. Two implementations that merely looked
+///    similar would not survive this.
+/// 5. [`super::archive::layout`].
+/// 6. [`side_files`] into `auxiliary`, because a ceremony schedule is not part of
+///    an import and putting it inside the archive would suggest otherwise.
+pub fn compile_plan(
+    plan: &Blueprint,
+    templates: &TemplateSet,
+    options: &BuildOptions,
+) -> Result<Compiled, Report> {
+    let mut report = validate_plan(plan);
+    if report.has_errors() {
+        return Err(report);
+    }
+
+    let workbook = to_workbook(plan).map_err(|problem| {
+        let mut failed = Report::default();
+        failed.push(problem);
+        failed
+    })?;
+
+    let bundle = build(&workbook, templates, options)?;
+
+    for problem in bundle.warnings.problems.clone() {
+        report.push(problem);
+    }
+
+    match serde_json::from_value::<ImportElectionEventSchema>(
+        bundle.export.clone(),
+    ) {
+        Ok(schema) => {
+            for problem in super::validate(&schema).problems {
+                report.push(problem);
+            }
+        }
+        Err(error) => report.push(Problem::error(
+            Code::InvalidValue,
+            "bundle",
+            format!(
+                "the built bundle does not match the import schema, which is a \
+                 bug in this tool rather than in the plan: {error}"
+            ),
+        )),
+    }
+
+    if report.has_errors() {
+        return Err(report);
+    }
+
+    let mut layout = super::archive::layout(&bundle);
+    for (name, contents) in side_files(plan) {
+        layout.auxiliary.push(Artifact {
+            name,
+            bytes: contents.into_bytes(),
+        });
+    }
+
+    Ok(Compiled {
+        bundle,
+        layout,
+        report,
+    })
 }
 
 #[cfg(test)]

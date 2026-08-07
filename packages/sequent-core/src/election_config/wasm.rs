@@ -9,13 +9,22 @@
 //! JavaScript. That is the whole point — a file that validates in a browser
 //! imports on the server, because the same code decided both times.
 //!
-//! Two entry points, matching the two questions a front end asks:
+//! Four entry points, matching the questions a front end asks:
 //!
 //! * [`check_bundle`] — "would the platform accept this export?" Enough on its own
 //!   for a page that only checks an existing file, and it needs no template engine
 //!   or spreadsheet parser.
 //! * [`build_from_workbook`] — "turn this spreadsheet into something importable."
 //!   Returns the files to offer as downloads, or the problems to show instead.
+//! * [`validate_plan_js`] — "is there anything wrong with this plan?", asked of a
+//!   wizard's document rather than of a built bundle.
+//! * [`compile_plan_js`] — "turn this plan into something importable." The same
+//!   output shape as `build_from_workbook`, because a wizard and a spreadsheet
+//!   produce the same thing.
+//!
+//! The last two are gated on `election_config_archive` alone. Compiling a plan
+//! needs the templates, the builder and the zip writer, but no spreadsheet
+//! parser — so the wizard's package does not carry calamine.
 //!
 //! Nothing here touches a network or a filesystem, so a client's census never
 //! leaves the browser. That is not a side effect of the design; it is the reason
@@ -33,7 +42,9 @@ use crate::election_config::render::TemplateSet;
 #[cfg(feature = "election_config_xlsx")]
 use crate::election_config::xlsx::read_xlsx;
 #[cfg(feature = "election_config_archive")]
-use crate::election_config::{archive, build, presets, BuildOptions};
+use crate::election_config::{
+    architect, archive, build, presets, BuildOptions,
+};
 
 #[wasm_bindgen(typescript_custom_section)]
 const ITYPES: &'static str = r#"
@@ -175,22 +186,7 @@ pub fn build_from_workbook(
     workbook: &[u8],
     options: JsValue,
 ) -> Result<IBuildOutput, JsError> {
-    #[derive(serde::Deserialize, Default)]
-    #[serde(default, rename_all = "camelCase")]
-    struct Options {
-        tenant_id: Option<String>,
-        base_export: Option<serde_json::Value>,
-        slug: Option<String>,
-        created_at: Option<String>,
-        auth_preset: Option<String>,
-    }
-
-    let options: Options = if options.is_undefined() || options.is_null() {
-        Options::default()
-    } else {
-        serde_wasm_bindgen::from_value(options)
-            .map_err(|error| JsError::new(&format!("bad options: {error}")))?
-    };
+    let options = build_options(options)?;
 
     let read = match read_xlsx(workbook) {
         Ok(read) => read,
@@ -202,17 +198,7 @@ pub fn build_from_workbook(
         Err(problem) => return failed(problem).map(IBuildOutput::from),
     };
 
-    let built = build(
-        &read,
-        &templates,
-        &BuildOptions {
-            tenant_id: options.tenant_id,
-            base_export: options.base_export,
-            slug: options.slug,
-            created_at: options.created_at,
-            auth_preset: options.auth_preset,
-        },
-    );
+    let built = build(&read, &templates, &options);
 
     let bundle = match built {
         Ok(bundle) => bundle,
@@ -263,6 +249,110 @@ pub fn build_from_workbook(
         event_external_id: Some(bundle.event_external_id.clone()),
     })
     .map(IBuildOutput::from)
+}
+
+/// Check a plan, in the wizard's own vocabulary.
+///
+/// A trustee threshold no number of trustees can meet, a key ceremony after
+/// voting opens, a contest electing more people than are standing. Different
+/// questions from [`check_bundle`], which asks about a built bundle in the
+/// bundle's vocabulary — both run, because a problem phrased as
+/// `contests[2].winning_candidates_num` is no use to somebody looking at a
+/// wizard, and a bundle-level problem has no wizard field to point at.
+#[cfg(feature = "election_config_archive")]
+#[wasm_bindgen(js_name = validatePlan)]
+pub fn validate_plan_js(plan: JsValue) -> Result<IReport, JsError> {
+    let plan: architect::Blueprint = serde_wasm_bindgen::from_value(plan)
+        .map_err(|error| {
+            JsError::new(&format!("this is not an election plan: {error}"))
+        })?;
+
+    to_js(&architect::validate_plan(&plan)).map(IReport::from)
+}
+
+/// Compile a plan into the bundle and the files that travel beside it.
+///
+/// The same [`Output`] `buildFromWorkbook` returns, because a wizard and a
+/// spreadsheet produce the same thing and a front end should not need two shapes
+/// to hold it.
+///
+/// A bad plan comes back as a report with no files rather than as an exception:
+/// a list of problems is something a page can render. An exception here means
+/// the core itself failed, which is a different thing and belongs somewhere
+/// else in the interface.
+#[cfg(feature = "election_config_archive")]
+#[wasm_bindgen(js_name = compilePlan)]
+pub fn compile_plan_js(
+    plan: JsValue,
+    options: JsValue,
+) -> Result<IBuildOutput, JsError> {
+    let plan: architect::Blueprint = serde_wasm_bindgen::from_value(plan)
+        .map_err(|error| {
+            JsError::new(&format!("this is not an election plan: {error}"))
+        })?;
+
+    let options = build_options(options)?;
+
+    let templates = match TemplateSet::builtin() {
+        Ok(templates) => templates,
+        Err(problem) => return failed(problem).map(IBuildOutput::from),
+    };
+
+    let compiled = match architect::compile_plan(&plan, &templates, &options) {
+        Ok(compiled) => compiled,
+        Err(report) => {
+            return to_js(&Output::refused(report)).map(IBuildOutput::from)
+        }
+    };
+
+    let zipped = match archive::zip(&compiled.layout.importable) {
+        Ok(bytes) => bytes,
+        Err(problem) => return failed(problem).map(IBuildOutput::from),
+    };
+
+    to_js(&Output {
+        importable: compiled.layout.importable.iter().map(File::from).collect(),
+        auxiliary: compiled.layout.auxiliary.iter().map(File::from).collect(),
+        archive: Some(File {
+            name: compiled.layout.archive_name.clone(),
+            bytes: zipped,
+        }),
+        report: compiled.report,
+        event_external_id: Some(compiled.bundle.event_external_id.clone()),
+    })
+    .map(IBuildOutput::from)
+}
+
+/// The options both entry points take, read once.
+///
+/// Declared here rather than inside each function so the two cannot drift the
+/// first time [`BuildOptions`] gains a field.
+#[cfg(feature = "election_config_archive")]
+fn build_options(options: JsValue) -> Result<BuildOptions, JsError> {
+    #[derive(serde::Deserialize, Default)]
+    #[serde(default, rename_all = "camelCase")]
+    struct Options {
+        tenant_id: Option<String>,
+        base_export: Option<serde_json::Value>,
+        slug: Option<String>,
+        created_at: Option<String>,
+        auth_preset: Option<String>,
+    }
+
+    let options: Options = if options.is_undefined() || options.is_null() {
+        Options::default()
+    } else {
+        serde_wasm_bindgen::from_value(options)
+            .map_err(|error| JsError::new(&format!("bad options: {error}")))?
+    };
+
+    Ok(BuildOptions {
+        tenant_id: options.tenant_id,
+        base_export: options.base_export,
+        slug: options.slug,
+        created_at: options.created_at,
+        auth_preset: options.auth_preset,
+    })
 }
 
 #[derive(Serialize)]
