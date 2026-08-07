@@ -37,9 +37,18 @@
 //! it is affordable only for tiny committees. Recovering deduplication (and with
 //! it larger `n`) needs the crypto abstracted to deterministic placeholder
 //! hashes: a second, hash-only mode, deliberately not built yet.
+//!
+//! One mitigation is built in: the **lookahead**. `actions` computes each
+//! candidate turn's successor (once — the results are memoized) and offers only
+//! the turns that move the system; `next_state` serves the stored edge. Idle
+//! trustees therefore never appear as actions, and — the part that matters —
+//! `next_state` is a deterministic function of `(state, action)` despite the
+//! crypto, so the paths stateright reconstructs for property discoveries and
+//! counterexamples are byte-identical to the graph it checked.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
+use std::sync::Mutex;
 
 use cryptography::context::{Context, RistrettoCtx};
 use cryptography::cryptosystem::elgamal::{Ciphertext, KeyPair, PublicKey};
@@ -246,6 +255,13 @@ struct BraidModel {
     configuration_hash: ConfigurationHash,
     mixing_trustees: Vec<TrusteeIndex>,
     plaintexts_in: Vec<[Element; W]>,
+    /// Every explored edge's successor, computed once in [`Self::lookahead`]
+    /// and never recomputed. This is what makes `next_state` a deterministic
+    /// function of `(state, action)` even though the crypto inside a cycle is
+    /// not: exploration, property discovery and counterexample replay all see
+    /// the same bytes for the same edge. Grows with the number of explored
+    /// edges — trivial at this scale, a knob to revisit for larger runs.
+    memo: Mutex<HashMap<(SystemState, Turn), Option<SystemState>>>,
 }
 
 impl BraidModel {
@@ -291,7 +307,8 @@ impl BraidModel {
             configuration_hash,
             mixing_trustees: (1..=THRESHOLD).collect(),
             plaintexts_in,
-            }
+            memo: Mutex::new(HashMap::new()),
+        }
     }
 
     /// Rebuild the shared board from a state's bytes.
@@ -359,54 +376,33 @@ impl BraidModel {
         }
         None
     }
-}
 
-impl Model for BraidModel {
-    type State = SystemState;
-    type Action = Turn;
+    /// Compute the successor of `state` under `turn`: the one real transition.
+    ///
+    /// Called exactly once per edge, via [`Self::lookahead`]. `None` means
+    /// "not a transition", for one of two distinct reasons:
+    ///
+    /// - **Idle cycle** (nothing produced): discarded outright, *including*
+    ///   any committed-set growth its `update()` performed. This is a
+    ///   deliberate compression — observation timing stays out of the state
+    ///   space. It is sound while the board is honest and append-only: the
+    ///   §6.3 gate can never fire, so how current a trustee's anti-rewrite
+    ///   pin is cannot influence any checked behavior. Fault injection that
+    ///   drops or rewrites board messages invalidates that argument, and this
+    ///   clause must be revisited with it.
+    /// - **Self-loop** (produced, but `next == *state`): a cycle whose net
+    ///   effect is nothing — reachable only via the mailbox's commit-only
+    ///   re-send path (§6.4), which an honest transport never exposes because
+    ///   production always grows the board. Stateright's fingerprint dedup
+    ///   would fold the duplicate anyway; returning `None` states the intent.
+    fn successor(&self, state: &SystemState, turn: &Turn) -> Option<SystemState> {
+        let board = self.board_from(state);
+        let mut next = state.clone();
 
-    fn init_states(&self) -> Vec<Self::State> {
-        let configuration_message =
-            ProtocolMessage::<C>::configuration(&self.manager, DATE, &self.configuration);
-        vec![SystemState {
-            board: vec![configuration_message.ser()],
-            trustees: (0..TRUSTEES)
-                .map(|_| TrusteeDurable {
-                    committed: Vec::new(),
-                    own_posts: Vec::new(),
-                })
-                .collect(),
-            halts: Vec::new(),
-        }]
-    }
-
-    fn actions(&self, state: &Self::State, actions: &mut Vec<Self::Action>) {
-        // A halted system takes no further steps: the trustee stops, which is
-        // what the safety property is about.
-        if !state.halts.is_empty() {
-            return;
-        }
-        for i in 0..TRUSTEES {
-            actions.push(Turn::Trustee(i));
-        }
-        // The manager posts ballots once, after the DKG yields a public key.
-        let has_ballots = state.board.iter().any(|bytes| {
-            ProtocolMessage::<C>::deser(bytes)
-                .map(|m| m.message_type == MessageType::Ballots)
-                .unwrap_or(false)
-        });
-        if !has_ballots && self.public_key_on(state).is_some() {
-            actions.push(Turn::PostBallots);
-        }
-    }
-
-    fn next_state(&self, last: &Self::State, action: Self::Action) -> Option<Self::State> {
-        let board = self.board_from(last);
-        let mut next = last.clone();
-
-        match action {
+        match turn {
             Turn::Trustee(i) => {
-                let persistence = self.persistence_from(&last.trustees[i]);
+                let i = *i;
+                let persistence = self.persistence_from(&state.trustees[i]);
                 let outcome = block_on(async {
                     let mut client = BoardClient::connect(
                         MemoryTransport::new(board.clone()),
@@ -430,9 +426,7 @@ impl Model for BraidModel {
 
                 match outcome {
                     Ok(produced_any) => {
-                        // A cycle that changes nothing is not a transition: it
-                        // would be a self-loop and would not terminate.
-                        if !produced_any && board.snapshot().len() == last.board.len() {
+                        if !produced_any {
                             return None;
                         }
                     }
@@ -441,7 +435,7 @@ impl Model for BraidModel {
                 next.trustees[i] = Self::durable_from(&persistence);
             }
             Turn::PostBallots => {
-                let (dkg_pk, pk_hash) = self.public_key_on(last)?;
+                let (dkg_pk, pk_hash) = self.public_key_on(state)?;
                 let pk = PublicKey::<C>::new(dkg_pk.pk.clone());
                 let encrypted: Vec<Ciphertext<C, W>> =
                     self.plaintexts_in.iter().map(|p| pk.encrypt(p)).collect();
@@ -458,7 +452,81 @@ impl Model for BraidModel {
         }
 
         next.board = board.snapshot().iter().map(|m| m.ser()).collect();
+        if next == *state {
+            return None;
+        }
         Some(next)
+    }
+
+    /// Memoized [`Self::successor`]: compute on first sight of an edge, serve
+    /// the stored result ever after. First writer wins, so an edge has one
+    /// identity for its whole life — the peek from `actions` IS the evaluation
+    /// that `next_state` later returns.
+    fn lookahead(&self, state: &SystemState, turn: &Turn) -> Option<SystemState> {
+        let key = (state.clone(), turn.clone());
+        if let Some(cached) = self.memo.lock().unwrap().get(&key) {
+            return cached.clone();
+        }
+        // Compute outside the lock: the cycle does real work, and another
+        // worker asking for a different edge shouldn't wait on it.
+        let computed = self.successor(state, turn);
+        self.memo.lock().unwrap().entry(key).or_insert(computed).clone()
+    }
+}
+
+impl Model for BraidModel {
+    type State = SystemState;
+    type Action = Turn;
+
+    fn init_states(&self) -> Vec<Self::State> {
+        let configuration_message =
+            ProtocolMessage::<C>::configuration(&self.manager, DATE, &self.configuration);
+        vec![SystemState {
+            board: vec![configuration_message.ser()],
+            trustees: (0..TRUSTEES)
+                .map(|_| TrusteeDurable {
+                    committed: Vec::new(),
+                    own_posts: Vec::new(),
+                })
+                .collect(),
+            halts: Vec::new(),
+        }]
+    }
+
+    /// The lookahead: every candidate turn's successor is computed here (and
+    /// memoized), and only turns that actually move the system are offered.
+    /// Idle trustees never appear as actions — not because idleness is
+    /// predicted (that would take a second rendering of the rules), but
+    /// because the one evaluation the checker was going to pay anyway happens
+    /// now, and its result is kept.
+    fn actions(&self, state: &Self::State, actions: &mut Vec<Self::Action>) {
+        // A halted system takes no further steps: the trustee stops, which is
+        // what the safety property is about.
+        if !state.halts.is_empty() {
+            return;
+        }
+        let mut candidates: Vec<Turn> = (0..TRUSTEES).map(Turn::Trustee).collect();
+        // The manager posts ballots once, after the DKG yields a public key.
+        let has_ballots = state.board.iter().any(|bytes| {
+            ProtocolMessage::<C>::deser(bytes)
+                .map(|m| m.message_type == MessageType::Ballots)
+                .unwrap_or(false)
+        });
+        if !has_ballots && self.public_key_on(state).is_some() {
+            candidates.push(Turn::PostBallots);
+        }
+        for turn in candidates {
+            if self.lookahead(state, &turn).is_some() {
+                actions.push(turn);
+            }
+        }
+    }
+
+    fn next_state(&self, last: &Self::State, action: Self::Action) -> Option<Self::State> {
+        // Serve the edge computed by `actions`. The memo hit is what makes
+        // this deterministic; a miss (which plain exploration never produces)
+        // computes and stores the edge the same way.
+        self.lookahead(last, &action)
     }
 
     fn properties(&self) -> Vec<Property<Self>> {
