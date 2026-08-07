@@ -95,21 +95,32 @@ impl Timestamp {
     /// otherwise.
     pub fn instant(&self) -> Result<DateTime<FixedOffset>, Problem> {
         let naive = self.naive()?;
-        let offset = FixedOffset::east_opt(self.offset_minutes * 60)
+        // `checked_mul` because these fields come out of a saved plan, which is
+        // a document people hand-edit. `i32::MAX * 60` panics in a debug build
+        // and — worse — wraps to a plausible-looking -00:01 in a release one.
+        let offset = self
+            .offset_minutes
+            .checked_mul(60)
+            .and_then(FixedOffset::east_opt)
             .ok_or_else(|| {
                 self.problem(format!(
                     "{} is not a usable offset",
                     self.offset_minutes
                 ))
             })?;
-        naive.and_local_timezone(offset).earliest().ok_or_else(|| {
-            // A wall clock inside a spring-forward gap names no instant.
-            self.problem(format!(
-                "'{}' did not happen in {}: the clocks moved forward over it",
-                self.local,
-                self.zone_or_utc()
-            ))
-        })
+        // `single()` rather than `earliest()`: a fixed offset has exactly one
+        // mapping, so there is no ambiguity to resolve. An earlier version
+        // guarded here against a spring-forward gap, which reads sensibly and
+        // is unreachable — detecting that needs the zone's rules, and this
+        // module deliberately has no timezone database.
+        Ok(naive
+            .and_local_timezone(offset)
+            .single()
+            .unwrap_or_else(|| {
+                unreachable!(
+                    "a fixed offset maps every wall clock exactly once"
+                )
+            }))
     }
 
     /// The shape the platform's scheduler parses.

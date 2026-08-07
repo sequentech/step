@@ -257,13 +257,13 @@ impl Profile {
         let required = parse_all(&document.required, "required");
 
         let mut defaults = Vec::new();
-        for (index, (text, value)) in document.defaults.iter().enumerate() {
+        for (text, value) in document.defaults.iter() {
             match PlanPath::parse(text) {
                 Ok(path) => {
                     if !reaches_anything(&path, &shape) {
                         report.push(Problem::error(
                             Code::DanglingReference,
-                            format!("defaults[{index}]"),
+                            format!("defaults.{text}"),
                             format!("'{path}' names nothing a plan has"),
                         ));
                     }
@@ -271,7 +271,7 @@ impl Profile {
                 }
                 Err(why) => report.push(Problem::error(
                     Code::InvalidValue,
-                    format!("defaults[{index}]"),
+                    format!("defaults.{text}"),
                     why,
                 )),
             }
@@ -287,13 +287,18 @@ impl Profile {
 
         for path in locked.iter().chain(hidden.iter()) {
             if !defaults.iter().any(|(each, _)| each == path) {
-                report.push(Problem::warning(
+                // An error, not a warning. `apply_profile` writes only what
+                // `defaults` names, so a lock with nothing to lock *to* fixes
+                // the field at whatever the plan happens to say — which for a
+                // new plan is nothing. There is no case where that is useful,
+                // and a profile that quietly enforces none of what it claims is
+                // worse than one that will not load.
+                report.push(Problem::error(
                     Code::MissingField,
                     "defaults",
                     format!(
-                        "'{path}' is locked or hidden but has no default, so it \
-                         is fixed at whatever the plan happens to say — which is \
-                         nothing, for a new one"
+                        "'{path}' is locked or hidden but has no default, so \
+                         nothing would be enforced. Give it a value."
                     ),
                 ));
             }
@@ -438,6 +443,8 @@ fn one(problem: Problem) -> Report {
 /// `elections[]` would reach nothing and look like a typo. This has one element
 /// in each list so the shape is walkable all the way down.
 fn shape_of_a_plan() -> Value {
+    use super::policy::{Overrides, PolicyPatch, TallyPatch};
+
     let mut plan = Blueprint {
         version: super::architect::BLUEPRINT_VERSION,
         ..Default::default()
@@ -446,10 +453,49 @@ fn shape_of_a_plan() -> Value {
     plan.trustees.push(Default::default());
     plan.areas.push(Default::default());
     plan.schedule.milestones.push(Default::default());
+    // Every moment, filled in. `Option` serialises as `null`, which has no keys
+    // to walk into, and `zone` is skipped while empty — so a shape built from
+    // defaults makes `schedule.voting_opens.zone` look like a typo.
+    let moment =
+        Some(super::time::Timestamp::new("2027-01-01T00:00", "UTC", 0));
+    plan.schedule.key_ceremony = moment.clone();
+    plan.schedule.voting_opens = moment.clone();
+    plan.schedule.voting_closes = moment.clone();
+    plan.schedule.tally_ceremony = moment;
 
-    let mut election = super::architect::PlannedElection::default();
-    let mut contest = super::architect::PlannedContest::default();
+    // Filled rather than defaulted, because `Overrides` and `Option<Overrides>`
+    // both carry `skip_serializing_if`. Left empty they vanish from the shape,
+    // and every path through them — including
+    // `elections[].contests[].overrides.tally.counting_algorithm`, the example
+    // this whole design exists for — is refused as naming nothing.
+    let filled = Overrides {
+        policies: PolicyPatch {
+            over_vote: Some(Default::default()),
+            blank_vote: Some(Default::default()),
+            under_vote: Some(Default::default()),
+            invalid_vote: Some(Default::default()),
+            duplicated_rank: Some(Default::default()),
+            preference_gaps: Some(Default::default()),
+            candidates_order: Some(Default::default()),
+        },
+        tally: TallyPatch {
+            voting_type: Some(String::new()),
+            counting_algorithm: Some(String::new()),
+            min_votes: Some(0),
+            is_encrypted: Some(true),
+        },
+    };
+
+    let mut contest = super::architect::PlannedContest {
+        overrides: filled.clone(),
+        ..Default::default()
+    };
     contest.candidates.push(Default::default());
+
+    let mut election = super::architect::PlannedElection {
+        shared: Some(filled),
+        ..Default::default()
+    };
     election.contests.push(contest);
     plan.elections.push(election);
 

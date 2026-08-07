@@ -201,10 +201,46 @@ fn the_patch_covers_exactly_the_policies_that_exist() {
     };
     let patch = serde_json::to_value(full).unwrap();
 
-    assert_eq!(
-        resolved.as_object().unwrap().len(),
-        patch.as_object().unwrap().len()
-    );
+    // Key sets, not lengths. Lengths agree by construction — both come from one
+    // macro invocation over one field list — so comparing them asserts nothing,
+    // and would still pass if the two sides used different *names*.
+    let names = |value: &serde_json::Value| -> Vec<String> {
+        value.as_object().unwrap().keys().cloned().collect()
+    };
+    assert_eq!(names(&resolved), names(&patch));
+}
+
+/// The catalog hand-writes each plan field name — `kind::<OverVote>("over_vote")`
+/// — and nothing else checks them against serde's.
+///
+/// A typo there makes the picker write `{overvot: "allowed"}`, which `Policies`
+/// silently discards: every field is `#[serde(default)]` and unknown keys are
+/// ignored. The choice vanishes between the dropdown and the bundle, with no
+/// error anywhere.
+#[test]
+fn the_catalog_names_the_fields_serde_actually_reads() {
+    // Sorted, because a `serde_json::Map`'s order is an implementation detail
+    // and what is being checked is the *names*.
+    let serialised = serde_json::to_value(Policies::default()).unwrap();
+    let mut from_serde: Vec<String> =
+        serialised.as_object().unwrap().keys().cloned().collect();
+    from_serde.sort();
+
+    // The same list `policy_catalog()` builds, in the same order. Kept here
+    // rather than imported because `wasm.rs` is behind a feature `cargo test`
+    // does not enable, so the catalog itself is never compiled by this suite.
+    let mut from_catalog = vec![
+        "over_vote".to_string(),
+        "blank_vote".to_string(),
+        "under_vote".to_string(),
+        "invalid_vote".to_string(),
+        "duplicated_rank".to_string(),
+        "preference_gaps".to_string(),
+        "candidates_order".to_string(),
+    ];
+    from_catalog.sort();
+
+    assert_eq!(from_serde, from_catalog);
 }
 
 /// The catalog is what stops the value space acquiring a fourth copy, so it has

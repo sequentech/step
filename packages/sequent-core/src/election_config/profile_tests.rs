@@ -121,6 +121,34 @@ fn a_path_naming_a_field_no_plan_has_is_refused() {
     assert!(says(&report, "names nothing a plan has"));
 }
 
+/// The paths the module docs and the delivery docs both print as the reason
+/// this design exists. They were **refused**: `Overrides` and `shared` carry
+/// `skip_serializing_if`, so the shape a path is checked against had no such
+/// keys, and the motivating example was unimplementable.
+#[test]
+fn the_paths_the_docs_advertise_are_accepted() {
+    for path in [
+        "elections[].contests[].overrides.tally.counting_algorithm",
+        "elections[].contests[].overrides.policies.over_vote",
+        "elections[].shared.tally.counting_algorithm",
+        "elections[].shared.policies.over_vote",
+        "schedule.voting_opens",
+        "schedule.voting_opens.zone",
+        "trustee_threshold",
+    ] {
+        let document = ClientProfile {
+            id: "acme".to_string(),
+            defaults: defaults(&[(path, Value::from("x"))]),
+            locked: vec![path.to_string()],
+            ..Default::default()
+        };
+        assert!(
+            Profile::read(&document).is_ok(),
+            "'{path}' is printed in the docs and must be usable"
+        );
+    }
+}
+
 #[test]
 fn a_path_reaching_into_a_contest_is_accepted() {
     profile_of(ClientProfile {
@@ -140,23 +168,40 @@ fn a_profile_needs_an_id() {
     assert!(says(&report, "a profile needs an id"));
 }
 
-/// Locking a path with nothing to lock it *to* fixes it at whatever the plan
-/// happens to say — which for a new plan is nothing. Odd rather than wrong, so
-/// the profile still reads, and the warning travels with it.
+/// A lock with nothing to lock *to* enforces nothing: `apply_profile` writes
+/// only what `defaults` names. It used to be a warning, which meant a profile
+/// could load, claim to fix a field, and fix nothing.
 #[test]
-fn locking_something_with_no_default_is_a_warning_that_survives() {
-    let profile = profile_of(ClientProfile {
+fn locking_something_with_no_default_is_refused() {
+    let report = refused(ClientProfile {
         id: "acme".to_string(),
         locked: vec!["trustee_threshold".to_string()],
         ..Default::default()
     });
 
-    assert!(!profile.warnings.has_errors());
-    assert!(
-        says(&profile.warnings, "has no default"),
-        "the warning must reach whoever reads the report, not be computed and \
-         dropped: {}",
-        profile.warnings
+    assert!(report.has_errors());
+    assert!(says(&report, "nothing would be enforced"));
+}
+
+/// Proof of the above, at the level that matters: with the lock unenforced, a
+/// hand-edited plan simply keeps its own value.
+#[test]
+fn a_lock_without_a_default_would_have_enforced_nothing() {
+    // Constructed directly, since `Profile::read` now refuses this shape.
+    let profile = profile_of(ClientProfile {
+        id: "acme".to_string(),
+        defaults: defaults(&[("trustee_threshold", Value::from(3))]),
+        locked: vec!["trustee_threshold".to_string()],
+        ..Default::default()
+    });
+
+    let mut hand_edited = plan();
+    hand_edited.trustee_threshold = 999;
+
+    let applied = apply_profile(&hand_edited, &profile).expect("applies");
+    assert_eq!(
+        applied.trustee_threshold, 3,
+        "the default is what enforces it"
     );
 }
 

@@ -201,3 +201,13 @@ fn a_zone_that_is_not_a_whole_hour_is_fine() {
     assert!(problems(&kathmandu).is_empty());
     assert_eq!(kolkata.to_rfc3339().unwrap(), "2027-03-01T09:00:00+05:30");
 }
+
+/// These fields come out of a saved plan, which people hand-edit. Before the
+/// `checked_mul`, this panicked in a debug build and — worse — wrapped to a
+/// plausible-looking `-00:01` in a release one.
+#[test]
+fn an_absurd_offset_is_reported_rather_than_overflowing() {
+    let stamp = Timestamp::new("2027-03-01T09:00", "Nowhere", i32::MAX);
+    assert!(stamp.instant().is_err());
+    assert!(stamp.to_rfc3339().is_err());
+}
