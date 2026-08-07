@@ -38,15 +38,14 @@
 //! every path must complete, checkable soundly because exploration is
 //! exhaustive, acyclic (the board only grows) and not depth-capped.
 //!
-//! **Not yet bought — state folding.** The state holds the board as an
-//! ordered log, and two interleavings differ in exactly that order, so
-//! logically-equal states remain byte-distinct and fingerprint dedup never
-//! fires: at n=2 this explores 153 states, the same tree as the crypto
-//! harness (an exact structural cross-validation, and a measurement of zero
-//! folding). Collapsing the tree into the graph requires quotienting state
-//! identity by message order — sound only because the protocol layer is
-//! order-insensitive (datalog consumes predicate *sets*) — a deliberate
-//! modeling step not yet taken.
+//! And state identity is **order-free** ([`SystemState::canonicalize`]): the
+//! board is an ordered log, but the protocol layer is order-insensitive
+//! (datalog consumes predicate *sets*, stores are content-addressed), so
+//! states are quotiented by message order and interleavings that produce the
+//! same message set fold. Measured at n=2: 35 states, versus 153 for the same
+//! configuration without the quotient — which is also exactly the crypto
+//! harness's tree, a structural cross-validation of the symbolic layer
+//! (identical actions, identical branching, before folding).
 //!
 //! # What this cannot see
 //!
@@ -87,8 +86,6 @@ type C = RistrettoCtx;
 type Sig = <C as Context>::SignatureScheme;
 type SigningKey = <Sig as SignatureScheme<<C as Context>::Rng>>::Signer;
 
-const TRUSTEES: usize = 2;
-const THRESHOLD: usize = 2;
 const DATE: Timestamp = 0;
 
 thread_local! {
@@ -124,6 +121,29 @@ struct SystemState {
     /// Datalog halts observed so far. A healthy run leaves this empty; the
     /// safety property is exactly that it stays empty.
     halts: Vec<String>,
+}
+
+impl SystemState {
+    /// Canonical form: state identity is **order-free**. The protocol layer is
+    /// order-insensitive by design — datalog consumes predicate *sets*, the
+    /// message store is content-addressed, nothing reads board positions — so
+    /// interleavings that produce the same message set are the same state, and
+    /// sorting is what lets stateright's fingerprint dedup see that (the tree
+    /// → graph collapse). The Configuration message stays pinned first: the
+    /// board client reads it at connect.
+    ///
+    /// Every state in the system is canonical: the initial state trivially,
+    /// successors by construction in [`SymbolicModel::successor`].
+    fn canonicalize(&mut self) {
+        if self.board.len() > 1 {
+            self.board[1..].sort_unstable();
+        }
+        for t in &mut self.trustees {
+            t.committed.sort_unstable();
+            t.own_posts.sort_unstable();
+        }
+        self.halts.sort_unstable();
+    }
 }
 
 impl std::fmt::Debug for SystemState {
@@ -195,6 +215,7 @@ impl WireSigner<C> for SymbolicTrustee {
 /// The fixed context of a run: identities and configuration. Not part of the
 /// state — none of it changes.
 struct SymbolicModel {
+    n: usize,
     manager: ProtocolManager<C>,
     trustees: Vec<SymbolicTrustee>,
     configuration: Configuration<C>,
@@ -209,14 +230,14 @@ struct SymbolicModel {
 }
 
 impl SymbolicModel {
-    fn new() -> Self {
+    fn new(n: usize, threshold: usize) -> Self {
         let mut key_rng = C::get_rng();
         let manager = ProtocolManager::<C>::new(Sig::gen_signing_key(&mut key_rng));
 
-        let mut signing_keys = Vec::with_capacity(TRUSTEES);
-        let mut trustee_vks = Vec::with_capacity(TRUSTEES);
-        let mut share_enc_keys = Vec::with_capacity(TRUSTEES);
-        for _ in 0..TRUSTEES {
+        let mut signing_keys = Vec::with_capacity(n);
+        let mut trustee_vks = Vec::with_capacity(n);
+        let mut share_enc_keys = Vec::with_capacity(n);
+        for _ in 0..n {
             let sk = Sig::gen_signing_key(&mut key_rng);
             trustee_vks.push(Sig::verifying_key(&sk));
             signing_keys.push(sk);
@@ -229,7 +250,7 @@ impl SymbolicModel {
             0,
             Sig::verifying_key(&manager.signing_key),
             trustee_vks,
-            THRESHOLD,
+            threshold,
             2,
             share_enc_keys,
             PhantomData,
@@ -257,11 +278,12 @@ impl SymbolicModel {
             .collect();
 
         Self {
+            n,
             manager,
             trustees,
             configuration,
             configuration_hash,
-            mixing_trustees: (1..=THRESHOLD).collect(),
+            mixing_trustees: (1..=threshold).collect(),
             memo: Mutex::new(HashMap::new()),
         }
     }
@@ -445,6 +467,7 @@ impl SymbolicModel {
         }
 
         next.board = board.snapshot().iter().map(|m| m.ser()).collect();
+        next.canonicalize();
         if next == *state {
             return None;
         }
@@ -471,7 +494,7 @@ impl Model for SymbolicModel {
             ProtocolMessage::<C>::configuration(&self.manager, DATE, &self.configuration);
         vec![SystemState {
             board: vec![configuration_message.ser()],
-            trustees: (0..TRUSTEES)
+            trustees: (0..self.n)
                 .map(|_| TrusteeDurable {
                     committed: Vec::new(),
                     own_posts: Vec::new(),
@@ -487,7 +510,7 @@ impl Model for SymbolicModel {
         if !state.halts.is_empty() {
             return;
         }
-        let mut candidates: Vec<Turn> = (0..TRUSTEES).map(Turn::Trustee).collect();
+        let mut candidates: Vec<Turn> = (0..self.n).map(Turn::Trustee).collect();
         // The manager posts ballots once, after the DKG yields a public key.
         let has_ballots = state.board.iter().any(|bytes| {
             ProtocolMessage::<C>::deser(bytes)
@@ -513,11 +536,16 @@ impl Model for SymbolicModel {
             // Safety, on every reachable state.
             Property::<Self>::always("no trustee halts", |_, state| state.halts.is_empty()),
             // Liveness, in its strong form: on EVERY path the protocol
-            // completes — each trustee publishes its plaintexts. Sound here,
-            // unlike in the crypto harness, because the exploration is
-            // exhaustive (deterministic edges + dedup) and acyclic (the board
-            // only grows), with no depth cap.
-            Property::<Self>::eventually("protocol completes", |_, state| {
+            // completes. Sound here, unlike in the crypto harness, because the
+            // exploration is exhaustive (deterministic edges + dedup) and
+            // acyclic (the board only grows), with no depth cap.
+            //
+            // Completion is plaintexts from every MIXING trustee, not every
+            // trustee: the post-DKG quorum is the mixing list (of size ==
+            // threshold) — both `ComputePartialDecryptions` and
+            // `ComputePlaintexts` require `mixing_position` (decrypt.rs).
+            // Non-mixing trustees go quiet after the DKG by design.
+            Property::<Self>::eventually("protocol completes", |model, state| {
                 let plaintexts = state
                     .board
                     .iter()
@@ -527,20 +555,36 @@ impl Model for SymbolicModel {
                             .unwrap_or(false)
                     })
                     .count();
-                plaintexts == TRUSTEES
+                plaintexts == model.mixing_trustees.len()
             }),
         ]
     }
 }
 
-/// Explore ALL interleavings of a two-trustee run over the real datalog with
-/// symbolic artifacts. Not `#[ignore]`d: with tokens instead of crypto this is
-/// meant to be fast enough for the ordinary test suite — that speed is part of
-/// what the test demonstrates.
-#[test]
-fn model_check_symbolic_two_trustees() {
-    let model = SymbolicModel::new();
+/// Explore ALL interleavings over the real datalog with symbolic artifacts.
+/// Not `#[ignore]`d: with tokens instead of crypto this is meant to be fast
+/// enough for the ordinary test suite — that speed is part of what the test
+/// demonstrates.
+fn check(n: usize, threshold: usize) -> usize {
+    let model = SymbolicModel::new(n, threshold);
     let checker = model.checker().threads(1).spawn_bfs().join();
     checker.assert_properties();
-    println!("explored {} unique states", checker.unique_state_count());
+    let states = checker.unique_state_count();
+    println!("n={n} t={threshold}: explored {states} unique states");
+    states
+}
+
+#[test]
+fn model_check_symbolic_two_trustees() {
+    check(2, 2);
+}
+
+#[test]
+fn model_check_symbolic_three_trustees() {
+    check(3, 3);
+}
+
+#[test]
+fn model_check_symbolic_three_trustees_threshold_two() {
+    check(3, 2);
 }
