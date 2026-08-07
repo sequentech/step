@@ -51,7 +51,12 @@ node -e '
 ' "${OUT_DIR}" "${PACKAGE_NAME}"
 
 echo "==> Packing..."
-wasm-pack -v pack "${OUT_DIR}"
+# `npm pack` rather than `wasm-pack pack`, which takes the *crate* directory and
+# looks for a `pkg` child inside it — so with a custom --out-dir it goes hunting
+# for pkg-election-config/pkg and fails. `wasm-pack pack` is a wrapper around
+# `npm pack` in the output directory, which is exactly this, and it drops the
+# tarball in the directory it runs from.
+(cd "${OUT_DIR}" && npm pack)
 
 echo
 echo "==> Built ${OUT_DIR}/${PACKAGE_NAME}-0.1.0.tgz"
