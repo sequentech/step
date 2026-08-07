@@ -48,7 +48,7 @@ use cryptography::utils::serialization::{VDeserializable, VSerializable};
 use cryptography::utils::signatures::SignatureScheme;
 use stateright::{Checker, Model, Property};
 
-use braid::board::persistence::MemoryPersistence;
+use braid::board::persistence::Persistence;
 use braid::board::transport::{MemoryBoard, MemoryTransport, StagedRef};
 use braid::board::BoardClient;
 use braid::messages::artifact::{Ballots, Configuration, DkgPublicKey, Plaintexts};
@@ -89,6 +89,81 @@ thread_local! {
 
 fn block_on<F: std::future::Future>(f: F) -> F::Output {
     RUNTIME.with(|rt| rt.block_on(f))
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Persistence
+///////////////////////////////////////////////////////////////////////////
+
+/// In-memory persistence whose contents can be **seeded and read back**.
+///
+/// Durable in the sense that matters for this harness: the store lives outside
+/// the board client, so a client can be dropped and a new one connected over
+/// the same contents — a restart, without a filesystem. That is what lets the
+/// checker keep each trustee's durable state in its own state value and
+/// rehydrate a real `BoardClient` per transition.
+///
+/// The handle is cheap to clone and shares one store, so the harness keeps a
+/// clone to snapshot after driving a cycle. Test-only: the production backends
+/// are SQLite (M2) and IndexedDB (M3), with `NoOpPersistence` for M1.
+#[derive(Clone, Default)]
+struct MemoryPersistence {
+    inner: std::rc::Rc<std::cell::RefCell<MemoryPersistenceInner>>,
+}
+
+#[derive(Clone, Default)]
+struct MemoryPersistenceInner {
+    predicates: Vec<Predicate>,
+    own_posts: Vec<(Predicate, StagedRef)>,
+}
+
+impl MemoryPersistence {
+    /// Seeded with previously persisted contents (a restart).
+    fn restored(predicates: Vec<Predicate>, own_posts: Vec<(Predicate, StagedRef)>) -> Self {
+        Self {
+            inner: std::rc::Rc::new(std::cell::RefCell::new(MemoryPersistenceInner {
+                predicates,
+                own_posts,
+            })),
+        }
+    }
+
+    /// The current contents: `(committed predicates, own-post record)`.
+    fn snapshot(&self) -> (Vec<Predicate>, Vec<(Predicate, StagedRef)>) {
+        let inner = self.inner.borrow();
+        (inner.predicates.clone(), inner.own_posts.clone())
+    }
+}
+
+#[async_trait::async_trait(?Send)]
+impl Persistence for MemoryPersistence {
+    async fn load(&self) -> anyhow::Result<Vec<Predicate>> {
+        Ok(self.inner.borrow().predicates.clone())
+    }
+
+    async fn persist(&mut self, predicate: &Predicate) -> anyhow::Result<()> {
+        let mut inner = self.inner.borrow_mut();
+        if !inner.predicates.contains(predicate) {
+            inner.predicates.push(predicate.clone());
+        }
+        Ok(())
+    }
+
+    async fn load_own_posts(&self) -> anyhow::Result<Vec<(Predicate, StagedRef)>> {
+        Ok(self.inner.borrow().own_posts.clone())
+    }
+
+    async fn persist_own_post(
+        &mut self,
+        predicate: &Predicate,
+        staged: &StagedRef,
+    ) -> anyhow::Result<()> {
+        let mut inner = self.inner.borrow_mut();
+        if !inner.own_posts.iter().any(|(p, _)| p == predicate) {
+            inner.own_posts.push((predicate.clone(), staged.clone()));
+        }
+        Ok(())
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////
