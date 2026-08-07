@@ -8,14 +8,18 @@ import spanishInformalTranslation from "../translations/es-tu"
 import catalanTranslation from "../translations/cat"
 import catalanInformalTranslation from "../translations/cat-tu"
 
-// mirrors what i18n.ts does once the WASM mapping has run
+// Stands in for the WASM code mapping only. Everything else runs the real
+// functions — an earlier version of this file lower-cased the input here, which
+// hid the fact that `splitRegister` was not lower-casing `base` itself.
+const wasmCaseMapping: Record<string, string> = {ca: "cat", cat: "ca"}
+
 const normalize = (lang: string) => {
-    const {base, informal} = splitRegister(lang.toLowerCase())
-    return withRegister(base === "ca" ? "cat" : base, informal)
+    const {base, informal} = splitRegister(lang)
+    return withRegister(base === "ca" ? wasmCaseMapping.ca : base, informal)
 }
 const toTag = (lang: string) => {
     const {base, informal} = splitRegister(lang)
-    return withRegisterBCP47(base === "cat" ? "ca" : base, informal)
+    return withRegisterBCP47(base === "cat" ? wasmCaseMapping.cat : base, informal)
 }
 
 describe("register variant locale codes", () => {
@@ -41,6 +45,14 @@ describe("register variant locale codes", () => {
         expect(normalize("es-MX")).toBe("es")
         expect(normalize("ca-ES-valencia")).toBe("cat")
         expect(splitRegister("es-MX").informal).toBe(false)
+    })
+
+    it("lower-cases the base, as locale.rs does", () => {
+        // asserted on splitRegister itself: the helpers above must not be the
+        // thing that normalises case, or this contract can drift unnoticed
+        expect(splitRegister("ES").base).toBe("es")
+        expect(splitRegister("CA-X-TU")).toEqual({base: "ca", informal: true})
+        expect(splitRegister("Es-ES").base).toBe("es")
     })
 
     it("puts the register in a private-use sequence, keeping the tag well-formed", () => {
@@ -79,9 +91,13 @@ describe("register variant bundles", () => {
     it.each(pairs)("%s variant keeps every interpolation placeholder", (_lang, base, variant) => {
         const b = flatten(base)
         const v = flatten(variant)
-        const vars = (s: string) =>
-            [...new Set([...s.matchAll(/\{\{\s*([^}]+?)\s*\}\}/g)].map((m) => m[1]))].sort()
+        const vars = (s: string | undefined) =>
+            s === undefined
+                ? "<missing key>"
+                : [...new Set([...s.matchAll(/\{\{\s*([^}]+?)\s*\}\}/g)].map((m) => m[1]))].sort()
         for (const key of Object.keys(b)) {
+            // `vars` tolerates undefined so a missing key names itself here
+            // instead of throwing a TypeError from matchAll
             expect({key, vars: vars(v[key])}).toEqual({key, vars: vars(b[key])})
         }
     })

@@ -30,7 +30,7 @@ const catalanTranslation: TranslationType = {
                     "Si us plau, introduïu l'ID de la papereta proporcionat al Portal de Votació.",
             },
             startButton: "Seleccioneu fitxer",
-            dragDropOption: "O arrossega el fitxer aquí",
+            dragDropOption: "O arrossegueu el fitxer aquí",
             importErrorDescription:
                 "Hi ha hagut un problema en importar el vot auditable. Heu triat el fitxer correcte?",
             importErrorMoreInfo: "Més informació",

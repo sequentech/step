@@ -81,10 +81,10 @@ const catalanTranslation: TranslationType = {
         reviewScreen: {
             title: "Reviseu el vostre vot",
             description:
-                "Per fer canvis a les vostres seleccions, feu clic al botó “<b>Edita el vostre vot</b>”, per confirmar les vostres seleccions, feu clic al botó “<b>Envia el vostre vot</b>” a sota, i per auditar la vostra papereta feu clic al botó “<b>Auditar papereta</b>” a sota.",
+                "Per fer canvis a les vostres seleccions, feu clic al botó “<b>Editeu el vostre vot</b>”, per confirmar les vostres seleccions, feu clic al botó “<b>Envieu el vot</b>” a sota, i per auditar la vostra papereta feu clic al botó “<b>Auditar papereta</b>” a sota.",
             descriptionNoAudit:
-                "Per fer canvis a les vostres seleccions, feu clic al botó “<b>Edita el vostre vot</b>”, per confirmar les vostres seleccions, feu clic al botó “<b>Envia el vostre vot</b>” a sota.",
-            backButton: "Edita el vostre vot",
+                "Per fer canvis a les vostres seleccions, feu clic al botó “<b>Editeu el vostre vot</b>”, per confirmar les vostres seleccions, feu clic al botó “<b>Envieu el vot</b>” a sota.",
+            backButton: "Editeu el vostre vot",
             castBallotButton: "Envieu el vot",
             auditButton: "Auditar papereta",
             reviewScreenHelpDialog: {

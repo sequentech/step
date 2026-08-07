@@ -81,9 +81,9 @@ const catalanInformalTranslation: TranslationType = {
         reviewScreen: {
             title: "Revisa el teu vot",
             description:
-                "Per fer canvis a les teves seleccions, fes clic al botó “<b>Edita el teu vot</b>”, per confirmar les teves seleccions, fes clic al botó “<b>Envia el teu vot</b>” a sota, i per auditar la teva papereta fes clic al botó “<b>Auditar papereta</b>” a sota.",
+                "Per fer canvis a les teves seleccions, fes clic al botó “<b>Edita el teu vot</b>”, per confirmar les teves seleccions, fes clic al botó “<b>Envia el vot</b>” a sota, i per auditar la teva papereta fes clic al botó “<b>Auditar papereta</b>” a sota.",
             descriptionNoAudit:
-                "Per fer canvis a les teves seleccions, fes clic al botó “<b>Edita el teu vot</b>”, per confirmar les teves seleccions, fes clic al botó “<b>Envia el teu vot</b>” a sota.",
+                "Per fer canvis a les teves seleccions, fes clic al botó “<b>Edita el teu vot</b>”, per confirmar les teves seleccions, fes clic al botó “<b>Envia el vot</b>” a sota.",
             backButton: "Edita el teu vot",
             castBallotButton: "Envia el vot",
             auditButton: "Auditar papereta",
@@ -247,7 +247,7 @@ const catalanInformalTranslation: TranslationType = {
             },
             errorDialogPrintBallotReceipt: {
                 title: "Error",
-                content: "Ha ocorregut un error, si us plau intenti de nou",
+                content: "Hi ha hagut un error, si us plau intenta-ho de nou",
                 ok: "Acceptar",
             },
             demoQRText: "El rastrejador de butlletes està deshabilitat en mode de demostració",
@@ -257,7 +257,7 @@ const catalanInformalTranslation: TranslationType = {
             restartButton: "Iniciar votació",
             title: "Comprova la teva papereta",
             description: "Per comprovar la teva papereta, segueix els passos a continuació:",
-            step1Title: "1. Deseu les dades següents:",
+            step1Title: "1. Desa les dades següents:",
             step1Description:
                 "el teu <b>Localitzador del Vot</b> a la part superior de la pantalla i la teva papereta encriptada a continuació",
             step1HelpDialog: {

@@ -29,7 +29,9 @@ export const INFORMAL_SUFFIX = "tu"
 export const splitRegister = (lang: string): {base: string; informal: boolean} => {
     const [primary, ...rest] = lang.split("-")
     return {
-        base: primary,
+        // lower-cased to match `split_register` in locale.rs, which returns
+        // `primary.to_ascii_lowercase()` — the two must agree
+        base: primary.toLowerCase(),
         informal: rest.some((part) => part.toLowerCase() === INFORMAL_SUFFIX),
     }
 }

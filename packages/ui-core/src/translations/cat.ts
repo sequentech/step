@@ -44,7 +44,7 @@ const catalanTranslation: TranslationType = {
                 "El verificador de vot permet al votant assegurar-se que el vot xifrat capturi correctament les seleccions fetes a la cabina de votació. Permetre realitzar aquesta verificació es denomina verificabilitat de transmissió segons el previst i evita errors i activitats malicioses durant el xifratge del vot.",
             descriptionMore: "Més informació",
             startButton: "Seleccioneu fitxer",
-            dragDropOption: "O arrossega el fitxer aquí",
+            dragDropOption: "O arrossegueu el fitxer aquí",
             importErrorDescription:
                 "Hi va haver un problema en importar el vot auditable. Vas triar el fitxer correcte?",
             importErrorMoreInfo: "Més informació",
@@ -137,7 +137,7 @@ const catalanTranslation: TranslationType = {
             openDialog: "Obrir Diàleg",
         },
         dragNDrop: {
-            firstLine: "Arrossega i deixa anar fitxers o",
+            firstLine: "Arrossegueu i deixeu anar fitxers o",
             browse: "Carrega fitxer",
             format: "Formats suportats: txt",
         },

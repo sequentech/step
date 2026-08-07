@@ -330,8 +330,8 @@ const galegoTranslation: TranslationType = {
                 alert: "Esta selección contarase como un voto inválido",
             },
             page: {
-                oopsWithStatus: "¡Vaia! {{status}}",
-                oopsWithoutStatus: "Oops! Erro inesperado",
+                oopsWithStatus: "Vaia! {{status}}",
+                oopsWithoutStatus: "Vaia! Erro inesperado",
                 somethingWrong: "Algo saiu mal.",
                 certAuthFailedTitle: "Erro de Autenticación con Certificado",
                 certAuthFailedMessage:

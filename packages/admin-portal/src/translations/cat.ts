@@ -761,7 +761,7 @@ const catalanTranslation: TranslationType = {
                 },
             },
             stats: {
-                elegibleVoters: "Votants",
+                elegibleVoters: "Votants Elegibles",
                 voters: "Votants",
                 elections: "Eleccions",
                 contests: "Conteses",
@@ -1878,7 +1878,7 @@ const catalanTranslation: TranslationType = {
             },
             error: {},
             createContestSuccess: "Contesa creada",
-            createContestError: "Error creant pregunta",
+            createContestError: "Error en crear la contesa",
         },
         keysGeneration: {
             configureStep: {

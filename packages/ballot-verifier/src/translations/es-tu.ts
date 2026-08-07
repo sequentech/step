@@ -8,7 +8,7 @@ const spanishInformalTranslation: TranslationType = {
         welcome: "Comencemos: Importa la papeleta auditable...",
         404: {
             title: "Página no encontrada",
-            subtitle: "La página que busca no existe",
+            subtitle: "La página que buscas no existe",
         },
         homeScreen: {
             step1: "Paso 1: Importa tu papeleta electoral.",
@@ -22,15 +22,15 @@ const spanishInformalTranslation: TranslationType = {
             },
             step2: "Paso 2: Inserta tu ID de papeleta.",
             description2:
-                "Por favor ingrese el ID de la papeleta proporcionado en el Portal de Votación:",
+                "Por favor ingresa el ID de la papeleta proporcionado en el Portal de Votación:",
             ballotIdHelpDialog: {
                 title: "Información: Tu ID de papeleta",
                 ok: "OK",
                 content:
-                    "Por favor ingrese el ID de la papeleta proporcionado en el Portal de Votación.",
+                    "Por favor ingresa el ID de la papeleta proporcionado en el Portal de Votación.",
             },
             startButton: "Selecciona fichero",
-            dragDropOption: "O arrastre el fichero aquí",
+            dragDropOption: "O arrastra el fichero aquí",
             importErrorDescription:
                 "Hubo un problema al importar el voto auditable. ¿Elegiste el archivo correcto?",
             importErrorMoreInfo: "Más información",

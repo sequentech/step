@@ -256,7 +256,7 @@ const spanishInformalTranslation: TranslationType = {
             restartButton: "Iniciar votación",
             title: "Comprueba tu papeleta",
             description: "Para comprobar tu papeleta, sigue los pasos a continuación:",
-            step1Title: "1. Guarde los siguientes datos:",
+            step1Title: "1. Guarda los siguientes datos:",
             step1Description:
                 "tu <b>Localizador del Voto</b> en la parte superior de la pantalla y tu papeleta encriptada a continuación",
             step1HelpDialog: {
@@ -352,7 +352,7 @@ const spanishInformalTranslation: TranslationType = {
             titleResult: "Resultados de tu búsqueda de Papeleta",
             description: "Confirma que tu papeleta fue emitida correctamente",
             locate: "Encuentra tu papeleta",
-            locateAgain: "Encuentra otra Papeleta",
+            locateAgain: "Encuentra otra papeleta",
             found: "Tu ID de Papeleta {{ballotId}} ha sido encontrado",
             notFound: "Tu ID de Papeleta {{ballotId}} no fue encontrado",
             ambiguous:

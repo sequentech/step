@@ -1844,7 +1844,7 @@ const englishTranslation = {
             },
             error: {},
             createContestSuccess: "Contest created",
-            createContestError: "Error creating candidate",
+            createContestError: "Error creating contest",
         },
         keysGeneration: {
             configureStep: {

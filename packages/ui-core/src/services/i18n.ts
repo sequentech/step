@@ -70,8 +70,13 @@ export const toBCP47 = (lang: string): string => {
     try {
         candidate = iso_639_2t_to_bcp47_js(base)
     } catch {
-        // WASM not yet initialised; return the input unchanged.
-        return lang
+        // WASM not yet initialised. Returning `lang` unchanged would put the
+        // internal code straight into `<html lang>`, and `es-tu` is not
+        // well-formed BCP 47 — `tu` is neither a registered variant nor behind
+        // the private-use singleton. `languageChanged` only repairs it if the
+        // voter switches language, which most never do, so compose a valid tag
+        // from the base instead.
+        return withRegisterBCP47(base, informal)
     }
     if (informal) {
         return withRegisterBCP47(candidate, true)

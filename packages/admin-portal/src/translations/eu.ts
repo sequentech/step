@@ -1858,7 +1858,7 @@ const basqueTranslation: TranslationType = {
             },
             error: {},
             createContestSuccess: "Lehiaketa sortua",
-            createContestError: "Errorea hautagaia sortzerakoan",
+            createContestError: "Errorea lehiaketa sortzerakoan",
         },
         keysGeneration: {
             configureStep: {

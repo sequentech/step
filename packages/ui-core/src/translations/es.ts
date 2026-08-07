@@ -46,7 +46,7 @@ const spanishTranslation: TranslationType = {
             startButton: "Seleccione fichero",
             dragDropOption: "O arrastre el fichero aquí",
             importErrorDescription:
-                "Hubo un problema al importar el voto auditable. ¿Elegiste el archivo correcto?",
+                "Hubo un problema al importar el voto auditable. ¿Eligió el archivo correcto?",
             importErrorMoreInfo: "Más información",
             importErrorTitle: "Error",
             useSampleText: "¿No tiene un voto verificable?",

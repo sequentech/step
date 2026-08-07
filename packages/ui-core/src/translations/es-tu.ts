@@ -44,7 +44,7 @@ const spanishInformalTranslation: TranslationType = {
                 "El verificador de voto le permite al votante asegurarse de que el voto cifrado capture correctamente las selecciones realizadas en la cabina de votación. Permitir realizar esta verificación se denomina verificabilidad de transmisión según lo previsto y evita errores y actividades maliciosas durante el cifrado del voto.",
             descriptionMore: "Más información",
             startButton: "Selecciona fichero",
-            dragDropOption: "O arrastre el fichero aquí",
+            dragDropOption: "O arrastra el fichero aquí",
             importErrorDescription:
                 "Hubo un problema al importar el voto auditable. ¿Elegiste el archivo correcto?",
             importErrorMoreInfo: "Más información",
@@ -82,26 +82,26 @@ const spanishInformalTranslation: TranslationType = {
                 notEnoughChoices: "No hay suficientes opciones para decodificar",
                 writeInChoiceOutOfRange: "Opción de voto escrita fuera de rango: {{index}}",
                 writeInNotEndInZero: "Opción de voto escrita no finaliza en 0",
-                writeInCharsExceeded_one: "Acorte la escritura libre en {{count}} carácter.",
-                writeInCharsExceeded_other: "Acorte la escritura libre en {{count}} caracteres.",
+                writeInCharsExceeded_one: "Acorta la escritura libre en {{count}} carácter.",
+                writeInCharsExceeded_other: "Acorta la escritura libre en {{count}} caracteres.",
                 bytesToUtf8Conversion:
                     "Error convirtiendo bytes de opción de voto escrita a cadena UTF-8: {{errorMessage}}",
                 ballotTooLarge: "Voto más grande de lo esperado",
             },
             implicit: {
-                selectedMax_one: "Desmarque {{count}} candidato.",
-                selectedMax_other: "Desmarque {{count}} candidatos.",
+                selectedMax_one: "Desmarca {{count}} candidato.",
+                selectedMax_other: "Desmarca {{count}} candidatos.",
                 selectedMin_one: "Selecciona {{count}} candidato más.",
                 selectedMin_other: "Selecciona {{count}} candidatos más.",
-                maxSelectionsPerType_one: "Desmarque {{count}} candidato de {{type}}.",
-                maxSelectionsPerType_other: "Desmarque {{count}} candidatos de {{type}}.",
+                maxSelectionsPerType_one: "Desmarca {{count}} candidato de {{type}}.",
+                maxSelectionsPerType_other: "Desmarca {{count}} candidatos de {{type}}.",
                 underVote_one: "Selecciona hasta {{count}} candidato más.",
                 underVote_other: "Selecciona hasta {{count}} candidatos más.",
                 overVoteDisabled_one:
-                    "Ha seleccionado el máximo de {{count}} candidato. Desmárquelo para elegir otro.",
+                    "Has seleccionado el máximo de {{count}} candidato. Desmárcalo para elegir otro.",
                 overVoteDisabled_other:
-                    "Ha seleccionado el máximo de {{count}} candidatos. Desmarque uno para elegir otro.",
-                blankVote: "No ha seleccionado ningún candidato.",
+                    "Has seleccionado el máximo de {{count}} candidatos. Desmarca uno para elegir otro.",
+                blankVote: "No has seleccionado ningún candidato.",
                 preferenceOrderWithGaps:
                     "¡Voto inválido! El orden de preferencia tiene uno o más huecos.",
                 duplicatedPosition:

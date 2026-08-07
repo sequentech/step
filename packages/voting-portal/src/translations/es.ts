@@ -352,7 +352,7 @@ const spanishTranslation: TranslationType = {
             titleResult: "Resultados de su búsqueda de Papeleta",
             description: "Confirme que su papeleta fue emitida correctamente",
             locate: "Encuentre su papeleta",
-            locateAgain: "Encuentra otra Papeleta",
+            locateAgain: "Encuentre otra papeleta",
             found: "Su ID de Papeleta {{ballotId}} ha sido encontrado",
             notFound: "Su ID de Papeleta {{ballotId}} no fue encontrado",
             ambiguous:

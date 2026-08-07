@@ -1882,7 +1882,7 @@ const frenchTranslation: TranslationType = {
             },
             error: {},
             createContestSuccess: "Scrutin créé",
-            createContestError: "Erreur lors de la création de la question",
+            createContestError: "Erreur lors de la création du scrutin",
         },
         keysGeneration: {
             configureStep: {

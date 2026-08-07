@@ -1864,7 +1864,7 @@ const dutchTranslation: TranslationType = {
             },
             error: {},
             createContestSuccess: "Stemming aangemaakt",
-            createContestError: "Fout bij aanmaken verkiezing",
+            createContestError: "Fout bij het aanmaken van de stemming",
         },
         keysGeneration: {
             configureStep: {
