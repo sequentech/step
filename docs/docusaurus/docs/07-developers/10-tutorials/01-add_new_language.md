@@ -43,9 +43,18 @@ Rules to follow:
 * **Declare both suffixes even when the text is identical.** Basque and Tagalog do not inflect a noun after a
   numeral, so their two forms are the same string. They are both still required, because the non-English files
   are typed `TranslationType = typeof englishTranslation` and must carry the same key set as `en.ts`.
-* **A language with more forms needs more entries.** If a language you add has a `few`, `many` or `zero`
-  category for the values the string can actually take, add `_few` / `_many` / `_zero` as well. Check with
-  `new Intl.PluralRules("[lang_code]").resolvedOptions().pluralCategories`.
+* **A language with more CLDR categories needs more entries.** If a language you add has a `few` or `many`
+  category for the values the string can actually take, add `_few` / `_many` as well. Check with
+  `new Intl.PluralRules("[lang_code]").resolvedOptions().pluralCategories`. Spanish, Catalan and French, for
+  example, report `many` — but only for exact multiples of a million, so a count of candidates never reaches
+  it.
+* **`_zero` is not one of those categories.** It is an i18next override selected whenever `count` is exactly 0,
+  in any language, whether or not CLDR lists a `zero` category — so `pluralCategories` will not tell you to add
+  it. Add `_zero` when you want different wording for none, not because a language "has" it.
+* **The runtime must provide `Intl.PluralRules`.** i18next 25 requires it and has no fallback to the old v3
+  behaviour; `compatibilityJSON: "v3"` was removed in v24. Every browser we support has it. If a target ever
+  lacks it, install the `intl-pluralrules` polyfill — without one, i18next logs an error and degrades to
+  English-style `_one`/`_other` for every language, which silently mis-pluralises the rest.
 
 ### Ballot validation messages
 
@@ -63,9 +72,13 @@ import {getBallotErrorOptions} from "@sequentech/ui-core"
 t(error.message || "", getBallotErrorOptions(error.message, error.message_map))
 ```
 
-If you add a new ballot validation message whose sentence contains a number, add its derivation to
-`COUNT_DERIVATIONS` in `packages/ui-core/src/services/ballotErrorMessages.ts`. Adding the key to Rust is not
-enough on its own.
+`getBallotErrorOptions` copies every entry of `message_map` into the options it returns, coercing numeric
+strings as it goes. So if the checker already sends a `count`, the message pluralises with no further work.
+
+Add a derivation to `COUNT_DERIVATIONS` in `packages/ui-core/src/services/ballotErrorMessages.ts` only when the
+number the sentence is about is *not* in `message_map` and has to be computed from the state fields — as with
+`underVote`, where the sentence needs `max - numSelected`. A derivation, when present, overrides any `count`
+that came in the map.
 
 ## 1. Admin Portal (`packages/admin-portal`)
 
@@ -73,24 +86,24 @@ enough on its own.
 
 1.  **Create the translation file**:
     * Navigate to `packages/admin-portal/src/translations/`.
-    * Create a new file named `[lang_code].ts` (e.g., `eu.ts` for Basque). [cite: 684]
-    * This file will contain all the translations for the admin portal in the new language. You can use `en.ts` as a template for the structure and keys. [cite: 684]
+    * Create a new file named `[lang_code].ts` (e.g., `eu.ts` for Basque).
+    * This file will contain all the translations for the admin portal in the new language. You can use `en.ts` as a template for the structure and keys.
     * Populate this file with the translations for the new language
 
 ### 1.2. Update i18n Service
 
-1.  **Edit `packages/admin-portal/src/services/i18n.ts`**: [cite: 678]
+1.  **Edit `packages/admin-portal/src/services/i18n.ts`**:
     * **Import the new translation file**:
         Add an import statement for your new translation file at the top.
         ```typescript
-        import [lang_code]Translation from "../translations/[lang_code]" // e.g., import basqueTranslation from "../translations/eu" [cite: 678]
+        import [lang_code]Translation from "../translations/[lang_code]" // e.g., import basqueTranslation from "../translations/eu"
         ```
     * **Add to `initializeLanguages` function**:
         In the `initializeLanguages` call, add the new language and its imported translation.
         ```typescript
         initializeLanguages({
             // ... other languages
-            [lang_code]: [lang_code]Translation, // e.g., eu: basqueTranslation, [cite: 678]
+            [lang_code]: [lang_code]Translation, // e.g., eu: basqueTranslation,
         })
         ```
     * **Add to `triggerOverrideTranslations` function**:
@@ -98,13 +111,13 @@ enough on its own.
         ```typescript
         overwriteTranslations({
             // ... other languages
-            [lang_code]: [lang_code]Translation, // e.g., eu: basqueTranslation, [cite: 678, 679]
+            [lang_code]: [lang_code]Translation, // e.g., eu: basqueTranslation,
         })
         ```
     * **Add to `getAllLangs` function**:
         Add the new language code to the array returned by this function.
         ```typescript
-        export const getAllLangs = (): Array<string> => ["en", "es", "cat", /*...,*/ "[lang_code]"] // e.g., "eu" [cite: 679]
+        export const getAllLangs = (): Array<string> => ["en", "es", "cat", /*...,*/ "[lang_code]"] // e.g., "eu"
         ```
 
 ### 1.3. Add Language Name to Existing Translations
@@ -112,22 +125,27 @@ enough on its own.
 For each existing language file in `packages/admin-portal/src/translations/` (e.g., `cat.ts`, `en.ts`, `es.ts`, `fr.ts`, `gl.ts`, `nl.ts`, `tl.ts`):
 1.  Open the file.
 2.  Locate the `language` object within the `translations.common` object.
-3.  Add a new key for your language code, with its name translated into the language of that specific file.
-    * Example for `cat.ts` (Catalan adding Basque):
-        ```typescript
-        language: {
-            // ... other languages
-            eu: "Euskera", // [lang_code]: "[LangNameInBasque]" [cite: 680]
-        },
-        ```
-    * Example for `en.ts` (English adding Basque):
-        ```typescript
-        language: {
-            // ... other languages
-            eu: "Euskera", // [lang_code]: "[LangNameInBasque]" [cite: 682]
-        },
-        ```
-    * Repeat this for `es.ts`[cite: 683], `fr.ts`[cite: 1054], `gl.ts`[cite: 1055], `nl.ts`[cite: 1056], and `tl.ts`[cite: 1058].
+3.  Add a new key for your language code. **The name goes in the language of the file you are editing**, not
+    in the language being added — the picker shows every entry at once, and a voter has to recognise their own
+    among names they cannot read. Adding Basque:
+
+    ```typescript
+    // en.ts
+    language: {eu: "Basque"},
+    // cat.ts
+    language: {eu: "Basc"},
+    // es.ts
+    language: {eu: "Euskera"},
+    ```
+
+    The new file is the one exception, and the one people get wrong: `eu.ts` carries the **endonym**, the name
+    the language uses for itself.
+
+    ```typescript
+    // eu.ts — "Euskara", not the Spanish exonym "Euskera"
+    language: {eu: "Euskara"},
+    ```
+4.  Repeat for the remaining files: `fr.ts`, `gl.ts`, `nl.ts` and `tl.ts`.
 
 ## 2. Keycloak Extensions (`packages/keycloak-extensions`)
 
@@ -135,8 +153,8 @@ For each existing language file in `packages/admin-portal/src/translations/` (e.
 
 1.  **Create message properties file**:
     * Navigate to `packages/keycloak-extensions/message-otp-authenticator/src/main/resources/theme-resources/messages/`.
-    * Create a new file named `messages_[lang_code].properties` (e.g., `messages_eu.properties`). [cite: 1059]
-    * This file contains translations for the OTP authenticator. Use an existing file like `messages_en.properties`  as a template. [cite: 1059]
+    * Create a new file named `messages_[lang_code].properties` (e.g., `messages_eu.properties`).
+    * This file contains translations for the OTP authenticator. Use an existing file like `messages_en.properties`  as a template.
 2.  **Add license file for properties**:
     * In the same directory, create a corresponding license file: `messages_[lang_code].properties.license` (e.g., `messages_eu.properties.license`).
     * Copy the content from an existing license file (e.g., `messages_en.properties.license`).
@@ -145,14 +163,16 @@ For each existing language file in `packages/admin-portal/src/translations/` (e.
 
 1.  **Update existing language property files**:
     * Navigate to `packages/keycloak-extensions/sequent-theme/src/main/resources/theme/sequent.admin-portal/account/messages/`.
-    * For each relevant existing `messages_*.properties` file (e.g., `messages_en.properties`[cite: 1078], `messages_tl.properties` [cite: 1119]):
+    * For each relevant existing `messages_*.properties` file (e.g., `messages_en.properties`, `messages_tl.properties`):
         * Add a line for the new locale:
             ```properties
-            locale_[lang_code]=[LangNameInThatLanguage] // e.g., locale_eu=Euskera [cite: 1078, 1119]
+            # everything after '=' is the value, so a comment needs its own line
+            # e.g. locale_eu=Euskara
+            locale_[lang_code]=[LangNameInThatLanguage]
             ```
 2.  **Create new language properties file**:
-    * In the same directory, create `messages_[lang_code].properties` (e.g., `messages_eu.properties`). [cite: 1079]
-    * This file contains translations for the account management theme. Use `messages_en.properties` as a template. [cite: 1079]
+    * In the same directory, create `messages_[lang_code].properties` (e.g., `messages_eu.properties`).
+    * This file contains translations for the account management theme. Use `messages_en.properties` as a template.
 3.  **Add license file**:
     * In the same directory, create `messages_[lang_code].properties.license` (e.g., `messages_eu.properties.license`).
     * Copy content from an existing license file.
@@ -164,12 +184,13 @@ For each existing language file in `packages/admin-portal/src/translations/` (e.
     * For relevant existing `messages_*.properties` files (e.g., `messages_en.properties`, `messages_gl.properties`, `messages_tl.properties`):
         * Add a line for the new locale:
             ```properties
-            locale_[lang_code]=[LangNameInThatLanguage] // e.g., locale_eu=Euskera
+            # e.g. locale_eu=Euskara
+            locale_[lang_code]=[LangNameInThatLanguage]
             ```
             (This change is shown for `messages_en.properties`, `messages_gl.properties`, `messages_tl.properties` in the diff.)
 2.  **Create new language properties file**:
-    * In the same directory, create `messages_[lang_code].properties` (e.g., `messages_eu.properties`). [cite: 1120]
-    * This file contains translations for the login theme. Use `messages_en.properties`  as a template. [cite: 1120]
+    * In the same directory, create `messages_[lang_code].properties` (e.g., `messages_eu.properties`).
+    * This file contains translations for the login theme. Use `messages_en.properties`  as a template.
 3.  **Add license file**:
     * In the same directory, create `messages_[lang_code].properties.license` (e.g., `messages_eu.properties.license`).
     * Copy content from an existing license file.
@@ -180,13 +201,15 @@ For each existing language file in `packages/admin-portal/src/translations/` (e.
     * Open `packages/keycloak-extensions/sequent-theme/src/main/resources/theme/sequent.admin-portal/login/theme.properties`.
     * Add the new language code to the `locales` property.
         ```properties
-        locales=en,...,[lang_code] // e.g., locales=en,eu
+        # e.g. locales=en,eu
+        locales=en,...,[lang_code]
         ```
 2.  **Voting Portal Login Theme**:
-    * Open `packages/keycloak-extensions/sequent-theme/src/main/resources/theme/sequent.voting-portal/login/theme.properties`. [cite: 1214]
-    * Add the new language code to the `locales` property. [cite: 1214]
+    * Open `packages/keycloak-extensions/sequent-theme/src/main/resources/theme/sequent.voting-portal/login/theme.properties`.
+    * Add the new language code to the `locales` property.
         ```properties
-        locales=en,...,[lang_code] // e.g., locales=en,eu [cite: 1214]
+        # e.g. locales=en,eu
+        locales=en,...,[lang_code]
         ```
 
 ## 3. UI Core (`packages/ui-core`)
@@ -195,21 +218,21 @@ For each existing language file in `packages/admin-portal/src/translations/` (e.
 
 1.  **Create the translation file**:
     * Navigate to `packages/ui-core/src/translations/`.
-    * Create a new file named `[lang_code].ts` (e.g., `eu.ts`). [cite: 1216]
-    * This file contains translations shared across UI core components. Use `en.ts` as a template. [cite: 1216]
+    * Create a new file named `[lang_code].ts` (e.g., `eu.ts`).
+    * This file contains translations shared across UI core components. Use `en.ts` as a template.
 
 ### 3.2. Update i18n Service
 
-1.  **Edit `packages/ui-core/src/services/i18n.ts`**: [cite: 1215]
+1.  **Edit `packages/ui-core/src/services/i18n.ts`**:
     * **Import the new translation file**:
         ```typescript
-        import [lang_code]Translation from "../translations/[lang_code]" // e.g., import basqueTranslation from "../translations/eu" [cite: 1215]
+        import [lang_code]Translation from "../translations/[lang_code]" // e.g., import basqueTranslation from "../translations/eu"
         ```
     * **Add to `libTranslations` in `initializeLanguages` function**:
         ```typescript
         const libTranslations: Resource = {
             // ... other languages
-            [lang_code]: [lang_code]Translation, // e.g., eu: basqueTranslation, [cite: 1215]
+            [lang_code]: [lang_code]Translation, // e.g., eu: basqueTranslation,
         }
         ```
 
@@ -219,21 +242,21 @@ For each existing language file in `packages/admin-portal/src/translations/` (e.
 
 1.  **Create the translation file**:
     * Navigate to `packages/ui-essentials/src/translations/`.
-    * Create `[lang_code].ts` (e.g., `eu.ts`). [cite: 1238]
-    * This file contains translations for essential UI components. Use `en.ts` as a template. [cite: 1238]
+    * Create `[lang_code].ts` (e.g., `eu.ts`).
+    * This file contains translations for essential UI components. Use `en.ts` as a template.
 
 ### 4.2. Update i18n Service
 
-1.  **Edit `packages/ui-essentials/src/services/i18n.ts`**: [cite: 1237]
+1.  **Edit `packages/ui-essentials/src/services/i18n.ts`**:
     * **Import the new translation file**:
         ```typescript
-        import [lang_code]Translation from "../translations/[lang_code]" // e.g., import basqueTranslation from "../translations/eu" [cite: 1237]
+        import [lang_code]Translation from "../translations/[lang_code]" // e.g., import basqueTranslation from "../translations/eu"
         ```
     * **Add to `libTranslations` in `initializeLanguages` function**:
         ```typescript
         const libTranslations: Resource = {
             // ... other languages
-            [lang_code]: [lang_code]Translation, // e.g., eu: basqueTranslation, [cite: 1237]
+            [lang_code]: [lang_code]Translation, // e.g., eu: basqueTranslation,
         }
         ```
 
@@ -243,15 +266,15 @@ For each existing language file in `packages/admin-portal/src/translations/` (e.
 
 1.  **Create the translation file**:
     * Navigate to `packages/voting-portal/src/translations/`.
-    * Create `[lang_code].ts` (e.g., `eu.ts`). [cite: 1260]
-    * This file contains translations for the voting portal. Use `en.ts` as a template. [cite: 1260]
+    * Create `[lang_code].ts` (e.g., `eu.ts`).
+    * This file contains translations for the voting portal. Use `en.ts` as a template.
 
 ### 5.2. Update i18n Service
 
-1.  **Edit `packages/voting-portal/src/services/i18n.ts`**: [cite: 1259]
+1.  **Edit `packages/voting-portal/src/services/i18n.ts`**:
     * **Import the new translation file**:
         ```typescript
-        import [lang_code]Translation from "../translations/[lang_code]" // e.g., import basqueTranslation from "../translations/eu" [cite: 1259]
+        import [lang_code]Translation from "../translations/[lang_code]" // e.g., import basqueTranslation from "../translations/eu"
         ```
     * **Add to `initializeLanguages` call**:
         Add the new language to the translations object passed to `initializeLanguages`.
@@ -259,7 +282,7 @@ For each existing language file in `packages/admin-portal/src/translations/` (e.
         initializeLanguages(
             {
                 // ... other languages
-                [lang_code]: [lang_code]Translation, // e.g., eu: basqueTranslation, [cite: 1259]
+                [lang_code]: [lang_code]Translation, // e.g., eu: basqueTranslation,
             },
             language
         )
