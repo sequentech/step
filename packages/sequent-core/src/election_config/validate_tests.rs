@@ -859,3 +859,40 @@ fn a_real_grace_period_passes() {
     }));
     assert!(validate(&bundle).problems.is_empty());
 }
+
+#[test]
+fn an_ordering_the_platform_does_not_have_is_refused() {
+    // The same three values in three places — the event's `elections_order`, an
+    // election's `contests_order`, a contest's `candidates_order` — because
+    // `ui-core` sorts all three through one helper. A fourth value would be
+    // ignored rather than refused, which is the quiet kind of wrong.
+    let mut bundle = sound();
+    bundle.election_event.presentation =
+        Some(serde_json::json!({"elections_order": "by-date"}));
+
+    let report = validate(&bundle);
+    assert!(report.has_errors());
+    assert!(report
+        .problems
+        .iter()
+        .any(|problem| problem.message.contains("is not an ordering")));
+
+    let mut other = sound();
+    other.elections[0].presentation =
+        Some(serde_json::json!({"contests_order": "by-date"}));
+    assert!(validate(&other).has_errors());
+}
+
+#[test]
+fn every_real_ordering_is_accepted_in_all_three_places() {
+    for value in ["custom", "alphabetical", "random"] {
+        let mut bundle = sound();
+        bundle.election_event.presentation =
+            Some(serde_json::json!({"elections_order": value}));
+        bundle.elections[0].presentation =
+            Some(serde_json::json!({"contests_order": value}));
+        bundle.contests[0].presentation =
+            Some(serde_json::json!({"candidates_order": value}));
+        assert!(!validate(&bundle).has_errors(), "{value} was refused");
+    }
+}

@@ -180,6 +180,12 @@ pub struct Blueprint {
     #[serde(default)]
     pub name: Translated,
 
+    /// The order the elections appear in, for a voter with more than one.
+    ///
+    /// The same three values again. `custom` is the order on the Ballot screen.
+    #[serde(default = "custom_order")]
+    pub elections_order: String,
+
     /// What the whole event is, for voters.
     ///
     /// Translatable, like the name: the platform keeps it at
@@ -477,6 +483,20 @@ pub struct PlannedElection {
     #[serde(default = "title_from_event")]
     pub start_screen_title_policy: String,
 
+    /// The order this election's contests appear in.
+    ///
+    /// `custom`, `alphabetical` or `random`, the same three values as a contest's
+    /// `candidates_order` — the Voting Portal sorts both through the same WASM
+    /// helper. `custom` is the order on the Ballot screen, which the wizard
+    /// already writes as each contest's `presentation.sort_order`; the other two
+    /// tell the portal to ignore it.
+    ///
+    /// Exposed in the Admin Portal's election form and unsettable from a plan, so
+    /// a wizard-built election could arrange its contests and not say whether the
+    /// arrangement was honoured.
+    #[serde(default = "custom_order")]
+    pub contests_order: String,
+
     /// Which permission label gates access to this election.
     ///
     /// Internal: it is how the importer links a voter's authorisation to an
@@ -518,6 +538,7 @@ impl Default for PlannedElection {
             grace_period_policy: no_grace_period(),
             grace_period_secs: 0,
             start_screen_title_policy: title_from_event(),
+            contests_order: custom_order(),
             permission_label: String::new(),
             shared: None,
             contests: Vec::new(),
@@ -588,6 +609,11 @@ pub struct PlannedContest {
     /// areas explicitly is how a contest becomes local to some of them.
     #[serde(default)]
     pub areas: Vec<String>,
+}
+
+/// The order somebody arranged, which is what the wizard is for.
+fn custom_order() -> String {
+    "custom".to_string()
 }
 
 fn no_grace_period() -> String {
@@ -1206,11 +1232,38 @@ impl Blueprint {
 }
 
 /// A header and its column of values, as the sheet reader wants them.
+/// Build one sheet, and refuse a ragged one.
+///
+/// Every sheet in this file is a `Vec<String>` of column names built in one place
+/// and a `Vec<Cell>` per row built in another, and nothing tied the two together:
+/// a column added without its value — or the reverse — shifted every later cell
+/// one place left, so `presentation.sort_order` was read as a language code and
+/// the failure surfaced as "no entry found for key" in an unrelated test.
+///
+/// That happened once while adding `elections_order`. The two lists are still
+/// separate, because pairing them would mean a `Vec<(String, Cell)>` per row and
+/// the column names repeated on every row; this catches the mistake at the one
+/// point every sheet passes through instead.
 fn sheet_of(
     name: &str,
     columns: Vec<String>,
     rows: Vec<Vec<Cell>>,
 ) -> Result<Sheet, Problem> {
+    for (index, row) in rows.iter().enumerate() {
+        if row.len() != columns.len() {
+            return Err(Problem::error(
+                Code::ConflictingColumns,
+                format!("{name}[{index}]"),
+                format!(
+                    "{} cells under {} columns — a column was added without its \
+                     value, or a value without its column",
+                    row.len(),
+                    columns.len()
+                ),
+            ));
+        }
+    }
+
     let mut grid =
         vec![columns.iter().map(|c| Cell::text(c.clone())).collect()];
     grid.extend(rows);
@@ -1288,6 +1341,7 @@ fn event_sheet(
     // both in step — `newEvent.description = presentation.i18n.en.description` —
     // and a bundle with only the i18n block leaves every list view blank.
     columns.push("description".to_string());
+    columns.push("presentation.elections_order".to_string());
     columns
         .push("presentation.language_conf.enabled_language_codes".to_string());
     columns
@@ -1297,6 +1351,7 @@ fn event_sheet(
     row.extend(i18n_values(&plan.name, languages));
     row.extend(i18n_values(&plan.description, languages));
     row.push(english_of(&plan.description));
+    row.push(Cell::text(plan.elections_order.clone()));
     // A JSON array in one cell: the reader parses bracketed text as JSON, which is
     // how a list fits in a spreadsheet and therefore in a synthesised one too.
     row.push(Cell::text(
@@ -1335,6 +1390,7 @@ fn elections_sheet(
     columns.push("presentation.grace_period_policy".to_string());
     columns.push("presentation.grace_period_secs".to_string());
     columns.push("presentation.start_screen_title_policy".to_string());
+    columns.push("presentation.contests_order".to_string());
 
     let rows = plan
         .elections
@@ -1356,6 +1412,7 @@ fn elections_sheet(
             row.push(Cell::text(election.grace_period_policy.clone()));
             row.push(Cell::Int(election.grace_period_secs));
             row.push(Cell::text(election.start_screen_title_policy.clone()));
+            row.push(Cell::text(election.contests_order.clone()));
             row
         })
         .collect();

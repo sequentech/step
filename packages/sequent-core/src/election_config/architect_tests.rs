@@ -34,6 +34,7 @@ fn sound() -> Blueprint {
         external_id: "union-2027".to_string(),
         name: Translated::new("Union Election 2027"),
         description: Translated::default(),
+        elections_order: "custom".to_string(),
         languages: vec!["en".to_string(), "es".to_string()],
         default_language: None,
         logo_url: None,
@@ -1508,4 +1509,72 @@ fn an_empty_old_description_stays_absent() {
         reopened.elections[0].contests[0].description,
         Translated::default()
     );
+}
+
+/// Which order the ballot is arranged in, said rather than implied.
+///
+/// The wizard already wrote each contest's `presentation.sort_order` from its
+/// place in the list, and nothing said whether the portal should honour it — so an
+/// election could be arranged carefully and shuffled anyway, or left alone and
+/// expected to shuffle.
+#[test]
+fn the_order_the_ballot_is_arranged_in_reaches_the_bundle() {
+    let mut plan = sound();
+    plan.elections_order = "alphabetical".to_string();
+    plan.elections[0].contests_order = "random".to_string();
+
+    let workbook = to_workbook(&plan).expect("a workbook");
+    assert_eq!(
+        workbook.rows(sheet::SHEET_ELECTION_EVENT)[0]
+            .get("presentation.elections_order")
+            .map(|cell| format!("{cell:?}")),
+        Some("String(\"alphabetical\")".to_string())
+    );
+    assert_eq!(
+        workbook.rows(sheet::SHEET_ELECTIONS)[0]
+            .get("presentation.contests_order")
+            .map(|cell| format!("{cell:?}")),
+        Some("String(\"random\")".to_string())
+    );
+}
+
+/// The arrangement somebody made is the default, since that is what a wizard is.
+#[test]
+fn a_plan_that_says_nothing_keeps_the_order_it_was_given() {
+    let plan = sound();
+    assert_eq!(plan.elections_order, "custom");
+    assert_eq!(plan.elections[0].contests_order, "custom");
+}
+
+/// A sheet whose columns and values disagree is refused, not written.
+///
+/// Every sheet here builds its column names in one place and its cells in
+/// another, and nothing tied them together: adding `elections_order`'s value
+/// without its column shifted every later cell one place left, so
+/// `presentation.sort_order` was read as a language code and the failure surfaced
+/// as "no entry found for key" in a test about languages.
+///
+/// Asserted through `sheet_of` directly, because producing a ragged sheet from a
+/// `Blueprint` now requires editing the builder — which is the point.
+#[test]
+fn a_ragged_sheet_is_refused_rather_than_written() {
+    let refused = sheet_of(
+        "Contests",
+        vec!["external_id".to_string(), "max_votes".to_string()],
+        vec![vec![Cell::text("president")]],
+    );
+    let problem = refused.expect_err("a short row should be refused");
+    assert!(
+        problem.message.contains("1 cells under 2 columns"),
+        "{}",
+        problem.message
+    );
+
+    // And the well-formed case still builds.
+    assert!(sheet_of(
+        "Contests",
+        vec!["external_id".to_string(), "max_votes".to_string()],
+        vec![vec![Cell::text("president"), Cell::Int(1)]],
+    )
+    .is_ok());
 }

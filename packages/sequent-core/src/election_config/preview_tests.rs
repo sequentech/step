@@ -33,6 +33,7 @@ fn sound() -> Blueprint {
         external_id: "union-2027".to_string(),
         name: Translated::new("Union Election 2027"),
         description: Translated::default(),
+        elections_order: "custom".to_string(),
         languages: vec!["en".to_string(), "es".to_string()],
         default_language: None,
         logo_url: None,

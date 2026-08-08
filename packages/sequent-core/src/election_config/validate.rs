@@ -56,6 +56,13 @@ pub const PREFERENTIAL_ALGORITHMS: &[&str] = &[
 /// `String`, so the portal's enum is the only authority on what it may hold.
 pub const VOTING_TYPES: &[&str] = &["preferential", "non-preferential"];
 
+/// `ContestsOrder` and `CandidatesOrder` — one value space, three places.
+///
+/// The event's `elections_order`, an election's `contests_order` and a contest's
+/// `candidates_order` all take these, and `ui-core`'s `sortContestList` and
+/// `sortCandidatesInContest` are the same function twice over.
+pub const ORDERINGS: &[&str] = &["custom", "alphabetical", "random"];
+
 /// `ITieBreakingPolicy` in `ui-core`.
 ///
 /// Two values, and the difference matters: `random` settles the tie inside the
@@ -88,10 +95,44 @@ pub fn validate(bundle: &ImportElectionEventSchema) -> Report {
     check_contests(bundle, &mut report);
     check_ballot_coverage(bundle, &mut report);
     check_how_voting_works(bundle, &mut report);
+    check_elections_order(bundle, &mut report);
     check_permission_labels(bundle, &mut report);
     check_unique_ids(bundle, &mut report);
 
     report
+}
+
+/// The order the elections themselves appear in, on the event.
+fn check_elections_order(
+    bundle: &ImportElectionEventSchema,
+    report: &mut Report,
+) {
+    let Some(value) = bundle
+        .election_event
+        .presentation
+        .as_ref()
+        .and_then(|value| value.as_object())
+        .and_then(|presentation| presentation.get("elections_order"))
+    else {
+        return;
+    };
+    if value.is_null() {
+        return;
+    }
+    match value.as_str() {
+        Some(text) if ORDERINGS.contains(&text) => {}
+        other => report.push(Problem::error(
+            Code::InvalidValue,
+            "election_event.presentation.elections_order".to_string(),
+            format!(
+                "{} is not an ordering; expected one of {}",
+                other
+                    .map(|v| format!("'{v}'"))
+                    .unwrap_or("a non-string".into()),
+                ORDERINGS.join(", ")
+            ),
+        )),
+    }
 }
 
 fn check_identity(bundle: &ImportElectionEventSchema, report: &mut Report) {
@@ -855,6 +896,10 @@ fn check_how_voting_works(
         for (key, allowed) in [
             ("grace_period_policy", GRACE_PERIOD_POLICIES),
             ("start_screen_title_policy", START_SCREEN_TITLE_POLICIES),
+            // The same three as a contest's `candidates_order` — the portal sorts
+            // both through one WASM helper, so a fourth value here would be
+            // ignored rather than refused.
+            ("contests_order", ORDERINGS),
         ] {
             let Some(value) = presentation.get(key) else {
                 continue;
