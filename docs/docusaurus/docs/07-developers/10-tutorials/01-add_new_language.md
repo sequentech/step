@@ -237,40 +237,16 @@ For each existing language file in `packages/admin-portal/src/translations/` (e.
         }
         ```
 
-## 4. UI Essentials (`packages/ui-essentials`)
+## 4. Voting Portal (`packages/voting-portal`)
 
 ### 4.1. Add Translation File
-
-1.  **Create the translation file**:
-    * Navigate to `packages/ui-essentials/src/translations/`.
-    * Create `[lang_code].ts` (e.g., `eu.ts`).
-    * This file contains translations for essential UI components. Use `en.ts` as a template.
-
-### 4.2. Update i18n Service
-
-1.  **Edit `packages/ui-essentials/src/services/i18n.ts`**:
-    * **Import the new translation file**:
-        ```typescript
-        import [lang_code]Translation from "../translations/[lang_code]" // e.g., import basqueTranslation from "../translations/eu"
-        ```
-    * **Add to `libTranslations` in `initializeLanguages` function**:
-        ```typescript
-        const libTranslations: Resource = {
-            // ... other languages
-            [lang_code]: [lang_code]Translation, // e.g., eu: basqueTranslation,
-        }
-        ```
-
-## 5. Voting Portal (`packages/voting-portal`)
-
-### 5.1. Add Translation File
 
 1.  **Create the translation file**:
     * Navigate to `packages/voting-portal/src/translations/`.
     * Create `[lang_code].ts` (e.g., `eu.ts`).
     * This file contains translations for the voting portal. Use `en.ts` as a template.
 
-### 5.2. Update i18n Service
+### 4.2. Update i18n Service
 
 1.  **Edit `packages/voting-portal/src/services/i18n.ts`**:
     * **Import the new translation file**:
@@ -288,6 +264,83 @@ For each existing language file in `packages/admin-portal/src/translations/` (e.
             language
         )
         ```
+
+## 5. Results Portal (`packages/results-portal`)
+
+### 5.1. Add Translation File
+
+1.  **Create the translation file**:
+    * Navigate to `packages/results-portal/src/translations/`.
+    * Create `[lang_code].ts` (e.g., `eu.ts`).
+    * This file contains translations for the public results site. Use `en.ts` as a template.
+
+### 5.2. Update i18n Service
+
+1.  **Edit `packages/results-portal/src/services/i18n.ts`**:
+    * **Import the new translation file**:
+        ```typescript
+        import [lang_code]Translation from "@/translations/[lang_code]" // e.g., import basqueTranslation from "@/translations/eu"
+        ```
+    * **Add to `initializeLanguages` call**:
+        ```typescript
+        initializeLanguages(
+            {
+                // ... other languages
+                [lang_code]: [lang_code]Translation, // e.g., eu: basqueTranslation,
+            },
+            getLanguageFromURL()
+        )
+        ```
+    * **Add to `RESULTS_PORTAL_LANGUAGES`**:
+        This array drives the language picker, so a language missing from it is unreachable even once its file
+        exists.
+        ```typescript
+        export const RESULTS_PORTAL_LANGUAGES = ["en", "es", "cat", /*...,*/ "[lang_code]"] // e.g., "eu"
+        ```
+
+## 6. Ballot Verifier (`packages/ballot-verifier`)
+
+The ballot verifier currently ships fewer languages than the other packages — it has no `nl.ts` or `eu.ts`.
+Adding a language here is optional, but if you skip it the verifier falls back to `ui-core`'s translations for
+the shared keys and to English for its own.
+
+### 6.1. Add Translation File
+
+1.  **Create the translation file**:
+    * Navigate to `packages/ballot-verifier/src/translations/`.
+    * Create `[lang_code].ts` (e.g., `eu.ts`).
+    * This file contains translations for the standalone ballot verifier. Use `en.ts` as a template.
+
+### 6.2. Update i18n Service
+
+1.  **Edit `packages/ballot-verifier/src/services/i18n.ts`**:
+    * **Import the new translation file**:
+        ```typescript
+        import [lang_code]Translation from "../translations/[lang_code]" // e.g., import basqueTranslation from "../translations/eu"
+        ```
+    * **Add to `initializeLanguages` call**:
+        ```typescript
+        initializeLanguages(
+            {
+                // ... other languages
+                [lang_code]: [lang_code]Translation, // e.g., eu: basqueTranslation,
+            },
+            getLanguageFromURL()
+        )
+        ```
+
+---
+
+### A note on where a string belongs
+
+`ui-core` holds the strings shared by every frontend, and each app's own file is merged over it with
+`deepmerge(libTranslations, externalTranslations)` — so an app's entry **shadows** `ui-core`'s for the same key.
+Re-wording a shared string in `ui-core` alone has no effect in an app that re-declares it. When you change a
+shared string, grep the other packages for the key and either update or delete the shadowing copy.
+
+`packages/ui-essentials` has no translation files. Its components take their text from the `ui-core` bundle
+through `useTranslation`, and Storybook initialises that bundle with `initializeLanguages({})` in
+`.storybook/preview.tsx`. There is nothing to add there for a new language.
 
 ---
 
