@@ -72,6 +72,7 @@ const frenchTranslation: TranslationType = {
             },
             markedInvalid: "Vote explicitement marqué invalide",
             points_one: "({{count}} Point)",
+            points_many: "({{count}} Points)",
             points_other: "({{count}} Points)",
             contestNotFound: "Question non trouvée : {{contestId}}",
             declineToVote: "A choisi de ne pas voter",

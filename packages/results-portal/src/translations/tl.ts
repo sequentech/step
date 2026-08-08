@@ -50,6 +50,7 @@ const tagalogTranslation: TranslationType = {
             published: "Nailathala",
             notPublishedYet: "Hindi pa nailalathala",
             position_one: "{{count}} posisyon",
+            position_many: "{{count}} posisyon",
             position_other: "{{count}} posisyon",
             fallbackElectionName: "Halalan",
             fallbackContestName: "Labanan {{contestId}}",

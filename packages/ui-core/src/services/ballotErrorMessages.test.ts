@@ -6,6 +6,7 @@ import i18next from "i18next"
 import {getBallotErrorOptions} from "./ballotErrorMessages"
 import englishTranslation from "../translations/en"
 import frenchTranslation from "../translations/fr"
+import spanishTranslation from "../translations/es"
 
 describe("getBallotErrorOptions", () => {
     it("accepts every shape a message_map can cross the WASM boundary in", () => {
@@ -173,7 +174,11 @@ describe("ballot validation messages", () => {
             defaultNS: "translations",
             keySeparator: ".",
             interpolation: {escapeValue: false},
-            resources: {en: englishTranslation, fr: frenchTranslation},
+            resources: {
+                en: englishTranslation,
+                fr: frenchTranslation,
+                es: spanishTranslation,
+            },
         })
     })
 
@@ -232,4 +237,31 @@ describe("ballot validation messages", () => {
         )
         await t.changeLanguage("en")
     })
+
+    /**
+     * `many` is the category es/cat/fr select for exact multiples of a million.
+     * Without a `_many` entry i18next does not fall back to that language's
+     * `_other` — it falls through to `fallbackLng` and renders English, so the
+     * assertion that matters is that the sentence is still Spanish.
+     */
+    it.each([
+        ["es", "Ha seleccionado el máximo de 1000000 candidatos. Desmarque uno para elegir otro."],
+        [
+            "fr",
+            "Vous avez sélectionné le maximum de 1000000 candidats. Désélectionnez-en un pour en choisir un autre.",
+        ],
+    ])(
+        "renders the %s `many` category instead of falling through to English",
+        async (lng, text) => {
+            expect(new Intl.PluralRules(lng).select(1_000_000)).toBe("many")
+            await t.changeLanguage(lng)
+            expect(
+                render("errors.implicit.overVoteDisabled", {
+                    numSelected: "1000000",
+                    max: "1000000",
+                })
+            ).toBe(text)
+            await t.changeLanguage("en")
+        }
+    )
 })

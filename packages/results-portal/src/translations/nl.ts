@@ -50,6 +50,7 @@ const dutchTranslation: TranslationType = {
             published: "Gepubliceerd",
             notPublishedYet: "Nog niet gepubliceerd",
             position_one: "{{count}} positie",
+            position_many: "{{count}} posities",
             position_other: "{{count}} posities",
             fallbackElectionName: "Verkiezing",
             fallbackContestName: "Stemming {{contestId}}",
