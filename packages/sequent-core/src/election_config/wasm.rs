@@ -881,7 +881,25 @@ fn failed(problem: Problem) -> Result<JsValue, JsError> {
 /// A front end holds these in state, passes them to React, and serialises them;
 /// an opaque handle with a `free()` method would be a memory leak waiting for
 /// whoever forgets to call it.
+///
+/// `serialize_maps_as_objects`, which is not a preference. `serde_wasm_bindgen`
+/// renders anything serialised through `serialize_map` — a `HashMap`, and every
+/// `serde_json::Value::Object` — as a JS **`Map`**, whose members are not
+/// properties. `preview_ballot` returns a `serde_json::Value` on purpose (a
+/// `Value`'s object is a `BTreeMap`, so the document's keys come out sorted and
+/// two previews of one plan diff cleanly), and the review screen read
+/// `document.ballot_styles` off it: `undefined`, and `undefined.filter` took the
+/// whole wizard down to a white screen. `JSON.stringify` shows a `Map` as `{}`,
+/// so it looked like an empty document rather than a wrong one.
+///
+/// Not `Serializer::json_compatible()`, though it is what `wasm/areas.rs` uses:
+/// that also turns `None` into `null` instead of `undefined` and changes how
+/// bytes serialise, and `compile_plan` hands artifacts across as bytes. One flag,
+/// for the one thing that was wrong.
 fn to_js<T: Serialize>(value: &T) -> Result<JsValue, JsError> {
-    serde_wasm_bindgen::to_value(value)
+    let serializer =
+        serde_wasm_bindgen::Serializer::new().serialize_maps_as_objects(true);
+    value
+        .serialize(&serializer)
         .map_err(|error| JsError::new(&format!("could not convert: {error}")))
 }
