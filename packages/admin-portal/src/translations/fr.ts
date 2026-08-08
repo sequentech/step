@@ -277,6 +277,7 @@ const frenchTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "Exporter les Modèles",
                 IMPORT_TEMPLATES: "Importer les Modèles",
                 DELETE_ELECTION_EVENT: "Supprimer l'événement électoral",
+                DELETE_VOTERS: "Delete Voters",
                 PREPARE_PUBLICATION_PREVIEW: "Préparer l'aperçu de la publication",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporter les résultats du dépouillement au format XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Exporter les autorités de certification",
@@ -1129,6 +1130,11 @@ const frenchTranslation: TranslationType = {
                 delete: {
                     body: "Êtes-vous sûr de vouloir supprimer cet utilisateur ?",
                     bulkBody: "Êtes-vous sûr de vouloir supprimer les utilisateurs sélectionnés ?",
+                    bulkBodySelected: "Delete the {{count}} selected users? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} users are selected. You can instead delete every user matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Erreur lors de l'exportation des utilisateurs",
@@ -1188,6 +1194,12 @@ const frenchTranslation: TranslationType = {
                 delete: {
                     body: "Êtes-vous sûr de vouloir supprimer cet électeur ?",
                     bulkBody: "Êtes-vous sûr de vouloir supprimer les électeurs sélectionnés ?",
+                    bulkBodySelected:
+                        "Delete the {{count}} selected voters? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} voters are selected. You can instead delete every voter matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Erreur lors de l'exportation des électeurs",

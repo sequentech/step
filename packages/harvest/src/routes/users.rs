@@ -50,6 +50,7 @@ use windmill::services::users::{
 use windmill::services::users::{FilterOption, ListUsersFilter};
 use windmill::tasks::edit_user::{EditUserOutput, EditUserTaskBody};
 use windmill::tasks::export_users::{self, ExportUsersOutput};
+use windmill::tasks::delete_users::{self as delete_users_task, DeleteUsersOutput};
 use windmill::tasks::import_users::{self, ImportUsersOutput};
 use windmill::types::tasks::ETasksExecution;
 
@@ -106,7 +107,25 @@ pub async fn delete_user(
 pub struct DeleteUsersBody {
     tenant_id: String,
     election_event_id: Option<String>,
-    users_id: Vec<String>,
+    election_id: Option<String>,
+    /// The explicit selection. Absent when `select_all` is set.
+    users_id: Option<Vec<String>>,
+    /// Delete every voter matching the filters below rather than an explicit
+    /// list. The browser only knows the page it has loaded, so "select all" has
+    /// to be resolved server side.
+    select_all: Option<bool>,
+    /// The same filter set `get-users` accepts. It has to be the same set: any
+    /// filter the list applies but the delete does not would resolve to MORE
+    /// voters than the operator can see.
+    first_name: Option<FilterOption>,
+    last_name: Option<FilterOption>,
+    username: Option<FilterOption>,
+    email: Option<FilterOption>,
+    attributes: Option<HashMap<String, String>>,
+    has_voted: Option<bool>,
+    enabled: Option<bool>,
+    email_verified: Option<bool>,
+    authorized_to_election_alias: Option<String>,
 }
 
 #[instrument(skip(claims))]
@@ -114,7 +133,7 @@ pub struct DeleteUsersBody {
 pub async fn delete_users(
     claims: jwt::JwtClaims,
     body: Json<DeleteUsersBody>,
-) -> Result<Json<OptionalId>, (Status, String)> {
+) -> Result<Json<DeleteUsersOutput>, (Status, String)> {
     let input = body.into_inner();
     let required_perm: Permissions = if input.election_event_id.is_some() {
         Permissions::VOTER_WRITE
@@ -127,23 +146,116 @@ pub async fn delete_users(
         Some(input.tenant_id.clone()),
         vec![required_perm],
     )?;
+
+    let select_all = input.select_all.unwrap_or(false);
+    if !select_all && input.users_id.as_ref().map_or(true, |ids| ids.is_empty()) {
+        return Err((
+            Status::BadRequest,
+            "No voters selected and select_all was not set".to_string(),
+        ));
+    }
+    // Without an election event there is nothing to scope the filters to, so
+    // select_all would resolve every non-service account in the tenant realm --
+    // every admin, including the caller -- and there is no task_execution row
+    // to audit it either. The tenant user list deletes by explicit selection.
+    if select_all && input.election_event_id.is_none() {
+        return Err((
+            Status::BadRequest,
+            "select_all requires an election event".to_string(),
+        ));
+    }
+
     let realm = match input.election_event_id {
-        Some(election_event_id) => {
-            get_event_realm(&input.tenant_id, &election_event_id)
+        Some(ref election_event_id) => {
+            get_event_realm(&input.tenant_id, election_event_id)
         }
         None => get_tenant_realm(&input.tenant_id),
     };
-    let client = KeycloakAdminClient::new()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    for id in input.users_id {
-        client
-            .delete_user(&realm, &id)
+    let executer_name = claims
+        .name
+        .clone()
+        .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
+
+    // Only voter deletion is surfaced as a tracked task; the tenant-level user
+    // list has no election event to hang a task_execution on.
+    let task_execution = match input.election_event_id {
+        Some(ref election_event_id) => Some(
+            post(
+                &claims.hasura_claims.tenant_id,
+                Some(election_event_id),
+                ETasksExecution::DELETE_VOTERS,
+                &executer_name,
+            )
             .await
-            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+            .map_err(|error| {
+                (
+                    Status::InternalServerError,
+                    format!("Failed to insert task execution record: {error:?}"),
+                )
+            })?,
+        ),
+        None => None,
+    };
+
+    let filter = if select_all {
+        Some(ListUsersFilter {
+            tenant_id: input.tenant_id.clone(),
+            election_event_id: input.election_event_id.clone(),
+            election_id: input.election_id.clone(),
+            area_id: None,
+            realm: realm.clone(),
+            search: None,
+            first_name: input.first_name,
+            last_name: input.last_name,
+            username: input.username,
+            email: input.email,
+            limit: None,
+            offset: None,
+            user_ids: None,
+            attributes: input.attributes,
+            enabled: input.enabled,
+            email_verified: input.email_verified,
+            sort: None,
+            has_voted: input.has_voted,
+            authorized_to_election_alias: input.authorized_to_election_alias,
+        })
+    } else {
+        None
+    };
+
+    let celery_app = get_celery_app().await;
+    if let Err(err) = celery_app
+        .send_task(delete_users_task::delete_users::new(
+            realm,
+            if select_all { None } else { input.users_id },
+            filter,
+            task_execution.clone(),
+        ))
+        .await
+    {
+        // Otherwise the row sits IN_PROGRESS forever with nothing to run it.
+        if let Some(task_execution) = &task_execution {
+            let _ = update_fail(
+                task_execution,
+                &format!("Failed to enqueue the Delete Voters task: {err}"),
+            )
+            .await;
+        }
+        return Ok(Json(DeleteUsersOutput {
+            ids: None,
+            error_msg: Some(format!("Error sending Delete Voters task: {err}")),
+            task_execution,
+        }));
     }
-    Ok(Json(Default::default()))
+
+    info!("Sent DELETE_VOTERS task");
+
+    Ok(Json(DeleteUsersOutput {
+        ids: None,
+        error_msg: None,
+        task_execution,
+    }))
 }
 
 #[derive(Deserialize, Debug)]
