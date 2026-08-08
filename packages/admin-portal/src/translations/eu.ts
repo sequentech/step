@@ -1024,6 +1024,13 @@ const basqueTranslation: TranslationType = {
                     disabled: "Desgaituta",
                 },
             },
+            blankBallotsPolicy: {
+                label: "Boto-txartel zurien politika",
+                options: {
+                    enabled: "Gaituta",
+                    disabled: "Desgaituta",
+                },
+            },
             votingScreenBackPolicy: {
                 label: "Bozketa-pantailako atzera botoiaren politika",
                 options: {
@@ -2214,6 +2221,7 @@ const basqueTranslation: TranslationType = {
                     round: "Txanda",
                 },
                 total_declined_to_vote: "Bozkatzeari uko egindakoen guztira",
+                total_blank_ballots: "Boto-txartel Zuriak Guztira",
                 participation_by_channel: "Parte-hartzea kanalaren arabera",
                 channel: "Kanala",
                 channel_online: "Linean",
@@ -2424,6 +2432,7 @@ const basqueTranslation: TranslationType = {
                 explicit_invalid: "Esplizituki Baliogabeko Botoak",
                 implicit_invalid: "Inplizituki Baliogabeko Botoak",
                 total_blank_votes: "Boto Zuriak",
+                blank_ballots: "Boto-txartel Zuriak",
                 census: "Zentso",
             },
             common: {

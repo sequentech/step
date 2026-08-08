@@ -1018,6 +1018,13 @@ const englishTranslation = {
                     disabled: "Disabled",
                 },
             },
+            blankBallotsPolicy: {
+                label: "Blank Ballots Policy",
+                options: {
+                    enabled: "Enabled",
+                    disabled: "Disabled",
+                },
+            },
             votingScreenBackPolicy: {
                 label: "Voting Screen Back Button Policy",
                 options: {
@@ -2199,6 +2206,7 @@ const englishTranslation = {
                     round: "Round",
                 },
                 total_declined_to_vote: "Total Declined to Vote",
+                total_blank_ballots: "Total Blank Ballots",
                 participation_by_channel: "Participation by channel",
                 channel: "Channel",
                 channel_online: "Online",
@@ -2410,6 +2418,7 @@ const englishTranslation = {
                 explicit_invalid: "Explicitly Invalid Votes",
                 implicit_invalid: "Implicitly Invalid Votes",
                 total_blank_votes: "Blank Votes",
+                blank_ballots: "Blank Ballots",
                 census: "Census",
             },
             common: {

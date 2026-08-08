@@ -1025,6 +1025,13 @@ const dutchTranslation: TranslationType = {
                     disabled: "Uitgeschakeld",
                 },
             },
+            blankBallotsPolicy: {
+                label: "Beleid voor blanco stembiljetten",
+                options: {
+                    enabled: "Ingeschakeld",
+                    disabled: "Uitgeschakeld",
+                },
+            },
             votingScreenBackPolicy: {
                 label: "Beleid voor de terugknop van het stemscherm",
                 options: {
@@ -2217,6 +2224,7 @@ const dutchTranslation: TranslationType = {
                     round: "Ronde",
                 },
                 total_declined_to_vote: "Totaal aantal weigeringen om te stemmen",
+                total_blank_ballots: "Totaal Aantal Blanco Stembiljetten",
                 participation_by_channel: "Deelname per kanaal",
                 channel: "Kanaal",
                 channel_online: "Online",
@@ -2431,6 +2439,7 @@ const dutchTranslation: TranslationType = {
                 explicit_invalid: "Expliciet Ongeldige Stemmen",
                 implicit_invalid: "Impliciet Ongeldige Stemmen",
                 total_blank_votes: "Blanco Stemmen",
+                blank_ballots: "Blanco Stembiljetten",
                 census: "Kieserslijst",
             },
             common: {

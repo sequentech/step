@@ -66,6 +66,8 @@ import {
     getDefaultConsolidatedReportPolicy,
     EDeclineToVotePolicy,
     getDefaultDeclineToVotePolicy,
+    EBlankBallotsPolicy,
+    getDefaultBlankBallotsPolicy,
     EElectionEventContestEncryptionPolicy,
     IVotingScreenBackPolicy,
     getDefaultVotingScreenBackPolicy,
@@ -264,6 +266,7 @@ export const ElectionDataForm: React.FC = () => {
             temp.presentation.grace_period_secs ??= 0
             temp.presentation.consolidated_report_policy ??= getDefaultConsolidatedReportPolicy()
             temp.presentation.decline_to_vote_policy ??= getDefaultDeclineToVotePolicy()
+            temp.presentation.blank_ballots_policy ??= getDefaultBlankBallotsPolicy()
             temp.presentation.voting_screen_back_policy ??= getDefaultVotingScreenBackPolicy()
 
             const votingSettings = data?.voting_channels || tenantData?.voting_channels
@@ -546,6 +549,13 @@ export const ElectionDataForm: React.FC = () => {
         }))
     }
 
+    const blankBallotsPolicyChoices = (): Array<EnumChoice<EBlankBallotsPolicy>> => {
+        return Object.values(EBlankBallotsPolicy).map((value) => ({
+            id: value,
+            name: t(`electionScreen.blankBallotsPolicy.options.${value.toLowerCase()}`),
+        }))
+    }
+
     const votingScreenBackPolicyChoices = (): Array<EnumChoice<IVotingScreenBackPolicy>> => {
         return getVotingScreenBackPolicyValues().map((value) => ({
             id: value,
@@ -563,6 +573,10 @@ export const ElectionDataForm: React.FC = () => {
     }
 
     const isShowDeclineToVotePolicy =
+        (data?.presentation as IElectionEventPresentation | undefined)
+            ?.contest_encryption_policy === EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
+
+    const isShowBlankBallotsPolicy =
         (data?.presentation as IElectionEventPresentation | undefined)
             ?.contest_encryption_policy === EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
 
@@ -928,6 +942,15 @@ export const ElectionDataForm: React.FC = () => {
                                         )}
                                         validate={required()}
                                         defaultValue={getDefaultDeclineToVotePolicy()}
+                                    />
+                                )}
+                                {isShowBlankBallotsPolicy && (
+                                    <SelectInput
+                                        source={`presentation.blank_ballots_policy`}
+                                        choices={blankBallotsPolicyChoices()}
+                                        label={String(t("electionScreen.blankBallotsPolicy.label"))}
+                                        validate={required()}
+                                        defaultValue={getDefaultBlankBallotsPolicy()}
                                     />
                                 )}
                                 <SelectInput

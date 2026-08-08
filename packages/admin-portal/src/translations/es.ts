@@ -1028,6 +1028,13 @@ const spanishTranslation: TranslationType = {
                     disabled: "Deshabilitado",
                 },
             },
+            blankBallotsPolicy: {
+                label: "Política de papeletas en blanco",
+                options: {
+                    enabled: "Habilitado",
+                    disabled: "Deshabilitado",
+                },
+            },
             votingScreenBackPolicy: {
                 label: "Política del botón Atrás de la pantalla de votación",
                 options: {
@@ -2223,6 +2230,7 @@ const spanishTranslation: TranslationType = {
                     round: "Ronda",
                 },
                 total_declined_to_vote: "Total de votos de renuncia",
+                total_blank_ballots: "Total de Papeletas en Blanco",
                 participation_by_channel: "Participación por canal",
                 channel: "Canal",
                 channel_online: "En línea",
@@ -2436,6 +2444,7 @@ const spanishTranslation: TranslationType = {
                 explicit_invalid: "Votos Explícitamente Inválidos",
                 implicit_invalid: "Votos Implícitamente Inválidos",
                 total_blank_votes: "Votos en Blanco Totales",
+                blank_ballots: "Papeletas en Blanco",
                 census: "Censo",
             },
             common: {

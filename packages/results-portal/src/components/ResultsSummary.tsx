@@ -161,6 +161,10 @@ export const ResultsSummary: React.FC<ResultsSummaryProps> = ({
     locale,
 }) => {
     const {t} = useTranslation()
+    const showBlankBallotsColumn = useMemo(
+        () => resultsElections.some((row) => isNumber(row.blank_ballots)),
+        [resultsElections]
+    )
 
     return (
         <Box className="seq-results-summary" component="section" sx={{mt: {xs: 3, md: 5}}}>
@@ -252,6 +256,14 @@ export const ResultsSummary: React.FC<ResultsSummaryProps> = ({
                                     >
                                         {t("resultsPortal.summary.participation")}
                                     </TableCell>
+                                    {showBlankBallotsColumn && (
+                                        <TableCell
+                                            className="seq-results-summary__blank-ballots-heading"
+                                            align="right"
+                                        >
+                                            {t("resultsPortal.summary.totalBlankBallots")}
+                                        </TableCell>
+                                    )}
                                 </TableRow>
                             </TableHead>
                             <TableBody className="seq-results-summary__table-body">
@@ -302,6 +314,14 @@ export const ResultsSummary: React.FC<ResultsSummaryProps> = ({
                                             >
                                                 {percent(result.total_voters_percent)}
                                             </TableCell>
+                                            {showBlankBallotsColumn && (
+                                                <TableCell
+                                                    className="seq-results-summary__blank-ballots-cell"
+                                                    align="right"
+                                                >
+                                                    {valueOrDash(result.blank_ballots)}
+                                                </TableCell>
+                                            )}
                                         </TableRow>
                                     )
                                 })}

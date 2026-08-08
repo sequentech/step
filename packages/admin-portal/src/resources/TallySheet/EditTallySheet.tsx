@@ -118,6 +118,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
             total_valid_votes: tallySheet?.content?.total_valid_votes || 0,
             invalid_votes: tallySheet?.content?.invalid_votes || {},
             total_blank_votes: tallySheet?.content?.total_blank_votes || 0,
+            blank_ballots: tallySheet?.content?.blank_ballots,
             census: tallySheet?.content?.census,
             candidate_results: tallySheet?.content?.candidate_results || {},
         })
@@ -769,6 +770,13 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                     onChange={handleNumberChange}
                     size="small"
                     required
+                />
+                <TextField
+                    label={String(t("tallysheet.label.blank_ballots"))}
+                    name="blank_ballots"
+                    value={typeof results.blank_ballots === "number" ? results.blank_ballots : ""}
+                    onChange={handleNumberChange}
+                    size="small"
                 />
                 <>
                     <TextField

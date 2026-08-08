@@ -1027,6 +1027,13 @@ const tagalogTranslation: TranslationType = {
                     disabled: "Naka-disable",
                 },
             },
+            blankBallotsPolicy: {
+                label: "Patakaran sa mga blangkong balota",
+                options: {
+                    enabled: "Pinagana",
+                    disabled: "Naka-disable",
+                },
+            },
             votingScreenBackPolicy: {
                 label: "Patakaran sa pindutang Bumalik ng screen ng pagboto",
                 options: {
@@ -2224,6 +2231,7 @@ const tagalogTranslation: TranslationType = {
                     round: "Ikot",
                 },
                 total_declined_to_vote: "Kabuuang Tumangging Bumoto",
+                total_blank_ballots: "Kabuuang Blangkong Balota",
                 participation_by_channel: "Paglahok ayon sa channel",
                 channel: "Channel",
                 channel_online: "Online",
@@ -2440,6 +2448,7 @@ const tagalogTranslation: TranslationType = {
                 explicit_invalid: "Tahasang Invalid na Boto",
                 implicit_invalid: "Implicit na Invalid na Boto",
                 total_blank_votes: "Blankong Boto",
+                blank_ballots: "Blangkong Balota",
                 census: "Senso",
             },
             common: {

@@ -1029,6 +1029,13 @@ const catalanTranslation: TranslationType = {
                     disabled: "Desactivat",
                 },
             },
+            blankBallotsPolicy: {
+                label: "Política de paperetes en blanc",
+                options: {
+                    enabled: "Habilitat",
+                    disabled: "Desactivat",
+                },
+            },
             votingScreenBackPolicy: {
                 label: "Política del botó Enrere de la pantalla de votació",
                 options: {
@@ -2231,6 +2238,7 @@ const catalanTranslation: TranslationType = {
                     round: "Ronda",
                 },
                 total_declined_to_vote: "Total de vots de renúncia",
+                total_blank_ballots: "Total de Paperetes en Blanc",
                 participation_by_channel: "Participació per canal",
                 channel: "Canal",
                 channel_online: "En línia",
@@ -2444,6 +2452,7 @@ const catalanTranslation: TranslationType = {
                 explicit_invalid: "Vots Explícitament Invàlids",
                 implicit_invalid: "Vots Implícitament Invàlids",
                 total_blank_votes: "Vots en Blanc Totals",
+                blank_ballots: "Paperetes en Blanc",
                 census: "Cens",
             },
             common: {
