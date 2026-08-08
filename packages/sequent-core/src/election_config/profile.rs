@@ -195,6 +195,47 @@ pub struct ClientProfile {
     /// [`validate_plan`](super::architect::validate_plan) and is not listed here.
     #[serde(default)]
     pub required: Vec<String>,
+
+    /// Named sets of ballot rules this client is offered, instead of ours.
+    ///
+    /// The wizard offers three — permissive, standard, strict — which are a
+    /// sensible spread for elections in general and frequently not the spread
+    /// for *one organisation*. A client whose rules describe two ways they run
+    /// a ballot is better served by those two, named after their own rules,
+    /// than by three they have to translate.
+    ///
+    /// Additive to the built-in three rather than replacing them, unless
+    /// [`Self::only_our_presets`] says otherwise — a profile author fixing one
+    /// client's vocabulary should not have to re-describe the general case to
+    /// keep it.
+    ///
+    /// Each value is a partial set: anything it omits takes the platform's
+    /// default, exactly like the built-in presets.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub presets: Vec<NamedPreset>,
+
+    /// Offer only the profile's own presets, not ours as well.
+    ///
+    /// For a client whose rules genuinely admit two possibilities and no
+    /// others, where showing a third invites choosing it.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub only_our_presets: bool,
+}
+
+/// A named set of ballot rules a profile offers.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct NamedPreset {
+    /// What the button says. The client's own word for it, not ours.
+    pub name: String,
+
+    /// One line on when to pick it, shown under the buttons.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub about: String,
+
+    /// `policy field -> value`, as `policyCatalog()` spells them. Validated
+    /// against the real value space, so a profile cannot invent a behaviour.
+    #[serde(default)]
+    pub values: BTreeMap<String, String>,
 }
 
 /// A profile with every path parsed and checked.
@@ -207,6 +248,9 @@ pub struct Profile {
     /// rather than discarded, so [`compile_plan`](super::architect::compile_plan)
     /// can fold it into the report somebody actually reads.
     pub warnings: Report,
+    /// The ballot-rule sets this client is offered, and whether ours go too.
+    pub presets: Vec<NamedPreset>,
+    pub only_our_presets: bool,
     defaults: Vec<(PlanPath, Value)>,
     locked: Vec<PlanPath>,
     hidden: Vec<PlanPath>,
@@ -304,6 +348,40 @@ impl Profile {
             }
         }
 
+        // A preset may only name real policies, with real values. This is the
+        // whole reason presets live in Rust rather than being a list of strings
+        // the browser renders: the wizard offers exactly what the core hands
+        // over, so a client-facing button cannot select a behaviour no importer
+        // accepts. Two earlier versions of this tool shipped three such values.
+        for (index, preset) in document.presets.iter().enumerate() {
+            if preset.name.trim().is_empty() {
+                report.push(Problem::error(
+                    Code::MissingField,
+                    format!("presets[{index}].name"),
+                    "a preset needs a name; it is what the button says",
+                ));
+            }
+            for (field, value) in preset.values.iter() {
+                match super::policy::Behaviour::default().accepts(field, value) {
+                    Ok(()) => {}
+                    Err(why) => report.push(Problem::error(
+                        Code::InvalidValue,
+                        format!("presets[{index}].values.{field}"),
+                        why,
+                    )),
+                }
+            }
+        }
+
+        if document.only_our_presets && document.presets.is_empty() {
+            report.push(Problem::error(
+                Code::InvalidValue,
+                "only_our_presets",
+                "this hides our presets and offers none of its own, so the \
+                 client would have no set to choose",
+            ));
+        }
+
         if report.has_errors() {
             return Err(report);
         }
@@ -312,6 +390,8 @@ impl Profile {
             id: document.id.clone(),
             display_name: document.display_name.clone(),
             warnings: report,
+            presets: document.presets.clone(),
+            only_our_presets: document.only_our_presets,
             defaults,
             locked,
             hidden,

@@ -402,6 +402,51 @@ impl Behaviour {
         all.extend(self.tally.columns());
         all
     }
+
+    /// Whether `field` is a policy and `value` one of the values it has.
+    ///
+    /// The one gate a client profile's own presets pass through. Presets live in
+    /// Rust rather than as a list of strings the browser renders precisely so
+    /// that a client-facing button cannot select a behaviour no importer
+    /// accepts — two earlier versions of this tool shipped three such values
+    /// between them, each an election that imports cleanly and then behaves in
+    /// a way nobody chose.
+    ///
+    /// Deliberately spelled by round-tripping through the patch's own
+    /// deserializer rather than by a `match` over field names. A `match` is a
+    /// second list of the policies, and the way a second list fails is a policy
+    /// added to one and forgotten in the other — so this asks the type that
+    /// already knows.
+    pub fn accepts(&self, field: &str, value: &str) -> Result<(), String> {
+        let one = serde_json::json!({ field: value });
+
+        // Unknown fields are refused rather than ignored, so a typo in a
+        // profile is a load error instead of a preset that quietly does less
+        // than it says.
+        let patch: Result<PolicyPatch, _> = serde_json::from_value(one.clone());
+        if let Ok(patch) = patch {
+            return if patch.is_empty() {
+                Err(format!(
+                    "'{field}' is not a ballot rule. The rules are the fields \
+                     `policyCatalog()` lists."
+                ))
+            } else {
+                Ok(())
+            };
+        }
+
+        let tally: Result<TallyPatch, _> = serde_json::from_value(one);
+        match tally {
+            Ok(patch) if !patch.is_empty() => Ok(()),
+            Ok(_) => Err(format!(
+                "'{field}' is not a ballot rule. The rules are the fields \
+                 `policyCatalog()` lists."
+            )),
+            Err(why) => Err(format!(
+                "'{value}' is not one of the values '{field}' has: {why}"
+            )),
+        }
+    }
 }
 
 #[cfg(test)]

@@ -210,6 +210,34 @@ pub struct Blueprint {
     #[serde(default)]
     pub elections: Vec<PlannedElection>,
 
+    /// The voters, when the plan carries them.
+    ///
+    /// Optional on purpose. A plan describes an election and a census is a
+    /// separate, much larger, much more sensitive thing — so most plans have
+    /// none and the wizard says so. But a client whose membership does not
+    /// change between elections has every reason to keep the two together, and
+    /// telling them to hold the list somewhere else is telling them to hold it
+    /// somewhere worse.
+    ///
+    /// The columns are `build_tables::VOTER_LEADING_COLUMNS` plus whatever else
+    /// the client carries; anything unrecognised becomes a Keycloak user
+    /// attribute, which is how a reporting breakout arrives without a code
+    /// change. That is the same passthrough the workbook path has, so a census
+    /// exported from one route imports through the other.
+    #[serde(default)]
+    pub voters: Vec<PlannedVoter>,
+
+    /// Which of the four authentication flows this event uses.
+    ///
+    /// `None` leaves the environment's own configuration alone, which is the
+    /// safe default and what every plan written before this field did.
+    ///
+    /// Carried in the plan rather than only in `CompileOptions` because a
+    /// choice that vanishes when you reopen a plan is a choice somebody makes
+    /// twice and gets differently the second time.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auth_preset: Option<String>,
+
     /// How contests behave unless they say otherwise.
     ///
     /// Was the only place policies could be set, and applied to every contest
@@ -224,6 +252,36 @@ pub struct Blueprint {
 
 fn default_threshold() -> u32 {
     2
+}
+
+/// One voter, as a plan carries them.
+///
+/// Deliberately close to a row of `export_voters.csv` rather than to a domain
+/// model: this is a census on its way through, and every field it does not
+/// recognise it keeps. Reshaping it into something tidier would mean deciding
+/// which of a client's own columns matter, which is not a decision this has any
+/// basis for making.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct PlannedVoter {
+    /// What they sign in as. The only field that must be there.
+    pub username: String,
+
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub email: String,
+
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub first_name: String,
+
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub last_name: String,
+
+    /// Which area's ballot they get. Matched **by name** against `areas`.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub area_name: String,
+
+    /// Everything else the client carries, passed through as user attributes.
+    #[serde(flatten)]
+    pub extra: std::collections::BTreeMap<String, String>,
 }
 
 /// Text in as many languages as the plan enables.

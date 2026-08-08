@@ -507,6 +507,8 @@ fn a_profiles_required_field_stops_the_build() {
 #[test]
 fn a_profile_document_round_trips_through_json() {
     let document = ClientProfile {
+        presets: Vec::new(),
+        only_our_presets: false,
         id: "smart-td".to_string(),
         display_name: Some("SMART TD Locals".to_string()),
         defaults: defaults(&[("trustee_threshold", Value::from(3))]),
@@ -521,4 +523,125 @@ fn a_profile_document_round_trips_through_json() {
     assert_eq!(read.id, "smart-td");
     assert_eq!(read.locked, vec!["trustee_threshold".to_string()]);
     assert_eq!(read.defaults["trustee_threshold"], Value::from(3));
+}
+
+/// A profile may name its own ballot-rule sets, in the client's own words.
+#[test]
+fn a_profile_may_offer_its_own_presets() {
+    let document = ClientProfile {
+        id: "smart-td".into(),
+        presets: vec![
+            NamedPreset {
+                name: "Local officer election".into(),
+                about: "How Article 21 says a local ballot runs.".into(),
+                values: [
+                    ("over_vote".to_string(), "not-allowed-with-msg-and-disable".to_string()),
+                    ("blank_vote".to_string(), "allowed".to_string()),
+                ]
+                .into_iter()
+                .collect(),
+            },
+        ],
+        ..Default::default()
+    };
+
+    let read = Profile::read(&document).expect("this profile is sound");
+
+    assert_eq!(read.presets.len(), 1);
+    assert_eq!(read.presets[0].name, "Local officer election");
+    // Ours are offered alongside unless the profile says otherwise: an author
+    // naming one of a client's ballots should not have to re-describe the
+    // general case to keep it.
+    assert!(!read.only_our_presets);
+}
+
+/// The gate that makes presets safe to put in front of a client.
+#[test]
+fn a_preset_cannot_invent_a_behaviour_the_platform_lacks() {
+    // `not-allowed` is a real value — for blank votes. An under-vote can only
+    // ever be warned about, and two earlier versions of this tool emitted
+    // exactly this: a contest that imports cleanly and then behaves in a way
+    // nobody chose.
+    let document = ClientProfile {
+        id: "acme".into(),
+        presets: vec![NamedPreset {
+            name: "Strict".into(),
+            values: [("under_vote".to_string(), "not-allowed".to_string())]
+                .into_iter()
+                .collect(),
+        ..Default::default()
+        }],
+        ..Default::default()
+    };
+
+    let report = Profile::read(&document).expect_err("this must be refused");
+
+    assert!(report.has_errors());
+    assert!(
+        report
+            .problems
+            .iter()
+            .any(|problem| problem.path == "presets[0].values.under_vote"),
+        "the problem should name the value that is wrong, not the profile: {:?}",
+        report.problems
+    );
+}
+
+/// And a rule that is not a rule at all.
+#[test]
+fn a_preset_cannot_name_a_rule_that_does_not_exist() {
+    let document = ClientProfile {
+        id: "acme".into(),
+        presets: vec![NamedPreset {
+            name: "Strict".into(),
+            values: [("over_vote_polciy".to_string(), "allowed".to_string())]
+                .into_iter()
+                .collect(),
+            ..Default::default()
+        }],
+        ..Default::default()
+    };
+
+    let report = Profile::read(&document).expect_err("a typo must be refused");
+
+    // Ignoring it would give a preset that quietly does less than it says,
+    // which is the failure nobody notices until a client asks why their
+    // button did nothing.
+    assert!(report.has_errors());
+}
+
+/// Hiding ours and offering none leaves nothing to choose.
+#[test]
+fn a_profile_cannot_leave_the_client_with_no_preset_at_all() {
+    let document = ClientProfile {
+        id: "acme".into(),
+        only_our_presets: true,
+        ..Default::default()
+    };
+
+    let report = Profile::read(&document).expect_err("this must be refused");
+
+    assert!(
+        report
+            .problems
+            .iter()
+            .any(|problem| problem.path == "only_our_presets"),
+        "{:?}",
+        report.problems
+    );
+}
+
+/// A preset needs a name; it is what the button says.
+#[test]
+fn a_preset_needs_a_name() {
+    let document = ClientProfile {
+        id: "acme".into(),
+        presets: vec![NamedPreset {
+            name: "   ".into(),
+            ..Default::default()
+        }],
+        ..Default::default()
+    };
+
+    assert!(Profile::read(&document).is_err());
 }

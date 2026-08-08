@@ -409,6 +409,13 @@ pub fn read_profile_js(profile: JsValue) -> Result<JsValue, JsError> {
         /// it is Rust's job — a required field with no asterisk is a form
         /// somebody fills in twice.
         required: Vec<String>,
+        /// The ballot-rule sets this client is offered, already checked against
+        /// the real value space. A front end renders these as buttons without
+        /// having to know what a policy is, which is what stops one offering a
+        /// behaviour no importer accepts.
+        presets: Vec<profile::NamedPreset>,
+        /// Whether ours are offered alongside.
+        only_our_presets: bool,
         warnings: Report,
     }
 
@@ -426,6 +433,8 @@ pub fn read_profile_js(profile: JsValue) -> Result<JsValue, JsError> {
                 .into_iter()
                 .map(str::to_string)
                 .collect(),
+            presets: read.presets.clone(),
+            only_our_presets: read.only_our_presets,
             locked: read
                 .locked_paths()
                 .into_iter()
