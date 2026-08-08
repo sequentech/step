@@ -698,6 +698,25 @@ pub fn policy_catalog() -> Result<JsValue, JsError> {
         default_counting_algorithm: String,
         default_min_votes: i64,
         default_is_encrypted: bool,
+        tie_breaking_policies: &'static [&'static str],
+        default_tie_breaking_policy: String,
+    }
+
+    /// How a contest's options are arranged on the page.
+    ///
+    /// Its own block rather than more `kinds`, because `kinds` is a list of
+    /// enums with a shared shape — a column, a label namespace, a set of string
+    /// values — and two of these are numbers. A front end draws them from here
+    /// and cannot invent a value the platform lacks, which is the only property
+    /// that matters.
+    #[derive(Serialize)]
+    struct LayoutCatalog {
+        collapsible_lists: &'static [&'static str],
+        enable_checkable_lists: &'static [&'static str],
+        default_columns: i64,
+        default_collapsible_lists: String,
+        default_enable_checkable_lists: String,
+        default_max_selections_per_type: i64,
     }
 
     #[derive(Serialize)]
@@ -706,6 +725,7 @@ pub fn policy_catalog() -> Result<JsValue, JsError> {
         /// Named sets, so a wizard can offer a decision rather than seven.
         presets: Vec<(&'static str, Policies)>,
         tally: TallyCatalog,
+        layout: LayoutCatalog,
     }
 
     to_js(&Catalog {
@@ -735,6 +755,27 @@ pub fn policy_catalog() -> Result<JsValue, JsError> {
                 default_counting_algorithm: default.counting_algorithm.clone(),
                 default_min_votes: default.min_votes,
                 default_is_encrypted: default.is_encrypted,
+                tie_breaking_policies:
+                    crate::election_config::validate::TIE_BREAKING_POLICIES,
+                default_tie_breaking_policy: default
+                    .tie_breaking_policy
+                    .clone(),
+            }
+        },
+        layout: {
+            let default = crate::election_config::policy::Layout::default();
+            LayoutCatalog {
+                collapsible_lists:
+                    crate::election_config::validate::COLLAPSIBLE_LISTS,
+                enable_checkable_lists:
+                    crate::election_config::validate::CHECKABLE_LISTS,
+                default_columns: default.columns,
+                default_collapsible_lists: default.collapsible_lists.clone(),
+                default_enable_checkable_lists: default
+                    .enable_checkable_lists
+                    .clone(),
+                default_max_selections_per_type: default
+                    .max_selections_per_type,
             }
         },
     })

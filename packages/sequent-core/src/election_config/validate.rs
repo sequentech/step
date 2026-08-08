@@ -56,6 +56,25 @@ pub const PREFERENTIAL_ALGORITHMS: &[&str] = &[
 /// `String`, so the portal's enum is the only authority on what it may hold.
 pub const VOTING_TYPES: &[&str] = &["preferential", "non-preferential"];
 
+/// `ITieBreakingPolicy` in `ui-core`.
+///
+/// Two values, and the difference matters: `random` settles the tie inside the
+/// tally, and `external-procedure` leaves it in the result for whoever runs the
+/// election to settle under their own rules.
+pub const TIE_BREAKING_POLICIES: &[&str] = &["random", "external-procedure"];
+
+/// `ECollapsibleLists`, for a contest whose candidates are grouped into lists.
+pub const COLLAPSIBLE_LISTS: &[&str] =
+    &["disabled", "enabled-expanded", "enabled-collapsed"];
+
+/// `EEnableCheckableLists` — what a voter may tick when candidates are grouped.
+pub const CHECKABLE_LISTS: &[&str] = &[
+    "disabled",
+    "allow-selecting-candidates",
+    "allow-selecting-lists",
+    "allow-selecting-candidates-and-lists",
+];
+
 /// Check a bundle and report everything wrong with it.
 ///
 /// Never stops at the first problem: fixing a configuration one error per run is
@@ -338,6 +357,8 @@ fn check_contests(bundle: &ImportElectionEventSchema, report: &mut Report) {
         }
 
         check_presentation_policies(contest, &path, about, report);
+        check_tie_breaking(contest, &path, about, report);
+        check_layout(contest, &path, about, report);
 
         let available = candidates_per_contest
             .get(contest.id.as_str())
@@ -390,6 +411,129 @@ fn check_contests(bundle: &ImportElectionEventSchema, report: &mut Report) {
 /// behaving in a way nobody chose, discovered by a voter. Both hand-written
 /// mappings that fed this format got at least one of them wrong, so it is worth
 /// checking the bundle rather than trusting whoever produced it.
+/// The tie-breaking policy, which lives under `tally_configuration`.
+///
+/// Not in `check_presentation_policies` because it is not on the presentation:
+/// how a tie is settled is a counting decision, and the Admin Portal keeps it in
+/// the same place.
+fn check_tie_breaking(
+    contest: &crate::types::hasura::core::Contest,
+    path: &impl Fn(&str) -> String,
+    about: Option<&str>,
+    report: &mut Report,
+) {
+    let Some(value) = contest
+        .tally_configuration
+        .as_ref()
+        .and_then(|configuration| configuration.as_object())
+        .and_then(|configuration| configuration.get("tie_breaking_policy"))
+    else {
+        return;
+    };
+    if value.is_null() {
+        return;
+    }
+    match value.as_str() {
+        Some(text) if TIE_BREAKING_POLICIES.contains(&text) => {}
+        other => report.push(
+            Problem::error(
+                Code::InvalidValue,
+                path("tally_configuration.tie_breaking_policy"),
+                format!(
+                    "{} is not a tie-breaking policy; expected one of {}",
+                    other
+                        .map(|v| format!("'{v}'"))
+                        .unwrap_or("a non-string".into()),
+                    TIE_BREAKING_POLICIES.join(", ")
+                ),
+            )
+            .about(about),
+        ),
+    }
+}
+
+/// The numbers that describe how a ballot is laid out.
+///
+/// Nothing here changes what a vote *means*, which is why these are warnings
+/// rather than errors where a value is merely strange, and errors only where the
+/// portal would have nothing sensible to draw.
+fn check_layout(
+    contest: &crate::types::hasura::core::Contest,
+    path: &impl Fn(&str) -> String,
+    about: Option<&str>,
+    report: &mut Report,
+) {
+    let Some(presentation) = contest
+        .presentation
+        .as_ref()
+        .and_then(|value| value.as_object())
+    else {
+        return;
+    };
+
+    if let Some(columns) = presentation
+        .get("columns")
+        .and_then(serde_json::Value::as_i64)
+    {
+        // Zero columns is a contest nothing can be drawn in; the portal falls
+        // back, but to something nobody chose. Above four is legal and unusable
+        // on a phone, which is where most voters are.
+        if columns < 1 {
+            report.push(
+                Problem::error(
+                    Code::InvalidValue,
+                    path("presentation.columns"),
+                    format!("{columns} columns is not a layout"),
+                )
+                .about(about),
+            );
+        } else if columns > 4 {
+            report.push(
+                Problem::warning(
+                    Code::InvalidValue,
+                    path("presentation.columns"),
+                    format!(
+                        "{columns} columns will be unreadable on a phone, which \
+                         is how most voters vote"
+                    ),
+                )
+                .about(about),
+            );
+        }
+    }
+
+    if let Some(cap) = presentation
+        .get("max_selections_per_type")
+        .and_then(serde_json::Value::as_i64)
+    {
+        if cap < 0 {
+            report.push(
+                Problem::error(
+                    Code::InvalidValue,
+                    path("presentation.max_selections_per_type"),
+                    format!("{cap} is not a number of selections"),
+                )
+                .about(about),
+            );
+        } else if cap > 0 && contest.max_votes.is_some_and(|max| cap > max) {
+            // A per-type cap above the contest's own maximum can never bind, so
+            // somebody who set it believes a limit is in force that is not.
+            report.push(
+                Problem::warning(
+                    Code::ContestArithmetic,
+                    path("presentation.max_selections_per_type"),
+                    format!(
+                        "a cap of {cap} per type never applies in a contest \
+                         where a voter may choose {} in total",
+                        contest.max_votes.unwrap_or(0)
+                    ),
+                )
+                .about(about),
+            );
+        }
+    }
+}
+
 fn check_presentation_policies(
     contest: &crate::types::hasura::core::Contest,
     path: &impl Fn(&str) -> String,
@@ -422,6 +566,12 @@ fn check_presentation_policies(
         ("duplicated_rank_policy", known::<DuplicatedRank>()),
         ("preference_gaps_policy", known::<PreferenceGaps>()),
         ("candidates_order", known::<CandidatesOrder>()),
+        // Not enums in this crate — their value space belongs to the platform
+        // and lives in `ui-core`, so it is a list here rather than a third copy
+        // of a type. Checked all the same: an unrecognised one imports and then
+        // renders as whatever the portal's fallback is.
+        ("collapsible_lists", COLLAPSIBLE_LISTS.to_vec()),
+        ("enable_checkable_lists", CHECKABLE_LISTS.to_vec()),
     ];
 
     for (key, allowed) in checks {

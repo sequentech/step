@@ -326,6 +326,7 @@ fn a_contests_own_rules_reach_the_ballot_a_voter_is_given() {
             min_votes: Some(1),
             ..TallyPatch::default()
         },
+        ..Overrides::default()
     };
 
     let preview = preview(&plan);

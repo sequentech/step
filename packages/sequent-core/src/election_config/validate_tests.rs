@@ -554,3 +554,109 @@ fn a_contest_with_no_presentation_policies_is_fine() {
     bundle.contests[0].presentation = Some(serde_json::json!({}));
     assert!(!validate(&bundle).has_errors());
 }
+
+#[test]
+fn a_tie_breaking_policy_the_platform_does_not_have_is_refused() {
+    // `ITieBreakingPolicy` has two values. A third imports cleanly and then the
+    // tally settles a tie by whatever its fallback is — which is a result nobody
+    // chose, on the one question most likely to be challenged.
+    let mut bundle = sound();
+    bundle.contests[0].tally_configuration = Some(serde_json::json!({
+        "tie_breaking_policy": "coin-toss"
+    }));
+
+    let report = validate(&bundle);
+    assert!(report.has_errors());
+    assert!(report.problems.iter().any(|problem| problem
+        .message
+        .contains("is not a tie-breaking policy")));
+    // On the path the wizard can route to, nested where the contest keeps it.
+    assert!(report.problems.iter().any(|problem| problem
+        .path
+        .ends_with("tally_configuration.tie_breaking_policy")));
+}
+
+#[test]
+fn either_real_tie_breaking_policy_is_accepted() {
+    for value in ["random", "external-procedure"] {
+        let mut bundle = sound();
+        bundle.contests[0].tally_configuration =
+            Some(serde_json::json!({"tie_breaking_policy": value}));
+        assert!(!validate(&bundle).has_errors(), "{value} was refused");
+    }
+}
+
+#[test]
+fn a_contest_laid_out_in_no_columns_is_refused() {
+    let mut bundle = sound();
+    bundle.contests[0].presentation = Some(serde_json::json!({"columns": 0}));
+
+    let report = validate(&bundle);
+    assert!(report.has_errors());
+    assert!(report
+        .problems
+        .iter()
+        .any(|problem| problem.message.contains("is not a layout")));
+}
+
+#[test]
+fn a_contest_in_too_many_columns_is_a_warning_rather_than_a_refusal() {
+    // It renders. It renders unusably on a phone, which is how most voters vote,
+    // and that is a judgement about the electorate rather than about the bundle
+    // — so it is said and not enforced.
+    let mut bundle = sound();
+    bundle.contests[0].presentation = Some(serde_json::json!({"columns": 6}));
+
+    let report = validate(&bundle);
+    assert!(!report.has_errors());
+    assert!(report
+        .problems
+        .iter()
+        .any(|problem| problem.message.contains("unreadable on a phone")));
+}
+
+#[test]
+fn a_per_type_cap_that_can_never_bind_is_pointed_out() {
+    // Somebody who sets a cap of five in a contest where a voter may choose
+    // three believes a limit is in force that never applies.
+    // The fixture's own maximum, plus one. Raising `max_votes` instead would
+    // trip the arithmetic rules — a contest may not let a voter choose more
+    // candidates than are standing — and the failure would be about that.
+    let mut bundle = sound();
+    let max = bundle.contests[0].max_votes.unwrap_or(1);
+    bundle.contests[0].presentation =
+        Some(serde_json::json!({"max_selections_per_type": max + 1}));
+
+    let report = validate(&bundle);
+    assert!(!report.has_errors());
+    assert!(report
+        .problems
+        .iter()
+        .any(|problem| problem.message.contains("never applies")));
+}
+
+#[test]
+fn a_collapsible_list_setting_the_platform_does_not_have_is_refused() {
+    let mut bundle = sound();
+    bundle.contests[0].presentation =
+        Some(serde_json::json!({"collapsible_lists": "enabled"}));
+
+    let report = validate(&bundle);
+    assert!(report.has_errors());
+    assert!(report
+        .problems
+        .iter()
+        .any(|problem| problem.message.contains("is not a collapsible_lists")));
+}
+
+#[test]
+fn an_ordinary_one_column_contest_passes() {
+    let mut bundle = sound();
+    bundle.contests[0].presentation = Some(serde_json::json!({
+        "columns": 1,
+        "collapsible_lists": "disabled",
+        "enable_checkable_lists": "disabled",
+        "max_selections_per_type": 0
+    }));
+    assert!(validate(&bundle).problems.is_empty());
+}

@@ -533,7 +533,7 @@ fn one(problem: Problem) -> Report {
 /// `elections[]` would reach nothing and look like a typo. This has one element
 /// in each list so the shape is walkable all the way down.
 fn shape_of_a_plan() -> Value {
-    use super::policy::{Overrides, PolicyPatch, TallyPatch};
+    use super::policy::{LayoutPatch, Overrides, PolicyPatch, TallyPatch};
 
     let mut plan = Blueprint {
         version: super::architect::BLUEPRINT_VERSION,
@@ -573,6 +573,13 @@ fn shape_of_a_plan() -> Value {
             counting_algorithm: Some(String::new()),
             min_votes: Some(0),
             is_encrypted: Some(true),
+            tie_breaking_policy: Some(String::new()),
+        },
+        layout: LayoutPatch {
+            columns: Some(1),
+            collapsible_lists: Some(String::new()),
+            enable_checkable_lists: Some(String::new()),
+            max_selections_per_type: Some(0),
         },
     };
 
