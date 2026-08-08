@@ -39,6 +39,7 @@ import {
     removeLoginHintsFromSearch,
     routeAcceptsLoginHints,
 } from "./utils/loginHints"
+import {PREVIEW_FILE_KEY} from "./routes/PreviewFromFile"
 interface ElectionEventConfigDocument {
     id: string
     tenant_id: string
@@ -254,6 +255,16 @@ const App = () => {
         const isDemo = sessionStorage.getItem("isDemo")
 
         if (!globalSettings.DISABLE_AUTH && isDemo) {
+            // A preview opened from a file has no bucket coordinates to go back
+            // to, so it goes back to the page that holds it. Without this branch
+            // it would be sent to `/preview/undefined/undefined/…` and land on a
+            // blank screen.
+            if (sessionStorage.getItem(PREVIEW_FILE_KEY)) {
+                navigate("/preview/file")
+                window.location.reload()
+                return
+            }
+
             const areaId = sessionStorage.getItem("areaId")
             const documentId = sessionStorage.getItem("documentId")
             const publicationId = sessionStorage.getItem("publicationId")
