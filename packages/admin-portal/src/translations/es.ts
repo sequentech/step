@@ -577,10 +577,10 @@ const spanishTranslation: TranslationType = {
                 },
                 contestEncryptionPolicy: {
                     options: {
-                        "single-contest": "Concurso único",
-                        "multiple-contests": "Varios concursos",
+                        "single-contest": "Pregunta única",
+                        "multiple-contests": "Varias preguntas",
                     },
-                    policyLabel: "Política de cifrado de concurso",
+                    policyLabel: "Política de cifrado de pregunta",
                 },
                 votingPortalDateTimeFormat: {
                     policyLabel: "Formato de fecha y hora del portal de votación",
@@ -757,7 +757,7 @@ const spanishTranslation: TranslationType = {
                 },
             },
             stats: {
-                elegibleVoters: "Electores",
+                elegibleVoters: "Votantes",
                 voters: "Votantes",
                 elections: "Elecciones",
                 contests: "Preguntas",
@@ -937,7 +937,7 @@ const spanishTranslation: TranslationType = {
                 image: "Imagen",
                 advanced: "Configuración Avanzada",
                 numAllowedVotes: "Número de votos permitidos",
-                reorder: "Reordenar concursos",
+                reorder: "Reordenar preguntas",
                 castVoteConfirm: "Modal de Confirmación de Voto",
                 gracePeriodPolicy: "Política de período de gracia",
                 allowTallyPolicy: "Permitir Recuento",
@@ -1188,7 +1188,7 @@ const spanishTranslation: TranslationType = {
                     multipleDeleteSuccess: "Votantes borrado",
                     manualVerificationError: "Error verificando manualmente al votante",
                     manualVerificationSuccess:
-                        "Verificado exitosamente manualmente al elector, descargar PDF..",
+                        "Verificado exitosamente manualmente al votante, descargar PDF..",
                 },
             },
             roles: {
@@ -1296,14 +1296,14 @@ const spanishTranslation: TranslationType = {
                 "miru-download": "Miru Download",
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
-                "contest-write": "Editar Concurso",
-                "contest-read": "Leer Concurso",
+                "contest-write": "Editar Pregunta",
+                "contest-read": "Leer Pregunta",
                 "candidate-write": "Editar Candidatos",
                 "candidate-read": "Leer Candidatos",
                 "permission-label-write": "Editar la etiqueta de permiso",
                 "scheduled-event-write": "Editar Eventos Programados",
-                "contest-create": "Create Contest",
-                "contest-delete": "Delete Contest",
+                "contest-create": "Crear Pregunta",
+                "contest-delete": "Eliminar Pregunta",
                 "candidate-create": "Create Candidate",
                 "candidate-delete": "Delete Candidate",
                 "election-create": "Create Election",
@@ -1584,7 +1584,7 @@ const spanishTranslation: TranslationType = {
             resources: {
                 electionEvent: "Evento Electoral",
                 election: "Elección",
-                contest: "Concurso",
+                contest: "Pregunta",
                 candidate: "Candidato",
                 noResult: {
                     askCreate: "¿Quieres crear una?",
@@ -1650,13 +1650,13 @@ const spanishTranslation: TranslationType = {
         createResource: {
             electionEvent: "Crear un Evento Electoral",
             election: "Crear una Elección",
-            contest: "Crear un Concurso",
+            contest: "Crear una Pregunta",
             candidate: "Crear un Candidato",
         },
         importResource: {
             electionEvent: "Importar un Evento Electoral",
             election: "Importar una Elección",
-            contest: "Importar un Concurso",
+            contest: "Importar una Pregunta",
             candidate: "Importar un Candidato",
             ImportHashMismatch: "Hashes don't match. Integrity check failure.",
         },
@@ -1673,7 +1673,7 @@ const spanishTranslation: TranslationType = {
             addResource: {
                 electionEvent: "Crear un Evento Electoral",
                 election: "Crear una Elección",
-                contest: "Crear un Concurso",
+                contest: "Crear una Pregunta",
                 candidate: "Crear un Candidato",
             },
             menuActions: {
@@ -1683,13 +1683,13 @@ const spanishTranslation: TranslationType = {
                 unarchive: {
                     electionEvent: "Desarchivar este Evento Electoral",
                     election: "Desarchivar esta Elección",
-                    contest: "Desarchivar este Concurso",
+                    contest: "Desarchivar esta Pregunta",
                     candidate: "Desarchivar este Candidato",
                 },
                 remove: {
                     electionEvent: "Eliminar este Evento Electoral",
                     election: "Eliminar esta Elección",
-                    contest: "Eliminar este Concurso",
+                    contest: "Eliminar esta Pregunta",
                     candidate: "Eliminar este Candidato",
                 },
                 messages: {
@@ -1865,7 +1865,7 @@ const spanishTranslation: TranslationType = {
                     "Posición de rango más alta disponible para los votantes (p.ej. '5' significa posiciones 1–5). Debe ser al menos igual al número de candidatos a ordenar (votación preferencial).",
             },
             error: {},
-            createContestSuccess: "Pregunta creado",
+            createContestSuccess: "Pregunta creada",
             createContestError: "Error creando pregunta",
         },
         keysGeneration: {
@@ -2012,12 +2012,12 @@ const spanishTranslation: TranslationType = {
                 visibility: "Visibility",
                 fullPublishedScope: "Full published scope",
                 personalVisibility: "Personal visibility",
-                contests: "Contests",
-                noTalliedContests: "No tallied contests available.",
-                publishSelectedContests: "Publish selected contests",
-                selectedContestCount_one: "{{count}} contest selected",
-                selectedContestCount_many: "{{count}} contests selected",
-                selectedContestCount_other: "{{count}} contests selected",
+                contests: "Preguntas",
+                noTalliedContests: "No hay preguntas escrutadas disponibles.",
+                publishSelectedContests: "Publicar las preguntas seleccionadas",
+                selectedContestCount_one: "{{count}} pregunta seleccionada",
+                selectedContestCount_many: "{{count}} preguntas seleccionadas",
+                selectedContestCount_other: "{{count}} preguntas seleccionadas",
                 history: "Publication history",
                 version: "Version",
                 status: "Status",
@@ -2255,7 +2255,7 @@ const spanishTranslation: TranslationType = {
                 save: "Guardar",
                 pendingApplyStatus: "Cálculo pendiente",
                 filterElection: "Elección",
-                filterContest: "Concurso",
+                filterContest: "Pregunta",
                 filterArea: "Área",
                 filterStatusLabel: "Estado",
                 clearFilters: "Borrar filtros",
@@ -2354,7 +2354,7 @@ const spanishTranslation: TranslationType = {
             notifications: {
                 generated: "Papeleta generada",
                 published: "Papeleta publicada",
-                change_status: "Votación cambiada de estado",
+                change_status: "Elección cambiada de estado",
             },
         },
         emailEditor: {
@@ -2479,7 +2479,7 @@ const spanishTranslation: TranslationType = {
             },
             table: {
                 area: "Area",
-                contest: "Cotienda",
+                contest: "Pregunta",
                 approvedVersion: "Versión aprobada",
                 latestVersion: "Última versión",
                 labels: "Etiquetas",

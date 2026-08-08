@@ -72,7 +72,7 @@ const galegoTranslation: TranslationType = {
             instructionsDescription: "Siga estes pasos para votar:",
             step1Title: "1. Selecciona as túas opcións",
             step1Description:
-                "Elixe os teus candidatos e responde ás preguntas. Podes editar a túa papeleta ata estar listo.",
+                "Elixe os teus candidatos e responde a cada pregunta. Podes editar a túa papeleta ata estar listo.",
             step2Title: "2. Revisa a túa papeleta",
             step2Description:
                 "Encriptaremos a túa papeleta e mostrarémosche unha revisión final. Recibirás un ID de seguimento único.",
@@ -296,7 +296,8 @@ const galegoTranslation: TranslationType = {
                 ok: "Entendo que o meu voto non será emitido",
             },
             errors: {
-                noVotingArea: "Área de votación non asignada. Inténteo de novo máis tarde.",
+                noVotingArea:
+                    "Non estás rexistrado como votante nesta elección. Por favor, contacta co soporte.",
                 networkError:
                     "Houbo un problema de rede. Inténteo de novo máis tarde ou contacte co soporte para obter asistencia.",
                 unableToFetchData:

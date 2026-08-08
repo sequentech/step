@@ -43,7 +43,7 @@ const dutchTranslation: TranslationType = {
             nonVotedDialog: {
                 title: "Ongeldige of blanco stem",
                 content:
-                    "Sommige van uw antwoorden maken het stembiljet voor een of meer vragen ongeldig of blanco.",
+                    "Sommige van uw antwoorden maken het stembiljet voor een of meer stemmingen ongeldig of blanco.",
                 ok: "Terug en controleren",
                 continue: "Doorgaan",
                 cancel: "Annuleren",
@@ -71,7 +71,7 @@ const dutchTranslation: TranslationType = {
             instructionsDescription: "Volg deze stappen om te stemmen:",
             step1Title: "1. Selecteer uw opties",
             step1Description:
-                "Kies uw kandidaten en beantwoord de vragen. Bewerk uw stembiljet totdat u klaar bent.",
+                "Kies uw kandidaten en beantwoord elke stemming. Bewerk uw stembiljet totdat u klaar bent.",
             step2Title: "2. Controleer uw stembiljet",
             step2Description:
                 "We versleutelen uw stembiljet en tonen een laatste overzicht. U ontvangt een unieke tracker-ID.",
@@ -296,7 +296,8 @@ const dutchTranslation: TranslationType = {
                 ok: "Ik begrijp dat mijn stem niet wordt uitgebracht",
             },
             errors: {
-                noVotingArea: "Kiesgebied niet toegewezen. Probeer het later opnieuw.",
+                noVotingArea:
+                    "U staat niet geregistreerd als kiezer voor deze verkiezing. Neem contact op met de ondersteuning.",
                 networkError:
                     "Er was een netwerkprobleem. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 unableToFetchData:
@@ -326,7 +327,7 @@ const dutchTranslation: TranslationType = {
             },
             explicit: {
                 notAllowed:
-                    "Stembiljet expliciet als ongeldig gemarkeerd, maar de vraag staat dit niet toe",
+                    "Stembiljet expliciet als ongeldig gemarkeerd, maar de stemming staat dit niet toe",
                 alert: "Deze selectie wordt geteld als een ongeldige stem",
             },
             page: {

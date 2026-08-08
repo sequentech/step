@@ -115,14 +115,14 @@ const dutchTranslation: TranslationType = {
             },
             explicit: {
                 notAllowed:
-                    "Stembiljet expliciet ongeldig gemarkeerd maar vraag staat dit niet toe",
+                    "Stembiljet expliciet ongeldig gemarkeerd maar de stemming staat dit niet toe",
                 alert: "Gemarkeerde selectie wordt als ongeldige stem beschouwd.",
             },
             configuration: {
                 multipleExplicitInvalidCandidates:
-                    "Ongeldige stemconfiguratie: de verkiezing definieert {{count}} expliciet ongeldige kandidaten, maar er is er maar één toegestaan.",
+                    "Ongeldige stemconfiguratie: de stemming definieert {{count}} expliciet ongeldige kandidaten, maar er is er maar één toegestaan.",
                 multipleExplicitBlankCandidates:
-                    "Ongeldige stemconfiguratie: de verkiezing definieert {{count}} expliciete blanco kandidaten, maar er is er maar één toegestaan.",
+                    "Ongeldige stemconfiguratie: de stemming definieert {{count}} expliciete blanco kandidaten, maar er is er maar één toegestaan.",
             },
         },
         ballotHash: "Uw stembiljet-ID: {{ballotId}}",

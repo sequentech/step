@@ -40,7 +40,7 @@ const basqueTranslation: TranslationType = {
             publishedResultsDescription: "Hauteskunde-ekitaldi honetarako argitaratutako emaitzak.",
             resultsAndParticipationTitle: "Emaitzak eta parte-hartzea",
             electionsTitle: "Hauteskundeak",
-            contestsTitle: "Lehiaketak",
+            contestsTitle: "Galderak",
             areasTitle: "Eremuak",
             globalArea: "Globala",
             noResultsForSelection: "Ez dago emaitzarik eskuragarri hautapen honetarako.",
@@ -53,7 +53,7 @@ const basqueTranslation: TranslationType = {
             position_many: "{{count}} postu",
             position_other: "{{count}} postu",
             fallbackElectionName: "Hauteskundea",
-            fallbackContestName: "{{contestId}} lehiaketa",
+            fallbackContestName: "{{contestId}} galdera",
             state: {
                 unexpectedErrorTitle: "Ustekabeko errorea",
                 loadErrorMessage:
@@ -62,7 +62,7 @@ const basqueTranslation: TranslationType = {
                     "Ezin izan dugu emaitzetarako saio-hasiera osatu une honetan. Saiatu berriro minutu batzuk barru.",
                 signInRequiredTitle: "Saioa hastea beharrezkoa da",
                 signInRequiredMessage:
-                    "Hasi saioa zure hautesle-kontuarekin emaitza hauek ikusteko.",
+                    "Hasi saioa zure bozkatzaile-kontuarekin emaitza hauek ikusteko.",
                 notPublishedTitle: "Emaitzak oraindik ez dira argitaratu",
                 notPublishedMessage:
                     "Emaitzak ez daude eskuragarri une honetan. Begiratu berriro geroago.",
@@ -71,7 +71,7 @@ const basqueTranslation: TranslationType = {
                 title: "Informazio orokorra",
                 ariaLabel: "Emaitzen informazio orokorra",
                 election: "Hauteskundea",
-                eligibleVoters: "Hautesle hautagarriak",
+                eligibleVoters: "Bozkatzaile hautagarriak",
                 totalVotesCounted: "Zenbatutako botoak guztira",
                 validVotes: "Baliozko botoak",
                 participation: "Parte-hartzea",
@@ -81,7 +81,7 @@ const basqueTranslation: TranslationType = {
                 candidateResults: "Hautagaien emaitzak",
                 total: "Guztira",
                 turnout: "%",
-                eligibleCensus: "Hautesle hautagarriak",
+                eligibleCensus: "Bozkatzaile hautagarriak",
                 totalAuditableVotes: "Ikuskatu daitezkeen botoak guztira",
                 totalVotesCounted: "Zenbatutako botoak guztira",
                 totalValidVotes: "Baliozko botoak guztira",

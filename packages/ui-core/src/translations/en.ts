@@ -59,7 +59,7 @@ const englishTranslation = {
                 "Your ballot was encrypted correctly. You can now close this window and return to the Voting Booth.",
             bottomDescription2:
                 "If they don't match, click here to learn more about the potential reasons and what actions you can take.",
-            ballotChoicesDescription: "And your ballot choices are:",
+            ballotChoicesDescription: "And your ballot selections are:",
             helpAndFaq: "Help & FAQ",
             backButton: "Back",
             markedInvalid: "Ballot explicitly marked invalid",
@@ -116,7 +116,7 @@ const englishTranslation = {
                     "Invalid vote! The same position was selected for two or more candidates.",
             },
             explicit: {
-                notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",
+                notAllowed: "Ballot marked explicitly invalid but the contest doesn't allow it",
                 alert: "Selection marked will be considered invalid vote.",
             },
             configuration: {
