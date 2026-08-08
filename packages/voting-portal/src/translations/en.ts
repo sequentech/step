@@ -12,8 +12,12 @@ const englishTranslation = {
             collapseToggle: "Toggle list {{listTitle}}",
             showCandidates: "Show candidates",
             hideCandidates: "Hide candidates",
-            selectedCandidate: "{{count}} candidate selected",
-            selectedCandidates: "{{count}} candidates selected",
+            selectedCandidates_one: "{{count}} candidate selected",
+            // `_many` is selected only in es/cat/fr, for exact multiples of a million. English never
+            // selects it, but the other bundles are typed `TranslationType = typeof englishTranslation`,
+            // so the key has to be declared here before they can carry it.
+            selectedCandidates_many: "{{count}} candidates selected",
+            selectedCandidates_other: "{{count}} candidates selected",
             expandAll: "Expand all",
             collapseAll: "Collapse all",
         },
@@ -312,24 +316,9 @@ const englishTranslation = {
                 notEnoughChoices: "Not enough choices to decode",
                 writeInChoiceOutOfRange: "Write-in choice out of range: {{index}}",
                 writeInNotEndInZero: "Write-in doesn't end on 0",
-                writeInCharsExceeded:
-                    "The write-in exceeds the maximum length by {{numCharsExceeded}} characters. Please shorten it.",
                 bytesToUtf8Conversion:
                     "Error converting write-in from bytes to UTF-8 string: {{errorMessage}}",
                 ballotTooLarge: "Ballot larger than expected",
-            },
-            implicit: {
-                selectedMax:
-                    "Overvote: Number of selected choices {{numSelected}} is more than the maximum {{max}}",
-                selectedMin:
-                    "Number of selected choices {{numSelected}} is less than the minimum {{min}}",
-                maxSelectionsPerType:
-                    "Number of selected choices {{numSelected}} for list {{type}} is more than the maximum {{max}}",
-                underVote:
-                    "Undervote: Number of selected choices {{numSelected}} is less than the maximum {{max}}",
-                overVoteDisabled:
-                    "Maximum reached: You have selected the maximum {{numSelected}} choices. To change your selection, please deselect another option first.",
-                blankVote: "Blank Vote: 0 choices selected",
             },
             explicit: {
                 notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",

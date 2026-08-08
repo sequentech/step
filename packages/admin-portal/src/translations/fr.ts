@@ -1890,6 +1890,8 @@ const frenchTranslation: TranslationType = {
                 threshold: "Seuil",
                 errorMinTrustees_one:
                     "Vous avez sélectionné seulement {{selected}} autorité, mais vous devez en sélectionner au moins {{threshold}}.",
+                errorMinTrustees_many:
+                    "Vous avez sélectionné seulement {{selected}} autorités, mais vous devez en sélectionner au moins {{threshold}}.",
                 errorMinTrustees_other:
                     "Vous avez sélectionné seulement {{selected}} autorités, mais vous devez en sélectionner au moins {{threshold}}.",
                 errorThreshold:
@@ -2025,8 +2027,9 @@ const frenchTranslation: TranslationType = {
                 contests: "Contests",
                 noTalliedContests: "No tallied contests available.",
                 publishSelectedContests: "Publish selected contests",
-                selectedContestCount: "{{count}} contest selected",
-                selectedContestCount_plural: "{{count}} contests selected",
+                selectedContestCount_one: "{{count}} contest selected",
+                selectedContestCount_many: "{{count}} contests selected",
+                selectedContestCount_other: "{{count}} contests selected",
                 history: "Publication history",
                 version: "Version",
                 status: "Status",

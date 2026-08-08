@@ -80,24 +80,33 @@ const basqueTranslation: TranslationType = {
                 notEnoughChoices: "Ez dago nahikoa aukera deskodetzeko",
                 writeInChoiceOutOfRange: "Idatzitako aukera barrutitik kanpo: {{index}}",
                 writeInNotEndInZero: "Idatzitakoa ez da 0n amaitzen",
-                writeInCharsExceeded:
-                    "Idatzitakoak gehienezko karaktere kopurua {{numCharsExceeded}}z gainditu du. Konponketa behar du.",
+                writeInCharsExceeded_one: "Laburtu eskuz idatzitakoa {{count}} karakterez.",
+                writeInCharsExceeded_many: "Laburtu eskuz idatzitakoa {{count}} karakterez.",
+                writeInCharsExceeded_other: "Laburtu eskuz idatzitakoa {{count}} karakterez.",
                 bytesToUtf8Conversion:
                     "Errorea idatzitakoa byte-etatik UTF-8 kate-ra bihurtzerakoan: {{errorMessage}}",
                 ballotTooLarge: "Bozketa esperotakoa baino handiagoa",
             },
             implicit: {
-                selectedMax:
-                    "Gainfoto: Hautatutako aukeren kopurua {{numSelected}} gehienezko {{max}} baino gehiago da",
-                selectedMin:
-                    "Hautatutako aukeren kopurua {{numSelected}} gutxieneko {{min}} baino gutxiago da",
-                maxSelectionsPerType:
-                    "{{type}} zerrendako hautatutako aukeren kopurua {{numSelected}} gehienezko {{max}} baino gehiago da",
-                underVote:
-                    "Azpifoto: Hautatutako aukeren kopurua {{numSelected}} gehienezko {{max}} baino gutxiago da",
-                overVoteDisabled:
-                    "Gehienezkora heldu: Gehienezko {{numSelected}} aukera hautatu dituzu. Zure hautaketa aldatzeko, mesedez ezgaitu beste aukera bat lehenik.",
-                blankVote: "Boto Zuria: 0 aukera hautatu",
+                selectedMax_one: "Kendu {{count}} hautagai.",
+                selectedMax_many: "Kendu {{count}} hautagai.",
+                selectedMax_other: "Kendu {{count}} hautagai.",
+                selectedMin_one: "Hautatu {{count}} hautagai gehiago.",
+                selectedMin_many: "Hautatu {{count}} hautagai gehiago.",
+                selectedMin_other: "Hautatu {{count}} hautagai gehiago.",
+                maxSelectionsPerType_one: "Kendu {{count}} hautagai {{type}} zerrendatik.",
+                maxSelectionsPerType_many: "Kendu {{count}} hautagai {{type}} zerrendatik.",
+                maxSelectionsPerType_other: "Kendu {{count}} hautagai {{type}} zerrendatik.",
+                underVote_one: "Gehienez {{count}} hautagai gehiago hauta ditzakezu.",
+                underVote_many: "Gehienez {{count}} hautagai gehiago hauta ditzakezu.",
+                underVote_other: "Gehienez {{count}} hautagai gehiago hauta ditzakezu.",
+                overVoteDisabled_one:
+                    "Gehienezko {{count}} hautagai hautatu dituzu. Beste bat aukeratzeko, kendu bat.",
+                overVoteDisabled_many:
+                    "Gehienezko {{count}} hautagai hautatu dituzu. Beste bat aukeratzeko, kendu bat.",
+                overVoteDisabled_other:
+                    "Gehienezko {{count}} hautagai hautatu dituzu. Beste bat aukeratzeko, kendu bat.",
+                blankVote: "Ez duzu hautagairik hautatu.",
                 preferenceOrderWithGaps:
                     "Boto baliogabea! Lehentasunaren ordenak hutsune bat edo gehiago ditu.",
                 duplicatedPosition:

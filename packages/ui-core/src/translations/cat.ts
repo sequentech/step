@@ -81,24 +81,33 @@ const catalanTranslation: TranslationType = {
                 notEnoughChoices: "No hi ha prou opcions per desxifrar",
                 writeInChoiceOutOfRange: "Opció de vot escrita fora de rang: {{index}}",
                 writeInNotEndInZero: "Opció de vot escrita no finalitza en 0",
-                writeInCharsExceeded:
-                    "Opció de vot escrita excedeix el nombre de caràcters per {{numCharsExceeded}} caràcters. Requereix arranjament.",
+                writeInCharsExceeded_one: "Escurceu l'escriptura lliure en {{count}} caràcter.",
+                writeInCharsExceeded_many: "Escurceu l'escriptura lliure en {{count}} caràcters.",
+                writeInCharsExceeded_other: "Escurceu l'escriptura lliure en {{count}} caràcters.",
                 bytesToUtf8Conversion:
                     "Error convertint bytes d'opció de vot escrita a cadena UTF-8: {{errorMessage}}",
                 ballotTooLarge: "Vot més gran de l'esperat",
             },
             implicit: {
-                selectedMax:
-                    "Sobrevot: El nombre d'opcions seleccionades {{numSelected}} és major que el màxim {{max}}",
-                selectedMin:
-                    "El nombre d'opcions seleccionades {{numSelected}} és menor que el mínim {{min}}",
-                maxSelectionsPerType:
-                    "El nombre d'opcions seleccionades {{numSelected}} per a la llista {{type}} és major que el màxim {{max}}",
-                underVote:
-                    "Subvot: El nombre d'opcions seleccionades {{numSelected}} és inferior al màxim permès de {{max}}",
-                overVoteDisabled:
-                    "Màxim assolit: Has seleccionat el màxim de {{numSelected}} opcions. Per canviar la teva selecció, si us plau, desmarca primer una altra opció.",
-                blankVote: "Vot en Blanc: 0 opcions seleccionades",
+                selectedMax_one: "Desmarqueu {{count}} candidat.",
+                selectedMax_many: "Desmarqueu {{count}} candidats.",
+                selectedMax_other: "Desmarqueu {{count}} candidats.",
+                selectedMin_one: "Seleccioneu {{count}} candidat més.",
+                selectedMin_many: "Seleccioneu {{count}} candidats més.",
+                selectedMin_other: "Seleccioneu {{count}} candidats més.",
+                maxSelectionsPerType_one: "Desmarqueu {{count}} candidat de {{type}}.",
+                maxSelectionsPerType_many: "Desmarqueu {{count}} candidats de {{type}}.",
+                maxSelectionsPerType_other: "Desmarqueu {{count}} candidats de {{type}}.",
+                underVote_one: "Seleccioneu fins a {{count}} candidat més.",
+                underVote_many: "Seleccioneu fins a {{count}} candidats més.",
+                underVote_other: "Seleccioneu fins a {{count}} candidats més.",
+                overVoteDisabled_one:
+                    "Heu seleccionat el màxim de {{count}} candidat. Desmarqueu-lo per triar-ne un altre.",
+                overVoteDisabled_many:
+                    "Heu seleccionat el màxim de {{count}} candidats. Desmarqueu-ne un per triar-ne un altre.",
+                overVoteDisabled_other:
+                    "Heu seleccionat el màxim de {{count}} candidats. Desmarqueu-ne un per triar-ne un altre.",
+                blankVote: "No heu seleccionat cap candidat.",
                 preferenceOrderWithGaps: "Vot invàlid! L'ordre de preferència té un o més buits.",
                 duplicatedPosition:
                     "Vot invàlid! La mateixa posició va ser seleccionada per a dos o més candidats.",

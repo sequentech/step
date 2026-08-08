@@ -15,8 +15,9 @@ const galegoTranslation: TranslationType = {
             collapseToggle: "Alternar lista {{listTitle}}",
             showCandidates: "Mostrar candidatos",
             hideCandidates: "Ocultar candidatos",
-            selectedCandidate: "{{count}} candidato seleccionado",
-            selectedCandidates: "{{count}} candidatos seleccionados",
+            selectedCandidates_one: "{{count}} candidato seleccionado",
+            selectedCandidates_many: "{{count}} candidatos seleccionados",
+            selectedCandidates_other: "{{count}} candidatos seleccionados",
             expandAll: "Expandir todo",
             collapseAll: "Contraer todo",
         },
@@ -319,24 +320,9 @@ const galegoTranslation: TranslationType = {
                 notEnoughChoices: "Non hai suficientes opcións para decodificar",
                 writeInChoiceOutOfRange: "Opción de escritura libre fóra de rango: {{index}}",
                 writeInNotEndInZero: "A escritura libre non remata en 0",
-                writeInCharsExceeded:
-                    "A escritura libre supera a lonxitude máxima en {{numCharsExceeded}} caracteres. Por favor, acórtea.",
                 bytesToUtf8Conversion:
                     "Erro ao converter a escritura libre de bytes a cadea UTF-8: {{errorMessage}}",
                 ballotTooLarge: "A papeleta é máis grande do esperado",
-            },
-            implicit: {
-                selectedMax:
-                    "Voto en exceso: o número de opcións seleccionadas {{numSelected}} é maior que o máximo {{max}}",
-                selectedMin:
-                    "O número de opcións seleccionadas {{numSelected}} é inferior ao mínimo {{min}}",
-                maxSelectionsPerType:
-                    "O número de opcións seleccionadas {{numSelected}} para a lista {{type}} é maior que o máximo {{max}}",
-                underVote:
-                    "Voto incompleto: o número de opcións seleccionadas {{numSelected}} é inferior ao máximo {{max}}",
-                overVoteDisabled:
-                    "Máximo alcanzado: seleccionaches o máximo de {{numSelected}} opcións. Para cambiar a túa selección, anula primeiro a selección doutra opción.",
-                blankVote: "Voto en branco: 0 opcións seleccionadas",
             },
             explicit: {
                 notAllowed:

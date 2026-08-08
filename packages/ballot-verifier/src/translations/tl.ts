@@ -69,7 +69,9 @@ const tagalogTranslation = {
                     "Ang mga susunod na piling balota ay na-decode mula sa balota na iyong in-import. Suriin ang mga ito at tiyakin na tumutugma ang mga ito sa mga napili mo sa Voting Portal. Kung ang iyong mga napili ay hindi tumutugma, mangyaring makipag-ugnayan sa mga awtoridad ng halalan...",
             },
             markedInvalid: "Ang balota ay tahasang minarkahan bilang hindi wasto",
-            points: "({{points}} Mga Punto)",
+            points_one: "({{count}} Mga Punto)",
+            points_many: "({{count}} Mga Punto)",
+            points_other: "({{count}} Mga Punto)",
             contestNotFound: "Paligsahan hindi natagpuan: {{contestId}}",
             declineToVote: "Hindi bumoto",
         },
@@ -84,11 +86,6 @@ const tagalogTranslation = {
                 bytesToUtf8Conversion:
                     "Error sa pag-convert ng write-in mula sa bytes papuntang UTF-8 string: {{errorMessage}}",
                 ballotTooLarge: "Ang balota ay mas malaki kaysa sa inaasahan",
-            },
-            implicit: {
-                selectedMax: "Bilang ng mga napili {{numSelected}} ay higit sa maximum {{max}}",
-                selectedMin:
-                    "Bilang ng mga napili {{numSelected}} ay mas mababa sa minimum {{min}}",
             },
             explicit: {
                 notAllowed:

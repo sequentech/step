@@ -72,7 +72,9 @@ const galegoTranslation: TranslationType = {
                     "As seguintes seleccións de papeleta foron descifradas da papeleta que importaches. Revísaas e asegúrate de que coinciden coas que fixeches no Portal de Votación. Se as túas seleccións non coinciden, contacta coas autoridades electorais...",
             },
             markedInvalid: "Papeleta marcada explícitamente como inválida",
-            points: "({{points}} Puntos)",
+            points_one: "({{count}} Punto)",
+            points_many: "({{count}} Puntos)",
+            points_other: "({{count}} Puntos)",
             contestNotFound: "Concurso non atopado: {{contestId}}",
             declineToVote: "Decidiu non votar",
         },
@@ -87,12 +89,6 @@ const galegoTranslation: TranslationType = {
                 bytesToUtf8Conversion:
                     "Erro ao converter a opción escrita de bytes a cadea UTF-8: {{errorMessage}}",
                 ballotTooLarge: "A papeleta é máis grande do esperado",
-            },
-            implicit: {
-                selectedMax:
-                    "Número de opcións seleccionadas {{numSelected}} é máis do máximo permitido {{max}}",
-                selectedMin:
-                    "Número de opcións seleccionadas {{numSelected}} é menor do mínimo {{min}}",
             },
             explicit: {
                 notAllowed: "A papeleta está marcada como inválida pero a pregunta non o permite",

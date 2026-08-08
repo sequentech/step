@@ -34,6 +34,8 @@ export {
     translate,
     translateFromPresentation,
 } from "./services/translate"
+export {getBallotErrorOptions} from "./services/ballotErrorMessages"
+export type {BallotErrorOptions} from "./services/ballotErrorMessages"
 export * from "./services/votingPortalDateTime"
 export * from "./types/ElectionEventPresentation"
 export * from "./services/percentFormatter"

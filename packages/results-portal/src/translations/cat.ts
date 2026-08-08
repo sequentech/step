@@ -49,8 +49,9 @@ const catalanTranslation: TranslationType = {
             signedInAccess: "Accés amb sessió iniciada",
             published: "Publicat",
             notPublishedYet: "Encara no publicat",
-            position: "{{count}} posició",
-            position_plural: "{{count}} posicions",
+            position_one: "{{count}} posició",
+            position_many: "{{count}} posicions",
+            position_other: "{{count}} posicions",
             fallbackElectionName: "Elecció",
             fallbackContestName: "Contesa {{contestId}}",
             state: {

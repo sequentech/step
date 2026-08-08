@@ -73,7 +73,9 @@ const catalanTranslation: TranslationType = {
                     "Les següents seleccions de la papereta han estat descodificades de la papereta que vas importar. Si us plau, revisa-les i assegura't que coincideixin amb les seleccions que vas fer al Portal de Votació. Si les teves seleccions no coincideixen, si us plau, contacta amb les autoritats electorals...",
             },
             markedInvalid: "Vot explícitament marcat invàlid",
-            points: "({{points}} Punts)",
+            points_one: "({{count}} Punt)",
+            points_many: "({{count}} Punts)",
+            points_other: "({{count}} Punts)",
             contestNotFound: "Pregunta no trobada: {{contestId}}",
             declineToVote: "Vot no emès",
         },
@@ -85,12 +87,6 @@ const catalanTranslation: TranslationType = {
                 bytesToUtf8Conversion:
                     "Error convertint bytes de l'opció de vot escrita a cadena UTF-8: {{errorMessage}}",
                 ballotTooLarge: "Vot més gran de l'esperat",
-            },
-            implicit: {
-                selectedMax:
-                    "El nombre d'opcions seleccionades {{numSelected}} és major que el màxim {{max}}",
-                selectedMin:
-                    "El nombre d'opcions seleccionades {{numSelected}} és menor que el mínim {{min}}",
             },
             explicit: {
                 notAllowed: "Vot marcat explícitament com a invàlid però la pregunta no ho permet",
