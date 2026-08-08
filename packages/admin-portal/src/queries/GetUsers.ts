@@ -104,6 +104,29 @@ export const formatUserSortToJsonb = (sort: Record<string, string>) => {
     return null
 }
 
+/**
+ * The filter half of the get-users payload.
+ *
+ * Exported so the bulk delete can send byte-identical filters. Anything the
+ * list applies but the delete omits would make the server resolve MORE voters
+ * than the operator is looking at, and the delete is not reversible, so these
+ * must not be maintained as two hand-copied lists.
+ *
+ * `filter` must be the merged filter the dataProvider receives -- user filters
+ * plus the List's permanent `filter` prop -- not `filterValues` alone.
+ */
+export const buildUserFilterPayload = (filter: Record<string, any>) => ({
+    email: filter.email || null,
+    username: filter.username || null,
+    first_name: filter.first_name || null,
+    last_name: filter.last_name || null,
+    attributes: filter.attributes ? formatUserAtributesToJsonb(filter.attributes) : null,
+    enabled: filter.enabled ?? null,
+    email_verified: filter.email_verified ?? null,
+    has_voted: filter.has_voted ?? null,
+    authorized_to_election_alias: filter.authorized_to_election_alias || null,
+})
+
 export const customBuildGetUsersVariables =
     (introspectionResults: any) =>
     (resource: any, raFetchType: any, params: any, nullParam: any) => {
