@@ -503,11 +503,32 @@ pub fn policy_catalog() -> Result<JsValue, JsError> {
         }
     }
 
+    /// How a contest is counted, which is not a policy but is set beside them.
+    ///
+    /// Handed over for the same reason the policies are: so a screen cannot
+    /// offer `alphabetic` where the platform says `alphabetical`, or a
+    /// preferential contest counted by a plurality algorithm. The two lists of
+    /// algorithms are the real ones — `COUNTING_ALGORITHMS` and the subset
+    /// `PREFERENTIAL_ALGORITHMS` — so a front end can refuse the combination
+    /// rather than reporting it after the fact.
+    #[derive(Serialize)]
+    struct TallyCatalog {
+        voting_types: &'static [&'static str],
+        counting_algorithms: &'static [&'static str],
+        /// Which of those are ranked. A contest using one must be preferential.
+        preferential: &'static [&'static str],
+        default_voting_type: String,
+        default_counting_algorithm: String,
+        default_min_votes: i64,
+        default_is_encrypted: bool,
+    }
+
     #[derive(Serialize)]
     struct Catalog {
         kinds: Vec<Kind>,
         /// Named sets, so a wizard can offer a decision rather than seven.
         presets: Vec<(&'static str, Policies)>,
+        tally: TallyCatalog,
     }
 
     to_js(&Catalog {
@@ -525,6 +546,22 @@ pub fn policy_catalog() -> Result<JsValue, JsError> {
             ("standard", Policies::standard()),
             ("strict", Policies::strict()),
         ],
+        tally: {
+            let default = crate::election_config::policy::Tally::default();
+            TallyCatalog {
+                voting_types: crate::election_config::validate::VOTING_TYPES,
+                counting_algorithms:
+                    crate::election_config::validate::COUNTING_ALGORITHMS,
+                preferential:
+                    crate::election_config::validate::PREFERENTIAL_ALGORITHMS,
+                default_voting_type: default.voting_type.clone(),
+                default_counting_algorithm: default
+                    .counting_algorithm
+                    .clone(),
+                default_min_votes: default.min_votes,
+                default_is_encrypted: default.is_encrypted,
+            }
+        },
     })
 }
 
