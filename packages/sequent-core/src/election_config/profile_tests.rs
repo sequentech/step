@@ -57,6 +57,7 @@ fn plan() -> Blueprint {
                     ..Default::default()
                 },
             ],
+            ..Default::default()
         }],
         ..Default::default()
     }

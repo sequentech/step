@@ -740,3 +740,122 @@ fn a_write_in_slot_is_not_somebody_standing() {
         "a write-in slot was counted as a candidate"
     );
 }
+
+/// Zero casts means unlimited, not none.
+///
+/// The field is called `num_allowed_revotes` and the number is *casts*. The
+/// Voting Portal is unambiguous — `castVotes.length < num_allowed_revotes`, with
+/// "If num_allowed_revotes is 0, allow voting" above it — so zero is unlimited.
+///
+/// This test exists because the first version of the check read the name instead
+/// of the portal and refused zero as "an election nobody can vote in". An
+/// existing build fixture caught it, which is the only reason it did not ship.
+#[test]
+fn unlimited_revoting_is_not_an_error() {
+    let mut bundle = sound();
+    bundle.elections[0].num_allowed_revotes = Some(0);
+    assert!(!validate(&bundle).has_errors());
+}
+
+#[test]
+fn a_negative_number_of_votes_is_refused() {
+    let mut bundle = sound();
+    bundle.elections[0].num_allowed_revotes = Some(-1);
+    let report = validate(&bundle);
+    assert!(report.has_errors());
+    assert!(report
+        .problems
+        .iter()
+        .any(|problem| problem.message.contains("not a number of votes")));
+}
+
+#[test]
+fn spoiling_a_ballot_with_no_second_cast_is_pointed_out() {
+    // The voter discards their only vote and cannot replace it, which is not what
+    // anybody ticking the box intended.
+    let mut bundle = sound();
+    bundle.elections[0].num_allowed_revotes = Some(1);
+    bundle.elections[0].spoil_ballot_option = Some(true);
+
+    let report = validate(&bundle);
+    assert!(!report.has_errors());
+    assert!(report.problems.iter().any(|problem| problem
+        .message
+        .contains("no second attempt to replace it")));
+}
+
+#[test]
+fn spoiling_is_fine_where_there_is_another_cast_to_make() {
+    for casts in [0, 2] {
+        let mut bundle = sound();
+        bundle.elections[0].num_allowed_revotes = Some(casts);
+        bundle.elections[0].spoil_ballot_option = Some(true);
+        assert!(
+            !validate(&bundle)
+                .problems
+                .iter()
+                .any(|problem| problem.message.contains("no second attempt")),
+            "{casts} casts should allow spoiling"
+        );
+    }
+}
+
+#[test]
+fn a_grace_period_policy_the_platform_does_not_have_is_refused() {
+    let mut bundle = sound();
+    bundle.elections[0].presentation = Some(
+        serde_json::json!({"grace_period_policy": "grace-period-with-alert"}),
+    );
+
+    let report = validate(&bundle);
+    assert!(report.has_errors());
+    assert!(report.problems.iter().any(|problem| problem
+        .message
+        .contains("is not a grace_period_policy")));
+}
+
+#[test]
+fn a_grace_period_of_no_seconds_is_pointed_out() {
+    // Somebody set the policy and left the length at zero, so they believe voting
+    // stays open a little longer than it does — found by a voter at one minute
+    // past the close.
+    let mut bundle = sound();
+    bundle.elections[0].presentation = Some(serde_json::json!({
+        "grace_period_policy": "grace-period-without-alert",
+        "grace_period_secs": 0
+    }));
+
+    let report = validate(&bundle);
+    assert!(!report.has_errors());
+    assert!(report
+        .problems
+        .iter()
+        .any(|problem| problem.message.contains("no grace period")));
+}
+
+#[test]
+fn seconds_of_grace_with_no_grace_period_are_pointed_out() {
+    // The same mistake the other way round.
+    let mut bundle = sound();
+    bundle.elections[0].presentation = Some(serde_json::json!({
+        "grace_period_policy": "no-grace-period",
+        "grace_period_secs": 300
+    }));
+
+    let report = validate(&bundle);
+    assert!(!report.has_errors());
+    assert!(report.problems.iter().any(|problem| problem
+        .message
+        .contains("voting closes on the deadline")));
+}
+
+#[test]
+fn a_real_grace_period_passes() {
+    let mut bundle = sound();
+    bundle.elections[0].presentation = Some(serde_json::json!({
+        "grace_period_policy": "grace-period-without-alert",
+        "grace_period_secs": 300,
+        "start_screen_title_policy": "election"
+    }));
+    assert!(validate(&bundle).problems.is_empty());
+}

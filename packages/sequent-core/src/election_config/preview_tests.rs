@@ -96,6 +96,7 @@ fn sound() -> Blueprint {
                 areas: Vec::new(),
                 overrides: Overrides::default(),
             }],
+            ..Default::default()
         }],
         defaults: Behaviour::default(),
         notes: String::new(),

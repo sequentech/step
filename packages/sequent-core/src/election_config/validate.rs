@@ -87,6 +87,7 @@ pub fn validate(bundle: &ImportElectionEventSchema) -> Report {
     check_area_tree(bundle, &mut report);
     check_contests(bundle, &mut report);
     check_ballot_coverage(bundle, &mut report);
+    check_how_voting_works(bundle, &mut report);
     check_permission_labels(bundle, &mut report);
     check_unique_ids(bundle, &mut report);
 
@@ -779,6 +780,152 @@ fn check_ballot_coverage(
                 area.name.as_deref().unwrap_or(&area.id)
             ),
         ));
+    }
+}
+
+/// `EGracePeriodPolicy`. A grace period lets somebody who opened the ballot
+/// before the close finish casting it.
+pub const GRACE_PERIOD_POLICIES: &[&str] =
+    &["no-grace-period", "grace-period-without-alert"];
+
+/// `EStartScreenTitlePolicy` — which name titles the voting screen.
+pub const START_SCREEN_TITLE_POLICIES: &[&str] =
+    &["election", "election-event"];
+
+/// The election-level settings about how voting itself works.
+///
+/// Every one of these reaches a voter. None of them was checkable before, because
+/// no plan could set them and a hand-written bundle got no scrutiny.
+fn check_how_voting_works(
+    bundle: &ImportElectionEventSchema,
+    report: &mut Report,
+) {
+    for (index, election) in bundle.elections.iter().enumerate() {
+        let path = |field: &str| format!("elections[{index}].{field}");
+        let about = election.external_id.as_deref();
+
+        // The field's name says re-votes and the number is *casts*. The Voting
+        // Portal is the authority and it is unambiguous: `castVotes.length <
+        // num_allowed_revotes`, with a special case above it — "If
+        // num_allowed_revotes is 0, allow voting" — so zero means **unlimited**,
+        // one means cast once and final, two means one change.
+        //
+        // Worth spelling out because the obvious reading of the name is the
+        // opposite, and a first version of this check refused zero as "an
+        // election nobody can vote in". An existing build fixture caught it.
+        if let Some(revotes) = election.num_allowed_revotes {
+            if revotes < 0 {
+                report.push(
+                    Problem::error(
+                        Code::InvalidValue,
+                        path("num_allowed_revotes"),
+                        format!("{revotes} is not a number of votes"),
+                    )
+                    .about(about),
+                );
+            }
+        }
+
+        // Spoiling a cast ballot only means something if there is another cast to
+        // make. Exactly one — not zero, which is unlimited — leaves the voter
+        // having discarded their only vote with no way to replace it.
+        if election.spoil_ballot_option == Some(true)
+            && election.num_allowed_revotes == Some(1)
+        {
+            report.push(
+                Problem::warning(
+                    Code::InvalidValue,
+                    path("spoil_ballot_option"),
+                    "a voter may throw a cast ballot away and has no second \
+                     attempt to replace it"
+                        .to_string(),
+                )
+                .about(about),
+            );
+        }
+
+        let Some(presentation) = election
+            .presentation
+            .as_ref()
+            .and_then(|value| value.as_object())
+        else {
+            continue;
+        };
+
+        for (key, allowed) in [
+            ("grace_period_policy", GRACE_PERIOD_POLICIES),
+            ("start_screen_title_policy", START_SCREEN_TITLE_POLICIES),
+        ] {
+            let Some(value) = presentation.get(key) else {
+                continue;
+            };
+            if value.is_null() {
+                continue;
+            }
+            match value.as_str() {
+                Some(text) if allowed.contains(&text) => {}
+                other => report.push(
+                    Problem::error(
+                        Code::InvalidValue,
+                        path(&format!("presentation.{key}")),
+                        format!(
+                            "{} is not a {key}; expected one of {}",
+                            other
+                                .map(|v| format!("'{v}'"))
+                                .unwrap_or("a non-string".into()),
+                            allowed.join(", ")
+                        ),
+                    )
+                    .about(about),
+                ),
+            }
+        }
+
+        let seconds = presentation
+            .get("grace_period_secs")
+            .and_then(serde_json::Value::as_i64);
+        let policy = presentation
+            .get("grace_period_policy")
+            .and_then(serde_json::Value::as_str);
+
+        if seconds.is_some_and(|value| value < 0) {
+            report.push(
+                Problem::error(
+                    Code::InvalidValue,
+                    path("presentation.grace_period_secs"),
+                    format!("{} is not a length of time", seconds.unwrap_or(0)),
+                )
+                .about(about),
+            );
+        }
+
+        // The pair, both ways round. A length with no policy does nothing, and a
+        // policy with no length is a grace period of zero — either way somebody
+        // believes voting stays open a little longer than it does, which is the
+        // sort of thing found by a voter at one minute past the close.
+        match (policy, seconds) {
+            (Some("grace-period-without-alert"), Some(0) | None) => report.push(
+                Problem::warning(
+                    Code::InvalidValue,
+                    path("presentation.grace_period_secs"),
+                    "a grace period of no seconds is no grace period".to_string(),
+                )
+                .about(about),
+            ),
+            (Some("no-grace-period") | None, Some(value)) if value > 0 => report
+                .push(
+                    Problem::warning(
+                        Code::InvalidValue,
+                        path("presentation.grace_period_policy"),
+                        format!(
+                            "{value} seconds of grace are set and no grace \
+                             period is allowed, so voting closes on the deadline"
+                        ),
+                    )
+                    .about(about),
+                ),
+            _ => {}
+        }
     }
 }
 

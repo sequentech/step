@@ -427,7 +427,7 @@ pub struct PlannedArea {
     pub parent_external_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlannedElection {
     pub external_id: String,
     #[serde(default)]
@@ -436,6 +436,55 @@ pub struct PlannedElection {
     /// What this election is about, for voters. Translatable.
     #[serde(default)]
     pub description: Translated,
+
+    /// How many times a voter may change a vote they have already cast.
+    ///
+    /// One means cast once and that is final; two means one change. The platform
+    /// keeps the *last* ballot and discards the earlier ones, so this is not "how
+    /// many votes" — it is how many attempts.
+    ///
+    /// A real client decision, and the Admin Portal's election form exposes it,
+    /// so a wizard-built election took whatever `election.hbs` said.
+    #[serde(default = "one")]
+    pub num_allowed_revotes: i64,
+
+    /// Whether a voter may throw away a ballot they have already cast.
+    ///
+    /// Different from a contest's "I spoil my ballot" option, which is a choice on
+    /// the paper. This discards a *cast* ballot and lets the voter start again, so
+    /// it only means anything alongside a revote allowance.
+    #[serde(default)]
+    pub spoil_ballot_option: bool,
+
+    /// Whether voting closes on the deadline or a little after it.
+    ///
+    /// `no-grace-period` or `grace-period-without-alert`, per
+    /// `EGracePeriodPolicy`. A grace period lets a voter who opened the ballot
+    /// before the close finish casting it, which is a decision about fairness
+    /// rather than about software.
+    #[serde(default = "no_grace_period")]
+    pub grace_period_policy: String,
+
+    /// How long that grace period lasts, in seconds. Zero without one.
+    #[serde(default)]
+    pub grace_period_secs: i64,
+
+    /// Whether the voting screen is titled after this election or the whole event.
+    ///
+    /// `election` or `election-event`, per `EStartScreenTitlePolicy`. For an event
+    /// with one election the event's name usually reads better; for one with
+    /// several, the election's does.
+    #[serde(default = "title_from_event")]
+    pub start_screen_title_policy: String,
+
+    /// Which permission label gates access to this election.
+    ///
+    /// Internal: it is how the importer links a voter's authorisation to an
+    /// election, and a client has no reason to choose one. Present because a
+    /// delivery occasionally has to match an existing label, and empty means the
+    /// builder derives it.
+    #[serde(default)]
+    pub permission_label: String,
 
     /// One set for every contest here, replacing whatever the contests say.
     ///
@@ -449,6 +498,31 @@ pub struct PlannedElection {
     pub shared: Option<Overrides>,
     #[serde(default)]
     pub contests: Vec<PlannedContest>,
+}
+
+/// The values `#[serde(default = "…")]` gives a plan that omits them.
+///
+/// Written out rather than derived, because `derive(Default)` would give zero
+/// revote attempts — an election nobody can vote in — and an empty
+/// `grace_period_policy`, which is not one of the platform's two values. Those
+/// attributes apply only when *deserialising*; a struct literal in Rust gets
+/// this, which is what every fixture uses.
+impl Default for PlannedElection {
+    fn default() -> Self {
+        PlannedElection {
+            external_id: String::new(),
+            name: Translated::default(),
+            description: Translated::default(),
+            num_allowed_revotes: 1,
+            spoil_ballot_option: false,
+            grace_period_policy: no_grace_period(),
+            grace_period_secs: 0,
+            start_screen_title_policy: title_from_event(),
+            permission_label: String::new(),
+            shared: None,
+            contests: Vec::new(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -514,6 +588,19 @@ pub struct PlannedContest {
     /// areas explicitly is how a contest becomes local to some of them.
     #[serde(default)]
     pub areas: Vec<String>,
+}
+
+fn no_grace_period() -> String {
+    "no-grace-period".to_string()
+}
+
+/// The event's name, not the election's.
+///
+/// Most events have one election, where the event's name is the one the client
+/// wrote and the election's is a subdivision nobody outside the platform thinks
+/// about.
+fn title_from_event() -> String {
+    "election-event".to_string()
 }
 
 fn one() -> i64 {
@@ -1242,6 +1329,12 @@ fn elections_sheet(
     columns.extend(i18n_columns("presentation", "name", languages));
     columns.extend(i18n_columns("presentation", "description", languages));
     columns.push("description".to_string());
+    columns.push("num_allowed_revotes".to_string());
+    columns.push("spoil_ballot_option".to_string());
+    columns.push("permission_label".to_string());
+    columns.push("presentation.grace_period_policy".to_string());
+    columns.push("presentation.grace_period_secs".to_string());
+    columns.push("presentation.start_screen_title_policy".to_string());
 
     let rows = plan
         .elections
@@ -1251,6 +1344,18 @@ fn elections_sheet(
             row.extend(i18n_values(&election.name, languages));
             row.extend(i18n_values(&election.description, languages));
             row.push(english_of(&election.description));
+            row.push(Cell::Int(election.num_allowed_revotes));
+            row.push(Cell::Bool(election.spoil_ballot_option));
+            // Blank rather than an empty string, so the builder derives one
+            // instead of setting the label to "".
+            row.push(if election.permission_label.is_empty() {
+                Cell::Blank
+            } else {
+                Cell::text(election.permission_label.clone())
+            });
+            row.push(Cell::text(election.grace_period_policy.clone()));
+            row.push(Cell::Int(election.grace_period_secs));
+            row.push(Cell::text(election.start_screen_title_policy.clone()));
             row
         })
         .collect();
