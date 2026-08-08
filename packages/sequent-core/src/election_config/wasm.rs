@@ -285,21 +285,20 @@ pub fn validate_plan_js(plan: JsValue) -> Result<IReport, JsError> {
 pub fn compile_plan_js(
     plan: JsValue,
     options: JsValue,
-    profile: JsValue,
 ) -> Result<IBuildOutput, JsError> {
     let plan: architect::Blueprint = serde_wasm_bindgen::from_value(plan)
         .map_err(|error| {
             JsError::new(&format!("this is not an election plan: {error}"))
         })?;
 
+    // The profile travels *inside* options rather than as a third argument.
+    // It was a third argument, and the browser passed two — so every profile
+    // silently became `None`, `apply_profile` never ran, and not one locked
+    // value reached a bundle. Nothing on either side complained, because a
+    // missing positional at an FFI boundary is `undefined` and `undefined`
+    // deserializes to `Option::None`. A named field cannot be dropped that way.
+    let profile = profile_from(&options)?;
     let options = build_options(options)?;
-
-    let read = match read_profile(profile) {
-        Ok(read) => read,
-        Err(report) => {
-            return to_js(&Output::refused(report)).map(IBuildOutput::from)
-        }
-    };
 
     let templates = match TemplateSet::builtin() {
         Ok(templates) => templates,
@@ -310,7 +309,7 @@ pub fn compile_plan_js(
         &plan,
         &templates,
         &options,
-        read.as_ref(),
+        profile.as_ref(),
     ) {
         Ok(compiled) => compiled,
         Err(report) => {
@@ -334,6 +333,37 @@ pub fn compile_plan_js(
         event_external_id: Some(compiled.bundle.event_external_id.clone()),
     })
     .map(IBuildOutput::from)
+}
+
+/// The client profile out of the options object, if it carries one.
+///
+/// Returns an error rather than a report: a malformed profile is a broken
+/// deployment, not a plan somebody can fix by editing their answers, and
+/// swallowing it into the build report is how it goes unnoticed.
+#[cfg(feature = "election_config_archive")]
+fn profile_from(options: &JsValue) -> Result<Option<profile::Profile>, JsError> {
+    #[derive(serde::Deserialize, Default)]
+    #[serde(default)]
+    struct Carrying {
+        profile: Option<profile::ClientProfile>,
+    }
+
+    if options.is_undefined() || options.is_null() {
+        return Ok(None);
+    }
+
+    let carrying: Carrying = serde_wasm_bindgen::from_value(options.clone())
+        .map_err(|error| {
+            JsError::new(&format!("bad options: {error}"))
+        })?;
+
+    let Some(document) = carrying.profile else {
+        return Ok(None);
+    };
+
+    profile::Profile::read(&document).map(Some).map_err(|report| {
+        JsError::new(&format!("this client profile cannot be used:\n{report}"))
+    })
 }
 
 /// Read a client profile, or none.
@@ -375,6 +405,10 @@ pub fn read_profile_js(profile: JsValue) -> Result<JsValue, JsError> {
         display_name: Option<String>,
         hidden: Vec<String>,
         locked: Vec<String>,
+        /// Handed over so a front end can mark a field, even though enforcing
+        /// it is Rust's job — a required field with no asterisk is a form
+        /// somebody fills in twice.
+        required: Vec<String>,
         warnings: Report,
     }
 
@@ -397,9 +431,20 @@ pub fn read_profile_js(profile: JsValue) -> Result<JsValue, JsError> {
                 .into_iter()
                 .map(str::to_string)
                 .collect(),
+            required: read
+                .required_paths()
+                .into_iter()
+                .map(str::to_string)
+                .collect(),
             warnings: read.warnings.clone(),
         }),
-        Err(report) => to_js(&report),
+        // An error, not a `Report` returned as success. The caller casts this
+        // result to a profile; handing back `{problems: [...]}` produced
+        // `profile.hidden` undefined and a blank page, with the very problems
+        // Rust took care to produce thrown away.
+        Err(report) => Err(JsError::new(&format!(
+            "this client profile cannot be used:\n{report}"
+        ))),
     }
 }
 
@@ -480,6 +525,8 @@ pub fn policy_catalog() -> Result<JsValue, JsError> {
 /// first time [`BuildOptions`] gains a field.
 #[cfg(feature = "election_config_archive")]
 fn build_options(options: JsValue) -> Result<BuildOptions, JsError> {
+    // `serde_wasm_bindgen` ignores unknown keys, so the `profile` the plan path
+    // also puts in here passes straight through.
     #[derive(serde::Deserialize, Default)]
     #[serde(default, rename_all = "camelCase")]
     struct Options {

@@ -332,6 +332,15 @@ impl Profile {
         self.locked.iter().map(PlanPath::as_str).collect()
     }
 
+    /// The paths this build additionally insists on.
+    ///
+    /// Enforcing them is [`check_required`]'s job, in Rust. This is so a form
+    /// can mark them — a required field with no asterisk is a form somebody
+    /// fills in twice.
+    pub fn required_paths(&self) -> Vec<&str> {
+        self.required.iter().map(PlanPath::as_str).collect()
+    }
+
     /// Whether a path is fixed by this profile, hidden or merely shown as read
     /// only. Both are enforced the same way; only the drawing differs.
     fn is_fixed(&self, path: &PlanPath) -> bool {
