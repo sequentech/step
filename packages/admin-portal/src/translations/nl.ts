@@ -1878,6 +1878,8 @@ const dutchTranslation: TranslationType = {
                 trusteeList: "Trustees",
                 errorMinTrustees_one:
                     "U selecteerde slechts {{selected}} trustee, maar u moet er minstens {{threshold}} selecteren.",
+                errorMinTrustees_many:
+                    "U selecteerde slechts {{selected}} trustees, maar u moet er minstens {{threshold}} selecteren.",
                 errorMinTrustees_other:
                     "U selecteerde slechts {{selected}} trustees, maar u moet er minstens {{threshold}} selecteren.",
                 errorThreshold:
@@ -2012,6 +2014,7 @@ const dutchTranslation: TranslationType = {
                 noTalliedContests: "Geen getelde stemmingen beschikbaar.",
                 publishSelectedContests: "Geselecteerde stemmingen publiceren",
                 selectedContestCount_one: "{{count}} stemming geselecteerd",
+                selectedContestCount_many: "{{count}} stemmingen geselecteerd",
                 selectedContestCount_other: "{{count}} stemmingen geselecteerd",
                 history: "Publicatiegeschiedenis",
                 version: "Versie",

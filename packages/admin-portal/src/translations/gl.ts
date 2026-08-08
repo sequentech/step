@@ -1880,6 +1880,8 @@ const galegoTranslation: TranslationType = {
                 threshold: "Limiar",
                 errorMinTrustees_one:
                     "Seleccionaches só {{selected}} fiduciario, pero debes seleccionar polo menos {{threshold}}.",
+                errorMinTrustees_many:
+                    "Seleccionaches só {{selected}} fiduciarios, pero debes seleccionar polo menos {{threshold}}.",
                 errorMinTrustees_other:
                     "Seleccionaches só {{selected}} fiduciarios, pero debes seleccionar polo menos {{threshold}}.",
                 errorThreshold:
@@ -2015,6 +2017,7 @@ const galegoTranslation: TranslationType = {
                 noTalliedContests: "Non hai preguntas escrutadas dispoñibles.",
                 publishSelectedContests: "Publicar as preguntas seleccionadas",
                 selectedContestCount_one: "{{count}} pregunta seleccionada",
+                selectedContestCount_many: "{{count}} preguntas seleccionadas",
                 selectedContestCount_other: "{{count}} preguntas seleccionadas",
                 history: "Historial de publicacións",
                 version: "Versión",

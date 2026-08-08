@@ -13,6 +13,10 @@ const englishTranslation = {
             showCandidates: "Show candidates",
             hideCandidates: "Hide candidates",
             selectedCandidates_one: "{{count}} candidate selected",
+            // `_many` is selected only in es/cat/fr, for exact multiples of a million. English never
+            // selects it, but the other bundles are typed `TranslationType = typeof englishTranslation`,
+            // so the key has to be declared here before they can carry it.
+            selectedCandidates_many: "{{count}} candidates selected",
             selectedCandidates_other: "{{count}} candidates selected",
             expandAll: "Expand all",
             collapseAll: "Collapse all",

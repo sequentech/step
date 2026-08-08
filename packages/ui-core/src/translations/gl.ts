@@ -83,6 +83,7 @@ const galegoTranslation: TranslationType = {
                 writeInChoiceOutOfRange: "A opción escrita está fóra do rango: {{index}}",
                 writeInNotEndInZero: "A opción escrita non remata en 0",
                 writeInCharsExceeded_one: "Acurta a escritura libre en {{count}} carácter.",
+                writeInCharsExceeded_many: "Acurta a escritura libre en {{count}} caracteres.",
                 writeInCharsExceeded_other: "Acurta a escritura libre en {{count}} caracteres.",
                 bytesToUtf8Conversion:
                     "Erro ao converter a opción escrita de bytes a unha cadea UTF-8: {{errorMessage}}",
@@ -90,15 +91,21 @@ const galegoTranslation: TranslationType = {
             },
             implicit: {
                 selectedMax_one: "Desmarca {{count}} candidato.",
+                selectedMax_many: "Desmarca {{count}} candidatos.",
                 selectedMax_other: "Desmarca {{count}} candidatos.",
                 selectedMin_one: "Selecciona {{count}} candidato máis.",
+                selectedMin_many: "Selecciona {{count}} candidatos máis.",
                 selectedMin_other: "Selecciona {{count}} candidatos máis.",
                 maxSelectionsPerType_one: "Desmarca {{count}} candidato de {{type}}.",
+                maxSelectionsPerType_many: "Desmarca {{count}} candidatos de {{type}}.",
                 maxSelectionsPerType_other: "Desmarca {{count}} candidatos de {{type}}.",
                 underVote_one: "Selecciona ata {{count}} candidato máis.",
+                underVote_many: "Selecciona ata {{count}} candidatos máis.",
                 underVote_other: "Selecciona ata {{count}} candidatos máis.",
                 overVoteDisabled_one:
                     "Seleccionaches o máximo de {{count}} candidato. Desmárcao para elixir outro.",
+                overVoteDisabled_many:
+                    "Seleccionaches o máximo de {{count}} candidatos. Desmarca un para elixir outro.",
                 overVoteDisabled_other:
                     "Seleccionaches o máximo de {{count}} candidatos. Desmarca un para elixir outro.",
                 blankVote: "Non seleccionaches ningún candidato.",

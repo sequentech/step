@@ -15,6 +15,7 @@ const frenchTranslation: TranslationType = {
             showCandidates: "Afficher les candidats",
             hideCandidates: "Masquer les candidats",
             selectedCandidates_one: "{{count}} candidat sélectionné",
+            selectedCandidates_many: "{{count}} candidats sélectionnés",
             selectedCandidates_other: "{{count}} candidats sélectionnés",
             expandAll: "Tout afficher",
             collapseAll: "Tout réduire",

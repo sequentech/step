@@ -1896,6 +1896,8 @@ const frenchTranslation: TranslationType = {
                 threshold: "Seuil",
                 errorMinTrustees_one:
                     "Vous avez sélectionné seulement {{selected}} autorité, mais vous devez en sélectionner au moins {{threshold}}.",
+                errorMinTrustees_many:
+                    "Vous avez sélectionné seulement {{selected}} autorités, mais vous devez en sélectionner au moins {{threshold}}.",
                 errorMinTrustees_other:
                     "Vous avez sélectionné seulement {{selected}} autorités, mais vous devez en sélectionner au moins {{threshold}}.",
                 errorThreshold:
@@ -2034,6 +2036,7 @@ const frenchTranslation: TranslationType = {
                 noTalliedContests: "Aucun scrutin dépouillé disponible.",
                 publishSelectedContests: "Publier les scrutins sélectionnés",
                 selectedContestCount_one: "{{count}} scrutin sélectionné",
+                selectedContestCount_many: "{{count}} scrutins sélectionnés",
                 selectedContestCount_other: "{{count}} scrutins sélectionnés",
                 history: "Historique des publications",
                 version: "Version",

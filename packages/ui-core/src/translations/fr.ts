@@ -83,6 +83,7 @@ const frenchTranslation: TranslationType = {
                 writeInChoiceOutOfRange: "Option de vote écrite hors de portée : {{index}}",
                 writeInNotEndInZero: "Option de vote écrite ne finit pas en 0",
                 writeInCharsExceeded_one: "Raccourcissez le texte saisi de {{count}} caractère.",
+                writeInCharsExceeded_many: "Raccourcissez le texte saisi de {{count}} caractères.",
                 writeInCharsExceeded_other: "Raccourcissez le texte saisi de {{count}} caractères.",
                 bytesToUtf8Conversion:
                     "Erreur de conversion des octets de l'option de vote écrite en chaîne UTF-8 : {{errorMessage}}",
@@ -90,16 +91,23 @@ const frenchTranslation: TranslationType = {
             },
             implicit: {
                 selectedMax_one: "Désélectionnez {{count}} candidat.",
+                selectedMax_many: "Désélectionnez {{count}} candidats.",
                 selectedMax_other: "Désélectionnez {{count}} candidats.",
                 selectedMin_one: "Sélectionnez {{count}} candidat de plus.",
+                selectedMin_many: "Sélectionnez {{count}} candidats de plus.",
                 selectedMin_other: "Sélectionnez {{count}} candidats de plus.",
                 maxSelectionsPerType_one: "Désélectionnez {{count}} candidat de la liste {{type}}.",
+                maxSelectionsPerType_many:
+                    "Désélectionnez {{count}} candidats de la liste {{type}}.",
                 maxSelectionsPerType_other:
                     "Désélectionnez {{count}} candidats de la liste {{type}}.",
                 underVote_one: "Sélectionnez jusqu'à {{count}} candidat de plus.",
+                underVote_many: "Sélectionnez jusqu'à {{count}} candidats de plus.",
                 underVote_other: "Sélectionnez jusqu'à {{count}} candidats de plus.",
                 overVoteDisabled_one:
                     "Vous avez sélectionné le maximum de {{count}} candidat. Désélectionnez-le pour en choisir un autre.",
+                overVoteDisabled_many:
+                    "Vous avez sélectionné le maximum de {{count}} candidats. Désélectionnez-en un pour en choisir un autre.",
                 overVoteDisabled_other:
                     "Vous avez sélectionné le maximum de {{count}} candidats. Désélectionnez-en un pour en choisir un autre.",
                 blankVote: "Vous n'avez sélectionné aucun candidat.",
