@@ -46,7 +46,7 @@ const catalanTranslation: TranslationType = {
             startButton: "Seleccioneu fitxer",
             dragDropOption: "O arrossegueu el fitxer aquí",
             importErrorDescription:
-                "Hi va haver un problema en importar el vot auditable. Vas triar el fitxer correcte?",
+                "Hi va haver un problema en importar el vot auditable. Vau triar el fitxer correcte?",
             importErrorMoreInfo: "Més informació",
             importErrorTitle: "Error",
             useSampleText: "No teniu un vot verificable?",

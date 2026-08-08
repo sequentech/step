@@ -53,7 +53,7 @@ const catalanTranslation: TranslationType = {
                 content:
                     "La vostra papereta conté seleccions que poden necessitar la vostra atenció (com ara seleccionar menys opcions de les permeses). La vostra papereta és vàlida i es comptarà tal com s'ha enviat.",
                 ok: "Torneu i reviseu",
-                continue: "Continua",
+                continue: "Continueu",
                 cancel: "Cancel·la",
             },
         },

@@ -8,7 +8,7 @@ const catalanTranslation: TranslationType = {
         "welcome": "Comencem: Importeu la papereta auditable...",
         "404": {
             title: "Pàgina no trobada",
-            subtitle: "La pàgina que busques no existeix",
+            subtitle: "La pàgina que busqueu no existeix",
         },
         "homeScreen": {
             step1: "Pas 1: Importeu la vostra papereta electoral.",
