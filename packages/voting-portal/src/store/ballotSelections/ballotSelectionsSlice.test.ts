@@ -8,10 +8,17 @@ import {IBallotStyle} from "../ballotStyles/ballotStylesSlice"
 // @sequentech/ui-core re-exports the sequent-core WASM glue module, which
 // ships as raw ESM and isn't transformed by this package's Jest config.
 // The slice under test only uses isUndefined at runtime, so stub the
-// module rather than pulling in the WASM build.
-jest.mock("@sequentech/ui-core", () => ({
-    isUndefined: (value: unknown): boolean => value === undefined,
-}))
+// module rather than pulling in the WASM build. `virtual: true` is
+// required in CI: this test's own matrix job never builds ui-core's dist
+// output, so the real package doesn't resolve at all, and jest.mock still
+// needs to resolve a module path unless told it's virtual.
+jest.mock(
+    "@sequentech/ui-core",
+    () => ({
+        isUndefined: (value: unknown): boolean => value === undefined,
+    }),
+    {virtual: true}
+)
 
 import ballotSelectionsReducer, {
     resetBallotSelection,
