@@ -50,6 +50,7 @@ const galegoTranslation: TranslationType = {
             published: "Publicado",
             notPublishedYet: "Aínda non publicado",
             position_one: "{{count}} posto",
+            position_many: "{{count}} postos",
             position_other: "{{count}} postos",
             fallbackElectionName: "Elección",
             fallbackContestName: "Concurso {{contestId}}",

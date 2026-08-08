@@ -54,11 +54,23 @@ Rules to follow:
   ```
 
   Arabic needs all six suffixes; Slovenian and Hebrew need `_two`, because both select `two` for a count of 2.
-  Spanish, Catalan and French report `many`, but only for exact multiples of a million, so a count of
-  candidates never reaches it.
+  Spanish, Catalan and French report `many` and select it for exact multiples of a million.
+
+  A missing form does **not** fall back to `_other` in the same language — it falls through to
+  `fallbackLng`, and the fallback language then picks its own category. A Spanish bundle carrying only
+  `_one` and `_other` renders the *English* sentence at a count of 1,000,000. Declare every category the
+  language reports even when a count that large looks impossible: these numbers come from
+  operator-entered configuration such as `max_votes`, which nothing in the stack bounds.
+* **A new suffix goes into every language file, not just the one that needs it.** The non-English bundles
+  are typed `TranslationType = typeof englishTranslation`, so a suffix present only in `es.ts` is an
+  excess-property error, and adding it to `en.ts` makes it required in all of them. Adding `_many` for
+  Spanish therefore means adding it to `en.ts` and to every other language as well. In the languages that
+  never select it, copy the `_other` text verbatim — `many` is a formatting category, not a distinct
+  inflection, so the wording does not change.
 * **`_zero` can also be added deliberately.** Beyond the CLDR category, i18next selects `_zero` whenever
   `count` is exactly 0, in any language — so you can give "none" its own wording even where
-  `pluralCategories` does not list `zero`.
+  `pluralCategories` does not list `zero`. It follows the rule above: adding `_zero` to `en.ts` makes it a
+  required key in every other language file.
 * **The runtime must provide `Intl.PluralRules`.** i18next 25 requires it and has no fallback to the old v3
   behaviour; `compatibilityJSON: "v3"` was removed in v24. Every browser we support has it. If a target ever
   lacks it, install the `intl-pluralrules` polyfill — without one, i18next logs an error and degrades to

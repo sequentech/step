@@ -48,6 +48,10 @@ const englishTranslation = {
             published: "Published",
             notPublishedYet: "Not published yet",
             position_one: "{{count}} position",
+            // `_many` is selected only in es/cat/fr, for exact multiples of a million. English never
+            // selects it, but the other bundles are typed `TranslationType = typeof englishTranslation`,
+            // so the key has to be declared here before they can carry it.
+            position_many: "{{count}} positions",
             position_other: "{{count}} positions",
             fallbackElectionName: "Election",
             fallbackContestName: "Contest {{contestId}}",

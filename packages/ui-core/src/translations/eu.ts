@@ -81,6 +81,7 @@ const basqueTranslation: TranslationType = {
                 writeInChoiceOutOfRange: "Idatzitako aukera barrutitik kanpo: {{index}}",
                 writeInNotEndInZero: "Idatzitakoa ez da 0n amaitzen",
                 writeInCharsExceeded_one: "Laburtu eskuz idatzitakoa {{count}} karakterez.",
+                writeInCharsExceeded_many: "Laburtu eskuz idatzitakoa {{count}} karakterez.",
                 writeInCharsExceeded_other: "Laburtu eskuz idatzitakoa {{count}} karakterez.",
                 bytesToUtf8Conversion:
                     "Errorea idatzitakoa byte-etatik UTF-8 kate-ra bihurtzerakoan: {{errorMessage}}",
@@ -88,14 +89,20 @@ const basqueTranslation: TranslationType = {
             },
             implicit: {
                 selectedMax_one: "Kendu {{count}} hautagai.",
+                selectedMax_many: "Kendu {{count}} hautagai.",
                 selectedMax_other: "Kendu {{count}} hautagai.",
                 selectedMin_one: "Hautatu {{count}} hautagai gehiago.",
+                selectedMin_many: "Hautatu {{count}} hautagai gehiago.",
                 selectedMin_other: "Hautatu {{count}} hautagai gehiago.",
                 maxSelectionsPerType_one: "Kendu {{count}} hautagai {{type}} zerrendatik.",
+                maxSelectionsPerType_many: "Kendu {{count}} hautagai {{type}} zerrendatik.",
                 maxSelectionsPerType_other: "Kendu {{count}} hautagai {{type}} zerrendatik.",
                 underVote_one: "Gehienez {{count}} hautagai gehiago hauta ditzakezu.",
+                underVote_many: "Gehienez {{count}} hautagai gehiago hauta ditzakezu.",
                 underVote_other: "Gehienez {{count}} hautagai gehiago hauta ditzakezu.",
                 overVoteDisabled_one:
+                    "Gehienezko {{count}} hautagai hautatu dituzu. Beste bat aukeratzeko, kendu bat.",
+                overVoteDisabled_many:
                     "Gehienezko {{count}} hautagai hautatu dituzu. Beste bat aukeratzeko, kendu bat.",
                 overVoteDisabled_other:
                     "Gehienezko {{count}} hautagai hautatu dituzu. Beste bat aukeratzeko, kendu bat.",
