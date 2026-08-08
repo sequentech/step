@@ -55,6 +55,13 @@ const frenchTranslation: TranslationType = {
                 continue: "Continuer",
                 cancel: "Annuler",
             },
+            blankBallotDialog: {
+                title: "Vous n'avez sélectionné aucun candidat",
+                content:
+                    "Vous n'avez fait aucune sélection. Votre bulletin sera déposé comme bulletin blanc, un choix valide et délibéré qui sera comptabilisé comme tel.",
+                continue: "Continuer",
+                cancel: "Annuler",
+            },
         },
         startScreen: {
             startButton: "Commencer à voter",
@@ -110,6 +117,13 @@ const frenchTranslation: TranslationType = {
                 title: "Êtes-vous sûr de vouloir voter?",
                 content: "Après confirmation, votre vote sera émis.",
                 ok: "Oui, je veux voter",
+                cancel: "Annuler",
+            },
+            confirmCastBlankBallotDialog: {
+                title: "Êtes-vous sûr de vouloir déposer un bulletin blanc ?",
+                content:
+                    "Vous n'avez sélectionné aucun candidat. Après confirmation, votre bulletin sera déposé blanc.",
+                ok: "Oui, je veux déposer mon bulletin blanc",
                 cancel: "Annuler",
             },
             error: {
@@ -204,11 +218,15 @@ const frenchTranslation: TranslationType = {
                     "Une erreur interne s'est produite lors du vote. Veuillez réessayer ultérieurement ou contacter le support pour obtenir de l'aide.",
             },
             declineToVote: "S’abstenir de voter",
+            blankBallot: "Bulletin blanc",
         },
         confirmationScreen: {
             title: "Votre vote a été émis",
             description:
                 "Le code de confirmation ci-dessous vérifie que <b>votre vote a été émis correctement</b>. Vous pouvez utiliser ce code pour vérifier que votre vote a été comptabilisé.",
+            blankBallot: {
+                description: "Votre bulletin a été déposé blanc, un choix valide et délibéré.",
+            },
             ballotId: "Localisateur de Vote",
             printButton: "Imprimer",
             finishButton: "Terminer",

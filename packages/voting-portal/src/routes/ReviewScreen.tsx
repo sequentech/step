@@ -307,6 +307,7 @@ interface ActionButtonProps {
     isGoldenPolicy: boolean
     isMultiContest: boolean
     isDeclineToVote: boolean
+    isBlankBallot: boolean
 }
 
 const ActionButtons: React.FC<ActionButtonProps> = ({
@@ -319,6 +320,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     isGoldenPolicy,
     isMultiContest,
     isDeclineToVote,
+    isBlankBallot,
 }) => {
     const {t} = useTranslation()
     const navigate = useNavigate()
@@ -491,12 +493,30 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             <Dialog
                 handleClose={handleCloseCastVoteDialog}
                 open={isConfirmCastVoteModal}
-                title={t("reviewScreen.confirmCastVoteDialog.title")}
-                ok={t("reviewScreen.confirmCastVoteDialog.ok")}
-                cancel={t("reviewScreen.confirmCastVoteDialog.cancel")}
+                title={t(
+                    isBlankBallot
+                        ? "reviewScreen.confirmCastBlankBallotDialog.title"
+                        : "reviewScreen.confirmCastVoteDialog.title"
+                )}
+                ok={t(
+                    isBlankBallot
+                        ? "reviewScreen.confirmCastBlankBallotDialog.ok"
+                        : "reviewScreen.confirmCastVoteDialog.ok"
+                )}
+                cancel={t(
+                    isBlankBallot
+                        ? "reviewScreen.confirmCastBlankBallotDialog.cancel"
+                        : "reviewScreen.confirmCastVoteDialog.cancel"
+                )}
                 variant="info"
             >
-                {stringToHtml(t("reviewScreen.confirmCastVoteDialog.content"))}
+                {stringToHtml(
+                    t(
+                        isBlankBallot
+                            ? "reviewScreen.confirmCastBlankBallotDialog.content"
+                            : "reviewScreen.confirmCastVoteDialog.content"
+                    )
+                )}
             </Dialog>
         </Box>
     )
@@ -586,6 +606,10 @@ export const ReviewScreen: React.FC = () => {
 
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")
+    )
+
+    const isBlankBallot = Boolean(
+        selectionState?.length && selectionState.every((contest) => contest.is_blank_ballot)
     )
 
     const errorSelectionState = useMemo(() => {
@@ -834,6 +858,7 @@ export const ReviewScreen: React.FC = () => {
                         setDecodedContests={() => undefined}
                         errorSelectionState={errorSelectionState}
                         isDeclineToVote={isDeclineToVote}
+                        isBlankBallot={isBlankBallot}
                     />
                 </Box>
             ))}
@@ -848,6 +873,7 @@ export const ReviewScreen: React.FC = () => {
                     isGoldenPolicy={isGoldenPolicy ?? false}
                     isMultiContest={isMultiContest}
                     isDeclineToVote={isDeclineToVote}
+                    isBlankBallot={isBlankBallot}
                 />
             )}
         </PageLimit>

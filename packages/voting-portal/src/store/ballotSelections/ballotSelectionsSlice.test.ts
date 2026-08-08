@@ -22,6 +22,7 @@ jest.mock(
 
 import ballotSelectionsReducer, {
     resetBallotSelection,
+    setAllBallotSelectionsBlankBallot,
     setAllBallotSelectionsDeclineToVote,
     setBallotSelectionBlankVote,
     setBallotSelectionInvalidVote,
@@ -168,5 +169,21 @@ describe("ballotSelectionsSlice is_blank_ballot consistency", () => {
 
         const election = state[ELECTION_ID]
         expect(election?.every((contest) => contest.is_blank_ballot === false)).toBe(true)
+    })
+
+    it("sets is_blank_ballot and clears is_decline_to_vote on every contest, even from a declined state", () => {
+        const ballotStyle = makeBallotStyle()
+        const declinedState = ballotSelectionsReducer(
+            makeState(),
+            setAllBallotSelectionsDeclineToVote({ballotStyle})
+        )
+        const state = ballotSelectionsReducer(
+            declinedState,
+            setAllBallotSelectionsBlankBallot({ballotStyle})
+        )
+
+        const election = state[ELECTION_ID]
+        expect(election?.every((contest) => contest.is_blank_ballot === true)).toBe(true)
+        expect(election?.every((contest) => contest.is_decline_to_vote === false)).toBe(true)
     })
 })

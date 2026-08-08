@@ -55,6 +55,13 @@ const catalanTranslation: TranslationType = {
                 continue: "Continua",
                 cancel: "Cancel·la",
             },
+            blankBallotDialog: {
+                title: "No heu seleccionat cap candidat",
+                content:
+                    "No heu fet cap selecció. La vostra papereta s'emetrà com a papereta en blanc, que és una elecció vàlida i deliberada i es comptabilitzarà com a tal.",
+                continue: "Continua",
+                cancel: "Cancel·la",
+            },
         },
         startScreen: {
             startButton: "Començar a votar",
@@ -111,6 +118,13 @@ const catalanTranslation: TranslationType = {
                 title: "Esteu segur que voleu emetre el vostre vot?",
                 content: "Un cop confirmeu, el vostre vot serà emès.",
                 ok: "Sí, vull emetre el meu vot",
+                cancel: "Cancel·lar",
+            },
+            confirmCastBlankBallotDialog: {
+                title: "Esteu segur que voleu emetre una papereta en blanc?",
+                content:
+                    "No heu seleccionat cap candidat. Un cop confirmeu, la vostra papereta s'emetrà en blanc.",
+                ok: "Sí, vull emetre la meva papereta en blanc",
                 cancel: "Cancel·lar",
             },
             error: {
@@ -206,11 +220,16 @@ const catalanTranslation: TranslationType = {
                     "S'ha produït un error intern en emetre el vot. Si us plau, torneu-ho a provar més tard o contacteu amb el suport per rebre assistència.",
             },
             declineToVote: "Declinar votar",
+            blankBallot: "Papereta en blanc",
         },
         confirmationScreen: {
             title: "El seu vot ha estat emès",
             description:
                 "La seva papereta va ser emesa correctament. Usi el codi a continuació per verificar que va ser comptabilitzada",
+            blankBallot: {
+                description:
+                    "La vostra papereta s'ha emès en blanc, que és una elecció vàlida i deliberada.",
+            },
             ballotId: "Localitzador del Vot",
             printButton: "Imprimir",
             finishButton: "Finalitzar",

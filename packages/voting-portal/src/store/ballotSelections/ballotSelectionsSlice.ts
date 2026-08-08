@@ -264,6 +264,23 @@ export const ballotSelectionsSlice = createSlice({
             }
             return state
         },
+        setAllBallotSelectionsBlankBallot: (
+            state,
+            action: PayloadAction<{
+                ballotStyle: IBallotStyle
+            }>
+        ): BallotSelectionsState => {
+            let currentElection = state[action.payload.ballotStyle.election_id]
+
+            if (!isUndefined(currentElection)) {
+                currentElection.forEach((currentQuestion) => {
+                    currentQuestion.is_blank_ballot = true
+                    // A ballot cannot be both blank and declined.
+                    currentQuestion.is_decline_to_vote = false
+                })
+            }
+            return state
+        },
     },
     /*extraReducers: (builder) => {
         builder.addCase(fetchElectionByIdAsync.fulfilled, (state, action) => {
@@ -289,6 +306,7 @@ export const {
     setBallotSelectionBlankVote,
     setBallotSelectionVoteChoice,
     setAllBallotSelectionsDeclineToVote,
+    setAllBallotSelectionsBlankBallot,
 } = ballotSelectionsSlice.actions
 
 export const selectBallotSelectionVoteChoice =
