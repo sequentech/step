@@ -343,7 +343,9 @@ const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = ({
                                 contestId: voteQuestion.contest_id,
                             })}
                             markedInvalidLabel={t("confirmationScreen.markedInvalid")}
-                            pointsLabel={(points) => t("confirmationScreen.points", {points})}
+                            pointsLabel={(points) =>
+                                t("confirmationScreen.points", {count: points})
+                            }
                             isDeclineToVotePolicyEnabled={isDeclineToVotePolicyEnabled}
                             declineToVoteLabel={t("confirmationScreen.declineToVote")}
                         />

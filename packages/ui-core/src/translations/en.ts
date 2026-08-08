@@ -59,7 +59,7 @@ const englishTranslation = {
                 "Your ballot was encrypted correctly. You can now close this window and return to the Voting Booth.",
             bottomDescription2:
                 "If they don't match, click here to learn more about the potential reasons and what actions you can take.",
-            ballotChoicesDescription: "And your ballot choices are:",
+            ballotChoicesDescription: "And your ballot selections are:",
             helpAndFaq: "Help & FAQ",
             backButton: "Back",
             markedInvalid: "Ballot explicitly marked invalid",
@@ -80,31 +80,43 @@ const englishTranslation = {
                 notEnoughChoices: "Not enough choices to decode",
                 writeInChoiceOutOfRange: "Write-in choice out of range: {{index}}",
                 writeInNotEndInZero: "Write-in doesn't end on 0",
-                writeInCharsExceeded:
-                    "Write-in exceed by {{numCharsExceeded}} the maximum number of chars. Requires fixing.",
+                writeInCharsExceeded_one: "Shorten your write-in by {{count}} character.",
+                // `_many` is selected only in es/cat/fr, for exact multiples of a million. English never
+                // selects it, but the other bundles are typed `TranslationType = typeof englishTranslation`,
+                // so the key has to be declared here before they can carry it.
+                writeInCharsExceeded_many: "Shorten your write-in by {{count}} characters.",
+                writeInCharsExceeded_other: "Shorten your write-in by {{count}} characters.",
                 bytesToUtf8Conversion:
                     "Error converting write-in from bytes to UTF-8 string: {{errorMessage}}",
                 ballotTooLarge: "Ballot larger than expected",
             },
             implicit: {
-                selectedMax:
-                    "Overvote: Number of selected choices {{numSelected}} is more than the maximum {{max}}",
-                selectedMin:
-                    "Number of selected choices {{numSelected}} is less than the minimum {{min}}",
-                maxSelectionsPerType:
-                    "Number of selected choices {{numSelected}} for list {{type}} is more than the maximum {{max}}",
-                underVote:
-                    "You have not used all {{max}} of your selections in this contest. You may continue, or go back to make another selection.",
-                overVoteDisabled:
-                    "Maximum reached: You have selected the maximum of {{numSelected}} allowed. To change your selection, please deselect an option first.",
-                blankVote: "Blank Vote: 0 choices selected",
+                selectedMax_one: "Deselect {{count}} candidate.",
+                selectedMax_many: "Deselect {{count}} candidates.",
+                selectedMax_other: "Deselect {{count}} candidates.",
+                selectedMin_one: "Select {{count}} more candidate.",
+                selectedMin_many: "Select {{count}} more candidates.",
+                selectedMin_other: "Select {{count}} more candidates.",
+                maxSelectionsPerType_one: "Deselect {{count}} candidate from {{type}}.",
+                maxSelectionsPerType_many: "Deselect {{count}} candidates from {{type}}.",
+                maxSelectionsPerType_other: "Deselect {{count}} candidates from {{type}}.",
+                underVote_one: "Select up to {{count}} more candidate.",
+                underVote_many: "Select up to {{count}} more candidates.",
+                underVote_other: "Select up to {{count}} more candidates.",
+                overVoteDisabled_one:
+                    "You have selected the maximum of {{count}} candidate. Deselect it to choose another.",
+                overVoteDisabled_many:
+                    "You have selected the maximum of {{count}} candidates. Deselect one to choose another.",
+                overVoteDisabled_other:
+                    "You have selected the maximum of {{count}} candidates. Deselect one to choose another.",
+                blankVote: "You have not selected any candidate.",
                 preferenceOrderWithGaps:
                     "Invalid vote! The order of preference has one or more gaps.",
                 duplicatedPosition:
                     "Invalid vote! The same position was selected for two or more candidates.",
             },
             explicit: {
-                notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",
+                notAllowed: "Ballot marked explicitly invalid but the contest doesn't allow it",
                 alert: "Selection marked will be considered invalid vote.",
             },
             configuration: {

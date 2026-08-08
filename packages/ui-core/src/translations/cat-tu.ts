@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {TranslationType} from "./en"
 
-const catalanTranslation: TranslationType = {
+const catalanInformalTranslation: TranslationType = {
     translations: {
-        language: "Valencià",
+        language: "Valencià (tu)",
         welcome: "Comencem: Importa el vot auditable..",
         breadcrumbSteps: {
             select: "Seleccionar un Verificador",
@@ -74,25 +74,53 @@ const catalanTranslation: TranslationType = {
             },
         },
         footer: {
-            poweredBy: "Funciona amb <1></1>",
+            poweredBy: "Funciona amb <sequent />",
         },
         errors: {
             encoding: {
-                notEnoughChoices: "No hi ha prou opcions per a decodificar",
+                notEnoughChoices: "No hi ha prou opcions per desxifrar",
                 writeInChoiceOutOfRange: "Opció de vot escrita fora de rang: {{index}}",
                 writeInNotEndInZero: "Opció de vot escrita no finalitza en 0",
+                writeInCharsExceeded_one: "Escurça l'escriptura lliure en {{count}} caràcter.",
+                writeInCharsExceeded_many: "Escurça l'escriptura lliure en {{count}} caràcters.",
+                writeInCharsExceeded_other: "Escurça l'escriptura lliure en {{count}} caràcters.",
                 bytesToUtf8Conversion:
                     "Error convertint bytes d'opció de vot escrita a cadena UTF-8: {{errorMessage}}",
-                ballotTooLarge: "Vot més gran del que s'esperava",
+                ballotTooLarge: "Vot més gran de l'esperat",
             },
             implicit: {
-                selectedMax:
-                    "El nombre d'opcions seleccionades {{numSelected}} és major que el màxim {{max}}",
-                selectedMin:
-                    "El nombre d'opcions seleccionades {{numSelected}} és menor que el màxim {{min}}",
+                selectedMax_one: "Desmarca {{count}} candidat.",
+                selectedMax_many: "Desmarca {{count}} candidats.",
+                selectedMax_other: "Desmarca {{count}} candidats.",
+                selectedMin_one: "Selecciona {{count}} candidat més.",
+                selectedMin_many: "Selecciona {{count}} candidats més.",
+                selectedMin_other: "Selecciona {{count}} candidats més.",
+                maxSelectionsPerType_one: "Desmarca {{count}} candidat de {{type}}.",
+                maxSelectionsPerType_many: "Desmarca {{count}} candidats de {{type}}.",
+                maxSelectionsPerType_other: "Desmarca {{count}} candidats de {{type}}.",
+                underVote_one: "Selecciona fins a {{count}} candidat més.",
+                underVote_many: "Selecciona fins a {{count}} candidats més.",
+                underVote_other: "Selecciona fins a {{count}} candidats més.",
+                overVoteDisabled_one:
+                    "Has seleccionat el màxim de {{count}} candidat. Desmarca'l per triar-ne un altre.",
+                overVoteDisabled_many:
+                    "Has seleccionat el màxim de {{count}} candidats. Desmarca'n un per triar-ne un altre.",
+                overVoteDisabled_other:
+                    "Has seleccionat el màxim de {{count}} candidats. Desmarca'n un per triar-ne un altre.",
+                blankVote: "No has seleccionat cap candidat.",
+                preferenceOrderWithGaps: "Vot invàlid! L'ordre de preferència té un o més buits.",
+                duplicatedPosition:
+                    "Vot invàlid! La mateixa posició va ser seleccionada per a dos o més candidats.",
             },
             explicit: {
                 notAllowed: "Vot marcat explícitament com a invàlid però la pregunta no ho permet",
+                alert: "La selecció marcada es considerarà vot invàlid.",
+            },
+            configuration: {
+                multipleExplicitInvalidCandidates:
+                    "Configuració de vot invàlida: la pregunta defineix {{count}} candidats explícitament invàlids, però només se'n permet un.",
+                multipleExplicitBlankCandidates:
+                    "Configuració de vot invàlida: la pregunta defineix {{count}} candidats de vot en blanc explícit, però només se'n permet un.",
             },
         },
         ballotHash: "El teu Localitzador de Vot: {{ballotId}}",
@@ -103,9 +131,9 @@ const catalanTranslation: TranslationType = {
             header: "Hash:",
         },
         logout: {
-            buttonText: "Tanca sessió",
+            buttonText: "Tanca la sessió",
             modal: {
-                title: "Estàs segur que vols tancar sessió?",
+                title: "Estàs segur que vols tancar la sessió?",
                 content:
                     "Estàs a punt de tancar aquesta aplicació. Aquesta acció no es pot desfer.",
                 ok: "OK",
@@ -129,7 +157,7 @@ const catalanTranslation: TranslationType = {
             voted: "Votat",
             notVoted: "No votat",
             resultsButton: "Resultats de la Votació",
-            voteButton: "Fes clic per Votar",
+            voteButton: "Fes clic per votar",
             openDate: "Oberta: ",
             closeDate: "Tancada: ",
             ballotLocator: "Localitza el teu vot",
@@ -138,8 +166,8 @@ const catalanTranslation: TranslationType = {
             profile: "Perfil",
             welcome: "Benvingut/da,<br><span>{{name}}</span>",
             session: {
-                title: "La seva sessió està a punt d'expirar.",
-                timeLeft: "Li queden {{time}} per emetre el seu vot.",
+                title: "La teva sessió està a punt d'expirar.",
+                timeLeft: "Et queden {{time}} per emetre el teu vot.",
                 timeLeftMinutesAndSeconds: "{{timeLeftInMinutes}} minuts i {{time}} segons",
                 timeLeftSeconds: "{{timeLeft}} segons",
             },
@@ -147,4 +175,4 @@ const catalanTranslation: TranslationType = {
     },
 }
 
-export default catalanTranslation
+export default catalanInformalTranslation

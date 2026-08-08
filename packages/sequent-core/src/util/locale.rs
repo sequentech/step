@@ -195,17 +195,57 @@ pub fn iso_639_2t_to_bcp47(lang: &str) -> &str {
     }
 }
 
+/// Suffix marking the informal-register variant of an internal language code,
+/// as in `es-tu` (addressing the voter as *tú* rather than *usted*).
+pub const INFORMAL_SUFFIX: &str = "tu";
+
+/// Splits a locale into its primary subtag and whether it asks for the
+/// informal register.
+///
+/// The marker may arrive bare, as in the internal code `es-tu`, or behind the
+/// BCP 47 private-use singleton, as in `es-x-tu` — which is what the frontends
+/// put in `<html lang>`. Region and script subtags are ignored, so `es-ES-x-tu`
+/// is still Spanish informal.
+fn split_register(lang: &str) -> (String, bool) {
+    let mut parts = lang.split('-');
+    let primary = parts.next().unwrap_or(lang).to_ascii_lowercase();
+    let informal = parts.any(|part| part.eq_ignore_ascii_case(INFORMAL_SUFFIX));
+    (primary, informal)
+}
+
 /// Normalizes an external locale representation into the internal language code
 /// used by the web frontends.
 ///
 /// Inputs may be BCP 47 tags (for example `ca` or `es-ES`), already-internal
-/// language codes (for example `cat`), or ISO 639-2/T codes (for example
-/// `eng`). The returned value is the internal application language code.
+/// language codes (for example `cat` or `es-tu`), private-use register tags
+/// (`es-x-tu`), or ISO 639-2/T codes (for example `eng`). The
+/// returned value is the internal application language code.
 pub fn locale_to_internal_language_code(lang: &str) -> String {
-    let primary = lang.split('-').next().unwrap_or(lang).to_ascii_lowercase();
-    match iso_639_2t_to_bcp47(primary.as_str()) {
-        "ca" => "cat".to_string(),
-        normalized => normalized.to_string(),
+    let (primary, informal) = split_register(lang);
+    let base = match iso_639_2t_to_bcp47(primary.as_str()) {
+        "ca" => "cat",
+        normalized => normalized,
+    };
+    if informal {
+        format!("{base}-{INFORMAL_SUFFIX}")
+    } else {
+        base.to_string()
+    }
+}
+
+/// Converts an internal language code to a BCP 47 tag fit for `<html lang>`.
+///
+/// Register is not a registered BCP 47 subtag, so the informal variants are
+/// emitted as private-use tags: `es-tu` becomes `es-x-tu`. That is
+/// well-formed, and assistive technology falls back to the base language
+/// instead of rejecting an unregistered variant.
+pub fn internal_language_code_to_bcp47(lang: &str) -> String {
+    let (primary, informal) = split_register(lang);
+    let base = iso_639_2t_to_bcp47(primary.as_str());
+    if informal {
+        format!("{base}-x-{INFORMAL_SUFFIX}")
+    } else {
+        base.to_string()
     }
 }
 
@@ -260,5 +300,49 @@ mod tests {
         assert_eq!(locale_to_internal_language_code("eng"), "en");
         assert_eq!(locale_to_internal_language_code("es-ES"), "es");
         assert_eq!(locale_to_internal_language_code("spa"), "es");
+    }
+
+    #[test]
+    fn test_locale_to_internal_language_code_informal_variants() {
+        // the internal code round-trips
+        assert_eq!(locale_to_internal_language_code("es-tu"), "es-tu");
+        assert_eq!(locale_to_internal_language_code("cat-tu"), "cat-tu");
+        // the private-use tag the frontends emit maps back to it
+        assert_eq!(locale_to_internal_language_code("es-x-tu"), "es-tu");
+        assert_eq!(locale_to_internal_language_code("ca-x-tu"), "cat-tu");
+        // region and ISO 639-2/T inputs still reach the variant
+        assert_eq!(locale_to_internal_language_code("es-ES-x-tu"), "es-tu");
+        assert_eq!(locale_to_internal_language_code("spa-tu"), "es-tu");
+        assert_eq!(locale_to_internal_language_code("CA-X-TU"), "cat-tu");
+    }
+
+    #[test]
+    fn test_locale_to_internal_language_code_region_is_not_a_register() {
+        // a region subtag must never be mistaken for the register marker
+        assert_eq!(locale_to_internal_language_code("es-MX"), "es");
+        assert_eq!(locale_to_internal_language_code("ca-ES-valencia"), "cat");
+    }
+
+    #[test]
+    fn test_internal_language_code_to_bcp47() {
+        assert_eq!(internal_language_code_to_bcp47("es"), "es");
+        assert_eq!(internal_language_code_to_bcp47("cat"), "ca");
+        assert_eq!(internal_language_code_to_bcp47("en"), "en");
+        assert_eq!(internal_language_code_to_bcp47("es-tu"), "es-x-tu");
+        assert_eq!(internal_language_code_to_bcp47("cat-tu"), "ca-x-tu");
+    }
+
+    #[test]
+    fn test_bcp47_and_internal_code_round_trip() {
+        for internal in [
+            "en", "es", "cat", "eu", "gl", "nl", "tl", "fr", "es-tu", "cat-tu",
+        ] {
+            let tag = internal_language_code_to_bcp47(internal);
+            assert_eq!(
+                locale_to_internal_language_code(&tag),
+                internal,
+                "round trip failed for {internal} via {tag}"
+            );
+        }
     }
 }

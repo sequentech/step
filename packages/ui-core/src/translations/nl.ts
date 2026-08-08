@@ -8,23 +8,23 @@ const dutchTranslation: TranslationType = {
         language: "Nederlands",
         welcome: "Hello <br/> <strong>World</strong>",
         breadcrumbSteps: {
-            select: "Select a Verifier",
-            import: "Import Data",
-            verify: "Verify",
-            finish: "Finish",
+            select: "Selecteer een verificateur",
+            import: "Gegevens importeren",
+            verify: "Verifiëren",
+            finish: "Voltooien",
         },
         electionEventBreadcrumbSteps: {
-            created: "Created",
-            keys: "Keys",
-            publish: "Publish",
-            started: "Started",
-            ended: "Ended",
-            results: "Results",
+            created: "Aangemaakt",
+            keys: "Sleutels",
+            publish: "Publiceren",
+            started: "Gestart",
+            ended: "Beëindigd",
+            results: "Resultaten",
         },
         candidate: {
-            moreInformationLink: "More information",
-            writeInsPlaceholder: "Type write-in candidate here",
-            blankVote: "Blank Vote",
+            moreInformationLink: "Meer informatie",
+            writeInsPlaceholder: "Typ hier de naam van de kandidaat",
+            blankVote: "Blanco stem",
             preferential: {
                 position: "Positie",
                 none: "Geen",
@@ -37,40 +37,39 @@ const dutchTranslation: TranslationType = {
             },
         },
         homeScreen: {
-            title: "Sequent Ballot Verifier",
+            title: "Sequent Stembiljetverificateur",
             description1:
-                "The ballot verifier is used when the voter chooses to audit the ballot in the voting booth. The verification should take 1-2 minutes.",
+                "De stembiljetverificateur wordt gebruikt wanneer de kiezer ervoor kiest het stembiljet in het stemhokje te controleren. De verificatie duurt 1 tot 2 minuten.",
             description2:
-                "The ballot verifier allows the voter to ensure that the encrypted ballot correctly captures the selections made in the voting booth. Allowing to perform this check is called cast-as-intended verifiability and prevents errors and malicious activity during ballot encryption.",
-            descriptionMore: "Learn more",
-            startButton: "Browse file",
-            dragDropOption: "Or drag and drop it here",
+                "Met de stembiljetverificateur kan de kiezer controleren of het versleutelde stembiljet de in het stemhokje gemaakte keuzes correct weergeeft. Deze controle mogelijk maken heet cast-as-intended-verifieerbaarheid en voorkomt fouten en kwaadwillig handelen tijdens het versleutelen van het stembiljet.",
+            descriptionMore: "Meer informatie",
+            startButton: "Bestand kiezen",
+            dragDropOption: "Of sleep het bestand hierheen",
             importErrorDescription:
-                "There was a problem importing the auditable ballot. Did you choose  the right file?",
-            importErrorMoreInfo: "More info",
-            importErrorTitle: "Error",
-            useSampleText: "Don't have an auditable ballot?",
-            useSampleLink: "Use a sample auditable ballot",
+                "Er is een probleem opgetreden bij het importeren van het controleerbare stembiljet. Heeft u het juiste bestand gekozen?",
+            importErrorMoreInfo: "Meer informatie",
+            importErrorTitle: "Fout",
+            useSampleText: "Heeft u geen controleerbaar stembiljet?",
+            useSampleLink: "Gebruik een voorbeeld van een controleerbaar stembiljet",
         },
         confirmationScreen: {
-            title: "Sequent Ballot Verifier",
+            title: "Sequent Stembiljetverificateur",
             topDescription1:
-                "Based on the information in the imported Auditable Ballot, we calculated that:",
-            topDescription2: "If this is the Ballot ID shown in the Voting Booth:",
+                "Op basis van de informatie in het geïmporteerde controleerbare stembiljet hebben wij berekend dat:",
+            topDescription2: "Als dit de stembiljet-ID is die in het stemhokje wordt weergegeven:",
             bottomDescription1:
-                "Your ballot was encrypted correctly. You can now close this window and return to the Voting Booth.",
+                "Uw stembiljet is correct versleuteld. U kunt dit venster nu sluiten en terugkeren naar het stemhokje.",
             bottomDescription2:
-                "If they don't match, click here to learn more about the potential reasons and what actions you can take.",
-            ballotChoicesDescription: "And your ballot choices are:",
-            helpAndFaq: "Help & FAQ",
-            backButton: "Back",
-            markedInvalid: "Ballot explicitly marked invalid",
+                "Als ze niet overeenkomen, klik hier voor meer informatie over de mogelijke oorzaken en wat u kunt doen.",
+            ballotChoicesDescription: "En uw keuzes op het stembiljet zijn:",
+            helpAndFaq: "Help en veelgestelde vragen",
+            backButton: "Terug",
+            markedInvalid: "Stembiljet expliciet als ongeldig gemarkeerd",
         },
         ballotSelectionsScreen: {
             statusModal: {
                 title: "Status",
-                content:
-                    "The status panel gives you information about the  verifications performed.",
+                content: "Het statuspaneel geeft u informatie over de uitgevoerde verificaties.",
                 ok: "OK",
             },
         },
@@ -82,24 +81,33 @@ const dutchTranslation: TranslationType = {
                 notEnoughChoices: "Niet genoeg keuzes om te decoderen",
                 writeInChoiceOutOfRange: "In te vullen keuze buiten bereik: {{index}}",
                 writeInNotEndInZero: "In te vullen tekst eindigt niet op 0",
-                writeInCharsExceeded:
-                    "In te vullen tekst overschrijdt maximum aantal tekens met {{numCharsExceeded}}. Moet worden aangepast.",
+                writeInCharsExceeded_one: "Maak de ingevulde tekst {{count}} teken korter.",
+                writeInCharsExceeded_many: "Maak de ingevulde tekst {{count}} tekens korter.",
+                writeInCharsExceeded_other: "Maak de ingevulde tekst {{count}} tekens korter.",
                 bytesToUtf8Conversion:
                     "Fout bij het converteren van in te vullen tekst van bytes naar UTF-8 string: {{errorMessage}}",
                 ballotTooLarge: "Stembiljet groter dan verwacht",
             },
             implicit: {
-                selectedMax:
-                    "Te veel stemmen: Aantal geselecteerde keuzes {{numSelected}} is meer dan het maximum {{max}}",
-                selectedMin:
-                    "Aantal geselecteerde keuzes {{numSelected}} is minder dan het minimum {{min}}",
-                maxSelectionsPerType:
-                    "Aantal geselecteerde keuzes {{numSelected}} voor lijst {{type}} is meer dan het maximum {{max}}",
-                underVote:
-                    "Te weinig stemmen: Aantal geselecteerde keuzes {{numSelected}} is minder dan het maximum {{max}}",
-                overVoteDisabled:
-                    "Maximum bereikt: U heeft het maximum aantal keuzes {{numSelected}} geselecteerd. Om uw selectie te wijzigen, deselecteer eerst een andere optie.",
-                blankVote: "Blanco stem: 0 keuzes geselecteerd",
+                selectedMax_one: "Deselecteer {{count}} kandidaat.",
+                selectedMax_many: "Deselecteer {{count}} kandidaten.",
+                selectedMax_other: "Deselecteer {{count}} kandidaten.",
+                selectedMin_one: "Selecteer nog {{count}} kandidaat.",
+                selectedMin_many: "Selecteer nog {{count}} kandidaten.",
+                selectedMin_other: "Selecteer nog {{count}} kandidaten.",
+                maxSelectionsPerType_one: "Deselecteer {{count}} kandidaat uit {{type}}.",
+                maxSelectionsPerType_many: "Deselecteer {{count}} kandidaten uit {{type}}.",
+                maxSelectionsPerType_other: "Deselecteer {{count}} kandidaten uit {{type}}.",
+                underVote_one: "Selecteer nog maximaal {{count}} kandidaat.",
+                underVote_many: "Selecteer nog maximaal {{count}} kandidaten.",
+                underVote_other: "Selecteer nog maximaal {{count}} kandidaten.",
+                overVoteDisabled_one:
+                    "U heeft het maximum van {{count}} kandidaat geselecteerd. Deselecteer deze om een andere te kiezen.",
+                overVoteDisabled_many:
+                    "U heeft het maximum van {{count}} kandidaten geselecteerd. Deselecteer er een om een andere te kiezen.",
+                overVoteDisabled_other:
+                    "U heeft het maximum van {{count}} kandidaten geselecteerd. Deselecteer er een om een andere te kiezen.",
+                blankVote: "U heeft geen kandidaat geselecteerd.",
                 preferenceOrderWithGaps:
                     "Ongeldige stem! De voorkeursvolgorde heeft een of meer hiaten.",
                 duplicatedPosition:
@@ -107,62 +115,63 @@ const dutchTranslation: TranslationType = {
             },
             explicit: {
                 notAllowed:
-                    "Stembiljet expliciet ongeldig gemarkeerd maar vraag staat dit niet toe",
+                    "Stembiljet expliciet ongeldig gemarkeerd maar de stemming staat dit niet toe",
                 alert: "Gemarkeerde selectie wordt als ongeldige stem beschouwd.",
             },
             configuration: {
                 multipleExplicitInvalidCandidates:
-                    "Ongeldige stemconfiguratie: de verkiezing definieert {{count}} expliciet ongeldige kandidaten, maar er is er maar één toegestaan.",
+                    "Ongeldige stemconfiguratie: de stemming definieert {{count}} expliciet ongeldige kandidaten, maar er is er maar één toegestaan.",
                 multipleExplicitBlankCandidates:
-                    "Ongeldige stemconfiguratie: de verkiezing definieert {{count}} expliciete blanco kandidaten, maar er is er maar één toegestaan.",
+                    "Ongeldige stemconfiguratie: de stemming definieert {{count}} expliciete blanco kandidaten, maar er is er maar één toegestaan.",
             },
         },
-        ballotHash: "Your Ballot ID: {{ballotId}}",
+        ballotHash: "Uw stembiljet-ID: {{ballotId}}",
         version: {
-            header: "Version:",
+            header: "Versie:",
         },
         hash: {
             header: "Hash:",
         },
         logout: {
-            buttonText: "Logout",
+            buttonText: "Afmelden",
             modal: {
-                title: "Are you sure you want to logout?",
-                content: "You are about to close this application. This action can not be undone. ",
+                title: "Weet u zeker dat u zich wilt afmelden?",
+                content:
+                    "U staat op het punt deze applicatie te sluiten. Deze actie kan niet ongedaan worden gemaakt. ",
                 ok: "OK",
-                close: "Close",
+                close: "Sluiten",
             },
         },
         stories: {
-            openDialog: "Open Dialog",
+            openDialog: "Dialoogvenster openen",
         },
         dragNDrop: {
-            firstLine: "Drag & drop files or",
-            browse: "Browse",
-            format: "Supported format: txt",
+            firstLine: "Sleep bestanden hierheen of",
+            browse: "Bestand kiezen",
+            format: "Ondersteund formaat: txt",
         },
         selectElection: {
-            electionWebsite: "Ballot Website",
+            electionWebsite: "Verkiezingswebsite",
             countdown:
-                "Election Begins in {{years}} years, {{months}} months, {{weeks}} weeks, {{days}} days, {{hours}} hours, {{minutes}} minutes, {{seconds}} seconds",
-            openElection: "Open",
-            closedElection: "Closed",
-            voted: "Voted",
-            notVoted: "Not voted",
-            resultsButton: "Ballot Results",
-            voteButton: "Click to Vote",
-            openDate: "Open: ",
-            closeDate: "Close: ",
-            ballotLocator: "Locate your ballot",
+                "De verkiezing begint over {{years}} jaar, {{months}} maanden, {{weeks}} weken, {{days}} dagen, {{hours}} uur, {{minutes}} minuten, {{seconds}} seconden",
+            openElection: "Geopend",
+            closedElection: "Gesloten",
+            voted: "Gestemd",
+            notVoted: "Niet gestemd",
+            resultsButton: "Verkiezingsuitslag",
+            voteButton: "Klik om te stemmen",
+            openDate: "Geopend: ",
+            closeDate: "Gesloten: ",
+            ballotLocator: "Vind uw stembiljet",
         },
         header: {
-            profile: "Profile",
-            welcome: "Welcome,<br><span>{{name}}</span>",
+            profile: "Profiel",
+            welcome: "Welkom,<br><span>{{name}}</span>",
             session: {
-                title: "Your session is going to expire.",
-                timeLeft: "You have {{time}} left to cast your vote.",
-                timeLeftMinutesAndSeconds: "{{timeLeftInMinutes}} minutes and {{time}} seconds",
-                timeLeftSeconds: "{{timeLeft}} seconds",
+                title: "Uw sessie verloopt binnenkort.",
+                timeLeft: "U heeft nog {{time}} om uw stem uit te brengen.",
+                timeLeftMinutesAndSeconds: "{{timeLeftInMinutes}} minuten en {{time}} seconden",
+                timeLeftSeconds: "{{timeLeft}} seconden",
             },
         },
     },

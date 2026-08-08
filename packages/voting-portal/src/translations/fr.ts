@@ -14,8 +14,9 @@ const frenchTranslation: TranslationType = {
             collapseToggle: "Masquer la liste {{listTitle}}",
             showCandidates: "Afficher les candidats",
             hideCandidates: "Masquer les candidats",
-            selectedCandidate: "{{count}} candidat sélectionné",
-            selectedCandidates: "{{count}} candidats sélectionnés",
+            selectedCandidates_one: "{{count}} candidat sélectionné",
+            selectedCandidates_many: "{{count}} candidats sélectionnés",
+            selectedCandidates_other: "{{count}} candidats sélectionnés",
             expandAll: "Tout afficher",
             collapseAll: "Tout réduire",
         },
@@ -36,13 +37,13 @@ const frenchTranslation: TranslationType = {
             ballotHelpDialog: {
                 title: "À propos de l'écran de vote",
                 content:
-                    "Cet écran affiche le vote auquel vous êtes éligible. Cochez la case à droite pour sélectionner un(e) Candidat(e). Pour réinitialiser, cliquez sur “<b>Effacer la sélection</b>”, pour continuer, cliquez sur “<b>Suivant</b>”.",
+                    "Cet écran affiche les scrutins auxquels vous êtes éligible. Cochez la case à droite pour sélectionner un(e) Candidat(e). Pour réinitialiser, cliquez sur “<b>Effacer la sélection</b>”, pour continuer, cliquez sur “<b>Suivant</b>”.",
                 ok: "OK",
             },
             nonVotedDialog: {
                 title: "Vote invalide ou blanc",
                 content:
-                    "Certaines de vos réponses pourraient rendre le bulletin invalide ou blanc dans une ou plusieurs sélections.",
+                    "Certaines de vos réponses pourraient rendre le bulletin invalide ou blanc dans un ou plusieurs scrutins.",
                 ok: "Réviser mes réponses",
                 continue: "Continuer",
                 cancel: "Annuler",
@@ -70,7 +71,7 @@ const frenchTranslation: TranslationType = {
             instructionsDescription: "Suivez les étapes suivantes pour voter:",
             step1Title: "1. Sélectionnez votre option de vote",
             step1Description:
-                "Sélectionnez vos candidats et répondez aux questions. Vous pourrez modifier votre bulletin jusqu'au moment de le soumettre.",
+                "Sélectionnez vos candidats et répondez à chaque scrutin. Vous pourrez modifier votre bulletin jusqu'au moment de le soumettre.",
             step2Title: "2. Révisez votre bulletin",
             step2Description:
                 "Votre bulletin sera chiffré, puis une dernière vérification vous sera présentée. Vous recevrez un identifiant de suivi unique.",
@@ -295,7 +296,8 @@ const frenchTranslation: TranslationType = {
                 ok: "Je comprends que mon vote ne sera pas comptabilisé",
             },
             errors: {
-                noVotingArea: "Zone de vote non assignée. Veuillez réessayer ultérieurement.",
+                noVotingArea:
+                    "Vous n'êtes pas inscrit comme votant pour cette élection. Veuillez contacter le support.",
                 networkError:
                     "Il y a eu un problème de réseau. Veuillez réessayer ultérieurement ou contacter le support pour obtenir de l'aide.",
                 unableToFetchData:
@@ -309,7 +311,7 @@ const frenchTranslation: TranslationType = {
             },
             alerts: {
                 noElections:
-                    "Il n'y a pas d'élections pour lesquelles vous pouvez voter. Cela pourrait être parce que la zone n'a aucun concours associé. Veuillez réessayer ultérieurement ou contacter le support pour obtenir de l'aide.",
+                    "Il n'y a pas d'élections pour lesquelles vous pouvez voter. Cela pourrait être parce que la zone n'a aucun scrutin associé. Veuillez réessayer ultérieurement ou contacter le support pour obtenir de l'aide.",
                 electionEventNotPublished:
                     "L'événement électoral n'a pas encore été publié. Veuillez réessayer ultérieurement ou contacter le support pour obtenir de l'aide.",
             },
@@ -319,27 +321,12 @@ const frenchTranslation: TranslationType = {
                 notEnoughChoices: "Nombre d'options insuffisant pour le déchiffrement",
                 writeInChoiceOutOfRange: "Entrée de saisie libre hors limites : {{index}}",
                 writeInNotEndInZero: "Le texte saisi ne se termine pas par 0",
-                writeInCharsExceeded:
-                    "Le texte saisi dépasse la longueur maximale de {{numCharsExceeded}} caractères. Veuillez le raccourcir.",
                 bytesToUtf8Conversion:
                     "Erreur lors de la conversion du texte de bytes en chaîne UTF-8 : {{errorMessage}}",
                 ballotTooLarge: "La taille du bulletin dépasse la limite prévue",
             },
-            implicit: {
-                selectedMax:
-                    "Surcote : le nombre de choix sélectionnés {{numSelected}} est supérieur au maximum {{max}}",
-                selectedMin:
-                    "Le nombre de choix sélectionnés {{numSelected}} est inférieur au minimum {{min}}",
-                maxSelectionsPerType:
-                    "Le nombre de choix sélectionnés {{numSelected}} pour la liste {{type}} est supérieur au maximum {{max}}",
-                underVote:
-                    "Sous-vote : le nombre de choix sélectionnés {{numSelected}} est inférieur au maximum {{max}}",
-                overVoteDisabled:
-                    "Maximum atteint : vous avez sélectionné le maximum de {{numSelected}} choix. Pour modifier votre sélection, veuillez d'abord désélectionner une autre option.",
-                blankVote: "Vote blanc : 0 choix sélectionnés",
-            },
             explicit: {
-                notAllowed: "Bulletin marqué comme invalide, mais cette question ne l'autorise pas",
+                notAllowed: "Bulletin marqué comme invalide, mais ce scrutin ne l'autorise pas",
                 alert: "Cette sélection sera comptée comme un vote invalide",
             },
             page: {

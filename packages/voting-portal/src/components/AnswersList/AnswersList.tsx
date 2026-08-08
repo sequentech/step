@@ -97,12 +97,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
         }).length ?? 0
     const selectedCandidatesLabel =
         !isReview && selectedCandidatesCount > 0
-            ? t(
-                  selectedCandidatesCount === 1
-                      ? "candidatesList.selectedCandidate"
-                      : "candidatesList.selectedCandidates",
-                  {count: selectedCandidatesCount}
-              )
+            ? t("candidatesList.selectedCandidates", {count: selectedCandidatesCount})
             : undefined
 
     const isChecked = () => !isUndefined(selectionState) && selectionState.selected > -1

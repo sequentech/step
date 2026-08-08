@@ -6,7 +6,7 @@ import {TranslationType} from "./en"
 const catalanTranslation: TranslationType = {
     translations: {
         language: "Valencià",
-        welcome: "Comencem: Importa el vot auditable..",
+        welcome: "Comencem: Importeu el vot auditable..",
         breadcrumbSteps: {
             select: "Seleccionar un Verificador",
             import: "Importar Dades",
@@ -43,24 +43,24 @@ const catalanTranslation: TranslationType = {
             description2:
                 "El verificador de vot permet al votant assegurar-se que el vot xifrat capturi correctament les seleccions fetes a la cabina de votació. Permetre realitzar aquesta verificació es denomina verificabilitat de transmissió segons el previst i evita errors i activitats malicioses durant el xifratge del vot.",
             descriptionMore: "Més informació",
-            startButton: "Selecciona fitxer",
-            dragDropOption: "O arrossega el fitxer aquí",
+            startButton: "Seleccioneu fitxer",
+            dragDropOption: "O arrossegueu el fitxer aquí",
             importErrorDescription:
-                "Hi va haver un problema en importar el vot auditable. Vas triar el fitxer correcte?",
+                "Hi va haver un problema en importar el vot auditable. Vau triar el fitxer correcte?",
             importErrorMoreInfo: "Més informació",
             importErrorTitle: "Error",
-            useSampleText: "No tens un vot verificable?",
-            useSampleLink: "Utilitza un vot verificable d'exemple",
+            useSampleText: "No teniu un vot verificable?",
+            useSampleLink: "Utilitzeu un vot verificable d'exemple",
         },
         confirmationScreen: {
             title: "Verificador de Vot Sequent",
             topDescription1: "Basat en la informació del vot auditable importat, calculem que:",
             topDescription2: "Si aquest ID de vot és mostrat a la Cabina de Votació:",
             bottomDescription1:
-                "El teu vot va ser xifrat correctament. Ara pots tancar aquesta finestra i tornar a la Cabina de Votació.",
+                "El vostre vot va ser xifrat correctament. Ara podeu tancar aquesta finestra i tornar a la Cabina de Votació.",
             bottomDescription2:
-                "Si no coincideixen, fes clic aquí per obtenir més informació sobre els possibles motius i les accions que pots prendre.",
-            ballotChoicesDescription: "I les teves seleccions de vot són:",
+                "Si no coincideixen, feu clic aquí per obtenir més informació sobre els possibles motius i les accions que podeu prendre.",
+            ballotChoicesDescription: "I les vostres seleccions de vot són:",
             helpAndFaq: "Ajuda i Preguntes Freqüents",
             backButton: "Enrere",
             markedInvalid: "Vot explícitament marcat invàlid",
@@ -69,7 +69,7 @@ const catalanTranslation: TranslationType = {
             statusModal: {
                 title: "Estat",
                 content:
-                    "El panell d'estat et dóna informació sobre les verificacions realitzades.",
+                    "El panell d'estat us dóna informació sobre les verificacions realitzades.",
                 ok: "OK",
             },
         },
@@ -81,24 +81,33 @@ const catalanTranslation: TranslationType = {
                 notEnoughChoices: "No hi ha prou opcions per desxifrar",
                 writeInChoiceOutOfRange: "Opció de vot escrita fora de rang: {{index}}",
                 writeInNotEndInZero: "Opció de vot escrita no finalitza en 0",
-                writeInCharsExceeded:
-                    "Opció de vot escrita excedeix el nombre de caràcters per {{numCharsExceeded}} caràcters. Requereix arranjament.",
+                writeInCharsExceeded_one: "Escurceu l'escriptura lliure en {{count}} caràcter.",
+                writeInCharsExceeded_many: "Escurceu l'escriptura lliure en {{count}} caràcters.",
+                writeInCharsExceeded_other: "Escurceu l'escriptura lliure en {{count}} caràcters.",
                 bytesToUtf8Conversion:
                     "Error convertint bytes d'opció de vot escrita a cadena UTF-8: {{errorMessage}}",
                 ballotTooLarge: "Vot més gran de l'esperat",
             },
             implicit: {
-                selectedMax:
-                    "Sobrevot: El nombre d'opcions seleccionades {{numSelected}} és major que el màxim {{max}}",
-                selectedMin:
-                    "El nombre d'opcions seleccionades {{numSelected}} és menor que el mínim {{min}}",
-                maxSelectionsPerType:
-                    "El nombre d'opcions seleccionades {{numSelected}} per a la llista {{type}} és major que el màxim {{max}}",
-                underVote:
-                    "Subvot: El nombre d'opcions seleccionades {{numSelected}} és inferior al màxim permès de {{max}}",
-                overVoteDisabled:
-                    "Màxim assolit: Has seleccionat el màxim de {{numSelected}} opcions. Per canviar la teva selecció, si us plau, desmarca primer una altra opció.",
-                blankVote: "Vot en Blanc: 0 opcions seleccionades",
+                selectedMax_one: "Desmarqueu {{count}} candidat.",
+                selectedMax_many: "Desmarqueu {{count}} candidats.",
+                selectedMax_other: "Desmarqueu {{count}} candidats.",
+                selectedMin_one: "Seleccioneu {{count}} candidat més.",
+                selectedMin_many: "Seleccioneu {{count}} candidats més.",
+                selectedMin_other: "Seleccioneu {{count}} candidats més.",
+                maxSelectionsPerType_one: "Desmarqueu {{count}} candidat de {{type}}.",
+                maxSelectionsPerType_many: "Desmarqueu {{count}} candidats de {{type}}.",
+                maxSelectionsPerType_other: "Desmarqueu {{count}} candidats de {{type}}.",
+                underVote_one: "Seleccioneu fins a {{count}} candidat més.",
+                underVote_many: "Seleccioneu fins a {{count}} candidats més.",
+                underVote_other: "Seleccioneu fins a {{count}} candidats més.",
+                overVoteDisabled_one:
+                    "Heu seleccionat el màxim de {{count}} candidat. Desmarqueu-lo per triar-ne un altre.",
+                overVoteDisabled_many:
+                    "Heu seleccionat el màxim de {{count}} candidats. Desmarqueu-ne un per triar-ne un altre.",
+                overVoteDisabled_other:
+                    "Heu seleccionat el màxim de {{count}} candidats. Desmarqueu-ne un per triar-ne un altre.",
+                blankVote: "No heu seleccionat cap candidat.",
                 preferenceOrderWithGaps: "Vot invàlid! L'ordre de preferència té un o més buits.",
                 duplicatedPosition:
                     "Vot invàlid! La mateixa posició va ser seleccionada per a dos o més candidats.",
@@ -109,12 +118,12 @@ const catalanTranslation: TranslationType = {
             },
             configuration: {
                 multipleExplicitInvalidCandidates:
-                    "Configuració de vot invàlida: el concurs defineix {{count}} candidats explícitament invàlids, però només se'n permet un.",
+                    "Configuració de vot invàlida: la pregunta defineix {{count}} candidats explícitament invàlids, però només se'n permet un.",
                 multipleExplicitBlankCandidates:
-                    "Configuració de vot invàlida: el concurs defineix {{count}} candidats de vot en blanc explícit, però només se'n permet un.",
+                    "Configuració de vot invàlida: la pregunta defineix {{count}} candidats de vot en blanc explícit, però només se'n permet un.",
             },
         },
-        ballotHash: "El teu Localitzador de Vot: {{ballotId}}",
+        ballotHash: "El vostre Localitzador de Vot: {{ballotId}}",
         version: {
             header: "Versió:",
         },
@@ -122,20 +131,20 @@ const catalanTranslation: TranslationType = {
             header: "Hash:",
         },
         logout: {
-            buttonText: "Tanca sessió",
+            buttonText: "Tanqueu la sessió",
             modal: {
-                title: "Estàs segur que vols tancar sessió?",
+                title: "Esteu segur que voleu tancar la sessió?",
                 content:
-                    "Estàs a punt de tancar aquesta aplicació. Aquesta acció no es pot desfer.",
+                    "Esteu a punt de tancar aquesta aplicació. Aquesta acció no es pot desfer.",
                 ok: "OK",
-                close: "Tanca",
+                close: "Tanqueu",
             },
         },
         stories: {
             openDialog: "Obrir Diàleg",
         },
         dragNDrop: {
-            firstLine: "Arrossega i deixa anar fitxers o",
+            firstLine: "Arrossegueu i deixeu anar fitxers o",
             browse: "Carrega fitxer",
             format: "Formats suportats: txt",
         },
@@ -148,17 +157,17 @@ const catalanTranslation: TranslationType = {
             voted: "Votat",
             notVoted: "No votat",
             resultsButton: "Resultats de la Votació",
-            voteButton: "Fes clic per Votar",
+            voteButton: "Feu clic per votar",
             openDate: "Oberta: ",
             closeDate: "Tancada: ",
-            ballotLocator: "Localitza el teu vot",
+            ballotLocator: "Localitzeu el vostre vot",
         },
         header: {
             profile: "Perfil",
             welcome: "Benvingut/da,<br><span>{{name}}</span>",
             session: {
-                title: "La seva sessió està a punt d'expirar.",
-                timeLeft: "Li queden {{time}} per emetre el seu vot.",
+                title: "La vostra sessió està a punt d'expirar.",
+                timeLeft: "Us queden {{time}} per emetre el vostre vot.",
                 timeLeftMinutesAndSeconds: "{{timeLeftInMinutes}} minuts i {{time}} segons",
                 timeLeftSeconds: "{{timeLeft}} segons",
             },

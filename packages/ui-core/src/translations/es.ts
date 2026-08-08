@@ -39,14 +39,14 @@ const spanishTranslation: TranslationType = {
         homeScreen: {
             title: "Verificador de Voto Sequent",
             description1:
-                "El verificador de voto se usa cuando el votante elige auditar la boleta en la cabina de votación. La verificación debe tomar de 1 a 2 minutos.",
+                "El verificador de voto se usa cuando el votante elige auditar la papeleta en la cabina de votación. La verificación debe tomar de 1 a 2 minutos.",
             description2:
                 "El verificador de voto le permite al votante asegurarse de que el voto cifrado capture correctamente las selecciones realizadas en la cabina de votación. Permitir realizar esta verificación se denomina verificabilidad de transmisión según lo previsto y evita errores y actividades maliciosas durante el cifrado del voto.",
             descriptionMore: "Más información",
-            startButton: "Selecciona fichero",
+            startButton: "Seleccione fichero",
             dragDropOption: "O arrastre el fichero aquí",
             importErrorDescription:
-                "Hubo un problema al importar el voto auditable. ¿Elegiste el archivo correcto?",
+                "Hubo un problema al importar el voto auditable. ¿Eligió el archivo correcto?",
             importErrorMoreInfo: "Más información",
             importErrorTitle: "Error",
             useSampleText: "¿No tiene un voto verificable?",
@@ -70,7 +70,7 @@ const spanishTranslation: TranslationType = {
             statusModal: {
                 title: "Estado",
                 content:
-                    "El panel de estado te da información sobre las verificaciones realizadas.",
+                    "El panel de estado le da información sobre las verificaciones realizadas.",
                 ok: "OK",
             },
         },
@@ -82,24 +82,33 @@ const spanishTranslation: TranslationType = {
                 notEnoughChoices: "No hay suficientes opciones para decodificar",
                 writeInChoiceOutOfRange: "Opción de voto escrita fuera de rango: {{index}}",
                 writeInNotEndInZero: "Opción de voto escrita no finaliza en 0",
-                writeInCharsExceeded:
-                    "Opción de voto escrita excede el número de caracters por {{numCharsExceeded}} caracteres. Requiere arreglo.",
+                writeInCharsExceeded_one: "Acorte la escritura libre en {{count}} carácter.",
+                writeInCharsExceeded_many: "Acorte la escritura libre en {{count}} caracteres.",
+                writeInCharsExceeded_other: "Acorte la escritura libre en {{count}} caracteres.",
                 bytesToUtf8Conversion:
                     "Error convirtiendo bytes de opción de voto escrita a cadena UTF-8: {{errorMessage}}",
                 ballotTooLarge: "Voto más grande de lo esperado",
             },
             implicit: {
-                selectedMax:
-                    "Sobrevoto: El número de opciones seleccionadas {{numSelected}} es mayor que el máximo {{max}}",
-                selectedMin:
-                    "El número de opciones seleccionadas {{numSelected}} es menor que el máximo {{min}}",
-                maxSelectionsPerType:
-                    "El número de opciones seleccionadas {{numSelected}} para la lista {{type}} es mayor que el máximo {{max}}",
-                underVote:
-                    "Subvoto: El número de opciones seleccionadas {{numSelected}} es menor que el máximo permitido de {{max}}",
-                overVoteDisabled:
-                    "Máximo alcanzado: Has seleccionado el máximo de {{numSelected}} opciones. Para cambiar tu selección, por favor, desmarca primero otra opción.",
-                blankVote: "Voto en Blanco: 0 opciones seleccionadas",
+                selectedMax_one: "Desmarque {{count}} candidato.",
+                selectedMax_many: "Desmarque {{count}} candidatos.",
+                selectedMax_other: "Desmarque {{count}} candidatos.",
+                selectedMin_one: "Seleccione {{count}} candidato más.",
+                selectedMin_many: "Seleccione {{count}} candidatos más.",
+                selectedMin_other: "Seleccione {{count}} candidatos más.",
+                maxSelectionsPerType_one: "Desmarque {{count}} candidato de {{type}}.",
+                maxSelectionsPerType_many: "Desmarque {{count}} candidatos de {{type}}.",
+                maxSelectionsPerType_other: "Desmarque {{count}} candidatos de {{type}}.",
+                underVote_one: "Seleccione hasta {{count}} candidato más.",
+                underVote_many: "Seleccione hasta {{count}} candidatos más.",
+                underVote_other: "Seleccione hasta {{count}} candidatos más.",
+                overVoteDisabled_one:
+                    "Ha seleccionado el máximo de {{count}} candidato. Desmárquelo para elegir otro.",
+                overVoteDisabled_many:
+                    "Ha seleccionado el máximo de {{count}} candidatos. Desmarque uno para elegir otro.",
+                overVoteDisabled_other:
+                    "Ha seleccionado el máximo de {{count}} candidatos. Desmarque uno para elegir otro.",
+                blankVote: "No ha seleccionado ningún candidato.",
                 preferenceOrderWithGaps:
                     "¡Voto inválido! El orden de preferencia tiene uno o más huecos.",
                 duplicatedPosition:
@@ -112,9 +121,9 @@ const spanishTranslation: TranslationType = {
             },
             configuration: {
                 multipleExplicitInvalidCandidates:
-                    "Configuración de voto inválida: el concurso define {{count}} candidatos explícitamente inválidos, pero solo se permite uno.",
+                    "Configuración de voto inválida: la pregunta define {{count}} candidatos explícitamente inválidos, pero solo se permite uno.",
                 multipleExplicitBlankCandidates:
-                    "Configuración de voto inválida: el concurso define {{count}} candidatos de voto en blanco explícito, pero solo se permite uno.",
+                    "Configuración de voto inválida: la pregunta define {{count}} candidatos de voto en blanco explícito, pero solo se permite uno.",
             },
         },
         ballotHash: "Su Localizador de Voto: {{ballotId}}",
@@ -127,7 +136,7 @@ const spanishTranslation: TranslationType = {
         logout: {
             buttonText: "Cerrar sesión",
             modal: {
-                title: "¿Estás seguro de que quieres cerrar sesión?",
+                title: "¿Está seguro de que quiere cerrar sesión?",
                 content:
                     "Está a punto de cerrar esta aplicación. Esta acción no se puede deshacer.",
                 ok: "OK",
@@ -151,10 +160,10 @@ const spanishTranslation: TranslationType = {
             voted: "Votado",
             notVoted: "No votado",
             resultsButton: "Resultados de Votación",
-            voteButton: "Haga click para Votar",
+            voteButton: "Haga clic para votar",
             openDate: "Abierta: ",
             closeDate: "Cerrada: ",
-            ballotLocator: "Localiza tu voto",
+            ballotLocator: "Localice su voto",
         },
         header: {
             profile: "Perfil",
