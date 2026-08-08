@@ -61,6 +61,8 @@ pub async fn insert_results_election_area_documents(
     area_id: &str,
     area_name: &str,
     documents: &ResultDocuments,
+    blank_ballots: Option<i64>,
+    blank_ballots_percent: Option<f64>,
 ) -> Result<()> {
     let documents_value = serde_json::to_value(documents.clone())?;
     let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
@@ -78,15 +80,17 @@ pub async fn insert_results_election_area_documents(
         .prepare(
             r#"
                 INSERT INTO sequent_backend.results_election_area (
-                    documents, 
-                    tenant_id, 
-                    results_event_id, 
-                    election_event_id, 
-                    election_id, 
+                    documents,
+                    tenant_id,
+                    results_event_id,
+                    election_event_id,
+                    election_id,
                     area_id,
-                    name
+                    name,
+                    blank_ballots,
+                    blank_ballots_percent
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                 RETURNING id;
             "#,
         )
@@ -102,6 +106,8 @@ pub async fn insert_results_election_area_documents(
                 &election_uuid,
                 &area_uuid,
                 &area_name,
+                &blank_ballots,
+                &blank_ballots_percent,
             ],
         )
         .await
