@@ -498,51 +498,95 @@ fn a_channel_named_at_one_level_and_omitted_at_the_other_is_not_a_difference() {
     );
 }
 
-// -- images a bundle cannot carry --------------------------------------------
+// -- images, and the two references that have to agree ----------------------
+
+const DOC: &str = "d9000000-0000-5000-8000-000000000000";
+
+/// A candidate photograph as the platform stores one.
+fn with_image(url: &str) -> ImportElectionEventSchema {
+    let mut bundle = sound();
+    bundle.candidates[0].image_document_id = Some(DOC.into());
+    bundle.candidates[0].presentation = Some(serde_json::json!({
+        "urls": [{"url": url, "is_image": true}],
+    }));
+    bundle
+}
 
 #[test]
-fn a_candidate_photograph_is_reported_as_something_import_destroys() {
-    // Verified through the importer rather than assumed. `replace_ids` hands the
-    // whole serialized bundle to `replace_realm_ids`, which calls `replace_uuids`
-    // — a regex over the raw text swapping every UUID-shaped substring for a fresh
-    // `Uuid::new_v4()`, keeping only the old tenant id, the old event id, Keycloak
-    // authenticator config values and `ELECTION_EVENT_FIXED_UUIDS`.
-    //
-    // A photograph is two UUIDs and neither is on that list: the document id
-    // inside `presentation.urls` and `image_document_id` beside it. Both become
-    // values that never existed, so the picture 404s on the ballot in silence.
-    let mut bundle = sound();
-    bundle.candidates[0].image_document_id =
-        Some("d9000000-0000-5000-8000-000000000000".into());
-    bundle.candidates[0].presentation = Some(serde_json::json!({
-        "urls": [{
-            "url": "tenant-x/document-d9000000-0000-5000-8000-000000000000/a.png",
-            "is_image": true,
-        }],
-    }));
+fn a_photograph_whose_two_references_agree_is_accepted() {
+    // Images travel inside the archive. An earlier version of this file asserted
+    // the opposite, on the grounds that `replace_uuids` rewrites every identifier
+    // and `ImportElectionEventSchema` has no `documents` array — both true, and
+    // both beside the point, because the bytes travel as a **zip entry** rather
+    // than in the JSON. `replace_ids` returns the `old -> new` map, the `images/`
+    // branch hands that same map to `process_s3_file`, and the document is created
+    // with the new identifier. So the two references and the file move together.
+    let report =
+        validate(&with_image(&format!("tenant-x/document-{DOC}/a.png")));
+    assert!(!report.has_errors(), "{report}");
+    assert!(
+        !report
+            .problems
+            .iter()
+            .any(|problem| problem.path.starts_with("candidates[0]")),
+        "{report}"
+    );
+}
+
+#[test]
+fn a_ballot_pointing_at_a_different_document_is_refused() {
+    // The one that genuinely breaks. Import rewrites both references through one
+    // map, which keeps them together only if they were the same string to start
+    // with — so a url naming a different identifier ends up pointing somewhere
+    // else entirely.
+    let other = "dabcdef0-0000-5000-8000-000000000000";
+    let report =
+        validate(&with_image(&format!("tenant-x/document-{other}/a.png")));
+    assert!(report.has_errors(), "{report}");
+    assert!(report
+        .problems
+        .iter()
+        .any(|problem| problem.message.contains("point at different files")));
+}
+
+#[test]
+fn a_ballot_picture_with_no_document_named_is_reported_but_allowed() {
+    // The ballot works: the url is the reference a voter's ballot reads. What is
+    // lost is the Admin Portal's ability to change or remove it later, since that
+    // is what `image_document_id` is for.
+    let mut bundle = with_image(&format!("tenant-x/document-{DOC}/a.png"));
+    bundle.candidates[0].image_document_id = None;
 
     let report = validate(&bundle);
-    // A warning, not an error: everything except the pictures imports and works.
     assert!(!report.has_errors(), "{report}");
     assert!(report
         .problems
         .iter()
-        .any(|problem| problem.message.contains("pres-a")
-            && problem.message.contains("does not exist")));
+        .any(|problem| problem.message.contains("changed or removed")));
+}
+
+#[test]
+fn a_document_with_no_ballot_entry_is_reported_but_allowed() {
+    // Worse in practice: nothing renders `image_document_id`, so the picture is
+    // uploaded and appears on no ballot.
+    let mut bundle = sound();
+    bundle.candidates[0].image_document_id = Some(DOC.into());
+
+    let report = validate(&bundle);
+    assert!(!report.has_errors(), "{report}");
+    assert!(report
+        .problems
+        .iter()
+        .any(|problem| problem.message.contains("never shown")));
 }
 
 #[test]
 fn a_url_that_is_not_an_image_is_left_alone() {
     // `presentation.urls` is not only for pictures — `getLinkUrl` looks one up by
-    // title, for a candidate's own page. Those carry no document id and survive
-    // import untouched, so reporting them would be noise.
+    // title, for a candidate's own page. No document, nothing to agree with.
     let mut bundle = sound();
     bundle.candidates[0].presentation = Some(serde_json::json!({
-        "urls": [{
-            "url": "https://example.org/alice",
-            "title": "URL",
-            "is_image": false,
-        }],
+        "urls": [{"url": "https://example.org/alice", "title": "URL", "is_image": false}],
     }));
 
     let report = validate(&bundle);
@@ -550,32 +594,9 @@ fn a_url_that_is_not_an_image_is_left_alone() {
         !report
             .problems
             .iter()
-            .any(|problem| problem.message.contains("does not exist")),
+            .any(|problem| problem.path.starts_with("candidates[0]")),
         "{report}"
     );
-}
-
-#[test]
-fn forty_photographs_are_one_problem_rather_than_forty() {
-    // The answer is the same for all of them, and a report where every other
-    // finding is buried under forty identical warnings is a report nobody reads to
-    // the end.
-    let mut bundle = sound();
-    for candidate in bundle.candidates.iter_mut() {
-        candidate.image_document_id =
-            Some("d9000000-0000-5000-8000-000000000000".into());
-    }
-
-    let report = validate(&bundle);
-    let about_images: Vec<_> = report
-        .problems
-        .iter()
-        .filter(|problem| problem.message.contains("does not exist"))
-        .collect();
-    assert_eq!(about_images.len(), 1, "{report}");
-    // And it names every one of them, because "some candidates" is not actionable.
-    assert!(about_images[0].message.contains("pres-a"));
-    assert!(about_images[0].message.contains("pres-b"));
 }
 
 // -- permission labels ------------------------------------------------------

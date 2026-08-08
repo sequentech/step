@@ -118,7 +118,7 @@ pub fn validate(bundle: &ImportElectionEventSchema) -> Report {
     check_ballot_coverage(bundle, &mut report);
     check_how_voting_works(bundle, &mut report);
     check_voting_channels(bundle, &mut report);
-    check_carried_images(bundle, &mut report);
+    check_images(bundle, &mut report);
     check_event_presentation(bundle, &mut report);
     check_permission_labels(bundle, &mut report);
     check_unique_ids(bundle, &mut report);
@@ -170,115 +170,115 @@ fn check_event_presentation(
     }
 }
 
-/// Images a bundle carries, which import destroys.
+/// An image's two references, which have to agree with each other.
 ///
-/// Not a style rule — a mechanism. An image on a candidate, a contest or an
-/// election is two fields that have to agree, and **both are UUIDs**:
+/// Images **do** travel inside the archive, and the mechanism is worth setting out
+/// because an earlier version of this file claimed the opposite and shipped a
+/// warning saying so.
 ///
-/// - `presentation.urls`, holding `{url, is_image: true}` where the url is
-///   `tenant-<tenant>/document-<document>/<file name>`, appended to the
-///   environment's `PUBLIC_BUCKET_URL`. This is the one a voter sees —
-///   `voting-portal/src/components/Answer/Answer.tsx` renders it through
-///   `ui-core`'s `getImageUrl`.
-/// - `image_document_id`, which the Admin Portal's candidate form needs in order
-///   to show, replace or delete the image later.
+/// A candidate's photograph is three things:
 ///
-/// Import rewrites every UUID in the bundle. `replace_ids` hands the whole
-/// serialized document to `replace_realm_ids`, which calls
-/// [`crate::services::replace_uuids::replace_uuids`] — a regex over the **raw
-/// text** that swaps each UUID-shaped substring for a fresh `Uuid::new_v4()`,
-/// keeping only the old tenant id, the old event id, Keycloak authenticator config
-/// values and whatever `ELECTION_EVENT_FIXED_UUIDS` names. That is not incidental:
-/// it is how import regenerates ids, and it is the same reason
-/// `keys_ceremonies[].trustee_ids` carries trustee *names*.
+/// | | |
+/// | --- | --- |
+/// | `image_document_id` | the document's identifier. What the Admin Portal's candidate form looks the file up by afterwards. |
+/// | `presentation.urls[]` | `{url, is_image: true}`, url = `tenant-<tenant>/document-<document>/<file name>`, appended to the environment's `PUBLIC_BUCKET_URL`. What a voter's ballot renders, via `ui-core`'s `getImageUrl`. |
+/// | a zip entry `images/document_<document>_<file name>` | the bytes. |
 ///
-/// So a document id inside a url becomes a document id that has never existed, and
-/// `image_document_id` stops naming a row. The image 404s, on the ballot, silently.
-/// There is no way to carry it: `ImportElectionEventSchema` has no `documents`
-/// array, so the bytes cannot ride along either.
+/// Import holds those together rather than breaking them. `replace_ids` returns the
+/// `old uuid -> new uuid` map that `replace_uuids` built while rewriting the JSON,
+/// and the `images/` branch of `import_election_event` hands that same map to
+/// `process_s3_file`, which pulls the old identifier out of the entry name with
+/// `document_([0-9a-f-]{36})`, looks it up, and creates the document **with the new
+/// identifier**. So `image_document_id`, the identifier inside the url, and the
+/// uploaded file all move together. The `images/` branch passes `is_public: true`,
+/// which is what lets `PUBLIC_BUCKET_URL` serve it.
 ///
-/// The wizard therefore has no image field, and this warns about images that
-/// arrived some other way — a hand-written workbook, or a `base_export` from an
-/// event that had them. A warning rather than an error: the bundle imports, and
-/// everything except the pictures works.
-fn check_carried_images(
-    bundle: &ImportElectionEventSchema,
-    report: &mut Report,
-) {
-    let carries_image = |presentation: Option<&serde_json::Value>| {
+/// What that leaves is a consistency requirement, and it is not a soft one:
+/// `process_s3_file` does `replacement_map.get(document_uuid).ok_or_else(…)`, so an
+/// entry naming an identifier that appears nowhere in the JSON **fails the whole
+/// import** — not just the picture. And the url's last segment has to be the entry's
+/// file name, or the document is stored under one name and the ballot asks for
+/// another.
+///
+/// This pass sees the JSON and not the zip, so it checks the half it can: that the
+/// two references inside the document agree.
+fn check_images(bundle: &ImportElectionEventSchema, report: &mut Report) {
+    let image_url = |presentation: Option<&serde_json::Value>| {
         presentation
             .and_then(|value| value.get("urls"))
             .and_then(serde_json::Value::as_array)
-            .is_some_and(|urls| {
-                urls.iter().any(|url| {
-                    url.get("is_image").and_then(serde_json::Value::as_bool)
-                        == Some(true)
-                })
+            .and_then(|urls| {
+                urls.iter()
+                    .find(|url| {
+                        url.get("is_image").and_then(serde_json::Value::as_bool)
+                            == Some(true)
+                    })
+                    .and_then(|url| url.get("url"))
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::to_string)
             })
     };
 
-    let mut found: Vec<String> = Vec::new();
+    for (index, candidate) in bundle.candidates.iter().enumerate() {
+        let path = |field: &str| format!("candidates[{index}].{field}");
+        let about = candidate.external_id.as_deref();
+        let url = image_url(candidate.presentation.as_ref());
+        let document = candidate
+            .image_document_id
+            .as_deref()
+            .filter(|id| !id.is_empty());
 
-    for candidate in &bundle.candidates {
-        if candidate.image_document_id.is_some()
-            || carries_image(candidate.presentation.as_ref())
-        {
-            // By external_id, which is what somebody typed. A candidate has no
-            // flat `name` — it lives in `presentation.i18n` — and digging one
-            // language out of there to label a warning is not worth it.
-            found.push(
-                candidate
-                    .external_id
-                    .clone()
-                    .filter(|id| !id.is_empty())
-                    .unwrap_or_else(|| "a candidate".to_string()),
-            );
+        match (document, url.as_deref()) {
+            // A url and no `image_document_id`. The ballot works — that is the
+            // reference a voter's ballot reads — and the Admin Portal cannot then
+            // show, replace or delete the picture, because that is what it looks
+            // the file up by. Worth saying, not worth refusing.
+            (None, Some(_)) => report.push(
+                Problem::warning(
+                    Code::MissingField,
+                    path("image_document_id"),
+                    "a picture is on the ballot and nothing records which \
+                     document it is, so it cannot be changed or removed on the \
+                     platform afterwards"
+                        .to_string(),
+                )
+                .about(about),
+            ),
+            // The other way round is worse: nothing renders `image_document_id`,
+            // so the picture is in the archive, uploaded, and on no ballot.
+            (Some(_), None) => report.push(
+                Problem::warning(
+                    Code::MissingField,
+                    path("presentation.urls"),
+                    "a document is named and no ballot entry points at it, so \
+                     the picture would be uploaded and never shown"
+                        .to_string(),
+                )
+                .about(about),
+            ),
+            (Some(document), Some(url)) => {
+                // The identifier has to appear in the url, because that is what
+                // ties the two together once import has renamed both: they are
+                // rewritten by the same map only if they are the same string to
+                // begin with.
+                if !url.contains(document) {
+                    report.push(
+                        Problem::error(
+                            Code::ConflictingColumns,
+                            path("presentation.urls"),
+                            format!(
+                                "the ballot points at '{url}', which does not \
+                                 name the document '{document}' beside it — after \
+                                 import the two would point at different files"
+                            ),
+                        )
+                        .about(about),
+                    );
+                }
+            }
+            (None, None) => {}
         }
     }
-
-    // The same field exists on both of these, by the same mechanism, and breaks
-    // the same way.
-    for contest in &bundle.contests {
-        if contest.image_document_id.is_some() {
-            found.push(
-                contest
-                    .external_id
-                    .clone()
-                    .filter(|id| !id.is_empty())
-                    .unwrap_or_else(|| "a contest".to_string()),
-            );
-        }
-    }
-    for election in &bundle.elections {
-        if election.image_document_id.is_some() {
-            found.push(
-                election
-                    .external_id
-                    .clone()
-                    .filter(|id| !id.is_empty())
-                    .unwrap_or_else(|| "an election".to_string()),
-            );
-        }
-    }
-
-    if found.is_empty() {
-        return;
-    }
-
-    // One problem rather than one per candidate. A ballot with forty photographs
-    // would otherwise bury every other finding in the report, and the answer is
-    // the same for all of them.
-    report.push(Problem::warning(
-        Code::InvalidValue,
-        "candidates",
-        format!(
-            "{} carr{} an image, and import gives every identifier in a bundle a \
-             new value — so the picture would point at a document that does not \
-             exist. Add pictures on the platform after importing, not here.",
-            found.join(", "),
-            if found.len() == 1 { "ies" } else { "y" }
-        ),
-    ));
 }
 
 /// The ways of voting, and whether anything is behind each one.
