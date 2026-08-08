@@ -229,7 +229,7 @@ const spanishTranslation: TranslationType = {
                 ok: "Aceptar",
             },
             demoBallotUrlDialog: {
-                title: "Rastreador de Boletas",
+                title: "Rastreador de Papeletas",
                 content: "No se puede usar el código, deshabilitado en modo de demostración.",
                 ok: "OK",
             },
@@ -250,7 +250,7 @@ const spanishTranslation: TranslationType = {
                 content: "Ha ocurrido un error, por favor intenta de nuevo",
                 ok: "Aceptar",
             },
-            demoQRText: "El rastreador de boletas está deshabilitado en modo de demostración",
+            demoQRText: "El rastreador de papeletas está deshabilitado en modo de demostración",
         },
         auditScreen: {
             printButton: "Imprimir",
@@ -312,7 +312,7 @@ const spanishTranslation: TranslationType = {
             },
             alerts: {
                 noElections:
-                    "No hay elecciones en las que pueda votar. Esto podría deberse a que el área no tiene ningún concurso asociado. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
+                    "No hay elecciones en las que pueda votar. Esto podría deberse a que el área no tiene ninguna pregunta asociada. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 electionEventNotPublished:
                     "El evento electoral aún no ha sido publicado. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
             },

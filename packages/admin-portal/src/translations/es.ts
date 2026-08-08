@@ -736,7 +736,7 @@ const spanishTranslation: TranslationType = {
                     hints: {
                         title: "Sugerencias",
                         publishRequired:
-                            "Cualquier cambio realizado en las elecciones, contiendas o candidatos debe publicarse primero para que esté disponible. En el emulador solo se utilizarán los estilos de boleta publicados más recientemente para el área correspondiente.",
+                            "Cualquier cambio realizado en las elecciones, preguntas o candidatos debe publicarse primero para que esté disponible. En el emulador solo se utilizarán los estilos de boleta publicados más recientemente para el área correspondiente.",
                         eventChangesImmediate:
                             "Los cambios realizados en el evento electoral, como la configuración de IVR o las modificaciones de los mensajes, están disponibles inmediatamente al reiniciar la sesión del emulador.",
                         credentials:
@@ -2102,7 +2102,7 @@ const spanishTranslation: TranslationType = {
                         trusteeName: "Nombre del Fideicomisario",
                         signed: "Ha Firmado",
                     },
-                    status: "{{signed}} de {{total}} Han Firmado",
+                    status: "{{signed}} de {{total}} Han Firmado, mínimo {{minimum}}",
                 },
             },
             sendToTransmissionPackageServers:
@@ -2385,7 +2385,7 @@ const spanishTranslation: TranslationType = {
                 ALL_USERS: "Todos",
                 NOT_VOTED: "Los que no votaron",
                 VOTED: "Los que ya votaron",
-                SELECTED: "A {{total}} Votantes seleccionados",
+                SELECTED: "A {{total}} {{voters}} seleccionados",
             },
             path: {
                 users: "usuarios",
@@ -2410,7 +2410,7 @@ const spanishTranslation: TranslationType = {
             createTallySuccess: "Hoja de Recuento creada",
             createTallyError: "Error creando Hoja de Recuento",
             createTallyErrorSameKindExists:
-                "La hoja de recuento ya existe para esta contienda con el mismo canal y área",
+                "La hoja de recuento ya existe para esta pregunta con el mismo canal y área",
             allFieldsRequired: "Todos los campos son obligatorios",
             header: {
                 change: "Changes to be Published",

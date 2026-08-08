@@ -736,7 +736,7 @@ const catalanTranslation: TranslationType = {
                     hints: {
                         title: "Consells",
                         publishRequired:
-                            "Qualsevol canvi fet a les eleccions, les conteses o els candidats s'ha de publicar primer perquè estigui disponible. A l'emulador només s'utilitzaran els estils de papereta publicats més recentment per a l'àrea corresponent.",
+                            "Qualsevol canvi fet a les eleccions, les preguntes o els candidats s'ha de publicar primer perquè estigui disponible. A l'emulador només s'utilitzaran els estils de papereta publicats més recentment per a l'àrea corresponent.",
                         eventChangesImmediate:
                             "Els canvis fets a l'esdeveniment electoral, com ara la configuració IVR o les substitucions dels missatges, estan disponibles immediatament en reiniciar la sessió de l'emulador.",
                         credentials:
@@ -2110,7 +2110,7 @@ const catalanTranslation: TranslationType = {
                         trusteeName: "Nom del Fiduciari",
                         signed: "Ha Signat",
                     },
-                    status: "{{signed}} de {{total}} Han Signat",
+                    status: "{{signed}} de {{total}} Han Signat, mínim {{minimum}}",
                 },
             },
             sendToTransmissionPackageServers:
@@ -2393,7 +2393,7 @@ const catalanTranslation: TranslationType = {
                 ALL_USERS: "Tots",
                 NOT_VOTED: "Els que no han votat",
                 VOTED: "Els que ja han votat",
-                SELECTED: "A {{total}} Votants seleccionats",
+                SELECTED: "A {{total}} {{voters}} seleccionats",
             },
             path: {
                 users: "usuaris",
@@ -2487,7 +2487,7 @@ const catalanTranslation: TranslationType = {
             },
             table: {
                 area: "Àrea",
-                contest: "Contesa",
+                contest: "Pregunta",
                 approvedVersion: "Versió aprovada",
                 latestVersion: "Última versió",
                 labels: "Etiquetes",
