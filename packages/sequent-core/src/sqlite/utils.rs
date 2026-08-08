@@ -28,10 +28,13 @@ pub fn ensure_column(
     column: &str,
     column_def: &str,
 ) -> Result<()> {
-    let column_exists = sqlite_transaction
+    let existing_columns = sqlite_transaction
         .prepare(&format!("PRAGMA table_info({table})"))?
         .query_map([], |row| row.get::<_, String>(1))?
-        .filter_map(std::result::Result::ok)
+        .collect::<rusqlite::Result<Vec<String>>>()?;
+
+    let column_exists = existing_columns
+        .iter()
         .any(|existing_column| existing_column == column);
 
     if !column_exists {
@@ -41,4 +44,42 @@ pub fn ensure_column(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rusqlite::Connection;
+
+    #[test]
+    fn is_a_no_op_when_the_column_already_exists() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        connection
+            .execute_batch("CREATE TABLE t (id INTEGER, value TEXT);")
+            .unwrap();
+
+        let transaction = connection.transaction().unwrap();
+        ensure_column(&transaction, "t", "value", "TEXT").unwrap();
+        transaction.commit().unwrap();
+
+        let columns: Vec<String> = connection
+            .prepare("PRAGMA table_info(t)")
+            .unwrap()
+            .query_map([], |row| row.get(1))
+            .unwrap()
+            .collect::<rusqlite::Result<Vec<String>>>()
+            .unwrap();
+        assert_eq!(columns, vec!["id".to_string(), "value".to_string()]);
+    }
+
+    #[test]
+    fn errors_on_a_table_that_does_not_exist() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        let transaction = connection.transaction().unwrap();
+
+        let result =
+            ensure_column(&transaction, "missing_table", "value", "TEXT");
+
+        assert!(result.is_err());
+    }
 }
