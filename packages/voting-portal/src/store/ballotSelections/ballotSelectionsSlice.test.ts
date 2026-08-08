@@ -14,7 +14,9 @@ jest.mock("@sequentech/ui-core", () => ({
 }))
 
 import ballotSelectionsReducer, {
+    resetBallotSelection,
     setAllBallotSelectionsDeclineToVote,
+    setBallotSelectionBlankVote,
     setBallotSelectionInvalidVote,
     setBallotSelectionVoteChoice,
     BallotSelectionsState,
@@ -129,5 +131,35 @@ describe("ballotSelectionsSlice is_blank_ballot consistency", () => {
         const election = state[ELECTION_ID]
         expect(election?.every((contest) => contest.is_blank_ballot === false)).toBe(true)
         expect(election?.every((contest) => contest.is_decline_to_vote === true)).toBe(true)
+    })
+
+    it("clears is_blank_ballot on every contest when an explicit blank candidate is selected", () => {
+        const ballotStyle = makeBallotStyle()
+        const state = ballotSelectionsReducer(
+            makeState(),
+            setBallotSelectionBlankVote({
+                ballotStyle,
+                contestId: CONTEST_ID_1,
+                candidateId: `${CONTEST_ID_1}-candidate-1`,
+            })
+        )
+
+        const election = state[ELECTION_ID]
+        expect(election?.every((contest) => contest.is_blank_ballot === false)).toBe(true)
+    })
+
+    it("clears is_blank_ballot on every contest when a single contest is force-reset", () => {
+        const ballotStyle = makeBallotStyle()
+        const state = ballotSelectionsReducer(
+            makeState(),
+            resetBallotSelection({
+                ballotStyle,
+                force: true,
+                contestId: CONTEST_ID_1,
+            })
+        )
+
+        const election = state[ELECTION_ID]
+        expect(election?.every((contest) => contest.is_blank_ballot === false)).toBe(true)
     })
 })
