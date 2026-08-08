@@ -83,6 +83,7 @@ const dutchTranslation: TranslationType = {
                 writeInChoiceOutOfRange: "In te vullen keuze buiten bereik: {{index}}",
                 writeInNotEndInZero: "In te vullen tekst eindigt niet op 0",
                 writeInCharsExceeded_one: "Maak de ingevulde tekst {{count}} teken korter.",
+                writeInCharsExceeded_many: "Maak de ingevulde tekst {{count}} tekens korter.",
                 writeInCharsExceeded_other: "Maak de ingevulde tekst {{count}} tekens korter.",
                 bytesToUtf8Conversion:
                     "Fout bij het converteren van in te vullen tekst van bytes naar UTF-8 string: {{errorMessage}}",
@@ -90,15 +91,21 @@ const dutchTranslation: TranslationType = {
             },
             implicit: {
                 selectedMax_one: "Deselecteer {{count}} kandidaat.",
+                selectedMax_many: "Deselecteer {{count}} kandidaten.",
                 selectedMax_other: "Deselecteer {{count}} kandidaten.",
                 selectedMin_one: "Selecteer nog {{count}} kandidaat.",
+                selectedMin_many: "Selecteer nog {{count}} kandidaten.",
                 selectedMin_other: "Selecteer nog {{count}} kandidaten.",
                 maxSelectionsPerType_one: "Deselecteer {{count}} kandidaat uit {{type}}.",
+                maxSelectionsPerType_many: "Deselecteer {{count}} kandidaten uit {{type}}.",
                 maxSelectionsPerType_other: "Deselecteer {{count}} kandidaten uit {{type}}.",
                 underVote_one: "Selecteer nog maximaal {{count}} kandidaat.",
+                underVote_many: "Selecteer nog maximaal {{count}} kandidaten.",
                 underVote_other: "Selecteer nog maximaal {{count}} kandidaten.",
                 overVoteDisabled_one:
                     "U heeft het maximum van {{count}} kandidaat geselecteerd. Deselecteer deze om een andere te kiezen.",
+                overVoteDisabled_many:
+                    "U heeft het maximum van {{count}} kandidaten geselecteerd. Deselecteer er een om een andere te kiezen.",
                 overVoteDisabled_other:
                     "U heeft het maximum van {{count}} kandidaten geselecteerd. Deselecteer er een om een andere te kiezen.",
                 blankVote: "U heeft geen kandidaat geselecteerd.",

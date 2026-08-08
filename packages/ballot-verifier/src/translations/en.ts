@@ -70,6 +70,10 @@ const englishTranslation = {
             },
             markedInvalid: "Ballot explicitly marked invalid",
             points_one: "({{count}} Point)",
+            // `_many` is selected only in es/cat/fr, for exact multiples of a million. English never
+            // selects it, but the other bundles are typed `TranslationType = typeof englishTranslation`,
+            // so the key has to be declared here before they can carry it.
+            points_many: "({{count}} Points)",
             points_other: "({{count}} Points)",
             contestNotFound: "Contest not found: {{contestId}}",
             declineToVote: "Declined to vote",

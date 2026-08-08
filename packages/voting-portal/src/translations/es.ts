@@ -15,6 +15,7 @@ const spanishTranslation: TranslationType = {
             showCandidates: "Mostrar candidatos",
             hideCandidates: "Ocultar candidatos",
             selectedCandidates_one: "{{count}} candidato seleccionado",
+            selectedCandidates_many: "{{count}} candidatos seleccionados",
             selectedCandidates_other: "{{count}} candidatos seleccionados",
             expandAll: "Expandir todo",
             collapseAll: "Contraer todo",

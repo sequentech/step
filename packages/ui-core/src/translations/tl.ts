@@ -83,6 +83,7 @@ const tagalogTranslation: TranslationType = {
                 writeInChoiceOutOfRange: "Write-in na napili ay wala sa saklaw: {{index}}",
                 writeInNotEndInZero: "Ang Write-in ay hindi nagtatapos sa 0",
                 writeInCharsExceeded_one: "Paikliin ang write-in ng {{count}} karakter.",
+                writeInCharsExceeded_many: "Paikliin ang write-in ng {{count}} karakter.",
                 writeInCharsExceeded_other: "Paikliin ang write-in ng {{count}} karakter.",
                 bytesToUtf8Conversion:
                     "Error sa pag-convert ng write-in mula bytes patungong UTF-8 na string: {{errorMessage}}",
@@ -90,14 +91,20 @@ const tagalogTranslation: TranslationType = {
             },
             implicit: {
                 selectedMax_one: "Alisin ang {{count}} kandidato.",
+                selectedMax_many: "Alisin ang {{count}} kandidato.",
                 selectedMax_other: "Alisin ang {{count}} kandidato.",
                 selectedMin_one: "Pumili pa ng {{count}} kandidato.",
+                selectedMin_many: "Pumili pa ng {{count}} kandidato.",
                 selectedMin_other: "Pumili pa ng {{count}} kandidato.",
                 maxSelectionsPerType_one: "Alisin ang {{count}} kandidato mula sa {{type}}.",
+                maxSelectionsPerType_many: "Alisin ang {{count}} kandidato mula sa {{type}}.",
                 maxSelectionsPerType_other: "Alisin ang {{count}} kandidato mula sa {{type}}.",
                 underVote_one: "Maaari ka pang pumili ng hanggang {{count}} kandidato.",
+                underVote_many: "Maaari ka pang pumili ng hanggang {{count}} kandidato.",
                 underVote_other: "Maaari ka pang pumili ng hanggang {{count}} kandidato.",
                 overVoteDisabled_one:
+                    "Napili mo na ang maximum na {{count}} kandidato. Alisin ang isa upang pumili ng iba.",
+                overVoteDisabled_many:
                     "Napili mo na ang maximum na {{count}} kandidato. Alisin ang isa upang pumili ng iba.",
                 overVoteDisabled_other:
                     "Napili mo na ang maximum na {{count}} kandidato. Alisin ang isa upang pumili ng iba.",

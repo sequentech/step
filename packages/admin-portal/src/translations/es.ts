@@ -1880,6 +1880,8 @@ const spanishTranslation: TranslationType = {
                 threshold: "Umbral",
                 errorMinTrustees_one:
                     "Seleccionaste sólo {{selected}} autoridad, pero debe seleccionar al menos {{threshold}}.",
+                errorMinTrustees_many:
+                    "Seleccionaste sólo {{selected}} autoridades, pero debe seleccionar al menos {{threshold}}.",
                 errorMinTrustees_other:
                     "Seleccionaste sólo {{selected}} autoridades, pero debe seleccionar al menos {{threshold}}.",
                 errorThreshold:
@@ -2014,6 +2016,7 @@ const spanishTranslation: TranslationType = {
                 noTalliedContests: "No tallied contests available.",
                 publishSelectedContests: "Publish selected contests",
                 selectedContestCount_one: "{{count}} contest selected",
+                selectedContestCount_many: "{{count}} contests selected",
                 selectedContestCount_other: "{{count}} contests selected",
                 history: "Publication history",
                 version: "Version",
