@@ -192,6 +192,17 @@ pub struct BuildOptions {
     /// worth having while a client has not yet supplied what a preset needs.
     pub auth_preset: Option<String>,
 
+    /// Images the archive should carry, and which document each one is.
+    ///
+    /// Not in the workbook, because a cell cannot hold bytes. The sheet carries
+    /// `image_document_id` and these carry the file, which is what lets the builder
+    /// compose the url a voter's ballot reads — it needs the tenant, and
+    /// [`Builder::resolve_tenant_id`] is the only thing that knows which tenant the
+    /// bundle will claim.
+    ///
+    /// Empty for the workbook path, which has no bytes to offer.
+    pub images: Vec<ImageFile>,
+
     /// Who holds the election key, and how many of them the tally needs.
     ///
     /// `None` for the workbook path, which has no trustee sheet to draw from —
@@ -214,6 +225,44 @@ pub struct KeysCeremonyPlan {
     /// Trustee **names**, resolved against the target tenant on import.
     pub trustee_names: Vec<String>,
     pub threshold: i64,
+}
+
+/// One image on its way into the archive.
+///
+/// The three parts of a photograph have to agree, and this holds two of them: the
+/// identifier the JSON names and the file the archive carries. See
+/// `engineering/how-an-image-travels-in-a-bundle` for what the importer does with
+/// them.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct ImageFile {
+    /// The document's identifier, as `image_document_id` and the url both name it.
+    pub document_id: String,
+    /// The file's own name. The last segment of the url, and of the archive entry.
+    pub file_name: String,
+    pub bytes: Vec<u8>,
+}
+
+impl ImageFile {
+    /// The archive entry name the importer's `images/` branch expects.
+    ///
+    /// No tempfile prefix. The platform's own exports carry a 12-character one —
+    /// `enGgihs9azd5document_…` — which is an artefact of how the exporter names
+    /// temporary files; `extract_document_uuid` matches unanchored, so leaving it
+    /// out is accepted and keeps the same plan producing the same bytes.
+    pub fn entry_name(&self) -> String {
+        format!("images/document_{}_{}", self.document_id, self.file_name)
+    }
+
+    /// Where the file will be readable, relative to `PUBLIC_BUCKET_URL`.
+    ///
+    /// Bucket-relative rather than absolute: the Voting Portal concatenates, so an
+    /// `https://…` value would produce `https://bucket/https://…`.
+    pub fn public_path(&self, tenant_id: &str) -> String {
+        format!(
+            "tenant-{}/document-{}/{}",
+            tenant_id, self.document_id, self.file_name
+        )
+    }
 }
 
 /// A built bundle: the JSON document and what was worth saying about it.
@@ -250,6 +299,10 @@ pub struct Bundle {
     /// Communication and report templates, loaded through the Admin Portal
     /// rather than imported — the event zip has no member for them.
     pub templates: Vec<CommunicationTemplate>,
+
+    /// Photographs, which *are* imported: `images/` members the importer uploads
+    /// and keeps pointed at by the same replacement map that renames the JSON.
+    pub images: Vec<ImageFile>,
 
     /// Everything the document asked of the event's Keycloak realm.
     ///
@@ -298,6 +351,7 @@ struct Builder<'a> {
 
     /// Who holds the election key. See [`BuildOptions::keys_ceremony`].
     keys_ceremony: Option<KeysCeremonyPlan>,
+    images: Vec<ImageFile>,
 
     event_row: Row,
     event_external_id: String,
@@ -347,6 +401,7 @@ impl<'a> Builder<'a> {
         let base_export = options.base_export.clone().unwrap_or(Value::Null);
         let mut builder = Builder {
             keys_ceremony: options.keys_ceremony.clone(),
+            images: options.images.clone(),
             workbook,
             templates,
             base_export,
@@ -470,6 +525,7 @@ impl<'a> Builder<'a> {
             admin_users,
             role_permissions,
             templates,
+            images: self.images,
             realm_patch: self.realm_patch,
             admin_realm_patch,
             auth_preset: self.auth_preset.map(|preset| preset.name),
@@ -887,6 +943,13 @@ impl<'a> Builder<'a> {
         Value::Array(contests)
     }
 
+    /// The photograph for one candidate, by the identifier its row names.
+    fn image_for(&self, document_id: &str) -> Option<&ImageFile> {
+        self.images
+            .iter()
+            .find(|image| image.document_id == document_id)
+    }
+
     fn build_candidates(&mut self) -> Value {
         let rows: Vec<Row> = self.workbook.rows(SHEET_CANDIDATES).to_vec();
         let mut candidates = Vec::new();
@@ -930,6 +993,48 @@ impl<'a> Builder<'a> {
                 ],
             );
             candidate.insert("external_id".to_string(), json!(external_id));
+
+            // The photograph's other half. `image_document_id` came from the row;
+            // the url is composed here because it embeds the tenant, and this is
+            // the only place that knows which tenant the bundle claims.
+            //
+            // Only when the archive actually carries the file: a row naming a
+            // document with no member behind it gets no url, and `validate`'s
+            // `check_images` says so rather than putting a broken picture on a
+            // ballot.
+            let named = candidate
+                .get("image_document_id")
+                .and_then(Value::as_str)
+                .filter(|id| !id.is_empty())
+                .map(str::to_string);
+            if let Some(image) =
+                named.as_deref().and_then(|id| self.image_for(id))
+            {
+                let url = image.public_path(&self.tenant_id);
+                let presentation = candidate
+                    .entry("presentation".to_string())
+                    .or_insert_with(|| json!({}));
+                if let Some(presentation) = presentation.as_object_mut() {
+                    // Replacing any image entry rather than appending, which is
+                    // what the Admin Portal's own uploader does: `getImageUrl`
+                    // takes the *first* `is_image` url, so a second one would be
+                    // dead weight that only shows up as a stale picture.
+                    let mut urls: Vec<Value> = presentation
+                        .get("urls")
+                        .and_then(Value::as_array)
+                        .cloned()
+                        .unwrap_or_default()
+                        .into_iter()
+                        .filter(|url| {
+                            url.get("is_image").and_then(Value::as_bool)
+                                != Some(true)
+                        })
+                        .collect();
+                    urls.push(json!({"url": url, "is_image": true}));
+                    presentation.insert("urls".to_string(), json!(urls));
+                }
+            }
+
             candidates.push(Value::Object(candidate));
         }
 

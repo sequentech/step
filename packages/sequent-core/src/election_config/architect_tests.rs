@@ -5,6 +5,7 @@
 //! Tests for [`super`].
 
 use super::*;
+use crate::election_config::archive::layout;
 use crate::election_config::policy::{
     Behaviour, CandidatesOrder, OverVote, Overrides, PolicyPatch, TallyPatch,
 };
@@ -94,6 +95,8 @@ fn sound() -> Blueprint {
                         description: Translated::default(),
                         explicit_blank: false,
                         explicit_invalid: false,
+
+                        image: None,
                     },
                     PlannedCandidate {
                         external_id: "bob".to_string(),
@@ -101,6 +104,8 @@ fn sound() -> Blueprint {
                         description: Translated::default(),
                         explicit_blank: false,
                         explicit_invalid: false,
+
+                        image: None,
                     },
                 ],
                 areas: vec![],
@@ -131,6 +136,12 @@ fn compiled(plan: &Blueprint) -> Bundle {
                 threshold: i64::from(plan.trustee_threshold),
             }
         }),
+        // The photographs, for the same reason and by the same route: bytes cannot
+        // travel in a workbook cell. Omitting them here made three tests fail with
+        // "no image member" against a generator that was writing them correctly —
+        // which is the second time this helper drifting from `compile_plan` has
+        // produced a wrong answer, the first being the key ceremony above.
+        images: plan_images(plan),
         ..BuildOptions::default()
     };
     match build(&workbook, &templates, &options) {
@@ -579,6 +590,8 @@ fn a_multi_winner_contest_elects_what_the_plan_says() {
         description: Translated::default(),
         explicit_blank: false,
         explicit_invalid: false,
+
+        image: None,
     });
 
     let bundle = compiled(&plan);
@@ -603,6 +616,8 @@ fn a_blank_option_is_marked_as_one_rather_than_becoming_a_candidate() {
             description: Translated::default(),
             explicit_blank: true,
             explicit_invalid: false,
+
+            image: None,
         });
 
     let bundle = compiled(&plan);
@@ -631,6 +646,169 @@ fn the_order_things_were_arranged_in_survives() {
         .find(|c| c["external_id"] == serde_json::json!("bob"))
         .unwrap();
     assert_eq!(bob["presentation"]["sort_order"], serde_json::json!(0));
+}
+
+// -- candidate photographs ---------------------------------------------------
+
+/// The sound plan with a photograph on Alice.
+fn with_photograph() -> Blueprint {
+    let mut plan = sound();
+    plan.elections[0].contests[0].candidates[0].image = Some(CandidateImage {
+        file_name: "alice.png".to_string(),
+        bytes: vec![0x89, 0x50, 0x4e, 0x47],
+    });
+    plan
+}
+
+/// The identifier the plan derives for Alice's photograph.
+fn alice_document() -> String {
+    let ids = IdFactory::new("union-2027").expect("a namespace");
+    image_document_id(&ids, "alice")
+}
+
+#[test]
+fn a_photograph_reaches_all_three_places_it_has_to() {
+    // The whole contract in one test, because the parts are only correct together:
+    // the identifier on the candidate, the url a voter's ballot reads, and the
+    // archive member the importer uploads. Two of three is a broken ballot.
+    let plan = with_photograph();
+    let bundle = compiled(&plan);
+    let document = alice_document();
+
+    let alice = bundle.export["candidates"]
+        .as_array()
+        .expect("candidates")
+        .iter()
+        .find(|each| each["external_id"] == serde_json::json!("alice"))
+        .expect("alice is in the bundle")
+        .clone();
+
+    assert_eq!(alice["image_document_id"], serde_json::json!(document));
+
+    let urls = alice["presentation"]["urls"]
+        .as_array()
+        .expect("an urls array");
+    let image = urls
+        .iter()
+        .find(|url| url["is_image"] == serde_json::json!(true))
+        .expect("an image url");
+    // Bucket-relative and naming the same document: the portal concatenates this
+    // onto `PUBLIC_BUCKET_URL`, and import rewrites the identifier here and on the
+    // field above through one map — which only keeps them together because they
+    // are the same string now.
+    assert_eq!(
+        image["url"],
+        serde_json::json!(format!(
+            "tenant-{}/document-{document}/alice.png",
+            bundle.tenant_id
+        ))
+    );
+
+    let entry = format!("images/document_{document}_alice.png");
+    let member = layout(&bundle)
+        .importable
+        .into_iter()
+        .find(|artifact| artifact.name == entry)
+        .expect("the picture is inside the zip");
+    assert_eq!(member.bytes, vec![0x89, 0x50, 0x4e, 0x47]);
+}
+
+#[test]
+fn a_photograph_survives_the_bundle_validator() {
+    // `check_images` is the rule that would refuse a mismatch, so a plan the wizard
+    // built has to satisfy it. If this fails, the generator and the checker
+    // disagree about the contract and one of them is wrong.
+    let report = validated(&with_photograph());
+    assert!(!report.has_errors(), "{report}");
+    assert!(
+        !report
+            .problems
+            .iter()
+            .any(|problem| problem.path.starts_with("candidates")),
+        "{report}"
+    );
+}
+
+#[test]
+fn two_builds_of_one_plan_produce_the_same_picture_entry() {
+    // The identifier is derived from the candidate's `external_id`, not minted, so
+    // regenerating a plan reuses it — which is what makes a rebuild a diff somebody
+    // can read rather than a new document.
+    let plan = with_photograph();
+    let names = |bundle: &Bundle| -> Vec<String> {
+        layout(bundle)
+            .importable
+            .into_iter()
+            .map(|artifact| artifact.name)
+            .filter(|name| name.starts_with("images/"))
+            .collect()
+    };
+    assert_eq!(names(&compiled(&plan)), names(&compiled(&plan)));
+    assert_eq!(names(&compiled(&plan)).len(), 1);
+}
+
+#[test]
+fn a_candidate_with_no_photograph_carries_no_url_and_no_member() {
+    // The ordinary case, and the one that must not grow an empty `urls` array: the
+    // portal's `getImageUrl` takes the first `is_image` entry, so an entry with a
+    // path to nothing would be a broken image rather than no image.
+    let bundle = compiled(&sound());
+    let alice = bundle.export["candidates"][0].clone();
+    assert!(alice["image_document_id"].is_null());
+    assert!(alice["presentation"]["urls"].as_array().is_none_or(|urls| {
+        !urls
+            .iter()
+            .any(|url| url["is_image"] == serde_json::json!(true))
+    }));
+    assert!(!layout(&bundle)
+        .importable
+        .iter()
+        .any(|artifact| artifact.name.starts_with("images/")));
+}
+
+#[test]
+fn a_write_in_slot_gets_no_photograph_column_of_its_own() {
+    // A slot is a blank line rather than a person. The cell still has to be there,
+    // because `sheet_of` refuses a ragged row — and that guard exists because a
+    // missing cell shifts every later column left and surfaces three sheets away.
+    let mut plan = sound();
+    plan.elections[0].contests[0].allow_writeins = true;
+    plan.elections[0].contests[0].write_in_slots = 2;
+
+    let bundle = compiled(&plan);
+    for candidate in bundle.export["candidates"].as_array().expect("candidates")
+    {
+        if candidate["presentation"]["is_write_in"] == serde_json::json!(true) {
+            assert!(candidate["image_document_id"].is_null());
+        }
+    }
+}
+
+#[test]
+fn a_plan_saved_before_photographs_existed_still_opens() {
+    let plan: Blueprint = serde_json::from_str(
+        r#"{"version": 2, "external_id": "old", "name": {"en": "Old"},
+            "elections": [{"external_id": "e", "contests": [{"external_id": "c",
+              "candidates": [{"external_id": "a"}]}]}]}"#,
+    )
+    .expect("a plan from before this field reads");
+    assert!(plan.elections[0].contests[0].candidates[0].image.is_none());
+}
+
+#[test]
+fn a_photograph_round_trips_through_a_saved_plan() {
+    // Base64 in the saved document, raw bytes in memory. The bytes are in the plan
+    // on purpose: a plan that lost its photographs on reopening would mean
+    // uploading them all again, which is the tedium this removes.
+    let plan = with_photograph();
+    let text = serde_json::to_string(&plan).expect("a plan serializes");
+    assert!(
+        text.contains("iVBORw=="),
+        "the bytes are base64, not an array"
+    );
+
+    let read: Blueprint = serde_json::from_str(&text).expect("and reads back");
+    assert_eq!(read, plan);
 }
 
 // -- the ways of voting -----------------------------------------------------
@@ -1003,6 +1181,8 @@ fn blank_and_invalid_options_do_not_count_as_candidates() {
         description: Translated::default(),
         explicit_blank: true,
         explicit_invalid: false,
+
+        image: None,
     });
     contest.max_votes = 2;
     contest.winners = 2;
@@ -1175,6 +1355,8 @@ fn districted() -> Blueprint {
             description: Translated::default(),
             explicit_blank: false,
             explicit_invalid: false,
+
+            image: None,
         }],
         areas: vec!["local-1".to_string()],
     });

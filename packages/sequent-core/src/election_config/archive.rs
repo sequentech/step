@@ -107,6 +107,22 @@ pub fn layout(bundle: &Bundle) -> Layout {
         ));
     }
 
+    // Photographs, inside the zip. `images/document_<uuid>_<file>` is what the
+    // importer's own `images/` branch looks for: it pulls the identifier back out of
+    // the entry name and resolves it through the same map that renamed every
+    // identifier in the JSON, so the file and the two references to it stay
+    // together. Uploaded as public, which is what lets `PUBLIC_BUCKET_URL` serve it.
+    //
+    // Not sorted or deduplicated here: `plan_images` walks the plan in ballot order
+    // and derives each identifier from the candidate's `external_id`, which
+    // `check_unique_ids` has already refused duplicates of.
+    for image in &bundle.images {
+        importable.push(Artifact {
+            name: image.entry_name(),
+            bytes: image.bytes.clone(),
+        });
+    }
+
     Layout {
         importable,
         archive_name: format!("{}.zip", bundle.slug),

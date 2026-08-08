@@ -43,7 +43,8 @@
 use std::cmp::Ordering;
 
 use crate::election_config::archive::{Artifact, Layout};
-use crate::election_config::build::{build, BuildOptions, Bundle};
+use crate::election_config::build::{build, BuildOptions, Bundle, ImageFile};
+use crate::election_config::ids::IdFactory;
 use crate::election_config::paths::Cell;
 use crate::election_config::policy::{Behaviour, Overrides};
 use crate::election_config::problem::{Code, Problem, Report, Severity};
@@ -774,6 +775,104 @@ pub struct PlannedCandidate {
     /// A "spoil my ballot" option rather than a person.
     #[serde(default)]
     pub explicit_invalid: bool,
+
+    /// A photograph, shown beside the name on the ballot.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image: Option<CandidateImage>,
+}
+
+/// A candidate's photograph, as the plan carries it.
+///
+/// The bytes are in the plan on purpose. A plan is the document somebody reopens
+/// next month when a candidate withdraws, and a plan that lost its photographs on
+/// reopening would mean uploading forty of them again — which is exactly the
+/// tedium this is meant to remove. It does make a plan with photographs large;
+/// that is the right trade, and the alternative is a plan that is not a complete
+/// description of the election.
+///
+/// The document identifier is **not** here. It is derived from the candidate's
+/// `external_id` by [`image_document_id`], so it is stable across rebuilds without
+/// anybody storing it, and cannot drift out of step with the archive entry.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CandidateImage {
+    /// The file's own name, which becomes the last segment of both the public path
+    /// and the archive entry.
+    ///
+    /// Worth keeping free of anything UUID-shaped: import runs the name through
+    /// `replace_ids_in_filename`, so an identifier inside it would be rewritten and
+    /// the stored name would stop matching the url.
+    pub file_name: String,
+
+    /// The image itself, base64 in the saved plan and raw everywhere else.
+    #[serde(with = "base64_bytes")]
+    pub bytes: Vec<u8>,
+}
+
+/// The document identifier for a candidate's photograph.
+///
+/// Derived rather than stored, from the same factory as every other identifier in a
+/// bundle, so two runs of one plan produce the same archive. Its own `kind`, so a
+/// candidate and their photograph do not collide.
+pub fn image_document_id(
+    ids: &IdFactory,
+    candidate_external_id: &str,
+) -> String {
+    ids.uid("document", &[candidate_external_id])
+}
+
+/// Every photograph in a plan, with the identifier the sheet will name it by.
+///
+/// The identifier is derived here and in `candidates_sheet` from the same
+/// [`image_document_id`], which is what keeps the archive entry and the JSON in
+/// step. Deriving it in two places rather than storing it once is deliberate: a
+/// stored identifier is a thing that can be edited into disagreement, and this one
+/// has no reason to be editable.
+pub fn plan_images(plan: &Blueprint) -> Vec<ImageFile> {
+    let Some(ids) = IdFactory::new(&plan.external_id) else {
+        return Vec::new();
+    };
+    let mut images = Vec::new();
+    for election in &plan.elections {
+        for contest in &election.contests {
+            for candidate in &contest.candidates {
+                if let Some(image) = &candidate.image {
+                    images.push(ImageFile {
+                        document_id: image_document_id(
+                            &ids,
+                            &candidate.external_id,
+                        ),
+                        file_name: image.file_name.clone(),
+                        bytes: image.bytes.clone(),
+                    });
+                }
+            }
+        }
+    }
+    images
+}
+
+/// Base64 for the saved plan, raw bytes in memory.
+///
+/// JSON has no byte string, and a plan is JSON. `serde_json` would happily write a
+/// `Vec<u8>` as an array of numbers, which is four times the size and unreadable.
+mod base64_bytes {
+    use base64::engine::general_purpose::STANDARD;
+    use base64::Engine;
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S: Serializer>(
+        bytes: &[u8],
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&STANDARD.encode(bytes))
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Vec<u8>, D::Error> {
+        let text = String::deserialize(deserializer)?;
+        STANDARD.decode(text).map_err(serde::de::Error::custom)
+    }
 }
 
 /// What a contest ends up with.
@@ -1653,10 +1752,20 @@ fn candidates_sheet(
         "presentation.is_explicit_blank".to_string(),
         "presentation.is_explicit_invalid".to_string(),
         "presentation.is_write_in".to_string(),
+        // The photograph's half that lives in the JSON. Its `presentation.urls`
+        // twin is composed by the builder rather than written here, because the url
+        // embeds the tenant and `resolve_tenant_id` draws on the explicit option,
+        // the Parameters sheet, the base export and the id-factory fallback — so
+        // the builder is the only place that knows which one the bundle will carry.
+        "image_document_id".to_string(),
     ];
     columns.extend(i18n_columns("presentation", "name", languages));
     columns.extend(i18n_columns("presentation", "description", languages));
     columns.push("description".to_string());
+
+    // `None` only when the event has no `external_id`, which `check_identity`
+    // reports before this runs. An image on such a plan simply gets no identifier.
+    let ids = IdFactory::new(&plan.external_id);
 
     let mut rows = Vec::new();
     for election in &plan.elections {
@@ -1669,6 +1778,13 @@ fn candidates_sheet(
                     Cell::Bool(candidate.explicit_blank),
                     Cell::Bool(candidate.explicit_invalid),
                     Cell::Bool(false),
+                    match (&candidate.image, ids.as_ref()) {
+                        (Some(_), Some(ids)) => Cell::text(image_document_id(
+                            ids,
+                            &candidate.external_id,
+                        )),
+                        _ => Cell::Blank,
+                    },
                 ];
                 row.extend(i18n_values(&candidate.name, languages));
                 row.extend(i18n_values(&candidate.description, languages));
@@ -1697,6 +1813,10 @@ fn candidates_sheet(
                         Cell::Bool(false),
                         Cell::Bool(false),
                         Cell::Bool(true),
+                        // A write-in slot is a blank line, not a person, so it has
+                        // no photograph. The cell is still written: the sheet guard
+                        // refuses a ragged row, and it is right to.
+                        Cell::Blank,
                     ];
                     // Named, because the Voting Portal draws the name as the
                     // slot's label and an unnamed one is a blank box with no
@@ -2088,6 +2208,10 @@ pub fn compile_plan(
     // anything that calls `build` — including this file's own test helper — gets
     // the same document the wizard ships. The first version patched afterwards and
     // every test asserting on `compiled()` saw an empty array.
+    //
+    // The photographs travel the same way, and for a second reason: a workbook cell
+    // cannot hold bytes. The sheet carries each one's identifier and the builder
+    // composes the url; these are the files themselves, on their way to the archive.
     let with_ceremony = BuildOptions {
         keys_ceremony: (!plan.trustees.is_empty()).then(|| {
             super::build::KeysCeremonyPlan {
@@ -2099,6 +2223,7 @@ pub fn compile_plan(
                 threshold: i64::from(plan.trustee_threshold),
             }
         }),
+        images: plan_images(plan),
         ..options.clone()
     };
     let bundle = build(&workbook, templates, &with_ceremony)?;

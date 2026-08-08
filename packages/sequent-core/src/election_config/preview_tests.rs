@@ -87,6 +87,8 @@ fn sound() -> Blueprint {
                         description: Translated::default(),
                         explicit_blank: false,
                         explicit_invalid: false,
+
+                        image: None,
                     },
                     PlannedCandidate {
                         external_id: "bob".to_string(),
@@ -94,6 +96,8 @@ fn sound() -> Blueprint {
                         description: Translated::default(),
                         explicit_blank: false,
                         explicit_invalid: false,
+
+                        image: None,
                     },
                 ],
                 areas: Vec::new(),
@@ -286,6 +290,8 @@ fn each_area_gets_the_contests_it_and_its_parents_vote_on() {
             description: Translated::default(),
             explicit_blank: false,
             explicit_invalid: false,
+
+            image: None,
         }],
         areas: vec!["north".to_string()],
         overrides: Overrides::default(),

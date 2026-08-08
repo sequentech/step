@@ -815,6 +815,11 @@ fn build_options(options: JsValue) -> Result<BuildOptions, JsError> {
         // Not from JavaScript: `compile_plan` derives it from the plan's own
         // trustees, and `build_from_workbook` has no trustees to derive it from.
         keys_ceremony: None,
+        // Same again. The photographs are in the plan, `compile_plan` walks them out
+        // with `plan_images`, and the workbook path has none — a spreadsheet cell
+        // cannot hold an image. Handing them across the boundary as base64 a second
+        // time would mean two ways to say the same thing and one of them stale.
+        images: Vec::new(),
     })
 }
 
