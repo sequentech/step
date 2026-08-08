@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::utils::opt_f64;
+use super::utils::{ensure_column, opt_f64};
 use crate::types::results::ResultDocuments;
 use anyhow::{anyhow, Result};
 use ordered_float::NotNan;
@@ -39,6 +39,21 @@ pub async fn create_results_election_area_sqlite(
             blank_ballots_percent REAL
         );",
     )?;
+    // Migrate pre-existing databases (e.g. a results.db copied forward from
+    // a report generated before these columns existed) that the CREATE
+    // TABLE IF NOT EXISTS above won't touch.
+    ensure_column(
+        sqlite_transaction,
+        "results_election_area",
+        "blank_ballots",
+        "INTEGER",
+    )?;
+    ensure_column(
+        sqlite_transaction,
+        "results_election_area",
+        "blank_ballots_percent",
+        "REAL",
+    )?;
 
     let mut insert = sqlite_transaction.prepare(
         "
@@ -67,4 +82,66 @@ pub async fn create_results_election_area_sqlite(
     ])?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rusqlite::Connection;
+
+    #[tokio::test]
+    async fn migrates_pre_existing_table_missing_blank_ballots_columns() {
+        let mut connection = Connection::open_in_memory().unwrap();
+
+        // Simulate a results.db produced before blank_ballots existed: the
+        // table is already there, without the new columns.
+        connection
+            .execute_batch(
+                "
+                CREATE TABLE results_election_area (
+                    id TEXT NOT NULL PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+                    tenant_id TEXT NOT NULL,
+                    election_event_id TEXT NOT NULL,
+                    election_id TEXT NOT NULL,
+                    area_id TEXT NOT NULL,
+                    results_event_id TEXT NOT NULL,
+                    created_at TEXT DEFAULT (datetime('now')),
+                    last_updated_at TEXT DEFAULT (datetime('now')),
+                    documents TEXT,
+                    name TEXT
+                );
+                ",
+            )
+            .unwrap();
+
+        let transaction = connection.transaction().unwrap();
+
+        create_results_election_area_sqlite(
+            &transaction,
+            "tenant-1",
+            "results-1",
+            "event-1",
+            "election-1",
+            "area-1",
+            "Area 1",
+            &ResultDocuments::default(),
+            Some(2),
+            None,
+        )
+        .await
+        .expect(
+            "migration + insert against a pre-existing table should succeed",
+        );
+
+        transaction.commit().unwrap();
+
+        let blank_ballots: Option<i64> = connection
+            .query_row(
+                "SELECT blank_ballots FROM results_election_area WHERE area_id = 'area-1'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(blank_ballots, Some(2));
+    }
 }

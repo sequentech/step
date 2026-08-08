@@ -98,6 +98,7 @@ const makePlaintext = (overrides: Partial<IDecodedVoteContest> = {}): IDecodedVo
     contest_id: CONTEST_ID,
     is_explicit_invalid: false,
     is_decline_to_vote: false,
+    is_blank_ballot: false,
     invalid_errors: [],
     invalid_alerts: [],
     choices: [

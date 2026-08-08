@@ -260,6 +260,13 @@ impl<'a> MultiBallotCodecContext<'a> {
         } else {
             false
         };
+        // Encoding rejects ballots with both flags set (see
+        // encrypt_decoded_multi_contest's consistency check), but the two
+        // flags are independent bits in the raw ballot, so a malformed or
+        // adversarially-crafted plaintext could still set both. Decline
+        // takes precedence so a ballot is never simultaneously reported as
+        // declined and as blank.
+        let is_blank_ballot = is_blank_ballot && !is_explicit_invalid;
 
         // Contest contexts are sorted by contest id, the order in which
         // selections are encoded and decoded.
@@ -2715,6 +2722,38 @@ mod tests {
         // decline flag, then blank flag, positioned immediately after it,
         // then the per-contest slots -- unchanged relative to decline-only.
         assert_eq!(bases_both, vec![2, 2, 2, 3]);
+    }
+
+    #[test]
+    fn test_decode_gives_decline_precedence_when_both_flags_set() {
+        // Encoding rejects a ballot with both flags set (see
+        // encrypt_decoded_multi_contest's consistency check), but decode
+        // must still defend against a malformed or adversarially-crafted
+        // raw ballot where both bits happen to be set.
+        let contests = vec![test_contest("1", 2, 1)];
+        let bases = BallotChoices::get_bases(
+            &contests,
+            true,
+            true,
+            MultiContestEncodingMode::LEGACY,
+        )
+        .expect("get_bases should succeed");
+        // [decline flag, blank flag, contest invalid flag, vote slot]
+        let choices = vec![1, 1, 0, 0];
+        let raw_ballot = RawBallotContest::new(bases, choices);
+
+        let decoded = BallotChoices::decode(
+            &raw_ballot,
+            &contests,
+            true,
+            true,
+            MultiContestEncodingMode::LEGACY,
+            None,
+        )
+        .expect("decode should succeed even with both flags set");
+
+        assert!(decoded.is_explicit_invalid);
+        assert!(!decoded.is_blank_ballot);
     }
 
     #[test]
