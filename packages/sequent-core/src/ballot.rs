@@ -1440,15 +1440,19 @@ pub struct ElectionPresentation {
     pub consolidated_report_policy: Option<ConsolidatedReportPolicy>,
     /// The policy to determine if the voter can decline to vote for an election level.
     pub decline_to_vote_policy: Option<DeclineToVotePolicy>,
-    /// The policy to determine if a ballot blank in every contest is
-    /// recorded and reported as a blank ballot at the election level.
-    pub blank_ballots_policy: Option<BlankBallotsPolicy>,
     /// The policy to determine the screen the back button of the voting
     /// screen navigates to. Defaults to the election selection screen for
     /// backwards compatibility.
     pub voting_screen_back_policy: Option<VotingScreenBackPolicy>,
     #[borsh(skip)]
     pub css: Option<String>,
+    /// The policy to determine if a ballot blank in every contest is
+    /// recorded and reported as a blank ballot at the election level.
+    ///
+    /// Appended after all pre-existing fields (rather than grouped next to
+    /// decline_to_vote_policy) to preserve the Borsh binary layout of
+    /// already-serialized ElectionPresentation/BallotStyle payloads.
+    pub blank_ballots_policy: Option<BlankBallotsPolicy>,
 }
 
 impl hasura_core::Election {
@@ -1488,9 +1492,9 @@ impl Default for ElectionPresentation {
                 ConsolidatedReportPolicy::default(),
             ),
             decline_to_vote_policy: Some(DeclineToVotePolicy::default()),
-            blank_ballots_policy: Some(BlankBallotsPolicy::default()),
             voting_screen_back_policy: Some(VotingScreenBackPolicy::default()),
             css: None,
+            blank_ballots_policy: Some(BlankBallotsPolicy::default()),
         }
     }
 }

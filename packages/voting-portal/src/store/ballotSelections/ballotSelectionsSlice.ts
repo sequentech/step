@@ -65,6 +65,7 @@ export const ballotSelectionsSlice = createSlice({
                                     contest_id: currentContestValue.contest_id,
                                     is_explicit_invalid: currentContestValue.is_explicit_invalid,
                                     is_decline_to_vote: currentContestValue.is_decline_to_vote,
+                                    is_blank_ballot: currentContestValue.is_blank_ballot,
                                     invalid_errors: currentContestValue.invalid_errors,
                                     invalid_alerts: currentContestValue.invalid_alerts,
                                     choices: currentContestValue.choices,
@@ -75,6 +76,7 @@ export const ballotSelectionsSlice = createSlice({
                                 contest_id: question.id,
                                 is_explicit_invalid: false,
                                 is_decline_to_vote: false,
+                                is_blank_ballot: false,
                                 invalid_errors: [],
                                 invalid_alerts: [],
                                 choices: question.candidates.map((answer) => ({
