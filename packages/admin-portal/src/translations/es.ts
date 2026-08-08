@@ -313,7 +313,7 @@ const spanishTranslation: TranslationType = {
             createAreaSuccess: "Área creada",
             updateAreaSuccess: "Área actualizada",
             createAreaError: "Error creando área",
-            sequent_backend_area_contest: "Contiendas del Área",
+            sequent_backend_area_contest: "Preguntas del Área",
             empty: {
                 header: "No hay Áreas aún.",
                 action: "Crear un Área",
@@ -577,10 +577,10 @@ const spanishTranslation: TranslationType = {
                 },
                 contestEncryptionPolicy: {
                     options: {
-                        "single-contest": "Contienda única",
-                        "multiple-contests": "Varias contiendas",
+                        "single-contest": "Pregunta única",
+                        "multiple-contests": "Varias preguntas",
                     },
-                    policyLabel: "Política de cifrado de contienda",
+                    policyLabel: "Política de cifrado de pregunta",
                 },
                 votingPortalDateTimeFormat: {
                     policyLabel: "Formato de fecha y hora del portal de votación",
@@ -736,7 +736,7 @@ const spanishTranslation: TranslationType = {
                     hints: {
                         title: "Sugerencias",
                         publishRequired:
-                            "Cualquier cambio realizado en las elecciones, contiendas o candidatos debe publicarse primero para que esté disponible. En el emulador solo se utilizarán los estilos de boleta publicados más recientemente para el área correspondiente.",
+                            "Cualquier cambio realizado en las elecciones, preguntas o candidatos debe publicarse primero para que esté disponible. En el emulador solo se utilizarán los estilos de boleta publicados más recientemente para el área correspondiente.",
                         eventChangesImmediate:
                             "Los cambios realizados en el evento electoral, como la configuración de IVR o las modificaciones de los mensajes, están disponibles inmediatamente al reiniciar la sesión del emulador.",
                         credentials:
@@ -760,7 +760,7 @@ const spanishTranslation: TranslationType = {
                 elegibleVoters: "Votantes",
                 voters: "Votantes",
                 elections: "Elecciones",
-                contests: "Contiendas",
+                contests: "Preguntas",
                 areas: "Áreas",
                 sentEmails: "Emails Enviados",
                 sentSMS: "SMS Enviados",
@@ -937,7 +937,7 @@ const spanishTranslation: TranslationType = {
                 image: "Imagen",
                 advanced: "Configuración Avanzada",
                 numAllowedVotes: "Número de votos permitidos",
-                reorder: "Reordenar contiendas",
+                reorder: "Reordenar preguntas",
                 castVoteConfirm: "Modal de Confirmación de Voto",
                 gracePeriodPolicy: "Política de período de gracia",
                 allowTallyPolicy: "Permitir Recuento",
@@ -1296,14 +1296,14 @@ const spanishTranslation: TranslationType = {
                 "miru-download": "Miru Download",
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
-                "contest-write": "Editar Contienda",
-                "contest-read": "Leer Contienda",
+                "contest-write": "Editar Pregunta",
+                "contest-read": "Leer Pregunta",
                 "candidate-write": "Editar Candidatos",
                 "candidate-read": "Leer Candidatos",
                 "permission-label-write": "Editar la etiqueta de permiso",
                 "scheduled-event-write": "Editar Eventos Programados",
-                "contest-create": "Crear Contienda",
-                "contest-delete": "Eliminar Contienda",
+                "contest-create": "Crear Pregunta",
+                "contest-delete": "Eliminar Pregunta",
                 "candidate-create": "Create Candidate",
                 "candidate-delete": "Delete Candidate",
                 "election-create": "Create Election",
@@ -1584,7 +1584,7 @@ const spanishTranslation: TranslationType = {
             resources: {
                 electionEvent: "Evento Electoral",
                 election: "Elección",
-                contest: "Contienda",
+                contest: "Pregunta",
                 candidate: "Candidato",
                 noResult: {
                     askCreate: "¿Quieres crear una?",
@@ -1650,13 +1650,13 @@ const spanishTranslation: TranslationType = {
         createResource: {
             electionEvent: "Crear un Evento Electoral",
             election: "Crear una Elección",
-            contest: "Crear una Contienda",
+            contest: "Crear una Pregunta",
             candidate: "Crear un Candidato",
         },
         importResource: {
             electionEvent: "Importar un Evento Electoral",
             election: "Importar una Elección",
-            contest: "Importar una Contienda",
+            contest: "Importar una Pregunta",
             candidate: "Importar un Candidato",
             ImportHashMismatch: "Hashes don't match. Integrity check failure.",
         },
@@ -1673,7 +1673,7 @@ const spanishTranslation: TranslationType = {
             addResource: {
                 electionEvent: "Crear un Evento Electoral",
                 election: "Crear una Elección",
-                contest: "Crear una Contienda",
+                contest: "Crear una Pregunta",
                 candidate: "Crear un Candidato",
             },
             menuActions: {
@@ -1683,13 +1683,13 @@ const spanishTranslation: TranslationType = {
                 unarchive: {
                     electionEvent: "Desarchivar este Evento Electoral",
                     election: "Desarchivar esta Elección",
-                    contest: "Desarchivar esta Contienda",
+                    contest: "Desarchivar esta Pregunta",
                     candidate: "Desarchivar este Candidato",
                 },
                 remove: {
                     electionEvent: "Eliminar este Evento Electoral",
                     election: "Eliminar esta Elección",
-                    contest: "Eliminar esta Contienda",
+                    contest: "Eliminar esta Pregunta",
                     candidate: "Eliminar este Candidato",
                 },
                 messages: {
@@ -1756,7 +1756,7 @@ const spanishTranslation: TranslationType = {
         },
         contestScreen: {
             common: {
-                subtitle: "Configuración de contienda.",
+                subtitle: "Configuración de pregunta.",
             },
             edit: {
                 externalId: "ID externo",
@@ -1865,7 +1865,7 @@ const spanishTranslation: TranslationType = {
                     "Posición de rango más alta disponible para los votantes (p.ej. '5' significa posiciones 1–5). Debe ser al menos igual al número de candidatos a ordenar (votación preferencial).",
             },
             error: {},
-            createContestSuccess: "Contienda creada",
+            createContestSuccess: "Pregunta creada",
             createContestError: "Error creando pregunta",
         },
         keysGeneration: {
@@ -2010,11 +2010,11 @@ const spanishTranslation: TranslationType = {
                 visibility: "Visibility",
                 fullPublishedScope: "Full published scope",
                 personalVisibility: "Personal visibility",
-                contests: "Contiendas",
-                noTalliedContests: "No hay contiendas escrutadas disponibles.",
-                publishSelectedContests: "Publicar las contiendas seleccionadas",
-                selectedContestCount_one: "{{count}} contienda seleccionada",
-                selectedContestCount_other: "{{count}} contiendas seleccionadas",
+                contests: "Preguntas",
+                noTalliedContests: "No hay preguntas escrutadas disponibles.",
+                publishSelectedContests: "Publicar las preguntas seleccionadas",
+                selectedContestCount_one: "{{count}} pregunta seleccionada",
+                selectedContestCount_other: "{{count}} preguntas seleccionadas",
                 history: "Publication history",
                 version: "Version",
                 status: "Status",
@@ -2252,7 +2252,7 @@ const spanishTranslation: TranslationType = {
                 save: "Guardar",
                 pendingApplyStatus: "Cálculo pendiente",
                 filterElection: "Elección",
-                filterContest: "Contienda",
+                filterContest: "Pregunta",
                 filterArea: "Área",
                 filterStatusLabel: "Estado",
                 clearFilters: "Borrar filtros",
@@ -2407,7 +2407,7 @@ const spanishTranslation: TranslationType = {
             createTallySuccess: "Hoja de Recuento creada",
             createTallyError: "Error creando Hoja de Recuento",
             createTallyErrorSameKindExists:
-                "La hoja de recuento ya existe para esta contienda con el mismo canal y área",
+                "La hoja de recuento ya existe para esta pregunta con el mismo canal y área",
             allFieldsRequired: "Todos los campos son obligatorios",
             header: {
                 change: "Changes to be Published",
@@ -2476,7 +2476,7 @@ const spanishTranslation: TranslationType = {
             },
             table: {
                 area: "Area",
-                contest: "Contienda",
+                contest: "Pregunta",
                 approvedVersion: "Versión aprobada",
                 latestVersion: "Última versión",
                 labels: "Etiquetas",

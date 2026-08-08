@@ -314,7 +314,7 @@ const catalanTranslation: TranslationType = {
             createAreaSuccess: "Àrea creada",
             updateAreaSuccess: "Àrea actualizada",
             createAreaError: "Error creant àrea",
-            sequent_backend_area_contest: "Conteses de l'Àrea",
+            sequent_backend_area_contest: "Preguntes de l'Àrea",
             empty: {
                 header: "No hi ha Àrees encara.",
                 action: "Crear una Àrea",
@@ -577,10 +577,10 @@ const catalanTranslation: TranslationType = {
                 },
                 contestEncryptionPolicy: {
                     options: {
-                        "single-contest": "Contesa única",
-                        "multiple-contests": "Diverses conteses",
+                        "single-contest": "Pregunta única",
+                        "multiple-contests": "Diverses preguntes",
                     },
-                    policyLabel: "Política de xifrat de contesa",
+                    policyLabel: "Política de xifrat de pregunta",
                 },
                 votingPortalDateTimeFormat: {
                     policyLabel: "Format de data i hora del portal de votació",
@@ -736,7 +736,7 @@ const catalanTranslation: TranslationType = {
                     hints: {
                         title: "Consells",
                         publishRequired:
-                            "Qualsevol canvi fet a les eleccions, les conteses o els candidats s'ha de publicar primer perquè estigui disponible. A l'emulador només s'utilitzaran els estils de papereta publicats més recentment per a l'àrea corresponent.",
+                            "Qualsevol canvi fet a les eleccions, les preguntes o els candidats s'ha de publicar primer perquè estigui disponible. A l'emulador només s'utilitzaran els estils de papereta publicats més recentment per a l'àrea corresponent.",
                         eventChangesImmediate:
                             "Els canvis fets a l'esdeveniment electoral, com ara la configuració IVR o les substitucions dels missatges, estan disponibles immediatament en reiniciar la sessió de l'emulador.",
                         credentials:
@@ -760,7 +760,7 @@ const catalanTranslation: TranslationType = {
                 elegibleVoters: "Votants",
                 voters: "Votants",
                 elections: "Eleccions",
-                contests: "Conteses",
+                contests: "Preguntes",
                 areas: "Àrees",
                 sentEmails: "Correus enviats",
                 sentSMS: "SMS enviats",
@@ -938,7 +938,7 @@ const catalanTranslation: TranslationType = {
                 image: "Imatge",
                 advanced: "Configuració Avançada",
                 numAllowedVotes: "Número de vots permesos",
-                reorder: "Reordenar conteses",
+                reorder: "Reordenar preguntes",
                 castVoteConfirm: "Modal de Confirmació de Vot",
                 gracePeriodPolicy: "Política de període de gràcia",
                 allowTallyPolicy: "Permetre recompte",
@@ -1297,14 +1297,14 @@ const catalanTranslation: TranslationType = {
                 "miru-download": "Miru Download",
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
-                "contest-write": "Editar Contesa",
-                "contest-read": "Llegir Contesa",
+                "contest-write": "Editar Pregunta",
+                "contest-read": "Llegir Pregunta",
                 "candidate-write": "Editar Candidats",
                 "candidate-read": "Llegir Candidats",
                 "permission-label-write": "Edita l'etiqueta de permís",
                 "scheduled-event-write": "Editar Esdeveniments Programats",
-                "contest-create": "Crear Contesa",
-                "contest-delete": "Esborrar Contesa",
+                "contest-create": "Crear Pregunta",
+                "contest-delete": "Esborrar Pregunta",
                 "candidate-create": "Crear Candidat",
                 "candidate-delete": "Esborrar Candidat",
                 "election-create": "Crear Election",
@@ -1594,7 +1594,7 @@ const catalanTranslation: TranslationType = {
             resources: {
                 electionEvent: "Esdeveniment Electoral",
                 election: "Elecció",
-                contest: "Contesa",
+                contest: "Pregunta",
                 candidate: "Candidat",
                 noResult: {
                     askCreate: "Vols crear-ne una?",
@@ -1660,13 +1660,13 @@ const catalanTranslation: TranslationType = {
         createResource: {
             electionEvent: "Crear un Esdeveniment Electoral",
             election: "Crear una Elecció",
-            contest: "Crear una Contesa",
+            contest: "Crear una Pregunta",
             candidate: "Crear un Candidat",
         },
         importResource: {
             electionEvent: "Importar un Esdeveniment Electoral",
             election: "Importar una Elecció",
-            contest: "Importar una Contesa",
+            contest: "Importar una Pregunta",
             candidate: "Importar un Candidat",
             ImportHashMismatch: "Hashes don't match. Integrity check failure.",
         },
@@ -1683,7 +1683,7 @@ const catalanTranslation: TranslationType = {
             addResource: {
                 electionEvent: "Crear un Esdeveniment Electoral",
                 election: "Crear una Elecció",
-                contest: "Crear una Contesa",
+                contest: "Crear una Pregunta",
                 candidate: "Crear un Candidat",
             },
             menuActions: {
@@ -1693,13 +1693,13 @@ const catalanTranslation: TranslationType = {
                 unarchive: {
                     electionEvent: "Desarxivar aquest Esdeveniment Electoral",
                     election: "Desarxivar aquesta Elecció",
-                    contest: "Desarxivar aquesta Contesa",
+                    contest: "Desarxivar aquesta Pregunta",
                     candidate: "Desarxivar aquest Candidat",
                 },
                 remove: {
                     electionEvent: "Eliminar aquest Esdeveniment Electoral",
                     election: "Eliminar aquesta Elecció",
-                    contest: "Eliminar aquesta Contesa",
+                    contest: "Eliminar aquesta Pregunta",
                     candidate: "Eliminar aquest Candidat",
                 },
                 messages: {
@@ -1766,7 +1766,7 @@ const catalanTranslation: TranslationType = {
         },
         contestScreen: {
             common: {
-                subtitle: "Configuració de contesa.",
+                subtitle: "Configuració de pregunta.",
             },
             edit: {
                 externalId: "ID extern",
@@ -1873,7 +1873,7 @@ const catalanTranslation: TranslationType = {
                     "Posició de rang més alta disponible per als votants (p.ex. '5' significa posicions 1–5). Ha de ser almenys igual al nombre de candidats a ordenar (votació preferencial).",
             },
             error: {},
-            createContestSuccess: "Contesa creada",
+            createContestSuccess: "Pregunta creada",
             createContestError: "Error creant pregunta",
         },
         keysGeneration: {
@@ -2018,11 +2018,11 @@ const catalanTranslation: TranslationType = {
                 visibility: "Visibility",
                 fullPublishedScope: "Full published scope",
                 personalVisibility: "Personal visibility",
-                contests: "Conteses",
-                noTalliedContests: "No hi ha conteses escrutades disponibles.",
-                publishSelectedContests: "Publicar les conteses seleccionades",
-                selectedContestCount_one: "{{count}} contesa seleccionada",
-                selectedContestCount_other: "{{count}} conteses seleccionades",
+                contests: "Preguntes",
+                noTalliedContests: "No hi ha preguntes escrutades disponibles.",
+                publishSelectedContests: "Publicar les preguntes seleccionades",
+                selectedContestCount_one: "{{count}} pregunta seleccionada",
+                selectedContestCount_other: "{{count}} preguntes seleccionades",
                 history: "Publication history",
                 version: "Version",
                 status: "Status",
@@ -2260,7 +2260,7 @@ const catalanTranslation: TranslationType = {
                 save: "Desa",
                 pendingApplyStatus: "Càlcul pendent",
                 filterElection: "Elecció",
-                filterContest: "Contesa",
+                filterContest: "Pregunta",
                 filterArea: "Àrea",
                 filterStatusLabel: "Estat",
                 clearFilters: "Esborrar filtres",
@@ -2415,7 +2415,7 @@ const catalanTranslation: TranslationType = {
             createTallySuccess: "Acta de Recompte creada",
             createTallyError: "Error creant Acta de Recompte",
             createTallyErrorSameKindExists:
-                "El full de recompte ja existeix per a aquesta contesa amb el mateix canal i àrea",
+                "El full de recompte ja existeix per a aquesta pregunta amb el mateix canal i àrea",
             allFieldsRequired: "Tots els camps són obligatoris",
             header: {
                 change: "Canvis a Publicar",
@@ -2484,7 +2484,7 @@ const catalanTranslation: TranslationType = {
             },
             table: {
                 area: "Àrea",
-                contest: "Contesa",
+                contest: "Pregunta",
                 approvedVersion: "Versió aprovada",
                 latestVersion: "Última versió",
                 labels: "Etiquetes",
