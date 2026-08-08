@@ -6,7 +6,6 @@ import {TranslationType} from "./en"
 const frenchTranslation: TranslationType = {
     translations: {
         language: "Français",
-        welcome: "Commençons : Importation de bulletin de vote auditable.",
         breadcrumbSteps: {
             select: "Sélectionner un vérificateur",
             import: "Importer des données",

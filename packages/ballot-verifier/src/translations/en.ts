@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 const englishTranslation = {
     translations: {
-        welcome: "Hello <br/> <strong>World</strong>",
         404: {
             title: "Page not found",
             subtitle: "The page you are looking for does not exist",
