@@ -834,7 +834,10 @@ fn check_census(plan: &Blueprint, report: &mut Report) {
     // produces one of these for every row, and ten thousand copies of the same
     // sentence is a report nobody reads.
     if !plan.areas.is_empty()
-        && plan.voters.iter().all(|voter| voter.area_name.trim().is_empty())
+        && plan
+            .voters
+            .iter()
+            .all(|voter| voter.area_name.trim().is_empty())
     {
         report.push(Problem::warning(
             Code::MissingField,
@@ -1199,13 +1202,8 @@ fn voters_sheet(plan: &Blueprint) -> Result<Option<Sheet>, Problem> {
     /// does not — reaching for it would drag the whole builder into a front end
     /// that only wants to describe a plan. The two lists are checked against
     /// each other by `the_voters_sheet_matches_what_the_builder_reads`.
-    const NAMED: &[&str] = &[
-        "username",
-        "email",
-        "first_name",
-        "last_name",
-        "area_name",
-    ];
+    const NAMED: &[&str] =
+        &["username", "email", "first_name", "last_name", "area_name"];
 
     // Sorted, so a census that gains a column does not reorder the ones it had.
     let mut extra: Vec<&str> = plan

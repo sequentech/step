@@ -362,7 +362,8 @@ impl Profile {
                 ));
             }
             for (field, value) in preset.values.iter() {
-                match super::policy::Behaviour::default().accepts(field, value) {
+                match super::policy::Behaviour::default().accepts(field, value)
+                {
                     Ok(()) => {}
                     Err(why) => report.push(Problem::error(
                         Code::InvalidValue,

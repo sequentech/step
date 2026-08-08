@@ -1127,7 +1127,9 @@ fn a_plan_may_carry_its_own_census() {
     ];
 
     let workbook = to_workbook(&plan).expect("this plan is sound");
-    let voters = workbook.sheet("voters").expect("the census should be a sheet");
+    let voters = workbook
+        .sheet("voters")
+        .expect("the census should be a sheet");
 
     // The columns the builder derives are absent: `id` comes from `ids::uid` and
     // `authorized-election-ids` from the areas, so a census that carried them
@@ -1171,7 +1173,9 @@ fn the_voters_sheet_matches_what_the_builder_reads() {
     }];
 
     let workbook = to_workbook(&plan).expect("this plan is sound");
-    let voters = workbook.sheet("voters").expect("the census should be a sheet");
+    let voters = workbook
+        .sheet("voters")
+        .expect("the census should be a sheet");
 
     for column in &voters.headers {
         assert!(

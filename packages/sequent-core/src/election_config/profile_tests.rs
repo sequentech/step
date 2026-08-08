@@ -530,18 +530,19 @@ fn a_profile_document_round_trips_through_json() {
 fn a_profile_may_offer_its_own_presets() {
     let document = ClientProfile {
         id: "smart-td".into(),
-        presets: vec![
-            NamedPreset {
-                name: "Local officer election".into(),
-                about: "How Article 21 says a local ballot runs.".into(),
-                values: [
-                    ("over_vote".to_string(), "not-allowed-with-msg-and-disable".to_string()),
-                    ("blank_vote".to_string(), "allowed".to_string()),
-                ]
-                .into_iter()
-                .collect(),
-            },
-        ],
+        presets: vec![NamedPreset {
+            name: "Local officer election".into(),
+            about: "How Article 21 says a local ballot runs.".into(),
+            values: [
+                (
+                    "over_vote".to_string(),
+                    "not-allowed-with-msg-and-disable".to_string(),
+                ),
+                ("blank_vote".to_string(), "allowed".to_string()),
+            ]
+            .into_iter()
+            .collect(),
+        }],
         ..Default::default()
     };
 
@@ -569,7 +570,7 @@ fn a_preset_cannot_invent_a_behaviour_the_platform_lacks() {
             values: [("under_vote".to_string(), "not-allowed".to_string())]
                 .into_iter()
                 .collect(),
-        ..Default::default()
+            ..Default::default()
         }],
         ..Default::default()
     };
