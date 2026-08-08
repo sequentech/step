@@ -314,7 +314,7 @@ const basqueTranslation: TranslationType = {
             createAreaSuccess: "Eremua sortua",
             updateAreaSuccess: "Eremua aldatua",
             createAreaError: "Ezin izan da Eremua sortu",
-            sequent_backend_area_contest: "Lehiaketak",
+            sequent_backend_area_contest: "Galderak",
             empty: {
                 header: "Ez dago Eremurik oraindik.",
                 action: "Sortu Eremua",
@@ -573,10 +573,10 @@ const basqueTranslation: TranslationType = {
                 },
                 contestEncryptionPolicy: {
                     options: {
-                        "single-contest": "Lehiaketa Bakarra",
-                        "multiple-contests": "Lehiaketa Anitzak",
+                        "single-contest": "Galdera Bakarra",
+                        "multiple-contests": "Galdera Anitzak",
                     },
-                    policyLabel: "Lehiaketa zifratze politika",
+                    policyLabel: "Galdera zifratze politika",
                 },
                 votingPortalDateTimeFormat: {
                     policyLabel: "Bozketa-atariko data eta orduaren formatua",
@@ -732,7 +732,7 @@ const basqueTranslation: TranslationType = {
                     hints: {
                         title: "Aholkuak",
                         publishRequired:
-                            "Hauteskundeetan, lehiaketetan edo hautagaietan egindako edozein aldaketa lehenik argitaratu behar da erabilgarri egon dadin. Dagokion eremurako azkenik argitaratutako boto-paper estiloak soilik erabiliko dira emuladorean.",
+                            "Hauteskundeetan, galderetan edo hautagaietan egindako edozein aldaketa lehenik argitaratu behar da erabilgarri egon dadin. Dagokion eremurako azkenik argitaratutako boto-paper estiloak soilik erabiliko dira emuladorean.",
                         eventChangesImmediate:
                             "Hauteskunde-ekitaldian egindako aldaketak, hala nola IVR konfigurazioa edo mezuen gainidazketak, berehala egongo dira erabilgarri emuladorearen saioa berrabiaraztean.",
                         credentials: 'Baliozko bozkatzaile-IDa eta PINa "123" eta "123" dira.',
@@ -755,7 +755,7 @@ const basqueTranslation: TranslationType = {
                 elegibleVoters: "Bozkatzaile Eskudunak",
                 voters: "Egiazko Bozkatzaileak",
                 elections: "Hauteskundeak",
-                contests: "Lehiaketak",
+                contests: "Galderak",
                 areas: "Eremuak",
                 sentEmails: "Bidali diren emailak",
                 sentSMS: "Bidali diren SMSak",
@@ -933,7 +933,7 @@ const basqueTranslation: TranslationType = {
                 image: "Irudia",
                 advanced: "Konfigurazio Aurreratua",
                 numAllowedVotes: "Baimendutako boto kopurua",
-                reorder: "Berrantolatu lehiaketak",
+                reorder: "Berrantolatu galderak",
                 castVoteConfirm: "Boto Berrespena Modal",
                 gracePeriodPolicy: "Grazia Aldia",
                 allowTallyPolicy: "Baimendu Zenbaketa",
@@ -1290,14 +1290,14 @@ const basqueTranslation: TranslationType = {
                 "miru-download": "Miru Deskargatu",
                 "miru-send": "Miru Bidali",
                 "miru-sign": "Miru Sinatu",
-                "contest-write": "Editatu Lehiaketa",
-                "contest-read": "Irakurri Lehiaketa",
+                "contest-write": "Editatu Galdera",
+                "contest-read": "Irakurri Galdera",
                 "candidate-write": "Editatu Hautagaia",
                 "candidate-read": "Irakurri Hautagaia",
                 "permission-label-write": "Editatu Baimen Etiketa",
                 "scheduled-event-write": "Editatu Programatutako Gertaerak",
-                "contest-create": "Sortu Lehiaketa",
-                "contest-delete": "Ezabatu Lehiaketa",
+                "contest-create": "Sortu Galdera",
+                "contest-delete": "Ezabatu Galdera",
                 "candidate-create": "Sortu Hautagaia",
                 "candidate-delete": "Ezabatu Hautagaia",
                 "election-create": "Sortu Hauteskundea",
@@ -1575,7 +1575,7 @@ const basqueTranslation: TranslationType = {
             resources: {
                 electionEvent: "Hauteskunde Gertaera",
                 election: "Hauteskundea",
-                contest: "Lehiaketa",
+                contest: "Galdera",
                 candidate: "Hautagaia",
                 noResult: {
                     askCreate: "Bat sortu nahi duzu?",
@@ -1641,13 +1641,13 @@ const basqueTranslation: TranslationType = {
         createResource: {
             electionEvent: "Sortu Hauteskunde Gertaera",
             election: "Sortu Hauteskundea",
-            contest: "Sortu Lehiaketa",
+            contest: "Sortu Galdera",
             candidate: "Sortu Hautagaia",
         },
         importResource: {
             electionEvent: "Inportatu Hauteskunde Gertaera",
             election: "Inportatu Hauteskundea",
-            contest: "Inportatu Lehiaketa",
+            contest: "Inportatu Galdera",
             candidate: "Inportatu Hautagaia",
             ImportHashMismatch: "Hash-ak ez datoz bat. Osotasun egiaztapen hutsegitea.",
         },
@@ -1664,7 +1664,7 @@ const basqueTranslation: TranslationType = {
             addResource: {
                 electionEvent: "Sortu Hauteskunde Gertaera",
                 election: "Sortu Hauteskundea",
-                contest: "Sortu Lehiaketa",
+                contest: "Sortu Galdera",
                 candidate: "Sortu Hautagaia",
             },
             menuActions: {
@@ -1674,13 +1674,13 @@ const basqueTranslation: TranslationType = {
                 unarchive: {
                     electionEvent: "Desartxibatu Hauteskunde Gertaera hau",
                     election: "Desartxibatu hauteskunde hau",
-                    contest: "Desartxibatu Lehiaketa hau",
+                    contest: "Desartxibatu Galdera hau",
                     candidate: "Desartxibatu Hautagaia hau",
                 },
                 remove: {
                     electionEvent: "Kendu Hauteskunde Gertaera hau",
                     election: "Kendu Hauteskunde hau",
-                    contest: "Kendu Lehiaketa hau",
+                    contest: "Kendu Galdera hau",
                     candidate: "Kendu Hautagaia hau",
                 },
                 messages: {
@@ -1747,7 +1747,7 @@ const basqueTranslation: TranslationType = {
         },
         contestScreen: {
             common: {
-                subtitle: "Lehiaketa konfigurazioa.",
+                subtitle: "Galdera konfigurazioa.",
             },
             edit: {
                 externalId: "Kanpoko IDa",
@@ -1857,8 +1857,8 @@ const basqueTranslation: TranslationType = {
                     "Bozkatzaileek erabil dezaketen posizio altuena (adib. '5' 1-5 posizioak ahalbidetzen ditu). Ordenatu beharreko hautagai kopurua baino gehiago izan behar du (hobesentziazko botazioa).",
             },
             error: {},
-            createContestSuccess: "Lehiaketa sortua",
-            createContestError: "Errorea lehiaketa sortzerakoan",
+            createContestSuccess: "Galdera sortua",
+            createContestError: "Errorea galdera sortzerakoan",
         },
         keysGeneration: {
             configureStep: {
@@ -2003,11 +2003,11 @@ const basqueTranslation: TranslationType = {
                 visibility: "Ikusgaitasuna",
                 fullPublishedScope: "Argitaratutako esparru osoa",
                 personalVisibility: "Ikusgaitasun pertsonala",
-                contests: "Lehiaketak",
-                noTalliedContests: "Ez dago zenbatutako lehiaketarik erabilgarri.",
-                publishSelectedContests: "Argitaratu hautatutako lehiaketak",
-                selectedContestCount_one: "{{count}} lehiaketa hautatuta",
-                selectedContestCount_other: "{{count}} lehiaketa hautatuta",
+                contests: "Galderak",
+                noTalliedContests: "Ez dago zenbatutako galderarik erabilgarri.",
+                publishSelectedContests: "Argitaratu hautatutako galderak",
+                selectedContestCount_one: "{{count}} galdera hautatuta",
+                selectedContestCount_other: "{{count}} galdera hautatuta",
                 history: "Argitalpenen historia",
                 version: "Bertsioa",
                 status: "Egoera",
@@ -2244,7 +2244,7 @@ const basqueTranslation: TranslationType = {
                 save: "Gorde",
                 pendingApplyStatus: "Kalkulua zain",
                 filterElection: "Hauteskundea",
-                filterContest: "Lehiaketa",
+                filterContest: "Galdera",
                 filterArea: "Eremua",
                 filterStatusLabel: "Egoera",
                 clearFilters: "Iragazkiak garbitu",
@@ -2395,7 +2395,7 @@ const basqueTranslation: TranslationType = {
             createTallySuccess: "Zenbaketa Orria gordea",
             createTallyError: "Errorea Zenbaketa Orria gordetzerakoan",
             createTallyErrorSameKindExists:
-                "Kontaketa-orria dagoeneko existitzen da lehiaketa honetarako kanal eta eremu berarekin",
+                "Kontaketa-orria dagoeneko existitzen da galdera honetarako kanal eta eremu berarekin",
             allFieldsRequired: "Eremu guztiak beharrezkoak dira",
             header: {
                 change: "Argitaratzeko Aldaketak",
@@ -2465,7 +2465,7 @@ const basqueTranslation: TranslationType = {
             },
             table: {
                 area: "Eremua",
-                contest: "Lehiaketa",
+                contest: "Galdera",
                 approvedVersion: "Onartutako bertsioa",
                 latestVersion: "Azken bertsioa",
                 labels: "Etiketak",

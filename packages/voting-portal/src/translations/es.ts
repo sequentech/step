@@ -36,13 +36,13 @@ const spanishTranslation: TranslationType = {
             ballotHelpDialog: {
                 title: "Sobre esta pantalla",
                 content:
-                    "Esta pantalla muestra las contiendas en las que usted es elegible para votar. Puede hacer su selección activando la casilla a la derecha del Candidato/Respuesta. Para restablecer sus selecciones, haga clic en el botón “<b>Limpiar selecciones</b>”, para pasar al siguiente paso, haga clic en el botón “<b>Siguiente</b>”.",
+                    "Esta pantalla muestra las preguntas en las que usted es elegible para votar. Puede hacer su selección activando la casilla a la derecha del Candidato/Respuesta. Para restablecer sus selecciones, haga clic en el botón “<b>Limpiar selecciones</b>”, para pasar al siguiente paso, haga clic en el botón “<b>Siguiente</b>”.",
                 ok: "OK",
             },
             nonVotedDialog: {
                 title: "Su voto es inválido o está en blanco",
                 content:
-                    "Algunas de sus respuestas harán que la papeleta en una o más contiendas sea inválida o en blanco.",
+                    "Algunas de sus respuestas harán que la papeleta en una o más preguntas sea inválida o en blanco.",
                 ok: "Revisar selección",
                 continue: "Continuar",
                 cancel: "Cancelar",
@@ -70,7 +70,7 @@ const spanishTranslation: TranslationType = {
             instructionsDescription: "Siga estos pasos para emitir su voto",
             step1Title: "1. Haga sus selecciones",
             step1Description:
-                "Elija a sus candidatos preferidos y responda cada contienda de la papeleta según aparezca. Puede cambiar sus selecciones en cualquier momento antes de emitir su voto",
+                "Elija a sus candidatos preferidos y responda cada pregunta de la papeleta según aparezca. Puede cambiar sus selecciones en cualquier momento antes de emitir su voto",
             step2Title: "2. Revise sus selecciones",
             step2Description:
                 "Cuando esté satisfecho con sus selecciones, cifraremos su papeleta de forma segura y le mostraremos una revisión final. También recibirá un ID de seguimiento único como referencia",
@@ -311,7 +311,7 @@ const spanishTranslation: TranslationType = {
             },
             alerts: {
                 noElections:
-                    "No hay elecciones en las que pueda votar. Esto podría deberse a que el área no tiene ninguna contienda asociada. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
+                    "No hay elecciones en las que pueda votar. Esto podría deberse a que el área no tiene ninguna pregunta asociada. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 electionEventNotPublished:
                     "El evento electoral aún no ha sido publicado. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
             },
@@ -327,7 +327,7 @@ const spanishTranslation: TranslationType = {
             },
             explicit: {
                 notAllowed:
-                    "La papeleta está marcada como explícitamente inválida, pero la contienda no lo permite",
+                    "La papeleta está marcada como explícitamente inválida, pero la pregunta no lo permite",
                 alert: "Esta selección se contará como un voto inválido",
             },
             page: {

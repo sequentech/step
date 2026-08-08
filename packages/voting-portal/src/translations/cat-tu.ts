@@ -36,13 +36,13 @@ const catalanInformalTranslation: TranslationType = {
             ballotHelpDialog: {
                 title: "Sobre aquesta pantalla",
                 content:
-                    "Aquesta pantalla mostra les conteses en les quals ets elegible per votar. Pots fer la teva selecció activant la casella a la dreta del Candidat/Resposta. Per restablir les teves seleccions, fes clic al botó “<b>Netejar seleccions</b>”, per passar al següent pas, fes clic al botó “<b>Següent</b>”.",
+                    "Aquesta pantalla mostra les preguntes en les quals ets elegible per votar. Pots fer la teva selecció activant la casella a la dreta del Candidat/Resposta. Per restablir les teves seleccions, fes clic al botó “<b>Netejar seleccions</b>”, per passar al següent pas, fes clic al botó “<b>Següent</b>”.",
                 ok: "D'acord",
             },
             nonVotedDialog: {
                 title: "El teu vot és invàlid o en blanc",
                 content:
-                    "Algunes de les teves respostes podrien fer que la papereta en una o més conteses sigui invàlida o en blanc.",
+                    "Algunes de les teves respostes podrien fer que la papereta en una o més preguntes sigui invàlida o en blanc.",
                 ok: "Revisar selecció",
                 continue: "Continuar",
                 cancel: "Cancel·lar",
@@ -70,7 +70,7 @@ const catalanInformalTranslation: TranslationType = {
             instructionsDescription: "Segueix aquests passos per emetre el teu vot",
             step1Title: "1. Fes les teves seleccions",
             step1Description:
-                "Escull els teus candidats preferits i respon cada contesa de la papereta segons aparegui. Pots canviar les teves seleccions en qualsevol moment abans d'emetre el teu vot",
+                "Escull els teus candidats preferits i respon cada pregunta de la papereta segons aparegui. Pots canviar les teves seleccions en qualsevol moment abans d'emetre el teu vot",
             step2Title: "2. Revisa les teves seleccions",
             step2Description:
                 "Quan estiguis satisfet amb les teves seleccions, xifrem la teva papereta de forma segura i et mostrarem una revisió final. També rebràs un ID de seguiment únic com a referència",
@@ -312,7 +312,7 @@ const catalanInformalTranslation: TranslationType = {
             },
             alerts: {
                 noElections:
-                    "No hi ha eleccions en les quals puguis votar. Això podria ser perquè l'àrea no té cap contesa associada. Si us plau, torna-ho a provar més tard o contacta amb el servei d'assistència.",
+                    "No hi ha eleccions en les quals puguis votar. Això podria ser perquè l'àrea no té cap pregunta associada. Si us plau, torna-ho a provar més tard o contacta amb el servei d'assistència.",
                 electionEventNotPublished:
                     "L'esdeveniment electoral encara no ha estat publicat. Si us plau, torna-ho a provar més tard o contacta amb el servei d'assistència.",
             },
@@ -328,7 +328,7 @@ const catalanInformalTranslation: TranslationType = {
             },
             explicit: {
                 notAllowed:
-                    "La papereta està marcada com explícitament invàlida, però la contesa no ho permet",
+                    "La papereta està marcada com explícitament invàlida, però la pregunta no ho permet",
                 alert: "Aquesta selecció es comptarà com un vot invàlid",
             },
             page: {

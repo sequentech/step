@@ -75,7 +75,7 @@ const spanishInformalTranslation: TranslationType = {
             markedInvalid: "Voto explícitamente marcado inválido",
             points_one: "({{count}} Punto)",
             points_other: "({{count}} Puntos)",
-            contestNotFound: "Contienda no encontrada: {{contestId}}",
+            contestNotFound: "Pregunta no encontrada: {{contestId}}",
             declineToVote: "Se abstuvo de votar",
         },
         footer: {
@@ -92,7 +92,7 @@ const spanishInformalTranslation: TranslationType = {
             },
             explicit: {
                 notAllowed:
-                    "Voto marcado explícitamente como inválido pero la contienda no lo permite",
+                    "Voto marcado explícitamente como inválido pero la pregunta no lo permite",
             },
         },
     },
