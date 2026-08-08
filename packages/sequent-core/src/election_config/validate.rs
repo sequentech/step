@@ -118,6 +118,7 @@ pub fn validate(bundle: &ImportElectionEventSchema) -> Report {
     check_ballot_coverage(bundle, &mut report);
     check_how_voting_works(bundle, &mut report);
     check_voting_channels(bundle, &mut report);
+    check_carried_images(bundle, &mut report);
     check_event_presentation(bundle, &mut report);
     check_permission_labels(bundle, &mut report);
     check_unique_ids(bundle, &mut report);
@@ -167,6 +168,117 @@ fn check_event_presentation(
             )),
         }
     }
+}
+
+/// Images a bundle carries, which import destroys.
+///
+/// Not a style rule — a mechanism. An image on a candidate, a contest or an
+/// election is two fields that have to agree, and **both are UUIDs**:
+///
+/// - `presentation.urls`, holding `{url, is_image: true}` where the url is
+///   `tenant-<tenant>/document-<document>/<file name>`, appended to the
+///   environment's `PUBLIC_BUCKET_URL`. This is the one a voter sees —
+///   `voting-portal/src/components/Answer/Answer.tsx` renders it through
+///   `ui-core`'s `getImageUrl`.
+/// - `image_document_id`, which the Admin Portal's candidate form needs in order
+///   to show, replace or delete the image later.
+///
+/// Import rewrites every UUID in the bundle. `replace_ids` hands the whole
+/// serialized document to `replace_realm_ids`, which calls
+/// [`crate::services::replace_uuids::replace_uuids`] — a regex over the **raw
+/// text** that swaps each UUID-shaped substring for a fresh `Uuid::new_v4()`,
+/// keeping only the old tenant id, the old event id, Keycloak authenticator config
+/// values and whatever `ELECTION_EVENT_FIXED_UUIDS` names. That is not incidental:
+/// it is how import regenerates ids, and it is the same reason
+/// `keys_ceremonies[].trustee_ids` carries trustee *names*.
+///
+/// So a document id inside a url becomes a document id that has never existed, and
+/// `image_document_id` stops naming a row. The image 404s, on the ballot, silently.
+/// There is no way to carry it: `ImportElectionEventSchema` has no `documents`
+/// array, so the bytes cannot ride along either.
+///
+/// The wizard therefore has no image field, and this warns about images that
+/// arrived some other way — a hand-written workbook, or a `base_export` from an
+/// event that had them. A warning rather than an error: the bundle imports, and
+/// everything except the pictures works.
+fn check_carried_images(
+    bundle: &ImportElectionEventSchema,
+    report: &mut Report,
+) {
+    let carries_image = |presentation: Option<&serde_json::Value>| {
+        presentation
+            .and_then(|value| value.get("urls"))
+            .and_then(serde_json::Value::as_array)
+            .is_some_and(|urls| {
+                urls.iter().any(|url| {
+                    url.get("is_image").and_then(serde_json::Value::as_bool)
+                        == Some(true)
+                })
+            })
+    };
+
+    let mut found: Vec<String> = Vec::new();
+
+    for candidate in &bundle.candidates {
+        if candidate.image_document_id.is_some()
+            || carries_image(candidate.presentation.as_ref())
+        {
+            // By external_id, which is what somebody typed. A candidate has no
+            // flat `name` — it lives in `presentation.i18n` — and digging one
+            // language out of there to label a warning is not worth it.
+            found.push(
+                candidate
+                    .external_id
+                    .clone()
+                    .filter(|id| !id.is_empty())
+                    .unwrap_or_else(|| "a candidate".to_string()),
+            );
+        }
+    }
+
+    // The same field exists on both of these, by the same mechanism, and breaks
+    // the same way.
+    for contest in &bundle.contests {
+        if contest.image_document_id.is_some() {
+            found.push(
+                contest
+                    .external_id
+                    .clone()
+                    .filter(|id| !id.is_empty())
+                    .unwrap_or_else(|| "a contest".to_string()),
+            );
+        }
+    }
+    for election in &bundle.elections {
+        if election.image_document_id.is_some() {
+            found.push(
+                election
+                    .external_id
+                    .clone()
+                    .filter(|id| !id.is_empty())
+                    .unwrap_or_else(|| "an election".to_string()),
+            );
+        }
+    }
+
+    if found.is_empty() {
+        return;
+    }
+
+    // One problem rather than one per candidate. A ballot with forty photographs
+    // would otherwise bury every other finding in the report, and the answer is
+    // the same for all of them.
+    report.push(Problem::warning(
+        Code::InvalidValue,
+        "candidates",
+        format!(
+            "{} carr{} an image, and import gives every identifier in a bundle a \
+             new value — so the picture would point at a document that does not \
+             exist. Add pictures on the platform after importing, not here.",
+            found.join(", "),
+            if found.len() == 1 { "ies" } else { "y" }
+        ),
+    ));
 }
 
 /// The ways of voting, and whether anything is behind each one.

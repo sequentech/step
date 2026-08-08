@@ -498,6 +498,86 @@ fn a_channel_named_at_one_level_and_omitted_at_the_other_is_not_a_difference() {
     );
 }
 
+// -- images a bundle cannot carry --------------------------------------------
+
+#[test]
+fn a_candidate_photograph_is_reported_as_something_import_destroys() {
+    // Verified through the importer rather than assumed. `replace_ids` hands the
+    // whole serialized bundle to `replace_realm_ids`, which calls `replace_uuids`
+    // — a regex over the raw text swapping every UUID-shaped substring for a fresh
+    // `Uuid::new_v4()`, keeping only the old tenant id, the old event id, Keycloak
+    // authenticator config values and `ELECTION_EVENT_FIXED_UUIDS`.
+    //
+    // A photograph is two UUIDs and neither is on that list: the document id
+    // inside `presentation.urls` and `image_document_id` beside it. Both become
+    // values that never existed, so the picture 404s on the ballot in silence.
+    let mut bundle = sound();
+    bundle.candidates[0].image_document_id =
+        Some("d9000000-0000-5000-8000-000000000000".into());
+    bundle.candidates[0].presentation = Some(serde_json::json!({
+        "urls": [{
+            "url": "tenant-x/document-d9000000-0000-5000-8000-000000000000/a.png",
+            "is_image": true,
+        }],
+    }));
+
+    let report = validate(&bundle);
+    // A warning, not an error: everything except the pictures imports and works.
+    assert!(!report.has_errors(), "{report}");
+    assert!(report
+        .problems
+        .iter()
+        .any(|problem| problem.message.contains("pres-a")
+            && problem.message.contains("does not exist")));
+}
+
+#[test]
+fn a_url_that_is_not_an_image_is_left_alone() {
+    // `presentation.urls` is not only for pictures — `getLinkUrl` looks one up by
+    // title, for a candidate's own page. Those carry no document id and survive
+    // import untouched, so reporting them would be noise.
+    let mut bundle = sound();
+    bundle.candidates[0].presentation = Some(serde_json::json!({
+        "urls": [{
+            "url": "https://example.org/alice",
+            "title": "URL",
+            "is_image": false,
+        }],
+    }));
+
+    let report = validate(&bundle);
+    assert!(
+        !report
+            .problems
+            .iter()
+            .any(|problem| problem.message.contains("does not exist")),
+        "{report}"
+    );
+}
+
+#[test]
+fn forty_photographs_are_one_problem_rather_than_forty() {
+    // The answer is the same for all of them, and a report where every other
+    // finding is buried under forty identical warnings is a report nobody reads to
+    // the end.
+    let mut bundle = sound();
+    for candidate in bundle.candidates.iter_mut() {
+        candidate.image_document_id =
+            Some("d9000000-0000-5000-8000-000000000000".into());
+    }
+
+    let report = validate(&bundle);
+    let about_images: Vec<_> = report
+        .problems
+        .iter()
+        .filter(|problem| problem.message.contains("does not exist"))
+        .collect();
+    assert_eq!(about_images.len(), 1, "{report}");
+    // And it names every one of them, because "some candidates" is not actionable.
+    assert!(about_images[0].message.contains("pres-a"));
+    assert!(about_images[0].message.contains("pres-b"));
+}
+
 // -- permission labels ------------------------------------------------------
 
 #[test]
