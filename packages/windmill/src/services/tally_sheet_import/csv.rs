@@ -30,6 +30,7 @@ pub struct ParsedBallotBoxImport {
 enum CanonicalField {
     CandidateVotes,
     TotalBlankVotes,
+    BlankBallots,
     ImplicitInvalid,
     ExplicitInvalid,
     TotalValidVotes,
@@ -44,6 +45,7 @@ impl FromStr for CanonicalField {
         match value {
             "candidate_votes" => Ok(Self::CandidateVotes),
             "total_blank_votes" => Ok(Self::TotalBlankVotes),
+            "blank_ballots" => Ok(Self::BlankBallots),
             "implicit_invalid" => Ok(Self::ImplicitInvalid),
             "explicit_invalid" => Ok(Self::ExplicitInvalid),
             "total_valid_votes" => Ok(Self::TotalValidVotes),
@@ -71,6 +73,7 @@ struct BallotBoxAccumulator {
     implicit_invalid: Option<u64>,
     explicit_invalid: Option<u64>,
     total_blank_votes: Option<u64>,
+    blank_ballots: Option<u64>,
     census: Option<u64>,
     candidate_results: HashMap<String, CandidateResults>,
 }
@@ -207,7 +210,7 @@ pub fn parse_canonical_csv(
                 total_valid_votes: accumulator.total_valid_votes,
                 invalid_votes: Some(invalid_votes),
                 total_blank_votes: accumulator.total_blank_votes,
-                blank_ballots: None,
+                blank_ballots: accumulator.blank_ballots,
                 census: accumulator.census,
                 candidate_results: accumulator.candidate_results,
             },
@@ -271,6 +274,13 @@ fn apply_row(
             key,
             row,
             &mut accumulator.total_blank_votes,
+            value,
+        ),
+        CanonicalField::BlankBallots => set_scalar(
+            validation_errors,
+            key,
+            row,
+            &mut accumulator.blank_ballots,
             value,
         ),
         CanonicalField::ImplicitInvalid => set_scalar(
@@ -384,6 +394,7 @@ mod tests {
 \nPAPER,Precinct 1,contest-1,candidate_votes,cand-1,7\
 \nPAPER,Precinct 1,contest-1,candidate_votes,cand-2,3\
 \nPAPER,Precinct 1,contest-1,total_blank_votes,,2\
+\nPAPER,Precinct 1,contest-1,blank_ballots,,1\
 \nPAPER,Precinct 1,contest-1,implicit_invalid,,1\
 \nPAPER,Precinct 1,contest-1,explicit_invalid,,4\
 \nPAPER,Precinct 1,contest-1,total_valid_votes,,12\
@@ -399,6 +410,7 @@ mod tests {
         assert_eq!(import.key.area_name, "Precinct 1");
         assert_eq!(import.key.contest_external_id, "contest-1");
         assert_eq!(import.content.total_blank_votes, Some(2));
+        assert_eq!(import.content.blank_ballots, Some(1));
         assert_eq!(import.content.total_valid_votes, Some(12));
         assert_eq!(import.content.total_votes, Some(17));
         assert_eq!(import.content.census, Some(20));
@@ -454,5 +466,26 @@ mod tests {
                 Some("census".to_string()),
             ]
         );
+    }
+
+    #[test]
+    fn blank_ballots_is_optional_and_defaults_to_unavailable() {
+        // Unlike total_blank_votes, a missing blank_ballots row is not a
+        // validation error: it means the ballot box didn't supply a count,
+        // which is "unavailable", not "zero".
+        let csv = b"channel,area_name,contest_external_id,field,candidate_external_id,value\
+\nPAPER,Precinct 1,contest-1,candidate_votes,cand-1,7\
+\nPAPER,Precinct 1,contest-1,total_blank_votes,,2\
+\nPAPER,Precinct 1,contest-1,implicit_invalid,,1\
+\nPAPER,Precinct 1,contest-1,explicit_invalid,,4\
+\nPAPER,Precinct 1,contest-1,total_valid_votes,,12\
+\nPAPER,Precinct 1,contest-1,total_votes,,17\
+\nPAPER,Precinct 1,contest-1,census,,20\n";
+
+        let (imports, errors) = parse_canonical_csv(csv);
+
+        assert!(errors.is_empty());
+        assert_eq!(imports.len(), 1);
+        assert_eq!(imports[0].content.blank_ballots, None);
     }
 }
