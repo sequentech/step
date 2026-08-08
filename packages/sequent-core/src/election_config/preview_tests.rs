@@ -401,3 +401,57 @@ fn a_plan_nobody_would_get_a_ballot_for_says_so() {
         .iter()
         .any(|problem| problem.message.contains("no voter would be given")));
 }
+
+// -- naming the areas for a picker -----------------------------------------
+
+/// A ballot style names its area by id, because that is what the platform
+/// writes. A wizard offering four uuids as a choice is not offering a choice, so
+/// the names travel beside the document rather than inside it.
+#[test]
+fn the_areas_come_back_named_without_changing_the_document() {
+    let mut plan = sound();
+    plan.areas = vec![
+        PlannedArea {
+            external_id: "north".to_string(),
+            name: "North".to_string(),
+            parent_external_id: None,
+        },
+        PlannedArea {
+            external_id: "south".to_string(),
+            name: "South".to_string(),
+            parent_external_id: None,
+        },
+    ];
+    plan.elections[0].contests[0].areas =
+        vec!["north".to_string(), "south".to_string()];
+
+    let bundle = built(&plan);
+    let schema: ImportElectionEventSchema =
+        serde_json::from_value(bundle.export.clone()).unwrap();
+    let preview =
+        preview_publication(&bundle, &PreviewOptions::default()).unwrap();
+
+    let mut names: Vec<String> = preview
+        .areas(&schema)
+        .into_iter()
+        .map(|area| area.name)
+        .collect();
+    names.sort();
+    assert_eq!(names, vec!["North".to_string(), "South".to_string()]);
+
+    // And the document itself is untouched — still the five keys the platform
+    // writes, with no sixth one for the names.
+    let document = preview.to_document();
+    let mut keys: Vec<&String> = document.as_object().unwrap().keys().collect();
+    keys.sort();
+    assert_eq!(
+        keys,
+        vec![
+            "ballot_styles",
+            "documents",
+            "election_event",
+            "elections",
+            "support_materials"
+        ]
+    );
+}

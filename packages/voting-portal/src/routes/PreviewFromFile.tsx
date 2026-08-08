@@ -12,10 +12,7 @@ import {useTranslation} from "react-i18next"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {selectFirstBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
-import {
-    PreviewDocument,
-    updateBallotStyleAndSelection,
-} from "./PreviewPublicationEvent"
+import {PreviewDocument, updateBallotStyleAndSelection} from "./PreviewPublicationEvent"
 
 /**
  * Where a preview handed over as a file gets hydrated, and where it is kept so
@@ -56,9 +53,7 @@ const choices = (document: PreviewDocument, language: string): Array<Choice> => 
     const byArea = new Map<string, Array<string>>()
     for (const style of document.ballot_styles) {
         const contests = style.contests ?? []
-        const named = contests.map(
-            (contest) => translate(contest, "name", language) || contest.id
-        )
+        const named = contests.map((contest) => translate(contest, "name", language) || contest.id)
         byArea.set(style.area_id, [...(byArea.get(style.area_id) ?? []), ...named])
     }
     return [...byArea.entries()].map(([areaId, contests]) => ({
@@ -139,9 +134,7 @@ export const PreviewFromFile: React.FC = () => {
             setDocument(parsed as PreviewDocument)
         } catch (error) {
             setDocument(null)
-            setFailure(
-                error instanceof Error ? error.message : String(error)
-            )
+            setFailure(error instanceof Error ? error.message : String(error))
         }
     }
 
@@ -163,12 +156,7 @@ export const PreviewFromFile: React.FC = () => {
             }
         }
         try {
-            updateBallotStyleAndSelection(
-                preview,
-                tenantId,
-                areaId,
-                dispatch
-            )
+            updateBallotStyleAndSelection(preview, tenantId, areaId, dispatch)
         } catch (error) {
             setFailure(
                 `That ballot could not be loaded: ${
@@ -220,10 +208,7 @@ export const PreviewFromFile: React.FC = () => {
                     <Box sx={{display: "flex", flexDirection: "column", gap: 1}}>
                         <Alert severity="info">
                             <AlertTitle>
-                                {t(
-                                    "previewFromFile.notReal",
-                                    "This is a preview, not an election"
-                                )}
+                                {t("previewFromFile.notReal", "This is a preview, not an election")}
                             </AlertTitle>
                             {t(
                                 "previewFromFile.notRealHelp",

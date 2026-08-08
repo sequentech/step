@@ -124,6 +124,51 @@ impl PublicationPreview {
     pub fn to_document(&self) -> Value {
         serde_json::to_value(self).unwrap_or(Value::Null)
     }
+
+    /// The areas these ballots belong to, named.
+    ///
+    /// Not part of the document, and deliberately: a ballot style names its area
+    /// by id, that is what windmill writes, and adding a sixth key would mean the
+    /// preview was no longer the same file the platform produces.
+    ///
+    /// It is here because a picker offering four uuids is not a choice anybody
+    /// can make. The wizard shows these; the file it hands to a Voting Portal is
+    /// untouched.
+    pub fn areas(
+        &self,
+        schema: &ImportElectionEventSchema,
+    ) -> Vec<PreviewArea> {
+        let named: HashMap<&str, &str> = schema
+            .areas
+            .iter()
+            .map(|area| {
+                (area.id.as_str(), area.name.as_deref().unwrap_or_default())
+            })
+            .collect();
+
+        let mut seen: Vec<PreviewArea> = Vec::new();
+        for style in &self.ballot_styles {
+            if seen.iter().any(|each| each.id == style.area_id) {
+                continue;
+            }
+            seen.push(PreviewArea {
+                id: style.area_id.clone(),
+                name: named
+                    .get(style.area_id.as_str())
+                    .copied()
+                    .unwrap_or_default()
+                    .to_string(),
+            });
+        }
+        seen
+    }
+}
+
+/// One area with a ballot, for a picker to label.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PreviewArea {
+    pub id: String,
+    pub name: String,
 }
 
 /// Generate the ballots a plan's voters would be given.

@@ -124,6 +124,15 @@ export interface BallotPreview {
 export interface PreviewOutput {
     /** Absent when the plan could not be compiled; read `report`. */
     preview?: BallotPreview;
+    /**
+     * The areas those ballots belong to, named.
+     *
+     * Not inside `preview`, on purpose: a ballot style names its area by id and
+     * that is exactly what the platform writes, so adding a key would stop the
+     * document being the same file. This sits beside it because a picker
+     * offering four uuids is not a choice anybody can make.
+     */
+    areas: Array<{id: string; name: string}>;
     /** Everything found on the way, errors and warnings together. */
     report: Report;
 }
@@ -416,6 +425,7 @@ pub fn preview_ballot_js(
         Err(report) => {
             return to_js(&PreviewOutput {
                 preview: None,
+                areas: Vec::new(),
                 report,
             })
             .map(IPreviewOutput::from)
@@ -428,17 +438,27 @@ pub fn preview_ballot_js(
     };
 
     match preview::preview_publication(&compiled.bundle, &settings) {
-        Ok(document) => to_js(&PreviewOutput {
-            preview: Some(document.to_document()),
-            report: compiled.report,
-        })
-        .map(IPreviewOutput::from),
+        Ok(document) => {
+            // The schema the ballots were generated from, re-read only to put
+            // names on the areas. It cannot fail here: `preview_publication`
+            // just parsed the same value.
+            let areas = serde_json::from_value(compiled.bundle.export.clone())
+                .map(|schema| document.areas(&schema))
+                .unwrap_or_default();
+            to_js(&PreviewOutput {
+                preview: Some(document.to_document()),
+                areas,
+                report: compiled.report,
+            })
+            .map(IPreviewOutput::from)
+        }
         Err(mut report) => {
             for problem in compiled.report.problems {
                 report.push(problem);
             }
             to_js(&PreviewOutput {
                 preview: None,
+                areas: Vec::new(),
                 report,
             })
             .map(IPreviewOutput::from)
@@ -474,6 +494,7 @@ fn refused_preview(problem: Problem) -> Result<JsValue, JsError> {
     report.push(problem);
     to_js(&PreviewOutput {
         preview: None,
+        areas: Vec::new(),
         report,
     })
 }
@@ -483,6 +504,7 @@ fn refused_preview(problem: Problem) -> Result<JsValue, JsError> {
 struct PreviewOutput {
     #[serde(skip_serializing_if = "Option::is_none")]
     preview: Option<serde_json::Value>,
+    areas: Vec<preview::PreviewArea>,
     report: Report,
 }
 
