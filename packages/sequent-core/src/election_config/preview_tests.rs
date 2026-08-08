@@ -9,7 +9,7 @@ use super::*;
 use crate::election_config::architect::{
     to_workbook, Blueprint, Contact, PlannedArea, PlannedCandidate,
     PlannedContest, PlannedElection, Schedule, Translated, Trustee,
-    BLUEPRINT_VERSION,
+    VotingChannelSet, BLUEPRINT_VERSION,
 };
 use crate::election_config::policy::{
     Behaviour, Overrides, PolicyPatch, TallyPatch,
@@ -33,6 +33,7 @@ fn sound() -> Blueprint {
         external_id: "union-2027".to_string(),
         name: Translated::new("Union Election 2027"),
         description: Translated::default(),
+        voting_channels: VotingChannelSet::default(),
         elections_order: "custom".to_string(),
         show_cast_vote_logs: "show-logs-tab".to_string(),
         languages: vec!["en".to_string(), "es".to_string()],
@@ -252,16 +253,19 @@ fn each_area_gets_the_contests_it_and_its_parents_vote_on() {
             external_id: "national".to_string(),
             name: "National".to_string(),
             parent_external_id: None,
+            allow_early_voting: false,
         },
         PlannedArea {
             external_id: "north".to_string(),
             name: "North".to_string(),
             parent_external_id: Some("national".to_string()),
+            allow_early_voting: false,
         },
         PlannedArea {
             external_id: "south".to_string(),
             name: "South".to_string(),
             parent_external_id: Some("national".to_string()),
+            allow_early_voting: false,
         },
     ];
 
@@ -393,6 +397,7 @@ fn a_plan_nobody_would_get_a_ballot_for_says_so() {
         external_id: "north".to_string(),
         name: "North".to_string(),
         parent_external_id: None,
+        allow_early_voting: false,
     }];
     // A contest assigned to an area that is not North: no area votes on it.
     plan.elections[0].contests[0].areas = vec!["north".to_string()];
@@ -429,11 +434,13 @@ fn the_areas_come_back_named_without_changing_the_document() {
             external_id: "north".to_string(),
             name: "North".to_string(),
             parent_external_id: None,
+            allow_early_voting: false,
         },
         PlannedArea {
             external_id: "south".to_string(),
             name: "South".to_string(),
             parent_external_id: None,
+            allow_early_voting: false,
         },
     ];
     plan.elections[0].contests[0].areas =

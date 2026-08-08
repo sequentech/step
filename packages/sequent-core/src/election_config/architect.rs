@@ -52,6 +52,7 @@ use crate::election_config::render::TemplateSet;
 use crate::election_config::schema::ImportElectionEventSchema;
 use crate::election_config::sheet::{Sheet, Workbook};
 use crate::election_config::time::{self, Timestamp};
+use crate::election_config::validate::{ALLOW_EARLY_VOTING, NO_EARLY_VOTING};
 use serde::{Deserialize, Serialize};
 
 /// The plan format's version.
@@ -154,6 +155,87 @@ pub fn read_plan(document: &str) -> Result<Blueprint, Problem> {
     })
 }
 
+/// The ways of voting an event opens.
+///
+/// Four booleans, and each one is a *precondition* rather than a switch: turning
+/// one on makes the platform offer that channel, and something else has to exist
+/// before a voter can use it. That asymmetry is the whole reason this type is
+/// validated rather than just written.
+///
+/// | Channel | What turning it on actually does |
+/// | --- | --- |
+/// | `online` | The Publish screen gets an Online start/stop control, and the Voting Portal's ordinary path opens. This is web voting; with it off nobody votes. |
+/// | `kiosk` | The Publish screen gets a Kiosk control. Voters reach it through a `?kiosk` URL, which the portal answers with a **separate** auth client named `<client>-kiosk` — see `AuthContextProvider`. The bundle cannot create that client. |
+/// | `early_voting` | The Publish screen gets an Early voting control, **and** the Admin Portal will let an area be marked early-voting — `Area/FormContent` gates that field on this exact flag. Both halves are needed. |
+/// | `telephone` | The Publish screen gets a Telephone control and the event grows an **IVR tab** in the Admin Portal (`ElectionEventTabs`). The telephone flow itself is configured on that tab, and no part of it is in the bundle. |
+///
+/// There is a fifth field, `paper`, in `hasura_core::VotingChannels`. It is
+/// deliberately **not** here: nothing reads it. It has no `VotingStatusChannel`
+/// variant, no status block, no Publish control, no entry in the Admin Portal's own
+/// `defaultChannels`, and no label. Writing it would put a checkbox on screen that
+/// changes nothing, which is worse than the field being absent — somebody would
+/// tick it and believe they had arranged something.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct VotingChannelSet {
+    /// Ordinary web voting. On unless somebody deliberately turns it off.
+    #[serde(default = "yes")]
+    pub online: bool,
+
+    /// A shared machine at a polling place.
+    #[serde(default)]
+    pub kiosk: bool,
+
+    /// Voting by telephone, configured afterwards on the event's IVR tab.
+    #[serde(default)]
+    pub telephone: bool,
+
+    /// A period before the main one, for the areas that allow it.
+    #[serde(default)]
+    pub early_voting: bool,
+}
+
+impl Default for VotingChannelSet {
+    /// Online and nothing else — what `election_event.hbs` has always emitted.
+    ///
+    /// Hand-written rather than derived because `bool`'s `Default` is `false` and
+    /// deriving would give an event nobody can vote in. `#[serde(default = "yes")]`
+    /// only applies when *deserialising*, so it would not have covered this.
+    fn default() -> Self {
+        Self {
+            online: true,
+            kiosk: false,
+            telephone: false,
+            early_voting: false,
+        }
+    }
+}
+
+impl VotingChannelSet {
+    /// Whether any way of voting is open at all.
+    pub fn any(&self) -> bool {
+        self.online || self.kiosk || self.telephone || self.early_voting
+    }
+
+    /// The columns and cells for a sheet that carries the whole set.
+    ///
+    /// Both the event and every election get them, from this one method, because
+    /// the Publish screen reads `voting_channels` off whichever record it is
+    /// showing — `useRecordContext<ElectionEvent | Election>` — so an event that
+    /// allows kiosk and an election that does not is an event whose Kiosk button
+    /// is present at one level and missing at the other.
+    pub fn columns_for_sheet(&self) -> Vec<(&'static str, Cell)> {
+        vec![
+            ("voting_channels.online", Cell::Bool(self.online)),
+            ("voting_channels.kiosk", Cell::Bool(self.kiosk)),
+            ("voting_channels.telephone", Cell::Bool(self.telephone)),
+            (
+                "voting_channels.early_voting",
+                Cell::Bool(self.early_voting),
+            ),
+        ]
+    }
+}
+
 /// What the wizard collected.
 ///
 /// This is the artifact worth keeping. The bundle is derived from it and is
@@ -196,6 +278,13 @@ pub struct Blueprint {
     /// The same three values again. `custom` is the order on the Ballot screen.
     #[serde(default = "custom_order")]
     pub elections_order: String,
+
+    /// Which ways of voting this event opens.
+    ///
+    /// On the event, and written to every election as well — see
+    /// [`VotingChannelSet::columns_for_sheet`] for why both.
+    #[serde(default)]
+    pub voting_channels: VotingChannelSet,
 
     /// What the whole event is, for voters.
     ///
@@ -442,6 +531,22 @@ pub struct PlannedArea {
     /// does now.
     #[serde(default)]
     pub parent_external_id: Option<String>,
+
+    /// Whether voters in this area may vote in the early period.
+    ///
+    /// The other half of the event's `early_voting` channel, and the reason that
+    /// channel is not a switch on its own. The Voting Portal opens early voting
+    /// only when **both** are true — `ElectionSelectionScreen`'s
+    /// `isEarlyVotingOpen` is `area_presentation.allow_early_voting ==
+    /// allow_early_voting && early_voting_status == OPEN` — so an event with the
+    /// channel on and no area allowing it has an Early voting button that opens a
+    /// period nobody can vote in.
+    ///
+    /// The Admin Portal will not even show this field unless the event's channel is
+    /// on (`Area/FormContent`'s `isEarlyVotingChannelEnabled`), which is why
+    /// `check_voting_channels` refuses the reverse combination too.
+    #[serde(default)]
+    pub allow_early_voting: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -624,6 +729,10 @@ pub struct PlannedContest {
 
 /// Shown, because a voter being able to confirm their own ballot arrived is the
 /// kind of thing an election should have to argue itself out of rather than into.
+fn yes() -> bool {
+    true
+}
+
 fn show_logs() -> String {
     "show-logs-tab".to_string()
 }
@@ -1422,6 +1531,11 @@ fn event_sheet(
             .unwrap_or_else(|| "en".to_string()),
     ));
 
+    for (column, cell) in plan.voting_channels.columns_for_sheet() {
+        columns.push(column.to_string());
+        row.push(cell);
+    }
+
     if let Some(logo) = plan.logo_url.as_ref().filter(|url| !url.is_empty()) {
         columns.push("presentation.logo_url".to_string());
         row.push(Cell::text(logo.clone()));
@@ -1445,6 +1559,10 @@ fn elections_sheet(
     columns.push("presentation.grace_period_secs".to_string());
     columns.push("presentation.start_screen_title_policy".to_string());
     columns.push("presentation.contests_order".to_string());
+    // The event's set, on every election. Named once here and filled from the
+    // same method below so the two cannot drift apart.
+    let channels = plan.voting_channels.columns_for_sheet();
+    columns.extend(channels.iter().map(|(column, _)| (*column).to_string()));
 
     let rows = plan
         .elections
@@ -1467,6 +1585,7 @@ fn elections_sheet(
             row.push(Cell::Int(election.grace_period_secs));
             row.push(Cell::text(election.start_screen_title_policy.clone()));
             row.push(Cell::text(election.contests_order.clone()));
+            row.extend(channels.iter().map(|(_, cell)| cell.clone()));
             row
         })
         .collect();
@@ -1693,8 +1812,12 @@ fn areas_sheet(plan: &Blueprint) -> Result<Sheet, Problem> {
         "external_id".to_string(),
         "name".to_string(),
         "parent.external_id".to_string(),
+        "presentation.allow_early_voting".to_string(),
     ];
 
+    // The synthesised single area, when the plan describes no districting. It gets
+    // `no_early_voting` like every other area that did not ask for it: a plan with
+    // no areas has nowhere to have asked.
     if plan.areas.is_empty() {
         return sheet_of(
             "Areas",
@@ -1703,6 +1826,7 @@ fn areas_sheet(plan: &Blueprint) -> Result<Sheet, Problem> {
                 Cell::text(DEFAULT_AREA_EXTERNAL_ID),
                 Cell::text(DEFAULT_AREA_NAME),
                 Cell::Blank,
+                Cell::text(NO_EARLY_VOTING),
             ]],
         );
     }
@@ -1720,6 +1844,17 @@ fn areas_sheet(plan: &Blueprint) -> Result<Sheet, Problem> {
                     }
                     _ => Cell::Blank,
                 },
+                // Written either way rather than left blank for the negative
+                // case. `area.hbs` already says `no_early_voting`, so a blank
+                // would produce the same bytes — but it would mean the sheet
+                // states the answer for one area and stays silent for the next,
+                // and somebody reading the workbook could not tell "no" from
+                // "unanswered".
+                Cell::text(if area.allow_early_voting {
+                    ALLOW_EARLY_VOTING
+                } else {
+                    NO_EARLY_VOTING
+                }),
             ]
         })
         .collect();

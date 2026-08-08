@@ -36,6 +36,10 @@ fn sound() -> Blueprint {
         description: Translated::default(),
         elections_order: "custom".to_string(),
         show_cast_vote_logs: "show-logs-tab".to_string(),
+        // Online only, which is both the platform's default and the only
+        // combination whose other half is entirely inside the bundle. Each of the
+        // other three has its own test.
+        voting_channels: VotingChannelSet::default(),
         languages: vec!["en".to_string(), "es".to_string()],
         default_language: None,
         logo_url: None,
@@ -133,6 +137,20 @@ fn compiled(plan: &Blueprint) -> Bundle {
         Ok(bundle) => bundle,
         Err(report) => panic!("expected a clean build, got:\n{report}"),
     }
+}
+
+/// What the bundle validator says about what a plan compiles to.
+///
+/// Distinct from `validate_plan`, and the distinction matters: a rule about the
+/// *bundle* also catches a hand-written workbook, so that is where a rule belongs
+/// unless it is about something only a plan carries. These go through the whole
+/// pipeline — plan, workbook, templates, builder, schema — so a check that passes
+/// here passes on what the importer actually receives.
+fn validated(plan: &Blueprint) -> Report {
+    let schema: ImportElectionEventSchema =
+        serde_json::from_value(compiled(plan).export)
+            .expect("a built export deserializes into the import schema");
+    validate(&schema)
 }
 
 fn codes(report: &Report) -> Vec<String> {
@@ -615,6 +633,150 @@ fn the_order_things_were_arranged_in_survives() {
     assert_eq!(bob["presentation"]["sort_order"], serde_json::json!(0));
 }
 
+// -- the ways of voting -----------------------------------------------------
+
+#[test]
+fn the_channels_reach_the_event_and_every_election() {
+    // Both, from one field on the plan. The Publish screen reads
+    // `voting_channels` off whichever record it is showing — an event or an
+    // election — so writing it in one place leaves the start button present at one
+    // level and missing at the other.
+    let mut plan = sound();
+    plan.voting_channels = VotingChannelSet {
+        online: true,
+        kiosk: true,
+        telephone: false,
+        early_voting: false,
+    };
+    let bundle = compiled(&plan);
+
+    for at in [
+        &bundle.export["election_event"]["voting_channels"],
+        &bundle.export["elections"][0]["voting_channels"],
+    ] {
+        assert_eq!(at["online"], serde_json::json!(true));
+        assert_eq!(at["kiosk"], serde_json::json!(true));
+        assert_eq!(at["telephone"], serde_json::json!(false));
+        assert_eq!(at["early_voting"], serde_json::json!(false));
+    }
+}
+
+#[test]
+fn no_way_of_voting_open_is_refused() {
+    let mut plan = sound();
+    plan.voting_channels = VotingChannelSet {
+        online: false,
+        kiosk: false,
+        telephone: false,
+        early_voting: false,
+    };
+    let report = validated(&plan);
+    assert!(report.has_errors(), "{report}");
+    assert!(says(&report, "nobody can vote"));
+}
+
+#[test]
+fn an_area_that_allows_early_voting_says_so_and_one_that_does_not_says_that() {
+    // Both spellings written, never a blank. `area.hbs` defaults to
+    // `no_early_voting`, so leaving the negative case out would build the same
+    // bytes — and would leave a workbook that answers the question for one area
+    // and is silent for the next, where nobody can tell "no" from "unanswered".
+    let mut plan = districted();
+    plan.voting_channels.early_voting = true;
+    plan.areas[1].allow_early_voting = true;
+
+    let bundle = compiled(&plan);
+    let allows = |index: usize| {
+        bundle.export["areas"][index]["presentation"]["allow_early_voting"]
+            .as_str()
+            .expect("every area states its early voting policy")
+            .to_string()
+    };
+    assert_eq!(allows(0), "no_early_voting");
+    assert_eq!(allows(1), "allow_early_voting");
+    assert_eq!(allows(2), "no_early_voting");
+}
+
+#[test]
+fn early_voting_with_no_area_allowing_it_is_refused() {
+    // The failure the plan predicted: a channel on with nothing behind it. The
+    // Admin Portal grows an Early voting start button, somebody presses it, and
+    // the period opens with no voter entitled to it.
+    let mut plan = districted();
+    plan.voting_channels.early_voting = true;
+
+    let report = validated(&plan);
+    assert!(report.has_errors(), "{report}");
+    assert!(says(&report, "no area allows it"));
+}
+
+#[test]
+fn an_area_allowing_early_voting_with_the_channel_off_is_refused() {
+    // The reverse, and not a hypothetical shape: the Admin Portal hides an area's
+    // early-voting field while the event's channel is off, so a bundle in this
+    // state cannot have come from there, and the area's setting does nothing.
+    let mut plan = districted();
+    plan.areas[1].allow_early_voting = true;
+
+    let report = validated(&plan);
+    assert!(report.has_errors(), "{report}");
+    assert!(says(&report, "the setting does nothing"));
+    // Named, because "some area" is not something anybody can act on.
+    assert!(says(&report, "North Local 1"));
+}
+
+#[test]
+fn kiosk_says_the_bundle_does_not_create_its_auth_client() {
+    // Kiosk voters arrive on a `?kiosk` URL, which the portal answers with a
+    // separate auth client named `<client>-kiosk` — see `AuthContextProvider`. The
+    // bundle provisions no Keycloak client, deliberately, so this is a warning
+    // rather than an error: the missing half is in the environment, which this
+    // pass cannot see.
+    let mut plan = sound();
+    plan.voting_channels.kiosk = true;
+
+    let report = validated(&plan);
+    assert!(!report.has_errors(), "{report}");
+    assert!(says(&report, "-kiosk"));
+}
+
+#[test]
+fn telephone_says_the_ivr_is_configured_after_import() {
+    // Turning it on reveals the event's IVR tab in the Admin Portal, and that tab
+    // is where telephone voting is actually described. None of it is in a bundle,
+    // so the useful thing to say is where the rest of the work is.
+    let mut plan = sound();
+    plan.voting_channels.telephone = true;
+
+    let report = validated(&plan);
+    assert!(!report.has_errors(), "{report}");
+    assert!(says(&report, "IVR tab"));
+}
+
+#[test]
+fn a_plan_written_before_the_channels_existed_is_online() {
+    // `bool`'s own default is false, so a derived `Default` would have opened an
+    // event nobody can vote in — and `#[serde(default = "yes")]` would not have
+    // caught it, because that only runs when deserialising.
+    assert_eq!(
+        VotingChannelSet::default(),
+        VotingChannelSet {
+            online: true,
+            kiosk: false,
+            telephone: false,
+            early_voting: false,
+        }
+    );
+
+    // And through serde, which is the path a saved plan takes.
+    let plan: Blueprint = serde_json::from_str(
+        r#"{"version": 2, "external_id": "old", "name": {"en": "Old"}}"#,
+    )
+    .expect("a plan from before this field reads");
+    assert!(plan.voting_channels.online);
+    assert!(!plan.voting_channels.kiosk);
+}
+
 // -- the ballot's languages -------------------------------------------------
 
 /// What the event sheet says a voter reads before they choose.
@@ -982,16 +1144,19 @@ fn districted() -> Blueprint {
             external_id: "region-north".to_string(),
             name: "North Region".to_string(),
             parent_external_id: None,
+            allow_early_voting: false,
         },
         PlannedArea {
             external_id: "local-1".to_string(),
             name: "North Local 1".to_string(),
             parent_external_id: Some("region-north".to_string()),
+            allow_early_voting: false,
         },
         PlannedArea {
             external_id: "local-2".to_string(),
             name: "North Local 2".to_string(),
             parent_external_id: Some("region-north".to_string()),
+            allow_early_voting: false,
         },
     ];
     // The president is everywhere; the local officer is one local's business.
@@ -1204,6 +1369,7 @@ fn a_plan_may_carry_its_own_census() {
         external_id: "north".into(),
         name: "North Local 1".into(),
         parent_external_id: None,
+        allow_early_voting: false,
     }];
     plan.voters = vec![
         PlannedVoter {
@@ -1319,6 +1485,7 @@ fn a_voter_in_an_area_that_does_not_exist_is_refused() {
         external_id: "north".into(),
         name: "North Local 1".into(),
         parent_external_id: None,
+        allow_early_voting: false,
     }];
     plan.voters = vec![PlannedVoter {
         username: "ada".into(),
@@ -1348,6 +1515,7 @@ fn a_census_that_ignores_the_districting_says_so_once() {
         external_id: "north".into(),
         name: "North Local 1".into(),
         parent_external_id: None,
+        allow_early_voting: false,
     }];
     plan.voters = (0..5)
         .map(|index| PlannedVoter {

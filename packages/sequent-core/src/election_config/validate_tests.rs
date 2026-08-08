@@ -404,6 +404,100 @@ fn an_area_inheriting_its_parents_contests_is_not_empty() {
     );
 }
 
+// -- ways of voting ---------------------------------------------------------
+
+#[test]
+fn a_bundle_that_names_no_channels_is_left_alone() {
+    // Absent is not the same as empty. `election_event.hbs` always writes the
+    // block, but a bundle from elsewhere need not, and "no way of voting is open"
+    // would be a wrong thing to say about a bundle that never raised the subject —
+    // the platform's own column default is `{"kiosk": true, "online": true}`.
+    let bundle = sound();
+    assert!(bundle.election_event.voting_channels.is_none());
+    assert!(!validate(&bundle).has_errors());
+}
+
+#[test]
+fn a_channel_nothing_reads_is_reported_without_refusing_the_bundle() {
+    // `paper` is in `hasura_core::VotingChannels` and in nothing else — no
+    // `VotingStatusChannel` variant, no status block, no Publish control, no
+    // label. It does no harm sitting in the JSON, so this is a warning; but a
+    // bundle that names it was written by somebody who believes they arranged a
+    // way of voting, and they should hear otherwise before election day.
+    let mut bundle = sound();
+    bundle.election_event.voting_channels =
+        Some(serde_json::json!({"online": true, "paper": true}));
+
+    let report = validate(&bundle);
+    assert!(!report.has_errors(), "{report}");
+    assert!(report
+        .problems
+        .iter()
+        .any(|problem| problem.message.contains("nothing reads 'paper'")));
+}
+
+#[test]
+fn an_early_voting_policy_the_platform_does_not_know_is_refused() {
+    // Two values, and neither is the one somebody guesses. An existing builder
+    // test overrides `area.hbs` with `early_voting_allowed` — a plausible
+    // rearrangement of the real `allow_early_voting` — and until now nothing
+    // anywhere would have refused it. The Voting Portal compares the string
+    // exactly, so a near miss reads as "no early voting" in silence.
+    let mut bundle = sound();
+    bundle.election_event.voting_channels =
+        Some(serde_json::json!({"online": true, "early_voting": true}));
+    bundle.areas[1].presentation =
+        Some(serde_json::json!({"allow_early_voting": "early_voting_allowed"}));
+
+    let report = validate(&bundle);
+    assert!(report.has_errors(), "{report}");
+    assert!(report.problems.iter().any(|problem| problem
+        .message
+        .contains("is not a valid allow_early_voting")));
+}
+
+#[test]
+fn an_election_whose_channels_differ_from_the_events_is_reported() {
+    // No per-election channel editor exists anywhere in the platform, so a bundle
+    // in this state was written by hand — and the Publish screen reads the block
+    // off whichever record it is showing, meaning the Kiosk control appears at one
+    // level and not the other with nothing to explain why.
+    let mut bundle = sound();
+    bundle.election_event.voting_channels =
+        Some(serde_json::json!({"online": true, "kiosk": true}));
+    bundle.elections[0].voting_channels =
+        Some(serde_json::json!({"online": true, "kiosk": false}));
+
+    let report = validate(&bundle);
+    assert!(!report.has_errors(), "{report}");
+    assert!(report.problems.iter().any(|problem| problem
+        .message
+        .contains("kiosk differs from the event")));
+}
+
+#[test]
+fn a_channel_named_at_one_level_and_omitted_at_the_other_is_not_a_difference() {
+    // `election_event.hbs` names three channels and `election.hbs` names four, so
+    // comparing which keys are present rather than which are on would report every
+    // ordinary build as inconsistent about `telephone`. The first version of the
+    // check above did exactly that.
+    let mut bundle = sound();
+    bundle.election_event.voting_channels =
+        Some(serde_json::json!({"online": true, "kiosk": false}));
+    bundle.elections[0].voting_channels = Some(
+        serde_json::json!({"online": true, "kiosk": false, "telephone": false}),
+    );
+
+    let report = validate(&bundle);
+    assert!(
+        !report
+            .problems
+            .iter()
+            .any(|problem| problem.message.contains("differs from the event")),
+        "{report}"
+    );
+}
+
 // -- permission labels ------------------------------------------------------
 
 #[test]

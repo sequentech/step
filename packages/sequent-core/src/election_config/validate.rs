@@ -85,6 +85,25 @@ pub const CHECKABLE_LISTS: &[&str] = &[
     "allow-selecting-candidates-and-lists",
 ];
 
+/// `crate::ballot::EarlyVotingPolicy`, by its serde rename. An area's half of the
+/// event's `early_voting` channel.
+pub const ALLOW_EARLY_VOTING: &str = "allow_early_voting";
+/// The other half. `area.hbs`'s default, and every area that did not ask.
+pub const NO_EARLY_VOTING: &str = "no_early_voting";
+/// Both, for checking a value that came from somewhere other than the wizard.
+pub const EARLY_VOTING_POLICIES: &[&str] =
+    &[ALLOW_EARLY_VOTING, NO_EARLY_VOTING];
+
+/// The channels a bundle may name, and the only ones anything reads.
+///
+/// `hasura_core::VotingChannels` has a fifth, `paper`, with no
+/// `VotingStatusChannel` variant, no status block, no Publish control and no
+/// label — see [`super::architect::VotingChannelSet`]. A bundle carrying it is not
+/// refused, because it does no harm; it just does nothing, and
+/// `check_voting_channels` says so rather than leaving somebody to find out.
+pub const VOTING_CHANNELS: &[&str] =
+    &["online", "kiosk", "telephone", "early_voting"];
+
 /// Check a bundle and report everything wrong with it.
 ///
 /// Never stops at the first problem: fixing a configuration one error per run is
@@ -98,6 +117,7 @@ pub fn validate(bundle: &ImportElectionEventSchema) -> Report {
     check_contests(bundle, &mut report);
     check_ballot_coverage(bundle, &mut report);
     check_how_voting_works(bundle, &mut report);
+    check_voting_channels(bundle, &mut report);
     check_event_presentation(bundle, &mut report);
     check_permission_labels(bundle, &mut report);
     check_unique_ids(bundle, &mut report);
@@ -145,6 +165,196 @@ fn check_event_presentation(
                     allowed.join(", ")
                 ),
             )),
+        }
+    }
+}
+
+/// The ways of voting, and whether anything is behind each one.
+///
+/// Every channel is a precondition rather than a switch, so this check is mostly
+/// about pairs: a channel on with its other half missing produces a start button
+/// in the Admin Portal that opens a period nobody can vote in. That fails on
+/// election day, to somebody who cannot fix it, which is why these are errors and
+/// not notes in a guide.
+fn check_voting_channels(
+    bundle: &ImportElectionEventSchema,
+    report: &mut Report,
+) {
+    let channels = bundle
+        .election_event
+        .voting_channels
+        .as_ref()
+        .and_then(|value| value.as_object());
+
+    // Absent is not the same as empty: `election_event.hbs` always writes the
+    // block, and a bundle from somewhere else may not. Nothing to check against.
+    let Some(channels) = channels else {
+        return;
+    };
+
+    let on = |name: &str| {
+        channels.get(name).and_then(serde_json::Value::as_bool) == Some(true)
+    };
+
+    // A channel the platform does not read. Not refused — it does no harm sitting
+    // in the JSON — but a bundle that names it was written by somebody who thinks
+    // they arranged something.
+    for name in channels.keys() {
+        if !VOTING_CHANNELS.contains(&name.as_str()) {
+            report.push(Problem::warning(
+                Code::InvalidValue,
+                format!("election_event.voting_channels.{name}"),
+                format!(
+                    "nothing reads '{name}'; the ways of voting the platform \
+                     acts on are {}",
+                    VOTING_CHANNELS.join(", ")
+                ),
+            ));
+        }
+    }
+
+    if !VOTING_CHANNELS.iter().any(|name| on(name)) {
+        report.push(Problem::error(
+            Code::InvalidValue,
+            "election_event.voting_channels",
+            "no way of voting is open, so nobody can vote".to_string(),
+        ));
+    }
+
+    // -- early voting, which takes two halves ------------------------------
+
+    // Areas are matched by their own `presentation`, because that is where the
+    // Voting Portal reads it from — the ballot it hands a voter carries
+    // `area_presentation`, and `isEarlyVotingOpen` tests that copy.
+    let mut allowing: Vec<String> = Vec::new();
+    for (index, area) in bundle.areas.iter().enumerate() {
+        let allows = area
+            .presentation
+            .as_ref()
+            .and_then(|value| value.get("allow_early_voting"))
+            .and_then(serde_json::Value::as_str);
+
+        match allows {
+            // By name, because that is what somebody reading the message calls the
+            // area — and what a voter's `area_name` is matched against on import.
+            Some(ALLOW_EARLY_VOTING) => allowing.push(
+                area.name
+                    .clone()
+                    .filter(|name| !name.is_empty())
+                    .unwrap_or_else(|| format!("areas[{index}]")),
+            ),
+            None | Some(NO_EARLY_VOTING) => {}
+            Some(other) => report.push(Problem::error(
+                Code::InvalidValue,
+                format!("areas[{index}].presentation.allow_early_voting"),
+                format!(
+                    "'{other}' is not a valid allow_early_voting; expected one \
+                     of {}",
+                    EARLY_VOTING_POLICIES.join(", ")
+                ),
+            )),
+        }
+    }
+
+    if on("early_voting") && allowing.is_empty() {
+        report.push(Problem::error(
+            Code::InvalidValue,
+            "election_event.voting_channels.early_voting",
+            "early voting is open and no area allows it, so the early period \
+             would have no voters in it"
+                .to_string(),
+        ));
+    }
+
+    // The reverse. The Admin Portal will not even show an area's early-voting
+    // field while the event's channel is off, so a bundle in this state cannot
+    // have been made there — and the area's setting does nothing.
+    if !on("early_voting") && !allowing.is_empty() {
+        report.push(Problem::error(
+            Code::InvalidValue,
+            "election_event.voting_channels.early_voting",
+            format!(
+                "{} allow{} early voting and the event does not open that \
+                 channel, so the setting does nothing",
+                allowing.join(", "),
+                if allowing.len() == 1 { "s" } else { "" }
+            ),
+        ));
+    }
+
+    // -- the two channels whose other half is not in the bundle ------------
+
+    // Both are warnings rather than errors: the missing half lives in the
+    // environment, which this pass cannot see. Silence would be worse than a
+    // warning somebody dismisses, because the failure is a voter who cannot vote.
+    if on("kiosk") {
+        report.push(Problem::warning(
+            Code::InvalidValue,
+            "election_event.voting_channels.kiosk",
+            "kiosk voting needs an authentication client named after the \
+             ordinary one with '-kiosk' on the end, which this bundle does not \
+             create"
+                .to_string(),
+        ));
+    }
+
+    if on("telephone") {
+        report.push(Problem::warning(
+            Code::InvalidValue,
+            "election_event.voting_channels.telephone",
+            "telephone voting is configured on the event's IVR tab after \
+             import; none of it is in this bundle"
+                .to_string(),
+        ));
+    }
+
+    // -- the election's own copy of the same block -------------------------
+
+    // Both levels carry it, and the Admin Portal's Publish screen reads it off
+    // whichever record it is showing — `useRecordContext<ElectionEvent |
+    // Election>`. So a difference is not redundancy, it is a start control that
+    // exists at one level and not the other, and nothing else would say so: there
+    // is no per-election channel editor anywhere in the platform, which is why a
+    // bundle in this state was written by hand.
+    //
+    // Compared by whether each channel is *on*, not by which keys are present:
+    // `election_event.hbs` names three channels and `election.hbs` names four, so
+    // an absent key and an explicit `false` have to count as the same answer or
+    // every ordinary build would report a difference about `telephone`.
+    for (index, election) in bundle.elections.iter().enumerate() {
+        let Some(theirs) = election
+            .voting_channels
+            .as_ref()
+            .and_then(|value| value.as_object())
+        else {
+            continue;
+        };
+
+        let differing: Vec<&str> = VOTING_CHANNELS
+            .iter()
+            .copied()
+            .filter(|name| {
+                let mine = on(name);
+                let theirs =
+                    theirs.get(*name).and_then(serde_json::Value::as_bool)
+                        == Some(true);
+                mine != theirs
+            })
+            .collect();
+
+        if !differing.is_empty() {
+            report.push(
+                Problem::warning(
+                    Code::ConflictingColumns,
+                    format!("elections[{index}].voting_channels"),
+                    format!(
+                        "{} differs from the event's, so the start controls for \
+                         it would not match",
+                        differing.join(", ")
+                    ),
+                )
+                .about(election.external_id.as_deref()),
+            );
         }
     }
 }
