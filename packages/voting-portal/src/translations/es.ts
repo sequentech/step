@@ -311,7 +311,7 @@ const spanishTranslation: TranslationType = {
             },
             alerts: {
                 noElections:
-                    "No hay elecciones en las que pueda votar. Esto podría deberse a que el área no tiene ninguna contienda asociada. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
+                    "No hay elecciones en las que pueda votar. Esto podría deberse a que el área no tiene ninguna pregunta asociada. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 electionEventNotPublished:
                     "El evento electoral aún no ha sido publicado. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
             },

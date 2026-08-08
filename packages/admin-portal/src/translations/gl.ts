@@ -735,7 +735,7 @@ const galegoTranslation: TranslationType = {
                     hints: {
                         title: "Suxestións",
                         publishRequired:
-                            "Calquera cambio realizado nas eleccións, nas contendas ou nos candidatos debe publicarse primeiro para que estea dispoñible. No emulador só se utilizarán os estilos de papeleta publicados máis recentemente para a área correspondente.",
+                            "Calquera cambio realizado nas eleccións, nas preguntas ou nos candidatos debe publicarse primeiro para que estea dispoñible. No emulador só se utilizarán os estilos de papeleta publicados máis recentemente para a área correspondente.",
                         eventChangesImmediate:
                             "Os cambios realizados no evento electoral, como a configuración IVR ou as modificacións das mensaxes, están dispoñibles inmediatamente ao reiniciar a sesión do emulador.",
                         credentials:

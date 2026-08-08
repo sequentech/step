@@ -114,9 +114,9 @@ const galegoTranslation: TranslationType = {
             },
             configuration: {
                 multipleExplicitInvalidCandidates:
-                    "Configuración de voto inválida: a contenda define {{count}} candidatos explicitamente inválidos, pero só se permite un.",
+                    "Configuración de voto inválida: a pregunta define {{count}} candidatos explicitamente inválidos, pero só se permite un.",
                 multipleExplicitBlankCandidates:
-                    "Configuración de voto inválida: a contenda define {{count}} candidatos de voto en branco explícito, pero só se permite un.",
+                    "Configuración de voto inválida: a pregunta define {{count}} candidatos de voto en branco explícito, pero só se permite un.",
             },
         },
         ballotHash: "O teu ID de Papeleta: {{ballotId}}",
