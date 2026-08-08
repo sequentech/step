@@ -26,6 +26,41 @@ pub struct ParsedBallotBoxImport {
     pub content: AreaContestResults,
 }
 
+/// A ballot box spans every contest of one (channel, area) -- unlike
+/// `BallotBoxImportKey`, which additionally scopes to a single contest's
+/// sheet. Used to group a CSV batch's sheets for whole-box validation
+/// (e.g. `blank_ballots`, which is replicated across every contest sheet
+/// of the box rather than being a per-contest value).
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct BallotBoxGroupKey {
+    pub channel: VotingChannel,
+    pub area_name: String,
+}
+
+impl From<&BallotBoxImportKey> for BallotBoxGroupKey {
+    fn from(key: &BallotBoxImportKey) -> Self {
+        BallotBoxGroupKey {
+            channel: key.channel.clone(),
+            area_name: key.area_name.clone(),
+        }
+    }
+}
+
+/// Groups a CSV batch's parsed sheets by ballot box (channel + area),
+/// regardless of which contests each sheet covers.
+pub fn group_by_ballot_box(
+    imports: &[ParsedBallotBoxImport],
+) -> HashMap<BallotBoxGroupKey, Vec<&ParsedBallotBoxImport>> {
+    let mut groups: HashMap<BallotBoxGroupKey, Vec<&ParsedBallotBoxImport>> = HashMap::new();
+    for import in imports {
+        groups
+            .entry(BallotBoxGroupKey::from(&import.key))
+            .or_default()
+            .push(import);
+    }
+    groups
+}
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 enum CanonicalField {
     CandidateVotes,
@@ -487,5 +522,49 @@ mod tests {
         assert!(errors.is_empty());
         assert_eq!(imports.len(), 1);
         assert_eq!(imports[0].content.blank_ballots, None);
+    }
+
+    #[test]
+    fn groups_sheets_from_different_contests_into_one_ballot_box() {
+        let csv = b"channel,area_name,contest_external_id,field,candidate_external_id,value\
+\nPAPER,Precinct 1,contest-1,total_votes,,10\
+\nPAPER,Precinct 1,contest-1,total_valid_votes,,10\
+\nPAPER,Precinct 1,contest-1,implicit_invalid,,0\
+\nPAPER,Precinct 1,contest-1,explicit_invalid,,0\
+\nPAPER,Precinct 1,contest-1,total_blank_votes,,3\
+\nPAPER,Precinct 1,contest-1,census,,10\
+\nPAPER,Precinct 1,contest-2,total_votes,,10\
+\nPAPER,Precinct 1,contest-2,total_valid_votes,,10\
+\nPAPER,Precinct 1,contest-2,implicit_invalid,,0\
+\nPAPER,Precinct 1,contest-2,explicit_invalid,,0\
+\nPAPER,Precinct 1,contest-2,total_blank_votes,,5\
+\nPAPER,Precinct 1,contest-2,census,,10\
+\nPAPER,Precinct 2,contest-1,total_votes,,8\
+\nPAPER,Precinct 2,contest-1,total_valid_votes,,8\
+\nPAPER,Precinct 2,contest-1,implicit_invalid,,0\
+\nPAPER,Precinct 2,contest-1,explicit_invalid,,0\
+\nPAPER,Precinct 2,contest-1,total_blank_votes,,1\
+\nPAPER,Precinct 2,contest-1,census,,8\n";
+
+        let (imports, errors) = parse_canonical_csv(csv);
+        assert!(errors.is_empty());
+
+        let groups = group_by_ballot_box(&imports);
+
+        assert_eq!(groups.len(), 2);
+        let precinct_1 = groups
+            .get(&BallotBoxGroupKey {
+                channel: VotingChannel::PAPER,
+                area_name: "Precinct 1".to_string(),
+            })
+            .expect("Precinct 1 group should exist");
+        assert_eq!(precinct_1.len(), 2);
+        let precinct_2 = groups
+            .get(&BallotBoxGroupKey {
+                channel: VotingChannel::PAPER,
+                area_name: "Precinct 2".to_string(),
+            })
+            .expect("Precinct 2 group should exist");
+        assert_eq!(precinct_2.len(), 1);
     }
 }
