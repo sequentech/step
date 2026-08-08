@@ -191,6 +191,29 @@ pub struct BuildOptions {
     /// [`presets::NONE`] leaves the realm alone whatever the document declares —
     /// worth having while a client has not yet supplied what a preset needs.
     pub auth_preset: Option<String>,
+
+    /// Who holds the election key, and how many of them the tally needs.
+    ///
+    /// `None` for the workbook path, which has no trustee sheet to draw from —
+    /// that bundle keeps the empty `keys_ceremonies` the template writes.
+    ///
+    /// The names are **names**, not identifiers, and that is the platform's own
+    /// convention rather than a shortcut:
+    /// `windmill/src/services/import/import_election_event.rs` builds a
+    /// `HashMap<name, id>` from `get_all_trustees(tenant_id)` and maps the
+    /// bundle's `trustee_ids` through it, the same way a voter's area name is
+    /// resolved. And the same trap: an unmatched name goes through
+    /// `.unwrap_or_default()` and becomes an empty string, so the ceremony
+    /// imports with a member who does not exist and nothing reports it.
+    pub keys_ceremony: Option<KeysCeremonyPlan>,
+}
+
+/// Who holds the election key. See [`BuildOptions::keys_ceremony`].
+#[derive(Debug, Clone, Default)]
+pub struct KeysCeremonyPlan {
+    /// Trustee **names**, resolved against the target tenant on import.
+    pub trustee_names: Vec<String>,
+    pub threshold: i64,
 }
 
 /// A built bundle: the JSON document and what was worth saying about it.
@@ -273,6 +296,9 @@ struct Builder<'a> {
     auth_preset: Option<&'static AuthPreset>,
     realm_patch: RealmPatch,
 
+    /// Who holds the election key. See [`BuildOptions::keys_ceremony`].
+    keys_ceremony: Option<KeysCeremonyPlan>,
+
     event_row: Row,
     event_external_id: String,
     event_id: String,
@@ -320,6 +346,7 @@ impl<'a> Builder<'a> {
 
         let base_export = options.base_export.clone().unwrap_or(Value::Null);
         let mut builder = Builder {
+            keys_ceremony: options.keys_ceremony.clone(),
             workbook,
             templates,
             base_export,
@@ -371,6 +398,24 @@ impl<'a> Builder<'a> {
         let realm = self.build_realm();
         let admin_realm_patch = self.admin_realm_patch();
 
+        // One ceremony, from the trustees the caller supplied. The workbook path
+        // supplies none and keeps the template's empty array.
+        let keys_ceremonies = match self.keys_ceremony.as_ref() {
+            None => Vec::new(),
+            Some(plan) if plan.trustee_names.is_empty() => Vec::new(),
+            Some(plan) => vec![json!({
+                "id": self.ids.uid("keys_ceremony", &[&self.event_external_id]),
+                "tenant_id": self.tenant_id,
+                "election_event_id": self.event_id,
+                // Names. See `BuildOptions::keys_ceremony`.
+                "trustee_ids": plan.trustee_names,
+                "threshold": plan.threshold,
+                "is_default": true,
+                "name": "Key ceremony",
+                "permission_label": [],
+            })],
+        };
+
         let version = self
             .base_export
             .get("version")
@@ -394,7 +439,7 @@ impl<'a> Builder<'a> {
             // only ever reached from process_reports_file, so a populated array
             // here would be silently dropped.
             "reports": [],
-            "keys_ceremonies": [],
+            "keys_ceremonies": keys_ceremonies,
             "applications": [],
             "version": version,
         });

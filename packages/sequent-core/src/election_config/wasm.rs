@@ -812,6 +812,9 @@ fn build_options(options: JsValue) -> Result<BuildOptions, JsError> {
         slug: options.slug,
         created_at: options.created_at,
         auth_preset: options.auth_preset,
+        // Not from JavaScript: `compile_plan` derives it from the plan's own
+        // trustees, and `build_from_workbook` has no trustees to derive it from.
+        keys_ceremony: None,
     })
 }
 

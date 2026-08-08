@@ -111,7 +111,24 @@ fn sound() -> Blueprint {
 fn compiled(plan: &Blueprint) -> Bundle {
     let workbook = to_workbook(plan).expect("the plan compiles to rows");
     let templates = TemplateSet::builtin().unwrap();
-    match build(&workbook, &templates, &BuildOptions::default()) {
+    // The same options `compile_plan` builds, so a test asserting on this sees the
+    // document the wizard ships rather than a nearby one. The trustees are the only
+    // part of a plan that does not travel through the workbook, so they are the
+    // only thing this has to add.
+    let options = BuildOptions {
+        keys_ceremony: (!plan.trustees.is_empty()).then(|| {
+            crate::election_config::build::KeysCeremonyPlan {
+                trustee_names: plan
+                    .trustees
+                    .iter()
+                    .map(|trustee| trustee.name.clone())
+                    .collect(),
+                threshold: i64::from(plan.trustee_threshold),
+            }
+        }),
+        ..BuildOptions::default()
+    };
+    match build(&workbook, &templates, &options) {
         Ok(bundle) => bundle,
         Err(report) => panic!("expected a clean build, got:\n{report}"),
     }
@@ -1577,4 +1594,93 @@ fn a_ragged_sheet_is_refused_rather_than_written() {
         vec![vec![Cell::text("president"), Cell::Int(1)]],
     )
     .is_ok());
+}
+
+/// The trustees become a key ceremony the importer can act on.
+///
+/// The plan has collected trustees and a threshold from the beginning and emitted
+/// no ceremony, so an event imported with a key nobody had been asked to generate.
+#[test]
+fn the_trustees_become_a_key_ceremony() {
+    let plan = sound();
+    let bundle = compiled(&plan);
+    let ceremonies = bundle.export["keys_ceremonies"]
+        .as_array()
+        .expect("an array");
+    assert_eq!(ceremonies.len(), 1);
+
+    let ceremony = &ceremonies[0];
+    assert_eq!(
+        ceremony["threshold"].as_i64(),
+        Some(i64::from(plan.trustee_threshold))
+    );
+
+    // Names, not identifiers. `import_election_event.rs` builds a
+    // `HashMap<name, id>` from `get_all_trustees(tenant_id)` and maps this field
+    // through it — the same way a voter's area name is resolved. Emitting
+    // identifiers here would resolve to nothing.
+    let named: Vec<&str> = ceremony["trustee_ids"]
+        .as_array()
+        .expect("an array")
+        .iter()
+        .map(|value| value.as_str().unwrap_or_default())
+        .collect();
+    assert_eq!(
+        named,
+        plan.trustees
+            .iter()
+            .map(|trustee| trustee.name.as_str())
+            .collect::<Vec<&str>>()
+    );
+
+    // The tenant and event it belongs to, so the importer does not have to guess.
+    assert_eq!(
+        ceremony["election_event_id"].as_str(),
+        Some(bundle.event_id.as_str())
+    );
+    assert_eq!(
+        ceremony["tenant_id"].as_str(),
+        Some(bundle.tenant_id.as_str())
+    );
+}
+
+/// The same plan produces the same ceremony id twice.
+#[test]
+fn a_key_ceremony_has_a_stable_id() {
+    let plan = sound();
+    assert_eq!(
+        compiled(&plan).export["keys_ceremonies"][0]["id"],
+        compiled(&plan).export["keys_ceremonies"][0]["id"]
+    );
+}
+
+/// No trustees, no ceremony — rather than one with no members.
+#[test]
+fn a_plan_with_no_trustees_emits_no_ceremony() {
+    let mut plan = sound();
+    plan.trustees.clear();
+    plan.trustee_threshold = 0;
+    // No trustees is a warning rather than an error, so this does compile — which
+    // is why the early return matters. A ceremony with no members and a threshold
+    // of zero would import, and the key would be generated with nobody holding a
+    // share of it.
+    assert!(says(&validate_plan(&plan), "no trustees"));
+    assert!(compiled(&plan).export["keys_ceremonies"]
+        .as_array()
+        .expect("an array")
+        .is_empty());
+}
+
+/// A nameless trustee is refused, because the importer resolves by name.
+#[test]
+fn a_trustee_with_no_name_is_refused() {
+    // `.unwrap_or_default()` in the importer turns an unmatched name into an empty
+    // string, so a blank one here is a ceremony member who does not exist — and
+    // nothing downstream reports it.
+    let mut plan = sound();
+    plan.trustees[0].name = "  ".to_string();
+
+    let report = validate_plan(&plan);
+    assert!(report.has_errors());
+    assert!(says(&report, "resolves the key ceremony's"));
 }

@@ -810,6 +810,41 @@ fn check_trustees(plan: &Blueprint, report: &mut Report) {
              having a single trustee",
         ));
     }
+
+    // The names have to already exist in the tenant, and nothing downstream says
+    // so. `import_election_event.rs` builds a `HashMap<name, id>` from
+    // `get_all_trustees(tenant_id)` and maps the bundle's `trustee_ids` through
+    // it with `.unwrap_or_default()` — so a name that matches nothing becomes an
+    // **empty string** and the ceremony imports with a member who does not exist.
+    //
+    // Nothing fails. The ceremony is created, the trustee count looks right, and
+    // the missing member is discovered when the key is generated or, worse, when
+    // the threshold cannot be met at the tally.
+    //
+    // A warning rather than an error because this side cannot see the tenant:
+    // whether "Ada Lovelace" is provisioned is not knowable from a plan file.
+    for (index, trustee) in plan.trustees.iter().enumerate() {
+        if trustee.name.trim().is_empty() {
+            report.push(Problem::error(
+                Code::MissingField,
+                format!("trustees[{index}].name"),
+                "a trustee needs a name. The importer resolves the key ceremony's \
+                 members by name against the trustees already provisioned in the \
+                 tenant, and an empty one silently becomes a member who does not \
+                 exist.",
+            ));
+        }
+    }
+
+    // Deliberately *not* a warning on every plan that has trustees.
+    //
+    // A first version pushed one unconditionally, saying that the ceremony's
+    // members are resolved by name against the tenant. True, and important — and a
+    // warning that fires on every sound plan is noise that teaches people to skim
+    // the report. `a_sound_plan_has_nothing_to_report` caught it.
+    //
+    // It is a handover fact rather than a defect, so it lives where somebody reads
+    // it once: the trustees section's own hint, and the reference page.
 }
 
 fn check_schedule(plan: &Blueprint, report: &mut Report) {
@@ -1894,7 +1929,25 @@ pub fn compile_plan(
         failed
     })?;
 
-    let bundle = build(&workbook, templates, options)?;
+    // The trustees the plan collected become the key ceremony. Through
+    // `BuildOptions` rather than patched onto the built bundle afterwards, so
+    // anything that calls `build` — including this file's own test helper — gets
+    // the same document the wizard ships. The first version patched afterwards and
+    // every test asserting on `compiled()` saw an empty array.
+    let with_ceremony = BuildOptions {
+        keys_ceremony: (!plan.trustees.is_empty()).then(|| {
+            super::build::KeysCeremonyPlan {
+                trustee_names: plan
+                    .trustees
+                    .iter()
+                    .map(|trustee| trustee.name.clone())
+                    .collect(),
+                threshold: i64::from(plan.trustee_threshold),
+            }
+        }),
+        ..options.clone()
+    };
+    let bundle = build(&workbook, templates, &with_ceremony)?;
 
     for problem in bundle.warnings.problems.clone() {
         report.push(problem);
