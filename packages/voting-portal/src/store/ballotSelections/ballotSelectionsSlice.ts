@@ -99,6 +99,16 @@ export const ballotSelectionsSlice = createSlice({
                             }
                         }
                     )
+
+                // A single reset contest (force + contestId) is rebuilt as
+                // not blank while every other contest keeps its prior
+                // is_blank_ballot value, which can leave the election with
+                // some contests blank and one not -- a combination the
+                // codec rejects.
+                const resetElection = state[action.payload.ballotStyle.election_id]
+                if (resetElection) {
+                    clearBlankBallotFlag(resetElection)
+                }
             }
 
             return state
