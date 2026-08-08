@@ -50,6 +50,7 @@ const spanishTranslation: TranslationType = {
             published: "Publicado",
             notPublishedYet: "Todavía no publicado",
             position_one: "{{count}} puesto",
+            position_many: "{{count}} puestos",
             position_other: "{{count}} puestos",
             fallbackElectionName: "Elección",
             fallbackContestName: "Pregunta {{contestId}}",

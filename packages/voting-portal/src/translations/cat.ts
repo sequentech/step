@@ -15,6 +15,7 @@ const catalanTranslation: TranslationType = {
             showCandidates: "Mostra els candidats",
             hideCandidates: "Amaga els candidats",
             selectedCandidates_one: "{{count}} candidat seleccionat",
+            selectedCandidates_many: "{{count}} candidats seleccionats",
             selectedCandidates_other: "{{count}} candidats seleccionats",
             expandAll: "Expandir tot",
             collapseAll: "Reduir tot",

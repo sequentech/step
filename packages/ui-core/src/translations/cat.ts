@@ -82,6 +82,7 @@ const catalanTranslation: TranslationType = {
                 writeInChoiceOutOfRange: "Opció de vot escrita fora de rang: {{index}}",
                 writeInNotEndInZero: "Opció de vot escrita no finalitza en 0",
                 writeInCharsExceeded_one: "Escurceu l'escriptura lliure en {{count}} caràcter.",
+                writeInCharsExceeded_many: "Escurceu l'escriptura lliure en {{count}} caràcters.",
                 writeInCharsExceeded_other: "Escurceu l'escriptura lliure en {{count}} caràcters.",
                 bytesToUtf8Conversion:
                     "Error convertint bytes d'opció de vot escrita a cadena UTF-8: {{errorMessage}}",
@@ -89,15 +90,21 @@ const catalanTranslation: TranslationType = {
             },
             implicit: {
                 selectedMax_one: "Desmarqueu {{count}} candidat.",
+                selectedMax_many: "Desmarqueu {{count}} candidats.",
                 selectedMax_other: "Desmarqueu {{count}} candidats.",
                 selectedMin_one: "Seleccioneu {{count}} candidat més.",
+                selectedMin_many: "Seleccioneu {{count}} candidats més.",
                 selectedMin_other: "Seleccioneu {{count}} candidats més.",
                 maxSelectionsPerType_one: "Desmarqueu {{count}} candidat de {{type}}.",
+                maxSelectionsPerType_many: "Desmarqueu {{count}} candidats de {{type}}.",
                 maxSelectionsPerType_other: "Desmarqueu {{count}} candidats de {{type}}.",
                 underVote_one: "Seleccioneu fins a {{count}} candidat més.",
+                underVote_many: "Seleccioneu fins a {{count}} candidats més.",
                 underVote_other: "Seleccioneu fins a {{count}} candidats més.",
                 overVoteDisabled_one:
                     "Heu seleccionat el màxim de {{count}} candidat. Desmarqueu-lo per triar-ne un altre.",
+                overVoteDisabled_many:
+                    "Heu seleccionat el màxim de {{count}} candidats. Desmarqueu-ne un per triar-ne un altre.",
                 overVoteDisabled_other:
                     "Heu seleccionat el màxim de {{count}} candidats. Desmarqueu-ne un per triar-ne un altre.",
                 blankVote: "No heu seleccionat cap candidat.",

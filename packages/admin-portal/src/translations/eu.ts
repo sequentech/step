@@ -1872,6 +1872,8 @@ const basqueTranslation: TranslationType = {
                 trusteeList: "Fideikomisarioak",
                 errorMinTrustees_one:
                     "{{selected}} fideikomisario soilik hautatu duzu, baina gutxienez {{threshold}} hautatu behar dituzu.",
+                errorMinTrustees_many:
+                    "{{selected}} fideikomisario soilik hautatu dituzu, baina gutxienez {{threshold}} hautatu behar dituzu.",
                 errorMinTrustees_other:
                     "{{selected}} fideikomisario soilik hautatu dituzu, baina gutxienez {{threshold}} hautatu behar dituzu.",
                 errorThreshold:
@@ -2007,6 +2009,7 @@ const basqueTranslation: TranslationType = {
                 noTalliedContests: "Ez dago zenbatutako galderarik erabilgarri.",
                 publishSelectedContests: "Argitaratu hautatutako galderak",
                 selectedContestCount_one: "{{count}} galdera hautatuta",
+                selectedContestCount_many: "{{count}} galdera hautatuta",
                 selectedContestCount_other: "{{count}} galdera hautatuta",
                 history: "Argitalpenen historia",
                 version: "Bertsioa",

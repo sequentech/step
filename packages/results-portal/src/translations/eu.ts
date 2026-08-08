@@ -50,6 +50,7 @@ const basqueTranslation: TranslationType = {
             published: "Argitaratua",
             notPublishedYet: "Oraindik argitaratu gabe",
             position_one: "{{count}} postu",
+            position_many: "{{count}} postu",
             position_other: "{{count}} postu",
             fallbackElectionName: "Hauteskundea",
             fallbackContestName: "{{contestId}} galdera",

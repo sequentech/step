@@ -15,6 +15,7 @@ const dutchTranslation: TranslationType = {
             showCandidates: "Kandidaten tonen",
             hideCandidates: "Kandidaten verbergen",
             selectedCandidates_one: "{{count}} kandidaat geselecteerd",
+            selectedCandidates_many: "{{count}} kandidaten geselecteerd",
             selectedCandidates_other: "{{count}} kandidaten geselecteerd",
             expandAll: "Alles uitvouwen",
             collapseAll: "Alles inklappen",

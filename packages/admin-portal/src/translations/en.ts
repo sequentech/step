@@ -1858,6 +1858,11 @@ const englishTranslation = {
                 trusteeList: "Trustees",
                 errorMinTrustees_one:
                     "You selected only {{selected}} trustee, but you must select at least {{threshold}}.",
+                // `_many` is selected only in es/cat/fr, for exact multiples of a million. English never
+                // selects it, but the other bundles are typed `TranslationType = typeof englishTranslation`,
+                // so the key has to be declared here before they can carry it.
+                errorMinTrustees_many:
+                    "You selected only {{selected}} trustees, but you must select at least {{threshold}}.",
                 errorMinTrustees_other:
                     "You selected only {{selected}} trustees, but you must select at least {{threshold}}.",
                 errorThreshold:
@@ -1991,6 +1996,7 @@ const englishTranslation = {
                 noTalliedContests: "No tallied contests available.",
                 publishSelectedContests: "Publish selected contests",
                 selectedContestCount_one: "{{count}} contest selected",
+                selectedContestCount_many: "{{count}} contests selected",
                 selectedContestCount_other: "{{count}} contests selected",
                 history: "Publication history",
                 version: "Version",
