@@ -17,6 +17,19 @@ export interface BallotSelectionsState {
 
 const initialState: BallotSelectionsState = {}
 
+/**
+ * The codec rejects a ballot-level blank flag that disagrees with a
+ * contest's actual content (a real selection, an invalid mark, or a
+ * decline), so any reducer that makes such a change must clear
+ * is_blank_ballot across every contest in the election, not just the
+ * one being edited.
+ */
+const clearBlankBallotFlag = (election: BallotSelection): void => {
+    election.forEach((contest) => {
+        contest.is_blank_ballot = false
+    })
+}
+
 export const ballotSelectionsSlice = createSlice({
     name: "ballotSelections",
     initialState,
@@ -113,6 +126,9 @@ export const ballotSelectionsSlice = createSlice({
             // update state
             if (!isUndefined(currentQuestion)) {
                 currentQuestion.is_explicit_invalid = action.payload.isExplicitInvalid
+                if (!isUndefined(currentElection)) {
+                    clearBlankBallotFlag(currentElection)
+                }
             }
             return state
         },
@@ -145,6 +161,9 @@ export const ballotSelectionsSlice = createSlice({
                         selected: choice.id === action.payload.candidateId ? 0 : -1,
                     }
                 })
+                if (!isUndefined(currentElection)) {
+                    clearBlankBallotFlag(currentElection)
+                }
             }
             return state
         },
@@ -202,6 +221,8 @@ export const ballotSelectionsSlice = createSlice({
                             : choice
                     )
                 }
+
+                clearBlankBallotFlag(currentElection)
             }
 
             return state
@@ -221,6 +242,8 @@ export const ballotSelectionsSlice = createSlice({
                     // invalid markers, otherwise it would be tallied as
                     // invalid instead of declined.
                     currentQuestion.is_explicit_invalid = false
+                    // A ballot cannot be both declined and blank.
+                    currentQuestion.is_blank_ballot = false
                     currentQuestion.choices = currentQuestion.choices.map((choice) => {
                         if (choice.selected > -1) {
                             choice.selected = -1
