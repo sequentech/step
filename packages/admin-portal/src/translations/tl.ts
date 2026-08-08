@@ -1882,6 +1882,8 @@ const tagalogTranslation: TranslationType = {
                 trusteeList: "Mga Trustee",
                 errorMinTrustees_one:
                     "Pumili ka lamang ng {{selected}} trustee, ngunit kailangan mong pumili ng hindi bababa sa {{threshold}}.",
+                errorMinTrustees_many:
+                    "Pumili ka lamang ng {{selected}} mga trustee, ngunit kailangan mong pumili ng hindi bababa sa {{threshold}}.",
                 errorMinTrustees_other:
                     "Pumili ka lamang ng {{selected}} mga trustee, ngunit kailangan mong pumili ng hindi bababa sa {{threshold}}.",
                 errorThreshold:
@@ -2015,6 +2017,7 @@ const tagalogTranslation: TranslationType = {
                 noTalliedContests: "Walang available na mga naibilang na paligsahan.",
                 publishSelectedContests: "I-publish ang mga napiling paligsahan",
                 selectedContestCount_one: "{{count}} paligsahan ang napili",
+                selectedContestCount_many: "{{count}} paligsahan ang napili",
                 selectedContestCount_other: "{{count}} paligsahan ang napili",
                 history: "Publication history",
                 version: "Version",

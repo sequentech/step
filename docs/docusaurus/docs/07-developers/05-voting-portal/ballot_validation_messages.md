@@ -50,10 +50,26 @@ number has to be computed from the state fields:
 | `errors.implicit.selectedMin` | how many more to pick | `min - numSelected` |
 | `errors.implicit.underVote` | how many more are allowed | `max - numSelected` |
 | `errors.implicit.selectedMax` | how many to unpick | `numSelected - max` |
-| `errors.implicit.overVoteDisabled` | the maximum itself | `max` |
+| `errors.implicit.maxSelectionsPerType` | how many to unpick from one candidate type | `numSelected - max` |
+| `errors.implicit.overVoteDisabled` | the maximum already reached | `max`, falling back to `numSelected` when the map carries no `max` |
+
+That is the whole of `COUNT_DERIVATIONS`. Every other validation message is rendered from the `message_map`
+as it arrives.
 
 A derivation always wins over a `count` that arrived in the map, so do not add one when the checker already
 sends the right number.
 
-Give the message `_one` and `_other` entries in `en.ts` — and whatever other plural forms each target language
-needs. See [Add a New Language](../10-tutorials/01-add_new_language.md) for the per-language rules.
+## Pluralising them
+
+A derived `count` is a number like any other, so these messages follow the ordinary plural rules — with one
+wrinkle worth knowing: the derivations subtract, so they can produce values the checker never sends.
+
+* Give the message the plural forms **every target language reports**, not just `_one` and `_other`. Spanish,
+  Catalan and French also need `_many`; a missing form falls through to `fallbackLng` and renders the English
+  sentence rather than the right one. `_many` is a verbatim copy of `_other`.
+* Adding a suffix to `en.ts` makes it a required key in every other language file, because they are typed
+  `TranslationType = typeof englishTranslation`.
+* `overVoteDisabled` is the one message whose count is a bound rather than a difference, so it is the one that
+  can carry a large operator-configured number straight into the sentence.
+
+See [Add a New Language](../10-tutorials/01-add_new_language.md) for the per-language rules.

@@ -1888,6 +1888,8 @@ const catalanTranslation: TranslationType = {
                 threshold: "Llindar",
                 errorMinTrustees_one:
                     "Has seleccionat només {{selected}} autoritat, però has de seleccionar almenys {{threshold}}.",
+                errorMinTrustees_many:
+                    "Has seleccionat només {{selected}} autoritats, però has de seleccionar almenys {{threshold}}.",
                 errorMinTrustees_other:
                     "Has seleccionat només {{selected}} autoritats, però has de seleccionar almenys {{threshold}}.",
                 errorThreshold:
@@ -2022,6 +2024,7 @@ const catalanTranslation: TranslationType = {
                 noTalliedContests: "No hi ha preguntes escrutades disponibles.",
                 publishSelectedContests: "Publicar les preguntes seleccionades",
                 selectedContestCount_one: "{{count}} pregunta seleccionada",
+                selectedContestCount_many: "{{count}} preguntes seleccionades",
                 selectedContestCount_other: "{{count}} preguntes seleccionades",
                 history: "Publication history",
                 version: "Version",

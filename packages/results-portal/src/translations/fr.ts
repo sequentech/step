@@ -50,6 +50,7 @@ const frenchTranslation: TranslationType = {
             published: "Publié",
             notPublishedYet: "Pas encore publié",
             position_one: "{{count}} position",
+            position_many: "{{count}} positions",
             position_other: "{{count}} positions",
             fallbackElectionName: "Élection",
             fallbackContestName: "Scrutin {{contestId}}",

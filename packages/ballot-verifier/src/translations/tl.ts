@@ -70,6 +70,7 @@ const tagalogTranslation = {
             },
             markedInvalid: "Ang balota ay tahasang minarkahan bilang hindi wasto",
             points_one: "({{count}} Mga Punto)",
+            points_many: "({{count}} Mga Punto)",
             points_other: "({{count}} Mga Punto)",
             contestNotFound: "Paligsahan hindi natagpuan: {{contestId}}",
             declineToVote: "Hindi bumoto",

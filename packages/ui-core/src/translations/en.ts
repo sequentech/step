@@ -81,6 +81,10 @@ const englishTranslation = {
                 writeInChoiceOutOfRange: "Write-in choice out of range: {{index}}",
                 writeInNotEndInZero: "Write-in doesn't end on 0",
                 writeInCharsExceeded_one: "Shorten your write-in by {{count}} character.",
+                // `_many` is selected only in es/cat/fr, for exact multiples of a million. English never
+                // selects it, but the other bundles are typed `TranslationType = typeof englishTranslation`,
+                // so the key has to be declared here before they can carry it.
+                writeInCharsExceeded_many: "Shorten your write-in by {{count}} characters.",
                 writeInCharsExceeded_other: "Shorten your write-in by {{count}} characters.",
                 bytesToUtf8Conversion:
                     "Error converting write-in from bytes to UTF-8 string: {{errorMessage}}",
@@ -88,15 +92,21 @@ const englishTranslation = {
             },
             implicit: {
                 selectedMax_one: "Deselect {{count}} candidate.",
+                selectedMax_many: "Deselect {{count}} candidates.",
                 selectedMax_other: "Deselect {{count}} candidates.",
                 selectedMin_one: "Select {{count}} more candidate.",
+                selectedMin_many: "Select {{count}} more candidates.",
                 selectedMin_other: "Select {{count}} more candidates.",
                 maxSelectionsPerType_one: "Deselect {{count}} candidate from {{type}}.",
+                maxSelectionsPerType_many: "Deselect {{count}} candidates from {{type}}.",
                 maxSelectionsPerType_other: "Deselect {{count}} candidates from {{type}}.",
                 underVote_one: "Select up to {{count}} more candidate.",
+                underVote_many: "Select up to {{count}} more candidates.",
                 underVote_other: "Select up to {{count}} more candidates.",
                 overVoteDisabled_one:
                     "You have selected the maximum of {{count}} candidate. Deselect it to choose another.",
+                overVoteDisabled_many:
+                    "You have selected the maximum of {{count}} candidates. Deselect one to choose another.",
                 overVoteDisabled_other:
                     "You have selected the maximum of {{count}} candidates. Deselect one to choose another.",
                 blankVote: "You have not selected any candidate.",
