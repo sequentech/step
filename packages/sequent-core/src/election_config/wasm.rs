@@ -341,7 +341,9 @@ pub fn compile_plan_js(
 /// deployment, not a plan somebody can fix by editing their answers, and
 /// swallowing it into the build report is how it goes unnoticed.
 #[cfg(feature = "election_config_archive")]
-fn profile_from(options: &JsValue) -> Result<Option<profile::Profile>, JsError> {
+fn profile_from(
+    options: &JsValue,
+) -> Result<Option<profile::Profile>, JsError> {
     #[derive(serde::Deserialize, Default)]
     #[serde(default)]
     struct Carrying {
@@ -353,17 +355,19 @@ fn profile_from(options: &JsValue) -> Result<Option<profile::Profile>, JsError> 
     }
 
     let carrying: Carrying = serde_wasm_bindgen::from_value(options.clone())
-        .map_err(|error| {
-            JsError::new(&format!("bad options: {error}"))
-        })?;
+        .map_err(|error| JsError::new(&format!("bad options: {error}")))?;
 
     let Some(document) = carrying.profile else {
         return Ok(None);
     };
 
-    profile::Profile::read(&document).map(Some).map_err(|report| {
-        JsError::new(&format!("this client profile cannot be used:\n{report}"))
-    })
+    profile::Profile::read(&document)
+        .map(Some)
+        .map_err(|report| {
+            JsError::new(&format!(
+                "this client profile cannot be used:\n{report}"
+            ))
+        })
 }
 
 /// Read a client profile, or none.
