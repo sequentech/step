@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Add a New Language | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-2964/docs/developers/tutorials/add_new_language"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Add a New Language | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2964/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2964/docs/developers/tutorials/add_new_language"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2964/docs/developers/tutorials/add_new_language" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2964/docs/developers/tutorials/add_new_language" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Add a New Language","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-2964/docs/developers/tutorials/add_new_language"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2964/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/pr-preview/pr-2964/assets/js/runtime~main.b917d804.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2964/assets/js/runtime~main.5bf634f3.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-2964/assets/js/main.95efffaf.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -44,13 +44,26 @@ are typed <code>TranslationType = typeof englishTranslation</code> and must carr
 universal one. Check the language you are adding:</p>
 <div class="language-js codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-js codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token keyword" style="font-style:italic">new</span><span class="token plain"> </span><span class="token class-name" style="color:rgb(255, 203, 107)">Intl</span><span class="token class-name punctuation" style="color:rgb(199, 146, 234)">.</span><span class="token class-name" style="color:rgb(255, 203, 107)">PluralRules</span><span class="token punctuation" style="color:rgb(199, 146, 234)">(</span><span class="token string" style="color:rgb(195, 232, 141)">&quot;[lang_code]&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">)</span><span class="token punctuation" style="color:rgb(199, 146, 234)">.</span><span class="token method function property-access" style="color:rgb(130, 170, 255)">resolvedOptions</span><span class="token punctuation" style="color:rgb(199, 146, 234)">(</span><span class="token punctuation" style="color:rgb(199, 146, 234)">)</span><span class="token punctuation" style="color:rgb(199, 146, 234)">.</span><span class="token property-access">pluralCategories</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token comment" style="color:rgb(105, 112, 152);font-style:italic">// &quot;ar&quot; -&gt; [&quot;few&quot;, &quot;many&quot;, &quot;one&quot;, &quot;other&quot;, &quot;two&quot;, &quot;zero&quot;]</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token comment" style="color:rgb(105, 112, 152);font-style:italic">// &quot;sl&quot; -&gt; [&quot;few&quot;, &quot;one&quot;, &quot;other&quot;, &quot;two&quot;]</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token comment" style="color:rgb(105, 112, 152);font-style:italic">// &quot;es&quot; -&gt; [&quot;many&quot;, &quot;one&quot;, &quot;other&quot;]</span><br></span></code></pre></div></div>
 <p>Arabic needs all six suffixes; Slovenian and Hebrew need <code>_two</code>, because both select <code>two</code> for a count of 2.
-Spanish, Catalan and French report <code>many</code>, but only for exact multiples of a million, so a count of
-candidates never reaches it.</p>
+Spanish, Catalan and French report <code>many</code> and select it for exact multiples of a million.</p>
+<p>A missing form does <strong>not</strong> fall back to <code>_other</code> in the same language — it falls through to
+<code>fallbackLng</code>, and the fallback language then picks its own category. A Spanish bundle carrying only
+<code>_one</code> and <code>_other</code> renders the <em>English</em> sentence at a count of 1,000,000. Declare every category the
+language reports even when a count that large looks impossible: these numbers come from
+operator-entered configuration such as <code>max_votes</code>, which nothing in the stack bounds.</p>
+</li>
+<li class="">
+<p><strong>A new suffix goes into every language file, not just the one that needs it.</strong> The non-English bundles
+are typed <code>TranslationType = typeof englishTranslation</code>, so a suffix present only in <code>es.ts</code> is an
+excess-property error, and adding it to <code>en.ts</code> makes it required in all of them. Adding <code>_many</code> for
+Spanish therefore means adding it to <code>en.ts</code> and to every other language as well. In the languages that
+never select it, copy the <code>_other</code> text verbatim — <code>many</code> is a formatting category, not a distinct
+inflection, so the wording does not change.</p>
 </li>
 <li class="">
 <p><strong><code>_zero</code> can also be added deliberately.</strong> Beyond the CLDR category, i18next selects <code>_zero</code> whenever
 <code>count</code> is exactly 0, in any language — so you can give &quot;none&quot; its own wording even where
-<code>pluralCategories</code> does not list <code>zero</code>.</p>
+<code>pluralCategories</code> does not list <code>zero</code>. It follows the rule above: adding <code>_zero</code> to <code>en.ts</code> makes it a
+required key in every other language file.</p>
 </li>
 <li class="">
 <p><strong>The runtime must provide <code>Intl.PluralRules</code>.</strong> i18next 25 requires it and has no fallback to the old v3
