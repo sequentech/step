@@ -37,13 +37,13 @@ const galegoTranslation: TranslationType = {
             ballotHelpDialog: {
                 title: "Sobre a pantalla da papeleta",
                 content:
-                    "Esta pantalla mostra a contenda na que es elixible para votar. Activa a caixa á dereita para seleccionar un Candidato/Resposta. Para restablecer, fai clic en “<b>Limpar selección</b>”; para continuar, fai clic en “<b>Seguinte</b>”.",
+                    "Esta pantalla mostra a pregunta na que es elixible para votar. Activa a caixa á dereita para seleccionar un Candidato/Resposta. Para restablecer, fai clic en “<b>Limpar selección</b>”; para continuar, fai clic en “<b>Seguinte</b>”.",
                 ok: "Aceptar",
             },
             nonVotedDialog: {
                 title: "Voto inválido ou en branco",
                 content:
-                    "Algunhas das túas respostas farán que a papeleta sexa inválida ou quede en branco en unha ou máis contendas.",
+                    "Algunhas das túas respostas farán que a papeleta sexa inválida ou quede en branco en unha ou máis preguntas.",
                 ok: "Volver e revisar",
                 continue: "Continuar",
                 cancel: "Cancelar",
@@ -71,7 +71,7 @@ const galegoTranslation: TranslationType = {
             instructionsDescription: "Siga estes pasos para votar:",
             step1Title: "1. Selecciona as túas opcións",
             step1Description:
-                "Elixe os teus candidatos e responde a cada contenda. Podes editar a túa papeleta ata estar listo.",
+                "Elixe os teus candidatos e responde a cada pregunta. Podes editar a túa papeleta ata estar listo.",
             step2Title: "2. Revisa a túa papeleta",
             step2Description:
                 "Encriptaremos a túa papeleta e mostrarémosche unha revisión final. Recibirás un ID de seguimento único.",
@@ -310,7 +310,7 @@ const galegoTranslation: TranslationType = {
             },
             alerts: {
                 noElections:
-                    "Non hai eleccións nas que poidas votar. Isto pode deberse a que a área non ten ningunha contenda asociada. Inténteo de novo máis tarde ou contacte co soporte para obter asistencia.",
+                    "Non hai eleccións nas que poidas votar. Isto pode deberse a que a área non ten ningunha pregunta asociada. Inténteo de novo máis tarde ou contacte co soporte para obter asistencia.",
                 electionEventNotPublished:
                     "O evento electoral aínda non foi publicado. Inténteo de novo máis tarde ou contacte co soporte para obter asistencia.",
             },
@@ -326,7 +326,7 @@ const galegoTranslation: TranslationType = {
             },
             explicit: {
                 notAllowed:
-                    "A papeleta está marcada como explicitamente inválida, pero a contenda non o permite",
+                    "A papeleta está marcada como explicitamente inválida, pero a pregunta non o permite",
                 alert: "Esta selección contarase como un voto inválido",
             },
             page: {

@@ -74,7 +74,7 @@ const galegoTranslation: TranslationType = {
             markedInvalid: "Papeleta marcada explícitamente como inválida",
             points_one: "({{count}} Punto)",
             points_other: "({{count}} Puntos)",
-            contestNotFound: "Contenda non atopada: {{contestId}}",
+            contestNotFound: "Pregunta non atopada: {{contestId}}",
             declineToVote: "Decidiu non votar",
         },
         footer: {
@@ -90,7 +90,7 @@ const galegoTranslation: TranslationType = {
                 ballotTooLarge: "A papeleta é máis grande do esperado",
             },
             explicit: {
-                notAllowed: "A papeleta está marcada como inválida pero a contenda non o permite",
+                notAllowed: "A papeleta está marcada como inválida pero a pregunta non o permite",
             },
         },
     },
