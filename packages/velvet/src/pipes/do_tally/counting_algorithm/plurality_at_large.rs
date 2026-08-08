@@ -40,6 +40,7 @@ impl PluralityAtLarge {
         let mut total_weight = 0;
 
         let mut total_declined_to_vote: u64 = 0;
+        let mut total_blank_ballots: u64 = 0;
 
         for (vote, weight_opt) in votes {
             let weight = weight_opt.clone().unwrap_or_default();
@@ -51,6 +52,10 @@ impl PluralityAtLarge {
                 &contest,
                 &explicit_blank_candidate_ids,
             );
+
+            if vote.is_blank_ballot {
+                total_blank_ballots = total_blank_ballots.saturating_add(1);
+            }
 
             match classify_ballot(vote, &explicit_blank_candidate_ids) {
                 BallotClass::ExplicitInvalid => {
@@ -88,6 +93,7 @@ impl PluralityAtLarge {
         extended_metrics.total_ballots = total_ballots;
         extended_metrics.total_weight = total_weight;
         extended_metrics.total_declined_to_vote = total_declined_to_vote;
+        extended_metrics.total_blank_ballots = total_blank_ballots;
         let percentage_votes_denominator = total_weight;
 
         let candidate_result = match op {
@@ -208,6 +214,29 @@ mod tests {
         }
     }
 
+    fn blank_ballot_vote() -> DecodedVoteContest {
+        DecodedVoteContest {
+            contest_id: "contest".to_string(),
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            is_blank_ballot: true,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: vec![
+                DecodedVoteChoice {
+                    id: "normal".to_string(),
+                    selected: -1,
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: "blank".to_string(),
+                    selected: -1,
+                    write_in_text: None,
+                },
+            ],
+        }
+    }
+
     fn plurality_at_large(ballots: Vec<DecodedVoteContest>) -> PluralityAtLarge {
         let contest = Contest {
             id: "contest".to_string(),
@@ -280,5 +309,42 @@ mod tests {
             .candidate_result
             .iter()
             .all(|candidate| candidate.total_count == 0));
+    }
+
+    #[test]
+    fn blank_ballot_is_counted_without_changing_existing_blank_vote_figures() {
+        let tally = plurality_at_large(vec![blank_ballot_vote()]);
+
+        let result = tally
+            .process_ballots(TallyOperation::ProcessBallotsAll)
+            .expect("blank ballot should be processed");
+
+        let metrics = result
+            .extended_metrics
+            .expect("extended metrics should be present");
+        assert_eq!(metrics.total_blank_ballots, 1);
+        assert_eq!(metrics.total_declined_to_vote, 0);
+        // A blank ballot counts as a valid, implicitly blank ballot in this
+        // contest, exactly like a regular blank vote would — the new
+        // ballot-level counter is additive, not a replacement.
+        assert_eq!(result.total_valid_votes, 1);
+        assert_eq!(result.total_invalid_votes, 0);
+        assert_eq!(result.blank_votes.explicit, 0);
+        assert_eq!(result.blank_votes.implicit, 1);
+    }
+
+    #[test]
+    fn declined_ballot_is_not_counted_as_blank_ballot() {
+        let tally = plurality_at_large(vec![declined_vote()]);
+
+        let result = tally
+            .process_ballots(TallyOperation::ProcessBallotsAll)
+            .expect("declined ballot should be processed");
+
+        let metrics = result
+            .extended_metrics
+            .expect("extended metrics should be present");
+        assert_eq!(metrics.total_declined_to_vote, 1);
+        assert_eq!(metrics.total_blank_ballots, 0);
     }
 }

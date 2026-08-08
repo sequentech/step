@@ -382,6 +382,11 @@ pub async fn save_results(
     for election in &results {
         let total_voters_percent: f64 =
             (election.total_votes as f64) / (cmp::max(election.census, 1) as f64);
+        // Percentage over total votes cast, not census: a blank ballot is a
+        // valid cast ballot.
+        let blank_ballots_percent: Option<f64> = election
+            .blank_ballots
+            .map(|n| (n as f64) / (cmp::max(election.total_votes, 1) as f64));
         results_elections.push(ResultsElection {
             id: Uuid::new_v4().into(),
             tenant_id: tenant_id.into(),
@@ -397,8 +402,10 @@ pub async fn save_results(
             annotations: None,
             total_voters_percent: Some(total_voters_percent.clamp(0.0, 1.0).try_into()?),
             documents: None,
-            blank_ballots: None,
-            blank_ballots_percent: None,
+            blank_ballots: election.blank_ballots.map(|n| n as i64),
+            blank_ballots_percent: blank_ballots_percent
+                .map(|p| p.clamp(0.0, 1.0).try_into())
+                .transpose()?,
         });
 
         for contest in &election.reports {

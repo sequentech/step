@@ -7,8 +7,8 @@ use rand::thread_rng;
 use rayon::prelude::*;
 use sequent_core::{
     ballot::{
-        Candidate, CandidatesOrder, ConsolidatedReportPolicy, Contest, ContestEncryptionPolicy,
-        DeclineToVotePolicy, StringifiedPeriodDates,
+        BlankBallotsPolicy, Candidate, CandidatesOrder, ConsolidatedReportPolicy, Contest,
+        ContestEncryptionPolicy, DeclineToVotePolicy, StringifiedPeriodDates,
     },
     serialization::deserialize_with_path::{deserialize_str, deserialize_value},
     services::{area_tree::TreeNodeArea, pdf, reports},
@@ -517,6 +517,17 @@ impl GenerateReports {
     pub fn read_reports(&self) -> Result<Vec<ElectionReportDataComputed>> {
         let mut election_reports: Vec<ElectionReportDataComputed> = vec![];
 
+        let config = self.get_config()?;
+        let multi_contest_encrypt = config
+            .tally_session_configuration
+            .clone()
+            .map(|c| {
+                c.contest_encryption_policy
+                    .map(|c| c == ContestEncryptionPolicy::MULTIPLE_CONTESTS)
+                    .unwrap_or(false)
+            })
+            .unwrap_or(false);
+
         for election_input in &self.pipe_inputs.election_list {
             let mut reports = vec![];
             let areas_map: HashMap<String, TreeNodeArea> = election_input
@@ -601,6 +612,24 @@ impl GenerateReports {
                 }
             }
 
+            let is_blank_ballots_enabled = multi_contest_encrypt
+                && election_input
+                    .presentation
+                    .clone()
+                    .and_then(|p| p.blank_ballots_policy)
+                    == Some(BlankBallotsPolicy::ENABLED);
+
+            let blank_ballots = if is_blank_ballots_enabled {
+                reports
+                    .iter()
+                    .find(|r| r.area.is_none())
+                    .and_then(|r| r.contest_result.as_ref())
+                    .and_then(|cr| cr.extended_metrics.as_ref())
+                    .map(|m| m.total_blank_ballots)
+            } else {
+                None
+            };
+
             let computed_reports = self.compute_reports(reports, &areas_map, false)?;
 
             election_reports.push(ElectionReportDataComputed {
@@ -608,6 +637,7 @@ impl GenerateReports {
                 area: None,
                 census: election_input.census,
                 total_votes: election_input.total_votes,
+                blank_ballots,
                 reports: computed_reports,
             });
         }
@@ -960,6 +990,10 @@ pub struct ElectionResultReport {
     pub total_decline_to_vote: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub percentage_total_decline_to_vote: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total_blank_ballots: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub percentage_total_blank_ballots: Option<f64>,
 }
 
 impl Pipe for GenerateReports {
@@ -1162,6 +1196,31 @@ impl Pipe for GenerateReports {
                 let percentage_total_votes = percentage_of(total_votes, election_census);
                 let percentage_census = 100.0;
 
+                let is_blank_ballots_enabled = multi_contest_encrypt
+                    && election_input
+                        .presentation
+                        .clone()
+                        .and_then(|p| p.blank_ballots_policy)
+                        == Some(BlankBallotsPolicy::ENABLED);
+
+                let total_blank_ballots = if is_blank_ballots_enabled {
+                    contest_reports
+                        .first()
+                        .and_then(|r| {
+                            r.contest_result
+                                .clone()
+                                .map(|r| r.extended_metrics.map(|m| m.total_blank_ballots))
+                        })
+                        .unwrap_or(None)
+                } else {
+                    None
+                };
+
+                // Percentage over total votes cast, not census: a blank
+                // ballot is a valid cast ballot.
+                let percentage_total_blank_ballots =
+                    total_blank_ballots.map(|count| percentage_of(count, total_votes));
+
                 let election_results = ElectionResultReport {
                     census: election_census.clone(),
                     percentage_census,
@@ -1169,6 +1228,8 @@ impl Pipe for GenerateReports {
                     percentage_total_votes,
                     total_decline_to_vote,
                     percentage_total_decline_to_vote,
+                    total_blank_ballots,
+                    percentage_total_blank_ballots,
                 };
 
                 let summary_election_report = contest_reports
@@ -1357,6 +1418,7 @@ pub struct ElectionReportDataComputed {
     pub area: Option<BasicArea>,
     pub census: u64,
     pub total_votes: u64,
+    pub blank_ballots: Option<u64>,
     pub reports: Vec<ReportDataComputed>,
 }
 
