@@ -7,7 +7,6 @@ import {TranslationType} from "./en"
 const galegoTranslation: TranslationType = {
     translations: {
         language: "Galego",
-        welcome: "Ola <br/> <strong>Mundo</strong>",
         breadcrumbSteps: {
             select: "Seleccionar un Verificador",
             import: "Importar Datos",

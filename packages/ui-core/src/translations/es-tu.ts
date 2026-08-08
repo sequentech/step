@@ -6,7 +6,6 @@ import {TranslationType} from "./en"
 const spanishInformalTranslation: TranslationType = {
     translations: {
         language: "Español (tú)",
-        welcome: "Let's start: Import auditable ballot..",
         breadcrumbSteps: {
             select: "Seleccionar un Verificador",
             import: "Importar Datos",

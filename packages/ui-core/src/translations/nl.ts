@@ -6,7 +6,6 @@ import {TranslationType} from "./en"
 const dutchTranslation: TranslationType = {
     translations: {
         language: "Nederlands",
-        welcome: "Hello <br/> <strong>World</strong>",
         breadcrumbSteps: {
             select: "Selecteer een verificateur",
             import: "Gegevens importeren",

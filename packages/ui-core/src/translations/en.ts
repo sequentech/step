@@ -4,7 +4,6 @@
 const englishTranslation = {
     translations: {
         language: "English",
-        welcome: "Hello <br/> <strong>World</strong>",
         breadcrumbSteps: {
             select: "Select a Verifier",
             import: "Import Data",
