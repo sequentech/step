@@ -175,7 +175,7 @@ default_features = ["dep:strand", "dep:num-bigint", "dep:tempfile", "dep:ammonia
 election_config_xlsx = ["default_features", "dep:calamine", "dep:zip"]
 # Rendering the base entity templates. Separate from `reports`, which also brings
 # a headless browser and three AWS SDKs; this needs only the template engine.
-election_config_templates = ["default_features", "dep:handlebars"]
+election_config_templates = ["default_features", "areas", "dep:handlebars"]
 # Writing the importable zip. Separate again: a front end that only validates an
 # existing bundle has nothing to write.
 election_config_archive = ["election_config_templates", "dep:zip"]

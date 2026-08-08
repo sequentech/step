@@ -471,7 +471,7 @@ fn check_ballot_coverage(
         .iter()
         .map(|link| link.contest_id.as_str())
         .collect();
-    let linked_areas: HashSet<&str> = bundle
+    let directly_linked: HashSet<&str> = bundle
         .area_contests
         .iter()
         .map(|link| link.area_id.as_str())
@@ -481,6 +481,39 @@ fn check_ballot_coverage(
         .iter()
         .filter_map(|area| area.parent_id.as_deref())
         .collect();
+
+    // An area also votes on everything its ancestors do. That is the platform's
+    // rule, not an assumption: when a ballot publication is generated, windmill
+    // walks the path from the root down to each area and gathers every
+    // `area_contest` on the way — see
+    // `crate::ballot_style::elections_contests_for_area`, which is that walk and
+    // is what the Election Architect's preview calls.
+    //
+    // This check used to look only at direct links, and so warned that a child
+    // area's voters "would see an empty ballot" when in fact they get every
+    // contest assigned to their parent. It was found by previewing a two-area
+    // plan and seeing two ballots next to a warning saying there would be one.
+    let mut parent_of: HashMap<&str, &str> = HashMap::new();
+    for area in &bundle.areas {
+        if let Some(parent) = area.parent_id.as_deref() {
+            parent_of.insert(area.id.as_str(), parent);
+        }
+    }
+    let inherits_a_contest = |area_id: &str| -> bool {
+        let mut at = area_id;
+        // Bounded by the number of areas, so a cycle cannot spin here. A cycle is
+        // its own error, reported by `check_area_tree`.
+        for _ in 0..bundle.areas.len() {
+            if directly_linked.contains(at) {
+                return true;
+            }
+            match parent_of.get(at) {
+                Some(parent) => at = parent,
+                None => return false,
+            }
+        }
+        false
+    };
 
     for (index, contest) in bundle.contests.iter().enumerate() {
         if !linked_contests.contains(contest.id.as_str()) {
@@ -497,8 +530,8 @@ fn check_ballot_coverage(
 
     for (index, area) in bundle.areas.iter().enumerate() {
         // A parent area is a grouping; only leaf areas carry a ballot.
-        if linked_areas.contains(area.id.as_str())
-            || parents.contains(area.id.as_str())
+        if parents.contains(area.id.as_str())
+            || inherits_a_contest(area.id.as_str())
         {
             continue;
         }
@@ -506,8 +539,9 @@ fn check_ballot_coverage(
             Code::BallotCoverage,
             format!("areas[{index}]"),
             format!(
-                "area '{}' has no contests and is not a parent of another area, so \
-                 its voters would see an empty ballot",
+                "area '{}' votes on no contest — not its own and none inherited \
+                 from an area it sits inside — so its voters would see an empty \
+                 ballot",
                 area.name.as_deref().unwrap_or(&area.id)
             ),
         ));

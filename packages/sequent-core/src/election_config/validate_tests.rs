@@ -368,6 +368,42 @@ fn a_parent_area_needs_no_ballot_of_its_own() {
     assert!(!validate(&sound()).has_errors());
 }
 
+#[test]
+fn an_area_inheriting_its_parents_contests_is_not_empty() {
+    // The platform walks from the root down to each area and gathers every
+    // `area_contest` on the way, so a child with no links of its own still gets
+    // everything its parent votes on.
+    //
+    // This check used to look only at direct links and warned that such an
+    // area's voters "would see an empty ballot". Found by previewing a two-area
+    // plan through the platform's own ballot-style builder and getting two
+    // ballots next to a warning that said there would be one.
+    let mut bundle = sound();
+
+    let parent_id = bundle.areas[0].id.clone();
+    let mut child = bundle.areas[1].clone();
+    child.id = "a3000000-0000-5000-8000-000000000000".into();
+    child.name = Some("Inherits".into());
+    child.parent_id = Some(parent_id.clone());
+    bundle.areas.push(child);
+
+    // The parent votes on something; the child links to nothing.
+    bundle
+        .area_contests
+        .iter_mut()
+        .for_each(|link| link.area_id = parent_id.clone());
+
+    let report = validate(&bundle);
+    assert!(!report.has_errors());
+    assert!(
+        !report.warnings().any(|problem| {
+            problem.code == Code::BallotCoverage
+                && problem.message.contains("Inherits")
+        }),
+        "an area inheriting a contest is not empty; got:\n{report}"
+    );
+}
+
 // -- permission labels ------------------------------------------------------
 
 #[test]

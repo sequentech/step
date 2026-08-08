@@ -9,7 +9,7 @@
 //! JavaScript. That is the whole point — a file that validates in a browser
 //! imports on the server, because the same code decided both times.
 //!
-//! Four entry points, matching the questions a front end asks:
+//! Five entry points, matching the questions a front end asks:
 //!
 //! * [`check_bundle`] — "would the platform accept this export?" Enough on its own
 //!   for a page that only checks an existing file, and it needs no template engine
@@ -21,8 +21,11 @@
 //! * [`compile_plan_js`] — "turn this plan into something importable." The same
 //!   output shape as `build_from_workbook`, because a wizard and a spreadsheet
 //!   produce the same thing.
+//! * [`preview_ballot_js`] — "what will voters actually see?" The ballots the
+//!   platform's own builder makes of the compiled entities, in the shape the
+//!   Voting Portal already opens.
 //!
-//! The last two are gated on `election_config_archive` alone. Compiling a plan
+//! The last three are gated on `election_config_archive` alone. Compiling a plan
 //! needs the templates, the builder and the zip writer, but no spreadsheet
 //! parser — so the wizard's package does not carry calamine.
 //!
@@ -43,7 +46,7 @@ use crate::election_config::render::TemplateSet;
 use crate::election_config::xlsx::read_xlsx;
 #[cfg(feature = "election_config_archive")]
 use crate::election_config::{
-    architect, archive, build, presets, profile, BuildOptions,
+    architect, archive, build, presets, preview, profile, BuildOptions,
 };
 
 #[wasm_bindgen(typescript_custom_section)]
@@ -97,6 +100,33 @@ export interface BuildOutput {
     /** Absent when the build failed. */
     event_external_id?: string;
 }
+
+/**
+ * The ballots a plan's voters would be given.
+ *
+ * The same five keys, in the same shape, as the publication preview the platform
+ * writes to its public bucket — so the Voting Portal itself can open this
+ * document, and what it draws is not our idea of a ballot but its own.
+ *
+ * `ballot_styles` holds one entry per area and election, each of them the
+ * `ballot_eml` a `ballot_style` row carries. Its type is `IBallotStyle` from
+ * `@sequentech/ui-core`, which this package does not depend on, so it is left as
+ * `unknown` rather than described a second time and allowed to drift.
+ */
+export interface BallotPreview {
+    ballot_styles: unknown[];
+    election_event: unknown;
+    elections: unknown[];
+    support_materials: unknown[];
+    documents: unknown[];
+}
+
+export interface PreviewOutput {
+    /** Absent when the plan could not be compiled; read `report`. */
+    preview?: BallotPreview;
+    /** Everything found on the way, errors and warnings together. */
+    report: Report;
+}
 "#;
 
 #[wasm_bindgen]
@@ -106,6 +136,9 @@ extern "C" {
 
     #[wasm_bindgen(typescript_type = "BuildOutput")]
     pub type IBuildOutput;
+
+    #[wasm_bindgen(typescript_type = "PreviewOutput")]
+    pub type IPreviewOutput;
 }
 
 /// Check an existing export, the way the server would.
@@ -333,6 +366,124 @@ pub fn compile_plan_js(
         event_external_id: Some(compiled.bundle.event_external_id.clone()),
     })
     .map(IBuildOutput::from)
+}
+
+/// The ballots this plan's voters would be given.
+///
+/// Compiles the plan the way [`compile_plan_js`] does — profile applied,
+/// validated, built — and then hands the resulting entities to the platform's own
+/// ballot-style builder. So the preview is generated from the bytes that would be
+/// imported, and nothing in this crate decides what a ballot contains.
+///
+/// No zip. A review screen asking "what will voters see?" does not need the
+/// archive, and compressing one to answer would be a second of a delivery
+/// engineer's time on every keystroke.
+///
+/// Like the other entry points, a plan that cannot be compiled comes back as a
+/// report with no preview rather than as an exception.
+#[cfg(feature = "election_config_archive")]
+#[wasm_bindgen(js_name = previewBallot)]
+pub fn preview_ballot_js(
+    plan: JsValue,
+    options: JsValue,
+) -> Result<IPreviewOutput, JsError> {
+    let plan: architect::Blueprint = serde_wasm_bindgen::from_value(plan)
+        .map_err(|error| {
+            JsError::new(&format!("this is not an election plan: {error}"))
+        })?;
+
+    let profile = profile_from(&options)?;
+    let demo_key = demo_public_key_from(&options)?;
+    let options = build_options(options)?;
+
+    let templates = match TemplateSet::builtin() {
+        Ok(templates) => templates,
+        Err(problem) => {
+            return refused_preview(problem).map(IPreviewOutput::from)
+        }
+    };
+
+    // The same call `compile_plan` makes, so a plan that previews is a plan that
+    // compiles and vice versa. Anything else and the review screen would show a
+    // ballot for a bundle that will not build.
+    let compiled = match architect::compile_plan(
+        &plan,
+        &templates,
+        &options,
+        profile.as_ref(),
+    ) {
+        Ok(compiled) => compiled,
+        Err(report) => {
+            return to_js(&PreviewOutput {
+                preview: None,
+                report,
+            })
+            .map(IPreviewOutput::from)
+        }
+    };
+
+    let settings = preview::PreviewOptions {
+        demo_public_key: demo_key
+            .unwrap_or_else(|| preview::NOT_A_KEY.to_string()),
+    };
+
+    match preview::preview_publication(&compiled.bundle, &settings) {
+        Ok(document) => to_js(&PreviewOutput {
+            preview: Some(document.to_document()),
+            report: compiled.report,
+        })
+        .map(IPreviewOutput::from),
+        Err(mut report) => {
+            for problem in compiled.report.problems {
+                report.push(problem);
+            }
+            to_js(&PreviewOutput {
+                preview: None,
+                report,
+            })
+            .map(IPreviewOutput::from)
+        }
+    }
+}
+
+/// What a preview shows in place of the key no ceremony has produced yet.
+///
+/// Optional, and normally absent. It is here for the delivery engineer previewing
+/// against a tenant whose ceremony *has* run, who wants the real thing rather
+/// than a stand-in.
+#[cfg(feature = "election_config_archive")]
+fn demo_public_key_from(options: &JsValue) -> Result<Option<String>, JsError> {
+    #[derive(serde::Deserialize, Default)]
+    #[serde(default, rename_all = "camelCase")]
+    struct Carrier {
+        demo_public_key: Option<String>,
+    }
+
+    if options.is_undefined() || options.is_null() {
+        return Ok(None);
+    }
+    let carrier: Carrier = serde_wasm_bindgen::from_value(options.clone())
+        .map_err(|error| JsError::new(&format!("bad options: {error}")))?;
+    Ok(carrier.demo_public_key)
+}
+
+/// One problem, as a preview with nothing in it.
+#[cfg(feature = "election_config_archive")]
+fn refused_preview(problem: Problem) -> Result<JsValue, JsError> {
+    let mut report = Report::default();
+    report.push(problem);
+    to_js(&PreviewOutput {
+        preview: None,
+        report,
+    })
+}
+
+#[cfg(feature = "election_config_archive")]
+#[derive(Serialize)]
+struct PreviewOutput {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    preview: Option<serde_json::Value>,
+    report: Report,
 }
 
 /// The client profile out of the options object, if it carries one.

@@ -56,6 +56,11 @@ pub struct ElectionEventConfig {
  * Returns a HashMap<election_id, set<contest_id>> with all
  * the election ids and contest ids related to an area,
  * taking into consideration the parent areas as well.
+ *
+ * The resolution itself lives in `sequent_core::ballot_style` beside
+ * `create_ballot_style`, so that the Election Architect's ballot preview
+ * composes ballots exactly the way a publication does. This is the part that
+ * knows about a `ballot_publication` row, which sequent-core does not.
  */
 pub fn get_elections_contests_map_for_area(
     area: &Area,
@@ -64,48 +69,13 @@ pub fn get_elections_contests_map_for_area(
     contests_map: &HashMap<String, Contest>,
     area_contests_map: &HashMap<String, AreaContest>,
 ) -> AnyhowResult<HashMap<String, HashSet<String>>> {
-    let election_ids = ballot_publication.election_ids.clone().unwrap_or(vec![]);
-    if 0 == election_ids.len() {
-        return Err(anyhow!("No election ids"));
-    }
-    let area_ids: Vec<String> = areas_tree
-        .find_path_to_area(&area.id)
-        .ok_or(anyhow!("area not found in tree"))?
-        .into_iter()
-        .map(|area| area.id)
-        .collect();
-    let area_contests: Vec<AreaContest> = area_contests_map
-        .values()
-        .filter(|area_contest| area_ids.contains(&area_contest.area_id))
-        .map(|val| val.clone())
-        .collect();
-    // election_id, set<contest>
-    let mut election_contest_map: HashMap<String, HashSet<String>> = HashMap::new();
-
-    for area_contest in area_contests.iter() {
-        let Some(contest) = contests_map.get(&area_contest.contest_id) else {
-            event!(
-                Level::INFO,
-                "missing contest for area contest: {}",
-                area_contest.id
-            );
-            continue;
-        };
-        if !election_ids.contains(&contest.election_id) {
-            continue;
-        }
-        election_contest_map
-            .entry(contest.election_id.clone())
-            .and_modify(|contest_ids| {
-                contest_ids.insert(contest.id.clone());
-            })
-            .or_insert_with(|| {
-                let mut set = HashSet::new();
-                set.insert(contest.id.clone());
-                set
-            });
-    }
-    Ok(election_contest_map)
+    sequent_core::ballot_style::elections_contests_for_area(
+        area,
+        areas_tree,
+        &ballot_publication.election_ids.clone().unwrap_or_default(),
+        contests_map,
+        area_contests_map,
+    )
 }
 
 pub async fn create_ballot_style_postgres(
@@ -184,6 +154,9 @@ pub async fn create_ballot_style_postgres(
             candidates.clone(),
             election_dates.clone(),
             public_key.clone(),
+            // windmill has an environment; let it read DEMO_PUBLIC_KEY from
+            // there. A browser does not, which is why the parameter exists.
+            None,
         )?;
 
         let is_multi_contest = election_dto

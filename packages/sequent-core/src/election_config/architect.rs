@@ -387,9 +387,20 @@ pub struct PlannedArea {
     ///
     /// A tree, because that is how districting is actually described — a local
     /// inside a region inside a state — and because the platform models it that
-    /// way. A contest assigned to a parent is not automatically on its children's
-    /// ballots; assignment is explicit, so that "who votes on this" is answerable
-    /// by reading one list rather than walking a tree.
+    /// way.
+    ///
+    /// **A contest assigned to a parent is on every descendant's ballot.** That
+    /// is not this module's choice: when a publication is generated, windmill
+    /// walks the path from the root down to each area and gathers every
+    /// `area_contest` on the way — see
+    /// [`crate::ballot_style::elections_contests_for_area`], which is now the one
+    /// implementation of that walk and is what the preview calls. So assigning a
+    /// contest to "National" and nothing else still puts it in front of every
+    /// voter in North and South.
+    ///
+    /// This doc comment used to claim the opposite, and nothing tested it either
+    /// way. `preview_tests::each_area_gets_the_contests_it_and_its_parents_vote_on`
+    /// does now.
     #[serde(default)]
     pub parent_external_id: Option<String>,
 }
