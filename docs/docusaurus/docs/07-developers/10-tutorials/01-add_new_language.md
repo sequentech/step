@@ -64,29 +64,10 @@ Rules to follow:
   lacks it, install the `intl-pluralrules` polyfill — without one, i18next logs an error and degrades to
   English-style `_one`/`_other` for every language, which silently mis-pluralises the rest.
 
-### Ballot validation messages
-
-The warnings a voter sees while marking a ballot come from the Rust checker in `sequent-core` as a message key
-plus a `message_map`. Every value in that map is a string, and the map describes the *state* of the selection
-(`numSelected`, `min`, `max`) rather than the number the sentence is about.
-
-`getBallotErrorOptions` in `ui-core` bridges the two: it coerces the numeric values and derives `count` per
-message key — `max - numSelected` for an undervote, `numSelected - max` for an overvote, and so on. Render these
-messages through it:
-
-```tsx
-import {getBallotErrorOptions} from "@sequentech/ui-core"
-
-t(error.message || "", getBallotErrorOptions(error.message, error.message_map))
-```
-
-`getBallotErrorOptions` copies every entry of `message_map` into the options it returns, coercing numeric
-strings as it goes. So if the checker already sends a `count`, the message pluralises with no further work.
-
-Add a derivation to `COUNT_DERIVATIONS` in `packages/ui-core/src/services/ballotErrorMessages.ts` only when the
-number the sentence is about is *not* in `message_map` and has to be computed from the state fields — as with
-`underVote`, where the sentence needs `max - numSelected`. A derivation, when present, overrides any `count`
-that came in the map.
+The ballot validation warnings under `errors.implicit.*` are plural keys like any other — give them the forms
+your language needs and nothing else is required here. How their numbers are calculated is described in
+[Ballot validation messages](../05-voting-portal/ballot_validation_messages.md), which you only need when
+adding a new warning rather than a new language.
 
 ## 1. Admin Portal (`packages/admin-portal`)
 
