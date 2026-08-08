@@ -36,6 +36,34 @@ pub const COUNTING_ALGORITHMS: &[&str] = &[
     "cumulative",
 ];
 
+/// The algorithms a wizard offers, which is fewer than the platform accepts.
+///
+/// [`COUNTING_ALGORITHMS`] is the whole value space and stays that way: a plan
+/// written by hand or by another tool may name any of them, and validation must keep
+/// accepting it. This is a narrower list, for a dropdown.
+///
+/// What is left out, and why — because "we only show six" is the kind of decision
+/// that gets quietly reversed by whoever next adds an algorithm:
+///
+/// - `borda-mas-madrid`, `desborda`, `desborda2`, `desborda3` — one family, written
+///   for a specific Spanish municipal process and its quota rules. Offering four
+///   near-identical names to somebody choosing a counting method for a union
+///   election is four chances to pick the wrong one, and the difference between
+///   `desborda2` and `desborda3` is not something a label can carry. A client whose
+///   rules genuinely name one still gets it: the plan accepts the value, `step-cli`
+///   builds it, and the wizard shows it when a plan already carries it.
+///
+/// Everything else is offered. `cumulative` and `pairwise-beta` are unusual but
+/// each answers a question a client can ask in one sentence.
+pub const OFFERED_COUNTING_ALGORITHMS: &[&str] = &[
+    "plurality-at-large",
+    "instant-runoff",
+    "borda",
+    "borda-nauru",
+    "pairwise-beta",
+    "cumulative",
+];
+
 /// The algorithms `CountingAlgType::is_preferential` returns true for.
 ///
 /// The split is load-bearing rather than cosmetic: ballot encoding follows the

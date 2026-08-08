@@ -1113,3 +1113,47 @@ fn a_voter_can_look_up_their_ballot_unless_asked_otherwise() {
         assert!(!validate(&bundle).has_errors(), "{value} was refused");
     }
 }
+
+/// The picker's list is a subset of the validator's, and each is still real.
+///
+/// The failure this prevents is a rename. Somebody corrects a spelling in
+/// `COUNTING_ALGORITHMS` — where it matters, because the importer reads it — and the
+/// wizard's dropdown then offers a value nothing accepts, which is exactly what
+/// `INV-8` exists to stop. The other direction is deliberate and not asserted: the
+/// offered list is *meant* to be shorter.
+#[test]
+fn every_algorithm_a_dropdown_offers_is_one_the_platform_accepts() {
+    for offered in super::validate::OFFERED_COUNTING_ALGORITHMS {
+        assert!(
+            super::validate::COUNTING_ALGORITHMS.contains(offered),
+            "the wizard offers {offered}, which is not a counting algorithm"
+        );
+    }
+}
+
+/// A plan naming one of the four still validates, still builds, still counts.
+///
+/// Narrowing what a dropdown offers must not narrow what the platform takes: a
+/// client whose rules name `desborda2` has a plan somebody wrote by hand or through
+/// `step-cli`, and turning that into a validation error would break a real election
+/// to tidy a menu.
+#[test]
+fn an_algorithm_the_wizard_does_not_offer_is_still_a_valid_plan() {
+    for hidden in ["borda-mas-madrid", "desborda", "desborda2", "desborda3"] {
+        assert!(
+            !super::validate::OFFERED_COUNTING_ALGORITHMS.contains(&hidden),
+            "{hidden} is offered, so this test is asserting nothing"
+        );
+        assert!(
+            super::validate::COUNTING_ALGORITHMS.contains(&hidden),
+            "{hidden} is not a counting algorithm at all"
+        );
+        // And it is one of the ranked ones, which is what decides ballot encoding —
+        // so a plan naming it needs `preferential`, and that pair is what
+        // `check_tally` refuses to get wrong.
+        assert!(
+            super::validate::PREFERENTIAL_ALGORITHMS.contains(&hidden),
+            "{hidden} is not preferential, so the pairing rule differs"
+        );
+    }
+}

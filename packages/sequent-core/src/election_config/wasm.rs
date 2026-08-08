@@ -698,6 +698,16 @@ pub fn policy_catalog() -> Result<JsValue, JsError> {
     struct TallyCatalog {
         voting_types: &'static [&'static str],
         counting_algorithms: &'static [&'static str],
+        /// The subset a dropdown should offer.
+        ///
+        /// Both lists cross, because they answer different questions: a *validator*
+        /// asks whether a value is real, and a *picker* asks what somebody should be
+        /// choosing between. Four of the ten are one municipal family whose names a
+        /// label cannot distinguish, so offering them is offering four ways to get
+        /// it wrong — but a plan that already names one still validates, still
+        /// builds, and is still shown by a front end that keeps the current value
+        /// in its list.
+        offered_counting_algorithms: &'static [&'static str],
         /// Which of those are ranked. A contest using one must be preferential.
         preferential: &'static [&'static str],
         default_voting_type: String,
@@ -755,6 +765,8 @@ pub fn policy_catalog() -> Result<JsValue, JsError> {
                 voting_types: crate::election_config::validate::VOTING_TYPES,
                 counting_algorithms:
                     crate::election_config::validate::COUNTING_ALGORITHMS,
+                offered_counting_algorithms:
+                    crate::election_config::validate::OFFERED_COUNTING_ALGORITHMS,
                 preferential:
                     crate::election_config::validate::PREFERENTIAL_ALGORITHMS,
                 default_voting_type: default.voting_type.clone(),
