@@ -16,6 +16,7 @@ fn plan() -> Blueprint {
         version: BLUEPRINT_VERSION,
         external_id: "union-2027".to_string(),
         name: Translated::new("Union Election 2027"),
+        description: Translated::default(),
         trustees: vec![
             Trustee {
                 name: "A".to_string(),
@@ -31,15 +32,18 @@ fn plan() -> Blueprint {
             shared: None,
             external_id: "officers".to_string(),
             name: Translated::new("Officers"),
+            description: Translated::default(),
             contests: vec![
                 PlannedContest {
                     external_id: "president".to_string(),
                     name: Translated::new("President"),
+                    description: Translated::default(),
                     max_votes: 1,
                     winners: 1,
                     candidates: vec![PlannedCandidate {
                         external_id: "alice".to_string(),
                         name: Translated::new("Alice"),
+                        description: Translated::default(),
                         ..Default::default()
                     }],
                     ..Default::default()
@@ -47,6 +51,7 @@ fn plan() -> Blueprint {
                 PlannedContest {
                     external_id: "board".to_string(),
                     name: Translated::new("Board"),
+                    description: Translated::default(),
                     max_votes: 3,
                     winners: 3,
                     ..Default::default()
@@ -257,7 +262,7 @@ fn one_path_with_every_element_reaches_every_contest() {
     let descriptions: Vec<&str> = applied.elections[0]
         .contests
         .iter()
-        .map(|contest| contest.description.as_str())
+        .map(|contest| contest.description.get("en").unwrap_or(""))
         .collect();
 
     assert_eq!(
@@ -450,7 +455,7 @@ fn a_locked_value_reaches_the_built_bundle() {
 
     let mut disagrees = plan();
     disagrees.elections[0].contests[0].description =
-        "typed by hand".to_string();
+        Translated::new("typed by hand");
 
     let templates = TemplateSet::builtin().unwrap();
     let compiled = compile_plan(

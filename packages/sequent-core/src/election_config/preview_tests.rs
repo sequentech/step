@@ -32,6 +32,7 @@ fn sound() -> Blueprint {
         auth_preset: None,
         external_id: "union-2027".to_string(),
         name: Translated::new("Union Election 2027"),
+        description: Translated::default(),
         languages: vec!["en".to_string(), "es".to_string()],
         default_language: None,
         logo_url: None,
@@ -67,10 +68,11 @@ fn sound() -> Blueprint {
             shared: None,
             external_id: "officers".to_string(),
             name: Translated::new("Officers"),
+            description: Translated::default(),
             contests: vec![PlannedContest {
                 external_id: "president".to_string(),
                 name: Translated::new("President"),
-                description: "Elects the president".to_string(),
+                description: Translated::new("Elects the president"),
                 max_votes: 1,
                 winners: 1,
                 allow_writeins: false,
@@ -79,12 +81,14 @@ fn sound() -> Blueprint {
                     PlannedCandidate {
                         external_id: "alice".to_string(),
                         name: Translated::new("Alice"),
+                        description: Translated::default(),
                         explicit_blank: false,
                         explicit_invalid: false,
                     },
                     PlannedCandidate {
                         external_id: "bob".to_string(),
                         name: Translated::new("Bob"),
+                        description: Translated::default(),
                         explicit_blank: false,
                         explicit_invalid: false,
                     },
@@ -264,7 +268,7 @@ fn each_area_gets_the_contests_it_and_its_parents_vote_on() {
     plan.elections[0].contests.push(PlannedContest {
         external_id: "north-seat".to_string(),
         name: Translated::new("North seat"),
-        description: String::new(),
+        description: Translated::default(),
         max_votes: 1,
         winners: 1,
         allow_writeins: false,
@@ -272,6 +276,7 @@ fn each_area_gets_the_contests_it_and_its_parents_vote_on() {
         candidates: vec![PlannedCandidate {
             external_id: "cleo".to_string(),
             name: Translated::new("Cleo"),
+            description: Translated::default(),
             explicit_blank: false,
             explicit_invalid: false,
         }],

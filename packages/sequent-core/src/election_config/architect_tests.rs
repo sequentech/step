@@ -33,6 +33,7 @@ fn sound() -> Blueprint {
         auth_preset: None,
         external_id: "union-2027".to_string(),
         name: Translated::new("Union Election 2027"),
+        description: Translated::default(),
         languages: vec!["en".to_string(), "es".to_string()],
         default_language: None,
         logo_url: None,
@@ -71,10 +72,11 @@ fn sound() -> Blueprint {
             shared: None,
             external_id: "officers".to_string(),
             name: Translated::new("Officers"),
+            description: Translated::default(),
             contests: vec![PlannedContest {
                 external_id: "president".to_string(),
                 name: Translated::new("President"),
-                description: "Elects the president".to_string(),
+                description: Translated::new("Elects the president"),
                 max_votes: 1,
                 winners: 1,
                 allow_writeins: false,
@@ -83,12 +85,14 @@ fn sound() -> Blueprint {
                     PlannedCandidate {
                         external_id: "alice".to_string(),
                         name: Translated::new("Alice"),
+                        description: Translated::default(),
                         explicit_blank: false,
                         explicit_invalid: false,
                     },
                     PlannedCandidate {
                         external_id: "bob".to_string(),
                         name: Translated::new("Bob"),
+                        description: Translated::default(),
                         explicit_blank: false,
                         explicit_invalid: false,
                     },
@@ -534,6 +538,7 @@ fn a_multi_winner_contest_elects_what_the_plan_says() {
     contest.candidates.push(PlannedCandidate {
         external_id: "carol".to_string(),
         name: Translated::new("Carol"),
+        description: Translated::default(),
         explicit_blank: false,
         explicit_invalid: false,
     });
@@ -557,6 +562,7 @@ fn a_blank_option_is_marked_as_one_rather_than_becoming_a_candidate() {
         .push(PlannedCandidate {
             external_id: "none-of-the-above".to_string(),
             name: Translated::new("None of the above"),
+            description: Translated::default(),
             explicit_blank: true,
             explicit_invalid: false,
         });
@@ -812,6 +818,7 @@ fn blank_and_invalid_options_do_not_count_as_candidates() {
     contest.candidates.push(PlannedCandidate {
         external_id: "blank".to_string(),
         name: Translated::new("None of the above"),
+        description: Translated::default(),
         explicit_blank: true,
         explicit_invalid: false,
     });
@@ -972,7 +979,7 @@ fn districted() -> Blueprint {
         overrides: Overrides::default(),
         external_id: "local-officer".to_string(),
         name: Translated::new("Local Officer"),
-        description: String::new(),
+        description: Translated::default(),
         max_votes: 1,
         winners: 1,
         allow_writeins: false,
@@ -980,6 +987,7 @@ fn districted() -> Blueprint {
         candidates: vec![PlannedCandidate {
             external_id: "carol".to_string(),
             name: Translated::new("Carol"),
+            description: Translated::default(),
             explicit_blank: false,
             explicit_invalid: false,
         }],
@@ -1405,4 +1413,98 @@ fn a_contest_without_write_ins_gets_no_extra_rows() {
             .map(|cell| format!("{cell:?}"))
             == Some("Bool(true)".to_string())
     }));
+}
+
+/// A description is translated, like every other text a voter reads.
+///
+/// It was a `String`, and that was wrong rather than merely limited: the Admin
+/// Portal edits `presentation.i18n.<lang>.description` per language for the
+/// event, the election, the contest and the candidate, and keeps the flat
+/// `description` column as a mirror of the English one. A plan carrying one text
+/// put the same words in front of every voter whatever language they read.
+#[test]
+fn every_description_is_written_once_per_language() {
+    let mut plan = sound();
+    plan.description = Translated::new("The union's 2027 elections");
+    plan.description
+        .by_language
+        .insert("es".to_string(), "Elecciones 2027".to_string());
+    plan.elections[0].description = Translated::new("All officer positions");
+    plan.elections[0].contests[0].description = Translated::new("One seat");
+    plan.elections[0].contests[0].candidates[0].description =
+        Translated::new("Incumbent");
+
+    let workbook = to_workbook(&plan).expect("a workbook");
+
+    for (sheet, text) in [
+        (sheet::SHEET_ELECTION_EVENT, "The union's 2027 elections"),
+        (sheet::SHEET_ELECTIONS, "All officer positions"),
+        (sheet::SHEET_CONTESTS, "One seat"),
+        (sheet::SHEET_CANDIDATES, "Incumbent"),
+    ] {
+        let row = &workbook.rows(sheet)[0];
+        assert_eq!(
+            row.get("presentation.i18n.en.description")
+                .map(|cell| format!("{cell:?}")),
+            Some(format!("String({text:?})")),
+            "{sheet} lost its English description"
+        );
+        // And the flat column, which is what the Admin Portal's list views read.
+        assert_eq!(
+            row.get("description").map(|cell| format!("{cell:?}")),
+            Some(format!("String({text:?})")),
+            "{sheet} did not mirror English into the flat column"
+        );
+    }
+
+    // The Spanish one is its own column, not a second copy of the English.
+    assert_eq!(
+        workbook.rows(sheet::SHEET_ELECTION_EVENT)[0]
+            .get("presentation.i18n.es.description")
+            .map(|cell| format!("{cell:?}")),
+        Some("String(\"Elecciones 2027\")".to_string())
+    );
+}
+
+/// A plan saved when a description was a plain string still opens.
+///
+/// One release carried `"description": "One seat"` where a map now belongs. Serde
+/// would refuse it, and the client who saved that plan would be told their own
+/// file is not a plan — which is the worst possible way to learn about a schema
+/// change.
+#[test]
+fn a_plan_saved_before_descriptions_were_translated_still_opens() {
+    let plan = sound();
+    let mut document = serde_json::to_value(&plan).expect("a plan serialises");
+    document["elections"][0]["contests"][0]["description"] =
+        serde_json::json!("One seat");
+
+    let reopened: Blueprint =
+        serde_json::from_value(document).expect("an older plan still opens");
+    assert_eq!(
+        reopened.elections[0].contests[0].description.get("en"),
+        Some("One seat"),
+        "the plain string should have been read as English"
+    );
+}
+
+/// And an empty one does not become an empty English entry.
+///
+/// `"description": ""` is what the old shape wrote for a contest nobody
+/// described. Read literally it produces `{"en": ""}`, which is a description
+/// that exists and is blank — and the sheet would then write an empty string
+/// where a blank cell belongs.
+#[test]
+fn an_empty_old_description_stays_absent() {
+    let plan = sound();
+    let mut document = serde_json::to_value(&plan).expect("a plan serialises");
+    document["elections"][0]["contests"][0]["description"] =
+        serde_json::json!("");
+
+    let reopened: Blueprint =
+        serde_json::from_value(document).expect("it opens");
+    assert_eq!(
+        reopened.elections[0].contests[0].description,
+        Translated::default()
+    );
 }

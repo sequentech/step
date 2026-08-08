@@ -180,6 +180,15 @@ pub struct Blueprint {
     #[serde(default)]
     pub name: Translated,
 
+    /// What the whole event is, for voters.
+    ///
+    /// Translatable, like the name: the platform keeps it at
+    /// `presentation.i18n.<lang>.description` and mirrors the English one into a
+    /// flat `description` column, which is what the Admin Portal's list views
+    /// read. Both are written.
+    #[serde(default)]
+    pub description: Translated,
+
     /// BCP 47 or ISO 639-2/T codes, in the order the picker should show them.
     #[serde(default)]
     pub languages: Vec<String>,
@@ -424,6 +433,10 @@ pub struct PlannedElection {
     #[serde(default)]
     pub name: Translated,
 
+    /// What this election is about, for voters. Translatable.
+    #[serde(default)]
+    pub description: Translated,
+
     /// One set for every contest here, replacing whatever the contests say.
     ///
     /// `None` — the normal case — means each contest resolves the event default
@@ -443,8 +456,14 @@ pub struct PlannedContest {
     pub external_id: String,
     #[serde(default)]
     pub name: Translated,
-    #[serde(default)]
-    pub description: String,
+    /// What this contest is about, shown under its name on the ballot.
+    ///
+    /// Translatable. It was a `String`, which was wrong: the Admin Portal edits
+    /// `presentation.i18n.<lang>.description` per language and keeps the flat
+    /// column as a mirror of the English one, so a plan carrying one text put the
+    /// same words in front of every voter whatever language they read.
+    #[serde(default, deserialize_with = "translated_or_plain")]
+    pub description: Translated,
 
     /// How many candidates a voter may choose.
     #[serde(default = "one")]
@@ -506,6 +525,10 @@ pub struct PlannedCandidate {
     pub external_id: String,
     #[serde(default)]
     pub name: Translated,
+
+    /// A line about the candidate, shown under their name. Translatable.
+    #[serde(default)]
+    pub description: Translated,
     /// A "none of the above" option rather than a person.
     #[serde(default)]
     pub explicit_blank: bool,
@@ -1107,12 +1130,54 @@ fn sheet_of(
     Sheet::from_grid(name, &grid)
 }
 
-/// `presentation.i18n.<lang>.name` columns, one per language.
-fn i18n_columns(prefix: &str, languages: &[String]) -> Vec<String> {
+/// `presentation.i18n.<lang>.<field>` columns, one per language.
+fn i18n_columns(
+    prefix: &str,
+    field: &str,
+    languages: &[String],
+) -> Vec<String> {
     languages
         .iter()
-        .map(|language| format!("{prefix}.i18n.{language}.name"))
+        .map(|language| format!("{prefix}.i18n.{language}.{field}"))
         .collect()
+}
+
+/// A `Translated`, or the plain string an older plan carried.
+///
+/// `PlannedContest.description` was a `String` for one release. A plan saved then
+/// has `"description": "One seat"` where a map now belongs, and serde would refuse
+/// it — so a client who saved a plan and came back would be told their own file was
+/// not a plan.
+///
+/// Read into English, which is what the flat column meant.
+fn translated_or_plain<'de, D>(input: D) -> Result<Translated, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Either {
+        Plain(String),
+        ByLanguage(Translated),
+    }
+
+    Ok(match Either::deserialize(input)? {
+        Either::ByLanguage(text) => text,
+        Either::Plain(text) if text.is_empty() => Translated::default(),
+        Either::Plain(text) => Translated::new(&text),
+    })
+}
+
+/// The English text, for the flat column beside the i18n block.
+///
+/// Both are written because the Admin Portal keeps both in step and its list
+/// views read the flat one. `Translated::get` falls back, so a plan that lists no
+/// English still puts something there rather than a blank.
+fn english_of(text: &Translated) -> Cell {
+    match text.get("en") {
+        Some(value) => Cell::text(value),
+        None => Cell::Blank,
+    }
 }
 
 fn i18n_values(text: &Translated, languages: &[String]) -> Vec<Cell> {
@@ -1130,7 +1195,12 @@ fn event_sheet(
     languages: &[String],
 ) -> Result<Sheet, Problem> {
     let mut columns = vec!["external_id".to_string()];
-    columns.extend(i18n_columns("presentation", languages));
+    columns.extend(i18n_columns("presentation", "name", languages));
+    columns.extend(i18n_columns("presentation", "description", languages));
+    // The flat column too, mirroring the English one. The Admin Portal keeps
+    // both in step — `newEvent.description = presentation.i18n.en.description` —
+    // and a bundle with only the i18n block leaves every list view blank.
+    columns.push("description".to_string());
     columns
         .push("presentation.language_conf.enabled_language_codes".to_string());
     columns
@@ -1138,6 +1208,8 @@ fn event_sheet(
 
     let mut row = vec![Cell::text(plan.external_id.clone())];
     row.extend(i18n_values(&plan.name, languages));
+    row.extend(i18n_values(&plan.description, languages));
+    row.push(english_of(&plan.description));
     // A JSON array in one cell: the reader parses bracketed text as JSON, which is
     // how a list fits in a spreadsheet and therefore in a synthesised one too.
     row.push(Cell::text(
@@ -1167,7 +1239,9 @@ fn elections_sheet(
     languages: &[String],
 ) -> Result<Sheet, Problem> {
     let mut columns = vec!["external_id".to_string()];
-    columns.extend(i18n_columns("presentation", languages));
+    columns.extend(i18n_columns("presentation", "name", languages));
+    columns.extend(i18n_columns("presentation", "description", languages));
+    columns.push("description".to_string());
 
     let rows = plan
         .elections
@@ -1175,6 +1249,8 @@ fn elections_sheet(
         .map(|election| {
             let mut row = vec![Cell::text(election.external_id.clone())];
             row.extend(i18n_values(&election.name, languages));
+            row.extend(i18n_values(&election.description, languages));
+            row.push(english_of(&election.description));
             row
         })
         .collect();
@@ -1200,8 +1276,9 @@ fn contests_sheet(
         "presentation.sort_order".to_string(),
         "presentation.allow_writeins".to_string(),
     ];
+    columns.extend(i18n_columns("presentation", "description", languages));
     columns.extend(behaviour.iter().map(|(column, _)| (*column).to_string()));
-    columns.extend(i18n_columns("presentation", languages));
+    columns.extend(i18n_columns("presentation", "name", languages));
 
     let mut rows = Vec::new();
     for election in &plan.elections {
@@ -1211,10 +1288,11 @@ fn contests_sheet(
                 Cell::text(election.external_id.clone()),
                 Cell::Int(contest.max_votes),
                 Cell::Int(contest.winners),
-                Cell::text(contest.description.clone()),
+                english_of(&contest.description),
                 Cell::Int(order as i64),
                 Cell::Bool(contest.allow_writeins),
             ];
+            row.extend(i18n_values(&contest.description, languages));
             row.extend(
                 resolve(plan, election, contest)
                     .columns()
@@ -1241,7 +1319,9 @@ fn candidates_sheet(
         "presentation.is_explicit_invalid".to_string(),
         "presentation.is_write_in".to_string(),
     ];
-    columns.extend(i18n_columns("presentation", languages));
+    columns.extend(i18n_columns("presentation", "name", languages));
+    columns.extend(i18n_columns("presentation", "description", languages));
+    columns.push("description".to_string());
 
     let mut rows = Vec::new();
     for election in &plan.elections {
@@ -1256,6 +1336,8 @@ fn candidates_sheet(
                     Cell::Bool(false),
                 ];
                 row.extend(i18n_values(&candidate.name, languages));
+                row.extend(i18n_values(&candidate.description, languages));
+                row.push(english_of(&candidate.description));
                 rows.push(row);
             }
 
@@ -1292,6 +1374,11 @@ fn candidates_sheet(
                         );
                     }
                     row.extend(i18n_values(&named, languages));
+                    // A slot has no description; the columns still have to line
+                    // up or the sheet is ragged and `build_tables` reads the
+                    // wrong value into the wrong field.
+                    row.extend(i18n_values(&Translated::default(), languages));
+                    row.push(Cell::Blank);
                     rows.push(row);
                 }
             }
