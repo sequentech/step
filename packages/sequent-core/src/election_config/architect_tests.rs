@@ -1038,12 +1038,86 @@ fn a_threshold_no_number_of_trustees_can_meet_is_an_error() {
 }
 
 #[test]
-fn a_threshold_of_one_is_allowed_but_said_out_loud() {
+fn a_threshold_of_one_is_refused() {
+    // This test used to assert the opposite — allowed, with a warning — and `EA-70`
+    // reverses it on purpose. A threshold of one means any single trustee decrypts
+    // every ballot alone, which is exactly the guarantee threshold encryption is
+    // there to provide; and it is not recoverable, because by the time anybody looks
+    // the votes have been cast under that key. A warning on the last screen somebody
+    // reads, about a property they cannot check afterwards, is what this pass exists
+    // to refuse.
     let mut plan = sound();
     plan.trustee_threshold = 1;
     let report = validate_plan(&plan);
-    assert!(!report.has_errors());
-    assert!(says(&report, "one trustee alone"));
+    assert!(report.has_errors(), "{report}");
+    assert!(says(&report, "any single trustee can open the tally alone"));
+}
+
+#[test]
+fn a_single_trustee_is_refused() {
+    let mut plan = sound();
+    plan.trustees.truncate(1);
+    plan.trustee_threshold = 1;
+    let report = validate_plan(&plan);
+    assert!(report.has_errors(), "{report}");
+    assert!(says(&report, "one trustee"));
+    assert!(says(&report, "at least two people"));
+}
+
+#[test]
+fn no_trustees_is_now_an_error_rather_than_a_warning() {
+    // Also a reversal. An empty list built a bundle with an empty `keys_ceremonies`,
+    // which imports and then has nobody to generate a key.
+    let mut plan = sound();
+    plan.trustees.clear();
+    let report = validate_plan(&plan);
+    assert!(report.has_errors(), "{report}");
+    assert!(says(&report, "no trustees"));
+}
+
+#[test]
+fn a_trustee_needs_an_email_that_could_receive_an_invitation() {
+    // The address the ceremony invitation goes to. A trustee who never gets it does
+    // not attend, and the threshold failing is discovered at the tally — the same
+    // failure as a name resolving to nobody, by a different route.
+    let cases = [
+        ("", "needs an email address"),
+        ("Ada Lovelace", "is not an email address"),
+        ("ada@", "is not an email address"),
+        ("@example.org", "is not an email address"),
+        ("ada@example", "is not an email address"),
+        ("ada @example.org", "is not an email address"),
+        ("ada@@example.org", "is not an email address"),
+    ];
+    for (email, expected) in cases {
+        let mut plan = sound();
+        plan.trustees[0].email = email.to_string();
+        let report = validate_plan(&plan);
+        assert!(
+            report.has_errors(),
+            "'{email}' should be refused:\n{report}"
+        );
+        assert!(
+            says(&report, expected),
+            "'{email}' should say '{expected}':\n{report}"
+        );
+    }
+}
+
+#[test]
+fn an_unusual_but_valid_address_is_accepted() {
+    // Stricter than the specification would refuse a working address, which is a
+    // worse defect than accepting one that bounces — this cannot know either way.
+    for email in [
+        "ada+trustee@example.co.uk",
+        "a.b-c_d@sub.example.org",
+        "\"quoted\"@example.org",
+    ] {
+        let mut plan = sound();
+        plan.trustees[0].email = email.to_string();
+        let report = validate_plan(&plan);
+        assert!(!report.has_errors(), "'{email}' should pass:\n{report}");
+    }
 }
 
 #[test]

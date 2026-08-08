@@ -730,6 +730,30 @@ pub struct PlannedContest {
 
 /// Shown, because a voter being able to confirm their own ballot arrived is the
 /// kind of thing an election should have to argue itself out of rather than into.
+/// Whether text is shaped like an email address.
+///
+/// One `@`, something before it, and a dotted something after it with no spaces
+/// anywhere. Not a parser: the addresses this is given come from a person typing into
+/// a form, and the mistakes worth catching are a name in the email box, a missing
+/// domain and a stray space — not the exotic corners of RFC 5322, where being stricter
+/// than the specification would refuse a valid address and be a worse defect than the
+/// one it prevented.
+fn looks_like_email(text: &str) -> bool {
+    if text.chars().any(char::is_whitespace) {
+        return false;
+    }
+    let mut halves = text.split('@');
+    let (Some(local), Some(domain), None) =
+        (halves.next(), halves.next(), halves.next())
+    else {
+        return false;
+    };
+    !local.is_empty()
+        && domain.contains('.')
+        && !domain.starts_with('.')
+        && !domain.ends_with('.')
+}
+
 fn yes() -> bool {
     true
 }
@@ -994,21 +1018,56 @@ fn check_languages(plan: &Blueprint, report: &mut Report) {
 }
 
 fn check_trustees(plan: &Blueprint, report: &mut Report) {
-    if plan.trustees.is_empty() {
-        report.push(Problem::warning(
+    // Two is the floor, and both halves of it are errors rather than warnings.
+    //
+    // The guarantee threshold encryption buys is that *no single party can read the
+    // votes*. One trustee — or a threshold of one, whatever the list length — hands
+    // that away: one person can decrypt every ballot, alone, and nobody else can
+    // tell. It is not recoverable either, because by the time it matters the votes
+    // have already been cast under that key.
+    //
+    // The previous version warned and let it build. A warning on the screen somebody
+    // reads last, about a property they cannot check afterwards, is the shape of
+    // defect this whole validation pass exists to refuse. `EA-70` reverses it
+    // deliberately: `a_threshold_of_one_is_allowed_but_said_out_loud` is now
+    // `a_threshold_of_one_is_refused`, and this comment is the record of why
+    // (`INV-26`).
+    if plan.trustees.len() < 2 {
+        report.push(Problem::error(
             Code::MissingField,
             "trustees",
-            "no trustees. The election key needs somebody to hold it, and the \
-             tally needs them to come back.",
+            format!(
+                "{} — an election key needs at least two people to hold it. With \
+                 one, that person can decrypt every ballot on their own, which is \
+                 the guarantee the encryption is there to provide.",
+                if plan.trustees.is_empty() {
+                    "no trustees".to_string()
+                } else {
+                    "one trustee".to_string()
+                }
+            ),
         ));
+    }
+
+    if plan.trustees.is_empty() {
+        // Nothing below can say anything useful without a list.
         return;
     }
 
-    if plan.trustee_threshold == 0 {
+    if plan.trustee_threshold < 2 {
         report.push(Problem::error(
             Code::InvalidValue,
             "trustee_threshold",
-            "a threshold of zero means the tally can be opened by nobody at all",
+            if plan.trustee_threshold == 0 {
+                "a threshold of zero means the tally can be opened by nobody at \
+                 all"
+                    .to_string()
+            } else {
+                "a threshold of one means any single trustee can open the tally \
+                 alone, whatever the list says — the same guarantee as having one \
+                 trustee, and none at all against that person"
+                    .to_string()
+            },
         ));
     }
 
@@ -1027,15 +1086,6 @@ fn check_trustees(plan: &Blueprint, report: &mut Report) {
         ));
     }
 
-    if plan.trustee_threshold == 1 && plan.trustees.len() > 1 {
-        report.push(Problem::warning(
-            Code::InvalidValue,
-            "trustee_threshold",
-            "one trustee alone can open the tally, which is the same guarantee as \
-             having a single trustee",
-        ));
-    }
-
     // The names have to already exist in the tenant, and nothing downstream says
     // so. `import_election_event.rs` builds a `HashMap<name, id>` from
     // `get_all_trustees(tenant_id)` and maps the bundle's `trustee_ids` through
@@ -1049,6 +1099,32 @@ fn check_trustees(plan: &Blueprint, report: &mut Report) {
     // A warning rather than an error because this side cannot see the tenant:
     // whether "Ada Lovelace" is provisioned is not knowable from a plan file.
     for (index, trustee) in plan.trustees.iter().enumerate() {
+        // The address the ceremony invitation goes to. A trustee who never gets it
+        // does not attend, and a threshold that cannot be met is discovered at the
+        // tally — the same failure as a name that resolves to nobody, arriving by a
+        // different route.
+        //
+        // Deliberately a shape check and not an RFC 5322 parser: this cannot know
+        // whether an address receives mail, and refusing a valid-but-unusual address
+        // would be worse than accepting one that bounces. What it catches is the
+        // mistakes people actually make — a name typed into the email box, a missing
+        // domain, a stray space.
+        let email = trustee.email.trim();
+        if email.is_empty() {
+            report.push(Problem::error(
+                Code::MissingField,
+                format!("trustees[{index}].email"),
+                "a trustee needs an email address; it is how they are invited to \
+                 the key ceremony",
+            ));
+        } else if !looks_like_email(email) {
+            report.push(Problem::error(
+                Code::InvalidValue,
+                format!("trustees[{index}].email"),
+                format!("'{email}' is not an email address"),
+            ));
+        }
+
         if trustee.name.trim().is_empty() {
             report.push(Problem::error(
                 Code::MissingField,
