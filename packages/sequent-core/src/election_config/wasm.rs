@@ -195,6 +195,11 @@ pub fn auth_presets() -> Result<JsValue, JsError> {
         uses_otp: bool,
         required_parameters: Vec<&'static str>,
         optional_parameters: Vec<&'static str>,
+        /// User-profile attributes this preset reads off a voter.
+        ///
+        /// The census's column chooser offers these, so a column somebody adds is one
+        /// the sign-in flow can actually read rather than one Keycloak drops.
+        profile_attributes: Vec<&'static str>,
     }
 
     let listed: Vec<Listed> = presets::PRESETS
@@ -205,6 +210,7 @@ pub fn auth_presets() -> Result<JsValue, JsError> {
             uses_otp: preset.uses_otp,
             required_parameters: preset.required_parameters.to_vec(),
             optional_parameters: preset.optional_parameters.to_vec(),
+            profile_attributes: preset.profile_attributes.to_vec(),
         })
         .collect();
     to_js(&listed)

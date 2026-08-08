@@ -2354,3 +2354,104 @@ fn copy_the_document_sets_itself_is_not_reported_as_inherited() {
         json!("Ring our helpdesk")
     );
 }
+
+/// The gap `EA-81` closed: a census column Keycloak never hears about.
+///
+/// A column the wizard has no field for becomes a **Keycloak user attribute** — that
+/// passthrough is why a client can carry a reporting breakout without a code change.
+/// But Keycloak only stores an attribute its user profile declares; an undeclared one
+/// is dropped or refused depending on the realm's unmanaged-attribute policy. Either
+/// way the column is in the file, in the import, and not on the voter, and nothing
+/// said so.
+#[test]
+fn a_census_column_of_its_own_is_declared_in_the_realms_user_profile() {
+    let workbook = with_sheet(
+        "Voters",
+        vec![
+            vec![
+                text("username"),
+                text("email"),
+                text("area.external_id"),
+                text("branch_code"),
+                text("seniority"),
+            ],
+            vec![
+                text("ada"),
+                text("ada@example.org"),
+                text("area-north"),
+                text("B-14"),
+                text("1998"),
+            ],
+        ],
+    );
+    let bundle = with_options(
+        &workbook,
+        BuildOptions {
+            base_export: Some(json!({"keycloak_event_realm": base_realm()})),
+            ..BuildOptions::default()
+        },
+    );
+
+    let raw = bundle.export["keycloak_event_realm"]["components"]
+        ["org.keycloak.userprofile.UserProfileProvider"][0]["config"]
+        ["kc.user.profile.config"][0]
+        .as_str()
+        .unwrap();
+    let profile: Value = serde_json::from_str(raw).unwrap();
+    let names: Vec<&str> = profile["attributes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|attribute| attribute["name"].as_str().unwrap())
+        .collect();
+
+    assert!(names.contains(&"branch_code"), "got {names:?}");
+    assert!(names.contains(&"seniority"), "got {names:?}");
+
+    // Readable and writable by an administrator, and nothing more. This knows the
+    // column exists and nothing about what belongs in it — a guessed validator or a
+    // `required` flag would refuse data the client's own file contains.
+    let branch = profile["attributes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|attribute| attribute["name"] == json!("branch_code"))
+        .unwrap();
+    assert_eq!(branch["permissions"]["edit"], json!(["admin"]));
+    assert_eq!(branch["required"], Value::Null);
+    assert_eq!(branch["validations"], Value::Null);
+}
+
+#[test]
+fn the_platforms_own_census_columns_are_not_redeclared() {
+    // `username`, `email` and the rest are already in every realm. Adding them again
+    // would produce two attributes of one name, and Keycloak reads the first.
+    let workbook = with_sheet(
+        "Voters",
+        vec![
+            vec![text("username"), text("email"), text("area.external_id")],
+            vec![text("ada"), text("ada@example.org"), text("area-north")],
+        ],
+    );
+    let bundle = with_options(
+        &workbook,
+        BuildOptions {
+            base_export: Some(json!({"keycloak_event_realm": base_realm()})),
+            ..BuildOptions::default()
+        },
+    );
+
+    let raw = bundle.export["keycloak_event_realm"]["components"]
+        ["org.keycloak.userprofile.UserProfileProvider"][0]["config"]
+        ["kc.user.profile.config"][0]
+        .as_str()
+        .unwrap();
+    let profile: Value = serde_json::from_str(raw).unwrap();
+    let usernames = profile["attributes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|attribute| attribute["name"] == json!("username"))
+        .count();
+    assert_eq!(usernames, 1);
+}

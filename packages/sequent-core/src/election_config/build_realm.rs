@@ -16,6 +16,7 @@
 //! the patch is kept as its own artifact instead, so nothing the document asked
 //! for is lost.
 
+use super::tables::VOTER_LEADING_COLUMNS;
 use super::{value_as_text, Builder};
 use crate::election_config::branding;
 use crate::election_config::paths::{deep_merge, set_path, split_path};
@@ -23,9 +24,11 @@ use crate::election_config::presets::{
     self, AuthPreset, PresetInput, RealmPatch, PARAM_AUTH_TYPE,
 };
 use crate::election_config::problem::Code;
+use crate::election_config::sheet::SHEET_VOTERS;
 use crate::election_config::sheet::{
     Origin, SHEET_ADMIN_USERS, SHEET_ELECTIONS, SHEET_REPORTS,
 };
+use serde_json::json;
 use serde_json::{Map, Value};
 
 /// The parameter carrying the login page's stylesheet.
@@ -308,6 +311,7 @@ impl Builder<'_> {
         if let Some(profile) = self.realm_patch.user_profile.clone() {
             self.patch_user_profile(&mut realm, &profile);
         }
+        self.declare_census_attributes(&mut realm);
         realm
     }
 
@@ -359,6 +363,143 @@ impl Builder<'_> {
         for warning in warnings {
             self.warn("keycloak_event_realm", warning);
         }
+    }
+
+    /// Declare the census's own extra columns in the realm's user profile.
+    ///
+    /// The gap this closes: a census column the wizard has no field for becomes a
+    /// **Keycloak user attribute** — that passthrough is the whole reason a client can
+    /// carry a reporting breakout without a code change. But Keycloak only stores an
+    /// attribute its user profile declares. An undeclared one is dropped or refused
+    /// depending on the realm's unmanaged-attribute policy, and either way the column
+    /// is in the file, in the import, and not on the voter.
+    ///
+    /// Nothing reported it. `patch_user_profile` above *warns* about an attribute a
+    /// preset wanted and the realm lacks, which is right — a preset and a realm
+    /// disagreeing is a mismatch somebody has to resolve. A census column is different:
+    /// the author is declaring a new attribute rather than expecting an existing one,
+    /// so the answer is to add it.
+    ///
+    /// Added minimally and permissively: a name, and permissions letting an
+    /// administrator read and write it. Not required, not user-editable, no validator —
+    /// this knows the column exists and nothing about what belongs in it, and a guessed
+    /// validator would refuse data the client's own file contains.
+    fn declare_census_attributes(&mut self, realm: &mut Map<String, Value>) {
+        let extra = self.census_attributes();
+        if extra.is_empty() {
+            return;
+        }
+
+        let Some(component) = realm
+            .get_mut("components")
+            .and_then(|components| {
+                components
+                    .get_mut("org.keycloak.userprofile.UserProfileProvider")
+            })
+            .and_then(Value::as_array_mut)
+            .and_then(|components| components.first_mut())
+        else {
+            // Said once, naming the columns, because the consequence is per column
+            // and the cause is one missing component.
+            let message = format!(
+                "the realm has no user profile component, so the census's own \
+                 columns ({}) cannot be declared — Keycloak will drop them",
+                extra.join(", ")
+            );
+            self.warn("keycloak_event_realm", message);
+            return;
+        };
+
+        let raw = component
+            .get("config")
+            .and_then(|config| config.get("kc.user.profile.config"))
+            .map(|value| match value {
+                Value::Array(items) => items
+                    .first()
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string(),
+                Value::String(text) => text.clone(),
+                _ => String::new(),
+            })
+            .unwrap_or_default();
+
+        let Ok(mut profile) = serde_json::from_str::<Value>(&raw) else {
+            // `patch_user_profile` has already reported an unreadable profile; a
+            // second copy of the same problem is noise.
+            return;
+        };
+
+        let mut added = Vec::new();
+        if let Some(attributes) =
+            profile.get_mut("attributes").and_then(Value::as_array_mut)
+        {
+            for name in &extra {
+                let known = attributes.iter().any(|attribute| {
+                    attribute.get("name").and_then(Value::as_str)
+                        == Some(name.as_str())
+                });
+                if known {
+                    continue;
+                }
+                attributes.push(json!({
+                    "name": name,
+                    "displayName": name,
+                    "permissions": {"view": ["admin"], "edit": ["admin"]},
+                    "multivalued": false,
+                }));
+                added.push(name.clone());
+            }
+        }
+
+        if added.is_empty() {
+            return;
+        }
+
+        let encoded = profile.to_string();
+        if let Some(config) = component
+            .as_object_mut()
+            .and_then(|component| component.get_mut("config"))
+            .and_then(Value::as_object_mut)
+        {
+            config
+                .insert("kc.user.profile.config".to_string(), json!([encoded]));
+        }
+
+        // Nothing is reported. `Severity` is `Error` or `Warning`, and neither fits:
+        // this is the wizard doing exactly what the author asked for, and a warning
+        // saying so is a warning that teaches people to skim the ones that matter.
+        //
+        // It is not silent, though — the wizard shows a dialog when the column is
+        // added, which is the moment somebody can still change their mind. Saying it
+        // there rather than on the review screen is the whole difference between
+        // information and a footnote.
+    }
+
+    /// The census's columns that are not the platform's own.
+    ///
+    /// From the sheet's headers rather than from the rows: a column present in the
+    /// header and empty in every row is still a column the author declared, and
+    /// dropping it here would mean an attribute that appears the moment somebody fills
+    /// one cell in.
+    fn census_attributes(&self) -> Vec<String> {
+        let Some(sheet) = self.workbook.sheet(SHEET_VOTERS) else {
+            return Vec::new();
+        };
+        let mut found: Vec<String> = Vec::new();
+        for header in &sheet.headers {
+            let name = header.trim();
+            if name.is_empty()
+                || VOTER_LEADING_COLUMNS.contains(&name)
+                || name == "area.external_id"
+                || found.iter().any(|seen| seen == name)
+            {
+                continue;
+            }
+            found.push(name.to_string());
+        }
+        found.sort();
+        found
     }
 
     /// Patch the user profile, which travels as a stringified JSON blob.
