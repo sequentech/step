@@ -43,14 +43,22 @@ Rules to follow:
 * **Declare both suffixes even when the text is identical.** Basque and Tagalog do not inflect a noun after a
   numeral, so their two forms are the same string. They are both still required, because the non-English files
   are typed `TranslationType = typeof englishTranslation` and must carry the same key set as `en.ts`.
-* **A language with more CLDR categories needs more entries.** If a language you add has a `few` or `many`
-  category for the values the string can actually take, add `_few` / `_many` as well. Check with
-  `new Intl.PluralRules("[lang_code]").resolvedOptions().pluralCategories`. Spanish, Catalan and French, for
-  example, report `many` — but only for exact multiples of a million, so a count of candidates never reaches
-  it.
-* **`_zero` is not one of those categories.** It is an i18next override selected whenever `count` is exactly 0,
-  in any language, whether or not CLDR lists a `zero` category — so `pluralCategories` will not tell you to add
-  it. Add `_zero` when you want different wording for none, not because a language "has" it.
+* **Add an entry for every category the language reports.** `_one` and `_other` are the English set, not the
+  universal one. Check the language you are adding:
+
+  ```js
+  new Intl.PluralRules("[lang_code]").resolvedOptions().pluralCategories
+  // "ar" -> ["few", "many", "one", "other", "two", "zero"]
+  // "sl" -> ["few", "one", "other", "two"]
+  // "es" -> ["many", "one", "other"]
+  ```
+
+  Arabic needs all six suffixes; Slovenian and Hebrew need `_two`, because both select `two` for a count of 2.
+  Spanish, Catalan and French report `many`, but only for exact multiples of a million, so a count of
+  candidates never reaches it.
+* **`_zero` can also be added deliberately.** Beyond the CLDR category, i18next selects `_zero` whenever
+  `count` is exactly 0, in any language — so you can give "none" its own wording even where
+  `pluralCategories` does not list `zero`.
 * **The runtime must provide `Intl.PluralRules`.** i18next 25 requires it and has no fallback to the old v3
   behaviour; `compatibilityJSON: "v3"` was removed in v24. Every browser we support has it. If a target ever
   lacks it, install the `intl-pluralrules` polyfill — without one, i18next logs an error and degrades to
