@@ -107,14 +107,14 @@ const basqueTranslation: TranslationType = {
             },
             explicit: {
                 notAllowed:
-                    "Bozketa espresuki baliogabe markatu da baina lehiaketak ez du baimentzen",
+                    "Bozketa espresuki baliogabe markatu da baina galderak ez du baimentzen",
                 alert: "Markatutako hautaketa baliogabeko bototzat hartuko da.",
             },
             configuration: {
                 multipleExplicitInvalidCandidates:
-                    "Boto-konfigurazio baliogabea: lehiaketak esplizituki baliogabe diren {{count}} hautagai definitzen ditu, baina bakarra onartzen da.",
+                    "Boto-konfigurazio baliogabea: galderak esplizituki baliogabe diren {{count}} hautagai definitzen ditu, baina bakarra onartzen da.",
                 multipleExplicitBlankCandidates:
-                    "Boto-konfigurazio baliogabea: lehiaketak esplizituki zuri gisa markatutako {{count}} hautagai definitzen ditu, baina bakarra onartzen da.",
+                    "Boto-konfigurazio baliogabea: galderak esplizituki zuri gisa markatutako {{count}} hautagai definitzen ditu, baina bakarra onartzen da.",
             },
         },
         ballotHash: "Zure Txartelaren IDa: {{ballotId}}",

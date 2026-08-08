@@ -40,7 +40,7 @@ const catalanTranslation: TranslationType = {
             publishedResultsDescription: "Resultats publicats per a aquest esdeveniment electoral.",
             resultsAndParticipationTitle: "Resultats i participació",
             electionsTitle: "Eleccions",
-            contestsTitle: "Conteses",
+            contestsTitle: "Preguntes",
             areasTitle: "Àrees",
             globalArea: "Global",
             noResultsForSelection: "No hi ha resultats disponibles per a aquesta selecció.",
@@ -52,7 +52,7 @@ const catalanTranslation: TranslationType = {
             position_one: "{{count}} posició",
             position_other: "{{count}} posicions",
             fallbackElectionName: "Elecció",
-            fallbackContestName: "Contesa {{contestId}}",
+            fallbackContestName: "Pregunta {{contestId}}",
             state: {
                 unexpectedErrorTitle: "Error inesperat",
                 loadErrorMessage:

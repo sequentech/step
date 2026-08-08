@@ -40,7 +40,7 @@ const basqueTranslation: TranslationType = {
             publishedResultsDescription: "Hauteskunde-ekitaldi honetarako argitaratutako emaitzak.",
             resultsAndParticipationTitle: "Emaitzak eta parte-hartzea",
             electionsTitle: "Hauteskundeak",
-            contestsTitle: "Lehiaketak",
+            contestsTitle: "Galderak",
             areasTitle: "Eremuak",
             globalArea: "Globala",
             noResultsForSelection: "Ez dago emaitzarik eskuragarri hautapen honetarako.",
@@ -52,7 +52,7 @@ const basqueTranslation: TranslationType = {
             position_one: "{{count}} postu",
             position_other: "{{count}} postu",
             fallbackElectionName: "Hauteskundea",
-            fallbackContestName: "{{contestId}} lehiaketa",
+            fallbackContestName: "{{contestId}} galdera",
             state: {
                 unexpectedErrorTitle: "Ustekabeko errorea",
                 loadErrorMessage:

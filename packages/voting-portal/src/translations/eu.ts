@@ -36,13 +36,13 @@ const basqueTranslation: TranslationType = {
             ballotHelpDialog: {
                 title: "Bozketa pantailari buruz",
                 content:
-                    'Pantaila honek bozkatzeko eskubidea duzun lehiaketa erakusten du. Hautaketa egiteko, aktibatu eskuinaldeko Hautagaia/Erantzunaren kontrol-laukia. Berrezartzeko sakatu "<b>Hautaketa garbitu</b>", aurrera joateko sakatu "<b>Hurrengoa</b>".',
+                    'Pantaila honek bozkatzeko eskubidea duzun galdera erakusten du. Hautaketa egiteko, aktibatu eskuinaldeko Hautagaia/Erantzunaren kontrol-laukia. Berrezartzeko sakatu "<b>Hautaketa garbitu</b>", aurrera joateko sakatu "<b>Hurrengoa</b>".',
                 ok: "Ados",
             },
             nonVotedDialog: {
                 title: "Baliogabeko edo boto zuria",
                 content:
-                    "Zure erantzun batzuek bozketa lehiaketa batean edo gehiagotan baliogabea edo zuria bihurtuko dute.",
+                    "Zure erantzun batzuek bozketa galdera batean edo gehiagotan baliogabea edo zuria bihurtuko dute.",
                 ok: "Itzuli eta berrikusi",
                 continue: "Jarraitu",
                 cancel: "Ezeztatu",
@@ -70,7 +70,7 @@ const basqueTranslation: TranslationType = {
             instructionsDescription: "Jarraitu urrats hauek bozkatzeko:",
             step1Title: "1. Hautatu zure aukerak",
             step1Description:
-                "Aukeratu zure hautagaiak eta erantzun lehiaketa bakoitza. Editatu bozketa prest egon arte.",
+                "Aukeratu zure hautagaiak eta erantzun galdera bakoitza. Editatu bozketa prest egon arte.",
             step2Title: "2. Berrikusi zure bozketa",
             step2Description:
                 "Zure bozketa zifratu eta berrikuspena erakutsiko dizugu. Bozketa ID jarraitzaile bakarra jasoko duzu.",
@@ -310,7 +310,7 @@ const basqueTranslation: TranslationType = {
             },
             alerts: {
                 noElections:
-                    "Ez dago bozkatu dezakezun hauteskunderik. Hau eremua ez duelako lehiaketa asoziaturik ez duelako izan daiteke. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
+                    "Ez dago bozkatu dezakezun hauteskunderik. Hau eremua ez duelako galdera asoziaturik ez duelako izan daiteke. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
                 electionEventNotPublished:
                     "Hauteskunde gertaera ez da argitaratu oraindik. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
             },
@@ -326,7 +326,7 @@ const basqueTranslation: TranslationType = {
             },
             explicit: {
                 notAllowed:
-                    "Bozketa berariaz baliogabetzat markatu da, baina lehiaketak ez du hori onartzen",
+                    "Bozketa berariaz baliogabetzat markatu da, baina galderak ez du hori onartzen",
                 alert: "Hautaketa hau boto baliogabe gisa zenbatuko da",
             },
             page: {
