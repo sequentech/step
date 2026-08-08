@@ -213,6 +213,7 @@ impl RawBallotCodec for Contest {
             contest_id: self.id.clone(),
             is_explicit_invalid,
             is_decline_to_vote: false, // only for multi-contest encryption
+            is_blank_ballot: false,    // only for multi-contest encryption
             invalid_errors: vec![],
             invalid_alerts: vec![],
             choices: vec![],
@@ -718,6 +719,7 @@ mod tests {
             contest_id: contest.id.clone(),
             is_explicit_invalid: false,
             is_decline_to_vote: false,
+            is_blank_ballot: false,
             invalid_errors: vec![],
             invalid_alerts: vec![],
             choices: contest
@@ -825,6 +827,7 @@ mod tests {
             contest_id: contest.id.clone(),
             is_explicit_invalid: false,
             is_decline_to_vote: false,
+            is_blank_ballot: false,
             invalid_errors: vec![],
             invalid_alerts: vec![],
             choices: contest
@@ -953,6 +956,7 @@ mod tests {
             contest_id: contest.id.clone(),
             is_explicit_invalid: false,
             is_decline_to_vote: false,
+            is_blank_ballot: false,
             invalid_errors: vec![],
             invalid_alerts: vec![],
             choices: contest

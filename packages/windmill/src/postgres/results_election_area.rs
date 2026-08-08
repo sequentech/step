@@ -36,6 +36,11 @@ impl TryFrom<Row> for ResultsElectionAreaWrapper {
             created_at: item.get("created_at"),
             last_updated_at: item.get("last_updated_at"),
             documents,
+            // The results_election_area.blank_ballots(_percent) columns
+            // don't exist yet; populated by a later PR once the hasura
+            // migration lands.
+            blank_ballots: None,
+            blank_ballots_percent: None,
         }))
     }
 }

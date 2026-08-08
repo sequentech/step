@@ -69,6 +69,7 @@ mod tests {
                 explicit_invalid: Some(2),
             }),
             total_blank_votes: Some(2),
+            blank_ballots: None,
             census: Some(20),
             candidate_results: HashMap::from([(
                 "candidate-1".to_string(),
@@ -98,6 +99,7 @@ mod tests {
                 explicit_invalid: Some(2),
             }),
             total_blank_votes: Some(2),
+            blank_ballots: None,
             census: Some(20),
             candidate_results: HashMap::from([(
                 "candidate-1".to_string(),

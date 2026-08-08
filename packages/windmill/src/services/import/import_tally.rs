@@ -262,6 +262,8 @@ async fn process_results_election_file(
             last_updated_at,
             total_voters_percent,
             documents,
+            blank_ballots: None,
+            blank_ballots_percent: None,
         };
 
         results_elections.push(results_election);
@@ -571,6 +573,8 @@ async fn process_results_election_area_file(
             last_updated_at,
             documents,
             name,
+            blank_ballots: None,
+            blank_ballots_percent: None,
         };
 
         results_elections_areas.push(results_election_area);

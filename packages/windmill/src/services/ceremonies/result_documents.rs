@@ -913,6 +913,8 @@ async fn save_area_documents(
             &area.id,
             &area.name,
             &documents,
+            None,
+            None,
         )
         .await?;
     }

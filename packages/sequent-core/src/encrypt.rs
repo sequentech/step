@@ -188,9 +188,51 @@ pub fn encode_to_plaintext_decoded_multi_contest(
         }
     }
 
+    // is_blank_ballot is true if any of the contests is marked as a blank
+    // ballot contest; every contest must agree, and the flag must agree
+    // with the actual content.
+    let is_blank_ballot =
+        decoded_contests.iter().any(|choice| choice.is_blank_ballot);
+
+    if is_blank_ballot && !config.blank_ballots_enabled() {
+        return Err(BallotError::ConsistencyCheck(
+            "Blank ballots is not enabled for this election".to_string(),
+        ));
+    }
+
+    if is_blank_ballot && is_explicit_invalid {
+        return Err(BallotError::ConsistencyCheck(
+            "A ballot cannot be both declined and blank".to_string(),
+        ));
+    }
+
+    if is_blank_ballot {
+        let number_of_contests_blank_ballot = decoded_contests
+            .iter()
+            .filter(|choice| choice.is_blank_ballot)
+            .count();
+
+        if number_of_contests_blank_ballot != decoded_contests.len() {
+            return Err(BallotError::ConsistencyCheck(format!(
+                "Invalid number of contests marked blank ballot {} != {}",
+                number_of_contests_blank_ballot,
+                decoded_contests.len()
+            )));
+        }
+
+        // Unlike decline, "blank" has content-derived meaning: reject a
+        // flag that disagrees with what was actually selected.
+        if decoded_contests.iter().any(|choice| !choice.is_blank()) {
+            return Err(BallotError::ConsistencyCheck(
+                "Blank ballot flag disagrees with contest content".to_string(),
+            ));
+        }
+    }
+
     let counting_algorithm = config.get_counting_algorithm()?;
     let ballot_choices = BallotChoices::new(
         is_explicit_invalid,
+        is_blank_ballot,
         contest_choices,
         counting_algorithm,
     );
@@ -250,9 +292,51 @@ pub fn encrypt_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
         }
     }
 
+    // is_blank_ballot is true if any of the contests is marked as a blank
+    // ballot contest; every contest must agree, and the flag must agree
+    // with the actual content.
+    let is_blank_ballot =
+        decoded_contests.iter().any(|choice| choice.is_blank_ballot);
+
+    if is_blank_ballot && !config.blank_ballots_enabled() {
+        return Err(BallotError::ConsistencyCheck(
+            "Blank ballots is not enabled for this election".to_string(),
+        ));
+    }
+
+    if is_blank_ballot && is_explicit_invalid {
+        return Err(BallotError::ConsistencyCheck(
+            "A ballot cannot be both declined and blank".to_string(),
+        ));
+    }
+
+    if is_blank_ballot {
+        let number_of_contests_blank_ballot = decoded_contests
+            .iter()
+            .filter(|choice| choice.is_blank_ballot)
+            .count();
+
+        if number_of_contests_blank_ballot != decoded_contests.len() {
+            return Err(BallotError::ConsistencyCheck(format!(
+                "Invalid number of contests marked blank ballot {} != {}",
+                number_of_contests_blank_ballot,
+                decoded_contests.len()
+            )));
+        }
+
+        // Unlike decline, "blank" has content-derived meaning: reject a
+        // flag that disagrees with what was actually selected.
+        if decoded_contests.iter().any(|choice| !choice.is_blank()) {
+            return Err(BallotError::ConsistencyCheck(
+                "Blank ballot flag disagrees with contest content".to_string(),
+            ));
+        }
+    }
+
     let counting_algorithm = config.get_counting_algorithm()?;
     let ballot = BallotChoices::new(
         is_explicit_invalid,
+        is_blank_ballot,
         contest_choices,
         counting_algorithm,
     );

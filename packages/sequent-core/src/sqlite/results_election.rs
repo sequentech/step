@@ -29,7 +29,9 @@ pub async fn create_results_election_sqlite(
             labels TEXT,
             annotations TEXT,
             total_voters_percent REAL,
-            documents TEXT
+            documents TEXT,
+            blank_ballots INTEGER,
+            blank_ballots_percent REAL
         );",
     )?;
 
@@ -37,11 +39,12 @@ pub async fn create_results_election_sqlite(
         "
         INSERT OR REPLACE INTO results_election (
             id, tenant_id, election_event_id, election_id, results_event_id,
-            name, elegible_census, total_voters, total_voters_percent
+            name, elegible_census, total_voters, total_voters_percent,
+            blank_ballots, blank_ballots_percent
         ) VALUES (
             ?1,?2,?3,?4,?5,
-            ?6,?7,?8,
-            ?9
+            ?6,?7,?8,?9,
+            ?10,?11
         );",
     )?;
 
@@ -56,6 +59,8 @@ pub async fn create_results_election_sqlite(
             e.elegible_census,
             e.total_voters,
             opt_f64(&e.total_voters_percent),
+            e.blank_ballots,
+            opt_f64(&e.blank_ballots_percent),
         ])?;
     }
 

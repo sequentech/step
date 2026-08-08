@@ -1440,6 +1440,9 @@ pub struct ElectionPresentation {
     pub consolidated_report_policy: Option<ConsolidatedReportPolicy>,
     /// The policy to determine if the voter can decline to vote for an election level.
     pub decline_to_vote_policy: Option<DeclineToVotePolicy>,
+    /// The policy to determine if a ballot blank in every contest is
+    /// recorded and reported as a blank ballot at the election level.
+    pub blank_ballots_policy: Option<BlankBallotsPolicy>,
     /// The policy to determine the screen the back button of the voting
     /// screen navigates to. Defaults to the election selection screen for
     /// backwards compatibility.
@@ -1485,6 +1488,7 @@ impl Default for ElectionPresentation {
                 ConsolidatedReportPolicy::default(),
             ),
             decline_to_vote_policy: Some(DeclineToVotePolicy::default()),
+            blank_ballots_policy: Some(BlankBallotsPolicy::default()),
             voting_screen_back_policy: Some(VotingScreenBackPolicy::default()),
             css: None,
         }
@@ -2869,6 +2873,36 @@ pub enum DeclineToVotePolicy {
     #[strum(serialize = "enabled")]
     #[serde(rename = "enabled")]
     /// The user can decline to vote at the election level (for all contests).
+    ENABLED,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
+/// Used to determine if a ballot on which the voter left every contest
+/// blank can be recorded and reported as a blank ballot.
+pub enum BlankBallotsPolicy {
+    #[default]
+    #[strum(serialize = "disabled")]
+    #[serde(rename = "disabled")]
+    /// Ballots blank in every contest are not tracked as such.
+    DISABLED,
+    #[strum(serialize = "enabled")]
+    #[serde(rename = "enabled")]
+    /// Ballots blank in every contest are recorded and reported as blank
+    /// ballots, at the election level.
     ENABLED,
 }
 
