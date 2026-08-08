@@ -171,7 +171,7 @@ const spanishTranslation: TranslationType = {
                 NO_AUDITABLE_BALLOT:
                     "No hay una papeleta verificable disponible. Por favor, contacte con el soporte.",
                 INCONSISTENT_HASH:
-                    "Hubo un error relacionado con el proceso de hash de la papeleta. El BallotId: {{ballotId}} no es coherente con el Hash de la Papeleta Verificable: {{auditableBallotHash}}. Por favor, informa de este problema al soporte.",
+                    "Hubo un error relacionado con el proceso de hash de la papeleta. El BallotId: {{ballotId}} no es coherente con el Hash de la Papeleta Verificable: {{auditableBallotHash}}. Por favor, informe de este problema al soporte.",
                 ELECTION_EVENT_NOT_OPEN:
                     "El evento electoral está cerrado. Por favor, contacte con el soporte.",
                 PARSE_ERROR:
@@ -247,7 +247,7 @@ const spanishTranslation: TranslationType = {
             },
             errorDialogPrintBallotReceipt: {
                 title: "Error",
-                content: "Ha ocurrido un error, por favor inténtelo de nuevo",
+                content: "Ha ocurrido un error. Por favor, inténtelo de nuevo.",
                 ok: "Aceptar",
             },
             demoQRText: "El rastreador de papeletas está deshabilitado en modo de demostración",

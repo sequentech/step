@@ -15,6 +15,7 @@ const spanishInformalTranslation: TranslationType = {
             showCandidates: "Mostrar candidatos",
             hideCandidates: "Ocultar candidatos",
             selectedCandidates_one: "{{count}} candidato seleccionado",
+            selectedCandidates_many: "{{count}} candidatos seleccionados",
             selectedCandidates_other: "{{count}} candidatos seleccionados",
             expandAll: "Expandir todo",
             collapseAll: "Contraer todo",
@@ -246,7 +247,7 @@ const spanishInformalTranslation: TranslationType = {
             },
             errorDialogPrintBallotReceipt: {
                 title: "Error",
-                content: "Ha ocurrido un error, por favor inténtalo de nuevo",
+                content: "Ha ocurrido un error. Por favor, inténtalo de nuevo.",
                 ok: "Aceptar",
             },
             demoQRText: "El rastreador de papeletas está deshabilitado en modo de demostración",

@@ -15,6 +15,7 @@ const catalanInformalTranslation: TranslationType = {
             showCandidates: "Mostra els candidats",
             hideCandidates: "Amaga els candidats",
             selectedCandidates_one: "{{count}} candidat seleccionat",
+            selectedCandidates_many: "{{count}} candidats seleccionats",
             selectedCandidates_other: "{{count}} candidats seleccionats",
             expandAll: "Expandir tot",
             collapseAll: "Reduir tot",
@@ -247,7 +248,7 @@ const catalanInformalTranslation: TranslationType = {
             },
             errorDialogPrintBallotReceipt: {
                 title: "Error",
-                content: "Hi ha hagut un error, si us plau intenta-ho de nou",
+                content: "Ha ocorregut un error. Si us plau, intenta-ho de nou.",
                 ok: "Acceptar",
             },
             demoQRText: "El rastrejador de butlletes està deshabilitat en mode de demostració",

@@ -172,7 +172,7 @@ const catalanTranslation: TranslationType = {
                 NO_AUDITABLE_BALLOT:
                     "No hi ha cap papereta auditable disponible. Si us plau, contacteu amb el servei d'assistència.",
                 INCONSISTENT_HASH:
-                    "Hi ha hagut un error relacionat amb el procés de hashing de la papereta. El BallotId: {{ballotId}} no és consistent amb el Hash de la Papereta Auditable: {{auditableBallotHash}}. Si us plau, informa d'aquest problema al servei d'assistència.",
+                    "Hi ha hagut un error relacionat amb el procés de hashing de la papereta. El BallotId: {{ballotId}} no és consistent amb el Hash de la Papereta Auditable: {{auditableBallotHash}}. Si us plau, informeu d'aquest problema al servei d'assistència.",
                 ELECTION_EVENT_NOT_OPEN:
                     "L'esdeveniment electoral està tancat. Si us plau, contacteu amb el servei d'assistència.",
                 PARSE_ERROR:
@@ -248,7 +248,7 @@ const catalanTranslation: TranslationType = {
             },
             errorDialogPrintBallotReceipt: {
                 title: "Error",
-                content: "Ha ocorregut un error, si us plau intenti de nou",
+                content: "Ha ocorregut un error. Si us plau, intenteu-ho de nou.",
                 ok: "Acceptar",
             },
             demoQRText: "El rastrejador de butlletes està deshabilitat en mode de demostració",

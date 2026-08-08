@@ -83,6 +83,7 @@ const spanishInformalTranslation: TranslationType = {
                 writeInChoiceOutOfRange: "Opción de voto escrita fuera de rango: {{index}}",
                 writeInNotEndInZero: "Opción de voto escrita no finaliza en 0",
                 writeInCharsExceeded_one: "Acorta la escritura libre en {{count}} carácter.",
+                writeInCharsExceeded_many: "Acorta la escritura libre en {{count}} caracteres.",
                 writeInCharsExceeded_other: "Acorta la escritura libre en {{count}} caracteres.",
                 bytesToUtf8Conversion:
                     "Error convirtiendo bytes de opción de voto escrita a cadena UTF-8: {{errorMessage}}",
@@ -90,15 +91,21 @@ const spanishInformalTranslation: TranslationType = {
             },
             implicit: {
                 selectedMax_one: "Desmarca {{count}} candidato.",
+                selectedMax_many: "Desmarca {{count}} candidatos.",
                 selectedMax_other: "Desmarca {{count}} candidatos.",
                 selectedMin_one: "Selecciona {{count}} candidato más.",
+                selectedMin_many: "Selecciona {{count}} candidatos más.",
                 selectedMin_other: "Selecciona {{count}} candidatos más.",
                 maxSelectionsPerType_one: "Desmarca {{count}} candidato de {{type}}.",
+                maxSelectionsPerType_many: "Desmarca {{count}} candidatos de {{type}}.",
                 maxSelectionsPerType_other: "Desmarca {{count}} candidatos de {{type}}.",
                 underVote_one: "Selecciona hasta {{count}} candidato más.",
+                underVote_many: "Selecciona hasta {{count}} candidatos más.",
                 underVote_other: "Selecciona hasta {{count}} candidatos más.",
                 overVoteDisabled_one:
                     "Has seleccionado el máximo de {{count}} candidato. Desmárcalo para elegir otro.",
+                overVoteDisabled_many:
+                    "Has seleccionado el máximo de {{count}} candidatos. Desmarca uno para elegir otro.",
                 overVoteDisabled_other:
                     "Has seleccionado el máximo de {{count}} candidatos. Desmarca uno para elegir otro.",
                 blankVote: "No has seleccionado ningún candidato.",

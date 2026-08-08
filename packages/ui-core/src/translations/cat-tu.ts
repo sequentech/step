@@ -82,6 +82,7 @@ const catalanInformalTranslation: TranslationType = {
                 writeInChoiceOutOfRange: "Opció de vot escrita fora de rang: {{index}}",
                 writeInNotEndInZero: "Opció de vot escrita no finalitza en 0",
                 writeInCharsExceeded_one: "Escurça l'escriptura lliure en {{count}} caràcter.",
+                writeInCharsExceeded_many: "Escurça l'escriptura lliure en {{count}} caràcters.",
                 writeInCharsExceeded_other: "Escurça l'escriptura lliure en {{count}} caràcters.",
                 bytesToUtf8Conversion:
                     "Error convertint bytes d'opció de vot escrita a cadena UTF-8: {{errorMessage}}",
@@ -89,15 +90,21 @@ const catalanInformalTranslation: TranslationType = {
             },
             implicit: {
                 selectedMax_one: "Desmarca {{count}} candidat.",
+                selectedMax_many: "Desmarca {{count}} candidats.",
                 selectedMax_other: "Desmarca {{count}} candidats.",
                 selectedMin_one: "Selecciona {{count}} candidat més.",
+                selectedMin_many: "Selecciona {{count}} candidats més.",
                 selectedMin_other: "Selecciona {{count}} candidats més.",
                 maxSelectionsPerType_one: "Desmarca {{count}} candidat de {{type}}.",
+                maxSelectionsPerType_many: "Desmarca {{count}} candidats de {{type}}.",
                 maxSelectionsPerType_other: "Desmarca {{count}} candidats de {{type}}.",
                 underVote_one: "Selecciona fins a {{count}} candidat més.",
+                underVote_many: "Selecciona fins a {{count}} candidats més.",
                 underVote_other: "Selecciona fins a {{count}} candidats més.",
                 overVoteDisabled_one:
                     "Has seleccionat el màxim de {{count}} candidat. Desmarca'l per triar-ne un altre.",
+                overVoteDisabled_many:
+                    "Has seleccionat el màxim de {{count}} candidats. Desmarca'n un per triar-ne un altre.",
                 overVoteDisabled_other:
                     "Has seleccionat el màxim de {{count}} candidats. Desmarca'n un per triar-ne un altre.",
                 blankVote: "No has seleccionat cap candidat.",

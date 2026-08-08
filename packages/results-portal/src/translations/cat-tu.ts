@@ -50,6 +50,7 @@ const catalanInformalTranslation: TranslationType = {
             published: "Publicat",
             notPublishedYet: "Encara no publicat",
             position_one: "{{count}} posició",
+            position_many: "{{count}} posicions",
             position_other: "{{count}} posicions",
             fallbackElectionName: "Elecció",
             fallbackContestName: "Pregunta {{contestId}}",

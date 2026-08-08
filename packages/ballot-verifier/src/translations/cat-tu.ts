@@ -74,6 +74,7 @@ const catalanInformalTranslation: TranslationType = {
             },
             markedInvalid: "Vot explícitament marcat invàlid",
             points_one: "({{count}} Punt)",
+            points_many: "({{count}} Punts)",
             points_other: "({{count}} Punts)",
             contestNotFound: "Pregunta no trobada: {{contestId}}",
             declineToVote: "Vot no emès",
