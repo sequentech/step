@@ -35,6 +35,7 @@ fn sound() -> Blueprint {
         name: Translated::new("Union Election 2027"),
         description: Translated::default(),
         elections_order: "custom".to_string(),
+        show_cast_vote_logs: "show-logs-tab".to_string(),
         languages: vec!["en".to_string(), "es".to_string()],
         default_language: None,
         logo_url: None,
@@ -1683,4 +1684,19 @@ fn a_trustee_with_no_name_is_refused() {
     let report = validate_plan(&plan);
     assert!(report.has_errors());
     assert!(says(&report, "resolves the key ceremony's"));
+}
+
+/// Shown by default, because verifiability should be argued out of, not into.
+#[test]
+fn a_voter_can_look_up_their_own_ballot_unless_the_plan_says_otherwise() {
+    let plan = sound();
+    assert_eq!(plan.show_cast_vote_logs, "show-logs-tab");
+    assert_eq!(
+        to_workbook(&plan)
+            .expect("a workbook")
+            .rows(sheet::SHEET_ELECTION_EVENT)[0]
+            .get("presentation.show_cast_vote_logs")
+            .map(|cell| format!("{cell:?}")),
+        Some("String(\"show-logs-tab\")".to_string())
+    );
 }

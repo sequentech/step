@@ -63,6 +63,9 @@ pub const VOTING_TYPES: &[&str] = &["preferential", "non-preferential"];
 /// `sortCandidatesInContest` are the same function twice over.
 pub const ORDERINGS: &[&str] = &["custom", "alphabetical", "random"];
 
+/// `EShowCastVoteLogsPolicy` — whether a voter can look up a ballot they cast.
+pub const CAST_VOTE_LOGS: &[&str] = &["show-logs-tab", "hide-logs-tab"];
+
 /// `ITieBreakingPolicy` in `ui-core`.
 ///
 /// Two values, and the difference matters: `random` settles the tie inside the
@@ -95,43 +98,54 @@ pub fn validate(bundle: &ImportElectionEventSchema) -> Report {
     check_contests(bundle, &mut report);
     check_ballot_coverage(bundle, &mut report);
     check_how_voting_works(bundle, &mut report);
-    check_elections_order(bundle, &mut report);
+    check_event_presentation(bundle, &mut report);
     check_permission_labels(bundle, &mut report);
     check_unique_ids(bundle, &mut report);
 
     report
 }
 
-/// The order the elections themselves appear in, on the event.
-fn check_elections_order(
+/// The event-level presentation values that reach a voter.
+///
+/// One loop over the string-valued ones, because there were two single-purpose
+/// functions after the second was added and the third would have made three.
+fn check_event_presentation(
     bundle: &ImportElectionEventSchema,
     report: &mut Report,
 ) {
-    let Some(value) = bundle
+    let Some(presentation) = bundle
         .election_event
         .presentation
         .as_ref()
         .and_then(|value| value.as_object())
-        .and_then(|presentation| presentation.get("elections_order"))
     else {
         return;
     };
-    if value.is_null() {
-        return;
-    }
-    match value.as_str() {
-        Some(text) if ORDERINGS.contains(&text) => {}
-        other => report.push(Problem::error(
-            Code::InvalidValue,
-            "election_event.presentation.elections_order".to_string(),
-            format!(
-                "{} is not an ordering; expected one of {}",
-                other
-                    .map(|v| format!("'{v}'"))
-                    .unwrap_or("a non-string".into()),
-                ORDERINGS.join(", ")
-            ),
-        )),
+
+    for (key, allowed) in [
+        ("elections_order", ORDERINGS),
+        ("show_cast_vote_logs", CAST_VOTE_LOGS),
+    ] {
+        let Some(value) = presentation.get(key) else {
+            continue;
+        };
+        if value.is_null() {
+            continue;
+        }
+        match value.as_str() {
+            Some(text) if allowed.contains(&text) => {}
+            other => report.push(Problem::error(
+                Code::InvalidValue,
+                format!("election_event.presentation.{key}"),
+                format!(
+                    "{} is not a valid {key}; expected one of {}",
+                    other
+                        .map(|v| format!("'{v}'"))
+                        .unwrap_or("a non-string".into()),
+                    allowed.join(", ")
+                ),
+            )),
+        }
     }
 }
 
@@ -726,7 +740,7 @@ fn check_presentation_policies(
                     Code::InvalidValue,
                     path(&format!("presentation.{key}")),
                     format!(
-                        "'{text}' is not a {key}; expected one of {}",
+                        "'{text}' is not a valid {key}; expected one of {}",
                         allowed.join(", ")
                     ),
                 )
@@ -914,7 +928,7 @@ fn check_how_voting_works(
                         Code::InvalidValue,
                         path(&format!("presentation.{key}")),
                         format!(
-                            "{} is not a {key}; expected one of {}",
+                            "{} is not a valid {key}; expected one of {}",
                             other
                                 .map(|v| format!("'{v}'"))
                                 .unwrap_or("a non-string".into()),

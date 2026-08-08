@@ -541,10 +541,9 @@ fn a_contest_with_a_policy_the_platform_does_not_have_is_refused() {
 
     let report = validate(&bundle);
     assert!(report.has_errors());
-    assert!(report
-        .problems
-        .iter()
-        .any(|problem| problem.message.contains("is not a under_vote_policy")));
+    assert!(report.problems.iter().any(|problem| problem
+        .message
+        .contains("is not a valid under_vote_policy")));
 }
 
 #[test]
@@ -643,10 +642,9 @@ fn a_collapsible_list_setting_the_platform_does_not_have_is_refused() {
 
     let report = validate(&bundle);
     assert!(report.has_errors());
-    assert!(report
-        .problems
-        .iter()
-        .any(|problem| problem.message.contains("is not a collapsible_lists")));
+    assert!(report.problems.iter().any(|problem| problem
+        .message
+        .contains("is not a valid collapsible_lists")));
 }
 
 #[test]
@@ -811,7 +809,7 @@ fn a_grace_period_policy_the_platform_does_not_have_is_refused() {
     assert!(report.has_errors());
     assert!(report.problems.iter().any(|problem| problem
         .message
-        .contains("is not a grace_period_policy")));
+        .contains("is not a valid grace_period_policy")));
 }
 
 #[test]
@@ -872,10 +870,9 @@ fn an_ordering_the_platform_does_not_have_is_refused() {
 
     let report = validate(&bundle);
     assert!(report.has_errors());
-    assert!(report
-        .problems
-        .iter()
-        .any(|problem| problem.message.contains("is not an ordering")));
+    assert!(report.problems.iter().any(|problem| problem
+        .message
+        .contains("is not a valid elections_order")));
 
     let mut other = sound();
     other.elections[0].presentation =
@@ -893,6 +890,31 @@ fn every_real_ordering_is_accepted_in_all_three_places() {
             Some(serde_json::json!({"contests_order": value}));
         bundle.contests[0].presentation =
             Some(serde_json::json!({"candidates_order": value}));
+        assert!(!validate(&bundle).has_errors(), "{value} was refused");
+    }
+}
+
+#[test]
+fn a_cast_vote_logs_policy_the_platform_does_not_have_is_refused() {
+    // Whether a voter can look up a ballot they cast, on the portal's
+    // ballot-locator page. Two values; a third shows no tab and says nothing.
+    let mut bundle = sound();
+    bundle.election_event.presentation =
+        Some(serde_json::json!({"show_cast_vote_logs": "show"}));
+
+    let report = validate(&bundle);
+    assert!(report.has_errors());
+    assert!(report.problems.iter().any(|problem| problem
+        .message
+        .contains("is not a valid show_cast_vote_logs")));
+}
+
+#[test]
+fn a_voter_can_look_up_their_ballot_unless_asked_otherwise() {
+    for value in ["show-logs-tab", "hide-logs-tab"] {
+        let mut bundle = sound();
+        bundle.election_event.presentation =
+            Some(serde_json::json!({"show_cast_vote_logs": value}));
         assert!(!validate(&bundle).has_errors(), "{value} was refused");
     }
 }

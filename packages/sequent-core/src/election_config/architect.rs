@@ -180,6 +180,17 @@ pub struct Blueprint {
     #[serde(default)]
     pub name: Translated,
 
+    /// Whether a voter can look up the record of a ballot they cast.
+    ///
+    /// `show-logs-tab` or `hide-logs-tab`, per `EShowCastVoteLogsPolicy`. The
+    /// Voting Portal's ballot-locator page reads it and shows a tab where somebody
+    /// with a ballot identifier can see that it was received.
+    ///
+    /// A real decision about how much a voter can verify for themselves, exposed in
+    /// the Admin Portal's event form and unsettable from a plan.
+    #[serde(default = "show_logs")]
+    pub show_cast_vote_logs: String,
+
     /// The order the elections appear in, for a voter with more than one.
     ///
     /// The same three values again. `custom` is the order on the Ballot screen.
@@ -609,6 +620,12 @@ pub struct PlannedContest {
     /// areas explicitly is how a contest becomes local to some of them.
     #[serde(default)]
     pub areas: Vec<String>,
+}
+
+/// Shown, because a voter being able to confirm their own ballot arrived is the
+/// kind of thing an election should have to argue itself out of rather than into.
+fn show_logs() -> String {
+    "show-logs-tab".to_string()
 }
 
 /// The order somebody arranged, which is what the wizard is for.
@@ -1377,6 +1394,7 @@ fn event_sheet(
     // and a bundle with only the i18n block leaves every list view blank.
     columns.push("description".to_string());
     columns.push("presentation.elections_order".to_string());
+    columns.push("presentation.show_cast_vote_logs".to_string());
     columns
         .push("presentation.language_conf.enabled_language_codes".to_string());
     columns
@@ -1387,6 +1405,7 @@ fn event_sheet(
     row.extend(i18n_values(&plan.description, languages));
     row.push(english_of(&plan.description));
     row.push(Cell::text(plan.elections_order.clone()));
+    row.push(Cell::text(plan.show_cast_vote_logs.clone()));
     // A JSON array in one cell: the reader parses bracketed text as JSON, which is
     // how a list fits in a spreadsheet and therefore in a synthesised one too.
     row.push(Cell::text(
