@@ -33,6 +33,7 @@ fn sound() -> Blueprint {
         external_id: "union-2027".to_string(),
         name: Translated::new("Union Election 2027"),
         languages: vec!["en".to_string(), "es".to_string()],
+        default_language: None,
         logo_url: None,
         contacts: vec![Contact {
             name: "Dana Reed".to_string(),
@@ -583,6 +584,69 @@ fn the_order_things_were_arranged_in_survives() {
         .find(|c| c["external_id"] == serde_json::json!("bob"))
         .unwrap();
     assert_eq!(bob["presentation"]["sort_order"], serde_json::json!(0));
+}
+
+// -- the ballot's languages -------------------------------------------------
+
+/// What the event sheet says a voter reads before they choose.
+fn default_language_of(plan: &Blueprint) -> String {
+    let workbook = to_workbook(plan).expect("the plan compiles to rows");
+    let row = workbook
+        .rows(crate::election_config::sheet::SHEET_ELECTION_EVENT)
+        .first()
+        .cloned()
+        .expect("one event row");
+    row.get("presentation.language_conf.default_language_code")
+        .map(|cell| format!("{cell}"))
+        .unwrap_or_default()
+}
+
+/// The behaviour before `default_language` existed, kept: a plan saved without
+/// one still opens in the first language it lists.
+#[test]
+fn a_plan_that_names_no_default_language_uses_the_first() {
+    let plan = sound();
+    assert_eq!(plan.default_language, None);
+    assert!(default_language_of(&plan).contains("en"));
+}
+
+/// The gap this closes. The languages were configurable and the default was
+/// not — `event_sheet` wrote `languages.first()` and nothing could say
+/// otherwise, so a client wanting Spanish first had to reorder the list without
+/// being told that was what the order meant.
+#[test]
+fn a_plan_can_say_which_language_voters_get_first() {
+    let mut plan = sound();
+    plan.default_language = Some("es".to_string());
+    assert!(default_language_of(&plan).contains("es"));
+}
+
+/// An error rather than a warning. The builder falls back to the first
+/// language, so this imports cleanly and opens in a language nobody chose —
+/// which nobody notices until a voter says the ballot came up wrong.
+#[test]
+fn a_default_language_the_ballot_does_not_offer_is_refused() {
+    let mut plan = sound();
+    plan.default_language = Some("fr".to_string());
+
+    let report = validate_plan(&plan);
+    assert!(report.has_errors());
+    assert!(says(&report, "not one of the languages"));
+    assert!(codes(&report).contains(&"InvalidValue".to_string()));
+}
+
+/// And the fallback still holds even if validation is somehow skipped: the
+/// sheet writer filters the chosen language against the list rather than
+/// trusting it, so a bad plan cannot emit a language the event does not have.
+#[test]
+fn the_sheet_never_writes_a_language_the_event_does_not_have() {
+    let mut plan = sound();
+    plan.default_language = Some("fr".to_string());
+    let written = default_language_of(&plan);
+    assert!(
+        written.contains("en"),
+        "expected the fallback, got {written}"
+    );
 }
 
 // -- the plan's own checks -------------------------------------------------

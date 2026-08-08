@@ -184,6 +184,19 @@ pub struct Blueprint {
     #[serde(default)]
     pub languages: Vec<String>,
 
+    /// Which of [`Self::languages`] a voter gets before choosing.
+    ///
+    /// `None` means the first one, which is what this used to be unconditionally
+    /// — `event_sheet` wrote `languages.first()` and nothing could say otherwise.
+    /// So the languages were configurable and the default was not, and a client
+    /// wanting Spanish first had to reorder the list without being told that was
+    /// what the order meant.
+    ///
+    /// It is the default *ballot* language, not the wizard's own. Those are
+    /// different things and the guide says so: this one is what voters read.
+    #[serde(default)]
+    pub default_language: Option<String>,
+
     #[serde(default)]
     pub logo_url: Option<String>,
 
@@ -543,6 +556,7 @@ pub fn validate_plan(plan: &Blueprint) -> Report {
         ));
     }
 
+    check_languages(plan, &mut report);
     check_trustees(plan, &mut report);
     check_schedule(plan, &mut report);
     check_areas(plan, &mut report);
@@ -559,6 +573,39 @@ pub fn validate_plan(plan: &Blueprint) -> Report {
     }
 
     report
+}
+
+/// The ballot's languages, and which one a voter starts in.
+fn check_languages(plan: &Blueprint, report: &mut Report) {
+    if plan.languages.is_empty() {
+        report.push(Problem::warning(
+            Code::MissingField,
+            "languages",
+            "no languages, so the ballot falls back to English. That is a safety \
+             net rather than a choice.",
+        ));
+        return;
+    }
+
+    let Some(chosen) = plan.default_language.as_deref() else {
+        return;
+    };
+
+    if !plan.languages.iter().any(|each| each == chosen) {
+        // An error, not a warning. The builder would fall back to the first
+        // language, so this imports cleanly and opens in a language nobody
+        // chose — which is exactly the class of failure nobody notices until a
+        // voter says the ballot came up in the wrong language.
+        report.push(Problem::error(
+            Code::InvalidValue,
+            "default_language",
+            format!(
+                "'{chosen}' is not one of the languages this ballot is offered \
+                 in ({}). Voters would get the first one instead.",
+                plan.languages.join(", ")
+            ),
+        ));
+    }
 }
 
 fn check_trustees(plan: &Blueprint, report: &mut Report) {
@@ -1072,10 +1119,14 @@ fn event_sheet(
     row.push(Cell::text(
         serde_json::to_string(languages).unwrap_or_else(|_| "[]".to_string()),
     ));
+    // The chosen default, or the first language when nobody chose. A default
+    // naming a language the ballot is not offered in is refused by
+    // `check_languages` rather than written here, so this cannot emit one.
     row.push(Cell::text(
-        languages
-            .first()
-            .cloned()
+        plan.default_language
+            .clone()
+            .filter(|chosen| languages.iter().any(|each| each == chosen))
+            .or_else(|| languages.first().cloned())
             .unwrap_or_else(|| "en".to_string()),
     ));
 
