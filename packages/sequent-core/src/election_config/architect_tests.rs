@@ -1098,3 +1098,175 @@ fn a_plan_saved_before_districting_existed_still_opens() {
     assert!(plan.areas.is_empty());
     assert!(plan.elections[0].contests[0].areas.is_empty());
 }
+
+/// The census travels with the plan, in the columns the builder already reads.
+#[test]
+fn a_plan_may_carry_its_own_census() {
+    let mut plan = sound();
+    plan.areas = vec![PlannedArea {
+        external_id: "north".into(),
+        name: "North Local 1".into(),
+        parent_external_id: None,
+    }];
+    plan.voters = vec![
+        PlannedVoter {
+            username: "ada".into(),
+            email: "ada@example.org".into(),
+            first_name: "Ada".into(),
+            last_name: "Lovelace".into(),
+            area_name: "North Local 1".into(),
+            extra: [("department".to_string(), "engineering".to_string())]
+                .into_iter()
+                .collect(),
+        },
+        PlannedVoter {
+            username: "grace".into(),
+            area_name: "North Local 1".into(),
+            ..Default::default()
+        },
+    ];
+
+    let workbook = to_workbook(&plan).expect("this plan is sound");
+    let voters = workbook.sheet("voters").expect("the census should be a sheet");
+
+    // The columns the builder derives are absent: `id` comes from `ids::uid` and
+    // `authorized-election-ids` from the areas, so a census that carried them
+    // would be handing over values the builder is about to overwrite.
+    assert!(!voters.headers.contains(&"id".to_string()));
+    assert!(!voters
+        .headers
+        .contains(&"authorized-election-ids".to_string()));
+
+    // And a client's own column survives, which is the point of the passthrough.
+    assert!(voters.headers.contains(&"department".to_string()));
+    assert_eq!(voters.rows.len(), 2);
+}
+
+/// A plan with no census has no sheet, rather than an empty one.
+#[test]
+fn no_census_is_not_an_empty_census() {
+    // `build_tables` reads a present-but-empty Voters sheet as "this election
+    // has no voters", which is a different claim from "this plan does not carry
+    // the census" — and produces a bundle importing an election nobody can vote
+    // in.
+    let workbook = to_workbook(&sound()).expect("this plan is sound");
+
+    assert!(
+        workbook.sheet("voters").is_none(),
+        "a plan with no voters should not emit the sheet at all"
+    );
+}
+
+/// The sheet's own column names have to be ones the builder reads.
+#[test]
+fn the_voters_sheet_matches_what_the_builder_reads() {
+    // `voters_sheet` spells its columns rather than importing
+    // `VOTER_LEADING_COLUMNS`, because that constant lives behind a feature gate
+    // this module does not have. Two lists means they can drift, and the way
+    // they would drift is a census column the builder silently ignores.
+    let mut plan = sound();
+    plan.voters = vec![PlannedVoter {
+        username: "ada".into(),
+        ..Default::default()
+    }];
+
+    let workbook = to_workbook(&plan).expect("this plan is sound");
+    let voters = workbook.sheet("voters").expect("the census should be a sheet");
+
+    for column in &voters.headers {
+        assert!(
+            crate::election_config::build::VOTER_LEADING_COLUMNS
+                .contains(&column.as_str()),
+            "'{column}' is not a column the builder reads"
+        );
+    }
+}
+
+/// Two voters cannot share a username: the second would replace the first.
+#[test]
+fn a_duplicate_username_is_refused() {
+    let mut plan = sound();
+    plan.voters = vec![
+        PlannedVoter {
+            username: "ada".into(),
+            ..Default::default()
+        },
+        PlannedVoter {
+            username: "ada".into(),
+            ..Default::default()
+        },
+    ];
+
+    let report = validate_plan(&plan);
+
+    assert!(
+        report
+            .problems
+            .iter()
+            .any(|problem| problem.path == "voters[1].username"
+                && problem.severity == Severity::Error),
+        "{:?}",
+        report.problems
+    );
+}
+
+/// An area name no area has means a voter with no ballot.
+#[test]
+fn a_voter_in_an_area_that_does_not_exist_is_refused() {
+    let mut plan = sound();
+    plan.areas = vec![PlannedArea {
+        external_id: "north".into(),
+        name: "North Local 1".into(),
+        parent_external_id: None,
+    }];
+    plan.voters = vec![PlannedVoter {
+        username: "ada".into(),
+        // The census says one thing and the areas another, which is what
+        // retyping a name rather than copying it produces.
+        area_name: "N. Local 1".into(),
+        ..Default::default()
+    }];
+
+    let report = validate_plan(&plan);
+
+    assert!(
+        report
+            .problems
+            .iter()
+            .any(|problem| problem.path == "voters[0].area_name"),
+        "{:?}",
+        report.problems
+    );
+}
+
+/// Districting nobody's census mentions is worth saying once.
+#[test]
+fn a_census_that_ignores_the_districting_says_so_once() {
+    let mut plan = sound();
+    plan.areas = vec![PlannedArea {
+        external_id: "north".into(),
+        name: "North Local 1".into(),
+        parent_external_id: None,
+    }];
+    plan.voters = (0..5)
+        .map(|index| PlannedVoter {
+            username: format!("voter-{index}"),
+            ..Default::default()
+        })
+        .collect();
+
+    let report = validate_plan(&plan);
+
+    // Once, not once per voter: ten thousand copies of one sentence is a report
+    // nobody reads.
+    assert_eq!(
+        report
+            .problems
+            .iter()
+            .filter(|problem| problem.path == "voters")
+            .count(),
+        1,
+        "{:?}",
+        report.problems
+    );
+}

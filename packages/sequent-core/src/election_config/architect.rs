@@ -535,6 +535,7 @@ pub fn validate_plan(plan: &Blueprint) -> Report {
     check_trustees(plan, &mut report);
     check_schedule(plan, &mut report);
     check_areas(plan, &mut report);
+    check_census(plan, &mut report);
     check_ballot(plan, &mut report);
 
     if plan.contacts.is_empty() {
@@ -768,6 +769,83 @@ fn check_areas(plan: &Blueprint, report: &mut Report) {
     }
 }
 
+/// The census, when the plan carries one.
+///
+/// Two failures matter, and both are the kind nobody sees until a voter cannot
+/// vote:
+///
+///   - **A duplicate username.** The importer derives a voter's id from it, so
+///     two rows sharing one produce one account, and whichever row came second
+///     silently replaced the first.
+///   - **An area name no area has.** Voters are matched to areas *by name*, so
+///     a misspelling gives a voter no ballot at all — and this is the one place
+///     where a name is doing real work rather than labelling something.
+///
+/// A census with no voters in it is not an error: a plan may carry the shape of
+/// an election long before anybody has the membership list.
+fn check_census(plan: &Blueprint, report: &mut Report) {
+    if plan.voters.is_empty() {
+        return;
+    }
+
+    let named: std::collections::BTreeSet<&str> =
+        plan.areas.iter().map(|area| area.name.as_str()).collect();
+
+    let mut seen: std::collections::BTreeMap<&str, usize> =
+        std::collections::BTreeMap::new();
+
+    for (index, voter) in plan.voters.iter().enumerate() {
+        let username = voter.username.trim();
+
+        if username.is_empty() {
+            report.push(Problem::error(
+                Code::MissingField,
+                format!("voters[{index}].username"),
+                "a voter needs a username; it is what they sign in as and what                  their account is derived from",
+            ));
+            continue;
+        }
+
+        if let Some(first) = seen.insert(username, index) {
+            report.push(Problem::error(
+                Code::DuplicateId,
+                format!("voters[{index}].username"),
+                format!(
+                    "'{username}' is also row {first}. Two voters sharing a                      username become one account, and this one would replace                      the other without saying so."
+                ),
+            ));
+        }
+
+        // Blank means the default area, which is what a plan with no areas
+        // gets. Naming one that does not exist is the mistake worth catching.
+        let area = voter.area_name.trim();
+        if !area.is_empty() && !named.contains(area) {
+            report.push(Problem::error(
+                Code::DanglingReference,
+                format!("voters[{index}].area_name"),
+                format!(
+                    "no area is called '{area}'. Voters are matched to their                      area by name, so this voter would get no ballot. Copy the                      name from the area rather than retyping it."
+                ),
+            ));
+        }
+    }
+
+    // Said once rather than per voter: a census loaded against the wrong plan
+    // produces one of these for every row, and ten thousand copies of the same
+    // sentence is a report nobody reads.
+    if !plan.areas.is_empty()
+        && plan.voters.iter().all(|voter| voter.area_name.trim().is_empty())
+    {
+        report.push(Problem::warning(
+            Code::MissingField,
+            "voters",
+            "this election has areas but no voter names one, so every voter \
+             gets the default ballot. If the districting is meant to apply, the \
+             census needs an area column.",
+        ));
+    }
+}
+
 fn check_ballot(plan: &Blueprint, report: &mut Report) {
     if plan.elections.is_empty() {
         report.push(Problem::error(
@@ -901,6 +979,10 @@ pub fn to_workbook(plan: &Blueprint) -> Result<Workbook, Problem> {
         areas_sheet(plan)?,
         area_contests_sheet(plan)?,
     ];
+
+    if let Some(voters) = voters_sheet(plan)? {
+        sheets.push(voters);
+    }
 
     if let Some(schedule) = scheduled_events_sheet(plan)? {
         sheets.push(schedule);
@@ -1093,6 +1175,91 @@ fn candidates_sheet(
 ///
 /// A plan that has never thought about districting still needs an area and a
 /// ballot link, or no voter sees anything. See [`DEFAULT_AREA_EXTERNAL_ID`].
+/// The census, when the plan carries one.
+///
+/// `None` rather than an empty sheet when it does not: `build_tables` treats a
+/// present-but-empty Voters sheet as "this election has no voters", which is a
+/// different claim from "this plan does not carry the census" and produces a
+/// bundle that imports an election nobody can vote in.
+///
+/// Columns are `VOTER_LEADING_COLUMNS` minus the two the builder derives — `id`
+/// comes from `ids::uid` and `authorized-election-ids` from the areas — plus
+/// whatever else the client carries, in a stable order so two builds of one
+/// census diff cleanly. Everything unrecognised is passed through, which is how
+/// a reporting breakout column survives the round trip.
+fn voters_sheet(plan: &Blueprint) -> Result<Option<Sheet>, Problem> {
+    if plan.voters.is_empty() {
+        return Ok(None);
+    }
+
+    /// The columns `PlannedVoter` names in its own right.
+    ///
+    /// Spelled here rather than borrowed from `build_tables::VOTER_LEADING_COLUMNS`
+    /// because that module sits behind `election_config_templates` and this one
+    /// does not — reaching for it would drag the whole builder into a front end
+    /// that only wants to describe a plan. The two lists are checked against
+    /// each other by `the_voters_sheet_matches_what_the_builder_reads`.
+    const NAMED: &[&str] = &[
+        "username",
+        "email",
+        "first_name",
+        "last_name",
+        "area_name",
+    ];
+
+    // Sorted, so a census that gains a column does not reorder the ones it had.
+    let mut extra: Vec<&str> = plan
+        .voters
+        .iter()
+        .flat_map(|voter| voter.extra.keys().map(String::as_str))
+        .filter(|key| {
+            !NAMED.contains(key)
+                && !["id", "enabled", "email_verified"].contains(key)
+                && *key != "area.external_id"
+                && *key != "authorized-election-ids"
+        })
+        .collect();
+    extra.sort_unstable();
+    extra.dedup();
+
+    let mut columns: Vec<String> =
+        NAMED.iter().map(|name| (*name).to_string()).collect();
+    columns.extend(extra.iter().map(|key| (*key).to_string()));
+
+    let rows = plan
+        .voters
+        .iter()
+        .map(|voter| {
+            let mut row = vec![
+                Cell::text(voter.username.clone()),
+                text_or_blank(&voter.email),
+                text_or_blank(&voter.first_name),
+                text_or_blank(&voter.last_name),
+                text_or_blank(&voter.area_name),
+            ];
+            row.extend(extra.iter().map(|key| {
+                voter
+                    .extra
+                    .get(*key)
+                    .map(|value| Cell::text(value.clone()))
+                    .unwrap_or(Cell::Blank)
+            }));
+            row
+        })
+        .collect();
+
+    sheet_of("Voters", columns, rows).map(Some)
+}
+
+/// A cell, or nothing at all — so a blank stays distinguishable from `""`.
+fn text_or_blank(value: &str) -> Cell {
+    if value.is_empty() {
+        Cell::Blank
+    } else {
+        Cell::text(value.to_string())
+    }
+}
+
 fn areas_sheet(plan: &Blueprint) -> Result<Sheet, Problem> {
     let columns = vec![
         "external_id".to_string(),
