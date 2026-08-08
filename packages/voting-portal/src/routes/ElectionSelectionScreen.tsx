@@ -21,6 +21,7 @@ import {
     formatVotingPortalDateTime,
 } from "@sequentech/ui-core"
 import {AuthContext} from "../providers/AuthContextProvider"
+import {isElectionEventVotingClosed, isVotingClosedForChannels} from "../utils/votingStatus"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {styled} from "@mui/material/styles"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
@@ -169,14 +170,6 @@ const isResultsWebsiteEnabled = (electionEvent?: IElectionEvent): boolean => {
     )
 }
 
-const isElectionEventVotingClosed = (electionEvent?: IElectionEvent): boolean => {
-    return (
-        !isElectionEventOnlineVotingOpen(electionEvent) &&
-        !isElectionEventKioskOpen(electionEvent) &&
-        !isElectionEventEarlyVotingOpen(electionEvent)
-    )
-}
-
 const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     electionId,
     bypassChooser,
@@ -277,10 +270,20 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         navigate(`../election/${electionId}/ballot-locator${location.search}`)
     }
 
+    // Not `!isVotingOpen()`: that is also true before voting starts and while
+    // it is paused.
+    const isVotingClosed = () =>
+        isVotingClosedForChannels([
+            electionStatus?.voting_status,
+            electionStatus?.kiosk_voting_status,
+            electionStatus?.early_voting_status,
+            electionStatus?.telephone_voting_status,
+        ])
+
     const resultsUrl =
         globalSettings.RESULTS_PORTAL_URL &&
         eventId &&
-        !isVotingOpen() &&
+        isVotingClosed() &&
         isResultsWebsiteEnabled(electionEvent)
             ? `${globalSettings.RESULTS_PORTAL_URL.replace(/\/+$/, "")}/${eventId}/elections/${electionId}`
             : undefined
