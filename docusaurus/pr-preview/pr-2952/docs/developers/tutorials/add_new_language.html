@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Add a New Language | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-2952/docs/developers/tutorials/add_new_language"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Add a New Language | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2952/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2952/docs/developers/tutorials/add_new_language"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2952/docs/developers/tutorials/add_new_language" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2952/docs/developers/tutorials/add_new_language" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Add a New Language","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-2952/docs/developers/tutorials/add_new_language"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2952/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/pr-preview/pr-2952/assets/js/runtime~main.2b9693e4.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2952/assets/js/runtime~main.01a221db.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-2952/assets/js/main.33d2b974.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -23,26 +23,41 @@ languages. French counts zero as singular, and Filipino counts two as singular.<
 <div class="language-tsx codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-tsx codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token comment" style="color:rgb(105, 112, 152);font-style:italic">// the component never decides which form to use</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">t</span><span class="token punctuation" style="color:rgb(199, 146, 234)">(</span><span class="token string" style="color:rgb(195, 232, 141)">&quot;candidatesList.selectedCandidates&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain">count</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> selectedCandidatesCount</span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token punctuation" style="color:rgb(199, 146, 234)">)</span><br></span></code></pre></div></div>
 <p>Rules to follow:</p>
 <ul>
-<li class=""><strong><code>count</code> must be a number.</strong> i18next skips pluralisation entirely when <code>count</code> is a string, and silently
-falls back to the unsuffixed key. <code>{count: String(n)}</code> and <code>{count: n.toString()}</code> are bugs.</li>
-<li class=""><strong>The variable must be called <code>count</code>.</strong> No other name triggers plural selection.</li>
-<li class=""><strong>Use <code>_one</code> and <code>_other</code>.</strong> <code>_plural</code> is the i18next v3 suffix and is never selected by the version in use
-here — an entry under <code>_plural</code> is dead code.</li>
-<li class=""><strong>Declare both suffixes even when the text is identical.</strong> Basque and Tagalog do not inflect a noun after a
+<li class="">
+<p><strong><code>count</code> must be a number.</strong> i18next skips pluralisation entirely when <code>count</code> is a string, and silently
+falls back to the unsuffixed key. <code>{count: String(n)}</code> and <code>{count: n.toString()}</code> are bugs.</p>
+</li>
+<li class="">
+<p><strong>The variable must be called <code>count</code>.</strong> No other name triggers plural selection.</p>
+</li>
+<li class="">
+<p><strong>Use <code>_one</code> and <code>_other</code>.</strong> <code>_plural</code> is the i18next v3 suffix and is never selected by the version in use
+here — an entry under <code>_plural</code> is dead code.</p>
+</li>
+<li class="">
+<p><strong>Declare both suffixes even when the text is identical.</strong> Basque and Tagalog do not inflect a noun after a
 numeral, so their two forms are the same string. They are both still required, because the non-English files
-are typed <code>TranslationType = typeof englishTranslation</code> and must carry the same key set as <code>en.ts</code>.</li>
-<li class=""><strong>A language with more CLDR categories needs more entries.</strong> If a language you add has a <code>few</code> or <code>many</code>
-category for the values the string can actually take, add <code>_few</code> / <code>_many</code> as well. Check with
-<code>new Intl.PluralRules(&quot;[lang_code]&quot;).resolvedOptions().pluralCategories</code>. Spanish, Catalan and French, for
-example, report <code>many</code> — but only for exact multiples of a million, so a count of candidates never reaches
-it.</li>
-<li class=""><strong><code>_zero</code> is not one of those categories.</strong> It is an i18next override selected whenever <code>count</code> is exactly 0,
-in any language, whether or not CLDR lists a <code>zero</code> category — so <code>pluralCategories</code> will not tell you to add
-it. Add <code>_zero</code> when you want different wording for none, not because a language &quot;has&quot; it.</li>
-<li class=""><strong>The runtime must provide <code>Intl.PluralRules</code>.</strong> i18next 25 requires it and has no fallback to the old v3
+are typed <code>TranslationType = typeof englishTranslation</code> and must carry the same key set as <code>en.ts</code>.</p>
+</li>
+<li class="">
+<p><strong>Add an entry for every category the language reports.</strong> <code>_one</code> and <code>_other</code> are the English set, not the
+universal one. Check the language you are adding:</p>
+<div class="language-js codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-js codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token keyword" style="font-style:italic">new</span><span class="token plain"> </span><span class="token class-name" style="color:rgb(255, 203, 107)">Intl</span><span class="token class-name punctuation" style="color:rgb(199, 146, 234)">.</span><span class="token class-name" style="color:rgb(255, 203, 107)">PluralRules</span><span class="token punctuation" style="color:rgb(199, 146, 234)">(</span><span class="token string" style="color:rgb(195, 232, 141)">&quot;[lang_code]&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">)</span><span class="token punctuation" style="color:rgb(199, 146, 234)">.</span><span class="token method function property-access" style="color:rgb(130, 170, 255)">resolvedOptions</span><span class="token punctuation" style="color:rgb(199, 146, 234)">(</span><span class="token punctuation" style="color:rgb(199, 146, 234)">)</span><span class="token punctuation" style="color:rgb(199, 146, 234)">.</span><span class="token property-access">pluralCategories</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token comment" style="color:rgb(105, 112, 152);font-style:italic">// &quot;ar&quot; -&gt; [&quot;few&quot;, &quot;many&quot;, &quot;one&quot;, &quot;other&quot;, &quot;two&quot;, &quot;zero&quot;]</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token comment" style="color:rgb(105, 112, 152);font-style:italic">// &quot;sl&quot; -&gt; [&quot;few&quot;, &quot;one&quot;, &quot;other&quot;, &quot;two&quot;]</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token comment" style="color:rgb(105, 112, 152);font-style:italic">// &quot;es&quot; -&gt; [&quot;many&quot;, &quot;one&quot;, &quot;other&quot;]</span><br></span></code></pre></div></div>
+<p>Arabic needs all six suffixes; Slovenian and Hebrew need <code>_two</code>, because both select <code>two</code> for a count of 2.
+Spanish, Catalan and French report <code>many</code>, but only for exact multiples of a million, so a count of
+candidates never reaches it.</p>
+</li>
+<li class="">
+<p><strong><code>_zero</code> can also be added deliberately.</strong> Beyond the CLDR category, i18next selects <code>_zero</code> whenever
+<code>count</code> is exactly 0, in any language — so you can give &quot;none&quot; its own wording even where
+<code>pluralCategories</code> does not list <code>zero</code>.</p>
+</li>
+<li class="">
+<p><strong>The runtime must provide <code>Intl.PluralRules</code>.</strong> i18next 25 requires it and has no fallback to the old v3
 behaviour; <code>compatibilityJSON: &quot;v3&quot;</code> was removed in v24. Every browser we support has it. If a target ever
 lacks it, install the <code>intl-pluralrules</code> polyfill — without one, i18next logs an error and degrades to
-English-style <code>_one</code>/<code>_other</code> for every language, which silently mis-pluralises the rest.</li>
+English-style <code>_one</code>/<code>_other</code> for every language, which silently mis-pluralises the rest.</p>
+</li>
 </ul>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="ballot-validation-messages">Ballot validation messages<a href="#ballot-validation-messages" class="hash-link" aria-label="Direct link to Ballot validation messages" title="Direct link to Ballot validation messages" translate="no">​</a></h3>
 <p>The warnings a voter sees while marking a ballot come from the Rust checker in <code>sequent-core</code> as a message key
