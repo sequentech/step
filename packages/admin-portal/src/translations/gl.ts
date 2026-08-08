@@ -1866,7 +1866,7 @@ const galegoTranslation: TranslationType = {
             },
             error: {},
             createContestSuccess: "Pregunta creada",
-            createContestError: "Erro ao crear o concurso",
+            createContestError: "Erro ao crear a pregunta",
         },
         keysGeneration: {
             configureStep: {

@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {TranslationType} from "./en"
 
-const catalanTranslation: TranslationType = {
+const catalanInformalTranslation: TranslationType = {
     translations: {
-        language: "Valencià",
-        welcome: "Comencem: Importeu el vot auditable..",
+        language: "Valencià (tu)",
+        welcome: "Comencem: Importa el vot auditable..",
         breadcrumbSteps: {
             select: "Seleccionar un Verificador",
             import: "Importar Dades",
@@ -43,24 +43,24 @@ const catalanTranslation: TranslationType = {
             description2:
                 "El verificador de vot permet al votant assegurar-se que el vot xifrat capturi correctament les seleccions fetes a la cabina de votació. Permetre realitzar aquesta verificació es denomina verificabilitat de transmissió segons el previst i evita errors i activitats malicioses durant el xifratge del vot.",
             descriptionMore: "Més informació",
-            startButton: "Seleccioneu fitxer",
-            dragDropOption: "O arrossegueu el fitxer aquí",
+            startButton: "Selecciona fitxer",
+            dragDropOption: "O arrossega el fitxer aquí",
             importErrorDescription:
-                "Hi va haver un problema en importar el vot auditable. Vau triar el fitxer correcte?",
+                "Hi va haver un problema en importar el vot auditable. Vas triar el fitxer correcte?",
             importErrorMoreInfo: "Més informació",
             importErrorTitle: "Error",
-            useSampleText: "No teniu un vot verificable?",
-            useSampleLink: "Utilitzeu un vot verificable d'exemple",
+            useSampleText: "No tens un vot verificable?",
+            useSampleLink: "Utilitza un vot verificable d'exemple",
         },
         confirmationScreen: {
             title: "Verificador de Vot Sequent",
             topDescription1: "Basat en la informació del vot auditable importat, calculem que:",
             topDescription2: "Si aquest ID de vot és mostrat a la Cabina de Votació:",
             bottomDescription1:
-                "El vostre vot va ser xifrat correctament. Ara podeu tancar aquesta finestra i tornar a la Cabina de Votació.",
+                "El teu vot va ser xifrat correctament. Ara pots tancar aquesta finestra i tornar a la Cabina de Votació.",
             bottomDescription2:
-                "Si no coincideixen, feu clic aquí per obtenir més informació sobre els possibles motius i les accions que podeu prendre.",
-            ballotChoicesDescription: "I les vostres seleccions de vot són:",
+                "Si no coincideixen, fes clic aquí per obtenir més informació sobre els possibles motius i les accions que pots prendre.",
+            ballotChoicesDescription: "I les teves seleccions de vot són:",
             helpAndFaq: "Ajuda i Preguntes Freqüents",
             backButton: "Enrere",
             markedInvalid: "Vot explícitament marcat invàlid",
@@ -69,7 +69,7 @@ const catalanTranslation: TranslationType = {
             statusModal: {
                 title: "Estat",
                 content:
-                    "El panell d'estat us dóna informació sobre les verificacions realitzades.",
+                    "El panell d'estat et dóna informació sobre les verificacions realitzades.",
                 ok: "OK",
             },
         },
@@ -81,33 +81,33 @@ const catalanTranslation: TranslationType = {
                 notEnoughChoices: "No hi ha prou opcions per desxifrar",
                 writeInChoiceOutOfRange: "Opció de vot escrita fora de rang: {{index}}",
                 writeInNotEndInZero: "Opció de vot escrita no finalitza en 0",
-                writeInCharsExceeded_one: "Escurceu l'escriptura lliure en {{count}} caràcter.",
-                writeInCharsExceeded_many: "Escurceu l'escriptura lliure en {{count}} caràcters.",
-                writeInCharsExceeded_other: "Escurceu l'escriptura lliure en {{count}} caràcters.",
+                writeInCharsExceeded_one: "Escurça l'escriptura lliure en {{count}} caràcter.",
+                writeInCharsExceeded_many: "Escurça l'escriptura lliure en {{count}} caràcters.",
+                writeInCharsExceeded_other: "Escurça l'escriptura lliure en {{count}} caràcters.",
                 bytesToUtf8Conversion:
                     "Error convertint bytes d'opció de vot escrita a cadena UTF-8: {{errorMessage}}",
                 ballotTooLarge: "Vot més gran de l'esperat",
             },
             implicit: {
-                selectedMax_one: "Desmarqueu {{count}} candidat.",
-                selectedMax_many: "Desmarqueu {{count}} candidats.",
-                selectedMax_other: "Desmarqueu {{count}} candidats.",
-                selectedMin_one: "Seleccioneu {{count}} candidat més.",
-                selectedMin_many: "Seleccioneu {{count}} candidats més.",
-                selectedMin_other: "Seleccioneu {{count}} candidats més.",
-                maxSelectionsPerType_one: "Desmarqueu {{count}} candidat de {{type}}.",
-                maxSelectionsPerType_many: "Desmarqueu {{count}} candidats de {{type}}.",
-                maxSelectionsPerType_other: "Desmarqueu {{count}} candidats de {{type}}.",
-                underVote_one: "Seleccioneu fins a {{count}} candidat més.",
-                underVote_many: "Seleccioneu fins a {{count}} candidats més.",
-                underVote_other: "Seleccioneu fins a {{count}} candidats més.",
+                selectedMax_one: "Desmarca {{count}} candidat.",
+                selectedMax_many: "Desmarca {{count}} candidats.",
+                selectedMax_other: "Desmarca {{count}} candidats.",
+                selectedMin_one: "Selecciona {{count}} candidat més.",
+                selectedMin_many: "Selecciona {{count}} candidats més.",
+                selectedMin_other: "Selecciona {{count}} candidats més.",
+                maxSelectionsPerType_one: "Desmarca {{count}} candidat de {{type}}.",
+                maxSelectionsPerType_many: "Desmarca {{count}} candidats de {{type}}.",
+                maxSelectionsPerType_other: "Desmarca {{count}} candidats de {{type}}.",
+                underVote_one: "Selecciona fins a {{count}} candidat més.",
+                underVote_many: "Selecciona fins a {{count}} candidats més.",
+                underVote_other: "Selecciona fins a {{count}} candidats més.",
                 overVoteDisabled_one:
-                    "Heu seleccionat el màxim de {{count}} candidat. Desmarqueu-lo per triar-ne un altre.",
+                    "Has seleccionat el màxim de {{count}} candidat. Desmarca'l per triar-ne un altre.",
                 overVoteDisabled_many:
-                    "Heu seleccionat el màxim de {{count}} candidats. Desmarqueu-ne un per triar-ne un altre.",
+                    "Has seleccionat el màxim de {{count}} candidats. Desmarca'n un per triar-ne un altre.",
                 overVoteDisabled_other:
-                    "Heu seleccionat el màxim de {{count}} candidats. Desmarqueu-ne un per triar-ne un altre.",
-                blankVote: "No heu seleccionat cap candidat.",
+                    "Has seleccionat el màxim de {{count}} candidats. Desmarca'n un per triar-ne un altre.",
+                blankVote: "No has seleccionat cap candidat.",
                 preferenceOrderWithGaps: "Vot invàlid! L'ordre de preferència té un o més buits.",
                 duplicatedPosition:
                     "Vot invàlid! La mateixa posició va ser seleccionada per a dos o més candidats.",
@@ -123,7 +123,7 @@ const catalanTranslation: TranslationType = {
                     "Configuració de vot invàlida: la pregunta defineix {{count}} candidats de vot en blanc explícit, però només se'n permet un.",
             },
         },
-        ballotHash: "El vostre Localitzador de Vot: {{ballotId}}",
+        ballotHash: "El teu Localitzador de Vot: {{ballotId}}",
         version: {
             header: "Versió:",
         },
@@ -131,20 +131,20 @@ const catalanTranslation: TranslationType = {
             header: "Hash:",
         },
         logout: {
-            buttonText: "Tanqueu la sessió",
+            buttonText: "Tanca la sessió",
             modal: {
-                title: "Esteu segur que voleu tancar la sessió?",
+                title: "Estàs segur que vols tancar la sessió?",
                 content:
-                    "Esteu a punt de tancar aquesta aplicació. Aquesta acció no es pot desfer.",
+                    "Estàs a punt de tancar aquesta aplicació. Aquesta acció no es pot desfer.",
                 ok: "OK",
-                close: "Tanqueu",
+                close: "Tanca",
             },
         },
         stories: {
             openDialog: "Obrir Diàleg",
         },
         dragNDrop: {
-            firstLine: "Arrossegueu i deixeu anar fitxers o",
+            firstLine: "Arrossega i deixa anar fitxers o",
             browse: "Carrega fitxer",
             format: "Formats suportats: txt",
         },
@@ -157,17 +157,17 @@ const catalanTranslation: TranslationType = {
             voted: "Votat",
             notVoted: "No votat",
             resultsButton: "Resultats de la Votació",
-            voteButton: "Feu clic per votar",
+            voteButton: "Fes clic per votar",
             openDate: "Oberta: ",
             closeDate: "Tancada: ",
-            ballotLocator: "Localitzeu el vostre vot",
+            ballotLocator: "Localitza el teu vot",
         },
         header: {
             profile: "Perfil",
             welcome: "Benvingut/da,<br><span>{{name}}</span>",
             session: {
-                title: "La vostra sessió està a punt d'expirar.",
-                timeLeft: "Us queden {{time}} per emetre el vostre vot.",
+                title: "La teva sessió està a punt d'expirar.",
+                timeLeft: "Et queden {{time}} per emetre el teu vot.",
                 timeLeftMinutesAndSeconds: "{{timeLeftInMinutes}} minuts i {{time}} segons",
                 timeLeftSeconds: "{{timeLeft}} segons",
             },
@@ -175,4 +175,4 @@ const catalanTranslation: TranslationType = {
     },
 }
 
-export default catalanTranslation
+export default catalanInformalTranslation

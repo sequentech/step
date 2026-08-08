@@ -761,7 +761,7 @@ const spanishTranslation: TranslationType = {
                 },
             },
             stats: {
-                elegibleVoters: "Votantes",
+                elegibleVoters: "Votantes Elegibles",
                 voters: "Votantes",
                 elections: "Elecciones",
                 contests: "Preguntas",
@@ -1870,7 +1870,7 @@ const spanishTranslation: TranslationType = {
             },
             error: {},
             createContestSuccess: "Pregunta creada",
-            createContestError: "Error creando pregunta",
+            createContestError: "Error al crear la pregunta",
         },
         keysGeneration: {
             configureStep: {

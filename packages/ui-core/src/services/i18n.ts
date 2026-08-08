@@ -7,7 +7,9 @@ import LanguageDetector from "i18next-browser-languagedetector"
 import {initReactI18next} from "react-i18next"
 import englishTranslation from "../translations/en"
 import spanishTranslation from "../translations/es"
+import spanishInformalTranslation from "../translations/es-tu"
 import catalanTranslation from "../translations/cat"
+import catalanInformalTranslation from "../translations/cat-tu"
 import frenchTranslation from "../translations/fr"
 import tagalogTranslation from "../translations/tl"
 import galegoTranslation from "../translations/gl"
@@ -18,6 +20,7 @@ import {ELanguageDetectionPolicy, ILanguageConf} from "@root/types/LanguageConf"
 import {getValueFromCookie} from "@root/utils/cookies"
 import {iso_639_2t_to_bcp47_js, locale_to_internal_language_code_js} from "sequent-core"
 import {ITenantSettings} from "@root/types/TenantSettings"
+import {INFORMAL_SUFFIX, splitRegister, withRegister, withRegisterBCP47} from "./registerLocale"
 
 export const USER_LANGUAGE_COOKIE_NAME = "USER_LANGUAGE"
 
@@ -26,39 +29,57 @@ export const USER_LANGUAGE_COOKIE_NAME = "USER_LANGUAGE"
  * The only current frontend/internal mismatch is Catalan (`ca` vs `cat`).
  */
 const normalizeLanguageCodeFallback = (lang: string): string => {
-    const primary = lang.toLowerCase().split("-")[0]
-    return primary === "ca" ? "cat" : primary
+    const {base, informal} = splitRegister(lang.toLowerCase())
+    return withRegister(base === "ca" ? "cat" : base, informal)
 }
 
 /**
  * Normalizes external locale inputs (query params, cookies, Keycloak locale
  * values) into the internal language codes used by the frontends.
+ *
+ * Accepts the internal code (`es-tu`) and the private-use tag the DOM carries
+ * (`es-x-tu`), as well as plain BCP 47 and ISO 639-2/T input. The register
+ * marker is split off here rather than inside sequent-core because the WASM
+ * bindings ship as a prebuilt tarball; `locale.rs` knows the same rule, so the
+ * two agree once that artifact is next rebuilt.
  */
 export const normalizeLanguageCode = (lang?: string): string | undefined => {
     if (!lang) {
         return undefined
     }
 
+    const {base, informal} = splitRegister(lang)
+    let normalized: string
     try {
-        return locale_to_internal_language_code_js(lang)
+        normalized = locale_to_internal_language_code_js(base)
     } catch {
         return normalizeLanguageCodeFallback(lang)
     }
+    return withRegister(normalized, informal)
 }
 
 /**
- * Converts an ISO 639-2/T code to a BCP 47-compliant tag via the WASM function
- * defined in sequent-core. If WASM is not yet initialised (e.g. during module
- * evaluation at startup), returns the input unchanged and the BCP 47 normalisation
- * will be applied again on the next `languageChanged` event.
+ * Converts an internal language code to a BCP 47-compliant tag via the WASM
+ * function defined in sequent-core. If WASM is not yet initialised (e.g. during
+ * module evaluation at startup), returns the input unchanged and the BCP 47
+ * normalisation will be applied again on the next `languageChanged` event.
  */
 export const toBCP47 = (lang: string): string => {
+    const {base, informal} = splitRegister(lang)
     let candidate: string
     try {
-        candidate = iso_639_2t_to_bcp47_js(lang)
+        candidate = iso_639_2t_to_bcp47_js(base)
     } catch {
-        // WASM not yet initialised; return the input unchanged.
-        return lang
+        // WASM not yet initialised. Returning `lang` unchanged would put the
+        // internal code straight into `<html lang>`, and `es-tu` is not
+        // well-formed BCP 47 — `tu` is neither a registered variant nor behind
+        // the private-use singleton. `languageChanged` only repairs it if the
+        // voter switches language, which most never do, so compose a valid tag
+        // from the base instead.
+        return withRegisterBCP47(base, informal)
+    }
+    if (informal) {
+        return withRegisterBCP47(candidate, true)
     }
     const parts = candidate.split("-")
     if (parts.length === 1) {
@@ -81,13 +102,22 @@ export const initializeLanguages = (externalTranslations: Resource, language?: s
         gl: galegoTranslation,
         nl: dutchTranslation,
         eu: basqueTranslation,
+        [`es-${INFORMAL_SUFFIX}`]: spanishInformalTranslation,
+        [`cat-${INFORMAL_SUFFIX}`]: catalanInformalTranslation,
     }
     const mergedTranslations = deepmerge(libTranslations, externalTranslations)
     const resolvedLanguage = normalizeLanguageCode(language)
     const i18nConfig: InitOptions = {
         // we init with resources
         resources: mergedTranslations,
-        fallbackLng: "en",
+        // The register variants are complete bundles, so this only matters for
+        // a key added to a base file and not yet to its variant: falling back
+        // to the base language beats dropping the voter into English.
+        fallbackLng: {
+            [`es-${INFORMAL_SUFFIX}`]: ["es", "en"],
+            [`cat-${INFORMAL_SUFFIX}`]: ["cat", "en"],
+            default: ["en"],
+        },
         lng: resolvedLanguage || undefined, // Use provided language or fallback to english if not available
         debug: true,
 
