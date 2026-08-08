@@ -73,6 +73,8 @@ fn sound() -> Blueprint {
                 description: "Elects the president".to_string(),
                 max_votes: 1,
                 winners: 1,
+                allow_writeins: false,
+                write_in_slots: 0,
                 candidates: vec![
                     PlannedCandidate {
                         external_id: "alice".to_string(),
@@ -265,6 +267,8 @@ fn each_area_gets_the_contests_it_and_its_parents_vote_on() {
         description: String::new(),
         max_votes: 1,
         winners: 1,
+        allow_writeins: false,
+        write_in_slots: 0,
         candidates: vec![PlannedCandidate {
             external_id: "cleo".to_string(),
             name: Translated::new("Cleo"),

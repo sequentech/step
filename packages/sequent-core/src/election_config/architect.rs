@@ -464,6 +464,30 @@ pub struct PlannedContest {
     #[serde(default, skip_serializing_if = "Overrides::is_empty")]
     pub overrides: Overrides,
 
+    /// Whether a voter may type a name the ballot does not list.
+    ///
+    /// The ballot codec has carried write-ins from the beginning —
+    /// `raw_ballot::encode` packs the text into the ballot integer a byte at a
+    /// time and `contest_context` reserves the bases for it — and no plan could
+    /// ask for one, so the feature was reachable only by editing a bundle.
+    ///
+    /// It is a pair, and both halves have to agree: this switch, and one
+    /// candidate marked `is_write_in` per slot a voter may fill. `validate`
+    /// refuses either half alone, because the codec silently does nothing useful
+    /// with a mismatch — a write-in candidate with the switch off is a nameless
+    /// option on the ballot, and the switch on with no such candidate offers a
+    /// voter nothing to write in.
+    #[serde(default)]
+    pub allow_writeins: bool,
+
+    /// How many names a voter may add, when write-ins are allowed.
+    ///
+    /// One candidate row is minted per slot. Zero with `allow_writeins` on is
+    /// the mismatch above, and `validate` says so rather than emitting a contest
+    /// the codec cannot use.
+    #[serde(default)]
+    pub write_in_slots: i64,
+
     /// Which areas put this contest on their ballot.
     ///
     /// Empty means every area, which is what a plan that has never thought about
@@ -1174,6 +1198,7 @@ fn contests_sheet(
         "winning_candidates_num".to_string(),
         "description".to_string(),
         "presentation.sort_order".to_string(),
+        "presentation.allow_writeins".to_string(),
     ];
     columns.extend(behaviour.iter().map(|(column, _)| (*column).to_string()));
     columns.extend(i18n_columns("presentation", languages));
@@ -1188,6 +1213,7 @@ fn contests_sheet(
                 Cell::Int(contest.winners),
                 Cell::text(contest.description.clone()),
                 Cell::Int(order as i64),
+                Cell::Bool(contest.allow_writeins),
             ];
             row.extend(
                 resolve(plan, election, contest)
@@ -1213,6 +1239,7 @@ fn candidates_sheet(
         "presentation.sort_order".to_string(),
         "presentation.is_explicit_blank".to_string(),
         "presentation.is_explicit_invalid".to_string(),
+        "presentation.is_write_in".to_string(),
     ];
     columns.extend(i18n_columns("presentation", languages));
 
@@ -1226,9 +1253,47 @@ fn candidates_sheet(
                     Cell::Int(order as i64),
                     Cell::Bool(candidate.explicit_blank),
                     Cell::Bool(candidate.explicit_invalid),
+                    Cell::Bool(false),
                 ];
                 row.extend(i18n_values(&candidate.name, languages));
                 rows.push(row);
+            }
+
+            // One row per write-in slot, after the real candidates.
+            //
+            // Minted here rather than kept in the plan, because a write-in slot
+            // is not a candidate anybody named: it is a blank line, and the
+            // number of them is the whole decision. Keeping them in
+            // `contest.candidates` would put empty rows in the ballot's own list
+            // and make "how many candidates are standing" wrong.
+            if contest.allow_writeins {
+                let start = contest.candidates.len();
+                for slot in 0..contest.write_in_slots {
+                    let mut row = vec![
+                        Cell::text(format!(
+                            "{}-write-in-{}",
+                            contest.external_id,
+                            slot + 1
+                        )),
+                        Cell::text(contest.external_id.clone()),
+                        Cell::Int((start as i64) + slot),
+                        Cell::Bool(false),
+                        Cell::Bool(false),
+                        Cell::Bool(true),
+                    ];
+                    // Named, because the Voting Portal draws the name as the
+                    // slot's label and an unnamed one is a blank box with no
+                    // indication of what it is for.
+                    let mut named = Translated::default();
+                    for language in languages {
+                        named.by_language.insert(
+                            language.clone(),
+                            format!("Write-in {}", slot + 1),
+                        );
+                    }
+                    row.extend(i18n_values(&named, languages));
+                    rows.push(row);
+                }
             }
         }
     }

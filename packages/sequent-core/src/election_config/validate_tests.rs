@@ -660,3 +660,83 @@ fn an_ordinary_one_column_contest_passes() {
     }));
     assert!(validate(&bundle).problems.is_empty());
 }
+
+#[test]
+fn write_ins_allowed_with_nowhere_to_type_are_refused() {
+    // Provable from the codec rather than guessed: `contest_context::bases`
+    // reserves an encoding slot per candidate marked `is_write_in`, and only
+    // then. The switch on with no such candidate reserves nothing, so a voter is
+    // offered a feature with nowhere to put it — and nothing downstream refuses
+    // the bundle.
+    let mut bundle = sound();
+    bundle.contests[0].presentation =
+        Some(serde_json::json!({"allow_writeins": true}));
+
+    let report = validate(&bundle);
+    assert!(report.has_errors());
+    assert!(report
+        .problems
+        .iter()
+        .any(|problem| problem.message.contains("nowhere to type a name")));
+}
+
+#[test]
+fn a_write_in_slot_on_a_contest_that_forbids_them_is_refused() {
+    // The other half. A marked candidate with the switch off gets no encoding
+    // slot either, and appears on the ballot as an ordinary option nobody named.
+    let mut bundle = sound();
+    let contest_id = bundle.contests[0].id.clone();
+    let mut slot = bundle.candidates[0].clone();
+    slot.id = "write-in-1".to_string();
+    slot.contest_id = Some(contest_id);
+    slot.presentation = Some(serde_json::json!({"is_write_in": true}));
+    bundle.candidates.push(slot);
+
+    let report = validate(&bundle);
+    assert!(report.has_errors());
+    assert!(report
+        .problems
+        .iter()
+        .any(|problem| problem.message.contains("does not allow write-ins")));
+}
+
+#[test]
+fn a_contest_with_both_halves_agreeing_passes() {
+    let mut bundle = sound();
+    let contest_id = bundle.contests[0].id.clone();
+    bundle.contests[0].presentation =
+        Some(serde_json::json!({"allow_writeins": true}));
+    let mut slot = bundle.candidates[0].clone();
+    slot.id = "write-in-1".to_string();
+    slot.contest_id = Some(contest_id);
+    slot.presentation = Some(serde_json::json!({"is_write_in": true}));
+    bundle.candidates.push(slot);
+
+    assert!(!validate(&bundle).has_errors());
+}
+
+#[test]
+fn a_write_in_slot_is_not_somebody_standing() {
+    // The arithmetic rules ask whether enough candidates are available to fill
+    // the seats. A blank line is not a candidate, so counting it would let a
+    // contest with one real candidate and two write-in slots claim it can elect
+    // three people.
+    let mut bundle = sound();
+    let contest_id = bundle.contests[0].id.clone();
+    bundle.contests[0].presentation =
+        Some(serde_json::json!({"allow_writeins": true}));
+    bundle.contests[0].winning_candidates_num =
+        Some(bundle.candidates.len() as i64 + 1);
+
+    let mut slot = bundle.candidates[0].clone();
+    slot.id = "write-in-1".to_string();
+    slot.contest_id = Some(contest_id);
+    slot.presentation = Some(serde_json::json!({"is_write_in": true}));
+    bundle.candidates.push(slot);
+
+    let report = validate(&bundle);
+    assert!(
+        report.has_errors(),
+        "a write-in slot was counted as a candidate"
+    );
+}

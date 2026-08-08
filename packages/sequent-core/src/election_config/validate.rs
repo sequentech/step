@@ -247,9 +247,27 @@ fn check_area_tree(bundle: &ImportElectionEventSchema, report: &mut Report) {
 
 fn check_contests(bundle: &ImportElectionEventSchema, report: &mut Report) {
     let mut candidates_per_contest: HashMap<&str, usize> = HashMap::new();
+    // Counted apart, because a write-in slot is not somebody standing: the
+    // arithmetic rules below ask whether enough candidates are available to fill
+    // the seats, and blank lines are not.
+    let mut write_in_candidates_per_contest: HashMap<&str, usize> =
+        HashMap::new();
     for candidate in &bundle.candidates {
         if let Some(contest_id) = candidate.contest_id.as_deref() {
-            *candidates_per_contest.entry(contest_id).or_insert(0) += 1;
+            let write_in = candidate
+                .presentation
+                .as_ref()
+                .and_then(|value| value.as_object())
+                .and_then(|presentation| presentation.get("is_write_in"))
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false);
+            if write_in {
+                *write_in_candidates_per_contest
+                    .entry(contest_id)
+                    .or_insert(0) += 1;
+            } else {
+                *candidates_per_contest.entry(contest_id).or_insert(0) += 1;
+            }
         }
     }
 
@@ -358,6 +376,16 @@ fn check_contests(bundle: &ImportElectionEventSchema, report: &mut Report) {
 
         check_presentation_policies(contest, &path, about, report);
         check_tie_breaking(contest, &path, about, report);
+        check_write_ins(
+            contest,
+            write_in_candidates_per_contest
+                .get(contest.id.as_str())
+                .copied()
+                .unwrap_or(0),
+            &path,
+            about,
+            report,
+        );
         check_layout(contest, &path, about, report);
 
         let available = candidates_per_contest
@@ -411,6 +439,62 @@ fn check_contests(bundle: &ImportElectionEventSchema, report: &mut Report) {
 /// behaving in a way nobody chose, discovered by a voter. Both hand-written
 /// mappings that fed this format got at least one of them wrong, so it is worth
 /// checking the bundle rather than trusting whoever produced it.
+/// Write-ins, which are a pair and have to agree.
+///
+/// Both halves are provable from the ballot codec rather than guessed.
+/// `contest_context::bases` reserves an encoding slot per candidate marked
+/// `is_write_in`, and only when `allow_writeins` is on; `raw_ballot::encode`
+/// packs the typed text into those slots. So:
+///
+///   - the switch on with no such candidate reserves nothing, and a voter is
+///     offered a feature with nowhere to put it;
+///   - a marked candidate with the switch off gets no slot either, and appears on
+///     the ballot as an ordinary option with a name nobody chose.
+///
+/// Neither is refused anywhere downstream. Both import cleanly and are found by a
+/// voter.
+fn check_write_ins(
+    contest: &crate::types::hasura::core::Contest,
+    write_ins: usize,
+    path: &impl Fn(&str) -> String,
+    about: Option<&str>,
+    report: &mut Report,
+) {
+    let allowed = contest
+        .presentation
+        .as_ref()
+        .and_then(|value| value.as_object())
+        .and_then(|presentation| presentation.get("allow_writeins"))
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false);
+
+    if allowed && write_ins == 0 {
+        report.push(
+            Problem::error(
+                Code::ContestArithmetic,
+                path("presentation.allow_writeins"),
+                "write-ins are allowed and the contest has no write-in slot, so \
+                 a voter has nowhere to type a name"
+                    .to_string(),
+            )
+            .about(about),
+        );
+    }
+    if !allowed && write_ins > 0 {
+        report.push(
+            Problem::error(
+                Code::ContestArithmetic,
+                path("presentation.allow_writeins"),
+                format!(
+                    "{write_ins} write-in slot(s) on a contest that does not \
+                     allow write-ins, which puts unnamed options on the ballot"
+                ),
+            )
+            .about(about),
+        );
+    }
+}
+
 /// The tie-breaking policy, which lives under `tally_configuration`.
 ///
 /// Not in `check_presentation_policies` because it is not on the presentation:

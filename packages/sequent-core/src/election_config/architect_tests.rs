@@ -8,6 +8,7 @@ use super::*;
 use crate::election_config::policy::{
     Behaviour, CandidatesOrder, OverVote, Overrides, PolicyPatch, TallyPatch,
 };
+use crate::election_config::sheet;
 use crate::election_config::{
     build, validate, BuildOptions, Bundle, ImportElectionEventSchema,
     TemplateSet,
@@ -76,6 +77,8 @@ fn sound() -> Blueprint {
                 description: "Elects the president".to_string(),
                 max_votes: 1,
                 winners: 1,
+                allow_writeins: false,
+                write_in_slots: 0,
                 candidates: vec![
                     PlannedCandidate {
                         external_id: "alice".to_string(),
@@ -972,6 +975,8 @@ fn districted() -> Blueprint {
         description: String::new(),
         max_votes: 1,
         winners: 1,
+        allow_writeins: false,
+        write_in_slots: 0,
         candidates: vec![PlannedCandidate {
             external_id: "carol".to_string(),
             name: Translated::new("Carol"),
@@ -1337,4 +1342,67 @@ fn a_census_that_ignores_the_districting_says_so_once() {
         "{:?}",
         report.problems
     );
+}
+
+/// A write-in slot becomes a candidate row the codec can use.
+///
+/// The two halves the codec needs — `presentation.allow_writeins` on the contest
+/// and one `presentation.is_write_in` candidate per slot — and they are the two
+/// `validate::check_write_ins` refuses independently, so a plan that produces one
+/// without the other is caught rather than imported.
+#[test]
+fn a_write_in_slot_reaches_the_ballot_as_its_own_row() {
+    let mut plan = sound();
+    plan.elections[0].contests[0].allow_writeins = true;
+    plan.elections[0].contests[0].write_in_slots = 2;
+    let real = plan.elections[0].contests[0].candidates.len();
+
+    // The normalised key, not the tab's label: `Workbook::rows` folds case and
+    // spaces so `Admin Users` and `AdminUsers` cannot be two sheets.
+    let workbook = to_workbook(&plan).expect("a workbook");
+    let contests = workbook.rows(sheet::SHEET_CONTESTS);
+    let candidates = workbook.rows(sheet::SHEET_CANDIDATES);
+
+    assert_eq!(
+        contests[0]
+            .get("presentation.allow_writeins")
+            .map(|cell| format!("{cell:?}")),
+        Some("Bool(true)".to_string())
+    );
+
+    let slots: Vec<&crate::election_config::sheet::Row> = candidates
+        .iter()
+        .filter(|row| {
+            row.get("presentation.is_write_in")
+                .map(|cell| format!("{cell:?}"))
+                == Some("Bool(true)".to_string())
+        })
+        .collect();
+    assert_eq!(slots.len(), 2, "one row per slot");
+
+    // Named after the contest, so two contests with write-ins do not collide —
+    // `ids::uid` would hash the same string to the same uuid.
+    let first = format!("{:?}", slots[0].get("external_id").expect("an id"));
+    assert!(first.contains(&plan.elections[0].contests[0].external_id));
+
+    // And they sort after the people actually standing, so a ballot does not
+    // open with two blank lines.
+    for (offset, slot) in slots.iter().enumerate() {
+        assert_eq!(
+            slot.get("presentation.sort_order")
+                .map(|cell| format!("{cell:?}")),
+            Some(format!("Number({})", real + offset))
+        );
+    }
+}
+
+/// A contest that allows none writes none.
+#[test]
+fn a_contest_without_write_ins_gets_no_extra_rows() {
+    let workbook = to_workbook(&sound()).expect("a workbook");
+    assert!(!workbook.rows(sheet::SHEET_CANDIDATES).iter().any(|row| {
+        row.get("presentation.is_write_in")
+            .map(|cell| format!("{cell:?}"))
+            == Some("Bool(true)".to_string())
+    }));
 }
