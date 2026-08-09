@@ -448,8 +448,11 @@ function workbenchBuildInfo(): Plugin {
                 "tally logic moved *out* into workbench/velvet-core, which " +
                 "packages/velvet now re-exports; nothing was lost. The corollary " +
                 "is that upstream tally changes must be forward-ported into " +
-                "velvet-core rather than merged here, and some currently are not — " +
-                "see Known gaps in the workbench README.",
+                "velvet-core rather than merged here (velvet-core threads an " +
+                "explicit RNG so it can compile to wasm32, where thread_rng is " +
+                "unavailable). Tally semantics are currently up to date with " +
+                "origin/main — see Known gaps in the workbench README for what " +
+                "remains.",
         },
         {
             label: "strand",

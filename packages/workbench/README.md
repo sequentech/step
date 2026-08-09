@@ -176,19 +176,28 @@ Adapter mapping table and the two percentage conventions:
 
 ## Known gaps
 
-**velvet-core lags production tally semantics.** The pure tally logic was
-extracted from `packages/velvet` into `workbench/velvet-core`, which
-`packages/velvet` now re-exports. Upstream subsequently landed ~950 lines
-of new tally behaviour into velvet's `do_tally` across five feature PRs —
-explicit blank votes in encoding (#2842), tally sheets input (#1929),
-consistent invalid vote policy (#2697), election-level decline to vote
-(#2687) and browser-based trustees (#2198). Those changes have **not**
-been forward-ported into `velvet-core`, so tally results computed here
-can diverge from production for ballots exercising those features. Since
-the workbench exists to check fidelity against production, treat results
-involving blank/invalid/decline semantics as unverified until this is
-reconciled. The same caveat applies to whatever those PRs changed in
-`strand`.
+**The velvet-core extraction has not landed upstream.** The pure tally
+logic was extracted from `packages/velvet` into `workbench/velvet-core`,
+which `packages/velvet` now re-exports — but `main` still owns an inline
+copy, so `packages/workbench` does not exist there at all. Every catch-up
+merge therefore re-conflicts on velvet's `do_tally`, and upstream tally
+changes have to be *forward-ported* into velvet-core rather than merged
+(the split is a real one: velvet-core threads an explicit
+`&mut dyn RngCore` where upstream calls `thread_rng()`, which is
+unavailable on wasm32). Landing the extraction upstream is what would
+stop this recurring; until then, budget for the port on each catch-up.
+
+Tally semantics are currently **up to date** with `origin/main`: the
+explicit/implicit blank split, the invalid-vote policy, decline-to-vote
+and participation-by-channel were all ported into velvet-core, with
+upstream's classification tests (12 passing). The one thing not yet
+carried over is upstream's remaining IRV (2) and tally-sheet (1) tests.
+
+**strand carries an unreconciled divergence.** This branch removed the
+obsolete openssl/FIPS backends to reach wasm32, and merges have resolved
+`packages/strand` in favour of this branch — so any strand changes from
+upstream feature PRs have been discarded rather than merged. Unlike
+velvet-core, nothing has been forward-ported here.
 
 **`yarn build` (`tsc -b`) does not pass.** The dev server is the
 supported workflow. Three separate causes: `tsconfig.json` uses
