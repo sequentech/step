@@ -94,6 +94,14 @@ pub const ORDERINGS: &[&str] = &["custom", "alphabetical", "random"];
 /// `EShowCastVoteLogsPolicy` — whether a voter can look up a ballot they cast.
 pub const CAST_VOTE_LOGS: &[&str] = &["show-logs-tab", "hide-logs-tab"];
 
+/// Which language a voter starts in, before they choose one.
+///
+/// `LanguageDetectionPolicy` in `ballot.rs`, whose `#[default]` is
+/// `browser-detect`. Two values and no more: the platform either reads the
+/// browser's own preference or ignores it and uses the event's default language.
+pub const LANGUAGE_DETECTION_POLICIES: &[&str] =
+    &["browser-detect", "force-default"];
+
 /// `ITieBreakingPolicy` in `ui-core`.
 ///
 /// Two values, and the difference matters: `random` settles the tie inside the

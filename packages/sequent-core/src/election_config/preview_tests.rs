@@ -107,6 +107,7 @@ fn sound() -> Blueprint {
         }],
         defaults: Behaviour::default(),
         notes: String::new(),
+        ..Default::default()
     }
 }
 

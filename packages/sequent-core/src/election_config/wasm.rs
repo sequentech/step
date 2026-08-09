@@ -736,8 +736,18 @@ pub fn policy_catalog() -> Result<JsValue, JsError> {
     }
 
     #[derive(Serialize)]
+    /// What the Election Event screen may offer, from the platform rather than
+    /// from a list somebody keeps in step by hand (`INV-8`).
+    #[derive(Serialize)]
+    struct EventCatalog {
+        language_detection_policies: &'static [&'static str],
+        default_language_detection_policy: String,
+    }
+
+    #[derive(Serialize)]
     struct Catalog {
         kinds: Vec<Kind>,
+        event: EventCatalog,
         /// Named sets, so a wizard can offer a decision rather than seven.
         presets: Vec<(&'static str, Policies)>,
         tally: TallyCatalog,
@@ -745,6 +755,12 @@ pub fn policy_catalog() -> Result<JsValue, JsError> {
     }
 
     to_js(&Catalog {
+        event: EventCatalog {
+            language_detection_policies:
+                crate::election_config::validate::LANGUAGE_DETECTION_POLICIES,
+            // `LanguageDetectionPolicy`'s own `#[default]`.
+            default_language_detection_policy: "browser-detect".to_string(),
+        },
         kinds: vec![
             kind::<OverVote>("over_vote"),
             kind::<BlankVote>("blank_vote"),

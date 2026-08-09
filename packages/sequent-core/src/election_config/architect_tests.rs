@@ -115,6 +115,7 @@ fn sound() -> Blueprint {
         }],
         defaults: Behaviour::default(),
         notes: String::new(),
+        ..Default::default()
     }
 }
 
@@ -2262,4 +2263,98 @@ fn a_trustee_row_with_nothing_in_it_is_nobody() {
         .problems
         .iter()
         .any(|problem| problem.id.as_deref() == Some("trustees.only-one")));
+}
+
+/// The half of the language question that had no control.
+#[test]
+fn a_plan_can_say_which_language_a_voter_starts_in() {
+    let mut plan = sound();
+    plan.language_detection_policy = Some("force-default".to_string());
+
+    let workbook = to_workbook(&plan).expect("a workbook");
+    let rows = workbook.rows(sheet::SHEET_ELECTION_EVENT);
+    assert_eq!(
+        rows[0]
+            .get("presentation.language_conf.language_detection_policy")
+            .map(|cell| format!("{cell:?}")),
+        Some("String(\"force-default\")".to_string())
+    );
+}
+
+#[test]
+fn a_language_detection_policy_the_platform_never_heard_of_is_refused() {
+    // The one language setting whose values are not the plan's own languages, so
+    // the only one that can carry a word from nowhere.
+    let mut plan = sound();
+    plan.language_detection_policy = Some("guess".to_string());
+
+    let report = validate_plan(&plan);
+    assert!(report.has_errors());
+    assert!(says(&report, "is not a language detection policy"));
+}
+
+#[test]
+fn the_branding_switches_reach_the_event_row() {
+    // Both are already written by `election_event.hbs`, so before this the wizard
+    // shipped a value for each and offered no way to choose it.
+    let mut plan = sound();
+    plan.skip_election_list = Some(true);
+    plan.show_user_profile = Some(true);
+    plan.materials_activated = Some(true);
+
+    let workbook = to_workbook(&plan).expect("a workbook");
+    let rows = workbook.rows(sheet::SHEET_ELECTION_EVENT);
+    for column in [
+        "presentation.skip_election_list",
+        "presentation.show_user_profile",
+        "presentation.materials.activated",
+    ] {
+        assert_eq!(
+            rows[0].get(column).map(|cell| format!("{cell:?}")),
+            Some("Bool(true)".to_string()),
+            "{column}"
+        );
+    }
+}
+
+#[test]
+fn support_material_headings_travel_per_language() {
+    let mut plan = sound();
+    plan.languages = vec!["en".to_string(), "es".to_string()];
+    plan.materials_title = Translated::new("Voter guides");
+    plan.materials_title
+        .by_language
+        .insert("es".to_string(), "Guías del votante".to_string());
+    plan.materials_subtitle = Translated::new("How to vote");
+
+    let workbook = to_workbook(&plan).expect("a workbook");
+    let rows = workbook.rows(sheet::SHEET_ELECTION_EVENT);
+    assert_eq!(
+        rows[0]
+            .get("presentation.i18n.es.materialsTitle")
+            .map(|cell| format!("{cell:?}")),
+        Some("String(\"Guías del votante\")".to_string())
+    );
+    assert!(rows[0]
+        .get("presentation.i18n.en.materialsSubtitle")
+        .is_some());
+}
+
+/// A plan written before any of these existed compiles to the bytes it used to.
+#[test]
+fn a_plan_that_says_nothing_new_writes_no_new_columns() {
+    // Each field is emitted only when set, because `election_event.hbs` already
+    // carries a value for every one of them — so an absent column leaves the
+    // template's own, and a plan saved last week is unaffected.
+    let workbook = to_workbook(&sound()).expect("a workbook");
+    let rows = workbook.rows(sheet::SHEET_ELECTION_EVENT);
+    for column in [
+        "presentation.language_conf.language_detection_policy",
+        "presentation.skip_election_list",
+        "presentation.show_user_profile",
+        "presentation.materials.activated",
+        "presentation.i18n.en.materialsTitle",
+    ] {
+        assert!(rows[0].get(column).is_none(), "{column} should be absent");
+    }
 }

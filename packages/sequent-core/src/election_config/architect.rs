@@ -317,8 +317,48 @@ pub struct Blueprint {
     #[serde(default)]
     pub default_language: Option<String>,
 
+    /// Whether a voter's own browser decides which language they start in.
+    ///
+    /// `browser-detect` reads the browser's preference; `force-default` ignores it
+    /// and uses [`Self::default_language`]. `None` leaves the platform's own
+    /// default, which is `browser-detect`.
+    ///
+    /// It is the other half of the language question and was unreachable: a client
+    /// could say which languages the ballot offers and which one is the default,
+    /// and then the default only applied to browsers that asked for nothing else.
+    #[serde(default)]
+    pub language_detection_policy: Option<String>,
+
     #[serde(default)]
     pub logo_url: Option<String>,
+
+    /// Send a voter straight to the ballot instead of a list of elections.
+    ///
+    /// Worth having where an event holds one election, which is most of them: the
+    /// list is then a screen with one thing on it between a voter and voting.
+    #[serde(default)]
+    pub skip_election_list: Option<bool>,
+
+    /// Whether a voter can open their own profile from the voting portal.
+    #[serde(default)]
+    pub show_user_profile: Option<bool>,
+
+    /// Whether the voting portal shows a support-materials tab at all.
+    ///
+    /// The materials *themselves* cannot ride in a bundle — `ElectionEventMaterials`
+    /// carries only this switch, and `ImportElectionEventSchema` has no documents
+    /// array — so this turns the tab on and the documents are attached in the Admin
+    /// Portal afterwards. The wizard says so rather than implying otherwise.
+    #[serde(default)]
+    pub materials_activated: Option<bool>,
+
+    /// The heading over the support materials tab, per language.
+    #[serde(default)]
+    pub materials_title: Translated,
+
+    /// The line under that heading, per language.
+    #[serde(default)]
+    pub materials_subtitle: Translated,
 
     #[serde(default)]
     pub contacts: Vec<Contact>,
@@ -973,6 +1013,7 @@ pub fn validate_plan(plan: &Blueprint) -> Report {
     }
 
     check_languages(plan, &mut report);
+    check_language_detection(plan, &mut report);
     check_trustees(plan, &mut report);
     check_schedule(plan, &mut report);
     check_areas(plan, &mut report);
@@ -1027,6 +1068,34 @@ fn check_languages(plan: &Blueprint, report: &mut Report) {
             .id("languages.default-not-offered")
             .detail("chosen", chosen)
             .detail("offered", plan.languages.join(", ")),
+        );
+    }
+}
+
+/// The one language setting whose value space is not a list of the plan's own
+/// languages, so it is the one that can carry a word the platform never heard of.
+fn check_language_detection(plan: &Blueprint, report: &mut Report) {
+    let Some(policy) = plan
+        .language_detection_policy
+        .as_deref()
+        .filter(|each| !each.is_empty())
+    else {
+        return;
+    };
+
+    if !super::validate::LANGUAGE_DETECTION_POLICIES.contains(&policy) {
+        report.push(
+            Problem::error(
+                Code::InvalidValue,
+                "language_detection_policy",
+                format!(
+                    "'{policy}' is not a language detection policy. The platform \
+                     knows {}.",
+                    super::validate::LANGUAGE_DETECTION_POLICIES.join(" and ")
+                ),
+            )
+            .id("languages.detection-unknown")
+            .detail("policy", policy),
         );
     }
 }
@@ -1808,6 +1877,55 @@ fn event_sheet(
     if let Some(logo) = plan.logo_url.as_ref().filter(|url| !url.is_empty()) {
         columns.push("presentation.logo_url".to_string());
         row.push(Cell::text(logo.clone()));
+    }
+
+    // Each of these is written only when the plan says something, so a plan made
+    // before the field existed compiles to the bytes it used to: `election_event.hbs`
+    // already carries a value for every one of them, and an absent column leaves the
+    // template's own.
+    if let Some(policy) = plan
+        .language_detection_policy
+        .as_ref()
+        .filter(|each| !each.is_empty())
+    {
+        columns.push(
+            "presentation.language_conf.language_detection_policy".to_string(),
+        );
+        row.push(Cell::text(policy.clone()));
+    }
+
+    if let Some(skip) = plan.skip_election_list {
+        columns.push("presentation.skip_election_list".to_string());
+        row.push(Cell::Bool(skip));
+    }
+
+    if let Some(show) = plan.show_user_profile {
+        columns.push("presentation.show_user_profile".to_string());
+        row.push(Cell::Bool(show));
+    }
+
+    if let Some(activated) = plan.materials_activated {
+        columns.push("presentation.materials.activated".to_string());
+        row.push(Cell::Bool(activated));
+    }
+
+    // Per language, like the name and the description. Only when something is
+    // written: a title in no language is a heading over an empty tab.
+    if !plan.materials_title.is_empty() {
+        columns.extend(i18n_columns(
+            "presentation",
+            "materialsTitle",
+            languages,
+        ));
+        row.extend(i18n_values(&plan.materials_title, languages));
+    }
+    if !plan.materials_subtitle.is_empty() {
+        columns.extend(i18n_columns(
+            "presentation",
+            "materialsSubtitle",
+            languages,
+        ));
+        row.extend(i18n_values(&plan.materials_subtitle, languages));
     }
 
     sheet_of("ElectionEvent", columns, vec![row])
