@@ -12,6 +12,7 @@ use crate::{
     ballot::{
         ConsolidatedReportPolicy, ContestEncryptionPolicy,
         DecodedBallotsInclusionPolicy, DelegatedVotingPolicy,
+        WeightedVotingPolicy,
     },
     serialization::deserialize_with_path::deserialize_value,
     types::{
@@ -450,6 +451,7 @@ pub struct TallySessionConfiguration {
     pub decoded_ballots_inclusion_policy: Option<DecodedBallotsInclusionPolicy>,
     pub delegated_voting_policy: Option<DelegatedVotingPolicy>,
     pub consolidated_report_policy: Option<ConsolidatedReportPolicy>,
+    pub weighted_voting_policy: Option<WeightedVotingPolicy>,
 }
 
 impl TallySessionConfiguration {
@@ -458,6 +460,9 @@ impl TallySessionConfiguration {
     }
     pub fn get_delegated_voting_policy(&self) -> DelegatedVotingPolicy {
         self.delegated_voting_policy.clone().unwrap_or_default()
+    }
+    pub fn get_weighted_voting_policy(&self) -> WeightedVotingPolicy {
+        self.weighted_voting_policy.clone().unwrap_or_default()
     }
     pub fn get_decoded_ballots_policy(&self) -> DecodedBallotsInclusionPolicy {
         self.decoded_ballots_inclusion_policy
