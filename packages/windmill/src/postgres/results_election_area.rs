@@ -75,6 +75,11 @@ pub async fn insert_results_election_area_documents(
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
     let area_uuid: uuid::Uuid =
         parse_uuid_v4(&area_id).map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
+    // blank_ballots_percent is a Postgres `numeric` column; tokio-postgres
+    // only maps f64 to `float8`, so bind the value as the same Decimal type
+    // the read path (ResultsElectionAreaWrapper) already uses.
+    let blank_ballots_percent_decimal: Option<Decimal> =
+        blank_ballots_percent.and_then(Decimal::from_f64_retain);
 
     let statement = hasura_transaction
         .prepare(
@@ -107,7 +112,7 @@ pub async fn insert_results_election_area_documents(
                 &area_uuid,
                 &area_name,
                 &blank_ballots,
-                &blank_ballots_percent,
+                &blank_ballots_percent_decimal,
             ],
         )
         .await
