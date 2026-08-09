@@ -2440,17 +2440,20 @@ fn a_support_material_reaches_both_the_json_and_the_archive() {
     );
 
     // And the file, under the private folder rather than the public one.
+    //
+    // Asserted against the **archive layout** rather than `bundle.materials`,
+    // because they are different claims: the second is a list the bundle carries,
+    // the first is a file that will be in the zip. Only the second is what an
+    // importer sees.
     let entry = format!("export_S3_files/document_{document_id}_rules.pdf");
+    let layout = crate::election_config::archive::layout(&compiled);
     assert!(
-        compiled
-            .materials
+        layout.importable.iter().any(|file| file.name == entry),
+        "expected {entry} in the archive, got {:?}",
+        layout
+            .importable
             .iter()
-            .any(|file| file.entry_name() == entry),
-        "expected {entry}, got {:?}",
-        compiled
-            .materials
-            .iter()
-            .map(MaterialFile::entry_name)
+            .map(|file| file.name.clone())
             .collect::<Vec<_>>()
     );
 }
