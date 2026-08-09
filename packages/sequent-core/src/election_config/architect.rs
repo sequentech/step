@@ -872,6 +872,31 @@ pub struct PlannedCandidate {
     /// A photograph, shown beside the name on the ballot.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub image: Option<CandidateImage>,
+
+    /// Stands on the ballot but cannot be chosen.
+    ///
+    /// `presentation.is_disabled`. What happens when somebody withdraws after the
+    /// ballot is settled: removing them renumbers everyone and invalidates papers
+    /// already printed, so the platform draws them and refuses the selection.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub withdrawn: bool,
+
+    /// A page about this candidate, linked from the ballot.
+    ///
+    /// Travels in `presentation.urls` beside the photograph — the same list, a
+    /// different entry — so a ballot can link a manifesto without this becoming a
+    /// second mechanism for attaching things to a candidate.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub link: Option<String>,
+
+    /// Which group this candidate belongs to, where a contest has groups.
+    ///
+    /// `candidate_type`. Only meaningful next to the layout screen's per-type cap,
+    /// which is unreachable while nothing sets a type — that cap is the reason this
+    /// exists rather than a wish to model party lists, which this wizard does not
+    /// draw.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub candidate_type: Option<String>,
 }
 
 /// One voter-facing help document in a plan.
@@ -2179,6 +2204,13 @@ fn candidates_sheet(
         // the Parameters sheet, the base export and the id-factory fallback — so
         // the builder is the only place that knows which one the bundle will carry.
         "image_document_id".to_string(),
+        // Three the wizard can now set per candidate. `presentation.urls` is not
+        // here: the photograph's url is composed by the builder, so a second entry
+        // written from this sheet would be a second author of the same array.
+        // `candidate_link` is the plain address and the builder places it.
+        "presentation.is_disabled".to_string(),
+        "candidate_type".to_string(),
+        "candidate_link".to_string(),
     ];
     columns.extend(i18n_columns("presentation", "name", languages));
     columns.extend(i18n_columns("presentation", "description", languages));
@@ -2205,6 +2237,15 @@ fn candidates_sheet(
                             &candidate.external_id,
                         )),
                         _ => Cell::Blank,
+                    },
+                    Cell::Bool(candidate.withdrawn),
+                    match &candidate.candidate_type {
+                        Some(each) => Cell::text(each.clone()),
+                        None => Cell::Blank,
+                    },
+                    match &candidate.link {
+                        Some(each) => Cell::text(each.clone()),
+                        None => Cell::Blank,
                     },
                 ];
                 row.extend(i18n_values(&candidate.name, languages));
@@ -2237,6 +2278,12 @@ fn candidates_sheet(
                         // A write-in slot is a blank line, not a person, so it has
                         // no photograph. The cell is still written: the sheet guard
                         // refuses a ragged row, and it is right to.
+                        Cell::Blank,
+                        // The three the real rows carry. A row narrower than its
+                        // header refuses to build, and a write-in slot is never
+                        // withdrawn, typed or linked.
+                        Cell::Bool(false),
+                        Cell::Blank,
                         Cell::Blank,
                     ];
                     // Named, because the Voting Portal draws the name as the

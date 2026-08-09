@@ -89,6 +89,9 @@ fn sound() -> Blueprint {
                         description: Translated::default(),
                         explicit_blank: false,
                         explicit_invalid: false,
+                        withdrawn: false,
+                        link: None,
+                        candidate_type: None,
 
                         image: None,
                     },
@@ -98,6 +101,9 @@ fn sound() -> Blueprint {
                         description: Translated::default(),
                         explicit_blank: false,
                         explicit_invalid: false,
+                        withdrawn: false,
+                        link: None,
+                        candidate_type: None,
 
                         image: None,
                     },
@@ -293,6 +299,9 @@ fn each_area_gets_the_contests_it_and_its_parents_vote_on() {
             description: Translated::default(),
             explicit_blank: false,
             explicit_invalid: false,
+            withdrawn: false,
+            link: None,
+            candidate_type: None,
 
             image: None,
         }],
