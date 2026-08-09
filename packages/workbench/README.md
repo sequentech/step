@@ -28,9 +28,29 @@ via WASM.
 
 | Tool | Version | Purpose |
 |------|---------|---------|
-| Node.js | ≥ 20 | JS runtime |
-| Corepack / Yarn | (bundled) | Package manager |
-| Rust + wasm-pack | stable | Compile `velvet-wasm` and `sequent-core` to WASM |
+| Node.js | ≥ 20 (verified on 24) | JS runtime. 20.x is EOL and no longer offered by most installers; nothing here depends on it. |
+| Yarn | 1.x (classic) | Package manager — the repo is a Yarn workspace |
+| Rust + wasm-pack | stable | Compile `velvet-wasm` (and optionally `sequent-core`) to WASM |
+| `wasm32-unknown-unknown` | — | `rustup target add wasm32-unknown-unknown` |
+
+Nothing above requires a C toolchain: the workbench's Rust stack
+(`velvet-core` → `velvet-wasm`) has no native dependencies. Building
+**`velvet` itself** is a different matter — it pulls
+`sequent-core/reports`, hence `reqwest`/rustls, hence `aws-lc-sys`, which
+needs cmake and nasm on Windows. You only need those if you are
+compile-checking velvet, not to run the workbench.
+
+**Ordering gotcha on a fresh clone:** build `velvet-wasm` *before* the
+first `yarn install`. The app depends on it as
+`file:../velvet-wasm/pkg`, so if `pkg/` does not exist yet the install
+fails with `Package "velvet-wasm" refers to a non-existing file`. The
+`predev` / `prebuild` hooks cannot help here — they are yarn scripts,
+and yarn cannot install yet. Run wasm-pack directly first:
+
+```sh
+cd workbench/velvet-wasm && wasm-pack build --target web --out-dir pkg
+cd ../.. && yarn install
+```
 
 ## Development
 
@@ -58,6 +78,10 @@ corepack yarn workspace "@sequentech/workbench-app" build
 This runs `prebuild` (wasm-pack) → `tsc -b` (type-check) → `vite build`.
 Output lands in `workbench/app/dist/` — fully static HTML/JS/WASM with no
 runtime server dependencies.
+
+> **This currently fails at the `tsc -b` step.** The dev server is the
+> supported workflow; see [Known gaps](#known-gaps) for the three causes
+> and what fixing it would involve.
 
 ### Serving the build
 
@@ -89,11 +113,25 @@ workbench/
 │   │   ├── fixtures/snapshots/   Bundled election snapshots (validated at build)
 │   │   └── lib/                  Shared utilities
 │   └── vite.config.ts            Build plugins & alias resolution
-├── velvet-core/         Pure-computation tally crate (wasm32 target)
+├── velvet-core/         Pure-computation tally crate (wasm32-capable).
+│                        NOT workbench-only — `packages/velvet` depends
+│                        on it and re-exports it; see Known gaps.
 ├── velvet-wasm/         wasm-bindgen wrapper exposing velvet-core to JS
+├── docs/                Vote-validation deep dives (VOTE_VALIDATION.md,
+│                        VALIDATION_LOGIC_DISTILLATION.md, FIXTURE_VARIANCE.md)
+├── WORKBENCH.md         Workbench-side design: inspector, snapshots,
+│                        overlay state, Diagnostics, authoring workflow
+├── DARK.md              Dark-theme palette and its revert procedure
 ├── LIFTING.md           Procedure for embedding voting-portal source
-└── LIFTING-TALLY.md    Tally-specific lifting notes
+└── LIFTING-TALLY.md     Velvet → ui-essentials tally adapter mapping
 ```
+
+The four documents divide as follows, and each says so at its own top:
+**README** — what the workbench is, how to run it, and where drift is
+tracked. **WORKBENCH.md** — everything workbench-owned that lives
+*around* the lifted code. **LIFTING.md** — the voting-portal embedding
+procedure and its canaries; wins over WORKBENCH.md on any lift fact.
+**LIFTING-TALLY.md** — the velvet-to-ui-essentials adapter.
 
 ## Embedding strategy
 

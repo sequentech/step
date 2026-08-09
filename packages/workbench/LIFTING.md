@@ -121,10 +121,17 @@ startup. We ship a static one with:
   `voting-portal/src/index.tsx` to render its children directly, bypassing
   all real auth. **This is the single most important toggle for the lift**:
   without it, the embedding would need a full Keycloak mock.
-- Service URLs (`KEYCLOAK_URL`, `HASURA_URL`) pointing at
+- Service URLs (`KEYCLOAK_URL`, `HASURA_URL`, `BALLOT_VERIFIER_URL`,
+  `RESULTS_PORTAL_URL`, `PUBLIC_BUCKET_URL`) pointing at
   `http://127.0.0.1:0/` so any code path that escapes our mocks fails fast
   rather than hitting real infrastructure.
 - Sensible defaults for the remaining `SettingsContext` fields.
+
+`RESULTS_PORTAL_URL` is the most recent addition and is a worked example
+of the canary below: it appeared on the `GlobalSettings` interface
+upstream, our file did not have it, and nothing failed — the key simply
+read as `undefined` wherever a screen consumed it. It was found by
+diffing the interface, not by using the app.
 
 **Canary if portal changes:** new required keys in `SettingsContext`
 usually fail *silently* — auth-aware code branches take their
@@ -378,6 +385,27 @@ centralized.
 - New action creator API (e.g. `setElection` becoming
   `setElection({election, source})`) → TS error at the dispatch in
   `persistence.ts`.
+- **A new required field on `IDecodedVoteContest`** → the booth keeps
+  working and the tally breaks. This one is worth internalising because
+  it defeats the usual instincts: it is not a TS error (the snapshots
+  are JSON, not typed), the `validateBundledSnapshots` plugin does not
+  catch it (it only checks the keypair ↔ ballot-style invariant), and
+  the booth is unaffected because the portal's `resetBallotSelection`
+  builds selections containing the field. Only the *persisted*
+  selections are stale, so the failure appears at the far end of the
+  pipeline as a red error on `/tally`:
+
+  ```
+  invalid decoded ballot JSON: missing field `is_decline_to_vote`
+  ```
+
+  That is sequent-core refusing to deserialise the tally input. Fix by
+  backfilling the field across every bundled snapshot, in both
+  `state.ballotSelections[*]` and
+  `workbench.repairedCastVotes[*].selection`. Election-level
+  decline-to-vote (#2687) is the case that established this;
+  `setBallotSelectionBlankVote` gaining a required `candidateId`
+  argument in the same wave is the shape to watch for next.
 
 ### G. Workbench-only debug affordances (`BoothSpike.tsx`)
 
@@ -1163,6 +1191,9 @@ broken or you want to validate fidelity.
    | `expected magic word 00 61 73 6d, found 3c 21 2d 2d` | Wasm pkg pre-bundled by Vite | A6 (`optimizeDeps.exclude`) |
    | `Cannot read properties of undefined (reading 'check_voting_...')` etc. coming from `sequent-core.js` | Wasm not initialized | D (mount `<WasmWrapper>`) |
    | `process is not defined` or `process.env.X` undefined | env var | A (`define` in vite.config) |
+   | `invalid decoded ballot JSON: missing field ...` on `/tally`, but the booth still votes fine | Bundled snapshots predate a new required `IDecodedVoteContest` field | F (backfill every snapshot) |
+   | `Failed to resolve import "sequent-core"` on a fresh clone | `packages/sequent-core/pkg` absent and the alias guard removed | A7 (`fs.existsSync` guard) |
+   | Tally numbers look plausible but disagree with production | velvet-core lagging upstream, or a percentage recomputed instead of forwarded | README *Known gaps*; `LIFTING-TALLY.md` |
 
 3. **Fix the smallest possible thing**, restart the dev server, and re-test.
 4. **Update this document.** If you added/changed an adaptation, edit the
@@ -1184,10 +1215,14 @@ broken or you want to validate fidelity.
 When extending past these, the following are the most likely next-step
 categories of work (in roughly the order they will be needed):
 
-1. **A real election public key in the ballot style fixture.** ✅ Done.
-   The fixture uses `DEFAULT_PUBLIC_KEY_RISTRETTO_STR` from sequent-core
-   directly, so `encryptBallotSelection` produces real ciphertext and the
-   booth navigates from `/vote` to `/review`. See section F.
+1. **A real election public key in the ballot style fixture.** ✅ Done,
+   and since superseded. The fixture briefly used
+   `DEFAULT_PUBLIC_KEY_RISTRETTO_STR` from sequent-core, which made
+   `encryptBallotSelection` produce real ciphertext but validated the
+   *encrypt* path only — nobody holds that key's secret half. It now
+   carries the workbench-owned keypair from `workbench.keypair`, so the
+   whole encrypt → decrypt → decode → tally loop closes in the browser.
+   See sections F and M.
 2. **Initialize `ballotSelections` from the fixture, not only from
    StartScreen.** ✅ Done — the bundled `default.json` snapshot ships a
    pre-initialized `ballotSelections[electionId]` entry, so every URL

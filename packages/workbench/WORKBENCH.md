@@ -180,6 +180,63 @@ and `state.castVotes[eventId]`); that is no longer needed.
 
 ---
 
+## Diagnostics page (`/wb` → *Diagnostics*)
+
+An inspector page whose job is to answer questions about the *workbench
+itself* rather than about the election under test. All of its data is
+computed at build time by the `workbenchBuildInfo` Vite plugin and
+served through the `virtual:workbench-build-info` module; the plugin
+watches the relevant trees plus `.git/HEAD` and invalidates the module
+on change, so the page refreshes without a restart.
+
+Three cards:
+
+**Build status.** Per-wasm-artifact mtimes against their crate sources,
+so "is the wasm I'm looking at older than the Rust I just edited" is
+answerable without running a build. Also lists the workspace-internal
+crates baked into each artifact, with the versions resolved from
+`Cargo.lock`. This is the card that catches the version-skew trap in the
+README's embedding-strategy section.
+
+**Shared-source drift.** One collapsible block per tree the workbench
+shares with production — `voting-portal/src/`, `ui-core/src/`,
+`ui-essentials/src/`, `velvet/`, `strand/`, `sequent-core/` — each
+diffing `HEAD` against the merge-base with `origin/main`. Every block
+carries an `expectation` string describing what *should* be there, so an
+undocumented change reads as undocumented rather than merely present.
+The card also reports how many commits `origin/main` has that this
+branch does not — the other drift axis.
+
+Two things worth knowing when reading it:
+
+- The baseline moves. Once main is merged the merge-base advances to
+  the merged commit and each diff collapses to this branch's own edits.
+  A suspiciously large diff right after a merge usually means the merge
+  is not committed yet, not that drift exploded.
+- Patches are inlined into the virtual module, so any diff over 200 KB
+  keeps its stat and prints the `git diff` command instead of the body
+  (`strand` is normally the only one that trips this).
+
+Anything appearing here should be described in `LIFTING.md` §L (edits to
+production source) or the README's *Known gaps* (accepted divergences).
+If it is in neither, that is the bug — either the edit should not exist
+or the docs are stale. The reasoning for tracking drift this way, rather
+than as a static per-row risk rating, is in the README.
+
+There is deliberately **no** tally-lift section. The tally components
+were once copied from admin-portal into `ui-essentials` and diffed
+path-against-path; that copy was deleted when upstream shipped its own
+tally visualization, which the workbench now imports unmodified. With
+nothing copied, git history is the whole drift story.
+
+**Current workbench state.** The live snapshot + overlay as importable
+JSON — paste it into *Import snapshot JSON…* on the snapshots page to
+reproduce a situation elsewhere. Same shape as a bundled snapshot's
+*Bundled JSON*, except `parentId` is preserved so the receiving side
+keeps the provenance link.
+
+---
+
 ## Snapshots, checkpoints and the provenance forest
 
 The workbench mirrors the entire voting-portal Redux state — plus the
@@ -330,6 +387,30 @@ The shortest path to a new scenario is:
 Prefer one bundled snapshot per coherent scenario over many small
 ones — the tree rail lists them as siblings, and switching scenarios
 is a one-click *Load* on `/wb/snapshot/<id>`.
+
+### What the validator does *not* check
+
+It only enforces the keypair ↔ ballot-style invariant. It does not
+validate persisted ballot selections against sequent-core's current
+`DecodedVoteContest` shape, and that shape evolves. When
+election-level decline-to-vote (#2687) landed, every bundled snapshot
+predated the new **required** `is_decline_to_vote` field, and the
+symptom was not a build failure but a red error on `/tally`:
+
+```
+invalid decoded ballot JSON: missing field `is_decline_to_vote` at line 1 column 373
+```
+
+The booth path kept working, because the portal's `resetBallotSelection`
+constructs selections with the field; only *persisted* selections were
+stale. So when a snapshot loads and votes fine but the tally rejects its
+ballots, suspect a field added to `DecodedVoteContest` since the
+snapshot was authored, and backfill it across
+`state.ballotSelections[*]` and `workbench.repairedCastVotes[*].selection`.
+
+Hand-written tally input hits the same wall: the *Input ballots* pane on
+`/tally` is deserialised by sequent-core, so a pasted
+`DecodedVoteContest` must carry every currently-required field.
 
 ---
 
@@ -561,6 +642,18 @@ The `predev` hook builds the wasm but does not update the copy in
 `node_modules/`, so adding wasm exports always requires one of the
 two manual steps above.
 
+**The quiet version of this bug is worse than the loud one.** A missing
+export throws, so you find it immediately. A change that alters
+*behaviour* without changing the export list — a fix inside
+`velvet-core`, or a `sequent-core` bump underneath it — produces no
+error at all: the stale copy keeps serving the old logic and the
+workbench reports old tally numbers with total confidence. Treat
+"rebuild `velvet-wasm` → refresh the `node_modules` copy → restart
+Vite `--force`" as one indivisible step after *any* Rust change, and
+re-run the §M.4 canary in `LIFTING.md` to confirm the new binary is
+actually the one being served. This is the same hazard the README
+describes as the version-skew trap, seen from the JS side.
+
 ### Sister loop: editing `sequent-core` source
 
 `velvet-wasm` is the workbench's *own* wasm-bindgen layer; the
@@ -587,8 +680,19 @@ canary live in `LIFTING.md` §A7. The short version:
 
 The script is intentionally not chained into `predev`/`prebuild`
 so contributors who haven't touched sequent-core Rust pay no
-toolchain cost; if `pkg/` doesn't exist, the alias silently falls
-through to the hoisted tgz copy.
+toolchain cost; if `pkg/` doesn't exist, the alias falls through to
+the hoisted tgz copy.
+
+That fall-through is **not** something `resolve.alias` does on its
+own — an alias rewrites unconditionally once registered. It works
+because `vite.config.ts` wraps the entry in an
+`fs.existsSync(sequentCorePkg)` guard and simply does not register
+it when `pkg/` is absent. Before that guard existed, a fresh clone
+failed on every `sequent-core` import (`Failed to resolve import
+"sequent-core"` from `src/tally.ts` and
+`ui-core/src/services/{i18n,wasm}.ts`) — invisible to anyone whose
+working copy already had a `pkg/` from an earlier build. If you ever
+refactor that alias, keep the guard.
 
 ---
 
