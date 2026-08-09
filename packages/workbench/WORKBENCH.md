@@ -379,8 +379,13 @@ The shortest path to a new scenario is:
 3. Visit the checkpoint's `/wb/snapshot/<id>` page and copy its
    bundled JSON (the *Copy JSON* button strips `parentId` so the
    export becomes a root).
-4. Paste it under `app/src/fixtures/snapshots/<name>.json` (with a
-   `.json.license` sidecar).
+4. Paste it under `app/src/fixtures/snapshots/<name>.json`. (An earlier
+   revision of this document called for a `.json.license` sidecar; none of
+   the bundled snapshots has one, and `REUSE.toml` does not list them
+   either, so adding one would make the new file inconsistent with its
+   siblings. If REUSE compliance is wanted here it should be a single
+   `packages/workbench/app/src/fixtures/snapshots/**` annotation covering
+   all of them, not a per-file sidecar.)
 5. Restart Vite. The validator will refuse to start the dev server
    if anything is inconsistent.
 

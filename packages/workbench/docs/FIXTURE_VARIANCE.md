@@ -47,7 +47,7 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
 | DelegatedVotingPolicy | 2 variants | Yes | DISABLED default; ENABLED untested |
 | Multi-ballot encoding (capacity) | Up to 30 bytes | Yes | Encoding limits not stress-tested |
 | **DeclineToVotePolicy** (§13.1) | 2 variants | Yes | New upstream; never set. Selections carry `is_decline_to_vote: false` only |
-| **Explicit-blank / explicit-invalid marker candidates** (§13.2) | per candidate | **Blocking** | **Zero fixtures define one** — makes the explicit branches of §10.A.1 / §10.A.4 unreachable, and `blank_votes.explicit` / `invalid_votes.explicit` structurally 0 |
+| **Explicit-blank / explicit-invalid marker candidates** (§13.2) | per candidate | Partial | `explicit-blank-invalid` bundles both markers and the mixed case; other fixtures still have none |
 | **Voting channel / participation** (§13.3) | map | Yes | New upstream; workbench tallies one electronic channel by construction |
 | **Tally sheets** (§13.4) | per-sheet totals | Yes | Unit-tested in velvet-core; no bundled snapshot, no UI |
 | **Tie construction** (§13.5) | n/a | Yes | No fixture produces a tie, so by-lot and pending-resolution paths are dead |
@@ -157,6 +157,7 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
 - **Current fixture coverage**: 
   - `mixed-3contests.json` (bundled): **3 contests** in a single ballot style — Mayor (plurality, max=1), City council (plurality, max=2, winning=2), Park funding (IRV, max=3) — also exercises algorithm mixing on one ballot (see §6).
   - `multi-bs-shared-contest.json` (bundled): **2 contests per ballot style** (shared Federal president + per-area district representative).
+  - `explicit-blank-invalid.json` (bundled): **2 contests** in one ballot style (§13.2).
   - All other bundled fixtures and all reference blobs: exactly 1 contest per ballot style.
 - **Velvet upstream variants**: All generators produce 1 contest per ballot style.
 - **Coverage gap assessment**: N=2 and N=3 now bundled. Capacity-near-limit (sum of base-bits approaching 30 bytes) still untested; multi-ballot encoding with non-plurality contests in same style not exercised at the codec level beyond `mixed-3contests`.
@@ -267,6 +268,7 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
     - `mixed-3contests.json`: 3 / **4** / 3 candidates across its three contests — the
       4-candidate *City council* contest is the largest in any bundled fixture.
     - `multi-bs-shared-contest.json`: 3 (shared *Federal president*) / 2 / 2.
+    - `explicit-blank-invalid.json`: 3 / 3 — each contest is 2 regular candidates plus one marker (§13.2).
     - `two-elections.json`: 2 and 2.
     - `allow_writeins` is not set anywhere (default true), and **no bundled fixture
       contains a candidate with `is_write_in`**, so the write-in code path is
@@ -330,11 +332,11 @@ Notes on the encode/decode surfaces:
 - **Coverage gap assessment**: WARN, WARN_INVALID_IMPLICIT_AND_EXPLICIT, NOT_ALLOWED never tested.
 - **Precondition the policy depends on**: the *explicit* branch of this policy only
   fires when the voter selects a candidate carrying
-  `presentation.is_explicit_invalid`. **No bundled fixture contains such a
-  candidate** (verified across all five). Setting `invalid_vote_policy` on a
-  fixture is therefore *not sufficient* to exercise it — the fixture also needs a
-  marker candidate. Only the implicit branch (validation errors from
-  under/over-vote) is reachable from bundled state today.
+  `presentation.is_explicit_invalid`. Setting `invalid_vote_policy` on a fixture
+  is therefore *not sufficient* to exercise it — the fixture also needs a marker
+  candidate. Only `explicit-blank-invalid.json` has one (§13.2); for every other
+  bundled snapshot the explicit branch remains unreachable and only the implicit
+  branch (validation errors from under/over-vote) can fire.
 
 #### 10.A.2 UnderVotePolicy
 
@@ -387,9 +389,9 @@ Notes on the encode/decode surfaces:
   selected; selecting an explicit-blank marker *together with* a regular
   candidate is an implicit **invalid**. velvet-core reports the split as
   `blank_votes.explicit` / `blank_votes.implicit` and the workbench surfaces both
-  rows. **No bundled fixture defines an explicit-blank candidate**, so
-  `blank_votes.explicit` is structurally always `0` in the workbench today — the
-  UI row exists but can never be non-zero. See §13.2.
+  rows. Only `explicit-blank-invalid.json` defines an explicit-blank candidate
+  (§13.2); on every other bundled snapshot `blank_votes.explicit` is
+  structurally `0`, so the UI row exists but can never be non-zero.
 
 #### 10.A.5 DuplicatedRankPolicy (Preferential Voting)
 
@@ -576,8 +578,32 @@ fixtures, which is a stronger statement.
 - **Value space**: per candidate, { true, false / absent }.
 - **Why this is its own dimension**: these markers are the *precondition* for the explicit branches of `InvalidVotePolicy` (§10.A.1) and `EBlankVotePolicy` (§10.A.4), and for the explicit/implicit split in the tally result. Cataloguing only the policies hides the fact that setting them changes nothing unless a marker candidate exists.
 - **Branching sites**: `classify_ballot` and `get_explicit_blank_candidate_ids` in `workbench/velvet-core/src/counting/extended_metrics.rs`; `Candidate::is_explicit_blank()` / `is_explicit_invalid()`; the exclusivity rule in `setBallotSelectionVoteChoice` (choosing a regular candidate clears explicit-blank markers).
-- **Current fixture coverage**: **zero across all five bundled snapshots and all reference blobs** — verified by scanning every candidate's presentation.
-- **Coverage gap assessment**: the whole explicit/implicit classification path is unreachable from bundled state, so `blank_votes.explicit` and `invalid_votes.explicit` are structurally 0 in the workbench today — the participation rows exist but can never be non-zero. This is the highest-value single fixture addition available: one contest carrying an explicit-blank candidate and one carrying an explicit-invalid candidate would light up four `ParticipationSummary` rows and both explicit policy branches.
+- **Current fixture coverage**: `explicit-blank-invalid.json` — the first and
+  only bundled snapshot defining marker candidates. Two contests:
+  - *Referendum* — Yes / No / **Blank vote** (`is_explicit_blank`),
+    `max_votes: 2`. The 2 is deliberate: at `max_votes: 1` a marker-plus-candidate
+    selection would also trip the over-vote checker, and the fixture could not
+    separate "invalid because mixed with an explicit blank" from "invalid because
+    too many selections".
+  - *Council seat* — Ada / Bruno / **Spoil ballot** (`is_explicit_invalid`),
+    `max_votes: 1`.
+
+  The other five bundled snapshots and all reference blobs still define none.
+- **Verified behaviour** — 5 ballots into *Referendum* (2×Yes, 1×marker only,
+  1×nothing, 1×marker+Yes):
+
+  | metric | result |
+  |---|---|
+  | total / valid | 5 / **4** — blank ballots count as valid |
+  | `blank_votes` | 2 = **1 explicit** + 1 implicit |
+  | `invalid_votes` | 1 = 0 explicit + **1 implicit** (the mixed ballot) |
+
+  Selecting *Spoil ballot* in *Council seat* yields `invalid_votes.explicit = 1`.
+- **Coverage gap assessment**: the classification path is now reachable, and the
+  four `ParticipationSummary` rows that were structurally 0 render real values.
+  Remaining: no fixture pairs a marker with a *non-default* `invalid_vote_policy`
+  or `blank_vote_policy`, so the explicit branches are only exercised under
+  `ALLOWED`; and no preferential contest carries a marker.
 
 #### 13.3 Voting channel and participation
 
@@ -640,7 +666,7 @@ contest awaiting external resolution.
 
 | Dimension | Gap | Impact | Priority |
 |-----------|-----|--------|----------|
-| **Explicit-blank / explicit-invalid marker candidates** | Zero fixtures define one, so the explicit classification path is *unreachable*, not merely untested | Explicit branches of InvalidVotePolicy + BlankVotePolicy; `blank_votes.explicit` / `invalid_votes.explicit` always 0 | **Critical** |
+| Explicit-blank / explicit-invalid markers | Closed by `explicit-blank-invalid`. Remaining: no fixture pairs a marker with a non-default `invalid_vote_policy` / `blank_vote_policy` | Explicit policy branches still take the default variant | Medium |
 | CountingAlgType — 9/10 unsupported | Only Plurality-at-Large + IRV bundled (incl. mixed on one ballot via `mixed-3contests`) | Tally dispatch, ballot encoding, validation | Critical |
 | Decline to vote (§13.1) | Policy never enabled; no declined ballot produced | Declined-vs-blank tally accounting, booth back-navigation | High |
 | Contest-sharing (disjoint/shared/partial) | Partial bundled (`multi-bs-shared-contest`); fully-shared-identical and disjoint-candidates-same-id still bundled-only as reference blobs | Multi-ballot-style aggregation incomplete | High |
@@ -672,13 +698,14 @@ contest awaiting external resolution.
    - Still pending: 3+ ballot styles per election; tally aggregation across shared contests; fully-shared-identical-candidates as a bundled fixture.
 
 4. **Priority 4: Post-merge dimensions (§13)** — highest value first
-   - **A marker-candidate fixture.** One plurality contest with an
-     `is_explicit_blank` candidate and one with an `is_explicit_invalid`
-     candidate. This is the cheapest change with the largest effect: it makes
-     the explicit branches of §10.A.1 and §10.A.4 reachable at all, and turns
-     four permanently-zero `ParticipationSummary` rows into live ones. Pair it
-     with the mixed-selection case (explicit blank *plus* a regular candidate),
-     which must classify as implicit **invalid**.
+   - ✅ **A marker-candidate fixture** — `explicit-blank-invalid.json` bundled.
+     One plurality contest with an `is_explicit_blank` candidate and one with an
+     `is_explicit_invalid` candidate, including the mixed-selection case
+     (explicit blank *plus* a regular candidate) which classifies as implicit
+     **invalid**. Verified end-to-end; see §13.2 for the numbers.
+     Still open: pair a marker with a non-default `invalid_vote_policy` /
+     `blank_vote_policy` so the explicit branches run under something other than
+     `ALLOWED`, and add a marker to a preferential contest.
    - **A decline-to-vote fixture**: `decline_to_vote_policy: ENABLED` plus a
      snapshot whose selections carry `is_decline_to_vote: true`, to exercise
      `total_declined_to_vote` and the exclusion of declined ballots from the
