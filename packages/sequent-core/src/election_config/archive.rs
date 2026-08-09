@@ -123,6 +123,17 @@ pub fn layout(bundle: &Bundle) -> Layout {
         });
     }
 
+    // The private counterpart, under `export_S3_files/`. Same mechanism, different
+    // folder, and the folder is the whole difference: the importer uploads one with
+    // `is_public = true` and the other against the election event with
+    // `is_public = false`.
+    for material in &bundle.materials {
+        importable.push(Artifact {
+            name: material.entry_name(),
+            bytes: material.bytes.clone(),
+        });
+    }
+
     Layout {
         importable,
         archive_name: format!("{}.zip", bundle.slug),

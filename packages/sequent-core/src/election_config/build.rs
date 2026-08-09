@@ -204,6 +204,16 @@ pub struct BuildOptions {
     /// Empty for the workbook path, which has no bytes to offer.
     pub images: Vec<ImageFile>,
 
+    /// Voter-facing help documents, for the same reason as [`Self::images`]: a
+    /// spreadsheet cell cannot hold bytes, so the sheet names a file and these
+    /// carry it.
+    ///
+    /// Each one's `document_id` must also appear on a `support_materials` row in the
+    /// JSON, or the import fails on the *zip entry* with a message about a
+    /// replacement map. `validate` refuses that pairing rather than letting the
+    /// importer discover it.
+    pub materials: Vec<MaterialFile>,
+
     /// Who holds the election key, and how many of them the tally needs.
     ///
     /// `None` for the workbook path, which has no trustee sheet to draw from —
@@ -249,6 +259,38 @@ pub struct ImageFile {
     /// The file's own name. The last segment of the url, and of the archive entry.
     pub file_name: String,
     pub bytes: Vec<u8>,
+}
+
+/// One voter-facing help document, on its way into the archive.
+///
+/// The same shape as [`ImageFile`] and a different destination, which is the whole
+/// distinction: a candidate's photograph is **public** and goes to `images/`, where
+/// the importer uploads it with `is_public = true` and the Voting Portal renders it
+/// straight from the public bucket. A support material is **private** — the portal
+/// fetches it through the authenticated document route — so it goes to
+/// `export_S3_files/`, which the importer uploads against the election event with
+/// `is_public = false`.
+///
+/// Putting one in the other's folder is not a cosmetic error: a material in
+/// `images/` is published to anybody holding the URL, and a photograph in
+/// `export_S3_files/` 404s on every ballot.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct MaterialFile {
+    /// The document's identifier, which the material row's `document_id` names.
+    pub document_id: String,
+    pub file_name: String,
+    pub bytes: Vec<u8>,
+}
+
+impl MaterialFile {
+    /// The archive entry the importer's `export_S3_files/` branch expects.
+    ///
+    /// `document_<id>_<name>`, matched by the same unanchored `extract_document_uuid`
+    /// that reads an image's name — so the tempfile prefix the platform's own
+    /// exporter adds is optional here too.
+    pub fn entry_name(&self) -> String {
+        format!("export_S3_files/document_{}_{}", self.document_id, self.file_name)
+    }
 }
 
 impl ImageFile {
@@ -313,6 +355,9 @@ pub struct Bundle {
     /// and keeps pointed at by the same replacement map that renames the JSON.
     pub images: Vec<ImageFile>,
 
+    /// Support materials' files, the private counterpart of [`Self::images`].
+    pub materials: Vec<MaterialFile>,
+
     /// Everything the document asked of the event's Keycloak realm.
     ///
     /// Kept whether or not it could be applied here, so that an `auth_type` or a
@@ -362,6 +407,7 @@ struct Builder<'a> {
     keys_ceremony: Option<KeysCeremonyPlan>,
     ceremony_policy: CeremoniesPolicy,
     images: Vec<ImageFile>,
+    materials: Vec<MaterialFile>,
 
     event_row: Row,
     event_external_id: String,
@@ -413,6 +459,7 @@ impl<'a> Builder<'a> {
             keys_ceremony: options.keys_ceremony.clone(),
             ceremony_policy: options.ceremony_policy.clone(),
             images: options.images.clone(),
+            materials: options.materials.clone(),
             workbook,
             templates,
             base_export,
@@ -541,6 +588,7 @@ impl<'a> Builder<'a> {
             role_permissions,
             templates,
             images: self.images,
+            materials: self.materials,
             realm_patch: self.realm_patch,
             admin_realm_patch,
             auth_preset: self.auth_preset.map(|preset| preset.name),

@@ -155,6 +155,7 @@ pub fn validate(bundle: &ImportElectionEventSchema) -> Report {
     check_how_voting_works(bundle, &mut report);
     check_voting_channels(bundle, &mut report);
     check_images(bundle, &mut report);
+    check_support_materials(bundle, &mut report);
     check_event_presentation(bundle, &mut report);
     check_permission_labels(bundle, &mut report);
     check_unique_ids(bundle, &mut report);
@@ -238,6 +239,85 @@ fn check_event_presentation(
 ///
 /// This pass sees the JSON and not the zip, so it checks the half it can: that the
 /// two references inside the document agree.
+/// The rows against the event, and each row against the tab that shows it.
+///
+/// The failure worth catching here is not in this file's usual style — it is not a
+/// bundle that imports into something wrong, it is a bundle that *fails to import at
+/// all*, with a message nobody can act on. `process_s3_file` looks each archived
+/// document's identifier up in a replacement map built by scanning the JSON, so a
+/// material carrying no `document_id` while its file sits in the archive aborts the
+/// whole import saying "Error finding document UUID in replacement map".
+///
+/// The pairing is enforced where it can be explained instead.
+fn check_support_materials(
+    bundle: &ImportElectionEventSchema,
+    report: &mut Report,
+) {
+    let Some(materials) = bundle.support_materials.as_ref() else {
+        return;
+    };
+
+    for (index, material) in materials.iter().enumerate() {
+        let at = format!("support_materials[{index}]");
+
+        if material.election_event_id != bundle.election_event.id {
+            report.push(
+                Problem::error(
+                    Code::DanglingReference,
+                    format!("{at}.election_event_id"),
+                    "this support material belongs to a different election event",
+                )
+                .id("material.wrong-event"),
+            );
+        }
+
+        if material
+            .document_id
+            .as_deref()
+            .is_some_and(|id| id.trim().is_empty())
+        {
+            report.push(
+                Problem::error(
+                    Code::MissingField,
+                    format!("{at}.document_id"),
+                    "a support material with an empty document identifier imports \
+                     as a link to nothing. Leave it out entirely for a material \
+                     that has no file.",
+                )
+                .id("material.empty-document"),
+            );
+        }
+    }
+
+    // A tab nobody will see, holding documents somebody uploaded. Not an error —
+    // it imports, and turning the tab on afterwards is one switch — but it is
+    // almost never what was meant.
+    let activated = bundle
+        .election_event
+        .presentation
+        .as_ref()
+        .and_then(|value| value.get("materials"))
+        .and_then(|value| value.get("activated"))
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false);
+
+    if !materials.is_empty() && !activated {
+        report.push(
+            Problem::warning(
+                Code::BallotCoverage,
+                "election_event.presentation.materials.activated",
+                format!(
+                    "{} support material(s) are in this bundle and the tab that \
+                     shows them is switched off, so voters would never see them.",
+                    materials.len()
+                ),
+            )
+            .id("material.tab-off")
+            .detail("count", materials.len()),
+        );
+    }
+}
+
 fn check_images(bundle: &ImportElectionEventSchema, report: &mut Report) {
     let image_url = |presentation: Option<&serde_json::Value>| {
         presentation

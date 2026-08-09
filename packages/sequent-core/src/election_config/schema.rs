@@ -17,8 +17,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::types::hasura::core::{
-    Application, Area, AreaContest, Candidate, Contest, Election,
-    ElectionEvent, KeysCeremony,
+    Application, Area, AreaContest, Candidate, Contest, Election, ElectionEvent, KeysCeremony, SupportMaterial,
 };
 use crate::types::scheduled_event::ScheduledEvent;
 use crate::util::version::HISTORICAL_DEFAULT_VERSION;
@@ -78,6 +77,19 @@ pub struct ImportElectionEventSchema {
 
     pub keys_ceremonies: Option<Vec<KeysCeremony>>,
     pub applications: Option<Vec<Application>>,
+
+    /// Voter-facing help documents — rules, candidate statements, a guide to voting.
+    ///
+    /// `Option`, like the two above and for the same reason: every bundle written
+    /// before this field existed still deserialises.
+    ///
+    /// These are the *rows*. The files they point at travel separately, as
+    /// `export_S3_files/document_<id>_<name>` members of the archive, and the
+    /// `document_id` here is what puts that identifier into the importer's
+    /// replacement map — `process_s3_file` fails the whole import for a zip entry
+    /// whose uuid the JSON never mentions. See
+    /// `engineering/how-a-support-material-travels-in-a-bundle`.
+    pub support_materials: Option<Vec<SupportMaterial>>,
 
     /// The platform version that wrote the bundle.
     ///
