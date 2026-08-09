@@ -881,6 +881,7 @@ fn build_options(options: JsValue) -> Result<BuildOptions, JsError> {
         // cannot hold an image. Handing them across the boundary as base64 a second
         // time would mean two ways to say the same thing and one of them stale.
         images: Vec::new(),
+        ceremony_policy: Default::default(),
     })
 }
 

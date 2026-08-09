@@ -8,7 +8,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::default::Default;
-use strum_macros::{Display, EnumString};
+use strum_macros::{Display, EnumIter, EnumString};
 
 #[derive(
     Display,
@@ -179,6 +179,7 @@ pub struct TallySessionDocuments {
     Eq,
     Clone,
     EnumString,
+    EnumIter,
     Default,
     JsonSchema,
 )]
