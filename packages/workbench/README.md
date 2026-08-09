@@ -191,9 +191,8 @@ this recurring; until then, budget for the port on each catch-up.
 
 Tally semantics are currently **up to date** with `origin/main`: the
 explicit/implicit blank split, the invalid-vote policy, decline-to-vote
-and participation-by-channel were all ported into velvet-core, with
-upstream's classification tests (12 passing). The one thing not yet
-carried over is upstream's remaining IRV (2) and tally-sheet (1) tests.
+and participation-by-channel were all ported into velvet-core, along
+with upstream's tests for them (16 passing).
 
 **strand carries an unreconciled divergence.** This branch removed the
 obsolete openssl/FIPS backends to reach wasm32, and merges have resolved
