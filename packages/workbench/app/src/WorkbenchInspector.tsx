@@ -1364,25 +1364,28 @@ function BuildStatusCard(): JSX.Element {
 }
 
 /**
- * Drift surface for the two "lifts" documented in
- * `packages/workbench/LIFTING.md` (voting-portal embed) and
- * `packages/workbench/LIFTING-TALLY.md` (admin-portal tally
- * re-host). Lives under the Diagnostics page so the operator can
- * see, without leaving the browser, exactly how the workbench's
- * view of these sources has diverged from production:
+ * Drift surface for every tree the workbench shares with production —
+ * the lifted `voting-portal/src/`, the aliased `ui-core` /
+ * `ui-essentials`, and the Rust crates (`velvet`, `strand`,
+ * `sequent-core`) this branch modified. See the embedding-strategy
+ * table in the workbench README for which strategy each one uses.
  *
- *   - **voting-portal** is consumed *in place* via Vite aliases —
- *     no copy on disk — but section L of LIFTING.md whitelists a
- *     handful of demo-only edits to `voting-portal/src/`. The diff
- *     here is `HEAD vs branch-base` over that subtree, so the
- *     concessions show up automatically and any *future* edits
- *     become impossible to hide.
- *   - **tally components** were re-hosted into
- *     `ui-essentials/src/components/TallyResults/` with GraphQL/i18n
- *     adaptations baked into the copies. The diffs here pair each
- *     lifted file against its admin-portal counterpart at HEAD, so
- *     refresh PRs can be reviewed by *visibly shrinking* the diff
- *     blocks until only the documented adaptations remain.
+ * Every row is the same question asked of a different subtree: *what
+ * has this branch changed in code it shares with production, and is
+ * all of it documented?* Each diff is `HEAD` vs the merge-base with
+ * `origin/main`, so nothing can be edited quietly — a concession that
+ * isn't in LIFTING.md section L shows up here as an unexplained row.
+ *
+ * Note the baseline moves: once main is merged into this branch the
+ * merge-base advances to the merged commit and each diff collapses to
+ * the branch's own edits. A suspiciously large diff right after a
+ * merge usually means the merge hasn't been committed yet.
+ *
+ * There is no longer a tally-lift section. The tally components used
+ * to be *copied* from admin-portal into ui-essentials and were diffed
+ * path-against-path; that copy was deleted once upstream shipped its
+ * own tally visualization, which the workbench now imports unmodified.
+ * Nothing is copied any more, so git history is the whole story.
  *
  * All build-time data; the plugin watches the relevant trees plus
  * `.git/HEAD` and invalidates this virtual module on change.
@@ -1392,15 +1395,47 @@ function LiftedSourceDriftSection(): JSX.Element {
     return (
         <section style={diagnosticsCardStyle}>
             <div style={diagnosticsCardHeaderStyle}>
-                <strong>Lifted-source drift</strong>
+                <strong>Shared-source drift</strong>
             </div>
             <BranchBaseLine />
-            <VotingPortalDriftBlock
-                base={git.base}
-                diff={git.votingPortalDiff}
-            />
-            <TallyLiftDriftBlock diffs={git.tallyLiftDiffs} />
+            <UpstreamDistanceLine behind={git.behindUpstream} />
+            {git.sourceDrift == null ? (
+                <p style={diagnosticsHintStyle}>
+                    <span style={{color: "#ef4444"}}>
+                        drift unavailable (git probe failed)
+                    </span>
+                </p>
+            ) : (
+                git.sourceDrift.map((row) => (
+                    <SourceDriftBlock key={row.subtree} row={row} />
+                ))
+            )}
         </section>
+    )
+}
+
+/**
+ * The other drift axis: the per-subtree diffs say what *we* changed,
+ * this says how far *upstream* has moved since we last merged. A large
+ * number means the next merge will be big — not that anything is
+ * currently wrong.
+ */
+function UpstreamDistanceLine({behind}: {behind: number | null}): JSX.Element | null {
+    if (behind == null) return null
+    return (
+        <p style={diagnosticsHintStyle}>
+            <strong>Behind upstream:</strong>{" "}
+            {behind === 0 ? (
+                <span style={{color: "#4ade80"}}>
+                    up to date with <code>origin/main</code>
+                </span>
+            ) : (
+                <span style={{color: behind > 50 ? "#f0c200" : "#e0e0e0"}}>
+                    {behind} commit{behind === 1 ? "" : "s"} on{" "}
+                    <code>origin/main</code> not in this branch
+                </span>
+            )}
+        </p>
     )
 }
 
@@ -1439,33 +1474,24 @@ function BranchBaseLine(): JSX.Element {
     )
 }
 
-function VotingPortalDriftBlock({
-    base,
-    diff,
-}: {
-    base: WorkbenchBuildInfo["git"]["base"]
-    diff: WorkbenchBuildInfo["git"]["votingPortalDiff"]
-}): JSX.Element | null {
-    if (base == null) return null
-    if (diff == null) {
-        return (
-            <p style={diagnosticsHintStyle}>
-                <strong>voting-portal/src/:</strong>{" "}
-                <span style={{color: "#ef4444"}}>
-                    diff unavailable (git probe failed)
-                </span>
-            </p>
-        )
-    }
-    const empty = diff.patch.trim().length === 0
+type SourceDriftRow = NonNullable<
+    WorkbenchBuildInfo["git"]["sourceDrift"]
+>[number]
+
+/**
+ * One tracked subtree's drift vs the branch base. Collapsed by default;
+ * a clean subtree is muted so the eye lands on the ones that changed.
+ */
+function SourceDriftBlock({row}: {row: SourceDriftRow}): JSX.Element {
+    const empty = row.stat.trim().length === 0
     return (
         <details style={{marginTop: "0.75rem"}}>
-            <summary style={{cursor: "pointer", color: "#e0e0e0"}}>
-                voting-portal/src/ drift vs branch base
-                {empty
-                    ? " — clean (matches base byte-for-byte)"
-                    : ""}
-                {diff.dirty && (
+            <summary
+                style={{cursor: "pointer", color: empty ? "#888" : "#e0e0e0"}}
+            >
+                <code>{row.subtree}</code>
+                {empty ? " — clean (matches base)" : " — changed"}
+                {row.dirty && (
                     <span
                         style={{
                             color: "#ef4444",
@@ -1478,12 +1504,7 @@ function VotingPortalDriftBlock({
                     </span>
                 )}
             </summary>
-            <p style={diagnosticsHintStyle}>
-                Section L of <code>LIFTING.md</code> whitelists demo-only
-                concessions to <code>voting-portal/src/</code>. Anything
-                here that <em>isn&rsquo;t</em> in section L is a new
-                concession and needs the doc updated.
-            </p>
+            <p style={diagnosticsHintStyle}>{row.expectation}</p>
             {empty ? (
                 <p style={{...diagnosticsHintStyle, color: "#888"}}>
                     No diff against branch base.
@@ -1491,20 +1512,32 @@ function VotingPortalDriftBlock({
             ) : (
                 <>
                     <pre style={diffStatPreStyle}>
-                        <code>{diff.stat}</code>
+                        <code>{row.stat}</code>
                     </pre>
-                    <PerFileDiffList patch={diff.patch} />
-                    <details style={{marginTop: "0.5rem"}}>
-                        <summary
-                            style={{cursor: "pointer", color: "#999", fontSize: "0.85rem"}}
-                        >
-                            Full combined diff
-                        </summary>
-                        <CopyJsonBlock
-                            json={diff.patch}
-                            copyLabel="Copy diff"
-                        />
-                    </details>
+                    {row.patch == null ? (
+                        <p style={{...diagnosticsHintStyle, color: "#f0c200"}}>
+                            {row.patchOmittedReason}
+                        </p>
+                    ) : (
+                        <>
+                            <PerFileDiffList patch={row.patch} />
+                            <details style={{marginTop: "0.5rem"}}>
+                                <summary
+                                    style={{
+                                        cursor: "pointer",
+                                        color: "#999",
+                                        fontSize: "0.85rem",
+                                    }}
+                                >
+                                    Full combined diff
+                                </summary>
+                                <CopyJsonBlock
+                                    json={row.patch}
+                                    copyLabel="Copy diff"
+                                />
+                            </details>
+                        </>
+                    )}
                 </>
             )}
         </details>
@@ -1564,92 +1597,6 @@ function PerFileDiffList({patch}: {patch: string}): JSX.Element {
                 )
             })}
         </>
-    )
-}
-
-function TallyLiftDriftBlock({
-    diffs,
-}: {
-    diffs: WorkbenchBuildInfo["git"]["tallyLiftDiffs"]
-}): JSX.Element {
-    return (
-        <details style={{marginTop: "0.75rem"}}>
-            <summary style={{cursor: "pointer", color: "#e0e0e0"}}>
-                Tally lift drift vs admin-portal originals ({diffs.length}{" "}
-                file{diffs.length === 1 ? "" : "s"})
-            </summary>
-            <p style={diagnosticsHintStyle}>
-                File-system diff between each ui-essentials lifted file
-                and its admin-portal counterpart at HEAD. Adaptation
-                inventory in{" "}
-                <code>packages/workbench/LIFTING-TALLY.md</code> — diffs
-                should reduce to those documented adaptations only.
-            </p>
-            {diffs.map((d) => (
-                <TallyLiftDriftRow key={d.copyPath} diff={d} />
-            ))}
-        </details>
-    )
-}
-
-function TallyLiftDriftRow({
-    diff,
-}: {
-    diff: WorkbenchBuildInfo["git"]["tallyLiftDiffs"][number]
-}): JSX.Element {
-    return (
-        <div
-            style={{
-                marginTop: "0.5rem",
-                paddingLeft: "0.5rem",
-                borderLeft: "3px solid #3a3a3a",
-            }}
-        >
-            <details>
-                <summary
-                    style={{
-                        cursor: "pointer",
-                        color: diff.kind === "added" ? "#999" : "#e0e0e0",
-                        fontSize: "0.9rem",
-                    }}
-                >
-                    {diff.label}{" "}
-                    <span style={{color: "#888", fontSize: "0.8rem"}}>
-                        [{diff.kind}]
-                    </span>
-                </summary>
-                {diff.origPath && (
-                    <p style={diagnosticsHintStyle}>
-                        original: <code>{diff.origPath}</code>
-                        <br />
-                        lifted: <code>{diff.copyPath}</code>
-                    </p>
-                )}
-                {!diff.origPath && (
-                    <p style={diagnosticsHintStyle}>
-                        lifted: <code>{diff.copyPath}</code> — no
-                        admin-portal counterpart, this file is part of
-                        the lift itself
-                    </p>
-                )}
-                {diff.note && (
-                    <p style={{...diagnosticsHintStyle, color: "#ef4444"}}>
-                        {diff.note}
-                    </p>
-                )}
-                {diff.stat && (
-                    <pre style={diffStatPreStyle}>
-                        <code>{diff.stat}</code>
-                    </pre>
-                )}
-                {diff.patch && (
-                    <CopyJsonBlock
-                        json={diff.patch}
-                        copyLabel="Copy diff"
-                    />
-                )}
-            </details>
-        </div>
     )
 }
 

@@ -46,37 +46,32 @@ declare module "virtual:workbench-build-info" {
         /** ISO 8601 author date of the base commit. */
         date: string
     }
-    export interface WorkbenchVotingPortalDiff {
+    export interface WorkbenchSourceDrift {
+        /** Human label for the tracked subtree, e.g. `voting-portal/src/`. */
+        label: string
+        /** Workspace-relative subtree the diff covers. */
+        subtree: string
+        /**
+         * What the operator should expect to find here (e.g. "only the
+         * section-L concessions", "expected to be empty"). Rendered as
+         * a hint so an unexpected diff is recognisable as such.
+         */
+        expectation: string
         /** `git diff --stat` output (short summary). */
         stat: string
-        /** Full unified diff (may be multi-KB; render in a collapsed block). */
-        patch: string
         /**
-         * `true` if there are uncommitted changes under
-         * `packages/voting-portal/`. Treat the patch above as
-         * committed-only and warn the operator that working-tree
-         * edits aren't reflected.
+         * Full unified diff, or `null` when it was too large to inline
+         * — see {@link patchOmittedReason}.
+         */
+        patch: string | null
+        /** `null` when `patch` is present; otherwise why it was dropped. */
+        patchOmittedReason: string | null
+        /**
+         * `true` if there are uncommitted changes under this subtree.
+         * Treat the patch as committed-only and warn the operator that
+         * working-tree edits aren't reflected.
          */
         dirty: boolean
-    }
-    export interface WorkbenchTallyLiftDiff {
-        /** Human label for the pair (filename + LIFTING-TALLY adaptation ids). */
-        label: string
-        /**
-         * `modified` — both files exist; `patch` is a unified diff.
-         * `added`    — only the lifted copy exists; `patch` is null.
-         */
-        kind: "modified" | "added"
-        /** Workspace-relative path to the admin-portal original. */
-        origPath: string | null
-        /** Workspace-relative path to the ui-essentials lifted copy. */
-        copyPath: string
-        /** `git diff --stat` style summary (or size for added files). */
-        stat: string | null
-        /** Full unified diff, or `null` for added files / missing originals. */
-        patch: string | null
-        /** Operator-facing note when a pair could not be diffed. */
-        note: string | null
     }
     export interface WorkbenchGitInfo {
         /** Short git SHA of HEAD. `null` if the .git/HEAD read failed. */
@@ -94,17 +89,17 @@ declare module "virtual:workbench-build-info" {
          */
         baseUnavailableReason: string | null
         /**
-         * `voting-portal/src/` drift relative to {@link base}. `null`
-         * when the base lookup failed.
+         * How many commits `origin/main` has that HEAD does not — the
+         * "how stale are we" axis, complementing the per-subtree diffs
+         * below. `null` if the ref is unreachable.
          */
-        votingPortalDiff: WorkbenchVotingPortalDiff | null
+        behindUpstream: number | null
         /**
-         * Tally-lift drift — per-file diffs between admin-portal
-         * originals and the ui-essentials copies, plus listings for
-         * lifted-only "added" files. Always an array (possibly
-         * with `note` set on individual rows when a file moved).
+         * Per-subtree drift of HEAD relative to {@link base}, for every
+         * tree the workbench shares with production. `null` when the
+         * base lookup failed.
          */
-        tallyLiftDiffs: WorkbenchTallyLiftDiff[]
+        sourceDrift: WorkbenchSourceDrift[] | null
     }
     export interface WorkbenchBuildInfo {
         /** ISO 8601 timestamp of when this module was loaded by Vite. */

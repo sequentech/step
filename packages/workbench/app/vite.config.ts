@@ -393,227 +393,132 @@ function workbenchBuildInfo(): Plugin {
     }
 
     /**
-     * Lifted-source drift surfaces. Each entry produces a unified
-     * diff that appears under the Diagnostics page so an operator
-     * can see *exactly* how the workbench's view of a lifted file
-     * has drifted from its production counterpart.
+     * Lifted / shared source drift. For each tracked subtree we emit a
+     * unified diff of `HEAD` vs the branch base, so the Diagnostics
+     * page answers one question: *what has this branch changed in code
+     * it shares with production, and is all of it documented?*
      *
-     * Two flavours:
-     *   - {@link readVotingPortalDiff}: HEAD vs branch-base for the
-     *     entire `voting-portal/src/` tree. Catches the section-L
-     *     concessions in LIFTING.md (currently `ReviewScreen.tsx`),
-     *     plus any future ones — without manual curation.
-     *   - {@link readTallyLiftDiffs}: file-system diff between
-     *     admin-portal Tally originals and the ui-essentials
-     *     TallyResults copies. There is no shared git ancestor
-     *     because the copies were re-hosted with adaptations baked
-     *     in, so we diff paths against paths at HEAD instead.
-     */
-    function readVotingPortalDiff(baseSha: string | null): {
-        stat: string
-        patch: string
-        dirty: boolean
-    } | null {
-        if (baseSha == null) return null
-        const subtree = "packages/voting-portal/src/"
-        const stat = runGit(["diff", "--stat", baseSha, "--", subtree])
-        const patch = runGit(["diff", baseSha, "--", subtree])
-        if (stat == null || patch == null) return null
-        const status = runGit(["status", "--porcelain", "--", subtree])
-        return {
-            stat: stat.trimEnd(),
-            patch: patch.trimEnd(),
-            dirty: status != null && status.trim().length > 0,
-        }
-    }
-
-    /**
-     * Pairing table for the tally-lift drift section. The
-     * authoritative mapping lives in `LIFTING-TALLY.md` (the
-     * adaptation tables L, T, U, C, P, I, V); this array is the
-     * machine-readable counterpart. Adding a new pair here is part
-     * of the refresh PR for that document.
+     * The baseline is the merge-base with `origin/main`, so once main
+     * is merged into this branch the merge-base advances to the merged
+     * commit and each diff collapses to exactly the branch's own
+     * edits. A large diff here right after a merge usually means the
+     * merge has not been committed yet, not that drift exploded.
      *
-     * `kind: "modified"` — original lives at `orig`, lifted copy at
-     * `copy`; we diff one against the other.
-     * `kind: "added"` — the lifted file has no admin-portal
-     * counterpart (the i18n shim, the workbench-flavoured composition
-     * root, the barrel, the GraphQL-stripped types module). We list
-     * it for transparency but skip the diff (it would be the entire
-     * file vs `/dev/null`, which is noise).
+     * There is deliberately no "copy lift" flavour any more. The tally
+     * components used to be copied out of admin-portal into
+     * ui-essentials and were diffed path-against-path at HEAD; that
+     * copy was deleted when upstream shipped its own tally
+     * visualization, which the workbench now imports unmodified. With
+     * nothing copied, git history is the only drift surface left.
      */
-    interface TallyPair {
+    interface DriftTarget {
         label: string
-        kind: "modified" | "added"
-        orig?: string // workspace-relative, only when kind = modified
-        copy: string // workspace-relative
+        subtree: string
+        /** What the operator should expect to see, rendered as a hint. */
+        expectation: string
     }
-    const tallyPairs: TallyPair[] = [
+    const driftTargets: DriftTarget[] = [
         {
-            label: "TallyResultsCharts.tsx (C1–C2)",
-            kind: "modified",
-            orig: "packages/admin-portal/src/resources/Tally/TallyResultsCharts.tsx",
-            copy: "packages/ui-essentials/src/components/TallyResults/TallyResultsCharts.tsx",
+            label: "voting-portal/src/",
+            subtree: "packages/voting-portal/src/",
+            expectation:
+                "Section L of LIFTING.md whitelists demo-only concessions " +
+                "(ReviewScreen.tsx, castVotesSlice.ts). Anything else here is " +
+                "a new concession and needs the doc updated.",
         },
         {
-            label: "TallyResultsCandidatesPlurality.tsx (P1–P3)",
-            kind: "modified",
-            orig: "packages/admin-portal/src/resources/Tally/TallyResultsCandidatesPlurality.tsx",
-            copy: "packages/ui-essentials/src/components/TallyResults/TallyResultsCandidatesPlurality.tsx",
+            label: "ui-core/src/",
+            subtree: "packages/ui-core/src/",
+            expectation:
+                "Consumed in place via a Vite alias, never edited. Expected to " +
+                "be empty — any diff means the workbench changed a shared library.",
         },
         {
-            label: "TallyResultsCandidatesIRV.tsx (I1–I2)",
-            kind: "modified",
-            orig: "packages/admin-portal/src/resources/Tally/TallyResultsCandidatesIRV.tsx",
-            copy: "packages/ui-essentials/src/components/TallyResults/TallyResultsCandidatesIRV.tsx",
+            label: "ui-essentials/src/",
+            subtree: "packages/ui-essentials/src/",
+            expectation:
+                "Consumed in place via a Vite alias, and the tally components are " +
+                "imported unmodified. Expected to be empty.",
         },
         {
-            label: "utils.ts (U1, U2)",
-            kind: "modified",
-            orig: "packages/admin-portal/src/resources/Tally/utils.ts",
-            copy: "packages/ui-essentials/src/components/TallyResults/utils.ts",
+            label: "velvet + velvet-core",
+            subtree: "packages/velvet/",
+            expectation:
+                "The pure tally logic was extracted into workbench/velvet-core, " +
+                "which packages/velvet re-exports. Upstream tally changes must be " +
+                "forward-ported into velvet-core rather than merged here — see the " +
+                "Known gaps section of the workbench README.",
         },
         {
-            label: "types.ts (T1, T2) — new, GraphQL types replaced with plain TS",
-            kind: "added",
-            copy: "packages/ui-essentials/src/components/TallyResults/types.ts",
+            label: "strand",
+            subtree: "packages/strand/",
+            expectation:
+                "Modified to compile to wasm32 (obsolete openssl/FIPS backends " +
+                "removed). Large diff is expected.",
         },
         {
-            label: "strings.ts (L1) — new, i18n shim",
-            kind: "added",
-            copy: "packages/ui-essentials/src/components/TallyResults/strings.ts",
-        },
-        {
-            label: "TallyResultsView.tsx (V1) — new, workbench composition root",
-            kind: "added",
-            copy: "packages/ui-essentials/src/components/TallyResults/TallyResultsView.tsx",
-        },
-        {
-            label: "index.ts — new, barrel",
-            kind: "added",
-            copy: "packages/ui-essentials/src/components/TallyResults/index.ts",
+            label: "sequent-core",
+            subtree: "packages/sequent-core/",
+            expectation:
+                "Shared as Rust source with velvet-core/velvet-wasm, and as a " +
+                "prebuilt tgz with the lifted booth. Expect only dependency-pin " +
+                "alignment here.",
         },
     ]
 
-    function readTallyLiftDiffs(): Array<{
+    /**
+     * Patches are inlined into the virtual module, so an unbounded
+     * `git diff` over a tree like strand (thousands of deleted lines)
+     * would bloat the dev bundle. Past this many characters we keep
+     * the stat and drop the patch, telling the operator which command
+     * to run instead.
+     */
+    const MAX_PATCH_CHARS = 200_000
+
+    function readSourceDrift(baseSha: string | null): Array<{
         label: string
-        kind: "modified" | "added"
-        origPath: string | null
-        copyPath: string
-        stat: string | null
+        subtree: string
+        expectation: string
+        stat: string
         patch: string | null
-        note: string | null
-    }> {
-        return tallyPairs.map((p) => {
-            const copyAbs = path.resolve(repoRoot, p.copy)
-            if (!fs.existsSync(copyAbs)) {
-                return {
-                    label: p.label,
-                    kind: p.kind,
-                    origPath: p.orig ?? null,
-                    copyPath: p.copy,
-                    stat: null,
-                    patch: null,
-                    note: "lifted copy missing — refresh PR likely renamed it",
-                }
-            }
-            if (p.kind === "added") {
-                const bytes = fs.statSync(copyAbs).size
-                return {
-                    label: p.label,
-                    kind: p.kind,
-                    origPath: null,
-                    copyPath: p.copy,
-                    stat: `${p.copy} | ${bytes} bytes (no admin-portal original)`,
-                    patch: null,
-                    note: null,
-                }
-            }
-            const origAbs = path.resolve(repoRoot, p.orig!)
-            if (!fs.existsSync(origAbs)) {
-                return {
-                    label: p.label,
-                    kind: p.kind,
-                    origPath: p.orig!,
-                    copyPath: p.copy,
-                    stat: null,
-                    patch: null,
-                    note: "admin-portal original missing — refresh PR likely renamed or deleted it",
-                }
-            }
-            // `git diff --no-index` exits non-zero when files differ
-            // (which is the common case here), so `runGit` would
-            // return null. Use a direct call that tolerates exit
-            // code 1 specifically.
-            const patch = runGitDiffNoIndex(origAbs, copyAbs)
-            const stat = runGitDiffNoIndexStat(origAbs, copyAbs)
-            return {
-                label: p.label,
-                kind: p.kind,
-                origPath: p.orig!,
-                copyPath: p.copy,
-                stat: stat,
-                patch: patch,
-                note: null,
-            }
-        })
+        patchOmittedReason: string | null
+        dirty: boolean
+    }> | null {
+        if (baseSha == null) return null
+        const rows = []
+        for (const t of driftTargets) {
+            const stat = runGit(["diff", "--stat", baseSha, "--", t.subtree])
+            const patch = runGit(["diff", baseSha, "--", t.subtree])
+            if (stat == null || patch == null) continue
+            const status = runGit(["status", "--porcelain", "--", t.subtree])
+            const tooBig = patch.length > MAX_PATCH_CHARS
+            rows.push({
+                label: t.label,
+                subtree: t.subtree,
+                expectation: t.expectation,
+                stat: stat.trimEnd(),
+                patch: tooBig ? null : patch.trimEnd(),
+                patchOmittedReason: tooBig
+                    ? `diff is ${Math.round(patch.length / 1024)} KB — too large to inline; ` +
+                      `run \`git diff ${baseSha.slice(0, 12)} -- ${t.subtree}\``
+                    : null,
+                dirty: status != null && status.trim().length > 0,
+            })
+        }
+        return rows
     }
 
     /**
-     * `git diff --no-index` returns exit code 1 when the two files
-     * differ — that's the normal, expected outcome here, not an
-     * error. `runGit` would swallow it as a failure, so this variant
-     * captures stdout regardless of exit status (treating only 0/1
-     * as success and everything else as failure).
+     * How many commits `origin/main` has that HEAD does not. This is
+     * the *other* drift axis: the diffs above say what we changed, this
+     * says how much upstream has moved since we last merged. `null` if
+     * the ref is unreachable.
      */
-    function runGitDiffNoIndex(a: string, b: string): string | null {
-        try {
-            return execFileSync(
-                "git",
-                ["diff", "--no-index", "--", a, b],
-                {
-                    cwd: repoRoot,
-                    encoding: "utf8",
-                    maxBuffer: 16 * 1024 * 1024,
-                    stdio: ["ignore", "pipe", "ignore"],
-                }
-            )
-        } catch (err) {
-            // execFileSync throws on non-zero exit; for diff that
-            // includes the "files differ" case (exit code 1), which
-            // is exactly what we want to render. The error object
-            // still carries stdout.
-            const e = err as {status?: number; stdout?: string | Buffer}
-            if (e.status === 1 && e.stdout != null) {
-                return Buffer.isBuffer(e.stdout)
-                    ? e.stdout.toString("utf8")
-                    : e.stdout
-            }
-            return null
-        }
-    }
-
-    function runGitDiffNoIndexStat(a: string, b: string): string | null {
-        try {
-            return execFileSync(
-                "git",
-                ["diff", "--no-index", "--stat", "--", a, b],
-                {
-                    cwd: repoRoot,
-                    encoding: "utf8",
-                    maxBuffer: 4 * 1024 * 1024,
-                    stdio: ["ignore", "pipe", "ignore"],
-                }
-            )
-        } catch (err) {
-            const e = err as {status?: number; stdout?: string | Buffer}
-            if (e.status === 1 && e.stdout != null) {
-                return Buffer.isBuffer(e.stdout)
-                    ? e.stdout.toString("utf8")
-                    : e.stdout
-            }
-            return null
-        }
+    function readBehindUpstream(): number | null {
+        const out = runGit(["rev-list", "--count", "HEAD..origin/main"])
+        if (out == null) return null
+        const n = Number.parseInt(out.trim(), 10)
+        return Number.isFinite(n) ? n : null
     }
 
     function snapshot(): string {
@@ -664,8 +569,8 @@ function workbenchBuildInfo(): Plugin {
                     sha: git?.sha ?? null,
                     base: baseInfo.base,
                     baseUnavailableReason: baseInfo.baseUnavailableReason,
-                    votingPortalDiff: readVotingPortalDiff(fullBaseSha),
-                    tallyLiftDiffs: readTallyLiftDiffs(),
+                    behindUpstream: readBehindUpstream(),
+                    sourceDrift: readSourceDrift(fullBaseSha),
                 },
                 artifacts: rows,
             },
@@ -700,8 +605,8 @@ function workbenchBuildInfo(): Plugin {
             // and commit-on-current-branch (which change the
             // merge-base + voting-portal diff).
             watched.push(path.resolve(repoRoot, "packages/voting-portal/src"))
-            watched.push(path.resolve(repoRoot, "packages/admin-portal/src/resources/Tally"))
-            watched.push(path.resolve(repoRoot, "packages/ui-essentials/src/components/TallyResults"))
+            watched.push(path.resolve(repoRoot, "packages/ui-core/src"))
+            watched.push(path.resolve(repoRoot, "packages/ui-essentials/src"))
             watched.push(path.resolve(repoRoot, ".git/HEAD"))
             for (const w of watched) {
                 if (fs.existsSync(w)) server.watcher.add(w)
