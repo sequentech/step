@@ -151,6 +151,10 @@ fn compiled(plan: &Blueprint) -> Bundle {
         // derives from the plan has to be derived here too, or a test asserts on a
         // bundle nobody ships.
         ceremony_policy: plan.ceremony_policy.clone(),
+        // The fourth. Two sessions added one each on the same afternoon, which is
+        // the strongest argument yet that this helper should call `compile_plan`
+        // rather than reproduce it.
+        materials: plan_materials(plan),
         ..BuildOptions::default()
     };
     match build(&workbook, &templates, &options) {
@@ -2405,4 +2409,89 @@ fn a_plan_saved_before_ceremonies_had_a_policy_still_means_manual() {
         reopened.ceremony_policy,
         CeremoniesPolicy::MANUAL_CEREMONIES
     );
+}
+
+/// The end of the claim that a support material could not travel in a bundle.
+#[test]
+fn a_support_material_reaches_both_the_json_and_the_archive() {
+    let mut plan = sound();
+    plan.materials_activated = Some(true);
+    plan.materials = vec![PlannedMaterial {
+        external_id: "rules".to_string(),
+        title: Translated::new("Rules of the election"),
+        kind: "document".to_string(),
+        file_name: "rules.pdf".to_string(),
+        bytes: b"%PDF-1.4 rules".to_vec(),
+        is_hidden: false,
+    }];
+
+    let compiled = compiled(&plan);
+
+    // The row, carrying the identifier that puts the archive entry into the
+    // importer's replacement map.
+    let rows = compiled.export["support_materials"]
+        .as_array()
+        .expect("support_materials is an array");
+    assert_eq!(rows.len(), 1);
+    let document_id = rows[0]["document_id"].as_str().expect("a document id");
+    assert_eq!(
+        rows[0]["election_event_id"],
+        compiled.export["election_event"]["id"]
+    );
+
+    // And the file, under the private folder rather than the public one.
+    let entry = format!("export_S3_files/document_{document_id}_rules.pdf");
+    assert!(
+        compiled
+            .materials
+            .iter()
+            .any(|file| file.entry_name() == entry),
+        "expected {entry}, got {:?}",
+        compiled
+            .materials
+            .iter()
+            .map(MaterialFile::entry_name)
+            .collect::<Vec<_>>()
+    );
+}
+
+/// The failure mode the folder choice exists to avoid.
+#[test]
+fn a_support_material_is_private_and_a_photograph_is_public() {
+    // Swapped, a material is published to anybody holding the URL and a
+    // photograph 404s on every ballot — neither of which fails a build.
+    let file = MaterialFile {
+        document_id: "d".to_string(),
+        file_name: "rules.pdf".to_string(),
+        bytes: Vec::new(),
+    };
+    assert!(file.entry_name().starts_with("export_S3_files/"));
+
+    let image = ImageFile {
+        document_id: "d".to_string(),
+        file_name: "face.png".to_string(),
+        bytes: Vec::new(),
+    };
+    assert!(image.entry_name().starts_with("images/"));
+}
+
+#[test]
+fn materials_shipped_with_the_tab_switched_off_are_said_out_loud() {
+    let mut plan = sound();
+    plan.materials_activated = Some(false);
+    plan.materials = vec![PlannedMaterial {
+        external_id: "rules".to_string(),
+        file_name: "rules.pdf".to_string(),
+        bytes: b"x".to_vec(),
+        ..Default::default()
+    }];
+
+    let compiled = compiled(&plan);
+    let report = crate::election_config::validate::validate(
+        &serde_json::from_value(compiled.export.clone()).expect("the schema"),
+    );
+    assert!(report
+        .problems
+        .iter()
+        .any(|problem| problem.id.as_deref() == Some("material.tab-off")));
 }

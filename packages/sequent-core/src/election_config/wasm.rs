@@ -868,6 +868,10 @@ fn build_options(options: JsValue) -> Result<BuildOptions, JsError> {
     };
 
     Ok(BuildOptions {
+        // Empty here and filled by `compile_plan`, which derives them from the plan
+        // — the same as `images`. A caller cannot pass bytes through this boundary
+        // as options, and would not want to: the plan already holds them.
+        materials: Vec::new(),
         tenant_id: options.tenant_id,
         base_export: options.base_export,
         slug: options.slug,

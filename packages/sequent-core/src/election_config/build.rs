@@ -289,7 +289,10 @@ impl MaterialFile {
     /// that reads an image's name — so the tempfile prefix the platform's own
     /// exporter adds is optional here too.
     pub fn entry_name(&self) -> String {
-        format!("export_S3_files/document_{}_{}", self.document_id, self.file_name)
+        format!(
+            "export_S3_files/document_{}_{}",
+            self.document_id, self.file_name
+        )
     }
 }
 
@@ -533,6 +536,30 @@ impl<'a> Builder<'a> {
             })],
         };
 
+        // One row per material the caller supplied, carrying the `document_id`
+        // that puts the archive entry's identifier into the importer's replacement
+        // map. Built here rather than from a sheet column so the derivation stays
+        // in one place, the way `keys_ceremonies` is.
+        let support_materials: Vec<Value> = self
+            .materials
+            .iter()
+            .map(|file| {
+                json!({
+                    "id": self.ids.uid("support_material", &[&file.document_id]),
+                    "tenant_id": self.tenant_id,
+                    "election_event_id": self.event_id,
+                    "document_id": file.document_id,
+                    "kind": "document",
+                    "data": {"file_name": file.file_name},
+                    "labels": {},
+                    "annotations": {},
+                    "is_hidden": false,
+                    "created_at": self.created_at,
+                    "last_updated_at": self.created_at,
+                })
+            })
+            .collect();
+
         let version = self
             .base_export
             .get("version")
@@ -558,6 +585,7 @@ impl<'a> Builder<'a> {
             "reports": [],
             "keys_ceremonies": keys_ceremonies,
             "applications": [],
+            "support_materials": support_materials,
             "version": version,
         });
 

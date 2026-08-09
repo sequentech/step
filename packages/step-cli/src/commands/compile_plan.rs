@@ -115,6 +115,9 @@ impl CompilePlan {
             // is passed here is replaced. Spelled out anyway, so the next field added
             // to `BuildOptions` still stops the build rather than defaulting quietly.
             images: Vec::new(),
+            // Set from the plan by `compile_plan` itself, like `images` — the
+            // support materials' bytes live in the plan, not in these options.
+            materials: Vec::new(),
             keys_ceremony: None,
             // Replaced by `compile_plan` from the plan's own `ceremony_policy`,
             // like the two above.

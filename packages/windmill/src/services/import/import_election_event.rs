@@ -819,6 +819,14 @@ pub async fn process_election_event_file(
             .with_context(|| "Error inserting applications")?;
     }
 
+    // Before the archive members are walked, so the row exists by the time
+    // `process_s3_file` creates the document it points at.
+    if let Some(materials) = data.support_materials.clone() {
+        crate::postgres::document::insert_support_materials(hasura_transaction, &materials)
+            .await
+            .with_context(|| "Error inserting support materials")?;
+    }
+
     Ok((data, replacement_map))
 }
 

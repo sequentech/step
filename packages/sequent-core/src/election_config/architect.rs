@@ -43,7 +43,9 @@
 use std::cmp::Ordering;
 
 use crate::election_config::archive::{Artifact, Layout};
-use crate::election_config::build::{build, BuildOptions, Bundle, ImageFile};
+use crate::election_config::build::{
+    build, BuildOptions, Bundle, ImageFile, MaterialFile,
+};
 use crate::election_config::ids::IdFactory;
 use crate::election_config::paths::Cell;
 use crate::election_config::policy::{Behaviour, Overrides};
@@ -360,6 +362,15 @@ pub struct Blueprint {
     /// The line under that heading, per language.
     #[serde(default)]
     pub materials_subtitle: Translated,
+
+    /// The documents themselves — rules, statements, a guide to voting.
+    ///
+    /// These *do* travel in the bundle. See
+    /// `engineering/how-a-support-material-travels-in-a-bundle`: the rows go into
+    /// `support_materials` and each file into `export_S3_files/`, which is the
+    /// private counterpart of the `images/` branch a candidate photograph uses.
+    #[serde(default)]
+    pub materials: Vec<PlannedMaterial>,
 
     #[serde(default)]
     pub contacts: Vec<Contact>,
@@ -863,6 +874,39 @@ pub struct PlannedCandidate {
     pub image: Option<CandidateImage>,
 }
 
+/// One voter-facing help document in a plan.
+///
+/// The document identifier is **not** here, for the same reason it is not on
+/// [`CandidateImage`]: it is derived from `external_id` by
+/// [`material_document_id`], so it is stable across rebuilds and cannot drift out
+/// of step with the archive entry.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct PlannedMaterial {
+    /// Names the material within this plan, and seeds its document identifier.
+    pub external_id: String,
+
+    /// What a voter sees in the list, per language.
+    #[serde(default)]
+    pub title: Translated,
+
+    /// The platform's own `kind`, carried opaquely.
+    #[serde(default)]
+    pub kind: String,
+
+    /// The file's own name. Kept free of anything UUID-shaped, because import runs
+    /// it through `replace_ids_in_filename`.
+    #[serde(default)]
+    pub file_name: String,
+
+    /// The document itself, base64 in the saved plan and raw everywhere else.
+    #[serde(default, with = "base64_bytes")]
+    pub bytes: Vec<u8>,
+
+    /// Uploaded but not shown to voters yet.
+    #[serde(default)]
+    pub is_hidden: bool,
+}
+
 /// A candidate's photograph, as the plan carries it.
 ///
 /// The bytes are in the plan on purpose. A plan is the document somebody reopens
@@ -909,6 +953,30 @@ pub fn image_document_id(
 /// step. Deriving it in two places rather than storing it once is deliberate: a
 /// stored identifier is a thing that can be edited into disagreement, and this one
 /// has no reason to be editable.
+/// A support material's document identifier.
+///
+/// Its own `kind`, so a material and a candidate sharing an `external_id` do not
+/// collide on the same derived uuid.
+pub fn material_document_id(ids: &IdFactory, external_id: &str) -> String {
+    ids.uid("material-document", &[external_id])
+}
+
+/// Every support material file in a plan, with the identifier its row will name.
+pub fn plan_materials(plan: &Blueprint) -> Vec<MaterialFile> {
+    let Some(ids) = IdFactory::new(&plan.external_id) else {
+        return Vec::new();
+    };
+    plan.materials
+        .iter()
+        .filter(|material| !material.bytes.is_empty())
+        .map(|material| MaterialFile {
+            document_id: material_document_id(&ids, &material.external_id),
+            file_name: material.file_name.clone(),
+            bytes: material.bytes.clone(),
+        })
+        .collect()
+}
+
 pub fn plan_images(plan: &Blueprint) -> Vec<ImageFile> {
     let Some(ids) = IdFactory::new(&plan.external_id) else {
         return Vec::new();
@@ -2527,6 +2595,7 @@ pub fn compile_plan(
         }),
         images: plan_images(plan),
         ceremony_policy: plan.ceremony_policy.clone(),
+        materials: plan_materials(plan),
         ..options.clone()
     };
     let bundle = build(&workbook, templates, &with_ceremony)?;

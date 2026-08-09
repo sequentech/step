@@ -149,6 +149,9 @@ impl BuildElectionEvent {
             // carries the trustee list. Naming them keeps the compiler as the thing
             // that notices the next field — which is exactly what caught these two.
             images: Vec::new(),
+            // A workbook path has no bytes to offer for either. The Materials
+            // sheet names files that a caller supplies; until it does, empty.
+            materials: Vec::new(),
             keys_ceremony: None,
             // No ceremony from a workbook, so this labels nothing; the platform's
             // own default, named rather than defaulted for the reason above.

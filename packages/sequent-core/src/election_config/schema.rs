@@ -17,7 +17,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::types::hasura::core::{
-    Application, Area, AreaContest, Candidate, Contest, Election, ElectionEvent, KeysCeremony, SupportMaterial,
+    Application, Area, AreaContest, Candidate, Contest, Election,
+    ElectionEvent, KeysCeremony, SupportMaterial,
 };
 use crate::types::scheduled_event::ScheduledEvent;
 use crate::util::version::HISTORICAL_DEFAULT_VERSION;

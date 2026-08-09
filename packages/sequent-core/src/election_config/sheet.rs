@@ -43,6 +43,13 @@ pub const SHEET_PERMISSIONS: &str = "permissions";
 pub const SHEET_TEMPLATES: &str = "templates";
 pub const SHEET_REPORTS: &str = "reports";
 
+/// Voter-facing help documents — rules, candidate statements, a guide to voting.
+///
+/// The sheet names each file; the bytes are supplied beside the workbook, the same
+/// way a candidate's photograph is, because a spreadsheet cell cannot hold one. See
+/// `engineering/how-a-support-material-travels-in-a-bundle` in beyond.
+pub const SHEET_MATERIALS: &str = "materials";
+
 /// Every sheet that carries meaning. Anything else is reported as unread, which
 /// is how a renamed or misspelled tab gets noticed instead of silently ignored.
 pub const KNOWN_SHEETS: &[&str] = &[
@@ -59,6 +66,7 @@ pub const KNOWN_SHEETS: &[&str] = &[
     SHEET_PERMISSIONS,
     SHEET_TEMPLATES,
     SHEET_REPORTS,
+    SHEET_MATERIALS,
 ];
 
 /// Columns whose cells hold `||`-separated lists, for one sheet.
@@ -462,6 +470,7 @@ mod tests {
             SHEET_SCHEDULED_EVENTS,
             SHEET_PARAMETERS,
             SHEET_ADMIN_USERS,
+            SHEET_MATERIALS,
             SHEET_PERMISSIONS,
             SHEET_TEMPLATES,
             SHEET_REPORTS,
