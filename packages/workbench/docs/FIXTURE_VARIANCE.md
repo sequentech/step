@@ -23,7 +23,7 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
 | CountingAlgType | 10 variants | Significant | Only PluralityAtLarge + IRV bundled (incl. mixed on one ballot); 8 others unimplemented in velvet |
 | min_votes / max_votes | [0..$maxint$] | Yes | Bundled covers (1,1), (0,3), (1,2); range still thin |
 | winning_candidates_num | [0..$maxint$] | Partial | `mixed-3contests` covers winning=2; values ≥3 untested |
-| Candidates per contest | 1..N | Partial | Bundled fixtures use 2-3; reference blobs go up to 5 |
+| Candidates per contest | 1..N | Partial | Bundled fixtures use 2-4 (max is `mixed-3contests` City council); reference blobs go up to 5 |
 | allow_writeins | { true, false } | Yes | No bundled fixture sets allow_writeins (default true); only reference blobs set false |
 | base32_writeins | { true, false } | Yes | Never exercised as false |
 | InvalidVotePolicy | 4 variants | Yes | All defaults; no bundled fixture sets it |
@@ -46,6 +46,12 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
 | WeightedVotingPolicy | 2 variants | Yes | Election-event level; DISABLED_WEIGHTED_VOTING default; AREAS_WEIGHTED_VOTING untested |
 | DelegatedVotingPolicy | 2 variants | Yes | DISABLED default; ENABLED untested |
 | Multi-ballot encoding (capacity) | Up to 30 bytes | Yes | Encoding limits not stress-tested |
+| **DeclineToVotePolicy** (§13.1) | 2 variants | Yes | New upstream; never set. Selections carry `is_decline_to_vote: false` only |
+| **Explicit-blank / explicit-invalid marker candidates** (§13.2) | per candidate | **Blocking** | **Zero fixtures define one** — makes the explicit branches of §10.A.1 / §10.A.4 unreachable, and `blank_votes.explicit` / `invalid_votes.explicit` structurally 0 |
+| **Voting channel / participation** (§13.3) | map | Yes | New upstream; workbench tallies one electronic channel by construction |
+| **Tally sheets** (§13.4) | per-sheet totals | Yes | Unit-tested in velvet-core; no bundled snapshot, no UI |
+| **Tie construction** (§13.5) | n/a | Yes | No fixture produces a tie, so by-lot and pending-resolution paths are dead |
+| **EVoterSigningPolicy** (§13.6) | 2 variants | Yes | Signing branch of the encrypt path never exercised |
 
 ---
 
@@ -93,7 +99,7 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
 - **Field / type**: [`packages/sequent-core/src/ballot.rs:L2405`](packages/sequent-core/src/ballot.rs#L2405) (`Election.contests: Vec<Contest>`) paired with [`packages/sequent-core/src/ballot.rs:L802`](packages/sequent-core/src/ballot.rs#L802) (`Election.id` → ballot_styles array in ElectionConfig)
 - **Value space**: 1 to N ballot styles per election; each ballot style has one `election_id` reference.
 - **Branching sites**:
-  - [`packages/voting-portal/src/store/slices/ballotStyles.ts`](packages/voting-portal/src/store/slices/ballotStyles.ts) — Redux slice holds one ballot style per election at a time; booth shows one.
+  - [`packages/voting-portal/src/store/ballotStyles/ballotStylesSlice.ts`](packages/voting-portal/src/store/ballotStyles/ballotStylesSlice.ts) — Redux slice holds one ballot style per election at a time; booth shows one.
   - [`packages/workbench/app/src/workbenchStore.ts:L32`](packages/workbench/app/src/workbenchStore.ts#L32) — `ballotStylePool` indexed by election_id, holds all ballot styles for that election.
   - Tally aggregation (area-vs-contest operations) loops over all ballot styles per election.
 - **Current fixture coverage**: 
@@ -121,7 +127,7 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
   2. **Fully shared**: All ballot styles carry the same contest(s).
   3. **Partial**: Some ballot styles share a contest, others differ.
 - **Branching sites**:
-  - [`packages/voting-portal/src/store/slices/ballotSelections.ts`](packages/voting-portal/src/store/slices/ballotSelections.ts) — Redux slice maintains one `ballotSelections` state across all contests visible to active ballot style; booth UI renders contests from active style.
+  - [`packages/voting-portal/src/store/ballotSelections/ballotSelectionsSlice.ts`](packages/voting-portal/src/store/ballotSelections/ballotSelectionsSlice.ts) — Redux slice maintains one `ballotSelections` state across all contests visible to active ballot style; booth UI renders contests from active style.
   - Tally: [`packages/velvet/src/pipes/do_tally/do_tally.rs`](packages/velvet/src/pipes/do_tally/do_tally.rs) — aggregates results per contest across all areas/ballot styles carrying that contest.
   - Area-contest matching (workbench): determines which contests are visible per area during tally.
 - **Current fixture coverage**: 
@@ -145,8 +151,8 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
 - **Field / type**: [`packages/sequent-core/src/ballot.rs:L2405`](packages/sequent-core/src/ballot.rs#L2405) (`BallotStyle.contests: Vec<Contest>`)
 - **Value space**: 1 to N contests per ballot style; no fixed upper limit in type.
 - **Branching sites**:
-  - [`packages/voting-portal/src/components/BoothLayout.tsx`](packages/voting-portal/src/components/BoothLayout.tsx) — renders all contests from `state.ballotSelections` (indexed by contest_id).
-  - [`packages/voting-portal/src/store/slices/ballotSelections.ts`](packages/voting-portal/src/store/slices/ballotSelections.ts) — initializes one selection entry per contest in ballot style.
+  - [`packages/voting-portal/src/routes/VotingScreen.tsx`](packages/voting-portal/src/routes/VotingScreen.tsx) — renders all contests from `state.ballotSelections` (indexed by contest_id). (An earlier revision of this document cited a `components/BoothLayout.tsx`; no such file exists in voting-portal — `BoothLayout` is workbench-side, in `app/src/BoothSpike.tsx`.)
+  - [`packages/voting-portal/src/store/ballotSelections/ballotSelectionsSlice.ts`](packages/voting-portal/src/store/ballotSelections/ballotSelectionsSlice.ts) — initializes one selection entry per contest in ballot style.
   - Ballot encoding: [`packages/sequent-core/src/ballot_codec/multi_ballot.rs`](packages/sequent-core/src/ballot_codec/multi_ballot.rs) — encodes multiple contests' selections into fixed-size 30-byte payload.
 - **Current fixture coverage**: 
   - `mixed-3contests.json` (bundled): **3 contests** in a single ballot style — Mayor (plurality, max=1), City council (plurality, max=2, winning=2), Park funding (IRV, max=3) — also exercises algorithm mixing on one ballot (see §6).
@@ -255,9 +261,16 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
   - Character set: [`packages/sequent-core/src/ballot_codec/character_map.rs`](packages/sequent-core/src/ballot_codec/character_map.rs) — if `base32_writeins`, base 32; else base (ASCII).
 
 - **Current fixture coverage**: 
-  - Bundled:
-    - `default.json`: 2 candidates; `allow_writeins` not set (default true).
-    - `instant-runoff-3cand.json`: 3 candidates; `allow_writeins` not set (default true).
+  - Bundled (all five, verified against the JSON):
+    - `default.json`: 2 candidates.
+    - `instant-runoff-3cand.json`: 3 candidates.
+    - `mixed-3contests.json`: 3 / **4** / 3 candidates across its three contests — the
+      4-candidate *City council* contest is the largest in any bundled fixture.
+    - `multi-bs-shared-contest.json`: 3 (shared *Federal president*) / 2 / 2.
+    - `two-elections.json`: 2 and 2.
+    - `allow_writeins` is not set anywhere (default true), and **no bundled fixture
+      contains a candidate with `is_write_in`**, so the write-in code path is
+      unreachable from bundled state regardless of the flag.
   - Reference blobs:
     - `sample-election-config.json`: 2 candidates per contest; `allow_writeins` absent.
     - `velvet-plurality-5cand.json`, `velvet-approval.json`: 5 candidates each; `allow_writeins=false` (only blobs setting false).
@@ -315,6 +328,13 @@ Notes on the encode/decode surfaces:
 - **Current fixture coverage**: `invalid_vote_policy: ALLOWED` set in `velvet-plurality-5cand.json` reference blob; no bundled fixture sets it (defaults to ALLOWED).
 - **Velvet upstream variants**: `get_contest_1()` sets ALLOWED.
 - **Coverage gap assessment**: WARN, WARN_INVALID_IMPLICIT_AND_EXPLICIT, NOT_ALLOWED never tested.
+- **Precondition the policy depends on**: the *explicit* branch of this policy only
+  fires when the voter selects a candidate carrying
+  `presentation.is_explicit_invalid`. **No bundled fixture contains such a
+  candidate** (verified across all five). Setting `invalid_vote_policy` on a
+  fixture is therefore *not sufficient* to exercise it — the fixture also needs a
+  marker candidate. Only the implicit branch (validation errors from
+  under/over-vote) is reachable from bundled state today.
 
 #### 10.A.2 UnderVotePolicy
 
@@ -361,6 +381,15 @@ Notes on the encode/decode surfaces:
 - **Current fixture coverage**: `blank_vote_policy` absent in all fixtures (defaults ALLOWED).
 - **Velvet upstream variants**: Not set in generators.
 - **Coverage gap assessment**: WARN, WARN_ONLY_IN_REVIEW, NOT_ALLOWED never tested.
+- **Explicit vs implicit blank is now a first-class distinction** (upstream #2842).
+  A ballot is an *explicit* blank when the voter selects a candidate carrying
+  `presentation.is_explicit_blank`, and an *implicit* blank when nothing is
+  selected; selecting an explicit-blank marker *together with* a regular
+  candidate is an implicit **invalid**. velvet-core reports the split as
+  `blank_votes.explicit` / `blank_votes.implicit` and the workbench surfaces both
+  rows. **No bundled fixture defines an explicit-blank candidate**, so
+  `blank_votes.explicit` is structurally always `0` in the workbench today — the
+  UI row exists but can never be non-zero. See §13.2.
 
 #### 10.A.5 DuplicatedRankPolicy (Preferential Voting)
 
@@ -469,7 +498,7 @@ The remaining `ContestPresentation` (and per-contest) fields below influence ren
   - `ExternalProcedure` — defer to external (human) tie-breaking.
 - **Branching sites**:
   - Tally: [`packages/velvet/src/pipes/do_tally/tally.rs`](packages/velvet/src/pipes/do_tally/tally.rs) — when instantaneous runoff reaches a tie, invokes tie-breaking based on policy. (Implementation not fully visible; depends on velvet-core.)
-  - Workbench: [`packages/workbench/app/src/contestDetail/TallyPage.tsx`](packages/workbench/app/src/contestDetail/TallyPage.tsx) — displays pending tie-break resolutions if policy is ExternalProcedure.
+  - Workbench: [`packages/workbench/app/src/TallyPage.tsx`](packages/workbench/app/src/TallyPage.tsx) — displays pending tie-break resolutions if policy is ExternalProcedure.
 - **Current fixture coverage**: Absent in all fixtures (defaults Random).
 - **Velvet upstream variants**: Not set.
 - **Coverage gap assessment**: ExternalProcedure tie-breaking (manual resolution UI) never tested.
@@ -519,6 +548,76 @@ The remaining `ContestPresentation` (and per-contest) fields below influence ren
 
 ---
 
+### 13. Dimensions introduced by the upstream merge (2026-08)
+
+Five feature PRs landed between the branch point and `origin/main@0db8f855ec` —
+explicit blank votes (#2842), election-level decline to vote (#2687), consistent
+invalid vote policy (#2697), tally sheets input (#1929) and participation by
+voting channel (#2920). They add the dimensions below. **None has bundled-fixture
+coverage**, and several are not merely untested but *unreachable* from current
+fixtures, which is a stronger statement.
+
+#### 13.1 DeclineToVotePolicy (election-event presentation)
+
+- **Field / type**: [`packages/sequent-core/src/ballot.rs:L2863`](packages/sequent-core/src/ballot.rs#L2863) (`pub enum DeclineToVotePolicy`), carried on `ElectionEventPresentation.decline_to_vote_policy`.
+- **Value space**: 2 variants — `DISABLED` (default), `ENABLED` (voter may decline at the **election** level, i.e. all contests at once).
+- **Branching sites**:
+  - Portal state: `declinedToVote` map plus `setDeclinedToVote` / `clearDeclinedToVoteForElection` / `isDeclineToVoteByElectionId` in `store/extra/extraSlice.ts`; `setAllBallotSelectionsDeclineToVote` in `store/ballotSelections/ballotSelectionsSlice.ts`.
+  - Booth flow: `ReviewScreen` reads `isDeclineToVote` and re-points the Back button at `/start` instead of `/vote`.
+  - Per-contest carrier: `IDecodedVoteContest.is_decline_to_vote` — a **required** field; sequent-core refuses to deserialise tally input without it.
+  - Tally: declined ballots accumulate into `extended_metrics.total_declined_to_vote` and are **excluded from the valid total**, whereas blank ballots stay valid.
+- **Note**: this policy does **not** appear in `checker.rs`. It is not a vote-validity policy in the §10.A sense; it changes booth flow and tally accounting.
+- **Current fixture coverage**: no fixture sets the policy. All five bundled snapshots now carry `is_decline_to_vote: false` on every persisted selection (backfilled when the field became required), so they are schema-current but exercise only the not-declined path.
+- **Coverage gap assessment**: `ENABLED` never set; no fixture produces a declined ballot; `total_declined_to_vote` is always 0; the declined-vs-blank distinction in the tally is untested.
+
+#### 13.2 Explicit-blank and explicit-invalid marker candidates
+
+- **Field / type**: [`packages/sequent-core/src/ballot.rs:L457`](packages/sequent-core/src/ballot.rs#L457) (`CandidatePresentation.is_explicit_blank`) and its sibling `is_explicit_invalid`.
+- **Value space**: per candidate, { true, false / absent }.
+- **Why this is its own dimension**: these markers are the *precondition* for the explicit branches of `InvalidVotePolicy` (§10.A.1) and `EBlankVotePolicy` (§10.A.4), and for the explicit/implicit split in the tally result. Cataloguing only the policies hides the fact that setting them changes nothing unless a marker candidate exists.
+- **Branching sites**: `classify_ballot` and `get_explicit_blank_candidate_ids` in `workbench/velvet-core/src/counting/extended_metrics.rs`; `Candidate::is_explicit_blank()` / `is_explicit_invalid()`; the exclusivity rule in `setBallotSelectionVoteChoice` (choosing a regular candidate clears explicit-blank markers).
+- **Current fixture coverage**: **zero across all five bundled snapshots and all reference blobs** — verified by scanning every candidate's presentation.
+- **Coverage gap assessment**: the whole explicit/implicit classification path is unreachable from bundled state, so `blank_votes.explicit` and `invalid_votes.explicit` are structurally 0 in the workbench today — the participation rows exist but can never be non-zero. This is the highest-value single fixture addition available: one contest carrying an explicit-blank candidate and one carrying an explicit-invalid candidate would light up four `ParticipationSummary` rows and both explicit policy branches.
+
+#### 13.3 Voting channel and participation
+
+- **Field / type**: `sequent_core::types::participation::{ParticipationChannel, VotesByChannel}`; `ExtendedMetricsContest.votes_by_channel`.
+- **Value space**: map from channel (e.g. paper vs electronic) to vote count, aggregated up an area hierarchy.
+- **Branching sites**: `set_votes_by_channel` / `merge_votes_by_channel` / `validate_complete_votes_by_channel` in velvet's `do_tally.rs`; `process_tally_sheet` attaches the sheet's channel.
+- **Current fixture coverage**: none — no bundled snapshot carries `votes_by_channel`, and the workbench has no UI for entering one.
+- **Coverage gap assessment**: untested here. The workbench tallies a single electronic channel by construction, so this may be better exercised by velvet's own tests than by a bundled snapshot — worth a deliberate decision rather than leaving it as an open gap.
+
+#### 13.4 Tally sheets
+
+- **Field / type**: `sequent_core::types::hasura::core::TallySheet`, `tally_sheets::{TallySheetStatus, VotingChannel}`; consumed by `process_tally_sheet` in `workbench/velvet-core/src/counting/tally.rs`.
+- **Value space**: per-sheet candidate totals, blank and invalid counts, census, channel, status.
+- **Semantics worth pinning**: a sheet's blank total is recorded as **implicit**; `count_valid` falls back to candidate votes + blanks when the sheet states no valid total; and the sheet's result is folded into the contest tally by `Tally::tally()` (an omission of that fold silently dropped paper results from IRV contests until it was caught by an upstream test).
+- **Current fixture coverage**: none as a bundled snapshot. velvet-core carries upstream's `process_tally_sheet_counts_blank_votes_as_valid` and `contest_tally_includes_tally_sheet_results` unit tests.
+- **Coverage gap assessment**: no end-to-end coverage through the workbench; the tally sandbox has no pane for a tally sheet. Same judgement call as §13.3.
+
+#### 13.5 Tie-breaking, revisited
+
+§10.B.5 describes `TieBreakingPolicy` as a 2-variant field whose implementation
+was "not fully visible". It now has real machinery: `RunoffStatus` carries
+`tie_breaking_policy`, `tie_resolutions: Vec<TallySessionResolutionData>` and
+`pending_tie_resolution`, and `determine_winner_by_lot` takes an explicit RNG.
+
+The §10.B categorisation still holds — it does not affect *vote validity* — but
+it is no longer purely presentational: it changes tally output and can leave a
+contest awaiting external resolution.
+
+- **Current fixture coverage**: absent everywhere; no bundled fixture constructs a tie.
+- **Coverage gap assessment**: `ExternalProcedure` and the pending-resolution surface untested. A deliberate tie is trivial to construct (two candidates, one vote each) and would exercise both the by-lot RNG path and the workbench's rendering of a pending resolution.
+
+#### 13.6 EVoterSigningPolicy (election-event presentation)
+
+- **Field / type**: [`packages/ui-core/src/types/ElectionEventPresentation.ts:L18`](packages/ui-core/src/types/ElectionEventPresentation.ts#L18) — `NO_SIGNATURE` (default) / `WITH_SIGNATURE`.
+- **Branching sites**: `useEncryptBallotForReview` signs the hashable ballot when the policy is `WITH_SIGNATURE`, changing what `cv.content` holds.
+- **Current fixture coverage**: absent; every fixture takes the unsigned path.
+- **Coverage gap assessment**: the signing branch of the encrypt path is never exercised, and the workbench's decrypt bridge has never seen a signed ballot envelope.
+
+---
+
 ## Discovered (Bonus) Dimensions
 
 ### D.1 Tally Operation Scope & Aggregation
@@ -541,7 +640,9 @@ The remaining `ContestPresentation` (and per-contest) fields below influence ren
 
 | Dimension | Gap | Impact | Priority |
 |-----------|-----|--------|----------|
+| **Explicit-blank / explicit-invalid marker candidates** | Zero fixtures define one, so the explicit classification path is *unreachable*, not merely untested | Explicit branches of InvalidVotePolicy + BlankVotePolicy; `blank_votes.explicit` / `invalid_votes.explicit` always 0 | **Critical** |
 | CountingAlgType — 9/10 unsupported | Only Plurality-at-Large + IRV bundled (incl. mixed on one ballot via `mixed-3contests`) | Tally dispatch, ballot encoding, validation | Critical |
+| Decline to vote (§13.1) | Policy never enabled; no declined ballot produced | Declined-vs-blank tally accounting, booth back-navigation | High |
 | Contest-sharing (disjoint/shared/partial) | Partial bundled (`multi-bs-shared-contest`); fully-shared-identical and disjoint-candidates-same-id still bundled-only as reference blobs | Multi-ballot-style aggregation incomplete | High |
 | Preference policies (Dup/Gap/etc.) | Untested; depends on IRV; `instant-runoff-3cand` leaves both at default | Validation of preferential votes incomplete | High |
 | Vote constraint policies (under/over/blank/invalid) | Only ALLOWED tested | Validation policy branching incomplete | High |
@@ -570,7 +671,25 @@ The remaining `ContestPresentation` (and per-contest) fields below influence ren
    - ✅ `multi-bs-shared-contest.json` bundled: 2 BSes with one shared contest + per-area contests; exercises `workbench.assignments` + per-voter BS swap.
    - Still pending: 3+ ballot styles per election; tally aggregation across shared contests; fully-shared-identical-candidates as a bundled fixture.
 
-4. **Priority 4: Multiple elections / events per snapshot**
+4. **Priority 4: Post-merge dimensions (§13)** — highest value first
+   - **A marker-candidate fixture.** One plurality contest with an
+     `is_explicit_blank` candidate and one with an `is_explicit_invalid`
+     candidate. This is the cheapest change with the largest effect: it makes
+     the explicit branches of §10.A.1 and §10.A.4 reachable at all, and turns
+     four permanently-zero `ParticipationSummary` rows into live ones. Pair it
+     with the mixed-selection case (explicit blank *plus* a regular candidate),
+     which must classify as implicit **invalid**.
+   - **A decline-to-vote fixture**: `decline_to_vote_policy: ENABLED` plus a
+     snapshot whose selections carry `is_decline_to_vote: true`, to exercise
+     `total_declined_to_vote` and the exclusion of declined ballots from the
+     valid total.
+   - **A deliberate tie** (two candidates, one vote each) to reach the by-lot
+     path and any pending-resolution rendering.
+   - Voting channel (§13.3) and tally sheets (§13.4) are arguably velvet-core
+     unit-test territory rather than workbench snapshots — decide explicitly
+     rather than carrying them as open gaps.
+
+5. **Priority 5: Multiple elections / events per snapshot**
    - ✅ `two-elections.json` bundled: two independent elections (City council + School board) under one event.
    - Still pending: multiple events per snapshot; N≥3 elections; cross-election workbench overlay (one voter, assignments in two elections).
 
