@@ -444,25 +444,36 @@ function workbenchBuildInfo(): Plugin {
             label: "velvet + velvet-core",
             subtree: "packages/velvet/",
             expectation:
-                "The pure tally logic was extracted into workbench/velvet-core, " +
-                "which packages/velvet re-exports. Upstream tally changes must be " +
-                "forward-ported into velvet-core rather than merged here — see the " +
-                "Known gaps section of the workbench README.",
+                "Almost all of this diff is deletions from do_tally — the pure " +
+                "tally logic moved *out* into workbench/velvet-core, which " +
+                "packages/velvet now re-exports; nothing was lost. The corollary " +
+                "is that upstream tally changes must be forward-ported into " +
+                "velvet-core rather than merged here, and some currently are not — " +
+                "see Known gaps in the workbench README.",
         },
         {
             label: "strand",
             subtree: "packages/strand/",
             expectation:
-                "Modified to compile to wasm32 (obsolete openssl/FIPS backends " +
-                "removed). Large diff is expected.",
+                "Modified to compile to wasm32; the obsolete openssl/FIPS backends " +
+                "were removed rather than feature-gated. The line count looks " +
+                "alarming but ~6.4k of the deletions are one file — " +
+                "browserstack/package-lock.json — so the actual source change is " +
+                "far smaller than the total suggests.",
         },
         {
             label: "sequent-core",
             subtree: "packages/sequent-core/",
             expectation:
-                "Shared as Rust source with velvet-core/velvet-wasm, and as a " +
-                "prebuilt tgz with the lifted booth. Expect only dependency-pin " +
-                "alignment here.",
+                "Shared two ways: as Rust source with velvet-core/velvet-wasm, " +
+                "and as a prebuilt tgz with the lifted booth. Expect the wasm32 " +
+                "enablement work — dalek pins aligned with strand, `ring` swapped " +
+                "for getrandom-0.2/js (ring does not build for " +
+                "wasm32-unknown-unknown), web-sys added to the `wasm` feature, and " +
+                "the `areas` / `wasm` modules gated on `wasm` instead of " +
+                "`wasmtest` so build:sequent-core emits the exports the lifted " +
+                "booth calls. That last one widens the crate's public wasm surface " +
+                "for every consumer, not just the workbench.",
         },
     ]
 
