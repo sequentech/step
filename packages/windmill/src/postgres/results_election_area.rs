@@ -61,7 +61,7 @@ pub async fn insert_results_election_area_documents(
     area_id: &str,
     area_name: &str,
     documents: &ResultDocuments,
-    blank_ballots: Option<i64>,
+    blank_ballots: Option<i32>,
     blank_ballots_percent: Option<f64>,
 ) -> Result<()> {
     let documents_value = serde_json::to_value(documents.clone())?;
