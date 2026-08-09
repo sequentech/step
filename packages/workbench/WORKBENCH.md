@@ -664,35 +664,44 @@ imports normally resolve to the prebuilt tgz unpacked under
 `packages/sequent-core/src/**/*.rs` are invisible to the lifted
 booth until the tgz is regenerated.
 
-The escape hatch is a Vite alias that points
-`import ... from "sequent-core"` at `packages/sequent-core/pkg/`,
-plus an opt-in `yarn build:sequent-core` script that runs
-`wasm-pack build --features=wasm,default_features` from
-`packages/sequent-core/`. Full rationale, trade-offs and refresh
-canary live in `LIFTING.md` §A7. The short version:
+The workbench therefore **does not use the tarball by default**. The
+`sequent-core` import is aliased to `packages/sequent-core/pkg` — the
+wasm-pack output of the in-tree crate — and `predev` / `prebuild` build
+that directory via `app/scripts/prepare-sequent-core.mjs`. `pkg/` is
+gitignored: it is produced, never committed.
 
-- Editing pure Rust internals consumed only via `velvet-wasm`: no
-  manual step — `predev`/`prebuild` rebuild `velvet-wasm/pkg/` and
-  Cargo's path-dep pulls the fresh sequent-core source.
-- Editing the `#[wasm_bindgen]` API surface in
-  `packages/sequent-core/src/wasm/` (locale, area tree, etc.):
-  run `yarn build:sequent-core` once, then restart Vite.
+That default exists because the tally half always compiles the crate
+from source (Cargo path dep → velvet-wasm), so pointing the booth at a
+committed snapshot meant the two halves could run different code with
+no error — just wrong numbers — and meant local Rust edits silently did
+not appear.
 
-The script is intentionally not chained into `predev`/`prebuild`
-so contributors who haven't touched sequent-core Rust pay no
-toolchain cost; if `pkg/` doesn't exist, the alias falls through to
-the hoisted tgz copy.
+- Editing pure Rust internals consumed only via `velvet-wasm`:
+  `predev`/`prebuild` rebuild `velvet-wasm/pkg/` and Cargo's path-dep
+  pulls the fresh source.
+- Editing the `#[wasm_bindgen]` surface in `packages/sequent-core/src/wasm/`
+  (locale, area tree, encrypt): the same hooks rebuild
+  `sequent-core/pkg/`, so it is picked up too.
+- Either way a **restart is required** — `predev` is a one-shot hook and
+  the alias is decided when the config loads. Creating or deleting
+  `pkg/` under a running server changes nothing.
 
-That fall-through is **not** something `resolve.alias` does on its
-own — an alias rewrites unconditionally once registered. It works
-because `vite.config.ts` wraps the entry in an
-`fs.existsSync(sequentCorePkg)` guard and simply does not register
-it when `pkg/` is absent. Before that guard existed, a fresh clone
-failed on every `sequent-core` import (`Failed to resolve import
-"sequent-core"` from `src/tally.ts` and
-`ui-core/src/services/{i18n,wasm}.ts`) — invisible to anyone whose
-working copy already had a `pkg/` from an earlier build. If you ever
-refactor that alias, keep the guard.
+To reproduce what a *deployed* booth does, opt into the tarball
+explicitly:
+
+```sh
+WORKBENCH_SEQUENT_CORE=tgz yarn dev
+```
+
+That skips the build and leaves the alias unregistered. The choice is
+made by this flag alone — never by whether `pkg/` happens to exist,
+which was invisible state and the source of the confusion this
+replaced. In default mode a missing `pkg/` makes the config **throw with
+instructions** rather than quietly falling back to the tarball.
+
+The active source is shown on the Diagnostics page as *Booth
+sequent-core*, green for the local build and amber for the tarball.
+Full rationale and canaries: `LIFTING.md` §A7.
 
 ---
 

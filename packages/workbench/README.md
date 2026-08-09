@@ -62,12 +62,25 @@ corepack yarn workspace "@sequentech/workbench-app" dev
 ```
 
 Vite serves on `http://localhost:5173` with HMR. The `predev` hook
-compiles `velvet-wasm` automatically; if you also edit sequent-core Rust
-you must manually run:
+compiles **both** wasm packages — `velvet-wasm` and
+`sequent-core/pkg` — so Rust edits in either are picked up on the next
+`yarn dev`. Neither is committed; both are build outputs.
+
+TypeScript edits hot-reload. **Rust edits never do**: `predev` is a
+one-shot hook and the `sequent-core` alias is resolved when the config
+loads, so a Rust change always means rebuild + restart.
+
+By default the booth runs the locally built `sequent-core`, matching
+the tally half (which compiles the same crate into `velvet-wasm`). To
+reproduce what a *deployed* booth does, opt into the committed tarball
+for a run:
 
 ```sh
-corepack yarn workspace "@sequentech/workbench-app" build:sequent-core
+WORKBENCH_SEQUENT_CORE=tgz corepack yarn workspace "@sequentech/workbench-app" dev
 ```
+
+The active source is shown on the Diagnostics page as *Booth
+sequent-core*.
 
 ## Production build
 
@@ -143,7 +156,8 @@ resolved normally and have no embedding story.)
 | Strategy | Dependency | Mechanism |
 |----------|-----------|-----------|
 | **Shared source** | `velvet-core`, `sequent-core` (Rust side) | Real crate consumed identically by production and workbench, via a Cargo path dep. Breakage is a compile error. |
-| **Prebuilt artifact** | `sequent-core` (JS/wasm side) | The lifted booth's `import … from "sequent-core"` resolves to `node_modules/sequent-core`, unpacked from the committed `rust/sequent-core-0.1.0.tgz` that `voting-portal` / `ui-core` declare — the workbench app never declares it. An opt-in `resolve.alias` redirects to `packages/sequent-core/pkg` when a local `wasm-pack` build exists (§A7). |
+| **Local wasm build** | `sequent-core` (JS/wasm side) | **Default.** The lifted booth's `import … from "sequent-core"` is aliased to `packages/sequent-core/pkg` — the wasm-pack output of the in-tree crate, gitignored and rebuilt by `predev`/`prebuild`. Matches the tally half, which compiles the same crate from source. (§A7) |
+| **Committed tarball** | `sequent-core` (JS/wasm side) — *opt-in* | Only with `WORKBENCH_SEQUENT_CORE=tgz`. Resolves to `node_modules/sequent-core`, unpacked from the `rust/sequent-core-0.1.0.tgz` that `voting-portal` / `ui-core` / `admin-portal` / `ballot-verifier` each commit. That tarball is a snapshot packed from the same `pkg/`, so it is the *artifact production ships* — use it to reproduce deployed behaviour, at the cost of possibly disagreeing with the tally half. |
 | **Alias lift** (in-place) | `voting-portal`, `ui-core`, `ui-essentials` | Vite `resolve.alias` points at the original source files in their upstream packages; no files are copied. Substitute providers replace services the portal normally talks to (Keycloak, Hasura, REST). |
 | **Upstream component** | Tally results (in `ui-essentials`) | The production tally visualization, imported unmodified. A thin adapter maps velvet's output to its props. Rides the `ui-essentials` alias above, but needs no substitutes. |
 | **Workbench-owned** | `velvet-wasm` | The workbench's own `wasm-bindgen` layer over `velvet-core` + `sequent-core`, consumed as `file:../velvet-wasm/pkg`. Not embedded from anywhere — it is the vehicle that gets the Rust into the browser. |

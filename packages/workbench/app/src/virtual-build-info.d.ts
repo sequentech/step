@@ -101,9 +101,30 @@ declare module "virtual:workbench-build-info" {
          */
         sourceDrift: WorkbenchSourceDrift[] | null
     }
+    export interface WorkbenchSequentCoreSource {
+        /**
+         * `local` (default) — the booth imports the wasm-pack build of
+         * the in-tree crate, so it matches the tally half, which always
+         * compiles sequent-core from source via velvet-wasm.
+         * `tgz` — the committed `rust/sequent-core-0.1.0.tgz`, selected
+         * with `WORKBENCH_SEQUENT_CORE=tgz`.
+         */
+        source: "local" | "tgz"
+        /** Human-readable path the `sequent-core` import resolves to. */
+        resolvedFrom: string
+        /** ISO 8601 mtime of the local wasm, or `null` when using the tgz. */
+        builtAt: string | null
+    }
     export interface WorkbenchBuildInfo {
         /** ISO 8601 timestamp of when this module was loaded by Vite. */
         generatedAt: string
+        /**
+         * Which sequent-core the lifted booth is running. Surfaced so the
+         * active source is never invisible — the two-source ambiguity it
+         * replaces was a recurring cause of "my Rust edit didn't show up"
+         * and of the booth silently disagreeing with the tally.
+         */
+        sequentCore: WorkbenchSequentCoreSource
         /**
          * Git provenance + lifted-source drift. Always non-null in
          * a git checkout (degrades gracefully via the nullable

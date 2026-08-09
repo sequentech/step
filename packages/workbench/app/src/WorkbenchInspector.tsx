@@ -1275,6 +1275,37 @@ function ParentCell({parentId}: {parentId: string | null}): JSX.Element {
  * Keeping the card to pure provenance lets it carry the same
  * meaning in dev and in any future packaged build.
  */
+/**
+ * Which sequent-core the lifted booth is running. Rendered because the
+ * booth and the tally half get sequent-core by different routes — the
+ * booth through this import, the tally by compiling the crate into
+ * velvet-wasm — and when they disagree there is no error, only wrong
+ * numbers. `local` (the default) is the setting where they match.
+ */
+function SequentCoreSourceLine(): JSX.Element {
+    const sc = buildInfo.sequentCore
+    const isLocal = sc.source === "local"
+    return (
+        <p style={diagnosticsHintStyle}>
+            <strong>Booth sequent-core:</strong>{" "}
+            <span style={{color: isLocal ? "#4ade80" : "#f0c200"}}>
+                {isLocal ? "local build" : "committed tarball"}
+            </span>{" "}
+            — <code>{sc.resolvedFrom}</code>
+            {sc.builtAt && (
+                <>
+                    , built {humanAge(Date.now() - new Date(sc.builtAt).getTime())} ago
+                </>
+            )}
+            {!isLocal && (
+                <span style={{fontStyle: "italic", marginLeft: "0.4rem"}}>
+                    (WORKBENCH_SEQUENT_CORE=tgz — may disagree with the tally half)
+                </span>
+            )}
+        </p>
+    )
+}
+
 function BuildStatusCard(): JSX.Element {
     const fmt = (iso: string | null): string => {
         if (!iso) return "—"
@@ -1293,6 +1324,7 @@ function BuildStatusCard(): JSX.Element {
                     </code>
                 </span>
             </div>
+            <SequentCoreSourceLine />
             <table style={buildStatusTableStyle}>
                 <thead>
                     <tr>

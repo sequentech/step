@@ -15,9 +15,45 @@ import {execFileSync} from "node:child_process"
 const here = path.dirname(fileURLToPath(import.meta.url))
 const pkgs = path.resolve(here, "../..")
 
-// wasm-pack output of the in-tree sequent-core crate. Only exists after
-// an opt-in `yarn build:sequent-core`; see the `sequent-core` alias.
+// wasm-pack output of the in-tree sequent-core crate, built by
+// `predev`/`prebuild` via `scripts/prepare-sequent-core.mjs`.
 const sequentCorePkg = path.resolve(here, "../../sequent-core/pkg")
+
+// Which sequent-core the *lifted booth* imports. The tally half
+// (velvet-core → velvet-wasm) always compiles the crate from source, so
+// "local" is the only setting where both halves of the
+// encrypt → decrypt → tally loop run the same code. That is the default
+// on purpose: defaulting to the committed tarball meant local Rust edits
+// silently did not show up, and the two halves could diverge with no
+// error — just wrong numbers.
+//
+//   WORKBENCH_SEQUENT_CORE=tgz   use the committed rust/*.tgz instead
+//
+// Read here rather than inferred from whether `pkg/` happens to exist:
+// directory-existence is invisible state, and the fallback it produced
+// was exactly the confusion this replaces.
+const sequentCoreSource: "local" | "tgz" =
+    process.env.WORKBENCH_SEQUENT_CORE === "tgz" ? "tgz" : "local"
+
+if (sequentCoreSource === "local" && !fs.existsSync(sequentCorePkg)) {
+    throw new Error(
+        [
+            "sequent-core: packages/sequent-core/pkg is missing.",
+            "",
+            "The workbench builds it in `predev`/`prebuild`; you are probably",
+            "running vite directly. Either run it once:",
+            "",
+            "  yarn workspace @sequentech/workbench-app build:sequent-core",
+            "",
+            "or fall back to the committed tarball for this run:",
+            "",
+            "  WORKBENCH_SEQUENT_CORE=tgz vite",
+            "",
+            "Failing here rather than silently using the tarball: the booth would",
+            "then be running different sequent-core code from the tally half.",
+        ].join("\n")
+    )
+}
 
 // Build-time validator for the bundled snapshots under
 // `src/fixtures/snapshots/`. Runs on every `vite dev` start and every
@@ -590,6 +626,20 @@ function workbenchBuildInfo(): Plugin {
                     sourceDrift: readSourceDrift(fullBaseSha),
                 },
                 artifacts: rows,
+                sequentCore: {
+                    source: sequentCoreSource,
+                    resolvedFrom:
+                        sequentCoreSource === "local"
+                            ? path.relative(pkgs, sequentCorePkg).replace(/\\/g, "/")
+                            : "node_modules/sequent-core (committed rust/*.tgz)",
+                    builtAt:
+                        sequentCoreSource === "local" &&
+                        fs.existsSync(path.join(sequentCorePkg, "index_bg.wasm"))
+                            ? new Date(
+                                  fs.statSync(path.join(sequentCorePkg, "index_bg.wasm")).mtimeMs
+                              ).toISOString()
+                            : null,
+                },
             },
             null,
             2
@@ -748,28 +798,21 @@ export default defineConfig({
                 find: /^@root\/(.*)$/,
                 replacement: path.join(pkgs, "ui-core/src/$1"),
             },
-            // Redirect the `sequent-core` npm name at the freshly built
-            // wasm-pack output of the in-tree sequent-core crate
-            // (`packages/sequent-core/pkg`). This is a lift-only
-            // adaptation: voting-portal's own builds keep using the
-            // prebuilt tgz under `voting-portal/rust/`, but the
-            // workbench-bundled copy of every booth screen resolves
-            // `sequent-core` through this alias and so sees Rust source
-            // edits after a manual `yarn build:sequent-core` (the script
-            // is opt-in, not chained into `predev`/`prebuild`, so
-            // contributors who haven't touched sequent-core Rust pay no
-            // toolchain cost). Rationale and trade-offs in LIFTING.md
-            // row A7.
+            // Redirect the `sequent-core` npm name at the wasm-pack
+            // output of the in-tree crate (`packages/sequent-core/pkg`,
+            // gitignored, rebuilt by `predev`/`prebuild`). This is a
+            // lift-only adaptation: voting-portal's own builds keep
+            // using the prebuilt tgz under `voting-portal/rust/`, while
+            // the workbench resolves every booth screen's
+            // `sequent-core` import through this alias, so local Rust
+            // edits are visible by default and the booth always matches
+            // the tally half. Rationale in LIFTING.md row A7.
             //
-            // The alias is registered only when `pkg/` actually exists.
-            // `resolve.alias` rewrites unconditionally once registered,
-            // so on a fresh clone (where nobody has run
-            // `build:sequent-core` yet) an unguarded entry would point
-            // every `sequent-core` import at a missing directory and
-            // hard-fail with "Failed to resolve import" instead of
-            // falling through. Omitting it lets normal node resolution
-            // find the hoisted copy of the committed tgz.
-            ...(fs.existsSync(sequentCorePkg)
+            // Registered unless WORKBENCH_SEQUENT_CORE=tgz. `pkg/` is
+            // guaranteed to exist by the check above, so there is no
+            // existence test here — the source is chosen by the flag,
+            // not by what happens to be on disk.
+            ...(sequentCoreSource === "local"
                 ? [
                       {
                           find: /^sequent-core$/,
