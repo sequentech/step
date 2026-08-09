@@ -12,6 +12,8 @@ export const GET_ELECTION_STATS = gql`
         $endDate: String!
         $electionAlias: String
         $userTimezone: String!
+        $timeResolution: String!
+        $bucketCount: Int!
     ) {
         stats: getElectionStats(
             object: {
@@ -20,12 +22,20 @@ export const GET_ELECTION_STATS = gql`
                 start_date: $startDate
                 end_date: $endDate
                 user_timezone: $userTimezone
+                time_resolution: $timeResolution
+                bucket_count: $bucketCount
             }
         ) {
             total_distinct_voters
+            voters_by_channel {
+                channel
+                count
+            }
             total_areas
             votes_per_day {
                 day
+                bucket
+                channel
                 day_count
             }
         }

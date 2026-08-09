@@ -130,9 +130,16 @@ module.exports = function (env, argv) {
             }),
         ],
         devServer: {
-            static: {
-                directory: path.resolve(__dirname, "dist"),
-            },
+            static: [
+                {directory: path.resolve(__dirname, "dist")},
+                {
+                    directory: path.resolve(
+                        __dirname,
+                        "../../beyond/packages/ivr-emulator-wasm/web/wasm"
+                    ),
+                    publicPath: "/wasm",
+                },
+            ],
             compress: true, // Enable gzip compression
             port: 3002, // Run on port 3002
             open: true, // Automatically open the browser

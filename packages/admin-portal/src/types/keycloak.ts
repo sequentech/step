@@ -2,6 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+/** Sentinel value for a cleared/unset Keycloak user attribute — mirrors the
+ * backend's `sequent_core::types::keycloak::ATTR_RESET_VALUE`. */
+export const ATTR_RESET_VALUE = "NONE"
+
 export enum IPermissions {
     ADMIN_USER = "admin-user",
     TENANT_CREATE = "tenant-create",
@@ -10,6 +14,8 @@ export enum IPermissions {
     ELECTION_EVENT_CREATE = "election-event-create",
     ELECTION_EVENT_READ = "election-event-read",
     ELECTION_EVENT_WRITE = "election-event-write",
+    KEYCLOAK_REALM_ATTRIBUTES_READ = "keycloak-realm-attributes-read",
+    KEYCLOAK_REALM_ATTRIBUTES_WRITE = "keycloak-realm-attributes-write",
     ELECTION_EVENT_DELETE = "election-event-delete",
     ELECTION_EVENT_ARCHIVE = "election-event-archive",
     VOTER_CREATE = "voter-create",
@@ -63,6 +69,7 @@ export enum IPermissions {
     TASKS_READ = "tasks-read",
     DOCUMENT_UPLOAD = "document-upload",
     DOCUMENT_DOWNLOAD = "document-download",
+    DOCUMENT_PASSWORD_READ = "document-password-read",
     ADMIN_CEREMONY = "admin-ceremony",
     ADMIN_DASHBOARD_VIEW = "admin-dashboard-view",
     CAST_VOTE_READ = "cast-vote-read",
@@ -147,6 +154,7 @@ export enum IPermissions {
     VOTER_DELETE = "voter-delete",
     VOTER_MANUALLY_VERIFY = "voter-manually-verify",
     VOTER_CHANGE_PASSWORD = "voter-change-password",
+    VOTER_INFORMATION_LETTER = "voter-information-letter",
     EE_LOCALIZATION_SELECTOR = "election-event-localization-selector",
     LOCALIZATION_CREATE = "localization-create",
     LOCALIZATION_READ = "localization-read",
@@ -210,4 +218,5 @@ export enum IPermissions {
     PHONE_BLACKLIST_CREATE = "phone-blacklist-create",
     PHONE_BLACKLIST_DELETE = "phone-blacklist-delete",
     PHONE_BLACKLIST_UPDATE = "phone-blacklist-update",
+    ELECTION_EVENT_VOTER_LIST_SYNC = "election-event-voter-list-reconciliation",
 }

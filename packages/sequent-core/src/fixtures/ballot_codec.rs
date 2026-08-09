@@ -378,6 +378,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
         election_event_annotations: Default::default(),
         election_annotations: Default::default(),
         election_dates: None,
+        multi_contest_encoding_mode: None,
         contests: vec![Contest {
             created_at: None,
             id: "1c1500ac-173e-4e78-a59d-91bfa3678c5a".into(),

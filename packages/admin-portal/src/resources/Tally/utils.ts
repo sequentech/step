@@ -62,6 +62,17 @@ export function convertContestsArray(contests: Array<Sequent_Backend_Contest>): 
     return contests.map(convertSequentContestToIContest)
 }
 
+export const parseResultAnnotations = (annotations: unknown): ParsedAnnotations | null => {
+    if (!annotations) return null
+
+    try {
+        const parsed = typeof annotations === "string" ? JSON.parse(annotations) : annotations
+        return typeof parsed === "object" && parsed !== null ? (parsed as ParsedAnnotations) : null
+    } catch {
+        return null
+    }
+}
+
 /**
  * Parses and processes contest results based on counting algorithm.
  * Handles IRV/Runoff voting and other algorithms.
@@ -75,9 +86,7 @@ export const parseProcessResults = (
     counting_algorithm: ICountingAlgorithm
 ): RunoffStatus | unknown | null => {
     try {
-        const parsedAnnotations: ParsedAnnotations | null = annotations
-            ? (JSON.parse(annotations as string) as ParsedAnnotations)
-            : null
+        const parsedAnnotations = parseResultAnnotations(annotations)
 
         const results = parsedAnnotations?.process_results ?? null
 

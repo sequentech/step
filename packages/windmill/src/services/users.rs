@@ -41,6 +41,186 @@ pub const VALIDATE_ID_ATTR_NAME: &str = "sequent.read-only.id-card-number-valida
 pub const DELEGATE_TO_ATTR_NAME: &str = "delegate-vote-to";
 pub const VALIDATE_ID_REGISTERED_VOTER: &str = "VERIFIED";
 
+/// A voter's current Sequent-side state, as far as reconciliation cares.
+#[derive(Debug, Clone)]
+pub struct VoterSnapshot {
+    pub username: String,
+    /// Keycloak's own internal user id (`user_entity.id`) — same value
+    /// `cast_vote.voter_id_string` carries (as text there), so this is what
+    /// actually matches against the event-wide cast-vote state map;
+    /// `username` is a separate, mutable-in-theory identifier not safe to key
+    /// that lookup on.
+    pub voter_id: Uuid,
+    pub enabled: bool,
+    /// The voter's resolved area name (`WARD-SCHOOLBOARD-POLL`, uppercased —
+    /// see `reconciliation::snapshot`), `None` if their `area-id` attribute
+    /// doesn't resolve to a known area (or is unset).
+    pub area_name: Option<String>,
+    pub dob: Option<String>,
+    /// Raw `voted-channel` attribute value; `None` means not voted. File-side
+    /// comparisons normalize this value explicitly at the boundary.
+    pub voted_channel: Option<String>,
+    pub has_valid_internet_vote: bool,
+    pub has_unresolved_internet_vote: bool,
+    /// Raw `disable-comment` attribute value (`sequent_core::types::keycloak::DISABLE_COMMENT`),
+    /// used by `diff.rs` to classify an already-disabled voter — see the
+    /// classification rules in `reconciliation::diff::classify_file_row`.
+    pub disable_comment: Option<String>,
+}
+
+const VOTER_SNAPSHOT_PAGE_SIZE: i64 = 5_000;
+
+/// One keyset-paginated page of the realm's voter-group users, ordered by
+/// username, with every attribute. Restricting the query to the configured
+/// voter group prevents service accounts and administrators in the same
+/// realm from being emitted as Sequent-only voters. `after_username` is the
+/// last username of the previous page (`None` for the first page); an empty
+/// result means the scan is done.
+///
+/// Kept as a direct query against Keycloak's own Postgres rather than the
+/// Admin REST API (`GET /admin/realms/{realm}/users`, see
+/// `sequent_core::services::keycloak::admin_client`): that endpoint only
+/// offers offset-based (`first`/`max`) pagination, which is not
+/// concurrency-safe — a user created or deleted elsewhere in the realm while
+/// a scan is in progress shifts every later offset, silently skipping or
+/// duplicating voters. The keyset scan here (`username > $2`) doesn't have
+/// that failure mode, which reconciliation (needing to see every voter
+/// exactly once) depends on.
+#[instrument(skip(keycloak_transaction, areas_by_id), err)]
+pub async fn fetch_realm_voter_snapshots_page(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    voter_group_name: &str,
+    after_username: Option<&str>,
+    areas_by_id: &HashMap<String, String>,
+) -> Result<Vec<VoterSnapshot>> {
+    let statement = keycloak_transaction
+        .prepare(
+            r#"
+                SELECT
+                    u.id AS voter_id,
+                    u.username,
+                    u.enabled,
+                    json_object_agg(ua.name, ua.value) FILTER (WHERE ua.name IS NOT NULL) AS attributes
+                FROM user_entity u
+                INNER JOIN realm AS ra ON ra.id = u.realm_id
+                INNER JOIN user_group_membership ugm ON ugm.user_id = u.id
+                INNER JOIN keycloak_group kg ON kg.id = ugm.group_id AND kg.realm_id = u.realm_id
+                LEFT JOIN user_attribute ua ON ua.user_id = u.id
+                WHERE ra.name = $1
+                    AND kg.name = $2
+                    AND u.username > $3
+                GROUP BY u.id, u.username, u.enabled
+                ORDER BY u.username
+                LIMIT $4
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = keycloak_transaction
+        .query(
+            &statement,
+            &[
+                &realm,
+                &voter_group_name,
+                &after_username.unwrap_or(""),
+                &VOTER_SNAPSHOT_PAGE_SIZE,
+            ],
+        )
+        .await?;
+
+    Ok(rows
+        .into_iter()
+        .filter_map(|row| voter_snapshot_row_to_snapshot(row, areas_by_id))
+        .collect())
+}
+
+/// Batch-fetches voter-group snapshots for exactly the usernames named in
+/// `usernames` (typically one reconciliation-file batch's worth of
+/// `VoterID`s), in a single round trip via `= ANY($2)` — the file-driven
+/// counterpart to `fetch_realm_voter_snapshots_page`'s Sequent-driven
+/// pagination, so reconciliation never needs the whole file's rows resident
+/// in memory to look voters up. A username with no matching row simply
+/// isn't present in the result; the caller treats that as "this file row's
+/// voter doesn't exist in Sequent" (D, forward direction).
+#[instrument(skip(keycloak_transaction, areas_by_id, usernames), err)]
+pub async fn fetch_realm_voter_snapshots_by_usernames(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    voter_group_name: &str,
+    usernames: &[String],
+    areas_by_id: &HashMap<String, String>,
+) -> Result<Vec<VoterSnapshot>> {
+    if usernames.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let statement = keycloak_transaction
+        .prepare(
+            r#"
+                SELECT
+                    u.id AS voter_id,
+                    u.username,
+                    u.enabled,
+                    json_object_agg(ua.name, ua.value) FILTER (WHERE ua.name IS NOT NULL) AS attributes
+                FROM user_entity u
+                INNER JOIN realm AS ra ON ra.id = u.realm_id
+                INNER JOIN user_group_membership ugm ON ugm.user_id = u.id
+                INNER JOIN keycloak_group kg ON kg.id = ugm.group_id AND kg.realm_id = u.realm_id
+                LEFT JOIN user_attribute ua ON ua.user_id = u.id
+                WHERE ra.name = $1
+                    AND kg.name = $2
+                    AND u.username = ANY($3)
+                GROUP BY u.id, u.username, u.enabled
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = keycloak_transaction
+        .query(&statement, &[&realm, &voter_group_name, &usernames])
+        .await?;
+
+    Ok(rows
+        .into_iter()
+        .filter_map(|row| voter_snapshot_row_to_snapshot(row, areas_by_id))
+        .collect())
+}
+
+#[instrument(skip(row, areas_by_id))]
+fn voter_snapshot_row_to_snapshot(
+    row: Row,
+    areas_by_id: &HashMap<String, String>,
+) -> Option<VoterSnapshot> {
+    let voter_id: String = row.get("voter_id");
+    let voter_id = Uuid::parse_str(&voter_id).ok()?;
+    let username: String = row.get("username");
+    let enabled: bool = row.get("enabled");
+    let attributes: Option<serde_json::Value> = row.get("attributes");
+    let attributes = attributes.unwrap_or(serde_json::Value::Null);
+
+    let attr = |key: &str| -> Option<String> {
+        attributes
+            .get(key)
+            .and_then(|value| value.as_str())
+            .map(str::to_string)
+    };
+
+    let area_id = attr(AREA_ID_ATTR_NAME);
+    let area_name = area_id.and_then(|id| areas_by_id.get(&id).cloned());
+
+    Some(VoterSnapshot {
+        username,
+        voter_id,
+        enabled,
+        area_name,
+        dob: attr(DATE_OF_BIRTH),
+        voted_channel: attr(VOTED_CHANNEL),
+        has_valid_internet_vote: false, // filled in by reconciliation's event-wide vote-state query
+        has_unresolved_internet_vote: false, // filled in by reconciliation's event-wide vote-state query
+        disable_comment: attr(DISABLE_COMMENT),
+    })
+}
+
 #[instrument(skip(hasura_transaction), err)]
 async fn get_area_ids(
     hasura_transaction: &Transaction<'_>,
@@ -139,6 +319,7 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
     delegated_voting_enabled: bool,
 ) -> Result<()> {
     let delegated_statement = if delegated_voting_enabled {
+        let no_service_account_delegators = service_account_exclusion("delegator");
         format!(
             r#"
             ,(
@@ -149,6 +330,7 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
                 JOIN
                     user_attribute AS ua_delegate ON delegator.id = ua_delegate.user_id
                 WHERE
+                    {no_service_account_delegators} AND
                     ua_delegate.name = '{DELEGATE_TO_ATTR_NAME}' AND
                     ua_delegate.value = u.username
             ) AS delegate_count
@@ -165,6 +347,8 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
     let area_id_escaped = escape_sql_literal(area_id);
     let election_alias_escaped = escape_sql_literal(election_alias);
 
+    let no_service_accounts = service_account_exclusion("u");
+
     let statement = format!(
         r#"
         SELECT
@@ -180,6 +364,7 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
             user_attribute ua_elections ON u.id = ua_elections.user_id AND ua_elections.name = '{AUTHORIZED_ELECTION_IDS_NAME}'
         WHERE
             ra.name = '{realm_escaped}' AND
+            {no_service_accounts} AND
             u.enabled IS TRUE AND
             ua_area.value = '{area_id_escaped}' AND
             (ua_elections.value = '{election_alias_escaped}' OR ua_elections.value IS NULL)
@@ -431,6 +616,28 @@ fn get_query_bool_condition(field: &str, value: Option<bool>) -> String {
         Some(false) => format!(r#"AND u.{} = false"#, field),
         None => "".to_string(),
     }
+}
+
+/// Keycloak materialises a `user_entity` row for every client that has service accounts
+/// enabled (`service-account-ivr-service`, `service-account-realm-management`, ...). Those
+/// rows live in the same realm as the voters but are not voters, so they must never reach a
+/// voter count or listing. `service_account_client_link` holds the owning client's id and is
+/// null for real users, which makes it an exact test rather than a username-prefix guess.
+fn service_account_exclusion(alias: &str) -> String {
+    format!("{alias}.service_account_client_link IS NULL")
+}
+
+/// WHERE-clause head shared by the voter count and voter listing queries: scope to the realm,
+/// drop service accounts, then apply the caller's filters. `filters_clause` is the caller's
+/// already-composed column filters, which carries its own trailing boolean operator when set.
+fn voter_scope_clause(filters_clause: &str) -> String {
+    let no_service_accounts = service_account_exclusion("u");
+    format!(
+        r#"ra.name = $1 AND
+            {no_service_accounts} AND
+            {filters_clause}
+            (u.id = ANY($2) OR $2 IS NULL)"#
+    )
 }
 
 /// Gets sort clause ORDER BY, and the field parameter (column name or configurable attribute).
@@ -1132,6 +1339,7 @@ pub async fn count_keycloak_enabled_users(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
 ) -> Result<i64> {
+    let no_service_accounts = service_account_exclusion("u");
     let statement = keycloak_transaction
         .prepare(
             format!(
@@ -1143,7 +1351,8 @@ pub async fn count_keycloak_enabled_users(
                 INNER JOIN
                     realm AS ra ON ra.id = u.realm_id
                 WHERE
-                    ra.name = $1 AND 
+                    ra.name = $1 AND
+                    {no_service_accounts} AND
                     u.enabled IS TRUE
                 "#
             )
@@ -1249,6 +1458,7 @@ pub async fn lookup_users(
         true => "".to_string(),
         false => dynamic_attr_conditions.join(" OR "),
     };
+    let no_service_accounts = service_account_exclusion("u");
 
     debug!("parameters count: {}", next_param_number - 1);
     debug!("params {:?}", params);
@@ -1412,6 +1622,7 @@ pub async fn count_keycloak_enabled_users_by_attrs(
         attr_conditions.join(r#" AND "#)
     };
 
+    let no_service_accounts = service_account_exclusion("u");
     let statement = keycloak_transaction
         .prepare(
             format!(
@@ -1423,7 +1634,8 @@ pub async fn count_keycloak_enabled_users_by_attrs(
             INNER JOIN
                 realm AS ra ON ra.id = u.realm_id
             WHERE
-                ra.name = $1 
+                ra.name = $1
+                AND {no_service_accounts}
                 AND u.enabled IS TRUE
                 AND ({attr_conditions_sql})
             "#
@@ -1804,5 +2016,37 @@ mod tests {
     fn test_sql_boolean_operator_none_format() {
         let clause = format!("(col = $1){}", SqlBooleanOperator::None);
         assert_eq!(clause, "(col = $1)");
+    }
+
+    #[test]
+    fn test_service_account_exclusion_targets_the_given_alias() {
+        // The tally eligibility query joins user_entity twice, as `u` and as `delegator`.
+        assert_eq!(
+            service_account_exclusion("u"),
+            "u.service_account_client_link IS NULL"
+        );
+        assert_eq!(
+            service_account_exclusion("delegator"),
+            "delegator.service_account_client_link IS NULL"
+        );
+    }
+
+    #[test]
+    fn test_voter_scope_clause_excludes_service_accounts() {
+        let clause = voter_scope_clause("");
+        assert!(
+            clause.contains("u.service_account_client_link IS NULL"),
+            "voter queries must not report Keycloak service accounts as voters: {clause}"
+        );
+    }
+
+    #[test]
+    fn test_voter_scope_clause_keeps_realm_and_caller_filters() {
+        let filters_clause = format!(r#"("email" = $3){}"#, SqlBooleanOperator::And);
+        let clause = voter_scope_clause(&filters_clause);
+
+        assert!(clause.contains("ra.name = $1"));
+        assert!(clause.contains(r#"("email" = $3) AND"#));
+        assert!(clause.contains("(u.id = ANY($2) OR $2 IS NULL)"));
     }
 }

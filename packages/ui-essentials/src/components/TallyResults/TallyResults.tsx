@@ -4,6 +4,7 @@
 
 export {CandidateResults, CandidateResultsChart} from "./CandidateResults"
 export {ParticipationSummary, ParticipationSummaryChart} from "./ParticipationSummary"
+export {ParticipationByChannel} from "./ParticipationByChannel"
 export {PreferentialCandidateResults} from "./PreferentialCandidateResults"
 export {default, ResultsAndParticipation} from "./ResultsAndParticipation"
 export {defaultResultsAndParticipationLabels} from "./types"
@@ -13,10 +14,13 @@ export type {
     CandidateReference,
     CandidateResultRow,
     CandidatesOutcomes,
+    ParticipationChannelNames,
     PreferentialProcessResults,
     PreferentialRound,
+    ResultsAndParticipationLabelOverrides,
     ResultsAndParticipationLabels,
     ResultsAndParticipationProps,
     ResultsParticipationSummary,
+    VotesByChannel,
 } from "./types"
 export {sortCandidateResults} from "./utils"

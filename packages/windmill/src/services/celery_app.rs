@@ -12,6 +12,7 @@ use tracing::{event, info, instrument, Level};
 
 use crate::services::plugins_manager::plugin_manager::init_plugin_manager;
 use crate::tasks::activity_logs_report::generate_activity_logs_report;
+use crate::tasks::apply_reconciliation_patch::apply_reconciliation_patch;
 use crate::tasks::create_ballot_receipt::create_ballot_receipt;
 use crate::tasks::create_keys::create_keys;
 use crate::tasks::delete_election_event::delete_election_event_t;
@@ -30,6 +31,7 @@ use crate::tasks::export_templates::export_templates;
 use crate::tasks::export_tenant_config::export_tenant_config;
 use crate::tasks::export_trustees::export_trustees_task;
 use crate::tasks::export_users::export_users;
+use crate::tasks::generate_reconciliation_patches::generate_reconciliation_patches;
 use crate::tasks::generate_report::generate_report;
 use crate::tasks::generate_template::generate_template;
 use crate::tasks::import_application::import_applications;
@@ -64,6 +66,7 @@ use crate::tasks::scheduled_reports::scheduled_reports;
 use crate::tasks::send_template::send_template;
 use crate::tasks::set_public_key::set_public_key;
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
+use crate::tasks::voter_information_letter::generate_voter_information_letter;
 
 #[derive(AsRefStr, Debug)]
 pub enum Queue {
@@ -308,6 +311,9 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             post_tally_task,
             import_templates_task,
             publish_results_website_task,
+            generate_reconciliation_patches,
+            apply_reconciliation_patch,
+            generate_voter_information_letter,
         ],
         task_routes = [
             create_keys::NAME => &Queue::Short.queue_name(&slug),
@@ -363,6 +369,11 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             publish_results_website_task::NAME => &Queue::Reports.queue_name(&slug),
             process_cast_vote::NAME => &Queue::Communication.queue_name(&slug),
             edit_user::NAME => &Queue::Short.queue_name(&slug),
+            // Same queue as import_users/export_users: same order of
+            // magnitude of work.
+            generate_reconciliation_patches::NAME => &Queue::ImportExport.queue_name(&slug),
+            apply_reconciliation_patch::NAME => &Queue::ImportExport.queue_name(&slug),
+            generate_voter_information_letter::NAME => &Queue::Reports.queue_name(&slug),
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,

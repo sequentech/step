@@ -23,6 +23,10 @@ pub enum Permissions {
     ELECTION_EVENT_READ,
     #[strum(serialize = "election-event-write")]
     ELECTION_EVENT_WRITE,
+    #[strum(serialize = "keycloak-realm-attributes-read")]
+    KEYCLOAK_REALM_ATTRIBUTES_READ,
+    #[strum(serialize = "keycloak-realm-attributes-write")]
+    KEYCLOAK_REALM_ATTRIBUTES_WRITE,
     #[strum(serialize = "election-event-delete")]
     ELECTION_EVENT_DELETE,
     #[strum(serialize = "election-event-archive")]
@@ -115,6 +119,8 @@ pub enum Permissions {
     DOCUMENT_UPLOAD,
     #[strum(serialize = "document-download")]
     DOCUMENT_DOWNLOAD,
+    #[strum(serialize = "document-password-read")]
+    DOCUMENT_PASSWORD_READ,
     #[strum(serialize = "admin-ceremony")]
     ADMIN_CEREMONY,
     #[strum(serialize = "admin-dashboard-view")]
@@ -269,6 +275,8 @@ pub enum Permissions {
     VOTER_MANUALLY_VERIFY,
     #[strum(serialize = "voter-change-password")]
     VOTER_CHANGE_PASSWORD,
+    #[strum(serialize = "voter-information-letter")]
+    VOTER_INFORMATION_LETTER,
     #[strum(serialize = "election-event-localization-selector")]
     EE_LOCALIZATION_SELECTOR,
     #[strum(serialize = "localization-create")]
@@ -397,6 +405,8 @@ pub enum Permissions {
     PHONE_BLACKLIST_UPDATE,
     #[strum(serialize = "phone-blacklist-delete")]
     PHONE_BLACKLIST_DELETE,
+    #[strum(serialize = "election-event-voter-list-reconciliation")]
+    ELECTION_EVENT_VOTER_LIST_SYNC,
 }
 
 #[allow(non_camel_case_types)]

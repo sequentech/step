@@ -104,6 +104,105 @@ const dutchTranslation: TranslationType = {
                 next: "Volgende",
             },
         },
+        reconciliation: {
+            menuButton: "Ext. kiezerssync",
+            categories: {
+                VOTED_INTERNET: "Gestemd via Internet",
+                VOTED_OTHER_CHANNEL: "Gestemd via ander kanaal",
+                DISABLED_DELETE_CALL: "Kiezer gedeactiveerd",
+                DELETION_REVERTED: "Verwijdering teruggedraaid",
+                PROFILE_UPDATE: "Profiel bijgewerkt",
+                VOTER_ADDED: "Kiezer toegevoegd",
+                REENABLED: "Kiezer heractiveerd",
+                VOTED_UNMARKED: "Kiezer niet langer gemarkeerd als gestemd",
+                ROW_FAILURE: "Rijfout",
+            },
+            table: {
+                voterId: "Kiezer-ID",
+                field: "Veld",
+                category: "Categorie",
+                currentValue: "Huidige waarde",
+                newValue: "Nieuwe waarde",
+                reason: "Reden",
+                rowLabel: "Rij",
+                noDifferences: "Geen verschillen gevonden - de systemen zijn gesynchroniseerd.",
+            },
+            wizard: {
+                title: "Externe reconciliatiesynchronisatie",
+                subtitle: "Synchroniseer de kiezerslijst met het externe systeem",
+                drop: {
+                    description:
+                        "Sleep het door het externe systeem gegenereerde reconciliatiebestand hierheen - beide diffs (externe zijde en Sequent-zijde) worden automatisch berekend en in aparte tabellen weergegeven.",
+                    fileFormatLabel: "CSV-bestand",
+                    uploading: "{{fileName}} wordt geüpload en beide diffs worden berekend...",
+                },
+                review: {
+                    fileSummary:
+                        "{{fileName}} - Sequentie {{sequence}}, gegenereerd {{generatedAt}}",
+                    rowFailuresWarning:
+                        "{{count}} rij(en) konden niet veilig worden gereconcilieerd en zijn uitgesloten van beide diffs - zie details hieronder.",
+                    noDifferences: "Geen verschillen - beide systemen zijn al gesynchroniseerd.",
+                    diffOnlyDifferences:
+                        "Dit is een convergentiecontrole voor een reeds toegepaste reeks. Verschillen worden ter opvolging getoond, maar deze ronde kan niet opnieuw worden toegepast.",
+                    externalDiffTitle: "Externe diff",
+                    sequentDiffTitle: "Sequent-diff",
+                    downloadExternalPatch: "Externe patch downloaden",
+                    externalDiffCaption:
+                        "Download de patch en lever deze buiten deze tool aan het externe systeem. Zodra het de patch toepast en het volgende reconciliatiebestand produceert, klik op 'Terug' en sleep dat bestand hierheen - 'Toepassen' wordt geactiveerd zodra deze tabel leeg is.",
+                    noExternalDifferences: "Geen verschillen aan de externe zijde.",
+                    sequentDiffCaption:
+                        "Pas wijzigingen direct toe op Sequent door op 'Toepassen' te klikken - hiervoor wordt geen patchbestand gegenereerd.",
+                    noSequentDifferences: "Geen verschillen aan de Sequent-zijde.",
+                },
+                applying: {
+                    inProgress: "Wijzigingen aan de Sequent-zijde worden toegepast...",
+                    rowFailures:
+                        "{{count}} rij(en) zijn uitgesloten van deze ronde en vereisen handmatige opvolging - zie details hieronder.",
+                    rowFailuresTruncated:
+                        "De eerste {{shown}} van {{count}} rijfouten worden getoond. Los de gemeenschappelijke oorzaak op en probeer opnieuw om de resterende fouten te zien.",
+                    success: "Alle wijzigingen aan de Sequent-zijde zijn succesvol toegepast.",
+                },
+                actions: {
+                    cancel: "Annuleren",
+                    back: "Terug",
+                    apply: "Toepassen",
+                    next: "Volgende",
+                    startOver: "Opnieuw beginnen",
+                    close: "Sluiten",
+                },
+                confirm: {
+                    title: "Reconciliatiewijzigingen bevestigen",
+                    categoriesNote:
+                        "Categorieën die oranje zijn omlijnd ({{categories}}) hebben invloed op de stemstatus of deactiveren kiezers.",
+                    applyChanges: "Wijzigingen toepassen",
+                    continue: "Doorgaan",
+                },
+                summary: {
+                    votedOtherChannel:
+                        "markeert {{count}} kiezer(s) als gestemd via een ander kanaal",
+                    disabled: "deactiveert {{count}} kiezer(s)",
+                    reenabled: "heractiveert {{count}} kiezer(s)",
+                    votedUnmarked: "verwijdert de stemmarkering van {{count}} kiezer(s)",
+                    profileUpdated: "werkt {{count}} profiel(en) bij",
+                    voterAdded: "voegt {{count}} kiezer(s) toe",
+                    prefix: "Dit past wijzigingen toe die {{parts}}.",
+                    empty: "Er zijn geen wijzigingen aan de Sequent-zijde om toe te passen.",
+                },
+                notifications: {
+                    envelopeLoadError:
+                        "Kon de reconciliatie-diff niet laden - probeer het opnieuw.",
+                    generateFailed:
+                        "Kon de reconciliatie-diff niet berekenen - zie de taakwidget voor details.",
+                    applyFailed:
+                        "Kon de wijzigingen aan de Sequent-zijde niet toepassen - zie de taakwidget voor details.",
+                    uploadUrlError: "Kon geen upload-URL verkrijgen",
+                    generateTaskError: "Kon de reconciliatie-difftaak niet starten",
+                    uploadError: "Kon het reconciliatiebestand niet uploaden",
+                    applyTaskError: "Kon de toepassingstaak niet starten",
+                    applyError: "Kon de reconciliatiewijzigingen niet toepassen",
+                },
+            },
+        },
         logsScreen: {
             noPermissions: "U hebt geen toestemming om toegang te krijgen tot de logs.",
             title: "Logs",
@@ -156,6 +255,7 @@ const dutchTranslation: TranslationType = {
                 logs: "Logs",
             },
             tasksExecution: {
+                VOTER_INFORMATION_LETTER: "Kiezersinformatiebrief",
                 EXPORT_ELECTION_EVENT: "Verkiezingsevenement Exporteren",
                 CREATE_ELECTION_EVENT: "Verkiezingsevenement Aanmaken",
                 IMPORT_ELECTION_EVENT: "Verkiezingsevenement Importeren",
@@ -181,6 +281,19 @@ const dutchTranslation: TranslationType = {
                 EXPORT_TALLY_RESULTS_XLSX: "Exporteer de telresultaten in XLSX-indeling",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Certificaatautoriteiten exporteren",
                 PUBLISH_RESULTS_WEBSITE: "Resultatenwebsite publiceren",
+            },
+            documentAccess: {
+                title: "Documenttoegang",
+                sensitivityNotice:
+                    "Gevoelige informatie. Deel dit wachtwoord alleen met de beoogde ontvanger.",
+                passwordLabel: "Wachtwoord om de versleutelde PDF te openen",
+                showPassword: "Wachtwoord tonen",
+                copyPassword: "Wachtwoord kopiëren",
+                passwordCopied: "Wachtwoord gekopieerd",
+                passwordError: "Het PDF-wachtwoord kon niet worden opgehaald",
+                copyError: "Het wachtwoord kon niet worden gekopieerd",
+                guidance:
+                    "Het wachtwoord wordt pas geladen nadat u Wachtwoord tonen kiest. Daarna verschijnt hier een alleen-lezen veld met een kopieeroptie.",
             },
             widget: {
                 taskTitle: "Taak: {{title}}",
@@ -317,6 +430,12 @@ const dutchTranslation: TranslationType = {
         },
         dashboard: {
             voteByDay: "Stemmen per dag",
+            votesOverTime: "Stemmen in de tijd",
+            timeResolution: "Tijdsresolutie",
+            timeRange: "Tijdsbereik",
+            minute: "Minuut",
+            hour: "Uur",
+            day: "Dag",
             votersByChannels: "Kiezers per kanaal",
             voterLoginURL: "Login URL kiezer",
             voterEnrollURL: "Inschrijvings-URL kiezer",
@@ -356,6 +475,16 @@ const dutchTranslation: TranslationType = {
                 importCandidates: "Kandidaten importeren",
                 custom_filters: "Aangepaste filters",
                 voter_authentication: "Kiezersauthenticatie",
+                realm_attributes: "Keycloak realm attributes",
+                realm_attributes_load_error: "Error loading Keycloak realm attributes",
+                realm_attributes_update_error: "Error updating Keycloak realm attributes",
+                realm_attributes_not_loaded:
+                    "Keycloak realm attributes have not loaded, changes were not saved",
+                password_policy: "Password Policy",
+                password_policy_load_error: "Error loading Keycloak password policy",
+                password_policy_update_error: "Error updating Keycloak password policy",
+                password_policy_not_loaded:
+                    "Keycloak password policy has not loaded, changes were not saved",
             },
             customUrls: {
                 login: "Login",
@@ -380,6 +509,37 @@ const dutchTranslation: TranslationType = {
                 },
             },
             field: {
+                passwordPolicy: {
+                    minimumLength: "Minimale lengte",
+                    maximumLength: "Maximale lengte",
+                    includeUppercase: "Hoofdletters opnemen",
+                    includeLowercase: "Kleine letters opnemen",
+                    includeDigits: "Cijfers opnemen",
+                    includeSpecialCharacters: "Speciale tekens opnemen",
+                    help: {
+                        minimumLength:
+                            "Het minimale aantal tekens dat voor het wachtwoord vereist is.",
+                        maximumLength:
+                            "Het maximale aantal tekens dat voor het wachtwoord is toegestaan.",
+                        includeUppercase:
+                            "Het wachtwoord moet ten minste één hoofdletter bevatten.",
+                        includeLowercase:
+                            "Het wachtwoord moet ten minste één kleine letter bevatten.",
+                        includeDigits: "Het wachtwoord moet ten minste één cijfer bevatten.",
+                        includeSpecialCharacters:
+                            "Het wachtwoord moet ten minste één speciaal teken bevatten.",
+                    },
+                    notConfigured:
+                        "Er is geen wachtwoordbeleid geconfigureerd. Bij het opslaan worden de onderstaande standaardwaarden toegepast.",
+                    errors: {
+                        lengthRange:
+                            "De waarden voor de wachtwoordlengte moeten gehele getallen tussen 1 en 256 zijn.",
+                        minimumExceedsMaximum:
+                            "De minimale lengte mag niet groter zijn dan de maximale lengte.",
+                        characterClassRequired:
+                            "Selecteer ten minste één tekenklasse voor het wachtwoord.",
+                    },
+                },
                 name: "Naam",
                 alias: "Alias",
                 description: "Beschrijving",
@@ -528,6 +688,7 @@ const dutchTranslation: TranslationType = {
                     config: "Configuratie",
                     blacklist: "Blokkeerlijst",
                     prompts: "Spraakprompts",
+                    emulator: "Emulator",
                 },
                 common: {
                     saveSuccess: "Succesvol opgeslagen",
@@ -562,6 +723,35 @@ const dutchTranslation: TranslationType = {
 
                     noFilterMatch: "Geen vermeldingen komen overeen met de opgegeven filters",
                     phoneRequired: "Telefoonnummer is verplicht",
+                },
+                emulator: {
+                    infoMsg:
+                        "Selecteer een gebied en de gewenste verkiezingen om de IVR-sessie te doorlopen.",
+                    apiStatus: {
+                        unavailable: "Het emulatorsysteem is niet beschikbaar in uw omgeving",
+                        loading: "Het emulatorsysteem wordt geladen",
+                        error: "Fout bij het laden van het emulatorsysteem",
+                    },
+                    hints: {
+                        title: "Tips",
+                        publishRequired:
+                            "Wijzigingen aan verkiezingen, verkiezingsonderdelen of kandidaten moeten eerst worden gepubliceerd voordat ze beschikbaar zijn. Alleen de meest recent gepubliceerde stembiljetstijlen voor het overeenkomstige gebied worden in de emulator gebruikt.",
+                        eventChangesImmediate:
+                            "Wijzigingen aan het verkiezingsevenement, zoals de IVR-configuratie of aangepaste prompts, zijn direct beschikbaar nadat de emulatorsessie opnieuw is gestart.",
+                        credentials: 'De geldige kiezer-ID en pincode zijn "123" en "123".',
+                    },
+                    sendDtmf: "DTMF-invoer verzenden",
+                    sendTimeout: "Time-out verzenden",
+                    disconnected: "Verbinding verbroken",
+                    startSession: "Nieuwe sessie starten",
+                    endSession: "Sessie beëindigen",
+                    noStylesFound:
+                        "Geen gepubliceerde stembiljetstijlen gevonden die overeenkomen met uw selecties",
+                    inputPlaceholder:
+                        "Voer uw invoer in (maximaal aantal cijfers={{maxDigits}}, geldige invoer={{validInputs}}, time-out={{timeout}} sec.)",
+                    blacklistCaller: "Beller blokkeren",
+                    elections: "Verkiezingen",
+                    area: "Gebied",
                 },
             },
             stats: {
@@ -862,6 +1052,16 @@ const dutchTranslation: TranslationType = {
                 mobileNumber: "Mobiel nummer",
             },
             editPassword: {
+                passwordPolicyViolation:
+                    "Het wachtwoord voldoet niet aan het Wachtwoordbeleid voor deze verkiezingsgebeurtenis. Controleer het beleid onder Gegevens verkiezingsgebeurtenis en voer een geldig wachtwoord in.",
+                passwordPolicyRules: {
+                    minimumLength: "De minimale wachtwoordlengte is {{count}}.",
+                    maximumLength: "De maximale wachtwoordlengte is {{count}}.",
+                    uppercase: "Vereiste hoofdletters: {{count}}.",
+                    lowercase: "Vereiste kleine letters: {{count}}.",
+                    digits: "Vereiste cijfers: {{count}}.",
+                    specialCharacters: "Vereiste speciale tekens: {{count}}.",
+                },
                 label: "Wachtwoord wijzigen",
                 temporatyLabel: "Tijdelijk",
                 temporatyInfo:
@@ -928,6 +1128,20 @@ const dutchTranslation: TranslationType = {
                 },
             },
             voters: {
+                voterInformationLetter: {
+                    label: "Kiezersinformatiebrief",
+                    generate: "Genereren",
+                    confirmation:
+                        "Een Kiezersinformatiebrief voor deze kiezer genereren? Er wordt een nieuw wachtwoord toegewezen en opgenomen in een versleutelde PDF.",
+                    generationStarted: "Het genereren van de Kiezersinformatiebrief is gestart",
+                    generationError: "De Kiezersinformatiebrief kon niet worden gegenereerd",
+                    policyNotConfigured:
+                        "Het Wachtwoordbeleid is niet geconfigureerd. Stel het in onder Gegevens verkiezingsgebeurtenis voordat u een brief genereert.",
+                    policyMinimumLengthMissing:
+                        "Het Wachtwoordbeleid moet een minimale lengte bevatten voordat u een brief genereert.",
+                    policyCharacterClassMissing:
+                        "Het Wachtwoordbeleid moet ten minste één tekenklasse bevatten voordat u een brief genereert.",
+                },
                 title: "Kiezers",
                 subtitle: "Kiezersgegevens bekijken en bewerken",
                 review: {
@@ -1004,6 +1218,7 @@ const dutchTranslation: TranslationType = {
                 },
             },
             permissions: {
+                "voter-information-letter": "Kiezersinformatiebrief genereren",
                 "admin-user": "Beheerder Gebruiker",
                 "admin-dashboard-view": "Beheerdersdashboard Bekijken",
                 "application-export": "Applicatie Exporteren",
@@ -1014,6 +1229,8 @@ const dutchTranslation: TranslationType = {
                 "election-event-create": "Verkiezingsevenement Aanmaken",
                 "election-event-read": "Verkiezingsevenement Lezen",
                 "election-event-write": "Verkiezingsevenement Bewerken",
+                "keycloak-realm-attributes-read": "Read Keycloak realm attributes",
+                "keycloak-realm-attributes-write": "Edit Keycloak realm attributes",
                 "election-event-delete": "Verkiezingsevenement Verwijderen",
                 "voter-create": "Kiezer Aanmaken",
                 "voter-read": "Kiezer Lezen",
@@ -1058,6 +1275,7 @@ const dutchTranslation: TranslationType = {
                 "keys-read": "Sleutels Lezen",
                 "document-upload": "Documenten Uploaden",
                 "document-download": "Documenten Downloaden",
+                "document-password-read": "Documentwachtwoorden Lezen",
                 "tally-sheet-create": "Telblad Aanmaken",
                 "tally-sheet-import-create": "Telformulierimport aanmaken",
                 "tally-sheet-import-review": "Telformulierimport beoordelen",
@@ -1418,6 +1636,7 @@ const dutchTranslation: TranslationType = {
                 kiosk: "Kiosk",
                 early_voting: "Vroeg stemmen",
                 telephone: "Telefonisch stemmen",
+                other: "Overig",
             },
             message: {
                 delete: "Weet u zeker dat u dit item wilt verwijderen?",
@@ -1998,6 +2217,15 @@ const dutchTranslation: TranslationType = {
                     round: "Ronde",
                 },
                 total_declined_to_vote: "Totaal aantal weigeringen om te stemmen",
+                participation_by_channel: "Deelname per kanaal",
+                channel: "Kanaal",
+                channel_online: "Online",
+                channel_kiosk: "Kiosk",
+                channel_early_voting: "Vervroegd stemmen",
+                channel_telephone: "Telefoon",
+                channel_paper: "Papier",
+                channel_postal: "Post",
+                channel_in_person: "Persoonlijk",
             },
             pendingResolutions: {
                 round: "Ronde {{round}}",
@@ -2107,6 +2335,7 @@ const dutchTranslation: TranslationType = {
                 ko: "Annuleren",
                 error: "Fout bij laden publicatie stembiljet",
                 error_publish: "Fout bij publiceren publicatie stembiljet",
+                error_capacity: "Genereren van stembiljetstijl mislukt: {{message}}",
                 error_status: "Fout bij wijzigen status publicatie stembiljet",
                 error_preview: "Fout bij voorbeeldweergave publicatie",
                 diff: "Het weergeven van alle wijzigingen kan de pagina traag maken. Weet u zeker dat u wilt doorgaan?",

@@ -4,13 +4,22 @@
 
 import {formatPercentOne} from "@sequentech/ui-core"
 import {defaultResultsAndParticipationLabels} from "./types"
-import type {CandidateResultRow, NumericValue, ResultsAndParticipationLabels} from "./types"
+import type {
+    CandidateResultRow,
+    NumericValue,
+    ResultsAndParticipationLabelOverrides,
+    ResultsAndParticipationLabels,
+} from "./types"
 
 export const mergeLabels = (
-    labels?: Partial<ResultsAndParticipationLabels>
+    labels?: ResultsAndParticipationLabelOverrides
 ): ResultsAndParticipationLabels => ({
     ...defaultResultsAndParticipationLabels,
     ...labels,
+    channelNames: {
+        ...defaultResultsAndParticipationLabels.channelNames,
+        ...labels?.channelNames,
+    },
 })
 
 export const toFiniteNumber = (value: NumericValue): number | null => {

@@ -39,6 +39,7 @@ import EditIcon from "@mui/icons-material/Edit"
 import MailIcon from "@mui/icons-material/Mail"
 import CreditScoreIcon from "@mui/icons-material/CreditScore"
 import PasswordIcon from "@mui/icons-material/Password"
+import ArticleIcon from "@mui/icons-material/Article"
 import DeleteIcon from "@mui/icons-material/Delete"
 import VisibilityIcon from "@mui/icons-material/Visibility"
 import FilterAlt from "@mui/icons-material/FilterAlt"
@@ -54,13 +55,14 @@ import {
     GetUserProfileAttributesQuery,
     ImportUsersMutation,
     ManualVerificationMutation,
+    GenerateVoterInformationLetterMutation,
     Sequent_Backend_Election_Event,
     UserProfileAttribute,
 } from "@/gql/graphql"
 import {DELETE_USER} from "@/queries/DeleteUser"
 import {MANUAL_VERIFICATION} from "@/queries/ManualVerification"
 import {useMutation, useQuery} from "@apollo/client"
-import {IPermissions} from "@/types/keycloak"
+import {ATTR_RESET_VALUE, IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {IRole, IUser, translate} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
@@ -75,6 +77,8 @@ import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
 import {getAttributeLabel, getTranslationLabel, userBasicInfo} from "@/services/UserService"
 import CustomDateField from "./CustomDateField"
 import {ListActionsMenu} from "@/components/ListActionsMenu"
+import SyncAltIcon from "@mui/icons-material/SyncAlt"
+import {ReconciliationWizard} from "@/resources/VoterListSync/ReconciliationWizard"
 import EditPassword from "./EditPassword"
 import {styled} from "@mui/material/styles"
 import {DELETE_USERS} from "@/queries/DeleteUsers"
@@ -91,11 +95,13 @@ import {useLocation} from "react-router-dom"
 import {getPreferenceKey} from "@/lib/helpers"
 import {isEqual} from "lodash"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {GENERATE_VOTER_INFORMATION_LETTER} from "@/queries/VoterInformationLetter"
+import {VoterInformationLetterPasswordAccess} from "@/resources/Tasks/VoterInformationLetterPasswordAccess"
+import {getVoterInformationLetterPasswordPolicyError} from "./editPasswordError"
 
 export const AUTHORIZED_ELECTION_IDS = "authorized-election-ids"
 export const VOTED_CHANNEL = "voted-channel"
 export const DISABLE_COMMENT = "disable-comment"
-const ATTR_RESET_VALUE = "NONE"
 
 const DataGridContainerStyle = styled(DatagridConfigurable, {
     shouldForwardProp: (prop) => prop !== "isOpenSideBar", // Prevent `isOpenSideBar` from being passed to the DOM
@@ -152,10 +158,14 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [openManualVerificationModal, setOpenManualVerificationModal] = React.useState(false)
     const [openDeleteBulkModal, setOpenDeleteBulkModal] = React.useState(false)
     const [openEditPassword, setOpenEditPassword] = React.useState(false)
+    const [openVoterInformationLetter, setOpenVoterInformationLetter] = useState(false)
+    const [voterInformationLetterPassword, setVoterInformationLetterPassword] = useState<string>()
+    const [generatingVoterInformationLetter, setGeneratingVoterInformationLetter] = useState(false)
     const [selectedIds, setSelectedIds] = useState<Identifier[]>([])
     const [deleteId, setDeleteId] = useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = useState<boolean>(false)
     const [openImportDrawer, setOpenImportDrawer] = useState<boolean>(false)
+    const [openReconciliationWizard, setOpenReconciliationWizard] = useState<boolean>(false)
     const [recordIds, setRecordIds] = useState<Array<Identifier>>([])
     const [userRecord, setUserRecord] = useState<RaRecord<Identifier> | undefined>()
     const authContext = useContext(AuthContext)
@@ -165,6 +175,13 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [getManualVerificationPdf] = useMutation<ManualVerificationMutation>(MANUAL_VERIFICATION)
     const [deleteUsers] = useMutation<DeleteUsersMutation>(DELETE_USERS)
     const [exportUsers] = useMutation<ExportUsersMutation>(EXPORT_USERS)
+    const [generateVoterInformationLetter] = useMutation<GenerateVoterInformationLetterMutation>(
+        GENERATE_VOTER_INFORMATION_LETTER,
+        {
+            fetchPolicy: "no-cache",
+            context: {headers: {"x-hasura-role": IPermissions.VOTER_INFORMATION_LETTER}},
+        }
+    )
     const PHONE_NUMBER_USER_ATTRIBUTE = "sequent.read-only.mobile-number"
 
     const {data: userAttributes} = useQuery<GetUserProfileAttributesQuery>(
@@ -266,10 +283,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         canExportVoters,
         canManuallyVerify,
         canChangePassword,
+        canGenerateVoterInformationLetter,
         showVotersColumns,
         showVotersFilters,
         showVotersLogs,
         canSendTemplates,
+        showVoterListSync,
     } = useUsersPermissions()
     /**
      * Permissions
@@ -281,6 +300,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setOpenSendTemplate(false)
         setOpenDeleteModal(false)
         setOpenManualVerificationModal(false)
+        setOpenVoterInformationLetter(false)
+        setVoterInformationLetterPassword(undefined)
         setOpenDeleteBulkModal(false)
         setOpenDrawer(false)
         setOpenNew(false)
@@ -352,6 +373,69 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setOpenDeleteModal(false)
         setOpenEditPassword(true)
         setRecordIds([id as string])
+    }
+
+    const voterInformationLetterAction = (id: Identifier) => {
+        if (!electionEventId) {
+            return
+        }
+        setOpen(false)
+        setOpenNew(false)
+        setOpenSendTemplate(false)
+        setOpenManualVerificationModal(false)
+        setOpenDeleteBulkModal(false)
+        setOpenDeleteModal(false)
+        setOpenEditPassword(false)
+        setRecordIds([id])
+        setVoterInformationLetterPassword(undefined)
+        setOpenVoterInformationLetter(true)
+    }
+
+    const confirmVoterInformationLetter = async () => {
+        const voterId = recordIds[0]
+        if (!electionEventId || !voterId) {
+            return
+        }
+
+        setGeneratingVoterInformationLetter(true)
+        try {
+            const {data} = await generateVoterInformationLetter({
+                variables: {
+                    electionEventId,
+                    voterId: String(voterId),
+                },
+            })
+            const taskId = data?.generate_voter_information_letter?.task_execution?.id
+            const pdfPassword = data?.generate_voter_information_letter?.pdf_password
+            if (!taskId || !pdfPassword) {
+                throw new Error("Voter Information Letter access data was not returned")
+            }
+
+            const widget = addWidget(ETasksExecution.VOTER_INFORMATION_LETTER, false)
+            setWidgetTaskId(widget.identifier, taskId)
+            notify(t("usersAndRolesScreen.voters.voterInformationLetter.generationStarted"), {
+                type: "success",
+            })
+            setOpenVoterInformationLetter(false)
+            setRecordIds([])
+            setVoterInformationLetterPassword(pdfPassword)
+        } catch (error: unknown) {
+            const passwordPolicyError = getVoterInformationLetterPasswordPolicyError(error)
+            const notificationKey = passwordPolicyError
+                ? {
+                      notConfigured:
+                          "usersAndRolesScreen.voters.voterInformationLetter.policyNotConfigured",
+                      minimumLengthMissing:
+                          "usersAndRolesScreen.voters.voterInformationLetter.policyMinimumLengthMissing",
+                      characterClassMissing:
+                          "usersAndRolesScreen.voters.voterInformationLetter.policyCharacterClassMissing",
+                  }[passwordPolicyError]
+                : "usersAndRolesScreen.voters.voterInformationLetter.generationError"
+            notify(t(notificationKey), {type: "error"})
+            setOpenVoterInformationLetter(false)
+        } finally {
+            setGeneratingVoterInformationLetter(false)
+        }
     }
 
     const confirmManualVerificationAction = async () => {
@@ -457,6 +541,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             label: t(`usersAndRolesScreen.voters.manualVerification.label`),
             saveRecordAction: setUserRecord,
         },
+        [UserActionTypes.VOTER_INFORMATION_LETTER]: {
+            icon: <ArticleIcon />,
+            action: voterInformationLetterAction,
+            showAction: () => canGenerateVoterInformationLetter,
+            label: t("usersAndRolesScreen.voters.voterInformationLetter.label"),
+        },
         [UserActionTypes.PASSWORD]: {
             icon: <PasswordIcon />,
             action: editPasswordAction,
@@ -482,6 +572,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             UserActionTypes.EDIT,
             UserActionTypes.DELETE,
             UserActionTypes.MANUAL_VERIFICATION,
+            UserActionTypes.VOTER_INFORMATION_LETTER,
             UserActionTypes.PASSWORD,
             UserActionTypes.LOGS,
         ],
@@ -1122,7 +1213,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                 }}
                             />
                         )}
-                        {electionEventId && (
+                        {electionEventId && showVoterListSync && (
                             <FunctionField<IUser>
                                 source={`attributes['${DISABLE_COMMENT}']`}
                                 label={String(
@@ -1159,6 +1250,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         !canDeleteVoters &&
                         !canSendTemplates &&
                         !canManuallyVerify &&
+                        !canGenerateVoterInformationLetter &&
                         !canChangePassword &&
                         !showVotersLogs ? null : (
                             <WrapperField source="actions" label="Actions">
@@ -1226,7 +1318,20 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                 />
                             }
                             withComponent={canCreateVoters}
-                            extraActions={[...listActions]}
+                            extraActions={[
+                                ...listActions,
+                                ...(electionEventId && showVoterListSync
+                                    ? [
+                                          <Button
+                                              key="datafix-reconciliation-sync"
+                                              onClick={() => setOpenReconciliationWizard(true)}
+                                          >
+                                              <SyncAltIcon sx={{mr: 1}} />
+                                              {t("reconciliation.menuButton")}
+                                          </Button>,
+                                      ]
+                                    : []),
+                            ]}
                         />
                     }
                     filter={{
@@ -1333,6 +1438,14 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 </FormStyles.ReservedProgressSpace>
             </Dialog>
 
+            {electionEventId && showVoterListSync ? (
+                <ReconciliationWizard
+                    open={openReconciliationWizard}
+                    electionEventId={electionEventId}
+                    onClose={() => setOpenReconciliationWizard(false)}
+                />
+            ) : null}
+
             <ImportDataDrawer
                 open={openImportDrawer}
                 closeDrawer={() => setOpenImportDrawer(false)}
@@ -1416,6 +1529,46 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         />
                     )}
                 </>
+            </Dialog>
+
+            <Dialog
+                variant="info"
+                open={openVoterInformationLetter}
+                ok={String(t("usersAndRolesScreen.voters.voterInformationLetter.generate"))}
+                okEnabled={() => !generatingVoterInformationLetter}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("usersAndRolesScreen.voters.voterInformationLetter.label"))}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        void confirmVoterInformationLetter()
+                        return
+                    }
+                    setOpenVoterInformationLetter(false)
+                    setRecordIds([])
+                }}
+            >
+                <Typography>
+                    {t("usersAndRolesScreen.voters.voterInformationLetter.confirmation")}
+                </Typography>
+                <FormStyles.ReservedProgressSpace>
+                    {generatingVoterInformationLetter ? <FormStyles.ShowProgress /> : null}
+                </FormStyles.ReservedProgressSpace>
+            </Dialog>
+
+            <Dialog
+                fullWidth={true}
+                variant="info"
+                maxWidth={"sm"}
+                title={String(t("tasksScreen.documentAccess.title"))}
+                ok={String(t("common.label.close"))}
+                open={Boolean(voterInformationLetterPassword)}
+                handleClose={() => setVoterInformationLetterPassword(undefined)}
+            >
+                {voterInformationLetterPassword ? (
+                    <VoterInformationLetterPasswordAccess
+                        pdfPassword={voterInformationLetterPassword}
+                    />
+                ) : null}
             </Dialog>
 
             {openEditPassword && (

@@ -499,6 +499,60 @@ pub async fn get_event_areas(
     Ok(election_events)
 }
 
+/// Errors if does not find exactly one area with the given name in the given election event.
+/// Returns the area-id of the found area.
+#[instrument(err, skip_all)]
+pub async fn get_area_id_from_event_by_name(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    area_name: &str,
+) -> Result<String> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    id
+                FROM
+                    sequent_backend.area
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    name = $3;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &area_name,
+            ],
+        )
+        .await?;
+
+    match rows.len() {
+        0 => Err(anyhow!(
+            "No area found with name '{}' in election event '{}'",
+            area_name,
+            election_event_id
+        )),
+        1 => {
+            let area_id: Uuid = rows[0].try_get("id")?;
+            Ok(area_id.to_string())
+        }
+        count => Err(anyhow!(
+            "Found {} areas with name '{}' in election event '{}'",
+            count,
+            area_name,
+            election_event_id
+        )),
+    }
+}
+
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct AreaElection {
     pub id: String,

@@ -87,7 +87,7 @@ import {
     Sequent_Backend_Template,
 } from "@/gql/graphql"
 import {ElectionStyles} from "@/components/styles/ElectionStyles"
-import {FetchResult, useMutation} from "@apollo/client"
+import {FetchResult, useMutation, useQuery} from "@apollo/client"
 import {IMPORT_CANDIDTATES} from "@/queries/ImportCandidates"
 import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 import {convertToNumber} from "@/lib/helpers"
@@ -108,7 +108,12 @@ import {
     UPDATE_REALM_ATTRIBUTES,
     UpdateRealmAttributesMutation,
 } from "@/queries/UpdateRealmAttributes"
+import {GET_REALM_ATTRIBUTES, GetRealmAttributesQuery} from "@/queries/GetRealmAttributes"
 import {GoogleMeetLinkGenerator} from "@/components/election-event/google-meet/GoogleMeetLinkGenerator"
+import {
+    PasswordPolicyAccordion,
+    PasswordPolicyAccordionHandle,
+} from "@/components/election-event/PasswordPolicyAccordion"
 import {SettingsLanguageSelector} from "../../components/SettingsLanguageSelector"
 import {
     CONFIGURE_RESULTS_WEBSITE_POLICY,
@@ -237,12 +242,29 @@ export const EditElectionEventDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const notify = useNotify()
     const checkCustomDateTimeFormatRef = useRef<() => void>(() => {})
+    const passwordPolicyRef = useRef<PasswordPolicyAccordionHandle | null>(null)
 
     const canEdit = authContext.isAuthorized(
         true,
         authContext.tenantId,
         IPermissions.ELECTION_EVENT_WRITE
     )
+    const canReadPasswordPolicy = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.ELECTION_EVENT_READ
+    )
+    const canReadRealmAttributes = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.KEYCLOAK_REALM_ATTRIBUTES_READ
+    )
+    const canEditRealmAttributes = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.KEYCLOAK_REALM_ATTRIBUTES_WRITE
+    )
+    const canSave = canEdit || (canReadRealmAttributes && canEditRealmAttributes)
 
     const canCreateGoogleMeeting = authContext.isAuthorized(
         true,
@@ -281,9 +303,9 @@ export const EditElectionEventDataForm: React.FC = () => {
         enrollment: "",
         otp: "",
     })
-    const [voterCertificatePolicy, setVoterCertificatePolicy] = useState<EVoterCertificatePolicy>(
-        EVoterCertificatePolicy.DISABLED
-    )
+    const [realmAttributes, setRealmAttributes] = useState<Record<string, string>>({})
+    const [realmAttributesError, setRealmAttributesError] = useState<string>()
+    const [realmAttributesDirty, setRealmAttributesDirty] = useState(false)
     const [manageCustomUrls, response] = useMutation<SetCustomUrlsMutation>(SET_CUSTOM_URLS, {
         context: {
             headers: {
@@ -293,12 +315,29 @@ export const EditElectionEventDataForm: React.FC = () => {
     })
 
     const [manageVoterAuthentication] = useMutation<SetCustomUrlsMutation>(SET_VOTER_AOTHENTICATION)
+    const {
+        data: realmAttributesData,
+        loading: isRealmAttributesLoading,
+        error: realmAttributesQueryError,
+        refetch: refetchRealmAttributes,
+    } = useQuery<GetRealmAttributesQuery>(GET_REALM_ATTRIBUTES, {
+        variables: {
+            election_event_id: record?.id,
+        },
+        skip: !record?.id || !canReadRealmAttributes,
+        fetchPolicy: "network-only",
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.KEYCLOAK_REALM_ATTRIBUTES_READ,
+            },
+        },
+    })
     const [manageRealmAttributes] = useMutation<UpdateRealmAttributesMutation>(
         UPDATE_REALM_ATTRIBUTES,
         {
             context: {
                 headers: {
-                    "x-hasura-role": IPermissions.ELECTION_EVENT_WRITE,
+                    "x-hasura-role": IPermissions.KEYCLOAK_REALM_ATTRIBUTES_WRITE,
                 },
             },
         }
@@ -646,12 +685,13 @@ export const EditElectionEventDataForm: React.FC = () => {
     }, [parsedValue?.enabled_languages, setValue, setValueMaterials])
 
     useEffect(() => {
-        const policy = (parsedValue?.presentation as IElectionEventPresentation)
-            ?.voter_certificate_policy
-        if (policy) {
-            setVoterCertificatePolicy(policy)
+        const attributes = realmAttributesData?.get_realm_attributes?.attributes
+        if (attributes) {
+            setRealmAttributes(attributes)
+            setRealmAttributesError(undefined)
+            setRealmAttributesDirty(false)
         }
-    }, [parsedValue?.presentation])
+    }, [realmAttributesData])
 
     const decodedBallotsStateChoices = () => {
         return Object.values(EElectionEventDecodedBallots).map((value) => ({
@@ -776,6 +816,57 @@ export const EditElectionEventDataForm: React.FC = () => {
         setActivateSave(true)
     }
 
+    const normalizeRealmAttributes = (data: unknown): Record<string, string> => {
+        if (!data || Array.isArray(data) || typeof data !== "object") {
+            throw new Error("Realm attributes must be a JSON object")
+        }
+
+        return Object.entries(data).reduce<Record<string, string>>((acc, [key, value]) => {
+            if (key.trim().length === 0) {
+                throw new Error("Realm attribute names cannot be blank")
+            }
+            let hasControlCharacter = false
+            for (let index = 0; index < key.length; index++) {
+                const code = key.charCodeAt(index)
+                if (code <= 31 || (code >= 127 && code <= 159)) {
+                    hasControlCharacter = true
+                    break
+                }
+            }
+            if (hasControlCharacter) {
+                throw new Error("Realm attribute names cannot contain control characters")
+            }
+            if (typeof value !== "string") {
+                throw new Error("Realm attribute values must be strings")
+            }
+
+            acc[key] = value
+            return acc
+        }, {})
+    }
+
+    const updateRealmAttributesDraft = ({newData}: UpdateFunctionProps) => {
+        try {
+            setRealmAttributes(normalizeRealmAttributes(newData))
+            setRealmAttributesError(undefined)
+            setRealmAttributesDirty(true)
+            setActivateSave(true)
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Invalid realm attributes"
+            setRealmAttributesError(message)
+            setActivateSave(true)
+            return false
+        }
+    }
+
+    const setRealmAttributeDraftValue = (key: string, value: string) => {
+        if (!canEditRealmAttributes) {
+            return
+        }
+        setRealmAttributes((prev) => ({...prev, [key]: value}))
+        setRealmAttributesDirty(true)
+    }
+
     const handleEnrollmentChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
         setVoterAuthentication((prev) => ({
             ...prev,
@@ -894,21 +985,34 @@ export const EditElectionEventDataForm: React.FC = () => {
         }
     }
 
-    const handleUpdateRealmAttributes = async (
-        presentation: IElectionEventPresentation,
-        recordId: string
-    ) => {
+    const handleUpdateRealmAttributes = async (recordId: string) => {
+        if (realmAttributesError) {
+            notify(realmAttributesError, {type: "error"})
+            return false
+        }
+        // Never push a draft based on attributes that failed to load: the
+        // edits were made against incomplete data.
+        if (canReadRealmAttributes && (isRealmAttributesLoading || realmAttributesQueryError)) {
+            notify(t("electionEventScreen.edit.realm_attributes_not_loaded"), {type: "error"})
+            return false
+        }
+
         try {
             await manageRealmAttributes({
                 variables: {
                     election_event_id: recordId,
-                    attributes: {
-                        [REALM_ATTR_VOTER_CERTIFICATE_POLICY]: voterCertificatePolicy,
-                    },
+                    attributes: normalizeRealmAttributes(realmAttributes),
                 },
             })
+            if (canReadRealmAttributes) {
+                await refetchRealmAttributes()
+            }
+            setRealmAttributesDirty(false)
+            return true
         } catch (err: any) {
             console.error(err)
+            notify(t("electionEventScreen.edit.realm_attributes_update_error"), {type: "error"})
+            return false
         }
     }
 
@@ -946,16 +1050,31 @@ export const EditElectionEventDataForm: React.FC = () => {
         }
         checkCustomDateTimeFormatRef.current()
 
-        await handleUpdateCustomUrls(values.presentation as IElectionEventPresentation, recordId)
-        await handleUpdateVoterAuthentication(
-            values.presentation as IElectionEventPresentation,
-            recordId
-        )
-        await handleUpdateRealmAttributes(
-            values.presentation as IElectionEventPresentation,
-            recordId
-        )
+        if (canEdit) {
+            await handleUpdateCustomUrls(
+                values.presentation as IElectionEventPresentation,
+                recordId
+            )
+            await handleUpdateVoterAuthentication(
+                values.presentation as IElectionEventPresentation,
+                recordId
+            )
+        }
+
+        if (canEditRealmAttributes && realmAttributesDirty) {
+            const updatedRealmAttributes = await handleUpdateRealmAttributes(recordId)
+            if (!updatedRealmAttributes) {
+                throw new Error("Realm attributes could not be updated")
+            }
+        }
+
         await handleConfigureResultsWebsitePolicy(values.resultsWebsitePolicy, recordId)
+        if (canEdit) {
+            const passwordPolicyUpdated = await passwordPolicyRef.current?.save()
+            if (passwordPolicyUpdated === false) {
+                throw new Error("Password policy could not be updated")
+            }
+        }
         setActivateSave(false)
 
         return {
@@ -994,7 +1113,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                 record={parsedValue}
                 toolbar={
                     <Toolbar>
-                        {canEdit && (
+                        {canSave && (
                             <SaveButton
                                 type="button"
                                 transform={onSave}
@@ -1336,6 +1455,65 @@ export const EditElectionEventDataForm: React.FC = () => {
                     </AccordionDetails>
                 </Accordion>
 
+                {canReadRealmAttributes && (
+                    <Accordion
+                        sx={{width: "100%"}}
+                        expanded={expanded === "election-event-data-realm-attributes"}
+                        onChange={() =>
+                            setExpanded((prev) =>
+                                prev === "election-event-data-realm-attributes"
+                                    ? ""
+                                    : "election-event-data-realm-attributes"
+                            )
+                        }
+                    >
+                        <AccordionSummary
+                            expandIcon={
+                                <ExpandMoreIcon id="election-event-data-realm-attributes" />
+                            }
+                        >
+                            <ElectionHeaderStyles.Wrapper>
+                                <ElectionHeaderStyles.Title>
+                                    {t("electionEventScreen.edit.realm_attributes")}
+                                </ElectionHeaderStyles.Title>
+                            </ElectionHeaderStyles.Wrapper>
+                        </AccordionSummary>
+                        <AccordionDetails>
+                            {realmAttributesQueryError && (
+                                <Typography color="error">
+                                    {t("electionEventScreen.edit.realm_attributes_load_error")}
+                                </Typography>
+                            )}
+                            {realmAttributesError && (
+                                <Typography color="error">{realmAttributesError}</Typography>
+                            )}
+                            {isRealmAttributesLoading ? (
+                                <Typography>{t("loading")}</Typography>
+                            ) : canEditRealmAttributes ? (
+                                <JsonEditor
+                                    data={realmAttributes}
+                                    onUpdate={(data) =>
+                                        updateRealmAttributesDraft(data as UpdateFunctionProps)
+                                    }
+                                />
+                            ) : (
+                                <Box
+                                    component="pre"
+                                    sx={{
+                                        backgroundColor: "rgba(0, 0, 0, 0.04)",
+                                        borderRadius: "4px",
+                                        margin: 0,
+                                        overflowX: "auto",
+                                        padding: "1rem",
+                                    }}
+                                >
+                                    {JSON.stringify(realmAttributes, null, 2)}
+                                </Box>
+                            )}
+                        </AccordionDetails>
+                    </Accordion>
+                )}
+
                 <Accordion
                     sx={{width: "100%"}}
                     expanded={expanded === "election-event-data-materials"}
@@ -1371,6 +1549,23 @@ export const EditElectionEventDataForm: React.FC = () => {
                         </Box>
                     </AccordionDetails>
                 </Accordion>
+
+                {canReadPasswordPolicy && (
+                    <PasswordPolicyAccordion
+                        ref={passwordPolicyRef}
+                        electionEventId={record?.id?.toString()}
+                        canEdit={canEdit}
+                        expanded={expanded === "election-event-data-password-policy"}
+                        onChange={() =>
+                            setExpanded((previous) =>
+                                previous === "election-event-data-password-policy"
+                                    ? ""
+                                    : "election-event-data-password-policy"
+                            )
+                        }
+                        onDirty={() => setActivateSave(true)}
+                    />
+                )}
 
                 <Accordion
                     sx={{width: "100%"}}
@@ -1539,7 +1734,10 @@ export const EditElectionEventDataForm: React.FC = () => {
                             emptyText={undefined}
                             validate={required()}
                             onChange={(e) =>
-                                setVoterCertificatePolicy(e.target.value as EVoterCertificatePolicy)
+                                setRealmAttributeDraftValue(
+                                    REALM_ATTR_VOTER_CERTIFICATE_POLICY,
+                                    e.target.value as EVoterCertificatePolicy
+                                )
                             }
                         />
                         <Box

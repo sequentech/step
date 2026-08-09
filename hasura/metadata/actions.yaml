@@ -387,10 +387,54 @@ actions:
           - role: voter-manually-verify
           - role: voter-write
           - role: admin-user
+    - name: create_external_reconciliation_import
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/create-reconciliation-import
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: election-event-voter-list-reconciliation
+          - role: admin-user
+      comment: uploads an external (i.e. Datafix) reconciliation file and kicks off the diff-calculation task
+    - name: apply_external_reconciliation_changes
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/apply-reconciliation-changes
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: election-event-voter-list-reconciliation
+          - role: admin-user
+      comment: applies the Sequent-side reconciliation diff for an already-computed import
     - name: update_realm_attributes
       definition:
           kind: synchronous
           handler: http://{{HARVEST_DOMAIN}}/update-realm-attributes
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: keycloak-realm-attributes-write
+    - name: update_realm_password_policy
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/update-realm-password-policy
           forward_client_headers: true
           request_transform:
               body:
@@ -744,6 +788,21 @@ actions:
       permissions:
           - role: report-generate
           - role: report-read
+    - name: generate_voter_information_letter
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/generate-voter-information-letter
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: document-password-read
+          - role: voter-information-letter
     - name: generate_transmission_report
       definition:
           kind: synchronous
@@ -833,6 +892,48 @@ actions:
       permissions:
           - role: admin-user
       comment: list permissions
+    - name: get_realm_attributes
+      definition:
+          kind: ""
+          handler: http://{{HARVEST_DOMAIN}}/get-realm-attributes
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: keycloak-realm-attributes-read
+    - name: get_realm_password_policy
+      definition:
+          kind: ""
+          handler: http://{{HARVEST_DOMAIN}}/get-realm-password-policy
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: election-event-read
+    - name: get_document_password
+      definition:
+          kind: ""
+          handler: http://{{HARVEST_DOMAIN}}/get-document-password
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: document-password-read
     - name: get_private_key
       definition:
           kind: synchronous
@@ -1703,10 +1804,12 @@ custom_types:
         - name: CountUsersInput
     objects:
         - name: GetManualVerificationOutput
+        - name: GetRealmAttributesOutput
         - name: UpdateRealmAttributesOutput
         - name: CreateKeysCeremonyOutput
         - name: GetPrivateKeyOutput
         - name: CastVotesPerDay
+        - name: VotersByChannel
         - name: ElectionEventStatsOutput
         - name: ElectionStatsOutput
         - name: CheckPrivateKeyOutput
@@ -1817,4 +1920,6 @@ custom_types:
         - name: ResolveResultsPublicationOutput
         - name: FetchResultsArtifactOutput
         - name: RevokeResultsPublicationOutput
+        - name: VoterInformationLetterOutput
+        - name: DocumentPasswordOutput
     scalars: []

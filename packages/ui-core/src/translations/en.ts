@@ -94,9 +94,9 @@ const englishTranslation = {
                 maxSelectionsPerType:
                     "Number of selected choices {{numSelected}} for list {{type}} is more than the maximum {{max}}",
                 underVote:
-                    "Undervote: Number of selected choices {{numSelected}} is less than the maximum {{max}}",
+                    "You have not used all {{max}} of your selections in this contest. You may continue, or go back to make another selection.",
                 overVoteDisabled:
-                    "Maximum reached: You have selected the maximum {{numSelected}} choices. To change your selection, please deselect another option first.",
+                    "Maximum reached: You have selected the maximum of {{numSelected}} allowed. To change your selection, please deselect an option first.",
                 blankVote: "Blank Vote: 0 choices selected",
                 preferenceOrderWithGaps:
                     "Invalid vote! The order of preference has one or more gaps.",
