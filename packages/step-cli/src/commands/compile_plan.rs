@@ -109,6 +109,12 @@ impl CompilePlan {
             slug: self.slug.clone(),
             created_at: self.created_at.clone(),
             auth_preset: None,
+            // Set from the plan by `compile_plan` itself — the trustees become the
+            // ceremony and the candidates' photographs travel as files — so whatever
+            // is passed here is replaced. Spelled out anyway, so the next field added
+            // to `BuildOptions` still stops the build rather than defaulting quietly.
+            images: Vec::new(),
+            keys_ceremony: None,
         };
 
         let compiled = match compile_plan(&plan, &templates, &options, profile.as_ref()) {
