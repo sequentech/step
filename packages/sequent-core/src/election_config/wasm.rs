@@ -1017,13 +1017,15 @@ impl CensusCsvReader {
     /// The columns a voter will have, in order, with the derived ones dropped.
     #[wasm_bindgen(js_name = columns)]
     pub fn columns(&self) -> Result<JsValue, JsError> {
-        serde_wasm_bindgen::to_value(&self.inner.header().columns).map_err(JsError::from)
+        serde_wasm_bindgen::to_value(&self.inner.header().columns)
+            .map_err(JsError::from)
     }
 
     /// What was odd about the file without being wrong with it.
     #[wasm_bindgen(js_name = notes)]
     pub fn notes(&self) -> Result<JsValue, JsError> {
-        serde_wasm_bindgen::to_value(&self.inner.header().notes).map_err(JsError::from)
+        serde_wasm_bindgen::to_value(&self.inner.header().notes)
+            .map_err(JsError::from)
     }
 
     /// The next `size` rows as arrays of strings. Empty when the file is done.

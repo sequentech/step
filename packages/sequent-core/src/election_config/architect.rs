@@ -1793,7 +1793,12 @@ fn check_unique_identifiers(plan: &Blueprint, report: &mut Report) {
     };
 
     for (index, area) in plan.areas.iter().enumerate() {
-        claim(&area.external_id, format!("areas[{index}]"), "an area", report);
+        claim(
+            &area.external_id,
+            format!("areas[{index}]"),
+            "an area",
+            report,
+        );
     }
 
     for (index, election) in plan.elections.iter().enumerate() {

@@ -32,7 +32,8 @@ use serde::Serialize;
 /// Mirrors `VOTER_LEADING_COLUMNS` in `build_tables.rs` for the ones a census file
 /// should not be dictating: an `id` the importer assigns, the elections a voter is
 /// authorised for, and the two flags the platform sets itself.
-const DERIVED: &[&str] = &["id", "authorized-election-ids", "enabled", "email_verified"];
+const DERIVED: &[&str] =
+    &["id", "authorized-election-ids", "enabled", "email_verified"];
 
 /// The one column a census cannot do without.
 const REQUIRED: &str = "username";
@@ -73,7 +74,8 @@ impl CensusCsv {
             return Err("That file has nothing in it.".to_owned());
         }
 
-        let columns: Vec<String> = headers.iter().map(|each| each.trim().to_owned()).collect();
+        let columns: Vec<String> =
+            headers.iter().map(|each| each.trim().to_owned()).collect();
         if !columns.iter().any(|each| each == REQUIRED) {
             return Err(
                 "No `username` column. It is the one column a census cannot do \
@@ -101,7 +103,9 @@ impl CensusCsv {
         let kept: Vec<usize> = columns
             .iter()
             .enumerate()
-            .filter(|(_, name)| !name.is_empty() && !DERIVED.contains(&name.as_str()))
+            .filter(|(_, name)| {
+                !name.is_empty() && !DERIVED.contains(&name.as_str())
+            })
             .map(|(at, _)| at)
             .collect();
 
@@ -130,7 +134,10 @@ impl CensusCsv {
     /// A short row is padded rather than refused. A spreadsheet that omits trailing
     /// empty cells is not a broken file, and the wizard's own reader has always
     /// treated a missing cell as blank.
-    pub fn next_batch(&mut self, size: usize) -> Result<Vec<Vec<String>>, String> {
+    pub fn next_batch(
+        &mut self,
+        size: usize,
+    ) -> Result<Vec<Vec<String>>, String> {
         let mut batch = Vec::with_capacity(size.min(8_192));
         let mut record = csv::StringRecord::new();
 
@@ -138,7 +145,9 @@ impl CensusCsv {
             match self.reader.read_record(&mut record) {
                 Ok(true) => {}
                 Ok(false) => break,
-                Err(e) => return Err(format!("That file could not be read: {e}")),
+                Err(e) => {
+                    return Err(format!("That file could not be read: {e}"))
+                }
             }
 
             // A wholly empty line is not a member. A file ending in a newline is
@@ -178,7 +187,8 @@ mod tests {
 
     #[test]
     fn reads_a_plain_file() {
-        let rows = all("username,email\nada,ada@example.org\ngrace,g@example.org\n");
+        let rows =
+            all("username,email\nada,ada@example.org\ngrace,g@example.org\n");
         assert_eq!(
             rows,
             vec![
@@ -228,7 +238,10 @@ mod tests {
     fn pads_a_row_that_stops_early() {
         // A spreadsheet that omits trailing empty cells is not a broken file.
         let rows = all("username,email,area_name\nada\n");
-        assert_eq!(rows[0], vec!["ada".to_owned(), String::new(), String::new()]);
+        assert_eq!(
+            rows[0],
+            vec!["ada".to_owned(), String::new(), String::new()]
+        );
     }
 
     #[test]
@@ -241,8 +254,9 @@ mod tests {
 
     #[test]
     fn drops_the_columns_the_platform_regenerates() {
-        let reader = CensusCsv::new("username,id,enabled,email\nada,7,true,a@b.org\n")
-            .expect("header");
+        let reader =
+            CensusCsv::new("username,id,enabled,email\nada,7,true,a@b.org\n")
+                .expect("header");
         assert_eq!(reader.header().columns, vec!["username", "email"]);
         assert_eq!(reader.header().notes.len(), 1);
         assert!(reader.header().notes[0].contains("id, enabled"));

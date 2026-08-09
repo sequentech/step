@@ -2759,7 +2759,10 @@ fn a_plan_the_builder_refuses_is_refused_by_the_wizard_first() {
                 contest.max_votes = 99;
             }
         }
-        cases.push(("a contest allowing more choices than it has options", too_many));
+        cases.push((
+            "a contest allowing more choices than it has options",
+            too_many,
+        ));
 
         cases
     }
