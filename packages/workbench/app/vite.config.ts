@@ -15,6 +15,10 @@ import {execFileSync} from "node:child_process"
 const here = path.dirname(fileURLToPath(import.meta.url))
 const pkgs = path.resolve(here, "../..")
 
+// wasm-pack output of the in-tree sequent-core crate. Only exists after
+// an opt-in `yarn build:sequent-core`; see the `sequent-core` alias.
+const sequentCorePkg = path.resolve(here, "../../sequent-core/pkg")
+
 // Build-time validator for the bundled snapshots under
 // `src/fixtures/snapshots/`. Runs on every `vite dev` start and every
 // `vite build` (both invoke `buildStart`). A bundled snapshot is the
@@ -832,13 +836,25 @@ export default defineConfig({
             // edits after a manual `yarn build:sequent-core` (the script
             // is opt-in, not chained into `predev`/`prebuild`, so
             // contributors who haven't touched sequent-core Rust pay no
-            // toolchain cost). Falls back to the hoisted node_modules
-            // copy of the committed tgz if `pkg/` doesn't exist yet.
-            // Rationale and trade-offs in LIFTING.md row A7.
-            {
-                find: /^sequent-core$/,
-                replacement: path.resolve(here, "../../sequent-core/pkg"),
-            },
+            // toolchain cost). Rationale and trade-offs in LIFTING.md
+            // row A7.
+            //
+            // The alias is registered only when `pkg/` actually exists.
+            // `resolve.alias` rewrites unconditionally once registered,
+            // so on a fresh clone (where nobody has run
+            // `build:sequent-core` yet) an unguarded entry would point
+            // every `sequent-core` import at a missing directory and
+            // hard-fail with "Failed to resolve import" instead of
+            // falling through. Omitting it lets normal node resolution
+            // find the hoisted copy of the committed tgz.
+            ...(fs.existsSync(sequentCorePkg)
+                ? [
+                      {
+                          find: /^sequent-core$/,
+                          replacement: sequentCorePkg,
+                      },
+                  ]
+                : []),
         ],
     },
     server: {
