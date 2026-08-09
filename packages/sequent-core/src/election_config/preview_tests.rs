@@ -5,6 +5,7 @@
 //! Tests for [`super`].
 
 use super::*;
+use crate::types::ceremonies::CeremoniesPolicy;
 
 use crate::election_config::architect::{
     to_workbook, Blueprint, Contact, PlannedArea, PlannedCandidate,
@@ -59,6 +60,7 @@ fn sound() -> Blueprint {
             },
         ],
         trustee_threshold: 2,
+        ceremony_policy: CeremoniesPolicy::MANUAL_CEREMONIES,
         areas: vec![],
         schedule: Schedule {
             key_ceremony: Some(at("2027-02-01T10:00")),

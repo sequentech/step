@@ -54,6 +54,7 @@ use crate::election_config::schema::ImportElectionEventSchema;
 use crate::election_config::sheet::{Sheet, Workbook};
 use crate::election_config::time::{self, Timestamp};
 use crate::election_config::validate::{ALLOW_EARLY_VOTING, NO_EARLY_VOTING};
+use crate::types::ceremonies::CeremoniesPolicy;
 use serde::{Deserialize, Serialize};
 
 /// The plan format's version.
@@ -369,6 +370,19 @@ pub struct Blueprint {
     /// How many trustees must take part to open the tally.
     #[serde(default = "default_threshold")]
     pub trustee_threshold: u32,
+
+    /// Whether the key ceremony is run by people or by the platform.
+    ///
+    /// The platform's own [`CeremoniesPolicy`], carried into the ceremony's
+    /// `settings` where `KeysCeremony::policy()` reads it. Absent means
+    /// `manual-ceremonies`, which is the platform's default and what every bundle
+    /// this tool has built so far has silently been.
+    ///
+    /// **Not [`crate::ballot::KeysCeremonyPolicy`]**, whose name is one word away
+    /// and means something else entirely: that one is `ELECTION_EVENT` or
+    /// `ELECTION` — how many ceremonies there are — while this is who runs them.
+    #[serde(default)]
+    pub ceremony_policy: CeremoniesPolicy,
 
     #[serde(default)]
     pub schedule: Schedule,
@@ -2512,6 +2526,7 @@ pub fn compile_plan(
             }
         }),
         images: plan_images(plan),
+        ceremony_policy: plan.ceremony_policy.clone(),
         ..options.clone()
     };
     let bundle = build(&workbook, templates, &with_ceremony)?;

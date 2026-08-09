@@ -14,6 +14,7 @@ use crate::election_config::{
     build, validate, BuildOptions, Bundle, ImportElectionEventSchema,
     TemplateSet,
 };
+use crate::types::ceremonies::CeremoniesPolicy;
 
 /// A moment in a zone that does not observe daylight saving.
 ///
@@ -64,6 +65,7 @@ fn sound() -> Blueprint {
             },
         ],
         trustee_threshold: 2,
+        ceremony_policy: CeremoniesPolicy::MANUAL_CEREMONIES,
         areas: vec![],
         schedule: Schedule {
             key_ceremony: Some(at("2027-02-01T10:00")),
@@ -143,6 +145,12 @@ fn compiled(plan: &Blueprint) -> Bundle {
         // which is the second time this helper drifting from `compile_plan` has
         // produced a wrong answer, the first being the key ceremony above.
         images: plan_images(plan),
+        // And who runs the ceremony, which is the third thing this helper has had
+        // to be told after `compile_plan` learned it. The comment above is not
+        // rhetorical: every field added to `BuildOptions` that `compile_plan`
+        // derives from the plan has to be derived here too, or a test asserts on a
+        // bundle nobody ships.
+        ceremony_policy: plan.ceremony_policy.clone(),
         ..BuildOptions::default()
     };
     match build(&workbook, &templates, &options) {
@@ -2357,4 +2365,44 @@ fn a_plan_that_says_nothing_new_writes_no_new_columns() {
     ] {
         assert!(rows[0].get(column).is_none(), "{column} should be absent");
     }
+}
+
+/// Absent, `KeysCeremony::policy()` reads manual — so silence is a decision.
+#[test]
+fn the_ceremony_says_who_runs_it() {
+    // The bug this closes: the builder wrote no `settings`, so every event this
+    // tool has ever produced imported as a manual ceremony whether or not that is
+    // what anybody chose, and no screen said so.
+    let plan = sound();
+    assert_eq!(plan.ceremony_policy, CeremoniesPolicy::MANUAL_CEREMONIES);
+
+    let bundle = compiled(&plan);
+    assert_eq!(
+        bundle.export["keys_ceremonies"][0]["settings"]["policy"],
+        "manual-ceremonies"
+    );
+
+    let mut automated = sound();
+    automated.ceremony_policy = CeremoniesPolicy::AUTOMATED_CEREMONIES;
+    assert_eq!(
+        compiled(&automated).export["keys_ceremonies"][0]["settings"]["policy"],
+        "automated-ceremonies"
+    );
+}
+
+/// A plan written before the field existed still opens, and still means manual.
+#[test]
+fn a_plan_saved_before_ceremonies_had_a_policy_still_means_manual() {
+    let mut value = serde_json::to_value(sound()).expect("a plan");
+    value
+        .as_object_mut()
+        .expect("an object")
+        .remove("ceremony_policy");
+
+    let reopened: Blueprint =
+        serde_json::from_value(value).expect("a plan with no policy");
+    assert_eq!(
+        reopened.ceremony_policy,
+        CeremoniesPolicy::MANUAL_CEREMONIES
+    );
 }

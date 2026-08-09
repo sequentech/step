@@ -658,6 +658,7 @@ pub fn policy_catalog() -> Result<JsValue, JsError> {
         BlankVote, CandidatesOrder, DuplicatedRank, InvalidVote, OverVote,
         Policies, PolicyValue, PreferenceGaps, UnderVote,
     };
+    use crate::types::ceremonies::CeremoniesPolicy;
     use strum::IntoEnumIterator;
 
     #[derive(Serialize)]
@@ -751,7 +752,33 @@ pub fn policy_catalog() -> Result<JsValue, JsError> {
         presets: Vec<(&'static str, Policies)>,
         tally: TallyCatalog,
         layout: LayoutCatalog,
+        /// Who runs the key ceremony, and what a plan gets by saying nothing.
+        ///
+        /// Handed over rather than restated in TypeScript for the same reason as
+        /// everything above it. The default matters as much as the values here:
+        /// absent from a ceremony's `settings`, `KeysCeremony::policy()` reads
+        /// `manual-ceremonies`, so a wizard that offered the choice without
+        /// knowing the fallback could show the wrong one as already selected.
+        ceremony: CeremonyCatalog,
     }
+
+    #[derive(Serialize)]
+    struct CeremonyCatalog {
+        values: Vec<&'static str>,
+        default: &'static str,
+    }
+
+    let ceremony = CeremonyCatalog {
+        values: CeremoniesPolicy::iter()
+            .map(|each| match each {
+                CeremoniesPolicy::MANUAL_CEREMONIES => "manual-ceremonies",
+                CeremoniesPolicy::AUTOMATED_CEREMONIES => {
+                    "automated-ceremonies"
+                }
+            })
+            .collect(),
+        default: "manual-ceremonies",
+    };
 
     to_js(&Catalog {
         event: EventCatalog {
@@ -811,6 +838,7 @@ pub fn policy_catalog() -> Result<JsValue, JsError> {
                     .max_selections_per_type,
             }
         },
+        ceremony,
     })
 }
 

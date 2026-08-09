@@ -24,6 +24,7 @@ use sequent_core::election_config::{
     archive, build, presets, validate, BuildOptions, Bundle, ImportElectionEventSchema, Problem,
     Severity, TemplateSet, ValidationReport,
 };
+use sequent_core::types::ceremonies::CeremoniesPolicy;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -149,6 +150,9 @@ impl BuildElectionEvent {
             // that notices the next field — which is exactly what caught these two.
             images: Vec::new(),
             keys_ceremony: None,
+            // No ceremony from a workbook, so this labels nothing; the platform's
+            // own default, named rather than defaulted for the reason above.
+            ceremony_policy: CeremoniesPolicy::MANUAL_CEREMONIES,
         };
 
         let bundle = match build(&workbook, &templates, &options) {

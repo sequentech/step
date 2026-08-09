@@ -25,6 +25,7 @@ use sequent_core::election_config::profile::{ClientProfile, Profile};
 use sequent_core::election_config::{
     archive, BuildOptions, Problem, Severity, TemplateSet, ValidationReport,
 };
+use sequent_core::types::ceremonies::CeremoniesPolicy;
 use std::fs;
 use std::path::PathBuf;
 
@@ -115,6 +116,9 @@ impl CompilePlan {
             // to `BuildOptions` still stops the build rather than defaulting quietly.
             images: Vec::new(),
             keys_ceremony: None,
+            // Replaced by `compile_plan` from the plan's own `ceremony_policy`,
+            // like the two above.
+            ceremony_policy: CeremoniesPolicy::MANUAL_CEREMONIES,
         };
 
         let compiled = match compile_plan(&plan, &templates, &options, profile.as_ref()) {

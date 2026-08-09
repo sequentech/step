@@ -31,6 +31,7 @@ use crate::election_config::sheet::{
     SHEET_ELECTION_EVENT, SHEET_PARAMETERS, SHEET_REPORTS,
     SHEET_SCHEDULED_EVENTS,
 };
+use crate::types::ceremonies::CeremoniesPolicy;
 use serde_json::{json, Map, Value};
 
 #[path = "build_realm.rs"]
@@ -217,6 +218,14 @@ pub struct BuildOptions {
     /// `.unwrap_or_default()` and becomes an empty string, so the ceremony
     /// imports with a member who does not exist and nothing reports it.
     pub keys_ceremony: Option<KeysCeremonyPlan>,
+
+    /// Whether the key ceremony is run by people or by the platform.
+    ///
+    /// Written into the ceremony's `settings`, which is where
+    /// `KeysCeremony::policy()` looks and which the importer carries through
+    /// untouched. Defaults to `manual-ceremonies` — the platform's own default,
+    /// and what every bundle built before this field existed silently was.
+    pub ceremony_policy: CeremoniesPolicy,
 }
 
 /// Who holds the election key. See [`BuildOptions::keys_ceremony`].
@@ -351,6 +360,7 @@ struct Builder<'a> {
 
     /// Who holds the election key. See [`BuildOptions::keys_ceremony`].
     keys_ceremony: Option<KeysCeremonyPlan>,
+    ceremony_policy: CeremoniesPolicy,
     images: Vec<ImageFile>,
 
     event_row: Row,
@@ -401,6 +411,7 @@ impl<'a> Builder<'a> {
         let base_export = options.base_export.clone().unwrap_or(Value::Null);
         let mut builder = Builder {
             keys_ceremony: options.keys_ceremony.clone(),
+            ceremony_policy: options.ceremony_policy.clone(),
             images: options.images.clone(),
             workbook,
             templates,
@@ -467,6 +478,10 @@ impl<'a> Builder<'a> {
                 "threshold": plan.threshold,
                 "is_default": true,
                 "name": "Key ceremony",
+                // Where `KeysCeremony::policy()` reads it. Absent, it falls back
+                // to manual — so writing it is the difference between a client
+                // getting what they chose and getting the default quietly.
+                "settings": {"policy": self.ceremony_policy.to_string()},
                 "permission_label": [],
             })],
         };
