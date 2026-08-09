@@ -970,7 +970,10 @@ pub fn plan_materials(plan: &Blueprint) -> Vec<MaterialFile> {
         .iter()
         .filter(|material| !material.bytes.is_empty())
         .map(|material| MaterialFile {
-            document_id: material_document_id(&ids, &material.external_id),
+            // Keyed by name from here on: the builder matches the sheet's `file`
+            // column against these and derives the identifier itself, so the JSON
+            // and the archive cannot disagree about which is which.
+            document_id: String::new(),
             file_name: material.file_name.clone(),
             bytes: material.bytes.clone(),
         })
@@ -1786,6 +1789,10 @@ pub fn to_workbook(plan: &Blueprint) -> Result<Workbook, Problem> {
         sheets.push(voters);
     }
 
+    if let Some(materials) = materials_sheet(plan, &languages) {
+        sheets.push(materials?);
+    }
+
     if let Some(schedule) = scheduled_events_sheet(plan)? {
         sheets.push(schedule);
     }
@@ -2011,6 +2018,50 @@ fn event_sheet(
     }
 
     sheet_of("ElectionEvent", columns, vec![row])
+}
+
+/// The support materials, as rows a workbook could equally have carried.
+///
+/// The wizard's documents and a janitor's spreadsheet now describe the same thing
+/// in the same place: the sheet names the file, and the bytes travel beside it.
+/// Before this the wizard emitted rows directly and a workbook could not carry a
+/// material at all, which is two routes to one entity and the usual result.
+fn materials_sheet(
+    plan: &Blueprint,
+    languages: &[String],
+) -> Option<Result<Sheet, Problem>> {
+    if plan.materials.is_empty() {
+        return None;
+    }
+
+    let mut columns = vec![
+        "external_id".to_string(),
+        "kind".to_string(),
+        "file".to_string(),
+        "is_hidden".to_string(),
+    ];
+    columns.extend(i18n_columns("presentation", "title", languages));
+
+    let rows = plan
+        .materials
+        .iter()
+        .map(|material| {
+            let mut row = vec![
+                Cell::text(material.external_id.clone()),
+                Cell::text(if material.kind.is_empty() {
+                    "document".to_string()
+                } else {
+                    material.kind.clone()
+                }),
+                Cell::text(material.file_name.clone()),
+                Cell::Bool(material.is_hidden),
+            ];
+            row.extend(i18n_values(&material.title, languages));
+            row
+        })
+        .collect();
+
+    Some(sheet_of("Materials", columns, rows))
 }
 
 fn elections_sheet(

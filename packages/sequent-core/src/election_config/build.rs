@@ -28,7 +28,7 @@ use crate::election_config::render::TemplateSet;
 use crate::election_config::sheet::{
     normalise_sheet_name, Origin, Row, Workbook, SHEET_AREAS,
     SHEET_AREA_CONTESTS, SHEET_CANDIDATES, SHEET_CONTESTS, SHEET_ELECTIONS,
-    SHEET_ELECTION_EVENT, SHEET_PARAMETERS, SHEET_REPORTS,
+    SHEET_ELECTION_EVENT, SHEET_MATERIALS, SHEET_PARAMETERS, SHEET_REPORTS,
     SHEET_SCHEDULED_EVENTS,
 };
 use crate::types::ceremonies::CeremoniesPolicy;
@@ -540,25 +540,134 @@ impl<'a> Builder<'a> {
         // that puts the archive entry's identifier into the importer's replacement
         // map. Built here rather than from a sheet column so the derivation stays
         // in one place, the way `keys_ceremonies` is.
-        let support_materials: Vec<Value> = self
+        // From the **sheet**, so the wizard and a workbook produce the same rows.
+        //
+        // The row names a file; the bytes arrive separately in `options.materials`,
+        // keyed by that name — which is what lets a workbook carry documents at all:
+        // a spreadsheet cell cannot hold one, so the sheet names `rules.pdf` and the
+        // caller hands over a folder or a zip containing it.
+        //
+        // The document identifier is derived here from the row's `external_id`
+        // rather than stored, exactly as every other entity's is, so the JSON and
+        // the archive entry cannot disagree and two runs of one workbook produce the
+        // same bytes.
+        let mut support_materials: Vec<Value> = Vec::new();
+        let mut material_files: Vec<MaterialFile> = Vec::new();
+        let by_name: std::collections::BTreeMap<&str, &MaterialFile> = self
             .materials
             .iter()
-            .map(|file| {
-                json!({
-                    "id": self.ids.uid("support_material", &[&file.document_id]),
-                    "tenant_id": self.tenant_id,
-                    "election_event_id": self.event_id,
-                    "document_id": file.document_id,
-                    "kind": "document",
-                    "data": {"file_name": file.file_name},
-                    "labels": {},
-                    "annotations": {},
-                    "is_hidden": false,
-                    "created_at": self.created_at,
-                    "last_updated_at": self.created_at,
-                })
-            })
+            .map(|file| (file.file_name.as_str(), file))
             .collect();
+
+        for row in self.workbook.rows(SHEET_MATERIALS) {
+            let external_id = row.text("external_id").unwrap_or_default();
+            if external_id.is_empty() {
+                self.report.push(
+                    Problem::error(
+                        Code::MissingField,
+                        format!("{}.external_id", SHEET_MATERIALS),
+                        "a support material needs an identifier: its document's id \
+                         is derived from it, so without one the file cannot be \
+                         matched to the row",
+                    )
+                    .id("material.no-identifier"),
+                );
+                continue;
+            }
+
+            let file_name = row.text("file").unwrap_or_default();
+            let document_id = (!file_name.is_empty())
+                .then(|| self.ids.uid("material-document", &[&external_id]));
+
+            // A row naming a file nobody supplied. Refused rather than emitted:
+            // the row would import as a link to a document that was never created,
+            // which is a tab of broken links and no error anywhere.
+            if !file_name.is_empty() {
+                match by_name.get(&*file_name) {
+                    Some(file) => material_files.push(MaterialFile {
+                        document_id: document_id.clone().unwrap_or_default(),
+                        file_name: file.file_name.clone(),
+                        bytes: file.bytes.clone(),
+                    }),
+                    None => {
+                        self.report.push(
+                            Problem::error(
+                                Code::DanglingReference,
+                                format!("{}.file", SHEET_MATERIALS),
+                                format!(
+                                    "'{file_name}' is named here and was not \
+                                     supplied. Put the file beside the workbook \
+                                     under exactly that name."
+                                ),
+                            )
+                            .id("material.file-missing")
+                            .detail("file", &file_name)
+                            .about(Some(&external_id)),
+                        );
+                        continue;
+                    }
+                }
+            }
+
+            let mut data = serde_json::Map::new();
+            if !file_name.is_empty() {
+                data.insert("file_name".to_string(), json!(file_name));
+            }
+            // Whatever languages the sheet actually carries, read off the row's
+            // own headers rather than from a list of languages this function does
+            // not have. `presentation.i18n.<lang>.title` is the workbook's own
+            // shape, so a bilingual sheet needs no extra column convention.
+            let mut title = serde_json::Map::new();
+            for (column, value) in &row.cells {
+                if let Some(rest) = column.strip_prefix("presentation.i18n.") {
+                    if let Some(language) = rest.strip_suffix(".title") {
+                        title.insert(language.to_string(), value.clone());
+                    }
+                }
+            }
+            if !title.is_empty() {
+                data.insert("title".to_string(), Value::Object(title));
+            }
+
+            support_materials.push(json!({
+                "id": self.ids.uid("support_material", &[&external_id]),
+                "tenant_id": self.tenant_id,
+                "election_event_id": self.event_id,
+                "document_id": document_id,
+                "kind": row.text("kind").filter(|kind| !kind.is_empty())
+                    .unwrap_or("document"),
+                "data": Value::Object(data),
+                "labels": {},
+                "annotations": {},
+                "is_hidden": row.get("is_hidden").and_then(Value::as_bool).unwrap_or(false),
+                "created_at": self.created_at,
+                "last_updated_at": self.created_at,
+            }));
+        }
+
+        // A file nobody named. The mirror of the check above, and the more dangerous
+        // of the two: it lands in the archive, the importer creates a document for
+        // it, and nothing ever points at it.
+        for file in &self.materials {
+            if !material_files
+                .iter()
+                .any(|used| used.file_name == file.file_name)
+            {
+                self.report.push(
+                    Problem::warning(
+                        Code::BallotCoverage,
+                        SHEET_MATERIALS,
+                        format!(
+                            "'{}' was supplied and no row names it, so it would be \
+                             uploaded and shown to nobody.",
+                            file.file_name
+                        ),
+                    )
+                    .id("material.file-unused")
+                    .detail("file", &file.file_name),
+                );
+            }
+        }
 
         let version = self
             .base_export
@@ -616,7 +725,7 @@ impl<'a> Builder<'a> {
             role_permissions,
             templates,
             images: self.images,
-            materials: self.materials,
+            materials: material_files,
             realm_patch: self.realm_patch,
             admin_realm_patch,
             auth_preset: self.auth_preset.map(|preset| preset.name),

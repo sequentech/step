@@ -2498,3 +2498,91 @@ fn materials_shipped_with_the_tab_switched_off_are_said_out_loud() {
         .iter()
         .any(|problem| problem.id.as_deref() == Some("material.tab-off")));
 }
+
+/// The workbook carries them too, which is what makes the janitor's route work.
+#[test]
+fn a_workbook_can_carry_support_materials() {
+    // The plan writes a Materials sheet, so a spreadsheet describing the same
+    // thing produces the same rows: the sheet names the file, the bytes travel
+    // beside it. That is the whole answer to "a cell cannot hold a document".
+    let mut plan = sound();
+    plan.materials_activated = Some(true);
+    plan.materials = vec![PlannedMaterial {
+        external_id: "rules".to_string(),
+        title: Translated::new("Rules of the election"),
+        kind: "document".to_string(),
+        file_name: "rules.pdf".to_string(),
+        bytes: b"%PDF".to_vec(),
+        is_hidden: false,
+    }];
+
+    let workbook = to_workbook(&plan).expect("a workbook");
+    let rows = workbook.rows(sheet::SHEET_MATERIALS);
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].text("file"), Some("rules.pdf"));
+    assert_eq!(rows[0].text("external_id"), Some("rules"));
+    assert_eq!(
+        rows[0]
+            .get("presentation.i18n.en.title")
+            .and_then(serde_json::Value::as_str),
+        Some("Rules of the election")
+    );
+}
+
+#[test]
+fn a_row_naming_a_file_nobody_supplied_is_refused() {
+    // The failure this exists to stop is silent: the row imports, the document it
+    // names was never created, and the tab is a list of broken links.
+    let mut plan = sound();
+    plan.materials = vec![PlannedMaterial {
+        external_id: "rules".to_string(),
+        file_name: "rules.pdf".to_string(),
+        bytes: b"%PDF".to_vec(),
+        ..Default::default()
+    }];
+
+    let workbook = to_workbook(&plan).expect("a workbook");
+    let templates = TemplateSet::builtin().unwrap();
+    // The sheet, with the bytes deliberately withheld — which is exactly what a
+    // workbook arriving without its folder of files looks like.
+    let outcome = build(&workbook, &templates, &BuildOptions::default());
+
+    let report = match outcome {
+        Ok(bundle) => bundle.warnings,
+        Err(report) => report,
+    };
+    assert!(
+        report
+            .problems
+            .iter()
+            .any(|problem| problem.id.as_deref()
+                == Some("material.file-missing")),
+        "expected material.file-missing, got {report}"
+    );
+}
+
+#[test]
+fn a_file_nobody_names_is_said_out_loud() {
+    // The mirror, and the more dangerous of the two: it reaches the archive, the
+    // importer creates a document for it, and nothing points at it ever again.
+    let plan = sound();
+    let workbook = to_workbook(&plan).expect("a workbook");
+    let templates = TemplateSet::builtin().unwrap();
+    let options = BuildOptions {
+        materials: vec![MaterialFile {
+            document_id: String::new(),
+            file_name: "orphan.pdf".to_string(),
+            bytes: b"%PDF".to_vec(),
+        }],
+        ..BuildOptions::default()
+    };
+
+    let bundle = build(&workbook, &templates, &options).expect("a clean build");
+    assert!(bundle
+        .warnings
+        .problems
+        .iter()
+        .any(|problem| problem.id.as_deref() == Some("material.file-unused")));
+    // And it does not reach the archive.
+    assert!(bundle.materials.is_empty());
+}
