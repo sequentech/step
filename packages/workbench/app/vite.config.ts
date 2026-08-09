@@ -472,8 +472,10 @@ function workbenchBuildInfo(): Plugin {
                 "wasm32-unknown-unknown), web-sys added to the `wasm` feature, and " +
                 "the `areas` / `wasm` modules gated on `wasm` instead of " +
                 "`wasmtest` so build:sequent-core emits the exports the lifted " +
-                "booth calls. That last one widens the crate's public wasm surface " +
-                "for every consumer, not just the workbench.",
+                "booth calls. That last one only widens the `wasm`-only build " +
+                "path: production builds the tgz with `--features=wasmtest`, and " +
+                "`wasmtest` already implies `wasm`, so the shipped artifact is " +
+                "unaffected.",
         },
     ]
 
