@@ -103,7 +103,7 @@ Dependencies fall into three categories:
 |----------|---------|-----------|------------|
 | **Shared source** | `velvet-core` | Real crate consumed identically by production and workbench | None — same source |
 | **Alias lift** (in-place) | `voting-portal`, `ui-core` | Vite `resolve.alias` points at the original source files in their upstream packages; no files are copied. Substitute providers replace services the portal normally talks to (Keycloak, Hasura, REST). | High — many upstream files; silent drift requires periodic reconciliation |
-| **Copy lift** | Tally result components from `admin-portal` | Source files copied (with adaptations) into `ui-essentials/src/components/TallyResults/`. Thin adapter maps velvet's output to the shape the components expect. | Low — small surface, stable upstream |
+| **Upstream component** | Tally results (`ui-essentials`) | The production tally visualization, imported unmodified. A thin adapter maps velvet's output to its props. | None — same component production renders |
 
 ### Voting-portal (alias lift)
 
@@ -115,15 +115,47 @@ Runtime services are stubbed by mock providers inside `workbench/app/`.
 
 Full procedure, invariants, and canary list: [LIFTING.md](LIFTING.md).
 
-### Tally results (copy lift)
+### Tally results (upstream component)
 
-The admin-portal's tally visualization (pie charts, results tables, IRV
-round-by-round) was re-hosted into `ui-essentials` as a permanent
-library component. A `velvetTallyAdapter.ts` in the workbench maps
-velvet's snake_case `ContestResult` to the plain TS shape the components
-expect. i18n is replaced by a hardcoded English string shim.
+The tally visualization (participation summary, pie charts, results
+tables, IRV round-by-round) lives in `ui-essentials` as production code
+shared with `results-portal`. The workbench imports it unmodified; a
+`velvetTallyAdapter.ts` maps velvet's snake_case `ContestResult` onto
+`ResultsAndParticipation`'s props. Labels are injected via the
+component's own `labels` prop, which ships English defaults — no i18n
+provider needed.
 
-Full procedure and adaptation inventory: [LIFTING-TALLY.md](LIFTING-TALLY.md).
+This was previously a copy lift into `ui-essentials`; that copy was
+deleted once upstream shipped its own version.
+
+Adapter mapping table and the two percentage conventions:
+[LIFTING-TALLY.md](LIFTING-TALLY.md).
+
+## Known gaps
+
+**velvet-core lags production tally semantics.** The pure tally logic was
+extracted from `packages/velvet` into `workbench/velvet-core`, which
+`packages/velvet` now re-exports. Upstream subsequently landed ~950 lines
+of new tally behaviour into velvet's `do_tally` across five feature PRs —
+explicit blank votes in encoding (#2842), tally sheets input (#1929),
+consistent invalid vote policy (#2697), election-level decline to vote
+(#2687) and browser-based trustees (#2198). Those changes have **not**
+been forward-ported into `velvet-core`, so tally results computed here
+can diverge from production for ballots exercising those features. Since
+the workbench exists to check fidelity against production, treat results
+involving blank/invalid/decline semantics as unverified until this is
+reconciled. The same caveat applies to whatever those PRs changed in
+`strand`.
+
+**`yarn build` (`tsc -b`) does not pass.** The dev server is the
+supported workflow. Three separate causes: `tsconfig.json` uses
+`erasableSyntaxOnly` (TypeScript ≥ 5.8) while the app pins `~5.7.2`; the
+deprecated `@types/minimatch` stub trips `TS2688`; and `tsc` does not
+read Vite's `resolve.alias`, so it cannot resolve
+`@sequentech/ui-core` / `@sequentech/ui-essentials` and ends up
+type-checking the lifted portal sources under the workbench's stricter
+flags. Fixing it means mirroring the Vite aliases as tsconfig `paths` and
+excluding portal sources from the check.
 
 ## License
 
