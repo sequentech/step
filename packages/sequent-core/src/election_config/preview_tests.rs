@@ -89,9 +89,6 @@ fn sound() -> Blueprint {
                         description: Translated::default(),
                         explicit_blank: false,
                         explicit_invalid: false,
-                        withdrawn: false,
-                        link: None,
-                        candidate_type: None,
 
                         image: None,
                     },
@@ -101,9 +98,6 @@ fn sound() -> Blueprint {
                         description: Translated::default(),
                         explicit_blank: false,
                         explicit_invalid: false,
-                        withdrawn: false,
-                        link: None,
-                        candidate_type: None,
 
                         image: None,
                     },
@@ -299,9 +293,6 @@ fn each_area_gets_the_contests_it_and_its_parents_vote_on() {
             description: Translated::default(),
             explicit_blank: false,
             explicit_invalid: false,
-            withdrawn: false,
-            link: None,
-            candidate_type: None,
 
             image: None,
         }],
@@ -493,51 +484,4 @@ fn the_areas_come_back_named_without_changing_the_document() {
             "support_materials"
         ]
     );
-}
-
-/// A picker over elections needs their names, for the same reason areas do.
-///
-/// A ballot style names its election by the id windmill will write. The wizard's
-/// preview shows one area × one election, because that is what a voter is handed,
-/// so it needs to label the choice — and an election carries no `name` column: the
-/// platform keeps it under `presentation.i18n.<lang>.name`.
-#[test]
-fn the_elections_come_back_named_from_their_presentation() {
-    let mut plan = sound();
-    plan.elections[0].name = Translated::new("Officers");
-    // Cloned and renamed rather than built field by field: a field added to
-    // `PlannedElection` later should not break a test about names.
-    let mut second = plan.elections[0].clone();
-    second.external_id = "bylaws".to_string();
-    second.name = Translated::new("Bylaw amendments");
-    // Identifiers are unique across the whole event, not per election, so the
-    // clone's contests and candidates need their own.
-    for contest in &mut second.contests {
-        contest.external_id = format!("bylaws-{}", contest.external_id);
-        for candidate in &mut contest.candidates {
-            candidate.external_id = format!("bylaws-{}", candidate.external_id);
-        }
-    }
-    plan.elections.push(second);
-
-    let bundle = built(&plan);
-    let schema: ImportElectionEventSchema =
-        serde_json::from_value(bundle.export.clone()).unwrap();
-    let preview =
-        preview_publication(&bundle, &PreviewOptions::default()).unwrap();
-
-    let mut names: Vec<String> = preview
-        .elections(&schema)
-        .into_iter()
-        .map(|election| election.name)
-        .collect();
-    names.sort();
-    assert_eq!(
-        names,
-        vec!["Bylaw amendments".to_string(), "Officers".to_string()]
-    );
-
-    // One entry per election, not one per ballot style: an election with ballots
-    // in four areas is still one choice in the picker.
-    assert_eq!(preview.elections(&schema).len(), 2);
 }

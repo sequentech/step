@@ -425,6 +425,12 @@ pub struct Blueprint {
     #[serde(default)]
     pub voters: Vec<PlannedVoter>,
 
+    /// The messages voters are sent, and when somebody should send them.
+    ///
+    /// Empty is the ordinary case and means the client sends nothing through us.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub messages: Vec<PlannedMessage>,
+
     /// Which of the four authentication flows this event uses.
     ///
     /// `None` leaves the environment's own configuration alone, which is the
@@ -513,6 +519,75 @@ impl Translated {
     pub fn is_empty(&self) -> bool {
         self.by_language.values().all(|text| text.is_empty())
     }
+}
+
+/// Which message this is.
+///
+/// Two, because two are what an election actually sends: one telling somebody
+/// their ballot is ready, one telling them it is nearly too late. A free-text
+/// alias would let a client invent a third that nothing downstream knows about.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum MessageKind {
+    /// Sent when voting opens: here is your ballot.
+    InvitationToVote,
+    /// Sent before it closes: you have not voted yet.
+    GetOutTheVote,
+}
+
+impl MessageKind {
+    /// The alias the platform's own template table uses.
+    pub fn alias(self) -> &'static str {
+        match self {
+            MessageKind::InvitationToVote => "invitation-to-vote",
+            MessageKind::GetOutTheVote => "get-out-the-vote",
+        }
+    }
+}
+
+/// When a message should go out.
+///
+/// A wall clock and a zone like every other moment in a plan, plus an optional
+/// weekly repeat. **Nothing here sends anything** — see [`validate_plan`]'s
+/// warning — so this is a schedule for a person to keep, which is why it carries
+/// a human's timezone rather than an instant.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct MessageSchedule {
+    /// When to send it, if a date has been chosen.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at: Option<Timestamp>,
+
+    /// Days of the week to repeat on, 1 = Monday, as ISO-8601 numbers them.
+    ///
+    /// Empty means send once. Numbers rather than names because a name is a
+    /// language, and this file is read by whatever the client uses to send.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub weekly: Vec<u8>,
+}
+
+/// One message, in every language the ballot offers.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlannedMessage {
+    pub kind: MessageKind,
+
+    /// The subject line, per language.
+    #[serde(default)]
+    pub subject: Translated,
+
+    /// The body as plain text, per language.
+    #[serde(default)]
+    pub body: Translated,
+
+    /// The body as HTML, per language.
+    ///
+    /// Separate from `body` rather than a flag on it: a sender that cannot do
+    /// HTML still needs something to send, and the plain version is not
+    /// derivable from the markup without deciding what a link becomes.
+    #[serde(default, skip_serializing_if = "Translated::is_empty")]
+    pub html: Translated,
+
+    #[serde(default)]
+    pub schedule: MessageSchedule,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -872,31 +947,6 @@ pub struct PlannedCandidate {
     /// A photograph, shown beside the name on the ballot.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub image: Option<CandidateImage>,
-
-    /// Stands on the ballot but cannot be chosen.
-    ///
-    /// `presentation.is_disabled`. What happens when somebody withdraws after the
-    /// ballot is settled: removing them renumbers everyone and invalidates papers
-    /// already printed, so the platform draws them and refuses the selection.
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    pub withdrawn: bool,
-
-    /// A page about this candidate, linked from the ballot.
-    ///
-    /// Travels in `presentation.urls` beside the photograph — the same list, a
-    /// different entry — so a ballot can link a manifesto without this becoming a
-    /// second mechanism for attaching things to a candidate.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub link: Option<String>,
-
-    /// Which group this candidate belongs to, where a contest has groups.
-    ///
-    /// `candidate_type`. Only meaningful next to the layout screen's per-type cap,
-    /// which is unreachable while nothing sets a type — that cap is the reason this
-    /// exists rather than a wish to model party lists, which this wizard does not
-    /// draw.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub candidate_type: Option<String>,
 }
 
 /// One voter-facing help document in a plan.
@@ -1129,6 +1179,28 @@ pub fn validate_plan(plan: &Blueprint) -> Report {
     check_areas(plan, &mut report);
     check_census(plan, &mut report);
     check_ballot(plan, &mut report);
+
+    // The most valuable thing this screen ships, and it is a sentence.
+    //
+    // `windmill/src/tasks/scheduled_events.rs` handles `SEND_TEMPLATE` with an
+    // empty arm — deliberately, so a new processor is a compile error — and
+    // `import_scheduled_events` rebuilds the payload as a
+    // `ManageElectionDatePayload`, discarding the body. So a schedule in this plan
+    // is a note for a person. Said out loud, because a client who fills this in and
+    // is not told will believe their reminders went out.
+    if !plan.messages.is_empty() {
+        report.push(
+            Problem::warning(
+                Code::MissingSchedule,
+                "messages",
+                "nothing sends these. The platform's scheduled-event processor for \
+                 templates does nothing, so the dates below are a note for whoever \
+                 sends them by hand. The text and the schedule are exported either \
+                 way.",
+            )
+            .id("messages.not-automatic"),
+        );
+    }
 
     if plan.contacts.is_empty() {
         report.push(Problem::warning(
@@ -2204,13 +2276,6 @@ fn candidates_sheet(
         // the Parameters sheet, the base export and the id-factory fallback — so
         // the builder is the only place that knows which one the bundle will carry.
         "image_document_id".to_string(),
-        // Three the wizard can now set per candidate. `presentation.urls` is not
-        // here: the photograph's url is composed by the builder, so a second entry
-        // written from this sheet would be a second author of the same array.
-        // `candidate_link` is the plain address and the builder places it.
-        "presentation.is_disabled".to_string(),
-        "candidate_type".to_string(),
-        "candidate_link".to_string(),
     ];
     columns.extend(i18n_columns("presentation", "name", languages));
     columns.extend(i18n_columns("presentation", "description", languages));
@@ -2237,15 +2302,6 @@ fn candidates_sheet(
                             &candidate.external_id,
                         )),
                         _ => Cell::Blank,
-                    },
-                    Cell::Bool(candidate.withdrawn),
-                    match &candidate.candidate_type {
-                        Some(each) => Cell::text(each.clone()),
-                        None => Cell::Blank,
-                    },
-                    match &candidate.link {
-                        Some(each) => Cell::text(each.clone()),
-                        None => Cell::Blank,
                     },
                 ];
                 row.extend(i18n_values(&candidate.name, languages));
@@ -2278,12 +2334,6 @@ fn candidates_sheet(
                         // A write-in slot is a blank line, not a person, so it has
                         // no photograph. The cell is still written: the sheet guard
                         // refuses a ragged row, and it is right to.
-                        Cell::Blank,
-                        // The three the real rows carry. A row narrower than its
-                        // header refuses to build, and a write-in slot is never
-                        // withdrawn, typed or linked.
-                        Cell::Bool(false),
-                        Cell::Blank,
                         Cell::Blank,
                     ];
                     // Named, because the Voting Portal draws the name as the
@@ -2588,6 +2638,68 @@ pub fn side_files(plan: &Blueprint) -> Vec<(String, String)> {
             pretty(&serde_json::json!({
                 "threshold": plan.trustee_threshold,
                 "trustees": plan.trustees,
+            })),
+        ));
+    }
+
+    if !plan.messages.is_empty() {
+        // **Beside the bundle, not inside it.** The platform's own templates are a
+        // property of the *tenant*, and an election event import that could rewrite
+        // them would let one election change what every other election sends. So
+        // this is an artifact somebody loads into the Admin Portal deliberately.
+        //
+        // Shaped as the Admin Portal's own template rows — an alias, a
+        // communication method, and the text per language — rather than as this
+        // plan's vocabulary, because the file is for that screen rather than for us.
+        let templates: Vec<serde_json::Value> = plan
+            .messages
+            .iter()
+            .map(|message| {
+                serde_json::json!({
+                    "alias": message.kind.alias(),
+                    "communication_method": "email",
+                    "template_type": "voter",
+                    "subject": message.subject,
+                    "body": message.body,
+                    "body_html": message.html,
+                })
+            })
+            .collect();
+        files.push((
+            "admin_portal/communication_templates.json".to_string(),
+            pretty(&serde_json::json!({
+                "_comment": "Load into the Admin Portal's tenant templates. \
+                             Deliberately outside the import zip: templates belong \
+                             to the tenant, not to one election event.",
+                "templates": templates,
+            })),
+        ));
+
+        // The other half, and the one that stops a client believing a schedule is
+        // a promise. `scheduled_events.rs` handles `SEND_TEMPLATE` with an empty
+        // arm, so nothing in the platform will send these — the file says so in
+        // writing, because the screen that said it is not there when somebody opens
+        // this zip three weeks later.
+        let sends: Vec<serde_json::Value> = plan
+            .messages
+            .iter()
+            .map(|message| {
+                serde_json::json!({
+                    "alias": message.kind.alias(),
+                    "at": message.schedule.at,
+                    "weekly": message.schedule.weekly,
+                })
+            })
+            .collect();
+        files.push((
+            "voter_messaging.json".to_string(),
+            pretty(&serde_json::json!({
+                "_comment": "Not part of the import, and not automatic. Nothing in \
+                             the platform sends these: the scheduled-event processor \
+                             for SEND_TEMPLATE does nothing. Somebody sends them, on \
+                             the dates below.",
+                "sends_automatically": false,
+                "schedule": sends,
             })),
         ));
     }

@@ -97,9 +97,6 @@ fn sound() -> Blueprint {
                         description: Translated::default(),
                         explicit_blank: false,
                         explicit_invalid: false,
-                        withdrawn: false,
-                        link: None,
-                        candidate_type: None,
 
                         image: None,
                     },
@@ -109,9 +106,6 @@ fn sound() -> Blueprint {
                         description: Translated::default(),
                         explicit_blank: false,
                         explicit_invalid: false,
-                        withdrawn: false,
-                        link: None,
-                        candidate_type: None,
 
                         image: None,
                     },
@@ -609,9 +603,6 @@ fn a_multi_winner_contest_elects_what_the_plan_says() {
         description: Translated::default(),
         explicit_blank: false,
         explicit_invalid: false,
-        withdrawn: false,
-        link: None,
-        candidate_type: None,
 
         image: None,
     });
@@ -638,9 +629,6 @@ fn a_blank_option_is_marked_as_one_rather_than_becoming_a_candidate() {
             description: Translated::default(),
             explicit_blank: true,
             explicit_invalid: false,
-            withdrawn: false,
-            link: None,
-            candidate_type: None,
 
             image: None,
         });
@@ -1280,9 +1268,6 @@ fn blank_and_invalid_options_do_not_count_as_candidates() {
         description: Translated::default(),
         explicit_blank: true,
         explicit_invalid: false,
-        withdrawn: false,
-        link: None,
-        candidate_type: None,
 
         image: None,
     });
@@ -1457,9 +1442,6 @@ fn districted() -> Blueprint {
             description: Translated::default(),
             explicit_blank: false,
             explicit_invalid: false,
-            withdrawn: false,
-            link: None,
-            candidate_type: None,
 
             image: None,
         }],
@@ -2605,49 +2587,61 @@ fn a_file_nobody_names_is_said_out_loud() {
     assert!(bundle.materials.is_empty());
 }
 
-/// The three a candidate can carry beyond a name and a face.
+/// A schedule nobody honours is worse than no schedule, so it is said out loud.
 #[test]
-fn a_candidate_can_be_withdrawn_typed_and_linked() {
-    // Each is the platform's own field: `presentation.is_disabled` draws somebody
-    // who stood down without renumbering the ballot, `candidate_type` is the only
-    // thing that makes the layout screen's per-type cap reachable, and the link is
-    // a page about them.
+fn a_planned_message_says_that_nothing_will_send_it() {
     let mut plan = sound();
-    let candidate = &mut plan.elections[0].contests[0].candidates[0];
-    candidate.withdrawn = true;
-    candidate.candidate_type = Some("slate-a".to_string());
-    candidate.link = Some("https://example.org/alice".to_string());
+    plan.messages.push(PlannedMessage {
+        kind: MessageKind::InvitationToVote,
+        subject: Translated::new("Your ballot is ready"),
+        body: Translated::new("Vote here."),
+        html: Translated::default(),
+        schedule: MessageSchedule::default(),
+    });
 
-    let workbook = to_workbook(&plan).expect("a workbook");
-    let row = &workbook.rows(sheet::SHEET_CANDIDATES)[0];
-    assert_eq!(
-        row.get("presentation.is_disabled")
-            .map(|c| format!("{c:?}")),
-        Some("Bool(true)".to_string())
-    );
-    assert_eq!(
-        row.get("candidate_type").map(|c| format!("{c:?}")),
-        Some("String(\"slate-a\")".to_string())
-    );
-    assert_eq!(
-        row.get("candidate_link").map(|c| format!("{c:?}")),
-        Some("String(\"https://example.org/alice\")".to_string())
-    );
+    let report = validate_plan(&plan);
+    assert!(!report.has_errors(), "a message is not a defect");
+    assert!(says(&report, "nothing sends these"));
 }
 
-/// A plan written before these existed still opens, and still means "none of them".
+/// Templates belong to the tenant, so they travel beside the import, not in it.
 #[test]
-fn a_plan_saved_before_a_candidate_could_be_withdrawn_still_opens() {
-    let mut value = serde_json::to_value(sound()).expect("a plan");
-    let candidate = &mut value["elections"][0]["contests"][0]["candidates"][0];
-    for gone in ["withdrawn", "link", "candidate_type"] {
-        candidate.as_object_mut().expect("an object").remove(gone);
-    }
+fn messages_leave_as_two_files_outside_the_bundle() {
+    let mut plan = sound();
+    plan.messages.push(PlannedMessage {
+        kind: MessageKind::GetOutTheVote,
+        subject: Translated::new("You have not voted yet"),
+        body: Translated::new("There is still time."),
+        html: Translated::new("<p>There is still time.</p>"),
+        schedule: MessageSchedule {
+            at: None,
+            weekly: vec![1, 4],
+        },
+    });
 
-    let reopened: Blueprint =
-        serde_json::from_value(value).expect("a plan without them");
-    let candidate = &reopened.elections[0].contests[0].candidates[0];
-    assert!(!candidate.withdrawn);
-    assert_eq!(candidate.link, None);
-    assert_eq!(candidate.candidate_type, None);
+    let files = side_files(&plan);
+    let named = |want: &str| {
+        files
+            .iter()
+            .find(|(name, _)| name == want)
+            .map(|(_, text)| text.clone())
+    };
+
+    let templates = named("admin_portal/communication_templates.json")
+        .expect("the Admin Portal's own file");
+    assert!(templates.contains("get-out-the-vote"));
+    // The HTML body travels: a sender that can render it should not have to be
+    // handed the plain text and told to guess the markup.
+    assert!(templates.contains("<p>There is still time.</p>"));
+
+    let messaging = named("voter_messaging.json").expect("the schedule");
+    assert!(messaging.contains("\"sends_automatically\": false"));
+    assert!(messaging.contains("\"weekly\""));
+
+    // And not inside the import, which is the whole point of it being here.
+    let workbook = to_workbook(&plan).expect("a workbook");
+    assert!(
+        !format!("{workbook:?}").contains("get-out-the-vote"),
+        "a tenant's templates must not ride in an election event import"
+    );
 }

@@ -162,63 +162,6 @@ impl PublicationPreview {
         }
         seen
     }
-
-    /// The elections these ballots belong to, named.
-    ///
-    /// The same reasoning as [`Self::areas`], and needed for the same reason: a
-    /// ballot style names its election by the id windmill will write, and a
-    /// picker offering uuids is not a choice anybody can make. The wizard's
-    /// preview shows one area × one election at a time, because that is what a
-    /// voter is handed — showing every election at once is a page no voter ever
-    /// sees.
-    ///
-    /// In the document's own order rather than sorted, so the picker lists them
-    /// the way the ballot does.
-    pub fn elections(
-        &self,
-        schema: &ImportElectionEventSchema,
-    ) -> Vec<PreviewArea> {
-        // An election carries no `name` column — the platform keeps it under
-        // `presentation.i18n.<lang>.name`, which is the same shape the authoring
-        // workbook writes. Any language will do for a picker: they are the same
-        // election, and falling back to `external_id` gives a word the author
-        // typed rather than a uuid.
-        let named: HashMap<&str, String> = schema
-            .elections
-            .iter()
-            .map(|election| {
-                let shown = election
-                    .presentation
-                    .as_ref()
-                    .and_then(|presentation| presentation.get("i18n"))
-                    .and_then(|i18n| i18n.as_object())
-                    .and_then(|by_language| {
-                        by_language.values().find_map(|texts| {
-                            texts.get("name").and_then(Value::as_str)
-                        })
-                    })
-                    .map(str::to_string)
-                    .or_else(|| election.external_id.clone())
-                    .unwrap_or_default();
-                (election.id.as_str(), shown)
-            })
-            .collect();
-
-        let mut seen: Vec<PreviewArea> = Vec::new();
-        for style in &self.ballot_styles {
-            if seen.iter().any(|each| each.id == style.election_id) {
-                continue;
-            }
-            seen.push(PreviewArea {
-                id: style.election_id.clone(),
-                name: named
-                    .get(style.election_id.as_str())
-                    .cloned()
-                    .unwrap_or_default(),
-            });
-        }
-        seen
-    }
 }
 
 /// One area with a ballot, for a picker to label.
