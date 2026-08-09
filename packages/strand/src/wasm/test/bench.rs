@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: 2022 David Ruescas <david@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use rand::RngCore;
 use wasm_bindgen::prelude::*;
+use rand::TryRng;
 
 // use crate::backend::malachite::{MalachiteCtx, P2048 as MP2048};
-use crate::backend::num_bigint::{BigintCtx, P2048};
+// use crate::backend::num_bigint::{BigintCtx, P2048};
 use crate::backend::ristretto::RistrettoCtx;
 use crate::context::Ctx;
 use crate::elgamal::{PrivateKey, PublicKey};
@@ -64,7 +64,7 @@ pub fn bench_modpow(n: u32) {
         "modpow {:.3} ms",
         (performance.now() - now) / n as f64
     ));
-    let ctx: BigintCtx<P2048> = Default::default();
+    /*let ctx: BigintCtx<P2048> = Default::default();
     postMessage(&format!("> Bigint modpow n = {n}"));
     let now = performance.now();
     bench_modpow_generic(ctx, n);
@@ -73,7 +73,7 @@ pub fn bench_modpow(n: u32) {
         (performance.now() - now) / n as f64
     ));
 
-    /*
+    
         let ctx: MalachiteCtx<MP2048> = Default::default();
         postMessage(&format!("> Malachite modpow n = {n}"));
         let now = performance.now();
@@ -90,18 +90,18 @@ pub fn bench_enc_pok(n: u32) {
     let ctx = RistrettoCtx;
     let mut csprng = StrandRng;
     let mut fill = [0u8; 30];
-    csprng.fill_bytes(&mut fill);
+    csprng.try_fill_bytes(&mut fill);
     let plaintext = to_ristretto_plaintext_array(fill.as_ref()).unwrap();
     postMessage("> Ristretto enc_pok");
     bench_enc_pok_generic(ctx, plaintext, n);
 
-    let ctx: BigintCtx<P2048> = Default::default();
+    /*let ctx: BigintCtx<P2048> = Default::default();
     let mut rng = ctx.get_rng();
     let plaintext = ctx.rnd_plaintext(&mut rng);
     postMessage("> Bigint enc_pok");
     bench_enc_pok_generic(ctx, plaintext, n);
 
-    /*    let ctx: MalachiteCtx<MP2048> = Default::default();
+        let ctx: MalachiteCtx<MP2048> = Default::default();
         let plaintext = ctx.rnd_plaintext(&mut rng);
         postMessage("> Malachite enc_pok");
         bench_enc_pok_generic(ctx, plaintext, n);

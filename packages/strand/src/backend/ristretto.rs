@@ -689,6 +689,8 @@ mod tests {
 
     #[test]
     fn test_threshold() {
+        use rand::RngExt;
+        
         let mut csprng = StrandRng;
 
         let trustees = rand::rng().random_range(2..11);

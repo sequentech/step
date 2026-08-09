@@ -60,7 +60,7 @@ base64 = "0.22.1"
 rand = { package="rand", version = "=0.10" }
 rand_core = { version = "0.10", optional = true }
 getrandom = { version = "=0.4.2", features = ["wasm_js"] } # Enable wasm_js feature for WASM support
-rand_chacha = "0.9"
+rand_chacha = "0.10"
 
 # WASM
 # Note: Using specific version of wasm-bindgen to match Nix version

@@ -101,7 +101,7 @@ pub fn sk_from_bytes(bytes: &[u8]) -> Result<SymmetricKey, StrandError> {
 mod tests {
     use super::*;
     use crate::rng::StrandRng;
-    use rand::RngCore;
+    use rand::TryRng;
 
     #[test]
     fn test_chacha_poly() {
@@ -109,7 +109,7 @@ mod tests {
 
         let key = gen_key();
         let mut data = [0u8; 256];
-        csprng.fill_bytes(&mut data);
+        csprng.try_fill_bytes(&mut data);
 
         let encrypted = encrypt(key, &data).unwrap();
 
