@@ -1179,6 +1179,7 @@ pub fn validate_plan(plan: &Blueprint) -> Report {
     check_areas(plan, &mut report);
     check_census(plan, &mut report);
     check_ballot(plan, &mut report);
+    check_unique_identifiers(plan, &mut report);
 
     // The most valuable thing this screen ships, and it is a sentence.
     //
@@ -1700,10 +1701,24 @@ fn check_census(plan: &Blueprint, report: &mut Report) {
 .id("voter.duplicate-username").detail("username", username).detail("first", first + 1));
         }
 
-        // Blank means the default area, which is what a plan with no areas
-        // gets. Naming one that does not exist is the mistake worth catching.
+        // Blank is not "the default area", which is what this used to assume.
+        //
+        // `build_tables::voter_area_name` reads `area.external_id` off every voter
+        // row and refuses the whole bundle when it is absent, so a voter with no
+        // area is a plan that cannot be built — and this screen was calling it
+        // Ready to build. There is no default: an area is how a voter is given a
+        // ballot at all.
         let area = voter.area_name.trim();
-        if !area.is_empty() && !named.contains(area) {
+        if area.is_empty() {
+            report.push(Problem::error(
+                Code::MissingField,
+                format!("voters[{index}].area_name"),
+                "a voter needs an area: it is what decides which ballot they are \
+                 handed, and the build refuses a census row without one",
+            )
+            .id("voter.no-area")
+            .detail("row", index + 1));
+        } else if !named.contains(area) {
             report.push(Problem::error(
                 Code::DanglingReference,
                 format!("voters[{index}].area_name"),
@@ -1735,6 +1750,74 @@ fn check_census(plan: &Blueprint, report: &mut Report) {
     }
 }
 
+/// Identifiers are unique across the whole event, and nothing here said so.
+///
+/// The builder's `check_unique_ids` refuses a bundle whose entities collide, and it
+/// is right to: an `external_id` is what every other sheet points at, so the second
+/// of two silently replaces the first — a candidate disappears from a ballot, or a
+/// contest ends up with somebody else's options on it. The wizard had no equivalent,
+/// so the screen said Ready to build and the download produced nothing.
+///
+/// Event-wide rather than per contest, which is the part that surprises people: two
+/// contests may not each have a `yes`. That is why the message names both places.
+fn check_unique_identifiers(plan: &Blueprint, report: &mut Report) {
+    /// Where an identifier was found, for a message that can point at both.
+    let mut seen: std::collections::BTreeMap<String, String> =
+        std::collections::BTreeMap::new();
+
+    let mut claim = |id: &str, at: String, what: &str, report: &mut Report| {
+        let id = id.trim();
+        if id.is_empty() {
+            // Reported by whoever owns the field; a second sentence here would
+            // put the same problem on two screens.
+            return;
+        }
+        if let Some(first) = seen.get(id) {
+            report.push(
+                Problem::error(
+                    Code::DuplicateId,
+                    &at,
+                    format!(
+                        "'{id}' is already used by {first}. Identifiers are unique \
+                         across the whole election event, so the second one \
+                         replaces the first instead of being added."
+                    ),
+                )
+                .id("identifier.duplicate")
+                .detail("identifier", id)
+                .detail("first", first.clone()),
+            );
+        } else {
+            seen.insert(id.to_string(), format!("{what} at {at}"));
+        }
+    };
+
+    for (index, area) in plan.areas.iter().enumerate() {
+        claim(&area.external_id, format!("areas[{index}]"), "an area", report);
+    }
+
+    for (index, election) in plan.elections.iter().enumerate() {
+        let at = format!("elections[{index}]");
+        claim(&election.external_id, at.clone(), "an election", report);
+
+        for (contest_index, contest) in election.contests.iter().enumerate() {
+            let at = format!("{at}.contests[{contest_index}]");
+            claim(&contest.external_id, at.clone(), "a contest", report);
+
+            for (candidate_index, candidate) in
+                contest.candidates.iter().enumerate()
+            {
+                claim(
+                    &candidate.external_id,
+                    format!("{at}.candidates[{candidate_index}]"),
+                    "a candidate",
+                    report,
+                );
+            }
+        }
+    }
+}
+
 fn check_ballot(plan: &Blueprint, report: &mut Report) {
     if plan.elections.is_empty() {
         report.push(
@@ -1752,11 +1835,16 @@ fn check_ballot(plan: &Blueprint, report: &mut Report) {
         let at = format!("elections[{index}]");
 
         if election.contests.is_empty() {
+            // An error, not a warning, because `build_election_event` refuses it.
+            // It read as advice for a while and the screen said Ready to build,
+            // which is the one thing this verdict may not do: the button then
+            // produces nothing and there is no way to find out why.
             report.push(
-                Problem::warning(
+                Problem::error(
                     Code::BallotCoverage,
                     &at,
-                    "this election has no contests, so nobody votes in it",
+                    "this election has no contests, so nobody votes in it and it \
+                     cannot be built",
                 )
                 .about(Some(&election.external_id))
                 .id("election.no-contests"),
@@ -1783,6 +1871,31 @@ fn check_ballot(plan: &Blueprint, report: &mut Report) {
                     )
                     .about(Some(&contest.external_id))
 .id("contest.max-votes-below-one"),
+                );
+            }
+
+            // `max_votes` above the number of real options.
+            //
+            // The builder refuses it, and it is worth its own message rather than
+            // being folded into the arithmetic below: "choose up to 5" on a contest
+            // with three candidates is usually a contest somebody trimmed without
+            // revisiting the rule, and saying which two numbers disagree is what
+            // makes it a one-line fix.
+            if choices > 0 && contest.max_votes as usize > choices {
+                report.push(
+                    Problem::error(
+                        Code::ContestArithmetic,
+                        &at,
+                        format!(
+                            "a voter may choose up to {} but there are only \
+                             {choices} to choose from",
+                            contest.max_votes
+                        ),
+                    )
+                    .about(Some(&contest.external_id))
+                    .id("contest.chooses-more-than-offered")
+                    .detail("chosen", contest.max_votes)
+                    .detail("offered", choices),
                 );
             }
 

@@ -2668,3 +2668,133 @@ fn messages_leave_as_two_files_outside_the_bundle() {
         "a tenant's templates must not ride in an election event import"
     );
 }
+
+/// The verdict may not lie: anything the builder refuses, the wizard refuses first.
+///
+/// This is the invariant behind a bug that reached a user. The Final Review screen
+/// said **Ready to build** for a plan that could not be built, because
+/// `validate_plan` and `compile_plan` check different things and nothing held them
+/// to each other. What a person then does is press the button and get nothing —
+/// there is no worse outcome for this screen, because the verdict is the one thing
+/// on it they are entitled to trust.
+///
+/// Written as a family of mutations rather than one case on purpose. The specific
+/// defect was a census whose area could not be resolved, and fixing only that would
+/// leave the next divergence to be found the same way. Each mutation below breaks a
+/// plan in a way somebody plausibly could, and the assertion is not about *which*
+/// message comes back — the two layers word things differently and should — but that
+/// `validate_plan` refuses whenever `compile_plan` does.
+///
+/// The converse is deliberately not asserted. `validate_plan` may be stricter: it
+/// carries warnings and advice the builder has no opinion about, and a wizard that
+/// only ever said what the builder says would be a thinner screen.
+#[test]
+fn a_plan_the_builder_refuses_is_refused_by_the_wizard_first() {
+    /// A plan, and the name of what was done to it.
+    fn mutations() -> Vec<(&'static str, Blueprint)> {
+        let mut cases: Vec<(&'static str, Blueprint)> = Vec::new();
+
+        // The defect that started this: a voter whose area is blank. It was
+        // accepted here as "the default area" and refused by the builder, which
+        // needs an `area.external_id` on every row.
+        let mut blank_area = sound();
+        blank_area.voters = vec![PlannedVoter {
+            username: "ada".into(),
+            area_name: String::new(),
+            ..Default::default()
+        }];
+        cases.push(("a voter with no area", blank_area));
+
+        // The same, spelled wrong rather than left out — the likelier mistake,
+        // and the one a copy-paste from a spreadsheet makes.
+        let mut wrong_area = sound();
+        wrong_area.voters = vec![PlannedVoter {
+            username: "ada".into(),
+            area_name: "Nowhere".into(),
+            ..Default::default()
+        }];
+        cases.push(("a voter in an area that does not exist", wrong_area));
+
+        // An area with no name. The voters CSV identifies an area by name, so
+        // this is unreachable rather than merely untidy.
+        let mut unnamed_area = sound();
+        if let Some(area) = unnamed_area.areas.first_mut() {
+            area.name = String::new();
+        }
+        cases.push(("an area with no name", unnamed_area));
+
+        // Nothing to vote on.
+        let mut no_contests = sound();
+        for election in &mut no_contests.elections {
+            election.contests.clear();
+        }
+        cases.push(("an election with no contests", no_contests));
+
+        // A contest with nothing on it.
+        let mut no_candidates = sound();
+        for election in &mut no_candidates.elections {
+            for contest in &mut election.contests {
+                contest.candidates.clear();
+            }
+        }
+        cases.push(("a contest with no candidates", no_candidates));
+
+        // Two things sharing an identifier. Identifiers are event-wide, so the
+        // second silently replaces the first.
+        let mut duplicate = sound();
+        if let Some(election) = duplicate.elections.first_mut() {
+            if let Some(contest) = election.contests.first_mut() {
+                if contest.candidates.len() >= 2 {
+                    let first = contest.candidates[0].external_id.clone();
+                    contest.candidates[1].external_id = first;
+                }
+            }
+        }
+        cases.push(("two candidates sharing an identifier", duplicate));
+
+        // More choices than there are things to choose.
+        let mut too_many = sound();
+        if let Some(election) = too_many.elections.first_mut() {
+            if let Some(contest) = election.contests.first_mut() {
+                contest.max_votes = 99;
+            }
+        }
+        cases.push(("a contest allowing more choices than it has options", too_many));
+
+        cases
+    }
+
+    let templates = TemplateSet::builtin().unwrap();
+    let mut lies: Vec<String> = Vec::new();
+
+    for (what, plan) in mutations() {
+        let compiled =
+            compile_plan(&plan, &templates, &BuildOptions::default(), None);
+
+        // Two ways the builder refuses: an `Err` report, or an `Ok` carrying
+        // errors. Both are refusals, and only checking the first would miss the
+        // case that produced the original bug.
+        let builder_refuses = match &compiled {
+            Err(report) => report.has_errors(),
+            Ok(compiled) => compiled.report.has_errors(),
+        };
+
+        if !builder_refuses {
+            continue;
+        }
+
+        let verdict = validate_plan(&plan);
+        if !verdict.has_errors() {
+            lies.push(format!(
+                "{what}: the builder refuses it and validate_plan says it is fine"
+            ));
+        }
+    }
+
+    assert!(
+        lies.is_empty(),
+        "the Final Review verdict would say Ready to build for a plan that \
+         cannot be built:\n  {}",
+        lies.join("\n  ")
+    );
+}
