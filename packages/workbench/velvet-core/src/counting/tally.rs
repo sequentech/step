@@ -17,7 +17,7 @@ use sequent_core::plaintext::DecodedVoteContest;
 use sequent_core::types::ceremonies::{CountingAlgType, ScopeOperation};
 use sequent_core::types::hasura::core::TallySheet;
 use sequent_core::types::participation::{ParticipationChannel, VotesByChannel};
-use sequent_core::types::tally_sheets::VotingChannel;
+use sequent_core::types::tally_sheets::{TallySheetStatus, VotingChannel};
 use serde_json::Value;
 use tracing::instrument;
 
@@ -335,4 +335,91 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
         process_results: None,
     };
     Ok(contest_result.calculate_percentages())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sequent_core::ballot::Candidate;
+    use sequent_core::types::tally_sheets::{
+        AreaContestResults, CandidateResults, InvalidVotes as TallySheetInvalidVotes,
+    };
+    use std::collections::HashMap;
+
+    fn tally_sheet(candidate_votes: u64, blank_votes: u64) -> TallySheet {
+        let mut candidate_results = HashMap::new();
+        candidate_results.insert(
+            "candidate".to_string(),
+            CandidateResults {
+                candidate_id: "candidate".to_string(),
+                total_votes: Some(candidate_votes),
+            },
+        );
+
+        TallySheet {
+            id: "tally-sheet".to_string(),
+            tenant_id: "tenant".to_string(),
+            election_event_id: "event".to_string(),
+            election_id: "election".to_string(),
+            contest_id: "contest".to_string(),
+            area_id: "area".to_string(),
+            created_at: None,
+            last_updated_at: None,
+            labels: None,
+            annotations: None,
+            reviewed_at: None,
+            reviewed_by_user_id: None,
+            content: Some(AreaContestResults {
+                area_id: "area".to_string(),
+                contest_id: "contest".to_string(),
+                total_votes: Some(candidate_votes + blank_votes + 1),
+                total_valid_votes: Some(candidate_votes + blank_votes),
+                invalid_votes: Some(TallySheetInvalidVotes {
+                    total_invalid: Some(1),
+                    implicit_invalid: Some(1),
+                    explicit_invalid: Some(0),
+                }),
+                total_blank_votes: Some(blank_votes),
+                census: Some(candidate_votes + blank_votes + 1),
+                candidate_results,
+            }),
+            channel: None,
+            deleted_at: None,
+            created_by_user_id: "user".to_string(),
+            status: TallySheetStatus::APPROVED,
+            version: 1,
+            import_id: None,
+        }
+    }
+
+    fn contest() -> Contest {
+        Contest {
+            id: "contest".to_string(),
+            candidates: vec![Candidate {
+                id: "candidate".to_string(),
+                ..Candidate::default()
+            }],
+            ..Contest::default()
+        }
+    }
+
+    #[test]
+    fn process_tally_sheet_counts_blank_votes_as_valid() {
+        let result = process_tally_sheet(&tally_sheet(4, 2), &contest())
+            .expect("tally sheet should process");
+
+        assert_eq!(result.total_valid_votes, 6);
+        assert_eq!(result.total_blank_votes, 2);
+        assert_eq!(result.total_invalid_votes, 1);
+        assert_eq!(result.candidate_result[0].total_count, 4);
+        assert_eq!(result.candidate_result[0].percentage_votes, 100.0);
+        assert_eq!(
+            result.extended_metrics.as_ref().and_then(|metrics| {
+                metrics
+                    .votes_by_channel
+                    .get(&ParticipationChannel::from(VotingChannel::PAPER))
+            }),
+            Some(&7)
+        );
+    }
 }

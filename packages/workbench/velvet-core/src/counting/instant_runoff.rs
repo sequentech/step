@@ -761,6 +761,264 @@ impl CountingAlgorithm for InstantRunoff {
                 self.process_ballots(rng, op)?
             }
         };
-        Ok(contest_result)
+
+        // Paper / other-channel results arrive as pre-computed
+        // ContestResults and are folded into the electronic tally.
+        Ok(self
+            .tally
+            .tally_sheet_results
+            .iter()
+            .fold(contest_result, |result, tally_sheet_result| {
+                result.aggregate(tally_sheet_result, false)
+            }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::result::CandidateResult;
+    use sequent_core::ballot::{Candidate, CandidatePresentation};
+
+    /// velvet-core depends on `rand_core` alone (no `rand`), so tests
+    /// supply their own generator. Deterministic on purpose: these cases
+    /// must not reach a tie-break, and a fixed sequence makes that
+    /// reproducible rather than luck.
+    struct TestRng(u64);
+    impl RngCore for TestRng {
+        fn next_u32(&mut self) -> u32 {
+            self.next_u64() as u32
+        }
+        fn next_u64(&mut self) -> u64 {
+            // xorshift64*
+            self.0 ^= self.0 << 13;
+            self.0 ^= self.0 >> 7;
+            self.0 ^= self.0 << 17;
+            self.0
+        }
+        fn fill_bytes(&mut self, dest: &mut [u8]) {
+            for chunk in dest.chunks_mut(8) {
+                let bytes = self.next_u64().to_le_bytes();
+                chunk.copy_from_slice(&bytes[..chunk.len()]);
+            }
+        }
+    }
+    use sequent_core::types::{participation::VotesByChannel, tally_sheets::VotingChannel};
+
+    fn candidate(id: &str, is_explicit_blank: bool) -> Candidate {
+        Candidate {
+            id: id.to_string(),
+            presentation: Some(CandidatePresentation {
+                is_explicit_blank: Some(is_explicit_blank),
+                ..CandidatePresentation::default()
+            }),
+            ..Candidate::default()
+        }
+    }
+
+    fn contest() -> Contest {
+        Contest {
+            id: "contest".to_string(),
+            max_votes: 1,
+            candidates: vec![candidate("normal", false), candidate("blank", true)],
+            ..Contest::default()
+        }
+    }
+
+    fn contest_with_regular_candidates_and_blank() -> Contest {
+        Contest {
+            id: "contest".to_string(),
+            max_votes: 1,
+            counting_algorithm: Some(
+                sequent_core::types::ceremonies::CountingAlgType::InstantRunoff,
+            ),
+            candidates: vec![
+                candidate("candidate_a", false),
+                candidate("candidate_b", false),
+                candidate("blank", true),
+            ],
+            ..Contest::default()
+        }
+    }
+
+    fn vote_with_selected_ids(selected_ids: &[&str]) -> DecodedVoteContest {
+        let selected = |candidate_id: &str| {
+            if selected_ids.contains(&candidate_id) {
+                0
+            } else {
+                -1
+            }
+        };
+
+        DecodedVoteContest {
+            contest_id: "contest".to_string(),
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: vec![
+                DecodedVoteChoice {
+                    id: "candidate_a".to_string(),
+                    selected: selected("candidate_a"),
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: "candidate_b".to_string(),
+                    selected: selected("candidate_b"),
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: "blank".to_string(),
+                    selected: selected("blank"),
+                    write_in_text: None,
+                },
+            ],
+        }
+    }
+
+    fn instant_runoff(ballots: Vec<DecodedVoteContest>) -> InstantRunoff {
+        let ballots = ballots
+            .into_iter()
+            .map(|ballot| (ballot, Weight::default()))
+            .collect();
+
+        InstantRunoff {
+            tally: Tally {
+                id: sequent_core::types::ceremonies::CountingAlgType::InstantRunoff,
+                scope_operation: ScopeOperation::Contest(TallyOperation::ProcessBallotsAll),
+                contest: contest_with_regular_candidates_and_blank(),
+                ballots,
+                census: 10,
+                auditable_votes: 10,
+                tally_sheet_results: vec![],
+                tally_results: vec![],
+            },
+        }
+    }
+
+    fn mixed_explicit_blank_vote() -> DecodedVoteContest {
+        DecodedVoteContest {
+            contest_id: "contest".to_string(),
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: vec![
+                DecodedVoteChoice {
+                    id: "normal".to_string(),
+                    selected: 0,
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: "blank".to_string(),
+                    selected: 0,
+                    write_in_text: None,
+                },
+            ],
+        }
+    }
+
+    #[test]
+    fn mixed_explicit_blank_vote_initializes_as_implicit_invalid() {
+        let contest = contest();
+        let votes = vec![(mixed_explicit_blank_vote(), Weight::default())];
+
+        let status = BallotsStatus::initialize_ballots_status(&votes, &contest);
+
+        assert_eq!(status.count_valid, 0);
+        assert_eq!(status.count_invalid_votes.explicit, 0);
+        assert_eq!(status.count_invalid_votes.implicit, 1);
+        assert_eq!(status.blank_votes.explicit, 0);
+        assert_eq!(status.blank_votes.implicit, 0);
+        assert_eq!(status.ballots[0].0, BallotStatus::Invalid);
+    }
+
+    #[test]
+    fn blank_heavy_contest_reports_blanks_as_valid_and_candidate_percentages_exclude_blanks() {
+        let mut ballots = Vec::new();
+        for _ in 0..3 {
+            ballots.push(vote_with_selected_ids(&["blank"]));
+            ballots.push(vote_with_selected_ids(&[]));
+        }
+        for _ in 0..4 {
+            ballots.push(vote_with_selected_ids(&["candidate_a"]));
+        }
+
+        let result = instant_runoff(ballots)
+            .process_ballots(&mut TestRng(0x5EED), TallyOperation::ProcessBallotsAll)
+            .expect("blank-heavy contest should tally without underflow");
+
+        assert_eq!(result.total_valid_votes, 10);
+        assert_eq!(result.total_blank_votes, 6);
+        assert_eq!(result.blank_votes.explicit, 3);
+        assert_eq!(result.blank_votes.implicit, 3);
+        assert_eq!(result.total_invalid_votes, 0);
+
+        let candidate_a = result
+            .candidate_result
+            .iter()
+            .find(|candidate| candidate.candidate.id == "candidate_a")
+            .expect("candidate A result should exist");
+        assert_eq!(candidate_a.total_count, 4);
+        assert_eq!(candidate_a.percentage_votes, 100.0);
+
+        let candidate_b = result
+            .candidate_result
+            .iter()
+            .find(|candidate| candidate.candidate.id == "candidate_b")
+            .expect("candidate B result should exist");
+        assert_eq!(candidate_b.total_count, 0);
+        assert_eq!(candidate_b.percentage_votes, 0.0);
+    }
+
+    #[test]
+    fn contest_tally_includes_tally_sheet_results() {
+        let mut tally = instant_runoff(vec![vote_with_selected_ids(&["candidate_a"])]);
+        tally.tally.auditable_votes = 0;
+        let candidate_a = tally
+            .tally
+            .contest
+            .candidates
+            .iter()
+            .find(|candidate| candidate.id == "candidate_a")
+            .unwrap()
+            .clone();
+        tally.tally.tally_sheet_results = vec![ContestResult {
+            contest: tally.tally.contest.clone(),
+            total_votes: 2,
+            total_valid_votes: 2,
+            candidate_result: vec![CandidateResult {
+                candidate: candidate_a,
+                percentage_votes: 100.0,
+                total_count: 2,
+            }],
+            extended_metrics: Some(ExtendedMetricsContest {
+                votes_by_channel: VotesByChannel::from([(VotingChannel::PAPER.into(), 2)]),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }];
+
+        let result = tally
+            .tally(&mut TestRng(0x5EED))
+            .expect("IRV contest tally should include tally sheets");
+
+        assert_eq!(result.total_votes, 3);
+        assert_eq!(result.total_valid_votes, 3);
+        assert_eq!(
+            result
+                .candidate_result
+                .iter()
+                .find(|candidate| candidate.candidate.id == "candidate_a")
+                .map(|candidate| candidate.total_count),
+            Some(3)
+        );
+        assert_eq!(
+            result
+                .extended_metrics
+                .as_ref()
+                .and_then(|metrics| { metrics.votes_by_channel.get(&VotingChannel::PAPER.into()) }),
+            Some(&2)
+        );
     }
 }
