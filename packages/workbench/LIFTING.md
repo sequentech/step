@@ -38,6 +38,13 @@ When that rule has to be relaxed (e.g. a `process.env.REACT_APP_*` reference
 that Vite can't see), the workaround belongs in `vite.config.ts` (via
 `define:` or a plugin), not in the portal source itself.
 
+The same conservatism applies to **any** production source the workbench
+touches, not just the portal — `sequent-core`, `velvet` and `strand`
+included. Where an edit was genuinely unavoidable it is inventoried in
+section **L**, and the workbench's Diagnostics page (*Shared-source
+drift*) diffs every such tree against `origin/main` so an undocumented
+edit is visible rather than discovered during the next catch-up merge.
+
 ---
 
 ## Inventory of adaptations
@@ -488,15 +495,18 @@ file to make the workbench work:
 2. Re-read the "Why this document exists" section.
 3. Try one of: `resolve.alias`, `define`, a new provider, a fixture seed,
    a substitute deep-import path. One of these almost always works.
-4. If you genuinely cannot avoid a portal-source change, document it here
-   under a new section "L. Concessions" with the exact diff and the reason
-   it was unavoidable. Reviews of refresh PRs will then verify that the
-   concession is still needed.
+4. If you genuinely cannot avoid a portal-source change, document it in
+   section **L. Concessions: edits to production source** with the exact
+   diff and the reason it was unavoidable. Reviews of refresh PRs will
+   then verify that the concession is still needed.
 
-   (Three such concessions exist today — see section **L. Concessions:
-   edits to `voting-portal/src/`** — covering the demo-mode-only edits to
-   `useAddFakeCastVote` / `castBallotAction` in `ReviewScreen.tsx` and
-   the additive `removeCastVotes` reducer on `castVotesSlice`.)
+   (Section L is the complete inventory of production source this branch
+   modifies, and is *not* limited to the portal: L.1–L.3 cover the
+   demo-mode-only edits to `useAddFakeCastVote` / `castBallotAction` in
+   `ReviewScreen.tsx` and the additive `removeCastVotes` reducer on
+   `castVotesSlice`; L.4 covers `sequent-core`'s wasm32 build
+   enablement. The larger `velvet` / `strand` refactors are owned by the
+   README's *Known gaps*.)
 
 ### J. Workbench-native chrome (`app/src/WorkbenchInspector.tsx`)
 
@@ -697,7 +707,39 @@ overwrite a previously-snapshotted bridge entry.
 
 ---
 
-### L. Concessions: edits to `voting-portal/src/`
+### L. Concessions: edits to production source
+
+This section is the **complete inventory of production source this
+branch modifies**. It is not limited to `voting-portal/src/` — anything
+under `packages/` that production also compiles belongs here, because
+the reason for the inventory is the same in every case: when we catch up
+to a later upstream version, each entry is a decision that has to be
+re-made, and an undocumented edit is one nobody knows to re-apply or
+retire.
+
+Three groups, in descending order of how much scrutiny a refresh needs:
+
+| Group | Where | Documented in |
+|---|---|---|
+| Demo-path concessions | `voting-portal/src/` | L.1–L.3 below |
+| Build enablement | `packages/sequent-core/` | L.4 below |
+| Structural / obsolete-removal | `packages/velvet/`, `packages/strand/` | README *Known gaps* |
+
+The last group is deliberately **not** written out file-by-file here.
+`velvet` (tally logic extracted into `velvet-core`) and `strand`
+(obsolete openssl/FIPS backends removed for wasm32) are large, coherent
+refactors rather than surgical concessions, and their catch-up cost is a
+design question — forward-port or land upstream — not a diff to re-apply.
+The README's *Known gaps* section owns that discussion.
+
+Whatever the group, the live picture is on the workbench's own
+**Diagnostics page** (`/wb` → Diagnostics → *Shared-source drift*),
+which diffs each tracked subtree against the merge-base with
+`origin/main`. If something shows up there that is not described in this
+section or in *Known gaps*, that is the bug — either the edit shouldn't
+exist, or this document is stale.
+
+#### L.1–L.3: `voting-portal/src/`
 
 Section I declares portal source untouched, and that remains true for
 production code paths. The accepted edits are scoped strictly to the
@@ -870,6 +912,66 @@ mutation that removes a given set of cast-vote ids from the per-
 election buckets and is exported by name `removeCastVotes`. Reviewers
 should reject a refresh that drops the reducer without providing an
 equivalent.
+
+#### L.4 `sequent-core` — wasm32 build enablement
+
+Two commits (`b659c4c83f`, `399433741b`) modify `packages/sequent-core`.
+Unlike L.1–L.3 these are **not** demo-path edits and touch no logic, no
+behaviour and no wire format — nothing under `ballot_codec`, nothing in
+the encoding rules. They exist so the crate compiles to
+`wasm32-unknown-unknown` and so `wasm-pack build --features=wasm` works
+against sequent-core *standalone*, without velvet-core being in the
+workspace graph to supply the wasm32 bits. Two files:
+
+**`Cargo.toml`**
+
+1. `ed25519-dalek` `=3.0.0-pre.1` → `=3.0.0-pre.7` and `curve25519-dalek`
+   `=5.0.0-pre.1` → `=5.0.0-pre.6`, matching this branch's `strand`.
+   Without this the workspace does not resolve at all (`failed to select
+   a version for curve25519-dalek`).
+2. `ring` (with `wasm32_unknown_unknown_js`) replaced by
+   `getrandom 0.2` with the `js` feature, and the target cfg narrowed
+   from `cfg(target_arch = "wasm32")` to
+   `cfg(all(target_arch = "wasm32", target_os = "unknown"))`. `ring`
+   does not build for that target; getrandom-0.2/js is the version
+   curve25519-dalek transitively requires, and mirrors what velvet-core
+   already declares.
+3. `dep:web-sys` added to the `wasm` feature. `src/util/console_log.rs`
+   uses `::web_sys` under `cfg(feature = "wasm")`, but the dependency was
+   only being pulled in by `wasmtest`.
+
+**`src/wasm/mod.rs`**
+
+4. `pub mod areas;` and `pub mod wasm;` move from `#[cfg(feature =
+   "wasmtest")]` to `#[cfg(feature = "wasm")]`. This is what makes
+   `yarn build:sequent-core` (which runs `--features=wasm,default_features`)
+   emit the area-tree and locale exports the lifted booth calls — see
+   §A7.
+
+**Why this was accepted.**
+
+- **The shipped artifact is unchanged.** `wasmtest` is defined as
+  `["wasm", ...]`, so it already implies `wasm`, and the production tgz
+  is built by `.devcontainer/scripts/build-sequent-core.sh` with
+  `--features=wasmtest,default_features`. Those modules were compiled
+  into production builds before and after; only the `wasm`-only path
+  (what the workbench uses) is widened.
+- Items 2 and 3 are strictly additive on non-wasm32 targets: the `ring`
+  swap sits behind a wasm32 cfg that production native builds never
+  evaluate, and a feature gaining a dependency it already used cannot
+  break an existing consumer.
+- Item 1 is a version alignment forced by strand, not a preference. It
+  disappears the moment strand and sequent-core agree upstream.
+
+**Refresh-PR guardrail.** These are the entries most likely to become
+*unnecessary* rather than to break — upstream may adopt the same wasm32
+enablement independently, at which point the right move is to drop our
+version rather than re-apply it. On each refresh, check whether upstream
+already pins the same dalek versions, already declares the wasm32
+getrandom dep, and already gates `areas`/`wasm` on `wasm`. Delete the
+matching item here for each one that has landed. If nothing is left,
+delete L.4 — a concession that no longer differs from upstream should
+not be carried as if it did.
 
 ---
 

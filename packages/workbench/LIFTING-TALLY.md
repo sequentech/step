@@ -27,7 +27,7 @@ mapping table plus the conventions that are easy to get wrong.
 |---|---|---|
 | Component source | copied from admin-portal, adapted | upstream `ui-essentials`, unmodified |
 | i18n | `strings.ts` shim | `labels?: Partial<ResultsAndParticipationLabels>` with English defaults |
-| Drift risk | manual re-application on every refresh | none — same component production renders |
+| Catch-up cost | re-apply every adaptation on each refresh | none — the component is upstream's, so upstream changes arrive by merging |
 | Workbench-owned code | 8 files | 1 adapter |
 
 Because the workbench now renders the **same component production

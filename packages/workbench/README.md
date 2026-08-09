@@ -102,13 +102,41 @@ this table is exhaustive, not illustrative. (Ordinary npm packages —
 React, MUI, Apollo, Redux, react-router, i18next — are omitted; they are
 resolved normally and have no embedding story.)
 
-| Strategy | Dependency | Mechanism | Drift risk |
-|----------|-----------|-----------|------------|
-| **Shared source** | `velvet-core`, `sequent-core` (Rust side) | Real crate consumed identically by production and workbench, via a Cargo path dep. Breakage is a compile error. | None — same source |
-| **Prebuilt artifact** | `sequent-core` (JS/wasm side) | The lifted booth's `import … from "sequent-core"` resolves to `node_modules/sequent-core`, unpacked from the committed `rust/sequent-core-0.1.0.tgz` that `voting-portal` / `ui-core` declare — the workbench app never declares it. An opt-in `resolve.alias` redirects to `packages/sequent-core/pkg` when a local `wasm-pack` build exists (§A7). | **Version skew** — see below |
-| **Alias lift** (in-place) | `voting-portal`, `ui-core`, `ui-essentials` | Vite `resolve.alias` points at the original source files in their upstream packages; no files are copied. Substitute providers replace services the portal normally talks to (Keycloak, Hasura, REST). | High — many upstream files; silent drift requires periodic reconciliation |
-| **Upstream component** | Tally results (in `ui-essentials`) | The production tally visualization, imported unmodified. A thin adapter maps velvet's output to its props. Rides the `ui-essentials` alias above, but needs no substitutes. | None — same component production renders |
-| **Workbench-owned** | `velvet-wasm` | The workbench's own `wasm-bindgen` layer over `velvet-core` + `sequent-core`, consumed as `file:../velvet-wasm/pkg`. Not embedded from anywhere — it is the vehicle that gets the Rust into the browser. | n/a |
+| Strategy | Dependency | Mechanism |
+|----------|-----------|-----------|
+| **Shared source** | `velvet-core`, `sequent-core` (Rust side) | Real crate consumed identically by production and workbench, via a Cargo path dep. Breakage is a compile error. |
+| **Prebuilt artifact** | `sequent-core` (JS/wasm side) | The lifted booth's `import … from "sequent-core"` resolves to `node_modules/sequent-core`, unpacked from the committed `rust/sequent-core-0.1.0.tgz` that `voting-portal` / `ui-core` declare — the workbench app never declares it. An opt-in `resolve.alias` redirects to `packages/sequent-core/pkg` when a local `wasm-pack` build exists (§A7). |
+| **Alias lift** (in-place) | `voting-portal`, `ui-core`, `ui-essentials` | Vite `resolve.alias` points at the original source files in their upstream packages; no files are copied. Substitute providers replace services the portal normally talks to (Keycloak, Hasura, REST). |
+| **Upstream component** | Tally results (in `ui-essentials`) | The production tally visualization, imported unmodified. A thin adapter maps velvet's output to its props. Rides the `ui-essentials` alias above, but needs no substitutes. |
+| **Workbench-owned** | `velvet-wasm` | The workbench's own `wasm-bindgen` layer over `velvet-core` + `sequent-core`, consumed as `file:../velvet-wasm/pkg`. Not embedded from anywhere — it is the vehicle that gets the Rust into the browser. |
+
+### Where drift actually lives
+
+This table deliberately does **not** rank drift risk per row. An earlier
+version did, and it was misleading: it scored the mechanisms on how
+faithfully workbench and production see the same code *within this
+branch*, which for a shared crate is trivially "none — same source".
+
+That is the wrong axis. The risk that matters is **this branch versus
+`main`**, and by that measure the rows scoring best above are among the
+worst. `velvet-core` is "shared source" and therefore drift-free
+in-branch, yet it is the single largest divergence we carry, because the
+extraction that makes it shared has not landed upstream and main's tally
+logic keeps moving. Conversely a row can be modified in-branch and pose
+almost no catch-up risk, as `sequent-core` does — build-enablement edits
+that upstream will accept or that rebase trivially.
+
+So drift is tracked where it can be measured rather than guessed:
+
+- **Live**, per subtree, on the workbench's own **Diagnostics page**
+  (`/wb` → Diagnostics → *Shared-source drift*). Each tracked tree is
+  diffed `HEAD` vs the merge-base with `origin/main`, and carries an
+  `expectation` describing what should be there — so an undocumented
+  change reads as undocumented. It also reports how many commits
+  `origin/main` has that this branch doesn't.
+- **Narratively**, in [Known gaps](#known-gaps) below for the divergences
+  we have accepted, and in `LIFTING.md` §L for every edit made to
+  production source.
 
 **The version-skew trap.** `sequent-core` reaches the workbench through
 *two* of these rows at once: the booth encrypts using the prebuilt tgz,
