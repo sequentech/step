@@ -1046,22 +1046,33 @@ fn check_trustees(plan: &Blueprint, report: &mut Report) {
     // deliberately: `a_threshold_of_one_is_allowed_but_said_out_loud` is now
     // `a_threshold_of_one_is_refused`, and this comment is the record of why
     // (`INV-26`).
-    if plan.trustees.len() < 2 {
-        report.push(Problem::error(
-            Code::MissingField,
-            "trustees",
-            format!(
-                "{} — an election key needs at least two people to hold it. With \
-                 one, that person can decrypt every ballot on their own, which is \
-                 the guarantee the encryption is there to provide.",
-                if plan.trustees.is_empty() {
-                    "no trustees".to_string()
-                } else {
-                    "one trustee".to_string()
-                }
-            ),
-        )
-.id("trustees.too-few").detail("count", plan.trustees.len()));
+    //
+    // Two named complaints rather than one with a conditional lead, for the same
+    // reason as the threshold below: "no trustees" and "one trustee" are different
+    // sentences, and a count that crosses the wasm boundary as a string cannot
+    // pluralise a translation the way a number would.
+    let too_few =
+        "an election key needs at least two people to hold it. With one, that \
+         person can decrypt every ballot on their own, which is the guarantee the \
+         encryption is there to provide.";
+    if plan.trustees.is_empty() {
+        report.push(
+            Problem::error(
+                Code::MissingField,
+                "trustees",
+                format!("no trustees — {too_few}"),
+            )
+            .id("trustees.none"),
+        );
+    } else if plan.trustees.len() == 1 {
+        report.push(
+            Problem::error(
+                Code::MissingField,
+                "trustees",
+                format!("one trustee — {too_few}"),
+            )
+            .id("trustees.only-one"),
+        );
     }
 
     if plan.trustees.is_empty() {
