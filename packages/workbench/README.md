@@ -97,13 +97,28 @@ workbench/
 
 ## Embedding strategy
 
-Dependencies fall into three categories:
+Every non-trivial dependency the workbench pulls in is listed below —
+this table is exhaustive, not illustrative. (Ordinary npm packages —
+React, MUI, Apollo, Redux, react-router, i18next — are omitted; they are
+resolved normally and have no embedding story.)
 
-| Strategy | Example | Mechanism | Drift risk |
-|----------|---------|-----------|------------|
-| **Shared source** | `velvet-core` | Real crate consumed identically by production and workbench | None — same source |
-| **Alias lift** (in-place) | `voting-portal`, `ui-core` | Vite `resolve.alias` points at the original source files in their upstream packages; no files are copied. Substitute providers replace services the portal normally talks to (Keycloak, Hasura, REST). | High — many upstream files; silent drift requires periodic reconciliation |
-| **Upstream component** | Tally results (`ui-essentials`) | The production tally visualization, imported unmodified. A thin adapter maps velvet's output to its props. | None — same component production renders |
+| Strategy | Dependency | Mechanism | Drift risk |
+|----------|-----------|-----------|------------|
+| **Shared source** | `velvet-core`, `sequent-core` (Rust side) | Real crate consumed identically by production and workbench, via a Cargo path dep. Breakage is a compile error. | None — same source |
+| **Prebuilt artifact** | `sequent-core` (JS/wasm side) | The lifted booth's `import … from "sequent-core"` resolves to `node_modules/sequent-core`, unpacked from the committed `rust/sequent-core-0.1.0.tgz` that `voting-portal` / `ui-core` declare — the workbench app never declares it. An opt-in `resolve.alias` redirects to `packages/sequent-core/pkg` when a local `wasm-pack` build exists (§A7). | **Version skew** — see below |
+| **Alias lift** (in-place) | `voting-portal`, `ui-core`, `ui-essentials` | Vite `resolve.alias` points at the original source files in their upstream packages; no files are copied. Substitute providers replace services the portal normally talks to (Keycloak, Hasura, REST). | High — many upstream files; silent drift requires periodic reconciliation |
+| **Upstream component** | Tally results (in `ui-essentials`) | The production tally visualization, imported unmodified. A thin adapter maps velvet's output to its props. Rides the `ui-essentials` alias above, but needs no substitutes. | None — same component production renders |
+| **Workbench-owned** | `velvet-wasm` | The workbench's own `wasm-bindgen` layer over `velvet-core` + `sequent-core`, consumed as `file:../velvet-wasm/pkg`. Not embedded from anywhere — it is the vehicle that gets the Rust into the browser. | n/a |
+
+**The version-skew trap.** `sequent-core` reaches the workbench through
+*two* of these rows at once: the booth encrypts using the prebuilt tgz,
+while `velvet-wasm` decrypts and tallies using `packages/sequent-core`
+Rust source compiled by `wasm-pack`. Nothing keeps those in step. If the
+tgz is regenerated upstream (or you edit the Rust) without rebuilding
+`velvet-wasm`, the two halves of the encrypt → decrypt → tally loop run
+different versions of the encoding rules, and the mismatch surfaces as a
+wrong `BigUint` rather than an error. After any change to either, rebuild
+`velvet-wasm` and re-run the §M.4 canary in [LIFTING.md](LIFTING.md).
 
 ### Voting-portal (alias lift)
 
