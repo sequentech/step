@@ -133,6 +133,16 @@ export interface PreviewOutput {
      * offering four uuids is not a choice anybody can make.
      */
     areas: Array<{id: string; name: string}>;
+    /**
+     * The elections those ballots belong to, named, for the same reason.
+     *
+     * A voter is handed one area's ballot for one election, so the preview shows
+     * one of each — every election at once is a page nobody ever sees. An
+     * election carries no `name` column; the platform keeps it under
+     * `presentation.i18n.<lang>.name`, and this falls back to `external_id`,
+     * which is a word the author typed.
+     */
+    elections: Array<{id: string; name: string}>;
     /** Everything found on the way, errors and warnings together. */
     report: Report;
 }
@@ -432,6 +442,7 @@ pub fn preview_ballot_js(
             return to_js(&PreviewOutput {
                 preview: None,
                 areas: Vec::new(),
+                elections: Vec::new(),
                 report,
             })
             .map(IPreviewOutput::from)
@@ -448,12 +459,21 @@ pub fn preview_ballot_js(
             // The schema the ballots were generated from, re-read only to put
             // names on the areas. It cannot fail here: `preview_publication`
             // just parsed the same value.
-            let areas = serde_json::from_value(compiled.bundle.export.clone())
-                .map(|schema| document.areas(&schema))
+            // The schema is re-read once and both pickers are named from it.
+            let schema: Option<_> =
+                serde_json::from_value(compiled.bundle.export.clone()).ok();
+            let areas = schema
+                .as_ref()
+                .map(|schema| document.areas(schema))
+                .unwrap_or_default();
+            let elections = schema
+                .as_ref()
+                .map(|schema| document.elections(schema))
                 .unwrap_or_default();
             to_js(&PreviewOutput {
                 preview: Some(document.to_document()),
                 areas,
+                elections,
                 report: compiled.report,
             })
             .map(IPreviewOutput::from)
@@ -465,6 +485,7 @@ pub fn preview_ballot_js(
             to_js(&PreviewOutput {
                 preview: None,
                 areas: Vec::new(),
+                elections: Vec::new(),
                 report,
             })
             .map(IPreviewOutput::from)
@@ -501,6 +522,7 @@ fn refused_preview(problem: Problem) -> Result<JsValue, JsError> {
     to_js(&PreviewOutput {
         preview: None,
         areas: Vec::new(),
+        elections: Vec::new(),
         report,
     })
 }
@@ -511,6 +533,7 @@ struct PreviewOutput {
     #[serde(skip_serializing_if = "Option::is_none")]
     preview: Option<serde_json::Value>,
     areas: Vec<preview::PreviewArea>,
+    elections: Vec<preview::PreviewArea>,
     report: Report,
 }
 
