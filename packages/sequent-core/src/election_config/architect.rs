@@ -1055,7 +1055,25 @@ fn check_trustees(plan: &Blueprint, report: &mut Report) {
         "an election key needs at least two people to hold it. With one, that \
          person can decrypt every ballot on their own, which is the guarantee the \
          encryption is there to provide.";
-    if plan.trustees.is_empty() {
+
+    // A row with no name and no address is nobody.
+    //
+    // The wizard keeps the list at least as long as the threshold, so a new plan
+    // arrives with two blank rows rather than an empty list and an instruction to
+    // add some. Counting those as trustees would mean the commonest state of a new
+    // plan — two empty boxes — reported as *complete*, and the real complaint
+    // ("nobody is holding the key") replaced by two lesser ones about missing
+    // fields. Blank rows are still checked individually below, so nothing is
+    // silently accepted; they simply do not count towards having anybody.
+    let named = plan
+        .trustees
+        .iter()
+        .filter(|trustee| {
+            !trustee.name.trim().is_empty() || !trustee.email.trim().is_empty()
+        })
+        .count();
+
+    if named == 0 {
         report.push(
             Problem::error(
                 Code::MissingField,
@@ -1064,7 +1082,7 @@ fn check_trustees(plan: &Blueprint, report: &mut Report) {
             )
             .id("trustees.none"),
         );
-    } else if plan.trustees.len() == 1 {
+    } else if named == 1 {
         report.push(
             Problem::error(
                 Code::MissingField,
@@ -1106,7 +1124,7 @@ fn check_trustees(plan: &Blueprint, report: &mut Report) {
         );
     }
 
-    if plan.trustee_threshold as usize > plan.trustees.len() {
+    if plan.trustee_threshold as usize > named {
         // The failure mode is the worst kind: everything works until the tally,
         // and then the result cannot be decrypted by anyone.
         report.push(
@@ -1116,13 +1134,12 @@ fn check_trustees(plan: &Blueprint, report: &mut Report) {
                 format!(
                 "{} of {} trustees are required, which cannot be met. The key \
                  would be generated and the result could never be decrypted.",
-                plan.trustee_threshold,
-                plan.trustees.len()
+                plan.trustee_threshold, named
             ),
             )
             .id("threshold.above-trustees")
             .detail("threshold", plan.trustee_threshold)
-            .detail("trustees", plan.trustees.len()),
+            .detail("trustees", named),
         );
     }
 

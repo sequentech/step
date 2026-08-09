@@ -2224,3 +2224,42 @@ fn every_complaint_about_a_plan_carries_its_name_and_its_specifics() {
     assert_eq!(elects.details.get("winners").map(String::as_str), Some("9"));
     assert!(elects.details.contains_key("chosen"));
 }
+
+/// Two empty boxes are not two people.
+#[test]
+fn a_trustee_row_with_nothing_in_it_is_nobody() {
+    // The wizard keeps the list at least as long as the threshold, so a new plan
+    // arrives holding two blank rows. Counting those would report the commonest
+    // state of a new plan as complete — and would replace "nobody is holding the
+    // key", which is the thing that matters, with two complaints about empty fields.
+    let mut plan = sound();
+    plan.trustees = vec![
+        Trustee {
+            name: String::new(),
+            email: String::new(),
+        },
+        Trustee {
+            name: "  ".to_string(),
+            email: " ".to_string(),
+        },
+    ];
+
+    let report = validate_plan(&plan);
+    assert!(
+        report
+            .problems
+            .iter()
+            .any(|problem| problem.id.as_deref() == Some("trustees.none")),
+        "two blank rows should read as no trustees, not as two"
+    );
+
+    // And one real person among blanks is one person.
+    plan.trustees[0] = Trustee {
+        name: "Ada Lovelace".to_string(),
+        email: "ada@example.org".to_string(),
+    };
+    assert!(validate_plan(&plan)
+        .problems
+        .iter()
+        .any(|problem| problem.id.as_deref() == Some("trustees.only-one")));
+}
