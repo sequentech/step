@@ -250,12 +250,6 @@ export const ResultsSummary: React.FC<ResultsSummaryProps> = ({
                                     >
                                         {t("resultsPortal.summary.totalVotesCounted")}
                                     </TableCell>
-                                    <TableCell
-                                        className="seq-results-summary__participation-heading"
-                                        align="right"
-                                    >
-                                        {t("resultsPortal.summary.participation")}
-                                    </TableCell>
                                     {showBlankBallotsColumn && (
                                         <TableCell
                                             className="seq-results-summary__blank-ballots-heading"
@@ -264,6 +258,12 @@ export const ResultsSummary: React.FC<ResultsSummaryProps> = ({
                                             {t("resultsPortal.summary.totalBlankBallots")}
                                         </TableCell>
                                     )}
+                                    <TableCell
+                                        className="seq-results-summary__participation-heading"
+                                        align="right"
+                                    >
+                                        {t("resultsPortal.summary.participation")}
+                                    </TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody className="seq-results-summary__table-body">
@@ -308,12 +308,6 @@ export const ResultsSummary: React.FC<ResultsSummaryProps> = ({
                                             >
                                                 {valueOrDash(result.total_voters)}
                                             </TableCell>
-                                            <TableCell
-                                                className="seq-results-summary__participation-cell"
-                                                align="right"
-                                            >
-                                                {percent(result.total_voters_percent)}
-                                            </TableCell>
                                             {showBlankBallotsColumn && (
                                                 <TableCell
                                                     className="seq-results-summary__blank-ballots-cell"
@@ -322,6 +316,12 @@ export const ResultsSummary: React.FC<ResultsSummaryProps> = ({
                                                     {valueOrDash(result.blank_ballots)}
                                                 </TableCell>
                                             )}
+                                            <TableCell
+                                                className="seq-results-summary__participation-cell"
+                                                align="right"
+                                            >
+                                                {percent(result.total_voters_percent)}
+                                            </TableCell>
                                         </TableRow>
                                     )
                                 })}
