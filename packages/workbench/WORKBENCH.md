@@ -642,17 +642,20 @@ The `predev` hook builds the wasm but does not update the copy in
 `node_modules/`, so adding wasm exports always requires one of the
 two manual steps above.
 
-**The quiet version of this bug is worse than the loud one.** A missing
-export throws, so you find it immediately. A change that alters
-*behaviour* without changing the export list — a fix inside
-`velvet-core`, or a `sequent-core` bump underneath it — produces no
-error at all: the stale copy keeps serving the old logic and the
-workbench reports old tally numbers with total confidence. Treat
-"rebuild `velvet-wasm` → refresh the `node_modules` copy → restart
-Vite `--force`" as one indivisible step after *any* Rust change, and
-re-run the §M.4 canary in `LIFTING.md` to confirm the new binary is
-actually the one being served. This is the same hazard the README
-describes as the version-skew trap, seen from the JS side.
+**This is now handled automatically.** `build:wasm` runs
+`app/scripts/prepare-velvet-wasm.mjs`, which builds `pkg/` and then
+copies it into `node_modules/velvet-wasm`, so `yarn dev` is sufficient.
+Before that, `predev` built an artifact the app never read: the built
+`pkg/` and the installed copy could sit hours apart.
+
+The reason it mattered is worth keeping in mind if the sync is ever
+refactored away. A *missing export* throws, so you find it immediately.
+A change that only alters **behaviour** — a velvet-core tally fix, a
+sequent-core or strand bump underneath it — produces no error at all:
+the stale copy keeps serving the old logic and the workbench reports old
+numbers with total confidence. That is the same hazard the README calls
+the version-skew trap, seen from the JS side, and the reason the §M.4
+canary is the check after any Rust change.
 
 ### Sister loop: editing `sequent-core` source
 

@@ -82,6 +82,47 @@ WORKBENCH_SEQUENT_CORE=tgz corepack yarn workspace "@sequentech/workbench-app" d
 The active source is shown on the Diagnostics page as *Booth
 sequent-core*.
 
+## Working on Rust: tally, encoding, cryptography
+
+**The process is the same for `velvet-core`, `sequent-core` and
+`strand`.** Edit the Rust, then:
+
+```sh
+corepack yarn workspace "@sequentech/workbench-app" dev
+```
+
+`predev` rebuilds both wasm packages and syncs the one Yarn copies, so
+there is no manual step. What differs between the three crates is only
+*which* artifact carries your change:
+
+| Crate | Reaches the workbench through | Affects |
+|---|---|---|
+| `velvet-core` | `velvet-wasm` (Cargo path dep) | tally, decode |
+| `sequent-core` | **both** `velvet-wasm` *and* `sequent-core/pkg` | decrypt/tally **and** the booth's encrypt, locale, area tree |
+| `strand` | both, transitively (velvet-core and sequent-core depend on it) | anything cryptographic |
+
+Because `sequent-core` and `strand` feed both halves, rebuilding only
+one would put the booth's encrypt and the workbench's decrypt on
+different code — which is why both are rebuilt together.
+
+**A restart is always required.** TypeScript hot-reloads; Rust never
+does. `predev` is a one-shot hook and the `sequent-core` alias is
+resolved when the Vite config loads, so building under a running server
+changes nothing.
+
+### Checking your change actually landed
+
+1. **Diagnostics → Build status** — artifact mtimes against crate
+   sources, plus *Booth sequent-core* showing which build the booth is
+   running.
+2. **The §M.4 canary** in [LIFTING.md](LIFTING.md) — cast Blue on the
+   bundled fixture and expect `decodedBigInts === "4"`. It crosses both
+   halves, so it only passes if encrypt and decrypt agree.
+
+If results change in a way you did not intend, suspect a stale artifact
+before suspecting your code — a behaviour-only change throws no error,
+it just returns old numbers.
+
 ## Production build
 
 ```sh
