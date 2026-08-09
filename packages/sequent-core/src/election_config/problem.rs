@@ -13,6 +13,7 @@
 //! translate or link them without matching on English text.
 
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::fmt;
 
 /// Whether a problem stops an import or merely deserves saying out loud.
@@ -81,6 +82,35 @@ pub struct Problem {
     /// What is wrong, in one sentence, in English.
     pub message: String,
 
+    /// A stable name for *this sentence*, so a front end can translate it.
+    ///
+    /// [`Code`] cannot do this job and it is worth saying why, because it looks as
+    /// though it should. A code is a *category*: 38 of the plan checks share eleven
+    /// of them, and adding [`Problem::path`] does not separate them either —
+    /// `ContestArithmetic` produces four different sentences about the same contest,
+    /// since the path names the contest rather than the complaint. So a front end
+    /// matching on `code` groups problems correctly and translates them wrongly.
+    ///
+    /// Optional, and absent means "show the English". That is what every caller does
+    /// today, so adding an id is opt-in per message rather than a change to 143 call
+    /// sites, and a message that has not been given one degrades to exactly the
+    /// behaviour it has now.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+
+    /// The specifics [`Problem::message`] names, for a translation to name too.
+    ///
+    /// Sixteen of the plan checks interpolate — `'{email}' is not an email address`,
+    /// `'{username}' is also row {first}` — and no identifier can reconstruct those,
+    /// so the values travel beside the sentence. Strings rather than numbers because
+    /// this is display data: the front end substitutes them into a translated
+    /// sentence and does no arithmetic on them.
+    ///
+    /// `BTreeMap` so two runs of the same check serialise identically, which is what
+    /// lets a report be compared.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub details: BTreeMap<String, String>,
+
     /// The entity's `external_id` where it has one.
     ///
     /// The bundle's UUIDs are regenerated on import and mean nothing to whoever
@@ -101,6 +131,8 @@ impl Problem {
             path: path.into(),
             message: message.into(),
             external_id: None,
+            id: None,
+            details: BTreeMap::new(),
         }
     }
 
@@ -115,11 +147,29 @@ impl Problem {
             path: path.into(),
             message: message.into(),
             external_id: None,
+            id: None,
+            details: BTreeMap::new(),
         }
     }
 
     pub fn about(mut self, external_id: Option<&str>) -> Self {
         self.external_id = external_id.map(str::to_string);
+        self
+    }
+
+    /// Name this sentence, so a front end can translate it.
+    ///
+    /// Ids read `<area>.<complaint>` — `trustees.too-few`, not `trustees` — because
+    /// the area alone is the path, which is exactly what cannot tell two complaints
+    /// apart. `every_named_problem_has_its_own_name` refuses two messages sharing one.
+    pub fn id(mut self, id: &str) -> Self {
+        self.id = Some(id.to_string());
+        self
+    }
+
+    /// Carry a specific the sentence names, so a translation can name it too.
+    pub fn detail(mut self, key: &str, value: impl fmt::Display) -> Self {
+        self.details.insert(key.to_string(), value.to_string());
         self
     }
 }

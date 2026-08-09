@@ -2124,3 +2124,103 @@ fn a_voter_can_look_up_their_own_ballot_unless_the_plan_says_otherwise() {
         Some("String(\"show-logs-tab\")".to_string())
     );
 }
+
+/// Two messages sharing a name would translate to whichever the catalogue held.
+///
+/// Read off the source rather than off a report, because no fixture triggers every
+/// check at once and the failure this guards against is a *new* message copying its
+/// neighbour's id — which is exactly the moment nobody is looking at the whole list.
+#[test]
+fn every_named_problem_has_its_own_name() {
+    let source = include_str!("architect.rs");
+    let mut names: Vec<&str> = Vec::new();
+    let mut rest = source;
+    while let Some(at) = rest.find(".id(\"") {
+        rest = &rest[at + 5..];
+        let end = rest.find('"').expect("an id is a string literal");
+        names.push(&rest[..end]);
+        rest = &rest[end..];
+    }
+
+    assert!(
+        names.len() >= 35,
+        "expected the plan checks to be named; found {}",
+        names.len()
+    );
+
+    let mut sorted = names.clone();
+    sorted.sort_unstable();
+    let mut duplicated: Vec<&str> = sorted
+        .windows(2)
+        .filter(|pair| pair[0] == pair[1])
+        .map(|pair| pair[0])
+        .collect();
+    duplicated.dedup();
+    assert_eq!(
+        duplicated,
+        Vec::<&str>::new(),
+        "two messages share one name"
+    );
+
+    // `<area>.<complaint>`, because the area alone is the path — and the path is
+    // precisely what cannot tell two complaints about one contest apart.
+    let shapeless: Vec<&&str> = names
+        .iter()
+        .filter(|name| !name.contains('.') || name.ends_with('.'))
+        .collect();
+    assert_eq!(
+        shapeless,
+        Vec::<&&str>::new(),
+        "an id names an area and a complaint"
+    );
+}
+
+/// A complaint with no name shows English inside a Spanish wizard.
+#[test]
+fn every_complaint_about_a_plan_carries_its_name_and_its_specifics() {
+    let mut plan = sound();
+    // One plan, many different mistakes, so this covers more than one check each
+    // time it runs rather than asserting one message at a time.
+    plan.name = Default::default();
+    plan.external_id = String::new();
+    plan.default_language = Some("de".to_string());
+    plan.trustees[0].email = "not an address".to_string();
+    plan.trustee_threshold = 1;
+    plan.elections[0].contests[0].winners = 9;
+    plan.contacts.clear();
+
+    let report = validate_plan(&plan);
+    assert!(report.problems.len() >= 6, "expected several complaints");
+
+    let unnamed: Vec<&str> = report
+        .problems
+        .iter()
+        .filter(|problem| problem.id.is_none())
+        .map(|problem| problem.message.as_str())
+        .collect();
+    assert_eq!(unnamed, Vec::<&str>::new(), "every complaint is named");
+
+    // The specifics travel as data, or a translation can only say something vaguer
+    // than the English it replaces.
+    let email = report
+        .problems
+        .iter()
+        .find(|problem| {
+            problem.id.as_deref() == Some("trustee.email-malformed")
+        })
+        .expect("the malformed address");
+    assert_eq!(
+        email.details.get("email").map(String::as_str),
+        Some("not an address")
+    );
+
+    let elects = report
+        .problems
+        .iter()
+        .find(|problem| {
+            problem.id.as_deref() == Some("contest.elects-more-than-chosen")
+        })
+        .expect("the contest arithmetic");
+    assert_eq!(elects.details.get("winners").map(String::as_str), Some("9"));
+    assert!(elects.details.contains_key("chosen"));
+}

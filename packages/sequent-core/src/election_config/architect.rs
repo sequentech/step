@@ -143,6 +143,8 @@ pub fn read_plan(document: &str) -> Result<Blueprint, Problem> {
                 "plan",
                 format!("this is not an election plan: {error}"),
             )
+            .id("plan.not-a-plan")
+            .detail("error", error)
         })?;
 
     migrate_v1(&mut value);
@@ -153,6 +155,8 @@ pub fn read_plan(document: &str) -> Result<Blueprint, Problem> {
             "plan",
             format!("this plan cannot be read: {error}"),
         )
+        .id("plan.unreadable")
+        .detail("error", error)
     })
 }
 
@@ -944,7 +948,8 @@ pub fn validate_plan(plan: &Blueprint) -> Report {
                  it here would silently drop whatever that version added.",
                 plan.version, BLUEPRINT_VERSION
             ),
-        ));
+        )
+.id("plan.saved-by-newer-version").detail("saved", plan.version).detail("supported", BLUEPRINT_VERSION));
     }
 
     if plan.external_id.trim().is_empty() {
@@ -953,7 +958,8 @@ pub fn validate_plan(plan: &Blueprint) -> Report {
             "external_id",
             "the event needs an identifier: every generated id is derived from it, \
              so without one nothing can be built twice the same way",
-        ));
+        )
+.id("event.no-identifier"));
     }
 
     if plan.name.is_empty() {
@@ -962,7 +968,8 @@ pub fn validate_plan(plan: &Blueprint) -> Report {
             "name",
             "the event needs a name. Voters see it above the ballot, and it \
              becomes the login page's title.",
-        ));
+        )
+.id("event.no-name"));
     }
 
     check_languages(plan, &mut report);
@@ -978,7 +985,8 @@ pub fn validate_plan(plan: &Blueprint) -> Report {
             "contacts",
             "nobody is listed as a point of contact. On election day this is who \
              gets called.",
-        ));
+        )
+.id("contacts.none"));
     }
 
     report
@@ -992,7 +1000,8 @@ fn check_languages(plan: &Blueprint, report: &mut Report) {
             "languages",
             "no languages, so the ballot falls back to English. That is a safety \
              net rather than a choice.",
-        ));
+        )
+.id("languages.none"));
         return;
     }
 
@@ -1005,15 +1014,20 @@ fn check_languages(plan: &Blueprint, report: &mut Report) {
         // language, so this imports cleanly and opens in a language nobody
         // chose — which is exactly the class of failure nobody notices until a
         // voter says the ballot came up in the wrong language.
-        report.push(Problem::error(
-            Code::InvalidValue,
-            "default_language",
-            format!(
+        report.push(
+            Problem::error(
+                Code::InvalidValue,
+                "default_language",
+                format!(
                 "'{chosen}' is not one of the languages this ballot is offered \
                  in ({}). Voters would get the first one instead.",
                 plan.languages.join(", ")
             ),
-        ));
+            )
+            .id("languages.default-not-offered")
+            .detail("chosen", chosen)
+            .detail("offered", plan.languages.join(", ")),
+        );
     }
 }
 
@@ -1046,7 +1060,8 @@ fn check_trustees(plan: &Blueprint, report: &mut Report) {
                     "one trustee".to_string()
                 }
             ),
-        ));
+        )
+.id("trustees.too-few").detail("count", plan.trustees.len()));
     }
 
     if plan.trustees.is_empty() {
@@ -1054,36 +1069,50 @@ fn check_trustees(plan: &Blueprint, report: &mut Report) {
         return;
     }
 
-    if plan.trustee_threshold < 2 {
-        report.push(Problem::error(
-            Code::InvalidValue,
-            "trustee_threshold",
-            if plan.trustee_threshold == 0 {
-                "a threshold of zero means the tally can be opened by nobody at \
-                 all"
-                    .to_string()
-            } else {
+    // Two pushes rather than one with a conditional message. They are different
+    // complaints — a threshold of zero opens the tally to nobody, a threshold of one
+    // opens it to anybody on the list — and one `id` cannot name two sentences, which
+    // is the whole reason `id` exists.
+    if plan.trustee_threshold == 0 {
+        report.push(
+            Problem::error(
+                Code::InvalidValue,
+                "trustee_threshold",
+                "a threshold of zero means the tally can be opened by nobody at all",
+            )
+            .id("threshold.zero"),
+        );
+    } else if plan.trustee_threshold == 1 {
+        report.push(
+            Problem::error(
+                Code::InvalidValue,
+                "trustee_threshold",
                 "a threshold of one means any single trustee can open the tally \
                  alone, whatever the list says — the same guarantee as having one \
-                 trustee, and none at all against that person"
-                    .to_string()
-            },
-        ));
+                 trustee, and none at all against that person",
+            )
+            .id("threshold.one"),
+        );
     }
 
     if plan.trustee_threshold as usize > plan.trustees.len() {
         // The failure mode is the worst kind: everything works until the tally,
         // and then the result cannot be decrypted by anyone.
-        report.push(Problem::error(
-            Code::ContestArithmetic,
-            "trustee_threshold",
-            format!(
+        report.push(
+            Problem::error(
+                Code::ContestArithmetic,
+                "trustee_threshold",
+                format!(
                 "{} of {} trustees are required, which cannot be met. The key \
                  would be generated and the result could never be decrypted.",
                 plan.trustee_threshold,
                 plan.trustees.len()
             ),
-        ));
+            )
+            .id("threshold.above-trustees")
+            .detail("threshold", plan.trustee_threshold)
+            .detail("trustees", plan.trustees.len()),
+        );
     }
 
     // The names have to already exist in the tenant, and nothing downstream says
@@ -1116,13 +1145,18 @@ fn check_trustees(plan: &Blueprint, report: &mut Report) {
                 format!("trustees[{index}].email"),
                 "a trustee needs an email address; it is how they are invited to \
                  the key ceremony",
-            ));
+            )
+.id("trustee.no-email").detail("row", index + 1));
         } else if !looks_like_email(email) {
-            report.push(Problem::error(
-                Code::InvalidValue,
-                format!("trustees[{index}].email"),
-                format!("'{email}' is not an email address"),
-            ));
+            report.push(
+                Problem::error(
+                    Code::InvalidValue,
+                    format!("trustees[{index}].email"),
+                    format!("'{email}' is not an email address"),
+                )
+                .id("trustee.email-malformed")
+                .detail("email", email),
+            );
         }
 
         if trustee.name.trim().is_empty() {
@@ -1133,7 +1167,8 @@ fn check_trustees(plan: &Blueprint, report: &mut Report) {
                  members by name against the trustees already provisioned in the \
                  tenant, and an empty one silently becomes a member who does not \
                  exist.",
-            ));
+            )
+.id("trustee.no-name").detail("row", index + 1));
         }
     }
 
@@ -1180,7 +1215,8 @@ fn check_schedule(plan: &Blueprint, report: &mut Report) {
             "schedule",
             "the voting window is incomplete, so the period will have to be opened \
              or closed by hand in the Admin Portal",
-        )),
+        )
+.id("schedule.window-incomplete")),
         (Some(opens), Some(closes)) => {
             // By instant, not by text. Two moments in different zones sort by
             // their strings in whatever order the digits happen to fall.
@@ -1192,7 +1228,9 @@ fn check_schedule(plan: &Blueprint, report: &mut Report) {
                     Code::InvalidValue,
                     "schedule.voting_closes",
                     "voting closes before it opens, so it would never be open",
-                ));
+                )
+.id("schedule.crosses-daylight-saving")
+.id("schedule.closes-before-opens"));
             }
 
             // Both endpoints in one zone but at different offsets means the
@@ -1224,7 +1262,8 @@ fn check_schedule(plan: &Blueprint, report: &mut Report) {
                 "schedule.key_ceremony",
                 "the key ceremony is not before voting opens. The election key has \
                  to exist before a vote can be encrypted with it.",
-            ));
+            )
+.id("schedule.key-ceremony-not-first"));
         }
     }
 
@@ -1240,7 +1279,8 @@ fn check_schedule(plan: &Blueprint, report: &mut Report) {
                 "schedule.tally_ceremony",
                 "the tally ceremony is not after voting closes, so it would count \
                  votes that had not been cast yet",
-            ));
+            )
+.id("schedule.tally-ceremony-too-early"));
         }
     }
 }
@@ -1251,11 +1291,15 @@ fn check_areas(plan: &Blueprint, report: &mut Report) {
         let at = format!("areas[{index}]");
 
         if area.external_id.trim().is_empty() {
-            report.push(Problem::error(
-                Code::MissingField,
-                &at,
-                "an area needs an identifier",
-            ));
+            report.push(
+                Problem::error(
+                    Code::MissingField,
+                    &at,
+                    "an area needs an identifier",
+                )
+                .id("area.no-identifier")
+                .detail("row", index + 1),
+            );
         }
 
         if area.name.trim().is_empty() {
@@ -1267,7 +1311,8 @@ fn check_areas(plan: &Blueprint, report: &mut Report) {
                      area by name, not by id, so an unnamed area is one no voter \
                      can be put in",
                 )
-                .about(Some(&area.external_id)),
+                .about(Some(&area.external_id))
+.id("area.no-name").detail("row", index + 1),
             );
         }
 
@@ -1287,7 +1332,8 @@ fn check_areas(plan: &Blueprint, report: &mut Report) {
                         area.name, earlier.external_id, area.external_id
                     ),
                 )
-                .about(Some(&area.external_id)),
+                .about(Some(&area.external_id))
+.id("area.duplicate-name").detail("name", &area.name).detail("first", &earlier.external_id).detail("second", &area.external_id),
             );
         }
 
@@ -1303,7 +1349,8 @@ fn check_areas(plan: &Blueprint, report: &mut Report) {
                         format!("{at}.parent_external_id"),
                         "an area cannot be inside itself",
                     )
-                    .about(Some(&area.external_id)),
+                    .about(Some(&area.external_id))
+                    .id("area.inside-itself"),
                 );
             } else if !plan
                 .areas
@@ -1316,7 +1363,9 @@ fn check_areas(plan: &Blueprint, report: &mut Report) {
                         format!("{at}.parent_external_id"),
                         format!("no area has the identifier '{parent}'"),
                     )
-                    .about(Some(&area.external_id)),
+                    .about(Some(&area.external_id))
+                    .id("area.parent-unknown")
+                    .detail("parent", parent),
                 );
             }
         }
@@ -1356,7 +1405,8 @@ fn check_census(plan: &Blueprint, report: &mut Report) {
                 Code::MissingField,
                 format!("voters[{index}].username"),
                 "a voter needs a username; it is what they sign in as and what                  their account is derived from",
-            ));
+            )
+.id("voter.no-username").detail("row", index + 1));
             continue;
         }
 
@@ -1367,7 +1417,8 @@ fn check_census(plan: &Blueprint, report: &mut Report) {
                 format!(
                     "'{username}' is also row {first}. Two voters sharing a                      username become one account, and this one would replace                      the other without saying so."
                 ),
-            ));
+            )
+.id("voter.duplicate-username").detail("username", username).detail("first", first + 1));
         }
 
         // Blank means the default area, which is what a plan with no areas
@@ -1380,7 +1431,8 @@ fn check_census(plan: &Blueprint, report: &mut Report) {
                 format!(
                     "no area is called '{area}'. Voters are matched to their                      area by name, so this voter would get no ballot. Copy the                      name from the area rather than retyping it."
                 ),
-            ));
+            )
+.id("voter.area-unknown").detail("area", area).detail("row", index + 1));
         }
     }
 
@@ -1399,17 +1451,21 @@ fn check_census(plan: &Blueprint, report: &mut Report) {
             "this election has areas but no voter names one, so every voter \
              gets the default ballot. If the districting is meant to apply, the \
              census needs an area column.",
-        ));
+        )
+.id("census.no-area-column"));
     }
 }
 
 fn check_ballot(plan: &Blueprint, report: &mut Report) {
     if plan.elections.is_empty() {
-        report.push(Problem::error(
-            Code::MissingField,
-            "elections",
-            "an election event needs at least one election",
-        ));
+        report.push(
+            Problem::error(
+                Code::MissingField,
+                "elections",
+                "an election event needs at least one election",
+            )
+            .id("ballot.no-elections"),
+        );
         return;
     }
 
@@ -1423,7 +1479,8 @@ fn check_ballot(plan: &Blueprint, report: &mut Report) {
                     &at,
                     "this election has no contests, so nobody votes in it",
                 )
-                .about(Some(&election.external_id)),
+                .about(Some(&election.external_id))
+                .id("election.no-contests"),
             );
         }
 
@@ -1445,7 +1502,8 @@ fn check_ballot(plan: &Blueprint, report: &mut Report) {
                         "a voter may choose fewer than one candidate, so there is \
                          nothing to vote for",
                     )
-                    .about(Some(&contest.external_id)),
+                    .about(Some(&contest.external_id))
+.id("contest.max-votes-below-one"),
                 );
             }
 
@@ -1456,7 +1514,8 @@ fn check_ballot(plan: &Blueprint, report: &mut Report) {
                         &at,
                         "the contest elects nobody",
                     )
-                    .about(Some(&contest.external_id)),
+                    .about(Some(&contest.external_id))
+                    .id("contest.elects-nobody"),
                 );
             }
 
@@ -1472,7 +1531,8 @@ fn check_ballot(plan: &Blueprint, report: &mut Report) {
                             contest.winners, contest.max_votes
                         ),
                     )
-                    .about(Some(&contest.external_id)),
+                    .about(Some(&contest.external_id))
+.id("contest.elects-more-than-chosen").detail("winners", contest.winners).detail("chosen", contest.max_votes),
                 );
             }
 
@@ -1488,7 +1548,9 @@ fn check_ballot(plan: &Blueprint, report: &mut Report) {
                             format!("{at}.areas"),
                             format!("no area has the identifier '{area}'"),
                         )
-                        .about(Some(&contest.external_id)),
+                        .about(Some(&contest.external_id))
+                        .id("contest.area-unknown")
+                        .detail("area", area),
                     );
                 }
             }
@@ -1500,7 +1562,8 @@ fn check_ballot(plan: &Blueprint, report: &mut Report) {
                         &at,
                         "no candidates yet",
                     )
-                    .about(Some(&contest.external_id)),
+                    .about(Some(&contest.external_id))
+                    .id("contest.no-candidates"),
                 );
             } else if (contest.winners as usize) > choices {
                 report.push(
@@ -1512,7 +1575,10 @@ fn check_ballot(plan: &Blueprint, report: &mut Report) {
                             contest.winners
                         ),
                     )
-                    .about(Some(&contest.external_id)),
+                    .about(Some(&contest.external_id))
+                    .id("contest.elects-more-than-standing")
+                    .detail("winners", contest.winners)
+                    .detail("standing", choices),
                 );
             }
         }
