@@ -97,6 +97,9 @@ fn sound() -> Blueprint {
                         description: Translated::default(),
                         explicit_blank: false,
                         explicit_invalid: false,
+                        withdrawn: false,
+                        link: None,
+                        candidate_type: None,
 
                         image: None,
                     },
@@ -106,6 +109,9 @@ fn sound() -> Blueprint {
                         description: Translated::default(),
                         explicit_blank: false,
                         explicit_invalid: false,
+                        withdrawn: false,
+                        link: None,
+                        candidate_type: None,
 
                         image: None,
                     },
@@ -603,6 +609,9 @@ fn a_multi_winner_contest_elects_what_the_plan_says() {
         description: Translated::default(),
         explicit_blank: false,
         explicit_invalid: false,
+        withdrawn: false,
+        link: None,
+        candidate_type: None,
 
         image: None,
     });
@@ -629,6 +638,9 @@ fn a_blank_option_is_marked_as_one_rather_than_becoming_a_candidate() {
             description: Translated::default(),
             explicit_blank: true,
             explicit_invalid: false,
+            withdrawn: false,
+            link: None,
+            candidate_type: None,
 
             image: None,
         });
@@ -1268,6 +1280,9 @@ fn blank_and_invalid_options_do_not_count_as_candidates() {
         description: Translated::default(),
         explicit_blank: true,
         explicit_invalid: false,
+        withdrawn: false,
+        link: None,
+        candidate_type: None,
 
         image: None,
     });
@@ -1442,6 +1457,9 @@ fn districted() -> Blueprint {
             description: Translated::default(),
             explicit_blank: false,
             explicit_invalid: false,
+            withdrawn: false,
+            link: None,
+            candidate_type: None,
 
             image: None,
         }],
@@ -2585,4 +2603,51 @@ fn a_file_nobody_names_is_said_out_loud() {
         .any(|problem| problem.id.as_deref() == Some("material.file-unused")));
     // And it does not reach the archive.
     assert!(bundle.materials.is_empty());
+}
+
+/// The three a candidate can carry beyond a name and a face.
+#[test]
+fn a_candidate_can_be_withdrawn_typed_and_linked() {
+    // Each is the platform's own field: `presentation.is_disabled` draws somebody
+    // who stood down without renumbering the ballot, `candidate_type` is the only
+    // thing that makes the layout screen's per-type cap reachable, and the link is
+    // a page about them.
+    let mut plan = sound();
+    let candidate = &mut plan.elections[0].contests[0].candidates[0];
+    candidate.withdrawn = true;
+    candidate.candidate_type = Some("slate-a".to_string());
+    candidate.link = Some("https://example.org/alice".to_string());
+
+    let workbook = to_workbook(&plan).expect("a workbook");
+    let row = &workbook.rows(sheet::SHEET_CANDIDATES)[0];
+    assert_eq!(
+        row.get("presentation.is_disabled")
+            .map(|c| format!("{c:?}")),
+        Some("Bool(true)".to_string())
+    );
+    assert_eq!(
+        row.get("candidate_type").map(|c| format!("{c:?}")),
+        Some("String(\"slate-a\")".to_string())
+    );
+    assert_eq!(
+        row.get("candidate_link").map(|c| format!("{c:?}")),
+        Some("String(\"https://example.org/alice\")".to_string())
+    );
+}
+
+/// A plan written before these existed still opens, and still means "none of them".
+#[test]
+fn a_plan_saved_before_a_candidate_could_be_withdrawn_still_opens() {
+    let mut value = serde_json::to_value(sound()).expect("a plan");
+    let candidate = &mut value["elections"][0]["contests"][0]["candidates"][0];
+    for gone in ["withdrawn", "link", "candidate_type"] {
+        candidate.as_object_mut().expect("an object").remove(gone);
+    }
+
+    let reopened: Blueprint =
+        serde_json::from_value(value).expect("a plan without them");
+    let candidate = &reopened.elections[0].contests[0].candidates[0];
+    assert!(!candidate.withdrawn);
+    assert_eq!(candidate.link, None);
+    assert_eq!(candidate.candidate_type, None);
 }
