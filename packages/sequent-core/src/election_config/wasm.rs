@@ -735,7 +735,6 @@ pub fn policy_catalog() -> Result<JsValue, JsError> {
         default_max_selections_per_type: i64,
     }
 
-    #[derive(Serialize)]
     /// What the Election Event screen may offer, from the platform rather than
     /// from a list somebody keeps in step by hand (`INV-8`).
     #[derive(Serialize)]
