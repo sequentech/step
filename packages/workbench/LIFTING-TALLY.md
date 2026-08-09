@@ -49,15 +49,28 @@ early-warning system.
 | velvet field | `ResultsParticipationSummary` | note |
 |---|---|---|
 | `census` | `eligibleCensus` | rename |
+| `auditable_votes` | `totalAuditableVotes` | rename |
+| `total_votes` | `totalVotes` | falls back to valid + invalid when absent |
 | `total_valid_votes` | `totalValidVotes` | rename |
 | `total_invalid_votes` | `totalInvalidVotes` | rename |
+| `invalid_votes.explicit` | `explicitInvalidVotes` | rename |
+| `invalid_votes.implicit` | `implicitInvalidVotes` | rename |
 | `total_blank_votes` | `blankVotes` | rename |
-| — | `totalVotes` | derived: valid + invalid |
-| — | `*Percent` fields | derived: value ÷ census, as a **fraction** |
+| `blank_votes.explicit` | `explicitBlankVotes` | rename |
+| `blank_votes.implicit` | `implicitBlankVotes` | rename |
+| `percentage_*` | the matching `*Percent` field | **÷ 100** — see below |
 
-The component leaves any field it is not given as `-`, so the richer
-metrics upstream supports (auditable votes, explicit/implicit invalid and
-blank splits) simply render as dashes — velvet does not emit them.
+**Percentages are forwarded, not recomputed.** velvet emits every
+percentage itself, and the bases differ per row: turnout rows
+(`percentage_total_votes`, `percentage_auditable_votes`) are over census,
+while valid / invalid / blank are over votes cast. An earlier version of
+this adapter derived them all as `value ÷ census`, which silently
+disagreed with production on any contest where those bases differ.
+Forwarding velvet's own numbers is what makes the workbench a fidelity
+check rather than a second opinion.
+
+Fields velvet does not emit are left `undefined` so the component renders
+`-` rather than a misleading `0.00%`.
 
 ### Candidates
 

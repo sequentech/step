@@ -181,11 +181,13 @@ logic was extracted from `packages/velvet` into `workbench/velvet-core`,
 which `packages/velvet` now re-exports — but `main` still owns an inline
 copy, so `packages/workbench` does not exist there at all. Every catch-up
 merge therefore re-conflicts on velvet's `do_tally`, and upstream tally
-changes have to be *forward-ported* into velvet-core rather than merged
-(the split is a real one: velvet-core threads an explicit
-`&mut dyn RngCore` where upstream calls `thread_rng()`, which is
-unavailable on wasm32). Landing the extraction upstream is what would
-stop this recurring; until then, budget for the port on each catch-up.
+changes have to be *forward-ported* into velvet-core rather than merged.
+The split is real, not cosmetic — for example velvet-core's IRV
+tie-break takes `rng: &mut dyn RngCore` from its caller where upstream
+calls `thread_rng()` internally, because velvet-core depends only on
+`rand_core` and not on `rand`, keeping the wasm `getrandom` version
+footprint minimal. Landing the extraction upstream is what would stop
+this recurring; until then, budget for the port on each catch-up.
 
 Tally semantics are currently **up to date** with `origin/main`: the
 explicit/implicit blank split, the invalid-vote policy, decline-to-vote

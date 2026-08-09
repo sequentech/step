@@ -30,6 +30,12 @@ interface VelvetCandidateResult {
     percentage_votes: number
 }
 
+/** velvet splits blank and invalid counts by how the voter expressed them. */
+interface VelvetExplicitImplicit {
+    explicit?: number
+    implicit?: number
+}
+
 interface VelvetContestResult {
     contest: {
         id: string
@@ -37,9 +43,26 @@ interface VelvetContestResult {
         counting_algorithm?: string | null
     }
     census: number
+    auditable_votes?: number
+    total_votes?: number
     total_valid_votes: number
     total_invalid_votes: number
     total_blank_votes: number
+    blank_votes?: VelvetExplicitImplicit
+    invalid_votes?: VelvetExplicitImplicit
+    // velvet emits every percentage itself, in [0, 100]. We forward these
+    // rather than recomputing, so the workbench shows exactly what
+    // production computed — note the bases differ per row (turnout rows are
+    // over census, valid/invalid/blank are over votes cast).
+    percentage_auditable_votes?: number
+    percentage_total_votes?: number
+    percentage_total_valid_votes?: number
+    percentage_total_invalid_votes?: number
+    percentage_total_blank_votes?: number
+    percentage_blank_votes_explicit?: number
+    percentage_blank_votes_implicit?: number
+    percentage_invalid_votes_explicit?: number
+    percentage_invalid_votes_implicit?: number
     candidate_result: VelvetCandidateResult[]
     process_results?: unknown
 }
@@ -81,12 +104,12 @@ export interface VelvetTallyView {
     countingAlgorithm?: string
 }
 
-/** Fraction in [0,1] of `part` over `whole`, or undefined when the base
- *  is zero/absent. ui-essentials' `percentOrDash` runs the value through
- *  `formatPercentOne`, which multiplies by 100 — so these must be
- *  fractions, not percentages. */
-function fraction(part: number, whole: number): number | undefined {
-    return whole > 0 ? part / whole : undefined
+/** velvet emits percentages in [0, 100]; ui-essentials' `percentOrDash`
+ *  runs them through `formatPercentOne`, which multiplies by 100. So every
+ *  percentage crossing this boundary is divided by 100. Returns undefined
+ *  for absent values so the component renders "-" rather than "0.00%". */
+function pct(value: number | undefined): number | undefined {
+    return typeof value === "number" ? value / 100 : undefined
 }
 
 /** Best-effort mapping from a velvet `ContestResult` JSON into the props
@@ -113,23 +136,32 @@ export function adaptVelvetContestResult(
         // winningPosition but never computes it, so assign it here.
         .map((c, i) => ({...c, winningPosition: i + 1}))
 
-    const census = r.census ?? 0
     const valid = r.total_valid_votes ?? 0
     const invalid = r.total_invalid_votes ?? 0
-    const blank = r.total_blank_votes ?? 0
-    const counted = valid + invalid
 
     const summary: ResultsParticipationSummary = {
         id: r.contest?.id ?? "",
-        eligibleCensus: census,
-        totalVotes: counted,
-        totalVotesPercent: fraction(counted, census),
+        eligibleCensus: r.census ?? 0,
+        totalAuditableVotes: r.auditable_votes,
+        totalAuditableVotesPercent: pct(r.percentage_auditable_votes),
+        // velvet only emits `total_votes` on results it has aggregated;
+        // fall back to the identity it uses internally.
+        totalVotes: r.total_votes ?? valid + invalid,
+        totalVotesPercent: pct(r.percentage_total_votes),
         totalValidVotes: valid,
-        totalValidVotesPercent: fraction(valid, census),
+        totalValidVotesPercent: pct(r.percentage_total_valid_votes),
         totalInvalidVotes: invalid,
-        totalInvalidVotesPercent: fraction(invalid, census),
-        blankVotes: blank,
-        blankVotesPercent: fraction(blank, census),
+        totalInvalidVotesPercent: pct(r.percentage_total_invalid_votes),
+        explicitInvalidVotes: r.invalid_votes?.explicit,
+        explicitInvalidVotesPercent: pct(r.percentage_invalid_votes_explicit),
+        implicitInvalidVotes: r.invalid_votes?.implicit,
+        implicitInvalidVotesPercent: pct(r.percentage_invalid_votes_implicit),
+        blankVotes: r.total_blank_votes ?? 0,
+        blankVotesPercent: pct(r.percentage_total_blank_votes),
+        explicitBlankVotes: r.blank_votes?.explicit,
+        explicitBlankVotesPercent: pct(r.percentage_blank_votes_explicit),
+        implicitBlankVotes: r.blank_votes?.implicit,
+        implicitBlankVotesPercent: pct(r.percentage_blank_votes_implicit),
     }
 
     return {
