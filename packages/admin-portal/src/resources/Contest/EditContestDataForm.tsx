@@ -78,6 +78,7 @@ import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {useGetDocumentUrl} from "@/hooks/useGetDocumentUrl"
+import {IVR_ENTITY_I18N_ANNOTATION, parseIvrEntityAnnotations} from "@/utils/ivr"
 
 type FieldValues = Record<string, any>
 
@@ -463,6 +464,7 @@ export const ContestDataForm: React.FC = () => {
                 newContest.presentation.i18n.en.description = newContest.description
             }
             newContest.description = newContest.presentation.i18n.en.description
+            newContest.annotations = parseIvrEntityAnnotations(newContest.annotations)
 
             // defaults
             newContest.voting_type = newContest.voting_type || IVotingType.NON_PREFERENTIAL
@@ -570,6 +572,10 @@ export const ContestDataForm: React.FC = () => {
                             source={`presentation.i18n[${lang}].description`}
                             label={String(t("electionEventScreen.field.description"))}
                         />
+                        <TextInput
+                            source={`annotations.${IVR_ENTITY_I18N_ANNOTATION}.${lang}.prompt`}
+                            label={String(t("electionScreen.field.ivrPrompt"))}
+                        />
                     </div>
                 </CustomTabPanel>
             )
@@ -665,6 +671,10 @@ export const ContestDataForm: React.FC = () => {
                                 </ContestStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
+                                <TextInput
+                                    source="external_id"
+                                    label={String(t("contestScreen.edit.externalId"))}
+                                />
                                 <Tabs value={value} onChange={handleChange}>
                                     {renderTabs()}
                                 </Tabs>

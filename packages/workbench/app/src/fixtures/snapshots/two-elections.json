@@ -1,283 +1,306 @@
 {
-    "version": "v1",
-    "parentId": null,
-    "state": {
-        "elections": {
-            "55555555-5555-5555-5555-555555555003": {
-                "id": "55555555-5555-5555-5555-555555555003",
-                "election_event_id": "55555555-5555-5555-5555-555555555002",
-                "tenant_id": "00000000-0000-0000-0000-000000000001",
-                "name": "City council",
-                "description": "Pick the next city council seat holder.",
-                "image_document_id": "55555555-5555-5555-5555-5555555500ff",
-                "contests": [
-                    {
-                        "id": "55555555-5555-5555-5555-5555555500c1",
-                        "tenant_id": "00000000-0000-0000-0000-000000000001",
-                        "election_event_id": "55555555-5555-5555-5555-555555555002",
-                        "election_id": "55555555-5555-5555-5555-555555555003",
-                        "name": "Council seat",
-                        "description": "Pick exactly one council candidate.",
-                        "max_votes": 1,
-                        "min_votes": 1,
-                        "winning_candidates_num": 1,
-                        "is_encrypted": true,
-                        "counting_algorithm": "plurality-at-large",
-                        "candidates": [
-                            {
-                                "id": "55555555-5555-5555-5555-555555550a01",
-                                "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                "election_event_id": "55555555-5555-5555-5555-555555555002",
-                                "election_id": "55555555-5555-5555-5555-555555555003",
-                                "contest_id": "55555555-5555-5555-5555-5555555500c1",
-                                "name": "Iris"
-                            },
-                            {
-                                "id": "55555555-5555-5555-5555-555555550a02",
-                                "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                "election_event_id": "55555555-5555-5555-5555-555555555002",
-                                "election_id": "55555555-5555-5555-5555-555555555003",
-                                "contest_id": "55555555-5555-5555-5555-5555555500c1",
-                                "name": "Juno"
-                            }
-                        ]
-                    }
-                ],
-                "num_allowed_revotes": 0,
-                "status": {
-                    "is_published": true,
-                    "voting_status": "OPEN",
-                    "kiosk_voting_status": "CLOSED",
-                    "early_voting_status": "CLOSED",
-                    "voting_period_dates": {},
-                    "kiosk_voting_period_dates": {},
-                    "early_voting_period_dates": {}
-                }
-            },
-            "55555555-5555-5555-5555-555555555004": {
-                "id": "55555555-5555-5555-5555-555555555004",
-                "election_event_id": "55555555-5555-5555-5555-555555555002",
-                "tenant_id": "00000000-0000-0000-0000-000000000001",
-                "name": "School board",
-                "description": "Pick the next school board representative.",
-                "image_document_id": "55555555-5555-5555-5555-5555555500fe",
-                "contests": [
-                    {
-                        "id": "55555555-5555-5555-5555-5555555500c2",
-                        "tenant_id": "00000000-0000-0000-0000-000000000001",
-                        "election_event_id": "55555555-5555-5555-5555-555555555002",
-                        "election_id": "55555555-5555-5555-5555-555555555004",
-                        "name": "Board seat",
-                        "description": "Pick exactly one school board candidate.",
-                        "max_votes": 1,
-                        "min_votes": 1,
-                        "winning_candidates_num": 1,
-                        "is_encrypted": true,
-                        "counting_algorithm": "plurality-at-large",
-                        "candidates": [
-                            {
-                                "id": "55555555-5555-5555-5555-555555550b01",
-                                "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                "election_event_id": "55555555-5555-5555-5555-555555555002",
-                                "election_id": "55555555-5555-5555-5555-555555555004",
-                                "contest_id": "55555555-5555-5555-5555-5555555500c2",
-                                "name": "Kai"
-                            },
-                            {
-                                "id": "55555555-5555-5555-5555-555555550b02",
-                                "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                "election_event_id": "55555555-5555-5555-5555-555555555002",
-                                "election_id": "55555555-5555-5555-5555-555555555004",
-                                "contest_id": "55555555-5555-5555-5555-5555555500c2",
-                                "name": "Luna"
-                            }
-                        ]
-                    }
-                ],
-                "num_allowed_revotes": 0,
-                "status": {
-                    "is_published": true,
-                    "voting_status": "OPEN",
-                    "kiosk_voting_status": "CLOSED",
-                    "early_voting_status": "CLOSED",
-                    "voting_period_dates": {},
-                    "kiosk_voting_period_dates": {},
-                    "early_voting_period_dates": {}
-                }
-            }
-        },
-        "castVotes": {},
-        "ballotStyles": {
-            "55555555-5555-5555-5555-555555555003": {
-                "id": "55555555-5555-5555-5555-5555555500b1",
+  "version": "v1",
+  "parentId": null,
+  "state": {
+    "elections": {
+      "55555555-5555-5555-5555-555555555003": {
+        "id": "55555555-5555-5555-5555-555555555003",
+        "election_event_id": "55555555-5555-5555-5555-555555555002",
+        "tenant_id": "00000000-0000-0000-0000-000000000001",
+        "name": "City council",
+        "description": "Pick the next city council seat holder.",
+        "image_document_id": "55555555-5555-5555-5555-5555555500ff",
+        "contests": [
+          {
+            "id": "55555555-5555-5555-5555-5555555500c1",
+            "tenant_id": "00000000-0000-0000-0000-000000000001",
+            "election_event_id": "55555555-5555-5555-5555-555555555002",
+            "election_id": "55555555-5555-5555-5555-555555555003",
+            "name": "Council seat",
+            "description": "Pick exactly one council candidate.",
+            "max_votes": 1,
+            "min_votes": 1,
+            "winning_candidates_num": 1,
+            "is_encrypted": true,
+            "counting_algorithm": "plurality-at-large",
+            "candidates": [
+              {
+                "id": "55555555-5555-5555-5555-555555550a01",
                 "tenant_id": "00000000-0000-0000-0000-000000000001",
                 "election_event_id": "55555555-5555-5555-5555-555555555002",
                 "election_id": "55555555-5555-5555-5555-555555555003",
-                "area_id": "55555555-5555-5555-5555-5555555500aa",
-                "ballot_eml": {
-                    "id": "55555555-5555-5555-5555-5555555500b1",
-                    "tenant_id": "00000000-0000-0000-0000-000000000001",
-                    "election_event_id": "55555555-5555-5555-5555-555555555002",
-                    "election_id": "55555555-5555-5555-5555-555555555003",
-                    "area_id": "55555555-5555-5555-5555-5555555500aa",
-                    "contests": [
-                        {
-                            "id": "55555555-5555-5555-5555-5555555500c1",
-                            "tenant_id": "00000000-0000-0000-0000-000000000001",
-                            "election_event_id": "55555555-5555-5555-5555-555555555002",
-                            "election_id": "55555555-5555-5555-5555-555555555003",
-                            "name": "Council seat",
-                            "description": "Pick exactly one council candidate.",
-                            "max_votes": 1,
-                            "min_votes": 1,
-                            "winning_candidates_num": 1,
-                            "is_encrypted": true,
-                            "counting_algorithm": "plurality-at-large",
-                            "candidates": [
-                                {
-                                    "id": "55555555-5555-5555-5555-555555550a01",
-                                    "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                    "election_event_id": "55555555-5555-5555-5555-555555555002",
-                                    "election_id": "55555555-5555-5555-5555-555555555003",
-                                    "contest_id": "55555555-5555-5555-5555-5555555500c1",
-                                    "name": "Iris"
-                                },
-                                {
-                                    "id": "55555555-5555-5555-5555-555555550a02",
-                                    "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                    "election_event_id": "55555555-5555-5555-5555-555555555002",
-                                    "election_id": "55555555-5555-5555-5555-555555555003",
-                                    "contest_id": "55555555-5555-5555-5555-5555555500c1",
-                                    "name": "Juno"
-                                }
-                            ]
-                        }
-                    ],
-                    "area_presentation": {
-                        "allow_early_voting": "no_early_voting"
-                    },
-                    "public_key": {
-                        "public_key": "gi+zOBm9zTe3mXx2AzmgXaAhmrpB9nxhrO4wHimya28",
-                        "is_demo": false
-                    }
-                },
-                "created_at": "1970-01-01T00:00:00.000Z",
-                "last_updated_at": "1970-01-01T00:00:00.000Z"
-            },
-            "55555555-5555-5555-5555-555555555004": {
-                "id": "55555555-5555-5555-5555-5555555500b2",
+                "contest_id": "55555555-5555-5555-5555-5555555500c1",
+                "name": "Iris"
+              },
+              {
+                "id": "55555555-5555-5555-5555-555555550a02",
+                "tenant_id": "00000000-0000-0000-0000-000000000001",
+                "election_event_id": "55555555-5555-5555-5555-555555555002",
+                "election_id": "55555555-5555-5555-5555-555555555003",
+                "contest_id": "55555555-5555-5555-5555-5555555500c1",
+                "name": "Juno"
+              }
+            ]
+          }
+        ],
+        "num_allowed_revotes": 0,
+        "status": {
+          "is_published": true,
+          "voting_status": "OPEN",
+          "kiosk_voting_status": "CLOSED",
+          "early_voting_status": "CLOSED",
+          "voting_period_dates": {},
+          "kiosk_voting_period_dates": {},
+          "early_voting_period_dates": {}
+        }
+      },
+      "55555555-5555-5555-5555-555555555004": {
+        "id": "55555555-5555-5555-5555-555555555004",
+        "election_event_id": "55555555-5555-5555-5555-555555555002",
+        "tenant_id": "00000000-0000-0000-0000-000000000001",
+        "name": "School board",
+        "description": "Pick the next school board representative.",
+        "image_document_id": "55555555-5555-5555-5555-5555555500fe",
+        "contests": [
+          {
+            "id": "55555555-5555-5555-5555-5555555500c2",
+            "tenant_id": "00000000-0000-0000-0000-000000000001",
+            "election_event_id": "55555555-5555-5555-5555-555555555002",
+            "election_id": "55555555-5555-5555-5555-555555555004",
+            "name": "Board seat",
+            "description": "Pick exactly one school board candidate.",
+            "max_votes": 1,
+            "min_votes": 1,
+            "winning_candidates_num": 1,
+            "is_encrypted": true,
+            "counting_algorithm": "plurality-at-large",
+            "candidates": [
+              {
+                "id": "55555555-5555-5555-5555-555555550b01",
                 "tenant_id": "00000000-0000-0000-0000-000000000001",
                 "election_event_id": "55555555-5555-5555-5555-555555555002",
                 "election_id": "55555555-5555-5555-5555-555555555004",
-                "area_id": "55555555-5555-5555-5555-5555555500aa",
-                "ballot_eml": {
-                    "id": "55555555-5555-5555-5555-5555555500b2",
-                    "tenant_id": "00000000-0000-0000-0000-000000000001",
-                    "election_event_id": "55555555-5555-5555-5555-555555555002",
-                    "election_id": "55555555-5555-5555-5555-555555555004",
-                    "area_id": "55555555-5555-5555-5555-5555555500aa",
-                    "contests": [
-                        {
-                            "id": "55555555-5555-5555-5555-5555555500c2",
-                            "tenant_id": "00000000-0000-0000-0000-000000000001",
-                            "election_event_id": "55555555-5555-5555-5555-555555555002",
-                            "election_id": "55555555-5555-5555-5555-555555555004",
-                            "name": "Board seat",
-                            "description": "Pick exactly one school board candidate.",
-                            "max_votes": 1,
-                            "min_votes": 1,
-                            "winning_candidates_num": 1,
-                            "is_encrypted": true,
-                            "counting_algorithm": "plurality-at-large",
-                            "candidates": [
-                                {
-                                    "id": "55555555-5555-5555-5555-555555550b01",
-                                    "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                    "election_event_id": "55555555-5555-5555-5555-555555555002",
-                                    "election_id": "55555555-5555-5555-5555-555555555004",
-                                    "contest_id": "55555555-5555-5555-5555-5555555500c2",
-                                    "name": "Kai"
-                                },
-                                {
-                                    "id": "55555555-5555-5555-5555-555555550b02",
-                                    "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                    "election_event_id": "55555555-5555-5555-5555-555555555002",
-                                    "election_id": "55555555-5555-5555-5555-555555555004",
-                                    "contest_id": "55555555-5555-5555-5555-5555555500c2",
-                                    "name": "Luna"
-                                }
-                            ]
-                        }
-                    ],
-                    "area_presentation": {
-                        "allow_early_voting": "no_early_voting"
-                    },
-                    "public_key": {
-                        "public_key": "gi+zOBm9zTe3mXx2AzmgXaAhmrpB9nxhrO4wHimya28",
-                        "is_demo": false
-                    }
-                },
-                "created_at": "1970-01-01T00:00:00.000Z",
-                "last_updated_at": "1970-01-01T00:00:00.000Z"
-            }
-        },
-        "ballotSelections": {
-            "55555555-5555-5555-5555-555555555003": [
-                {
-                    "contest_id": "55555555-5555-5555-5555-5555555500c1",
-                    "is_explicit_invalid": false,
-                    "invalid_errors": [],
-                    "invalid_alerts": [],
-                    "choices": [
-                        {"id": "55555555-5555-5555-5555-555555550a01", "selected": -1},
-                        {"id": "55555555-5555-5555-5555-555555550a02", "selected": -1}
-                    ]
-                }
-            ],
-            "55555555-5555-5555-5555-555555555004": [
-                {
-                    "contest_id": "55555555-5555-5555-5555-5555555500c2",
-                    "is_explicit_invalid": false,
-                    "invalid_errors": [],
-                    "invalid_alerts": [],
-                    "choices": [
-                        {"id": "55555555-5555-5555-5555-555555550b01", "selected": -1},
-                        {"id": "55555555-5555-5555-5555-555555550b02", "selected": -1}
-                    ]
-                }
-            ]
-        },
-        "electionEvent": {
-            "55555555-5555-5555-5555-555555555002": {
-                "id": "55555555-5555-5555-5555-555555555002",
+                "contest_id": "55555555-5555-5555-5555-5555555500c2",
+                "name": "Kai"
+              },
+              {
+                "id": "55555555-5555-5555-5555-555555550b02",
                 "tenant_id": "00000000-0000-0000-0000-000000000001",
-                "name": "Two-election demo event",
-                "description": "Container event with two independent elections (city council + school board).",
-                "elections": [
-                    "55555555-5555-5555-5555-555555555003",
-                    "55555555-5555-5555-5555-555555555004"
-                ],
-                "status": {
-                    "is_published": true,
-                    "voting_status": "OPEN",
-                    "kiosk_voting_status": "CLOSED",
-                    "early_voting_status": "CLOSED"
-                }
-            }
-        },
-        "extra": {"bypassChooser": false, "isVoted": {}}
-    },
-    "workbench": {
-        "voters": [
-            {"id": "fec22f2d-d394-489a-b018-656813eb28d1", "displayName": "Alice"},
-            {"id": "cae33836-d603-4022-8d63-a6a92713d7fc", "displayName": "Bob"}
+                "election_event_id": "55555555-5555-5555-5555-555555555002",
+                "election_id": "55555555-5555-5555-5555-555555555004",
+                "contest_id": "55555555-5555-5555-5555-5555555500c2",
+                "name": "Luna"
+              }
+            ]
+          }
         ],
-        "activeVoterId": null,
-        "castBy": {},
-        "repairedCastVotes": {},
-        "keypair": {
-            "pkB64": "gi+zOBm9zTe3mXx2AzmgXaAhmrpB9nxhrO4wHimya28",
-            "skB64": "e9pCQ6VnOIBHwoOyVwqehk00ko5D0RW/LSRVOPC7tAmCL7M4Gb3NN7eZfHYDOaBdoCGaukH2fGGs7jAeKbJrbw"
+        "num_allowed_revotes": 0,
+        "status": {
+          "is_published": true,
+          "voting_status": "OPEN",
+          "kiosk_voting_status": "CLOSED",
+          "early_voting_status": "CLOSED",
+          "voting_period_dates": {},
+          "kiosk_voting_period_dates": {},
+          "early_voting_period_dates": {}
         }
+      }
+    },
+    "castVotes": {},
+    "ballotStyles": {
+      "55555555-5555-5555-5555-555555555003": {
+        "id": "55555555-5555-5555-5555-5555555500b1",
+        "tenant_id": "00000000-0000-0000-0000-000000000001",
+        "election_event_id": "55555555-5555-5555-5555-555555555002",
+        "election_id": "55555555-5555-5555-5555-555555555003",
+        "area_id": "55555555-5555-5555-5555-5555555500aa",
+        "ballot_eml": {
+          "id": "55555555-5555-5555-5555-5555555500b1",
+          "tenant_id": "00000000-0000-0000-0000-000000000001",
+          "election_event_id": "55555555-5555-5555-5555-555555555002",
+          "election_id": "55555555-5555-5555-5555-555555555003",
+          "area_id": "55555555-5555-5555-5555-5555555500aa",
+          "contests": [
+            {
+              "id": "55555555-5555-5555-5555-5555555500c1",
+              "tenant_id": "00000000-0000-0000-0000-000000000001",
+              "election_event_id": "55555555-5555-5555-5555-555555555002",
+              "election_id": "55555555-5555-5555-5555-555555555003",
+              "name": "Council seat",
+              "description": "Pick exactly one council candidate.",
+              "max_votes": 1,
+              "min_votes": 1,
+              "winning_candidates_num": 1,
+              "is_encrypted": true,
+              "counting_algorithm": "plurality-at-large",
+              "candidates": [
+                {
+                  "id": "55555555-5555-5555-5555-555555550a01",
+                  "tenant_id": "00000000-0000-0000-0000-000000000001",
+                  "election_event_id": "55555555-5555-5555-5555-555555555002",
+                  "election_id": "55555555-5555-5555-5555-555555555003",
+                  "contest_id": "55555555-5555-5555-5555-5555555500c1",
+                  "name": "Iris"
+                },
+                {
+                  "id": "55555555-5555-5555-5555-555555550a02",
+                  "tenant_id": "00000000-0000-0000-0000-000000000001",
+                  "election_event_id": "55555555-5555-5555-5555-555555555002",
+                  "election_id": "55555555-5555-5555-5555-555555555003",
+                  "contest_id": "55555555-5555-5555-5555-5555555500c1",
+                  "name": "Juno"
+                }
+              ]
+            }
+          ],
+          "area_presentation": {
+            "allow_early_voting": "no_early_voting"
+          },
+          "public_key": {
+            "public_key": "gi+zOBm9zTe3mXx2AzmgXaAhmrpB9nxhrO4wHimya28",
+            "is_demo": false
+          }
+        },
+        "created_at": "1970-01-01T00:00:00.000Z",
+        "last_updated_at": "1970-01-01T00:00:00.000Z"
+      },
+      "55555555-5555-5555-5555-555555555004": {
+        "id": "55555555-5555-5555-5555-5555555500b2",
+        "tenant_id": "00000000-0000-0000-0000-000000000001",
+        "election_event_id": "55555555-5555-5555-5555-555555555002",
+        "election_id": "55555555-5555-5555-5555-555555555004",
+        "area_id": "55555555-5555-5555-5555-5555555500aa",
+        "ballot_eml": {
+          "id": "55555555-5555-5555-5555-5555555500b2",
+          "tenant_id": "00000000-0000-0000-0000-000000000001",
+          "election_event_id": "55555555-5555-5555-5555-555555555002",
+          "election_id": "55555555-5555-5555-5555-555555555004",
+          "area_id": "55555555-5555-5555-5555-5555555500aa",
+          "contests": [
+            {
+              "id": "55555555-5555-5555-5555-5555555500c2",
+              "tenant_id": "00000000-0000-0000-0000-000000000001",
+              "election_event_id": "55555555-5555-5555-5555-555555555002",
+              "election_id": "55555555-5555-5555-5555-555555555004",
+              "name": "Board seat",
+              "description": "Pick exactly one school board candidate.",
+              "max_votes": 1,
+              "min_votes": 1,
+              "winning_candidates_num": 1,
+              "is_encrypted": true,
+              "counting_algorithm": "plurality-at-large",
+              "candidates": [
+                {
+                  "id": "55555555-5555-5555-5555-555555550b01",
+                  "tenant_id": "00000000-0000-0000-0000-000000000001",
+                  "election_event_id": "55555555-5555-5555-5555-555555555002",
+                  "election_id": "55555555-5555-5555-5555-555555555004",
+                  "contest_id": "55555555-5555-5555-5555-5555555500c2",
+                  "name": "Kai"
+                },
+                {
+                  "id": "55555555-5555-5555-5555-555555550b02",
+                  "tenant_id": "00000000-0000-0000-0000-000000000001",
+                  "election_event_id": "55555555-5555-5555-5555-555555555002",
+                  "election_id": "55555555-5555-5555-5555-555555555004",
+                  "contest_id": "55555555-5555-5555-5555-5555555500c2",
+                  "name": "Luna"
+                }
+              ]
+            }
+          ],
+          "area_presentation": {
+            "allow_early_voting": "no_early_voting"
+          },
+          "public_key": {
+            "public_key": "gi+zOBm9zTe3mXx2AzmgXaAhmrpB9nxhrO4wHimya28",
+            "is_demo": false
+          }
+        },
+        "created_at": "1970-01-01T00:00:00.000Z",
+        "last_updated_at": "1970-01-01T00:00:00.000Z"
+      }
+    },
+    "ballotSelections": {
+      "55555555-5555-5555-5555-555555555003": [
+        {
+          "contest_id": "55555555-5555-5555-5555-5555555500c1",
+          "is_explicit_invalid": false,
+          "invalid_errors": [],
+          "invalid_alerts": [],
+          "choices": [
+            {
+              "id": "55555555-5555-5555-5555-555555550a01",
+              "selected": -1
+            },
+            {
+              "id": "55555555-5555-5555-5555-555555550a02",
+              "selected": -1
+            }
+          ],
+          "is_decline_to_vote": false
+        }
+      ],
+      "55555555-5555-5555-5555-555555555004": [
+        {
+          "contest_id": "55555555-5555-5555-5555-5555555500c2",
+          "is_explicit_invalid": false,
+          "invalid_errors": [],
+          "invalid_alerts": [],
+          "choices": [
+            {
+              "id": "55555555-5555-5555-5555-555555550b01",
+              "selected": -1
+            },
+            {
+              "id": "55555555-5555-5555-5555-555555550b02",
+              "selected": -1
+            }
+          ],
+          "is_decline_to_vote": false
+        }
+      ]
+    },
+    "electionEvent": {
+      "55555555-5555-5555-5555-555555555002": {
+        "id": "55555555-5555-5555-5555-555555555002",
+        "tenant_id": "00000000-0000-0000-0000-000000000001",
+        "name": "Two-election demo event",
+        "description": "Container event with two independent elections (city council + school board).",
+        "elections": [
+          "55555555-5555-5555-5555-555555555003",
+          "55555555-5555-5555-5555-555555555004"
+        ],
+        "status": {
+          "is_published": true,
+          "voting_status": "OPEN",
+          "kiosk_voting_status": "CLOSED",
+          "early_voting_status": "CLOSED"
+        }
+      }
+    },
+    "extra": {
+      "bypassChooser": false,
+      "isVoted": {}
     }
+  },
+  "workbench": {
+    "voters": [
+      {
+        "id": "fec22f2d-d394-489a-b018-656813eb28d1",
+        "displayName": "Alice"
+      },
+      {
+        "id": "cae33836-d603-4022-8d63-a6a92713d7fc",
+        "displayName": "Bob"
+      }
+    ],
+    "activeVoterId": null,
+    "castBy": {},
+    "repairedCastVotes": {},
+    "keypair": {
+      "pkB64": "gi+zOBm9zTe3mXx2AzmgXaAhmrpB9nxhrO4wHimya28",
+      "skB64": "e9pCQ6VnOIBHwoOyVwqehk00ko5D0RW/LSRVOPC7tAmCL7M4Gb3NN7eZfHYDOaBdoCGaukH2fGGs7jAeKbJrbw"
+    }
+  }
 }

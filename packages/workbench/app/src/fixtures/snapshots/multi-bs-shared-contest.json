@@ -1,479 +1,511 @@
 {
-    "version": "v1",
-    "parentId": null,
-    "state": {
-        "elections": {
-            "33333333-3333-3333-3333-333333333003": {
-                "id": "33333333-3333-3333-3333-333333333003",
-                "election_event_id": "33333333-3333-3333-3333-333333333002",
-                "tenant_id": "00000000-0000-0000-0000-000000000001",
-                "name": "Federal + district demo",
-                "description": "One election with two area-restricted ballot styles. Both areas share the Federal president contest; each area carries its own district-representative contest.",
-                "image_document_id": "00000000-0000-0000-0000-0000000000ff",
-                "contests": [
-                    {
-                        "id": "33333333-3333-3333-3333-3333333300c1",
-                        "tenant_id": "00000000-0000-0000-0000-000000000001",
-                        "election_event_id": "33333333-3333-3333-3333-333333333002",
-                        "election_id": "33333333-3333-3333-3333-333333333003",
-                        "name": "Federal president",
-                        "description": "Pick exactly one candidate.",
-                        "max_votes": 1,
-                        "min_votes": 1,
-                        "winning_candidates_num": 1,
-                        "is_encrypted": true,
-                        "counting_algorithm": "plurality-at-large",
-                        "candidates": [
-                            {
-                                "id": "33333333-3333-3333-3333-333333330a01",
-                                "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                "election_event_id": "33333333-3333-3333-3333-333333333002",
-                                "election_id": "33333333-3333-3333-3333-333333333003",
-                                "contest_id": "33333333-3333-3333-3333-3333333300c1",
-                                "name": "Aldo"
-                            },
-                            {
-                                "id": "33333333-3333-3333-3333-333333330a02",
-                                "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                "election_event_id": "33333333-3333-3333-3333-333333333002",
-                                "election_id": "33333333-3333-3333-3333-333333333003",
-                                "contest_id": "33333333-3333-3333-3333-3333333300c1",
-                                "name": "Beatriz"
-                            },
-                            {
-                                "id": "33333333-3333-3333-3333-333333330a03",
-                                "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                "election_event_id": "33333333-3333-3333-3333-333333333002",
-                                "election_id": "33333333-3333-3333-3333-333333333003",
-                                "contest_id": "33333333-3333-3333-3333-3333333300c1",
-                                "name": "Cyrus"
-                            }
-                        ]
-                    },
-                    {
-                        "id": "33333333-3333-3333-3333-3333333300c2",
-                        "tenant_id": "00000000-0000-0000-0000-000000000001",
-                        "election_event_id": "33333333-3333-3333-3333-333333333002",
-                        "election_id": "33333333-3333-3333-3333-333333333003",
-                        "name": "North district representative",
-                        "description": "Pick exactly one candidate (North area only).",
-                        "max_votes": 1,
-                        "min_votes": 1,
-                        "winning_candidates_num": 1,
-                        "is_encrypted": true,
-                        "counting_algorithm": "plurality-at-large",
-                        "candidates": [
-                            {
-                                "id": "33333333-3333-3333-3333-333333330b01",
-                                "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                "election_event_id": "33333333-3333-3333-3333-333333333002",
-                                "election_id": "33333333-3333-3333-3333-333333333003",
-                                "contest_id": "33333333-3333-3333-3333-3333333300c2",
-                                "name": "Nadia"
-                            },
-                            {
-                                "id": "33333333-3333-3333-3333-333333330b02",
-                                "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                "election_event_id": "33333333-3333-3333-3333-333333333002",
-                                "election_id": "33333333-3333-3333-3333-333333333003",
-                                "contest_id": "33333333-3333-3333-3333-3333333300c2",
-                                "name": "Nestor"
-                            }
-                        ]
-                    },
-                    {
-                        "id": "33333333-3333-3333-3333-3333333300c3",
-                        "tenant_id": "00000000-0000-0000-0000-000000000001",
-                        "election_event_id": "33333333-3333-3333-3333-333333333002",
-                        "election_id": "33333333-3333-3333-3333-333333333003",
-                        "name": "South district representative",
-                        "description": "Pick exactly one candidate (South area only).",
-                        "max_votes": 1,
-                        "min_votes": 1,
-                        "winning_candidates_num": 1,
-                        "is_encrypted": true,
-                        "counting_algorithm": "plurality-at-large",
-                        "candidates": [
-                            {
-                                "id": "33333333-3333-3333-3333-333333330d01",
-                                "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                "election_event_id": "33333333-3333-3333-3333-333333333002",
-                                "election_id": "33333333-3333-3333-3333-333333333003",
-                                "contest_id": "33333333-3333-3333-3333-3333333300c3",
-                                "name": "Selma"
-                            },
-                            {
-                                "id": "33333333-3333-3333-3333-333333330d02",
-                                "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                "election_event_id": "33333333-3333-3333-3333-333333333002",
-                                "election_id": "33333333-3333-3333-3333-333333333003",
-                                "contest_id": "33333333-3333-3333-3333-3333333300c3",
-                                "name": "Santiago"
-                            }
-                        ]
-                    }
-                ],
-                "num_allowed_revotes": 0,
-                "status": {
-                    "is_published": true,
-                    "voting_status": "OPEN",
-                    "kiosk_voting_status": "CLOSED",
-                    "early_voting_status": "CLOSED",
-                    "voting_period_dates": {},
-                    "kiosk_voting_period_dates": {},
-                    "early_voting_period_dates": {}
-                }
-            }
-        },
-        "castVotes": {},
-        "ballotStyles": {
-            "33333333-3333-3333-3333-333333333003": {
-                "id": "33333333-3333-3333-3333-3333333300b1",
+  "version": "v1",
+  "parentId": null,
+  "state": {
+    "elections": {
+      "33333333-3333-3333-3333-333333333003": {
+        "id": "33333333-3333-3333-3333-333333333003",
+        "election_event_id": "33333333-3333-3333-3333-333333333002",
+        "tenant_id": "00000000-0000-0000-0000-000000000001",
+        "name": "Federal + district demo",
+        "description": "One election with two area-restricted ballot styles. Both areas share the Federal president contest; each area carries its own district-representative contest.",
+        "image_document_id": "00000000-0000-0000-0000-0000000000ff",
+        "contests": [
+          {
+            "id": "33333333-3333-3333-3333-3333333300c1",
+            "tenant_id": "00000000-0000-0000-0000-000000000001",
+            "election_event_id": "33333333-3333-3333-3333-333333333002",
+            "election_id": "33333333-3333-3333-3333-333333333003",
+            "name": "Federal president",
+            "description": "Pick exactly one candidate.",
+            "max_votes": 1,
+            "min_votes": 1,
+            "winning_candidates_num": 1,
+            "is_encrypted": true,
+            "counting_algorithm": "plurality-at-large",
+            "candidates": [
+              {
+                "id": "33333333-3333-3333-3333-333333330a01",
                 "tenant_id": "00000000-0000-0000-0000-000000000001",
                 "election_event_id": "33333333-3333-3333-3333-333333333002",
                 "election_id": "33333333-3333-3333-3333-333333333003",
-                "area_id": "33333333-3333-3333-3333-3333333300aa",
-                "ballot_eml": {
-                    "id": "33333333-3333-3333-3333-3333333300b1",
-                    "tenant_id": "00000000-0000-0000-0000-000000000001",
-                    "election_event_id": "33333333-3333-3333-3333-333333333002",
-                    "election_id": "33333333-3333-3333-3333-333333333003",
-                    "area_id": "33333333-3333-3333-3333-3333333300aa",
-                    "contests": [
-                        {
-                            "id": "33333333-3333-3333-3333-3333333300c1",
-                            "tenant_id": "00000000-0000-0000-0000-000000000001",
-                            "election_event_id": "33333333-3333-3333-3333-333333333002",
-                            "election_id": "33333333-3333-3333-3333-333333333003",
-                            "name": "Federal president",
-                            "description": "Pick exactly one candidate.",
-                            "max_votes": 1,
-                            "min_votes": 1,
-                            "winning_candidates_num": 1,
-                            "is_encrypted": true,
-                            "counting_algorithm": "plurality-at-large",
-                            "candidates": [
-                                {
-                                    "id": "33333333-3333-3333-3333-333333330a01",
-                                    "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                    "election_event_id": "33333333-3333-3333-3333-333333333002",
-                                    "election_id": "33333333-3333-3333-3333-333333333003",
-                                    "contest_id": "33333333-3333-3333-3333-3333333300c1",
-                                    "name": "Aldo"
-                                },
-                                {
-                                    "id": "33333333-3333-3333-3333-333333330a02",
-                                    "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                    "election_event_id": "33333333-3333-3333-3333-333333333002",
-                                    "election_id": "33333333-3333-3333-3333-333333333003",
-                                    "contest_id": "33333333-3333-3333-3333-3333333300c1",
-                                    "name": "Beatriz"
-                                },
-                                {
-                                    "id": "33333333-3333-3333-3333-333333330a03",
-                                    "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                    "election_event_id": "33333333-3333-3333-3333-333333333002",
-                                    "election_id": "33333333-3333-3333-3333-333333333003",
-                                    "contest_id": "33333333-3333-3333-3333-3333333300c1",
-                                    "name": "Cyrus"
-                                }
-                            ]
-                        },
-                        {
-                            "id": "33333333-3333-3333-3333-3333333300c2",
-                            "tenant_id": "00000000-0000-0000-0000-000000000001",
-                            "election_event_id": "33333333-3333-3333-3333-333333333002",
-                            "election_id": "33333333-3333-3333-3333-333333333003",
-                            "name": "North district representative",
-                            "description": "Pick exactly one candidate (North area only).",
-                            "max_votes": 1,
-                            "min_votes": 1,
-                            "winning_candidates_num": 1,
-                            "is_encrypted": true,
-                            "counting_algorithm": "plurality-at-large",
-                            "candidates": [
-                                {
-                                    "id": "33333333-3333-3333-3333-333333330b01",
-                                    "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                    "election_event_id": "33333333-3333-3333-3333-333333333002",
-                                    "election_id": "33333333-3333-3333-3333-333333333003",
-                                    "contest_id": "33333333-3333-3333-3333-3333333300c2",
-                                    "name": "Nadia"
-                                },
-                                {
-                                    "id": "33333333-3333-3333-3333-333333330b02",
-                                    "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                    "election_event_id": "33333333-3333-3333-3333-333333333002",
-                                    "election_id": "33333333-3333-3333-3333-333333333003",
-                                    "contest_id": "33333333-3333-3333-3333-3333333300c2",
-                                    "name": "Nestor"
-                                }
-                            ]
-                        }
-                    ],
-                    "area_presentation": {
-                        "allow_early_voting": "no_early_voting"
-                    },
-                    "public_key": {
-                        "public_key": "gi+zOBm9zTe3mXx2AzmgXaAhmrpB9nxhrO4wHimya28",
-                        "is_demo": false
-                    }
-                },
-                "created_at": "1970-01-01T00:00:00.000Z",
-                "last_updated_at": "1970-01-01T00:00:00.000Z"
-            }
-        },
-        "ballotSelections": {
-            "33333333-3333-3333-3333-333333333003": [
-                {
-                    "contest_id": "33333333-3333-3333-3333-3333333300c1",
-                    "is_explicit_invalid": false,
-                    "invalid_errors": [],
-                    "invalid_alerts": [],
-                    "choices": [
-                        {"id": "33333333-3333-3333-3333-333333330a01", "selected": -1},
-                        {"id": "33333333-3333-3333-3333-333333330a02", "selected": -1},
-                        {"id": "33333333-3333-3333-3333-333333330a03", "selected": -1}
-                    ]
-                },
-                {
-                    "contest_id": "33333333-3333-3333-3333-3333333300c2",
-                    "is_explicit_invalid": false,
-                    "invalid_errors": [],
-                    "invalid_alerts": [],
-                    "choices": [
-                        {"id": "33333333-3333-3333-3333-333333330b01", "selected": -1},
-                        {"id": "33333333-3333-3333-3333-333333330b02", "selected": -1}
-                    ]
-                }
-            ]
-        },
-        "electionEvent": {
-            "33333333-3333-3333-3333-333333333002": {
-                "id": "33333333-3333-3333-3333-333333333002",
+                "contest_id": "33333333-3333-3333-3333-3333333300c1",
+                "name": "Aldo"
+              },
+              {
+                "id": "33333333-3333-3333-3333-333333330a02",
                 "tenant_id": "00000000-0000-0000-0000-000000000001",
-                "name": "Federal + district demo event",
-                "description": "Container event for the multi-BS shared-contest fixture.",
-                "elections": ["33333333-3333-3333-3333-333333333003"],
-                "status": {
-                    "is_published": true,
-                    "voting_status": "OPEN",
-                    "kiosk_voting_status": "CLOSED",
-                    "early_voting_status": "CLOSED"
-                }
-            }
-        },
-        "extra": {"bypassChooser": false, "isVoted": {}}
-    },
-    "workbench": {
-        "voters": [
-            {"id": "fec22f2d-d394-489a-b018-656813eb28d1", "displayName": "Alice (North)"},
-            {"id": "cae33836-d603-4022-8d63-a6a92713d7fc", "displayName": "Bob (South)"}
+                "election_event_id": "33333333-3333-3333-3333-333333333002",
+                "election_id": "33333333-3333-3333-3333-333333333003",
+                "contest_id": "33333333-3333-3333-3333-3333333300c1",
+                "name": "Beatriz"
+              },
+              {
+                "id": "33333333-3333-3333-3333-333333330a03",
+                "tenant_id": "00000000-0000-0000-0000-000000000001",
+                "election_event_id": "33333333-3333-3333-3333-333333333002",
+                "election_id": "33333333-3333-3333-3333-333333333003",
+                "contest_id": "33333333-3333-3333-3333-3333333300c1",
+                "name": "Cyrus"
+              }
+            ]
+          },
+          {
+            "id": "33333333-3333-3333-3333-3333333300c2",
+            "tenant_id": "00000000-0000-0000-0000-000000000001",
+            "election_event_id": "33333333-3333-3333-3333-333333333002",
+            "election_id": "33333333-3333-3333-3333-333333333003",
+            "name": "North district representative",
+            "description": "Pick exactly one candidate (North area only).",
+            "max_votes": 1,
+            "min_votes": 1,
+            "winning_candidates_num": 1,
+            "is_encrypted": true,
+            "counting_algorithm": "plurality-at-large",
+            "candidates": [
+              {
+                "id": "33333333-3333-3333-3333-333333330b01",
+                "tenant_id": "00000000-0000-0000-0000-000000000001",
+                "election_event_id": "33333333-3333-3333-3333-333333333002",
+                "election_id": "33333333-3333-3333-3333-333333333003",
+                "contest_id": "33333333-3333-3333-3333-3333333300c2",
+                "name": "Nadia"
+              },
+              {
+                "id": "33333333-3333-3333-3333-333333330b02",
+                "tenant_id": "00000000-0000-0000-0000-000000000001",
+                "election_event_id": "33333333-3333-3333-3333-333333333002",
+                "election_id": "33333333-3333-3333-3333-333333333003",
+                "contest_id": "33333333-3333-3333-3333-3333333300c2",
+                "name": "Nestor"
+              }
+            ]
+          },
+          {
+            "id": "33333333-3333-3333-3333-3333333300c3",
+            "tenant_id": "00000000-0000-0000-0000-000000000001",
+            "election_event_id": "33333333-3333-3333-3333-333333333002",
+            "election_id": "33333333-3333-3333-3333-333333333003",
+            "name": "South district representative",
+            "description": "Pick exactly one candidate (South area only).",
+            "max_votes": 1,
+            "min_votes": 1,
+            "winning_candidates_num": 1,
+            "is_encrypted": true,
+            "counting_algorithm": "plurality-at-large",
+            "candidates": [
+              {
+                "id": "33333333-3333-3333-3333-333333330d01",
+                "tenant_id": "00000000-0000-0000-0000-000000000001",
+                "election_event_id": "33333333-3333-3333-3333-333333333002",
+                "election_id": "33333333-3333-3333-3333-333333333003",
+                "contest_id": "33333333-3333-3333-3333-3333333300c3",
+                "name": "Selma"
+              },
+              {
+                "id": "33333333-3333-3333-3333-333333330d02",
+                "tenant_id": "00000000-0000-0000-0000-000000000001",
+                "election_event_id": "33333333-3333-3333-3333-333333333002",
+                "election_id": "33333333-3333-3333-3333-333333333003",
+                "contest_id": "33333333-3333-3333-3333-3333333300c3",
+                "name": "Santiago"
+              }
+            ]
+          }
         ],
-        "activeVoterId": null,
-        "castBy": {},
-        "repairedCastVotes": {},
-        "keypair": {
-            "pkB64": "gi+zOBm9zTe3mXx2AzmgXaAhmrpB9nxhrO4wHimya28",
-            "skB64": "e9pCQ6VnOIBHwoOyVwqehk00ko5D0RW/LSRVOPC7tAmCL7M4Gb3NN7eZfHYDOaBdoCGaukH2fGGs7jAeKbJrbw"
-        },
-        "ballotStylePool": {
-            "33333333-3333-3333-3333-333333333003": [
+        "num_allowed_revotes": 0,
+        "status": {
+          "is_published": true,
+          "voting_status": "OPEN",
+          "kiosk_voting_status": "CLOSED",
+          "early_voting_status": "CLOSED",
+          "voting_period_dates": {},
+          "kiosk_voting_period_dates": {},
+          "early_voting_period_dates": {}
+        }
+      }
+    },
+    "castVotes": {},
+    "ballotStyles": {
+      "33333333-3333-3333-3333-333333333003": {
+        "id": "33333333-3333-3333-3333-3333333300b1",
+        "tenant_id": "00000000-0000-0000-0000-000000000001",
+        "election_event_id": "33333333-3333-3333-3333-333333333002",
+        "election_id": "33333333-3333-3333-3333-333333333003",
+        "area_id": "33333333-3333-3333-3333-3333333300aa",
+        "ballot_eml": {
+          "id": "33333333-3333-3333-3333-3333333300b1",
+          "tenant_id": "00000000-0000-0000-0000-000000000001",
+          "election_event_id": "33333333-3333-3333-3333-333333333002",
+          "election_id": "33333333-3333-3333-3333-333333333003",
+          "area_id": "33333333-3333-3333-3333-3333333300aa",
+          "contests": [
+            {
+              "id": "33333333-3333-3333-3333-3333333300c1",
+              "tenant_id": "00000000-0000-0000-0000-000000000001",
+              "election_event_id": "33333333-3333-3333-3333-333333333002",
+              "election_id": "33333333-3333-3333-3333-333333333003",
+              "name": "Federal president",
+              "description": "Pick exactly one candidate.",
+              "max_votes": 1,
+              "min_votes": 1,
+              "winning_candidates_num": 1,
+              "is_encrypted": true,
+              "counting_algorithm": "plurality-at-large",
+              "candidates": [
                 {
-                    "id": "33333333-3333-3333-3333-3333333300b1",
-                    "tenant_id": "00000000-0000-0000-0000-000000000001",
-                    "election_event_id": "33333333-3333-3333-3333-333333333002",
-                    "election_id": "33333333-3333-3333-3333-333333333003",
-                    "area_id": "33333333-3333-3333-3333-3333333300aa",
-                    "ballot_eml": {
-                        "id": "33333333-3333-3333-3333-3333333300b1",
-                        "tenant_id": "00000000-0000-0000-0000-000000000001",
-                        "election_event_id": "33333333-3333-3333-3333-333333333002",
-                        "election_id": "33333333-3333-3333-3333-333333333003",
-                        "area_id": "33333333-3333-3333-3333-3333333300aa",
-                        "contests": [
-                            {
-                                "id": "33333333-3333-3333-3333-3333333300c1",
-                                "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                "election_event_id": "33333333-3333-3333-3333-333333333002",
-                                "election_id": "33333333-3333-3333-3333-333333333003",
-                                "name": "Federal president",
-                                "description": "Pick exactly one candidate.",
-                                "max_votes": 1,
-                                "min_votes": 1,
-                                "winning_candidates_num": 1,
-                                "is_encrypted": true,
-                                "counting_algorithm": "plurality-at-large",
-                                "candidates": [
-                                    {
-                                        "id": "33333333-3333-3333-3333-333333330a01",
-                                        "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                        "election_event_id": "33333333-3333-3333-3333-333333333002",
-                                        "election_id": "33333333-3333-3333-3333-333333333003",
-                                        "contest_id": "33333333-3333-3333-3333-3333333300c1",
-                                        "name": "Aldo"
-                                    },
-                                    {
-                                        "id": "33333333-3333-3333-3333-333333330a02",
-                                        "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                        "election_event_id": "33333333-3333-3333-3333-333333333002",
-                                        "election_id": "33333333-3333-3333-3333-333333333003",
-                                        "contest_id": "33333333-3333-3333-3333-3333333300c1",
-                                        "name": "Beatriz"
-                                    },
-                                    {
-                                        "id": "33333333-3333-3333-3333-333333330a03",
-                                        "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                        "election_event_id": "33333333-3333-3333-3333-333333333002",
-                                        "election_id": "33333333-3333-3333-3333-333333333003",
-                                        "contest_id": "33333333-3333-3333-3333-3333333300c1",
-                                        "name": "Cyrus"
-                                    }
-                                ]
-                            },
-                            {
-                                "id": "33333333-3333-3333-3333-3333333300c2",
-                                "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                "election_event_id": "33333333-3333-3333-3333-333333333002",
-                                "election_id": "33333333-3333-3333-3333-333333333003",
-                                "name": "North district representative",
-                                "description": "Pick exactly one candidate (North area only).",
-                                "max_votes": 1,
-                                "min_votes": 1,
-                                "winning_candidates_num": 1,
-                                "is_encrypted": true,
-                                "counting_algorithm": "plurality-at-large",
-                                "candidates": [
-                                    {
-                                        "id": "33333333-3333-3333-3333-333333330b01",
-                                        "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                        "election_event_id": "33333333-3333-3333-3333-333333333002",
-                                        "election_id": "33333333-3333-3333-3333-333333333003",
-                                        "contest_id": "33333333-3333-3333-3333-3333333300c2",
-                                        "name": "Nadia"
-                                    },
-                                    {
-                                        "id": "33333333-3333-3333-3333-333333330b02",
-                                        "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                        "election_event_id": "33333333-3333-3333-3333-333333333002",
-                                        "election_id": "33333333-3333-3333-3333-333333333003",
-                                        "contest_id": "33333333-3333-3333-3333-3333333300c2",
-                                        "name": "Nestor"
-                                    }
-                                ]
-                            }
-                        ],
-                        "area_presentation": {
-                            "allow_early_voting": "no_early_voting"
-                        },
-                        "public_key": {
-                            "public_key": "gi+zOBm9zTe3mXx2AzmgXaAhmrpB9nxhrO4wHimya28",
-                            "is_demo": false
-                        }
-                    },
-                    "created_at": "1970-01-01T00:00:00.000Z",
-                    "last_updated_at": "1970-01-01T00:00:00.000Z"
+                  "id": "33333333-3333-3333-3333-333333330a01",
+                  "tenant_id": "00000000-0000-0000-0000-000000000001",
+                  "election_event_id": "33333333-3333-3333-3333-333333333002",
+                  "election_id": "33333333-3333-3333-3333-333333333003",
+                  "contest_id": "33333333-3333-3333-3333-3333333300c1",
+                  "name": "Aldo"
                 },
                 {
-                    "id": "33333333-3333-3333-3333-3333333300b2",
+                  "id": "33333333-3333-3333-3333-333333330a02",
+                  "tenant_id": "00000000-0000-0000-0000-000000000001",
+                  "election_event_id": "33333333-3333-3333-3333-333333333002",
+                  "election_id": "33333333-3333-3333-3333-333333333003",
+                  "contest_id": "33333333-3333-3333-3333-3333333300c1",
+                  "name": "Beatriz"
+                },
+                {
+                  "id": "33333333-3333-3333-3333-333333330a03",
+                  "tenant_id": "00000000-0000-0000-0000-000000000001",
+                  "election_event_id": "33333333-3333-3333-3333-333333333002",
+                  "election_id": "33333333-3333-3333-3333-333333333003",
+                  "contest_id": "33333333-3333-3333-3333-3333333300c1",
+                  "name": "Cyrus"
+                }
+              ]
+            },
+            {
+              "id": "33333333-3333-3333-3333-3333333300c2",
+              "tenant_id": "00000000-0000-0000-0000-000000000001",
+              "election_event_id": "33333333-3333-3333-3333-333333333002",
+              "election_id": "33333333-3333-3333-3333-333333333003",
+              "name": "North district representative",
+              "description": "Pick exactly one candidate (North area only).",
+              "max_votes": 1,
+              "min_votes": 1,
+              "winning_candidates_num": 1,
+              "is_encrypted": true,
+              "counting_algorithm": "plurality-at-large",
+              "candidates": [
+                {
+                  "id": "33333333-3333-3333-3333-333333330b01",
+                  "tenant_id": "00000000-0000-0000-0000-000000000001",
+                  "election_event_id": "33333333-3333-3333-3333-333333333002",
+                  "election_id": "33333333-3333-3333-3333-333333333003",
+                  "contest_id": "33333333-3333-3333-3333-3333333300c2",
+                  "name": "Nadia"
+                },
+                {
+                  "id": "33333333-3333-3333-3333-333333330b02",
+                  "tenant_id": "00000000-0000-0000-0000-000000000001",
+                  "election_event_id": "33333333-3333-3333-3333-333333333002",
+                  "election_id": "33333333-3333-3333-3333-333333333003",
+                  "contest_id": "33333333-3333-3333-3333-3333333300c2",
+                  "name": "Nestor"
+                }
+              ]
+            }
+          ],
+          "area_presentation": {
+            "allow_early_voting": "no_early_voting"
+          },
+          "public_key": {
+            "public_key": "gi+zOBm9zTe3mXx2AzmgXaAhmrpB9nxhrO4wHimya28",
+            "is_demo": false
+          }
+        },
+        "created_at": "1970-01-01T00:00:00.000Z",
+        "last_updated_at": "1970-01-01T00:00:00.000Z"
+      }
+    },
+    "ballotSelections": {
+      "33333333-3333-3333-3333-333333333003": [
+        {
+          "contest_id": "33333333-3333-3333-3333-3333333300c1",
+          "is_explicit_invalid": false,
+          "invalid_errors": [],
+          "invalid_alerts": [],
+          "choices": [
+            {
+              "id": "33333333-3333-3333-3333-333333330a01",
+              "selected": -1
+            },
+            {
+              "id": "33333333-3333-3333-3333-333333330a02",
+              "selected": -1
+            },
+            {
+              "id": "33333333-3333-3333-3333-333333330a03",
+              "selected": -1
+            }
+          ],
+          "is_decline_to_vote": false
+        },
+        {
+          "contest_id": "33333333-3333-3333-3333-3333333300c2",
+          "is_explicit_invalid": false,
+          "invalid_errors": [],
+          "invalid_alerts": [],
+          "choices": [
+            {
+              "id": "33333333-3333-3333-3333-333333330b01",
+              "selected": -1
+            },
+            {
+              "id": "33333333-3333-3333-3333-333333330b02",
+              "selected": -1
+            }
+          ],
+          "is_decline_to_vote": false
+        }
+      ]
+    },
+    "electionEvent": {
+      "33333333-3333-3333-3333-333333333002": {
+        "id": "33333333-3333-3333-3333-333333333002",
+        "tenant_id": "00000000-0000-0000-0000-000000000001",
+        "name": "Federal + district demo event",
+        "description": "Container event for the multi-BS shared-contest fixture.",
+        "elections": [
+          "33333333-3333-3333-3333-333333333003"
+        ],
+        "status": {
+          "is_published": true,
+          "voting_status": "OPEN",
+          "kiosk_voting_status": "CLOSED",
+          "early_voting_status": "CLOSED"
+        }
+      }
+    },
+    "extra": {
+      "bypassChooser": false,
+      "isVoted": {}
+    }
+  },
+  "workbench": {
+    "voters": [
+      {
+        "id": "fec22f2d-d394-489a-b018-656813eb28d1",
+        "displayName": "Alice (North)"
+      },
+      {
+        "id": "cae33836-d603-4022-8d63-a6a92713d7fc",
+        "displayName": "Bob (South)"
+      }
+    ],
+    "activeVoterId": null,
+    "castBy": {},
+    "repairedCastVotes": {},
+    "keypair": {
+      "pkB64": "gi+zOBm9zTe3mXx2AzmgXaAhmrpB9nxhrO4wHimya28",
+      "skB64": "e9pCQ6VnOIBHwoOyVwqehk00ko5D0RW/LSRVOPC7tAmCL7M4Gb3NN7eZfHYDOaBdoCGaukH2fGGs7jAeKbJrbw"
+    },
+    "ballotStylePool": {
+      "33333333-3333-3333-3333-333333333003": [
+        {
+          "id": "33333333-3333-3333-3333-3333333300b1",
+          "tenant_id": "00000000-0000-0000-0000-000000000001",
+          "election_event_id": "33333333-3333-3333-3333-333333333002",
+          "election_id": "33333333-3333-3333-3333-333333333003",
+          "area_id": "33333333-3333-3333-3333-3333333300aa",
+          "ballot_eml": {
+            "id": "33333333-3333-3333-3333-3333333300b1",
+            "tenant_id": "00000000-0000-0000-0000-000000000001",
+            "election_event_id": "33333333-3333-3333-3333-333333333002",
+            "election_id": "33333333-3333-3333-3333-333333333003",
+            "area_id": "33333333-3333-3333-3333-3333333300aa",
+            "contests": [
+              {
+                "id": "33333333-3333-3333-3333-3333333300c1",
+                "tenant_id": "00000000-0000-0000-0000-000000000001",
+                "election_event_id": "33333333-3333-3333-3333-333333333002",
+                "election_id": "33333333-3333-3333-3333-333333333003",
+                "name": "Federal president",
+                "description": "Pick exactly one candidate.",
+                "max_votes": 1,
+                "min_votes": 1,
+                "winning_candidates_num": 1,
+                "is_encrypted": true,
+                "counting_algorithm": "plurality-at-large",
+                "candidates": [
+                  {
+                    "id": "33333333-3333-3333-3333-333333330a01",
                     "tenant_id": "00000000-0000-0000-0000-000000000001",
                     "election_event_id": "33333333-3333-3333-3333-333333333002",
                     "election_id": "33333333-3333-3333-3333-333333333003",
-                    "area_id": "33333333-3333-3333-3333-3333333300bb",
-                    "ballot_eml": {
-                        "id": "33333333-3333-3333-3333-3333333300b2",
-                        "tenant_id": "00000000-0000-0000-0000-000000000001",
-                        "election_event_id": "33333333-3333-3333-3333-333333333002",
-                        "election_id": "33333333-3333-3333-3333-333333333003",
-                        "area_id": "33333333-3333-3333-3333-3333333300bb",
-                        "contests": [
-                            {
-                                "id": "33333333-3333-3333-3333-3333333300c1",
-                                "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                "election_event_id": "33333333-3333-3333-3333-333333333002",
-                                "election_id": "33333333-3333-3333-3333-333333333003",
-                                "name": "Federal president",
-                                "description": "Pick exactly one candidate.",
-                                "max_votes": 1,
-                                "min_votes": 1,
-                                "winning_candidates_num": 1,
-                                "is_encrypted": true,
-                                "counting_algorithm": "plurality-at-large",
-                                "candidates": [
-                                    {
-                                        "id": "33333333-3333-3333-3333-333333330a01",
-                                        "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                        "election_event_id": "33333333-3333-3333-3333-333333333002",
-                                        "election_id": "33333333-3333-3333-3333-333333333003",
-                                        "contest_id": "33333333-3333-3333-3333-3333333300c1",
-                                        "name": "Aldo"
-                                    },
-                                    {
-                                        "id": "33333333-3333-3333-3333-333333330a02",
-                                        "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                        "election_event_id": "33333333-3333-3333-3333-333333333002",
-                                        "election_id": "33333333-3333-3333-3333-333333333003",
-                                        "contest_id": "33333333-3333-3333-3333-3333333300c1",
-                                        "name": "Beatriz"
-                                    },
-                                    {
-                                        "id": "33333333-3333-3333-3333-333333330a03",
-                                        "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                        "election_event_id": "33333333-3333-3333-3333-333333333002",
-                                        "election_id": "33333333-3333-3333-3333-333333333003",
-                                        "contest_id": "33333333-3333-3333-3333-3333333300c1",
-                                        "name": "Cyrus"
-                                    }
-                                ]
-                            },
-                            {
-                                "id": "33333333-3333-3333-3333-3333333300c3",
-                                "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                "election_event_id": "33333333-3333-3333-3333-333333333002",
-                                "election_id": "33333333-3333-3333-3333-333333333003",
-                                "name": "South district representative",
-                                "description": "Pick exactly one candidate (South area only).",
-                                "max_votes": 1,
-                                "min_votes": 1,
-                                "winning_candidates_num": 1,
-                                "is_encrypted": true,
-                                "counting_algorithm": "plurality-at-large",
-                                "candidates": [
-                                    {
-                                        "id": "33333333-3333-3333-3333-333333330d01",
-                                        "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                        "election_event_id": "33333333-3333-3333-3333-333333333002",
-                                        "election_id": "33333333-3333-3333-3333-333333333003",
-                                        "contest_id": "33333333-3333-3333-3333-3333333300c3",
-                                        "name": "Selma"
-                                    },
-                                    {
-                                        "id": "33333333-3333-3333-3333-333333330d02",
-                                        "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                        "election_event_id": "33333333-3333-3333-3333-333333333002",
-                                        "election_id": "33333333-3333-3333-3333-333333333003",
-                                        "contest_id": "33333333-3333-3333-3333-3333333300c3",
-                                        "name": "Santiago"
-                                    }
-                                ]
-                            }
-                        ],
-                        "area_presentation": {
-                            "allow_early_voting": "no_early_voting"
-                        },
-                        "public_key": {
-                            "public_key": "gi+zOBm9zTe3mXx2AzmgXaAhmrpB9nxhrO4wHimya28",
-                            "is_demo": false
-                        }
-                    },
-                    "created_at": "1970-01-01T00:00:00.000Z",
-                    "last_updated_at": "1970-01-01T00:00:00.000Z"
-                }
-            ]
+                    "contest_id": "33333333-3333-3333-3333-3333333300c1",
+                    "name": "Aldo"
+                  },
+                  {
+                    "id": "33333333-3333-3333-3333-333333330a02",
+                    "tenant_id": "00000000-0000-0000-0000-000000000001",
+                    "election_event_id": "33333333-3333-3333-3333-333333333002",
+                    "election_id": "33333333-3333-3333-3333-333333333003",
+                    "contest_id": "33333333-3333-3333-3333-3333333300c1",
+                    "name": "Beatriz"
+                  },
+                  {
+                    "id": "33333333-3333-3333-3333-333333330a03",
+                    "tenant_id": "00000000-0000-0000-0000-000000000001",
+                    "election_event_id": "33333333-3333-3333-3333-333333333002",
+                    "election_id": "33333333-3333-3333-3333-333333333003",
+                    "contest_id": "33333333-3333-3333-3333-3333333300c1",
+                    "name": "Cyrus"
+                  }
+                ]
+              },
+              {
+                "id": "33333333-3333-3333-3333-3333333300c2",
+                "tenant_id": "00000000-0000-0000-0000-000000000001",
+                "election_event_id": "33333333-3333-3333-3333-333333333002",
+                "election_id": "33333333-3333-3333-3333-333333333003",
+                "name": "North district representative",
+                "description": "Pick exactly one candidate (North area only).",
+                "max_votes": 1,
+                "min_votes": 1,
+                "winning_candidates_num": 1,
+                "is_encrypted": true,
+                "counting_algorithm": "plurality-at-large",
+                "candidates": [
+                  {
+                    "id": "33333333-3333-3333-3333-333333330b01",
+                    "tenant_id": "00000000-0000-0000-0000-000000000001",
+                    "election_event_id": "33333333-3333-3333-3333-333333333002",
+                    "election_id": "33333333-3333-3333-3333-333333333003",
+                    "contest_id": "33333333-3333-3333-3333-3333333300c2",
+                    "name": "Nadia"
+                  },
+                  {
+                    "id": "33333333-3333-3333-3333-333333330b02",
+                    "tenant_id": "00000000-0000-0000-0000-000000000001",
+                    "election_event_id": "33333333-3333-3333-3333-333333333002",
+                    "election_id": "33333333-3333-3333-3333-333333333003",
+                    "contest_id": "33333333-3333-3333-3333-3333333300c2",
+                    "name": "Nestor"
+                  }
+                ]
+              }
+            ],
+            "area_presentation": {
+              "allow_early_voting": "no_early_voting"
+            },
+            "public_key": {
+              "public_key": "gi+zOBm9zTe3mXx2AzmgXaAhmrpB9nxhrO4wHimya28",
+              "is_demo": false
+            }
+          },
+          "created_at": "1970-01-01T00:00:00.000Z",
+          "last_updated_at": "1970-01-01T00:00:00.000Z"
         },
-        "assignments": {
-            "fec22f2d-d394-489a-b018-656813eb28d1": ["33333333-3333-3333-3333-3333333300b1"],
-            "cae33836-d603-4022-8d63-a6a92713d7fc": ["33333333-3333-3333-3333-3333333300b2"]
+        {
+          "id": "33333333-3333-3333-3333-3333333300b2",
+          "tenant_id": "00000000-0000-0000-0000-000000000001",
+          "election_event_id": "33333333-3333-3333-3333-333333333002",
+          "election_id": "33333333-3333-3333-3333-333333333003",
+          "area_id": "33333333-3333-3333-3333-3333333300bb",
+          "ballot_eml": {
+            "id": "33333333-3333-3333-3333-3333333300b2",
+            "tenant_id": "00000000-0000-0000-0000-000000000001",
+            "election_event_id": "33333333-3333-3333-3333-333333333002",
+            "election_id": "33333333-3333-3333-3333-333333333003",
+            "area_id": "33333333-3333-3333-3333-3333333300bb",
+            "contests": [
+              {
+                "id": "33333333-3333-3333-3333-3333333300c1",
+                "tenant_id": "00000000-0000-0000-0000-000000000001",
+                "election_event_id": "33333333-3333-3333-3333-333333333002",
+                "election_id": "33333333-3333-3333-3333-333333333003",
+                "name": "Federal president",
+                "description": "Pick exactly one candidate.",
+                "max_votes": 1,
+                "min_votes": 1,
+                "winning_candidates_num": 1,
+                "is_encrypted": true,
+                "counting_algorithm": "plurality-at-large",
+                "candidates": [
+                  {
+                    "id": "33333333-3333-3333-3333-333333330a01",
+                    "tenant_id": "00000000-0000-0000-0000-000000000001",
+                    "election_event_id": "33333333-3333-3333-3333-333333333002",
+                    "election_id": "33333333-3333-3333-3333-333333333003",
+                    "contest_id": "33333333-3333-3333-3333-3333333300c1",
+                    "name": "Aldo"
+                  },
+                  {
+                    "id": "33333333-3333-3333-3333-333333330a02",
+                    "tenant_id": "00000000-0000-0000-0000-000000000001",
+                    "election_event_id": "33333333-3333-3333-3333-333333333002",
+                    "election_id": "33333333-3333-3333-3333-333333333003",
+                    "contest_id": "33333333-3333-3333-3333-3333333300c1",
+                    "name": "Beatriz"
+                  },
+                  {
+                    "id": "33333333-3333-3333-3333-333333330a03",
+                    "tenant_id": "00000000-0000-0000-0000-000000000001",
+                    "election_event_id": "33333333-3333-3333-3333-333333333002",
+                    "election_id": "33333333-3333-3333-3333-333333333003",
+                    "contest_id": "33333333-3333-3333-3333-3333333300c1",
+                    "name": "Cyrus"
+                  }
+                ]
+              },
+              {
+                "id": "33333333-3333-3333-3333-3333333300c3",
+                "tenant_id": "00000000-0000-0000-0000-000000000001",
+                "election_event_id": "33333333-3333-3333-3333-333333333002",
+                "election_id": "33333333-3333-3333-3333-333333333003",
+                "name": "South district representative",
+                "description": "Pick exactly one candidate (South area only).",
+                "max_votes": 1,
+                "min_votes": 1,
+                "winning_candidates_num": 1,
+                "is_encrypted": true,
+                "counting_algorithm": "plurality-at-large",
+                "candidates": [
+                  {
+                    "id": "33333333-3333-3333-3333-333333330d01",
+                    "tenant_id": "00000000-0000-0000-0000-000000000001",
+                    "election_event_id": "33333333-3333-3333-3333-333333333002",
+                    "election_id": "33333333-3333-3333-3333-333333333003",
+                    "contest_id": "33333333-3333-3333-3333-3333333300c3",
+                    "name": "Selma"
+                  },
+                  {
+                    "id": "33333333-3333-3333-3333-333333330d02",
+                    "tenant_id": "00000000-0000-0000-0000-000000000001",
+                    "election_event_id": "33333333-3333-3333-3333-333333333002",
+                    "election_id": "33333333-3333-3333-3333-333333333003",
+                    "contest_id": "33333333-3333-3333-3333-3333333300c3",
+                    "name": "Santiago"
+                  }
+                ]
+              }
+            ],
+            "area_presentation": {
+              "allow_early_voting": "no_early_voting"
+            },
+            "public_key": {
+              "public_key": "gi+zOBm9zTe3mXx2AzmgXaAhmrpB9nxhrO4wHimya28",
+              "is_demo": false
+            }
+          },
+          "created_at": "1970-01-01T00:00:00.000Z",
+          "last_updated_at": "1970-01-01T00:00:00.000Z"
         }
+      ]
+    },
+    "assignments": {
+      "fec22f2d-d394-489a-b018-656813eb28d1": [
+        "33333333-3333-3333-3333-3333333300b1"
+      ],
+      "cae33836-d603-4022-8d63-a6a92713d7fc": [
+        "33333333-3333-3333-3333-3333333300b2"
+      ]
     }
+  }
 }

@@ -84,6 +84,7 @@ fn get_registry<'reg>() -> Handlebars<'reg> {
     );
     reg.register_helper("next", Box::new(next));
     reg.register_helper("eq", Box::new(eq));
+    reg.register_helper("is_some", Box::new(is_some));
     reg
 }
 
@@ -767,6 +768,35 @@ impl HelperDef for eq {
             if let Some(template) = h.inverse() {
                 template.render(r, ctx, rc, out)?;
             }
+        }
+
+        Ok(())
+    }
+}
+
+#[allow(non_camel_case_types)]
+pub struct is_some;
+
+impl HelperDef for is_some {
+    fn call<'reg: 'rc, 'rc>(
+        &self,
+        h: &Helper<'rc>,
+        r: &'reg Handlebars<'reg>,
+        ctx: &'rc Context,
+        rc: &mut RenderContext<'reg, 'rc>,
+        out: &mut dyn Output,
+    ) -> HelperResult {
+        let has_value = h
+            .param(0)
+            .map(|param| !param.value().is_null())
+            .unwrap_or(false);
+
+        if has_value {
+            if let Some(template) = h.template() {
+                template.render(r, ctx, rc, out)?;
+            }
+        } else if let Some(template) = h.inverse() {
+            template.render(r, ctx, rc, out)?;
         }
 
         Ok(())

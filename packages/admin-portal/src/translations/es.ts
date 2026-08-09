@@ -12,6 +12,98 @@ const spanishTranslation: TranslationType = {
         driversLicense: "Licencia de conducir",
         loading: "Cargando...",
         loadingDataProvider: "Cargando proveedor de datos...",
+        tallySheetImport: {
+            title: "Importaciones de actas de escrutinio",
+            subtitle:
+                "Importa archivos de actas de escrutinio ES&S o CSV, previsualiza las urnas generadas y apruébalas antes de crear actas de escrutinio.",
+            createTitle: "Importar actas de escrutinio",
+            detailTitle: "Importación de acta de escrutinio",
+            empty: "Todavía no hay importaciones de actas de escrutinio.",
+            emptyBody:
+                "Empieza importando un archivo ES&S Enhanced XML o CSV canónico para este evento electoral.",
+            sourceFormat: {
+                ESS_ENHANCED_XML: "ES&S Enhanced XML",
+                CANONICAL_CSV: "CSV canónico",
+            },
+            channel: {
+                PAPER: "Papel",
+                POSTAL: "Postal",
+                IN_PERSON: "Presencial",
+            },
+            table: {
+                created: "Creado",
+                createdBy: "Creado por",
+                file: "Archivo",
+                format: "Formato",
+                channel: "Canal",
+                status: "Estado",
+                labels: "Etiquetas",
+                annotations: "Anotaciones",
+                actions: "Acciones",
+            },
+            summary: {
+                imported: "Importadas",
+                changed: "Modificadas",
+                new: "Nuevas",
+                unchanged: "Sin cambios",
+                conflicted: "En conflicto",
+                errors: "Errores",
+            },
+            status: {
+                PENDING_REVIEW: "Pendiente de revisión",
+                APPROVED: "Aprobada",
+                DISAPPROVED: "Desaprobada",
+                FAILED_VALIDATION: "Validación fallida",
+                CONFLICTED: "En conflicto",
+                NEW: "Nueva",
+                CHANGED: "Modificada",
+                UNCHANGED: "Sin cambios",
+            },
+            fields: {
+                format: "Formato",
+                channel: "Canal",
+                supportedFormats: "Formatos admitidos: XML, CSV",
+                generatedTallySheet: "Acta de escrutinio generada",
+                sourceCandidates: "IDs de candidatos de origen",
+                none: "Ninguno",
+            },
+            actions: {
+                create: "Importar actas de escrutinio",
+                review: "Revisar",
+                source: "Origen",
+                cancel: "Cancelar",
+                preview: "Previsualizar",
+                save: "Guardar importación",
+                approve: "Aprobar",
+                disapprove: "Desaprobar",
+                close: "Cerrar",
+                openExisting: "Abrir existente",
+            },
+            notifications: {
+                selectFile: "Selecciona un archivo de importación antes de previsualizarlo",
+                duplicateSource:
+                    "Este hash de archivo de origen ya aparece en una importación de acta de escrutinio anterior.",
+                uploadUrlError: "No se pudo crear la URL de subida",
+                uploadError: "No se pudo subir el archivo de importación",
+                previewEmpty: "La respuesta de la previsualización estaba vacía",
+                previewError: "No se pudo previsualizar la importación",
+                importEmpty: "La respuesta de la importación estaba vacía",
+                created: "Se ha creado la importación del acta de escrutinio",
+                createError: "No se pudo crear la importación",
+                reviewEmpty: "La respuesta de la revisión estaba vacía",
+                conflicted: "La importación tiene conflictos de línea base desactualizados",
+                approved: "Se ha aprobado la importación",
+                disapproved: "Se ha desaprobado la importación",
+                reviewError: "No se pudo revisar la importación",
+                sourceUrlError: "No se pudo crear la URL de descarga de origen",
+                sourceDownloadError: "No se pudo descargar el archivo de origen",
+            },
+            pagination: {
+                range: "{{rangeStart}}-{{rangeEnd}} de {{total}}",
+                previous: "Anterior",
+                next: "Siguiente",
+            },
+        },
         logsScreen: {
             noPermissions: "No tienes permiso para acceder a las bitácoras.",
             title: "Bitácoras",
@@ -69,6 +161,7 @@ const spanishTranslation: TranslationType = {
                 CREATE_ELECTION_EVENT: "Crear Evento Electoral",
                 IMPORT_ELECTION_EVENT: "Importar evento electoral",
                 IMPORT_USERS: "Importar usuarios",
+                EDIT_USER: "Editar votante",
                 IMPORT_CANDIDATES: "Importar candidatos",
                 EXPORT_VOTERS: "Exportar votantes",
                 CREATE_TRANSMISSION_PACKAGE: "Crear paquete de transmisión",
@@ -88,6 +181,7 @@ const spanishTranslation: TranslationType = {
                 PREPARE_PUBLICATION_PREVIEW: "Preparar la vista previa de la publicación",
                 EXPORT_TALLY_RESULTS_XLSX: "Exportar los resultados del escrutinio en formato XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Exportar autoridades de certificación",
+                PUBLISH_RESULTS_WEBSITE: "Publicar sitio web de resultados",
             },
             widget: {
                 taskTitle: "Tarea: {{title}}",
@@ -144,6 +238,7 @@ const spanishTranslation: TranslationType = {
                 subtitle: "Configuración del Tipo de Elección",
                 onlineVoting: "Votación en Línea",
                 kioskVoting: "Votación en Quiosco",
+                telephoneVoting: "Votación Telefónica",
                 settingTitle: "Configuración",
                 settingSubtitle: "Ajustes generales",
                 sms: "SMS",
@@ -273,6 +368,8 @@ const spanishTranslation: TranslationType = {
                 notify: {
                     success: "Localización actualizada con éxito",
                     error: "La actualización de la localización ha fallado",
+                    invalidDateTimeFormat:
+                        "Formato de fecha/hora no válido. Usa los tokens yyyy, MM, dd, HH, mm, ss (p. ej. dd/MM/yyyy HH:mm).",
                 },
                 common: {
                     title: "Localización",
@@ -327,6 +424,26 @@ const spanishTranslation: TranslationType = {
                     },
                     policyLabel: "Política de cifrado de concurso",
                 },
+                votingPortalDateTimeFormat: {
+                    policyLabel: "Formato de fecha y hora del portal de votación",
+                    helperText:
+                        'Se aplica a todo el evento. Para anularlo por idioma, añade la clave "votingPortalDateTimeFormat" en la pestaña Localización usando los tokens yyyy, MM, dd, HH, mm, ss (p. ej. dd/MM/yyyy HH:mm). Consulta la documentación para más detalles.',
+                    options: {
+                        "legacy-gb-24h": "Legacy GB 24h (dd/MM/yyyy HH:mm, 24h)",
+                        "iso-local": "ISO Local (yyyy-MM-dd HH:mm)",
+                        "us-12h": "US 12h (MM/dd/yyyy h:mm AM/PM)",
+                        "locale-medium": "Locale Medium (fecha media, hora corta)",
+                        "date-only": "Date Only (sin hora)",
+                        "custom": "Formato personalizado",
+                    },
+                    customFormat: {
+                        label: "Formato de fecha y hora personalizado",
+                        helperText:
+                            "Usa los tokens yyyy, MM, dd, HH, mm, ss (p. ej. dd/MM/yyyy HH:mm). Cualquier otro carácter se muestra literalmente.",
+                        invalid:
+                            "Formato no válido. Usa al menos uno de los tokens yyyy, MM, dd, HH, mm, ss.",
+                    },
+                },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Sin cuenta regresiva",
                     COUNTDOWN: "Cuenta regresiva",
@@ -369,6 +486,13 @@ const spanishTranslation: TranslationType = {
                         "manual-ceremonies": "Ceremonias manuales",
                     },
                 },
+                automaticRecountPolicy: {
+                    policyLabel: "Recuento automático tras aprobar una importación",
+                    options: {
+                        enabled: "Habilitado",
+                        disabled: "Deshabilitado",
+                    },
+                },
                 weightedVotingPolicy: {
                     policyLabel: "Política de Votación Ponderada",
                     options: {
@@ -402,6 +526,47 @@ const spanishTranslation: TranslationType = {
             },
             createElectionEventSuccess: "Evento Electoral creado",
             createElectionEventError: "Error creando Evento Electoral",
+            ivr: {
+                tabs: {
+                    config: "Configuración",
+                    blacklist: "Lista de bloqueo",
+                    prompts: "Locuciones",
+                },
+                common: {
+                    saveSuccess: "Guardado correctamente",
+                    saveError: "No se pudo guardar",
+                    deleteSuccess: "Eliminado correctamente",
+                    deleteError: "No se pudo eliminar",
+                },
+                config: {
+                    configuredPhone: "Número de teléfono configurado",
+                    infoMsg:
+                        "Configure el flujo del IVR y sus propiedades a continuación. Para más detalles, póngase en contacto con Sequent.",
+                },
+                prompts: {
+                    emptyMsg: "Aún no se ha creado ningún mensaje",
+                    infoMsg:
+                        "Configure los mensajes utilizados por el IVR. Los mensajes de anuncio son obligatorios, y los mensajes del sistema se pueden sobrescribir para los idiomas deseados. Se admite SSML, incluso para mezclar idiomas.",
+                    editorTitle: "Mensaje",
+                    editorSubtitle: "Configuración del mensaje",
+                },
+                blacklist: {
+                    columns: {
+                        phone: "Número de teléfono",
+                        reason: "Motivo",
+                        createdAt: "Creado el",
+                        createdBy: "Creado por",
+                        createdBefore: "Creado antes",
+                        createdAfter: "Creado después",
+                    },
+                    emptyMsg: "No hay entradas en la lista de bloqueo",
+                    infoMsg:
+                        "Configure la lista de bloqueo del IVR. Las llamadas de estos números serán desconectadas automáticamente por el sistema.",
+
+                    noFilterMatch: "Ninguna entrada coincide con los filtros indicados",
+                    phoneRequired: "El número de teléfono es obligatorio",
+                },
+            },
             stats: {
                 elegibleVoters: "Electores",
                 voters: "Votantes",
@@ -440,11 +605,13 @@ const spanishTranslation: TranslationType = {
                 dashboard: "Panel de Control",
                 monitoring: "Monitoreo",
                 data: "Datos",
+                ivr: "IVR",
                 localization: "Localización",
                 voters: "Votantes",
                 areas: "Áreas",
                 keys: "Claves",
                 tally: "Recuento",
+                tallySheetImports: "Importación de actas",
                 publish: "Publicar",
                 logs: "Logs",
                 tasks: "Tareas",
@@ -601,6 +768,7 @@ const spanishTranslation: TranslationType = {
                 alias: "Alias",
                 description: "Descripción",
                 securityConfirmationHtml: "Confirmación de seguridad HTML",
+                ivrPrompt: "Mensaje IVR",
                 externalId: "ID externo",
             },
             securityConfirmationPolicy: {
@@ -625,6 +793,7 @@ const spanishTranslation: TranslationType = {
                 publish: "Publicar",
                 logs: "Logs",
                 approvals: "Aprobaciones",
+                tallySheets: "Hojas de Recuento",
             },
             gracePeriodPolicy: {
                 "label": "Política de período de gracia",
@@ -663,6 +832,20 @@ const spanishTranslation: TranslationType = {
                     "do-not-generate": "No generar",
                 },
             },
+            declineToVotePolicy: {
+                label: "Política de abstención de voto",
+                options: {
+                    enabled: "Habilitado",
+                    disabled: "Deshabilitado",
+                },
+            },
+            votingScreenBackPolicy: {
+                label: "Política del botón Atrás de la pantalla de votación",
+                options: {
+                    "election-selection-screen": "Ir a la pantalla de selección de elecciones",
+                    "start-screen": "Ir a la pantalla de inicio de la elección",
+                },
+            },
         },
         tenantScreen: {
             common: {
@@ -690,6 +873,15 @@ const spanishTranslation: TranslationType = {
             users: {
                 title: "Usuarios",
                 subtitle: "Ver y editar datos del usuario",
+                review: {
+                    title: "Revisar cambios",
+                    subtitle: "Confirma estas actualizaciones antes de enviarlas.",
+                    confirm: "Confirmar cambios",
+                    noChanges: "No hay cambios que revisar",
+                    field: "Campo",
+                    currentValue: "Valor actual",
+                    newValue: "Valor nuevo",
+                },
                 edit: {
                     title: "Información de Usuario",
                     subtitle: "Ver y editar Usuario",
@@ -700,6 +892,8 @@ const spanishTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Voted",
+                    "voted-channel": "Canal de voto",
+                    "disable-comment": "Comentario de deshabilitación",
                     "username": "Nombre de Usuario",
                     "first_name": "Nombre",
                     "last_name": "Apellido",
@@ -739,6 +933,15 @@ const spanishTranslation: TranslationType = {
             voters: {
                 title: "Votantes",
                 subtitle: "Ver y editar datos del votante",
+                review: {
+                    title: "Revisar cambios",
+                    subtitle: "Confirma estas actualizaciones antes de enviarlas.",
+                    confirm: "Confirmar cambios",
+                    noChanges: "No hay cambios que revisar",
+                    field: "Campo",
+                    currentValue: "Valor actual",
+                    newValue: "Valor nuevo",
+                },
                 logs: {
                     label: "Registros del usuario",
                 },
@@ -850,14 +1053,20 @@ const spanishTranslation: TranslationType = {
                 "tally-results-read": "Leer Resultados de Recuento",
                 "publish-read": "Leer Publicación",
                 "publish-write": "Editar Publicación",
+                "publish-results-read": "Leer Publicación de Resultados",
+                "publish-results-write": "Editar Publicación de Resultados",
                 "logs-read": "Leer Registros",
                 "tasks-read": "Leer la Ejecución de Tareas",
                 "keys-read": "Leer Claves",
                 "document-upload": "Subir Documentos",
                 "document-download": "Descargar Documentos",
                 "tally-sheet-create": "Crear Acta de Recuento",
+                "tally-sheet-import-create": "Crear importación de actas de recuento",
+                "tally-sheet-import-review": "Revisar importación de actas de recuento",
+                "tally-sheet-import-view": "Ver importación de actas de recuento",
+                "tally-recount-execute": "Ejecutar recuento de resultados",
                 "trustee-ceremony": "Ceremonia de Fideicomisario",
-                "tally-sheet-publish": "Publicar Acta de Recuento",
+                "tally-sheet-review": "Revisar hoja de recuento",
                 "tally-sheet-view": "Ver Acta de Recuento",
                 "admin-ceremony": "Administrar Ceremonia de Claves",
                 "tally-sheet-delete": "Borrar Acta de Recuento",
@@ -1173,6 +1382,8 @@ const spanishTranslation: TranslationType = {
                 unarchive: "Desarchivar",
                 cancel: "Cancelar",
                 edit: "Editar",
+                yes: "Sí",
+                no: "No",
                 save: "Guardar",
                 close: "Cerrar",
                 back: "Atrás",
@@ -1211,6 +1422,7 @@ const spanishTranslation: TranslationType = {
                 online: "En línea",
                 kiosk: "Kiosco",
                 early_voting: "Votación anticipada",
+                telephone: "Votación telefónica",
             },
             message: {
                 delete: "¿Estás seguro que quieres borrar este elemento?",
@@ -1289,6 +1501,7 @@ const spanishTranslation: TranslationType = {
                 subtitle: "Configuración de candidatos.",
             },
             edit: {
+                externalId: "ID externo",
                 general: "General",
                 type: "Tipo",
                 image: "Imagen",
@@ -1328,6 +1541,7 @@ const spanishTranslation: TranslationType = {
                 subtitle: "Configuración de pregunta.",
             },
             edit: {
+                externalId: "ID externo",
                 general: "General",
                 type: "Tipo",
                 image: "Imagen",
@@ -1547,6 +1761,56 @@ const spanishTranslation: TranslationType = {
         tally: {
             errorUploadingSignature: "Hubo un error al subir la firma",
             downloadTransmissionPackage: "Descargar paquete",
+            resultsPublication: {
+                sectionTitle: "Publish to results website",
+                policyTitle: "Results Website",
+                policyAccess: "Results Website Access",
+                policyVisibility: "Results Website Visibility",
+                enabled: "Enabled",
+                disabled: "Disabled",
+                fullEvent: "Full event",
+                areaBased: "Area based",
+                publishStarted: "Results publication started",
+                publishError: "Could not start results publication",
+                revoked: "Results publication revoked",
+                revokeError: "Could not revoke results publication",
+                waitingForTally: "Results can be published after this tally has completed.",
+                writePermissionRequired:
+                    "You need publish-results-write permission to publish or revoke results.",
+                readPermissionRequired:
+                    "You need publish-results-read permission to view publication history.",
+                disabledPolicy:
+                    "Results website publishing is disabled for this election event. Enable it in the election event data before publishing results.",
+                loadingElectionContext: "Results publication is loading election context.",
+                route: "Route",
+                eventResults: "Event results",
+                electionResults: "Election results",
+                election: "Election",
+                access: "Access",
+                publicAccess: "Public access",
+                authenticatedAccess: "Authenticated access",
+                visibility: "Visibility",
+                fullPublishedScope: "Full published scope",
+                personalVisibility: "Personal visibility",
+                contests: "Contests",
+                noTalliedContests: "No tallied contests available.",
+                publishSelectedContests: "Publish selected contests",
+                selectedContestCount: "{{count}} contest selected",
+                selectedContestCount_plural: "{{count}} contests selected",
+                history: "Publication history",
+                version: "Version",
+                status: "Status",
+                published: "Published",
+                revokedAt: "Revoked",
+                actions: "Actions",
+                open: "Open",
+                revoke: "Revoke",
+                noPublications: "No publications yet.",
+                confirmTitle: "Start publish to results website?",
+                confirmDescription:
+                    "This will create a new publication from the current tally execution. The existing voter-facing results stay active until this publish task succeeds.",
+                close: "Close",
+            },
             transmissionPackage: {
                 title: "Paquete de Transmisión para el Área '{{name}}' y Elección '{{eventName}}'",
                 description:
@@ -1648,6 +1912,13 @@ const spanishTranslation: TranslationType = {
             startTallyCeremonyError: "No se ha podido iniciar la ceremonia del recuento",
             cancelTallyCeremonySuccess: "Cancelada la ceremonya del recuento",
             cancelTallyCeremonyError: "No se ha podido cancelar la ceremonia del recuento",
+            recountTallyCeremony: "Repetir el recuento",
+            recountTallyCeremonyMessage:
+                "Esto generará un nuevo evento de resultados para la sesión de recuento completada.",
+            recountTallyCeremonyStarting: "Iniciando el recuento...",
+            recountTallyCeremonySuccess: "Recuento iniciado",
+            recountTallyCeremonyError: "No se ha podido iniciar el recuento",
+            recountTallyCeremonyOk: "Repetir el recuento",
             trusteeTitle: "Proceso del trustee",
             trusteeSubTitle: "Por favor, importe su fragmento de clave",
             invited: "Has sido invitado a participar en una ceremonia de recuento. Por favor, ",
@@ -1721,6 +1992,8 @@ const spanishTranslation: TranslationType = {
                 implicit_invalid_votes: "Votos implícitamente inválidos",
                 implicit_invalid_votes_percent: "Porcentaje de votos implícitamente inválidos",
                 blank_votes: "Votos en blanco",
+                explicit_blank_votes: "Votos en blanco explícitos",
+                implicit_blank_votes: "Votos en blanco implícitos",
                 blank_votes_percent: "Porcentaje de votos en blanco",
                 number_of_votes: "Número de votos",
                 winning_position: "Posición ganadora",
@@ -1731,6 +2004,7 @@ const spanishTranslation: TranslationType = {
                     eliminated: "Eliminado",
                     round: "Ronda",
                 },
+                total_declined_to_vote: "Total de votos de renuncia",
             },
             pendingResolutions: {
                 round: "Ronda {{round}}",
@@ -1793,14 +2067,17 @@ const spanishTranslation: TranslationType = {
                 startKioskVoting: "Comenzar Votación en Quiosco",
                 startOnlineVoting: "Comenzar Votación en Línea",
                 startEarlyVoting: "Comenzar Votación Anticipada",
+                startTelephoneVoting: "Comenzar Votación Telefónica",
                 stopVotingPeriod: "Detener votación",
                 stopOnlineVoting: "Detener Votación en Línea",
                 stopEarlyVoting: "Detener Votación Anticipada",
+                stopTelephoneVoting: "Detener Votación Telefónica",
                 stopKioskVotingPeriod: "Cerrar Quiosco",
                 pauseVotingPeriod: "Pausar votación",
                 pauseKioskVoting: "Pausar Votación en Quiosco",
                 pauseOnlineVoting: "Pausar Votación en Línea",
                 pauseEarlyVoting: "Pausar Votación Anticipada",
+                pauseTelephoneVoting: "Pausar Votación Telefónica",
                 generate: "regenerar",
                 publish: "Publicar Cambios",
                 back: "Atrás",
@@ -1897,8 +2174,12 @@ const spanishTranslation: TranslationType = {
             },
         },
         tallysheet: {
+            title: "Urnas",
+            subtitle: "Urnas digitalizadas por canal",
             createTallySuccess: "Hoja de Recuento creada",
             createTallyError: "Error creando Hoja de Recuento",
+            createTallyErrorSameKindExists:
+                "La hoja de recuento ya existe para esta contienda con el mismo canal y área",
             allFieldsRequired: "Todos los campos son obligatorios",
             header: {
                 change: "Changes to be Published",
@@ -1912,6 +2193,11 @@ const spanishTranslation: TranslationType = {
                 generate: "Regenerate",
                 publish: "Publish Changes",
                 back: "Back",
+            },
+            inputError: {
+                totalValidDoesNotMatch:
+                    "El total de votos válidos no coincide con la suma de los votos de los candidatos más los votos en blanco",
+                censusTooSmall: "El censo debe ser mayor o igual al total de votos",
             },
             label: {
                 area: "Area",
@@ -1941,10 +2227,13 @@ const spanishTranslation: TranslationType = {
                 subtitle: "Configuración de la Hoja de Recuento.",
                 candidates: "Candidatos",
                 save: "Guardar",
-                publish: "Publicar",
-                unpublish: "Despublicar",
-                warningUnPublish: "¿Estas seguro de despublicar esta Hoja de Recuento?",
-                warningPublish: "¿Estas seguro de publicar esta Hoja de Recuento?",
+                approve: "Aprobar",
+                disapprove: "Desaprobar",
+                show: "Mostrar",
+                add: "Añadir",
+                versions: "Versiones",
+                warningDisapprove: "¿Está seguro de desaprobar esta Hoja de Recuento?",
+                warningApprove: "¿Está seguro de aprobar esta Hoja de Recuento?",
             },
             empty: {
                 header: "No hay Hojas de Recuento.",
@@ -1960,11 +2249,26 @@ const spanishTranslation: TranslationType = {
             table: {
                 area: "Area",
                 contest: "Cotienda",
-                published: "Publicado",
+                approvedVersion: "Versión aprobada",
+                latestVersion: "Última versión",
+                labels: "Etiquetas",
+                annotations: "Anotaciones",
+            },
+            versionsTable: {
+                title: "Versiones de la urna",
+                version: "Versión",
+                createdBy: "Creado por",
+                reviewedBy: "Revisado por",
+                createdAt: "Creado el",
+                reviewedAt: "Revisado el",
+                sourceImport: "Importación de origen",
+                importStatus: "Estado de importación",
+                openImport: "Abrir importación",
+                sourceFile: "Archivo de origen",
             },
             message: {
-                publishError: "Error publicando la Hoja de Recuento",
-                publishSuccess: "Hoja de Recuento publicada",
+                reviewError: "Error revisando la Hoja de Recuento",
+                reviewSuccess: "Hoja de Recuento revisada",
             },
         },
         application: {
@@ -2221,8 +2525,9 @@ const spanishTranslation: TranslationType = {
                 importButton: "Importar",
             },
             notify: {
-                importSuccess:
-                    "Se importaron {{inserted}} certificado(s). {{skipped}} omitido(s) (ya presentes).",
+                importSuccess: "Se importaron {{inserted}} certificado(s).",
+                importSkipped: "{{count}} certificado(s) omitido(s) (ya presentes).",
+                importErrors: "Problemas en la importación: {{errors}}",
                 importError: "Error al importar: {{error}}",
                 deleteSuccess: "Certificado eliminado.",
                 deleteError: "Error al eliminar el certificado.",

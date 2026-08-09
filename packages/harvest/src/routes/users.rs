@@ -21,17 +21,13 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::env;
-use tracing::instrument;
+use tracing::{info, instrument};
 use uuid::Uuid;
-use windmill::postgres::election_event::{
-    get_election_event_by_id, ElectionEventDatafix,
-};
+use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::cast_votes::get_users_with_vote_info;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
-use windmill::services::datafix;
-use windmill::services::datafix::types::SoapRequest;
-use windmill::services::datafix::utils::is_datafix_election_event;
+use windmill::services::datafix::utils::datafix_annotations;
 use windmill::services::export::export_users::{
     ExportBody, ExportTenantUsersBody, ExportUsersBody,
 };
@@ -42,6 +38,7 @@ use windmill::services::users::{
     count_keycloak_users, list_users, list_users_with_vote_info,
 };
 use windmill::services::users::{FilterOption, ListUsersFilter};
+use windmill::tasks::edit_user::{EditUserOutput, EditUserTaskBody};
 use windmill::tasks::export_users::{self, ExportUsersOutput};
 use windmill::tasks::import_users::{self, ImportUsersOutput};
 use windmill::types::tasks::ETasksExecution;
@@ -151,6 +148,7 @@ pub struct GetUsersBody {
     email: Option<FilterOption>,
     limit: Option<i32>,
     offset: Option<i32>,
+    user_ids: Option<Vec<String>>,
     show_votes_info: Option<bool>,
     attributes: Option<HashMap<String, String>>,
     email_verified: Option<bool>,
@@ -233,7 +231,7 @@ pub async fn count_users(
         email: input.email,
         limit: input.limit,
         offset: input.offset,
-        user_ids: None,
+        user_ids: input.user_ids,
         attributes: input.attributes,
         enabled: input.enabled,
         email_verified: input.email_verified,
@@ -328,7 +326,7 @@ pub async fn get_users(
         email: input.email,
         limit: input.limit,
         offset: input.offset,
-        user_ids: None,
+        user_ids: input.user_ids,
         attributes: input.attributes,
         enabled: input.enabled,
         email_verified: input.email_verified,
@@ -560,12 +558,12 @@ pub async fn check_edit_email_tlf(
     Ok(())
 }
 
-#[instrument(skip(claims), ret)]
+#[instrument(skip(claims, body), ret)]
 #[post("/edit-user", format = "json", data = "<body>")]
 pub async fn edit_user(
     claims: jwt::JwtClaims,
     body: Json<EditUserBody>,
-) -> Result<Json<User>, (Status, String)> {
+) -> Result<Json<EditUserOutput>, (Status, String)> {
     let input = body.into_inner();
     let mut required_perms = Vec::<Permissions>::new();
     let mut voter_voted_edit = false;
@@ -661,10 +659,6 @@ pub async fn edit_user(
         }
     }
 
-    let client = KeycloakAdminClient::new()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-
     let new_attributes = input.attributes.clone().unwrap_or(HashMap::new());
 
     // maintain current user attributes and do not allow to override tenant-id
@@ -680,6 +674,109 @@ pub async fn edit_user(
         .await
         .map_err(|e| (Status::Unauthorized, format!("{:?}", e)))?;*/
     }
+
+    let datafix_election_event = match input.election_event_id.as_deref() {
+        Some(election_event_id) => {
+            let election_event = get_election_event_by_id(
+                &hasura_transaction,
+                &input.tenant_id,
+                election_event_id,
+            )
+            .await
+            .map_err(|err| {
+                (
+                    Status::InternalServerError,
+                    format!("Error getting election event: {err:?}"),
+                )
+            })?;
+            datafix_annotations(&election_event)
+                .map_err(|err| (Status::InternalServerError, err.to_string()))?
+                .map(|_| election_event)
+        }
+        None => None,
+    };
+
+    hasura_transaction.commit().await.map_err(|err| {
+        (
+            Status::InternalServerError,
+            format!("Error committing voter checks: {err:?}"),
+        )
+    })?;
+    drop(hasura_db_client);
+
+    // For Datafix election events the edit is offloaded to the `edit_user`
+    // task, which notifies VoterView (SetNotVoted) and reconciles the voter's
+    // cast votes under the per-voter lock. Deferring it keeps the Save button
+    // from blocking on the (retried) VoterView round-trip, and the admin portal
+    // tracks the outcome in the returned task widget. Non-Datafix edits stay
+    // synchronous.
+    if let (Some(election_event_id), Some(_election_event)) =
+        (input.election_event_id.as_deref(), datafix_election_event)
+    {
+        let executer_name = claims
+            .name
+            .clone()
+            .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
+
+        let task_execution = post(
+            &input.tenant_id,
+            Some(election_event_id),
+            ETasksExecution::EDIT_USER,
+            &executer_name,
+        )
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Failed to insert task execution record: {error:?}"),
+            )
+        })?;
+
+        let task_body = EditUserTaskBody {
+            tenant_id: input.tenant_id.clone(),
+            user_id: input.user_id.clone(),
+            election_event_id: election_event_id.to_string(),
+            enabled: input.enabled,
+            attributes: new_attributes,
+            email: input.email.clone(),
+            first_name: input.first_name.clone(),
+            last_name: input.last_name.clone(),
+            username: input.username.clone(),
+            password: input.password.clone(),
+            temporary: input.temporary,
+        };
+
+        let celery_app = get_celery_app().await;
+        if let Err(err) = celery_app
+            .send_task(windmill::tasks::edit_user::edit_user::new(
+                task_body,
+                task_execution.clone(),
+            ))
+            .await
+        {
+            update_fail(
+                &task_execution,
+                &format!("Failed to send Edit Voter task: {err:?}"),
+            )
+            .await
+            .ok();
+            return Err((
+                Status::InternalServerError,
+                format!("Error sending Edit Voter task: {err:?}"),
+            ));
+        }
+
+        info!("Sent EDIT_USER task {}", task_execution.id);
+
+        return Ok(Json(EditUserOutput {
+            user: None,
+            task_execution: Some(task_execution),
+        }));
+    }
+
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     let user = client
         .edit_user(
@@ -697,36 +794,10 @@ pub async fn edit_user(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    // If the user is disabled via EDIT: send a SetNotVoted request to
-    // VoterView, it is a Datafix requirement
-    match (input.election_event_id, input.enabled) {
-        (Some(election_event_id), Some(enabled)) if !enabled => {
-            let election_event = get_election_event_by_id(
-                &hasura_transaction,
-                &input.tenant_id,
-                &election_event_id,
-            )
-            .await
-            .map_err(|e| {
-                (
-                    Status::InternalServerError,
-                    format!("Error get_election_event_by_id {e:?}"),
-                )
-            })?;
-            if is_datafix_election_event(&election_event) {
-                let res = datafix::voterview_requests::send(
-                    SoapRequest::SetNotVoted,
-                    ElectionEventDatafix(election_event),
-                    &user.username,
-                )
-                .await;
-                // TODO: Post the result in the electoral_log
-            }
-        }
-        _ => {}
-    }
-
-    Ok(Json(user))
+    Ok(Json(EditUserOutput {
+        user: Some(user),
+        task_execution: None,
+    }))
 }
 
 #[derive(Deserialize, Debug)]

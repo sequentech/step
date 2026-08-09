@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Result;
-use braid::protocol::board::grpc_m::{GrpcB3, GrpcB3BoardParams, GrpcB3Index};
+use anyhow::{anyhow, Result};
+use braid::native::board::{HttpB3, HttpB3BoardParams, HttpB3Index};
 use braid::util::ProtocolError;
 use clap::Parser;
 use std::collections::HashMap;
@@ -13,9 +13,9 @@ use tokio::time::{sleep, Duration};
 use tracing::instrument;
 use tracing::{error, info};
 
-use braid::protocol::session::Session;
-use braid::protocol::trustee2::Trustee;
-use braid::protocol::trustee2::TrusteeConfig;
+use braid::native::session::Session;
+use braid::protocol::trustee::Trustee;
+use braid::protocol::trustee::TrusteeConfig;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
 use strand::symm;
@@ -32,7 +32,7 @@ cfg_if::cfg_if! {
 #[derive(Parser)]
 struct Cli {
     #[arg(short, long)]
-    b3_url: String,
+    b4_url: String,
 
     #[arg(short, long)]
     trustee_config: PathBuf,
@@ -49,7 +49,7 @@ Entry point for a braid mixnet trustee.
 
 Example run command
 
-cargo run --release --bin main  -- --b3-url http://127.0.0.1:50051 --trustee-config trustee.toml
+cargo run --release --bin main  -- --b4-url http://127.0.0.1:50051 --trustee-config trustee.toml
 
 A mixnet trustee will periodically:
 
@@ -65,7 +65,7 @@ command line option is set to true.
 #[tokio::main]
 #[instrument]
 async fn main() -> Result<()> {
-    braid::util::init_log(true);
+    braid::native::logging::init_log(true);
 
     cfg_if::cfg_if! {
         if #[cfg(feature = "jemalloc")] {
@@ -80,8 +80,6 @@ async fn main() -> Result<()> {
     let contents = fs::read_to_string(args.trustee_config)
         .expect("Should have been able to read the trustee configuration file");
 
-    info!("{}", strand::info_string());
-
     let tc: TrusteeConfig = toml::from_str(&contents).unwrap();
     let sk: StrandSignatureSk = StrandSignatureSk::from_der_b64_string(&tc.signing_key_sk)?;
 
@@ -92,20 +90,23 @@ async fn main() -> Result<()> {
     info!("ignored boards {:?}", ignored_boards);
 
     let store_root = std::env::current_dir().unwrap().join("message_store");
-    braid::util::ensure_directory(store_root.clone())?;
+    ensure_directory(store_root.clone())?;
 
-    let mut session_map: HashMap<String, Session<RistrettoCtx, GrpcB3>> = HashMap::new();
+    let mut session_map: HashMap<
+        String,
+        Session<RistrettoCtx, HttpB3, braid::native::board::SqliteStorage>,
+    > = HashMap::new();
     let mut loop_count: i64 = 0;
     loop {
         info!("{} >", loop_count);
 
-        let b3index = GrpcB3Index::new(&args.b3_url);
+        let b3index = HttpB3Index::new(&args.b4_url);
 
         let boards_result = b3index.get_boards().await;
         let boards: Vec<String> = match boards_result {
             Ok(boards) => boards,
             Err(error) => {
-                error!("Error listing board names: '{}' ({})", error, args.b3_url);
+                error!("Error listing board names: '{}' ({})", error, args.b4_url);
                 sleep(Duration::from_millis(1000)).await;
                 continue;
             }
@@ -131,21 +132,23 @@ async fn main() -> Result<()> {
                 board_name.clone()
             );
 
-            let trustee: Trustee<RistrettoCtx> = Trustee::new(
+            let storage =
+                braid::native::board::SqliteStorage::new(store_root.join(board_name), None);
+            let trustee = Trustee::new(
                 std::env::var("TRUSTEE_NAME").unwrap_or_else(|_| "Self".to_string()),
                 board_name.to_string(),
                 sk.clone(),
                 ek.clone(),
-                Some(store_root.join(board_name)),
+                storage,
                 None,
             );
-            let board = GrpcB3BoardParams::new(&args.b3_url);
+            let board = HttpB3BoardParams::new(&args.b4_url).await;
 
             let session = Session::new(&board_name, trustee, board);
             session_map.insert(board_name.clone(), session);
         }
 
-        // This code is sequential, see main_m for an alternative implementation
+        // This code is sequential, see main_concurrent for an alternative implementation
         for s in session_map.values_mut() {
             let board_name = s.board_name.clone();
 
@@ -200,4 +203,18 @@ async fn main() -> Result<()> {
 fn get_ignored_boards() -> Vec<String> {
     let boards_str: String = std::env::var("IGNORE_BOARDS").unwrap_or_else(|_| "".into());
     boards_str.split(',').map(|s| s.to_string()).collect()
+}
+
+/// Checks for and creates a directory if needed.
+fn ensure_directory(folder: PathBuf) -> Result<()> {
+    let path = folder.as_path();
+    if path.exists() {
+        if path.is_dir() {
+            Ok(())
+        } else {
+            Err(anyhow!("Path is not a folder: {}", path.display()))
+        }
+    } else {
+        fs::create_dir(path).map_err(|err| anyhow!(err))
+    }
 }

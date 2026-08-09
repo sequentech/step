@@ -119,13 +119,13 @@ public class MessageOTPAuthenticatorFactory
             "Code length",
             "The number of digits of the generated code.",
             ProviderConfigProperty.STRING_TYPE,
-            6),
+            Utils.CODE_LENGTH_DEFAULT),
         new ProviderConfigProperty(
             Utils.CODE_TTL,
             "Time-to-live",
             "The time to live in seconds for the code to be valid.",
             ProviderConfigProperty.STRING_TYPE,
-            "300"),
+            Utils.CODE_TTL_DEFAULT),
         new ProviderConfigProperty(
             Utils.SENDER_ID,
             "SenderId",
@@ -155,7 +155,7 @@ public class MessageOTPAuthenticatorFactory
             "Seconds to activate resend",
             "Time in seconds the resend code gets re activated",
             ProviderConfigProperty.STRING_TYPE,
-            "60"),
+            Utils.RESEND_ACTIVATION_TIMER_DEFAULT),
         new ProviderConfigProperty(
             Utils.TEST_MODE_ATTRIBUTE,
             "Test Mode",

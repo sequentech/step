@@ -1,6 +1,7 @@
 {
   "name": "admin-portal",
   "version": "0.1.0",
+  "type": "module",
   "private": true,
   "dependencies": {
     "@apollo/client": "3.8.0",
@@ -53,6 +54,7 @@
     "react-redux": "8.1.2",
     "react-router": "7.12.0",
     "sequent-core": "file:./rust/sequent-core-0.1.0.tgz",
+    "braid-wasm": "file:./rust/braid-wasm-0.1.0.tgz",
     "sql.js": "^1.13.0",
     "stream-browserify": "^3.0.0",
     "util": "^0.12.5",
@@ -81,6 +83,7 @@
     "prettify:fix": "prettier --write . --ignore-path .prettierignore",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
+    "test": "jest",
     "storybook": "NODE_OPTIONS=--openssl-legacy-provider sb dev -p 6006 -s public",
     "build:storybook": "NODE_OPTIONS=--openssl-legacy-provider sb build -s public",
     "test:storybook": "NODE_OPTIONS=--openssl-legacy-provider test-storybook",
@@ -105,6 +108,9 @@
     "path-browserify": "^1.0.1",
     "crypto-browserify": "^3.12.0",
     "vm-browserify": "^1.1.2",
+    "@babel/preset-env": "7.22.4",
+    "@babel/preset-react": "7.22.3",
+    "@babel/preset-typescript": "7.21.5",
     "@graphql-codegen/client-preset": "^4.1.0",
     "@graphql-codegen/introspection": "4.0.0",
     "@storybook/addon-actions": "^9.0.8",

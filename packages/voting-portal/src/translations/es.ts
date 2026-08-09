@@ -58,6 +58,14 @@ const spanishTranslation: TranslationType = {
         },
         startScreen: {
             startButton: "Empezar a votar",
+            declineToVoteButton: "Declinar votar",
+            declineToVoteDialog: {
+                title: "Confirmar declinación de voto",
+                content:
+                    "¿Estás seguro de que deseas declinar votar?<br />Irás directamente a la revisión y tu estado de participación se guardará como <b>Ha declinado votar</b>.",
+                continue: "Declinar votar",
+                cancel: "Cancelar",
+            },
             instructionsTitle: "Cómo votar",
             instructionsDescription: "Siga estos pasos para emitir su voto",
             step1Title: "1. Elija sus opciones",
@@ -196,6 +204,7 @@ const spanishTranslation: TranslationType = {
                 INTERNAL_ERROR:
                     "Hubo un error interno al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
             },
+            declineToVote: "Declinar votar",
         },
         confirmationScreen: {
             title: "Su voto ha sido emitido",
@@ -278,7 +287,8 @@ const spanishTranslation: TranslationType = {
                     "Esta pantalla muestra la lista de papeletas a las que puede acceder. Pueden estar abiertas, programadas o cerradas. Solo puede votar en las que están abiertas",
                 ok: "OK",
             },
-            noResults: "No hay papeletas disponibles actualmente",
+            noResults: "No hay elecciones por ahora.",
+            resultsButton: "Ver resultados",
             demoDialog: {
                 title: "Cabina de votación de demostración",
                 content:
@@ -360,6 +370,8 @@ const spanishTranslation: TranslationType = {
             locateAgain: "Encuentra otra Papeleta",
             found: "Tu ID de Papeleta {{ballotId}} ha sido encontrada",
             notFound: "Tu ID de Papeleta {{ballotId}} no fue encontrada",
+            ambiguous:
+                "Más de una de tus papeletas coincide con {{ballotId}}. Usa el ID de papeleta completo.",
             contentDesc: "Este es el contenido de tu Papeleta: ",
             wrongFormatBallotId: "Formato incorrecto para el ID de la Papeleta",
             ballotIdNotFoundAtFilter:

@@ -192,7 +192,7 @@ pub async fn get_all_tenant_election_events(
         .prepare(
             r#"
                 SELECT
-                    id, created_at, updated_at, labels, annotations, tenant_id, description, presentation, bulletin_board_reference, is_archived, voting_channels, status, user_boards, encryption_protocol, is_audit, audit_election_event_id, public_key, statistics
+                    *
                 FROM
                     sequent_backend.election_event
                 WHERE
@@ -434,6 +434,7 @@ pub async fn delete_election_event(
     election_event_id: &str,
 ) -> Result<()> {
     let related_tables = vec![
+        "tally_results_publication",
         "secret",
         "area_contest",
         "results_election_area",

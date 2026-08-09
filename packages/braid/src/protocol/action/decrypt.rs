@@ -1,6 +1,6 @@
 #![allow(clippy::too_many_arguments)]
 
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -20,7 +20,7 @@ use strand::{serialization::StrandVector, zkp::ChaumPedersen};
 /// this trustee.
 ///
 /// As described in Cortier et al.; based on Pedersen.
-pub(super) fn compute_decryption_factors<C: Ctx>(
+pub(super) fn compute_decryption_factors<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
     cfg_h: &ConfigurationHash,
     batch: &BatchNumber,
     channels_hs: &ChannelsHashes,
@@ -30,7 +30,7 @@ pub(super) fn compute_decryption_factors<C: Ctx>(
     shares_hs: &SharesHashes,
     self_p: &TrusteePosition,
     num_t: &TrusteeCount,
-    trustee: &Trustee<C>,
+    trustee: &Trustee<C, S>,
 ) -> Result<Vec<Message>, ProtocolError> {
     let ctx = C::default();
     let cfg = trustee.get_configuration(cfg_h)?;
@@ -101,7 +101,7 @@ pub(super) fn compute_decryption_factors<C: Ctx>(
 ///
 /// Includes verification of decryption proofs. Returns a Message of type
 /// Plaintexts signed by this trustee.
-pub(super) fn compute_plaintexts<C: Ctx>(
+pub(super) fn compute_plaintexts<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
     cfg_h: &ConfigurationHash,
     batch: &BatchNumber,
     pk_h: &PublicKeyHash,
@@ -110,7 +110,7 @@ pub(super) fn compute_plaintexts<C: Ctx>(
     mix_signer: &TrusteePosition,
     ts: &TrusteeSet,
     threshold: &TrusteeCount,
-    trustee: &Trustee<C>,
+    trustee: &Trustee<C, S>,
 ) -> Result<Vec<Message>, ProtocolError> {
     let cfg = trustee.get_configuration(cfg_h)?;
     let plaintexts = compute_plaintexts_(
@@ -141,7 +141,7 @@ pub(super) fn compute_plaintexts<C: Ctx>(
 ///
 /// Includes verification of decryption proofs. Returns a Message of type
 /// PlaintextsSigned signed by this trustee.
-pub(super) fn sign_plaintexts<C: Ctx>(
+pub(super) fn sign_plaintexts<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
     cfg_h: &ConfigurationHash,
     batch: &BatchNumber,
     pk_h: &PublicKeyHash,
@@ -151,7 +151,7 @@ pub(super) fn sign_plaintexts<C: Ctx>(
     mix_signer: &TrusteePosition,
     trustees: &TrusteeSet,
     threshold: &TrusteeCount,
-    trustee: &Trustee<C>,
+    trustee: &Trustee<C, S>,
 ) -> Result<Vec<Message>, ProtocolError> {
     let cfg = trustee.get_configuration(cfg_h)?;
     info!(
@@ -209,7 +209,7 @@ pub(super) fn sign_plaintexts<C: Ctx>(
 /// Returns a Message of type Plaintexts signed by this trustee.
 ///
 /// As described in Cortier et al.; based on Pedersen.
-fn compute_plaintexts_<C: Ctx>(
+fn compute_plaintexts_<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
     cfg_h: &ConfigurationHash,
     batch: &BatchNumber,
     pk_h: &PublicKeyHash,
@@ -218,7 +218,7 @@ fn compute_plaintexts_<C: Ctx>(
     mix_signer: &TrusteePosition,
     ts: &TrusteeSet,
     threshold: &TrusteeCount,
-    trustee: &Trustee<C>,
+    trustee: &Trustee<C, S>,
 ) -> Result<Plaintexts<C>, ProtocolError> {
     let ctx = C::default();
     let cfg = trustee.get_configuration(cfg_h)?;

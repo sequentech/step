@@ -9,10 +9,12 @@ result
 /.vscode
 /tla
 /demo
+/pkg
 Cargo.lock
 *.pdf
 *.ps1
 *.cmd
+*.log
 trustee.toml
 pm.toml
 config.bin

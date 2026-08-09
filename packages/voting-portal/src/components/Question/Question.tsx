@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
+import React, {useEffect, useMemo, useState} from "react"
 import {Box, Button} from "@mui/material"
 import {
     stringToHtml,
@@ -122,6 +122,7 @@ export interface IQuestionProps {
     setDisableNext?: (value: boolean) => void
     setDecodedContests: (input: IDecodedVoteContest) => void
     errorSelectionState: BallotSelection
+    isDeclineToVote?: boolean
 }
 
 export const Question: React.FC<IQuestionProps> = ({
@@ -131,6 +132,7 @@ export const Question: React.FC<IQuestionProps> = ({
     setDisableNext,
     setDecodedContests,
     errorSelectionState,
+    isDeclineToVote,
 }) => {
     // THIS IS A CONTEST COMPONENT
     const {i18n, t} = useTranslation()
@@ -149,6 +151,15 @@ export const Question: React.FC<IQuestionProps> = ({
         selectBallotSelectionQuestion(ballotStyle.election_id, question.id)
     )
     const {checkableLists, checkableCandidates} = getCheckableOptions(question)
+    const explicitBlankCandidateIds = useMemo(
+        () =>
+            new Set(
+                question.candidates
+                    .filter((candidate) => checkIsExplicitBlankVote(candidate))
+                    .map((candidate) => candidate.id)
+            ),
+        [question.candidates]
+    )
 
     const collapsibleListsPolicy =
         question.presentation?.collapsible_lists ?? ECollapsibleLists.DISABLED
@@ -198,12 +209,20 @@ export const Question: React.FC<IQuestionProps> = ({
 
     useEffect(() => {
         // Calculating the number of selected candidates
-        let selectedChoicesCount = 0
+        let selectedChoicesCount = contestState?.is_explicit_invalid ? 1 : 0
         contestState?.choices.forEach((choice) => {
             choice.selected >= 0 && selectedChoicesCount++
         })
         setSelectedChoicesSum(selectedChoicesCount)
     }, [contestState])
+
+    useEffect(() => {
+        setExplicitBlank(
+            !!contestState?.choices.some(
+                (choice) => explicitBlankCandidateIds.has(choice.id) && choice.selected > -1
+            )
+        )
+    }, [contestState, explicitBlankCandidateIds])
 
     const maxVotesNum = question.max_votes
     const overVoteDisableMode =
@@ -306,162 +325,173 @@ export const Question: React.FC<IQuestionProps> = ({
                     {stringToHtml(translate(question, "description", i18n.language) || "")}
                 </Typography>
             ) : null}
-            <InvalidErrorsList
-                ballotStyle={ballotStyle}
-                question={question}
-                hasWriteIns={hasWriteIns}
-                isInvalidWriteIns={isInvalidWriteIns}
-                setIsInvalidWriteIns={onSetIsInvalidWriteIns}
-                setDecodedContests={setDecodedContests}
-                isReview={isReview}
-                errorSelectionState={errorSelectionState}
-                isTouched={isTouched}
-                setIsTouched={setIsTouched}
-            />
-            {isBlank ? (
-                <InvalidBlankWrapper className="candidates-review-blank" columnCount={1}>
-                    <BlankAnswer />{" "}
+            {isDeclineToVote ? (
+                <InvalidBlankWrapper className="candidates-review-decline" columnCount={1}>
+                    <BlankAnswer title={t("reviewScreen.declineToVote")} />
                 </InvalidBlankWrapper>
-            ) : null}
-            <CandidatesWrapper className="candidates-container">
-                <Box
-                    className="candidates-legend"
-                    component="legend"
-                    sx={{
-                        position: "absolute",
-                        width: 0,
-                        height: 0,
-                        overflow: "hidden",
-                        clip: "rect(0 0 0 0)",
-                    }}
-                >
-                    {translate(question, "name", i18n.language) || ""}
-                </Box>
-                {invalidTopCandidates.length ? (
-                    <InvalidBlankWrapper className="candidates-top-blank-invalid" columnCount={1}>
-                        {invalidTopCandidates.map((answer, answerIndex) => (
-                            <Answer
-                                ballotStyle={ballotStyle}
-                                answer={answer}
-                                contestId={question.id}
-                                key={answerIndex}
-                                index={answerIndex}
-                                isSelectable={!isReview}
-                                isReview={isReview}
-                                isExplicitBlankVote={checkIsExplicitBlankVote(answer)}
-                                isRadioSelection={isRadioSelection}
-                                contest={question}
-                                selectedChoicesSum={selectedChoicesSum}
-                                setSelectedChoicesSum={setSelectedChoicesSum}
-                                disableSelect={disableSelect}
-                                iconCheckboxPolicy={iconCheckboxPolicy}
-                                explicitBlank={explicitBlank}
-                                setExplicitBlank={setExplicitBlank}
-                                setIsTouched={setIsTouched}
-                            />
-                        ))}
-                    </InvalidBlankWrapper>
-                ) : null}
-                {!!categoriesMapOrder && Object.keys(categoriesMapOrder)?.length ? (
-                    <CandidateListsWrapper
-                        className="candidates-lists-container"
-                        columncount={columnCount}
-                    >
-                        {Object.entries(categoriesMapOrder).map(
-                            ([categoryName, category], categoryIndex) => (
-                                <AnswersList
-                                    key={categoryIndex}
-                                    title={categoryName}
-                                    isActive={true}
-                                    checkableLists={checkableLists}
-                                    checkableCandidates={checkableCandidates}
-                                    category={category}
-                                    ballotStyle={ballotStyle}
-                                    contestId={question.id}
-                                    isReview={isReview}
-                                    isInvalidWriteIns={isInvalidWriteIns}
-                                    isRadioSelection={isRadioSelection}
-                                    contest={question}
-                                    selectedChoicesSum={selectedChoicesSum}
-                                    setSelectedChoicesSum={setSelectedChoicesSum}
-                                    disableSelect={disableSelect}
-                                    iconCheckboxPolicy={iconCheckboxPolicy}
-                                    explicitBlank={explicitBlank}
-                                    setExplicitBlank={setExplicitBlank}
-                                    setIsTouched={setIsTouched}
-                                    externalExpanded={getExpanded(categoryName)}
-                                    onExpandedChange={(expanded) =>
-                                        setExpandedStates((prev) => ({
-                                            ...prev,
-                                            [categoryName]: expanded,
-                                        }))
-                                    }
-                                />
-                            )
-                        )}
-                    </CandidateListsWrapper>
-                ) : null}
-                {candidatesOrder?.length ? (
-                    <CandidatesSingleWrapper
-                        className="candidates-singles-container"
-                        columnCount={columnCount}
-                    >
-                        {candidatesOrder
-                            ?.map((id) => noCategoryCandidatesMap[id])
-                            .map((answer, answerIndex) => (
-                                <Answer
-                                    isInvalidWriteIns={isInvalidWriteIns}
-                                    ballotStyle={ballotStyle}
-                                    answer={answer}
-                                    contestId={question.id}
-                                    index={answerIndex}
-                                    key={answerIndex}
-                                    isSelectable={!isReview}
-                                    isInvalidVote={false}
-                                    isReview={isReview}
-                                    isRadioSelection={isRadioSelection}
-                                    contest={question}
-                                    selectedChoicesSum={selectedChoicesSum}
-                                    setSelectedChoicesSum={setSelectedChoicesSum}
-                                    disableSelect={disableSelect}
-                                    iconCheckboxPolicy={iconCheckboxPolicy}
-                                    explicitBlank={explicitBlank}
-                                    setExplicitBlank={setExplicitBlank}
-                                    setIsTouched={setIsTouched}
-                                />
-                            ))}
-                    </CandidatesSingleWrapper>
-                ) : null}
-                {invalidBottomCandidates.length ? (
-                    <InvalidBlankWrapper
-                        className="candidates-bottom-blank-invalid"
-                        columnCount={1}
-                    >
-                        {invalidBottomCandidates.map((answer, answerIndex) => (
-                            <Answer
-                                ballotStyle={ballotStyle}
-                                answer={answer}
-                                contestId={question.id}
-                                index={answerIndex}
-                                key={answerIndex}
-                                isSelectable={!isReview}
-                                isReview={isReview}
-                                isExplicitBlankVote={checkIsExplicitBlankVote(answer)}
-                                isInvalidWriteIns={false}
-                                isRadioSelection={isRadioSelection}
-                                contest={question}
-                                selectedChoicesSum={selectedChoicesSum}
-                                setSelectedChoicesSum={setSelectedChoicesSum}
-                                disableSelect={disableSelect}
-                                iconCheckboxPolicy={iconCheckboxPolicy}
-                                explicitBlank={explicitBlank}
-                                setExplicitBlank={setExplicitBlank}
-                                setIsTouched={setIsTouched}
-                            />
-                        ))}
-                    </InvalidBlankWrapper>
-                ) : null}
-            </CandidatesWrapper>
+            ) : (
+                <>
+                    <InvalidErrorsList
+                        ballotStyle={ballotStyle}
+                        question={question}
+                        hasWriteIns={hasWriteIns}
+                        isInvalidWriteIns={isInvalidWriteIns}
+                        setIsInvalidWriteIns={onSetIsInvalidWriteIns}
+                        setDecodedContests={setDecodedContests}
+                        isReview={isReview}
+                        errorSelectionState={errorSelectionState}
+                        isTouched={isTouched}
+                        setIsTouched={setIsTouched}
+                    />
+                    {isBlank ? (
+                        <InvalidBlankWrapper className="candidates-review-blank" columnCount={1}>
+                            <BlankAnswer />{" "}
+                        </InvalidBlankWrapper>
+                    ) : null}
+                    <CandidatesWrapper className="candidates-container">
+                        <Box
+                            className="candidates-legend"
+                            component="legend"
+                            sx={{
+                                position: "absolute",
+                                width: 0,
+                                height: 0,
+                                overflow: "hidden",
+                                clip: "rect(0 0 0 0)",
+                            }}
+                        >
+                            {translate(question, "name", i18n.language) || ""}
+                        </Box>
+                        {invalidTopCandidates.length ? (
+                            <InvalidBlankWrapper
+                                className="candidates-top-blank-invalid"
+                                columnCount={1}
+                            >
+                                {invalidTopCandidates.map((answer, answerIndex) => (
+                                    <Answer
+                                        ballotStyle={ballotStyle}
+                                        answer={answer}
+                                        contestId={question.id}
+                                        key={answerIndex}
+                                        index={answerIndex}
+                                        isSelectable={!isReview}
+                                        isReview={isReview}
+                                        isExplicitBlankVote={checkIsExplicitBlankVote(answer)}
+                                        isRadioSelection={isRadioSelection}
+                                        contest={question}
+                                        selectedChoicesSum={selectedChoicesSum}
+                                        setSelectedChoicesSum={setSelectedChoicesSum}
+                                        disableSelect={disableSelect}
+                                        iconCheckboxPolicy={iconCheckboxPolicy}
+                                        explicitBlank={explicitBlank}
+                                        setExplicitBlank={setExplicitBlank}
+                                        setIsTouched={setIsTouched}
+                                    />
+                                ))}
+                            </InvalidBlankWrapper>
+                        ) : null}
+                        {!!categoriesMapOrder && Object.keys(categoriesMapOrder)?.length ? (
+                            <CandidateListsWrapper
+                                className="candidates-lists-container"
+                                columncount={columnCount}
+                            >
+                                {Object.entries(categoriesMapOrder).map(
+                                    ([categoryName, category], categoryIndex) => (
+                                        <AnswersList
+                                            key={categoryIndex}
+                                            title={categoryName}
+                                            isActive={true}
+                                            checkableLists={checkableLists}
+                                            checkableCandidates={checkableCandidates}
+                                            category={category}
+                                            ballotStyle={ballotStyle}
+                                            contestId={question.id}
+                                            isReview={isReview}
+                                            isInvalidWriteIns={isInvalidWriteIns}
+                                            isRadioSelection={isRadioSelection}
+                                            contest={question}
+                                            selectedChoicesSum={selectedChoicesSum}
+                                            setSelectedChoicesSum={setSelectedChoicesSum}
+                                            disableSelect={disableSelect}
+                                            iconCheckboxPolicy={iconCheckboxPolicy}
+                                            explicitBlank={explicitBlank}
+                                            setExplicitBlank={setExplicitBlank}
+                                            setIsTouched={setIsTouched}
+                                            externalExpanded={getExpanded(categoryName)}
+                                            onExpandedChange={(expanded) =>
+                                                setExpandedStates((prev) => ({
+                                                    ...prev,
+                                                    [categoryName]: expanded,
+                                                }))
+                                            }
+                                        />
+                                    )
+                                )}
+                            </CandidateListsWrapper>
+                        ) : null}
+                        {candidatesOrder?.length ? (
+                            <CandidatesSingleWrapper
+                                className="candidates-singles-container"
+                                columnCount={columnCount}
+                            >
+                                {candidatesOrder
+                                    ?.map((id) => noCategoryCandidatesMap[id])
+                                    .map((answer, answerIndex) => (
+                                        <Answer
+                                            isInvalidWriteIns={isInvalidWriteIns}
+                                            ballotStyle={ballotStyle}
+                                            answer={answer}
+                                            contestId={question.id}
+                                            index={answerIndex}
+                                            key={answerIndex}
+                                            isSelectable={!isReview}
+                                            isInvalidVote={false}
+                                            isReview={isReview}
+                                            isRadioSelection={isRadioSelection}
+                                            contest={question}
+                                            selectedChoicesSum={selectedChoicesSum}
+                                            setSelectedChoicesSum={setSelectedChoicesSum}
+                                            disableSelect={disableSelect}
+                                            iconCheckboxPolicy={iconCheckboxPolicy}
+                                            explicitBlank={explicitBlank}
+                                            setExplicitBlank={setExplicitBlank}
+                                            setIsTouched={setIsTouched}
+                                        />
+                                    ))}
+                            </CandidatesSingleWrapper>
+                        ) : null}
+                        {invalidBottomCandidates.length ? (
+                            <InvalidBlankWrapper
+                                className="candidates-bottom-blank-invalid"
+                                columnCount={1}
+                            >
+                                {invalidBottomCandidates.map((answer, answerIndex) => (
+                                    <Answer
+                                        ballotStyle={ballotStyle}
+                                        answer={answer}
+                                        contestId={question.id}
+                                        index={answerIndex}
+                                        key={answerIndex}
+                                        isSelectable={!isReview}
+                                        isReview={isReview}
+                                        isExplicitBlankVote={checkIsExplicitBlankVote(answer)}
+                                        isInvalidWriteIns={false}
+                                        isRadioSelection={isRadioSelection}
+                                        contest={question}
+                                        selectedChoicesSum={selectedChoicesSum}
+                                        setSelectedChoicesSum={setSelectedChoicesSum}
+                                        disableSelect={disableSelect}
+                                        iconCheckboxPolicy={iconCheckboxPolicy}
+                                        explicitBlank={explicitBlank}
+                                        setExplicitBlank={setExplicitBlank}
+                                        setIsTouched={setIsTouched}
+                                    />
+                                ))}
+                            </InvalidBlankWrapper>
+                        ) : null}
+                    </CandidatesWrapper>
+                </>
+            )}
         </Box>
     )
 }

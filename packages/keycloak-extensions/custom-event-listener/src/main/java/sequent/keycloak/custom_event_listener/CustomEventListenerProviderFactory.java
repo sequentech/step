@@ -13,9 +13,19 @@ import org.keycloak.models.KeycloakSessionFactory;
 @AutoService(EventListenerProviderFactory.class)
 public class CustomEventListenerProviderFactory implements EventListenerProviderFactory {
 
+  private final RabbitMqEventPublisher rabbitMqEventPublisher;
+
+  public CustomEventListenerProviderFactory() {
+    this(RabbitMqEventPublisher.fromEnvironment());
+  }
+
+  CustomEventListenerProviderFactory(RabbitMqEventPublisher rabbitMqEventPublisher) {
+    this.rabbitMqEventPublisher = rabbitMqEventPublisher;
+  }
+
   @Override
   public EventListenerProvider create(KeycloakSession session) {
-    return new CustomEventListenerProvider(session);
+    return new CustomEventListenerProvider(session, rabbitMqEventPublisher);
   }
 
   @Override
@@ -25,7 +35,9 @@ public class CustomEventListenerProviderFactory implements EventListenerProvider
   public void postInit(KeycloakSessionFactory factory) {}
 
   @Override
-  public void close() {}
+  public void close() {
+    rabbitMqEventPublisher.close();
+  }
 
   @Override
   public String getId() {

@@ -129,6 +129,123 @@ pub struct VoterCountryString(pub String);
 pub struct VotingChannelString(pub String);
 
 #[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Deserialize,
+    Serialize,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    Display,
+)]
+pub enum ExtApiRequestDirection {
+    Inbound,
+    Outbound,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Deserialize,
+    Serialize,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    Display,
+)]
+pub enum ExtApiName {
+    Datafix,
+    Other,
+}
+
+/// Subject of an external API request, bound into the signed statement. Both
+/// fields are optional because some operations (e.g. adding a voter) act before
+/// a Keycloak user id exists or without a resolvable username.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ExternalApiSubject {
+    pub user_id: Option<String>,
+    pub username: Option<String>,
+}
+
+#[derive(
     BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
 )]
 pub struct ResolutionIdsString(pub Vec<String>);
+
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct PhoneE164String(pub String);
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Deserialize,
+    Serialize,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    Display,
+)]
+pub enum PhoneBlacklistAction {
+    CreateEntry,
+    DeleteEntry,
+}
+
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ResultsPublicationIdString(pub String);
+
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ResultsPublicationRouteScopeString(pub String);
+
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ResultsPublicationAccessString(pub String);
+
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ResultsPublicationVisibilityScopeString(pub String);
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Deserialize,
+    Serialize,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    Display,
+)]
+pub enum ResultsPublicationAction {
+    Publish,
+    Revoke,
+}
+
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ResultsPublicationDetails {
+    pub publication_id: ResultsPublicationIdString,
+    pub action: ResultsPublicationAction,
+    pub route_scope: ResultsPublicationRouteScopeString,
+    pub route_election_id: ElectionIdString,
+    pub access: ResultsPublicationAccessString,
+    pub visibility_scope: ResultsPublicationVisibilityScopeString,
+    pub contest_ids: Vec<ContestIdString>,
+}

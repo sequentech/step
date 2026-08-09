@@ -125,4 +125,4 @@ handle_trustee_config() {
 handle_trustee_config
 
 # Run trustee with the generated or fetched config
-trustee --b3-url "$B3_URL" --trustee-config "$TRUSTEE_CONFIG_PATH"
+trustee --b4-url "$B4_URL" --trustee-config "$TRUSTEE_CONFIG_PATH"

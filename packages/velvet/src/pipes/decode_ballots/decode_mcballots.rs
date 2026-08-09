@@ -7,7 +7,9 @@ use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs, BALLOTS_FILE};
 use crate::pipes::Pipe;
 use num_bigint::BigUint;
 use sequent_core::ballot::Contest;
-use sequent_core::ballot_codec::multi_ballot::{BallotChoices, DecodedBallotChoices};
+use sequent_core::ballot_codec::multi_ballot::{
+    BallotChoices, DecodedBallotChoices, MultiBallotCodecContext,
+};
 use sequent_core::plaintext::{
     map_decoded_ballot_choices_to_decoded_contests, DecodedVoteChoice, DecodedVoteContest,
 };
@@ -42,11 +44,17 @@ impl DecodeMCBallots {
     fn decode_ballots(
         path: &Path,
         contests: &Vec<Contest>,
+        include_decline_to_vote: bool,
         serial_number_counter: &mut u32,
     ) -> Result<Vec<DecodedBallotChoices>> {
         let file = fs::File::open(path).map_err(|e| Error::FileAccess(path.to_path_buf(), e))?;
         let reader = std::io::BufReader::new(file);
         let mut decoded_ballots: Vec<DecodedBallotChoices> = vec![];
+
+        // The codec context only depends on the contest configurations, so
+        // it is built once, on the first ballot, and reused for every other
+        // ballot in the file.
+        let mut codec_context: Option<MultiBallotCodecContext> = None;
 
         for line in reader.lines() {
             let line = line?;
@@ -62,9 +70,19 @@ impl DecodeMCBallots {
             let plaintext =
                 plaintext.map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
 
-            let decoded = BallotChoices::decode_from_bigint(
+            let context = match codec_context.as_mut() {
+                Some(context) => context,
+                None => {
+                    let context =
+                        MultiBallotCodecContext::new(contests, include_decline_to_vote)
+                            .map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
+                    codec_context.get_or_insert(context)
+                }
+            };
+
+            let decoded = BallotChoices::decode_from_bigint_with_context(
+                context,
                 &plaintext,
-                contests,
                 Some(serial_number_counter),
             )
             .map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
@@ -124,9 +142,16 @@ impl Pipe for DecodeMCBallots {
                 )
                 .join(BALLOTS_FILE);
 
+                let include_decline_to_vote = election_input
+                    .presentation
+                    .as_ref()
+                    .and_then(|presentation| presentation.decline_to_vote_policy.clone())
+                    == Some(sequent_core::ballot::DeclineToVotePolicy::ENABLED);
+
                 let res = Self::decode_ballots(
                     path_ballots.as_path(),
                     &contests,
+                    include_decline_to_vote,
                     &mut serial_number_counter,
                 );
 

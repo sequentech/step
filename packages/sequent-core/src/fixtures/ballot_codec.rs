@@ -246,6 +246,7 @@ pub fn get_irv_fixture_valid_ballot() -> BallotCodecFixture {
         plaintext: DecodedVoteContest {
             contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
             is_explicit_invalid: false,
+            is_decline_to_vote: false,
             choices: vec![
                 DecodedVoteChoice {
                     id: 0.to_string(),
@@ -294,6 +295,7 @@ pub fn get_irv_fixture_invalid_ballot() -> BallotCodecFixture {
         plaintext: DecodedVoteContest {
             contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
             is_explicit_invalid: false,
+            is_decline_to_vote: false,
             choices: vec![
                 DecodedVoteChoice {
                     id: 0.to_string(),
@@ -334,6 +336,7 @@ pub fn get_test_decoded_vote_contest() -> DecodedVoteContest {
     DecodedVoteContest {
         contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
         is_explicit_invalid: false,
+        is_decline_to_vote: false,
         invalid_errors: vec![],
         invalid_alerts: vec![],
         choices: vec![
@@ -579,6 +582,7 @@ pub fn get_too_long_writein_plaintext(increase: i64) -> DecodedVoteContest {
     DecodedVoteContest {
         contest_id: "1c1500ac-173e-4e78-a59d-91bfa3678c5a".to_string(),
         is_explicit_invalid: false,
+        is_decline_to_vote: false,
         choices: vec![
             DecodedVoteChoice {
                 id: "17325099-f5ab-4c48-a142-6d7ed721e9bb".to_string(),
@@ -610,6 +614,7 @@ pub fn get_writein_plaintext() -> DecodedVoteContest {
     DecodedVoteContest {
         contest_id: "1c1500ac-173e-4e78-a59d-91bfa3678c5a".to_string(),
         is_explicit_invalid: false,
+        is_decline_to_vote: false,
         choices: vec![
             DecodedVoteChoice {
                 id: "f257cd3a-d1cf-4b97-91f8-2dfe156b015c".to_string(),
@@ -1175,6 +1180,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             plaintext: DecodedVoteContest {
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
+                is_decline_to_vote: false,
                 choices: vec![
                     DecodedVoteChoice {
                         id: 0.to_string(),
@@ -1239,6 +1245,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             plaintext: DecodedVoteContest {
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
+                is_decline_to_vote: false,
                 choices: vec![
                     DecodedVoteChoice {
                         id: 0.to_string(),
@@ -1433,6 +1440,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             plaintext: DecodedVoteContest {
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: true,
+                is_decline_to_vote: false,
                 choices: vec![
                     DecodedVoteChoice {
                         id: 0.to_string(),
@@ -1456,7 +1464,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         candidate_id: None,
                         message: Some("errors.implicit.selectedMax".to_string()),
                         message_map: HashMap::from([
-                            ("numSelected".to_string(), 3.to_string()),
+                            ("numSelected".to_string(), 4.to_string()),
                             ("max".to_string(), 1.to_string()),
                         ]),
                     }
@@ -1467,7 +1475,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         candidate_id: None,
                         message: Some("errors.implicit.selectedMax".to_string()),
                         message_map: HashMap::from([
-                            ("numSelected".to_string(), 3.to_string()),
+                            ("numSelected".to_string(), 4.to_string()),
                             ("max".to_string(), 1.to_string()),
                         ]),
                     }
@@ -1637,6 +1645,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             plaintext: DecodedVoteContest {
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: true,
+                is_decline_to_vote: false,
                 choices: vec![
                     DecodedVoteChoice {
                         id: 0.to_string(),
@@ -1654,8 +1663,26 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         write_in_text: None,
                     }
                 ],
-                invalid_errors: vec![],
-                invalid_alerts: vec![],
+                invalid_errors: vec![
+                    InvalidPlaintextError {
+                        error_type: InvalidPlaintextErrorType::Implicit,
+                        candidate_id: None,
+                        message: Some("errors.implicit.selectedMax".to_string()),
+                        message_map: HashMap::from([
+                            ("numSelected".to_string(), 2.to_string()),
+                            ("max".to_string(), 1.to_string()),
+                        ]),
+                    }
+                ],
+                invalid_alerts: vec![InvalidPlaintextError {
+                    error_type: InvalidPlaintextErrorType::Implicit,
+                    candidate_id: None,
+                    message: Some("errors.implicit.selectedMax".to_string()),
+                    message_map: HashMap::from([
+                        ("numSelected".to_string(), 2.to_string()),
+                        ("max".to_string(), 1.to_string()),
+                    ]),
+                }],
             },
             encoded_ballot_bigint: "3".to_string(),
             encoded_ballot: vec_to_30_array(&vec![1, 3]).unwrap(),
@@ -1821,6 +1848,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             plaintext: DecodedVoteContest {
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
+                is_decline_to_vote: false,
                 choices: vec![
                     DecodedVoteChoice {
                         id: 0.to_string(),
@@ -1989,6 +2017,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             plaintext: DecodedVoteContest {
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
+                is_decline_to_vote: false,
                 choices: vec![
                     DecodedVoteChoice {
                         id: 0.to_string(),
@@ -2157,6 +2186,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             plaintext: DecodedVoteContest {
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
+                is_decline_to_vote: false,
                 choices: vec![
                     DecodedVoteChoice {
                         id: 0.to_string(),
@@ -2335,6 +2365,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             plaintext: DecodedVoteContest {
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
+                is_decline_to_vote: false,
                 choices: vec![
                     DecodedVoteChoice {
                         id: 0.to_string(),
@@ -2512,6 +2543,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             plaintext: DecodedVoteContest {
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
+                is_decline_to_vote: false,
                 choices: vec![
                     DecodedVoteChoice {
                         id: 0.to_string(),
@@ -2573,6 +2605,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             plaintext: DecodedVoteContest {
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
+                is_decline_to_vote: false,
                 invalid_errors: vec![],
                 invalid_alerts: vec![],
                 choices: vec![
@@ -2629,6 +2662,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             plaintext: DecodedVoteContest {
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
+                is_decline_to_vote: false,
                 invalid_errors: vec![],
                 invalid_alerts: vec![],
                 choices: vec![
@@ -2685,6 +2719,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             plaintext: DecodedVoteContest {
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
+                is_decline_to_vote: false,
                 invalid_errors: vec![],
                 invalid_alerts: vec![],
                 choices: vec![
@@ -2739,6 +2774,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             plaintext: DecodedVoteContest {
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: true,
+                is_decline_to_vote: false,
                 invalid_errors: vec![
                     InvalidPlaintextError {
                         error_type: InvalidPlaintextErrorType::Explicit,
@@ -2775,6 +2811,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             plaintext: DecodedVoteContest {
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: true,
+                is_decline_to_vote: false,
                 invalid_errors: vec![
                     InvalidPlaintextError {
                         error_type: InvalidPlaintextErrorType::Explicit,
@@ -2787,7 +2824,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         candidate_id: None,
                         message: Some("errors.implicit.selectedMax".to_string()),
                         message_map: HashMap::from([
-                            ("numSelected".to_string(), "3".to_string()),
+                            ("numSelected".to_string(), "4".to_string()),
                             ("max".to_string(), "2".to_string())
                         ]),
                     },
@@ -2848,6 +2885,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             plaintext: DecodedVoteContest {
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
+                is_decline_to_vote: false,
                 invalid_errors: vec![],
                 invalid_alerts: vec![],
                 choices: vec![
@@ -2904,6 +2942,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             plaintext: DecodedVoteContest {
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
+                is_decline_to_vote: false,
                 invalid_errors: vec![
                     InvalidPlaintextError {
                         error_type: InvalidPlaintextErrorType::EncodingError,
@@ -2945,6 +2984,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             plaintext: DecodedVoteContest {
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
+                is_decline_to_vote: false,
                 invalid_errors: vec![],
                 invalid_alerts: vec![],
                 choices: vec![
@@ -2983,6 +3023,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             plaintext: DecodedVoteContest {
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
+                is_decline_to_vote: false,
                 invalid_errors: vec![
                     InvalidPlaintextError {
                         error_type: InvalidPlaintextErrorType::EncodingError,
@@ -3027,6 +3068,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             plaintext: DecodedVoteContest {
                 contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
+                is_decline_to_vote: false,
                 invalid_errors: vec![
                     InvalidPlaintextError {
                         error_type: InvalidPlaintextErrorType::EncodingError,

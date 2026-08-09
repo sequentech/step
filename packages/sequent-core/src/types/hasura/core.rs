@@ -16,9 +16,10 @@ use crate::{
     serialization::deserialize_with_path::deserialize_value,
     types::{
         ceremonies::{
-            CeremoniesPolicy, KeysCeremonyExecutionStatus, KeysCeremonyStatus,
+            AutomaticRecountPolicy, CeremoniesPolicy,
+            KeysCeremonyExecutionStatus, KeysCeremonyStatus,
         },
-        tally_sheets::AreaContestResults,
+        tally_sheets::{AreaContestResults, TallySheetStatus},
     },
 };
 
@@ -105,6 +106,19 @@ pub struct ElectionEvent {
     pub public_key: Option<String>,
     pub statistics: Option<Value>,
     pub external_id: Option<String>,
+}
+
+impl ElectionEvent {
+    pub fn automatic_recount_policy(&self) -> AutomaticRecountPolicy {
+        let presentation = self.presentation.as_ref().unwrap_or(&Value::Null);
+        presentation
+            .get("automatic_recount_policy")
+            .and_then(|value: &Value| value.as_str())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| AutomaticRecountPolicy::DISABLED.to_string())
+            .parse::<AutomaticRecountPolicy>()
+            .unwrap_or(AutomaticRecountPolicy::DISABLED)
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -295,6 +309,18 @@ pub struct AreaContest {
     pub contest_id: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
+pub struct PhoneBlacklistEntry {
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub phone_e164: String,
+    pub reason: Option<String>,
+    pub created_at: DateTime<Local>,
+    pub created_by: String,
+    pub updated_at: DateTime<Local>,
+}
+
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct TallySheet {
     pub id: String,
@@ -307,12 +333,16 @@ pub struct TallySheet {
     pub last_updated_at: Option<DateTime<Local>>,
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
-    pub published_at: Option<DateTime<Local>>,
-    pub published_by_user_id: Option<String>,
+    pub reviewed_at: Option<DateTime<Local>>,
+    pub reviewed_by_user_id: Option<String>,
     pub content: Option<AreaContestResults>,
     pub channel: Option<String>,
-    pub deleted_at: Option<DateTime<Local>>,
+    pub deleted_at: Option<DateTime<Local>>, /* Mark as deleted when a new
+                                              * version is created. */
     pub created_by_user_id: String,
+    pub status: TallySheetStatus,
+    pub version: i32,
+    pub import_id: Option<String>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]

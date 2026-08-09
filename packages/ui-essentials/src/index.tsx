@@ -21,7 +21,7 @@ export {default as PageBanner} from "./components/PageBanner/PageBanner"
 export {default as PageLimit} from "./components/PageLimit/PageLimit"
 export {default as Version} from "./components/Version/Version"
 export {default as VerticalBox} from "./components/VerticalBox/VerticalBox"
-export {default as WarnBox} from "./components/WarnBox/WarnBox"
+export {default as WarnBox, warnIdToClassName} from "./components/WarnBox/WarnBox"
 export {
     default as BreadCrumbSteps,
     BreadCrumbStepsVariant,
@@ -42,22 +42,39 @@ export {ActionsContainer, StyledButton} from "./components/ConfirmationActions/C
 export {PlaintextVoteContest} from "./components/PlaintextVoteContest/PlaintextVoteContest"
 export type {PlaintextVoteContestProps} from "./components/PlaintextVoteContest/PlaintextVoteContest"
 export {
-    TallyResultsView,
+    CandidateResults,
+    CandidateResultsChart,
+    default as ResultsAndParticipation,
+    defaultResultsAndParticipationLabels,
+    ParticipationSummary,
     ParticipationSummaryChart,
-    CandidatesResultsCharts,
-    TallyResultsCandidatesPlurality,
-    TallyResultsCandidatesIRV,
-    winningPositionComparator,
-    ECandidateStatus,
-} from "./components/TallyResults"
+    PreferentialCandidateResults,
+    sortCandidateResults,
+    TALLY_RESULTS_PIE_HEIGHT,
+    TALLY_RESULTS_PIE_PANEL_WIDTH,
+} from "./components/TallyResults/TallyResults"
+export {
+    default as ResultsSelectorTabs,
+    ResultsSelectorTabs as ResultsSelectorTabsComponent,
+} from "./components/TallyResults/ResultsSelectorTabs"
 export type {
-    TallyCandidate,
-    TallyParticipationSummary,
-    TallyResultsViewModel,
-    RunoffStatus,
-    Round,
     CandidateReference,
-    CandidateOutcome,
-    CandidatesOutcomes,
-    CandidatesStatus,
-} from "./components/TallyResults"
+    CandidateResultRow,
+    ResultsAndParticipationLabels,
+    ResultsAndParticipationProps,
+    ResultsParticipationSummary,
+    PreferentialProcessResults,
+    PreferentialRound,
+} from "./components/TallyResults/TallyResults"
+export type {
+    ResultsSelectorAreaOption,
+    ResultsSelectorLabels,
+    ResultsSelectorOption,
+    ResultsSelectorSelection,
+    ResultsSelectorTabsProps,
+} from "./components/TallyResults/ResultsSelectorTabs"
+export {default as ReviewChangesTable} from "./components/ReviewChangesTable/ReviewChangesTable"
+export type {
+    ReviewChangesRow,
+    ReviewChangesTableProps,
+} from "./components/ReviewChangesTable/ReviewChangesTable"

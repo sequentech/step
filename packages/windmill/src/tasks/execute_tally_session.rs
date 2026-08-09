@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::area::get_event_areas;
+use crate::postgres::cast_vote::count_unresolved_cast_votes;
 use crate::postgres::contest::export_contests;
 use crate::postgres::election::set_election_initialization_report_generated;
 use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
@@ -16,7 +17,7 @@ use crate::postgres::tally_session::{
 use crate::postgres::tally_session_contest::update_tally_session_contests_annotations;
 use crate::postgres::tally_session_execution::insert_tally_session_execution;
 use crate::postgres::tally_session_resolution::get_resolution_by_tally_session;
-use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
+use crate::postgres::tally_sheet::get_approved_tally_sheets_by_event;
 use crate::postgres::template::get_template_by_alias;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
 use crate::services::celery_app::get_celery_app;
@@ -61,7 +62,7 @@ use crate::services::users::list_users;
 use crate::services::users::ListUsersFilter;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
-use b3::messages::{artifact::Plaintexts, message::Message, statement::StatementType};
+use b4::messages::{artifact::Plaintexts, message::Message, statement::StatementType};
 use celery::prelude::TaskError;
 use chrono::{DateTime, Duration, Utc};
 use deadpool_postgres::Client as DbClient;
@@ -78,6 +79,7 @@ use sequent_core::services::area_tree::TreeNode;
 use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::ceremonies::TallyTrusteeStatus;
 use sequent_core::types::ceremonies::TallyType;
@@ -638,17 +640,12 @@ fn get_tally_session_created_at_timestamp_secs(tally_session: &TallySession) -> 
 #[instrument(skip_all, err)]
 pub fn clean_tally_sheets(
     tally_sheet_rows: &Vec<TallySheet>,
-    plaintexts_data: &Vec<AreaContestDataType>,
+    ballot_styles: &Vec<BallotStyle>,
 ) -> Result<Vec<TallySheet>> {
-    let contests_map: HashMap<String, Contest> = plaintexts_data
-        .clone()
-        .into_iter()
-        .map(|area_contest| {
-            (
-                area_contest.contest.id.clone(),
-                area_contest.contest.clone(),
-            )
-        })
+    let contests_map: HashMap<String, Contest> = ballot_styles
+        .iter()
+        .flat_map(|ballot_style| ballot_style.contests.iter())
+        .map(|contest| (contest.id.clone(), contest.clone()))
         .collect();
     tally_sheet_rows
         .iter()
@@ -696,6 +693,7 @@ async fn map_plaintext_data(
     tally_session_execution: TallySessionExecution,
     tally_session_contest: Vec<TallySessionContest>,
     ballot_styles: Vec<BallotStyleHasura>,
+    force_recount: bool,
 ) -> Result<
     Option<(
         Vec<AreaContestDataType>,
@@ -809,6 +807,35 @@ async fn map_plaintext_data(
         return Ok(None);
     }
 
+    // Refuse to tally while a contest area has a vote whose Datafix outcome is
+    // unresolved. Those votes are not countable, so proceeding would silently
+    // under-count the area.
+    let tenant_uuid = parse_uuid_v4(&tenant_id).with_context(|| "Error parsing tenant_id")?;
+    let election_event_uuid =
+        parse_uuid_v4(&election_event_id).with_context(|| "Error parsing election_event_id")?;
+    for contest in &tally_session_contest {
+        let election_uuid =
+            parse_uuid_v4(&contest.election_id).with_context(|| "Error parsing election_id")?;
+        let area_uuid = parse_uuid_v4(&contest.area_id).with_context(|| "Error parsing area_id")?;
+        let unresolved_count = count_unresolved_cast_votes(
+            hasura_transaction,
+            &tenant_uuid,
+            &election_event_uuid,
+            &election_uuid,
+            &area_uuid,
+        )
+        .await?;
+        if unresolved_count > 0 {
+            return Err(anyhow!(
+                "Refusing to tally election {} area {} for event {election_event_id}: \
+                 {unresolved_count} cast vote(s) have an unresolved Datafix outcome",
+                contest.election_id,
+                contest.area_id,
+            )
+            .into());
+        }
+    }
+
     let last_message_id: i64 = tally_session_execution.current_message_id as i64;
 
     // get board messages
@@ -870,18 +897,15 @@ async fn map_plaintext_data(
         .map(|board_message| board_message.id)
         .unwrap_or(-1);
 
-    // In a tie-break re-run the tally replays from the last processed message;
-    // normally we require a new (unprocessed) message to proceed.
+    // Recounts and tie-break re-runs replay the last processed message; normally
+    // we require a new (unprocessed) message to proceed.
     let board_message_to_process = match board_messages.iter().find(|m| m.id > last_message_id) {
         Some(msg) => msg,
-        None if tie_break_rerun => {
-            event!(
-                Level::INFO,
-                "Replaying last board message for tie-break re-run"
-            );
-            board_messages
-                .last()
-                .ok_or_else(|| anyhow::anyhow!("No board messages found for tie-break re-run"))?
+        None if tie_break_rerun || force_recount => {
+            event!(Level::INFO, "Replaying last board message for tally re-run");
+            board_messages.last().ok_or_else(|| {
+                anyhow::anyhow!("No board messages found for tally re-run (tie-break or recount)")
+            })?
         }
         None => {
             event!(Level::INFO, "No new board messages — skipping");
@@ -982,7 +1006,7 @@ async fn map_plaintext_data(
     let areas = get_event_areas(hasura_transaction, &tenant_id, &election_event_id).await?;
 
     let tally_sheet_rows =
-        get_published_tally_sheets_by_event(hasura_transaction, &tenant_id, &election_event_id)
+        get_approved_tally_sheets_by_event(hasura_transaction, &tenant_id, &election_event_id)
             .await?;
 
     let contest_encryption_policy = tally_session
@@ -993,7 +1017,7 @@ async fn map_plaintext_data(
     let plaintexts_data: Vec<AreaContestDataType> = process_plaintexts(
         hasura_transaction,
         relevant_plaintexts,
-        ballot_styles,
+        ballot_styles.clone(),
         tally_session_contest.clone(),
         &areas,
         &tenant_id,
@@ -1002,7 +1026,7 @@ async fn map_plaintext_data(
     )
     .await?;
     event!(Level::INFO, "Num plaintexts_data {}", plaintexts_data.len());
-    let tally_sheets = clean_tally_sheets(&tally_sheet_rows, &plaintexts_data)?;
+    let tally_sheets = clean_tally_sheets(&tally_sheet_rows, &ballot_styles)?;
 
     let cast_votes_count = count_cast_votes_election_with_census(&tally_session_contest).await?;
     Ok(Some((
@@ -1124,6 +1148,7 @@ pub async fn execute_tally_session_wrapped(
     keycloak_transaction: &Transaction<'_>,
     tally_type: Option<String>,
     election_ids: Option<Vec<String>>,
+    force_new_results_id: bool,
 ) -> Result<()> {
     let Some((tally_session_execution, tally_session, tally_session_contests, ballot_styles)) =
         find_last_tally_session_execution_and_all_related_data(
@@ -1195,6 +1220,7 @@ pub async fn execute_tally_session_wrapped(
         tally_session_execution.clone(),
         tally_session_contests.clone(),
         ballot_styles.clone(),
+        force_new_results_id,
     )
     .await?;
 
@@ -1264,8 +1290,8 @@ pub async fn execute_tally_session_wrapped(
         &areas,
         &default_language,
         tally_type_enum.clone(),
-        plaintexts_data.is_empty(), // &tally_session,
-        has_resolved_tie_break,
+        plaintexts_data.is_empty(),
+        force_new_results_id || has_resolved_tie_break,
     )
     .await?;
 
@@ -1394,6 +1420,7 @@ pub async fn transactions_wrapper(
     tally_session_id: String,
     tally_type: Option<String>,
     election_ids: Option<Vec<String>>,
+    force_new_results_id: bool,
 ) -> Result<()> {
     let mut keycloak_db_client: DbClient = get_keycloak_pool()
         .await
@@ -1422,6 +1449,7 @@ pub async fn transactions_wrapper(
         &keycloak_transaction,
         tally_type.clone(),
         election_ids.clone(),
+        force_new_results_id,
     )
     .await;
 
@@ -1451,6 +1479,13 @@ pub async fn transactions_wrapper(
     }
 }
 
+// DEPLOY NOTE: `force_new_results_id` is a required positional argument, so
+// any `execute_tally_session` payload already queued in RabbitMQ (produced by
+// an older windmill version, e.g. during a rolling deploy) will fail to
+// deserialize once this version's consumer picks it up. Drain the
+// `execute_tally_session` queue (or ensure no in-flight tasks reference the
+// old signature) before/while rolling out this change, rather than relying
+// on a mixed-version deploy.
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(time_limit = 1200000, max_retries = 0, expires = 15)]
@@ -1460,6 +1495,7 @@ pub async fn execute_tally_session(
     tally_session_id: String,
     tally_type: Option<String>,
     election_ids: Option<Vec<String>>,
+    force_new_results_id: bool,
 ) -> Result<()> {
     let _permit = acquire_semaphore().await?;
     let Ok(lock) = PgLock::acquire(
@@ -1485,6 +1521,7 @@ pub async fn execute_tally_session(
         tally_session_id.clone(),
         tally_type.clone(),
         election_ids.clone(),
+        force_new_results_id,
     ));
     let res = loop {
         tokio::select! {

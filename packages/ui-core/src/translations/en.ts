@@ -107,6 +107,12 @@ const englishTranslation = {
                 notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",
                 alert: "Selection marked will be considered invalid vote.",
             },
+            configuration: {
+                multipleExplicitInvalidCandidates:
+                    "Invalid ballot configuration: the contest defines {{count}} explicitly invalid candidates, but only one is allowed.",
+                multipleExplicitBlankCandidates:
+                    "Invalid ballot configuration: the contest defines {{count}} explicit blank candidates, but only one is allowed.",
+            },
         },
         ballotHash: "Your Ballot ID: {{ballotId}}",
         version: {

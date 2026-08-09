@@ -12,6 +12,98 @@ const basqueTranslation: TranslationType = {
         driversLicense: "Gidabaimena",
         loading: "Kargatzen...",
         loadingDataProvider: "Datu hornitzailea kargatzen...",
+        tallySheetImport: {
+            title: "Eskrutinio-akten inportazioak",
+            subtitle:
+                "Inportatu ES&S edo CSV eskrutinio-akten fitxategiak, aurreikusi sortutako hautetsontziak eta onartu eskrutinio-aktak sortu aurretik.",
+            createTitle: "Inportatu eskrutinio-aktak",
+            detailTitle: "Eskrutinio-aktaren inportazioa",
+            empty: "Oraindik ez dago eskrutinio-akten inportaziorik.",
+            emptyBody:
+                "Hasi hauteskunde ekitaldi honetarako ES&S Enhanced XML edo CSV kanoniko fitxategi bat inportatuz.",
+            sourceFormat: {
+                ESS_ENHANCED_XML: "ES&S Enhanced XML",
+                CANONICAL_CSV: "CSV kanonikoa",
+            },
+            channel: {
+                PAPER: "Paper",
+                POSTAL: "Postaz",
+                IN_PERSON: "Aurrez aurre",
+            },
+            table: {
+                created: "Sortua",
+                createdBy: "Sortzailea",
+                file: "Fitxategia",
+                format: "Formatua",
+                channel: "Kanala",
+                status: "Egoera",
+                labels: "Etiketak",
+                annotations: "Oharrak",
+                actions: "Ekintzak",
+            },
+            summary: {
+                imported: "Inportatuak",
+                changed: "Aldatuak",
+                new: "Berriak",
+                unchanged: "Aldaketarik gabe",
+                conflicted: "Gatazkan",
+                errors: "Erroreak",
+            },
+            status: {
+                PENDING_REVIEW: "Berrikuspenaren zain",
+                APPROVED: "Onartua",
+                DISAPPROVED: "Ez onartua",
+                FAILED_VALIDATION: "Balidazioak huts egin du",
+                CONFLICTED: "Gatazkan",
+                NEW: "Berria",
+                CHANGED: "Aldatua",
+                UNCHANGED: "Aldaketarik gabe",
+            },
+            fields: {
+                format: "Formatua",
+                channel: "Kanala",
+                supportedFormats: "Onartutako formatuak: XML, CSV",
+                generatedTallySheet: "Sortutako eskrutinio-akta",
+                sourceCandidates: "Jatorrizko hautagaien IDak",
+                none: "Bat ere ez",
+            },
+            actions: {
+                create: "Inportatu eskrutinio-aktak",
+                review: "Berrikusi",
+                source: "Iturria",
+                cancel: "Ezeztatu",
+                preview: "Aurreikusi",
+                save: "Gorde inportazioa",
+                approve: "Onartu",
+                disapprove: "Ez onartu",
+                close: "Itxi",
+                openExisting: "Ireki dagoena",
+            },
+            notifications: {
+                selectFile: "Hautatu inportatzeko fitxategi bat aurreikusi aurretik",
+                duplicateSource:
+                    "Jatorrizko fitxategiaren hash hau lehendik dagoen eskrutinio-akten inportazio batean agertzen da.",
+                uploadUrlError: "Ezin izan da igotzeko URLa sortu",
+                uploadError: "Ezin izan da inportazio-fitxategia igo",
+                previewEmpty: "Aurreikuspenaren erantzuna hutsik zegoen",
+                previewError: "Ezin izan da inportazioa aurreikusi",
+                importEmpty: "Inportazioaren erantzuna hutsik zegoen",
+                created: "Eskrutinio-aktaren inportazioa sortu da",
+                createError: "Ezin izan da inportazioa sortu",
+                reviewEmpty: "Berrikuspenaren erantzuna hutsik zegoen",
+                conflicted: "Inportazioak zaharkitutako oinarri-gatazkak ditu",
+                approved: "Inportazioa onartu da",
+                disapproved: "Inportazioa ez da onartu",
+                reviewError: "Ezin izan da inportazioa berrikusi",
+                sourceUrlError: "Ezin izan da jatorrizko deskarga-URLa sortu",
+                sourceDownloadError: "Ezin izan da jatorrizko fitxategia deskargatu",
+            },
+            pagination: {
+                range: "{{rangeStart}}-{{rangeEnd}} / {{total}}",
+                previous: "Aurrekoa",
+                next: "Hurrengoa",
+            },
+        },
         logsScreen: {
             noPermissions: "Ez duzu egunkariak atzitzeko baimenik.",
             title: "Egunkariak",
@@ -69,6 +161,7 @@ const basqueTranslation: TranslationType = {
                 CREATE_ELECTION_EVENT: "Sortu Hauteskunde Gertaera",
                 IMPORT_ELECTION_EVENT: "Inportatu Hauteskunde Gertaera",
                 IMPORT_USERS: "Inportatu Erabiltzaileak",
+                EDIT_USER: "Editatu Hauteslea",
                 IMPORT_CANDIDATES: "Inportatu Hautagaiak",
                 EXPORT_VOTERS: "Esportatu Bozkatzaileak",
                 CREATE_TRANSMISSION_PACKAGE: "Sortu Transmisio Paketea",
@@ -88,6 +181,7 @@ const basqueTranslation: TranslationType = {
                 PREPARE_PUBLICATION_PREVIEW: "Argitalpenaren aurrebista prestatu",
                 EXPORT_TALLY_RESULTS_XLSX: "Esportatu zenbaketa-emaitzak XLSX formatuan",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Ziurtagiri-agintaritzak esportatu",
+                PUBLISH_RESULTS_WEBSITE: "Argitaratu emaitzen webgunea",
             },
             widget: {
                 taskTitle: "Ataza: {{title}}",
@@ -143,6 +237,7 @@ const basqueTranslation: TranslationType = {
                 subtitle: "Hauteskunde mota konfigurazioa",
                 onlineVoting: "Lineko Bozketa",
                 kioskVoting: "Kiosko Bozketa",
+                telephoneVoting: "Telefono Bozketa",
                 settingTitle: "Ezarpenak",
                 settingSubtitle: "Konfigurazio Orokorra",
                 sms: "SMS",
@@ -273,6 +368,8 @@ const basqueTranslation: TranslationType = {
                 notify: {
                     success: "Lokalizazioa arrakastaz eguneratua",
                     error: "Lokalizazio eguneraketa huts egin du",
+                    invalidDateTimeFormat:
+                        "Data/orduaren formatu baliogabea. Erabili yyyy, MM, dd, HH, mm, ss tokenak (adib. dd/MM/yyyy HH:mm).",
                 },
                 common: {
                     title: "Lokalizazioa",
@@ -326,6 +423,26 @@ const basqueTranslation: TranslationType = {
                     },
                     policyLabel: "Lehiaketa zifratze politika",
                 },
+                votingPortalDateTimeFormat: {
+                    policyLabel: "Bozketa-atariko data eta orduaren formatua",
+                    helperText:
+                        'Gertaera osoari aplikatzen zaio. Hizkuntza bakoitzeko gainjartzeko, gehitu "votingPortalDateTimeFormat" gakoa Lokalizazioa fitxan, yyyy, MM, dd, HH, mm, ss tokenak erabiliz (adib. dd/MM/yyyy HH:mm). Ikus dokumentazioa xehetasunetarako.',
+                    options: {
+                        "legacy-gb-24h": "Legacy GB 24h (dd/MM/yyyy HH:mm, 24h)",
+                        "iso-local": "ISO Local (yyyy-MM-dd HH:mm)",
+                        "us-12h": "US 12h (MM/dd/yyyy h:mm AM/PM)",
+                        "locale-medium": "Locale Medium (data ertaina, ordu laburra)",
+                        "date-only": "Date Only (ordurik gabe)",
+                        "custom": "Formatu pertsonalizatua",
+                    },
+                    customFormat: {
+                        label: "Data eta ordu formatu pertsonalizatua",
+                        helperText:
+                            "Erabili yyyy, MM, dd, HH, mm, ss tokenak (adib. dd/MM/yyyy HH:mm). Beste edozein karaktere literalki erakusten da.",
+                        invalid:
+                            "Formatu baliogabea. Erabili yyyy, MM, dd, HH, mm, ss tokenetako bat gutxienez.",
+                    },
+                },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Ez dago Kontaketa Atzera",
                     COUNTDOWN: "Kontaketa Atzera",
@@ -368,6 +485,13 @@ const basqueTranslation: TranslationType = {
                         "manual-ceremonies": "Eskuzko zeremoniak",
                     },
                 },
+                automaticRecountPolicy: {
+                    policyLabel: "Inportazioa onartu ondorengo zenbaketa automatikoa",
+                    options: {
+                        enabled: "Gaituta",
+                        disabled: "Desgaituta",
+                    },
+                },
                 weightedVotingPolicy: {
                     policyLabel: "Bozketa Ponderatuaren Politika",
                     options: {
@@ -401,6 +525,47 @@ const basqueTranslation: TranslationType = {
             },
             createElectionEventSuccess: "Hauteskunde Gertaera sortua",
             createElectionEventError: "Errorea hauteskunde gertaera sortzerakoan",
+            ivr: {
+                tabs: {
+                    config: "Konfigurazioa",
+                    blacklist: "Blokeatze-zerrenda",
+                    prompts: "Ahots-mezuak",
+                },
+                common: {
+                    saveSuccess: "Behar bezala gorde da",
+                    saveError: "Ezin izan da gorde",
+                    deleteSuccess: "Behar bezala ezabatu da",
+                    deleteError: "Ezin izan da ezabatu",
+                },
+                config: {
+                    configuredPhone: "Konfiguratutako telefono-zenbakia",
+                    infoMsg:
+                        "Konfiguratu IVRaren fluxua eta haren propietateak behean. Xehetasun gehiagorako, jarri harremanetan Sequent-ekin.",
+                },
+                prompts: {
+                    emptyMsg: "Oraindik ez da promptik sortu",
+                    infoMsg:
+                        "Konfiguratu IVRak erabiltzen dituen promptak. Iragarpen-promptak nahitaezkoak dira, eta sistema-promptak nahi diren hizkuntzetarako gainidatz daitezke. SSML onartzen da, hizkuntzak nahasteko ere bai.",
+                    editorTitle: "Prompta",
+                    editorSubtitle: "Promptaren konfigurazioa",
+                },
+                blacklist: {
+                    columns: {
+                        phone: "Telefono-zenbakia",
+                        reason: "Arrazoia",
+                        createdAt: "Sortze-data",
+                        createdBy: "Nork sortua",
+                        createdBefore: "Noiz baino lehen sortua",
+                        createdAfter: "Noiz baino ondoren sortua",
+                    },
+                    emptyMsg: "Ez dago sarrerarik blokeatze-zerrendan",
+                    infoMsg:
+                        "Konfiguratu IVRaren blokeo-zerrenda. Zenbaki hauetatik datozen deiak automatikoki deskonektatuko ditu sistemak.",
+
+                    noFilterMatch: "Ez dago emandako iragazkiekin bat datorren sarrerarik",
+                    phoneRequired: "Telefono-zenbakia nahitaezkoa da",
+                },
+            },
             stats: {
                 elegibleVoters: "Bozkatzaile Eskudunak",
                 voters: "Egiazko Bozkatzaileak",
@@ -439,11 +604,13 @@ const basqueTranslation: TranslationType = {
                 dashboard: "Panela",
                 monitoring: "Monitorizazioa",
                 data: "Datuak",
+                ivr: "IVR",
                 localization: "Lokalizazioa",
                 voters: "Bozkatzaileak",
                 areas: "Eremuak",
                 keys: "Giltzak",
                 tally: "Zenbaketa",
+                tallySheetImports: "Akten inportazioa",
                 publish: "Argitaratu",
                 logs: "Egunkariak",
                 tasks: "Atazak",
@@ -601,6 +768,7 @@ const basqueTranslation: TranslationType = {
                 alias: "Ezizena",
                 description: "Deskribapena",
                 securityConfirmationHtml: "Segurtasun-berrespena HTML",
+                ivrPrompt: "IVR mezua",
                 externalId: "Kanpoko IDa",
             },
             securityConfirmationPolicy: {
@@ -625,6 +793,7 @@ const basqueTranslation: TranslationType = {
                 publish: "Argitaratu",
                 logs: "Egunkariak",
                 approvals: "Onespenak",
+                tallySheets: "Kontaketa orriak",
             },
             gracePeriodPolicy: {
                 "label": "Grazia Aldi Politika",
@@ -663,6 +832,20 @@ const basqueTranslation: TranslationType = {
                     "do-not-generate": "Ez sortu",
                 },
             },
+            declineToVotePolicy: {
+                label: "Bozkatzeari uko egiteko politika",
+                options: {
+                    enabled: "Gaituta",
+                    disabled: "Desgaituta",
+                },
+            },
+            votingScreenBackPolicy: {
+                label: "Bozketa-pantailako atzera botoiaren politika",
+                options: {
+                    "election-selection-screen": "Joan hauteskundeak hautatzeko pantailara",
+                    "start-screen": "Joan hauteskundearen hasierako pantailara",
+                },
+            },
         },
         tenantScreen: {
             common: {
@@ -690,6 +873,15 @@ const basqueTranslation: TranslationType = {
             users: {
                 title: "Erabiltzaileak",
                 subtitle: "Ikusi eta editatu erabiltzaile datuak",
+                review: {
+                    title: "Aldaketak berrikusi",
+                    subtitle: "Berretsi eguneratze hauek bidali aurretik.",
+                    confirm: "Aldaketak berretsi",
+                    noChanges: "Ez dago berrikusteko aldaketarik",
+                    field: "Eremua",
+                    currentValue: "Uneko balioa",
+                    newValue: "Balio berria",
+                },
                 edit: {
                     title: "Erabiltzaile Datuak",
                     subtitle: "Ikusi eta editatu erabiltzailea",
@@ -700,6 +892,8 @@ const basqueTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Bozkatu du",
+                    "voted-channel": "Boto-kanala",
+                    "disable-comment": "Desgaitzeko iruzkina",
                     "username": "Erabiltzaile izena",
                     "first_name": "Izena",
                     "last_name": "Abizena",
@@ -737,6 +931,15 @@ const basqueTranslation: TranslationType = {
             voters: {
                 title: "Bozkatzaileak",
                 subtitle: "Ikusi eta editatu bozkatzaile datuak",
+                review: {
+                    title: "Aldaketak berrikusi",
+                    subtitle: "Berretsi eguneratze hauek bidali aurretik.",
+                    confirm: "Aldaketak berretsi",
+                    noChanges: "Ez dago berrikusteko aldaketarik",
+                    field: "Eremua",
+                    currentValue: "Uneko balioa",
+                    newValue: "Balio berria",
+                },
                 logs: {
                     label: "Erabiltzailearen Egunkariak",
                 },
@@ -848,14 +1051,20 @@ const basqueTranslation: TranslationType = {
                 "tally-results-read": "Irakurri Zenbaketa Emaitzak",
                 "publish-read": "Irakurri Argitalpena",
                 "publish-write": "Editatu Argitalpena",
+                "publish-results-read": "Irakurri Emaitzen Argitalpena",
+                "publish-results-write": "Editatu Emaitzen Argitalpena",
                 "logs-read": "Irakurri Egunkariak",
                 "tasks-read": "Irakurri Ataza Exekuzioa",
                 "keys-read": "Irakurri Giltzak",
                 "document-upload": "Igo Dokumentuak",
                 "document-download": "Deskargatu Dokumentuak",
                 "tally-sheet-create": "Sortu Zenbaketa Orria",
+                "tally-sheet-import-create": "Sortu zenbaketa orrien inportazioa",
+                "tally-sheet-import-review": "Berrikusi zenbaketa orrien inportazioa",
+                "tally-sheet-import-view": "Ikusi zenbaketa orrien inportazioa",
+                "tally-recount-execute": "Exekutatu emaitzen birzenbaketa",
                 "trustee-ceremony": "Fideikomisario Zeremonia",
-                "tally-sheet-publish": "Argitaratu Zenbaketa Orria",
+                "tally-sheet-review": "Zenbaketa-orria berrikusi",
                 "tally-sheet-view": "Ikusi Zenbaketa Orria",
                 "admin-ceremony": "Admin Zeremonia",
                 "tally-sheet-delete": "Ezabatu Zenbaketa Orria",
@@ -1168,6 +1377,8 @@ const basqueTranslation: TranslationType = {
                 unarchive: "Desartxibatu",
                 cancel: "Ezeztatu",
                 edit: "Editatu",
+                yes: "Bai",
+                no: "Ez",
                 save: "Gorde",
                 close: "Itxi",
                 back: "Atzera",
@@ -1206,6 +1417,7 @@ const basqueTranslation: TranslationType = {
                 online: "Linea",
                 kiosk: "Kiosko",
                 early_voting: "Aurre-botoa",
+                telephone: "Telefono bozketa",
             },
             message: {
                 delete: "Ziur zaude elementu hau ezabatu nahi duzula?",
@@ -1284,6 +1496,7 @@ const basqueTranslation: TranslationType = {
                 subtitle: "Hautagaia konfigurazioa.",
             },
             edit: {
+                externalId: "Kanpoko IDa",
                 general: "Orokorra",
                 type: "Mota",
                 image: "Irudia",
@@ -1323,6 +1536,7 @@ const basqueTranslation: TranslationType = {
                 subtitle: "Lehiaketa konfigurazioa.",
             },
             edit: {
+                externalId: "Kanpoko IDa",
                 general: "Orokorra",
                 type: "Mota",
                 image: "Irudia",
@@ -1543,6 +1757,56 @@ const basqueTranslation: TranslationType = {
         tally: {
             errorUploadingSignature: "Errorea izan da sinadura igotzean",
             downloadTransmissionPackage: "Deskargatu Transmisio Paketea",
+            resultsPublication: {
+                sectionTitle: "Publish to results website",
+                policyTitle: "Results Website",
+                policyAccess: "Results Website Access",
+                policyVisibility: "Results Website Visibility",
+                enabled: "Enabled",
+                disabled: "Disabled",
+                fullEvent: "Full event",
+                areaBased: "Area based",
+                publishStarted: "Results publication started",
+                publishError: "Could not start results publication",
+                revoked: "Results publication revoked",
+                revokeError: "Could not revoke results publication",
+                waitingForTally: "Results can be published after this tally has completed.",
+                writePermissionRequired:
+                    "You need publish-results-write permission to publish or revoke results.",
+                readPermissionRequired:
+                    "You need publish-results-read permission to view publication history.",
+                disabledPolicy:
+                    "Results website publishing is disabled for this election event. Enable it in the election event data before publishing results.",
+                loadingElectionContext: "Results publication is loading election context.",
+                route: "Route",
+                eventResults: "Event results",
+                electionResults: "Election results",
+                election: "Election",
+                access: "Access",
+                publicAccess: "Public access",
+                authenticatedAccess: "Authenticated access",
+                visibility: "Visibility",
+                fullPublishedScope: "Full published scope",
+                personalVisibility: "Personal visibility",
+                contests: "Contests",
+                noTalliedContests: "No tallied contests available.",
+                publishSelectedContests: "Publish selected contests",
+                selectedContestCount: "{{count}} contest selected",
+                selectedContestCount_plural: "{{count}} contests selected",
+                history: "Publication history",
+                version: "Version",
+                status: "Status",
+                published: "Published",
+                revokedAt: "Revoked",
+                actions: "Actions",
+                open: "Open",
+                revoke: "Revoke",
+                noPublications: "No publications yet.",
+                confirmTitle: "Start publish to results website?",
+                confirmDescription:
+                    "This will create a new publication from the current tally execution. The existing voter-facing results stay active until this publish task succeeds.",
+                close: "Close",
+            },
             transmissionPackage: {
                 title: "'{{name}}' Eremuaren eta '{{eventName}}' Hauteskundearen Transmisio Paketea",
                 description:
@@ -1643,6 +1907,13 @@ const basqueTranslation: TranslationType = {
             startTallyCeremonyError: "Ezin izan da Zenbaketa Zeremonia hasi",
             cancelTallyCeremonySuccess: "Zenbaketa Zeremonia ezeztatua",
             cancelTallyCeremonyError: "Ezin izan da Zenbaketa Zeremonia ezeztatu",
+            recountTallyCeremony: "Berriro zenbatu",
+            recountTallyCeremonyMessage:
+                "Honek emaitza-gertaera berri bat sortuko du osatutako zenbaketa-saiorako.",
+            recountTallyCeremonyStarting: "Birzenbaketa hasten...",
+            recountTallyCeremonySuccess: "Birzenbaketa hasita",
+            recountTallyCeremonyError: "Ezin izan da birzenbaketa hasi",
+            recountTallyCeremonyOk: "Berriro zenbatu",
             trusteeTitle: "Fideikomisarioen prozesua",
             trusteeSubTitle: "Mesedez igo zure giltza zatia",
             invited: "Zenbaketa zeremonoia batean parte hartzeko gonbidatu zaituzte. Mesedez ",
@@ -1716,6 +1987,8 @@ const basqueTranslation: TranslationType = {
                 implicit_invalid_votes: "Inplizituki Baliogabeko Botoak",
                 implicit_invalid_votes_percent: "Inplizituki Baliogabeko Boto Ehunekoa",
                 blank_votes: "Boto Zuriak",
+                explicit_blank_votes: "Boto Zuri Esplizituak",
+                implicit_blank_votes: "Boto Zuri Inplizituak",
                 blank_votes_percent: "Boto Zuri Ehunekoa",
                 number_of_votes: "Boto Kopurua",
                 winning_position: "Irabazle posizioa",
@@ -1726,6 +1999,7 @@ const basqueTranslation: TranslationType = {
                     eliminated: "Baztertua",
                     round: "Txanda",
                 },
+                total_declined_to_vote: "Bozkatzeari uko egindakoen guztira",
             },
             pendingResolutions: {
                 round: "Txanda {{round}}",
@@ -1788,14 +2062,17 @@ const basqueTranslation: TranslationType = {
                 startKioskVoting: "Hasi Kiosko Bozketa",
                 startOnlineVoting: "Hasi Online Bozketa",
                 startEarlyVoting: "Hasi Aurre-botoa",
+                startTelephoneVoting: "Hasi Telefono Bozketa",
                 stopVotingPeriod: "Gelditu Bozketa",
                 stopOnlineVoting: "Gelditu Online Bozketa",
                 stopEarlyVoting: "Gelditu Aurre-botoa",
+                stopTelephoneVoting: "Gelditu Telefono Bozketa",
                 stopKioskVotingPeriod: "Gelditu Kiosko Bozketa",
                 pauseVotingPeriod: "Pausatu Bozketa",
                 pauseKioskVoting: "Pausatu Kiosko Bozketa",
                 pauseOnlineVoting: "Pausatu Online Bozketa",
                 pauseEarlyVoting: "Pausatu Aurre-botoa",
+                pauseTelephoneVoting: "Pausatu Telefono Bozketa",
                 generate: "Bersortu",
                 publish: "Argitaratu Aldaketak",
                 back: "Atzera",
@@ -1888,8 +2165,12 @@ const basqueTranslation: TranslationType = {
             },
         },
         tallysheet: {
+            title: "Bozka-ontziak",
+            subtitle: "Bozka-ontzi digitalizatuak kanalean",
             createTallySuccess: "Zenbaketa Orria gordea",
             createTallyError: "Errorea Zenbaketa Orria gordetzerakoan",
+            createTallyErrorSameKindExists:
+                "Kontaketa-orria dagoeneko existitzen da lehiaketa honetarako kanal eta eremu berarekin",
             allFieldsRequired: "Eremu guztiak beharrezkoak dira",
             header: {
                 change: "Argitaratzeko Aldaketak",
@@ -1903,6 +2184,12 @@ const basqueTranslation: TranslationType = {
                 generate: "Bersortu",
                 publish: "Argitaratu Aldaketak",
                 back: "Atzera",
+            },
+            inputError: {
+                totalValidDoesNotMatch:
+                    "Baliozko botoen guztizko kopurua ez dator bat hautagaien botoen eta boto zurien baturarekin",
+                censusTooSmall:
+                    "Erroldak boto guztien kopurua baino handiagoa edo berdina izan behar du",
             },
             label: {
                 area: "Eremua",
@@ -1932,10 +2219,13 @@ const basqueTranslation: TranslationType = {
                 subtitle: "Zenbaketa Orri konfigurazioa.",
                 candidates: "Hautagaiak",
                 save: "Gorde",
-                publish: "Argitaratu",
-                unpublish: "Desargitaratu",
-                warningUnPublish: "Ziur zaude Zenbaketa Orri hau desargitaratu nahi duzula?",
-                warningPublish: "Ziur zaude Zenbaketa Orri hau argitaratu nahi duzula?",
+                approve: "Onartu",
+                disapprove: "Ez onartu",
+                show: "Erakutsi",
+                add: "Gehitu",
+                versions: "Bertsioak",
+                warningDisapprove: "Ziur zaude Kontaketa Orri hau ez onartzeko?",
+                warningApprove: "Ziur zaude Kontaketa Orri hau onartzeko?",
             },
             empty: {
                 header: "Ez dago Zenbaketa Orririk Oraindik.",
@@ -1951,11 +2241,26 @@ const basqueTranslation: TranslationType = {
             table: {
                 area: "Eremua",
                 contest: "Lehiaketa",
-                published: "Argitaratua",
+                approvedVersion: "Onartutako bertsioa",
+                latestVersion: "Azken bertsioa",
+                labels: "Etiketak",
+                annotations: "Oharrak",
+            },
+            versionsTable: {
+                title: "Hauntzaren bertsioak",
+                version: "Bertsioa",
+                createdBy: "Sortzailea",
+                reviewedBy: "Berrikustatzailea",
+                createdAt: "Sortze data",
+                reviewedAt: "Berrikuste data",
+                sourceImport: "Jatorrizko inportazioa",
+                importStatus: "Inportazioaren egoera",
+                openImport: "Ireki inportazioa",
+                sourceFile: "Jatorrizko fitxategia",
             },
             message: {
-                publishError: "Errorea zenbaketa orria argitaratzerakoan",
-                publishSuccess: "Zenbaketa orria argitaratua",
+                reviewError: "Errorea zenbaketa orria berrikusterakoan",
+                reviewSuccess: "Zenbaketa orria berrikusia",
             },
         },
         application: {
@@ -2211,8 +2516,9 @@ const basqueTranslation: TranslationType = {
                 importButton: "Inportatu",
             },
             notify: {
-                importSuccess:
-                    "{{inserted}} ziurtagiri inportatuta. {{skipped}} saltatu (dagoeneko badaude).",
+                importSuccess: "{{inserted}} ziurtagiri inportatuta.",
+                importSkipped: "{{count}} saltatu (dagoeneko badaude).",
+                importErrors: "Inportazio arazoak: {{errors}}",
                 importError: "Inportazioa huts egin du: {{error}}",
                 deleteSuccess: "Ziurtagiria ezabatuta.",
                 deleteError: "Errorea ziurtagiria ezabatzean.",

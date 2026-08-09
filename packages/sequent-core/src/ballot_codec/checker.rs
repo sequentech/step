@@ -6,7 +6,7 @@ use crate::ballot_codec::multi_ballot::DecodedContestChoices;
 use crate::plaintext::DecodedVoteContest;
 use crate::{
     ballot::{
-        ContestPresentation, EBlankVotePolicy, EDuplicatedRankPolicy,
+        Contest, ContestPresentation, EBlankVotePolicy, EDuplicatedRankPolicy,
         EOverVotePolicy, EPreferenceGapsPolicy, EUnderVotePolicy,
         InvalidVotePolicy,
     },
@@ -32,6 +32,56 @@ impl DecodedContestChoices {
         self.invalid_errors.extend(data.invalid_errors);
         self.invalid_alerts.extend(data.invalid_alerts);
     }
+}
+
+pub fn check_contest_configuration(contest: &Contest) -> CheckerResult {
+    let mut checker_result: CheckerResult = Default::default();
+
+    // Count both marker kinds in a single pass and only allocate error
+    // payloads when a violation is actually found: this function runs in
+    // per-ballot encode/decode paths.
+    let mut explicit_invalid_candidates = 0usize;
+    let mut explicit_blank_candidates = 0usize;
+    for candidate in &contest.candidates {
+        if candidate.is_explicit_invalid() {
+            explicit_invalid_candidates += 1;
+        }
+        if candidate.is_explicit_blank() {
+            explicit_blank_candidates += 1;
+        }
+    }
+
+    if explicit_invalid_candidates > 1 {
+        checker_result.invalid_errors.push(InvalidPlaintextError {
+            error_type: InvalidPlaintextErrorType::EncodingError,
+            candidate_id: None,
+            message: Some(
+                "errors.configuration.multipleExplicitInvalidCandidates"
+                    .to_string(),
+            ),
+            message_map: HashMap::from([(
+                "count".to_string(),
+                explicit_invalid_candidates.to_string(),
+            )]),
+        });
+    }
+
+    if explicit_blank_candidates > 1 {
+        checker_result.invalid_errors.push(InvalidPlaintextError {
+            error_type: InvalidPlaintextErrorType::EncodingError,
+            candidate_id: None,
+            message: Some(
+                "errors.configuration.multipleExplicitBlankCandidates"
+                    .to_string(),
+            ),
+            message_map: HashMap::from([(
+                "count".to_string(),
+                explicit_blank_candidates.to_string(),
+            )]),
+        });
+    }
+
+    checker_result
 }
 
 pub fn check_max_min_votes_policy(
@@ -308,4 +358,76 @@ pub fn check_invalid_vote_policy(
         }
     }
     checker_result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ballot::CandidatePresentation;
+    use crate::fixtures::ballot_codec::get_configurable_contest;
+    use crate::types::ceremonies::CountingAlgType;
+
+    #[test]
+    fn test_check_contest_configuration_rejects_multiple_explicit_invalid_candidates(
+    ) {
+        let mut contest = get_configurable_contest(
+            1,
+            3,
+            CountingAlgType::PluralityAtLarge,
+            false,
+            None,
+            false,
+        );
+        contest.candidates[0]
+            .presentation
+            .get_or_insert_with(CandidatePresentation::default)
+            .is_explicit_invalid = Some(true);
+        contest.candidates[1]
+            .presentation
+            .get_or_insert_with(CandidatePresentation::default)
+            .is_explicit_invalid = Some(true);
+
+        let result = check_contest_configuration(&contest);
+
+        assert_eq!(result.invalid_errors.len(), 1);
+        assert_eq!(
+            result.invalid_errors[0].message,
+            Some(
+                "errors.configuration.multipleExplicitInvalidCandidates"
+                    .to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn test_check_contest_configuration_rejects_multiple_explicit_blank_candidates(
+    ) {
+        let mut contest = get_configurable_contest(
+            1,
+            3,
+            CountingAlgType::PluralityAtLarge,
+            false,
+            None,
+            false,
+        );
+        contest.candidates[0]
+            .presentation
+            .get_or_insert_with(CandidatePresentation::default)
+            .is_explicit_blank = Some(true);
+        contest.candidates[1]
+            .presentation
+            .get_or_insert_with(CandidatePresentation::default)
+            .is_explicit_blank = Some(true);
+
+        let result = check_contest_configuration(&contest);
+
+        assert_eq!(result.invalid_errors.len(), 1);
+        assert_eq!(
+            result.invalid_errors[0].message,
+            Some(
+                "errors.configuration.multipleExplicitBlankCandidates"
+                    .to_string()
+            )
+        );
+    }
 }

@@ -14,7 +14,7 @@ use crate::tasks::electoral_log::{
 };
 use crate::types::resources::{Aggregate, DataList, OrderDirection, TotalAggregate};
 use anyhow::{anyhow, ensure, Context, Result};
-use b3::messages::message::Signer;
+use b4::messages::message::Signer;
 use base64::engine::general_purpose;
 use base64::Engine;
 use deadpool_postgres::Transaction;
@@ -414,6 +414,112 @@ impl ElectoralLog {
             .send_task(enqueue_electoral_log_event::new(input))
             .await?;
         Ok(())
+    }
+
+    #[instrument(skip(self))]
+    pub async fn post_phone_blacklist_entry_created(
+        &self,
+        event_id: String,
+        number_e164: String,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<()> {
+        let event = EventIdString(event_id);
+        let message = Message::phone_blacklist_entry_created_message(
+            event,
+            PhoneE164String(number_e164),
+            &self.sd,
+            user_id,
+            username,
+        )?;
+
+        self.post(&message).await
+    }
+
+    #[instrument(skip(self))]
+    pub async fn post_phone_blacklist_entry_deleted(
+        &self,
+        event_id: String,
+        number_e164: String,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<()> {
+        let event = EventIdString(event_id);
+        let message = Message::phone_blacklist_entry_deleted_message(
+            event,
+            PhoneE164String(number_e164),
+            &self.sd,
+            user_id,
+            username,
+        )?;
+
+        self.post(&message).await
+    }
+
+    #[instrument(skip_all, fields(direction = %direction, api_name = %api_name), err)]
+    pub async fn post_external_api_request(
+        &self,
+        tenant_id: String,
+        event_id: String,
+        election_id: Option<String>,
+        voter_id: Option<String>,
+        voter_username: Option<String>,
+        direction: ExtApiRequestDirection,
+        api_name: ExtApiName,
+        operation: String,
+    ) -> Result<()> {
+        let event = EventIdString(event_id.clone());
+        let election = ElectionIdString(election_id);
+
+        let message = Message::external_api_request_message(
+            event,
+            election,
+            &self.sd,
+            voter_id.clone(),
+            voter_username.clone(),
+            direction,
+            api_name,
+            operation,
+        )?;
+
+        let board_message: ElectoralLogMessage = (&message).try_into().with_context(|| {
+            "Error converting Message::external_api_request_message into ElectoralLogMessage"
+        })?;
+        let input = LogEventInput {
+            election_event_id: event_id,
+            message_type: LogMessageType::Internal,
+            user_id: voter_id,
+            username: voter_username,
+            tenant_id,
+            body: LogEventBody::Plain(
+                serde_json::to_string(&board_message)
+                    .with_context(|| "Error serializing ElectoralLogMessage")?,
+            ),
+        };
+        let celery_app = get_celery_app().await;
+        celery_app
+            .send_task(enqueue_electoral_log_event::new(input))
+            .await?;
+        Ok(())
+    }
+
+    #[instrument(skip(self))]
+    pub async fn post_results_publication_action(
+        &self,
+        event_id: String,
+        details: ResultsPublicationDetails,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<()> {
+        let message = Message::results_publication_action_message(
+            EventIdString(event_id),
+            details,
+            &self.sd,
+            user_id,
+            username,
+        )?;
+
+        self.post(&message).await
     }
 
     #[instrument(skip(self))]

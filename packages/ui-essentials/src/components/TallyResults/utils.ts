@@ -1,26 +1,51 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-//
-// Lifted from admin-portal/src/resources/Tally/utils.ts (winningPositionComparator only).
-// Adaptations:
-//   U1: drop convertSequentContestToIContest / convertContestsArray
-//       (admin-only graphql conversion helpers).
-//   U2: drop parseProcessResults (admin-only annotation parser; workbench
-//       computes process_results directly via velvet).
 
-import {GridComparatorFn} from "@mui/x-data-grid"
+import {formatPercentOne} from "@sequentech/ui-core"
+import {defaultResultsAndParticipationLabels} from "./types"
+import type {CandidateResultRow, NumericValue, ResultsAndParticipationLabels} from "./types"
 
-/**
- * Comparator function for sorting winning positions in DataGrid.
- * Positions are sorted numerically, with non-numeric values sorted to the end.
- */
-export const winningPositionComparator: GridComparatorFn<string> = (v1, v2) => {
-    const maxInt = Number.MAX_SAFE_INTEGER
+export const mergeLabels = (
+    labels?: Partial<ResultsAndParticipationLabels>
+): ResultsAndParticipationLabels => ({
+    ...defaultResultsAndParticipationLabels,
+    ...labels,
+})
 
-    // Convert stringified numbers to integers, non-numeric strings to maxInt
-    const pos1 = isNaN(parseInt(v1)) ? maxInt : parseInt(v1)
-    const pos2 = isNaN(parseInt(v2)) ? maxInt : parseInt(v2)
+export const toFiniteNumber = (value: NumericValue): number | null => {
+    if (typeof value === "number") {
+        return Number.isFinite(value) ? value : null
+    }
 
-    return pos1 - pos2
+    if (typeof value === "string") {
+        const trimmed = value.trim()
+        if (!trimmed) return null
+
+        const parsed = Number(trimmed)
+        return Number.isFinite(parsed) ? parsed : null
+    }
+
+    return null
+}
+
+export const valueOrDash = (value: NumericValue): string | number => toFiniteNumber(value) ?? "-"
+
+export const percentOrDash = (value: NumericValue): string => {
+    const numeric = toFiniteNumber(value)
+    return numeric !== null ? formatPercentOne(numeric) : "-"
+}
+
+export const sortCandidateResults = (
+    left: CandidateResultRow,
+    right: CandidateResultRow
+): number => {
+    const leftWinning = toFiniteNumber(left.winningPosition) ?? Number.MAX_SAFE_INTEGER
+    const rightWinning = toFiniteNumber(right.winningPosition) ?? Number.MAX_SAFE_INTEGER
+
+    if (leftWinning !== rightWinning) {
+        return leftWinning - rightWinning
+    }
+
+    return (toFiniteNumber(right.castVotes) ?? 0) - (toFiniteNumber(left.castVotes) ?? 0)
 }

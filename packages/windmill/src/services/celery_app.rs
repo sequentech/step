@@ -15,6 +15,7 @@ use crate::tasks::activity_logs_report::generate_activity_logs_report;
 use crate::tasks::create_ballot_receipt::create_ballot_receipt;
 use crate::tasks::create_keys::create_keys;
 use crate::tasks::delete_election_event::delete_election_event_t;
+use crate::tasks::edit_user::edit_user;
 use crate::tasks::electoral_log::{
     electoral_log_batch_dispatcher, enqueue_electoral_log_event, process_electoral_log_events_batch,
 };
@@ -52,9 +53,12 @@ use crate::tasks::plugins_tasks::execute_plugin_task;
 use crate::tasks::post_tally::post_tally_task;
 use crate::tasks::prepare_publication_preview::prepare_publication_preview;
 use crate::tasks::process_board::process_board;
+use crate::tasks::process_cast_vote::process_cast_vote;
+use crate::tasks::publish_results_website::publish_results_website_task;
 use crate::tasks::render_document_pdf::render_document_pdf;
 use crate::tasks::render_report::render_report;
 use crate::tasks::review_boards::review_boards;
+use crate::tasks::review_cast_votes::review_cast_votes;
 use crate::tasks::scheduled_events::scheduled_events;
 use crate::tasks::scheduled_reports::scheduled_reports;
 use crate::tasks::send_template::send_template;
@@ -75,7 +79,6 @@ pub enum Queue {
     Reports,
     #[strum(serialize = "import_export_queue")]
     ImportExport,
-
     #[strum(serialize = "electoral_log_beat_queue")]
     ElectoralLogBeat,
     #[strum(serialize = "electoral_log_batch_queue")]
@@ -285,6 +288,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             delete_election_event_t,
             export_tasks_execution,
             scheduled_reports,
+            review_cast_votes,
             export_templates,
             export_ballot_publication,
             export_application,
@@ -295,12 +299,15 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             enqueue_electoral_log_event,
             process_electoral_log_events_batch,
             electoral_log_batch_dispatcher,
+            process_cast_vote,
+            edit_user,
             render_document_pdf,
             execute_plugin_task,
             prepare_publication_preview,
             export_tally_results_to_xlsx_task,
             post_tally_task,
             import_templates_task,
+            publish_results_website_task,
         ],
         task_routes = [
             create_keys::NAME => &Queue::Short.queue_name(&slug),
@@ -329,6 +336,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             import_tenant_config::NAME => &Queue::ImportExport.queue_name(&slug),
             scheduled_events::NAME => &Queue::Beat.queue_name(&slug),
             scheduled_reports::NAME => &Queue::Beat.queue_name(&slug),
+            review_cast_votes::NAME => &Queue::Beat.queue_name(&slug),
             manage_election_date::NAME => &Queue::Beat.queue_name(&slug),
             manage_election_event_date::NAME => &Queue::Beat.queue_name(&slug),
             manage_election_event_enrollment::NAME => &Queue::Beat.queue_name(&slug),
@@ -352,6 +360,9 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             post_tally_task::NAME => &Queue::Reports.queue_name(&slug),
             import_templates_task::NAME => &Queue::ImportExport.queue_name(&slug),
             export_certificate_authority::NAME => &Queue::ImportExport.queue_name(&slug),
+            publish_results_website_task::NAME => &Queue::Reports.queue_name(&slug),
+            process_cast_vote::NAME => &Queue::Communication.queue_name(&slug),
+            edit_user::NAME => &Queue::Short.queue_name(&slug),
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,

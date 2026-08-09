@@ -56,6 +56,14 @@ const englishTranslation = {
         },
         startScreen: {
             startButton: "Start Voting",
+            declineToVoteButton: "Decline to Vote",
+            declineToVoteDialog: {
+                title: "Confirm decline to vote",
+                content:
+                    "Are you sure you want to decline to vote?<br />You will go directly to review and your participation status will be saved as <b>Declined to vote</b>.",
+                continue: "Decline to vote",
+                cancel: "Cancel",
+            },
             instructionsTitle: "How to vote",
             instructionsDescription: "Follow these steps to cast your ballot",
             step1Title: "1. Choose your options",
@@ -187,6 +195,7 @@ const englishTranslation = {
                 INTERNAL_ERROR:
                     "There was an internal error while casting the vote. Please try again later or contact support for assistance.",
             },
+            declineToVote: "Decline to vote",
         },
         confirmationScreen: {
             title: "Your vote has been cast",
@@ -269,7 +278,8 @@ const englishTranslation = {
                     "This screen lists the ballots you can access. Some may be open, scheduled, or closed. You can only vote on ballots that are open",
                 ok: "OK",
             },
-            noResults: "No ballots are currently available",
+            noResults: "No ballots for now.",
+            resultsButton: "View results",
             demoDialog: {
                 title: "Demo voting booth",
                 content:
@@ -350,6 +360,8 @@ const englishTranslation = {
             locateAgain: "Find another Ballot",
             found: "Your ballot ID {{ballotId}} has been found",
             notFound: "Your ballot ID {{ballotId}} was not found",
+            ambiguous:
+                "More than one of your ballots matches {{ballotId}}. Use the full ballot ID.",
             contentDesc: "This is your Ballot content: ",
             wrongFormatBallotId: "Invalid Ballot ID format",
             ballotIdNotFoundAtFilter:

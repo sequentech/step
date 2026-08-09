@@ -12,6 +12,7 @@ use strand::serialization::StrandSerialize;
 use strand::signature::StrandSignature;
 use strand::signature::StrandSignaturePk;
 use strand::signature::StrandSignatureSk;
+use tracing::instrument;
 
 use crate::messages::statement::Statement;
 use crate::messages::statement::StatementBody;
@@ -52,6 +53,39 @@ impl fmt::Display for Message {
 }
 
 impl Message {
+    #[instrument(skip_all, err)]
+    pub fn external_api_request_message(
+        event_id: EventIdString,
+        election_id: ElectionIdString,
+        sd: &SigningData,
+        voter_id: Option<String>,
+        voter_username: Option<String>,
+        direction: ExtApiRequestDirection,
+        api_name: ExtApiName,
+        operation: String,
+    ) -> Result<Self> {
+        let subject = ExternalApiSubject {
+            user_id: voter_id.clone(),
+            username: voter_username.clone(),
+        };
+        let body = StatementBody::ExternalApiRequest(
+            event_id.clone(),
+            subject,
+            direction,
+            api_name,
+            operation,
+        );
+        Self::from_body(
+            event_id,
+            body,
+            sd,
+            voter_id.clone(),
+            voter_username.clone(), /* username */
+            election_id.0,
+            None,
+            None,
+        )
+    }
     pub fn cast_vote_message(
         event: EventIdString,
         election: ElectionIdString,
@@ -281,6 +315,40 @@ impl Message {
     ) -> Result<Self> {
         let body = StatementBody::TallyClose(election.clone());
         Self::from_body(event, body, sd, user_id, username, election.0, None, None)
+    }
+
+    pub fn phone_blacklist_entry_created_message(
+        event: EventIdString,
+        phone: PhoneE164String,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Self> {
+        let body = StatementBody::PhoneBlacklistUpdated(phone, PhoneBlacklistAction::CreateEntry);
+        Self::from_body(event, body, sd, user_id, username, None, None, None)
+    }
+
+    pub fn phone_blacklist_entry_deleted_message(
+        event: EventIdString,
+        phone: PhoneE164String,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Self> {
+        let body = StatementBody::PhoneBlacklistUpdated(phone, PhoneBlacklistAction::DeleteEntry);
+        Self::from_body(event, body, sd, user_id, username, None, None, None)
+    }
+
+    pub fn results_publication_action_message(
+        event: EventIdString,
+        details: ResultsPublicationDetails,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Self> {
+        let election_id = details.route_election_id.0.clone();
+        let body = StatementBody::ResultsPublicationAction(details);
+        Self::from_body(event, body, sd, user_id, username, election_id, None, None)
     }
 
     pub fn send_template(
@@ -523,5 +591,47 @@ impl SigningData {
             sender_name: sender_name.to_string(),
             system_sk,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn results_publication_message_keeps_actor_and_action_details() -> Result<()> {
+        let signing_data = SigningData::new(
+            StrandSignatureSk::r#gen()?,
+            "admin",
+            StrandSignatureSk::r#gen()?,
+        );
+        let details = ResultsPublicationDetails {
+            publication_id: ResultsPublicationIdString("publication-id".to_string()),
+            action: ResultsPublicationAction::Revoke,
+            route_scope: ResultsPublicationRouteScopeString("event".to_string()),
+            route_election_id: ElectionIdString(None),
+            access: ResultsPublicationAccessString("public".to_string()),
+            visibility_scope: ResultsPublicationVisibilityScopeString("full_event".to_string()),
+            contest_ids: vec![ContestIdString("contest-id".to_string())],
+        };
+
+        let message = Message::results_publication_action_message(
+            EventIdString("event-id".to_string()),
+            details,
+            &signing_data,
+            Some("user-id".to_string()),
+            Some("username".to_string()),
+        )?;
+
+        assert_eq!(message.user_id.as_deref(), Some("user-id"));
+        assert_eq!(message.username.as_deref(), Some("username"));
+        assert!(matches!(
+            message.statement.body,
+            StatementBody::ResultsPublicationAction(ResultsPublicationDetails {
+                action: ResultsPublicationAction::Revoke,
+                ..
+            })
+        ));
+        Ok(())
     }
 }

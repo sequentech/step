@@ -1,38 +1,44 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-//
-// Lifted from admin-portal/src/resources/Tally/types/index.ts.
-// Adaptations:
-//   T1: drop the Sequent_Backend_Candidate_Extended subset (admin-portal-only
-//       graphql type); replace with plain TallyCandidate row interface.
-//   T2: drop ExtendedMetricsContest / ParsedAnnotations (admin-only).
-// Everything else (RunoffStatus, Round, CandidateReference, CandidateOutcome,
-// CandidatesStatus, ECandidateStatus) is copied verbatim so callers can rely
-// on the same shape admin-portal does.
 
-export interface TallyCandidate {
-    rowId: number
+export type NumericValue = number | string | null | undefined
+
+export interface ResultsParticipationSummary {
+    id?: string | number
+    eligibleCensus?: NumericValue
+    totalAuditableVotes?: NumericValue
+    totalAuditableVotesPercent?: NumericValue
+    totalVotes?: NumericValue
+    totalVotesPercent?: NumericValue
+    totalValidVotes?: NumericValue
+    totalValidVotesPercent?: NumericValue
+    totalInvalidVotes?: NumericValue
+    totalInvalidVotesPercent?: NumericValue
+    explicitInvalidVotes?: NumericValue
+    explicitInvalidVotesPercent?: NumericValue
+    implicitInvalidVotes?: NumericValue
+    implicitInvalidVotesPercent?: NumericValue
+    blankVotes?: NumericValue
+    blankVotesPercent?: NumericValue
+    explicitBlankVotes?: NumericValue
+    explicitBlankVotesPercent?: NumericValue
+    implicitBlankVotes?: NumericValue
+    implicitBlankVotesPercent?: NumericValue
+    weight?: NumericValue
+}
+
+export interface CandidateResultRow {
     id: string
-    status: string
-    winning_position?: number | null
-    cast_votes?: number | null
-    cast_votes_percent: number | null
     name: string
+    castVotes?: NumericValue
+    castVotesPercent?: NumericValue
+    winningPosition?: NumericValue
 }
 
 export interface CandidateReference {
     id: string
     name: string
-}
-
-export enum ECandidateStatus {
-    Active = "Active",
-    Eliminated = "Eliminated",
-}
-
-export interface CandidatesStatus {
-    [candidateId: string]: ECandidateStatus
 }
 
 export interface CandidateOutcome {
@@ -44,7 +50,7 @@ export interface CandidateOutcome {
 
 export type CandidatesOutcomes = Record<string, CandidateOutcome>
 
-export interface Round {
+export interface PreferentialRound {
     winner: CandidateReference | null
     candidates_wins: CandidatesOutcomes
     eliminated_candidates: CandidateReference[] | null
@@ -53,29 +59,88 @@ export interface Round {
     exhausted_ballots_count: number
 }
 
-export interface RunoffStatus {
-    candidates_status: CandidatesStatus
+export interface PreferentialProcessResults {
+    candidates_status?: Record<string, string>
     name_references: CandidateReference[]
     round_count: number
-    rounds: Round[]
+    rounds: PreferentialRound[]
     max_rounds: number
 }
 
-/** Plain shape consumed by ParticipationSummaryChart and TallyResultsView. */
-export interface TallyParticipationSummary {
-    id: string
-    elegible_census: number
-    total_valid_votes: number
-    total_invalid_votes: number
-    blank_votes: number
+export interface ResultsAndParticipationLabels {
+    participationSummary: string
+    candidateResults: string
+    total: string
+    turnout: string
+    eligibleCensus: string
+    totalAuditableVotes: string
+    totalVotesCounted: string
+    totalValidVotes: string
+    totalInvalidVotes: string
+    explicitInvalidVotes: string
+    implicitInvalidVotes: string
+    blankVotes: string
+    explicitBlankVotes: string
+    implicitBlankVotes: string
+    blankVotesChart: string
+    weight: string
+    options: string
+    castVotes: string
+    castVotesPercent: string
+    winningPosition: string
+    votesForCandidates: string
+    invalidVotes: string
+    nonVoters: string
+    others: string
+    candidate: string
+    round: string
+    winner: string
+    eliminated: string
+    empty: string
+    previousRounds: string
+    nextRounds: string
 }
 
-/** Top-level view-model used by TallyResultsView. */
-export interface TallyResultsViewModel {
-    summary: TallyParticipationSummary
-    candidates: TallyCandidate[]
-    winnersCount: number
-    runoff: RunoffStatus | null
-    countingAlgorithm?: string
-    contestName?: string
+export interface ResultsAndParticipationProps {
+    chartName: string
+    summary?: ResultsParticipationSummary | null
+    candidates: CandidateResultRow[]
+    labels?: Partial<ResultsAndParticipationLabels>
+    showWeight?: boolean
+    processResults?: PreferentialProcessResults | null
+    preferential?: boolean
+}
+
+export const defaultResultsAndParticipationLabels: ResultsAndParticipationLabels = {
+    participationSummary: "Participation Summary",
+    candidateResults: "Candidate Results",
+    total: "Total",
+    turnout: "%",
+    eligibleCensus: "Eligible Voters",
+    totalAuditableVotes: "Total Auditable Votes",
+    totalVotesCounted: "Total Votes Counted",
+    totalValidVotes: "Total Valid Votes",
+    totalInvalidVotes: "Total Invalid Votes",
+    explicitInvalidVotes: "Explicitly Invalid Votes",
+    implicitInvalidVotes: "Implicitly Invalid Votes",
+    blankVotes: "Blank Votes",
+    explicitBlankVotes: "Explicit Blank Votes",
+    implicitBlankVotes: "Implicit Blank Votes",
+    blankVotesChart: "Blank Votes",
+    weight: "Weight",
+    options: "Options",
+    castVotes: "Number of Votes",
+    castVotesPercent: "Percent of Votes",
+    winningPosition: "Winning position",
+    votesForCandidates: "Votes For Candidates",
+    invalidVotes: "Invalid Votes",
+    nonVoters: "Non Voters",
+    others: "Others",
+    candidate: "Candidate",
+    round: "Round",
+    winner: "Winner",
+    eliminated: "Eliminated",
+    empty: "No items",
+    previousRounds: "Navigate to previous rounds",
+    nextRounds: "Navigate to next rounds",
 }

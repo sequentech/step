@@ -58,6 +58,14 @@ const frenchTranslation: TranslationType = {
         },
         startScreen: {
             startButton: "Commencer à voter",
+            declineToVoteButton: "S’abstenir de voter",
+            declineToVoteDialog: {
+                title: "Confirmer l’abstention de vote",
+                content:
+                    "Êtes-vous sûr de vouloir vous abstenir de voter ?<br />Vous accéderez directement à la révision et votre statut de participation sera enregistré comme <b>S’est abstenu de voter</b>.",
+                continue: "S’abstenir de voter",
+                cancel: "Annuler",
+            },
             instructionsTitle: "Comment voter",
             instructionsDescription: "Suivez ces étapes pour voter :",
             step1Title: "1. Sélectionnez votre option de vote",
@@ -195,6 +203,7 @@ const frenchTranslation: TranslationType = {
                 INTERNAL_ERROR:
                     "Une erreur interne s'est produite lors du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
             },
+            declineToVote: "S’abstenir de voter",
         },
         confirmationScreen: {
             title: "Votre vote a été émis",
@@ -277,7 +286,8 @@ const frenchTranslation: TranslationType = {
                     "Cet écran montre la liste des élections dans lesquelles vous pouvez voter. L'accès est possible uniquement si la période de vote est ouverte.",
                 ok: "OK",
             },
-            noResults: "Aucun bulletin disponible pour le moment.",
+            noResults: "Il n'y a pas d'élections pour le moment.",
+            resultsButton: "Voir les résultats",
             demoDialog: {
                 title: "Bureau de vote de démonstration",
                 content:
@@ -358,6 +368,8 @@ const frenchTranslation: TranslationType = {
             locateAgain: "Trouvez un autre Bulletin",
             found: "Votre ID de Bulletin {{ballotId}} a été trouvé",
             notFound: "Votre ID de Bulletin {{ballotId}} n'a pas été trouvé",
+            ambiguous:
+                "Plusieurs de vos bulletins correspondent à {{ballotId}}. Utilisez l'ID complet du bulletin.",
             contentDesc: "Voici le contenu de votre Bulletin : ",
             wrongFormatBallotId: "Format incorrect pour l'ID du Bulletin",
             ballotIdNotFoundAtFilter:

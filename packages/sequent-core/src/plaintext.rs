@@ -40,6 +40,9 @@ pub struct InvalidPlaintextError {
 pub struct DecodedVoteContest {
     pub contest_id: String,
     pub is_explicit_invalid: bool,
+    /// Whether the Voter has declined to vote (can be true only for multi-contest ballots with decline to vote policy enabled).
+    /// and will be the same for all contests in the ballot.
+    pub is_decline_to_vote: bool,
     pub invalid_errors: Vec<InvalidPlaintextError>,
     pub invalid_alerts: Vec<InvalidPlaintextError>,
     pub choices: Vec<DecodedVoteChoice>,
@@ -56,6 +59,11 @@ impl DecodedVoteContest {
                 .clone()
                 .iter()
                 .all(|choice| choice.selected < 0)
+    }
+    /// Get the value of is_decline_to_vote.
+    #[must_use]
+    pub fn is_decline_to_vote(&self) -> bool {
+        self.is_decline_to_vote
     }
 
     /// Check the validity of the preference order.
@@ -198,7 +206,8 @@ pub fn map_decoded_ballot_choices_to_decoded_contests(
 
         let decoded_contest = DecodedVoteContest {
             contest_id: contest_id,
-            is_explicit_invalid: decoded_ballot_choices.is_explicit_invalid,
+            is_explicit_invalid: found_ballot_choices.is_explicit_invalid,
+            is_decline_to_vote: decoded_ballot_choices.is_explicit_invalid,
             invalid_errors: found_ballot_choices.invalid_errors.clone(),
             invalid_alerts: found_ballot_choices.invalid_alerts.clone(),
             choices,

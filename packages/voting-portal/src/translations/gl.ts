@@ -59,6 +59,14 @@ const galegoTranslation: TranslationType = {
         },
         startScreen: {
             startButton: "Comezar a votar",
+            declineToVoteButton: "Absterse de votar",
+            declineToVoteDialog: {
+                title: "Confirmar abstención de voto",
+                content:
+                    "Seguro que queres absterte de votar?<br />Irás directamente á revisión e o teu estado de participación gardarase como <b>Abstívose de votar</b>.",
+                continue: "Absterse de votar",
+                cancel: "Cancelar",
+            },
             instructionsTitle: "Como votar",
             instructionsDescription: "Siga estes pasos para votar:",
             step1Title: "1. Selecciona as túas opcións",
@@ -195,6 +203,7 @@ const galegoTranslation: TranslationType = {
                 INTERNAL_ERROR:
                     "Houbo un erro interno ao emitir o voto. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
             },
+            declineToVote: "Absterse de votar",
         },
         confirmationScreen: {
             title: "O teu voto foi emitido",
@@ -277,7 +286,8 @@ const galegoTranslation: TranslationType = {
                     "Esta pantalla amosa a lista de papeletas nas que podes votar. Só poderás acceder á papeleta se o período de votación está aberto.",
                 ok: "OK",
             },
-            noResults: "Sen papeletas dispoñibles de momento.",
+            noResults: "Sen papeletas por agora.",
+            resultsButton: "Ver resultados",
             demoDialog: {
                 title: "Cabina de votación de demostración",
                 content:
@@ -358,6 +368,8 @@ const galegoTranslation: TranslationType = {
             locateAgain: "Buscar outra Papeleta",
             found: "O teu ID de papeleta {{ballotId}} foi atopado",
             notFound: "O teu ID de papeleta {{ballotId}} non foi atopado",
+            ambiguous:
+                "Máis dunha das túas papeletas coincide con {{ballotId}}. Usa o ID completo da papeleta.",
             contentDesc: "Este é o contido da túa Papeleta:",
             wrongFormatBallotId: "Formato incorrecto para o ID da Papeleta",
             ballotIdNotFoundAtFilter:

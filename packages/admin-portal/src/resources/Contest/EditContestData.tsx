@@ -7,6 +7,7 @@ import {CandidatesOrder, ICandidatePresentation, IContestPresentation} from "@se
 import React from "react"
 import {EditBase, Identifier, RaRecord, useUpdate} from "react-admin"
 import {ContestDataForm, Sequent_Backend_Contest_Extended} from "./EditContestDataForm"
+import {serializeIvrEntityAnnotations} from "@/utils/ivr"
 
 export const EditContestData: React.FC = () => {
     const [update] = useUpdate()
@@ -51,6 +52,7 @@ export const EditContestData: React.FC = () => {
             i18n?.en?.description || i18n[Object.keys(i18n)[0]]?.description || ""
         data.description = fromPresentationDescription
         // END name, alias and description fields
+        data.annotations = serializeIvrEntityAnnotations(data.annotations)
 
         return data
     }

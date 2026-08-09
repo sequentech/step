@@ -1073,9 +1073,9 @@ pub(crate) mod tests {
             ),
         ]);
         let ret = b
-            .get_electoral_log_messages_filtered(
+            .get_electoral_log_messages_filtered::<String, String>(
                 BOARD_DB,
-                Some(cols_match),
+                Some(cols_match.clone()),
                 None,
                 None,
                 None,
@@ -1086,9 +1086,9 @@ pub(crate) mod tests {
             .unwrap();
         assert_eq!(messages, ret);
         let ret = b
-            .get_electoral_log_messages_filtered(
+            .get_electoral_log_messages_filtered::<String, String>(
                 BOARD_DB,
-                Some(cols_match),
+                Some(cols_match.clone()),
                 Some(1i64),
                 None,
                 None,
@@ -1099,9 +1099,9 @@ pub(crate) mod tests {
             .unwrap();
         assert_eq!(messages, ret);
         let ret = b
-            .get_electoral_log_messages_filtered(
+            .get_electoral_log_messages_filtered::<String, String>(
                 BOARD_DB,
-                Some(cols_match),
+                Some(cols_match.clone()),
                 None,
                 Some(556i64),
                 None,
@@ -1112,9 +1112,9 @@ pub(crate) mod tests {
             .unwrap();
         assert_eq!(messages, ret);
         let ret = b
-            .get_electoral_log_messages_filtered(
+            .get_electoral_log_messages_filtered::<String, String>(
                 BOARD_DB,
-                Some(cols_match),
+                Some(cols_match.clone()),
                 Some(1i64),
                 Some(556i64),
                 None,
@@ -1125,7 +1125,7 @@ pub(crate) mod tests {
             .unwrap();
         assert_eq!(messages, ret);
         let ret = b
-            .get_electoral_log_messages_filtered(
+            .get_electoral_log_messages_filtered::<String, String>(
                 BOARD_DB,
                 Some(cols_match),
                 Some(556i64),

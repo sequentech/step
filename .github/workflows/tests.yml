@@ -12,7 +12,7 @@ on:
 jobs:
   run-tests:
     name: Run Rust tests
-    runs-on: gcp-selfhosted-ubuntu24
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     strategy:
       matrix:
@@ -23,7 +23,7 @@ jobs:
           - service: immu-board
           - service: immudb-rs
           - service: sequent-core
-            extra: --features keycloak
+            extra: --features keycloak,default_features
           - service: velvet
           - service: windmill
             build_jobs: 2
@@ -37,7 +37,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.90.0
+          toolchain: 1.96.0
           components: rustfmt
           targets: x86_64-unknown-linux-musl
 
@@ -93,6 +93,38 @@ jobs:
         run: cd packages/${{ matrix.service }} && cargo test ${{ matrix.extra }}
 
   # ===========================================================================
+  # JOB: run-frontend-tests
+  # ===========================================================================
+  # Runs the TypeScript (jest) unit tests for the frontend packages.
+  # ===========================================================================
+  run-frontend-tests:
+    name: Run frontend tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      matrix:
+        package: [ui-core, ui-essentials]
+      fail-fast: false
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: yarn
+          cache-dependency-path: packages/yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile --non-interactive --prefer-offline
+        working-directory: packages
+
+      - name: Run ${{ matrix.package }} tests
+        run: yarn --cwd ./${{ matrix.package }} test
+        working-directory: packages
+
+  # ===========================================================================
   # JOB: notify-on-failure
   # ===========================================================================
   # Sends a Slack notification to the dev channel when the test job fails.
@@ -100,9 +132,9 @@ jobs:
   # ===========================================================================
   notify-on-failure:
     name: Notify on failure
-    needs: run-tests
+    needs: [run-tests, run-frontend-tests]
     if: failure()
-    runs-on: gcp-selfhosted-ubuntu24
+    runs-on: ubuntu-24.04
     steps:
       - name: Slack notification
         uses: slackapi/slack-github-action@v1.24.0

@@ -1,161 +1,179 @@
 {
-    "version": "v1",
-    "parentId": null,
-    "state": {
-        "elections": {
-            "00000000-0000-0000-0000-000000000003": {
-                "id": "00000000-0000-0000-0000-000000000003",
-                "election_event_id": "00000000-0000-0000-0000-000000000002",
-                "tenant_id": "00000000-0000-0000-0000-000000000001",
-                "name": "Workbench demo election",
-                "description": "A self-contained election fixture used by the booth lift.",
-                "image_document_id": "00000000-0000-0000-0000-0000000000ff",
-                "contests": [
-                    {
-                        "id": "00000000-0000-0000-0000-0000000000c1",
-                        "tenant_id": "00000000-0000-0000-0000-000000000001",
-                        "election_event_id": "00000000-0000-0000-0000-000000000002",
-                        "election_id": "00000000-0000-0000-0000-000000000003",
-                        "name": "Favourite colour",
-                        "description": "Pick exactly one option.",
-                        "max_votes": 1,
-                        "min_votes": 1,
-                        "winning_candidates_num": 1,
-                        "is_encrypted": true,
-                        "counting_algorithm": "plurality-at-large",
-                        "candidates": [
-                            {
-                                "id": "00000000-0000-0000-0000-000000000a01",
-                                "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                "election_event_id": "00000000-0000-0000-0000-000000000002",
-                                "election_id": "00000000-0000-0000-0000-000000000003",
-                                "contest_id": "00000000-0000-0000-0000-0000000000c1",
-                                "name": "Red"
-                            },
-                            {
-                                "id": "00000000-0000-0000-0000-000000000a02",
-                                "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                "election_event_id": "00000000-0000-0000-0000-000000000002",
-                                "election_id": "00000000-0000-0000-0000-000000000003",
-                                "contest_id": "00000000-0000-0000-0000-0000000000c1",
-                                "name": "Blue"
-                            }
-                        ]
-                    }
-                ],
-                "num_allowed_revotes": 0,
-                "status": {
-                    "is_published": true,
-                    "voting_status": "OPEN",
-                    "kiosk_voting_status": "CLOSED",
-                    "early_voting_status": "CLOSED",
-                    "voting_period_dates": {},
-                    "kiosk_voting_period_dates": {},
-                    "early_voting_period_dates": {}
-                }
-            }
-        },
-        "castVotes": {},
-        "ballotStyles": {
-            "00000000-0000-0000-0000-000000000003": {
-                "id": "00000000-0000-0000-0000-0000000000b1",
+  "version": "v1",
+  "parentId": null,
+  "state": {
+    "elections": {
+      "00000000-0000-0000-0000-000000000003": {
+        "id": "00000000-0000-0000-0000-000000000003",
+        "election_event_id": "00000000-0000-0000-0000-000000000002",
+        "tenant_id": "00000000-0000-0000-0000-000000000001",
+        "name": "Workbench demo election",
+        "description": "A self-contained election fixture used by the booth lift.",
+        "image_document_id": "00000000-0000-0000-0000-0000000000ff",
+        "contests": [
+          {
+            "id": "00000000-0000-0000-0000-0000000000c1",
+            "tenant_id": "00000000-0000-0000-0000-000000000001",
+            "election_event_id": "00000000-0000-0000-0000-000000000002",
+            "election_id": "00000000-0000-0000-0000-000000000003",
+            "name": "Favourite colour",
+            "description": "Pick exactly one option.",
+            "max_votes": 1,
+            "min_votes": 1,
+            "winning_candidates_num": 1,
+            "is_encrypted": true,
+            "counting_algorithm": "plurality-at-large",
+            "candidates": [
+              {
+                "id": "00000000-0000-0000-0000-000000000a01",
                 "tenant_id": "00000000-0000-0000-0000-000000000001",
                 "election_event_id": "00000000-0000-0000-0000-000000000002",
                 "election_id": "00000000-0000-0000-0000-000000000003",
-                "area_id": "00000000-0000-0000-0000-0000000000aa",
-                "ballot_eml": {
-                    "id": "00000000-0000-0000-0000-0000000000b1",
-                    "tenant_id": "00000000-0000-0000-0000-000000000001",
-                    "election_event_id": "00000000-0000-0000-0000-000000000002",
-                    "election_id": "00000000-0000-0000-0000-000000000003",
-                    "area_id": "00000000-0000-0000-0000-0000000000aa",
-                    "contests": [
-                        {
-                            "id": "00000000-0000-0000-0000-0000000000c1",
-                            "tenant_id": "00000000-0000-0000-0000-000000000001",
-                            "election_event_id": "00000000-0000-0000-0000-000000000002",
-                            "election_id": "00000000-0000-0000-0000-000000000003",
-                            "name": "Favourite colour",
-                            "description": "Pick exactly one option.",
-                            "max_votes": 1,
-                            "min_votes": 1,
-                            "winning_candidates_num": 1,
-                            "is_encrypted": true,
-                            "counting_algorithm": "plurality-at-large",
-                            "candidates": [
-                                {
-                                    "id": "00000000-0000-0000-0000-000000000a01",
-                                    "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                    "election_event_id": "00000000-0000-0000-0000-000000000002",
-                                    "election_id": "00000000-0000-0000-0000-000000000003",
-                                    "contest_id": "00000000-0000-0000-0000-0000000000c1",
-                                    "name": "Red"
-                                },
-                                {
-                                    "id": "00000000-0000-0000-0000-000000000a02",
-                                    "tenant_id": "00000000-0000-0000-0000-000000000001",
-                                    "election_event_id": "00000000-0000-0000-0000-000000000002",
-                                    "election_id": "00000000-0000-0000-0000-000000000003",
-                                    "contest_id": "00000000-0000-0000-0000-0000000000c1",
-                                    "name": "Blue"
-                                }
-                            ]
-                        }
-                    ],
-                    "area_presentation": {
-                        "allow_early_voting": "no_early_voting"
-                    },
-                    "public_key": {
-                        "public_key": "gi+zOBm9zTe3mXx2AzmgXaAhmrpB9nxhrO4wHimya28",
-                        "is_demo": false
-                    }
-                },
-                "created_at": "1970-01-01T00:00:00.000Z",
-                "last_updated_at": "1970-01-01T00:00:00.000Z"
-            }
-        },
-        "ballotSelections": {
-            "00000000-0000-0000-0000-000000000003": [
-                {
-                    "contest_id": "00000000-0000-0000-0000-0000000000c1",
-                    "is_explicit_invalid": false,
-                    "invalid_errors": [],
-                    "invalid_alerts": [],
-                    "choices": [
-                        {"id": "00000000-0000-0000-0000-000000000a01", "selected": -1},
-                        {"id": "00000000-0000-0000-0000-000000000a02", "selected": -1}
-                    ]
-                }
-            ]
-        },
-        "electionEvent": {
-            "00000000-0000-0000-0000-000000000002": {
-                "id": "00000000-0000-0000-0000-000000000002",
+                "contest_id": "00000000-0000-0000-0000-0000000000c1",
+                "name": "Red"
+              },
+              {
+                "id": "00000000-0000-0000-0000-000000000a02",
                 "tenant_id": "00000000-0000-0000-0000-000000000001",
-                "name": "Workbench demo event",
-                "description": "Container event for the workbench fixture.",
-                "elections": ["00000000-0000-0000-0000-000000000003"],
-                "status": {
-                    "is_published": true,
-                    "voting_status": "OPEN",
-                    "kiosk_voting_status": "CLOSED",
-                    "early_voting_status": "CLOSED"
-                }
-            }
-        },
-        "extra": {"bypassChooser": false, "isVoted": {}}
-    },
-    "workbench": {
-        "voters": [
-            {"id": "fec22f2d-d394-489a-b018-656813eb28d1", "displayName": "Alice"},
-            {"id": "cae33836-d603-4022-8d63-a6a92713d7fc", "displayName": "Bob"}
+                "election_event_id": "00000000-0000-0000-0000-000000000002",
+                "election_id": "00000000-0000-0000-0000-000000000003",
+                "contest_id": "00000000-0000-0000-0000-0000000000c1",
+                "name": "Blue"
+              }
+            ]
+          }
         ],
-        "activeVoterId": null,
-        "castBy": {},
-        "repairedCastVotes": {},
-        "keypair": {
-            "pkB64": "gi+zOBm9zTe3mXx2AzmgXaAhmrpB9nxhrO4wHimya28",
-            "skB64": "e9pCQ6VnOIBHwoOyVwqehk00ko5D0RW/LSRVOPC7tAmCL7M4Gb3NN7eZfHYDOaBdoCGaukH2fGGs7jAeKbJrbw"
+        "num_allowed_revotes": 0,
+        "status": {
+          "is_published": true,
+          "voting_status": "OPEN",
+          "kiosk_voting_status": "CLOSED",
+          "early_voting_status": "CLOSED",
+          "voting_period_dates": {},
+          "kiosk_voting_period_dates": {},
+          "early_voting_period_dates": {}
         }
+      }
+    },
+    "castVotes": {},
+    "ballotStyles": {
+      "00000000-0000-0000-0000-000000000003": {
+        "id": "00000000-0000-0000-0000-0000000000b1",
+        "tenant_id": "00000000-0000-0000-0000-000000000001",
+        "election_event_id": "00000000-0000-0000-0000-000000000002",
+        "election_id": "00000000-0000-0000-0000-000000000003",
+        "area_id": "00000000-0000-0000-0000-0000000000aa",
+        "ballot_eml": {
+          "id": "00000000-0000-0000-0000-0000000000b1",
+          "tenant_id": "00000000-0000-0000-0000-000000000001",
+          "election_event_id": "00000000-0000-0000-0000-000000000002",
+          "election_id": "00000000-0000-0000-0000-000000000003",
+          "area_id": "00000000-0000-0000-0000-0000000000aa",
+          "contests": [
+            {
+              "id": "00000000-0000-0000-0000-0000000000c1",
+              "tenant_id": "00000000-0000-0000-0000-000000000001",
+              "election_event_id": "00000000-0000-0000-0000-000000000002",
+              "election_id": "00000000-0000-0000-0000-000000000003",
+              "name": "Favourite colour",
+              "description": "Pick exactly one option.",
+              "max_votes": 1,
+              "min_votes": 1,
+              "winning_candidates_num": 1,
+              "is_encrypted": true,
+              "counting_algorithm": "plurality-at-large",
+              "candidates": [
+                {
+                  "id": "00000000-0000-0000-0000-000000000a01",
+                  "tenant_id": "00000000-0000-0000-0000-000000000001",
+                  "election_event_id": "00000000-0000-0000-0000-000000000002",
+                  "election_id": "00000000-0000-0000-0000-000000000003",
+                  "contest_id": "00000000-0000-0000-0000-0000000000c1",
+                  "name": "Red"
+                },
+                {
+                  "id": "00000000-0000-0000-0000-000000000a02",
+                  "tenant_id": "00000000-0000-0000-0000-000000000001",
+                  "election_event_id": "00000000-0000-0000-0000-000000000002",
+                  "election_id": "00000000-0000-0000-0000-000000000003",
+                  "contest_id": "00000000-0000-0000-0000-0000000000c1",
+                  "name": "Blue"
+                }
+              ]
+            }
+          ],
+          "area_presentation": {
+            "allow_early_voting": "no_early_voting"
+          },
+          "public_key": {
+            "public_key": "gi+zOBm9zTe3mXx2AzmgXaAhmrpB9nxhrO4wHimya28",
+            "is_demo": false
+          }
+        },
+        "created_at": "1970-01-01T00:00:00.000Z",
+        "last_updated_at": "1970-01-01T00:00:00.000Z"
+      }
+    },
+    "ballotSelections": {
+      "00000000-0000-0000-0000-000000000003": [
+        {
+          "contest_id": "00000000-0000-0000-0000-0000000000c1",
+          "is_explicit_invalid": false,
+          "invalid_errors": [],
+          "invalid_alerts": [],
+          "choices": [
+            {
+              "id": "00000000-0000-0000-0000-000000000a01",
+              "selected": -1
+            },
+            {
+              "id": "00000000-0000-0000-0000-000000000a02",
+              "selected": -1
+            }
+          ],
+          "is_decline_to_vote": false
+        }
+      ]
+    },
+    "electionEvent": {
+      "00000000-0000-0000-0000-000000000002": {
+        "id": "00000000-0000-0000-0000-000000000002",
+        "tenant_id": "00000000-0000-0000-0000-000000000001",
+        "name": "Workbench demo event",
+        "description": "Container event for the workbench fixture.",
+        "elections": [
+          "00000000-0000-0000-0000-000000000003"
+        ],
+        "status": {
+          "is_published": true,
+          "voting_status": "OPEN",
+          "kiosk_voting_status": "CLOSED",
+          "early_voting_status": "CLOSED"
+        }
+      }
+    },
+    "extra": {
+      "bypassChooser": false,
+      "isVoted": {}
     }
+  },
+  "workbench": {
+    "voters": [
+      {
+        "id": "fec22f2d-d394-489a-b018-656813eb28d1",
+        "displayName": "Alice"
+      },
+      {
+        "id": "cae33836-d603-4022-8d63-a6a92713d7fc",
+        "displayName": "Bob"
+      }
+    ],
+    "activeVoterId": null,
+    "castBy": {},
+    "repairedCastVotes": {},
+    "keypair": {
+      "pkB64": "gi+zOBm9zTe3mXx2AzmgXaAhmrpB9nxhrO4wHimya28",
+      "skB64": "e9pCQ6VnOIBHwoOyVwqehk00ko5D0RW/LSRVOPC7tAmCL7M4Gb3NN7eZfHYDOaBdoCGaukH2fGGs7jAeKbJrbw"
+    }
+  }
 }

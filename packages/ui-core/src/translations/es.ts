@@ -110,6 +110,12 @@ const spanishTranslation: TranslationType = {
                     "Voto marcado explícitamente como inválido pero la pregunta no lo permite",
                 alert: "La selección marcada será considerada voto inválido.",
             },
+            configuration: {
+                multipleExplicitInvalidCandidates:
+                    "Configuración de voto inválida: el concurso define {{count}} candidatos explícitamente inválidos, pero solo se permite uno.",
+                multipleExplicitBlankCandidates:
+                    "Configuración de voto inválida: el concurso define {{count}} candidatos de voto en blanco explícito, pero solo se permite uno.",
+            },
         },
         ballotHash: "Su Localizador de Voto: {{ballotId}}",
         version: {

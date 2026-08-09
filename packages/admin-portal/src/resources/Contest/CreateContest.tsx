@@ -91,6 +91,10 @@ export const CreateContest: React.FC = () => {
                 <Typography variant="body2">{t("createResource.contest")}</Typography>
                 <TextInput source="name" />
                 <TextInput source="description" />
+                <TextInput
+                    source="external_id"
+                    label={String(t("contestScreen.edit.externalId"))}
+                />
 
                 <Hidden>
                     <BooleanInput source="is_acclaimed" />

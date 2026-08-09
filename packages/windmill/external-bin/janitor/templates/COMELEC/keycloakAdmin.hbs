@@ -1149,6 +1149,15 @@
         "attributes": {}
       },
       {
+        "id": "82c938c9-6b22-4337-a9e5-31b0742837a5",
+        "name": "publish-results-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "730857eb-4ad0-4331-be0f-bd5075a26015",
         "name": "publish-regenerate",
         "description": "",
@@ -1178,6 +1187,15 @@
       {
         "id": "11567034-d3d1-41af-87e6-8108a3d9d8d2",
         "name": "publish-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ee80dcde-cda1-4019-9ce6-409fa40cac01",
+        "name": "publish-results-write",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1455,8 +1473,8 @@
         "attributes": {}
       },
       {
-        "id": "7c279e73-acd2-4b14-946e-800e99915a86",
-        "name": "tally-sheet-delete",
+        "id": "ed56c0d1-9ef0-46ec-95e4-604216baadb9",
+        "name": "tally-sheet-review",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1464,8 +1482,35 @@
         "attributes": {}
       },
       {
-        "id": "ed56c0d1-9ef0-46ec-95e4-604216baadb9",
-        "name": "tally-sheet-publish",
+        "id": "9a19f353-5e17-4db2-b0d8-8809096e1b00",
+        "name": "tally-sheet-import-view",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ca1b8ed4-4839-4f83-b53b-640df4b47df1",
+        "name": "tally-sheet-import-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "241ca173-f3e7-4ab4-80e5-00bec69b6a86",
+        "name": "tally-sheet-import-review",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "56f87c29-f6fc-4f6a-8506-3fbc650b7475",
+        "name": "tally-recount-execute",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -2259,7 +2304,11 @@
         "settings-menu",
         "role-assign",
         "voting-channel-read",
-        "tally-sheet-publish",
+        "tally-sheet-review",
+        "tally-sheet-import-view",
+        "tally-sheet-import-create",
+        "tally-sheet-import-review",
+        "tally-recount-execute",
         "contest-read",
         "document-upload",
         "notification-write",
@@ -2289,12 +2338,12 @@
         "voter-create",
         "election-event-data-tab",
         "user-create",
-        "tally-sheet-delete",
         "voter-read",
         "election-event-reports-tab",
         "election-event-scheduled-tab",
         "election-type-write",
         "publish-write",
+        "publish-results-write",
         "tasks-read",
         "support-material-read",
         "contest-create",
@@ -2340,6 +2389,7 @@
         "contest-write",
         "election-type-create",
         "publish-read",
+        "publish-results-read",
         "publish-create",
         "publish-regenerate",
         "publish-export",
@@ -2387,8 +2437,10 @@
         "election-event-publish-tab",
         "admin-user",
         "publish-write",
+        "publish-results-write",
         "election-event-read",
-        "publish-read"
+        "publish-read",
+        "publish-results-read"
       ],
       "clientRoles": {}
     },
@@ -2425,7 +2477,11 @@
         "admin-user",
         "voter-write",
         "miru-sign",
-        "tally-sheet-publish",
+        "tally-sheet-review",
+        "tally-sheet-import-view",
+        "tally-sheet-import-create",
+        "tally-sheet-import-review",
+        "tally-recount-execute",
         "document-upload",
         "voter-read",
         "election-event-logs-tab",
@@ -2481,7 +2537,11 @@
         "voter-write",
         "role-assign",
         "voting-channel-read",
-        "tally-sheet-publish",
+        "tally-sheet-review",
+        "tally-sheet-import-view",
+        "tally-sheet-import-create",
+        "tally-sheet-import-review",
+        "tally-recount-execute",
         "document-upload",
         "user-permission-read",
         "election-event-create",
@@ -2509,12 +2569,12 @@
         "tenant-read",
         "tally-start",
         "voter-create",
-        "tally-sheet-delete",
         "user-create",
         "voter-read",
         "tenant-create",
         "election-type-write",
         "publish-write",
+        "publish-results-write",
         "support-material-read",
         "communication-template-read",
         "document-write",
@@ -2522,7 +2582,8 @@
         "tenant-write",
         "document-download",
         "election-type-create",
-        "publish-read"
+        "publish-read",
+        "publish-results-read"
       ],
       "clientRoles": {}
     },

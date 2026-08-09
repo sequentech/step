@@ -12,6 +12,98 @@ const frenchTranslation: TranslationType = {
         driversLicense: "Permis de conduire",
         loading: "Chargement...",
         loadingDataProvider: "Chargement du fournisseur de données...",
+        tallySheetImport: {
+            title: "Importations de procès-verbaux de dépouillement",
+            subtitle:
+                "Importez des fichiers de procès-verbaux de dépouillement ES&S ou CSV, prévisualisez les urnes générées et approuvez-les avant de créer des procès-verbaux de dépouillement.",
+            createTitle: "Importer des procès-verbaux de dépouillement",
+            detailTitle: "Importation de procès-verbal de dépouillement",
+            empty: "Aucune importation de procès-verbal de dépouillement pour le moment.",
+            emptyBody:
+                "Commencez par importer un fichier ES&S Enhanced XML ou CSV canonique pour cet événement électoral.",
+            sourceFormat: {
+                ESS_ENHANCED_XML: "ES&S Enhanced XML",
+                CANONICAL_CSV: "CSV canonique",
+            },
+            channel: {
+                PAPER: "Papier",
+                POSTAL: "Postal",
+                IN_PERSON: "En personne",
+            },
+            table: {
+                created: "Créé",
+                createdBy: "Créé par",
+                file: "Fichier",
+                format: "Format",
+                channel: "Canal",
+                status: "Statut",
+                labels: "Étiquettes",
+                annotations: "Annotations",
+                actions: "Actions",
+            },
+            summary: {
+                imported: "Importées",
+                changed: "Modifiées",
+                new: "Nouvelles",
+                unchanged: "Inchangées",
+                conflicted: "En conflit",
+                errors: "Erreurs",
+            },
+            status: {
+                PENDING_REVIEW: "En attente de révision",
+                APPROVED: "Approuvée",
+                DISAPPROVED: "Désapprouvée",
+                FAILED_VALIDATION: "Échec de la validation",
+                CONFLICTED: "En conflit",
+                NEW: "Nouvelle",
+                CHANGED: "Modifiée",
+                UNCHANGED: "Inchangée",
+            },
+            fields: {
+                format: "Format",
+                channel: "Canal",
+                supportedFormats: "Formats pris en charge : XML, CSV",
+                generatedTallySheet: "Procès-verbal de dépouillement généré",
+                sourceCandidates: "IDs des candidats source",
+                none: "Aucun",
+            },
+            actions: {
+                create: "Importer des procès-verbaux de dépouillement",
+                review: "Réviser",
+                source: "Source",
+                cancel: "Annuler",
+                preview: "Prévisualiser",
+                save: "Enregistrer l'importation",
+                approve: "Approuver",
+                disapprove: "Désapprouver",
+                close: "Fermer",
+                openExisting: "Ouvrir l'existante",
+            },
+            notifications: {
+                selectFile: "Sélectionnez un fichier d'importation avant de le prévisualiser",
+                duplicateSource:
+                    "Ce hash de fichier source apparaît déjà dans une importation de procès-verbal de dépouillement précédent.",
+                uploadUrlError: "Impossible de créer l'URL de téléversement",
+                uploadError: "Impossible de téléverser le fichier d'importation",
+                previewEmpty: "La réponse de la prévisualisation était vide",
+                previewError: "Impossible de prévisualiser l'importation",
+                importEmpty: "La réponse de l'importation était vide",
+                created: "Importation de procès-verbal de dépouillement créé",
+                createError: "Impossible de créer l'importation",
+                reviewEmpty: "La réponse de la révision était vide",
+                conflicted: "L'importation présente des conflits de référence obsolètes",
+                approved: "Importation approuvée",
+                disapproved: "Importation désapprouvée",
+                reviewError: "Impossible de réviser l'importation",
+                sourceUrlError: "Impossible de créer l'URL de téléchargement source",
+                sourceDownloadError: "Impossible de télécharger le fichier source",
+            },
+            pagination: {
+                range: "{{rangeStart}}-{{rangeEnd}} sur {{total}}",
+                previous: "Précédent",
+                next: "Suivant",
+            },
+        },
         logsScreen: {
             noPermissions: "Vous n'avez pas la permission d'accéder aux journaux.",
             title: "Journaux",
@@ -69,6 +161,7 @@ const frenchTranslation: TranslationType = {
                 CREATE_ELECTION_EVENT: "Créer Événement Électoral",
                 IMPORT_ELECTION_EVENT: "Importer l'événement électoral",
                 IMPORT_USERS: "Importer des utilisateurs",
+                EDIT_USER: "Modifier l'électeur",
                 IMPORT_CANDIDATES: "Importer des candidats",
                 EXPORT_VOTERS: "Exporter les électeurs",
                 CREATE_TRANSMISSION_PACKAGE: "Créer un paquet de transmission",
@@ -88,6 +181,7 @@ const frenchTranslation: TranslationType = {
                 PREPARE_PUBLICATION_PREVIEW: "Préparer l'aperçu de la publication",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporter les résultats du dépouillement au format XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Exporter les autorités de certification",
+                PUBLISH_RESULTS_WEBSITE: "Publier le site des résultats",
             },
             widget: {
                 taskTitle: "Tâche: {{title}}",
@@ -143,6 +237,7 @@ const frenchTranslation: TranslationType = {
                 subtitle: "Configuration du Type d'Élection",
                 onlineVoting: "Vote en Ligne",
                 kioskVoting: "Vote au Kiosque",
+                telephoneVoting: "Vote par Téléphone",
                 settingTitle: "Configuration",
                 settingSubtitle: "Paramètres généraux",
                 sms: "SMS",
@@ -272,6 +367,8 @@ const frenchTranslation: TranslationType = {
                 notify: {
                     success: "Localisation mise à jour avec succès",
                     error: "Échec de la mise à jour de la localisation",
+                    invalidDateTimeFormat:
+                        "Format de date/heure non valide. Utilisez les jetons yyyy, MM, dd, HH, mm, ss (ex. dd/MM/yyyy HH:mm).",
                 },
                 common: {
                     title: "Localisation",
@@ -326,6 +423,26 @@ const frenchTranslation: TranslationType = {
                     },
                     policyLabel: "Politique de chiffrement de concours",
                 },
+                votingPortalDateTimeFormat: {
+                    policyLabel: "Format de date et d'heure du portail de vote",
+                    helperText:
+                        "S'applique à tout l'événement. Pour le remplacer par langue, ajoutez la clé \"votingPortalDateTimeFormat\" dans l'onglet Localisation avec les jetons yyyy, MM, dd, HH, mm, ss (ex. dd/MM/yyyy HH:mm). Consultez la documentation pour plus de détails.",
+                    options: {
+                        "legacy-gb-24h": "Legacy GB 24h (dd/MM/yyyy HH:mm, 24h)",
+                        "iso-local": "ISO Local (yyyy-MM-dd HH:mm)",
+                        "us-12h": "US 12h (MM/dd/yyyy h:mm AM/PM)",
+                        "locale-medium": "Locale Medium (date moyenne, heure courte)",
+                        "date-only": "Date Only (sans heure)",
+                        "custom": "Format personnalisé",
+                    },
+                    customFormat: {
+                        label: "Format de date et d'heure personnalisé",
+                        helperText:
+                            "Utilisez les jetons yyyy, MM, dd, HH, mm, ss (ex. dd/MM/yyyy HH:mm). Tout autre caractère est affiché tel quel.",
+                        invalid:
+                            "Format invalide. Utilisez au moins un des jetons yyyy, MM, dd, HH, mm, ss.",
+                    },
+                },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Pas de compte à rebours",
                     COUNTDOWN: "Compte à rebours",
@@ -368,6 +485,13 @@ const frenchTranslation: TranslationType = {
                         "manual-ceremonies": "Cérémonies manuelles",
                     },
                 },
+                automaticRecountPolicy: {
+                    policyLabel: "Recomptage automatique après approbation de l'import",
+                    options: {
+                        enabled: "Activé",
+                        disabled: "Désactivé",
+                    },
+                },
                 weightedVotingPolicy: {
                     policyLabel: "Politique de Vote Pondéré",
                     options: {
@@ -401,6 +525,47 @@ const frenchTranslation: TranslationType = {
             },
             createElectionEventSuccess: "Événement Électoral créé",
             createElectionEventError: "Erreur lors de la création de l'Événement Électoral",
+            ivr: {
+                tabs: {
+                    config: "Configuration",
+                    blacklist: "Liste de blocage",
+                    prompts: "Messages vocaux",
+                },
+                common: {
+                    saveSuccess: "Enregistré avec succès",
+                    saveError: "Échec de l’enregistrement",
+                    deleteSuccess: "Supprimé avec succès",
+                    deleteError: "Échec de la suppression",
+                },
+                config: {
+                    configuredPhone: "Numéro de téléphone configuré",
+                    infoMsg:
+                        "Configurez le flux du SVI et ses propriétés ci-dessous. Pour plus de détails, veuillez contacter Sequent.",
+                },
+                prompts: {
+                    emptyMsg: "Aucun message n’a encore été créé",
+                    infoMsg:
+                        "Configurez les messages utilisés par le SVI. Les messages d’annonce sont obligatoires, et les messages système peuvent être remplacés pour les langues souhaitées. SSML est pris en charge, y compris pour mélanger les langues.",
+                    editorTitle: "Message",
+                    editorSubtitle: "Configuration du message",
+                },
+                blacklist: {
+                    columns: {
+                        phone: "Numéro de téléphone",
+                        reason: "Motif",
+                        createdAt: "Créé le",
+                        createdBy: "Créé par",
+                        createdBefore: "Créé avant",
+                        createdAfter: "Créé après",
+                    },
+                    emptyMsg: "Il n’y a aucune entrée dans la liste de blocage",
+                    infoMsg:
+                        "Configurez la liste de blocage du SVI. Les appels provenant de ces numéros seront automatiquement déconnectés par le système.",
+
+                    noFilterMatch: "Aucune entrée ne correspond aux filtres indiqués",
+                    phoneRequired: "Le numéro de téléphone est obligatoire",
+                },
+            },
             stats: {
                 elegibleVoters: "Électeurs",
                 voters: "Votants",
@@ -439,11 +604,13 @@ const frenchTranslation: TranslationType = {
                 dashboard: "Tableau de Bord",
                 monitoring: "Surveillance",
                 data: "Données",
+                ivr: "IVR",
                 localization: "Localisation",
                 voters: "Électeurs",
                 areas: "Zones",
                 keys: "Clés",
                 tally: "Comptage",
+                tallySheetImports: "Importation des procès-verbaux de dépouillement",
                 publish: "Publier",
                 logs: "Journaux",
                 tasks: "Tâches",
@@ -602,6 +769,7 @@ const frenchTranslation: TranslationType = {
                 alias: "Alias",
                 description: "Description",
                 securityConfirmationHtml: "Confirmation de sécurité HTML",
+                ivrPrompt: "Message IVR",
                 externalId: "ID externe",
             },
             securityConfirmationPolicy: {
@@ -626,6 +794,7 @@ const frenchTranslation: TranslationType = {
                 publish: "Publier",
                 logs: "Journaux",
                 approvals: "Approvals",
+                tallySheets: "Feuilles de Comptage",
             },
             gracePeriodPolicy: {
                 "label": "Politique de période de grâce",
@@ -664,6 +833,20 @@ const frenchTranslation: TranslationType = {
                     "do-not-generate": "Ne pas générer",
                 },
             },
+            declineToVotePolicy: {
+                label: "Politique d’abstention de vote",
+                options: {
+                    enabled: "Activé",
+                    disabled: "Désactivé",
+                },
+            },
+            votingScreenBackPolicy: {
+                label: "Politique du bouton Retour de l’écran de vote",
+                options: {
+                    "election-selection-screen": "Aller à l’écran de sélection des élections",
+                    "start-screen": "Aller à l’écran d’accueil de l’élection",
+                },
+            },
         },
         tenantScreen: {
             common: {
@@ -691,6 +874,15 @@ const frenchTranslation: TranslationType = {
             users: {
                 title: "Utilisateurs",
                 subtitle: "Voir et éditer les données de l'utilisateur",
+                review: {
+                    title: "Vérifier les modifications",
+                    subtitle: "Confirmez ces mises à jour avant de les soumettre.",
+                    confirm: "Confirmer les modifications",
+                    noChanges: "Aucune modification à vérifier",
+                    field: "Champ",
+                    currentValue: "Valeur actuelle",
+                    newValue: "Nouvelle valeur",
+                },
                 edit: {
                     title: "Informations de l'Utilisateur",
                     subtitle: "Voir et éditer l'Utilisateur",
@@ -701,6 +893,8 @@ const frenchTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "A voté",
+                    "voted-channel": "Canal de vote",
+                    "disable-comment": "Commentaire de désactivation",
                     "username": "Nom d'Utilisateur",
                     "first_name": "Prénom",
                     "last_name": "Nom",
@@ -740,6 +934,15 @@ const frenchTranslation: TranslationType = {
             voters: {
                 title: "Électeurs",
                 subtitle: "Voir et éditer les données de l'électeur",
+                review: {
+                    title: "Vérifier les modifications",
+                    subtitle: "Confirmez ces mises à jour avant de les soumettre.",
+                    confirm: "Confirmer les modifications",
+                    noChanges: "Aucune modification à vérifier",
+                    field: "Champ",
+                    currentValue: "Valeur actuelle",
+                    newValue: "Nouvelle valeur",
+                },
                 logs: {
                     label: "Journaux de l'utilisateur",
                 },
@@ -852,14 +1055,20 @@ const frenchTranslation: TranslationType = {
                 "tally-results-read": "Lire Résultats de Comptage",
                 "publish-read": "Lire Publication",
                 "publish-write": "Éditer Publication",
+                "publish-results-read": "Lire Publication des Résultats",
+                "publish-results-write": "Éditer Publication des Résultats",
                 "logs-read": "Lire Journaux",
                 "tasks-read": "Lire l'Exécution des Tâches",
                 "keys-read": "Lire Clés",
                 "document-upload": "Télécharger Documents",
                 "document-download": "Télécharger Documents",
                 "tally-sheet-create": "Créer Acte de Comptage",
+                "tally-sheet-import-create": "Créer une importation d'actes de comptage",
+                "tally-sheet-import-review": "Examiner une importation d'actes de comptage",
+                "tally-sheet-import-view": "Voir une importation d'actes de comptage",
+                "tally-recount-execute": "Exécuter un recomptage des résultats",
                 "trustee-ceremony": "Cérémonie de Fideicomisario",
-                "tally-sheet-publish": "Publier Acte de Comptage",
+                "tally-sheet-review": "Examiner la feuille de décompte",
                 "tally-sheet-view": "Voir Acte de Comptage",
                 "admin-ceremony": "Administrer Cérémonie de Clés",
                 "tally-sheet-delete": "Supprimer Acte de Comptage",
@@ -1179,6 +1388,8 @@ const frenchTranslation: TranslationType = {
                 unarchive: "Désarchiver",
                 cancel: "Annuler",
                 edit: "Éditer",
+                yes: "Oui",
+                no: "Non",
                 save: "Sauvegarder",
                 close: "Fermer",
                 back: "Retour",
@@ -1217,6 +1428,7 @@ const frenchTranslation: TranslationType = {
                 online: "En ligne",
                 kiosk: "Kiosque",
                 early_voting: "Vote anticipé",
+                telephone: "Vote par téléphone",
             },
             message: {
                 delete: "Êtes-vous sûr de vouloir supprimer cet élément ?",
@@ -1296,6 +1508,7 @@ const frenchTranslation: TranslationType = {
                 subtitle: "Configuration des candidats.",
             },
             edit: {
+                externalId: "ID externe",
                 general: "Général",
                 type: "Type",
                 image: "Image",
@@ -1335,6 +1548,7 @@ const frenchTranslation: TranslationType = {
                 subtitle: "Configuration des questions.",
             },
             edit: {
+                externalId: "ID externe",
                 general: "Général",
                 type: "Type",
                 image: "Image",
@@ -1558,6 +1772,56 @@ const frenchTranslation: TranslationType = {
             errorUploadingSignature:
                 "Une erreur s'est produite lors du téléchargement de la signature",
             downloadTransmissionPackage: "Télécharger le paquet",
+            resultsPublication: {
+                sectionTitle: "Publish to results website",
+                policyTitle: "Results Website",
+                policyAccess: "Results Website Access",
+                policyVisibility: "Results Website Visibility",
+                enabled: "Enabled",
+                disabled: "Disabled",
+                fullEvent: "Full event",
+                areaBased: "Area based",
+                publishStarted: "Results publication started",
+                publishError: "Could not start results publication",
+                revoked: "Results publication revoked",
+                revokeError: "Could not revoke results publication",
+                waitingForTally: "Results can be published after this tally has completed.",
+                writePermissionRequired:
+                    "You need publish-results-write permission to publish or revoke results.",
+                readPermissionRequired:
+                    "You need publish-results-read permission to view publication history.",
+                disabledPolicy:
+                    "Results website publishing is disabled for this election event. Enable it in the election event data before publishing results.",
+                loadingElectionContext: "Results publication is loading election context.",
+                route: "Route",
+                eventResults: "Event results",
+                electionResults: "Election results",
+                election: "Election",
+                access: "Access",
+                publicAccess: "Public access",
+                authenticatedAccess: "Authenticated access",
+                visibility: "Visibility",
+                fullPublishedScope: "Full published scope",
+                personalVisibility: "Personal visibility",
+                contests: "Contests",
+                noTalliedContests: "No tallied contests available.",
+                publishSelectedContests: "Publish selected contests",
+                selectedContestCount: "{{count}} contest selected",
+                selectedContestCount_plural: "{{count}} contests selected",
+                history: "Publication history",
+                version: "Version",
+                status: "Status",
+                published: "Published",
+                revokedAt: "Revoked",
+                actions: "Actions",
+                open: "Open",
+                revoke: "Revoke",
+                noPublications: "No publications yet.",
+                confirmTitle: "Start publish to results website?",
+                confirmDescription:
+                    "This will create a new publication from the current tally execution. The existing voter-facing results stay active until this publish task succeeds.",
+                close: "Close",
+            },
             transmissionPackage: {
                 title: "Paquet de Transmission pour la Zone '{{name}}' y Elección '{{eventName}}'",
                 description:
@@ -1659,6 +1923,13 @@ const frenchTranslation: TranslationType = {
             startTallyCeremonyError: "Impossible de démarrer la cérémonie de comptage",
             cancelTallyCeremonySuccess: "Cérémonie de comptage annulée",
             cancelTallyCeremonyError: "Impossible d'annuler la cérémonie de comptage",
+            recountTallyCeremony: "Recompter",
+            recountTallyCeremonyMessage:
+                "Cela générera un nouvel événement de résultats pour la session de comptage terminée.",
+            recountTallyCeremonyStarting: "Démarrage du recomptage...",
+            recountTallyCeremonySuccess: "Recomptage commencé",
+            recountTallyCeremonyError: "Impossible de démarrer le recomptage",
+            recountTallyCeremonyOk: "Recompter",
             trusteeTitle: "Processus du trustee",
             trusteeSubTitle: "Veuillez importer votre fragment de clé",
             invited: "Vous avez été invité à participer à une cérémonie de comptage. Veuillez, ",
@@ -1732,6 +2003,8 @@ const frenchTranslation: TranslationType = {
                 implicit_invalid_votes: "Votes implicitement invalides",
                 implicit_invalid_votes_percent: "Pourcentage de votes implicitement invalides",
                 blank_votes: "Votes blancs",
+                explicit_blank_votes: "Votes blancs explicites",
+                implicit_blank_votes: "Votes blancs implicites",
                 blank_votes_percent: "Pourcentage de votes blancs",
                 number_of_votes: "Nombre de votes",
                 winning_position: "Position gagnante",
@@ -1742,6 +2015,7 @@ const frenchTranslation: TranslationType = {
                     eliminated: "Éliminé",
                     round: "Tour",
                 },
+                total_declined_to_vote: "Total des refus de vote",
             },
             pendingResolutions: {
                 round: "Tour {{round}}",
@@ -1804,14 +2078,17 @@ const frenchTranslation: TranslationType = {
                 startKioskVoting: "Commencer Vote au Kiosque",
                 startOnlineVoting: "Commencer Vote en Ligne",
                 startEarlyVoting: "Commencer Vote Anticipé",
+                startTelephoneVoting: "Commencer Vote Téléphone",
                 stopVotingPeriod: "Arrêter la période de vote",
                 stopOnlineVoting: "Arrêter le Vote en Ligne",
                 stopEarlyVoting: "Arrêter le Vote Anticipé",
+                stopTelephoneVoting: "Arrêter le Vote Téléphone",
                 stopKioskVotingPeriod: "Arrêter le Vote au Kiosque",
                 pauseVotingPeriod: "Mettre en pause la période de vote",
                 pauseKioskVoting: "Mettre en pause le Vote au Kiosque",
                 pauseOnlineVoting: "Mettre en pause le Vote en Ligne",
                 pauseEarlyVoting: "Mettre en pause le Vote Anticipé",
+                pauseTelephoneVoting: "Mettre en pause le Vote Téléphone",
                 generate: "régénérer",
                 publish: "Publier Changements",
                 back: "Arrière",
@@ -1908,8 +2185,12 @@ const frenchTranslation: TranslationType = {
             },
         },
         tallysheet: {
+            title: "Urnes",
+            subtitle: "Urnes numérisées par canal",
             createTallySuccess: "Feuille de Comptage créée",
             createTallyError: "Erreur lors de la création de la Feuille de Comptage",
+            createTallyErrorSameKindExists:
+                "La feuille de décompte existe déjà pour ce scrutin avec le même canal et la même zone",
             allFieldsRequired: "Tous les champs sont obligatoires",
             header: {
                 change: "Changements à Publier",
@@ -1923,6 +2204,11 @@ const frenchTranslation: TranslationType = {
                 generate: "Régénérer",
                 publish: "Publier Changements",
                 back: "Arrière",
+            },
+            inputError: {
+                totalValidDoesNotMatch:
+                    "Le total des votes valides ne correspond pas à la somme des votes des candidats plus les votes blancs",
+                censusTooSmall: "Le recensement doit être supérieur ou égal au total des votes",
             },
             label: {
                 area: "Zone",
@@ -1952,10 +2238,14 @@ const frenchTranslation: TranslationType = {
                 subtitle: "Configuration de la Feuille de Comptage.",
                 candidates: "Candidats",
                 save: "Sauvegarder",
-                publish: "Publier",
-                unpublish: "Dépublier",
-                warningUnPublish: "Êtes-vous sûr de dépublier cette Feuille de Comptage ?",
-                warningPublish: "Êtes-vous sûr de publier cette Feuille de Comptage ?",
+                approve: "Approuver",
+                disapprove: "Désapprouver",
+                show: "Afficher",
+                add: "Ajouter",
+                versions: "Versions",
+                warningDisapprove:
+                    "Êtes-vous sûr de vouloir désapprouver cette Feuille de Décompte?",
+                warningApprove: "Êtes-vous sûr de vouloir approuver cette Feuille de Décompte?",
             },
             empty: {
                 header: "Aucune Feuille de Comptage.",
@@ -1971,11 +2261,26 @@ const frenchTranslation: TranslationType = {
             table: {
                 area: "Zone",
                 contest: "Cotienda",
-                published: "Publié",
+                approvedVersion: "Version approuvée",
+                latestVersion: "Dernière version",
+                labels: "Étiquettes",
+                annotations: "Annotations",
+            },
+            versionsTable: {
+                title: "Versions de l'urne",
+                version: "Version",
+                createdBy: "Créé par",
+                reviewedBy: "Révisé par",
+                createdAt: "Créé le",
+                reviewedAt: "Révisé le",
+                sourceImport: "Import source",
+                importStatus: "Statut de l'import",
+                openImport: "Ouvrir l'import",
+                sourceFile: "Fichier source",
             },
             message: {
-                publishError: "Erreur lors de la publication de la Feuille de Comptage",
-                publishSuccess: "Feuille de Comptage publiée",
+                reviewError: "Erreur lors de la révision de la Feuille de Comptage",
+                reviewSuccess: "Feuille de Comptage révisée",
             },
         },
         application: {
@@ -2232,8 +2537,9 @@ const frenchTranslation: TranslationType = {
                 importButton: "Importer",
             },
             notify: {
-                importSuccess:
-                    "{{inserted}} certificat(s) importé(s). {{skipped}} ignoré(s) (déjà présent(s)).",
+                importSuccess: "{{inserted}} certificat(s) importé(s).",
+                importSkipped: "{{count}} ignoré(s) (déjà présent(s)).",
+                importErrors: "Problèmes d'importation : {{errors}}",
                 importError: "Échec de l'importation : {{error}}",
                 deleteSuccess: "Certificat supprimé.",
                 deleteError: "Erreur lors de la suppression du certificat.",

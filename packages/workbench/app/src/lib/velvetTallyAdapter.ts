@@ -2,22 +2,21 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 //
-// Velvet `ContestResult` JSON  →  ui-essentials `TallyResultsViewModel`.
+// Velvet `ContestResult` JSON  →  props for ui-essentials'
+// `ResultsAndParticipation`.
 //
 // Velvet's serialised shape lives in packages/workbench/velvet-core/src/result.rs.
-// admin-portal expects a view-model derived from its Sequent_Backend_*
-// graphql types; ui-essentials' TallyResultsViewModel uses a stripped-down
-// plain-shape version of that. This adapter is the workbench-specific glue
-// that maps between the two.
+// ui-essentials owns the production tally visualization (shared with
+// results-portal); this adapter is the workbench-specific glue that maps
+// velvet's snake_case result onto that component's camelCase props.
 //
-// See packages/workbench/LIFTING-TALLY.md section B for the field-rename
-// table and the canary signals if velvet's output shape evolves.
+// See packages/workbench/LIFTING-TALLY.md for the field-rename table and
+// the canary signals if velvet's output shape evolves.
 
 import type {
-    RunoffStatus,
-    TallyCandidate,
-    TallyParticipationSummary,
-    TallyResultsViewModel,
+    CandidateResultRow,
+    PreferentialProcessResults,
+    ResultsParticipationSummary,
 } from "@sequentech/ui-essentials"
 
 interface VelvetCandidate {
@@ -69,55 +68,86 @@ interface VelvetRunoff {
     max_rounds?: number
 }
 
-/** Best-effort mapping from a velvet `ContestResult` JSON into the
- *  ui-essentials `TallyResultsViewModel`. Returns null when the input
+/** Everything the workbench's tally visualization needs. The first five
+ *  fields map 1:1 onto `ResultsAndParticipation`'s props; the last two
+ *  have no counterpart on that component and are rendered by the
+ *  workbench itself (TallyPage). */
+export interface VelvetTallyView {
+    chartName: string
+    summary: ResultsParticipationSummary
+    candidates: CandidateResultRow[]
+    processResults: PreferentialProcessResults | null
+    winnersCount: number
+    countingAlgorithm?: string
+}
+
+/** Fraction in [0,1] of `part` over `whole`, or undefined when the base
+ *  is zero/absent. ui-essentials' `percentOrDash` runs the value through
+ *  `formatPercentOne`, which multiplies by 100 — so these must be
+ *  fractions, not percentages. */
+function fraction(part: number, whole: number): number | undefined {
+    return whole > 0 ? part / whole : undefined
+}
+
+/** Best-effort mapping from a velvet `ContestResult` JSON into the props
+ *  ui-essentials' tally components expect. Returns null when the input
  *  isn't an object (defensive — callers may pass `unknown`). */
 export function adaptVelvetContestResult(
     result: unknown,
     contestName?: string
-): TallyResultsViewModel | null {
+): VelvetTallyView | null {
     if (!result || typeof result !== "object") return null
     const r = result as VelvetContestResult
 
-    const candidates: TallyCandidate[] = (r.candidate_result ?? [])
-        .map((cr, i) => ({
-            rowId: i,
+    const candidates: CandidateResultRow[] = (r.candidate_result ?? [])
+        .map((cr) => ({
             id: cr.candidate.id,
-            status: "active",
             name: cr.candidate.name ?? cr.candidate.id,
-            cast_votes: cr.total_count ?? 0,
-            // velvet emits percentage_votes in [0,100]; admin-portal's
-            // formatPercentOne expects a [0,1] fraction (multiplies by 100).
-            cast_votes_percent: (cr.percentage_votes ?? 0) / 100,
-            winning_position: null as number | null,
+            castVotes: cr.total_count ?? 0,
+            // velvet emits percentage_votes in [0,100]; formatPercentOne
+            // expects a [0,1] fraction (it multiplies by 100).
+            castVotesPercent: (cr.percentage_votes ?? 0) / 100,
         }))
-        .sort((a, b) => (b.cast_votes ?? 0) - (a.cast_votes ?? 0))
-        .map((c, i) => ({...c, rowId: i, winning_position: i + 1}))
+        .sort((a, b) => (b.castVotes ?? 0) - (a.castVotes ?? 0))
+        // velvet does not rank candidates; the component consumes
+        // winningPosition but never computes it, so assign it here.
+        .map((c, i) => ({...c, winningPosition: i + 1}))
 
-    const summary: TallyParticipationSummary = {
+    const census = r.census ?? 0
+    const valid = r.total_valid_votes ?? 0
+    const invalid = r.total_invalid_votes ?? 0
+    const blank = r.total_blank_votes ?? 0
+    const counted = valid + invalid
+
+    const summary: ResultsParticipationSummary = {
         id: r.contest?.id ?? "",
-        elegible_census: r.census ?? 0,
-        total_valid_votes: r.total_valid_votes ?? 0,
-        total_invalid_votes: r.total_invalid_votes ?? 0,
-        blank_votes: r.total_blank_votes ?? 0,
+        eligibleCensus: census,
+        totalVotes: counted,
+        totalVotesPercent: fraction(counted, census),
+        totalValidVotes: valid,
+        totalValidVotesPercent: fraction(valid, census),
+        totalInvalidVotes: invalid,
+        totalInvalidVotesPercent: fraction(invalid, census),
+        blankVotes: blank,
+        blankVotesPercent: fraction(blank, census),
     }
 
     return {
+        chartName: contestName ?? r.contest?.id ?? "",
         summary,
         candidates,
+        processResults: adaptRunoff(r.process_results),
         winnersCount: r.contest?.winning_candidates_num ?? 1,
-        runoff: adaptRunoff(r.process_results),
         countingAlgorithm: r.contest?.counting_algorithm ?? undefined,
-        contestName,
     }
 }
 
-function adaptRunoff(processResults: unknown): RunoffStatus | null {
+function adaptRunoff(processResults: unknown): PreferentialProcessResults | null {
     if (!processResults || typeof processResults !== "object") return null
     const pr = processResults as VelvetRunoff
     if (!Array.isArray(pr.rounds) || pr.rounds.length === 0) return null
     return {
-        candidates_status: (pr.candidates_status ?? {}) as RunoffStatus["candidates_status"],
+        candidates_status: pr.candidates_status ?? {},
         name_references: (pr.name_references ?? []).map((c) => ({
             id: c.id,
             name: c.name ?? c.id,

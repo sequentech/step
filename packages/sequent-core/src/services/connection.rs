@@ -161,15 +161,9 @@ fn parse_datafix_headers(headers: &HeaderMap) -> Option<DatafixHeaders> {
         headers.get_one(AUTHORIZATION_HEADER).unwrap_or_default(),
     );
 
-    info!(
-        "tenant-id: {:?} event-id: {:?} authorization: {:?}",
-        tenant_id, event_id, authorization
-    );
-
     let mut auth_collection = authorization.split(":");
     let client_id = auth_collection.nth(0); // get the first item and consumes it
     let client_secret = auth_collection.nth(0);
-    info!("{:?}:{:?}", client_id, client_secret);
     let (client_id, client_secret) =
         if let (Some(client_id), Some(client_secret)) =
             (client_id, client_secret)
@@ -202,8 +196,7 @@ struct TokenResponseExtended {
 
 /// Last access token can be reused if it´s not expired, this is to avoid
 /// Keycloak having to hold one token per Api request which could lead quickly
-/// to many thousands of tokens.
-///
+/// to many thousands of tokens.<br>
 /// Keycloak can hold multiple tokens for the same client, so we do not care
 /// about using the previous token if one thread read it and while didn´t send
 /// it yet other thread wrote it. As long as it is not expired, we can reuse it.
@@ -261,7 +254,6 @@ async fn request_access_token(
     lst_acc_tkn: &LastDatafixAccessToken,
 ) -> AnyhowResult<PubKeycloakAdminToken> {
     let stamp: Instant = Instant::now(); // Capture the stamp before sending the request
-    info!("Requesting access token");
     let keycloak_adm_tkn = get_third_party_client_access_token(
         client_id.clone(),
         client_secret.clone(),

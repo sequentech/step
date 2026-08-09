@@ -58,6 +58,14 @@ const catalanTranslation: TranslationType = {
         },
         startScreen: {
             startButton: "Començar a votar",
+            declineToVoteButton: "Declinar votar",
+            declineToVoteDialog: {
+                title: "Confirma que vols declinar votar",
+                content:
+                    "Segur que vols declinar votar?<br />Aniràs directament a la revisió i el teu estat de participació es desarà com a <b>Ha declinat votar</b>.",
+                continue: "Declinar votar",
+                cancel: "Cancel·lar",
+            },
             instructionsTitle: "Com votar",
             instructionsDescription: "Seguiu aquests passos per emetre el vostre vot",
             step1Title: "1. Escolliu les vostres opcions",
@@ -197,6 +205,7 @@ const catalanTranslation: TranslationType = {
                 INTERNAL_ERROR:
                     "S'ha produït un error intern en emetre el vot. Si us plau, torneu-ho a provar més tard o contacteu amb el suport per rebre assistència.",
             },
+            declineToVote: "Declinar votar",
         },
         confirmationScreen: {
             title: "El seu vot ha estat emès",
@@ -279,7 +288,8 @@ const catalanTranslation: TranslationType = {
                     "Aquesta pantalla mostra la llista de paperetes a les quals podeu accedir. Poden estar obertes, programades o tancades. Només podeu votar en les que estan obertes",
                 ok: "D'acord",
             },
-            noResults: "No hi ha paperetes disponibles actualment",
+            noResults: "No hi ha eleccions per ara.",
+            resultsButton: "Veure resultats",
             demoDialog: {
                 title: "Cabina de votació de demostració",
                 content:
@@ -361,6 +371,8 @@ const catalanTranslation: TranslationType = {
             locateAgain: "Troba una altra Papereta",
             found: "El teu ID de Papereta {{ballotId}} ha estat trobat",
             notFound: "El teu ID de Papereta {{ballotId}} no ha estat trobat",
+            ambiguous:
+                "Més d'una de les teves paperetes coincideix amb {{ballotId}}. Utilitza l'ID complet de la papereta.",
             contentDesc: "Aquest és el contingut de la teva Papereta: ",
             wrongFormatBallotId: "Format incorrecte per l'ID de la Papereta",
             ballotIdNotFoundAtFilter:

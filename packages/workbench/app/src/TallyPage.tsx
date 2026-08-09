@@ -8,9 +8,9 @@
  * Sister tool of `/pipeline` (BallotPipeline.tsx). Where the pipeline
  * exercises the encode/encrypt/decrypt/decode chain end-to-end on a
  * single ballot, this page exercises the **tally** step in isolation
- * and renders its result through the lifted
- * `@sequentech/ui-essentials/TallyResultsView` so the visualization is
- * 1:1 with what admin-portal produces.
+ * and renders its result through ui-essentials'
+ * `ResultsAndParticipation` so the visualization is 1:1 with what
+ * production (results-portal / admin-portal) produces.
  *
  * Three input panes:
  *   1. Setup           — contest descriptor JSON (the `Contest` that
@@ -40,8 +40,8 @@ import {createTheme, ThemeProvider} from "@mui/material/styles"
 import CssBaseline from "@mui/material/CssBaseline"
 
 import {
-    TallyResultsView,
-    type TallyResultsViewModel,
+    PreferentialCandidateResults,
+    ResultsAndParticipation,
 } from "@sequentech/ui-essentials"
 
 import {
@@ -49,7 +49,10 @@ import {
     encodeBallot,
     runTally,
 } from "./tally"
-import {adaptVelvetContestResult} from "./lib/velvetTallyAdapter"
+import {
+    adaptVelvetContestResult,
+    type VelvetTallyView,
+} from "./lib/velvetTallyAdapter"
 import {
     applyPolicyOverlayToContest,
     usePolicyOverrides,
@@ -100,7 +103,7 @@ export function TallyPage(): React.ReactElement {
     // The currently-rendered model (the visualization's source of
     // truth). Separate from `outputJson` so a malformed paste does not
     // wipe out the last good render.
-    const [model, setModel] = useState<TallyResultsViewModel | null>(() => {
+    const [model, setModel] = useState<VelvetTallyView | null>(() => {
         if (seed?.result) {
             return adaptVelvetContestResult(seed.result, seed.contestName)
         }
@@ -300,7 +303,29 @@ export function TallyPage(): React.ReactElement {
                 {model ? (
                     <ThemeProvider theme={muiDarkTheme}>
                         <CssBaseline enableColorScheme />
-                        <TallyResultsView model={model} />
+                        <p style={styles.algorithmLine}>
+                            Counting algorithm:{" "}
+                            {model.countingAlgorithm ?? "unknown"} · winners:{" "}
+                            {model.winnersCount}
+                        </p>
+                        {/* `preferential` is left false so the plurality
+                            table always renders; the round-by-round view
+                            is appended below when velvet emitted one, so
+                            the sandbox shows both rather than either. */}
+                        <ResultsAndParticipation
+                            chartName={model.chartName}
+                            summary={model.summary}
+                            candidates={model.candidates}
+                            preferential={false}
+                        />
+                        {model.processResults ? (
+                            <ThemeProvider theme={muiLightTheme}>
+                                <PreferentialCandidateResults
+                                    processResults={model.processResults}
+                                    candidates={model.candidates}
+                                />
+                            </ThemeProvider>
+                        ) : null}
                     </ThemeProvider>
                 ) : (
                     <p style={styles.placeholder}>
@@ -425,6 +450,15 @@ const muiDarkTheme = createTheme({
     },
 })
 
+// ui-essentials' PreferentialCandidateResults hardcodes light cell
+// backgrounds (#FBFBFB / #fff / #F9F9FF) because results-portal renders
+// it on a light page. Under muiDarkTheme MUI paints its text white, so
+// the candidate column becomes white-on-white. We do not fork the
+// upstream component (see LIFTING-TALLY.md), so the round table is given
+// a light theme of its own — a light island in the dark chrome, but
+// legible and 1:1 with production.
+const muiLightTheme = createTheme({palette: {mode: "light"}})
+
 // ---------------------------------------------------------------------------
 // Styles
 // ---------------------------------------------------------------------------
@@ -526,5 +560,13 @@ const styles: Record<string, CSSProperties> = {
         color: "#888",
         fontStyle: "italic",
         fontSize: "0.9rem",
+    },
+    // Counting algorithm / winners line. ui-essentials'
+    // ResultsAndParticipation has no slot for these, so the workbench
+    // renders them itself above the visualization.
+    algorithmLine: {
+        color: "#999",
+        fontSize: "0.85rem",
+        margin: "0 0 12px",
     },
 }

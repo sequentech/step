@@ -2,14 +2,15 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM rust:1.90.0-slim-bookworm
+FROM rust:1.96.0-slim-bookworm
 
 # Copy projects
 WORKDIR /app
 COPY ./braid/scripts/Cargo.toml ./Cargo.toml
 COPY ./braid ./braid
-COPY ./b3 ./b3
+COPY ./b4 ./b4
 COPY ./strand ./strand
+COPY ./sequent-core ./sequent-core
 COPY ./Cargo.lock ./Cargo.lock
 COPY ./.cargo ./.cargo
 
@@ -17,12 +18,12 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends debian-archive-keyring \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
-        protobuf-compiler \
-        libprotobuf-dev \
-        m4 \
-        make \
-        unzip \
-        curl \
+    protobuf-compiler \
+    libprotobuf-dev \
+    m4 \
+    make \
+    unzip \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 
@@ -32,19 +33,19 @@ ARG VAULT_VERSION=1.15.5
 RUN set -eux; \
     # 1. Resolve the version if the build arg said "latest"
     if [ "${VAULT_VERSION}" = "latest" ]; then \
-        VAULT_VERSION="$(curl -s https://releases.hashicorp.com/vault/ \
-          | grep -oP 'vault/\K[0-9.]+(?=/")' \
-          | head -n1)"; \
+    VAULT_VERSION="$(curl -s https://releases.hashicorp.com/vault/ \
+    | grep -oP 'vault/\K[0-9.]+(?=/")' \
+    | head -n1)"; \
     fi; \
     # 2. Map kernel arch → HashiCorp archive suffix
     case "$(uname -m)" in \
-        x86_64|amd64)   VAULT_ARCH=amd64  ;; \
-        aarch64|arm64)  VAULT_ARCH=arm64 ;; \
-        *) echo "Unsupported architecture: $(uname -m)"; exit 1 ;; \
+    x86_64|amd64)   VAULT_ARCH=amd64  ;; \
+    aarch64|arm64)  VAULT_ARCH=arm64 ;; \
+    *) echo "Unsupported architecture: $(uname -m)"; exit 1 ;; \
     esac; \
     # 3. Download, unpack, clean up
     curl -fsSL -o vault.zip \
-      https://releases.hashicorp.com/vault/${VAULT_VERSION}/vault_${VAULT_VERSION}_linux_${VAULT_ARCH}.zip; \
+    https://releases.hashicorp.com/vault/${VAULT_VERSION}/vault_${VAULT_VERSION}_linux_${VAULT_ARCH}.zip; \
     unzip -q vault.zip -d /usr/local/bin/; \
     rm -f vault.zip
 
