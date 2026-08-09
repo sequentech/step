@@ -2389,8 +2389,25 @@ fn voters_sheet(plan: &Blueprint) -> Result<Option<Sheet>, Problem> {
     /// does not — reaching for it would drag the whole builder into a front end
     /// that only wants to describe a plan. The two lists are checked against
     /// each other by `the_voters_sheet_matches_what_the_builder_reads`.
-    const NAMED: &[&str] =
-        &["username", "email", "first_name", "last_name", "area_name"];
+    /// `area.external_id` is what the builder *requires*, and it was missing.
+    ///
+    /// `build_tables::voter_area_name` reads `area.external_id` off every voter row
+    /// and reports "a voter needs an area" when it is absent — so a plan whose
+    /// census was otherwise perfect compiled to nothing. The wizard wrote
+    /// `area_name` only, which is what the finished CSV carries; the builder is the
+    /// thing that turns an id into that name, so it needs the id.
+    ///
+    /// The old agreement test could not catch this: it asserted every column emitted
+    /// is one the builder knows, which is the wrong direction. A column the builder
+    /// cannot live without simply never appeared in the list it checked.
+    const NAMED: &[&str] = &[
+        "username",
+        "email",
+        "first_name",
+        "last_name",
+        "area_name",
+        "area.external_id",
+    ];
 
     // Sorted, so a census that gains a column does not reorder the ones it had.
     let mut extra: Vec<&str> = plan
@@ -2421,6 +2438,15 @@ fn voters_sheet(plan: &Blueprint) -> Result<Option<Sheet>, Problem> {
                 text_or_blank(&voter.first_name),
                 text_or_blank(&voter.last_name),
                 text_or_blank(&voter.area_name),
+                // A plan names a voter's area the way a person would — by its
+                // name — and the builder matches on the identifier. Resolved here
+                // rather than asking somebody to type both: two spellings of one
+                // area is a census that imports into the wrong district.
+                plan.areas
+                    .iter()
+                    .find(|area| area.name == voter.area_name)
+                    .map(|area| Cell::text(area.external_id.clone()))
+                    .unwrap_or(Cell::Blank),
             ];
             row.extend(extra.iter().map(|key| {
                 voter

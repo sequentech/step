@@ -1709,11 +1709,34 @@ fn the_voters_sheet_matches_what_the_builder_reads() {
         .sheet("voters")
         .expect("the census should be a sheet");
 
+    // Two directions, because the one-way version missed a real defect for weeks.
+    //
+    // It asserted only that every column emitted is one the builder knows, which
+    // says nothing about a column the builder cannot do without. `area.external_id`
+    // is exactly that: `build_tables::voter_area_name` reads it off every row and
+    // reports "a voter needs an area" when it is absent, so the whole plan compiled
+    // to nothing while this test stayed green.
+    //
+    // It is not in `VOTER_LEADING_COLUMNS` and should not be. That list is the
+    // columns the builder *derives or reorders* on the way out; this is one it
+    // *consumes* on the way in, turning the id into the `area_name` the finished
+    // CSV carries.
+    const CONSUMED: &[&str] = &["area.external_id"];
+
     for column in &voters.headers {
         assert!(
             crate::election_config::build::VOTER_LEADING_COLUMNS
-                .contains(&column.as_str()),
+                .contains(&column.as_str())
+                || CONSUMED.contains(&column.as_str()),
             "'{column}' is not a column the builder reads"
+        );
+    }
+
+    for required in CONSUMED {
+        assert!(
+            voters.headers.iter().any(|column| column == required),
+            "the builder needs '{required}' on every voter row and the sheet has no \
+             such column, so every plan with a census compiles to nothing"
         );
     }
 }
