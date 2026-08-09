@@ -48,10 +48,10 @@ if (source !== "local") {
     process.exit(1)
 }
 
-// `--features=wasm` rather than the `wasmtest` the devcontainer script
-// uses for the tgz: `strand/wasmtest` does not compile on this branch,
-// which removed strand's obsolete openssl/FIPS backends. No sequent-core
-// item is gated on `wasmtest`, so the exported surface is the same.
+// Same feature set `.devcontainer/scripts/build-sequent-core.sh` uses to
+// pack the committed tarball, so switching between the two sources with
+// WORKBENCH_SEQUENT_CORE compares like with like rather than against a
+// build production never produced.
 const args = [
     "build",
     "--out-name",
@@ -59,7 +59,7 @@ const args = [
     "--release",
     "--target",
     "web",
-    "--features=wasm,default_features",
+    "--features=wasmtest,default_features",
 ]
 
 console.log("[sequent-core] building packages/sequent-core/pkg (wasm-pack)…")
