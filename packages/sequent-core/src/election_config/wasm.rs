@@ -33,6 +33,7 @@
 //! leaves the browser. That is not a side effect of the design; it is the reason
 //! for it.
 
+use crate::election_config::census_csv;
 use crate::election_config::fixtures;
 use crate::election_config::problem::{Code, Problem, Report};
 use crate::election_config::schema::ImportElectionEventSchema;
@@ -985,4 +986,53 @@ fn to_js<T: Serialize>(value: &T) -> Result<JsValue, JsError> {
     value
         .serialize(&serializer)
         .map_err(|error| JsError::new(&format!("could not convert: {error}")))
+}
+
+/// A census CSV, read a batch at a time.
+///
+/// A handle rather than a function returning every voter, and that is the whole
+/// point: a hundred thousand members crossing the boundary at once is the copy
+/// this exists to avoid. The caller asks for a batch, turns it into whatever it
+/// stores, and drops it before asking for the next.
+///
+/// The wizard used to parse this in TypeScript. Two parsers meant two answers to
+/// "what is in this file", and on a census that is how a quoted comma read one way
+/// by the loader and another by the saver turns one member into two on the way
+/// out.
+#[wasm_bindgen(js_name = CensusCsvReader)]
+pub struct CensusCsvReader {
+    inner: census_csv::CensusCsv,
+}
+
+#[wasm_bindgen(js_class = CensusCsvReader)]
+impl CensusCsvReader {
+    /// Read the header. Throws on a file with nothing in it or no `username`.
+    #[wasm_bindgen(constructor)]
+    pub fn new(text: &str) -> Result<CensusCsvReader, JsError> {
+        census_csv::CensusCsv::new(text)
+            .map(|inner| CensusCsvReader { inner })
+            .map_err(|message| JsError::new(&message))
+    }
+
+    /// The columns a voter will have, in order, with the derived ones dropped.
+    #[wasm_bindgen(js_name = columns)]
+    pub fn columns(&self) -> Result<JsValue, JsError> {
+        serde_wasm_bindgen::to_value(&self.inner.header().columns).map_err(JsError::from)
+    }
+
+    /// What was odd about the file without being wrong with it.
+    #[wasm_bindgen(js_name = notes)]
+    pub fn notes(&self) -> Result<JsValue, JsError> {
+        serde_wasm_bindgen::to_value(&self.inner.header().notes).map_err(JsError::from)
+    }
+
+    /// The next `size` rows as arrays of strings. Empty when the file is done.
+    #[wasm_bindgen(js_name = nextBatch)]
+    pub fn next_batch(&mut self, size: usize) -> Result<JsValue, JsError> {
+        let batch = self
+            .inner
+            .next_batch(size)
+            .map_err(|message| JsError::new(&message))?;
+        serde_wasm_bindgen::to_value(&batch).map_err(JsError::from)
+    }
 }

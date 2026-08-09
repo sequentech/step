@@ -39,6 +39,7 @@ pub mod archive;
 pub mod architect;
 
 pub mod branding;
+pub mod census_csv;
 
 /// How a ballot behaves, in the platform's own words. Ungated: the bundle
 /// validator needs the value space and carries no feature.
