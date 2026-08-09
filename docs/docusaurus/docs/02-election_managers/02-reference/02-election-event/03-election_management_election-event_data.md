@@ -131,8 +131,8 @@ Configure advanced system behaviors for this Election Event.
     named after the `vote-weight` voter attribute it becomes, so an exported
     voters file can be edited and re-imported unchanged. Cannot be combined with
     Delegate Voting, and every contest in the election event must use the
-    Plurality at Large counting algorithm — repeating a ballot has no defined
-    meaning for the others, so the tally refuses to run. Decoded ballots cannot
+    Plurality at Large counting algorithm — counting a ballot more than once
+    has no defined meaning for the others, so the tally refuses to run. Decoded ballots cannot
     be included in the published results either, for the reason in the warning
     below. Check both before ballots are published: neither the counting
     algorithm nor a published ballot can be changed once voting has begun.
@@ -152,19 +152,35 @@ Configure advanced system behaviors for this Election Event.
     republishing the ballots.
 
     :::danger Voter weights are public, and results are attributable
-    A voter's weight is applied by repeating their ballot, so a voter with
-    weight `w` contributes `w` identical ciphertexts to the mix. Those copies
-    are on the bulletin board, which is public so that the mix can be verified,
-    and each ciphertext is linkable to the voter who cast it. **A voter's weight
-    is therefore public, and it is public who holds it.**
+    A voter's weight is applied by splitting it into powers of two. A contest
+    area is mixed as up to 17 batches, the batch at position `n` counting each
+    ballot in it `2^n` times, and a voter's ballot is placed in the batch for
+    each power of two that adds up to their weight — weight 21 goes into the
+    batches for 1, 4 and 16. No batch ever holds the same ballot twice, so
+    nothing on the bulletin board repeats in a way that spells out a weight.
 
-    Worse, the published per-candidate totals are sums over the weights of the
-    voters who chose each candidate. Where weights differ from one another, that
-    sum frequently identifies exactly who voted for whom — with distinct
-    weights such as 1, 2, 4, 8 it always does. Turning off decoded ballots in
-    the results does not prevent this; the totals alone are enough. Write-in
-    answers are worse again, since an uncommon write-in appears with exactly the
-    weight of the voter who wrote it.
+    That is not enough to keep a weight private. The board is public so that the
+    mix can be verified, the same ciphertext appears in every batch its weight
+    selects, and each ciphertext is linkable to the voter who cast it, so adding
+    up the batches a ballot appears in recovers that voter's weight exactly.
+    **A voter's weight is therefore public, and it is public who holds it.** This
+    is the flip side of a property some bodies want: published weights can be
+    audited against the board.
+
+    The published per-candidate totals are sums over the weights of the voters
+    who chose each candidate. Where weights differ from one another, that sum
+    frequently identifies exactly who voted for whom — with distinct weights
+    such as 1, 2, 4, 8 it always does. Turning off decoded ballots in the results
+    does not prevent this; the totals alone are enough. Write-in answers are
+    worse again, since an uncommon write-in appears with exactly the weight of
+    the voter who wrote it.
+
+    Only the largest weights reach the highest batches, so those batches can hold
+    very few ballots — and a batch holding one ballot publishes that voter's
+    choice when it is decrypted, because a mix of one hides nothing. The tally
+    logs a warning naming any batch below five ballots. It does not refuse, since
+    by then voting has closed and there is no remedy left; check the spread of
+    weights before opening voting instead.
 
     Do not use this policy where ballot secrecy is required. It suits bodies
     that already publish how each member voted, such as some shareholder or

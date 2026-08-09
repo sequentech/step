@@ -46,6 +46,32 @@ pub const MAX_VOTE_WEIGHT: u64 = 100_000;
 /// one allocation, where an oversized request aborts the process rather than
 /// returning an error.
 pub const MAX_TOTAL_VOTE_WEIGHT: u64 = 1_000_000;
+
+/// Board batches reserved per contest area under `VOTERS_WEIGHTED_VOTING`: one
+/// per bit of `MAX_VOTE_WEIGHT`, since a voter's weight is applied by placing
+/// their ciphertext in the batch for each bit that weight sets. Derived from
+/// `MAX_VOTE_WEIGHT` so the two cannot drift apart.
+pub const VOTE_WEIGHT_BATCHES: u32 =
+    u64::BITS - MAX_VOTE_WEIGHT.leading_zeros();
+
+/// Below this many ballots, a weight batch is small enough that mixing it
+/// protects little: its plaintexts are published, so a batch holding one ballot
+/// publishes that voter's choice. High bits are the sparse ones, since few
+/// voters carry the largest weights. Warned about rather than refused -- see
+/// the note on this policy in the election event documentation.
+pub const MIN_WEIGHT_BATCH_ANONYMITY: usize = 5;
+
+/// Bit `bit` of `weight` decides whether that voter's ciphertext goes into the
+/// batch whose multiplier is `2^bit`. Summing `2^bit` over the set bits
+/// reconstructs the weight exactly, which is what makes the tally correct.
+pub fn weight_has_bit(weight: u64, bit: u32) -> bool {
+    bit < u64::BITS && (weight >> bit) & 1 == 1
+}
+
+/// The multiplier velvet must apply to the batch for `bit`.
+pub fn weight_bit_multiplier(bit: u32) -> u64 {
+    1u64 << bit
+}
 pub const DATE_OF_BIRTH: &str = "dateOfBirth";
 pub const AUTHORIZED_ELECTION_IDS_NAME: &str = "authorized-election-ids";
 pub const TENANT_ID_ATTR_NAME: &str = "tenant-id";

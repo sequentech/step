@@ -46,6 +46,7 @@ use sequent_core::types::hasura::core::{
     BallotStyle, Election, TallySession, TallySessionContest, TallySessionExecution,
 };
 use sequent_core::types::hasura::core::{Contest, ElectionEvent};
+use sequent_core::types::keycloak::VOTE_WEIGHT_BATCHES;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -209,6 +210,10 @@ pub async fn insert_tally_session_contests(
     contests_map: &HashMap<String, Contest>,
     configuration: &TallySessionConfiguration,
 ) -> Result<()> {
+    // Each contest area owns `VOTE_WEIGHT_BATCHES` consecutive batches starting
+    // at its `session_id`. Only `VOTERS_WEIGHTED_VOTING` fills more than the
+    // first, but the stride is unconditional so that a session created under
+    // one policy can never allocate a batch inside a run created under another.
     let mut batch: BatchNumber =
         get_tally_session_highest_batch(hasura_transaction, tenant_id, election_event_id).await?;
 
@@ -239,7 +244,7 @@ pub async fn insert_tally_session_contests(
                 &election_id,
             )
             .await?;
-            batch = batch + 1;
+            batch = batch + VOTE_WEIGHT_BATCHES as BatchNumber;
         }
     } else if ContestEncryptionPolicy::SINGLE_CONTEST == contest_encryption_policy {
         for area_contest in relevant_area_contests {
@@ -257,7 +262,7 @@ pub async fn insert_tally_session_contests(
                 &contest.election_id,
             )
             .await?;
-            batch = batch + 1;
+            batch = batch + VOTE_WEIGHT_BATCHES as BatchNumber;
         }
     }
     Ok(())

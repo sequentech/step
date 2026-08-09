@@ -60,9 +60,12 @@ use crate::services::temp_path::{
 };
 use crate::services::users::list_users;
 use crate::services::users::ListUsersFilter;
+use crate::services::weight_batches::{
+    collect_weighted_plaintexts, contest_batch_range, contest_weight_batches,
+};
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
-use b3::messages::{artifact::Plaintexts, message::Message, statement::StatementType};
+use b3::messages::{message::Message, statement::StatementType};
 use celery::prelude::TaskError;
 use chrono::{DateTime, Duration, Utc};
 use deadpool_postgres::Client as DbClient;
@@ -161,30 +164,13 @@ async fn generate_area_contests_mc(
             })
             .collect::<Vec<_>>();
 
-        // Extract plaintexts once per session/batch
-        let batch_num: i64 = session_election.session_id as i64;
-
+        // Extract plaintexts once per session, across every batch the area
+        // owns. Without weighting that is the single batch it always was.
         // We wrap this in an Option. We will 'take' it for the first valid contest we find.
-        let mut pending_plaintexts: Option<Vec<<RistrettoCtx as Ctx>::P>> = relevant_plaintexts
-            .iter()
-            .find(|plaintexts_message| {
-                batch_num == plaintexts_message.statement.get_batch_number() as i64
-            })
-            .and_then(|plaintexts_message| {
-                plaintexts_message.artifact.clone().and_then(|artifact| {
-                    Plaintexts::<RistrettoCtx>::strand_deserialize(&artifact)
-                        .ok()
-                        .map(|plaintexts| plaintexts.0 .0)
-                })
-            });
+        let mut pending_plaintexts: Option<Vec<<RistrettoCtx as Ctx>::P>> =
+            collect_weighted_plaintexts(&session_election, relevant_plaintexts);
 
         if pending_plaintexts.is_none() {
-            event!(
-                Level::INFO,
-                "Expected: Plaintexts not found yet for session contest = {}, batch number = {}",
-                session_election.id,
-                batch_num
-            );
             // Skips the whole batch if there are no plaintexts.
             continue;
         }
@@ -312,24 +298,8 @@ fn generate_area_contests(
                     return None;
                 };
 
-            let batch_num: i64 = session_contest.session_id as i64;
-            let Some(plaintexts) = relevant_plaintexts
-                .iter()
-                .find(|plaintexts_message|
-                    batch_num == plaintexts_message.statement.get_batch_number() as i64
-                )
-                .map(|plaintexts_message| {
-                    plaintexts_message.artifact
-                        .clone()
-                        .map(|artifact| -> Option<Vec<<RistrettoCtx as Ctx>::P>> {
-                            Plaintexts::<RistrettoCtx>::strand_deserialize(&artifact)
-                                .ok()
-                                .map(|plaintexts| plaintexts.0 .0)
-                        })
-                        .flatten()
-                })
-                .flatten() else {
-                    event!(Level::INFO, "Expected: Plaintexts not found yet for session contest = {}, batch number = {}", session_contest.id, batch_num );
+            let Some(plaintexts) =
+                collect_weighted_plaintexts(&session_contest, &relevant_plaintexts) else {
                     return None;
                 };
             let Some(area) = areas_map.get(&ballot_style.area_id) else {
@@ -544,9 +514,13 @@ pub async fn upsert_ballots_messages(
         .clone()
         .unwrap_or_default()
         .get_weighted_voting_policy();
+    // A contest area owns a run of batches, and under weighting the first of
+    // them can legitimately be empty and unposted, so "already dumped" has to
+    // ask about the whole run rather than about `session_id` alone. The run
+    // cannot be narrowed to the mask here: the mask is written by the dump.
     let expected_batch_ids: HashSet<i64> = tally_session_contests
         .iter()
-        .map(|tally_session_contest| tally_session_contest.session_id as i64)
+        .flat_map(|tally_session_contest| contest_batch_range(tally_session_contest.session_id))
         .collect();
     let existing_ballots_batches: HashSet<i64> = messages
         .iter()
@@ -565,7 +539,8 @@ pub async fn upsert_ballots_messages(
         .clone()
         .into_iter()
         .filter(|tally_session_contest| {
-            !existing_ballots_batches.contains(&(tally_session_contest.session_id as i64))
+            !contest_batch_range(tally_session_contest.session_id)
+                .any(|batch| existing_ballots_batches.contains(&batch))
         })
         .collect();
 
@@ -576,7 +551,8 @@ pub async fn upsert_ballots_messages(
         .clone()
         .into_iter()
         .filter(|tally_session_contest| {
-            existing_ballots_batches.contains(&(tally_session_contest.session_id as i64))
+            contest_batch_range(tally_session_contest.session_id)
+                .any(|batch| existing_ballots_batches.contains(&batch))
                 && tally_session_contest.annotations.is_none()
         })
         .collect();
@@ -1003,10 +979,17 @@ async fn map_plaintext_data(
         .get_timestamp();
     next_timestamp = std::cmp::max(tally_session_created_at_timestamp_secs, next_timestamp);
 
-    // get the batch ids that are linked to this tally session
+    // get the batch ids that are linked to this tally session. Under weighting
+    // an area contributes one batch per weight bit its voters use, which its
+    // annotations record; every other policy contributes the single batch it
+    // always did.
     let batch_ids = tally_session_contest
         .iter()
-        .map(|tsc| tsc.session_id as i64)
+        .flat_map(|tsc| {
+            contest_weight_batches(tsc)
+                .into_iter()
+                .map(|(batch, _)| batch)
+        })
         .collect::<Vec<_>>();
 
     event!(Level::INFO, "Num batch_ids {}", batch_ids.len());
