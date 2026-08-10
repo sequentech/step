@@ -1,0 +1,1487 @@
+{
+  "contest": "Council seat (with explicit invalid)",
+  "rows": [
+    {
+      "over_vote_policy": "allowed",
+      "invalid_vote_policy": "allowed",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed",
+      "invalid_vote_policy": "allowed",
+      "state": "at_max",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed",
+      "invalid_vote_policy": "allowed",
+      "state": "over_max",
+      "observed": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitInvalid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitInvalid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed",
+      "invalid_vote_policy": "warn",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed",
+      "invalid_vote_policy": "warn",
+      "state": "at_max",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed",
+      "invalid_vote_policy": "warn",
+      "state": "over_max",
+      "observed": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [],
+        "hard": false,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.selectedMax"
+      ],
+      "predicted": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [],
+        "hard": false,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed",
+      "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed",
+      "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+      "state": "at_max",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed",
+      "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+      "state": "over_max",
+      "observed": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [],
+        "hard": false,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.selectedMax"
+      ],
+      "predicted": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [],
+        "hard": false,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed",
+      "invalid_vote_policy": "not-allowed",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed",
+      "invalid_vote_policy": "not-allowed",
+      "state": "at_max",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed",
+      "invalid_vote_policy": "not-allowed",
+      "state": "over_max",
+      "observed": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [],
+        "hard": true,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.selectedMax"
+      ],
+      "predicted": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [],
+        "hard": true,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed-with-msg",
+      "invalid_vote_policy": "allowed",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed-with-msg",
+      "invalid_vote_policy": "allowed",
+      "state": "at_max",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed-with-msg",
+      "invalid_vote_policy": "allowed",
+      "state": "over_max",
+      "observed": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitInvalid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.selectedMax",
+        "errors.implicit.selectedMax"
+      ],
+      "predicted": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitInvalid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed-with-msg",
+      "invalid_vote_policy": "warn",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed-with-msg",
+      "invalid_vote_policy": "warn",
+      "state": "at_max",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed-with-msg",
+      "invalid_vote_policy": "warn",
+      "state": "over_max",
+      "observed": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
+        "hard": false,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.selectedMax",
+        "errors.implicit.selectedMax"
+      ],
+      "predicted": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
+        "hard": false,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed-with-msg",
+      "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed-with-msg",
+      "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+      "state": "at_max",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed-with-msg",
+      "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+      "state": "over_max",
+      "observed": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
+        "hard": false,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.selectedMax",
+        "errors.implicit.selectedMax"
+      ],
+      "predicted": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
+        "hard": false,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed-with-msg",
+      "invalid_vote_policy": "not-allowed",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed-with-msg",
+      "invalid_vote_policy": "not-allowed",
+      "state": "at_max",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed-with-msg",
+      "invalid_vote_policy": "not-allowed",
+      "state": "over_max",
+      "observed": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
+        "hard": true,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.selectedMax",
+        "errors.implicit.selectedMax"
+      ],
+      "predicted": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
+        "hard": true,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed-with-msg-and-alert",
+      "invalid_vote_policy": "allowed",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed-with-msg-and-alert",
+      "invalid_vote_policy": "allowed",
+      "state": "at_max",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed-with-msg-and-alert",
+      "invalid_vote_policy": "allowed",
+      "state": "over_max",
+      "observed": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
+        "hard": false,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.selectedMax",
+        "errors.implicit.selectedMax"
+      ],
+      "predicted": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
+        "hard": false,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed-with-msg-and-alert",
+      "invalid_vote_policy": "warn",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed-with-msg-and-alert",
+      "invalid_vote_policy": "warn",
+      "state": "at_max",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed-with-msg-and-alert",
+      "invalid_vote_policy": "warn",
+      "state": "over_max",
+      "observed": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
+        "hard": false,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.selectedMax",
+        "errors.implicit.selectedMax"
+      ],
+      "predicted": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
+        "hard": false,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed-with-msg-and-alert",
+      "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed-with-msg-and-alert",
+      "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+      "state": "at_max",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed-with-msg-and-alert",
+      "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+      "state": "over_max",
+      "observed": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
+        "hard": false,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.selectedMax",
+        "errors.implicit.selectedMax"
+      ],
+      "predicted": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
+        "hard": false,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed-with-msg-and-alert",
+      "invalid_vote_policy": "not-allowed",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed-with-msg-and-alert",
+      "invalid_vote_policy": "not-allowed",
+      "state": "at_max",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "allowed-with-msg-and-alert",
+      "invalid_vote_policy": "not-allowed",
+      "state": "over_max",
+      "observed": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
+        "hard": true,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.selectedMax",
+        "errors.implicit.selectedMax"
+      ],
+      "predicted": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
+        "hard": true,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "not-allowed-with-msg-and-alert",
+      "invalid_vote_policy": "allowed",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "not-allowed-with-msg-and-alert",
+      "invalid_vote_policy": "allowed",
+      "state": "at_max",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "not-allowed-with-msg-and-alert",
+      "invalid_vote_policy": "allowed",
+      "state": "over_max",
+      "observed": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
+        "hard": true,
+        "soft": false,
+        "tally": "ImplicitInvalid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.selectedMax",
+        "errors.implicit.selectedMax"
+      ],
+      "predicted": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
+        "hard": true,
+        "soft": false,
+        "tally": "ImplicitInvalid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "not-allowed-with-msg-and-alert",
+      "invalid_vote_policy": "warn",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "not-allowed-with-msg-and-alert",
+      "invalid_vote_policy": "warn",
+      "state": "at_max",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "not-allowed-with-msg-and-alert",
+      "invalid_vote_policy": "warn",
+      "state": "over_max",
+      "observed": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
+        "hard": true,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.selectedMax",
+        "errors.implicit.selectedMax"
+      ],
+      "predicted": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
+        "hard": true,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "not-allowed-with-msg-and-alert",
+      "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "not-allowed-with-msg-and-alert",
+      "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+      "state": "at_max",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "not-allowed-with-msg-and-alert",
+      "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+      "state": "over_max",
+      "observed": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
+        "hard": true,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.selectedMax",
+        "errors.implicit.selectedMax"
+      ],
+      "predicted": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
+        "hard": true,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "not-allowed-with-msg-and-alert",
+      "invalid_vote_policy": "not-allowed",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "not-allowed-with-msg-and-alert",
+      "invalid_vote_policy": "not-allowed",
+      "state": "at_max",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "not-allowed-with-msg-and-alert",
+      "invalid_vote_policy": "not-allowed",
+      "state": "over_max",
+      "observed": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
+        "hard": true,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.selectedMax",
+        "errors.implicit.selectedMax"
+      ],
+      "predicted": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
+        "hard": true,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "not-allowed-with-msg-and-disable",
+      "invalid_vote_policy": "allowed",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "not-allowed-with-msg-and-disable",
+      "invalid_vote_policy": "allowed",
+      "state": "at_max",
+      "observed": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.overVoteDisabled"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.overVoteDisabled"
+      ],
+      "predicted": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.overVoteDisabled"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "not-allowed-with-msg-and-disable",
+      "invalid_vote_policy": "allowed",
+      "state": "over_max",
+      "observed": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitInvalid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.selectedMax",
+        "errors.implicit.selectedMax"
+      ],
+      "predicted": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitInvalid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "not-allowed-with-msg-and-disable",
+      "invalid_vote_policy": "warn",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "not-allowed-with-msg-and-disable",
+      "invalid_vote_policy": "warn",
+      "state": "at_max",
+      "observed": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.overVoteDisabled"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.overVoteDisabled"
+      ],
+      "predicted": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.overVoteDisabled"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "not-allowed-with-msg-and-disable",
+      "invalid_vote_policy": "warn",
+      "state": "over_max",
+      "observed": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
+        "hard": false,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.selectedMax",
+        "errors.implicit.selectedMax"
+      ],
+      "predicted": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
+        "hard": false,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "not-allowed-with-msg-and-disable",
+      "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "not-allowed-with-msg-and-disable",
+      "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+      "state": "at_max",
+      "observed": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.overVoteDisabled"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.overVoteDisabled"
+      ],
+      "predicted": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.overVoteDisabled"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "not-allowed-with-msg-and-disable",
+      "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+      "state": "over_max",
+      "observed": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
+        "hard": false,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.selectedMax",
+        "errors.implicit.selectedMax"
+      ],
+      "predicted": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
+        "hard": false,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "not-allowed-with-msg-and-disable",
+      "invalid_vote_policy": "not-allowed",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "not-allowed-with-msg-and-disable",
+      "invalid_vote_policy": "not-allowed",
+      "state": "at_max",
+      "observed": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.overVoteDisabled"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.overVoteDisabled"
+      ],
+      "predicted": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.overVoteDisabled"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "over_vote_policy": "not-allowed-with-msg-and-disable",
+      "invalid_vote_policy": "not-allowed",
+      "state": "over_max",
+      "observed": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
+        "hard": true,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.selectedMax",
+        "errors.implicit.selectedMax"
+      ],
+      "predicted": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
+        "hard": true,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "match": true
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "property": "no-silent-discount",
+  "scanned": 60,
+  "violation_count": 1,
+  "byConfig": {
+    "over_vote_policy=allowed, invalid_vote_policy=allowed": [
+      "over_max"
+    ]
+  },
+  "violations": [
+    {
+      "source": "overvote-rule.recorded.json",
+      "contest": "Council seat (with explicit invalid)",
+      "over_vote_policy": "allowed",
+      "invalid_vote_policy": "allowed",
+      "state": "over_max",
+      "observed": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitInvalid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitInvalid"
+      },
+      "match": true
+    }
+  ]
+}

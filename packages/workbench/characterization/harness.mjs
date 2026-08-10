@@ -68,3 +68,40 @@ export function extractErrors(decoded) {
         alerts: (decoded.invalid_alerts ?? []).map((e) => e.message),
     }
 }
+
+// ---------------------------------------------------------------------------
+// Tally side: velvet-wasm, loaded the same way. `tallyClass` runs a
+// single decoded ballot through the real tally and reads which counter
+// incremented — that counter IS the ballot's BallotClass, recorded rather
+// than predicted.
+// ---------------------------------------------------------------------------
+const VELVET_PKG = path.resolve(here, "../velvet-wasm/pkg")
+let velvet = null
+
+export async function loadVelvetWasm() {
+    if (velvet) return velvet
+    velvet = await import(pathToFileURL(path.join(VELVET_PKG, "velvet_wasm.js")).href)
+    const bytes = readFileSync(path.join(VELVET_PKG, "velvet_wasm_bg.wasm"))
+    try {
+        velvet.initSync({module: bytes})
+    } catch {
+        await velvet.default(bytes)
+    }
+    return velvet
+}
+
+/** Tally one decoded ballot; return its BallotClass as recorded by the
+ *  real counters on ContestResult. */
+export function tallyClass(contest, decodedBallot) {
+    const out = velvet.tally_decoded_ballots(JSON.stringify(contest), [
+        JSON.stringify(decodedBallot),
+    ])
+    const r = JSON.parse(out)
+    const declined = r.extended_metrics?.total_declined_to_vote ?? 0
+    if (declined > 0) return "Declined"
+    if ((r.invalid_votes?.explicit ?? 0) > 0) return "ExplicitInvalid"
+    if ((r.invalid_votes?.implicit ?? 0) > 0) return "ImplicitInvalid"
+    if ((r.blank_votes?.explicit ?? 0) > 0) return "ExplicitBlank"
+    if ((r.blank_votes?.implicit ?? 0) > 0) return "ImplicitBlank"
+    return "Valid"
+}

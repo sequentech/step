@@ -124,6 +124,53 @@ Incidental finding: the gate's debug logging prints `max={min:?}` —
 `voting_screen.rs`'s `console_log!` interpolates `min` for both fields.
 Cosmetic, upstream.
 
+### overvote-rule (2026-08-10) — all three layers + recorded tally class
+
+`overvote-rule.mjs`: 60 cells (`over_vote_policy` × `invalid_vote_policy`
+× {empty, at_max, over_max}) over the Council seat contest (Ada / Bruno,
+`max_votes: 1`). **60/60 match the documented prediction.** Each cell also
+records its **tally class** — the counter that incremented when the
+decoded ballot ran through velvet-wasm's real tally
+(`overvote-rule.recorded.json`, `overvote-rule.md`).
+
+`overvote-rule.browser.mjs` (invalid policy at default): inline
+visibility and dialogs match the headless prediction for every variant,
+plus two firsts —
+
+- **First reachability recording.** Under
+  `NOT_ALLOWED_WITH_MSG_AND_DISABLE` the over-vote state **did not form**
+  through the UI (selection count stayed at max after clicking a further
+  candidate); the `overVoteDisabled` alert was visible. Prevention
+  observed behaviourally. (The direct probe of the input's `disabled`
+  attribute returned null — DOM-selector gap, listed as a TODO — but the
+  state-level evidence is conclusive.)
+- **End-to-end violation reproduction** — see below.
+
+### no-silent-discount — first model-check query (2026-08-10)
+
+`no-silent-discount.mjs` scans every recorded cell that carries a tally
+class for: *silent on every booth surface ∧ classified `ImplicitInvalid`*.
+Result over 60 over-vote cells: **exactly one violating configuration** —
+
+> `over_vote_policy = allowed` × `invalid_vote_policy = allowed`,
+> state `over_max`
+
+matching VALIDATION_LOGIC_DISTILLATION.md §4.2's prediction precisely
+(`no-silent-discount.report.json`, `no-silent-discount.md`). The browser
+runner then **reproduced it end-to-end in the real system**: the
+over-vote formed through the booth UI, no inline message and no dialog
+appeared, and the same selection — decoded and tallied through
+velvet-wasm — classified `ImplicitInvalid`. Model query as search,
+workbench as confirmation.
+
+**A faithfulness rule this exercise taught** (an earlier revision of the
+e2e check got it wrong and reported "Valid"): the tally classifies
+*decoded* ballots — decode is what populates the `invalid_errors` that
+`is_invalid()` reads. Feeding a hand-built selection straight into
+`tally_decoded_ballots` classifies a checker-clean ballot. Any harness
+step that tallies must run the encode→decode round trip first, exactly
+as the production pipeline does.
+
 ## Marker-inclusive counting caveat
 
 The vote-state classes are defined over `num_selected_with_markers`: the
@@ -141,12 +188,12 @@ all six are:
 
 | Role | Harness layer | Status |
 |---|---|---|
-| Checkers | 1 (headless wasm) | blank rule done. One recording serves **both** bands: the tally decode runs the identical function, so layer 1 is also the tally-side checker characterization. |
-| Gates | 2 (headless wasm) | blank rule done |
-| Filter | 3 (browser, booth) | blank rule done |
-| Input constraint | 3 (browser) — the `constraint` component of the effect triple | **not yet observed** by any runner; becomes relevant with the over-vote rule (`NOT_ALLOWED_WITH_MSG_AND_DISABLE`) |
-| Marker exclusivity (prevention) | browser — *reachability*, not effects | **not yet characterized.** Prevention is characterized by *attempting* to create each vote state through the UI and recording whether it forms. The mixed marker state was verified at tally by direct injection into the tally sandbox — which bypasses booth prevention, so its booth-reachability is still an open cell. |
-| Tally classifier | headless (velvet-core) | unit-tested upstream (16 tests) and spot-verified end-to-end via the marker fixture, but **no recorded decision table yet** |
+| Checkers | 1 (headless wasm) | blank + over-vote rules done. One recording serves **both** bands: the tally decode runs the identical function, so layer 1 is also the tally-side checker characterization. |
+| Gates | 2 (headless wasm) | blank + over-vote rules done |
+| Filter | 3 (browser, booth) | blank + over-vote rules done |
+| Input constraint | 3 (browser) — the `constraint` component of the effect triple | observed **behaviourally** for `NOT_ALLOWED_WITH_MSG_AND_DISABLE` (the over-vote state does not form through the UI); the direct `disabled`-attribute probe is a DOM-selector TODO |
+| Marker exclusivity (prevention) | browser — *reachability*, not effects | first reachability recording exists (over-vote under DISABLE: the state does not form). Prevention is characterized by *attempting* to create each state through the UI and recording whether it forms; the mixed marker state's booth-reachability is still an open cell. |
+| Tally classifier | headless (velvet-wasm `tally_decoded_ballots`) | recorded per-cell for the over-vote rule (the `tally` column); the standalone six-class decision table over all flag combinations is still pending |
 
 Two consequences worth stating plainly. First, a per-rule recording like
 blank-rule is a *slice* of `f`, by design — the mapping decomposes per
@@ -163,6 +210,6 @@ Copy `blank-rule.mjs`, swap the policy/state dimensions and the `predict()`
 transcription, and pick or extend a bundled fixture whose contest carries
 the rule's preconditions (see FIXTURE_VARIANCE.md §13.2 for why marker
 candidates are preconditions, not policies). Rules still uncharacterized:
-over-vote, under-vote, min-vote, invalid (beyond the blank interplay),
+under-vote, min-vote, invalid (beyond the blank and over-vote interplays),
 duplicated-rank and preference-gaps (need a preferential fixture), the
 decline-to-vote flow, and the tally classifier's six-class table.
