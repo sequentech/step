@@ -19,8 +19,21 @@ focuses on the *specification* layer rather than the *implementation* layer.
 
 Every (voter-state × contest-configuration × observation-context) tuple
 produces one **observable effect per surface**, drawn from the following
-closed set — see the per-surface refinement at the end of this section for
-why "exactly one effect" holds per surface rather than per tuple.
+set — see the per-surface refinement at the end of this section for why
+"exactly one effect" holds per surface rather than per tuple.
+
+**The set's closedness is a checkable claim, not an assumption.** It is
+closed relative to a **consumer census**: the enumeration of every read
+site of the validation state (`invalid_errors` / `invalid_alerts`, the
+policy fields, the marker and decline flags) in the codebase, each mapped
+to an effect surface here, an explicit out-of-scope entry, or a named gap.
+No amount of input-cell enumeration can establish this — a channel the
+harness doesn't record stays invisible at every cell. The census lives in
+[`../characterization/README.md`](../characterization/README.md); its
+first run found two channels this taxonomy did not list (the standalone
+ballot-verifier's display of decoded ballots, and velvet's rendered
+ballot images — the latter with stubbed-empty error lists and a
+decline/invalid naming hazard).
 
 ### Casting-time effects (booth UI)
 

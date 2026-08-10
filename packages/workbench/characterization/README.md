@@ -14,6 +14,44 @@ implementation** and record the observed effects. Recorded tables are
 after human sign-off — disagreements between the recording, the docs and
 expectations are the product here, not noise.
 
+## Intent: all behaviour, and what "all" requires
+
+The goal is to capture **the whole behaviour of the validation subsystem**,
+not a subset — with per-rule `predict()` specs that are complete within
+the decomposition (no global predict needed). That claim rests on two
+independent completeness arguments, and only the first is delivered by
+running more cells:
+
+1. **Input completeness** — every rule × every cell, as the union of
+   per-rule slices (tracked in "Coverage so far" / "What complete coverage
+   means" below).
+2. **Codomain closure** — the set of *observables the harness records*
+   must cover every channel through which validation state reaches the
+   world. Recording only dialogs and messages would be silently
+   incomplete no matter how many cells run. Closure is not provable by
+   enumeration; it is established by a **consumer census**: grep every
+   read site of the validation state (`invalid_errors`, `invalid_alerts`,
+   the policy fields, the marker/decline flags) and map each site to a
+   recorded observable, an explicit out-of-scope entry, or a named gap.
+
+### Consumer census (2026-08-10)
+
+Read sites of `invalid_errors` / `invalid_alerts` outside checker/codec
+internals and tests:
+
+| Consumer | Channel | Census verdict |
+|---|---|---|
+| `InvalidErrorsList.tsx`, `VotingScreen.tsx`, `ballotSelectionsSlice.ts` | booth inline messages, dialogs, persisted record | **covered** (layers 1–3) |
+| `voting_screen.rs` | gates | **covered** (layer 2) |
+| `normalize_vote.rs`, `character_map.rs`, codec internals | round-trip plumbing | **covered** implicitly by layer 1 (they run inside the recorded decode) |
+| `velvet-core` counting (`classify_ballot`, plurality, IRV) | tally classes + aggregates | known pending (classifier table) |
+| `PlaintextVoteContest.tsx` ← ballot-verifier `ConfirmationScreen` | **the standalone ballot-verifier's display of a decoded ballot** | **GAP** — a voter-facing validation surface the taxonomy does not list; needs a scoping decision (it is production behaviour, outside the booth) |
+| `wasm_plaintext.rs` | plaintext-interpretation WASM entry feeding the above | **GAP** (same channel) |
+| `velvet` `mcballot_images.rs` | **rendered ballot images** | **GAP + upstream finding**: errors/alerts are stubbed empty (two `FIXME`s), and `is_decline_to_vote` is populated from `dbc.is_explicit_invalid` — the multi-ballot decode binds the ballot-level *decline bit* to a local named `is_explicit_invalid`, so this is at minimum a naming hazard, possibly a bug |
+
+The census is part of the artifact set: re-run it when upstream merges
+land, and treat a new unmapped read site exactly like a failing test.
+
 ## Conventions
 
 These exist to keep cognitive load minimal and the artifacts trustworthy;
