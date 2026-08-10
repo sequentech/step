@@ -65,9 +65,9 @@ fn get_s3_endpoint_style() -> Result<S3EndpointStyle> {
     match env::var(AWS_S3_ENDPOINT_STYLE_ENV) {
         Ok(value) => value.parse().with_context(|| {
             format!(
-                "Invalid {AWS_S3_ENDPOINT_STYLE_ENV} value `{value}`, expected \
-                 `virtual-hosted` (omit the variable to auto-detect AWS \
-                 bucket-hosted endpoints or use path-style)"
+                "Invalid {AWS_S3_ENDPOINT_STYLE_ENV} value `{value}`, the only \
+                 accepted value is `virtual-hosted`; omit the variable entirely \
+                 for the default path-style/AWS-auto-detect behavior"
             )
         }),
         Err(env::VarError::NotPresent) => Ok(S3EndpointStyle::default()),
@@ -148,7 +148,10 @@ fn join_s3_path(prefix: &str, suffix: &str) -> String {
 /// MinIO) and is left untouched. With `S3EndpointStyle::VirtualHosted`, any
 /// hostname is treated as bucket-hosted with the bucket name as its first
 /// label — this covers every S3-compatible provider that addresses buckets
-/// this way, without needing to know which provider it is.
+/// this way, without needing to know which provider it is. Bucket names
+/// containing dots aren't supported in this mode, since there is no
+/// generic way to tell a dotted bucket name apart from a subdomain of the
+/// service host without hardcoding a specific provider's shape.
 #[instrument(err, skip_all)]
 fn parse_bucket_hosted_endpoint(
     endpoint_uri: &str,
@@ -165,6 +168,19 @@ fn parse_bucket_hosted_endpoint(
     };
 
     let (bucket_name, service_host) = match endpoint_style {
+        // Virtual-hosted-style addressing is a DNS-hostname convention; a
+        // bare IP literal has no bucket label to extract. IPv6 literals are
+        // bracketed in `host_str()` (e.g. `[::1]`), so strip that before
+        // checking.
+        S3EndpointStyle::VirtualHosted
+            if host
+                .trim_start_matches('[')
+                .trim_end_matches(']')
+                .parse::<std::net::IpAddr>()
+                .is_ok() =>
+        {
+            return Ok(None);
+        }
         S3EndpointStyle::VirtualHosted => match host.split_once('.') {
             Some((bucket_name, service_host)) if !bucket_name.is_empty() => {
                 (bucket_name, service_host.to_string())
@@ -1049,11 +1065,12 @@ pub async fn get_object_size(bucket: &str, key: &str) -> Result<usize> {
 #[cfg(test)]
 mod tests {
     use super::{
-        join_s3_path, parse_bucket_hosted_endpoint,
+        get_s3_endpoint_style, join_s3_path, parse_bucket_hosted_endpoint,
         resolve_s3_list_target_parts, ResolvedS3ListTargetParts, S3Endpoint,
-        S3EndpointStyle,
+        S3EndpointStyle, AWS_S3_ENDPOINT_STYLE_ENV,
     };
     use crate::util::aws::{AWS_S3_PRIVATE_URI_ENV, AWS_S3_PUBLIC_URI_ENV};
+    use std::env;
 
     #[test]
     fn s3_endpoint_selects_the_expected_uri() {
@@ -1080,6 +1097,31 @@ mod tests {
     #[test]
     fn s3_endpoint_style_rejects_unknown_value() {
         assert!("bogus".parse::<S3EndpointStyle>().is_err());
+    }
+
+    #[test]
+    fn get_s3_endpoint_style_reads_env_var() {
+        // Combined into one test (rather than three) because these cases all
+        // mutate the same process-global env var, which isn't safe to do
+        // from separately/concurrently run #[test] functions.
+        env::remove_var(AWS_S3_ENDPOINT_STYLE_ENV);
+        assert_eq!(
+            get_s3_endpoint_style().unwrap(),
+            S3EndpointStyle::PathStyleOrAutoDetectedAws
+        );
+
+        env::set_var(AWS_S3_ENDPOINT_STYLE_ENV, "virtual-hosted");
+        assert_eq!(
+            get_s3_endpoint_style().unwrap(),
+            S3EndpointStyle::VirtualHosted
+        );
+
+        env::set_var(AWS_S3_ENDPOINT_STYLE_ENV, "bogus");
+        let err = get_s3_endpoint_style().unwrap_err();
+        assert!(err.to_string().contains(AWS_S3_ENDPOINT_STYLE_ENV));
+        assert!(err.to_string().contains("virtual-hosted"));
+
+        env::remove_var(AWS_S3_ENDPOINT_STYLE_ENV);
     }
 
     #[test]
@@ -1216,6 +1258,35 @@ mod tests {
         // service host, so it can't be bucket-hosted.
         let parsed = parse_bucket_hosted_endpoint(
             "http://storage-provider:9000",
+            Some("eu-de"),
+            S3EndpointStyle::VirtualHosted,
+        )
+        .unwrap();
+
+        assert_eq!(parsed, None);
+    }
+
+    #[test]
+    fn virtual_hosted_style_ignores_ipv4_literal_hosts() {
+        // Virtual-hosted-style addressing is a DNS-hostname convention; an
+        // IP literal has no bucket label to extract, even though it happens
+        // to contain dots.
+        let parsed = parse_bucket_hosted_endpoint(
+            "http://10.0.0.1:9000",
+            Some("eu-de"),
+            S3EndpointStyle::VirtualHosted,
+        )
+        .unwrap();
+
+        assert_eq!(parsed, None);
+    }
+
+    #[test]
+    fn virtual_hosted_style_ignores_ipv6_literal_hosts() {
+        // `Url::host_str()` keeps the brackets around IPv6 literals (e.g.
+        // `[::1]`); the bracket-stripping must still recognize them as IPs.
+        let parsed = parse_bucket_hosted_endpoint(
+            "http://[2001:db8::1]:9000",
             Some("eu-de"),
             S3EndpointStyle::VirtualHosted,
         )
