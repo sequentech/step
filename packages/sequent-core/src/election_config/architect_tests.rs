@@ -2984,3 +2984,215 @@ fn a_plan_the_builder_refuses_is_refused_by_the_wizard_first() {
         lies.join("\n  ")
     );
 }
+
+
+/// Every entity an older importer needs a `name` on has one.
+///
+/// A real deployment refused an export from this tool with `election_event: missing
+/// field \`name\` at line 244 column 3`, and nothing here could have predicted it: the
+/// bundle is valid against *current* `ImportElectionEventSchema`, which is what
+/// `compile_plan` checks it against, and `name` was removed from that schema in
+/// `f016a4b4a7` — March 2026 — in favour of `external_id`. Any platform older than that
+/// commit still requires it, and on `ElectionEvent` and `Election` it was a required
+/// `String` rather than an `Option`, so the import fails before any of our validation
+/// gets a chance to say something useful.
+///
+/// So the four entity kinds that lost it carry it again, and this holds all four rather
+/// than only the one that was reported — the other three would each have been the next
+/// bug report.
+#[test]
+fn every_entity_carries_the_name_an_older_importer_requires() {
+    let templates = TemplateSet::builtin().unwrap();
+    let compiled =
+        compile_plan(&sound(), &templates, &BuildOptions::default(), None)
+            .expect("a sound plan compiles");
+    let export = &compiled.bundle.export;
+
+    /// The name has to be *usable*, not merely present: a blank string satisfies
+    /// serde and then shows up as an unnamed election in a list.
+    fn named(entity: &serde_json::Value, what: &str) {
+        let name = entity.get("name").unwrap_or_else(|| {
+            panic!("{what} has no `name`, so a platform older than March 2026 refuses the whole bundle")
+        });
+        let name = name
+            .as_str()
+            .unwrap_or_else(|| panic!("{what}'s `name` is not a string: {name}"));
+        assert!(
+            !name.trim().is_empty(),
+            "{what}'s `name` is blank, which imports as an unnamed entity"
+        );
+    }
+
+    named(export.get("election_event").expect("an event"), "election_event");
+
+    for (index, election) in export
+        .get("elections")
+        .and_then(|value| value.as_array())
+        .expect("elections")
+        .iter()
+        .enumerate()
+    {
+        named(election, &format!("elections[{index}]"));
+    }
+
+    for (index, contest) in export
+        .get("contests")
+        .and_then(|value| value.as_array())
+        .expect("contests")
+        .iter()
+        .enumerate()
+    {
+        named(contest, &format!("contests[{index}]"));
+    }
+
+    for (index, candidate) in export
+        .get("candidates")
+        .and_then(|value| value.as_array())
+        .expect("candidates")
+        .iter()
+        .enumerate()
+    {
+        named(candidate, &format!("candidates[{index}]"));
+    }
+}
+
+/// The name a person typed is the name that travels, not the identifier.
+///
+/// The fallback to `external_id` exists so the field is never blank, and it would be
+/// easy for the fallback to become the normal path without anybody noticing — the
+/// import would succeed either way and the election would simply be listed under a
+/// slug. So this pins the value, not just its presence.
+#[test]
+fn the_name_that_travels_is_the_one_somebody_typed() {
+    let templates = TemplateSet::builtin().unwrap();
+    let compiled =
+        compile_plan(&sound(), &templates, &BuildOptions::default(), None)
+            .expect("a sound plan compiles");
+    let export = &compiled.bundle.export;
+
+    let event = export.get("election_event").expect("an event");
+    let i18n = event
+        .pointer("/presentation/i18n/en/name")
+        .and_then(|value| value.as_str())
+        .expect("the event's English name");
+
+    assert_eq!(
+        event.get("name").and_then(|value| value.as_str()),
+        Some(i18n),
+        "the top-level name should be the one under presentation.i18n, not the id"
+    );
+}
+
+/// A current importer ignores the compatibility field rather than refusing it.
+///
+/// This is the other half of the trade, and the half that would break silently. The
+/// field is only safe because nothing in `ImportElectionEventSchema` or its entities
+/// sets `deny_unknown_fields`; if somebody adds it, this fails and the failure carries
+/// the reason with it, rather than the field being deleted as unexplained cruft and the
+/// original bug coming back.
+#[test]
+fn the_bundle_still_parses_with_the_compatibility_name() {
+    let templates = TemplateSet::builtin().unwrap();
+    let compiled =
+        compile_plan(&sound(), &templates, &BuildOptions::default(), None)
+            .expect("a sound plan compiles");
+
+    // `compile_plan` already refuses to produce an archive whose export does not
+    // deserialize, so reaching this line is most of the assertion. Stated anyway,
+    // because that check living elsewhere is not the same as this being true.
+    let parsed = serde_json::from_value::<
+        crate::election_config::schema::ImportElectionEventSchema,
+    >(compiled.bundle.export.clone());
+
+    assert!(
+        parsed.is_ok(),
+        "the current import schema no longer accepts the bundle: {:?}",
+        parsed.err()
+    );
+}
+
+/// The bundle satisfies the schema a platform from *before* March 2026 deserializes
+/// into — declared here, so this is checked rather than reasoned about once.
+///
+/// This is the class guard, and the reason it is worth having is that the specific bug
+/// was invisible to everything else. `compile_plan` already round-trips its output
+/// through `ImportElectionEventSchema`, which is the right check and passed the whole
+/// time: the bundle was valid against the schema *this repository* has. What broke was
+/// the schema a *deployed* platform has, and no amount of validating against ourselves
+/// can see that.
+///
+/// So the older contract is written down as types. These mirror the **required**
+/// (non-`Option`) fields of `ElectionEvent`, `Election`, `Contest` and `Candidate` as
+/// they were at `f016a4b4a7^`, which is the last commit before `name` became
+/// `external_id`. `deny_unknown_fields` is deliberately **not** set, because that is how
+/// the real importer reads them — it ignores what it does not know, which is why adding
+/// a field for its benefit is safe.
+///
+/// A failure here means an export would be refused by a platform that has not taken
+/// that commit yet, and the message says which entity and which field.
+#[test]
+fn the_bundle_satisfies_the_schema_an_older_platform_deserializes_into() {
+    use serde::Deserialize;
+
+    #[derive(Deserialize)]
+    #[allow(dead_code)]
+    struct LegacyElectionEvent {
+        id: String,
+        tenant_id: String,
+        name: String,
+        is_archived: bool,
+        encryption_protocol: String,
+    }
+
+    #[derive(Deserialize)]
+    #[allow(dead_code)]
+    struct LegacyElection {
+        id: String,
+        tenant_id: String,
+        election_event_id: String,
+        name: String,
+    }
+
+    #[derive(Deserialize)]
+    #[allow(dead_code)]
+    struct LegacyContest {
+        id: String,
+        tenant_id: String,
+        election_event_id: String,
+        election_id: String,
+    }
+
+    #[derive(Deserialize)]
+    #[allow(dead_code)]
+    struct LegacyCandidate {
+        id: String,
+        tenant_id: String,
+        election_event_id: String,
+    }
+
+    let templates = TemplateSet::builtin().unwrap();
+    let compiled =
+        compile_plan(&sound(), &templates, &BuildOptions::default(), None)
+            .expect("a sound plan compiles");
+    let export = &compiled.bundle.export;
+
+    serde_json::from_value::<LegacyElectionEvent>(
+        export.get("election_event").expect("an event").clone(),
+    )
+    .expect("election_event should satisfy the pre-March-2026 schema");
+
+    serde_json::from_value::<Vec<LegacyElection>>(
+        export.get("elections").expect("elections").clone(),
+    )
+    .expect("elections should satisfy the pre-March-2026 schema");
+
+    serde_json::from_value::<Vec<LegacyContest>>(
+        export.get("contests").expect("contests").clone(),
+    )
+    .expect("contests should satisfy the pre-March-2026 schema");
+
+    serde_json::from_value::<Vec<LegacyCandidate>>(
+        export.get("candidates").expect("candidates").clone(),
+    )
+    .expect("candidates should satisfy the pre-March-2026 schema");
+}
