@@ -73,32 +73,9 @@ contest of the `explicit-blank-invalid` fixture. **64/64 match the
 documented prediction** → `blank-rule.recorded.json`, `blank-rule.md`.
 
 `blank-rule.browser.mjs`: the blank condition through the real booth
-(invalid policy at default) → `blank-rule.filter.recorded.json`.
-
-**How to read the table.** Every row is the same experiment — the voter
-leaves the ballot **empty** — under a different `blank_vote_policy`. The
-four columns are *moments at which we look at the screen*:
-
-- *untouched* — the voting screen before the voter has interacted with the
-  contest at all;
-- *touched, voting* — the voting screen after interacting (the harness
-  selects "Yes" and deselects it, leaving the ballot empty but the contest
-  touched — the filter suppresses everything for untouched contests, so
-  this is the earliest a warning can appear);
-- *transition dialog* — what clicking Next/Review produces;
-- *review* — the review screen, if reachable.
-
-A cell value like `blankVote` is the **message key**
-(`errors.implicit.blankVote`) of the warning box visible at that moment —
-read from the box's `data-warn-id` attribute, so the recording is
-locale-independent. `—` means no warning box is visible.
-
-| blank policy | untouched | touched, voting | transition dialog | review |
-|---|---|---|---|---|
-| allowed | — | — | none | — |
-| warn | — | `blankVote` | dismissible (Cancel/Continue) | `blankVote` |
-| warn-only-in-review | — | — | none | `blankVote` |
-| not-allowed | — | `blankVote` | **blocking** ("Review selection") | unreachable |
+(invalid policy at default) → `blank-rule.filter.recorded.json` +
+[`blank-rule.filter.md`](./blank-rule.filter.md), the generated table
+(with its legend — see the conventions above).
 
 Confirmed live: the touch gate (untouched → everything cleared), the
 `WARN_ONLY_IN_REVIEW` observation-point dependency, the master-filter
