@@ -3017,7 +3017,9 @@ fn the_bundle_declares_the_version_that_wrote_it() {
         .trim_start_matches('v')
         .split('.')
         .map(|part| part.parse::<u32>().unwrap_or(0))
-        .fold((0u32, 0u32, 0u32), |(a, b, _), next| (if a == 0 { next } else { a }, b, 0));
+        .fold((0u32, 0u32, 0u32), |(a, b, _), next| {
+            (if a == 0 { next } else { a }, b, 0)
+        });
 
     for other in [major.saturating_sub(1), major + 1] {
         if other == major {
@@ -3058,8 +3060,9 @@ fn the_archive_carries_no_keys_ceremony_it_cannot_fill_in_correctly() {
         "this test is meaningless unless the plan names trustees"
     );
 
-    let compiled = compile_plan(&plan, &templates, &BuildOptions::default(), None)
-        .expect("a sound plan compiles");
+    let compiled =
+        compile_plan(&plan, &templates, &BuildOptions::default(), None)
+            .expect("a sound plan compiles");
 
     let ceremonies = compiled
         .bundle
