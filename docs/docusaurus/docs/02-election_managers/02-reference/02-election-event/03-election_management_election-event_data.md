@@ -177,7 +177,7 @@ Configure advanced system behaviors for this Election Event.
     each area, switching to Weighted Voting for Voters, and only then publishing
     the ballots.
 
-    :::caution Weights and the electorate are frozen once ballots are extracted
+    :::caution Set the weights before extracting ballots for a tally
     Extracting the ballots for a tally writes them to the bulletin board, which
     is append-only. If a vote weight is changed after that, or a voter who had
     voted is disabled or removed, the board no longer matches and the tally

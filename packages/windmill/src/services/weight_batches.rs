@@ -91,7 +91,10 @@ pub fn contest_weight_batches(
 /// the board already holds for it against what this run built.
 #[derive(Debug, PartialEq, Eq)]
 pub enum BatchReconciliation {
-    /// Nothing on the board yet: post it.
+    /// Nothing readable on the board for it. Normally that means it has not
+    /// been posted and should be; at the one call site that can see an
+    /// unreadable artifact it means the batch is there but cannot be compared,
+    /// and posting is not an option because the board is append-only.
     Post,
     /// The board already holds exactly this: leave it alone.
     Keep,
@@ -112,6 +115,14 @@ pub fn reconcile_batch(
     let Some(posted) = posted else {
         return BatchReconciliation::Post;
     };
+    // Note this is also what an unreadable artifact resolves to, and the caller
+    // then leaves that batch alone. `collect_weighted_plaintexts` takes the
+    // opposite line and errors, because there it is the difference between
+    // waiting forever and failing. Here neither is recoverable -- the board is
+    // append-only, so a batch that cannot be read cannot be replaced -- and a
+    // batch that cannot be read also cannot be mixed, so nothing wrong can be
+    // published. Refusing the whole dump over it would only lose the areas that
+    // are still fine.
     // An area with no ballots posts one empty batch, so the tally has something
     // to wait for. It encodes no weight and contributes nothing, so it is not
     // evidence that anything changed -- but only while this run agrees there is

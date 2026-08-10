@@ -523,7 +523,7 @@ pub async fn insert_ballots_messages(
                                 base_batch + bit as BatchNumber,
                                 tally_session_contest.election_id,
                                 tally_session_contest.area_id,
-                                posted.as_ref().map_or(0, |posted| posted.len()),
+                                posted.as_ref().map_or(0, |posted| posted.len()), // always Some here
                                 built.len(),
                             );
                         }
