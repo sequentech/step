@@ -25,13 +25,14 @@ pub enum MultiplicitySource {
     VoteWeight(usize),
 }
 
-/// Reads `(multiplicity, census_weight)` for a voter row.
+/// Reads `(multiplicity, census_count, cast_count)` for a voter row.
 ///
 /// `multiplicity` is how many ciphertexts the voter contributes.
-/// `census_weight` is how much the voter contributes to `eligible_voters`; it
-/// tracks `multiplicity` under voter weighting so that turnout stays a ratio of
-/// comparable units, and stays 1 for delegated voting to preserve the census
-/// semantics that feature shipped with.
+/// `census_count` is how much the voter contributes to `eligible_voters`.
+/// `cast_count` is how much a matched ballot contributes to participation.
+/// Voter weights only affect `multiplicity`; census and election-level turnout
+/// remain voter headcounts. Delegated voting preserves its existing behavior,
+/// where a delegate's matched ballot represents the voter and all delegators.
 ///
 /// A missing, empty or unparseable column is an error rather than a skipped
 /// voter: skipping would silently discard a cast ballot and under-count the
@@ -39,9 +40,9 @@ pub enum MultiplicitySource {
 fn read_multiplicity(
     voter: &StringRecord,
     source: Option<MultiplicitySource>,
-) -> Result<(u64, u64)> {
+) -> Result<(u64, u64, u64)> {
     let (index, is_weight) = match source {
-        None => return Ok((1, 1)),
+        None => return Ok((1, 1, 1)),
         Some(MultiplicitySource::DelegateCount(index)) => (index, false),
         Some(MultiplicitySource::VoteWeight(index)) => (index, true),
     };
@@ -59,9 +60,10 @@ fn read_multiplicity(
             "Vote weight {value} is out of range, must be between \
              {MIN_VOTE_WEIGHT} and {MAX_VOTE_WEIGHT}"
         );
-        Ok((value, value))
+        Ok((value, 1, 1))
     } else {
-        Ok((1 + value, 1))
+        let multiplicity = 1 + value;
+        Ok((multiplicity, 1, multiplicity))
     }
 }
 
@@ -168,7 +170,8 @@ pub fn merge_join_csv(
             continue;
         }
 
-        let (multiplicity, census_weight) = read_multiplicity(voter, multiplicity_source)?;
+        let (multiplicity, census_count, cast_count) =
+            read_multiplicity(voter, multiplicity_source)?;
 
         // Compare the join keys lexicographically.
         match ballot_voter_id.cmp(voter_id) {
@@ -188,7 +191,7 @@ pub fn merge_join_csv(
             Ordering::Greater => {
                 // Advance voters file.
                 voters_record = voters_iterator.next();
-                elegible_voters += census_weight;
+                elegible_voters += census_count;
             }
             Ordering::Equal => {
                 // Match found.
@@ -203,7 +206,7 @@ pub fn merge_join_csv(
                 // by the caller after parsing.
                 result.push((ballot_content.to_string(), multiplicity));
 
-                casted_ballots += multiplicity;
+                casted_ballots += cast_count;
                 count_ballot_channel(
                     &mut casted_ballots_by_channel,
                     ballot,
@@ -215,7 +218,7 @@ pub fn merge_join_csv(
                 ballots_record = ballots_iterator.next();
                 voters_record = voters_iterator.next();
 
-                elegible_voters += census_weight;
+                elegible_voters += census_count;
             }
         }
     }
@@ -224,11 +227,11 @@ pub fn merge_join_csv(
     // as one voter, exactly as it did before multiplicities existed, so this
     // cannot move a census for an election that does not use them.
     while let Some(voter_record) = voters_record {
-        let census_weight = match &voter_record {
+        let census_count = match &voter_record {
             Ok(voter) => read_multiplicity(voter, multiplicity_source)?.1,
             Err(_) => 1,
         };
-        elegible_voters += census_weight;
+        elegible_voters += census_count;
         voters_record = voters_iterator.next();
     }
 
@@ -248,15 +251,19 @@ pub fn merge_join_csv(
         ballots_record = ballots_iterator.next();
     }
 
+    let ballots_to_be_tallied: u64 = result.iter().map(|(_, multiplicity)| multiplicity).sum();
     if ballots_channel_index.is_some() {
         let channel_total: u64 = casted_ballots_by_channel.values().sum();
+        let weighted_participation_total = ballots_to_be_tallied
+            .checked_add(ballots_without_voter)
+            .ok_or_else(|| anyhow!("Weighted participation total overflow"))?;
         ensure!(
-            channel_total == casted_ballots,
-            "Ballot channel total {channel_total} does not match cast ballot total {casted_ballots}"
+            channel_total == weighted_participation_total,
+            "Ballot channel total {channel_total} does not match weighted participation total \
+             {weighted_participation_total}"
         );
     }
 
-    let ballots_to_be_tallied: u64 = result.iter().map(|(_, multiplicity)| multiplicity).sum();
     info!("ballots_to_be_tallied: {}, distinct_ballots: {}, elegible_voters: {}, ballots_without_voter: {}, casted_ballots: {}", ballots_to_be_tallied, result.len(), elegible_voters, ballots_without_voter, casted_ballots);
 
     Ok(MergeJoinResult {
@@ -759,10 +766,10 @@ mod tests {
         )
     }
 
-    /// A voter with weight `w` contributes `w` ballots, and the census counts
-    /// voting power rather than heads so turnout stays a ratio of like units.
+    /// A voter with weight `w` contributes `w` ballots to the tally, while
+    /// census and participation remain voter headcounts.
     #[test]
-    fn test_vote_weight_multiplies_ballots_and_census() -> Result<()> {
+    fn test_vote_weight_only_multiplies_tallied_ballots() -> Result<()> {
         let ballots = "user_A,content_A\nuser_B,content_B";
         // user_C is eligible but did not vote.
         let voters = "user_A,3\nuser_B,1\nuser_C,5";
@@ -773,9 +780,8 @@ mod tests {
             result.ballot_contents,
             vec![("content_A".to_string(), 3), ("content_B".to_string(), 1)]
         );
-        assert_eq!(result.casted_ballots, 4);
-        // 3 + 1 + 5 = 9 units of voting power eligible.
-        assert_eq!(result.eligible_voters, 9);
+        assert_eq!(result.casted_ballots, 2);
+        assert_eq!(result.eligible_voters, 3);
         assert_eq!(result.ballots_without_voter, 0);
         Ok(())
     }
@@ -817,21 +823,21 @@ mod tests {
         Ok(())
     }
 
-    /// The channel totals must be incremented by the same multiplicity as the
-    /// ballots, or the invariant check at the end of the merge trips.
+    /// Channel totals stay in the same weighted units as the tally input so
+    /// downstream tally validation can compare like with like.
     #[test]
-    fn test_vote_weight_channel_totals_match_casted_ballots() -> Result<()> {
+    fn test_vote_weight_channel_totals_remain_weighted() -> Result<()> {
         let ballots = "user_A,content_A,ONLINE\nuser_B,content_B,TELEPHONE";
-        let voters = "user_A,4\nuser_B,2";
+        let voters = "user_A,11\nuser_B,2";
 
         let result = run_merge_join_weights_test(ballots, voters, Some(2))?;
 
-        assert_eq!(result.casted_ballots, 6);
+        assert_eq!(result.casted_ballots, 2);
         assert_eq!(
             result
                 .casted_ballots_by_channel
                 .get(&VotingStatusChannel::ONLINE.into()),
-            Some(&4)
+            Some(&11)
         );
         assert_eq!(
             result
