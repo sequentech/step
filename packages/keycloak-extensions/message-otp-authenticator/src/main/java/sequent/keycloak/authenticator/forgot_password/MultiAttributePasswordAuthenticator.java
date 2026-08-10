@@ -236,24 +236,32 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
   }
 
   /**
-   * Builds the {@code {name, type}} pairs the template renders one input per configured attribute
-   * from. {@code type} mirrors whatever HTML5 input type (e.g. {@code date}) the realm's User
-   * Profile configuration declares for that attribute, so a field like {@code dateOfBirth} renders
-   * the same native date picker here as it does at registration - see {@link
-   * Utils#resolveHtml5InputType}. Fetches the User Profile attribute list once up front rather than
-   * once per configured attribute.
+   * Builds the field metadata the template renders one input per configured attribute from. {@code
+   * type} mirrors whatever HTML5 input type (e.g. {@code date}) the realm's User Profile
+   * configuration declares for that attribute, so a field like {@code dateOfBirth} renders the same
+   * native date picker here as it does at registration. A configured {@code inputTypeMax} is
+   * forwarded as {@code max}; the template supplies its date default when this key is absent. See
+   * {@link Utils#resolveHtml5InputType}. Fetches the User Profile attribute list once up front
+   * rather than once per configured attribute.
    */
   protected List<Map<String, String>> buildAttributeFields(
       KeycloakSession session, List<String> matchAttributes) {
     List<UPAttribute> profileAttributes = Utils.getRealmUserProfileAttributes(session);
     List<Map<String, String>> fields = new ArrayList<>();
     for (String attribute : matchAttributes) {
-      fields.add(
-          Map.of(
-              "name",
-              attribute,
-              "type",
-              Utils.resolveHtml5InputType(profileAttributes, attribute)));
+      Map<String, String> field = new HashMap<>();
+      field.put("name", attribute);
+      field.put("type", Utils.resolveHtml5InputType(profileAttributes, attribute));
+      profileAttributes.stream()
+          .filter(profileAttribute -> attribute.equals(profileAttribute.getName()))
+          .findFirst()
+          .map(UPAttribute::getAnnotations)
+          .map(annotations -> annotations.get("inputTypeMax"))
+          .filter(String.class::isInstance)
+          .map(String.class::cast)
+          .filter(max -> !max.isBlank())
+          .ifPresent(max -> field.put("max", max));
+      fields.add(field);
     }
     return fields;
   }
