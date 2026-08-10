@@ -173,6 +173,8 @@ workbench/
 ├── velvet-wasm/         wasm-bindgen wrapper exposing velvet-core to JS
 ├── docs/                Vote-validation deep dives (VOTE_VALIDATION.md,
 │                        VALIDATION_LOGIC_DISTILLATION.md, FIXTURE_VARIANCE.md)
+├── characterization/    Recorded validation-behaviour tables + the harness
+│                        that generates them (headless wasm + browser)
 ├── WORKBENCH.md         Workbench-side design: inspector, snapshots,
 │                        overlay state, Diagnostics, authoring workflow
 ├── DARK.md              Dark-theme palette and its revert procedure

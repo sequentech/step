@@ -44,6 +44,67 @@ checkers and returns structured error/alert lists that the UI renders.
 
 ---
 
+## Functional Model: Who Does What, and Why
+
+Before any call-stack detail: validation is **one producer, two independent
+consumers, plus two preventers and a final classifier**. Every behaviour in
+this document is one of these six roles doing its job.
+
+```
+                         ┌──────────────────────────────┐
+    every click ───────► │ CHECKERS (checker.rs, WASM)  │  produce the record:
+                         │ encode→decode round-trip     │  invalid_errors[] /
+                         └──────────────┬───────────────┘  invalid_alerts[]
+                                        │ DecodedVoteContest
+                    ┌───────────────────┴───────────────────┐
+                    ▼                                       ▼
+     ┌────────────────────────────┐          ┌────────────────────────────────┐
+     │ FILTER (InvalidErrorsList, │          │ GATES (voting_screen.rs, WASM) │
+     │ TypeScript)                │          │ on Next / review transition    │
+     │ decides what the voter     │          │ decide whether the voter may   │
+     │ SEES inline                │          │ PROCEED (hard block vs         │
+     └────────────────────────────┘          │ dismissible dialog vs nothing) │
+                    │                        └────────────────────────────────┘
+                    │ setDecodedContests()                  ▲
+                    └───────── the only junction ───────────┘
+```
+
+| Role | Where | Trigger | Question it answers |
+|------|-------|---------|---------------------|
+| **Checkers** | `checker.rs` via the codec round-trip | every selection change | *does a violation record exist?* |
+| **Filter** | `InvalidErrorsList.tsx::filterErrorList` | every render | *does the voter see it?* |
+| **Gates** | `voting_screen.rs::check_voting_*_util` | Next / review click | *may the voter proceed?* |
+| **Input constraint** | `Question.tsx` (checkbox disable) | every render | *can the state be reached at all?* |
+| **Marker exclusivity** | `ballotSelectionsSlice.ts` reducer | every selection change | *can markers and candidates co-exist?* (prevention) |
+| **Tally classifier** | `velvet-core::classify_ballot` | tally | *what is this ballot, finally?* (six classes) |
+
+Three properties of this shape explain most of the system's surprises:
+
+1. **The consumers do not consume each other's conclusions.** The gates do
+   not look for the checker's `blankVote` entry — they re-derive blankness
+   from the choices count. The filter does not ask the gates anything — it
+   re-reads three policies itself. One condition therefore has up to three
+   independently-computed answers (record exists / voter sees it / voter is
+   blocked), and the answers can disagree by design or by bug. This is why
+   effects are per-surface — `(inline, gate, constraint)` — rather than one
+   value per state.
+2. **The two consumer paths meet at exactly one point**: each rendered
+   `<InvalidErrorsList>` writes its decoded contest into a record via
+   `setDecodedContests`, and the gates read that record. The gates never
+   decode anything themselves — so a contest that never rendered has no
+   entry for the gates to check.
+3. **Prevention removes states; enforcement blocks transitions.** The
+   constraint and exclusivity roles stop states existing (no record is ever
+   produced); the gates let states exist but block progression. A
+   prevention bug (e.g. `fdc7f92db5`) silently re-opens states the config
+   assumed impossible — which is why the checkers validate them anyway.
+
+The remainder of this document is the detail: the round-trip mechanism, the
+call stack (the *how*), each checker's exact behaviour, the filter rules,
+the gate condition tables, and the tally classification.
+
+---
+
 ## Architecture: Encode→Decode Round-Trip
 
 When the voter clicks a candidate, the booth immediately:
@@ -62,6 +123,16 @@ This serves three purposes:
 ---
 
 ## Call Chain
+
+This is the **stack view** — who calls whom, across the React → TypeScript
+→ WASM → Rust boundaries — of the functional model above. Read it as
+plumbing, not as sequence: the arrows show **call direction, not data
+direction**. In particular the filter (top box) runs *after* the checkers
+(bottom box) in data order — it operates on what the decode returns — and
+the two consumer paths from the functional model appear here overlaid in
+one stack: the per-click path descends through `interpretContestSelection`
+to the checkers, while the per-transition path descends through
+`check_voting_*_bool` to the gates.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐

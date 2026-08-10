@@ -1,0 +1,66 @@
+{
+  "invalid_vote_policy": "allowed (default)",
+  "rows": [
+    {
+      "blank_vote_policy": "allowed",
+      "selection_empty": true,
+      "untouched": [],
+      "voting_touched": [],
+      "dialog": {
+        "kind": "none"
+      },
+      "review": [],
+      "review_reached": true
+    },
+    {
+      "blank_vote_policy": "warn",
+      "selection_empty": true,
+      "untouched": [],
+      "voting_touched": [
+        "errors.implicit.blankVote(Implicit)"
+      ],
+      "dialog": {
+        "kind": "dismissible",
+        "buttons": [
+          "Cancel",
+          "Continue"
+        ],
+        "text": "Review your ballot Your ballot contains selections that may need your attention (such as selecting fewer options than allowed). Your ballot is valid and will be"
+      },
+      "review": [
+        "errors.implicit.blankVote(Implicit)"
+      ],
+      "review_reached": true
+    },
+    {
+      "blank_vote_policy": "warn-only-in-review",
+      "selection_empty": true,
+      "untouched": [],
+      "voting_touched": [],
+      "dialog": {
+        "kind": "none"
+      },
+      "review": [
+        "errors.implicit.blankVote(Implicit)"
+      ],
+      "review_reached": true
+    },
+    {
+      "blank_vote_policy": "not-allowed",
+      "selection_empty": true,
+      "untouched": [],
+      "voting_touched": [
+        "errors.implicit.blankVote(Implicit)"
+      ],
+      "dialog": {
+        "kind": "blocking",
+        "buttons": [
+          "Review selection"
+        ],
+        "text": "Your vote is invalid or blank Some of your answers will make one or more ballot questions invalid or blank Review selection"
+      },
+      "review": null,
+      "review_reached": false
+    }
+  ]
+}

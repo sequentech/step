@@ -341,6 +341,13 @@ switch (effect) {
 
 This is not a rewrite proposal. The path is incremental:
 
+> **Status (2026-08-10):** step 1 has started —
+> [`../characterization/`](../characterization/README.md) holds the harness
+> and the first recorded rule (blank votes: 64 checker+gate cells headless,
+> the filter/dialog layer through the real booth; zero disagreements with
+> the corrected docs). The `predict()` function in each runner is the
+> embryonic declarative table of step 3.
+
 1. **Enumerate the current mapping** — exercise every cell of the input
    space through the existing code and record the observed effects. Include
    the *prevention-guarded* cells (see the pruning caution in §2) and the
