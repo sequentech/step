@@ -469,7 +469,13 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
             finalResults = {...newResults, blank_ballots: boxCheck.pre_filled_value}
         }
 
-        setIsButtonDisabled(sharedValidationErrors.length > 0 || boxCheck.errors.length > 0)
+        // Box-check errors are a warning, not a hard block: siblingBoxSheets only sees
+        // already-APPROVED sheets, so correcting a wrong approved value one contest at a
+        // time necessarily disagrees with the not-yet-corrected siblings until every
+        // contest of the box has been fixed and approved. Blocking here would make that
+        // correction impossible one sheet at a time. Only this sheet's own internal
+        // arithmetic (sharedValidationErrors) blocks submission.
+        setIsButtonDisabled(sharedValidationErrors.length > 0)
 
         if (JSON.stringify(finalResults) !== JSON.stringify(results)) {
             setResults(finalResults)
