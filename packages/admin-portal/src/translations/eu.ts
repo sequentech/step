@@ -2422,6 +2422,10 @@ const basqueTranslation: TranslationType = {
                     "Baliozko botoen guztizko kopurua ez dator bat hautagaien botoen eta boto zurien baturarekin",
                 censusTooSmall:
                     "Erroldak boto guztien kopurua baino handiagoa edo berdina izan behar du",
+                blankBallotsInconsistent:
+                    "Boto-txartel Zuriak balio berdina izan behar du ontzi honetako hautagaitza-orri guztietan",
+                blankBallotsOutOfBounds:
+                    "Boto-txartel Zuriak balioa ontzi honen hautagaitzako boto zurien kontaketek ezartzen duten tartetik kanpo dago",
             },
             label: {
                 area: "Eremua",

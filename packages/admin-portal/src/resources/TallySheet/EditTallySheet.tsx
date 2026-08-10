@@ -144,7 +144,9 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     const [totalValidError, setTotalValidError] = useState<boolean>(false)
     const [censusError, setCensusError] = useState<boolean>(false)
     const [sharedValidationMessages, setSharedValidationMessages] = useState<string[]>([])
-    const [blankBallotsMessages, setBlankBallotsMessages] = useState<string[]>([])
+    const [blankBallotsInconsistentError, setBlankBallotsInconsistentError] =
+        useState<boolean>(false)
+    const [blankBallotsOutOfBoundsError, setBlankBallotsOutOfBoundsError] = useState<boolean>(false)
     const {data: areaContests} = useGetList<Sequent_Backend_Area_Contest>(
         "sequent_backend_area_contest",
         {
@@ -457,7 +459,9 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
             newResults.area_id && newResults.contest_id
                 ? validateBallotBoxBlankBallots([currentSheetForValidation, ...siblingBoxSheets])
                 : {errors: []}
-        setBlankBallotsMessages(boxCheck.errors.map((error) => error.message))
+        const boxCodes = new Set(boxCheck.errors.map((error) => error.code))
+        setBlankBallotsInconsistentError(boxCodes.has("inconsistent_blank_ballots"))
+        setBlankBallotsOutOfBoundsError(boxCodes.has("blank_ballots_out_of_bounds"))
 
         // Mirrors windmill's CSV import: only offer the bounds-implied value when the
         // operator hasn't supplied one, never overwrite an existing entry.
@@ -858,9 +862,16 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                         onChange={handleNumberChange}
                         size="small"
                     />
-                    {blankBallotsMessages.map((message) => (
-                        <StyledError key={message}>{message}</StyledError>
-                    ))}
+                    {blankBallotsInconsistentError && (
+                        <StyledError>
+                            {t("tallysheet.inputError.blankBallotsInconsistent")}
+                        </StyledError>
+                    )}
+                    {blankBallotsOutOfBoundsError && (
+                        <StyledError>
+                            {t("tallysheet.inputError.blankBallotsOutOfBounds")}
+                        </StyledError>
+                    )}
                 </>
                 <>
                     <TextField

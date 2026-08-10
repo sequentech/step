@@ -2442,6 +2442,10 @@ const catalanTranslation: TranslationType = {
                 totalValidDoesNotMatch:
                     "El total de vots vàlids no coincideix amb la suma dels vots dels candidats més els vots en blanc",
                 censusTooSmall: "El cens ha de ser major o igual al total de vots",
+                blankBallotsInconsistent:
+                    "Les Paperetes en Blanc han de tenir el mateix valor a tots els fulls de contesa d'aquesta urna",
+                blankBallotsOutOfBounds:
+                    "El valor de Paperetes en Blanc està fora del rang que impliquen els recomptes de vots en blanc per contesa d'aquesta urna",
             },
             label: {
                 area: "Àrea",

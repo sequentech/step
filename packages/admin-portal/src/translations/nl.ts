@@ -2429,6 +2429,10 @@ const dutchTranslation: TranslationType = {
                     "Het totaal aantal geldige stemmen komt niet overeen met de som van de stemmen voor kandidaten plus blanco stemmen",
                 censusTooSmall:
                     "De census moet groter dan of gelijk zijn aan het totaal aantal stemmen",
+                blankBallotsInconsistent:
+                    "Blanco Stembiljetten moet dezelfde waarde hebben op elk telformulier van deze stembus",
+                blankBallotsOutOfBounds:
+                    "De waarde van Blanco Stembiljetten valt buiten het bereik dat wordt geïmpliceerd door de blanco-stemtellingen per race van deze stembus",
             },
             label: {
                 area: "Gebied",

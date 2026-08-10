@@ -2446,6 +2446,10 @@ const frenchTranslation: TranslationType = {
                 totalValidDoesNotMatch:
                     "Le total des votes valides ne correspond pas à la somme des votes des candidats plus les votes blancs",
                 censusTooSmall: "Le recensement doit être supérieur ou égal au total des votes",
+                blankBallotsInconsistent:
+                    "Les Bulletins Blancs doivent avoir la même valeur sur toutes les feuilles de dépouillement de cette urne",
+                blankBallotsOutOfBounds:
+                    "La valeur des Bulletins Blancs est en dehors de la plage impliquée par les décomptes de votes blancs par candidature de cette urne",
             },
             label: {
                 area: "Zone",

@@ -2434,6 +2434,10 @@ const spanishTranslation: TranslationType = {
                 totalValidDoesNotMatch:
                     "El total de votos válidos no coincide con la suma de los votos de los candidatos más los votos en blanco",
                 censusTooSmall: "El censo debe ser mayor o igual al total de votos",
+                blankBallotsInconsistent:
+                    "Las Papeletas en Blanco deben tener el mismo valor en todas las hojas de escrutinio de esta urna",
+                blankBallotsOutOfBounds:
+                    "El valor de Papeletas en Blanco está fuera del rango que implican los recuentos de votos en blanco por contienda de esta urna",
             },
             label: {
                 area: "Area",

@@ -2432,6 +2432,10 @@ const galegoTranslation: TranslationType = {
                 totalValidDoesNotMatch:
                     "O total de votos válidos non coincide coa suma dos votos dos candidatos máis os votos en branco",
                 censusTooSmall: "O censo debe ser maior ou igual ao total de votos",
+                blankBallotsInconsistent:
+                    "As Papeletas en Branco deben ter o mesmo valor en todas as follas de escrutinio desta urna",
+                blankBallotsOutOfBounds:
+                    "O valor de Papeletas en Branco está fóra do rango que implican os reconto de votos en branco por candidatura desta urna",
             },
             label: {
                 area: "Área",

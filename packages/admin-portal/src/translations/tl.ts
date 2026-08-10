@@ -2438,6 +2438,10 @@ const tagalogTranslation: TranslationType = {
                     "Ang kabuuang bilang ng mga balidong boto ay hindi tumutugma sa suma ng mga boto ng kandidato at mga blangkong boto",
                 censusTooSmall:
                     "Ang senso ay dapat na mas malaki o katumbas ng kabuuang bilang ng mga boto",
+                blankBallotsInconsistent:
+                    "Ang Blangkong Balota ay dapat magkaroon ng parehong halaga sa bawat sheet ng kontest sa kahong ito",
+                blankBallotsOutOfBounds:
+                    "Ang halaga ng Blangkong Balota ay wala sa hanay na ipinahihiwatig ng bilang ng blangkong boto bawat kontest sa kahong ito",
             },
             label: {
                 area: "Lugar",

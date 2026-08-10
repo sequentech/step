@@ -2408,6 +2408,10 @@ const englishTranslation = {
                 totalValidDoesNotMatch:
                     "Total valid votes does not match the sum of the candidate votes plus blank votes",
                 censusTooSmall: "Census must be greater or equal than the total votes",
+                blankBallotsInconsistent:
+                    "Blank Ballots must have the same value on every contest sheet of this ballot box",
+                blankBallotsOutOfBounds:
+                    "Blank Ballots value is outside the range implied by this box's per-contest blank vote counts",
             },
             label: {
                 area: "Area",
