@@ -1559,7 +1559,6 @@ fn check_trustees(plan: &Blueprint, report: &mut Report) {
     //
     // It is a handover fact rather than a defect, so it lives where somebody reads
     // it once: the trustees section's own hint, and the reference page.
-
 }
 
 fn check_schedule(plan: &Blueprint, report: &mut Report) {
