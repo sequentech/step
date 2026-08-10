@@ -1,10 +1,18 @@
 {
   "property": "no-silent-discount",
-  "scanned": 124,
-  "violation_count": 1,
+  "scanned": 196,
+  "violation_count": 5,
   "byConfig": {
     "over_vote_policy=allowed, invalid_vote_policy=allowed": [
       "over_max"
+    ],
+    "min_votes=1, invalid_vote_policy=allowed": [
+      "none"
+    ],
+    "min_votes=2, invalid_vote_policy=allowed": [
+      "none",
+      "one",
+      "marker_only"
     ]
   },
   "violations": [
@@ -27,6 +35,114 @@
       "predicted": {
         "errors": [
           "errors.implicit.selectedMax"
+        ],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitInvalid"
+      },
+      "match": true
+    },
+    {
+      "source": "minvote-rule.recorded.json",
+      "contest": "Referendum (with explicit blank)",
+      "min_votes": 1,
+      "invalid_vote_policy": "allowed",
+      "state": "none",
+      "observed": {
+        "errors": [
+          "errors.implicit.selectedMin"
+        ],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitInvalid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [
+          "errors.implicit.selectedMin"
+        ],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitInvalid"
+      },
+      "match": true
+    },
+    {
+      "source": "minvote-rule.recorded.json",
+      "contest": "Referendum (with explicit blank)",
+      "min_votes": 2,
+      "invalid_vote_policy": "allowed",
+      "state": "none",
+      "observed": {
+        "errors": [
+          "errors.implicit.selectedMin"
+        ],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitInvalid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [
+          "errors.implicit.selectedMin"
+        ],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitInvalid"
+      },
+      "match": true
+    },
+    {
+      "source": "minvote-rule.recorded.json",
+      "contest": "Referendum (with explicit blank)",
+      "min_votes": 2,
+      "invalid_vote_policy": "allowed",
+      "state": "one",
+      "observed": {
+        "errors": [
+          "errors.implicit.selectedMin"
+        ],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitInvalid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [
+          "errors.implicit.selectedMin"
+        ],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitInvalid"
+      },
+      "match": true
+    },
+    {
+      "source": "minvote-rule.recorded.json",
+      "contest": "Referendum (with explicit blank)",
+      "min_votes": 2,
+      "invalid_vote_policy": "allowed",
+      "state": "marker_only",
+      "observed": {
+        "errors": [
+          "errors.implicit.selectedMin"
+        ],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitInvalid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [
+          "errors.implicit.selectedMin"
         ],
         "alerts": [],
         "hard": false,

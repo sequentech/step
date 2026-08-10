@@ -23,76 +23,76 @@ gate* are the review-transition gates (blocking vs dismissible dialog);
 *tally* is the **recorded** per-ballot class — the counter that
 incremented when this decoded ballot ran through velvet-wasm's real
 tally. `pred?` compares all five observables against the documented
-rules; ✗ = code and docs disagree. The final column is **derived**
-(convention 3): ⚠ marks a silent-discount cell — no booth signal on any
-surface yet the tally discards the ballot; single-sourced from
-`harness.mjs::isSilentDiscount`, reported in `no-silent-discount.md`.
+rules; ✗ = code and docs disagree. A row whose first cell is prefixed
+**⚠** is a **derived** silent-discount marker (convention 3) —
+single-sourced from `harness.mjs::isSilentDiscount`, reported in
+`no-silent-discount.md`.
 Layer 3 (inline visibility in the booth) is recorded separately in
 `blank-rule.filter.md`.
 
-| blank_policy | invalid_policy | state | errors | alerts | hard gate | soft gate | tally | pred? | silent-discount (derived) |
-|---|---|---|---|---|---|---|---|---|---|
-| allowed | allowed | empty | — | — | — | — | ImplicitBlank | ✓ | — |
-| allowed | allowed | explicit_invalid | — | — | — | — | ExplicitInvalid | ✓ | — |
-| allowed | allowed | marker_only | — | — | — | — | ExplicitBlank | ✓ | — |
-| allowed | allowed | one_regular | — | — | — | — | Valid | ✓ | — |
-| allowed | warn | empty | — | — | — | — | ImplicitBlank | ✓ | — |
-| allowed | warn | explicit_invalid | — | — | — | — | ExplicitInvalid | ✓ | — |
-| allowed | warn | marker_only | — | — | — | — | ExplicitBlank | ✓ | — |
-| allowed | warn | one_regular | — | — | — | — | Valid | ✓ | — |
-| allowed | warn-invalid-implicit-and-explicit | empty | — | — | — | — | ImplicitBlank | ✓ | — |
-| allowed | warn-invalid-implicit-and-explicit | explicit_invalid | — | alert | — | dialog | ExplicitInvalid | ✓ | — |
-| allowed | warn-invalid-implicit-and-explicit | marker_only | — | — | — | — | ExplicitBlank | ✓ | — |
-| allowed | warn-invalid-implicit-and-explicit | one_regular | — | — | — | — | Valid | ✓ | — |
-| allowed | not-allowed | empty | — | — | — | — | ImplicitBlank | ✓ | — |
-| allowed | not-allowed | explicit_invalid | notAllowed | — | **block** | dialog | ExplicitInvalid | ✓ | — |
-| allowed | not-allowed | marker_only | — | — | — | — | ExplicitBlank | ✓ | — |
-| allowed | not-allowed | one_regular | — | — | — | — | Valid | ✓ | — |
-| warn | allowed | empty | — | blankVote | — | dialog | ImplicitBlank | ✓ | — |
-| warn | allowed | explicit_invalid | — | — | — | — | ExplicitInvalid | ✓ | — |
-| warn | allowed | marker_only | — | — | — | — | ExplicitBlank | ✓ | — |
-| warn | allowed | one_regular | — | — | — | — | Valid | ✓ | — |
-| warn | warn | empty | — | blankVote | — | dialog | ImplicitBlank | ✓ | — |
-| warn | warn | explicit_invalid | — | — | — | — | ExplicitInvalid | ✓ | — |
-| warn | warn | marker_only | — | — | — | — | ExplicitBlank | ✓ | — |
-| warn | warn | one_regular | — | — | — | — | Valid | ✓ | — |
-| warn | warn-invalid-implicit-and-explicit | empty | — | blankVote | — | dialog | ImplicitBlank | ✓ | — |
-| warn | warn-invalid-implicit-and-explicit | explicit_invalid | — | alert | — | dialog | ExplicitInvalid | ✓ | — |
-| warn | warn-invalid-implicit-and-explicit | marker_only | — | — | — | — | ExplicitBlank | ✓ | — |
-| warn | warn-invalid-implicit-and-explicit | one_regular | — | — | — | — | Valid | ✓ | — |
-| warn | not-allowed | empty | — | blankVote | — | dialog | ImplicitBlank | ✓ | — |
-| warn | not-allowed | explicit_invalid | notAllowed | — | **block** | dialog | ExplicitInvalid | ✓ | — |
-| warn | not-allowed | marker_only | — | — | — | — | ExplicitBlank | ✓ | — |
-| warn | not-allowed | one_regular | — | — | — | — | Valid | ✓ | — |
-| warn-only-in-review | allowed | empty | — | blankVote | — | — | ImplicitBlank | ✓ | — |
-| warn-only-in-review | allowed | explicit_invalid | — | — | — | — | ExplicitInvalid | ✓ | — |
-| warn-only-in-review | allowed | marker_only | — | — | — | — | ExplicitBlank | ✓ | — |
-| warn-only-in-review | allowed | one_regular | — | — | — | — | Valid | ✓ | — |
-| warn-only-in-review | warn | empty | — | blankVote | — | — | ImplicitBlank | ✓ | — |
-| warn-only-in-review | warn | explicit_invalid | — | — | — | — | ExplicitInvalid | ✓ | — |
-| warn-only-in-review | warn | marker_only | — | — | — | — | ExplicitBlank | ✓ | — |
-| warn-only-in-review | warn | one_regular | — | — | — | — | Valid | ✓ | — |
-| warn-only-in-review | warn-invalid-implicit-and-explicit | empty | — | blankVote | — | — | ImplicitBlank | ✓ | — |
-| warn-only-in-review | warn-invalid-implicit-and-explicit | explicit_invalid | — | alert | — | dialog | ExplicitInvalid | ✓ | — |
-| warn-only-in-review | warn-invalid-implicit-and-explicit | marker_only | — | — | — | — | ExplicitBlank | ✓ | — |
-| warn-only-in-review | warn-invalid-implicit-and-explicit | one_regular | — | — | — | — | Valid | ✓ | — |
-| warn-only-in-review | not-allowed | empty | — | blankVote | — | — | ImplicitBlank | ✓ | — |
-| warn-only-in-review | not-allowed | explicit_invalid | notAllowed | — | **block** | dialog | ExplicitInvalid | ✓ | — |
-| warn-only-in-review | not-allowed | marker_only | — | — | — | — | ExplicitBlank | ✓ | — |
-| warn-only-in-review | not-allowed | one_regular | — | — | — | — | Valid | ✓ | — |
-| not-allowed | allowed | empty | blankVote | — | **block** | — | ImplicitInvalid | ✓ | — |
-| not-allowed | allowed | explicit_invalid | — | — | — | — | ExplicitInvalid | ✓ | — |
-| not-allowed | allowed | marker_only | — | — | — | — | ExplicitBlank | ✓ | — |
-| not-allowed | allowed | one_regular | — | — | — | — | Valid | ✓ | — |
-| not-allowed | warn | empty | blankVote | — | **block** | dialog | ImplicitInvalid | ✓ | — |
-| not-allowed | warn | explicit_invalid | — | — | — | — | ExplicitInvalid | ✓ | — |
-| not-allowed | warn | marker_only | — | — | — | — | ExplicitBlank | ✓ | — |
-| not-allowed | warn | one_regular | — | — | — | — | Valid | ✓ | — |
-| not-allowed | warn-invalid-implicit-and-explicit | empty | blankVote | — | **block** | dialog | ImplicitInvalid | ✓ | — |
-| not-allowed | warn-invalid-implicit-and-explicit | explicit_invalid | — | alert | — | dialog | ExplicitInvalid | ✓ | — |
-| not-allowed | warn-invalid-implicit-and-explicit | marker_only | — | — | — | — | ExplicitBlank | ✓ | — |
-| not-allowed | warn-invalid-implicit-and-explicit | one_regular | — | — | — | — | Valid | ✓ | — |
-| not-allowed | not-allowed | empty | blankVote | — | **block** | dialog | ImplicitInvalid | ✓ | — |
-| not-allowed | not-allowed | explicit_invalid | notAllowed | — | **block** | dialog | ExplicitInvalid | ✓ | — |
-| not-allowed | not-allowed | marker_only | — | — | — | — | ExplicitBlank | ✓ | — |
-| not-allowed | not-allowed | one_regular | — | — | — | — | Valid | ✓ | — |
+| blank_policy | invalid_policy | state | errors | alerts | hard gate | soft gate | tally | pred? |
+|---|---|---|---|---|---|---|---|---|
+| allowed | allowed | empty | — | — | — | — | ImplicitBlank | ✓ |
+| allowed | allowed | explicit_invalid | — | — | — | — | ExplicitInvalid | ✓ |
+| allowed | allowed | marker_only | — | — | — | — | ExplicitBlank | ✓ |
+| allowed | allowed | one_regular | — | — | — | — | Valid | ✓ |
+| allowed | warn | empty | — | — | — | — | ImplicitBlank | ✓ |
+| allowed | warn | explicit_invalid | — | — | — | — | ExplicitInvalid | ✓ |
+| allowed | warn | marker_only | — | — | — | — | ExplicitBlank | ✓ |
+| allowed | warn | one_regular | — | — | — | — | Valid | ✓ |
+| allowed | warn-invalid-implicit-and-explicit | empty | — | — | — | — | ImplicitBlank | ✓ |
+| allowed | warn-invalid-implicit-and-explicit | explicit_invalid | — | alert | — | dialog | ExplicitInvalid | ✓ |
+| allowed | warn-invalid-implicit-and-explicit | marker_only | — | — | — | — | ExplicitBlank | ✓ |
+| allowed | warn-invalid-implicit-and-explicit | one_regular | — | — | — | — | Valid | ✓ |
+| allowed | not-allowed | empty | — | — | — | — | ImplicitBlank | ✓ |
+| allowed | not-allowed | explicit_invalid | notAllowed | — | **block** | dialog | ExplicitInvalid | ✓ |
+| allowed | not-allowed | marker_only | — | — | — | — | ExplicitBlank | ✓ |
+| allowed | not-allowed | one_regular | — | — | — | — | Valid | ✓ |
+| warn | allowed | empty | — | blankVote | — | dialog | ImplicitBlank | ✓ |
+| warn | allowed | explicit_invalid | — | — | — | — | ExplicitInvalid | ✓ |
+| warn | allowed | marker_only | — | — | — | — | ExplicitBlank | ✓ |
+| warn | allowed | one_regular | — | — | — | — | Valid | ✓ |
+| warn | warn | empty | — | blankVote | — | dialog | ImplicitBlank | ✓ |
+| warn | warn | explicit_invalid | — | — | — | — | ExplicitInvalid | ✓ |
+| warn | warn | marker_only | — | — | — | — | ExplicitBlank | ✓ |
+| warn | warn | one_regular | — | — | — | — | Valid | ✓ |
+| warn | warn-invalid-implicit-and-explicit | empty | — | blankVote | — | dialog | ImplicitBlank | ✓ |
+| warn | warn-invalid-implicit-and-explicit | explicit_invalid | — | alert | — | dialog | ExplicitInvalid | ✓ |
+| warn | warn-invalid-implicit-and-explicit | marker_only | — | — | — | — | ExplicitBlank | ✓ |
+| warn | warn-invalid-implicit-and-explicit | one_regular | — | — | — | — | Valid | ✓ |
+| warn | not-allowed | empty | — | blankVote | — | dialog | ImplicitBlank | ✓ |
+| warn | not-allowed | explicit_invalid | notAllowed | — | **block** | dialog | ExplicitInvalid | ✓ |
+| warn | not-allowed | marker_only | — | — | — | — | ExplicitBlank | ✓ |
+| warn | not-allowed | one_regular | — | — | — | — | Valid | ✓ |
+| warn-only-in-review | allowed | empty | — | blankVote | — | — | ImplicitBlank | ✓ |
+| warn-only-in-review | allowed | explicit_invalid | — | — | — | — | ExplicitInvalid | ✓ |
+| warn-only-in-review | allowed | marker_only | — | — | — | — | ExplicitBlank | ✓ |
+| warn-only-in-review | allowed | one_regular | — | — | — | — | Valid | ✓ |
+| warn-only-in-review | warn | empty | — | blankVote | — | — | ImplicitBlank | ✓ |
+| warn-only-in-review | warn | explicit_invalid | — | — | — | — | ExplicitInvalid | ✓ |
+| warn-only-in-review | warn | marker_only | — | — | — | — | ExplicitBlank | ✓ |
+| warn-only-in-review | warn | one_regular | — | — | — | — | Valid | ✓ |
+| warn-only-in-review | warn-invalid-implicit-and-explicit | empty | — | blankVote | — | — | ImplicitBlank | ✓ |
+| warn-only-in-review | warn-invalid-implicit-and-explicit | explicit_invalid | — | alert | — | dialog | ExplicitInvalid | ✓ |
+| warn-only-in-review | warn-invalid-implicit-and-explicit | marker_only | — | — | — | — | ExplicitBlank | ✓ |
+| warn-only-in-review | warn-invalid-implicit-and-explicit | one_regular | — | — | — | — | Valid | ✓ |
+| warn-only-in-review | not-allowed | empty | — | blankVote | — | — | ImplicitBlank | ✓ |
+| warn-only-in-review | not-allowed | explicit_invalid | notAllowed | — | **block** | dialog | ExplicitInvalid | ✓ |
+| warn-only-in-review | not-allowed | marker_only | — | — | — | — | ExplicitBlank | ✓ |
+| warn-only-in-review | not-allowed | one_regular | — | — | — | — | Valid | ✓ |
+| not-allowed | allowed | empty | blankVote | — | **block** | — | ImplicitInvalid | ✓ |
+| not-allowed | allowed | explicit_invalid | — | — | — | — | ExplicitInvalid | ✓ |
+| not-allowed | allowed | marker_only | — | — | — | — | ExplicitBlank | ✓ |
+| not-allowed | allowed | one_regular | — | — | — | — | Valid | ✓ |
+| not-allowed | warn | empty | blankVote | — | **block** | dialog | ImplicitInvalid | ✓ |
+| not-allowed | warn | explicit_invalid | — | — | — | — | ExplicitInvalid | ✓ |
+| not-allowed | warn | marker_only | — | — | — | — | ExplicitBlank | ✓ |
+| not-allowed | warn | one_regular | — | — | — | — | Valid | ✓ |
+| not-allowed | warn-invalid-implicit-and-explicit | empty | blankVote | — | **block** | dialog | ImplicitInvalid | ✓ |
+| not-allowed | warn-invalid-implicit-and-explicit | explicit_invalid | — | alert | — | dialog | ExplicitInvalid | ✓ |
+| not-allowed | warn-invalid-implicit-and-explicit | marker_only | — | — | — | — | ExplicitBlank | ✓ |
+| not-allowed | warn-invalid-implicit-and-explicit | one_regular | — | — | — | — | Valid | ✓ |
+| not-allowed | not-allowed | empty | blankVote | — | **block** | dialog | ImplicitInvalid | ✓ |
+| not-allowed | not-allowed | explicit_invalid | notAllowed | — | **block** | dialog | ExplicitInvalid | ✓ |
+| not-allowed | not-allowed | marker_only | — | — | — | — | ExplicitBlank | ✓ |
+| not-allowed | not-allowed | one_regular | — | — | — | — | Valid | ✓ |

@@ -359,12 +359,17 @@ switch (effect) {
 
 This is not a rewrite proposal. The path is incremental:
 
-> **Status (2026-08-10):** step 1 has started —
+> **Status (2026-08-11):** step 1 is under way —
 > [`../characterization/`](../characterization/README.md) holds the harness
-> and the first recorded rule (blank votes: 64 checker+gate cells headless,
-> the filter/dialog layer through the real booth; zero disagreements with
-> the corrected docs). The `predict()` function in each runner is the
-> embryonic declarative table of step 3.
+> and four recorded rules (blank, over-vote, under-vote, min-vote: 196
+> checker+gate+tally cells headless, blank and over-vote also through the
+> real booth). Each runner's `predict()` is the embryonic declarative table
+> of step 3, and the first §4.3 query (`no-silent-discount`) already runs
+> over all four: it finds 5 violating cells in two families — the over-vote
+> case §4.2 predicted, and a min-vote family this pass discovered
+> (`selectedMin` is suppressed under `invalid=allowed`, so a below-minimum
+> ballot is silently discarded). Both families require
+> `invalid_vote_policy = allowed`.
 
 1. **Enumerate the current mapping** — exercise every cell of the input
    space through the existing code and record the observed effects. Include

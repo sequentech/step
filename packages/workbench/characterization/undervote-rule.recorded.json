@@ -1,0 +1,1157 @@
+{
+  "contest": "Referendum (with explicit blank)",
+  "rows": [
+    {
+      "under_vote_policy": "allowed",
+      "invalid_vote_policy": "allowed",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "allowed",
+      "invalid_vote_policy": "allowed",
+      "state": "under",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "allowed",
+      "invalid_vote_policy": "allowed",
+      "state": "full",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "allowed",
+      "invalid_vote_policy": "warn",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "allowed",
+      "invalid_vote_policy": "warn",
+      "state": "under",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "allowed",
+      "invalid_vote_policy": "warn",
+      "state": "full",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "allowed",
+      "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "allowed",
+      "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+      "state": "under",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "allowed",
+      "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+      "state": "full",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "allowed",
+      "invalid_vote_policy": "not-allowed",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "allowed",
+      "invalid_vote_policy": "not-allowed",
+      "state": "under",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "allowed",
+      "invalid_vote_policy": "not-allowed",
+      "state": "full",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn",
+      "invalid_vote_policy": "allowed",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.underVote"
+      ],
+      "predicted": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn",
+      "invalid_vote_policy": "allowed",
+      "state": "under",
+      "observed": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.underVote"
+      ],
+      "predicted": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn",
+      "invalid_vote_policy": "allowed",
+      "state": "full",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn",
+      "invalid_vote_policy": "warn",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.underVote"
+      ],
+      "predicted": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn",
+      "invalid_vote_policy": "warn",
+      "state": "under",
+      "observed": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.underVote"
+      ],
+      "predicted": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn",
+      "invalid_vote_policy": "warn",
+      "state": "full",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn",
+      "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.underVote"
+      ],
+      "predicted": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn",
+      "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+      "state": "under",
+      "observed": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.underVote"
+      ],
+      "predicted": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn",
+      "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+      "state": "full",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn",
+      "invalid_vote_policy": "not-allowed",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.underVote"
+      ],
+      "predicted": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn",
+      "invalid_vote_policy": "not-allowed",
+      "state": "under",
+      "observed": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.underVote"
+      ],
+      "predicted": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn",
+      "invalid_vote_policy": "not-allowed",
+      "state": "full",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn-only-in-review",
+      "invalid_vote_policy": "allowed",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.underVote"
+      ],
+      "predicted": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn-only-in-review",
+      "invalid_vote_policy": "allowed",
+      "state": "under",
+      "observed": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.underVote"
+      ],
+      "predicted": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn-only-in-review",
+      "invalid_vote_policy": "allowed",
+      "state": "full",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn-only-in-review",
+      "invalid_vote_policy": "warn",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.underVote"
+      ],
+      "predicted": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn-only-in-review",
+      "invalid_vote_policy": "warn",
+      "state": "under",
+      "observed": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.underVote"
+      ],
+      "predicted": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn-only-in-review",
+      "invalid_vote_policy": "warn",
+      "state": "full",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn-only-in-review",
+      "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.underVote"
+      ],
+      "predicted": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn-only-in-review",
+      "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+      "state": "under",
+      "observed": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.underVote"
+      ],
+      "predicted": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn-only-in-review",
+      "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+      "state": "full",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn-only-in-review",
+      "invalid_vote_policy": "not-allowed",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.underVote"
+      ],
+      "predicted": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn-only-in-review",
+      "invalid_vote_policy": "not-allowed",
+      "state": "under",
+      "observed": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.underVote"
+      ],
+      "predicted": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn-only-in-review",
+      "invalid_vote_policy": "not-allowed",
+      "state": "full",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn-and-alert",
+      "invalid_vote_policy": "allowed",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.underVote"
+      ],
+      "predicted": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn-and-alert",
+      "invalid_vote_policy": "allowed",
+      "state": "under",
+      "observed": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": true,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.underVote"
+      ],
+      "predicted": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": true,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn-and-alert",
+      "invalid_vote_policy": "allowed",
+      "state": "full",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn-and-alert",
+      "invalid_vote_policy": "warn",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.underVote"
+      ],
+      "predicted": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn-and-alert",
+      "invalid_vote_policy": "warn",
+      "state": "under",
+      "observed": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": true,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.underVote"
+      ],
+      "predicted": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": true,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn-and-alert",
+      "invalid_vote_policy": "warn",
+      "state": "full",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn-and-alert",
+      "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.underVote"
+      ],
+      "predicted": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn-and-alert",
+      "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+      "state": "under",
+      "observed": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": true,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.underVote"
+      ],
+      "predicted": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": true,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn-and-alert",
+      "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+      "state": "full",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn-and-alert",
+      "invalid_vote_policy": "not-allowed",
+      "state": "empty",
+      "observed": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.underVote"
+      ],
+      "predicted": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitBlank"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn-and-alert",
+      "invalid_vote_policy": "not-allowed",
+      "state": "under",
+      "observed": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": true,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.underVote"
+      ],
+      "predicted": {
+        "errors": [],
+        "alerts": [
+          "errors.implicit.underVote"
+        ],
+        "hard": false,
+        "soft": true,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "under_vote_policy": "warn-and-alert",
+      "invalid_vote_policy": "not-allowed",
+      "state": "full",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    }
+  ]
+}

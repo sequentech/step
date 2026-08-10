@@ -35,8 +35,29 @@ import path from "node:path"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
+// A cell's *configuration* is every field that is not an observation,
+// a derivation, or the vote-state. Crucially this includes non-policy
+// knobs like `min_votes` — grouping only by `*_policy` keys would merge
+// distinct min-vote configs and understate the lint surface.
+const NON_CONFIG = new Set([
+    "observed",
+    "derived_inline_visible",
+    "predicted",
+    "match",
+    "state",
+    "source",
+    "contest",
+])
+const configEntries = (cell) =>
+    Object.entries(cell).filter(([k]) => !NON_CONFIG.has(k))
+
 // Recordings that carry a `tally` observable participate in the query.
-const SOURCES = ["blank-rule.recorded.json", "overvote-rule.recorded.json"]
+const SOURCES = [
+    "blank-rule.recorded.json",
+    "overvote-rule.recorded.json",
+    "undervote-rule.recorded.json",
+    "minvote-rule.recorded.json",
+]
 
 // The predicate lives in harness.mjs (isSilentDiscount) so the rule
 // tables' derived ⚠ column and this query can never drift apart.
@@ -55,8 +76,7 @@ for (const src of SOURCES) {
 
 console.log(`no-silent-discount: scanned ${scanned} cells, ${violations.length} violations\n`)
 for (const v of violations) {
-    const cfg = Object.entries(v)
-        .filter(([k]) => k.endsWith("_policy"))
+    const cfg = configEntries(v)
         .map(([k, val]) => `${k.replace("_vote_policy", "")}=${val}`)
         .join(" ")
     console.log(`  VIOLATION [${cfg} state=${v.state}]`)
@@ -71,8 +91,7 @@ for (const v of violations) {
 // discounting" — the shape of a future admin-portal config lint.
 const byConfig = {}
 for (const v of violations) {
-    const key = Object.entries(v)
-        .filter(([k]) => k.endsWith("_policy"))
+    const key = configEntries(v)
         .map(([k, val]) => `${k}=${val}`)
         .join(", ")
     ;(byConfig[key] ??= []).push(v.state)

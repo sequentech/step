@@ -20,7 +20,7 @@ Violations are reproduced against the real booth UI (signals observed
 live) plus real decode/tally on the same selection; chaining through the
 booth's encrypt→cast→decrypt pipeline is a named TODO.
 
-**Result: 1 violating cell(s)** across 124 scanned (sources: blank-rule.recorded.json, overvote-rule.recorded.json).
+**Result: 5 violating cell(s)** across 196 scanned (sources: blank-rule.recorded.json, overvote-rule.recorded.json, undervote-rule.recorded.json, minvote-rule.recorded.json).
 
 ## Violating configurations
 
@@ -30,3 +30,5 @@ vote — the candidate content of an admin-portal config lint.
 | configuration | states |
 |---|---|
 | over_vote_policy=allowed, invalid_vote_policy=allowed | over_max |
+| min_votes=1, invalid_vote_policy=allowed | none |
+| min_votes=2, invalid_vote_policy=allowed | none, one, marker_only |

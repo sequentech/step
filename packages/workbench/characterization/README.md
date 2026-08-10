@@ -149,21 +149,57 @@ plus two firsts —
   state-level evidence is conclusive.)
 - **Violation reproduced against the real components** — see below.
 
+### undervote-rule (2026-08-11) — headless, layers 1+2 + tally
+
+`undervote-rule.mjs`: 48 cells (`under_vote_policy` × `invalid_vote_policy`
+× {empty, under, full}) on the Referendum contest with `min_votes` forced
+to 0, `max_votes` to 2. **48/48 match** (after the prediction was corrected
+— see below) → `undervote-rule.recorded.json`, `undervote-rule.md`. Zero
+silent-discount cells, as designed: the under-vote checker emits only
+alerts, never errors, so an under-voted ballot is structurally `Valid`
+(confirming §4.4's "cosmetic policy").
+
+Two facts the recording pinned, both mis-transcribed on the first pass:
+with `min_votes = 0` the under-vote zone `min ≤ n < max` **includes n = 0**,
+so the alert fires on an empty ballot too (overlapping blank); and the
+soft gate requires `n > 0`, so it fires only for `under`, not for the
+empty ballot the checker just alerted on — the alert and gate thresholds
+differ. (This is characterization catching the doc, not the code: the code
+was right.)
+
+### minvote-rule (2026-08-11) — headless, layers 1+2 + tally
+
+`minvote-rule.mjs`: 24 cells (`min_votes` ∈ {1,2} × `invalid_vote_policy`
+× {none, one, marker_only}) on the Referendum contest. **24/24 match** →
+`minvote-rule.recorded.json`, `minvote-rule.md`. Min-vote is not a policy
+enum — it always pushes a `selectedMin` *error* when the marker-inclusive
+count is below `min_votes` — and this rule **produces the second
+silent-discount family** (4 cells; see below).
+
 ### no-silent-discount — first model-check query (2026-08-10)
 
 `no-silent-discount.mjs` scans every recorded cell that carries a tally
 class for: *silent on every booth surface ∧ classified `ImplicitInvalid`*.
-Sources are the blank-rule and over-vote recordings — **124 cells** — and
-the result is **exactly one violating configuration** —
+Sources are the blank, over-vote, under-vote and min-vote recordings —
+**196 cells** — and the result is **5 violating cells in two distinct
+families**, all requiring `invalid_vote_policy = allowed`
+(`no-silent-discount.report.json`, `no-silent-discount.md`):
 
-> `over_vote_policy = allowed` × `invalid_vote_policy = allowed`,
-> state `over_max`
+| family | configuration | states |
+|---|---|---|
+| over-vote | `over_vote_policy=allowed`, `invalid=allowed` | over_max |
+| min-vote | `min_votes=1`, `invalid=allowed` | none |
+| min-vote | `min_votes=2`, `invalid=allowed` | none, one, marker_only |
 
-matching VALIDATION_LOGIC_DISTILLATION.md §4.2's prediction precisely
-(`no-silent-discount.report.json`, `no-silent-discount.md`). The blank
-rule contributes zero violations: its two `ImplicitInvalid` cells
-(`blank=not-allowed`+empty; `invalid=not-allowed`+explicit-flag) both
-hard-gate, so they are not silent.
+The over-vote family matches §4.2's prediction. The min-vote family was
+found by this pass: `selectedMin` is not in the booth filter's keep-list,
+so under `invalid=allowed` a below-minimum ballot is suppressed and
+neither gate fires, yet the tally discards it `ImplicitInvalid`. The
+`min_votes=2 / marker_only` cell is the sharpest: a voter who selects the
+explicit-blank marker (a deliberate blank) has it silently discarded,
+because the marker counts as 1 < 2. Blank and under-vote contribute
+zero: blank's `ImplicitInvalid` cells hard-gate, and under-vote never
+produces an error (only alerts), so its ballots are structurally `Valid`.
 
 The browser runner then **reproduced the violation against the real
 components**, in two halves that share the input rather than one ballot
@@ -201,12 +237,12 @@ all six are:
 
 | Role | Harness layer | Status |
 |---|---|---|
-| Checkers | 1 (headless wasm) | blank + over-vote rules done. One recording serves **both** bands: the tally decode runs the identical function, so layer 1 is also the tally-side checker characterization. |
-| Gates | 2 (headless wasm) | blank + over-vote rules done |
-| Filter | 3 (browser, booth) | blank + over-vote rules done |
+| Checkers | 1 (headless wasm) | blank, over-vote, under-vote, min-vote rules done. One recording serves **both** bands: the tally decode runs the identical function, so layer 1 is also the tally-side checker characterization. |
+| Gates | 2 (headless wasm) | blank, over-vote, under-vote, min-vote rules done |
+| Filter | 3 (browser, booth) | blank + over-vote rules done (under/min-vote headless only so far) |
 | Input constraint | 3 (browser) — the `constraint` component of the effect triple | observed **behaviourally** for `NOT_ALLOWED_WITH_MSG_AND_DISABLE` (the over-vote state does not form through the UI); the direct `disabled`-attribute probe is a DOM-selector TODO |
 | Marker exclusivity (prevention) | browser — *reachability*, not effects | first reachability recording exists (over-vote under DISABLE: the state does not form). Prevention is characterized by *attempting* to create each state through the UI and recording whether it forms; the mixed marker state's booth-reachability is still an open cell. |
-| Tally classifier | headless (velvet-wasm `tally_decoded_ballots`) | recorded per-cell for the blank and over-vote rules (the `tally` column); the standalone six-class decision table over all flag combinations is still pending |
+| Tally classifier | headless (velvet-wasm `tally_decoded_ballots`) | recorded per-cell for all four rules done so far (the `tally` column); the standalone six-class decision table over all flag combinations is still pending |
 
 Two consequences worth stating plainly. First, a per-rule recording like
 blank-rule is a *slice* of `f`, by design — the mapping decomposes per
@@ -223,6 +259,6 @@ Copy `blank-rule.mjs`, swap the policy/state dimensions and the `predict()`
 transcription, and pick or extend a bundled fixture whose contest carries
 the rule's preconditions (see FIXTURE_VARIANCE.md §13.2 for why marker
 candidates are preconditions, not policies). Rules still uncharacterized:
-under-vote, min-vote, invalid (beyond the blank and over-vote interplays),
+invalid (beyond the blank/over/min interplays),
 duplicated-rank and preference-gaps (need a preferential fixture), the
 decline-to-vote flow, and the tally classifier's six-class table.

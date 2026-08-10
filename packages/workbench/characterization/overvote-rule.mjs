@@ -185,10 +185,10 @@ writeFileSync(
 const short = (xs) =>
     xs.length === 0 ? "—" : xs.map((m) => m.replace(/^errors\.\w+\./, "")).join("<br>")
 const fmt = (r) =>
-    `| ${r.over_vote_policy} | ${r.invalid_vote_policy} | ${r.state} | ` +
+    `| ${isSilentDiscount(r) ? "**⚠** " : ""}${r.over_vote_policy} | ${r.invalid_vote_policy} | ${r.state} | ` +
     `${short(r.observed.errors)} | ${short(r.observed.alerts)} | ` +
     `${r.observed.hard ? "**block**" : "—"} | ${r.observed.soft ? "dialog" : "—"} | ` +
-    `${r.observed.tally} | ${r.match ? "✓" : "**✗**"} | ${isSilentDiscount(r) ? "**⚠ SILENT DISCOUNT**" : "—"} |`
+    `${r.observed.tally} | ${r.match ? "✓" : "**✗**"} |`
 const md = [
     "<!--",
     " SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>",
@@ -213,14 +213,14 @@ const md = [
     "may continue); *tally* is the **recorded** class — the counter that incremented",
     "when this exact decoded ballot was run through velvet-wasm's real tally.",
     "`pred?` compares all five observables against the documented rules;",
-    "✗ = code and docs disagree. The final column is **derived** (convention",
-    "3): ⚠ marks a cell where the voter gets no booth signal on any surface",
-    "yet the tally discards the ballot — the no-silent-discount property's",
-    "violation predicate, single-sourced from `harness.mjs::isSilentDiscount`",
-    "and reported in full in `no-silent-discount.md`.",
+    "✗ = code and docs disagree. A row whose first cell is prefixed **⚠** is",
+    "a **derived** silent-discount marker (convention 3): no booth signal on",
+    "any surface yet the tally discards the ballot — the property predicate,",
+    "single-sourced from `harness.mjs::isSilentDiscount` and reported in",
+    "`no-silent-discount.md`.",
     "",
-    "| over_policy | invalid_policy | state | errors | alerts | hard gate | soft gate | tally | pred? | silent-discount (derived) |",
-    "|---|---|---|---|---|---|---|---|---|---|",
+    "| over_policy | invalid_policy | state | errors | alerts | hard gate | soft gate | tally | pred? |",
+    "|---|---|---|---|---|---|---|---|---|",
     ...rows.map(fmt),
     "",
 ].join("\n")

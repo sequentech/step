@@ -21,71 +21,71 @@ review-transition gates — evaluated when the voter clicks Next on the
 may continue); *tally* is the **recorded** class — the counter that incremented
 when this exact decoded ballot was run through velvet-wasm's real tally.
 `pred?` compares all five observables against the documented rules;
-✗ = code and docs disagree. The final column is **derived** (convention
-3): ⚠ marks a cell where the voter gets no booth signal on any surface
-yet the tally discards the ballot — the no-silent-discount property's
-violation predicate, single-sourced from `harness.mjs::isSilentDiscount`
-and reported in full in `no-silent-discount.md`.
+✗ = code and docs disagree. A row whose first cell is prefixed **⚠** is
+a **derived** silent-discount marker (convention 3): no booth signal on
+any surface yet the tally discards the ballot — the property predicate,
+single-sourced from `harness.mjs::isSilentDiscount` and reported in
+`no-silent-discount.md`.
 
-| over_policy | invalid_policy | state | errors | alerts | hard gate | soft gate | tally | pred? | silent-discount (derived) |
-|---|---|---|---|---|---|---|---|---|---|
-| allowed | allowed | empty | — | — | — | — | ImplicitBlank | ✓ | — |
-| allowed | allowed | at_max | — | — | — | — | Valid | ✓ | — |
-| allowed | allowed | over_max | selectedMax | — | — | — | ImplicitInvalid | ✓ | **⚠ SILENT DISCOUNT** |
-| allowed | warn | empty | — | — | — | — | ImplicitBlank | ✓ | — |
-| allowed | warn | at_max | — | — | — | — | Valid | ✓ | — |
-| allowed | warn | over_max | selectedMax | — | — | dialog | ImplicitInvalid | ✓ | — |
-| allowed | warn-invalid-implicit-and-explicit | empty | — | — | — | — | ImplicitBlank | ✓ | — |
-| allowed | warn-invalid-implicit-and-explicit | at_max | — | — | — | — | Valid | ✓ | — |
-| allowed | warn-invalid-implicit-and-explicit | over_max | selectedMax | — | — | dialog | ImplicitInvalid | ✓ | — |
-| allowed | not-allowed | empty | — | — | — | — | ImplicitBlank | ✓ | — |
-| allowed | not-allowed | at_max | — | — | — | — | Valid | ✓ | — |
-| allowed | not-allowed | over_max | selectedMax | — | **block** | dialog | ImplicitInvalid | ✓ | — |
-| allowed-with-msg | allowed | empty | — | — | — | — | ImplicitBlank | ✓ | — |
-| allowed-with-msg | allowed | at_max | — | — | — | — | Valid | ✓ | — |
-| allowed-with-msg | allowed | over_max | selectedMax | selectedMax | — | — | ImplicitInvalid | ✓ | — |
-| allowed-with-msg | warn | empty | — | — | — | — | ImplicitBlank | ✓ | — |
-| allowed-with-msg | warn | at_max | — | — | — | — | Valid | ✓ | — |
-| allowed-with-msg | warn | over_max | selectedMax | selectedMax | — | dialog | ImplicitInvalid | ✓ | — |
-| allowed-with-msg | warn-invalid-implicit-and-explicit | empty | — | — | — | — | ImplicitBlank | ✓ | — |
-| allowed-with-msg | warn-invalid-implicit-and-explicit | at_max | — | — | — | — | Valid | ✓ | — |
-| allowed-with-msg | warn-invalid-implicit-and-explicit | over_max | selectedMax | selectedMax | — | dialog | ImplicitInvalid | ✓ | — |
-| allowed-with-msg | not-allowed | empty | — | — | — | — | ImplicitBlank | ✓ | — |
-| allowed-with-msg | not-allowed | at_max | — | — | — | — | Valid | ✓ | — |
-| allowed-with-msg | not-allowed | over_max | selectedMax | selectedMax | **block** | dialog | ImplicitInvalid | ✓ | — |
-| allowed-with-msg-and-alert | allowed | empty | — | — | — | — | ImplicitBlank | ✓ | — |
-| allowed-with-msg-and-alert | allowed | at_max | — | — | — | — | Valid | ✓ | — |
-| allowed-with-msg-and-alert | allowed | over_max | selectedMax | selectedMax | — | dialog | ImplicitInvalid | ✓ | — |
-| allowed-with-msg-and-alert | warn | empty | — | — | — | — | ImplicitBlank | ✓ | — |
-| allowed-with-msg-and-alert | warn | at_max | — | — | — | — | Valid | ✓ | — |
-| allowed-with-msg-and-alert | warn | over_max | selectedMax | selectedMax | — | dialog | ImplicitInvalid | ✓ | — |
-| allowed-with-msg-and-alert | warn-invalid-implicit-and-explicit | empty | — | — | — | — | ImplicitBlank | ✓ | — |
-| allowed-with-msg-and-alert | warn-invalid-implicit-and-explicit | at_max | — | — | — | — | Valid | ✓ | — |
-| allowed-with-msg-and-alert | warn-invalid-implicit-and-explicit | over_max | selectedMax | selectedMax | — | dialog | ImplicitInvalid | ✓ | — |
-| allowed-with-msg-and-alert | not-allowed | empty | — | — | — | — | ImplicitBlank | ✓ | — |
-| allowed-with-msg-and-alert | not-allowed | at_max | — | — | — | — | Valid | ✓ | — |
-| allowed-with-msg-and-alert | not-allowed | over_max | selectedMax | selectedMax | **block** | dialog | ImplicitInvalid | ✓ | — |
-| not-allowed-with-msg-and-alert | allowed | empty | — | — | — | — | ImplicitBlank | ✓ | — |
-| not-allowed-with-msg-and-alert | allowed | at_max | — | — | — | — | Valid | ✓ | — |
-| not-allowed-with-msg-and-alert | allowed | over_max | selectedMax | selectedMax | **block** | — | ImplicitInvalid | ✓ | — |
-| not-allowed-with-msg-and-alert | warn | empty | — | — | — | — | ImplicitBlank | ✓ | — |
-| not-allowed-with-msg-and-alert | warn | at_max | — | — | — | — | Valid | ✓ | — |
-| not-allowed-with-msg-and-alert | warn | over_max | selectedMax | selectedMax | **block** | dialog | ImplicitInvalid | ✓ | — |
-| not-allowed-with-msg-and-alert | warn-invalid-implicit-and-explicit | empty | — | — | — | — | ImplicitBlank | ✓ | — |
-| not-allowed-with-msg-and-alert | warn-invalid-implicit-and-explicit | at_max | — | — | — | — | Valid | ✓ | — |
-| not-allowed-with-msg-and-alert | warn-invalid-implicit-and-explicit | over_max | selectedMax | selectedMax | **block** | dialog | ImplicitInvalid | ✓ | — |
-| not-allowed-with-msg-and-alert | not-allowed | empty | — | — | — | — | ImplicitBlank | ✓ | — |
-| not-allowed-with-msg-and-alert | not-allowed | at_max | — | — | — | — | Valid | ✓ | — |
-| not-allowed-with-msg-and-alert | not-allowed | over_max | selectedMax | selectedMax | **block** | dialog | ImplicitInvalid | ✓ | — |
-| not-allowed-with-msg-and-disable | allowed | empty | — | — | — | — | ImplicitBlank | ✓ | — |
-| not-allowed-with-msg-and-disable | allowed | at_max | — | overVoteDisabled | — | — | Valid | ✓ | — |
-| not-allowed-with-msg-and-disable | allowed | over_max | selectedMax | selectedMax | — | — | ImplicitInvalid | ✓ | — |
-| not-allowed-with-msg-and-disable | warn | empty | — | — | — | — | ImplicitBlank | ✓ | — |
-| not-allowed-with-msg-and-disable | warn | at_max | — | overVoteDisabled | — | — | Valid | ✓ | — |
-| not-allowed-with-msg-and-disable | warn | over_max | selectedMax | selectedMax | — | dialog | ImplicitInvalid | ✓ | — |
-| not-allowed-with-msg-and-disable | warn-invalid-implicit-and-explicit | empty | — | — | — | — | ImplicitBlank | ✓ | — |
-| not-allowed-with-msg-and-disable | warn-invalid-implicit-and-explicit | at_max | — | overVoteDisabled | — | — | Valid | ✓ | — |
-| not-allowed-with-msg-and-disable | warn-invalid-implicit-and-explicit | over_max | selectedMax | selectedMax | — | dialog | ImplicitInvalid | ✓ | — |
-| not-allowed-with-msg-and-disable | not-allowed | empty | — | — | — | — | ImplicitBlank | ✓ | — |
-| not-allowed-with-msg-and-disable | not-allowed | at_max | — | overVoteDisabled | — | — | Valid | ✓ | — |
-| not-allowed-with-msg-and-disable | not-allowed | over_max | selectedMax | selectedMax | **block** | dialog | ImplicitInvalid | ✓ | — |
+| over_policy | invalid_policy | state | errors | alerts | hard gate | soft gate | tally | pred? |
+|---|---|---|---|---|---|---|---|---|
+| allowed | allowed | empty | — | — | — | — | ImplicitBlank | ✓ |
+| allowed | allowed | at_max | — | — | — | — | Valid | ✓ |
+| **⚠** allowed | allowed | over_max | selectedMax | — | — | — | ImplicitInvalid | ✓ |
+| allowed | warn | empty | — | — | — | — | ImplicitBlank | ✓ |
+| allowed | warn | at_max | — | — | — | — | Valid | ✓ |
+| allowed | warn | over_max | selectedMax | — | — | dialog | ImplicitInvalid | ✓ |
+| allowed | warn-invalid-implicit-and-explicit | empty | — | — | — | — | ImplicitBlank | ✓ |
+| allowed | warn-invalid-implicit-and-explicit | at_max | — | — | — | — | Valid | ✓ |
+| allowed | warn-invalid-implicit-and-explicit | over_max | selectedMax | — | — | dialog | ImplicitInvalid | ✓ |
+| allowed | not-allowed | empty | — | — | — | — | ImplicitBlank | ✓ |
+| allowed | not-allowed | at_max | — | — | — | — | Valid | ✓ |
+| allowed | not-allowed | over_max | selectedMax | — | **block** | dialog | ImplicitInvalid | ✓ |
+| allowed-with-msg | allowed | empty | — | — | — | — | ImplicitBlank | ✓ |
+| allowed-with-msg | allowed | at_max | — | — | — | — | Valid | ✓ |
+| allowed-with-msg | allowed | over_max | selectedMax | selectedMax | — | — | ImplicitInvalid | ✓ |
+| allowed-with-msg | warn | empty | — | — | — | — | ImplicitBlank | ✓ |
+| allowed-with-msg | warn | at_max | — | — | — | — | Valid | ✓ |
+| allowed-with-msg | warn | over_max | selectedMax | selectedMax | — | dialog | ImplicitInvalid | ✓ |
+| allowed-with-msg | warn-invalid-implicit-and-explicit | empty | — | — | — | — | ImplicitBlank | ✓ |
+| allowed-with-msg | warn-invalid-implicit-and-explicit | at_max | — | — | — | — | Valid | ✓ |
+| allowed-with-msg | warn-invalid-implicit-and-explicit | over_max | selectedMax | selectedMax | — | dialog | ImplicitInvalid | ✓ |
+| allowed-with-msg | not-allowed | empty | — | — | — | — | ImplicitBlank | ✓ |
+| allowed-with-msg | not-allowed | at_max | — | — | — | — | Valid | ✓ |
+| allowed-with-msg | not-allowed | over_max | selectedMax | selectedMax | **block** | dialog | ImplicitInvalid | ✓ |
+| allowed-with-msg-and-alert | allowed | empty | — | — | — | — | ImplicitBlank | ✓ |
+| allowed-with-msg-and-alert | allowed | at_max | — | — | — | — | Valid | ✓ |
+| allowed-with-msg-and-alert | allowed | over_max | selectedMax | selectedMax | — | dialog | ImplicitInvalid | ✓ |
+| allowed-with-msg-and-alert | warn | empty | — | — | — | — | ImplicitBlank | ✓ |
+| allowed-with-msg-and-alert | warn | at_max | — | — | — | — | Valid | ✓ |
+| allowed-with-msg-and-alert | warn | over_max | selectedMax | selectedMax | — | dialog | ImplicitInvalid | ✓ |
+| allowed-with-msg-and-alert | warn-invalid-implicit-and-explicit | empty | — | — | — | — | ImplicitBlank | ✓ |
+| allowed-with-msg-and-alert | warn-invalid-implicit-and-explicit | at_max | — | — | — | — | Valid | ✓ |
+| allowed-with-msg-and-alert | warn-invalid-implicit-and-explicit | over_max | selectedMax | selectedMax | — | dialog | ImplicitInvalid | ✓ |
+| allowed-with-msg-and-alert | not-allowed | empty | — | — | — | — | ImplicitBlank | ✓ |
+| allowed-with-msg-and-alert | not-allowed | at_max | — | — | — | — | Valid | ✓ |
+| allowed-with-msg-and-alert | not-allowed | over_max | selectedMax | selectedMax | **block** | dialog | ImplicitInvalid | ✓ |
+| not-allowed-with-msg-and-alert | allowed | empty | — | — | — | — | ImplicitBlank | ✓ |
+| not-allowed-with-msg-and-alert | allowed | at_max | — | — | — | — | Valid | ✓ |
+| not-allowed-with-msg-and-alert | allowed | over_max | selectedMax | selectedMax | **block** | — | ImplicitInvalid | ✓ |
+| not-allowed-with-msg-and-alert | warn | empty | — | — | — | — | ImplicitBlank | ✓ |
+| not-allowed-with-msg-and-alert | warn | at_max | — | — | — | — | Valid | ✓ |
+| not-allowed-with-msg-and-alert | warn | over_max | selectedMax | selectedMax | **block** | dialog | ImplicitInvalid | ✓ |
+| not-allowed-with-msg-and-alert | warn-invalid-implicit-and-explicit | empty | — | — | — | — | ImplicitBlank | ✓ |
+| not-allowed-with-msg-and-alert | warn-invalid-implicit-and-explicit | at_max | — | — | — | — | Valid | ✓ |
+| not-allowed-with-msg-and-alert | warn-invalid-implicit-and-explicit | over_max | selectedMax | selectedMax | **block** | dialog | ImplicitInvalid | ✓ |
+| not-allowed-with-msg-and-alert | not-allowed | empty | — | — | — | — | ImplicitBlank | ✓ |
+| not-allowed-with-msg-and-alert | not-allowed | at_max | — | — | — | — | Valid | ✓ |
+| not-allowed-with-msg-and-alert | not-allowed | over_max | selectedMax | selectedMax | **block** | dialog | ImplicitInvalid | ✓ |
+| not-allowed-with-msg-and-disable | allowed | empty | — | — | — | — | ImplicitBlank | ✓ |
+| not-allowed-with-msg-and-disable | allowed | at_max | — | overVoteDisabled | — | — | Valid | ✓ |
+| not-allowed-with-msg-and-disable | allowed | over_max | selectedMax | selectedMax | — | — | ImplicitInvalid | ✓ |
+| not-allowed-with-msg-and-disable | warn | empty | — | — | — | — | ImplicitBlank | ✓ |
+| not-allowed-with-msg-and-disable | warn | at_max | — | overVoteDisabled | — | — | Valid | ✓ |
+| not-allowed-with-msg-and-disable | warn | over_max | selectedMax | selectedMax | — | dialog | ImplicitInvalid | ✓ |
+| not-allowed-with-msg-and-disable | warn-invalid-implicit-and-explicit | empty | — | — | — | — | ImplicitBlank | ✓ |
+| not-allowed-with-msg-and-disable | warn-invalid-implicit-and-explicit | at_max | — | overVoteDisabled | — | — | Valid | ✓ |
+| not-allowed-with-msg-and-disable | warn-invalid-implicit-and-explicit | over_max | selectedMax | selectedMax | — | dialog | ImplicitInvalid | ✓ |
+| not-allowed-with-msg-and-disable | not-allowed | empty | — | — | — | — | ImplicitBlank | ✓ |
+| not-allowed-with-msg-and-disable | not-allowed | at_max | — | overVoteDisabled | — | — | Valid | ✓ |
+| not-allowed-with-msg-and-disable | not-allowed | over_max | selectedMax | selectedMax | **block** | dialog | ImplicitInvalid | ✓ |
