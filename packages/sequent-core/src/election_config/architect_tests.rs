@@ -2985,7 +2985,6 @@ fn a_plan_the_builder_refuses_is_refused_by_the_wizard_first() {
     );
 }
 
-
 /// Every entity an older importer needs a `name` on has one.
 ///
 /// A real deployment refused an export from this tool with `election_event: missing
@@ -3014,16 +3013,19 @@ fn every_entity_carries_the_name_an_older_importer_requires() {
         let name = entity.get("name").unwrap_or_else(|| {
             panic!("{what} has no `name`, so a platform older than March 2026 refuses the whole bundle")
         });
-        let name = name
-            .as_str()
-            .unwrap_or_else(|| panic!("{what}'s `name` is not a string: {name}"));
+        let name = name.as_str().unwrap_or_else(|| {
+            panic!("{what}'s `name` is not a string: {name}")
+        });
         assert!(
             !name.trim().is_empty(),
             "{what}'s `name` is blank, which imports as an unnamed entity"
         );
     }
 
-    named(export.get("election_event").expect("an event"), "election_event");
+    named(
+        export.get("election_event").expect("an event"),
+        "election_event",
+    );
 
     for (index, election) in export
         .get("elections")
