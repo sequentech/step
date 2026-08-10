@@ -60,6 +60,10 @@ pub async fn generate_tally_progress(
                 .into_iter()
                 .map(|(batch, _)| batch),
         );
+        // The batch counts below come from deduplicated message lists, so this
+        // must be deduplicated too or progress can never reach its target.
+        batch_ids.sort_unstable();
+        batch_ids.dedup();
         complete_map.insert(contest.election_id.clone(), batch_ids.clone());
     }
     let finished_batch_ids: Vec<i64> = get_session_ids_by_type(messages, StatementType::Plaintexts);

@@ -18,6 +18,7 @@ use crate::postgres::tally_session_contest::{
 use crate::postgres::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
+use crate::postgres::tally_sheet::get_approved_tally_sheets_by_event;
 use crate::services::ceremonies::keys_ceremony::find_trustee_private_key;
 use crate::services::ceremonies::serialize_logs::{
     append_tally_trustee_log, generate_tally_initial_log,
@@ -325,6 +326,27 @@ pub async fn create_tally_ceremony(
                 "Decoded ballots cannot be included in the results when \
                  voter-weighted voting is enabled, because the repeated \
                  ballots would reveal each voter's weight"
+            ));
+        }
+
+        // A tally sheet reports a count of paper ballots and has nowhere to
+        // carry a weight, so velvet adds its votes to the weighted electronic
+        // totals at one vote each. That does not just under-count them: it
+        // decides contests, since a few hundred paper ballots worth 1 land
+        // beside electronic ballots worth thousands. It also breaks the
+        // published percentages, because a sheet contributes to the candidate
+        // totals but not to the weighted base they are divided by.
+        let approved_tally_sheets =
+            get_approved_tally_sheets_by_event(&transaction, &tenant_id, &election_event_id)
+                .await?;
+        if !approved_tally_sheets.is_empty() {
+            return Err(anyhow!(
+                "Approved tally sheets cannot be counted when voter-weighted \
+                 voting is enabled: a tally sheet reports a ballot count with no \
+                 weight, so its votes would be added to the weighted totals at a \
+                 weight of one each. {} approved tally sheet(s) exist for this \
+                 election event",
+                approved_tally_sheets.len()
             ));
         }
 

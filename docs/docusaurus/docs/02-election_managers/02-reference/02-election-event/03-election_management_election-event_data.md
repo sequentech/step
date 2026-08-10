@@ -132,17 +132,33 @@ Configure advanced system behaviors for this Election Event.
     voters file can be edited and re-imported unchanged. Cannot be combined with
     Delegate Voting, and every contest in the election event must use the
     Plurality at Large counting algorithm — counting a ballot more than once
-    has no defined meaning for the others, so the tally refuses to run. Decoded ballots cannot
+    has no defined meaning for the others, so the tally refuses to run. Approved
+    tally sheets are refused for the same reason: a tally sheet reports a count
+    of paper ballots and has nowhere to record a weight, so its votes would be
+    added to the weighted totals at a weight of one each, which decides contests
+    rather than merely under-counting them. Decoded ballots cannot
     be included in the published results either, for the reason in the warning
     below. Check both before ballots are published: neither the counting
     algorithm nor a published ballot can be changed once voting has begun.
     The weights of everyone who votes in one area of a contest
     must also add up to no more than 1000000, so a small number of voters on very
-    large weights is rejected even though each weight is individually allowed;
-    this is checked when the tally runs. Turnout figures under this policy count
-    voting power rather
-    than voters: both the eligible-voter census and the cast-ballot total are
-    sums of weights, so they will not match a headcount shown elsewhere.
+    large weights is rejected even though each weight is individually allowed.
+    **This is checked when the tally runs, which is after voting has closed, and
+    there is no earlier warning.** Two hundred and one voters each carrying
+    5000 exceed it while every one of them imports cleanly. Plan around it before
+    voting opens: the remedy afterwards is to rescale every weight, which changes
+    the result. The limit does not come from the mix, which under this policy is
+    at most one ciphertext per voter per batch however large the weights are; it
+    comes from the tally expanding each batch's votes by that batch's multiplier
+    afterwards.
+
+    Turnout figures under this policy count voting power rather than voters: the
+    eligible-voter census and the cast-ballot total are sums of weights, so they
+    will not match a headcount shown elsewhere. Ballots with no matching voter
+    are the exception — they have no voter and so no weight, and are counted one
+    each, which mixes units into the cast-ballot total and into the auditable
+    ballot percentage. The Total voters and Non-voters figures on the Tally
+    screen are voting power under headcount labels.
 
     If any area still carries a Weight from a previous Weighted Voting for Areas
     configuration, the tally is refused until it is cleared, because the two

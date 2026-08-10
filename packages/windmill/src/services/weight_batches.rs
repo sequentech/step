@@ -86,12 +86,27 @@ pub fn collect_weighted_plaintexts(
     let batches = contest_weight_batches(tally_session_contest)?;
     let mut found: Vec<(Vec<<RistrettoCtx as Ctx>::P>, u64)> = Vec::with_capacity(batches.len());
     for (batch, multiplier) in batches {
-        let plaintexts = relevant_plaintexts
+        // An artifact that is present but will not deserialize is a broken
+        // board message, not a batch that has yet to be mixed. Mapping it to
+        // the latter waits for it forever; the whole point of separating the
+        // two is that only one of them ever resolves.
+        let artifact = relevant_plaintexts
             .iter()
             .find(|message| batch == message.statement.get_batch_number() as i64)
-            .and_then(|message| message.artifact.clone())
-            .and_then(|artifact| Plaintexts::<RistrettoCtx>::strand_deserialize(&artifact).ok())
-            .map(|plaintexts| plaintexts.0 .0);
+            .and_then(|message| message.artifact.clone());
+        let plaintexts = artifact
+            .map(|artifact| {
+                Plaintexts::<RistrettoCtx>::strand_deserialize(&artifact)
+                    .map(|plaintexts| plaintexts.0 .0)
+                    .map_err(|error| {
+                        anyhow!(
+                            "Could not read the Plaintexts artifact for batch {batch} of \
+                             tally session contest {}: {error:?}",
+                            tally_session_contest.id
+                        )
+                    })
+            })
+            .transpose()?;
         let Some(plaintexts) = plaintexts else {
             event!(
                 Level::INFO,
@@ -104,11 +119,6 @@ pub fn collect_weighted_plaintexts(
         found.push((plaintexts, multiplier));
     }
 
-    // The dump bounds the summed weight, but it is not what runs here: the
-    // multipliers come from a mask read back out of a jsonb column, and the
-    // ballot counts from the board. A mask that has been corrupted or
-    // hand-edited can ask for up to 2^17 copies of every ballot, and an
-    // allocation that large aborts the process instead of failing this tally.
     let total: u64 = found
         .iter()
         .try_fold(0u64, |acc, (plaintexts, multiplier)| {
@@ -117,11 +127,24 @@ pub fn collect_weighted_plaintexts(
                 .and_then(|batch_total| acc.checked_add(batch_total))
                 .ok_or_else(|| anyhow!("Weighted plaintext count overflowed"))
         })?;
-    if total > MAX_TOTAL_VOTE_WEIGHT {
+    // Only where a weight actually multiplies something. The dump bounds the
+    // summed weight, but it is not what runs here: the multipliers come from a
+    // mask read back out of a jsonb column and the ballot counts from the
+    // board, so a corrupted or hand-edited mask can ask for up to 2^17 copies
+    // of every ballot, and an allocation that large aborts the process instead
+    // of failing this tally.
+    //
+    // `MAX_TOTAL_VOTE_WEIGHT` bounds a summed vote weight and has never applied
+    // to anything else. Without a mask every multiplier is 1 and `total` is
+    // just the ballot count, so applying it there would newly refuse an
+    // unweighted area with more ballots than the cap -- delegated voting has no
+    // per-voter limit at all -- and would do it after those ballots were
+    // irreversibly on the board.
+    let is_weighted = found.iter().any(|(_, multiplier)| *multiplier != 1);
+    if is_weighted && total > MAX_TOTAL_VOTE_WEIGHT {
         return Err(anyhow!(
             "Refusing to expand {total} weighted plaintexts for tally session contest {}: \
-             the maximum is {MAX_TOTAL_VOTE_WEIGHT}. The recorded weight batch mask does \
-             not match the ballots on the board",
+             the maximum summed vote weight is {MAX_TOTAL_VOTE_WEIGHT}",
             tally_session_contest.id,
         ));
     }
@@ -220,7 +243,11 @@ mod tests {
     #[test]
     fn a_mask_bit_outside_the_owned_batches_is_ignored_not_miscounted() {
         // Bits at or above VOTE_WEIGHT_BATCHES name batches the area does not
-        // own. They must not wrap round to a multiplier of 1.
+        // own, and are dropped by the range rather than reaching the shift.
+        // `weight_bit_multiplier` refuses them too, so neither layer can wrap
+        // such a bit round to a multiplier of 1.
+        assert_eq!(weight_bit_multiplier(VOTE_WEIGHT_BATCHES), None);
+        assert_eq!(weight_bit_multiplier(64), None);
         let contest = contest_with(Some(annotations_with_mask(Some(u32::MAX))));
         let batches = contest_weight_batches(&contest).unwrap();
         assert_eq!(batches.len(), VOTE_WEIGHT_BATCHES as usize);

@@ -272,74 +272,73 @@ fn generate_area_contests(
         &tally_session_contest.len()
     );
 
-    // Collected before the closure below, which cannot propagate an error.
-    // Keyed by the row id, which is unique per contest area.
-    let mut collected_plaintexts: HashMap<String, Vec<<RistrettoCtx as Ctx>::P>> = HashMap::new();
+    // A loop rather than `filter_map`, because gathering the plaintexts can
+    // fail and a closure has nowhere to report it. Hoisting that call above the
+    // guards instead would make a row they deliberately skip -- no ballot
+    // style, no contest, no area -- able to abort every election in the
+    // session, and would hold every area's expanded plaintexts at once.
+    let mut almost_vec: Vec<AreaContestDataType> = vec![];
     for session_contest in tally_session_contest.iter() {
-        if let Some(plaintexts) = collect_weighted_plaintexts(session_contest, relevant_plaintexts)?
+        let Some(ballot_style) = ballot_styles.iter().find(|ballot_style| {
+            ballot_style.area_id == session_contest.area_id
+                && ballot_style.election_id == session_contest.election_id
+                && ballot_style.contests.iter().any(|contest| {
+                    contest.id == session_contest.contest_id.clone().unwrap_or_default()
+                })
+        }) else {
+            event!(Level::WARN, "IGNORING: Ballot Style not found for area id = {}, election id = {}, contest id = {}", session_contest.area_id, session_contest.election_id, session_contest.contest_id.clone().unwrap_or_default());
+            continue;
+        };
+
+        let Some(contest) = ballot_style.contests.iter().find(|contest| {
+            contest.election_id == session_contest.election_id
+                && contest.id == session_contest.contest_id.clone().unwrap_or_default()
+        }) else {
+            event!(
+                Level::WARN,
+                "IGNORING: Contest not found for contest id = {}",
+                session_contest.contest_id.clone().unwrap_or_default()
+            );
+            continue;
+        };
+
+        let Some(plaintexts) = collect_weighted_plaintexts(session_contest, relevant_plaintexts)?
+        else {
+            continue;
+        };
+        let Some(area) = areas_map.get(&ballot_style.area_id) else {
+            event!(Level::INFO, "Area not found {}", ballot_style.area_id);
+            continue;
+        };
+
+        let (eligible_voters, auditable_votes, votes_by_channel) = if let Some(annotations) =
+            session_contest.annotations.clone()
         {
-            collected_plaintexts.insert(session_contest.id.clone(), plaintexts);
-        }
+            let Ok(annotations) = deserialize_value::<TallySessionContestAnnotations>(annotations)
+            else {
+                continue;
+            };
+
+            (
+                annotations.elegible_voters,
+                annotations.ballots_without_voter,
+                annotations.votes_by_channel,
+            )
+        } else {
+            (0u64, 0u64, Default::default())
+        };
+
+        almost_vec.push(AreaContestDataType {
+            plaintexts,
+            last_tally_session_execution: session_contest.clone(),
+            contest: contest.clone(),
+            ballot_style: ballot_style.clone(),
+            eligible_voters,
+            auditable_votes,
+            votes_by_channel,
+            area: area.clone(),
+        });
     }
-
-    let almost_vec: Vec<AreaContestDataType> = tally_session_contest.clone()
-        .iter()
-        .filter_map(|session_contest| {
-            let Some(ballot_style) = ballot_styles.iter().find(|ballot_style| {
-                ballot_style.area_id == session_contest.area_id
-                    && ballot_style.election_id == session_contest.election_id
-                    && ballot_style
-                        .contests
-                        .iter()
-                        .any(|contest| contest.id == session_contest.contest_id.clone().unwrap_or_default())
-            }) else {
-                event!(Level::WARN, "IGNORING: Ballot Style not found for area id = {}, election id = {}, contest id = {}", session_contest.area_id, session_contest.election_id, session_contest.contest_id.clone().unwrap_or_default());
-                return None;
-            };
-
-            let Some(contest) = ballot_style
-                .contests
-                .iter()
-                .find(|contest| contest.election_id == session_contest.election_id &&
-                    contest.id == session_contest.contest_id.clone().unwrap_or_default() ) else {
-                    event!(Level::WARN, "IGNORING: Contest not found for contest id = {}", session_contest.contest_id.clone().unwrap_or_default());
-                    return None;
-                };
-
-            let Some(plaintexts) = collected_plaintexts.get(&session_contest.id).cloned() else {
-                return None;
-            };
-            let Some(area) = areas_map.get(&ballot_style.area_id) else {
-                event!(Level::INFO, "Area not found {}", ballot_style.area_id);
-                return None;
-            };
-
-            let (eligible_voters, auditable_votes, votes_by_channel) =
-            if let Some(annotations) = session_contest.annotations.clone() {
-                let annotations: TallySessionContestAnnotations =
-                    deserialize_value(annotations).ok()?;
-
-                (
-                    annotations.elegible_voters,
-                    annotations.ballots_without_voter,
-                    annotations.votes_by_channel,
-                )
-            } else {
-                (0u64, 0u64, Default::default())
-            };
-
-            Some(AreaContestDataType {
-                plaintexts,
-                last_tally_session_execution: session_contest.clone(),
-                contest: contest.clone(),
-                ballot_style: ballot_style.clone(),
-                eligible_voters,
-                auditable_votes,
-                votes_by_channel,
-                area: area.clone(),
-            })
-        })
-        .collect();
 
     Ok(almost_vec)
 }
@@ -849,6 +848,24 @@ async fn map_plaintext_data(
             .into());
         }
 
+        // A tally sheet can be approved after the session was created, so this
+        // is re-checked here rather than only at creation. Its votes carry no
+        // weight and would be added to the weighted totals at one each, which
+        // decides contests rather than merely under-counting them.
+        let approved_tally_sheets =
+            get_approved_tally_sheets_by_event(hasura_transaction, &tenant_id, &election_event_id)
+                .await?;
+        if !approved_tally_sheets.is_empty() {
+            return Err(Error::String(format!(
+                "Approved tally sheets cannot be counted when voter-weighted \
+                 voting is enabled: a tally sheet reports a ballot count with no \
+                 weight, so its votes would be added to the weighted totals at a \
+                 weight of one each. {} approved tally sheet(s) exist for this \
+                 election event",
+                approved_tally_sheets.len()
+            )));
+        }
+
         // Same reasoning as the area weight: the counting algorithm is read
         // from the published ballot styles at tally time, so a contest switched
         // to another algorithm and republished after the session was created
@@ -951,6 +968,11 @@ async fn map_plaintext_data(
     // an area contributes one batch per weight bit its voters use, which its
     // annotations record; every other policy contributes the single batch it
     // always did.
+    // Deduplicated, because completion is decided by comparing this length
+    // against the number of distinct Plaintexts messages found. Two rows can
+    // name the same batch when their runs overlap, which rows allocated one
+    // apart before this layout existed can do, and a repeated batch would then
+    // make the target unreachable.
     let batch_ids = tally_session_contest
         .iter()
         .map(|tsc| contest_weight_batches(tsc))
@@ -958,6 +980,8 @@ async fn map_plaintext_data(
         .into_iter()
         .flatten()
         .map(|(batch, _)| batch)
+        .collect::<HashSet<_>>()
+        .into_iter()
         .collect::<Vec<_>>();
 
     event!(Level::INFO, "Num batch_ids {}", batch_ids.len());
