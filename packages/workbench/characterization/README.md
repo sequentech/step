@@ -14,6 +14,32 @@ implementation** and record the observed effects. Recorded tables are
 after human sign-off — disagreements between the recording, the docs and
 expectations are the product here, not noise.
 
+## Conventions
+
+These exist to keep cognitive load minimal and the artifacts trustworthy;
+they were adopted after an early hand-written summary table diverged from
+its source within minutes of being written.
+
+1. **Every table ships its legend.** The experiment (what act is repeated
+   across rows), the meaning of every column (what moment / surface is
+   observed), and the meaning of cell values (what a key or a dash denotes)
+   are stated immediately above the table. A reader must never need the
+   generating script or a conversation to decode a cell.
+2. **Tables are generated, never hand-written.** Human-readable tables are
+   projections of the recorded JSON (or of the rule set), produced by the
+   runner. Retyping a table creates a second source of truth that will
+   drift.
+3. **Observations are pure per layer.** A layer-3 cell records only what is
+   visible at that surface. "The alert exists but is hidden" is a *derived*
+   fact — the join of layer 1 (emitted) with layer 3 (not visible) — and
+   belongs in a cross-layer view labelled as such, never in a raw
+   observation cell.
+4. **Roles of the artifacts.** The recorded JSON is the *characterization*
+   (evidence, and after sign-off the regression oracle); the `predict()`
+   rule set is the embryonic *specification* (the canonical statement of
+   behaviour — small, readable, per-rule); tables are *views* for humans.
+   The spec is validated against the recording by enumeration, not by eye.
+
 ## Harness
 
 Two runners per rule, matching the functional model in
