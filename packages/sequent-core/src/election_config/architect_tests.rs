@@ -2610,6 +2610,188 @@ fn a_file_nobody_names_is_said_out_loud() {
     assert!(bundle.materials.is_empty());
 }
 
+/// The logo, all the way from a file somebody dropped to a url on a ballot.
+///
+/// Three things have to agree or the bundle does not import: the archive entry, the
+/// identifier inside it, and the url in the JSON. `process_s3_file` fails the whole
+/// import when the entry names an identifier the document never mentions, so this
+/// asserts the *pair* rather than either half.
+#[test]
+fn an_uploaded_logo_reaches_both_the_json_and_the_archive() {
+    let mut plan = sound();
+    plan.logo = Some(CandidateImage {
+        file_name: "local-1000.png".to_string(),
+        bytes: b"\x89PNG logo".to_vec(),
+    });
+
+    let compiled = compiled(&plan);
+
+    let url = compiled.export["election_event"]["presentation"]["logo_url"]
+        .as_str()
+        .expect("a composed logo url");
+    // Bucket-relative. An absolute one would render as
+    // `https://bucket/https://…` — `ui-core`'s `getImageUrl` concatenates.
+    assert!(
+        !url.starts_with("http"),
+        "expected a relative url, got {url}"
+    );
+    assert!(url.ends_with("/local-1000.png"), "got {url}");
+
+    let document_id = url
+        .split("/document-")
+        .nth(1)
+        .and_then(|rest| rest.split('/').next())
+        .expect("an identifier inside the url");
+
+    let entry = format!("images/document_{document_id}_local-1000.png");
+    let layout = crate::election_config::archive::layout(&compiled);
+    assert!(
+        layout.importable.iter().any(|file| file.name == entry),
+        "expected {entry} in the archive, got {:?}",
+        layout
+            .importable
+            .iter()
+            .map(|file| file.name.clone())
+            .collect::<Vec<_>>()
+    );
+}
+
+/// Public, not private — the one thing that cannot be seen by reading the JSON.
+#[test]
+fn a_logo_travels_in_the_public_branch() {
+    // `images/` is uploaded with `is_public: true` and `export_S3_files/` is not, so
+    // a logo in the private branch 404s on every ballot it is drawn above, and
+    // nothing fails.
+    let mut plan = sound();
+    plan.logo = Some(CandidateImage {
+        file_name: "logo.png".to_string(),
+        bytes: b"\x89PNG".to_vec(),
+    });
+
+    let images = plan_images(&plan);
+    assert_eq!(images.len(), 1);
+    assert!(images[0].entry_name().starts_with("images/"));
+}
+
+/// A workbook carries the logo the same way it carries a support material.
+#[test]
+fn a_workbook_can_carry_the_logo() {
+    let mut plan = sound();
+    plan.logo = Some(CandidateImage {
+        file_name: "logo.png".to_string(),
+        bytes: b"\x89PNG".to_vec(),
+    });
+
+    let workbook = to_workbook(&plan).expect("a workbook");
+    let rows = workbook.rows(sheet::SHEET_ELECTION_EVENT);
+    // The sheet names the file; the bytes travel beside it, because a cell cannot
+    // hold one. Exactly the Materials answer, and for the same reason.
+    assert_eq!(rows[0].text("presentation.logo_file"), Some("logo.png"));
+    // And it does not also write a link, which would be two answers to one
+    // question with nothing saying which wins.
+    assert_eq!(rows[0].text("presentation.logo_url"), None);
+}
+
+/// The control column is consumed, not carried.
+#[test]
+fn the_logo_file_column_stays_out_of_the_json() {
+    // `presentation.logo_file` is not a field of `ElectionEventPresentation`. The
+    // deep merge would carry it into the document as one, and the importer now
+    // validates against that schema — so the column has to be excluded rather than
+    // merely ignored.
+    let mut plan = sound();
+    plan.logo = Some(CandidateImage {
+        file_name: "logo.png".to_string(),
+        bytes: b"\x89PNG".to_vec(),
+    });
+
+    let compiled = compiled(&plan);
+    assert!(
+        compiled.export["election_event"]["presentation"]
+            .get("logo_file")
+            .is_none(),
+        "logo_file leaked into the document"
+    );
+}
+
+/// A plan that already carries a link still builds to what it used to.
+#[test]
+fn a_typed_link_still_works_when_there_is_no_file() {
+    let mut plan = sound();
+    plan.logo_url = Some("tenant-x/document-y/old.png".to_string());
+
+    let compiled = compiled(&plan);
+    assert_eq!(
+        compiled.export["election_event"]["presentation"]["logo_url"],
+        serde_json::json!("tenant-x/document-y/old.png")
+    );
+}
+
+/// Two answers to one question, said out loud rather than resolved in silence.
+#[test]
+fn a_plan_carrying_both_a_logo_file_and_a_link_is_told_which_wins() {
+    let mut plan = sound();
+    plan.logo_url = Some("https://example.org/old.png".to_string());
+    plan.logo = Some(CandidateImage {
+        file_name: "new.png".to_string(),
+        bytes: b"\x89PNG".to_vec(),
+    });
+
+    let report = validate_plan(&plan);
+    assert!(
+        report
+            .problems
+            .iter()
+            .any(|problem| problem.id.as_deref() == Some("logo.file-and-link")),
+        "expected logo.file-and-link, got {report}"
+    );
+}
+
+/// A name with nothing behind it fails the import rather than losing a picture.
+#[test]
+fn a_logo_named_with_no_bytes_is_refused() {
+    let mut plan = sound();
+    plan.logo = Some(CandidateImage {
+        file_name: "logo.png".to_string(),
+        bytes: Vec::new(),
+    });
+
+    let report = validate_plan(&plan);
+    assert!(
+        report
+            .problems
+            .iter()
+            .any(|problem| problem.id.as_deref() == Some("logo.no-bytes")),
+        "expected logo.no-bytes, got {report}"
+    );
+}
+
+/// The workbook half of the same failure: a sheet naming a file nobody supplied.
+#[test]
+fn a_sheet_naming_a_logo_nobody_supplied_is_refused() {
+    let mut plan = sound();
+    plan.logo = Some(CandidateImage {
+        file_name: "logo.png".to_string(),
+        bytes: b"\x89PNG".to_vec(),
+    });
+
+    let workbook = to_workbook(&plan).expect("a workbook");
+    let templates = TemplateSet::builtin().unwrap();
+    // The bytes deliberately withheld — a workbook arriving without its folder.
+    let outcome = build(&workbook, &templates, &BuildOptions::default());
+    let report = match outcome {
+        Ok(bundle) => bundle.warnings,
+        Err(report) => report,
+    };
+    assert!(
+        report
+            .problems
+            .iter()
+            .any(|problem| problem.id.as_deref() == Some("logo.file-missing")),
+        "expected logo.file-missing, got {report}"
+    );
+}
+
 /// A schedule nobody honours is worse than no schedule, so it is said out loud.
 #[test]
 fn a_planned_message_says_that_nothing_will_send_it() {

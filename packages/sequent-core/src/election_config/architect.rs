@@ -332,8 +332,29 @@ pub struct Blueprint {
     #[serde(default)]
     pub language_detection_policy: Option<String>,
 
+    /// A link to the client's logo, for a plan that already has one.
+    ///
+    /// Kept, and no longer what the wizard collects: [`Self::logo`] is the file, and
+    /// a url is a promise about a server nothing here can check. A plan written
+    /// before the upload existed still carries its link and still builds to the same
+    /// bytes, which is the same rule `migrate_v1` follows — an approved election does
+    /// not change because the tool improved.
     #[serde(default)]
     pub logo_url: Option<String>,
+
+    /// The client's logo as a file, which is what the wizard collects now.
+    ///
+    /// The same [`CandidateImage`] a candidate's photograph uses, and the same
+    /// journey: `images/document_<id>_<file>` in the archive, `is_public: true` on
+    /// the way in, and a bucket-relative url composed by the builder — which is the
+    /// only place that knows the tenant. The document identifier is derived from the
+    /// event's own `external_id` by [`logo_document_id`], so nothing stores it and
+    /// the url and the archive entry cannot drift apart.
+    ///
+    /// Both this and [`Self::logo_url`] set is not an error, and the file wins:
+    /// `check_logo` says so rather than leaving a plan whose two answers disagree.
+    #[serde(default)]
+    pub logo: Option<CandidateImage>,
 
     /// Send a voter straight to the ballot instead of a list of elections.
     ///
@@ -348,10 +369,11 @@ pub struct Blueprint {
 
     /// Whether the voting portal shows a support-materials tab at all.
     ///
-    /// The materials *themselves* cannot ride in a bundle — `ElectionEventMaterials`
-    /// carries only this switch, and `ImportElectionEventSchema` has no documents
-    /// array — so this turns the tab on and the documents are attached in the Admin
-    /// Portal afterwards. The wizard says so rather than implying otherwise.
+    /// The tab, not its contents: [`Self::materials`] carries the documents, and they
+    /// do travel in the bundle. This comment used to say they could not — reasoning
+    /// from `ElectionEventMaterials` holding one boolean and `ImportElectionEventSchema`
+    /// having no documents array, and never asking what the importer does with zip
+    /// entries. `EA-119` established that it does, and built the round trip.
     #[serde(default)]
     pub materials_activated: Option<bool>,
 
@@ -1021,6 +1043,14 @@ pub fn image_document_id(
     ids.uid("document", &[candidate_external_id])
 }
 
+/// The document identifier for the event's logo.
+///
+/// Its own `kind`, like every other derived id here, so an event and its logo do not
+/// collide on one uuid — the event's `external_id` seeds both.
+pub fn logo_document_id(ids: &IdFactory, event_external_id: &str) -> String {
+    ids.uid("logo-document", &[event_external_id])
+}
+
 /// Every photograph in a plan, with the identifier the sheet will name it by.
 ///
 /// The identifier is derived here and in `candidates_sheet` from the same
@@ -1060,6 +1090,17 @@ pub fn plan_images(plan: &Blueprint) -> Vec<ImageFile> {
         return Vec::new();
     };
     let mut images = Vec::new();
+    // The logo rides with the photographs rather than with the support materials,
+    // and the difference is not cosmetic: `images/` is uploaded public and
+    // `export_S3_files/` private, so a logo in the private branch would 404 for every
+    // voter the ballot is drawn for.
+    if let Some(logo) = &plan.logo {
+        images.push(ImageFile {
+            document_id: logo_document_id(&ids, &plan.external_id),
+            file_name: logo.file_name.clone(),
+            bytes: logo.bytes.clone(),
+        });
+    }
     for election in &plan.elections {
         for contest in &election.contests {
             for candidate in &contest.candidates {
@@ -1174,6 +1215,7 @@ pub fn validate_plan(plan: &Blueprint) -> Report {
 
     check_languages(plan, &mut report);
     check_language_detection(plan, &mut report);
+    check_logo(plan, &mut report);
     check_trustees(plan, &mut report);
     check_schedule(plan, &mut report);
     check_areas(plan, &mut report);
@@ -1280,6 +1322,58 @@ fn check_language_detection(plan: &Blueprint, report: &mut Report) {
             .id("languages.detection-unknown")
             .detail("policy", policy),
         );
+    }
+}
+
+/// What the plan says about the logo, when it says two things.
+///
+/// The precedence is real and one-sided — [`event_sheet`] writes the file and drops
+/// the link — so the risk is a plan that carries a link somebody typed months ago,
+/// gains a file, and builds without the link ever being mentioned again. Said out
+/// loud rather than resolved silently, because the two answers usually differ and
+/// only one of them is on the ballot.
+///
+/// A file with no bytes is the same as no file: the wizard clears `file_name` and
+/// `bytes` together, and a name with nothing behind it would name an archive entry
+/// that does not exist — which fails the whole import rather than losing a picture.
+fn check_logo(plan: &Blueprint, report: &mut Report) {
+    let file = plan.logo.as_ref().filter(|file| !file.bytes.is_empty());
+    let url = plan.logo_url.as_deref().filter(|url| !url.is_empty());
+
+    if let (Some(file), Some(url)) = (file, url) {
+        report.push(
+            Problem::warning(
+                Code::InvalidValue,
+                "logo",
+                format!(
+                    "this plan carries both an uploaded logo ('{}') and a link \
+                     ('{url}'). The file is what ships; the link is ignored.",
+                    file.file_name
+                ),
+            )
+            .id("logo.file-and-link")
+            .detail("file", &file.file_name)
+            .detail("url", url),
+        );
+    }
+
+    if let Some(logo) = plan.logo.as_ref() {
+        if logo.bytes.is_empty() && !logo.file_name.is_empty() {
+            report.push(
+                Problem::error(
+                    Code::MissingField,
+                    "logo",
+                    format!(
+                        "'{}' is named as the logo and carries no bytes. An \
+                         archive entry with nothing in it fails the import \
+                         rather than losing a picture.",
+                        logo.file_name
+                    ),
+                )
+                .id("logo.no-bytes")
+                .detail("file", &logo.file_name),
+            );
+        }
     }
 }
 
@@ -2178,7 +2272,19 @@ fn event_sheet(
         row.push(cell);
     }
 
-    if let Some(logo) = plan.logo_url.as_ref().filter(|url| !url.is_empty()) {
+    // The file, if there is one, wins over a typed link. Named rather than embedded,
+    // the way the Materials sheet names its documents: a cell cannot hold bytes, so
+    // the sheet says `logo.png` and the file travels beside the workbook. `build.rs`
+    // matches the name, derives the identifier and composes the url — the url embeds
+    // the tenant, and the builder is the only place that knows which one this bundle
+    // will carry.
+    if let Some(logo) = plan.logo.as_ref().filter(|file| !file.bytes.is_empty())
+    {
+        columns.push("presentation.logo_file".to_string());
+        row.push(Cell::text(logo.file_name.clone()));
+    } else if let Some(logo) =
+        plan.logo_url.as_ref().filter(|url| !url.is_empty())
+    {
         columns.push("presentation.logo_url".to_string());
         row.push(Cell::text(logo.clone()));
     }

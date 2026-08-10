@@ -64,6 +64,11 @@ pub const DEFAULT_VERSION: &str = "v10.0.0";
 /// `external_id` on an object called `election`.
 pub fn control_columns(sheet_key: &str) -> &'static [&'static str] {
     match sheet_key {
+        // `presentation.logo_file` names a file for the builder to find; it is not a
+        // field of `ElectionEventPresentation` and would be carried into the JSON as
+        // one by the deep merge below. `build_election_event` reads it off the row
+        // and writes `presentation.logo_url` instead.
+        SHEET_ELECTION_EVENT => &["presentation.logo_file"],
         SHEET_CONTESTS => &["election.external_id"],
         SHEET_CANDIDATES => &["contest.external_id"],
         SHEET_AREAS => &["parent.external_id"],
@@ -993,6 +998,7 @@ impl<'a> Builder<'a> {
         }
 
         event.insert("external_id".to_string(), json!(self.event_external_id));
+        self.apply_logo(&mut event);
 
         for (path, value) in self.parameter_patches("election_event.") {
             if let Err(problem) =
@@ -1148,6 +1154,63 @@ impl<'a> Builder<'a> {
         self.images
             .iter()
             .find(|image| image.document_id == document_id)
+    }
+
+    /// Turn the event row's `presentation.logo_file` into a url and an archive entry.
+    ///
+    /// By **name**, not by identifier, which is the same choice the Materials sheet
+    /// makes and for the same reason: a spreadsheet cell cannot hold bytes, so the
+    /// sheet says `logo.png` and the file travels beside the workbook. The identifier
+    /// is derived here rather than stored, so the url and the archive entry are the
+    /// same string by construction and two runs of one plan produce the same bytes.
+    ///
+    /// This matters more than it looks. `process_s3_file` pulls the identifier out of
+    /// the entry name and fails the **whole import** when it appears nowhere in the
+    /// JSON — so an archive carrying a logo the url does not name is not a missing
+    /// picture, it is a bundle that will not import. The url is what puts it in the
+    /// replacement map.
+    fn apply_logo(&mut self, event: &mut Map<String, Value>) {
+        let Some(named) = self
+            .event_row
+            .text("presentation.logo_file")
+            .filter(|name| !name.is_empty())
+            .map(str::to_string)
+        else {
+            return;
+        };
+
+        let document_id =
+            self.ids.uid("logo-document", &[&self.event_external_id]);
+        let Some(image) = self
+            .images
+            .iter_mut()
+            .find(|image| image.file_name == named)
+        else {
+            // Refused rather than skipped: a plan that says it has a logo and
+            // builds without one is a client opening their ballot to the plain
+            // Sequent header and nothing anywhere saying why.
+            self.report.push(
+                Problem::error(
+                    Code::DanglingReference,
+                    format!("{}.presentation.logo_file", SHEET_ELECTION_EVENT),
+                    format!(
+                        "'{named}' is named as the logo and was not supplied. \
+                         Put the file beside the workbook under exactly that name."
+                    ),
+                )
+                .id("logo.file-missing")
+                .detail("file", &named),
+            );
+            return;
+        };
+
+        image.document_id = document_id;
+        let url = image.public_path(&self.tenant_id);
+        if let Err(problem) =
+            set_path(event, &split_path("presentation.logo_url"), json!(url))
+        {
+            self.report.push(problem);
+        }
     }
 
     fn build_candidates(&mut self) -> Value {
