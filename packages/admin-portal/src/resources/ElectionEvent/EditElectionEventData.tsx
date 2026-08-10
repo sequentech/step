@@ -103,7 +103,7 @@ export const EditElectionEventData: React.FC = () => {
             mutationMode="pessimistic"
             mutationOptions={{onSuccess}}
         >
-            <EditElectionEventDataForm />
+            <EditElectionEventDataForm transform={transform} />
         </EditBase>
     )
 }
