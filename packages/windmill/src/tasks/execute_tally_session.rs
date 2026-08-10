@@ -162,6 +162,32 @@ async fn generate_area_contests_mc(
             })
             .collect::<Vec<_>>();
 
+        // The guards below are per contest, but gathering the plaintexts is per
+        // row and can fail, so a row that every one of those guards would skip
+        // must be dropped before it can abort every election in the session.
+        // This is the same condition they test, hoisted to the row.
+        let has_usable_contest = contest_ids.iter().any(|contest_id| {
+            ballot_styles.iter().any(|ballot_style| {
+                ballot_style.area_id == session_election.area_id
+                    && ballot_style.election_id == session_election.election_id
+                    && ballot_style
+                        .contests
+                        .iter()
+                        .any(|contest| contest.id == *contest_id)
+            })
+        }) && areas_map.contains_key(&session_election.area_id);
+        if !has_usable_contest {
+            event!(
+                Level::WARN,
+                "IGNORING: no ballot style or area for tally session contest {} (area {}, \
+                 election {})",
+                session_election.id,
+                session_election.area_id,
+                session_election.election_id
+            );
+            continue;
+        }
+
         // Extract plaintexts once per session, across every batch the area
         // owns. Without weighting that is the single batch it always was.
         // We wrap this in an Option. We will 'take' it for the first valid contest we find.
@@ -869,7 +895,13 @@ async fn map_plaintext_data(
             get_approved_tally_sheets_by_event(hasura_transaction, &tenant_id, &election_event_id)
                 .await?
                 .into_iter()
-                .filter(|sheet| session_election_ids.contains(&sheet.election_id))
+                // Narrowing an empty list would drop every sheet and turn a
+                // safety check into a no-op, so a session that names no
+                // elections is checked against all of them.
+                .filter(|sheet| {
+                    session_election_ids.is_empty()
+                        || session_election_ids.contains(&sheet.election_id)
+                })
                 .collect();
         if !approved_tally_sheets.is_empty() {
             return Err(Error::String(format!(

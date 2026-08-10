@@ -172,10 +172,10 @@ Configure advanced system behaviors for this Election Event.
     what they hold, so an area can keep a weight that nothing in the interface
     shows, and the refusal arrives only when the tally is created — after voting
     has closed, when the ballots can no longer be republished and there is no
-    remedy left. The Weight field is hidden under this policy, so
-    clearing it means switching back to Weighted Voting for Areas, clearing the
-    Weight on each area, switching to Weighted Voting for Voters again, and
-    republishing the ballots.
+    remedy left. Clearing it means switching back to Weighted Voting for
+    Areas, which makes the Weight field visible again, clearing the Weight on
+    each area, switching to Weighted Voting for Voters, and only then publishing
+    the ballots.
 
     :::danger Voter weights are public, and results are attributable
     A voter's weight is applied by splitting it into powers of two. A contest

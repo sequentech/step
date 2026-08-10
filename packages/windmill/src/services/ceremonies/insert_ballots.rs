@@ -19,6 +19,7 @@ use crate::services::users::{
 };
 use crate::services::weight_batches::weight_batch_offsets;
 use anyhow::{anyhow, Context, Result};
+use b3::messages::artifact::Ballots;
 use b3::messages::message::Message;
 use b3::messages::newtypes::BatchNumber;
 use b3::messages::newtypes::TrusteeSet;
@@ -49,6 +50,7 @@ use serde_json::json;
 use std::collections::HashMap;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::elgamal::Ciphertext;
+use strand::serialization::StrandDeserialize;
 use strand::signature::StrandSignaturePk;
 use tempfile::NamedTempFile;
 use tokio::task::JoinHandle;
@@ -363,35 +365,29 @@ pub async fn insert_ballots_messages(
                         // still has something to wait for.
                         let computed = if union == 0 { 1 } else { union as u32 };
 
-                        // A batch already on the board stays there, because the
-                        // board is append-only, and braid mixes and publishes
-                        // it on the strength of its Ballots message alone. So
-                        // it is counted whether or not the current weights
-                        // still produce it -- leaving it out of the mask would
-                        // drop those votes from the total while its decrypted
-                        // ballots were published anyway, which for a batch
-                        // holding one ballot publishes that voter's vote and
-                        // counts it nowhere.
-                        //
-                        // Not a refusal. A count that differs from what this
-                        // run built cannot distinguish a weight edited between
-                        // runs from a voter disabled between runs, and neither
-                        // is repairable by refusing: the ballots are already
-                        // public. The tally counts the board, and says so.
+                        // A batch on the board that these weights do not
+                        // produce means the weights changed since it was
+                        // posted. There is no mask that counts such a board
+                        // correctly: including the batch counts those voters
+                        // under their old weight *and* their new one, since
+                        // the same ciphertext sits in both sets of batches,
+                        // and excluding it drops votes that braid will mix and
+                        // publish anyway. The board is append-only, so neither
+                        // is repairable here -- refuse while the disagreement
+                        // is still legible.
                         let vacated = posted_mask & !computed;
                         if vacated != 0 {
-                            event!(
-                                Level::WARN,
+                            return Err(anyhow!(
                                 "Election {} area {} already has ballots on the board in weight \
                                  batches {vacated:#b}, which the current vote weights no longer \
-                                 produce. The board is append-only, so the tally will count them: \
-                                 the result reflects the weights as they were when those ballots \
-                                 were extracted, not as they are now",
+                                 produce. Vote weights cannot be changed once ballots have been \
+                                 extracted for a tally: the board is append-only, so those \
+                                 ballots will be mixed and published whatever this tally counts",
                                 tally_session_contest.election_id,
                                 tally_session_contest.area_id,
-                            );
+                            ));
                         }
-                        Some(computed | posted_mask)
+                        Some(computed)
                     } else {
                         // Absent for every other policy, which leaves the stored
                         // annotations byte-identical to what they were before
@@ -493,18 +489,67 @@ pub async fn insert_ballots_messages(
                             if !is_expected {
                                 continue;
                             }
-                            // Already posted. `add_ballots_to_board` would skip
-                            // it anyway; skipping here says so in the log, which
-                            // is what a recovery run's operator needs to see.
+                            // Already posted, so this run leaves it alone --
+                            // `add_ballots_to_board` would skip it anyway. What
+                            // it carries is what the tally counts, so check it
+                            // still matches what these voters and weights
+                            // produce. A count that differs cannot say whether a
+                            // weight was edited or a voter disabled between
+                            // runs, and the two want opposite outcomes: under
+                            // weighting a stale batch silently counts voters at
+                            // the wrong power, so refuse; without weighting the
+                            // board has always been allowed to hold one ballot
+                            // more than the census, so warn and carry on as
+                            // before.
                             if posted_mask & (1u32 << bit) != 0 {
-                                event!(
-                                    Level::INFO,
-                                    "Weight batch offset {} for election {} area {} is already \
-                                     on the board, leaving it as it is",
-                                    bit,
-                                    tally_session_contest.election_id,
-                                    tally_session_contest.area_id
-                                );
+                                let posted_len = board_messages_clone
+                                    .iter()
+                                    .find(|message| {
+                                        message.statement.get_batch_number()
+                                            == base_batch + bit as BatchNumber
+                                            && StatementType::Ballots
+                                                == message.statement.get_kind()
+                                    })
+                                    .and_then(|message| message.artifact.clone())
+                                    .and_then(|artifact| {
+                                        Ballots::<RistrettoCtx>::strand_deserialize(&artifact).ok()
+                                    })
+                                    .map(|ballots| ballots.ciphertexts.0.len());
+                                if posted_len != Some(ciphertexts.len()) {
+                                    if is_voter_weighted {
+                                        return Err(anyhow!(
+                                            "Weight batch offset {bit} for election {} area {} is \
+                                             already on the board with {posted_len:?} ballots, \
+                                             but these voters and weights produce {}. Neither \
+                                             can be changed once ballots have been extracted for \
+                                             a tally",
+                                            tally_session_contest.election_id,
+                                            tally_session_contest.area_id,
+                                            ciphertexts.len(),
+                                        ));
+                                    }
+                                    event!(
+                                        Level::WARN,
+                                        "Batch {} for election {} area {} is already on the \
+                                         board with {:?} ballots and will be counted as it is, \
+                                         but this run built {}. The census recorded now will \
+                                         differ from what is tallied",
+                                        base_batch + bit as BatchNumber,
+                                        tally_session_contest.election_id,
+                                        tally_session_contest.area_id,
+                                        posted_len,
+                                        ciphertexts.len(),
+                                    );
+                                } else {
+                                    event!(
+                                        Level::INFO,
+                                        "Weight batch offset {} for election {} area {} is \
+                                         already on the board, leaving it as it is",
+                                        bit,
+                                        tally_session_contest.election_id,
+                                        tally_session_contest.area_id
+                                    );
+                                }
                                 continue;
                             }
                             event!(
