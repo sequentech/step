@@ -24,6 +24,7 @@ use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::{env, error::Error};
+use strum_macros::{Display, EnumString};
 use tempfile::{NamedTempFile, TempPath};
 use tokio::io::{self, AsyncReadExt};
 use tracing::{info, instrument, warn};
@@ -34,6 +35,47 @@ const AWS_HOSTED_S3_DOMAIN_SUFFIX: &str = "amazonaws.com";
 const AWS_S3_SERVICE_HOST_PREFIX: &str = "s3";
 const S3_LIST_MAX_KEYS: i32 = 1000;
 const S3_ERR_NO_DETAILS: &str = "no additional details available";
+const AWS_S3_ENDPOINT_STYLE_ENV: &str = "AWS_S3_ENDPOINT_STYLE";
+
+/// Selects how the configured S3 endpoint addresses buckets. Any
+/// S3-compatible provider can be supported without provider-specific code by
+/// setting `AWS_S3_ENDPOINT_STYLE` to the style its endpoint uses.
+#[derive(Clone, Copy, Debug, Default, Display, EnumString, Eq, PartialEq)]
+enum S3EndpointStyle {
+    /// The bucket name is part of the URL path, e.g. MinIO
+    /// (`http://minio:9000/<bucket>/...`). This is the default: it also
+    /// covers AWS's bucket-hosted endpoints, which are recognized
+    /// automatically for backwards compatibility with existing zero-config
+    /// AWS deployments.
+    #[default]
+    #[strum(serialize = "path-style-or-auto-detected-aws")]
+    PathStyleOrAutoDetectedAws,
+    /// The bucket name is embedded in the hostname as its first label, e.g.
+    /// `<bucket>.<service-host>`. Any provider that addresses buckets this
+    /// way (virtual-hosted-style) can opt in via
+    /// `AWS_S3_ENDPOINT_STYLE=virtual-hosted`, regardless of which provider
+    /// it is.
+    #[strum(serialize = "virtual-hosted")]
+    VirtualHosted,
+}
+
+/// Reads the optional endpoint style override from the environment, so
+/// callers don't need to know which provider is configured.
+fn get_s3_endpoint_style() -> Result<S3EndpointStyle> {
+    match env::var(AWS_S3_ENDPOINT_STYLE_ENV) {
+        Ok(value) => value.parse().with_context(|| {
+            format!(
+                "Invalid {AWS_S3_ENDPOINT_STYLE_ENV} value `{value}`, expected \
+                 `virtual-hosted` (omit the variable to auto-detect AWS \
+                 bucket-hosted endpoints or use path-style)"
+            )
+        }),
+        Err(env::VarError::NotPresent) => Ok(S3EndpointStyle::default()),
+        Err(err) => Err(anyhow!(
+            "{AWS_S3_ENDPOINT_STYLE_ENV} is set but not valid UTF-8: {err}"
+        )),
+    }
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum S3Endpoint {
@@ -95,12 +137,23 @@ fn join_s3_path(prefix: &str, suffix: &str) -> String {
     }
 }
 
-/// Detects bucket-hosted AWS endpoints and extracts the real service endpoint
-/// plus bucket name so list operations can address AWS correctly.
+/// Detects bucket-hosted (virtual-hosted-style) endpoints — where the bucket
+/// name is embedded in the hostname rather than the URL path — and extracts
+/// the real service endpoint plus bucket name so list operations can address
+/// the endpoint correctly.<br>
+/// With `S3EndpointStyle::PathStyleOrAutoDetectedAws`, only AWS's
+/// bucket-hosted shape (`<bucket>.s3.[<region>.]amazonaws.com`) is
+/// recognized, for backwards compatibility with existing zero-config AWS
+/// deployments; anything else is assumed to already be path-style (e.g.
+/// MinIO) and is left untouched. With `S3EndpointStyle::VirtualHosted`, any
+/// hostname is treated as bucket-hosted with the bucket name as its first
+/// label — this covers every S3-compatible provider that addresses buckets
+/// this way, without needing to know which provider it is.
 #[instrument(err, skip_all)]
-fn parse_aws_bucket_endpoint(
+fn parse_bucket_hosted_endpoint(
     endpoint_uri: &str,
     aws_region: Option<&str>,
+    endpoint_style: S3EndpointStyle,
 ) -> Result<Option<(String, String)>> {
     // Parse once so we can reason about the hostname shape without doing any
     // string slicing against the raw env var value.
@@ -111,45 +164,55 @@ fn parse_aws_bucket_endpoint(
         None => return Ok(None),
     };
 
-    // AWS bucket-hosted endpoints look like `<bucket>.s3.amazonaws.com` or
-    // `<bucket>.s3.<region>.amazonaws.com`. MinIO and other custom endpoints do
-    // not match this shape, so they must be left untouched.
-    let (bucket_name, service_host) = match host
-        .split_once(AWS_HOSTED_S3_HOST_DELIMITER)
-    {
-        Some((bucket_name, suffix)) if !bucket_name.is_empty() => {
-            // Only rewrite real AWS S3 hosts. This avoids accidentally
-            // treating custom domains as bucket-hosted AWS endpoints.
-            if !suffix.ends_with(AWS_HOSTED_S3_DOMAIN_SUFFIX) {
-                return Ok(None);
+    let (bucket_name, service_host) = match endpoint_style {
+        S3EndpointStyle::VirtualHosted => match host.split_once('.') {
+            Some((bucket_name, service_host)) if !bucket_name.is_empty() => {
+                (bucket_name, service_host.to_string())
             }
-
-            let service_host = if suffix == AWS_HOSTED_S3_DOMAIN_SUFFIX {
-                // The global host form does not encode the bucket region.
-                // Prefer the resolved SDK region so SigV4 targets the
-                // correct regional S3 endpoint outside us-east-1.
-                match aws_region {
-                        Some(region) if !region.is_empty() => format!(
-                            "{AWS_S3_SERVICE_HOST_PREFIX}.{region}.{AWS_HOSTED_S3_DOMAIN_SUFFIX}"
-                        ),
-                        _ => format!(
-                            "{AWS_S3_SERVICE_HOST_PREFIX}.{AWS_HOSTED_S3_DOMAIN_SUFFIX}"
-                        ),
+            _ => return Ok(None),
+        },
+        S3EndpointStyle::PathStyleOrAutoDetectedAws => {
+            // AWS bucket-hosted endpoints look like `<bucket>.s3.amazonaws.com`
+            // or `<bucket>.s3.<region>.amazonaws.com`. MinIO and other custom
+            // endpoints do not match this shape, so they must be left
+            // untouched.
+            match host.split_once(AWS_HOSTED_S3_HOST_DELIMITER) {
+                Some((bucket_name, suffix)) if !bucket_name.is_empty() => {
+                    if !suffix.ends_with(AWS_HOSTED_S3_DOMAIN_SUFFIX) {
+                        return Ok(None);
                     }
-            } else {
-                // Regional bucket-hosted endpoints already tell us which
-                // service host to talk to, so we preserve that region.
-                format!("{AWS_S3_SERVICE_HOST_PREFIX}.{suffix}")
-            };
 
-            (bucket_name, service_host)
+                    let service_host = if suffix == AWS_HOSTED_S3_DOMAIN_SUFFIX
+                    {
+                        // The global host form does not encode the bucket
+                        // region. Prefer the resolved SDK region so SigV4
+                        // targets the correct regional S3 endpoint outside
+                        // us-east-1.
+                        match aws_region {
+                            Some(region) if !region.is_empty() => format!(
+                                "{AWS_S3_SERVICE_HOST_PREFIX}.{region}.{AWS_HOSTED_S3_DOMAIN_SUFFIX}"
+                            ),
+                            _ => format!(
+                                "{AWS_S3_SERVICE_HOST_PREFIX}.{AWS_HOSTED_S3_DOMAIN_SUFFIX}"
+                            ),
+                        }
+                    } else {
+                        // Regional bucket-hosted endpoints already tell us
+                        // which service host to talk to, so we preserve that
+                        // region.
+                        format!("{AWS_S3_SERVICE_HOST_PREFIX}.{suffix}")
+                    };
+
+                    (bucket_name, service_host)
+                }
+                _ => return Ok(None),
+            }
         }
-        _ => return Ok(None),
     };
 
     // Rebuild the endpoint URL without the bucket in the hostname. The caller
     // will use the returned bucket name plus this service endpoint for list and
-    // delete operations that require bucket + prefix semantics on AWS.
+    // delete operations that require bucket + prefix semantics on the endpoint.
     let mut service_endpoint = format!("{}://{}", url.scheme(), service_host);
     if let Some(port) = url.port() {
         service_endpoint.push_str(&format!(":{port}"));
@@ -169,9 +232,10 @@ fn resolve_s3_list_target_parts(
     endpoint_uri: &str,
     logical_bucket: &str,
     aws_region: Option<&str>,
+    endpoint_style: S3EndpointStyle,
 ) -> Result<ResolvedS3ListTargetParts> {
     if let Some((service_endpoint, bucket_name)) =
-        parse_aws_bucket_endpoint(endpoint_uri, aws_region)?
+        parse_bucket_hosted_endpoint(endpoint_uri, aws_region, endpoint_style)?
     {
         return Ok(ResolvedS3ListTargetParts {
             service_endpoint: Some(service_endpoint),
@@ -201,10 +265,12 @@ async fn get_s3_list_target(
         .with_context(|| format!("{env_var_name} must be set"))?;
     let sdk_config = get_from_env_aws_config().await?;
     let aws_region = sdk_config.region().map(|region| region.as_ref());
+    let endpoint_style = get_s3_endpoint_style()?;
     let target_parts = resolve_s3_list_target_parts(
         &endpoint_uri,
         logical_bucket,
         aws_region,
+        endpoint_style,
     )?;
     let resolved_endpoint = target_parts
         .service_endpoint
@@ -983,8 +1049,9 @@ pub async fn get_object_size(bucket: &str, key: &str) -> Result<usize> {
 #[cfg(test)]
 mod tests {
     use super::{
-        join_s3_path, parse_aws_bucket_endpoint, resolve_s3_list_target_parts,
-        ResolvedS3ListTargetParts, S3Endpoint,
+        join_s3_path, parse_bucket_hosted_endpoint,
+        resolve_s3_list_target_parts, ResolvedS3ListTargetParts, S3Endpoint,
+        S3EndpointStyle,
     };
     use crate::util::aws::{AWS_S3_PRIVATE_URI_ENV, AWS_S3_PUBLIC_URI_ENV};
 
@@ -992,6 +1059,27 @@ mod tests {
     fn s3_endpoint_selects_the_expected_uri() {
         assert_eq!(S3Endpoint::Server.env_var_name(), AWS_S3_PRIVATE_URI_ENV);
         assert_eq!(S3Endpoint::Client.env_var_name(), AWS_S3_PUBLIC_URI_ENV);
+    }
+
+    #[test]
+    fn s3_endpoint_style_defaults_to_path_style_or_auto_detected_aws() {
+        assert_eq!(
+            S3EndpointStyle::default(),
+            S3EndpointStyle::PathStyleOrAutoDetectedAws
+        );
+    }
+
+    #[test]
+    fn s3_endpoint_style_parses_virtual_hosted() {
+        assert_eq!(
+            "virtual-hosted".parse::<S3EndpointStyle>().unwrap(),
+            S3EndpointStyle::VirtualHosted
+        );
+    }
+
+    #[test]
+    fn s3_endpoint_style_rejects_unknown_value() {
+        assert!("bogus".parse::<S3EndpointStyle>().is_err());
     }
 
     #[test]
@@ -1004,9 +1092,10 @@ mod tests {
 
     #[test]
     fn parse_region_aware_aws_bucket_endpoint() {
-        let parsed = parse_aws_bucket_endpoint(
+        let parsed = parse_bucket_hosted_endpoint(
             "https://sequent-dev-bucket-eu-west-1-123.s3.eu-west-1.amazonaws.com",
             Some("eu-west-1"),
+            S3EndpointStyle::PathStyleOrAutoDetectedAws,
         )
         .unwrap();
 
@@ -1021,9 +1110,10 @@ mod tests {
 
     #[test]
     fn parse_global_aws_bucket_endpoint() {
-        let parsed = parse_aws_bucket_endpoint(
+        let parsed = parse_bucket_hosted_endpoint(
             "https://sequent-dev-bucket-eu-west-1-123.s3.amazonaws.com",
             Some("eu-west-1"),
+            S3EndpointStyle::PathStyleOrAutoDetectedAws,
         )
         .unwrap();
 
@@ -1038,9 +1128,10 @@ mod tests {
 
     #[test]
     fn parse_global_aws_bucket_endpoint_without_region_keeps_global_host() {
-        let parsed = parse_aws_bucket_endpoint(
+        let parsed = parse_bucket_hosted_endpoint(
             "https://sequent-dev-bucket-eu-west-1-123.s3.amazonaws.com",
             None,
+            S3EndpointStyle::PathStyleOrAutoDetectedAws,
         )
         .unwrap();
 
@@ -1054,19 +1145,79 @@ mod tests {
     }
 
     #[test]
+    fn parse_aws_bucket_endpoint_with_dotted_bucket_name() {
+        // AWS bucket names may contain dots; the AWS host delimiter (`.s3.`)
+        // must anchor the split rather than the first `.` in the host.
+        let parsed = parse_bucket_hosted_endpoint(
+            "https://my.dotted.bucket.s3.eu-west-1.amazonaws.com",
+            Some("eu-west-1"),
+            S3EndpointStyle::PathStyleOrAutoDetectedAws,
+        )
+        .unwrap();
+
+        assert_eq!(
+            parsed,
+            Some((
+                "https://s3.eu-west-1.amazonaws.com".to_string(),
+                "my.dotted.bucket".to_string(),
+            ))
+        );
+    }
+
+    #[test]
     fn ignores_non_aws_endpoints() {
-        let parsed =
-            parse_aws_bucket_endpoint("http://minio:9000", Some("eu-west-1"))
-                .unwrap();
+        let parsed = parse_bucket_hosted_endpoint(
+            "http://minio:9000",
+            Some("eu-west-1"),
+            S3EndpointStyle::PathStyleOrAutoDetectedAws,
+        )
+        .unwrap();
 
         assert_eq!(parsed, None);
     }
 
     #[test]
     fn ignores_localhost_non_aws_endpoints() {
-        let parsed = parse_aws_bucket_endpoint(
+        let parsed = parse_bucket_hosted_endpoint(
             "http://127.0.0.1:9000",
             Some("eu-west-1"),
+            S3EndpointStyle::PathStyleOrAutoDetectedAws,
+        )
+        .unwrap();
+
+        assert_eq!(parsed, None);
+    }
+
+    #[test]
+    fn parse_virtual_hosted_bucket_endpoint_for_any_provider() {
+        // With the style explicitly configured as virtual-hosted, any
+        // provider's bucket-hosted endpoint is recognized generically, using
+        // the first hostname label as the bucket name. No provider needs to
+        // be known by name.
+        let parsed = parse_bucket_hosted_endpoint(
+            "https://real-bucket-name.storage.example-provider.test",
+            Some("eu-de"),
+            S3EndpointStyle::VirtualHosted,
+        )
+        .unwrap();
+
+        assert_eq!(
+            parsed,
+            Some((
+                "https://storage.example-provider.test".to_string(),
+                "real-bucket-name".to_string(),
+            ))
+        );
+    }
+
+    #[test]
+    fn virtual_hosted_style_ignores_host_without_a_bucket_label() {
+        // A bare, single-label host has no room for a bucket label before a
+        // service host, so it can't be bucket-hosted.
+        let parsed = parse_bucket_hosted_endpoint(
+            "http://storage-provider:9000",
+            Some("eu-de"),
+            S3EndpointStyle::VirtualHosted,
         )
         .unwrap();
 
@@ -1079,6 +1230,7 @@ mod tests {
             "http://minio:9000",
             "election-event-documents",
             Some("us-east-1"),
+            S3EndpointStyle::PathStyleOrAutoDetectedAws,
         )
         .unwrap();
 
@@ -1098,6 +1250,7 @@ mod tests {
             "http://127.0.0.1:9000",
             "public",
             Some("us-east-1"),
+            S3EndpointStyle::PathStyleOrAutoDetectedAws,
         )
         .unwrap();
 
@@ -1117,6 +1270,7 @@ mod tests {
             "https://sequent-dev-bucket-eu-west-1-133529410358.s3.amazonaws.com",
             "public",
             Some("eu-west-1"),
+            S3EndpointStyle::PathStyleOrAutoDetectedAws,
         )
         .unwrap();
 
@@ -1138,6 +1292,7 @@ mod tests {
             "https://sequent-dev-bucket-eu-west-1-133529410358.s3.amazonaws.com",
             "election-event-documents",
             Some("eu-west-1"),
+            S3EndpointStyle::PathStyleOrAutoDetectedAws,
         )
         .unwrap();
 
@@ -1149,6 +1304,28 @@ mod tests {
                 ),
                 bucket: "sequent-dev-bucket-eu-west-1-133529410358".to_string(),
                 prefix_root: Some("election-event-documents".to_string(),),
+            }
+        );
+    }
+
+    #[test]
+    fn resolves_virtual_hosted_provider_bucket_to_real_bucket_and_prefix() {
+        let resolved = resolve_s3_list_target_parts(
+            "https://real-bucket-name.storage.example-provider.test",
+            "election-event-documents",
+            Some("eu-de"),
+            S3EndpointStyle::VirtualHosted,
+        )
+        .unwrap();
+
+        assert_eq!(
+            resolved,
+            ResolvedS3ListTargetParts {
+                service_endpoint: Some(
+                    "https://storage.example-provider.test".to_string(),
+                ),
+                bucket: "real-bucket-name".to_string(),
+                prefix_root: Some("election-event-documents".to_string()),
             }
         );
     }
