@@ -380,14 +380,23 @@ This is not a rewrite proposal. The path is incremental:
    natively unit-testable in velvet-core. The only layer that resists
    headless enumeration is `filterErrorList`, which is component-internal
    TypeScript.
-2. **Distinguish the two tables.** The recording in step 1 is a
+2. **Distinguish three states, not two.** The recording in step 1 is a
    **characterization** — a description of what the code does, bugs
    included (`fdc7f92db5` is a recent example of a bug that enumeration
-   would have faithfully frozen). The **specification** is the blessed
-   table: the characterization after a human review pass in which every
-   surprising cell is either signed off or filed as a bug. The
-   *disagreements between the two tables are the most valuable output of
-   the whole exercise* — do not reconcile them silently.
+   would have faithfully frozen). A surprising behaviour is then a
+   **suspect**: precisely recorded, but whether it is *intended* is a
+   design question that neither the workbench work nor its operator has
+   the authority to answer — suspects are escalated for consultation in
+   [`UPSTREAM_FINDINGS.md`](./UPSTREAM_FINDINGS.md), with confidence
+   intuitions noted (they guide attention; they do not adjudicate). Only
+   after consultation does a cell become **adjudicated** — blessed into
+   the specification or filed as a defect. The *suspects are the most
+   valuable output of the whole exercise* — do not reconcile them
+   silently, and do not promote them by intuition alone.
+   Characterization without verdicts is already productive (doc
+   corrections, upstream defects, the silent-discount families all
+   predate any adjudication); the pipeline does not stall waiting for
+   blessings.
 3. **Express the blessed table declaratively** — either as a Rust match
    expression or as a data structure the workbench can load and visualize.
 4. **Verify equivalence** — the declarative version must produce identical

@@ -4,12 +4,22 @@
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# Upstream findings — to be reported
+# Upstream findings — to be reported or consulted
 
-Defects in production code discovered incidentally during workbench work
-(characterization, consumer census). Collected here so they can be filed
-upstream without cluttering the characterization artifacts. Remove entries
-once a meta issue exists and note the issue number.
+Collected during workbench work (characterization, consumer census) so
+they can be raised upstream without cluttering the characterization
+artifacts. Two kinds of entry, kept separate:
+
+- **Defects** — behaviour that is wrong on its face (no design judgment
+  required). File as bugs.
+- **Suspects** — behaviour we can *characterize* precisely but cannot
+  adjudicate: whether it is intended requires consultation with the
+  people who hold design authority. Neither the workbench work nor its
+  operator claims that authority; verdicts are outputs of consultation,
+  not inputs. Confidence intuitions are noted because they guide
+  attention, not because they decide anything.
+
+Remove entries once a meta issue exists and note the issue number.
 
 ## 1. `mcballot_images.rs`: decline flag populated from the invalid flag; error lists stubbed empty
 
@@ -66,3 +76,73 @@ every gate evaluation in the browser console.
 
 **How found:** the log surfaced in Node while running the headless
 characterization harness (`packages/workbench/characterization/`).
+
+---
+
+# Suspects — for consultation (adjudication pending)
+
+All four are recorded, reproducible behaviours (pointers below); the open
+question in each case is *intent*, not *fact*.
+
+## S1. Silent vote discounting under `invalid_vote_policy = allowed`
+
+**Observed** (`characterization/no-silent-discount.md`, 196 cells, two
+families): with `invalid_vote_policy = allowed`, a ballot that violates an
+error-producing rule is cast with **no inline message, no dialog, and no
+block**, then classified `ImplicitInvalid` at tally and excluded from the
+valid total. The checker flags the error internally in every case; the
+filter suppresses it and neither gate fires, while the tally still
+consumes it via `is_invalid()`.
+
+| family | configuration | silently-discarded states |
+|---|---|---|
+| over-vote | `over_vote_policy=allowed` + `invalid=allowed` | over the max |
+| min-vote | `min_votes ≥ 1` + `invalid=allowed` | below the min |
+
+**Why suspect:** the voter is given zero indication their vote will not
+count. **Confidence:** strong intuition this is a defect (or at minimum a
+combination that must be surfaced to election designers — e.g. an
+admin-portal configuration warning). **Consultation question:** is
+`invalid_vote_policy = allowed` intended to mean "invalid ballots may be
+*cast* silently" even though they are discarded, and if so, should the
+combination be flagged at configuration time?
+
+## S2. A deliberate explicit-blank vote silently discarded when `min_votes ≥ 2`
+
+**Observed** (`characterization/minvote-rule.md`, `min_votes=2 ×
+marker_only`): a voter who selects the explicit-blank marker — an
+unambiguous, deliberate expression of "blank vote" — has the ballot
+silently classified `ImplicitInvalid`, because the marker counts as one
+selection and 1 < 2. Sub-case of S1's min-vote family but qualitatively
+sharper: this is not voter inattention; a clearly expressed intent is
+dropped without notice. **Consultation question:** should an explicit
+blank ever be subject to `min_votes` at all (see S3), and if it is,
+should its rejection ever be silent?
+
+## S3. Explicit-blank markers count toward `min_votes`
+
+**Observed** (`raw_ballot.rs` decode: `num_selected_with_markers`;
+recorded in `characterization/blank-rule.md` and `minvote-rule.md`): a
+selected explicit-blank marker counts as a selection for the min/max/
+under/blank rules — so it *satisfies* `min_votes: 1`, and *fails*
+`min_votes: 2` (producing S2). **Why suspect:** defensible design either
+way (a blank is "a choice" vs. "the absence of choices"), but the
+interaction with `min_votes ≥ 2` produces S2, which suggests the
+combination was not considered. **Confidence:** genuinely uncertain.
+**Consultation question:** is the marker-inclusive count intended
+semantics or an artifact of implementation convenience?
+
+## S4. Under-vote alert/gate threshold asymmetries at `n = 0`
+
+**Observed** (`characterization/undervote-rule.md`): (a) with
+`min_votes = 0`, the under-vote zone `min ≤ n < max` includes `n = 0`, so
+the under-vote alert fires on a completely empty ballot, overlapping the
+blank condition (the UI dedups only when a blankVote message is also
+present); (b) the checker alerts at `n = 0` but the soft gate requires
+`n > 0`, so the WARN_AND_ALERT dialog never fires for the empty ballot
+the checker just alerted on. **Why suspect:** the thresholds of two
+mechanisms that appear to implement one policy differ; possibly
+deliberate (blank policy owns the empty case), possibly an off-by-design
+inconsistency. **Confidence:** low stakes either way; worth a question,
+not an alarm. **Consultation question:** are the alert and gate meant to
+share a threshold?

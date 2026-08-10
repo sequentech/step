@@ -10,9 +10,14 @@ Step 1 of the migration path in
 [`docs/VALIDATION_LOGIC_DISTILLATION.md`](../docs/VALIDATION_LOGIC_DISTILLATION.md)
 §5.3: enumerate cells of the validation input space through the **real
 implementation** and record the observed effects. Recorded tables are
-*characterizations* (what the code does); they become *specifications* only
-after human sign-off — disagreements between the recording, the docs and
-expectations are the product here, not noise.
+*characterizations* (what the code does). Surprising behaviours are
+**suspects** — recorded precisely, escalated for consultation in
+[`../docs/UPSTREAM_FINDINGS.md`](../docs/UPSTREAM_FINDINGS.md), and
+adjudicated (blessed or filed as defects) only by the parties who hold
+design authority. Disagreements between the recording, the docs and
+expectations are the product here, not noise; intuitions about them guide
+attention (the silent-discount families get their own report because we
+strongly suspect a defect) but never adjudicate.
 
 ## Intent: all behaviour, and what "all" requires
 
@@ -73,10 +78,12 @@ its source within minutes of being written.
    belongs in a cross-layer view labelled as such, never in a raw
    observation cell.
 4. **Roles of the artifacts.** The recorded JSON is the *characterization*
-   (evidence, and after sign-off the regression oracle); the `predict()`
-   rule set is the embryonic *specification* (the canonical statement of
-   behaviour — small, readable, per-rule); tables are *views* for humans.
-   The spec is validated against the recording by enumeration, not by eye.
+   (evidence, and after adjudication the regression oracle); the
+   `predict()` rule set is the embryonic *specification* (the canonical
+   statement of behaviour — small, readable, per-rule); tables are *views*
+   for humans; **suspects** live in `../docs/UPSTREAM_FINDINGS.md` until
+   consultation adjudicates them. The spec is validated against the
+   recording by enumeration, not by eye.
 
 ## Harness
 

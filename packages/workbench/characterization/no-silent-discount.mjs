@@ -132,6 +132,12 @@ const md = [
     `**Result: ${violations.length} violating cell(s)** across ${scanned} scanned` +
         ` (sources: ${SOURCES.join(", ")}).`,
     "",
+    "**Status: SUSPECT — escalated for consultation** as S1/S2 in",
+    "`../docs/UPSTREAM_FINDINGS.md`. Strong intuition that this is a defect",
+    "(or at minimum a combination requiring a configuration-time warning),",
+    "but adjudication belongs to the parties with design authority, not to",
+    "this report.",
+    "",
     "## Violating configurations",
     "",
     "Each row is a policy combination that *permits* a silently-discounted",

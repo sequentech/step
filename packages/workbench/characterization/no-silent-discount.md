@@ -22,6 +22,12 @@ booth's encrypt→cast→decrypt pipeline is a named TODO.
 
 **Result: 5 violating cell(s)** across 196 scanned (sources: blank-rule.recorded.json, overvote-rule.recorded.json, undervote-rule.recorded.json, minvote-rule.recorded.json).
 
+**Status: SUSPECT — escalated for consultation** as S1/S2 in
+`../docs/UPSTREAM_FINDINGS.md`. Strong intuition that this is a defect
+(or at minimum a combination requiring a configuration-time warning),
+but adjudication belongs to the parties with design authority, not to
+this report.
+
 ## Violating configurations
 
 Each row is a policy combination that *permits* a silently-discounted
