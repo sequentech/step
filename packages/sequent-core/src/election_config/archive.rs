@@ -667,3 +667,43 @@ mod tests {
         }
     }
 }
+
+/// The name of the importable zip *inside* the delivery zip.
+///
+/// `election_architect`'s own name for it, kept so a client who has been handed one of
+/// these before finds what they expect, and so the two tools' output is one format
+/// rather than two.
+pub const IMPORTABLE_MEMBER: &str = "official_election_setup.zip";
+
+/// Everything the wizard hands over: one zip that is **not** importable, holding one
+/// that is.
+///
+/// The shape is `election_architect`'s. A delivery contains material a person needs and
+/// the Admin Portal must never see — the reopenable plan, the points of contact, the
+/// trustee list and threshold, the ceremony dates — beside a nested zip that is exactly
+/// what the importer takes. Handing the importable zip over on its own loses all of
+/// that; handing the loose files over as separate downloads, which is what this did
+/// before, leaves somebody to work out which single file goes to the importer, and one
+/// of the others can carry administrator passwords.
+///
+/// Nesting is what makes that unambiguous: the only thing that can be imported is the
+/// only thing that looks like an import, and the outer zip is refused by the Admin
+/// Portal rather than half-accepted.
+#[cfg(feature = "election_config_archive")]
+pub fn delivery(
+    layout: &Layout,
+) -> Result<Artifact, crate::election_config::Problem> {
+    let importable = zip(&layout.importable)?;
+
+    let mut members = Vec::with_capacity(layout.auxiliary.len() + 1);
+    members.push(Artifact {
+        name: IMPORTABLE_MEMBER.to_string(),
+        bytes: importable,
+    });
+    members.extend(layout.auxiliary.iter().cloned());
+
+    Ok(Artifact {
+        name: layout.archive_name.clone(),
+        bytes: zip(&members)?,
+    })
+}

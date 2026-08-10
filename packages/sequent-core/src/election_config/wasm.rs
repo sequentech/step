@@ -94,6 +94,14 @@ export interface BuildOutput {
     importable: Artifact[];
     /** Files that must NOT go inside the archive. */
     auxiliary: Artifact[];
+    /**
+     * The whole delivery: a zip that is *not* importable, holding one that is.
+     *
+     * `official_election_setup.zip` nested beside the reopenable plan and the files a
+     * person needs. Only a plan build produces one.
+     */
+    delivery?: Artifact;
+
     /** The importable archive, ready to download. */
     archive?: Artifact;
     /** Everything found, errors and warnings together. */
@@ -304,6 +312,7 @@ pub fn build_from_workbook(
             name: layout.archive_name,
             bytes: zipped,
         }),
+        delivery: None,
         report,
         event_external_id: Some(bundle.event_external_id.clone()),
     })
@@ -388,6 +397,13 @@ pub fn compile_plan_js(
             name: compiled.layout.archive_name.clone(),
             bytes: zipped,
         }),
+        delivery: match archive::delivery(&compiled.layout) {
+            Ok(artifact) => Some(File::from(&artifact)),
+            // A delivery that cannot be written is a bug in this tool rather than a
+            // problem with the plan, and the importable zip above is unaffected — so
+            // the build still succeeds and the host falls back to it.
+            Err(_) => None,
+        },
         report: compiled.report,
         event_external_id: Some(compiled.bundle.event_external_id.clone()),
     })
@@ -935,6 +951,18 @@ struct Output {
     auxiliary: Vec<File>,
     #[serde(skip_serializing_if = "Option::is_none")]
     archive: Option<File>,
+
+    /// The whole delivery: one zip that is **not** importable, holding one that is.
+    ///
+    /// `archive` above is the importable member on its own, and it stays because the
+    /// downloads panel names it as the one file the Admin Portal takes. This is what a
+    /// client is actually handed — `official_election_setup.zip` nested beside the
+    /// reopenable plan, the points of contact, the trustee list and the ceremony dates,
+    /// in `election_architect`'s own layout.
+    ///
+    /// Only the plan path produces one. A workbook build is already a bundle rather than
+    /// a delivery, and its caller hands the importable zip over directly.
+    delivery: Option<File>,
     report: Report,
     #[serde(skip_serializing_if = "Option::is_none")]
     event_external_id: Option<String>,
@@ -947,6 +975,7 @@ impl Output {
             importable: Vec::new(),
             auxiliary: Vec::new(),
             archive: None,
+            delivery: None,
             report,
             event_external_id: None,
         }

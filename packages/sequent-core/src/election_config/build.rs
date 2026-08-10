@@ -519,27 +519,26 @@ impl<'a> Builder<'a> {
         let realm = self.build_realm();
         let admin_realm_patch = self.admin_realm_patch();
 
-        // One ceremony, from the trustees the caller supplied. The workbook path
-        // supplies none and keeps the template's empty array.
-        let keys_ceremonies = match self.keys_ceremony.as_ref() {
-            None => Vec::new(),
-            Some(plan) if plan.trustee_names.is_empty() => Vec::new(),
-            Some(plan) => vec![json!({
-                "id": self.ids.uid("keys_ceremony", &[&self.event_external_id]),
-                "tenant_id": self.tenant_id,
-                "election_event_id": self.event_id,
-                // Names. See `BuildOptions::keys_ceremony`.
-                "trustee_ids": plan.trustee_names,
-                "threshold": plan.threshold,
-                "is_default": true,
-                "name": "Key ceremony",
-                // Where `KeysCeremony::policy()` reads it. Absent, it falls back
-                // to manual — so writing it is the difference between a client
-                // getting what they chose and getting the default quietly.
-                "settings": {"policy": self.ceremony_policy.to_string()},
-                "permission_label": [],
-            })],
-        };
+        // **No keys ceremony, ever, from either path.**
+        //
+        // A ceremony's `trustee_ids` carries trustee *names*, which the importer
+        // resolves against trustees the target tenant already has. A name it cannot
+        // find becomes an empty string through `unwrap_or_default`, and the insert
+        // then parses `""` as a `Uuid` — so one unrecognised name refuses the
+        // *entire* import with `Error parsing trustee_ids as UUIDs`, a message that
+        // never mentions trustees, and the event is never created.
+        //
+        // Neither producer can avoid that. A spreadsheet and a browser are both
+        // written away from the environment being imported into, so neither knows
+        // which trustees exist, and no derivation fixes it: a valid value is a row in
+        // that database, so an id generated from a name parses and then matches
+        // nothing.
+        //
+        // So the ceremony is delivery information rather than import data. It travels
+        // in the outer zip as `ceremony_schedule.json` and `trustees_list.json`, and
+        // the ceremony itself is made in the Admin Portal afterwards, where trustees
+        // are picked from the ones that exist rather than spelled.
+        let keys_ceremonies: Vec<Value> = Vec::new();
 
         // One row per material the caller supplied, carrying the `document_id`
         // that puts the archive entry's identifier into the importer's replacement
