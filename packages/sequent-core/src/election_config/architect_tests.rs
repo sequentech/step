@@ -3195,3 +3195,76 @@ fn no_keys_ceremony_is_ever_emitted() {
         "naming trustees a tenant may not have refuses the whole import: {ceremonies:?}"
     );
 }
+
+/// A delivery goes out and the same plan comes back.
+///
+/// The round trip is the thing worth testing, and it is testable here because both ends
+/// are here: `archive::delivery` writes the zip and `archive::plan_in_delivery` reads it.
+/// Doing either in TypeScript would have put the layout in two places and let them drift —
+/// and drift in this particular pair means a client's own configuration will not reopen,
+/// which is the failure they notice a year later when they need last year's answers.
+#[test]
+fn a_delivery_reopens_as_the_plan_that_made_it() {
+    use crate::election_config::archive;
+
+    let templates = TemplateSet::builtin().unwrap();
+    let plan = sound();
+    let compiled = compile_plan(&plan, &templates, &BuildOptions::default(), None)
+        .expect("a sound plan compiles");
+
+    let delivery = archive::delivery(&compiled.layout).expect("a delivery is written");
+    let reopened = archive::plan_in_delivery(&delivery.bytes)
+        .expect("the delivery should carry the plan that made it");
+
+    let back: Blueprint =
+        serde_json::from_slice(&reopened).expect("the plan should deserialize");
+
+    // The identity a person recognises, rather than a byte comparison: the plan is
+    // serialized with `skip_serializing_if` in places, so equality of bytes is a stricter
+    // claim than this needs to make and would fail for reasons nobody cares about.
+    assert_eq!(back.external_id, plan.external_id);
+    assert_eq!(back.name, plan.name);
+    assert_eq!(back.elections.len(), plan.elections.len());
+    assert_eq!(back.trustees.len(), plan.trustees.len());
+    assert_eq!(back.trustee_threshold, plan.trustee_threshold);
+}
+
+/// A zip with no plan in it says what it had instead.
+///
+/// The likely mistake is handing over the *importable* member — it is a zip, it is the one
+/// with the official-sounding name, and it deliberately does not contain the plan. A
+/// refusal that only said "no plan" would leave somebody opening both files to find out
+/// which was which.
+#[test]
+fn a_zip_without_a_plan_says_what_it_had_instead() {
+    use crate::election_config::archive;
+
+    let templates = TemplateSet::builtin().unwrap();
+    let compiled = compile_plan(&sound(), &templates, &BuildOptions::default(), None)
+        .expect("a sound plan compiles");
+
+    // The importable member is exactly the wrong file to hand back, and the likeliest.
+    let importable = archive::zip(&compiled.layout.importable).expect("a zip");
+    let refused = archive::plan_in_delivery(&importable)
+        .expect_err("the importable member carries no plan");
+
+    assert!(
+        refused.message.contains(archive::PLAN_MEMBER),
+        "the refusal should name what it looked for: {}",
+        refused.message
+    );
+    assert!(
+        refused.message.contains(".json") || refused.message.contains(".csv"),
+        "the refusal should list what the zip did contain: {}",
+        refused.message
+    );
+
+    // And something that is not a zip at all fails as that, not as a missing member.
+    let refused = archive::plan_in_delivery(b"this is not a zip")
+        .expect_err("plain text is not a configuration");
+    assert!(
+        refused.message.contains("not a configuration"),
+        "{}",
+        refused.message
+    );
+}

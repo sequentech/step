@@ -614,6 +614,31 @@ fn read_profile(profile: JsValue) -> Result<Option<profile::Profile>, Report> {
     profile::Profile::read(&document).map(Some)
 }
 
+/// The plan inside a delivery zip, so `Import Configuration` can open what a client kept.
+///
+/// A client keeps the whole delivery, not the `blueprint.json` inside it — so the wizard
+/// has to open the zip rather than asking somebody to unzip it and pick the right file out
+/// of eight, one of which can carry administrator passwords.
+///
+/// Returns the plan as a `JsValue`, already parsed, because the host's next move is to put
+/// it into wizard state. A zip with no plan in it comes back as an error naming what the
+/// zip *did* contain, which is the difference between fixing it and guessing.
+#[cfg(feature = "election_config_archive")]
+#[wasm_bindgen(js_name = planInDelivery)]
+pub fn plan_in_delivery_js(bytes: &[u8]) -> Result<JsValue, JsError> {
+    let plan = archive::plan_in_delivery(bytes)
+        .map_err(|problem| JsError::new(&problem.message))?;
+
+    let value: serde_json::Value =
+        serde_json::from_slice(&plan).map_err(|error| {
+            JsError::new(&format!(
+                "the plan inside this configuration is not readable: {error}"
+            ))
+        })?;
+
+    to_js(&value)
+}
+
 /// What a profile hides, so the wizard knows what not to draw.
 ///
 /// Rust decides which *paths*, because that is a statement about the plan.
