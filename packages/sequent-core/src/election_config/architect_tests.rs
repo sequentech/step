@@ -2085,7 +2085,8 @@ fn the_trustees_and_threshold_travel_as_delivery_information() {
     // The names and the threshold are not lost — `side_files` carries them beside the
     // archive, which is what the delivery zip nests them into.
     let beside = side_files(&plan);
-    let names: Vec<&str> = beside.iter().map(|(name, _)| name.as_str()).collect();
+    let names: Vec<&str> =
+        beside.iter().map(|(name, _)| name.as_str()).collect();
     assert!(
         names.contains(&"trustees_list.json"),
         "the trustee list should travel beside the archive: {names:?}"
@@ -2390,7 +2391,6 @@ fn a_plan_that_says_nothing_new_writes_no_new_columns() {
         assert!(rows[0].get(column).is_none(), "{column} should be absent");
     }
 }
-
 
 /// A plan written before the field existed still opens, and still means manual.
 #[test]
@@ -3103,18 +3103,21 @@ fn the_delivery_is_a_zip_that_is_not_importable_holding_one_that_is() {
     use crate::election_config::archive;
 
     let templates = TemplateSet::builtin().unwrap();
-    let compiled = compile_plan(&sound(), &templates, &BuildOptions::default(), None)
-        .expect("a sound plan compiles");
+    let compiled =
+        compile_plan(&sound(), &templates, &BuildOptions::default(), None)
+            .expect("a sound plan compiles");
 
-    let delivery = archive::delivery(&compiled.layout).expect("a delivery is written");
+    let delivery =
+        archive::delivery(&compiled.layout).expect("a delivery is written");
 
     // Read it back rather than trusting the writer: a zip of the right length whose
     // members are nonsense is a failure this repository has shipped before.
     let mut outer = zip::ZipArchive::new(std::io::Cursor::new(&delivery.bytes))
         .expect("the delivery should be a readable zip");
 
-    let names: Vec<String> =
-        (0..outer.len()).map(|at| outer.by_index(at).unwrap().name().to_string()).collect();
+    let names: Vec<String> = (0..outer.len())
+        .map(|at| outer.by_index(at).unwrap().name().to_string())
+        .collect();
 
     assert!(
         names.contains(&archive::IMPORTABLE_MEMBER.to_string()),
@@ -3124,7 +3127,11 @@ fn the_delivery_is_a_zip_that_is_not_importable_holding_one_that_is() {
     // The delivery information travels here, and must not be inside the importable
     // member — `blueprint.json` is the plan somebody reopens, and the trustee list and
     // ceremony dates are what the Admin Portal must never be handed.
-    for expected in ["blueprint.json", "trustees_list.json", "ceremony_schedule.json"] {
+    for expected in [
+        "blueprint.json",
+        "trustees_list.json",
+        "ceremony_schedule.json",
+    ] {
         assert!(
             names.contains(&expected.to_string()),
             "the delivery should carry {expected}: {names:?}"
@@ -3168,10 +3175,14 @@ fn the_delivery_is_a_zip_that_is_not_importable_holding_one_that_is() {
 fn no_keys_ceremony_is_ever_emitted() {
     let templates = TemplateSet::builtin().unwrap();
     let plan = sound();
-    assert!(!plan.trustees.is_empty(), "meaningless unless the plan names trustees");
+    assert!(
+        !plan.trustees.is_empty(),
+        "meaningless unless the plan names trustees"
+    );
 
-    let compiled = compile_plan(&plan, &templates, &BuildOptions::default(), None)
-        .expect("a sound plan compiles");
+    let compiled =
+        compile_plan(&plan, &templates, &BuildOptions::default(), None)
+            .expect("a sound plan compiles");
 
     let ceremonies = compiled
         .bundle
