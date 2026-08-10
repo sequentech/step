@@ -553,9 +553,13 @@ impl MessageKind {
 /// a human's timezone rather than an instant.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct MessageSchedule {
-    /// When to send it, if a date has been chosen.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub at: Option<Timestamp>,
+    /// The dates to send it on.
+    ///
+    /// A list rather than one date, because a reminder campaign is several sends
+    /// — three days before, one day before, the morning of — and one field forced
+    /// a client to choose which of those to write down.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub on: Vec<Timestamp>,
 
     /// Days of the week to repeat on, 1 = Monday, as ISO-8601 numbers them.
     ///
@@ -2830,7 +2834,7 @@ pub fn side_files(plan: &Blueprint) -> Vec<(String, String)> {
             .map(|message| {
                 serde_json::json!({
                     "alias": message.kind.alias(),
-                    "at": message.schedule.at,
+                    "on": message.schedule.on,
                     "weekly": message.schedule.weekly,
                 })
             })

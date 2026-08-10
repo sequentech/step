@@ -2637,7 +2637,8 @@ fn messages_leave_as_two_files_outside_the_bundle() {
         body: Translated::new("There is still time."),
         html: Translated::new("<p>There is still time.</p>"),
         schedule: MessageSchedule {
-            at: None,
+            // Several dates, which is the shape a reminder campaign has.
+            on: vec![],
             weekly: vec![1, 4],
         },
     });
