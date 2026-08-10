@@ -32,8 +32,13 @@ harness doesn't record stays invisible at every cell. The census lives in
 [`../characterization/README.md`](../characterization/README.md); its
 first run found two channels this taxonomy did not list (the standalone
 ballot-verifier's display of decoded ballots, and velvet's rendered
-ballot images — the latter with stubbed-empty error lists and a
-decline/invalid naming hazard).
+ballot images). Both were subsequently scoped **out** of the census by
+decision — the verifier until it is ever lifted into the workbench,
+ballot images unless that functionality ever arrives here — and the
+defects found in the ballot-images consumer are recorded in
+[`UPSTREAM_FINDINGS.md`](./UPSTREAM_FINDINGS.md) for reporting. The
+census's value is precisely that these are now *named decisions* rather
+than unknown unknowns.
 
 ### Casting-time effects (booth UI)
 

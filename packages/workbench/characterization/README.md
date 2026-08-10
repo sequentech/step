@@ -45,9 +45,9 @@ internals and tests:
 | `voting_screen.rs` | gates | **covered** (layer 2) |
 | `normalize_vote.rs`, `character_map.rs`, codec internals | round-trip plumbing | **covered** implicitly by layer 1 (they run inside the recorded decode) |
 | `velvet-core` counting (`classify_ballot`, plurality, IRV) | tally classes + aggregates | known pending (classifier table) |
-| `PlaintextVoteContest.tsx` ← ballot-verifier `ConfirmationScreen` | **the standalone ballot-verifier's display of a decoded ballot** | **GAP** — a voter-facing validation surface the taxonomy does not list; needs a scoping decision (it is production behaviour, outside the booth) |
-| `wasm_plaintext.rs` | plaintext-interpretation WASM entry feeding the above | **GAP** (same channel) |
-| `velvet` `mcballot_images.rs` | **rendered ballot images** | **GAP + upstream finding**: errors/alerts are stubbed empty (two `FIXME`s), and `is_decline_to_vote` is populated from `dbc.is_explicit_invalid` — the multi-ballot decode binds the ballot-level *decline bit* to a local named `is_explicit_invalid`, so this is at minimum a naming hazard, possibly a bug |
+| `PlaintextVoteContest.tsx` ← ballot-verifier `ConfirmationScreen` | the standalone ballot-verifier's display of a decoded ballot | **out of scope** (decision 2026-08-10) — the ballot-verifier is not part of the workbench replication; revisit if/when it is lifted. The more durable of the two exclusions. |
+| `wasm_plaintext.rs` | plaintext-interpretation WASM entry feeding the above | **out of scope** (same channel, same decision) |
+| `velvet` `mcballot_images.rs` | rendered ballot images | **out of scope** (decision 2026-08-10) — conditional: ballot-images functionality is not in the workbench (verified: no trace in velvet-wasm / velvet-core / app); include this channel if it ever is. Defects found here are recorded in [`../docs/UPSTREAM_FINDINGS.md`](../docs/UPSTREAM_FINDINGS.md) for reporting, not tracked as census gaps. |
 
 The census is part of the artifact set: re-run it when upstream merges
 land, and treat a new unmapped read site exactly like a failing test.
