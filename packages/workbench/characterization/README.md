@@ -94,6 +94,31 @@ The vote-state classes are defined over `num_selected_with_markers`: the
 blank checker output, no gate) — while classifying as `ExplicitBlank` at
 tally. See VOTE_VALIDATION.md "Selection counting and marker candidates".
 
+## What complete coverage means
+
+The functional model in VOTE_VALIDATION.md has **six roles**; the harness
+layers observe them unevenly, and full behaviour — the distillation's
+`f(config, vote_state, context) → effects` — is only characterized when
+all six are:
+
+| Role | Harness layer | Status |
+|---|---|---|
+| Checkers | 1 (headless wasm) | blank rule done. One recording serves **both** bands: the tally decode runs the identical function, so layer 1 is also the tally-side checker characterization. |
+| Gates | 2 (headless wasm) | blank rule done |
+| Filter | 3 (browser, booth) | blank rule done |
+| Input constraint | 3 (browser) — the `constraint` component of the effect triple | **not yet observed** by any runner; becomes relevant with the over-vote rule (`NOT_ALLOWED_WITH_MSG_AND_DISABLE`) |
+| Marker exclusivity (prevention) | browser — *reachability*, not effects | **not yet characterized.** Prevention is characterized by *attempting* to create each vote state through the UI and recording whether it forms. The mixed marker state was verified at tally by direct injection into the tally sandbox — which bypasses booth prevention, so its booth-reachability is still an open cell. |
+| Tally classifier | headless (velvet-core) | unit-tested upstream (16 tests) and spot-verified end-to-end via the marker fixture, but **no recorded decision table yet** |
+
+Two consequences worth stating plainly. First, a per-rule recording like
+blank-rule is a *slice* of `f`, by design — the mapping decomposes per
+rule and per surface, and coverage is the union of slices, not any single
+run. Second, prevention does not produce effects; it prunes the *input
+space* — so its characterization output is a reachability table
+(state × config → forms / does-not-form), which is also exactly the data
+needed to justify (or refuse) pruning cells from the other layers'
+enumerations.
+
 ## Adding a rule
 
 Copy `blank-rule.mjs`, swap the policy/state dimensions and the `predict()`

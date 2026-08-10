@@ -51,6 +51,16 @@ consumers, plus two preventers and a final classifier**. Every behaviour in
 this document is one of these six roles doing its job.
 
 ```
+ BOOTH — prevention (acts on gestures, BEFORE a state exists)
+ ─────────────────────────────────────────────────────────────
+    voter gesture ──► INPUT CONSTRAINT (Question.tsx: checkboxes may be
+                      disabled — the gesture is impossible)
+                  ──► MARKER EXCLUSIVITY (ballotSelections reducer: selecting
+                      a candidate clears a blank marker, and vice versa)
+                                        │
+                                        ▼  selection state
+ BOOTH — enforcement (reacts to states that DID form)
+ ─────────────────────────────────────────────────────────────
                          ┌──────────────────────────────┐
     every click ───────► │ CHECKERS (checker.rs, WASM)  │  produce the record:
                          │ encode→decode round-trip     │  invalid_errors[] /
@@ -67,7 +77,19 @@ this document is one of these six roles doing its job.
                     │                        └────────────────────────────────┘
                     │ setDecodedContests()                  ▲
                     └───────── the only junction ───────────┘
+
+ TALLY — classification (after casting, in a different process)
+ ─────────────────────────────────────────────────────────────
+    decrypted ballot ──► decode: the SAME CHECKERS run again ──► CLASSIFIER
+                         (identical code, identical output)      (classify_ballot:
+                                                                  six BallotClass
+                                                                  values)
 ```
+
+The prevention band never appears in the enforcement dataflow because its
+job is to keep states out of it; the tally band runs later, elsewhere, and
+re-uses the checkers — the CHECKERS box exists twice in time, once per
+band, which is the precise content of the shared-component guarantee.
 
 | Role | Where | Trigger | Question it answers |
 |------|-------|---------|---------------------|
