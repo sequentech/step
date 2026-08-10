@@ -31,6 +31,21 @@ pub const VOTED_CHANNEL_INTERNET_VALUE: &str = "Internet";
 pub const ATTR_RESET_VALUE: &str = "NONE";
 
 pub const AREA_ID_ATTR_NAME: &str = "area-id";
+
+/// Per-voter vote weight, used when the election event weighted voting policy
+/// is `voters-weighted-voting`. A voter without this attribute votes with
+/// `DEFAULT_VOTE_WEIGHT`.
+pub const VOTE_WEIGHT_ATTR_NAME: &str = "vote-weight";
+pub const DEFAULT_VOTE_WEIGHT: u64 = 1;
+pub const MIN_VOTE_WEIGHT: u64 = 1;
+/// Upper bound for a single voter weight. Bounds the number of ciphertexts a
+/// single voter can add to a mix batch.
+pub const MAX_VOTE_WEIGHT: u64 = 100_000;
+/// Upper bound for the summed weight of one contest area. `MAX_VOTE_WEIGHT`
+/// alone bounds a single voter, not the batch, and the batch is materialised as
+/// one allocation, where an oversized request aborts the process rather than
+/// returning an error.
+pub const MAX_TOTAL_VOTE_WEIGHT: u64 = 1_000_000;
 pub const DATE_OF_BIRTH: &str = "dateOfBirth";
 pub const AUTHORIZED_ELECTION_IDS_NAME: &str = "authorized-election-ids";
 pub const TENANT_ID_ATTR_NAME: &str = "tenant-id";

@@ -655,8 +655,13 @@ const catalanTranslation: TranslationType = {
                     policyLabel: "Política de Votació Ponderada",
                     options: {
                         "areas-weighted-voting": "Votació Ponderada per Àrees",
+                        "voters-weighted-voting": "Votació Ponderada per Votants",
                         "disabled-weighted-voting": "Votació Ponderada Desactivada",
                     },
+                    noDelegated:
+                        "La Votació Ponderada per Votants no es pot combinar amb el Vot Delegat",
+                    noDecodedBallots:
+                        "La Votació Ponderada per Votants no es pot combinar amb la inclusió de paperetes desxifrades als resultats",
                 },
                 delegatedVotingPolicy: {
                     policyLabel: "Política de Votació Delegada",

@@ -11,9 +11,12 @@ use crate::services::celery_app::get_worker_threads;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::election::get_election_event_elections;
 use crate::services::join::merge_join_csv;
+use crate::services::join::MultiplicitySource;
 use crate::services::protocol_manager::*;
 use crate::services::public_keys::deserialize_public_key;
-use crate::services::users::list_keycloak_enabled_users_by_area_id_and_authorized_elections;
+use crate::services::users::{
+    list_keycloak_enabled_users_by_area_id_and_authorized_elections, VoterMultiplicityColumn,
+};
 use anyhow::{anyhow, Context, Result};
 use b3::messages::message::Message;
 use b3::messages::newtypes::BatchNumber;
@@ -28,6 +31,7 @@ use csv::WriterBuilder;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{
     ContestEncryptionPolicy, DelegatedVotingPolicy, ElectionPresentation, HashableBallot,
+    WeightedVotingPolicy,
 };
 use sequent_core::multi_ballot::HashableMultiBallot;
 use sequent_core::serialization::base64::{Base64Deserialize, Base64Serialize};
@@ -36,6 +40,7 @@ use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::{TallySessionContest, TallySessionContestAnnotations};
+use sequent_core::types::keycloak::MAX_TOTAL_VOTE_WEIGHT;
 use serde_json::json;
 use std::collections::HashMap;
 use strand::backend::ristretto::RistrettoCtx;
@@ -43,7 +48,7 @@ use strand::elgamal::Ciphertext;
 use strand::signature::StrandSignaturePk;
 use tempfile::NamedTempFile;
 use tokio::task::JoinHandle;
-use tracing::{event, info, instrument, Level};
+use tracing::{event, instrument, Level};
 
 use deadpool_postgres::Client as DbClient;
 
@@ -60,8 +65,20 @@ pub async fn insert_ballots_messages(
     tally_session_contests: Vec<TallySessionContest>,
     contest_encryption_policy: ContestEncryptionPolicy,
     delegated_voting_policy: DelegatedVotingPolicy,
+    weighted_voting_policy: WeightedVotingPolicy,
     skip_board_posting: bool,
 ) -> Result<Vec<TallySessionContest>> {
+    // A delegate's ballot has no defined weighted semantics, so refuse rather
+    // than silently computing weight * (1 + delegate_count). This is a backstop:
+    // `create_tally_ceremony` rejects the same combination when the session is
+    // created, which is where an operator can still act on it.
+    let is_voter_weighted = weighted_voting_policy == WeightedVotingPolicy::VOTERS_WEIGHTED_VOTING;
+    if is_voter_weighted && delegated_voting_policy == DelegatedVotingPolicy::ENABLED {
+        return Err(anyhow!(
+            "Delegated voting and voter-weighted voting cannot both be enabled \
+             on the same election event"
+        ));
+    }
     let trustees = get_trustees_by_name(hasura_transaction, &tenant_id, &trustee_names).await?;
 
     event!(Level::INFO, "trustees len: {:?}", trustees.len());
@@ -130,7 +147,13 @@ pub async fn insert_ballots_messages(
             let contest_encryption_policy_clone = contest_encryption_policy.clone();
             let realm_clone = realm.clone();
             let board_messages_clone = Arc::clone(&board_messages); // board_messages also needs to be cloned if it's not Sync + Send
-            let is_delegated = delegated_voting_policy == DelegatedVotingPolicy::ENABLED;
+            let multiplicity_column = if delegated_voting_policy == DelegatedVotingPolicy::ENABLED {
+                VoterMultiplicityColumn::DelegateCount
+            } else if is_voter_weighted {
+                VoterMultiplicityColumn::VoteWeight
+            } else {
+                VoterMultiplicityColumn::None
+            };
 
             let task = tokio::task::spawn_blocking(move || {
                 tokio::runtime::Handle::current().block_on(async move {
@@ -232,7 +255,7 @@ pub async fn insert_ballots_messages(
                         &tally_session_contest.area_id,
                         &election_alias,
                         &users_temp_file.path().to_path_buf(),
-                        is_delegated,
+                        multiplicity_column,
                     )
                     .await?;
 
@@ -245,8 +268,17 @@ pub async fn insert_ballots_messages(
                     let users_join_idexes = 0;
                     let contest_id = tally_session_contest.contest_id.clone();
 
-                    // Add the index where the username of the delegated vote is if the election has delegation enabled.
-                    let delegate_count_index = if is_delegated { Some(1) } else { None };
+                    // At most one multiplicity column is emitted by the voter
+                    // dump, always at index 1.
+                    let multiplicity_source = match multiplicity_column {
+                        VoterMultiplicityColumn::DelegateCount => {
+                            Some(MultiplicitySource::DelegateCount(1))
+                        }
+                        VoterMultiplicityColumn::VoteWeight => {
+                            Some(MultiplicitySource::VoteWeight(1))
+                        }
+                        VoterMultiplicityColumn::None => None,
+                    };
 
                     let merge_result = merge_join_csv(
                         &ballots_temp_file,
@@ -255,8 +287,28 @@ pub async fn insert_ballots_messages(
                         users_join_idexes,
                         ballots_output_index,
                         Some(ballots_channel_index),
-                        delegate_count_index,
+                        multiplicity_source,
                     )?;
+
+                    // Checked before either pass branches, so the
+                    // annotations-only pass cannot record a census that the
+                    // ballot pass would then refuse. Only weighting can inflate
+                    // this beyond the ballot count, so the cap must not
+                    // constrain an election that is not using it.
+                    let total_ciphertexts: u64 = merge_result
+                        .ballot_contents
+                        .iter()
+                        .map(|(_, multiplicity)| *multiplicity)
+                        .sum();
+                    if is_voter_weighted && total_ciphertexts > MAX_TOTAL_VOTE_WEIGHT {
+                        return Err(anyhow!(
+                            "Refusing to build a mix batch of {total_ciphertexts} \
+                             ciphertexts for election {} area {}: the summed vote \
+                             weight exceeds the maximum of {MAX_TOTAL_VOTE_WEIGHT}",
+                            tally_session_contest.election_id,
+                            tally_session_contest.area_id,
+                        ));
+                    }
 
                     let annotations = TallySessionContestAnnotations {
                         elegible_voters: merge_result.eligible_voters,
@@ -283,40 +335,48 @@ pub async fn insert_ballots_messages(
                     };
 
                     if !skip_board_posting {
-                        let ciphertexts = merge_result
-                            .ballot_contents
-                            .into_iter()
-                            .map(|ballot_str| {
-                                info!("ballot_str: {ballot_str}");
-                                let ciphertext: Ciphertext<RistrettoCtx> =
-                                    if ContestEncryptionPolicy::MULTIPLE_CONTESTS
-                                        == contest_encryption_policy_clone
-                                    {
-                                        let hashable_multi_ballot: HashableMultiBallot =
-                                            deserialize_str(&ballot_str)?;
+                        // Parse each distinct ballot once, then repeat the
+                        // parsed ciphertext. Repeating the ballot string
+                        // instead would re-run JSON parsing, base64 decoding
+                        // and point decompression per copy, and hold a full
+                        // ballot payload per copy rather than one ciphertext.
+                        let total_ciphertexts = total_ciphertexts as usize;
+                        // Bounded for this policy by the MAX_TOTAL_VOTE_WEIGHT
+                        // check above. A delegate count is not bounded, but that
+                        // predates this change and grew the same vector before
+                        // it was pre-sized.
+                        let mut ciphertexts: Vec<Ciphertext<RistrettoCtx>> =
+                            Vec::with_capacity(total_ciphertexts);
+                        for (ballot_str, multiplicity) in merge_result.ballot_contents {
+                            let ciphertext: Ciphertext<RistrettoCtx> =
+                                if ContestEncryptionPolicy::MULTIPLE_CONTESTS
+                                    == contest_encryption_policy_clone
+                                {
+                                    let hashable_multi_ballot: HashableMultiBallot =
+                                        deserialize_str(&ballot_str)?;
 
-                                        let hashable_multi_ballot_contests = hashable_multi_ballot
-                                            .deserialize_contests()
-                                            .map_err(|err| anyhow!("{:?}", err))?;
-                                        Some(hashable_multi_ballot_contests.ciphertext)
-                                    } else {
-                                        let hashable_ballot: HashableBallot =
-                                            deserialize_str(&ballot_str)?;
-                                        let contests = hashable_ballot
-                                            .deserialize_contests()
-                                            .map_err(|err| anyhow!("{:?}", err))?;
-                                        contests
-                                            .iter()
-                                            .find(|contest| {
-                                                contest.contest_id
-                                                    == contest_id.clone().unwrap_or_default()
-                                            })
-                                            .map(|contest| contest.ciphertext.clone())
-                                    }
-                                    .ok_or(anyhow!("Could not get ciphertext"))?;
-                                Ok(ciphertext)
-                            })
-                            .collect::<Result<Vec<_>>>()?;
+                                    let hashable_multi_ballot_contests = hashable_multi_ballot
+                                        .deserialize_contests()
+                                        .map_err(|err| anyhow!("{:?}", err))?;
+                                    Some(hashable_multi_ballot_contests.ciphertext)
+                                } else {
+                                    let hashable_ballot: HashableBallot =
+                                        deserialize_str(&ballot_str)?;
+                                    let contests = hashable_ballot
+                                        .deserialize_contests()
+                                        .map_err(|err| anyhow!("{:?}", err))?;
+                                    contests
+                                        .iter()
+                                        .find(|contest| {
+                                            contest.contest_id
+                                                == contest_id.clone().unwrap_or_default()
+                                        })
+                                        .map(|contest| contest.ciphertext.clone())
+                                }
+                                .ok_or(anyhow!("Could not get ciphertext"))?;
+                            ciphertexts
+                                .extend(std::iter::repeat_n(ciphertext, multiplicity as usize));
+                        }
 
                         event!(
                             Level::INFO,

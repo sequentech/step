@@ -31,7 +31,10 @@ use anyhow::{anyhow, Context, Result};
 use b3::messages::newtypes::BatchNumber;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::try_join;
-use sequent_core::ballot::{AllowTallyStatus, ContestEncryptionPolicy};
+use sequent_core::ballot::{
+    AllowTallyStatus, BallotStyle as SequentBallotStyle, ContestEncryptionPolicy,
+    DecodedBallotsInclusionPolicy, DelegatedVotingPolicy, Weight, WeightedVotingPolicy,
+};
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::area_tree::ContestsData;
 use sequent_core::services::area_tree::TreeNode;
@@ -295,10 +298,106 @@ pub async fn create_tally_ceremony(
     let contest_encryption_policy = election_event.get_contest_encryption_policy();
     let decoded_ballots_inclusion_policy = election_event.get_decoded_ballots_inclusion_policy();
     let delegated_voting_policy = election_event.get_delegated_voting_policy();
+    let weighted_voting_policy = election_event.get_weighted_voting_policy();
+    if weighted_voting_policy == WeightedVotingPolicy::VOTERS_WEIGHTED_VOTING {
+        // A delegate's ballot has no defined weighted semantics, and applying
+        // both would silently compute weight * (1 + delegate_count).
+        if delegated_voting_policy == DelegatedVotingPolicy::ENABLED {
+            return Err(anyhow!(
+                "Delegated voting and voter-weighted voting cannot both be \
+                 enabled on the same election event"
+            ));
+        }
+        // Voter weights are applied by repeating a ballot, so the published
+        // decoded ballots would carry each voter's weight as a run of identical
+        // plaintexts. This closes the most direct disclosure; it does not make
+        // the scheme secret-ballot safe on its own, since the mix batch itself
+        // is built from repeated ciphertexts.
+        if decoded_ballots_inclusion_policy == DecodedBallotsInclusionPolicy::INCLUDED {
+            return Err(anyhow!(
+                "Decoded ballots cannot be included in the results when \
+                 voter-weighted voting is enabled, because the repeated \
+                 ballots would reveal each voter's weight"
+            ));
+        }
+
+        // Nothing downstream stops an area weight being applied on top of the
+        // duplicated ballots, so this refusal is the only thing that does.
+        // It reads the ballot style snapshot frozen at publication, because
+        // that is the value velvet will use: clearing the live area row without
+        // republishing would otherwise satisfy the check while the tally still
+        // double-counted every ballot.
+        let published_ballot_styles = get_ballot_styles_by_elections(
+            &transaction,
+            &tenant_id,
+            &election_event_id,
+            &election_ids,
+        )
+        .await?;
+        let mut weighted_areas: Vec<String> = Vec::new();
+        let mut unsupported_contests: Vec<String> = Vec::new();
+        for published in &published_ballot_styles {
+            let Some(eml) = published.ballot_eml.clone().filter(|eml| !eml.is_empty()) else {
+                // No published ballot for this style, so nothing the tally will
+                // read from it and nothing to check.
+                continue;
+            };
+            let ballot_style: SequentBallotStyle = deserialize_str(&eml).map_err(|error| {
+                anyhow!(
+                    "Could not read published ballot style {}: {error:?}",
+                    published.id
+                )
+            })?;
+            // An absent weight and an explicit 1 are the same value, so only a
+            // weight that would actually multiply is a conflict.
+            let is_weighted = ballot_style
+                .area_annotations
+                .as_ref()
+                .map(|annotations| annotations.get_weight())
+                .is_some_and(|weight| weight != Weight::default());
+            if is_weighted && !weighted_areas.contains(&ballot_style.area_id) {
+                weighted_areas.push(ballot_style.area_id.clone());
+            }
+
+            // Duplicating a ballot is only defined for the algorithm this
+            // feature was specified and tested for. Others would silently
+            // accept repeated ballots with untested quota and elimination
+            // behaviour. An unset algorithm resolves to plurality-at-large, and
+            // could not have been published otherwise.
+            for contest in &ballot_style.contests {
+                if contest.get_counting_algorithm() != CountingAlgType::PluralityAtLarge
+                    && !unsupported_contests.contains(&contest.id)
+                {
+                    unsupported_contests.push(contest.id.clone());
+                }
+            }
+        }
+        if !weighted_areas.is_empty() {
+            return Err(anyhow!(
+                "Voter-weighted voting cannot be used while published ballots \
+                 still carry an area weight, because the two would multiply. \
+                 Set the weighted voting policy back to areas-weighted voting \
+                 to make the weight editable, clear it on these areas, set the \
+                 policy to voters-weighted voting again, and republish the \
+                 ballots: {}",
+                weighted_areas.join(", ")
+            ));
+        }
+
+        if !unsupported_contests.is_empty() {
+            return Err(anyhow!(
+                "Voter-weighted voting only supports the plurality-at-large \
+                 counting algorithm. These contests use another algorithm: {}",
+                unsupported_contests.join(", ")
+            ));
+        }
+    }
+
     let mut final_configuration = configuration.clone().unwrap_or_default();
     final_configuration.contest_encryption_policy = Some(contest_encryption_policy);
     final_configuration.decoded_ballots_inclusion_policy = Some(decoded_ballots_inclusion_policy);
     final_configuration.delegated_voting_policy = Some(delegated_voting_policy);
+    final_configuration.weighted_voting_policy = Some(weighted_voting_policy);
     let contests: Vec<Contest> = all_contests
         .into_iter()
         .filter(|contest| election_ids.contains(&contest.election_id))

@@ -650,7 +650,12 @@ const englishTranslation = {
                     options: {
                         "areas-weighted-voting": "Weighted Voting for Areas",
                         "disabled-weighted-voting": "Disabled Weighted Voting",
+                        "voters-weighted-voting": "Weighted Voting for Voters",
                     },
+                    noDelegated:
+                        "Weighted Voting for Voters cannot be combined with Delegated Voting",
+                    noDecodedBallots:
+                        "Weighted Voting for Voters cannot be combined with including decoded ballots in the results",
                 },
                 delegatedVotingPolicy: {
                     policyLabel: "Delegated Voting Policy",

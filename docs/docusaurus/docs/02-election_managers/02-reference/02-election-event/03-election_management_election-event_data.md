@@ -122,6 +122,66 @@ Configure advanced system behaviors for this Election Event.
   - Allow for the automatic generation of keys and tallies, eliminating the need for trustees involvement.
 - **Weighted Voting Policy**:
   - **Weighted Voting for Areas**: Enable weighted voting for areas.
+  - **Weighted Voting for Voters**: Give each voter their own weight, so that a
+    voter with weight `w` contributes `w` votes. Add a `vote-weight` column to
+    the imported voters csv holding a whole number between 1 and 100000. A voter
+    with no column, or with a blank cell, votes with weight 1. `vote_weight` and
+    other near spellings are rejected rather than imported, because they would be
+    stored under a name the tally does not read. The column is
+    named after the `vote-weight` voter attribute it becomes, so an exported
+    voters file can be edited and re-imported unchanged. Cannot be combined with
+    Delegate Voting, and every contest in the election event must use the
+    Plurality at Large counting algorithm — repeating a ballot has no defined
+    meaning for the others, so the tally refuses to run. Decoded ballots cannot
+    be included in the published results either, for the reason in the warning
+    below. Check both before ballots are published: neither the counting
+    algorithm nor a published ballot can be changed once voting has begun.
+    The weights of everyone who votes in one area of a contest
+    must also add up to no more than 1000000, so a small number of voters on very
+    large weights is rejected even though each weight is individually allowed;
+    this is checked when the tally runs. Turnout figures under this policy count
+    voting power rather
+    than voters: both the eligible-voter census and the cast-ballot total are
+    sums of weights, so they will not match a headcount shown elsewhere.
+
+    If any area still carries a Weight from a previous Weighted Voting for Areas
+    configuration, the tally is refused until it is cleared, because the two
+    weightings would multiply. The Weight field is hidden under this policy, so
+    clearing it means switching back to Weighted Voting for Areas, clearing the
+    Weight on each area, switching to Weighted Voting for Voters again, and
+    republishing the ballots.
+
+    :::danger Voter weights are public, and results are attributable
+    A voter's weight is applied by repeating their ballot, so a voter with
+    weight `w` contributes `w` identical ciphertexts to the mix. Those copies
+    are on the bulletin board, which is public so that the mix can be verified,
+    and each ciphertext is linkable to the voter who cast it. **A voter's weight
+    is therefore public, and it is public who holds it.**
+
+    Worse, the published per-candidate totals are sums over the weights of the
+    voters who chose each candidate. Where weights differ from one another, that
+    sum frequently identifies exactly who voted for whom — with distinct
+    weights such as 1, 2, 4, 8 it always does. Turning off decoded ballots in
+    the results does not prevent this; the totals alone are enough. Write-in
+    answers are worse again, since an uncommon write-in appears with exactly the
+    weight of the voter who wrote it.
+
+    Do not use this policy where ballot secrecy is required. It suits bodies
+    that already publish how each member voted, such as some shareholder or
+    delegate votes. Where secrecy matters and voters fall into a small number of
+    weight classes, Weighted Voting for Areas gives weighting without this
+    disclosure, because every voter in an area shares one weight.
+    :::
+
+    :::caution
+    The `vote-weight` attribute must be declared in the election event realm's
+    Keycloak user profile before use. Until it is, the weight column is missing
+    from the voters export, the field does not appear when editing a voter, and
+    editing a voter through the Admin Portal clears any weight that voter had.
+    Importing weights and tallying them work regardless. Realm user profiles are
+    not managed from this application, so declaring the attribute is an
+    administrator step on the realm configuration.
+    :::
   - **Disabled Weighted Voting**: Disable weighted voting.
 - **Delegate Voting Policy**:
   - Allows for voters to delegate their vote to another voter. An additional column needs to be included in the voters imported csv with the name `delegate-vote-to` with the username of the voter to delgate the vote to.

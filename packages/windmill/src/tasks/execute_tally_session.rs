@@ -73,6 +73,8 @@ use rand::{Rng, SeedableRng};
 use sequent_core::ballot::BallotStyle;
 use sequent_core::ballot::Contest;
 use sequent_core::ballot::ContestEncryptionPolicy;
+use sequent_core::ballot::Weight;
+use sequent_core::ballot::WeightedVotingPolicy;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::area_tree::TreeNode;
@@ -80,6 +82,7 @@ use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
+use sequent_core::types::ceremonies::CountingAlgType;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::ceremonies::TallyTrusteeStatus;
 use sequent_core::types::ceremonies::TallyType;
@@ -536,6 +539,11 @@ pub async fn upsert_ballots_messages(
         .clone()
         .unwrap_or_default()
         .get_delegated_voting_policy();
+    let weighted_voting_policy = tally_session_hasura
+        .configuration
+        .clone()
+        .unwrap_or_default()
+        .get_weighted_voting_policy();
     let expected_batch_ids: HashSet<i64> = tally_session_contests
         .iter()
         .map(|tally_session_contest| tally_session_contest.session_id as i64)
@@ -603,6 +611,7 @@ pub async fn upsert_ballots_messages(
             missing_ballots_batches.clone(),
             contest_encryption_policy.clone(),
             delegated_voting_policy.clone(),
+            weighted_voting_policy.clone(),
             false,
         )
         .await?
@@ -623,6 +632,7 @@ pub async fn upsert_ballots_messages(
             missing_annotations_batches,
             contest_encryption_policy,
             delegated_voting_policy,
+            weighted_voting_policy,
             true,
         )
         .await?;
@@ -850,6 +860,76 @@ async fn map_plaintext_data(
     // convert board messages into messages
     let messages: Vec<Message> = protocol_manager::convert_board_messages(&board_messages)?;
     print_messages(&messages, &bulletin_board)?;
+
+    // `create_tally_ceremony` refuses this combination when a session is
+    // created, but a recount re-executes an existing session without going
+    // through it, and ballots can be republished between creation and
+    // execution. Velvet applies an area weight unconditionally, so without this
+    // every ballot in a weighted area would be counted area_weight times on top
+    // of the per-voter duplication.
+    //
+    // This runs before the ballots are dumped, because posting the batch is
+    // what makes the duplicated ciphertexts public, and the board write is on
+    // its own connection that a rolled back transaction would not undo.
+    if tally_session
+        .configuration
+        .clone()
+        .unwrap_or_default()
+        .get_weighted_voting_policy()
+        == WeightedVotingPolicy::VOTERS_WEIGHTED_VOTING
+    {
+        // Parsed here rather than higher up so that a session not using this
+        // policy does not pay for it on every board poll.
+        let published_ballot_styles: Vec<BallotStyle> = get_ballot_styles(&ballot_styles)?;
+        let weighted: Vec<String> = published_ballot_styles
+            .iter()
+            .filter(|ballot_style| {
+                ballot_style
+                    .area_annotations
+                    .as_ref()
+                    .map(|annotations| annotations.get_weight())
+                    .is_some_and(|weight| weight != Weight::default())
+            })
+            .map(|ballot_style| ballot_style.area_id.clone())
+            .collect();
+        if !weighted.is_empty() {
+            return Err(anyhow!(
+                "Refusing to tally: voter-weighted voting is enabled while these \
+                 areas still carry their own weight in the published ballots, \
+                 which would multiply the two: {}. Set the weighted voting \
+                 policy back to areas-weighted voting to make the weight \
+                 editable, clear it on these areas, set the policy to \
+                 voters-weighted voting again, and republish the ballots",
+                weighted.join(", ")
+            )
+            .into());
+        }
+
+        // Same reasoning as the area weight: the counting algorithm is read
+        // from the published ballot styles at tally time, so a contest switched
+        // to another algorithm and republished after the session was created
+        // would otherwise reach the tally with duplicated ballots.
+        let mut unsupported: Vec<String> = Vec::new();
+        for contest in published_ballot_styles
+            .iter()
+            .flat_map(|ballot_style| ballot_style.contests.iter())
+        {
+            if contest.get_counting_algorithm() != CountingAlgType::PluralityAtLarge
+                && !unsupported.contains(&contest.id)
+            {
+                unsupported.push(contest.id.clone());
+            }
+        }
+        if !unsupported.is_empty() {
+            return Err(anyhow!(
+                "Refusing to tally: voter-weighted voting only supports the \
+                 plurality-at-large counting algorithm, and these contests in \
+                 the published ballots use another one: {}",
+                unsupported.join(", ")
+            )
+            .into());
+        }
+    }
 
     let new_ballots_messages = upsert_ballots_messages(
         hasura_transaction,
