@@ -13,17 +13,34 @@ clicked in the booth UI through to tally-time decoding.
 
 ## Overview
 
-Vote validation uses a **single source of truth**: the Rust checker functions
-in [`sequent-core/src/ballot_codec/checker.rs`](../../sequent-core/src/ballot_codec/checker.rs).
-These run both in the voting booth (via WASM, for real-time feedback) and
-during tally (via native Rust, when decoding decrypted ballots). This
-guarantees that the booth and tally always agree on what constitutes a valid
-vote.
+The checker functions in
+[`sequent-core/src/ballot_codec/checker.rs`](../../sequent-core/src/ballot_codec/checker.rs)
+are a **shared component**: they run both in the voting booth (via WASM, for
+real-time feedback) and during tally (via native Rust, when decoding decrypted
+ballots). Booth and tally are therefore guaranteed to agree on **checker
+output** — the `invalid_errors` / `invalid_alerts` a given selection produces.
 
-The booth does **not** re-implement validation in TypeScript. Instead, it
-performs an encode→decode round-trip through the same WASM codec that will
-later process the ballot during tally. The decode step invokes the checkers
-and returns structured error/alert lists that the UI renders.
+They are *not* the whole truth about what a ballot ultimately is. Three other
+sites carry validation semantics of their own:
+
+- **Tally classification** lives in
+  `velvet-core/src/counting/extended_metrics.rs::classify_ballot` (upstream:
+  inline in velvet's `do_tally`), which consumes checker output via
+  `is_invalid()` but adds rules checker.rs knows nothing about — the
+  decline-to-vote precedence, the explicit/implicit blank split, and the
+  marker-mix rule (see "Tally-Time Classification" below).
+- **The marker exclusivity rule** lives in the booth's `ballotSelections`
+  reducer (TypeScript): selecting a regular candidate clears an
+  explicit-blank marker selection and vice versa, so the mixed state is
+  *prevented* in the booth rather than validated.
+- **Error visibility** is decided in `InvalidErrorsList.tsx`'s
+  `filterErrorList` (TypeScript) — what the voter *sees* is a UI-layer
+  decision on top of checker output.
+
+For validation proper the booth does not re-implement logic in TypeScript:
+it performs an encode→decode round-trip through the same WASM codec that
+will later process the ballot during tally, and the decode step invokes the
+checkers and returns structured error/alert lists that the UI renders.
 
 ---
 
@@ -151,6 +168,17 @@ ballots always travel the `raw_ballot::decode` path. This is why
 `check_duplicated_rank_policy` and `check_preference_gaps_policy` only exist
 in the raw_ballot path.
 
+**Decline-to-vote is a multi-ballot-only wire feature.** When the election's
+`decline_to_vote_policy == ENABLED`, the multi-ballot mixed-radix layout
+gains a **ballot-level decline bit** (omitted when disabled, for backwards
+compatibility with existing elections — see
+`multi_ballot.rs::decline_to_vote_enabled`). The single-contest path never
+carries it: `raw_ballot::decode` hardcodes `is_decline_to_vote: false`. Two
+consequences: the wire format of a multi-contest ballot depends on an
+election-level policy (a booth/tally version-skew hazard if the two sides
+disagree about the policy), and declined ballots can only originate from
+multi-contest encodings.
+
 ---
 
 ## Numeric Parameters
@@ -163,7 +191,7 @@ Three contest-level integers drive the validation thresholds:
 - **Semantics**: Minimum number of selections the voter must make for the
   ballot to be valid. If `num_selected < min_votes`, the checker produces an
   error (hard block, always — regardless of policy).
-- **Checker**: [`check_min_vote_policy`](../../sequent-core/src/ballot_codec/checker.rs#L80)
+- **Checker**: [`check_min_vote_policy`](../../sequent-core/src/ballot_codec/checker.rs#L130)
 - **Interaction**: Interacts with `BlankVotePolicy` (blank = 0 selections)
   and `UnderVotePolicy` (under = between min_votes and max_votes).
 
@@ -172,7 +200,7 @@ Three contest-level integers drive the validation thresholds:
 - **Type**: `Contest.max_votes: i64`
 - **Semantics**: Maximum number of selections allowed. Behavior when
   exceeded depends on `OverVotePolicy`.
-- **Checker**: [`check_over_vote_policy`](../../sequent-core/src/ballot_codec/checker.rs#L137)
+- **Checker**: [`check_over_vote_policy`](../../sequent-core/src/ballot_codec/checker.rs#L187)
 - **Encoding impact**: For preferential contests, the encoding base =
   `max_votes + 1` ([`bases.rs`](../../sequent-core/src/ballot_codec/bases.rs#L23)).
   For plurality, base = 2 (selected/not-selected per candidate).
@@ -188,13 +216,52 @@ Three contest-level integers drive the validation thresholds:
   **not** by the booth-side validation checkers. Does not affect whether a
   voter's selection is valid.
 
-### Sanity check
+### Sanity checks (configuration-level)
 
-[`check_max_min_votes_policy`](../../sequent-core/src/ballot_codec/checker.rs#L37)
+[`check_max_min_votes_policy`](../../sequent-core/src/ballot_codec/checker.rs#L87)
 validates that `max_votes` and `min_votes` are convertible to `usize`
 (non-negative, within bounds). This is a configuration-level check, not a
 voter-action check — it fires first and short-circuits if the contest config
 itself is malformed.
+
+There is now a second configuration-level checker:
+[`check_contest_configuration`](../../sequent-core/src/ballot_codec/checker.rs#L37)
+(wrapped as `validate_contest_configuration` in
+[`contest_context.rs`](../../sequent-core/src/ballot_codec/contest_context.rs)),
+which rejects a contest that defines **more than one explicit-blank marker
+candidate** (and mirrors the same rule for explicit-invalid markers). It runs
+when the codec context is constructed, so a malformed contest fails before
+any ballot is encoded or decoded. "Config rejected" is thus a distinct
+outcome class that exists before any per-ballot validation.
+
+### Selection counting and marker candidates
+
+The decode path computes **two different selection counts**, and which rules
+use which is load-bearing
+([`raw_ballot.rs#L382-L405`](../../sequent-core/src/ballot_codec/raw_ballot.rs#L382)):
+
+- `num_selected_candidates` — selections **excluding** explicit-blank marker
+  candidates.
+- `num_selected_with_markers` — that count **plus one** for a selected
+  explicit-invalid flag **plus one** for a selected explicit-blank marker.
+
+The min-vote, over-vote, under-vote and blank-vote rules all use the
+**marker-inclusive** count. Consequences worth internalising:
+
+- An explicit-blank marker selected alone **satisfies `min_votes: 1`** and
+  prevents the blank checker from firing — at the booth, an explicit blank
+  is *not* a blank ballot. (At tally it classifies as `ExplicitBlank`.)
+- A marker plus `max_votes` regular candidates trips the over-vote checker.
+- The encoding itself carries the markers as leading flag slots:
+  `choices[0]` is the explicit-invalid flag, and — **only when the contest
+  defines an explicit-blank candidate** — `choices[1]` is the explicit-blank
+  flag. The wire layout of a contest therefore depends on its candidate
+  configuration.
+
+The submission gates compute their own marker-inclusive count
+(`selections_with_markers` in `voting_screen.rs`) with a guard against
+double-counting a marker that is already present in the decoded choices —
+see "Submission Gating Detail" below.
 
 ---
 
@@ -244,7 +311,10 @@ This policy has a **dual role** that makes it the most complex policy:
 - **Explicit invalid**: The voter selected a candidate with
   `is_explicit_invalid: true` in the election config. This is a deliberate
   opt-in — a "null vote" button. The flag is encoded as the first element
-  of the choices array (`choices[0] = 1`).
+  of the choices array (`choices[0] = 1`). Since the explicit-blank feature
+  (#2842), a contest that defines an explicit-blank marker candidate gets a
+  second flag slot (`choices[1]`) for the blank marker — see "Selection
+  counting and marker candidates" above.
 - **Implicit invalid**: The ballot violates structural rules (overvote,
   undervote, blank, rank issues) without the voter explicitly opting into
   invalidity. All other checker errors are tagged
@@ -269,18 +339,23 @@ difference is entirely in the UI filter and submission gating.
 When `InvalidVotePolicy == ALLOWED`, the `filterErrorList` function
 **suppresses `invalid_errors`** from all other checkers, with two exceptions:
 
-- `errors.implicit.selectedMax` survives if `OverVotePolicy` is a
-  `NOT_ALLOWED*` variant.
+- `errors.implicit.selectedMax` survives whenever `OverVotePolicy` is
+  anything **other than `ALLOWED`** — i.e. under four of the five variants,
+  *including the default* `ALLOWED_WITH_MSG_AND_ALERT`. (An earlier revision
+  of this document claimed it survived only under `NOT_ALLOWED*` variants;
+  the code condition is `over_vote_policy !== ALLOWED`.)
 - `errors.implicit.blankVote` survives if `BlankVotePolicy` is `NOT_ALLOWED`.
 
 When the policy is anything else (`WARN`, `WARN_INVALID_IMPLICIT_AND_EXPLICIT`,
 or `NOT_ALLOWED`), the UI filter does **not** suppress — all `invalid_errors`
 are shown.
 
-This means `ALLOWED` effectively says: "don't bother showing the voter
-structural error messages" while `WARN` says: "show all structural error
-messages" (even though neither produces its own checker output for explicit
-invalid).
+This means `ALLOWED` says approximately: "don't show the voter structural
+error messages" — but under a **default-configured** contest the overvote
+error still shows (because the default overvote policy is not `ALLOWED`),
+so the suppression is total only when `over_vote_policy == ALLOWED` too.
+`WARN` says: "show all structural error messages" (even though neither
+produces its own checker output for explicit invalid).
 
 #### Submission gating behavior
 
@@ -295,7 +370,7 @@ In `check_voting_error_dialog_util` (soft warn):
 - Additionally: if `WARN_INVALID_IMPLICIT_AND_EXPLICIT` AND
   `is_explicit_invalid` → show dialog (even without other errors).
 
-**Checker**: [`check_invalid_vote_policy`](../../sequent-core/src/ballot_codec/checker.rs#L281)
+**Checker**: [`check_invalid_vote_policy`](../../sequent-core/src/ballot_codec/checker.rs#L331)
 
 **UI surface**: [`InvalidErrorsList.tsx`](../../voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx)
 reads the policy to filter errors from all checkers before rendering.
@@ -317,7 +392,7 @@ reads the policy to filter errors from all checkers before rendering.
 | `NOT_ALLOWED_WITH_MSG_AND_ALERT` | Error generated; alert message shown; **hard block** on submission. |
 | `NOT_ALLOWED_WITH_MSG_AND_DISABLE` | Error generated; alert message shown; **UI disables checkboxes** at max. |
 
-**Checker**: [`check_over_vote_policy`](../../sequent-core/src/ballot_codec/checker.rs#L137)
+**Checker**: [`check_over_vote_policy`](../../sequent-core/src/ballot_codec/checker.rs#L187)
 
 **Critical implementation detail**: When `num_selected > max_votes`, the
 checker **always** pushes an entry to `invalid_errors` — regardless of the
@@ -362,7 +437,7 @@ from occurring.
 | `WARN_ONLY_IN_REVIEW` | Alert pushed to `invalid_alerts`; UI filters it out unless in review mode. |
 | `WARN_AND_ALERT` | Alert pushed to `invalid_alerts`; additionally triggers submission dialog. |
 
-**Checker**: [`check_under_vote_policy`](../../sequent-core/src/ballot_codec/checker.rs#L197)
+**Checker**: [`check_under_vote_policy`](../../sequent-core/src/ballot_codec/checker.rs#L247)
 
 **Critical detail**: This checker only pushes to `invalid_alerts`, **never**
 to `invalid_errors`. Under-vote is always a soft warning — it can never
@@ -377,8 +452,13 @@ error pushed to `invalid_errors`, regardless of UnderVotePolicy — handled by
 
 ### 4. BlankVotePolicy
 
-**What it checks**: Whether the voter selected **zero** candidates (blank
-ballot) AND did NOT select the explicit-invalid candidate.
+**What it checks**: Whether the marker-inclusive selection count
+(`num_selected_with_markers` — see "Selection counting and marker
+candidates") is **zero** AND the voter did NOT select the explicit-invalid
+candidate. Because markers count as selections, choosing an explicit-blank
+marker means the ballot is **not** blank for this checker — it satisfies
+`min_votes` and skips the blank policy entirely; the tally later classifies
+it as `ExplicitBlank`.
 
 **Enum**: `EBlankVotePolicy` — 4 variants
 
@@ -389,7 +469,7 @@ ballot) AND did NOT select the explicit-invalid candidate.
 | `WARN_ONLY_IN_REVIEW` | Alert pushed to `invalid_alerts`; UI filters it out unless in review mode. |
 | `NOT_ALLOWED` | Error pushed to `invalid_errors`; hard-blocks submission. |
 
-**Checker**: [`check_blank_vote_policy`](../../sequent-core/src/ballot_codec/checker.rs#L103)
+**Checker**: [`check_blank_vote_policy`](../../sequent-core/src/ballot_codec/checker.rs#L153)
 
 **Important**: The checker is gated on `!is_explicit_invalid`. If the voter
 selected the explicit-invalid candidate, the ballot is not considered "blank"
@@ -409,7 +489,7 @@ candidates in a preferential (IRV / Borda) contest.
 | `ALLOWED_WARN_AND_DIALOG` (default) | Error pushed to `invalid_errors`; triggers soft-warn dialog. |
 | `NOT_ALLOWED_WARN_AND_DIALOG` | Error pushed to `invalid_errors`; triggers hard-block dialog. |
 
-**Checker**: [`check_duplicated_rank_policy`](../../sequent-core/src/ballot_codec/checker.rs#L235)
+**Checker**: [`check_duplicated_rank_policy`](../../sequent-core/src/ballot_codec/checker.rs#L285)
 
 **Critical detail**: Both variants produce **identical checker output** — an
 `invalid_errors` entry is always pushed. The difference is solely in which
@@ -437,7 +517,7 @@ rank 1, rank 3, skipping rank 2).
 | `ALLOWED_WARN_AND_DIALOG` (default) | Error pushed to `invalid_errors`; triggers soft-warn dialog. |
 | `NOT_ALLOWED_WARN_AND_DIALOG` | Error pushed to `invalid_errors`; triggers hard-block dialog. |
 
-**Checker**: [`check_preference_gaps_policy`](../../sequent-core/src/ballot_codec/checker.rs#L258)
+**Checker**: [`check_preference_gaps_policy`](../../sequent-core/src/ballot_codec/checker.rs#L308)
 
 **Critical detail**: Same pattern as DuplicatedRankPolicy — both variants
 produce identical checker output (`invalid_errors` entry). The variant only
@@ -495,8 +575,9 @@ Before rendering, `InvalidErrorsList.tsx` applies a multi-step filter:
 
 4. **InvalidVotePolicy master filter** — when
    `invalid_vote_policy == ALLOWED`, removes ALL `invalid_errors` **except**:
-   - `errors.implicit.selectedMax` when `over_vote_policy` is a
-     `NOT_ALLOWED*` variant.
+   - `errors.implicit.selectedMax` when `over_vote_policy != ALLOWED`
+     (four of five variants, including the default
+     `ALLOWED_WITH_MSG_AND_ALERT`).
    - `errors.implicit.blankVote` when `blank_vote_policy == NOT_ALLOWED`.
 
 5. **Render** — remaining `invalid_errors` render as
@@ -558,13 +639,23 @@ The dialog rendered depends on `disableNextButton()`:
 
 ### `choices_selected` calculation
 
-Both gate functions count selected choices as:
+Both gate functions start from a raw count of selected choices:
 ```rust
 choices.iter().filter(|choice| choice.selected == 0).count()
 ```
 
+and then compute the count the conditions actually use,
+`selections_with_markers`: the raw count **plus one** when
+`decoded_contest.is_explicit_invalid` is set *and* the explicit-invalid
+marker candidate is not already present among the decoded choices. The
+guard prevents double-counting: in single-contest encodings the invalid
+flag travels separately from the choices, while marker candidates that
+appear *as choices* are already in the raw count. The blank/overvote
+gating rows in the tables above all compare `selections_with_markers`,
+mirroring the decode-side `num_selected_with_markers` semantics.
+
 For **plurality**, `selected = 0` means "chosen" and `selected = -1` means
-"not chosen" — so this correctly counts selections.
+"not chosen" — so the raw count correctly counts selections.
 
 For **preferential**, `selected` encodes the rank (0 = rank 1, 1 = rank 2,
 etc.). The `== 0` filter only counts candidates at rank 1. In practice this
@@ -583,11 +674,57 @@ voter is currently on page 3.
 
 ---
 
+## Tally-Time Classification
+
+Everything above describes booth-time behaviour. At tally, each decoded
+ballot is classified into exactly one of **six** classes by
+`classify_ballot`
+([`velvet-core/src/counting/extended_metrics.rs`](../velvet-core/src/counting/extended_metrics.rs);
+upstream this logic lives inline in velvet's `do_tally`). The precedence
+order is part of the specification:
+
+```
+1. is_decline_to_vote:  blank ballot        → Declined
+                        anything selected   → ImplicitInvalid
+2. is_invalid()  (= is_explicit_invalid || any invalid_errors):
+                        explicit flag set   → ExplicitInvalid
+                        otherwise           → ImplicitInvalid
+3. explicit-blank marker selected:
+                        + regular selection → ImplicitInvalid  (mix rule)
+                        alone               → ExplicitBlank
+4. nothing selected                         → ImplicitBlank
+5. otherwise                                → Valid
+```
+
+Aggregation facts that follow from the class, and are easy to get wrong:
+
+- **Blank ballots (both kinds) count toward `total_valid_votes`** — they are
+  valid ballots that name no candidate. Declined ballots are **excluded**
+  from the valid total (accumulated in
+  `extended_metrics.total_declined_to_vote`).
+- The explicit/implicit splits surface as `blank_votes.{explicit,implicit}`
+  and `invalid_votes.{explicit,implicit}` on `ContestResult`.
+- Because `is_invalid()` includes *any* checker error, an overvote that the
+  booth allowed through (soft-warn dismissed) is `ImplicitInvalid` here —
+  the same class as the marker-mix rule, reached by a different route.
+
+Note the classifier runs on **decoded** ballots: the checkers populate
+`invalid_errors` during tally-side decode exactly as they do in the booth,
+and the classifier consumes that plus the marker/decline structure. This is
+the precise sense in which booth and tally share logic — the checkers — and
+the precise sense in which they do not: steps 1, 3 and 4 above exist only
+here.
+
+---
+
 ## Key Source Files
 
 | File | Role |
 |------|------|
-| [`sequent-core/src/ballot_codec/checker.rs`](../../sequent-core/src/ballot_codec/checker.rs) | All 8 checker functions (single source of truth) |
+| [`sequent-core/src/ballot_codec/checker.rs`](../../sequent-core/src/ballot_codec/checker.rs) | All 9 checker functions (8 decode-time + `check_contest_configuration`); shared by booth and tally |
+| [`sequent-core/src/ballot_codec/contest_context.rs`](../../sequent-core/src/ballot_codec/contest_context.rs) | Codec context: config validation, marker-candidate discovery, base layout (`single_contest_bases`) |
+| [`velvet-core/src/counting/extended_metrics.rs`](../velvet-core/src/counting/extended_metrics.rs) | `classify_ballot` — tally-time six-class classification (see above) |
+| [`voting-portal/src/store/ballotSelections/ballotSelectionsSlice.ts`](../../voting-portal/src/store/ballotSelections/ballotSelectionsSlice.ts) | Marker exclusivity reducer — prevents blank-marker + regular-candidate co-selection in the booth |
 | [`sequent-core/src/ballot_codec/raw_ballot.rs`](../../sequent-core/src/ballot_codec/raw_ballot.rs) | Single-contest decode; invokes all 8 checkers |
 | [`sequent-core/src/ballot_codec/multi_ballot.rs`](../../sequent-core/src/ballot_codec/multi_ballot.rs) | Multi-contest decode; invokes first 6 checkers (plurality only) |
 | [`sequent-core/src/util/voting_screen.rs`](../../sequent-core/src/util/voting_screen.rs) | Submission gating logic (hard block vs soft warn) |
@@ -623,9 +760,19 @@ voter is currently on page 3.
                                                     (configurable)
 ```
 
+**`num_selected` in this chart is the marker-inclusive count**
+(`num_selected_with_markers`): a selected explicit-blank or
+explicit-invalid marker counts as a selection, so "0" means *nothing at
+all* was chosen — not merely no regular candidate.
+
 For preferential contests, two additional checks apply regardless of count:
 - **Duplicate ranks** → DuplicatedRankPolicy
 - **Gaps in ranking** → PreferenceGapsPolicy
 
 And across all contest types:
 - **Invalid candidate selected** → InvalidVotePolicy
+- **Blank marker selected** → not a policy check at the booth (it counts as
+  a selection); classified `ExplicitBlank` (or `ImplicitInvalid` when mixed)
+  at tally
+- **Declined to vote** (election-level, multi-ballot only) → no checker;
+  classified `Declined` (or `ImplicitInvalid` if non-empty) at tally

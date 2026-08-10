@@ -18,7 +18,9 @@ focuses on the *specification* layer rather than the *implementation* layer.
 ## 1. Observable Effects Taxonomy
 
 Every (voter-state × contest-configuration × observation-context) tuple
-produces exactly one **observable effect** drawn from the following closed set.
+produces one **observable effect per surface**, drawn from the following
+closed set — see the per-surface refinement at the end of this section for
+why "exactly one effect" holds per surface rather than per tuple.
 
 ### Casting-time effects (booth UI)
 
@@ -32,11 +34,29 @@ produces exactly one **observable effect** drawn from the following closed set.
 
 ### Tally-time effects
 
-| # | Effect | Description |
-|---|--------|-------------|
-| 2a | Vote counted normally | Contributes to candidate tallies |
-| 2b | Vote classified explicit-invalid | Counted in `explicit_invalid_votes` |
-| 2c | Vote classified implicit-invalid | Counted in `implicit_invalid_votes` |
+The tally effect is the ballot's **class** — one of six, assigned by
+`classify_ballot`
+([`velvet-core/src/counting/extended_metrics.rs`](../velvet-core/src/counting/extended_metrics.rs))
+with a strict precedence (decline → invalid → blank-marker → implicit-blank
+→ valid; see VOTE_VALIDATION.md "Tally-Time Classification" for the exact
+rules, including that a non-empty declined ballot and a marker-mixed ballot
+both land in `ImplicitInvalid`):
+
+| # | Class | Aggregation consequence |
+|---|-------|-------------------------|
+| 2a | `Valid` | Contributes to candidate tallies; counts in `total_valid_votes` |
+| 2b | `ExplicitInvalid` | `invalid_votes.explicit`; excluded from valid |
+| 2c | `ImplicitInvalid` | `invalid_votes.implicit`; excluded from valid |
+| 2d | `ExplicitBlank` | `blank_votes.explicit`; **counts in `total_valid_votes`** |
+| 2e | `ImplicitBlank` | `blank_votes.implicit`; **counts in `total_valid_votes`** |
+| 2f | `Declined` | `total_declined_to_vote`; **excluded from `total_valid_votes`** |
+
+Note the aggregation column: "valid" and "contributes to candidate tallies"
+are distinct observables (blanks are valid but contribute to no candidate),
+and the blank/declined distinction is precisely a disagreement about the
+valid total. An earlier revision of this document had a three-class
+taxonomy; the 2026-08 merge (explicit blanks #2842, decline-to-vote #2687)
+made that obsolete.
 
 **Key principle:** Effects are *atomic observables*. Timing and location are
 part of the *input space*, not the effect taxonomy. For example,
@@ -48,6 +68,20 @@ mapped from a different observation point:
 (undervote, WARN_ONLY_IN_REVIEW, on_review)        → 1a (inline message)
 ```
 
+**Refinement — casting effects are per-surface, not exclusive.** A single
+input tuple can legitimately produce an inline message (1a) *and* a dialog
+(1b/1c) *and* an input constraint (1d) simultaneously — e.g. an overvote
+under `NOT_ALLOWED_WITH_MSG_AND_ALERT` shows inline text during voting and
+a hard dialog on transition. "Exactly one effect" holds only per surface.
+The casting codomain is therefore a product:
+
+```
+CastingEffect = (inline: Set<Message>, gate: {none | dismissible | blocking},
+                 constraint: {none | inputs_disabled})
+```
+
+The tally codomain *is* single-valued: exactly one class per ballot.
+
 ---
 
 ## 2. Input Space Dimensions
@@ -58,22 +92,32 @@ mapped from a different observation point:
 |-----------|--------|
 | `min_votes` | ℕ |
 | `max_votes` | ℕ (≥ min_votes) |
-| `invalid_vote_policy` | {ALLOWED, WARN, WARN_IMPLICIT_AND_EXPLICIT, NOT_ALLOWED} |
+| `invalid_vote_policy` | {ALLOWED, WARN, WARN_INVALID_IMPLICIT_AND_EXPLICIT, NOT_ALLOWED} |
 | `over_vote_policy` | {ALLOWED, ALLOWED_WITH_MSG, ALLOWED_WITH_MSG_AND_ALERT, NOT_ALLOWED_WITH_MSG_AND_ALERT, NOT_ALLOWED_WITH_MSG_AND_DISABLE} |
 | `under_vote_policy` | {ALLOWED, WARN, WARN_ONLY_IN_REVIEW, WARN_AND_ALERT} |
 | `blank_vote_policy` | {ALLOWED, WARN, WARN_ONLY_IN_REVIEW, NOT_ALLOWED} |
 | `duplicated_rank_policy` | {ALLOWED_WARN_AND_DIALOG, NOT_ALLOWED_WARN_AND_DIALOG} |
 | `preference_gaps_policy` | {ALLOWED_WARN_AND_DIALOG, NOT_ALLOWED_WARN_AND_DIALOG} |
 | `counting_algorithm` | {Plurality, Preferential} (simplified) |
+| `has_explicit_invalid_candidate` | {true, false} — marker presence is a **precondition**: without it `is_explicit_invalid` is unreachable from the booth |
+| `has_explicit_blank_candidate` | {true, false} — same precondition role for the blank dimensions; also changes the wire layout (adds the `choices[1]` flag slot) |
+| `decline_to_vote_policy` | {DISABLED, ENABLED} — election-level; ENABLED adds the decline bit to the multi-ballot layout |
+
+Configuration validity is itself an input class: `check_contest_configuration`
+rejects a contest with more than one explicit-blank marker, producing a
+"config rejected" outcome before any per-ballot rule runs.
 
 ### Vote state (dynamic, per voter action)
 
 | Dimension | Domain |
 |-----------|--------|
-| `num_selected_class` | {0, (0..min), [min..max), max, (max..∞)} — 5 equivalence classes |
+| `num_selected_class` | {0, (0..min), [min..max), max, (max..∞)} — 5 equivalence classes over the **marker-inclusive** count (`num_selected_with_markers`): a selected marker counts as a selection, so an explicit-blank marker alone is in class `[min..max)` for `min_votes: 1`, not class 0 |
 | `is_explicit_invalid` | {true, false} |
+| `is_explicit_blank_selected` | {true, false} — and, when true, whether a regular candidate is *also* selected (the mix rule flips the tally class to `ImplicitInvalid`) |
+| `is_decline_to_vote` | {true, false} — multi-ballot only; interacts with emptiness (declined + non-empty → `ImplicitInvalid`) |
 | `has_duplicate_ranks` | {true, false} (preferential only) |
 | `has_rank_gaps` | {true, false} (preferential only) |
+| `has_encoding_error` | {true, false} — write-in corruption / capacity overflow; the hard gate's first condition fires on `EncodingError`, which no combination of the other dimensions can express |
 
 ### Observation context
 
@@ -84,13 +128,35 @@ mapped from a different observation point:
 
 ### Combinatorial size
 
-Worst-case: 4 × 5 × 4 × 4 × 2 × 2 × 2 (policies) × 5 (num_selected) ×
-2 (explicit_invalid) × 2 (dup_ranks) × 2 (gaps) × 2 (review) × 2 (touched)
-× 2 (action) ≈ **40,960 cells**.
+The naive worst-case product is large and not the useful number. (An earlier
+revision stated ≈40,960; the factors it listed actually multiply to ≈819,200,
+and the post-merge dimensions above grow it further — the config side alone
+is 4·5·4·4·2·2·2·2·2·2 = 40,960 combinations before the vote-state and
+context factors.)
 
-Most are redundant (preferential-only flags don't apply to plurality,
-`num_selected_class > max` is unreachable under `NOT_ALLOWED_WITH_MSG_AND_DISABLE`,
-etc.). The *effective* space is tractable for exhaustive enumeration.
+The useful observation is that the mapping **decomposes**: each rule reads
+at most three dimensions (its own policy, one or two vote-state fields, and
+the observation point), so the table factors into per-rule slices of a few
+dozen cells each, plus the classifier's six-class decision table over
+(decline, invalid, blank-marker, emptiness). Exhaustive enumeration is
+tractable *per rule*; the full cross-product never needs to be materialised.
+Cross-rule interactions that do exist (the blank checker's dependence on
+`is_explicit_invalid`, the master filter's dependence on three policies at
+once, the mix rule) are exactly the cells worth enumerating jointly — and
+there are few of them.
+
+Two pruning cautions:
+
+- **Do not prune "unreachable" cells.** `num_selected > max` under
+  `NOT_ALLOWED_WITH_MSG_AND_DISABLE` looks unreachable, but that is
+  *prevention* — UI-enforced, hence fragile. Upstream bug `fdc7f92db5`
+  ("decline-to-vote with overvote-disable still allows selecting an
+  additional candidate") is a recent, real instance of a prevented state
+  being reached. The checkers validate these states as defense-in-depth;
+  the specification must define their effects too.
+- Preferential-only flags genuinely don't apply to plurality (the codec
+  never evaluates them) — that pruning is structural, not preventive, and
+  is safe.
 
 ---
 
@@ -104,12 +170,18 @@ f(config, vote_state, observation_context) → Effect
 
 Today this function is *implicitly* encoded across multiple code paths:
 
-- `checker.rs` (8 checker functions producing errors/alerts)
-- `voting_screen.rs` (gating utilities computing "can proceed?")
-- `InvalidErrorsList.tsx` (filtering errors by `isReview`)
+- `checker.rs` (9 checker functions producing errors/alerts — 8 decode-time
+  plus the config-level `check_contest_configuration`)
+- `voting_screen.rs` (gating utilities computing "can proceed?", with their
+  own marker-inclusive selection count)
+- `InvalidErrorsList.tsx` (filtering errors by `isReview` and by the
+  `InvalidVotePolicy` master filter)
 - `Question.tsx` (disabling inputs based on policy)
 - `VotingScreen.tsx` (wiring gate results to dialog/button state)
-- Tally aggregation (classifying decoded ballots)
+- `ballotSelectionsSlice.ts` (the marker exclusivity rule — prevention
+  implemented in a Redux reducer)
+- `velvet-core/src/counting/extended_metrics.rs::classify_ballot` (tally
+  classification — **already declarative**; see §5.2)
 
 A **declarative specification** would make this function explicit: a table
 (or set of rules) that, given the input tuple, returns the effect. The
@@ -141,14 +213,18 @@ This is by design — the policies control *enforcement strictness*, not
 
 - `OverVotePolicy::ALLOWED_WITH_MSG_AND_ALERT` → voter CAN cast an overvote
   (after dismissing dialog) → at tally, vote is classified implicit-invalid.
-- `InvalidVotePolicy::ALLOWED` → voter sees NO warnings → at tally, errors
-  still present → vote classified implicit-invalid.
+- `InvalidVotePolicy::ALLOWED` **+ `OverVotePolicy::ALLOWED`** → voter sees
+  NO warnings → at tally, errors still present → vote classified
+  implicit-invalid. (Both policies must be fully permissive for total
+  silence: under the *default* overvote policy the master filter still lets
+  the overvote error through — see VOTE_VALIDATION.md, "UI filter behavior".)
 
-This raises a design question: if a voter receives zero indication (1e) that
-their vote will be invalid at tally (2c), is that intentional? The answer
-depends on whether "ALLOWED" means "allowed to be cast" or "counted as valid."
-Current code: it means "allowed to be cast" — the tally classifies
-independently.
+The silent-cell combination is therefore narrower than an earlier revision
+of this document claimed, but it exists, and the design question stands: if
+a voter receives zero indication (1e) that their vote will be invalid at
+tally (2c), is that intentional? The answer depends on whether "ALLOWED"
+means "allowed to be cast" or "counted as valid." Current code: it means
+"allowed to be cast" — the tally classifies independently.
 
 ### 4.3 `InvalidVotePolicy` conflates three concerns
 
@@ -158,7 +234,7 @@ From first principles, these are independent controls:
 2. "Show structural error messages to voter?" (visibility enum)
 3. "Block submission on structural errors?" (strictness enum)
 
-Packing them into a single enum (ALLOWED / WARN / WARN_IMPLICIT_AND_EXPLICIT /
+Packing them into a single enum (ALLOWED / WARN / WARN_INVALID_IMPLICIT_AND_EXPLICIT /
 NOT_ALLOWED) creates non-orthogonal combinations. You cannot configure
 "show errors but don't block" + "explicit-invalid allowed" without
 choosing WARN, which doesn't warn about explicit-invalid at the checker level.
@@ -185,7 +261,9 @@ whose position they cannot move.
 ### 5.1 Goals
 
 1. **Single artifact** that both booth and tally consult (today: checker.rs
-   is shared, but UI gating/filtering logic is separate TypeScript).
+   and the gate utilities are shared Rust, but error *visibility* is
+   TypeScript (`filterErrorList`), the marker exclusivity rule is a Redux
+   reducer, and the tally classifier lives in a different crate).
 2. **Exhaustive, inspectable mapping** — every cell of the input space has
    a declared effect, verifiable by enumeration.
 3. **Reduced accidental complexity** — no `filterErrorList` / `isReview`
@@ -217,10 +295,28 @@ fn casting_effect(
 }
 
 /// Tally-time classification — depends only on config + vote_state.
-fn tally_effect(config: &ContestConfig, vote: &VoteState) -> TallyEffect {
-    if vote.is_explicit_invalid { return TallyEffect::ExplicitInvalid }
-    if vote.has_errors(config)  { return TallyEffect::ImplicitInvalid }
-    TallyEffect::CountedNormally
+///
+/// THIS FUNCTION NOW EXISTS. The 2026-08 merge shipped it as
+/// `classify_ballot` in velvet-core/src/counting/extended_metrics.rs —
+/// a pure function over (decline, invalid, blank-marker, emptiness) with
+/// exactly the shape sketched here, unit-tested upstream. The tally half
+/// of this distillation is therefore already implemented; what remains is
+/// the casting half. Actual shape (abridged):
+fn classify_ballot(vote: &DecodedVoteContest, blank_ids: &HashSet<String>)
+    -> BallotClass
+{
+    if vote.is_decline_to_vote() {
+        if vote.is_blank() { Declined } else { ImplicitInvalid }
+    } else if vote.is_invalid() {
+        if vote.is_explicit_invalid { ExplicitInvalid } else { ImplicitInvalid }
+    } else {
+        match (has_explicit_blank, has_regular_selection) {
+            (true, true)  => ImplicitInvalid,   // mix rule
+            (true, false) => ExplicitBlank,
+            _ if vote.is_blank() => ImplicitBlank,
+            _ => Valid,
+        }
+    }
 }
 ```
 
@@ -245,18 +341,35 @@ switch (effect) {
 
 This is not a rewrite proposal. The path is incremental:
 
-1. **Enumerate the current mapping** — write a test that exercises every
-   reachable cell of the input space through the existing code and records
-   the observed effect. This becomes the ground-truth table.
-2. **Express the table declaratively** — either as a Rust match expression
-   or as a data structure the workbench can load and visualize.
-3. **Verify equivalence** — the declarative version must produce identical
-   outputs to the recorded table for every cell.
-4. **Optionally refactor** — once the declarative version is proven
+1. **Enumerate the current mapping** — exercise every cell of the input
+   space through the existing code and record the observed effects. Include
+   the *prevention-guarded* cells (see the pruning caution in §2) and the
+   decode-error cells. Most of this needs no UI: the checkers and both gate
+   functions are already WASM exports (and `voting_screen.rs` even ships a
+   `get_contest_plurality` fixture builder), and `classify_ballot` is
+   natively unit-testable in velvet-core. The only layer that resists
+   headless enumeration is `filterErrorList`, which is component-internal
+   TypeScript.
+2. **Distinguish the two tables.** The recording in step 1 is a
+   **characterization** — a description of what the code does, bugs
+   included (`fdc7f92db5` is a recent example of a bug that enumeration
+   would have faithfully frozen). The **specification** is the blessed
+   table: the characterization after a human review pass in which every
+   surprising cell is either signed off or filed as a bug. The
+   *disagreements between the two tables are the most valuable output of
+   the whole exercise* — do not reconcile them silently.
+3. **Express the blessed table declaratively** — either as a Rust match
+   expression or as a data structure the workbench can load and visualize.
+4. **Verify equivalence** — the declarative version must produce identical
+   outputs to the blessed table for every cell; property-test it against
+   the live implementation and treat divergences as regressions (or newly
+   discovered characterization gaps).
+5. **Optionally refactor** — once the declarative version is proven
    equivalent, the scattered imperative code (filter functions, dialog
    utilities, disable-prop wiring) can be replaced by a single interpreter
    that reads the specification. This is optional and can be done
-   incrementally per-checker.
+   incrementally per-checker. The tally side demonstrates the end state:
+   `classify_ballot` already is this artifact for its half of the mapping.
 
 ---
 
@@ -267,5 +380,13 @@ This is not a rewrite proposal. The path is incremental:
   This document describes the *desired specification* that the implementation
   should converge toward.
 - [FIXTURE_VARIANCE.md](./FIXTURE_VARIANCE.md) — identifies which fixture
-  dimensions exercise which code paths. The exhaustive mapping in §2 above
-  subsumes and formalises the variance dimensions relevant to validation.
+  dimensions exercise which code paths, and which combinations currently
+  have bundled-fixture inhabitants. Its §13 (post-merge dimensions: marker
+  candidates, decline-to-vote, tally sheets) fed directly into §2 above.
+  The relationship is complementary, not subsumption: FIXTURE_VARIANCE
+  answers "what data exists / is reachable" (sense 1), this document
+  specifies "what behaviour is correct over that data" (sense 2).
+  Notably, its marker-precondition finding is why §2 carries the
+  `has_explicit_*_candidate` config dimensions: a policy dimension without
+  its marker precondition is untestable no matter how many fixtures set
+  the policy.

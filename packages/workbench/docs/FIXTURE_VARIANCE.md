@@ -211,10 +211,10 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
   - Typical ranges in fixtures: min_votes ∈ {0, 1}, max_votes ∈ {1, 2, 3}, winning_candidates_num ∈ {1}.
 
 - **Branching sites** (Validation):
-  - [`packages/sequent-core/src/ballot_codec/checker.rs:L37`](packages/sequent-core/src/ballot_codec/checker.rs#L37) — `check_max_min_votes_policy()`: validates max/min are convertible to usize; returns error if not.
-  - [`packages/sequent-core/src/ballot_codec/checker.rs:L80`](packages/sequent-core/src/ballot_codec/checker.rs#L80) — `check_min_vote_policy()`: if num_selected < min_votes, error.
-  - [`packages/sequent-core/src/ballot_codec/checker.rs:L137`](packages/sequent-core/src/ballot_codec/checker.rs#L137) — `check_over_vote_policy()`: if num_selected > max_votes, errors; alerts depend on `over_vote_policy`.
-  - [`packages/sequent-core/src/ballot_codec/checker.rs:L197`](packages/sequent-core/src/ballot_codec/checker.rs#L197) — `check_under_vote_policy()`: if num_selected < max_votes (and ≥ min_votes), alert depends on `under_vote_policy`.
+  - [`packages/sequent-core/src/ballot_codec/checker.rs:L37`](packages/sequent-core/src/ballot_codec/checker.rs#L87) — `check_max_min_votes_policy()`: validates max/min are convertible to usize; returns error if not.
+  - [`packages/sequent-core/src/ballot_codec/checker.rs:L80`](packages/sequent-core/src/ballot_codec/checker.rs#L130) — `check_min_vote_policy()`: if num_selected < min_votes, error.
+  - [`packages/sequent-core/src/ballot_codec/checker.rs:L137`](packages/sequent-core/src/ballot_codec/checker.rs#L187) — `check_over_vote_policy()`: if num_selected > max_votes, errors; alerts depend on `over_vote_policy`.
+  - [`packages/sequent-core/src/ballot_codec/checker.rs:L197`](packages/sequent-core/src/ballot_codec/checker.rs#L247) — `check_under_vote_policy()`: if num_selected < max_votes (and ≥ min_votes), alert depends on `under_vote_policy`.
   - Ballot encoding (bases): [`packages/sequent-core/src/ballot_codec/bases.rs:L23`](packages/sequent-core/src/ballot_codec/bases.rs#L23) — base computed as `max_votes + 1` for preferential; dimension of choice space.
   - UI (voting portal): [`packages/voting-portal/src/components/Question/Question.tsx`](packages/voting-portal/src/components/Question/Question.tsx) — contest rendering and validation depend on max/min for checkbox limit enforcement.
 
@@ -303,18 +303,18 @@ The six policies below are the complete set of `ContestPresentation` fields that
 
 | Policy | Checker (`ballot_codec/checker.rs`) | Booth-side gating (encode path) | Tally decode path |
 |---|---|---|---|
-| `InvalidVotePolicy` | [`check_invalid_vote_policy` L281](packages/sequent-core/src/ballot_codec/checker.rs#L281) | [`InvalidErrorsList.tsx` L75 / L158](packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx#L75); [`voting_screen.rs` L121 / L180](packages/sequent-core/src/util/voting_screen.rs#L121) | [`raw_ballot.rs` L343](packages/sequent-core/src/ballot_codec/raw_ballot.rs#L343); [`multi_ballot.rs` L648](packages/sequent-core/src/ballot_codec/multi_ballot.rs#L648) |
-| `EOverVotePolicy` | [`check_over_vote_policy` L137](packages/sequent-core/src/ballot_codec/checker.rs#L137) | [`InvalidErrorsList.tsx` L77 / L161](packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx#L77); [`Question.tsx` L210](packages/voting-portal/src/components/Question/Question.tsx#L210) (`NOT_ALLOWED_WITH_MSG_AND_DISABLE` disables checkboxes) | [`raw_ballot.rs` L359](packages/sequent-core/src/ballot_codec/raw_ballot.rs#L359); [`multi_ballot.rs` L657](packages/sequent-core/src/ballot_codec/multi_ballot.rs#L657) |
-| `EUnderVotePolicy` | [`check_under_vote_policy` L197](packages/sequent-core/src/ballot_codec/checker.rs#L197) | [`InvalidErrorsList.tsx` L71 / L114](packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx#L71); [`voting_screen.rs` L140](packages/sequent-core/src/util/voting_screen.rs#L140) | [`raw_ballot.rs` L372](packages/sequent-core/src/ballot_codec/raw_ballot.rs#L372); [`multi_ballot.rs` L670](packages/sequent-core/src/ballot_codec/multi_ballot.rs#L670) |
-| `EBlankVotePolicy` | [`check_blank_vote_policy` L103](packages/sequent-core/src/ballot_codec/checker.rs#L103) | [`InvalidErrorsList.tsx` L73 / L165](packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx#L73); [`voting_screen.rs` L127](packages/sequent-core/src/util/voting_screen.rs#L127) | [`raw_ballot.rs` L381](packages/sequent-core/src/ballot_codec/raw_ballot.rs#L381); [`multi_ballot.rs` L679](packages/sequent-core/src/ballot_codec/multi_ballot.rs#L679) |
-| `EDuplicatedRankPolicy` (preferential only) | [`check_duplicated_rank_policy` L235](packages/sequent-core/src/ballot_codec/checker.rs#L235) | [`voting_screen.rs` L40 / L88](packages/sequent-core/src/util/voting_screen.rs#L40); default surfaced via [`getDefaultDuplicatedRankPolicy()` in ui-core/wasm.ts L425](packages/ui-core/src/services/wasm.ts#L425) | [`raw_ballot.rs` L401](packages/sequent-core/src/ballot_codec/raw_ballot.rs#L401) (preferential branch only) |
-| `EPreferenceGapsPolicy` (preferential only) | [`check_preference_gaps_policy` L258](packages/sequent-core/src/ballot_codec/checker.rs#L258) | [`voting_screen.rs` L47 / L98](packages/sequent-core/src/util/voting_screen.rs#L47); default surfaced via [`getDefaultPreferenceGapsPolicy()` in ui-core/wasm.ts L434](packages/ui-core/src/services/wasm.ts#L434) | [`raw_ballot.rs` L396](packages/sequent-core/src/ballot_codec/raw_ballot.rs#L396) (preferential branch only) |
+| `InvalidVotePolicy` | [`check_invalid_vote_policy` L281](packages/sequent-core/src/ballot_codec/checker.rs#L331) | [`InvalidErrorsList.tsx`](packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx); [`voting_screen.rs`](packages/sequent-core/src/util/voting_screen.rs) | [`raw_ballot.rs` L343](packages/sequent-core/src/ballot_codec/raw_ballot.rs#L378); [`multi_ballot.rs` L648](packages/sequent-core/src/ballot_codec/multi_ballot.rs#L869) |
+| `EOverVotePolicy` | [`check_over_vote_policy` L137](packages/sequent-core/src/ballot_codec/checker.rs#L187) | [`InvalidErrorsList.tsx`](packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx); [`Question.tsx`](packages/voting-portal/src/components/Question/Question.tsx) (`NOT_ALLOWED_WITH_MSG_AND_DISABLE` disables checkboxes) | [`raw_ballot.rs` L359](packages/sequent-core/src/ballot_codec/raw_ballot.rs#L407); [`multi_ballot.rs` L657](packages/sequent-core/src/ballot_codec/multi_ballot.rs#L884) |
+| `EUnderVotePolicy` | [`check_under_vote_policy` L197](packages/sequent-core/src/ballot_codec/checker.rs#L247) | [`InvalidErrorsList.tsx`](packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx); [`voting_screen.rs`](packages/sequent-core/src/util/voting_screen.rs) | [`raw_ballot.rs` L372](packages/sequent-core/src/ballot_codec/raw_ballot.rs#L421); [`multi_ballot.rs` L670](packages/sequent-core/src/ballot_codec/multi_ballot.rs#L899) |
+| `EBlankVotePolicy` | [`check_blank_vote_policy` L103](packages/sequent-core/src/ballot_codec/checker.rs#L153) | [`InvalidErrorsList.tsx`](packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx); [`voting_screen.rs`](packages/sequent-core/src/util/voting_screen.rs) | [`raw_ballot.rs` L381](packages/sequent-core/src/ballot_codec/raw_ballot.rs#L431); [`multi_ballot.rs` L679](packages/sequent-core/src/ballot_codec/multi_ballot.rs#L909) |
+| `EDuplicatedRankPolicy` (preferential only) | [`check_duplicated_rank_policy` L235](packages/sequent-core/src/ballot_codec/checker.rs#L285) | [`voting_screen.rs`](packages/sequent-core/src/util/voting_screen.rs); default surfaced via [`getDefaultDuplicatedRankPolicy()` in ui-core/wasm.ts L425](packages/ui-core/src/services/wasm.ts#L425) | [`raw_ballot.rs` L401](packages/sequent-core/src/ballot_codec/raw_ballot.rs#L451) (preferential branch only) |
+| `EPreferenceGapsPolicy` (preferential only) | [`check_preference_gaps_policy` L258](packages/sequent-core/src/ballot_codec/checker.rs#L308) | [`voting_screen.rs`](packages/sequent-core/src/util/voting_screen.rs); default surfaced via [`getDefaultPreferenceGapsPolicy()` in ui-core/wasm.ts L434](packages/ui-core/src/services/wasm.ts#L434) | [`raw_ballot.rs` L396](packages/sequent-core/src/ballot_codec/raw_ballot.rs#L446) (preferential branch only) |
 
 Notes on the encode/decode surfaces:
 
-- `multi_ballot::decode` invokes only the four non-preferential checkers (it rejects non-Plurality contests up-front at [`multi_ballot.rs` L719–L742](packages/sequent-core/src/ballot_codec/multi_ballot.rs#L719)); IRV / Borda* ballots therefore travel the `raw_ballot::decode` path, which is where `check_duplicated_rank_policy` and `check_preference_gaps_policy` run.
+- `multi_ballot::decode` invokes only the four non-preferential checkers (it rejects non-Plurality contests up-front at [`multi_ballot.rs` L125–L129](packages/sequent-core/src/ballot_codec/multi_ballot.rs#L125)); IRV / Borda* ballots therefore travel the `raw_ballot::decode` path, which is where `check_duplicated_rank_policy` and `check_preference_gaps_policy` run.
 - `min_votes` / `max_votes` / `winning_candidates_num` are the numeric thresholds these six policies branch against (catalogued separately in §7); they are not themselves "policies."
-- The booth's submission-gate predicate in [`voting_screen.rs::can_submit`](packages/sequent-core/src/util/voting_screen.rs#L76) treats `NOT_ALLOWED` / `NOT_ALLOWED_WITH_MSG_AND_ALERT` / `NOT_ALLOWED_WARN_AND_DIALOG` as hard blockers across all six policies — these are the variants where (a) and (b) can disagree (booth refuses to submit) versus the various `WARN*` and `ALLOWED*` variants (booth admits, codec decoder still annotates / errors per policy).
+- The booth's submission-gate predicate in [`voting_screen.rs::check_voting_not_allowed_next_util`](packages/sequent-core/src/util/voting_screen.rs#L14) treats `NOT_ALLOWED` / `NOT_ALLOWED_WITH_MSG_AND_ALERT` / `NOT_ALLOWED_WARN_AND_DIALOG` as hard blockers across all six policies — these are the variants where (a) and (b) can disagree (booth refuses to submit) versus the various `WARN*` and `ALLOWED*` variants (booth admits, codec decoder still annotates / errors per policy).
 
 #### 10.A.1 InvalidVotePolicy
 
@@ -325,7 +325,7 @@ Notes on the encode/decode surfaces:
   - `WARN_INVALID_IMPLICIT_AND_EXPLICIT` — warn on both implicit and explicit invalidity.
   - `NOT_ALLOWED` — reject ballots with explicit invalid selections.
 - **Branching sites**:
-  - [`packages/sequent-core/src/ballot_codec/checker.rs:L281`](packages/sequent-core/src/ballot_codec/checker.rs#L281) — `check_invalid_vote_policy()`: if explicit invalid selected and policy != ALLOWED, add error or alert.
+  - [`packages/sequent-core/src/ballot_codec/checker.rs:L281`](packages/sequent-core/src/ballot_codec/checker.rs#L331) — `check_invalid_vote_policy()`: if explicit invalid selected and policy != ALLOWED, add error or alert.
   - [`packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx:L75-L76`](packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx#L75) — retrieves policy; displays warnings/errors.
 - **Current fixture coverage**: `invalid_vote_policy: ALLOWED` set in `velvet-plurality-5cand.json` reference blob; no bundled fixture sets it (defaults to ALLOWED).
 - **Velvet upstream variants**: `get_contest_1()` sets ALLOWED.
@@ -347,7 +347,7 @@ Notes on the encode/decode surfaces:
   - `WARN_ONLY_IN_REVIEW` — warn only on review screen, not during voting.
   - `WARN_AND_ALERT` — warn + popup alert.
 - **Branching sites**:
-  - [`packages/sequent-core/src/ballot_codec/checker.rs:L197`](packages/sequent-core/src/ballot_codec/checker.rs#L197) — `check_under_vote_policy()`: checks if num_selected < max_votes and policy != ALLOWED, adds alert.
+  - [`packages/sequent-core/src/ballot_codec/checker.rs:L197`](packages/sequent-core/src/ballot_codec/checker.rs#L247) — `check_under_vote_policy()`: checks if num_selected < max_votes and policy != ALLOWED, adds alert.
   - Voting-portal: [`packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx:L71-L72`](packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx#L71) — reads policy; display logic.
 - **Current fixture coverage**: `under_vote_policy: ALLOWED` set in `velvet-plurality-5cand.json` reference blob; no bundled fixture sets it (defaults ALLOWED).
 - **Velvet upstream variants**: `get_contest_1()` sets ALLOWED.
@@ -363,7 +363,7 @@ Notes on the encode/decode surfaces:
   - `NOT_ALLOWED_WITH_MSG_AND_ALERT` — reject with message + alert.
   - `NOT_ALLOWED_WITH_MSG_AND_DISABLE` — disable checkboxes when max reached (strict UX).
 - **Branching sites**:
-  - [`packages/sequent-core/src/ballot_codec/checker.rs:L137`](packages/sequent-core/src/ballot_codec/checker.rs#L137) — `check_over_vote_policy()`: if num_selected > max_votes, error added; alerts vary by policy.
+  - [`packages/sequent-core/src/ballot_codec/checker.rs:L137`](packages/sequent-core/src/ballot_codec/checker.rs#L187) — `check_over_vote_policy()`: if num_selected > max_votes, error added; alerts vary by policy.
   - Voting-portal: [`packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx:L77-L78`](packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx#L77) — reads policy; checkbox disabling logic in Answer component.
 - **Current fixture coverage**: `over_vote_policy: ALLOWED_WITH_MSG_AND_ALERT` set in `velvet-plurality-5cand.json` reference blob; no bundled fixture sets it (defaults ALLOWED_WITH_MSG_AND_ALERT).
 - **Velvet upstream variants**: `get_contest_1()` sets ALLOWED_WITH_MSG_AND_ALERT.
@@ -378,7 +378,7 @@ Notes on the encode/decode surfaces:
   - `WARN_ONLY_IN_REVIEW` — warn on review only.
   - `NOT_ALLOWED` — reject blank ballots (enforce min_votes ≥ 1).
 - **Branching sites**:
-  - [`packages/sequent-core/src/ballot_codec/checker.rs:L103`](packages/sequent-core/src/ballot_codec/checker.rs#L103) — `check_blank_vote_policy()`: if num_selected == 0 and policy != ALLOWED, add alert or error.
+  - [`packages/sequent-core/src/ballot_codec/checker.rs:L103`](packages/sequent-core/src/ballot_codec/checker.rs#L153) — `check_blank_vote_policy()`: if num_selected == 0 and policy != ALLOWED, add alert or error.
   - Voting-portal: [`packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx:L73-L74`](packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx#L73) — display logic.
 - **Current fixture coverage**: `blank_vote_policy` absent in all fixtures (defaults ALLOWED).
 - **Velvet upstream variants**: Not set in generators.
@@ -400,7 +400,7 @@ Notes on the encode/decode surfaces:
   - `ALLOWED_WARN_AND_DIALOG` (default) — allow duplicate ranks but warn with dialog.
   - `NOT_ALLOWED_WARN_AND_DIALOG` — reject duplicates with warning dialog.
 - **Branching sites**:
-  - [`packages/sequent-core/src/ballot_codec/checker.rs:L235`](packages/sequent-core/src/ballot_codec/checker.rs#L235) — `check_duplicated_rank_policy()`: validates ranked votes; error/alert if duplicates and policy rejects.
+  - [`packages/sequent-core/src/ballot_codec/checker.rs:L235`](packages/sequent-core/src/ballot_codec/checker.rs#L285) — `check_duplicated_rank_policy()`: validates ranked votes; error/alert if duplicates and policy rejects.
   - Applies only to preferential (InstantRunoff, Borda*) contests.
 - **Current fixture coverage**: `duplicated_rank_policy` not set anywhere. The new `instant-runoff-3cand.json` bundled fixture is the first preferential contest — leaves this at default.
 - **Velvet upstream variants**: Not set; no IRV fixtures to test.
@@ -413,7 +413,7 @@ Notes on the encode/decode surfaces:
   - `ALLOWED_WARN_AND_DIALOG` (default) — gaps in rankings allowed (e.g., rank 1, rank 3, skip rank 2).
   - `NOT_ALLOWED_WARN_AND_DIALOG` — enforce contiguous ranking.
 - **Branching sites**:
-  - [`packages/sequent-core/src/ballot_codec/checker.rs:L258`](packages/sequent-core/src/ballot_codec/checker.rs#L258) — `check_preference_gaps_policy()`: validates no gaps if policy requires contiguous ranks.
+  - [`packages/sequent-core/src/ballot_codec/checker.rs:L258`](packages/sequent-core/src/ballot_codec/checker.rs#L308) — `check_preference_gaps_policy()`: validates no gaps if policy requires contiguous ranks.
   - Preferential-only.
 - **Current fixture coverage**: Not set anywhere. The new `instant-runoff-3cand.json` bundled fixture is the first preferential contest — leaves this at default.
 - **Velvet upstream variants**: Not set.
@@ -690,7 +690,7 @@ contest awaiting external resolution.
    - Scope is the six policies that branch in [`packages/sequent-core/src/ballot_codec/checker.rs`](packages/sequent-core/src/ballot_codec/checker.rs) and are consulted by both the booth gating layer (encode path) and `raw_ballot::decode` / `multi_ballot::decode` (tally decode path): `InvalidVotePolicy`, `EOverVotePolicy`, `EUnderVotePolicy`, `EBlankVotePolicy`, plus the preferential-only `EDuplicatedRankPolicy` and `EPreferenceGapsPolicy`.
    - Plurality fixture: exercise non-default variants of the first four in a small matrix, with selections crafted to trip each checker branch (under, over, blank, and an explicit-invalid candidate).
    - Preferential fixture: extend the IRV bundle to non-default `duplicated_rank_policy` and `preference_gaps_policy`, with ranked selections that actually contain a duplicate and a gap.
-   - For each policy include at least one `NOT_ALLOWED*` variant so the booth's hard-block path in [`voting_screen.rs::can_submit`](packages/sequent-core/src/util/voting_screen.rs#L76) is reachable.
+   - For each policy include at least one `NOT_ALLOWED*` variant so the booth's hard-block path in [`voting_screen.rs::check_voting_not_allowed_next_util`](packages/sequent-core/src/util/voting_screen.rs#L14) is reachable.
    - Excluded from this priority (catalogued under §10.B): `CandidatesOrder`, `CandidatesSelectionPolicy`, `CandidatesIconCheckboxPolicy`, the list/layout/pagination fields in §10.B.4, and `TieBreakingPolicy` — none of them affect vote validity.
 
 3. **Priority 3: Multi-ballot-style scenarios**
