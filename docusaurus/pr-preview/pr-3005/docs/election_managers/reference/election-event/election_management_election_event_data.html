@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Data | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3005/docs/election_managers/reference/election-event/election_management_election_event_data"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Data | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3005/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3005/docs/election_managers/reference/election-event/election_management_election_event_data"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3005/docs/election_managers/reference/election-event/election_management_election_event_data" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3005/docs/election_managers/reference/election-event/election_management_election_event_data" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Data","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3005/docs/election_managers/reference/election-event/election_management_election_event_data"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3005/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/pr-preview/pr-3005/assets/js/runtime~main.995996f1.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3005/assets/js/runtime~main.1a1803b1.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3005/assets/js/main.70fce448.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -180,12 +180,16 @@ frequently identifies exactly who voted for whom — with distinct weights
 such as 1, 2, 4, 8 it always does. Turning off decoded ballots in the results
 does not prevent this; the totals alone are enough. Write-in answers are
 worse again, since an uncommon write-in appears with exactly the weight of
-the voter who wrote it.</p><p>Only the largest weights reach the highest batches, so those batches can hold
-very few ballots — and a batch holding one ballot publishes that voter&#x27;s
-choice when it is decrypted, because a mix of one hides nothing. The tally
-logs a warning naming any batch below five ballots. It does not refuse, since
-by then voting has closed and there is no remedy left; check the spread of
-weights before opening voting instead.</p><p>Do not use this policy where ballot secrecy is required. It suits bodies
+the voter who wrote it.</p><p>A batch holding very few ballots publishes those voters&#x27; choices when it is
+decrypted, because a mix of one hides nothing. Which batches are small
+depends on how the weights are spread, not on how large they are: 999 voters
+on weight 2 and one on weight 3 leave the batch for 1 holding a single
+ballot. Extracting the ballots logs a warning naming any batch below five.
+It does not refuse, since by then voting has closed and there is no remedy
+left.</p><p>That warning is a floor, not a guarantee. A voter is exposed whenever the
+batches single them out at all — two batches whose voters differ by one
+person expose that person however large both batches are — and nothing
+detects that. Check the spread of weights before opening voting.</p><p>Do not use this policy where ballot secrecy is required. It suits bodies
 that already publish how each member voted, such as some shareholder or
 delegate votes. Where secrecy matters and voters fall into a small number of
 weight classes, Weighted Voting for Areas gives weighting without this
