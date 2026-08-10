@@ -895,13 +895,10 @@ async fn map_plaintext_data(
             get_approved_tally_sheets_by_event(hasura_transaction, &tenant_id, &election_event_id)
                 .await?
                 .into_iter()
-                // Narrowing an empty list would drop every sheet and turn a
-                // safety check into a no-op, so a session that names no
-                // elections is checked against all of them.
-                .filter(|sheet| {
-                    session_election_ids.is_empty()
-                        || session_election_ids.contains(&sheet.election_id)
-                })
+                // An empty list needs no fallback: a session that names no
+                // elections has no contest rows, so there is no tally for a
+                // sheet to be counted into.
+                .filter(|sheet| session_election_ids.contains(&sheet.election_id))
                 .collect();
         if !approved_tally_sheets.is_empty() {
             return Err(Error::String(format!(

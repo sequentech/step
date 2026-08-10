@@ -177,6 +177,19 @@ Configure advanced system behaviors for this Election Event.
     each area, switching to Weighted Voting for Voters, and only then publishing
     the ballots.
 
+    :::caution Weights and the electorate are frozen once ballots are extracted
+    Extracting the ballots for a tally writes them to the bulletin board, which
+    is append-only. If a vote weight is changed after that, or a voter who had
+    voted is disabled or removed, the board no longer matches and the tally
+    refuses rather than publishing a total that counts some voters at their old
+    weight and their new one at once. Re-enabling a voter who was disabled
+    clears it. Changing a weight back does too, but only if it is changed back
+    exactly — and if the ballots were extracted with weights that were wrong,
+    there is no way to correct them afterwards, because the ballots already on
+    the board will be mixed and published whatever the tally counts. Get the
+    weights right before the tally is started.
+    :::
+
     :::danger Voter weights are public, and results are attributable
     A voter's weight is applied by splitting it into powers of two. A contest
     area is mixed as up to 17 batches, the batch at position `n` counting each

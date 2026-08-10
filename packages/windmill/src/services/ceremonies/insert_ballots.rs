@@ -320,12 +320,6 @@ pub async fn insert_ballots_messages(
                         ));
                     }
 
-                    // Which of this area's batches will exist. A weight sets the
-                    // bits of the batches its voter's ciphertext goes into, so
-                    // the union over voters is exactly the set of non-empty
-                    // batches. Computed here rather than beside the posting
-                    // because the annotations record it whether or not this run
-                    // is the one that posts them.
                     // Which of this area's batches are already on the board.
                     // Scanned over the whole run only when weighting is on:
                     // rows allocated before this layout existed sit one apart,
@@ -348,6 +342,12 @@ pub async fn insert_ballots_messages(
                         })
                         .fold(0u32, |acc, bit| acc | (1u32 << bit));
 
+                    // Which of this area's batches will exist. A weight sets
+                    // the bits of the batches its voter's ciphertext goes into,
+                    // so the union over voters is exactly the set of non-empty
+                    // batches. Computed here rather than beside the posting
+                    // because the annotations record it whether or not this run
+                    // is the one that posts them.
                     let weight_bit_mask: Option<u32> = if is_voter_weighted {
                         let union = merge_result.ballot_contents.iter().try_fold(
                             0u64,
@@ -373,20 +373,10 @@ pub async fn insert_ballots_messages(
                         // the same ciphertext sits in both sets of batches,
                         // and excluding it drops votes that braid will mix and
                         // publish anyway. The board is append-only, so neither
-                        // is repairable here -- refuse while the disagreement
-                        // is still legible.
-                        let vacated = posted_mask & !computed;
-                        if vacated != 0 {
-                            return Err(anyhow!(
-                                "Election {} area {} already has ballots on the board in weight \
-                                 batches {vacated:#b}, which the current vote weights no longer \
-                                 produce. Vote weights cannot be changed once ballots have been \
-                                 extracted for a tally: the board is append-only, so those \
-                                 ballots will be mixed and published whatever this tally counts",
-                                tally_session_contest.election_id,
-                                tally_session_contest.area_id,
-                            ));
-                        }
+                        // is repairable here. The refusal itself is below,
+                        // beside the rest of the reconciliation, so that no
+                        // batch is appended to the board by a run that then
+                        // refuses.
                         Some(computed)
                     } else {
                         // Absent for every other policy, which leaves the stored
@@ -474,6 +464,77 @@ pub async fn insert_ballots_messages(
                             }
                         }
 
+                        // Reconcile against the board before appending
+                        // anything to it. A run that is going to refuse must not
+                        // first post a batch, because the board is append-only
+                        // and braid mixes and publishes whatever carries a
+                        // Ballots message -- a refusal that leaves a one-ballot
+                        // batch behind is worse than the state it refused.
+                        for bit in 0..scanned_offsets {
+                            if posted_mask & (1u32 << bit) == 0 {
+                                continue;
+                            }
+                            let posted = board_messages_clone
+                                .iter()
+                                .find(|message| {
+                                    message.statement.get_batch_number()
+                                        == base_batch + bit as BatchNumber
+                                        && StatementType::Ballots == message.statement.get_kind()
+                                })
+                                .and_then(|message| message.artifact.clone())
+                                .and_then(|artifact| {
+                                    Ballots::<RistrettoCtx>::strand_deserialize(&artifact).ok()
+                                })
+                                .map(|ballots| ballots.ciphertexts.0);
+                            let built = batches.get(bit as usize);
+
+                            // An area with no ballots posts one empty batch, so
+                            // that the tally has something to wait for. It
+                            // encodes no weight and contributes nothing, so it
+                            // is not evidence that anything changed.
+                            if posted.as_ref().is_some_and(|posted| posted.is_empty())
+                                && built.is_none_or(|built| built.is_empty())
+                            {
+                                continue;
+                            }
+
+                            let matches = match (&posted, built) {
+                                (Some(posted), Some(built)) => posted == built,
+                                _ => false,
+                            };
+                            if matches {
+                                continue;
+                            }
+
+                            // Compares the ciphertexts themselves, not their
+                            // number, so weights permuted between two voters --
+                            // a voters file re-imported one row out of step --
+                            // is caught even though every batch keeps its size.
+                            if is_voter_weighted {
+                                return Err(anyhow!(
+                                    "Election {} area {} already has ballots on the board in \
+                                     weight batch offset {bit} that these voters and weights do \
+                                     not produce. Neither the weights nor who may vote can be \
+                                     changed once ballots have been extracted for a tally: the \
+                                     board is append-only, so those ballots will be mixed and \
+                                     published whatever this tally counts. If a voter was \
+                                     disabled or removed since the ballots were extracted, \
+                                     restoring them lets the tally proceed",
+                                    tally_session_contest.election_id,
+                                    tally_session_contest.area_id,
+                                ));
+                            }
+                            event!(
+                                Level::WARN,
+                                "Batch {} for election {} area {} is already on the board and \
+                                 will be counted as it is, but this run built something else. \
+                                 The census recorded now will differ from what is tallied",
+                                base_batch + bit as BatchNumber,
+                                tally_session_contest.election_id,
+                                tally_session_contest.area_id,
+                            );
+                        }
+
                         let mut board = get_b3_pgsql_client().await?;
                         for (bit, ciphertexts) in batches.into_iter().enumerate() {
                             // Post exactly the batches the mask names, so the
@@ -486,70 +547,9 @@ pub async fn insert_ballots_messages(
                             let is_expected = weight_bit_mask
                                 .map(|mask| mask & (1u32 << bit) != 0)
                                 .unwrap_or(bit == 0);
-                            if !is_expected {
-                                continue;
-                            }
-                            // Already posted, so this run leaves it alone --
-                            // `add_ballots_to_board` would skip it anyway. What
-                            // it carries is what the tally counts, so check it
-                            // still matches what these voters and weights
-                            // produce. A count that differs cannot say whether a
-                            // weight was edited or a voter disabled between
-                            // runs, and the two want opposite outcomes: under
-                            // weighting a stale batch silently counts voters at
-                            // the wrong power, so refuse; without weighting the
-                            // board has always been allowed to hold one ballot
-                            // more than the census, so warn and carry on as
-                            // before.
-                            if posted_mask & (1u32 << bit) != 0 {
-                                let posted_len = board_messages_clone
-                                    .iter()
-                                    .find(|message| {
-                                        message.statement.get_batch_number()
-                                            == base_batch + bit as BatchNumber
-                                            && StatementType::Ballots
-                                                == message.statement.get_kind()
-                                    })
-                                    .and_then(|message| message.artifact.clone())
-                                    .and_then(|artifact| {
-                                        Ballots::<RistrettoCtx>::strand_deserialize(&artifact).ok()
-                                    })
-                                    .map(|ballots| ballots.ciphertexts.0.len());
-                                if posted_len != Some(ciphertexts.len()) {
-                                    if is_voter_weighted {
-                                        return Err(anyhow!(
-                                            "Weight batch offset {bit} for election {} area {} is \
-                                             already on the board with {posted_len:?} ballots, \
-                                             but these voters and weights produce {}. Neither \
-                                             can be changed once ballots have been extracted for \
-                                             a tally",
-                                            tally_session_contest.election_id,
-                                            tally_session_contest.area_id,
-                                            ciphertexts.len(),
-                                        ));
-                                    }
-                                    event!(
-                                        Level::WARN,
-                                        "Batch {} for election {} area {} is already on the \
-                                         board with {:?} ballots and will be counted as it is, \
-                                         but this run built {}. The census recorded now will \
-                                         differ from what is tallied",
-                                        base_batch + bit as BatchNumber,
-                                        tally_session_contest.election_id,
-                                        tally_session_contest.area_id,
-                                        posted_len,
-                                        ciphertexts.len(),
-                                    );
-                                } else {
-                                    event!(
-                                        Level::INFO,
-                                        "Weight batch offset {} for election {} area {} is \
-                                         already on the board, leaving it as it is",
-                                        bit,
-                                        tally_session_contest.election_id,
-                                        tally_session_contest.area_id
-                                    );
-                                }
+                            // Already reconciled above; `add_ballots_to_board`
+                            // would skip it anyway.
+                            if !is_expected || posted_mask & (1u32 << bit) != 0 {
                                 continue;
                             }
                             event!(
