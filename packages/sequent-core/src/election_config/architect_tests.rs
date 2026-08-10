@@ -2985,216 +2985,129 @@ fn a_plan_the_builder_refuses_is_refused_by_the_wizard_first() {
     );
 }
 
-/// Every entity an older importer needs a `name` on has one.
+/// The bundle says which platform version wrote it.
 ///
-/// A real deployment refused an export from this tool with `election_event: missing
-/// field \`name\` at line 244 column 3`, and nothing here could have predicted it: the
-/// bundle is valid against *current* `ImportElectionEventSchema`, which is what
-/// `compile_plan` checks it against, and `name` was removed from that schema in
-/// `f016a4b4a7` — March 2026 — in favour of `external_id`. Any platform older than that
-/// commit still requires it, and on `ElectionEvent` and `Election` it was a required
-/// `String` rather than an `Option`, so the import fails before any of our validation
-/// gets a chance to say something useful.
+/// This is the field that lets an importer refuse a bundle it cannot read *as a version
+/// mismatch* rather than as a serde error twelve fields deep, and it is the reason this
+/// tool does not need to emit anything for older platforms.
 ///
-/// So the four entity kinds that lost it carry it again, and this holds all four rather
-/// than only the one that was reported — the other three would each have been the next
-/// bug report.
+/// Worth a test of its own because of how a real report played out. A zip from this tool
+/// was refused by a v9.5 environment with `election_event: missing field \`name\` at line
+/// 244 column 3` — `name` having become `external_id` in `f016a4b4a7`. The tempting fix
+/// was to emit `name` again for the benefit of older platforms. It was the wrong one:
+/// the bundle correctly declared `v10.0.0`, and v9.5's importer deserialized *before*
+/// checking the version, so the gate that exists precisely to say "upgrade your system"
+/// never ran. That ordering is already fixed on `main`, which reads the version off the
+/// raw JSON first.
+///
+/// So the contract this tool owes is exactly this one: say what wrote you, truthfully.
+/// Shaping the output for every platform that ever existed is the alternative, and it
+/// has no end.
 #[test]
-fn every_entity_carries_the_name_an_older_importer_requires() {
+fn the_bundle_declares_the_version_that_wrote_it() {
     let templates = TemplateSet::builtin().unwrap();
     let compiled =
         compile_plan(&sound(), &templates, &BuildOptions::default(), None)
             .expect("a sound plan compiles");
-    let export = &compiled.bundle.export;
 
-    /// The name has to be *usable*, not merely present: a blank string satisfies
-    /// serde and then shows up as an unnamed election in a list.
-    fn named(entity: &serde_json::Value, what: &str) {
-        let name = entity.get("name").unwrap_or_else(|| {
-            panic!("{what} has no `name`, so a platform older than March 2026 refuses the whole bundle")
-        });
-        let name = name.as_str().unwrap_or_else(|| {
-            panic!("{what}'s `name` is not a string: {name}")
-        });
-        assert!(
-            !name.trim().is_empty(),
-            "{what}'s `name` is blank, which imports as an unnamed entity"
-        );
-    }
-
-    named(
-        export.get("election_event").expect("an event"),
-        "election_event",
-    );
-
-    for (index, election) in export
-        .get("elections")
-        .and_then(|value| value.as_array())
-        .expect("elections")
-        .iter()
-        .enumerate()
-    {
-        named(election, &format!("elections[{index}]"));
-    }
-
-    for (index, contest) in export
-        .get("contests")
-        .and_then(|value| value.as_array())
-        .expect("contests")
-        .iter()
-        .enumerate()
-    {
-        named(contest, &format!("contests[{index}]"));
-    }
-
-    for (index, candidate) in export
-        .get("candidates")
-        .and_then(|value| value.as_array())
-        .expect("candidates")
-        .iter()
-        .enumerate()
-    {
-        named(candidate, &format!("candidates[{index}]"));
-    }
-}
-
-/// The name a person typed is the name that travels, not the identifier.
-///
-/// The fallback to `external_id` exists so the field is never blank, and it would be
-/// easy for the fallback to become the normal path without anybody noticing — the
-/// import would succeed either way and the election would simply be listed under a
-/// slug. So this pins the value, not just its presence.
-#[test]
-fn the_name_that_travels_is_the_one_somebody_typed() {
-    let templates = TemplateSet::builtin().unwrap();
-    let compiled =
-        compile_plan(&sound(), &templates, &BuildOptions::default(), None)
-            .expect("a sound plan compiles");
-    let export = &compiled.bundle.export;
-
-    let event = export.get("election_event").expect("an event");
-    let i18n = event
-        .pointer("/presentation/i18n/en/name")
+    let declared = compiled
+        .bundle
+        .export
+        .get("version")
         .and_then(|value| value.as_str())
-        .expect("the event's English name");
+        .expect("the export should say which version wrote it");
 
     assert_eq!(
-        event.get("name").and_then(|value| value.as_str()),
-        Some(i18n),
-        "the top-level name should be the one under presentation.i18n, not the id"
+        declared,
+        crate::election_config::build::DEFAULT_VERSION,
+        "the bundle should declare the version this build writes"
     );
-}
 
-/// A current importer ignores the compatibility field rather than refusing it.
-///
-/// This is the other half of the trade, and the half that would break silently. The
-/// field is only safe because nothing in `ImportElectionEventSchema` or its entities
-/// sets `deny_unknown_fields`; if somebody adds it, this fails and the failure carries
-/// the reason with it, rather than the field being deleted as unexplained cruft and the
-/// original bug coming back.
-#[test]
-fn the_bundle_still_parses_with_the_compatibility_name() {
-    let templates = TemplateSet::builtin().unwrap();
-    let compiled =
-        compile_plan(&sound(), &templates, &BuildOptions::default(), None)
-            .expect("a sound plan compiles");
-
-    // `compile_plan` already refuses to produce an archive whose export does not
-    // deserialize, so reaching this line is most of the assertion. Stated anyway,
-    // because that check living elsewhere is not the same as this being true.
-    let parsed = serde_json::from_value::<
-        crate::election_config::schema::ImportElectionEventSchema,
-    >(compiled.bundle.export.clone());
-
+    // And the platform's own checker has to accept it against itself. `extract_semver`
+    // is private, so this asks the public function the importer actually calls: a
+    // version that cannot be parsed is refused as "Could not parse imported version"
+    // rather than as a mismatch, which is the gate failing open in the other direction.
     assert!(
-        parsed.is_ok(),
-        "the current import schema no longer accepts the bundle: {:?}",
-        parsed.err()
+        crate::util::version::check_version_compatibility(declared, declared).is_ok(),
+        "the platform's own version check cannot read '{declared}', so an importer \
+         would refuse this bundle without ever reaching a mismatch verdict"
     );
+
+    // And the version has to *discriminate*, which is the property the whole
+    // arrangement rests on: a platform of a different major must refuse this bundle on
+    // the version alone, before it ever tries to read a field that has moved. Asserted
+    // in both directions because both happen — an operator importing into an
+    // environment behind this build, and into one ahead of it.
+    let (major, _, _) = declared
+        .trim_start_matches('v')
+        .split('.')
+        .map(|part| part.parse::<u32>().unwrap_or(0))
+        .fold((0u32, 0u32, 0u32), |(a, b, _), next| (if a == 0 { next } else { a }, b, 0));
+
+    for other in [major.saturating_sub(1), major + 1] {
+        if other == major {
+            continue;
+        }
+        let platform = format!("{other}.0.0");
+        assert!(
+            crate::util::version::check_version_compatibility(declared, &platform)
+                .is_err(),
+            "a platform on {platform} would accept a {declared} bundle, so a schema \
+             change between them surfaces as a serde error deep in the file instead of \
+             'Please upgrade your system' — which is exactly how a v9.5 environment \
+             reported `missing field \\`name\\`` for a v10 export"
+        );
+    }
 }
 
-/// The bundle satisfies the schema a platform from *before* March 2026 deserializes
-/// into — declared here, so this is checked rather than reasoned about once.
+/// The archive names no trustees, because it cannot name them correctly.
 ///
-/// This is the class guard, and the reason it is worth having is that the specific bug
-/// was invisible to everything else. `compile_plan` already round-trips its output
-/// through `ImportElectionEventSchema`, which is the right check and passed the whole
-/// time: the bundle was valid against the schema *this repository* has. What broke was
-/// the schema a *deployed* platform has, and no amount of validating against ourselves
-/// can see that.
+/// A real import failed with `Error parsing trustee_ids as UUIDs`, and the message is
+/// worth unpacking because it says nothing about what went wrong. A keys ceremony's
+/// `trustee_ids` carries trustee **names**, which the importer resolves against the
+/// trustees a tenant already has; a name it cannot find becomes an empty string through
+/// `unwrap_or_default`, and the insert then tries to parse `""` as a `Uuid`. So one
+/// unrecognised name does not produce a ceremony with a gap — it refuses the entire
+/// import, and the event is never created.
 ///
-/// So the older contract is written down as types. These mirror the **required**
-/// (non-`Option`) fields of `ElectionEvent`, `Election`, `Contest` and `Candidate` as
-/// they were at `f016a4b4a7^`, which is the last commit before `name` became
-/// `external_id`. `deny_unknown_fields` is deliberately **not** set, because that is how
-/// the real importer reads them — it ignores what it does not know, which is why adding
-/// a field for its benefit is safe.
-///
-/// A failure here means an export would be refused by a platform that has not taken
-/// that commit yet, and the message says which entity and which field.
+/// The wizard runs in a browser with no connection to the environment being imported
+/// into, so it cannot know which trustees exist and cannot emit this safely. It emits
+/// nothing, says so in the report, and the names, threshold and dates travel in
+/// `auxiliary` for the person who will make the ceremony in the Admin Portal.
 #[test]
-fn the_bundle_satisfies_the_schema_an_older_platform_deserializes_into() {
-    use serde::Deserialize;
-
-    #[derive(Deserialize)]
-    #[allow(dead_code)]
-    struct LegacyElectionEvent {
-        id: String,
-        tenant_id: String,
-        name: String,
-        is_archived: bool,
-        encryption_protocol: String,
-    }
-
-    #[derive(Deserialize)]
-    #[allow(dead_code)]
-    struct LegacyElection {
-        id: String,
-        tenant_id: String,
-        election_event_id: String,
-        name: String,
-    }
-
-    #[derive(Deserialize)]
-    #[allow(dead_code)]
-    struct LegacyContest {
-        id: String,
-        tenant_id: String,
-        election_event_id: String,
-        election_id: String,
-    }
-
-    #[derive(Deserialize)]
-    #[allow(dead_code)]
-    struct LegacyCandidate {
-        id: String,
-        tenant_id: String,
-        election_event_id: String,
-    }
-
+fn the_archive_carries_no_keys_ceremony_it_cannot_fill_in_correctly() {
     let templates = TemplateSet::builtin().unwrap();
-    let compiled =
-        compile_plan(&sound(), &templates, &BuildOptions::default(), None)
-            .expect("a sound plan compiles");
-    let export = &compiled.bundle.export;
+    let plan = sound();
+    assert!(
+        !plan.trustees.is_empty(),
+        "this test is meaningless unless the plan names trustees"
+    );
 
-    serde_json::from_value::<LegacyElectionEvent>(
-        export.get("election_event").expect("an event").clone(),
-    )
-    .expect("election_event should satisfy the pre-March-2026 schema");
+    let compiled = compile_plan(&plan, &templates, &BuildOptions::default(), None)
+        .expect("a sound plan compiles");
 
-    serde_json::from_value::<Vec<LegacyElection>>(
-        export.get("elections").expect("elections").clone(),
-    )
-    .expect("elections should satisfy the pre-March-2026 schema");
+    let ceremonies = compiled
+        .bundle
+        .export
+        .get("keys_ceremonies")
+        .and_then(|value| value.as_array())
+        .expect("the key should still be present, as an empty list");
+    assert!(
+        ceremonies.is_empty(),
+        "a ceremony naming trustees the tenant may not have refuses the whole import: \
+         {ceremonies:?}"
+    );
 
-    serde_json::from_value::<Vec<LegacyContest>>(
-        export.get("contests").expect("contests").clone(),
-    )
-    .expect("contests should satisfy the pre-March-2026 schema");
-
-    serde_json::from_value::<Vec<LegacyCandidate>>(
-        export.get("candidates").expect("candidates").clone(),
-    )
-    .expect("candidates should satisfy the pre-March-2026 schema");
+    // The names and the threshold still leave the wizard — beside the archive, not
+    // inside it, because they are for a person rather than for the importer.
+    let beside: Vec<&str> = compiled
+        .layout
+        .auxiliary
+        .iter()
+        .map(|artifact| artifact.name.as_str())
+        .collect();
+    assert!(
+        beside.iter().any(|name| name.contains("ceremony")),
+        "the ceremony details should travel beside the archive: {beside:?}"
+    );
 }
