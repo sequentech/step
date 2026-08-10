@@ -1,6 +1,6 @@
 {
   "property": "no-silent-discount",
-  "scanned": 60,
+  "scanned": 124,
   "violation_count": 1,
   "byConfig": {
     "over_vote_policy=allowed, invalid_vote_policy=allowed": [

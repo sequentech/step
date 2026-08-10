@@ -19,10 +19,12 @@
 //
 // This is enumeration over recorded cells, not a proof: every cell's tally
 // class was recorded from the real velvet-wasm tally and every booth effect
-// from the real checker/gates, so a violation here is reproducible in the
-// workbench end-to-end (which includes tallying). The inline-visibility
-// input is the runner's `derived_inline_visible` (checker record ∩ master
-// filter); the browser runner confirms the headline cells live.
+// from the real checker/gates. Violations are additionally reproduced
+// against the real booth UI (signals observed live) plus real decode/tally
+// on the same selection by the browser runner — two halves sharing the
+// input; chaining them through the booth's encrypt→cast→decrypt pipeline
+// is a named TODO. The inline-visibility input is the runner's
+// `derived_inline_visible` (checker record ∩ master filter).
 //
 // Run:  node characterization/no-silent-discount.mjs   (from packages/workbench)
 
@@ -33,7 +35,7 @@ import path from "node:path"
 const here = path.dirname(fileURLToPath(import.meta.url))
 
 // Recordings that carry a `tally` observable participate in the query.
-const SOURCES = ["overvote-rule.recorded.json"]
+const SOURCES = ["blank-rule.recorded.json", "overvote-rule.recorded.json"]
 
 function isSilent(cell) {
     const o = cell.observed
@@ -113,8 +115,10 @@ const md = [
     "definition (valid, voter-intended, and deliberate opt-in respectively).",
     "",
     "**Method.** Enumeration over recorded characterization cells whose tally",
-    "class was recorded from the real velvet-wasm tally. Not a proof — but",
-    "every violation reproduces in the workbench end-to-end.",
+    "class was recorded from the real velvet-wasm tally. Not a proof.",
+    "Violations are reproduced against the real booth UI (signals observed",
+    "live) plus real decode/tally on the same selection; chaining through the",
+    "booth's encrypt→cast→decrypt pipeline is a named TODO.",
     "",
     `**Result: ${violations.length} violating cell(s)** across ${scanned} scanned` +
         ` (sources: ${SOURCES.join(", ")}).`,

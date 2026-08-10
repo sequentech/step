@@ -7,12 +7,15 @@
 // second checkbox at max?) and REACHABILITY (can the over-vote state even
 // be formed through the UI?) — plus inline visibility and the dialog.
 //
-// It also END-TO-END VERIFIES the no-silent-discount violation: under
-// over=allowed / invalid=allowed it casts the over-voted ballot all the
-// way through the booth, confirms the voter saw nothing, then tallies the
-// resulting selection in-workbench and confirms ImplicitInvalid. This is
-// the point that the model-check conclusion is checkable against the real
-// system, tally included.
+// It also reproduces the no-silent-discount violation against the real
+// components, in two halves that share the input rather than one ballot
+// flowing through the crypto pipeline: (a) the over-vote is formed through
+// the REAL BOOTH UI and the absence of any signal is observed there; (b)
+// the same selection is decoded (sequent-core) and tallied (velvet-wasm)
+// through the same real wasm the workbench tally sandbox uses, confirming
+// ImplicitInvalid. Chaining the two halves through the booth's actual
+// encrypt→cast→decrypt pipeline — whose links the M.4 canary verifies
+// separately — is a named TODO; this is not yet a single continuous flow.
 //
 // Requires the dev server on :5173.
 
@@ -220,22 +223,22 @@ cellEml.contests[cellEml.contests.findIndex((c) => c.id === council.id)] = cfg
 const decodedOverBallot = runChecker(overBallot, cellEml)
 const cls = tallyClass(cfg, decodedOverBallot)
 const boothRow = rows.find((r) => r.over_vote_policy === "allowed")
-const violationConfirmed =
+const violationReproduced =
     boothRow &&
     boothRow.reachable &&
     boothRow.inline_visible.length === 0 &&
     boothRow.dialog.kind === "none" &&
     cls === "ImplicitInvalid"
 
-console.log("\n=== end-to-end violation check (over=allowed, invalid=allowed) ===")
+console.log("\n=== violation check: real booth UI + real decode/tally (over=allowed, invalid=allowed) ===")
 console.log(`  booth reachable over-vote: ${boothRow?.reachable}`)
 console.log(`  booth signal: inline=${JSON.stringify(boothRow?.inline_visible)} dialog=${boothRow?.dialog.kind}`)
-console.log(`  tally class of the cast ballot: ${cls}`)
-console.log(`  VIOLATION REPRODUCED END-TO-END: ${violationConfirmed}`)
+console.log(`  tally class of the same selection (decoded → velvet-wasm): ${cls}`)
+console.log(`  VIOLATION REPRODUCED (booth UI + wasm decode/tally, input-shared not crypto-chained): ${violationReproduced}`)
 
 await browser.close()
 writeFileSync(
     path.join(here, "overvote-rule.filter.recorded.json"),
-    JSON.stringify({invalid_vote_policy: "allowed (default)", rows, e2e_violation_reproduced: violationConfirmed, e2e_tally_class: cls}, null, 2) + "\n"
+    JSON.stringify({invalid_vote_policy: "allowed (default)", rows, violation_reproduced_booth_plus_wasm_tally: violationReproduced, reproduced_tally_class: cls}, null, 2) + "\n"
 )
 console.log("\nwrote overvote-rule.filter.recorded.json")

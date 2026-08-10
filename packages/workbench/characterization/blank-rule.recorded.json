@@ -10,13 +10,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ImplicitBlank"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ImplicitBlank"
       },
       "match": true
     },
@@ -28,13 +31,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitInvalid"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitInvalid"
       },
       "match": true
     },
@@ -46,13 +52,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitBlank"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitBlank"
       },
       "match": true
     },
@@ -64,13 +73,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "Valid"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "Valid"
       },
       "match": true
     },
@@ -82,13 +94,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ImplicitBlank"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ImplicitBlank"
       },
       "match": true
     },
@@ -100,13 +115,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitInvalid"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitInvalid"
       },
       "match": true
     },
@@ -118,13 +136,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitBlank"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitBlank"
       },
       "match": true
     },
@@ -136,13 +157,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "Valid"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "Valid"
       },
       "match": true
     },
@@ -154,13 +178,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ImplicitBlank"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ImplicitBlank"
       },
       "match": true
     },
@@ -174,15 +201,20 @@
           "errors.explicit.alert"
         ],
         "hard": false,
-        "soft": true
+        "soft": true,
+        "tally": "ExplicitInvalid"
       },
+      "derived_inline_visible": [
+        "errors.explicit.alert"
+      ],
       "predicted": {
         "errors": [],
         "alerts": [
           "errors.explicit.alert"
         ],
         "hard": false,
-        "soft": true
+        "soft": true,
+        "tally": "ExplicitInvalid"
       },
       "match": true
     },
@@ -194,13 +226,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitBlank"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitBlank"
       },
       "match": true
     },
@@ -212,13 +247,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "Valid"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "Valid"
       },
       "match": true
     },
@@ -230,13 +268,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ImplicitBlank"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ImplicitBlank"
       },
       "match": true
     },
@@ -250,15 +291,20 @@
         ],
         "alerts": [],
         "hard": true,
-        "soft": true
+        "soft": true,
+        "tally": "ExplicitInvalid"
       },
+      "derived_inline_visible": [
+        "errors.explicit.notAllowed"
+      ],
       "predicted": {
         "errors": [
           "errors.explicit.notAllowed"
         ],
         "alerts": [],
         "hard": true,
-        "soft": true
+        "soft": true,
+        "tally": "ExplicitInvalid"
       },
       "match": true
     },
@@ -270,13 +316,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitBlank"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitBlank"
       },
       "match": true
     },
@@ -288,13 +337,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "Valid"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "Valid"
       },
       "match": true
     },
@@ -308,15 +360,20 @@
           "errors.implicit.blankVote"
         ],
         "hard": false,
-        "soft": true
+        "soft": true,
+        "tally": "ImplicitBlank"
       },
+      "derived_inline_visible": [
+        "errors.implicit.blankVote"
+      ],
       "predicted": {
         "errors": [],
         "alerts": [
           "errors.implicit.blankVote"
         ],
         "hard": false,
-        "soft": true
+        "soft": true,
+        "tally": "ImplicitBlank"
       },
       "match": true
     },
@@ -328,13 +385,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitInvalid"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitInvalid"
       },
       "match": true
     },
@@ -346,13 +406,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitBlank"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitBlank"
       },
       "match": true
     },
@@ -364,13 +427,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "Valid"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "Valid"
       },
       "match": true
     },
@@ -384,15 +450,20 @@
           "errors.implicit.blankVote"
         ],
         "hard": false,
-        "soft": true
+        "soft": true,
+        "tally": "ImplicitBlank"
       },
+      "derived_inline_visible": [
+        "errors.implicit.blankVote"
+      ],
       "predicted": {
         "errors": [],
         "alerts": [
           "errors.implicit.blankVote"
         ],
         "hard": false,
-        "soft": true
+        "soft": true,
+        "tally": "ImplicitBlank"
       },
       "match": true
     },
@@ -404,13 +475,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitInvalid"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitInvalid"
       },
       "match": true
     },
@@ -422,13 +496,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitBlank"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitBlank"
       },
       "match": true
     },
@@ -440,13 +517,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "Valid"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "Valid"
       },
       "match": true
     },
@@ -460,15 +540,20 @@
           "errors.implicit.blankVote"
         ],
         "hard": false,
-        "soft": true
+        "soft": true,
+        "tally": "ImplicitBlank"
       },
+      "derived_inline_visible": [
+        "errors.implicit.blankVote"
+      ],
       "predicted": {
         "errors": [],
         "alerts": [
           "errors.implicit.blankVote"
         ],
         "hard": false,
-        "soft": true
+        "soft": true,
+        "tally": "ImplicitBlank"
       },
       "match": true
     },
@@ -482,15 +567,20 @@
           "errors.explicit.alert"
         ],
         "hard": false,
-        "soft": true
+        "soft": true,
+        "tally": "ExplicitInvalid"
       },
+      "derived_inline_visible": [
+        "errors.explicit.alert"
+      ],
       "predicted": {
         "errors": [],
         "alerts": [
           "errors.explicit.alert"
         ],
         "hard": false,
-        "soft": true
+        "soft": true,
+        "tally": "ExplicitInvalid"
       },
       "match": true
     },
@@ -502,13 +592,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitBlank"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitBlank"
       },
       "match": true
     },
@@ -520,13 +613,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "Valid"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "Valid"
       },
       "match": true
     },
@@ -540,15 +636,20 @@
           "errors.implicit.blankVote"
         ],
         "hard": false,
-        "soft": true
+        "soft": true,
+        "tally": "ImplicitBlank"
       },
+      "derived_inline_visible": [
+        "errors.implicit.blankVote"
+      ],
       "predicted": {
         "errors": [],
         "alerts": [
           "errors.implicit.blankVote"
         ],
         "hard": false,
-        "soft": true
+        "soft": true,
+        "tally": "ImplicitBlank"
       },
       "match": true
     },
@@ -562,15 +663,20 @@
         ],
         "alerts": [],
         "hard": true,
-        "soft": true
+        "soft": true,
+        "tally": "ExplicitInvalid"
       },
+      "derived_inline_visible": [
+        "errors.explicit.notAllowed"
+      ],
       "predicted": {
         "errors": [
           "errors.explicit.notAllowed"
         ],
         "alerts": [],
         "hard": true,
-        "soft": true
+        "soft": true,
+        "tally": "ExplicitInvalid"
       },
       "match": true
     },
@@ -582,13 +688,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitBlank"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitBlank"
       },
       "match": true
     },
@@ -600,13 +709,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "Valid"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "Valid"
       },
       "match": true
     },
@@ -620,15 +732,20 @@
           "errors.implicit.blankVote"
         ],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ImplicitBlank"
       },
+      "derived_inline_visible": [
+        "errors.implicit.blankVote"
+      ],
       "predicted": {
         "errors": [],
         "alerts": [
           "errors.implicit.blankVote"
         ],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ImplicitBlank"
       },
       "match": true
     },
@@ -640,13 +757,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitInvalid"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitInvalid"
       },
       "match": true
     },
@@ -658,13 +778,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitBlank"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitBlank"
       },
       "match": true
     },
@@ -676,13 +799,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "Valid"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "Valid"
       },
       "match": true
     },
@@ -696,15 +822,20 @@
           "errors.implicit.blankVote"
         ],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ImplicitBlank"
       },
+      "derived_inline_visible": [
+        "errors.implicit.blankVote"
+      ],
       "predicted": {
         "errors": [],
         "alerts": [
           "errors.implicit.blankVote"
         ],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ImplicitBlank"
       },
       "match": true
     },
@@ -716,13 +847,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitInvalid"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitInvalid"
       },
       "match": true
     },
@@ -734,13 +868,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitBlank"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitBlank"
       },
       "match": true
     },
@@ -752,13 +889,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "Valid"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "Valid"
       },
       "match": true
     },
@@ -772,15 +912,20 @@
           "errors.implicit.blankVote"
         ],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ImplicitBlank"
       },
+      "derived_inline_visible": [
+        "errors.implicit.blankVote"
+      ],
       "predicted": {
         "errors": [],
         "alerts": [
           "errors.implicit.blankVote"
         ],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ImplicitBlank"
       },
       "match": true
     },
@@ -794,15 +939,20 @@
           "errors.explicit.alert"
         ],
         "hard": false,
-        "soft": true
+        "soft": true,
+        "tally": "ExplicitInvalid"
       },
+      "derived_inline_visible": [
+        "errors.explicit.alert"
+      ],
       "predicted": {
         "errors": [],
         "alerts": [
           "errors.explicit.alert"
         ],
         "hard": false,
-        "soft": true
+        "soft": true,
+        "tally": "ExplicitInvalid"
       },
       "match": true
     },
@@ -814,13 +964,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitBlank"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitBlank"
       },
       "match": true
     },
@@ -832,13 +985,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "Valid"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "Valid"
       },
       "match": true
     },
@@ -852,15 +1008,20 @@
           "errors.implicit.blankVote"
         ],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ImplicitBlank"
       },
+      "derived_inline_visible": [
+        "errors.implicit.blankVote"
+      ],
       "predicted": {
         "errors": [],
         "alerts": [
           "errors.implicit.blankVote"
         ],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ImplicitBlank"
       },
       "match": true
     },
@@ -874,15 +1035,20 @@
         ],
         "alerts": [],
         "hard": true,
-        "soft": true
+        "soft": true,
+        "tally": "ExplicitInvalid"
       },
+      "derived_inline_visible": [
+        "errors.explicit.notAllowed"
+      ],
       "predicted": {
         "errors": [
           "errors.explicit.notAllowed"
         ],
         "alerts": [],
         "hard": true,
-        "soft": true
+        "soft": true,
+        "tally": "ExplicitInvalid"
       },
       "match": true
     },
@@ -894,13 +1060,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitBlank"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitBlank"
       },
       "match": true
     },
@@ -912,13 +1081,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "Valid"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "Valid"
       },
       "match": true
     },
@@ -932,15 +1104,20 @@
         ],
         "alerts": [],
         "hard": true,
-        "soft": false
+        "soft": false,
+        "tally": "ImplicitInvalid"
       },
+      "derived_inline_visible": [
+        "errors.implicit.blankVote"
+      ],
       "predicted": {
         "errors": [
           "errors.implicit.blankVote"
         ],
         "alerts": [],
         "hard": true,
-        "soft": false
+        "soft": false,
+        "tally": "ImplicitInvalid"
       },
       "match": true
     },
@@ -952,13 +1129,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitInvalid"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitInvalid"
       },
       "match": true
     },
@@ -970,13 +1150,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitBlank"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitBlank"
       },
       "match": true
     },
@@ -988,13 +1171,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "Valid"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "Valid"
       },
       "match": true
     },
@@ -1008,15 +1194,20 @@
         ],
         "alerts": [],
         "hard": true,
-        "soft": true
+        "soft": true,
+        "tally": "ImplicitInvalid"
       },
+      "derived_inline_visible": [
+        "errors.implicit.blankVote"
+      ],
       "predicted": {
         "errors": [
           "errors.implicit.blankVote"
         ],
         "alerts": [],
         "hard": true,
-        "soft": true
+        "soft": true,
+        "tally": "ImplicitInvalid"
       },
       "match": true
     },
@@ -1028,13 +1219,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitInvalid"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitInvalid"
       },
       "match": true
     },
@@ -1046,13 +1240,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitBlank"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitBlank"
       },
       "match": true
     },
@@ -1064,13 +1261,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "Valid"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "Valid"
       },
       "match": true
     },
@@ -1084,15 +1284,20 @@
         ],
         "alerts": [],
         "hard": true,
-        "soft": true
+        "soft": true,
+        "tally": "ImplicitInvalid"
       },
+      "derived_inline_visible": [
+        "errors.implicit.blankVote"
+      ],
       "predicted": {
         "errors": [
           "errors.implicit.blankVote"
         ],
         "alerts": [],
         "hard": true,
-        "soft": true
+        "soft": true,
+        "tally": "ImplicitInvalid"
       },
       "match": true
     },
@@ -1106,15 +1311,20 @@
           "errors.explicit.alert"
         ],
         "hard": false,
-        "soft": true
+        "soft": true,
+        "tally": "ExplicitInvalid"
       },
+      "derived_inline_visible": [
+        "errors.explicit.alert"
+      ],
       "predicted": {
         "errors": [],
         "alerts": [
           "errors.explicit.alert"
         ],
         "hard": false,
-        "soft": true
+        "soft": true,
+        "tally": "ExplicitInvalid"
       },
       "match": true
     },
@@ -1126,13 +1336,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitBlank"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitBlank"
       },
       "match": true
     },
@@ -1144,13 +1357,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "Valid"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "Valid"
       },
       "match": true
     },
@@ -1164,15 +1380,20 @@
         ],
         "alerts": [],
         "hard": true,
-        "soft": true
+        "soft": true,
+        "tally": "ImplicitInvalid"
       },
+      "derived_inline_visible": [
+        "errors.implicit.blankVote"
+      ],
       "predicted": {
         "errors": [
           "errors.implicit.blankVote"
         ],
         "alerts": [],
         "hard": true,
-        "soft": true
+        "soft": true,
+        "tally": "ImplicitInvalid"
       },
       "match": true
     },
@@ -1186,15 +1407,20 @@
         ],
         "alerts": [],
         "hard": true,
-        "soft": true
+        "soft": true,
+        "tally": "ExplicitInvalid"
       },
+      "derived_inline_visible": [
+        "errors.explicit.notAllowed"
+      ],
       "predicted": {
         "errors": [
           "errors.explicit.notAllowed"
         ],
         "alerts": [],
         "hard": true,
-        "soft": true
+        "soft": true,
+        "tally": "ExplicitInvalid"
       },
       "match": true
     },
@@ -1206,13 +1432,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitBlank"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "ExplicitBlank"
       },
       "match": true
     },
@@ -1224,13 +1453,16 @@
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "Valid"
       },
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [],
         "hard": false,
-        "soft": false
+        "soft": false,
+        "tally": "Valid"
       },
       "match": true
     }

@@ -109,6 +109,9 @@ recorded cell is compared against it (`pred?` column / mismatch report).
 {empty, explicit_invalid, marker_only, one_regular}) over the Referendum
 contest of the `explicit-blank-invalid` fixture. **64/64 match the
 documented prediction** → `blank-rule.recorded.json`, `blank-rule.md`.
+Each cell also records its per-ballot tally class (added after the
+over-vote rule, so the blank rule participates in the no-silent-discount
+query too).
 
 `blank-rule.browser.mjs`: the blank condition through the real booth
 (invalid policy at default) → `blank-rule.filter.recorded.json` +
@@ -144,24 +147,34 @@ plus two firsts —
   observed behaviourally. (The direct probe of the input's `disabled`
   attribute returned null — DOM-selector gap, listed as a TODO — but the
   state-level evidence is conclusive.)
-- **End-to-end violation reproduction** — see below.
+- **Violation reproduced against the real components** — see below.
 
 ### no-silent-discount — first model-check query (2026-08-10)
 
 `no-silent-discount.mjs` scans every recorded cell that carries a tally
 class for: *silent on every booth surface ∧ classified `ImplicitInvalid`*.
-Result over 60 over-vote cells: **exactly one violating configuration** —
+Sources are the blank-rule and over-vote recordings — **124 cells** — and
+the result is **exactly one violating configuration** —
 
 > `over_vote_policy = allowed` × `invalid_vote_policy = allowed`,
 > state `over_max`
 
 matching VALIDATION_LOGIC_DISTILLATION.md §4.2's prediction precisely
-(`no-silent-discount.report.json`, `no-silent-discount.md`). The browser
-runner then **reproduced it end-to-end in the real system**: the
-over-vote formed through the booth UI, no inline message and no dialog
-appeared, and the same selection — decoded and tallied through
-velvet-wasm — classified `ImplicitInvalid`. Model query as search,
-workbench as confirmation.
+(`no-silent-discount.report.json`, `no-silent-discount.md`). The blank
+rule contributes zero violations: its two `ImplicitInvalid` cells
+(`blank=not-allowed`+empty; `invalid=not-allowed`+explicit-flag) both
+hard-gate, so they are not silent.
+
+The browser runner then **reproduced the violation against the real
+components**, in two halves that share the input rather than one ballot
+flowing through the crypto pipeline: (a) the over-vote formed through the
+real booth UI with no inline message and no dialog; (b) the same
+selection, decoded via sequent-core and tallied via velvet-wasm — the
+same engines the workbench tally sandbox uses — classified
+`ImplicitInvalid`. What is **not** yet exercised as one continuous flow is
+the booth's `encrypt → cast → decrypt` pipeline connecting the two halves;
+the M.4 canary verifies those links separately. Closing that into a
+single booth-to-tally run is a named TODO.
 
 **A faithfulness rule this exercise taught** (an earlier revision of the
 e2e check got it wrong and reported "Valid"): the tally classifies
@@ -193,7 +206,7 @@ all six are:
 | Filter | 3 (browser, booth) | blank + over-vote rules done |
 | Input constraint | 3 (browser) — the `constraint` component of the effect triple | observed **behaviourally** for `NOT_ALLOWED_WITH_MSG_AND_DISABLE` (the over-vote state does not form through the UI); the direct `disabled`-attribute probe is a DOM-selector TODO |
 | Marker exclusivity (prevention) | browser — *reachability*, not effects | first reachability recording exists (over-vote under DISABLE: the state does not form). Prevention is characterized by *attempting* to create each state through the UI and recording whether it forms; the mixed marker state's booth-reachability is still an open cell. |
-| Tally classifier | headless (velvet-wasm `tally_decoded_ballots`) | recorded per-cell for the over-vote rule (the `tally` column); the standalone six-class decision table over all flag combinations is still pending |
+| Tally classifier | headless (velvet-wasm `tally_decoded_ballots`) | recorded per-cell for the blank and over-vote rules (the `tally` column); the standalone six-class decision table over all flag combinations is still pending |
 
 Two consequences worth stating plainly. First, a per-rule recording like
 blank-rule is a *slice* of `f`, by design — the mapping decomposes per

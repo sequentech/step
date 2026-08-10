@@ -15,10 +15,12 @@ discards it. Blank / Declined / ExplicitInvalid are excluded by
 definition (valid, voter-intended, and deliberate opt-in respectively).
 
 **Method.** Enumeration over recorded characterization cells whose tally
-class was recorded from the real velvet-wasm tally. Not a proof — but
-every violation reproduces in the workbench end-to-end.
+class was recorded from the real velvet-wasm tally. Not a proof.
+Violations are reproduced against the real booth UI (signals observed
+live) plus real decode/tally on the same selection; chaining through the
+booth's encrypt→cast→decrypt pipeline is a named TODO.
 
-**Result: 1 violating cell(s)** across 60 scanned (sources: overvote-rule.recorded.json).
+**Result: 1 violating cell(s)** across 124 scanned (sources: blank-rule.recorded.json, overvote-rule.recorded.json).
 
 ## Violating configurations
 

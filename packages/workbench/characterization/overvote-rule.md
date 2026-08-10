@@ -15,8 +15,10 @@ under one (over-vote policy × invalid policy) configuration. States:
 *over_max* = Ada + Bruno (one over). Blank/under policies at defaults.
 
 Columns: *errors* / *alerts* are the checker record (message keys,
-`errors.implicit.` prefix stripped); *hard/soft gate* are the transition
-gates; *tally* is the **recorded** class — the counter that incremented
+`errors.implicit.` prefix stripped); *hard/soft gate* are the
+review-transition gates — evaluated when the voter clicks Next on the
+*last* voting page (blocking dialog = review unreachable; dismissible =
+may continue); *tally* is the **recorded** class — the counter that incremented
 when this exact decoded ballot was run through velvet-wasm's real tally.
 `pred?` compares all five observables against the documented rules;
 ✗ = code and docs disagree.

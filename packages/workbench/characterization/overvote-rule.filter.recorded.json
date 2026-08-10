@@ -63,6 +63,6 @@
       }
     }
   ],
-  "e2e_violation_reproduced": true,
-  "e2e_tally_class": "ImplicitInvalid"
+  "violation_reproduced_booth_plus_wasm_tally": true,
+  "reproduced_tally_class": "ImplicitInvalid"
 }
