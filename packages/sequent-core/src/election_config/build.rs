@@ -998,7 +998,6 @@ impl<'a> Builder<'a> {
         }
 
         event.insert("external_id".to_string(), json!(self.event_external_id));
-        add_legacy_name(&mut event, &self.event_external_id);
         self.apply_logo(&mut event);
 
         for (path, value) in self.parameter_patches("election_event.") {
@@ -1075,7 +1074,6 @@ impl<'a> Builder<'a> {
                 ],
             );
             election.insert("external_id".to_string(), json!(external_id));
-            add_legacy_name(&mut election, &external_id);
             elections.push(Value::Object(election));
         }
 
@@ -1138,7 +1136,6 @@ impl<'a> Builder<'a> {
                 ],
             );
             contest.insert("external_id".to_string(), json!(external_id));
-            add_legacy_name(&mut contest, &external_id);
             contests.push(Value::Object(contest));
         }
 
@@ -1259,7 +1256,6 @@ impl<'a> Builder<'a> {
                 ],
             );
             candidate.insert("external_id".to_string(), json!(external_id));
-            add_legacy_name(&mut candidate, &external_id);
 
             // The photograph's other half. `image_document_id` came from the row;
             // the url is composed here because it embeds the tenant, and this is
@@ -1628,60 +1624,4 @@ pub(crate) fn has_error_saying(report: &Report, needle: &str) -> bool {
     report
         .errors()
         .any(|problem| problem.message.contains(needle))
-}
-
-/// The plain `name` an importer older than March 2026 requires.
-///
-/// `f016a4b4a7` ("Heterogeneus use of name/alias") replaced `name` with `external_id`
-/// on `ElectionEvent`, `Election`, `Contest` and `Candidate`. On the first two `name`
-/// was a **required** `String`, so an importer built before that commit refuses a
-/// bundle without it outright — `missing field \`name\` at line 244` — which is exactly
-/// what a live deployment answered when handed an export from this tool.
-///
-/// The name is not new information: it is already at
-/// `presentation.i18n.<language>.name`, which is where the platform reads it from now.
-/// This copies it to the top level so one file imports into a platform on either side
-/// of that change.
-///
-/// Safe in the other direction because nothing in `ImportElectionEventSchema` or its
-/// entities sets `deny_unknown_fields` — a current importer reads `external_id` and
-/// ignores this. A test holds that, so if anyone adds `deny_unknown_fields` later, the
-/// reason this field exists is not lost with it.
-///
-/// Done here rather than in the templates because the name arrives *merged* from the
-/// workbook, after Handlebars has run: the templates carry platform defaults only, and
-/// not one of them has ever had a `name` key to fill in.
-fn add_legacy_name(entity: &mut Map<String, Value>, fallback: &str) {
-    if entity.contains_key("name") {
-        return;
-    }
-
-    // The default language first, then any language at all, then the identifier the
-    // author typed. A blank name would satisfy serde and then show up as an unnamed
-    // election in a list, which is worse than an identifier nobody chose to display.
-    let preferred = entity
-        .get("presentation")
-        .and_then(|presentation| presentation.get("default_language_code"))
-        .and_then(Value::as_str)
-        .map(str::to_string);
-
-    let from_i18n = entity
-        .get("presentation")
-        .and_then(|presentation| presentation.get("i18n"))
-        .and_then(|i18n| i18n.as_object())
-        .and_then(|by_language| {
-            preferred
-                .as_deref()
-                .and_then(|code| by_language.get(code))
-                .or_else(|| by_language.values().next())
-                .and_then(|entry| entry.get("name"))
-                .and_then(Value::as_str)
-                .map(str::to_string)
-        })
-        .filter(|name| !name.trim().is_empty());
-
-    entity.insert(
-        "name".to_string(),
-        json!(from_i18n.unwrap_or_else(|| fallback.to_string())),
-    );
 }
