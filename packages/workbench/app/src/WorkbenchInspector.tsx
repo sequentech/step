@@ -53,7 +53,7 @@ import {
     loadSnapshotViaReload,
     materializeAsCheckpoint,
     normalizeCheckpointName,
-    projectCanonicalState,
+    canonicalCompareJson,
     readCheckpointSnapshot,
     saveCheckpoint,
     type CheckpointMeta,
@@ -3235,12 +3235,8 @@ function useIsWorkingDirty(): boolean {
         // the live state on every check makes the comparison robust
         // against any drift between what the store carries and what
         // counts as a scenario. See `CANONICAL_STATE_KEYS`.
-        const liveCanonical = JSON.stringify(
-            projectCanonicalState(reduxState)
-        )
-        const savedCanonical = JSON.stringify(
-            projectCanonicalState(active.state as RootState)
-        )
+        const liveCanonical = canonicalCompareJson(reduxState)
+        const savedCanonical = canonicalCompareJson(active.state as RootState)
         if (liveCanonical !== savedCanonical) return true
         const liveWb = JSON.stringify(workbenchState)
         const activeWb = JSON.stringify(
@@ -3271,10 +3267,8 @@ if (typeof window !== "undefined") {
                 window as unknown as {__store: {getState: () => RootState}}
             ).__store.getState()
             const liveWb = getWorkbenchState()
-            const stateA = JSON.stringify(projectCanonicalState(liveState))
-            const stateB = JSON.stringify(
-                projectCanonicalState(active.state as RootState)
-            )
+            const stateA = canonicalCompareJson(liveState)
+            const stateB = canonicalCompareJson(active.state as RootState)
             const wbA = JSON.stringify(liveWb)
             const wbB = JSON.stringify(active.workbench)
             const firstDiff = (a: string, b: string): unknown => {

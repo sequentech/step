@@ -76,7 +76,7 @@
               "election_event_id": "44444444-4444-4444-4444-444444444002",
               "election_id": "44444444-4444-4444-4444-444444444003",
               "name": "Referendum (with explicit blank)",
-              "description": "Pick up to two. 'Blank vote' is an explicit-blank marker: selecting it alone is an explicit blank; selecting it together with Yes or No is an implicit invalid. max_votes is 2 so that the mixed case is not also an over-vote — the exclusivity rule is then the only reason the ballot is invalid.",
+              "description": "Pick up to two. 'Blank vote' is an explicit-blank marker: selecting it alone is an explicit blank; selecting it together with Yes or No is an implicit invalid. max_votes is 2 so that the mixed case is not also an over-vote \u2014 the exclusivity rule is then the only reason the ballot is invalid.",
               "max_votes": 2,
               "min_votes": 0,
               "winning_candidates_num": 1,
@@ -238,7 +238,8 @@
     },
     "extra": {
       "bypassChooser": false,
-      "isVoted": {}
+      "isVoted": {},
+      "declinedToVote": {}
     }
   },
   "workbench": {

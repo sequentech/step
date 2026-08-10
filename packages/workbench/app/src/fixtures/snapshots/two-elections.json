@@ -281,7 +281,8 @@
     },
     "extra": {
       "bypassChooser": false,
-      "isVoted": {}
+      "isVoted": {},
+      "declinedToVote": {}
     }
   },
   "workbench": {

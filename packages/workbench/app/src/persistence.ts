@@ -169,6 +169,55 @@ export const CANONICAL_STATE_KEYS = [
 export type CanonicalStateKey = (typeof CANONICAL_STATE_KEYS)[number]
 export type CanonicalRootState = Pick<RootState, CanonicalStateKey>
 
+/** `true` for values that carry no scenario information — an empty map
+ *  or list. Used by {@link canonicalCompareJson}. */
+function isEmptyContainer(v: unknown): boolean {
+    if (Array.isArray(v)) return v.length === 0
+    if (v && typeof v === "object") return Object.keys(v).length === 0
+    return false
+}
+
+/**
+ * Serialize a canonical projection for **comparison** (not for storage).
+ *
+ * Identical to `JSON.stringify(projectCanonicalState(...))` except that a
+ * slice field which exists on one side, is absent on the other, and holds
+ * an *empty* map or list is dropped from both. Such a field carries no
+ * scenario information, so its presence must not read as a difference.
+ *
+ * This exists because portal slices gain fields over time. When upstream
+ * added `declinedToVote: {}` to the `extra` slice, every bundled snapshot
+ * — all authored before it — instantly compared unequal to the live store
+ * and the working copy showed as permanently "modified", with the reload
+ * button unable to clear it. Backfilling the snapshots fixes the instance;
+ * this fixes the class.
+ *
+ * Deliberately narrow: only *empty* containers are forgiven. A field
+ * holding actual data still counts as a difference on either side, so a
+ * real divergence can never be masked.
+ */
+export function canonicalCompareJson(state: RootState): string {
+    const projected = projectCanonicalState(state) as Record<
+        string,
+        Record<string, unknown>
+    >
+    const out: Record<string, unknown> = {}
+    for (const key of CANONICAL_STATE_KEYS) {
+        const slice = projected[key]
+        if (!slice || typeof slice !== "object" || Array.isArray(slice)) {
+            out[key] = slice
+            continue
+        }
+        const kept: Record<string, unknown> = {}
+        for (const field of Object.keys(slice).sort()) {
+            if (isEmptyContainer(slice[field])) continue
+            kept[field] = slice[field]
+        }
+        out[key] = kept
+    }
+    return JSON.stringify(out)
+}
+
 /** Reduce a full `RootState` to the canonical scenario projection.
  *  Used everywhere we serialize state (writeSnapshot, saveCheckpoint,
  *  buildCurrentSnapshot) and on the compare side of the dirty check.
