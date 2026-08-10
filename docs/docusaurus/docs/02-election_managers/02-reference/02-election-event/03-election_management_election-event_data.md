@@ -182,12 +182,17 @@ Configure advanced system behaviors for this Election Event.
     is append-only. If a vote weight is changed after that, or a voter who had
     voted is disabled or removed, the board no longer matches and the tally
     refuses rather than publishing a total that counts some voters at their old
-    weight and their new one at once. Re-enabling a voter who was disabled
-    clears it. Changing a weight back does too, but only if it is changed back
-    exactly — and if the ballots were extracted with weights that were wrong,
-    there is no way to correct them afterwards, because the ballots already on
-    the board will be mixed and published whatever the tally counts. Get the
-    weights right before the tally is started.
+    weight and their new one at once. Putting back exactly what changed clears
+    it. Nothing else does: the ballots already on the board will be mixed and
+    published whatever the tally counts, so weights extracted wrongly cannot be
+    corrected afterwards, and a voter whose account was deleted rather than
+    disabled cannot be restored at all — that area can then never be tallied.
+
+    The refusal is not a guarantee that the weights used are the ones configured
+    now. A weight raised so that it only adds batches the interrupted run had
+    not yet written is applied as raised, because nothing already on the board
+    contradicts it. Get the weights right before starting the tally rather than
+    relying on this to catch a change.
     :::
 
     :::danger Voter weights are public, and results are attributable

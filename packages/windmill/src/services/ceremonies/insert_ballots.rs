@@ -17,7 +17,7 @@ use crate::services::public_keys::deserialize_public_key;
 use crate::services::users::{
     list_keycloak_enabled_users_by_area_id_and_authorized_elections, VoterMultiplicityColumn,
 };
-use crate::services::weight_batches::weight_batch_offsets;
+use crate::services::weight_batches::{reconcile_batch, weight_batch_offsets, BatchReconciliation};
 use anyhow::{anyhow, Context, Result};
 use b3::messages::artifact::Ballots;
 use b3::messages::message::Message;
@@ -486,52 +486,45 @@ pub async fn insert_ballots_messages(
                                     Ballots::<RistrettoCtx>::strand_deserialize(&artifact).ok()
                                 })
                                 .map(|ballots| ballots.ciphertexts.0);
-                            let built = batches.get(bit as usize);
-
-                            // An area with no ballots posts one empty batch, so
-                            // that the tally has something to wait for. It
-                            // encodes no weight and contributes nothing, so it
-                            // is not evidence that anything changed.
-                            if posted.as_ref().is_some_and(|posted| posted.is_empty())
-                                && built.is_none_or(|built| built.is_empty())
-                            {
-                                continue;
-                            }
-
-                            let matches = match (&posted, built) {
-                                (Some(posted), Some(built)) => posted == built,
-                                _ => false,
-                            };
-                            if matches {
-                                continue;
-                            }
+                            let built = batches
+                                .get(bit as usize)
+                                .map(|built| built.as_slice())
+                                .unwrap_or_default();
 
                             // Compares the ciphertexts themselves, not their
                             // number, so weights permuted between two voters --
                             // a voters file re-imported one row out of step --
                             // is caught even though every batch keeps its size.
+                            if BatchReconciliation::Diverged
+                                != reconcile_batch(posted.as_deref(), built)
+                            {
+                                continue;
+                            }
+
                             if is_voter_weighted {
                                 return Err(anyhow!(
                                     "Election {} area {} already has ballots on the board in \
                                      weight batch offset {bit} that these voters and weights do \
-                                     not produce. Neither the weights nor who may vote can be \
-                                     changed once ballots have been extracted for a tally: the \
-                                     board is append-only, so those ballots will be mixed and \
-                                     published whatever this tally counts. If a voter was \
-                                     disabled or removed since the ballots were extracted, \
-                                     restoring them lets the tally proceed",
+                                     not produce. Something changed since the ballots were \
+                                     extracted -- a vote weight, or who may vote. The board is \
+                                     append-only, so the ballots already on it will be mixed and \
+                                     published whatever this tally counts; the tally can only \
+                                     proceed once this area's voters and weights produce them \
+                                     again",
                                     tally_session_contest.election_id,
                                     tally_session_contest.area_id,
                                 ));
                             }
                             event!(
                                 Level::WARN,
-                                "Batch {} for election {} area {} is already on the board and \
-                                 will be counted as it is, but this run built something else. \
-                                 The census recorded now will differ from what is tallied",
+                                "Batch {} for election {} area {} is already on the board with \
+                                 {} ballots and will be counted as it is, but this run built \
+                                 {}. The census recorded now will differ from what is tallied",
                                 base_batch + bit as BatchNumber,
                                 tally_session_contest.election_id,
                                 tally_session_contest.area_id,
+                                posted.as_ref().map_or(0, |posted| posted.len()),
+                                built.len(),
                             );
                         }
 

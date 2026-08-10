@@ -18,6 +18,7 @@ use sequent_core::types::hasura::core::{TallySessionContest, TallySessionContest
 use sequent_core::types::keycloak::{
     weight_bit_multiplier, weight_has_bit, MAX_TOTAL_VOTE_WEIGHT, VOTE_WEIGHT_BATCHES,
 };
+use strand::elgamal::Ciphertext;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx, serialization::StrandDeserialize};
 use tracing::{event, Level};
 
@@ -84,6 +85,44 @@ pub fn contest_weight_batches(
             Ok((base + bit as i64, multiplier))
         })
         .collect()
+}
+
+/// What a run should do with one of its area's batches, having compared what
+/// the board already holds for it against what this run built.
+#[derive(Debug, PartialEq, Eq)]
+pub enum BatchReconciliation {
+    /// Nothing on the board yet: post it.
+    Post,
+    /// The board already holds exactly this: leave it alone.
+    Keep,
+    /// The board holds something else. Under weighting that is a wrong tally,
+    /// because the ballots on the board are what will be mixed and published
+    /// whatever is counted; without it, it is the census drifting from the
+    /// board, which has always been allowed.
+    Diverged,
+}
+
+/// Decides one batch. Split out from the dump so that every case can be pinned
+/// by a test: this decision changed in three consecutive review rounds, and
+/// each change broke the previous one in a way no test could catch.
+pub fn reconcile_batch(
+    posted: Option<&[Ciphertext<RistrettoCtx>]>,
+    built: &[Ciphertext<RistrettoCtx>],
+) -> BatchReconciliation {
+    let Some(posted) = posted else {
+        return BatchReconciliation::Post;
+    };
+    // An area with no ballots posts one empty batch, so the tally has something
+    // to wait for. It encodes no weight and contributes nothing, so it is not
+    // evidence that anything changed -- but only while this run agrees there is
+    // nothing to put in it.
+    if posted.is_empty() && built.is_empty() {
+        return BatchReconciliation::Keep;
+    }
+    if posted == built {
+        return BatchReconciliation::Keep;
+    }
+    BatchReconciliation::Diverged
 }
 
 /// The area's decrypted ballots, each repeated by the multiplier its batch
@@ -204,6 +243,83 @@ mod tests {
             value["weight_bit_mask"] = json!(mask);
         }
         value
+    }
+
+    /// A handful of distinct ciphertexts, built once per test so that the same
+    /// index yields the same value and different indices do not.
+    fn pool() -> Vec<Ciphertext<RistrettoCtx>> {
+        let ctx = RistrettoCtx::default();
+        let mut rng = ctx.get_rng();
+        (0..4)
+            .map(|_| Ciphertext {
+                mhr: ctx.rnd(&mut rng),
+                gr: ctx.rnd(&mut rng),
+            })
+            .collect()
+    }
+
+    #[test]
+    fn an_unposted_batch_is_posted() {
+        let pool = pool();
+        assert_eq!(reconcile_batch(None, &pool[..2]), BatchReconciliation::Post);
+        assert_eq!(reconcile_batch(None, &[]), BatchReconciliation::Post);
+    }
+
+    #[test]
+    fn a_batch_holding_what_this_run_built_is_kept() {
+        let pool = pool();
+        assert_eq!(
+            reconcile_batch(Some(&pool[..3]), &pool[..3]),
+            BatchReconciliation::Keep
+        );
+    }
+
+    #[test]
+    fn an_empty_placeholder_is_kept_only_while_it_is_still_empty() {
+        // An area with no ballots posts one empty batch; that is not evidence
+        // anything changed. But once this run has ballots for it, the empty
+        // batch on the board would strand them.
+        let pool = pool();
+        assert_eq!(reconcile_batch(Some(&[]), &[]), BatchReconciliation::Keep);
+        assert_eq!(
+            reconcile_batch(Some(&[]), &pool[..1]),
+            BatchReconciliation::Diverged
+        );
+    }
+
+    #[test]
+    fn a_batch_the_current_weights_no_longer_fill_has_diverged() {
+        let pool = pool();
+        assert_eq!(
+            reconcile_batch(Some(&pool[..2]), &[]),
+            BatchReconciliation::Diverged
+        );
+    }
+
+    #[test]
+    fn a_batch_of_a_different_size_has_diverged() {
+        let pool = pool();
+        assert_eq!(
+            reconcile_batch(Some(&pool[..3]), &pool[..2]),
+            BatchReconciliation::Diverged
+        );
+    }
+
+    #[test]
+    fn a_batch_of_the_same_size_holding_other_ballots_has_diverged() {
+        // The case a ballot count cannot see: weights permuted between two
+        // voters keeps every batch exactly the same size while changing who is
+        // in it, and counting the board would seat the old weights.
+        let pool = pool();
+        let swapped: Vec<Ciphertext<RistrettoCtx>> = vec![pool[1].clone(), pool[0].clone()];
+        assert_eq!(
+            reconcile_batch(Some(&pool[..2]), &swapped),
+            BatchReconciliation::Diverged
+        );
+        assert_eq!(
+            reconcile_batch(Some(&pool[..2]), &pool[1..3]),
+            BatchReconciliation::Diverged
+        );
     }
 
     #[test]
