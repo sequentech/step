@@ -336,9 +336,17 @@ pub async fn create_tally_ceremony(
         // beside electronic ballots worth thousands. It also breaks the
         // published percentages, because a sheet contributes to the candidate
         // totals but not to the weighted base they are divided by.
-        let approved_tally_sheets =
+        // Scoped to the elections being tallied, like the two refusals below.
+        // An approved sheet belonging to a different election in the same event
+        // says nothing about this tally, and refusing on it would name a remedy
+        // -- withdraw the sheet -- that destroys that other election's paper
+        // count.
+        let approved_tally_sheets: Vec<_> =
             get_approved_tally_sheets_by_event(&transaction, &tenant_id, &election_event_id)
-                .await?;
+                .await?
+                .into_iter()
+                .filter(|sheet| election_ids.contains(&sheet.election_id))
+                .collect();
         if !approved_tally_sheets.is_empty() {
             return Err(anyhow!(
                 "Approved tally sheets cannot be counted when voter-weighted \
@@ -404,11 +412,14 @@ pub async fn create_tally_ceremony(
         if !weighted_areas.is_empty() {
             return Err(anyhow!(
                 "Voter-weighted voting cannot be used while published ballots \
-                 still carry an area weight, because the two would multiply. \
-                 Set the weighted voting policy back to areas-weighted voting \
-                 to make the weight editable, clear it on these areas, set the \
-                 policy to voters-weighted voting again, and republish the \
-                 ballots: {}",
+                 still carry an area weight, because the two would multiply: \
+                 {}. This has to be corrected \
+                 before the ballots are published: set the weighted voting \
+                 policy back to areas-weighted voting, which makes the weight \
+                 editable again, clear it on these areas, set the policy to \
+                 voters-weighted voting and publish. Once voting has begun the \
+                 ballots cannot be republished, so at this point there is no \
+                 remedy left",
                 weighted_areas.join(", ")
             ));
         }

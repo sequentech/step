@@ -302,12 +302,15 @@ fn generate_area_contests(
             continue;
         };
 
-        let Some(plaintexts) = collect_weighted_plaintexts(session_contest, relevant_plaintexts)?
-        else {
-            continue;
-        };
         let Some(area) = areas_map.get(&ballot_style.area_id) else {
             event!(Level::INFO, "Area not found {}", ballot_style.area_id);
+            continue;
+        };
+        // Below every guard, not just most of them: this call can fail, and a
+        // row the guards above deliberately skip must not be able to abort
+        // every election in the session.
+        let Some(plaintexts) = collect_weighted_plaintexts(session_contest, relevant_plaintexts)?
+        else {
             continue;
         };
 
@@ -839,10 +842,13 @@ async fn map_plaintext_data(
             return Err(anyhow!(
                 "Refusing to tally: voter-weighted voting is enabled while these \
                  areas still carry their own weight in the published ballots, \
-                 which would multiply the two: {}. Set the weighted voting \
-                 policy back to areas-weighted voting to make the weight \
-                 editable, clear it on these areas, set the policy to \
-                 voters-weighted voting again, and republish the ballots",
+                 which would multiply the two: {}. This has to be corrected \
+                 before the ballots are published: set the weighted voting \
+                 policy back to areas-weighted voting, which makes the weight \
+                 editable again, clear it on these areas, set the policy to \
+                 voters-weighted voting and publish. Once voting has begun the \
+                 ballots cannot be republished, so at this point there is no \
+                 remedy left",
                 weighted.join(", ")
             )
             .into());
@@ -852,9 +858,19 @@ async fn map_plaintext_data(
         // is re-checked here rather than only at creation. Its votes carry no
         // weight and would be added to the weighted totals at one each, which
         // decides contests rather than merely under-counting them.
-        let approved_tally_sheets =
+        // Scoped to this session's elections, like the two refusals above it.
+        // An approved sheet belonging to a different election in the same event
+        // says nothing about this tally, and refusing on it would name a remedy
+        // -- withdraw the sheet -- that destroys that other election's paper
+        // count.
+        let session_election_ids: Vec<String> =
+            tally_session.election_ids.clone().unwrap_or_default();
+        let approved_tally_sheets: Vec<_> =
             get_approved_tally_sheets_by_event(hasura_transaction, &tenant_id, &election_event_id)
-                .await?;
+                .await?
+                .into_iter()
+                .filter(|sheet| session_election_ids.contains(&sheet.election_id))
+                .collect();
         if !approved_tally_sheets.is_empty() {
             return Err(Error::String(format!(
                 "Approved tally sheets cannot be counted when voter-weighted \

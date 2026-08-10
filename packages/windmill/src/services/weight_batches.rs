@@ -62,6 +62,19 @@ pub fn contest_weight_batches(
     let Some(mask) = annotations.weight_bit_mask else {
         return Ok(vec![(base, 1)]);
     };
+    // A stored mask always names at least one batch: the dump forces it to 1
+    // for an area with no ballots at all, and every bit it sets is below
+    // VOTE_WEIGHT_BATCHES. A mask of zero, or one whose bits are all out of
+    // range, is corruption -- and it is absorbing rather than loud, because an
+    // empty batch list makes the area complete with no votes at every layer
+    // that consumes it, publishes results and closes the session.
+    if mask & ((1u32 << VOTE_WEIGHT_BATCHES) - 1) == 0 {
+        return Err(anyhow!(
+            "Weight batch mask {mask:#b} for tally session contest {} names no batch this \
+             contest area owns",
+            tally_session_contest.id
+        ));
+    }
     (0..VOTE_WEIGHT_BATCHES)
         .filter(|bit| mask & (1u32 << bit) != 0)
         .map(|bit| {
@@ -259,6 +272,19 @@ mod tests {
                 1u64 << (VOTE_WEIGHT_BATCHES - 1)
             ))
         );
+    }
+
+    #[test]
+    fn a_mask_naming_no_owned_batch_is_an_error_not_an_empty_tally() {
+        // An empty batch list is absorbing: it makes the area complete with no
+        // votes everywhere it is consumed, so it must never be produced.
+        for mask in [0u32, 1u32 << VOTE_WEIGHT_BATCHES, 0x8000_0000] {
+            let contest = contest_with(Some(annotations_with_mask(Some(mask))));
+            assert!(
+                contest_weight_batches(&contest).is_err(),
+                "mask {mask:#b} should be refused"
+            );
+        }
     }
 
     #[test]

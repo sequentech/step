@@ -125,9 +125,12 @@ Configure advanced system behaviors for this Election Event.
   - **Weighted Voting for Voters**: Give each voter their own weight, so that a
     voter with weight `w` contributes `w` votes. Add a `vote-weight` column to
     the imported voters csv holding a whole number between 1 and 100000. A voter
-    with no column, or with a blank cell, votes with weight 1. `vote_weight` and
-    other near spellings are rejected rather than imported, because they would be
-    stored under a name the tally does not read. The column is
+    with no column, or with a blank cell, votes with weight 1. Near spellings that
+    differ only in case or in `_` and `.` — `vote_weight`, `voteWeight`,
+    `vote.weight` — are rejected rather than imported, because they would be
+    stored under a name the tally does not read. A column named simply `weight`
+    is **not** rejected: it is the name of the unrelated area weight, so it
+    imports as an ordinary attribute and every voter tallies at 1. The column is
     named after the `vote-weight` voter attribute it becomes, so an exported
     voters file can be edited and re-imported unchanged. Cannot be combined with
     Delegate Voting, and every contest in the election event must use the
@@ -143,8 +146,10 @@ Configure advanced system behaviors for this Election Event.
     The weights of everyone who votes in one area of a contest
     must also add up to no more than 1000000, so a small number of voters on very
     large weights is rejected even though each weight is individually allowed.
-    **This is checked when the tally runs, which is after voting has closed, and
-    there is no earlier warning.** Two hundred and one voters each carrying
+    **This is checked when the tally runs, which is after voting has closed.** The
+    import writes a warning to the server log when the weights in one file
+    exceed it, but nothing surfaces that in the Admin Portal, and it counts only
+    that file rather than everything already in the area. Two hundred and one voters each carrying
     5000 exceed it while every one of them imports cleanly. Plan around it before
     voting opens: the remedy afterwards is to rescale every weight, which changes
     the result. The limit does not come from the mix, which under this policy is
@@ -162,7 +167,12 @@ Configure advanced system behaviors for this Election Event.
 
     If any area still carries a Weight from a previous Weighted Voting for Areas
     configuration, the tally is refused until it is cleared, because the two
-    weightings would multiply. The Weight field is hidden under this policy, so
+    weightings would multiply. **Check this before publishing ballots.**
+    Selecting this policy hides the Weight column and field without clearing
+    what they hold, so an area can keep a weight that nothing in the interface
+    shows, and the refusal arrives only when the tally is created — after voting
+    has closed, when the ballots can no longer be republished and there is no
+    remedy left. The Weight field is hidden under this policy, so
     clearing it means switching back to Weighted Voting for Areas, clearing the
     Weight on each area, switching to Weighted Voting for Voters again, and
     republishing the ballots.

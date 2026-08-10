@@ -515,7 +515,7 @@ export const EditElectionEventDataForm: React.FC = () => {
             }
         }
 
-        // A voter's weight is applied by repeating their ballot, so it has no
+        // A voter's weight is applied by counting their ballot more than once, so it has no
         // defined meaning combined with a delegated ballot, and publishing the
         // decoded ballots would show the weight as a run of identical
         // plaintexts. The tally refuses both, but only once voting has closed.

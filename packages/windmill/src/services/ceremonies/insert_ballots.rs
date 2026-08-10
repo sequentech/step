@@ -19,7 +19,6 @@ use crate::services::users::{
 };
 use crate::services::weight_batches::weight_batch_offsets;
 use anyhow::{anyhow, Context, Result};
-use b3::messages::artifact::Ballots;
 use b3::messages::message::Message;
 use b3::messages::newtypes::BatchNumber;
 use b3::messages::newtypes::TrusteeSet;
@@ -50,7 +49,6 @@ use serde_json::json;
 use std::collections::HashMap;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::elgamal::Ciphertext;
-use strand::serialization::StrandDeserialize;
 use strand::signature::StrandSignaturePk;
 use tempfile::NamedTempFile;
 use tokio::task::JoinHandle;
@@ -295,14 +293,13 @@ pub async fn insert_ballots_messages(
                         multiplicity_source,
                     )?;
 
-                    // Checked before either pass branches, so the
-                    // annotations-only pass cannot record a census that the
-                    // ballot pass would then refuse. Only weighting can inflate
-                    // this beyond the ballot count, so the cap must not
-                    // constrain an election that is not using it. Weighting no
-                    // longer grows the mix batch -- it grows the plaintexts the
-                    // tally expands after mixing -- so this bounds that
-                    // expansion rather than the shuffle.
+                    // Checked before anything is posted, so a run that would
+                    // be refused does not leave batches on an append-only
+                    // board. Only weighting can inflate this beyond the ballot
+                    // count, so the cap must not constrain an election that is
+                    // not using it. Weighting no longer grows the mix batch --
+                    // it grows the plaintexts the tally expands after mixing --
+                    // so this bounds that expansion rather than the shuffle.
                     let total_weight: u64 = merge_result
                         .ballot_contents
                         .iter()
@@ -325,8 +322,30 @@ pub async fn insert_ballots_messages(
                     // bits of the batches its voter's ciphertext goes into, so
                     // the union over voters is exactly the set of non-empty
                     // batches. Computed here rather than beside the posting
-                    // because the annotations-only pass has to record the same
-                    // mask without posting anything.
+                    // because the annotations record it whether or not this run
+                    // is the one that posts them.
+                    // Which of this area's batches are already on the board.
+                    // Scanned over the whole run only when weighting is on:
+                    // rows allocated before this layout existed sit one apart,
+                    // and only a weighted row is guaranteed to own a full run,
+                    // so a wider scan would read a neighbour's batch as this
+                    // area's.
+                    let base_batch = tally_session_contest.session_id as BatchNumber;
+                    let scanned_offsets = if is_voter_weighted {
+                        VOTE_WEIGHT_BATCHES
+                    } else {
+                        1
+                    };
+                    let posted_mask: u32 = (0..scanned_offsets)
+                        .filter(|bit| {
+                            let batch = base_batch + *bit as BatchNumber;
+                            board_messages_clone.iter().any(|message| {
+                                message.statement.get_batch_number() == batch
+                                    && StatementType::Ballots == message.statement.get_kind()
+                            })
+                        })
+                        .fold(0u32, |acc, bit| acc | (1u32 << bit));
+
                     let weight_bit_mask: Option<u32> = if is_voter_weighted {
                         let union = merge_result.ballot_contents.iter().try_fold(
                             0u64,
@@ -342,7 +361,37 @@ pub async fn insert_ballots_messages(
                         // No ballots at all: keep the single empty batch this
                         // area would have had without weighting, so the tally
                         // still has something to wait for.
-                        Some(if union == 0 { 1 } else { union as u32 })
+                        let computed = if union == 0 { 1 } else { union as u32 };
+
+                        // A batch already on the board stays there, because the
+                        // board is append-only, and braid mixes and publishes
+                        // it on the strength of its Ballots message alone. So
+                        // it is counted whether or not the current weights
+                        // still produce it -- leaving it out of the mask would
+                        // drop those votes from the total while its decrypted
+                        // ballots were published anyway, which for a batch
+                        // holding one ballot publishes that voter's vote and
+                        // counts it nowhere.
+                        //
+                        // Not a refusal. A count that differs from what this
+                        // run built cannot distinguish a weight edited between
+                        // runs from a voter disabled between runs, and neither
+                        // is repairable by refusing: the ballots are already
+                        // public. The tally counts the board, and says so.
+                        let vacated = posted_mask & !computed;
+                        if vacated != 0 {
+                            event!(
+                                Level::WARN,
+                                "Election {} area {} already has ballots on the board in weight \
+                                 batches {vacated:#b}, which the current vote weights no longer \
+                                 produce. The board is append-only, so the tally will count them: \
+                                 the result reflects the weights as they were when those ballots \
+                                 were extracted, not as they are now",
+                                tally_session_contest.election_id,
+                                tally_session_contest.area_id,
+                            );
+                        }
+                        Some(computed | posted_mask)
                     } else {
                         // Absent for every other policy, which leaves the stored
                         // annotations byte-identical to what they were before
@@ -430,7 +479,6 @@ pub async fn insert_ballots_messages(
                         }
 
                         let mut board = get_b3_pgsql_client().await?;
-                        let base_batch = tally_session_contest.session_id as BatchNumber;
                         for (bit, ciphertexts) in batches.into_iter().enumerate() {
                             // Post exactly the batches the mask names, so the
                             // tally waits for exactly what was posted. Every
@@ -445,44 +493,18 @@ pub async fn insert_ballots_messages(
                             if !is_expected {
                                 continue;
                             }
-                            // A batch already on the board is left alone by
-                            // `add_ballots_to_board`, which is what lets a
-                            // partly posted area be completed by dumping it
-                            // again. That only holds while the ballots it
-                            // already carries are the ballots this run would
-                            // post: the board is append-only, so if a vote
-                            // weight changed in between, the old batch stays
-                            // and is counted with its old contents. Compare
-                            // what is there against what was just built, and
-                            // refuse rather than silently tally the stale one.
-                            //
-                            // This compares counts, not ciphertexts, so it will
-                            // not catch a weight change that leaves every
-                            // already-posted batch the same size.
-                            if let Some(posted) = board_messages_clone.iter().find(|message| {
-                                message.statement.get_batch_number()
-                                    == base_batch + bit as BatchNumber
-                                    && StatementType::Ballots == message.statement.get_kind()
-                            }) {
-                                let posted_len = posted
-                                    .artifact
-                                    .clone()
-                                    .and_then(|artifact| {
-                                        Ballots::<RistrettoCtx>::strand_deserialize(&artifact).ok()
-                                    })
-                                    .map(|ballots| ballots.ciphertexts.0.len());
-                                if posted_len != Some(ciphertexts.len()) {
-                                    return Err(anyhow!(
-                                        "Weight batch offset {bit} for election {} area {} is \
-                                         already on the board with {:?} ballots, but this run \
-                                         built {}. Vote weights cannot be changed after ballots \
-                                         have been extracted for a tally",
-                                        tally_session_contest.election_id,
-                                        tally_session_contest.area_id,
-                                        posted_len,
-                                        ciphertexts.len(),
-                                    ));
-                                }
+                            // Already posted. `add_ballots_to_board` would skip
+                            // it anyway; skipping here says so in the log, which
+                            // is what a recovery run's operator needs to see.
+                            if posted_mask & (1u32 << bit) != 0 {
+                                event!(
+                                    Level::INFO,
+                                    "Weight batch offset {} for election {} area {} is already \
+                                     on the board, leaving it as it is",
+                                    bit,
+                                    tally_session_contest.election_id,
+                                    tally_session_contest.area_id
+                                );
                                 continue;
                             }
                             event!(
