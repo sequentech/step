@@ -22,6 +22,7 @@ use anyhow::{anyhow, Context, Result};
 use b3::messages::message::Message;
 use b3::messages::newtypes::BatchNumber;
 use b3::messages::newtypes::TrusteeSet;
+use b3::messages::statement::StatementType;
 use base64::{
     alphabet,
     engine::{self, general_purpose},
@@ -69,7 +70,6 @@ pub async fn insert_ballots_messages(
     contest_encryption_policy: ContestEncryptionPolicy,
     delegated_voting_policy: DelegatedVotingPolicy,
     weighted_voting_policy: WeightedVotingPolicy,
-    skip_board_posting: bool,
 ) -> Result<Vec<TallySessionContest>> {
     // A delegate's ballot has no defined weighted semantics, so refuse rather
     // than silently computing weight * (1 + delegate_count). This is a backstop:
@@ -345,6 +345,36 @@ pub async fn insert_ballots_messages(
                         None
                     };
 
+                    // The mask is recomputed from the vote weights as they are
+                    // now, but batches already on the board were built from the
+                    // weights as they were then, and the board is append-only.
+                    // If a weight changed in between, the mask names batches
+                    // that will never exist -- which waits forever -- or omits
+                    // batches that do, silently dropping every vote in them.
+                    // Refuse instead, while the disagreement is still visible.
+                    if let Some(mask) = weight_bit_mask {
+                        let base_batch = tally_session_contest.session_id as BatchNumber;
+                        let posted: u32 = (0..VOTE_WEIGHT_BATCHES)
+                            .filter(|bit| {
+                                let batch = base_batch + *bit as BatchNumber;
+                                board_messages_clone.iter().any(|message| {
+                                    message.statement.get_batch_number() == batch
+                                        && StatementType::Ballots == message.statement.get_kind()
+                                })
+                            })
+                            .fold(0u32, |acc, bit| acc | (1u32 << bit));
+                        if posted != 0 && posted != mask {
+                            return Err(anyhow!(
+                                "Ballots already on the board for election {} area {} occupy \
+                                 weight batches {posted:#b}, but the current vote weights \
+                                 require {mask:#b}. Vote weights cannot be changed after \
+                                 ballots have been extracted for a tally",
+                                tally_session_contest.election_id,
+                                tally_session_contest.area_id,
+                            ));
+                        }
+                    }
+
                     let annotations = TallySessionContestAnnotations {
                         elegible_voters: merge_result.eligible_voters,
                         ballots_without_voter: merge_result.ballots_without_voter,
@@ -370,7 +400,7 @@ pub async fn insert_ballots_messages(
                         election_id: tally_session_contest.election_id.clone(),
                     };
 
-                    if !skip_board_posting {
+                    {
                         // One vector per batch this area owns. Under
                         // weighting a voter contributes at most one ciphertext
                         // to each, so no batch is larger than the electorate
@@ -427,12 +457,13 @@ pub async fn insert_ballots_messages(
                         let mut board = get_b3_pgsql_client().await?;
                         let base_batch = tally_session_contest.session_id.clone() as BatchNumber;
                         for (bit, ciphertexts) in batches.into_iter().enumerate() {
-                            // Skip the batches this area has no weight for, and
-                            // only those: a mask bit is set precisely when the
-                            // vector is non-empty, so the tally waits for exactly
-                            // the batches posted here. Without weighting the mask
-                            // is absent and batch 0 is posted even when empty,
-                            // which is what an area with no votes did before.
+                            // Post exactly the batches the mask names, so the
+                            // tally waits for exactly what was posted. Every
+                            // masked batch is non-empty except in the one case
+                            // the mask is forced to 1: an area with no ballots
+                            // at all, which posts a single empty batch just as
+                            // it did before weighting existed. Without weighting
+                            // the mask is absent and batch 0 is always posted.
                             let is_expected = weight_bit_mask
                                 .map(|mask| mask & (1u32 << bit) != 0)
                                 .unwrap_or(bit == 0);
@@ -446,12 +477,16 @@ pub async fn insert_ballots_messages(
                                 bit
                             );
                             // The mix hides a ballot among the others in its
-                            // batch, and a batch this small has few others. The
-                            // sparse batches are the high bits, which only the
-                            // largest weights reach. Not a refusal: the tally
-                            // runs after voting has closed, where refusing would
-                            // leave no remedy, and this policy already publishes
-                            // the weights.
+                            // batch, and a batch this small has few others, so
+                            // its decrypted votes are close to individually
+                            // attributable. This is one way a voter can be
+                            // isolated, not the only one -- comparing two
+                            // batches whose memberships differ by one voter
+                            // exposes that voter however large both are -- so a
+                            // silent run is not evidence of the opposite. Not a
+                            // refusal: the dump runs after voting has closed,
+                            // where refusing would leave no remedy, and this
+                            // policy already publishes the weights.
                             if is_voter_weighted
                                 && !ciphertexts.is_empty()
                                 && ciphertexts.len() < MIN_WEIGHT_BATCH_ANONYMITY
@@ -459,12 +494,14 @@ pub async fn insert_ballots_messages(
                                 event!(
                                     Level::WARN,
                                     "Weight batch offset {} for election {} area {} holds only \
-                                     {} ballot(s); its decrypted votes are published and identify \
-                                     the voters carrying that weight",
+                                     {} ballot(s), so its decrypted votes are close to \
+                                     individually attributable to the voters whose weight sets \
+                                     bit {}",
                                     bit,
                                     tally_session_contest.election_id,
                                     tally_session_contest.area_id,
-                                    ciphertexts.len()
+                                    ciphertexts.len(),
+                                    bit
                                 );
                             }
                             add_ballots_to_board(

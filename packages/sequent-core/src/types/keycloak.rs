@@ -38,12 +38,16 @@ pub const AREA_ID_ATTR_NAME: &str = "area-id";
 pub const VOTE_WEIGHT_ATTR_NAME: &str = "vote-weight";
 pub const DEFAULT_VOTE_WEIGHT: u64 = 1;
 pub const MIN_VOTE_WEIGHT: u64 = 1;
-/// Upper bound for a single voter weight. Bounds the number of ciphertexts a
-/// single voter can add to a mix batch.
+/// Upper bound for a single voter weight. Bounds the batches a voter's
+/// ciphertext appears in, via `VOTE_WEIGHT_BATCHES`; a voter adds at most one
+/// ciphertext to any one batch.
 pub const MAX_VOTE_WEIGHT: u64 = 100_000;
 /// Upper bound for the summed weight of one contest area. `MAX_VOTE_WEIGHT`
-/// alone bounds a single voter, not the batch, and the batch is materialised as
-/// one allocation, where an oversized request aborts the process rather than
+/// alone bounds a single voter, not the total. This no longer bounds the mix
+/// batch, which is now at most one ciphertext per voter: it bounds the
+/// plaintexts the tally materialises after mixing, by repeating each batch's
+/// decrypted votes by that batch's multiplier. That expansion is one
+/// allocation, and an oversized request aborts the process rather than
 /// returning an error.
 pub const MAX_TOTAL_VOTE_WEIGHT: u64 = 1_000_000;
 
@@ -56,21 +60,31 @@ pub const VOTE_WEIGHT_BATCHES: u32 =
 
 /// Below this many ballots, a weight batch is small enough that mixing it
 /// protects little: its plaintexts are published, so a batch holding one ballot
-/// publishes that voter's choice. High bits are the sparse ones, since few
-/// voters carry the largest weights. Warned about rather than refused -- see
-/// the note on this policy in the election event documentation.
+/// publishes that voter's choice. Which batches are small depends on the spread
+/// of weights, not on the bit -- 999 voters at weight 2 and one at weight 3
+/// leave the *lowest* batch holding a single ballot. Warned about rather than
+/// refused, and it does not detect every way a voter can be isolated -- see the
+/// note on this policy in the election event documentation.
 pub const MIN_WEIGHT_BATCH_ANONYMITY: usize = 5;
 
 /// Bit `bit` of `weight` decides whether that voter's ciphertext goes into the
 /// batch whose multiplier is `2^bit`. Summing `2^bit` over the set bits
 /// reconstructs the weight exactly, which is what makes the tally correct.
 pub fn weight_has_bit(weight: u64, bit: u32) -> bool {
-    bit < u64::BITS && (weight >> bit) & 1 == 1
+    bit < VOTE_WEIGHT_BATCHES && (weight >> bit) & 1 == 1
 }
 
-/// The multiplier velvet must apply to the batch for `bit`.
-pub fn weight_bit_multiplier(bit: u32) -> u64 {
-    1u64 << bit
+/// The multiplier windmill applies to the batch for `bit` after mixing, by
+/// repeating that batch's plaintexts. Velvet never sees it: the expansion has
+/// already happened by the time the decoded ballots reach it.
+///
+/// `None` outside the batches a contest area owns, rather than a shifted-out
+/// `1`, which would silently count a batch at the wrong weight.
+pub fn weight_bit_multiplier(bit: u32) -> Option<u64> {
+    if bit >= VOTE_WEIGHT_BATCHES {
+        return None;
+    }
+    Some(1u64 << bit)
 }
 pub const DATE_OF_BIRTH: &str = "dateOfBirth";
 pub const AUTHORIZED_ELECTION_IDS_NAME: &str = "authorized-election-ids";

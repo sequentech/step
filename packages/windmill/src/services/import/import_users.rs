@@ -810,12 +810,12 @@ pub async fn import_users_file(
 
     // Warn rather than refuse: the limit applies per contest area, and this file
     // may spread its voters across several, so exceeding it here does not prove
-    // any one area will. The exact check runs where the batch is built.
+    // any one area will. The exact check runs where the ballots are extracted.
     if imported_weight_total > MAX_TOTAL_VOTE_WEIGHT {
         warn!(
             "Imported vote weights total {imported_weight_total}, above the \
              per-area maximum of {MAX_TOTAL_VOTE_WEIGHT}. If these voters share \
-             a contest area the tally will refuse to build its mix batch."
+             a contest area the tally will refuse to count them."
         );
     }
 

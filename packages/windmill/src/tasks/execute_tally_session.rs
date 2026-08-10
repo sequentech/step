@@ -60,9 +60,7 @@ use crate::services::temp_path::{
 };
 use crate::services::users::list_users;
 use crate::services::users::ListUsersFilter;
-use crate::services::weight_batches::{
-    collect_weighted_plaintexts, contest_batch_range, contest_weight_batches,
-};
+use crate::services::weight_batches::{collect_weighted_plaintexts, contest_weight_batches};
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use b3::messages::{message::Message, statement::StatementType};
@@ -168,7 +166,7 @@ async fn generate_area_contests_mc(
         // owns. Without weighting that is the single batch it always was.
         // We wrap this in an Option. We will 'take' it for the first valid contest we find.
         let mut pending_plaintexts: Option<Vec<<RistrettoCtx as Ctx>::P>> =
-            collect_weighted_plaintexts(&session_election, relevant_plaintexts);
+            collect_weighted_plaintexts(&session_election, relevant_plaintexts)?;
 
         if pending_plaintexts.is_none() {
             // Skips the whole batch if there are no plaintexts.
@@ -274,6 +272,16 @@ fn generate_area_contests(
         &tally_session_contest.len()
     );
 
+    // Collected before the closure below, which cannot propagate an error.
+    // Keyed by the row id, which is unique per contest area.
+    let mut collected_plaintexts: HashMap<String, Vec<<RistrettoCtx as Ctx>::P>> = HashMap::new();
+    for session_contest in tally_session_contest.iter() {
+        if let Some(plaintexts) = collect_weighted_plaintexts(session_contest, relevant_plaintexts)?
+        {
+            collected_plaintexts.insert(session_contest.id.clone(), plaintexts);
+        }
+    }
+
     let almost_vec: Vec<AreaContestDataType> = tally_session_contest.clone()
         .iter()
         .filter_map(|session_contest| {
@@ -298,10 +306,9 @@ fn generate_area_contests(
                     return None;
                 };
 
-            let Some(plaintexts) =
-                collect_weighted_plaintexts(&session_contest, &relevant_plaintexts) else {
-                    return None;
-                };
+            let Some(plaintexts) = collected_plaintexts.get(&session_contest.id).cloned() else {
+                return None;
+            };
             let Some(area) = areas_map.get(&ballot_style.area_id) else {
                 event!(Level::INFO, "Area not found {}", ballot_style.area_id);
                 return None;
@@ -514,20 +521,14 @@ pub async fn upsert_ballots_messages(
         .clone()
         .unwrap_or_default()
         .get_weighted_voting_policy();
-    // A contest area owns a run of batches, and under weighting the first of
-    // them can legitimately be empty and unposted, so "already dumped" has to
-    // ask about the whole run rather than about `session_id` alone. The run
-    // cannot be narrowed to the mask here: the mask is written by the dump.
-    let expected_batch_ids: HashSet<i64> = tally_session_contests
-        .iter()
-        .flat_map(|tally_session_contest| contest_batch_range(tally_session_contest.session_id))
-        .collect();
+    // Every Ballots batch on the board. Deliberately not narrowed to the
+    // batches this session expects: a contest area's batches are identified by
+    // its recorded mask, and rows allocated before this layout existed sit one
+    // apart, so any range built around `session_id` would read a neighbouring
+    // area's batch as this area's.
     let existing_ballots_batches: HashSet<i64> = messages
         .iter()
-        .filter(|message| {
-            expected_batch_ids.contains(&(message.statement.get_batch_number() as i64))
-                && StatementType::Ballots == message.statement.get_kind()
-        })
+        .filter(|message| StatementType::Ballots == message.statement.get_kind())
         .map(|message| message.statement.get_batch_number() as i64)
         .collect();
     event!(
@@ -535,87 +536,54 @@ pub async fn upsert_ballots_messages(
         "existing_ballots_batches: '{:?}'",
         existing_ballots_batches
     );
-    let missing_ballots_batches: Vec<TallySessionContest> = tally_session_contests
-        .clone()
-        .into_iter()
-        .filter(|tally_session_contest| {
-            !contest_batch_range(tally_session_contest.session_id)
-                .any(|batch| existing_ballots_batches.contains(&batch))
-        })
-        .collect();
 
-    // Contests where Ballots exist on board but annotations were not saved
-    // (e.g. due to a previous failed run where the board write succeeded
-    // but the Hasura transaction was rolled back).
-    let missing_annotations_batches: Vec<TallySessionContest> = tally_session_contests
-        .clone()
-        .into_iter()
-        .filter(|tally_session_contest| {
-            contest_batch_range(tally_session_contest.session_id)
-                .any(|batch| existing_ballots_batches.contains(&batch))
-                && tally_session_contest.annotations.is_none()
-        })
-        .collect();
+    // A contest area is done when its annotations say which batches it posted
+    // and every one of them is on the board. Anything else is dumped again,
+    // including the case where the board write succeeded but the Hasura
+    // transaction was rolled back: `add_ballots_to_board` skips a batch that
+    // already exists, so re-dumping completes a partially posted area instead
+    // of duplicating it.
+    //
+    // Asking whether *any* batch of the area is present would be wrong in both
+    // directions. The dump is up to `VOTE_WEIGHT_BATCHES` separate board
+    // writes, on a connection no transaction rolls back, so a failure part way
+    // through leaves an area that has some batches and needs the rest; and a
+    // row from before this layout has neighbours one number away, whose posted
+    // batches are not evidence about this row at all.
+    let mut missing_ballots_batches: Vec<TallySessionContest> = vec![];
+    for tally_session_contest in tally_session_contests.iter() {
+        let is_dumped = tally_session_contest.annotations.is_some()
+            && contest_weight_batches(tally_session_contest)?
+                .into_iter()
+                .all(|(batch, _)| existing_ballots_batches.contains(&batch));
+        if !is_dumped {
+            missing_ballots_batches.push(tally_session_contest.clone());
+        }
+    }
 
     event!(
         Level::INFO,
         "missing_ballots_batches num: {}",
         missing_ballots_batches.len()
     );
-    event!(
-        Level::INFO,
-        "missing_annotations_batches num: {}",
-        missing_annotations_batches.len()
-    );
 
-    // The two sets are mutually exclusive: missing_ballots_batches contains
-    // contests whose ballots have NOT been posted to the board yet, while
-    // missing_annotations_batches contains contests whose ballots ARE on the
-    // board but whose annotations were lost (e.g. the board write succeeded
-    // but the Hasura transaction was rolled back in a previous failed run).
-
-    // Post ballots to the board and compute annotations for contests that
-    // have not been processed at all yet.
-    let mut tally_session_contests_updated = if !missing_ballots_batches.is_empty() {
-        insert_ballots_messages(
-            hasura_transaction,
-            keycloak_transaction,
-            tenant_id,
-            election_event_id,
-            board_name,
-            trustee_names.clone(),
-            missing_ballots_batches.clone(),
-            contest_encryption_policy.clone(),
-            delegated_voting_policy.clone(),
-            weighted_voting_policy.clone(),
-            false,
-        )
-        .await?
-    } else {
-        vec![]
-    };
-
-    // For contests whose ballots are already on the board, only recompute
-    // and persist the annotations (skip the board write).
-    if !missing_annotations_batches.is_empty() {
-        let recovered = insert_ballots_messages(
-            hasura_transaction,
-            keycloak_transaction,
-            tenant_id,
-            election_event_id,
-            board_name,
-            trustee_names,
-            missing_annotations_batches,
-            contest_encryption_policy,
-            delegated_voting_policy,
-            weighted_voting_policy,
-            true,
-        )
-        .await?;
-        tally_session_contests_updated.extend(recovered);
+    if missing_ballots_batches.is_empty() {
+        return Ok(vec![]);
     }
 
-    Ok(tally_session_contests_updated)
+    Ok(insert_ballots_messages(
+        hasura_transaction,
+        keycloak_transaction,
+        tenant_id,
+        election_event_id,
+        board_name,
+        trustee_names,
+        missing_ballots_batches,
+        contest_encryption_policy,
+        delegated_voting_policy,
+        weighted_voting_policy,
+    )
+    .await?)
 }
 
 fn get_tally_session_created_at_timestamp_secs(tally_session: &TallySession) -> Result<i64> {
@@ -842,10 +810,10 @@ async fn map_plaintext_data(
     // through it, and ballots can be republished between creation and
     // execution. Velvet applies an area weight unconditionally, so without this
     // every ballot in a weighted area would be counted area_weight times on top
-    // of the per-voter duplication.
+    // of its per-voter weight.
     //
-    // This runs before the ballots are dumped, because posting the batch is
-    // what makes the duplicated ciphertexts public, and the board write is on
+    // This runs before the ballots are dumped, because posting the batches is
+    // what makes each voter's weight public, and the board write is on
     // its own connection that a rolled back transaction would not undo.
     if tally_session
         .configuration
@@ -884,7 +852,7 @@ async fn map_plaintext_data(
         // Same reasoning as the area weight: the counting algorithm is read
         // from the published ballot styles at tally time, so a contest switched
         // to another algorithm and republished after the session was created
-        // would otherwise reach the tally with duplicated ballots.
+        // would otherwise reach the tally with weight-expanded ballots.
         let mut unsupported: Vec<String> = Vec::new();
         for contest in published_ballot_styles
             .iter()
@@ -985,11 +953,11 @@ async fn map_plaintext_data(
     // always did.
     let batch_ids = tally_session_contest
         .iter()
-        .flat_map(|tsc| {
-            contest_weight_batches(tsc)
-                .into_iter()
-                .map(|(batch, _)| batch)
-        })
+        .map(|tsc| contest_weight_batches(tsc))
+        .collect::<AnyhowResult<Vec<_>>>()?
+        .into_iter()
+        .flatten()
+        .map(|(batch, _)| batch)
         .collect::<Vec<_>>();
 
     event!(Level::INFO, "Num batch_ids {}", batch_ids.len());

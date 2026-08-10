@@ -175,12 +175,18 @@ Configure advanced system behaviors for this Election Event.
     worse again, since an uncommon write-in appears with exactly the weight of
     the voter who wrote it.
 
-    Only the largest weights reach the highest batches, so those batches can hold
-    very few ballots — and a batch holding one ballot publishes that voter's
-    choice when it is decrypted, because a mix of one hides nothing. The tally
-    logs a warning naming any batch below five ballots. It does not refuse, since
-    by then voting has closed and there is no remedy left; check the spread of
-    weights before opening voting instead.
+    A batch holding very few ballots publishes those voters' choices when it is
+    decrypted, because a mix of one hides nothing. Which batches are small
+    depends on how the weights are spread, not on how large they are: 999 voters
+    on weight 2 and one on weight 3 leave the batch for 1 holding a single
+    ballot. Extracting the ballots logs a warning naming any batch below five.
+    It does not refuse, since by then voting has closed and there is no remedy
+    left.
+
+    That warning is a floor, not a guarantee. A voter is exposed whenever the
+    batches single them out at all — two batches whose voters differ by one
+    person expose that person however large both batches are — and nothing
+    detects that. Check the spread of weights before opening voting.
 
     Do not use this policy where ballot secrecy is required. It suits bodies
     that already publish how each member voted, such as some shareholder or

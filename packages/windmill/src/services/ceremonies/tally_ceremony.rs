@@ -313,11 +313,13 @@ pub async fn create_tally_ceremony(
                  enabled on the same election event"
             ));
         }
-        // Voter weights are applied by repeating a ballot, so the published
+        // The mix batch no longer repeats a ciphertext, but the tally still
+        // expands each batch's plaintexts by that batch's multiplier, so the
         // decoded ballots would carry each voter's weight as a run of identical
         // plaintexts. This closes the most direct disclosure; it does not make
-        // the scheme secret-ballot safe on its own, since the mix batch itself
-        // is built from repeated ciphertexts.
+        // the scheme secret-ballot safe on its own, since a ballot still
+        // appears in one batch per bit of its weight and every batch is
+        // public.
         if decoded_ballots_inclusion_policy == DecodedBallotsInclusionPolicy::INCLUDED {
             return Err(anyhow!(
                 "Decoded ballots cannot be included in the results when \
@@ -327,7 +329,7 @@ pub async fn create_tally_ceremony(
         }
 
         // Nothing downstream stops an area weight being applied on top of the
-        // duplicated ballots, so this refusal is the only thing that does.
+        // per-voter weight, so this refusal is the only thing that does.
         // It reads the ballot style snapshot frozen at publication, because
         // that is the value velvet will use: clearing the live area row without
         // republishing would otherwise satisfy the check while the tally still

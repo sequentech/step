@@ -15,40 +15,11 @@ use anyhow::{anyhow, Result};
 use b3::messages::{artifact::Plaintexts, message::Message};
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::hasura::core::{TallySessionContest, TallySessionContestAnnotations};
-use sequent_core::types::keycloak::{weight_bit_multiplier, weight_has_bit, VOTE_WEIGHT_BATCHES};
+use sequent_core::types::keycloak::{
+    weight_bit_multiplier, weight_has_bit, MAX_TOTAL_VOTE_WEIGHT, VOTE_WEIGHT_BATCHES,
+};
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx, serialization::StrandDeserialize};
 use tracing::{event, Level};
-
-/// Every batch number the area could own, posted or not. Used to decide whether
-/// its ballots have already been dumped, which cannot read the mask because the
-/// mask is written by the dump itself.
-pub fn contest_batch_range(session_id: i32) -> impl Iterator<Item = i64> {
-    let base = session_id as i64;
-    (0..VOTE_WEIGHT_BATCHES as i64).map(move |offset| base + offset)
-}
-
-/// The batches the area actually posted, each with the multiplier the tally
-/// owes it. Falls back to the single unweighted batch when no mask was
-/// recorded, which covers every other policy and any row written before
-/// weighting existed.
-pub fn contest_weight_batches(tally_session_contest: &TallySessionContest) -> Vec<(i64, u64)> {
-    let base = tally_session_contest.session_id as i64;
-    let mask = tally_session_contest
-        .annotations
-        .clone()
-        .and_then(|annotations| {
-            deserialize_value::<TallySessionContestAnnotations>(annotations).ok()
-        })
-        .and_then(|annotations| annotations.weight_bit_mask);
-
-    let Some(mask) = mask else {
-        return vec![(base, 1)];
-    };
-    (0..VOTE_WEIGHT_BATCHES)
-        .filter(|bit| mask & (1u32 << bit) != 0)
-        .map(|bit| (base + bit as i64, weight_bit_multiplier(bit)))
-        .collect()
-}
 
 /// The batch offsets one copy of this voter's ciphertext goes into.
 ///
@@ -65,6 +36,43 @@ pub fn weight_batch_offsets(weight: u64) -> Result<impl Iterator<Item = u32>> {
     Ok((0..VOTE_WEIGHT_BATCHES).filter(move |bit| weight_has_bit(weight, *bit)))
 }
 
+/// The batches the area actually posted, each with the multiplier the tally
+/// owes it.
+///
+/// Falls back to the single unweighted batch when no mask was recorded, which
+/// covers every other policy and any row written before weighting existed.
+/// Errors rather than falling back when the annotations are present but
+/// unreadable: treating a corrupt weighted row as unweighted would count one
+/// batch at multiplier 1, discard every other batch, and report the result as
+/// complete.
+pub fn contest_weight_batches(
+    tally_session_contest: &TallySessionContest,
+) -> Result<Vec<(i64, u64)>> {
+    let base = tally_session_contest.session_id as i64;
+    let Some(annotations) = tally_session_contest.annotations.clone() else {
+        return Ok(vec![(base, 1)]);
+    };
+    let annotations: TallySessionContestAnnotations =
+        deserialize_value(annotations).map_err(|error| {
+            anyhow!(
+                "Could not read annotations for tally session contest {}: {error:?}",
+                tally_session_contest.id
+            )
+        })?;
+    let Some(mask) = annotations.weight_bit_mask else {
+        return Ok(vec![(base, 1)]);
+    };
+    (0..VOTE_WEIGHT_BATCHES)
+        .filter(|bit| mask & (1u32 << bit) != 0)
+        .map(|bit| {
+            let multiplier = weight_bit_multiplier(bit).ok_or_else(|| {
+                anyhow!("Weight batch offset {bit} is outside the batches a contest area owns")
+            })?;
+            Ok((base + bit as i64, multiplier))
+        })
+        .collect()
+}
+
 /// The area's decrypted ballots, each repeated by the multiplier its batch
 /// carries, in one vector for the contest to count.
 ///
@@ -74,9 +82,10 @@ pub fn weight_batch_offsets(weight: u64) -> Result<impl Iterator<Item = u32>> {
 pub fn collect_weighted_plaintexts(
     tally_session_contest: &TallySessionContest,
     relevant_plaintexts: &[&Message],
-) -> Option<Vec<<RistrettoCtx as Ctx>::P>> {
-    let mut collected: Vec<<RistrettoCtx as Ctx>::P> = Vec::new();
-    for (batch, multiplier) in contest_weight_batches(tally_session_contest) {
+) -> Result<Option<Vec<<RistrettoCtx as Ctx>::P>>> {
+    let batches = contest_weight_batches(tally_session_contest)?;
+    let mut found: Vec<(Vec<<RistrettoCtx as Ctx>::P>, u64)> = Vec::with_capacity(batches.len());
+    for (batch, multiplier) in batches {
         let plaintexts = relevant_plaintexts
             .iter()
             .find(|message| batch == message.statement.get_batch_number() as i64)
@@ -90,13 +99,40 @@ pub fn collect_weighted_plaintexts(
                 tally_session_contest.id,
                 batch
             );
-            return None;
+            return Ok(None);
         };
+        found.push((plaintexts, multiplier));
+    }
+
+    // The dump bounds the summed weight, but it is not what runs here: the
+    // multipliers come from a mask read back out of a jsonb column, and the
+    // ballot counts from the board. A mask that has been corrupted or
+    // hand-edited can ask for up to 2^17 copies of every ballot, and an
+    // allocation that large aborts the process instead of failing this tally.
+    let total: u64 = found
+        .iter()
+        .try_fold(0u64, |acc, (plaintexts, multiplier)| {
+            (plaintexts.len() as u64)
+                .checked_mul(*multiplier)
+                .and_then(|batch_total| acc.checked_add(batch_total))
+                .ok_or_else(|| anyhow!("Weighted plaintext count overflowed"))
+        })?;
+    if total > MAX_TOTAL_VOTE_WEIGHT {
+        return Err(anyhow!(
+            "Refusing to expand {total} weighted plaintexts for tally session contest {}: \
+             the maximum is {MAX_TOTAL_VOTE_WEIGHT}. The recorded weight batch mask does \
+             not match the ballots on the board",
+            tally_session_contest.id,
+        ));
+    }
+
+    let mut collected: Vec<<RistrettoCtx as Ctx>::P> = Vec::with_capacity(total as usize);
+    for (plaintexts, multiplier) in found {
         for plaintext in plaintexts {
             collected.extend(std::iter::repeat_n(plaintext, multiplier as usize));
         }
     }
-    Some(collected)
+    Ok(Some(collected))
 }
 
 #[cfg(test)]
@@ -136,13 +172,24 @@ mod tests {
 
     #[test]
     fn no_annotations_is_one_unweighted_batch() {
-        assert_eq!(contest_weight_batches(&contest_with(None)), vec![(100, 1)]);
+        assert_eq!(
+            contest_weight_batches(&contest_with(None)).unwrap(),
+            vec![(100, 1)]
+        );
     }
 
     #[test]
     fn annotations_without_a_mask_is_one_unweighted_batch() {
         let contest = contest_with(Some(annotations_with_mask(None)));
-        assert_eq!(contest_weight_batches(&contest), vec![(100, 1)]);
+        assert_eq!(contest_weight_batches(&contest).unwrap(), vec![(100, 1)]);
+    }
+
+    #[test]
+    fn unreadable_annotations_are_an_error_not_an_unweighted_batch() {
+        // Falling back here would count one batch at multiplier 1 and discard
+        // every other batch, reporting a wrong result as complete.
+        let contest = contest_with(Some(json!({"elegible_voters": "not a number"})));
+        assert!(contest_weight_batches(&contest).is_err());
     }
 
     #[test]
@@ -150,7 +197,7 @@ mod tests {
         // 0b1011 -> offsets 0, 1 and 3.
         let contest = contest_with(Some(annotations_with_mask(Some(0b1011))));
         assert_eq!(
-            contest_weight_batches(&contest),
+            contest_weight_batches(&contest).unwrap(),
             vec![(100, 1), (101, 2), (103, 8)]
         );
     }
@@ -162,6 +209,7 @@ mod tests {
         for weight in [1u64, 2, 3, 7, 100, 4321, 65536, 100_000] {
             let contest = contest_with(Some(annotations_with_mask(Some(weight as u32))));
             let total: u64 = contest_weight_batches(&contest)
+                .unwrap()
                 .into_iter()
                 .map(|(_, multiplier)| multiplier)
                 .sum();
@@ -170,13 +218,20 @@ mod tests {
     }
 
     #[test]
-    fn the_range_covers_every_batch_the_mask_can_name() {
-        let batches: Vec<i64> = contest_batch_range(100).collect();
-        assert_eq!(batches.len(), VOTE_WEIGHT_BATCHES as usize);
+    fn a_mask_bit_outside_the_owned_batches_is_ignored_not_miscounted() {
+        // Bits at or above VOTE_WEIGHT_BATCHES name batches the area does not
+        // own. They must not wrap round to a multiplier of 1.
         let contest = contest_with(Some(annotations_with_mask(Some(u32::MAX))));
-        for (batch, _) in contest_weight_batches(&contest) {
-            assert!(batches.contains(&batch), "batch {batch} outside the range");
-        }
+        let batches = contest_weight_batches(&contest).unwrap();
+        assert_eq!(batches.len(), VOTE_WEIGHT_BATCHES as usize);
+        assert_eq!(batches.first(), Some(&(100, 1)));
+        assert_eq!(
+            batches.last(),
+            Some(&(
+                100 + VOTE_WEIGHT_BATCHES as i64 - 1,
+                1u64 << (VOTE_WEIGHT_BATCHES - 1)
+            ))
+        );
     }
 
     #[test]
@@ -186,14 +241,14 @@ mod tests {
         for weight in 1..=2048u64 {
             let total: u64 = weight_batch_offsets(weight)
                 .unwrap()
-                .map(weight_bit_multiplier)
+                .map(|bit| weight_bit_multiplier(bit).unwrap())
                 .sum();
             assert_eq!(total, weight, "weight {weight}");
         }
         for weight in [4321u64, 65_535, 65_536, 99_999, MAX_VOTE_WEIGHT] {
             let total: u64 = weight_batch_offsets(weight)
                 .unwrap()
-                .map(weight_bit_multiplier)
+                .map(|bit| weight_bit_multiplier(bit).unwrap())
                 .sum();
             assert_eq!(total, weight, "weight {weight}");
         }
@@ -214,15 +269,15 @@ mod tests {
         let tallied: u64 = batch_sizes
             .iter()
             .enumerate()
-            .map(|(bit, size)| size * weight_bit_multiplier(bit as u32))
+            .map(|(bit, size)| size * weight_bit_multiplier(bit as u32).unwrap())
             .sum();
         assert_eq!(tallied, electorate.iter().sum::<u64>());
     }
 
     #[test]
     fn no_batch_holds_a_voter_twice() {
-        // The privacy property: a repeated ciphertext inside a batch would be a
-        // readable weight, so a voter must occupy any given batch at most once.
+        // The property that removes the within-batch signal: a voter must
+        // occupy any given batch at most once.
         for weight in 1..=4096u64 {
             let offsets: Vec<u32> = weight_batch_offsets(weight).unwrap().collect();
             let mut deduped = offsets.clone();
@@ -241,22 +296,12 @@ mod tests {
     }
 
     #[test]
-    fn the_batch_count_covers_the_largest_permitted_weight() {
-        // If MAX_VOTE_WEIGHT grows past what VOTE_WEIGHT_BATCHES can hold, the
-        // dump would start refusing valid weights; this pins the relationship.
-        assert!(MAX_VOTE_WEIGHT < 1u64 << VOTE_WEIGHT_BATCHES);
-        assert!(MAX_VOTE_WEIGHT >= 1u64 << (VOTE_WEIGHT_BATCHES - 1));
-    }
-
-    #[test]
-    fn the_largest_permitted_weight_fits() {
-        let contest = contest_with(Some(annotations_with_mask(Some(
-            sequent_core::types::keycloak::MAX_VOTE_WEIGHT as u32,
-        ))));
-        let total: u64 = contest_weight_batches(&contest)
-            .into_iter()
-            .map(|(_, multiplier)| multiplier)
-            .sum();
-        assert_eq!(total, sequent_core::types::keycloak::MAX_VOTE_WEIGHT);
+    fn the_batch_layout_is_the_one_already_written_to_the_database() {
+        // session_ids are allocated VOTE_WEIGHT_BATCHES apart and persist, so
+        // this value cannot be changed without renumbering existing rows.
+        // Pinned as a literal precisely so that raising MAX_VOTE_WEIGHT, which
+        // derives it, fails here rather than silently overlapping stored runs.
+        assert_eq!(VOTE_WEIGHT_BATCHES, 17);
+        assert_eq!(MAX_VOTE_WEIGHT, 100_000);
     }
 }

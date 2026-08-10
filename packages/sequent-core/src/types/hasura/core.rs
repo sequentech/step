@@ -607,6 +607,7 @@ mod tally_session_contest_annotations_tests {
             ballots_without_voter: 0,
             casted_ballots: 0,
             votes_by_channel: Some(VotesByChannel::new()),
+            weight_bit_mask: None,
         };
         let serialized = serde_json::to_value(current).unwrap();
         assert_eq!(serialized["votes_by_channel"], serde_json::json!({}));
