@@ -90,6 +90,25 @@ export async function loadVelvetWasm() {
     return velvet
 }
 
+/**
+ * The no-silent-discount predicate — THE single definition, shared by the
+ * rule runners (for the derived ⚠ column) and by no-silent-discount.mjs
+ * (for the property query), so the two can never drift.
+ *
+ * Derived, not observed (convention 3): it joins the checker/filter/gate
+ * observables with the tally class. True = the voter gets no booth signal
+ * on any surface, yet the tally discards the ballot as ImplicitInvalid.
+ */
+export function isSilentDiscount(cell) {
+    const o = cell.observed
+    const inlineVisible = (cell.derived_inline_visible ?? []).length > 0
+    const gate = o.hard || o.soft
+    const constrained = o.constraint === "inputs_disabled"
+    return (
+        o.tally === "ImplicitInvalid" && !inlineVisible && !gate && !constrained
+    )
+}
+
 /** Tally one decoded ballot; return its BallotClass as recorded by the
  *  real counters on ContestResult. */
 export function tallyClass(contest, decodedBallot) {

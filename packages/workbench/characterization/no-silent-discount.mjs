@@ -29,6 +29,7 @@
 // Run:  node characterization/no-silent-discount.mjs   (from packages/workbench)
 
 import {readFileSync, writeFileSync} from "node:fs"
+import {isSilentDiscount} from "./harness.mjs"
 import {fileURLToPath} from "node:url"
 import path from "node:path"
 
@@ -37,19 +38,8 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 // Recordings that carry a `tally` observable participate in the query.
 const SOURCES = ["blank-rule.recorded.json", "overvote-rule.recorded.json"]
 
-function isSilent(cell) {
-    const o = cell.observed
-    const inlineVisible = (cell.derived_inline_visible ?? []).length > 0
-    // A blocking gate is the loudest possible signal; a dismissible dialog
-    // still shows the voter something. Either means "not silent".
-    const gate = o.hard || o.soft
-    // input constraint: recorded by the browser runner as `constraint`;
-    // absent in headless rows (treated as no constraint — the conservative
-    // direction for a silence check: it can only over-report silence, which
-    // the browser pass then confirms or refutes).
-    const constrained = o.constraint === "inputs_disabled"
-    return !inlineVisible && !gate && !constrained
-}
+// The predicate lives in harness.mjs (isSilentDiscount) so the rule
+// tables' derived ⚠ column and this query can never drift apart.
 
 const violations = []
 let scanned = 0
@@ -57,7 +47,7 @@ for (const src of SOURCES) {
     const doc = JSON.parse(readFileSync(path.join(here, src), "utf8"))
     for (const cell of doc.rows) {
         scanned++
-        if (cell.observed.tally === "ImplicitInvalid" && isSilent(cell)) {
+        if (isSilentDiscount(cell)) {
             violations.push({source: src, contest: doc.contest, ...cell})
         }
     }

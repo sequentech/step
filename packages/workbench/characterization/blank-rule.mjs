@@ -26,6 +26,7 @@ import {
     runChecker,
     runGates,
     tallyClass,
+    isSilentDiscount,
     loadMarkerFixture,
     extractErrors,
 } from "./harness.mjs"
@@ -225,7 +226,7 @@ const fmt = (r) =>
     `| ${r.blank_vote_policy} | ${r.invalid_vote_policy} | ${r.state} | ` +
     `${short(r.observed.errors)} | ${short(r.observed.alerts)} | ` +
     `${r.observed.hard ? "**block**" : "—"} | ${r.observed.soft ? "dialog" : "—"} | ` +
-    `${r.observed.tally} | ${r.match ? "✓" : "**✗**"} |`
+    `${r.observed.tally} | ${r.match ? "✓" : "**✗**"} | ${isSilentDiscount(r) ? "**⚠ SILENT DISCOUNT**" : "—"} |`
 const md = [
     "<!--",
     " SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>",
@@ -252,11 +253,15 @@ const md = [
     "*tally* is the **recorded** per-ballot class — the counter that",
     "incremented when this decoded ballot ran through velvet-wasm's real",
     "tally. `pred?` compares all five observables against the documented",
-    "rules; ✗ = code and docs disagree. Layer 3 (inline visibility in the",
-    "booth) is recorded separately in `blank-rule.filter.md`.",
+    "rules; ✗ = code and docs disagree. The final column is **derived**",
+    "(convention 3): ⚠ marks a silent-discount cell — no booth signal on any",
+    "surface yet the tally discards the ballot; single-sourced from",
+    "`harness.mjs::isSilentDiscount`, reported in `no-silent-discount.md`.",
+    "Layer 3 (inline visibility in the booth) is recorded separately in",
+    "`blank-rule.filter.md`.",
     "",
-    "| blank_policy | invalid_policy | state | errors | alerts | hard gate | soft gate | tally | pred? |",
-    "|---|---|---|---|---|---|---|---|---|",
+    "| blank_policy | invalid_policy | state | errors | alerts | hard gate | soft gate | tally | pred? | silent-discount (derived) |",
+    "|---|---|---|---|---|---|---|---|---|---|",
     ...rows.map(fmt),
     "",
 ].join("\n")
