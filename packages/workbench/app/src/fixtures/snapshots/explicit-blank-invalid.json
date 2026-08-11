@@ -118,7 +118,7 @@
               "election_event_id": "44444444-4444-4444-4444-444444444002",
               "election_id": "44444444-4444-4444-4444-444444444003",
               "name": "Council seat (with explicit invalid)",
-              "description": "Pick one. 'Spoil ballot' is an explicit-invalid marker: selecting it makes the ballot explicitly invalid.",
+              "description": "Pick one. 'Null vote (invalid)' is an explicit-invalid marker (the is_explicit_invalid flag): selecting it makes the ballot explicitly invalid.",
               "max_votes": 1,
               "min_votes": 0,
               "winning_candidates_num": 1,
@@ -147,7 +147,7 @@
                   "election_event_id": "44444444-4444-4444-4444-444444444002",
                   "election_id": "44444444-4444-4444-4444-444444444003",
                   "contest_id": "44444444-4444-4444-4444-44444444400c2",
-                  "name": "Spoil ballot",
+                  "name": "Null vote (invalid)",
                   "presentation": {
                     "is_explicit_invalid": true
                   }

@@ -1,0 +1,14 @@
+{
+  "reachable": true,
+  "decoded": {
+    "bigint": "3",
+    "is_explicit_invalid": true,
+    "regular_selections": 1
+  },
+  "tally": {
+    "total_valid_votes": 0,
+    "invalid_explicit": 1
+  },
+  "latent_preference_preserved": true,
+  "confirmed_end_to_end": true
+}

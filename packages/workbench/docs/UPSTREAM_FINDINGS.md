@@ -163,3 +163,40 @@ deliberate (blank policy owns the empty case), possibly an off-by-design
 inconsistency. **Confidence:** low stakes either way; worth a question,
 not an alarm. **Consultation question:** are the alert and gate meant to
 share a threshold?
+
+## S5. A null vote preserves the voter's candidate selections in the ciphertext
+
+**Observed** (`characterization/invalid-latent-choices-e2e.recorded.json`;
+mechanism traced in `ballotSelections` reducers and `raw_ballot.rs`
+encode): the two markers are handled asymmetrically. Choosing the
+explicit-**blank** marker goes through `setBallotSelectionBlankVote`, which
+rewrites `choices` to deselect every other candidate — a blank clears the
+ballot. Choosing the explicit-**invalid** (null) marker goes through
+`setBallotSelectionInvalidVote`, which sets only the `is_explicit_invalid`
+field and **leaves `choices` untouched**. The UI does not disable the
+regular candidates either (`isSelectable = !isReview`), so a voter can
+select a candidate *and then* mark the ballot null. The encoder writes each
+regular candidate's bit unconditionally, so both the invalid flag and the
+candidate selection are encrypted into the cast ballot.
+
+**Confirmed end-to-end** (booth → encrypt → cast → decrypt → decode →
+tally): with a regular candidate selected and the null marker set, the
+recovered plaintext bigint is `3` (invalid bit + candidate bit), the
+decoded ballot carries `is_explicit_invalid = true` **and** one regular
+selection, and the tally is `ExplicitInvalid` (0 valid, the candidate
+counted for no one). So the voter's would-be vote lives in the cast
+ciphertext even though nothing tallies or (as far as the consumer census
+found) reads it.
+
+**Why suspect:** **not** a silent discount — the voter opts into the null
+vote deliberately, and its exclusion from the count is intended. But the
+choice-preservation has no apparent functional purpose (nothing consumes
+those choices for a null ballot), it is asymmetric with the blank marker
+which clears them, and it has a **privacy-adjacent** edge: a protest
+voter's latent candidate preference is carried, encrypted, in their cast
+ballot, recoverable by anyone who can decrypt it (a tally, an audit).
+**Confidence:** uncertain whether intended; the privacy angle is the part
+worth a careful answer. **Consultation question:** should the invalid
+(null-vote) reducer clear `choices` the way the blank reducer does, so a
+null ballot carries no latent candidate preference — or is preserving
+them intended (and if so, why)?

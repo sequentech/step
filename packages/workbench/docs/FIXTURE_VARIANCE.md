@@ -585,7 +585,7 @@ fixtures, which is a stronger statement.
     selection would also trip the over-vote checker, and the fixture could not
     separate "invalid because mixed with an explicit blank" from "invalid because
     too many selections".
-  - *Council seat* — Ada / Bruno / **Spoil ballot** (`is_explicit_invalid`),
+  - *Council seat* — Ada / Bruno / **Null vote (invalid)** (`is_explicit_invalid`),
     `max_votes: 1`.
 
   The other five bundled snapshots and all reference blobs still define none.
@@ -598,7 +598,7 @@ fixtures, which is a stronger statement.
   | `blank_votes` | 2 = **1 explicit** + 1 implicit |
   | `invalid_votes` | 1 = 0 explicit + **1 implicit** (the mixed ballot) |
 
-  Selecting *Spoil ballot* in *Council seat* yields `invalid_votes.explicit = 1`.
+  Selecting *Null vote (invalid)* in *Council seat* yields `invalid_votes.explicit = 1`.
 - **Coverage gap assessment**: the classification path is now reachable, and the
   four `ParticipationSummary` rows that were structurally 0 render real values.
   Remaining: no fixture pairs a marker with a *non-default* `invalid_vote_policy`

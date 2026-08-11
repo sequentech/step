@@ -218,7 +218,7 @@ the recording corrected the prediction (the soft gate *also* fires under
 trips both gates — the functions are independent booleans).
 
 Two findings: (1) the flag and marker routes to explicit invalidity
-**converge** on all four policies — selecting the Spoil marker is
+**converge** on all four policies — selecting the null-vote marker is
 equivalent to setting the flag, the gates' `explicit_invalid_marker_selected`
 dedup working as intended. And the round-trip made explicit *why* there is
 only one decoded representation: a marker-selected input with the flag
@@ -226,10 +226,12 @@ unset is rejected as inconsistent (decode drops the marker from the choice
 slots and reads invalidity from `choices[0]`), so the marker click must
 set the flag — which the booth reducer does. (2) Zero silent-discount
 cells, and here that is *by definition*: an explicit-invalid ballot tallies
-`ExplicitInvalid` (a deliberate opt-in), which the property excludes. Worth
-noting for consultation nonetheless: under `invalid=allowed` the voter gets
-no confirmation that a spoiled ballot was recorded as such — silent, but
-not a *discount* of an intended-valid vote.
+`ExplicitInvalid` (a deliberate opt-in), which the property excludes. A
+separate, real consequence *is* recorded — S5 in `UPSTREAM_FINDINGS.md`:
+the invalid reducer does not clear `choices`, so a null-voter's candidate
+selections are preserved into the cast ciphertext (confirmed end-to-end,
+`invalid-latent-choices-e2e.recorded.json`). Not a silent discount; a
+privacy-adjacent asymmetry.
 
 ### no-silent-discount — first model-check query (2026-08-10)
 
