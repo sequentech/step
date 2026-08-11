@@ -654,8 +654,13 @@ const galegoTranslation: TranslationType = {
                     policyLabel: "Política de Votación Ponderada",
                     options: {
                         "areas-weighted-voting": "Votación Ponderada por Áreas",
+                        "voters-weighted-voting": "Votación Ponderada por Votantes",
                         "disabled-weighted-voting": "Votación Ponderada Desactivada",
                     },
+                    noDelegated:
+                        "A Votación Ponderada por Votantes non pode combinarse co Voto Delegado",
+                    noDecodedBallots:
+                        "A Votación Ponderada por Votantes non pode combinarse coa inclusión de papeletas descifradas nos resultados",
                 },
                 delegatedVotingPolicy: {
                     policyLabel: "Política de Voto Delegado",
@@ -1090,6 +1095,7 @@ const galegoTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Votou",
+                    "vote-weight": "Peso do voto",
                     "voted-channel": "Canle de voto",
                     "disable-comment": "Comentario de desactivación",
                     "username": "Nome de Usuario",

@@ -62,3 +62,4 @@ pub mod transmission;
 pub mod users;
 pub mod vault;
 pub mod voting_status;
+pub mod weight_batches;
