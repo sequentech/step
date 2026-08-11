@@ -23,7 +23,7 @@ workbench pipeline — booth encrypt → cast → bridge decrypt → decode →
 tally — in `overvote-e2e-pipeline.md` (cast over-vote → 0 valid, 1
 implicit-invalid; voter saw nothing).
 
-**Result: 5 violating cell(s)** across 228 scanned (sources: blank-rule.recorded.json, overvote-rule.recorded.json, undervote-rule.recorded.json, minvote-rule.recorded.json, duprank-rule.recorded.json, prefgaps-rule.recorded.json).
+**Result: 5 violating cell(s)** across 248 scanned (sources: blank-rule.recorded.json, overvote-rule.recorded.json, undervote-rule.recorded.json, minvote-rule.recorded.json, duprank-rule.recorded.json, prefgaps-rule.recorded.json, invalid-rule.recorded.json).
 
 **Status: SUSPECT — escalated for consultation** as S1/S2 in
 `../docs/UPSTREAM_FINDINGS.md`. Strong intuition that this is a defect

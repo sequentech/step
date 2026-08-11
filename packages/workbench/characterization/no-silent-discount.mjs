@@ -60,6 +60,7 @@ const SOURCES = [
     "minvote-rule.recorded.json",
     "duprank-rule.recorded.json",
     "prefgaps-rule.recorded.json",
+    "invalid-rule.recorded.json",
 ]
 
 // The predicate lives in harness.mjs (isSilentDiscount) so the rule

@@ -208,12 +208,35 @@ silent-discount property matters. One precedence subtlety worth noting:
 `decline + explicit-invalid flag + empty` classifies **Implicit**Invalid,
 not ExplicitInvalid — the decline branch tests blankness, not the flag.
 
+### invalid-rule (2026-08-11) — invalid-vote rule as subject, headless
+
+`invalid-rule.mjs`: 20 cells (`invalid_vote_policy` × {none, regular,
+flag_only, marker, marker_plus}) over the Council seat contest
+(`max_votes` forced to 2 to isolate from over-vote). **20/20 match** after
+the recording corrected the prediction (the soft gate *also* fires under
+`not-allowed` via its generic errors-present condition, so `not-allowed`
+trips both gates — the functions are independent booleans).
+
+Two findings: (1) the flag and marker routes to explicit invalidity
+**converge** on all four policies — selecting the Spoil marker is
+equivalent to setting the flag, the gates' `explicit_invalid_marker_selected`
+dedup working as intended. And the round-trip made explicit *why* there is
+only one decoded representation: a marker-selected input with the flag
+unset is rejected as inconsistent (decode drops the marker from the choice
+slots and reads invalidity from `choices[0]`), so the marker click must
+set the flag — which the booth reducer does. (2) Zero silent-discount
+cells, and here that is *by definition*: an explicit-invalid ballot tallies
+`ExplicitInvalid` (a deliberate opt-in), which the property excludes. Worth
+noting for consultation nonetheless: under `invalid=allowed` the voter gets
+no confirmation that a spoiled ballot was recorded as such — silent, but
+not a *discount* of an intended-valid vote.
+
 ### no-silent-discount — first model-check query (2026-08-10)
 
 `no-silent-discount.mjs` scans every recorded cell that carries a tally
 class for: *silent on every booth surface ∧ classified `ImplicitInvalid`*.
-Sources are all six rule recordings (blank, over-vote, under-vote,
-min-vote, duplicated-rank, preference-gaps) — **228 cells** — and the
+Sources are all seven rule recordings (blank, over-vote, under-vote,
+min-vote, duplicated-rank, preference-gaps, invalid) — **248 cells** — and the
 result is **5 violating cells in two distinct families**, all requiring
 `invalid_vote_policy = allowed`
 (`no-silent-discount.report.json`, `no-silent-discount.md`):
@@ -232,9 +255,9 @@ neither gate fires, yet the tally discards it `ImplicitInvalid`. The
 explicit-blank marker (a deliberate blank) has it silently discarded,
 because the marker counts as 1 < 2. Blank and under-vote contribute
 zero: blank's `ImplicitInvalid` cells hard-gate, under-vote never produces
-an error (only alerts), and the two preferential rules are immune by
-construction (their policies have no silent variant — see the
-preferential subsection above).
+an error (only alerts), the two preferential rules are immune by construction (no silent policy
+variant), and the invalid rule only ever tallies `ExplicitInvalid`, which
+the property excludes.
 
 The over-vote family is confirmed at two strengths. The browser runner
 (`overvote-rule.browser.mjs`) reproduces the violation in two halves that
@@ -275,12 +298,12 @@ all six are:
 
 | Role | Harness layer | Status |
 |---|---|---|
-| Checkers | 1 (headless wasm) | blank, over-vote, under-vote, min-vote, duplicated-rank, preference-gaps rules done. One recording serves **both** bands: the tally decode runs the identical function, so layer 1 is also the tally-side checker characterization. |
-| Gates | 2 (headless wasm) | blank, over-vote, under-vote, min-vote, duplicated-rank, preference-gaps rules done |
+| Checkers | 1 (headless wasm) | blank, over-vote, under-vote, min-vote, duplicated-rank, preference-gaps, invalid rules done. One recording serves **both** bands: the tally decode runs the identical function, so layer 1 is also the tally-side checker characterization. |
+| Gates | 2 (headless wasm) | blank, over-vote, under-vote, min-vote, duplicated-rank, preference-gaps, invalid rules done |
 | Filter | 3 (browser, booth) | blank + over-vote rules done (under/min-vote headless only so far) |
 | Input constraint | 3 (browser) — the `constraint` component of the effect triple | observed **behaviourally** for `NOT_ALLOWED_WITH_MSG_AND_DISABLE` (the over-vote state does not form through the UI); the direct `disabled`-attribute probe is a DOM-selector TODO |
 | Marker exclusivity (prevention) | browser — *reachability*, not effects | first reachability recording exists (over-vote under DISABLE: the state does not form); the S1 over-vote violation is confirmed through the full booth→cast→decrypt→tally pipeline (). Prevention is characterized by *attempting* to create each state through the UI and recording whether it forms; the mixed marker state's booth-reachability is still an open cell. |
-| Tally classifier | headless (velvet-wasm `tally_decoded_ballots`) | **done**: per-cell `tally` column in all six rule tables, plus the standalone 32-cell six-class decision table (`classifier-table.md`, 32/32 matching the documented precedence) |
+| Tally classifier | headless (velvet-wasm `tally_decoded_ballots`) | **done**: per-cell `tally` column in all seven rule tables, plus the standalone 32-cell six-class decision table (`classifier-table.md`, 32/32 matching the documented precedence) |
 
 Two consequences worth stating plainly. First, a per-rule recording like
 blank-rule is a *slice* of `f`, by design — the mapping decomposes per
@@ -297,6 +320,6 @@ Copy `blank-rule.mjs`, swap the policy/state dimensions and the `predict()`
 transcription, and pick or extend a bundled fixture whose contest carries
 the rule's preconditions (see FIXTURE_VARIANCE.md §13.2 for why marker
 candidates are preconditions, not policies). Rules still uncharacterized:
-invalid (beyond the blank/over/min interplays and the classifier table)
-via its own runner, and the decline-to-vote booth flow (the classifier's decline cells are now
+min-vote's full-pipeline reproduction (S1's min-vote half at the same
+strength as over-vote), and the decline-to-vote booth flow (the classifier's decline cells are now
 recorded, but no booth-side runner drives a declined ballot).
