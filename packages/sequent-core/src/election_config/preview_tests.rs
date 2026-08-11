@@ -180,6 +180,47 @@ fn two_previews_of_one_plan_are_the_same_bytes() {
     assert_eq!(first, second);
 }
 
+/// Byte equality can pass by luck; this cannot.
+///
+/// Two `HashMap`s with the same keys can happen to iterate the same way, so the
+/// test above proves reproducibility only probabilistically. This states the
+/// guarantee directly: every object in the document has its keys in name order,
+/// at every depth. It is also the test that fails if `to_document` goes back to
+/// trusting `serde_json::Value` to sort for it — which it does not do when
+/// `preserve_order` is unified into the build by something else.
+#[test]
+fn a_document_has_its_keys_in_name_order_at_every_depth() {
+    fn ordered(value: &serde_json::Value, where_at: &str) {
+        match value {
+            serde_json::Value::Object(map) => {
+                let keys: Vec<&String> = map.keys().collect();
+                let mut sorted = keys.clone();
+                sorted.sort();
+                assert_eq!(keys, sorted, "keys out of order at {where_at}");
+                for (key, nested) in map {
+                    ordered(nested, &format!("{where_at}.{key}"));
+                }
+            }
+            serde_json::Value::Array(items) => {
+                for (at, nested) in items.iter().enumerate() {
+                    ordered(nested, &format!("{where_at}[{at}]"));
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let plan = sound();
+    let document = preview(&plan).to_document();
+    // The i18n maps are the ones that move, so the plan must have two languages
+    // for this to be able to fail at all.
+    assert!(
+        plan.languages.len() > 1,
+        "needs a bilingual plan to be a test"
+    );
+    ordered(&document, "document");
+}
+
 /// The reason `to_document` is not `to_string`. If this ever stops failing —
 /// because `I18nContent` became ordered — `to_document` can go.
 #[test]

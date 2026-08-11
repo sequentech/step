@@ -107,6 +107,30 @@ pub struct PublicationPreview {
     pub documents: Value,
 }
 
+/// Every object's keys in name order, at every depth.
+///
+/// Free-standing rather than a method because it is about `Value`, not about a
+/// preview, and because the whole point is that it does not trust which map
+/// implementation `serde_json` was compiled with.
+fn canonical(value: Value) -> Value {
+    match value {
+        Value::Object(map) => {
+            let mut pairs: Vec<(String, Value)> = map.into_iter().collect();
+            pairs.sort_by(|(one, _), (two, _)| one.cmp(two));
+            Value::Object(
+                pairs
+                    .into_iter()
+                    .map(|(key, nested)| (key, canonical(nested)))
+                    .collect(),
+            )
+        }
+        Value::Array(items) => {
+            Value::Array(items.into_iter().map(canonical).collect())
+        }
+        other => other,
+    }
+}
+
 impl PublicationPreview {
     /// The document, ready to write out or hand to JavaScript.
     ///
@@ -118,11 +142,18 @@ impl PublicationPreview {
     /// the point: a preview is a document somebody saves, forwards, and diffs
     /// against the one from last week.
     ///
-    /// `serde_json::Value`'s object is a `BTreeMap`, so going through it sorts
-    /// every key at every depth. One canonical form, and it is this method's
-    /// whole job.
+    /// So this sorts every object's keys at every depth, and **that has to be
+    /// done rather than assumed**. Going through `serde_json::Value` was the
+    /// original answer, on the grounds that its object is a `BTreeMap` — and it
+    /// is, until something in the build turns on `serde_json`'s `preserve_order`,
+    /// at which point it is an `IndexMap` that faithfully keeps the insertion
+    /// order a `HashMap` gave it. A transitive dependency of `keycloak` does
+    /// exactly that, and cargo unifies features across the workspace, so whether
+    /// a preview was reproducible depended on whether an unrelated crate was
+    /// compiled beside it. It was not reproducible in windmill, which is the one
+    /// place that matters.
     pub fn to_document(&self) -> Value {
-        serde_json::to_value(self).unwrap_or(Value::Null)
+        canonical(serde_json::to_value(self).unwrap_or(Value::Null))
     }
 
     /// The areas these ballots belong to, named.
