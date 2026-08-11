@@ -22,17 +22,40 @@ env -u LD_LIBRARY_PATH docker compose restart graphql-engine
 # any failure used to leave the tracked schema empty.
 cd packages/admin-portal
 
-SCHEMA_TMP="$(mktemp)"
+# The temporary file is created in the destination directory, not $TMPDIR, so
+# that the final step is a rename within a single filesystem and therefore
+# atomic: no reader ever sees a partially written schema, and a cross-device
+# copy cannot fail halfway.
+SCHEMA_TMP="$(mktemp ./graphql.schema.json.XXXXXX)"
 trap 'rm -f "${SCHEMA_TMP}"' EXIT
+
+# Sourced from .devcontainer/.env, and the same value compose feeds
+# graphql-engine as HASURA_GRAPHQL_ADMIN_SECRET. Resolved once, and required,
+# so a missing configuration fails immediately instead of looking like a
+# graphql-engine that never becomes ready.
+HASURA_ADMIN_SECRET="${KEYCLOAK_ADMIN_CLIENT_SECRET:?KEYCLOAK_ADMIN_CLIENT_SECRET is not set; expected it from .devcontainer/.env}"
 
 HASURA_READY_TIMEOUT_SECS="${HASURA_READY_TIMEOUT_SECS:-120}"
 deadline=$((SECONDS + HASURA_READY_TIMEOUT_SECS))
 
-until gq http://graphql-engine:8080/v1/graphql \
-        -H 'X-Hasura-Admin-Secret: admin' \
-        --introspect \
-        --format json \
-        > "${SCHEMA_TMP}" 2>/dev/null && [ -s "${SCHEMA_TMP}" ]; do
+while true; do
+    remaining=$((deadline - SECONDS))
+    if [ "${remaining}" -le 0 ]; then
+        echo "graphql-engine was not ready within ${HASURA_READY_TIMEOUT_SECS}s; check 'docker logs hasura'" >&2
+        exit 1
+    fi
+
+    # Each attempt is bounded by the time left on the overall deadline, so a
+    # request that connects and then stalls cannot hang the script past it.
+    if timeout "${remaining}s" gq http://graphql-engine:8080/v1/graphql \
+            -H "X-Hasura-Admin-Secret: ${HASURA_ADMIN_SECRET}" \
+            --introspect \
+            --format json \
+            > "${SCHEMA_TMP}" 2>/dev/null \
+        && [ -s "${SCHEMA_TMP}" ]; then
+        break
+    fi
+
     # A container that is not running will never become ready, so fail now with
     # a pointer to the cause rather than waiting out the whole timeout. A failed
     # migration leaves graphql-engine in a restart loop and lands here.
@@ -40,10 +63,7 @@ until gq http://graphql-engine:8080/v1/graphql \
         echo "graphql-engine is not running; check 'docker logs hasura'" >&2
         exit 1
     fi
-    if [ "${SECONDS}" -ge "${deadline}" ]; then
-        echo "graphql-engine was not ready within ${HASURA_READY_TIMEOUT_SECS}s; check 'docker logs hasura'" >&2
-        exit 1
-    fi
+
     sleep 2
 done
 
