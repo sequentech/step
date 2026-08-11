@@ -96,6 +96,11 @@ pub mod wasm;
 #[cfg(feature = "election_config_xlsx")]
 pub mod xlsx;
 
+/// Writing `.xlsx`, behind the same feature as reading it: a front end that
+/// carries the spreadsheet library at all can go both ways with it.
+#[cfg(feature = "election_config_xlsx")]
+pub mod xlsx_write;
+
 #[cfg(test)]
 mod validate_tests;
 

@@ -367,7 +367,7 @@ fn read_row(
 }
 
 /// A whole authoring document: normalised sheets of coerced rows.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Workbook {
     sheets: Vec<Sheet>,
 }

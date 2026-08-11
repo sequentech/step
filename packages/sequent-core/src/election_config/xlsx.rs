@@ -179,6 +179,18 @@ mod tests {
     /// The smallest real `.xlsx` this can be tested against: written here rather
     /// than committed, so there is no binary fixture to keep in step with the
     /// code, and no chance of a client's data ending up in the repository.
+    ///
+    /// **Kept, rather than replaced by [`super::super::xlsx_write::write_xlsx`],
+    /// and the reason is the interesting part.** Three of the tests below feed
+    /// this cell shapes a `Workbook` cannot hold and the writer therefore cannot
+    /// emit: a formula whose cached result is a string, and a value formatted as
+    /// text on purpose. Those are the shapes real workbooks use for a phone number
+    /// and a leading-zero code, and they are exactly where the reader has been
+    /// wrong before. Pointing those tests at the writer would delete the coverage
+    /// rather than share it.
+    ///
+    /// What *was* duplicated is the column naming, and that is shared: this used
+    /// `(b'A' + index)`, which produces `[` for the 27th column.
     fn tiny_xlsx(sheets: &[(&str, &[&[&str]])]) -> Vec<u8> {
         use std::io::Write;
         use zip::write::SimpleFileOptions;
@@ -246,7 +258,9 @@ mod tests {
                     for (column_index, value) in row.iter().enumerate() {
                         let reference = format!(
                             "{}{}",
-                            (b'A' + column_index as u8) as char,
+                            crate::election_config::xlsx_write::column_name(
+                                column_index
+                            ),
                             row_index + 1
                         );
                         if value.is_empty() {

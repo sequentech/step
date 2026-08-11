@@ -3271,3 +3271,24 @@ fn a_zip_without_a_plan_says_what_it_had_instead() {
         refused.message
     );
 }
+
+/// Write the sample plan out as a real file, for a person to open.
+///
+/// Ignored: it is not an assertion, it is the only way to satisfy the one
+/// acceptance criterion no test can — that Excel and LibreOffice open what this
+/// writes. `cargo test -- --ignored emit_a_workbook_to_look_at --nocapture`.
+#[test]
+#[ignore]
+fn emit_a_workbook_to_look_at() {
+    let workbook = to_workbook(&sound()).expect("the sample plan writes");
+    let bytes = crate::election_config::xlsx_write::write_xlsx(&workbook)
+        .expect("and it becomes a file");
+    let at = std::env::temp_dir().join("election_workbook.xlsx");
+    std::fs::write(&at, &bytes).unwrap();
+    println!(
+        "wrote {} bytes and {} sheets to {}",
+        bytes.len(),
+        workbook.sheets().len(),
+        at.display()
+    );
+}
