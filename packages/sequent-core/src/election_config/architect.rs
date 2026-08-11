@@ -474,6 +474,29 @@ pub struct Blueprint {
     /// Anything the wizard has no field for. Carried, not interpreted.
     #[serde(default)]
     pub notes: String,
+
+    /// Sheets this wizard has no screens for, exactly as they arrived.
+    ///
+    /// Parameters, Admin Users, Permissions, Templates and Reports describe the
+    /// *platform* rather than the ballot: a tenant, an authentication type, realm
+    /// patches, administrator accounts, the permission matrix, communication
+    /// templates, scheduled reports. The wizard asks about none of it, and a
+    /// delivery engineer who opens a real janitor workbook here would otherwise
+    /// lose all of it the moment they rebuilt.
+    ///
+    /// So it is carried verbatim and handed straight back to [`to_workbook`],
+    /// where `build` reads it exactly as it reads a janitor's own file. **That is
+    /// the whole implementation**: `build` already turns a Parameters row into an
+    /// `election_event.*` patch and a realm patch, and already turns the other four
+    /// into `admin_users.csv`, `export_permissions-<tenant>.csv`, `templates/*.hbs`
+    /// and the reports table. Interpreting any of it a second time here would be a
+    /// second answer to a question that already has one.
+    ///
+    /// Empty for a plan the wizard built from nothing, which is why it is skipped
+    /// when serialising: an existing `blueprint.json` is unchanged by this field
+    /// existing.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub platform: Vec<Sheet>,
 }
 
 fn default_threshold() -> u32 {
@@ -2110,6 +2133,27 @@ pub fn to_workbook(plan: &Blueprint) -> Result<Workbook, Problem> {
         sheets.push(schedule);
     }
 
+    // What only a plan holds. `build` never reads these.
+    for maybe in [
+        contacts_sheet(plan),
+        trustees_sheet(plan),
+        ceremony_sheet(plan),
+        milestones_sheet(plan),
+        messages_sheet(plan, &languages),
+        notes_sheet(plan),
+    ] {
+        if let Some(sheet) = maybe {
+            sheets.push(sheet?);
+        }
+    }
+
+    // Last, and untouched. These are the sheets the wizard has no screens for,
+    // carried through so `build` can do to them exactly what it does to a
+    // janitor's own file. `Workbook::new` refuses a duplicate key, so a plan that
+    // somehow carried a second ElectionEvent is a refusal rather than a silent
+    // choice between two.
+    sheets.extend(plan.platform.iter().cloned());
+
     Workbook::new(sheets)
 }
 
@@ -2688,6 +2732,178 @@ fn voters_sheet(plan: &Blueprint) -> Result<Option<Sheet>, Problem> {
         .collect();
 
     sheet_of("Voters", columns, rows).map(Some)
+}
+
+// -- the sheets the plan holds and the importer does not ------------------------
+//
+// Six sheets `build` never reads. They are in `KNOWN_SHEETS` so a workbook
+// carrying them does not report six renamed tabs, and they exist so the
+// spreadsheet inside a delivery is the *whole* plan rather than the importable
+// part of it — the part a delivery engineer has to email around otherwise.
+//
+// Each returns `None` when the plan says nothing, because an empty sheet is a tab
+// somebody opens and closes again.
+
+fn contacts_sheet(plan: &Blueprint) -> Option<Result<Sheet, Problem>> {
+    if plan.contacts.is_empty() {
+        return None;
+    }
+    let columns =
+        vec!["name".to_string(), "role".to_string(), "email".to_string()];
+    let rows: Vec<Vec<Cell>> = plan
+        .contacts
+        .iter()
+        .map(|contact| {
+            vec![
+                text_or_blank(&contact.name),
+                text_or_blank(&contact.role),
+                text_or_blank(&contact.email),
+            ]
+        })
+        .collect();
+    Some(sheet_of("Contacts", columns, rows))
+}
+
+fn trustees_sheet(plan: &Blueprint) -> Option<Result<Sheet, Problem>> {
+    if plan.trustees.is_empty() {
+        return None;
+    }
+    let columns = vec!["name".to_string(), "email".to_string()];
+    let rows: Vec<Vec<Cell>> = plan
+        .trustees
+        .iter()
+        .map(|trustee| {
+            vec![text_or_blank(&trustee.name), text_or_blank(&trustee.email)]
+        })
+        .collect();
+    Some(sheet_of("Trustees", columns, rows))
+}
+
+/// `key | value`, not a column per setting.
+///
+/// Load-bearing, and the reason is `build`: every non-control column on the
+/// ElectionEvent row is deep-merged onto the event template as a dotted path, so a
+/// `trustee_threshold` column there would land inside the exported event JSON. A
+/// sheet of its own cannot leak.
+///
+/// A [`Timestamp`] is three rows rather than one, because it is three things — the
+/// wall clock somebody typed, the zone they were in, and the offset that was
+/// resolved at that moment. Writing only the first would make a ceremony drift by
+/// an hour when the file is reopened somewhere else.
+fn ceremony_sheet(plan: &Blueprint) -> Option<Result<Sheet, Problem>> {
+    let mut rows: Vec<Vec<Cell>> = vec![
+        vec![
+            Cell::text("threshold"),
+            Cell::Int(i64::from(plan.trustee_threshold)),
+        ],
+        vec![
+            Cell::text("policy"),
+            Cell::text(plan.ceremony_policy.to_string()),
+        ],
+    ];
+
+    for (name, when) in [
+        ("key_ceremony", &plan.schedule.key_ceremony),
+        ("tally_ceremony", &plan.schedule.tally_ceremony),
+    ] {
+        if let Some(stamp) = when {
+            rows.push(vec![
+                Cell::text(name.to_string()),
+                Cell::text(stamp.local.clone()),
+            ]);
+            if !stamp.zone.is_empty() {
+                rows.push(vec![
+                    Cell::text(format!("{name}.zone")),
+                    Cell::text(stamp.zone.clone()),
+                ]);
+            }
+            rows.push(vec![
+                Cell::text(format!("{name}.offset_minutes")),
+                Cell::Int(i64::from(stamp.offset_minutes)),
+            ]);
+        }
+    }
+
+    let columns = vec!["key".to_string(), "value".to_string()];
+    Some(sheet_of("Ceremony", columns, rows))
+}
+
+fn milestones_sheet(plan: &Blueprint) -> Option<Result<Sheet, Problem>> {
+    if plan.schedule.milestones.is_empty() {
+        return None;
+    }
+    let columns = vec!["event".to_string(), "date".to_string()];
+    let rows: Vec<Vec<Cell>> = plan
+        .schedule
+        .milestones
+        .iter()
+        .map(|milestone| {
+            vec![
+                text_or_blank(&milestone.event),
+                text_or_blank(&milestone.date),
+            ]
+        })
+        .collect();
+    Some(sheet_of("Milestones", columns, rows))
+}
+
+/// One row per message, in every language the ballot offers.
+///
+/// `schedule` is a JSON cell, which is the format's own convention for a structured
+/// value — `presentation.language_conf.enabled_language_codes` is `["en","es"]` in
+/// one cell for the same reason. A send schedule is a list of timestamps each
+/// carrying a zone and an offset; spreading that across parallel `||` columns would
+/// be exact only while every send shared a zone, and silently wrong the day one did
+/// not.
+fn messages_sheet(
+    plan: &Blueprint,
+    languages: &[String],
+) -> Option<Result<Sheet, Problem>> {
+    if plan.messages.is_empty() {
+        return None;
+    }
+
+    let mut columns = vec!["kind".to_string()];
+    for part in ["subject", "body", "html"] {
+        for language in languages {
+            columns.push(format!("presentation.i18n.{language}.{part}"));
+        }
+    }
+    columns.push("schedule".to_string());
+
+    let rows: Vec<Vec<Cell>> = plan
+        .messages
+        .iter()
+        .map(|message| {
+            let mut row = vec![Cell::text(message.kind.alias().to_string())];
+            for translated in [&message.subject, &message.body, &message.html] {
+                for language in languages {
+                    row.push(text_or_blank(
+                        translated.get(language).unwrap_or(""),
+                    ));
+                }
+            }
+            row.push(
+                serde_json::to_string(&message.schedule)
+                    .map(Cell::text)
+                    .unwrap_or(Cell::Blank),
+            );
+            row
+        })
+        .collect();
+
+    Some(sheet_of("Messages", columns, rows))
+}
+
+fn notes_sheet(plan: &Blueprint) -> Option<Result<Sheet, Problem>> {
+    if plan.notes.trim().is_empty() {
+        return None;
+    }
+    Some(sheet_of(
+        "Notes",
+        vec!["notes".to_string()],
+        vec![vec![Cell::text(plan.notes.clone())]],
+    ))
 }
 
 /// A cell, or nothing at all — so a blank stays distinguishable from `""`.
