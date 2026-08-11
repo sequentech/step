@@ -212,9 +212,10 @@ not ExplicitInvalid — the decline branch tests blankness, not the flag.
 
 `no-silent-discount.mjs` scans every recorded cell that carries a tally
 class for: *silent on every booth surface ∧ classified `ImplicitInvalid`*.
-Sources are the blank, over-vote, under-vote and min-vote recordings —
-**196 cells** — and the result is **5 violating cells in two distinct
-families**, all requiring `invalid_vote_policy = allowed`
+Sources are all six rule recordings (blank, over-vote, under-vote,
+min-vote, duplicated-rank, preference-gaps) — **228 cells** — and the
+result is **5 violating cells in two distinct families**, all requiring
+`invalid_vote_policy = allowed`
 (`no-silent-discount.report.json`, `no-silent-discount.md`):
 
 | family | configuration | states |
@@ -230,8 +231,10 @@ neither gate fires, yet the tally discards it `ImplicitInvalid`. The
 `min_votes=2 / marker_only` cell is the sharpest: a voter who selects the
 explicit-blank marker (a deliberate blank) has it silently discarded,
 because the marker counts as 1 < 2. Blank and under-vote contribute
-zero: blank's `ImplicitInvalid` cells hard-gate, and under-vote never
-produces an error (only alerts), so its ballots are structurally `Valid`.
+zero: blank's `ImplicitInvalid` cells hard-gate, under-vote never produces
+an error (only alerts), and the two preferential rules are immune by
+construction (their policies have no silent variant — see the
+preferential subsection above).
 
 The over-vote family is confirmed at two strengths. The browser runner
 (`overvote-rule.browser.mjs`) reproduces the violation in two halves that
@@ -272,12 +275,12 @@ all six are:
 
 | Role | Harness layer | Status |
 |---|---|---|
-| Checkers | 1 (headless wasm) | blank, over-vote, under-vote, min-vote rules done. One recording serves **both** bands: the tally decode runs the identical function, so layer 1 is also the tally-side checker characterization. |
-| Gates | 2 (headless wasm) | blank, over-vote, under-vote, min-vote rules done |
+| Checkers | 1 (headless wasm) | blank, over-vote, under-vote, min-vote, duplicated-rank, preference-gaps rules done. One recording serves **both** bands: the tally decode runs the identical function, so layer 1 is also the tally-side checker characterization. |
+| Gates | 2 (headless wasm) | blank, over-vote, under-vote, min-vote, duplicated-rank, preference-gaps rules done |
 | Filter | 3 (browser, booth) | blank + over-vote rules done (under/min-vote headless only so far) |
 | Input constraint | 3 (browser) — the `constraint` component of the effect triple | observed **behaviourally** for `NOT_ALLOWED_WITH_MSG_AND_DISABLE` (the over-vote state does not form through the UI); the direct `disabled`-attribute probe is a DOM-selector TODO |
 | Marker exclusivity (prevention) | browser — *reachability*, not effects | first reachability recording exists (over-vote under DISABLE: the state does not form); the S1 over-vote violation is confirmed through the full booth→cast→decrypt→tally pipeline (). Prevention is characterized by *attempting* to create each state through the UI and recording whether it forms; the mixed marker state's booth-reachability is still an open cell. |
-| Tally classifier | headless (velvet-wasm `tally_decoded_ballots`) | **done**: per-cell `tally` column in all four rule tables, plus the standalone 32-cell six-class decision table (`classifier-table.md`, 32/32 matching the documented precedence) |
+| Tally classifier | headless (velvet-wasm `tally_decoded_ballots`) | **done**: per-cell `tally` column in all six rule tables, plus the standalone 32-cell six-class decision table (`classifier-table.md`, 32/32 matching the documented precedence) |
 
 Two consequences worth stating plainly. First, a per-rule recording like
 blank-rule is a *slice* of `f`, by design — the mapping decomposes per
@@ -294,7 +297,6 @@ Copy `blank-rule.mjs`, swap the policy/state dimensions and the `predict()`
 transcription, and pick or extend a bundled fixture whose contest carries
 the rule's preconditions (see FIXTURE_VARIANCE.md §13.2 for why marker
 candidates are preconditions, not policies). Rules still uncharacterized:
-invalid (beyond the blank/over/min interplays and the classifier table),
-duplicated-rank and preference-gaps (need a preferential fixture), and
-the decline-to-vote booth flow (the classifier's decline cells are now
+invalid (beyond the blank/over/min interplays and the classifier table)
+via its own runner, and the decline-to-vote booth flow (the classifier's decline cells are now
 recorded, but no booth-side runner drives a declined ballot).

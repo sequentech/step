@@ -272,6 +272,35 @@ The validity boundary is set by `min_votes`/`max_votes`, not by the policy
 enums. The enums are "dimmer switches" for the UI on either side of a wall
 whose position they cannot move.
 
+### 4.5 The silent-discount criterion (derived from characterization)
+
+The `no-silent-discount` query (payoff 4.3, run over all six
+characterized rules) yields a precise structural criterion for *which*
+rules can silently discard a vote. A rule is **silent-discount-prone iff**
+it has a configuration where **both**:
+
+1. *its own* policy does not gate the error it produces — either the
+   policy has a silent variant (over-vote `allowed`) or there is no policy
+   at all (min-vote is a fixed `n < min_votes` check); **and**
+2. `invalid_vote_policy = allowed`, which switches off the generic
+   error-visibility (master filter) and the generic gate.
+
+When both hold, an error the checker produces internally reaches the tally
+(via `is_invalid()`) with no booth surface showing or blocking it. The
+over-vote and min-vote families are exactly the rules that meet both
+conditions.
+
+The preferential rules (`duplicated_rank`, `preference_gaps`) are **immune
+by construction**: their enums have *only* `*_WARN_AND_DIALOG` variants —
+no silent `allowed` — so condition 1 can never hold; a gate always fires
+when their error is present, whatever `invalid_vote_policy` is. This is
+also the shape of a candidate fix for the prone rules: give every
+error-producing rule a mandatory dialog variant (remove the silent
+`allowed` from over-vote; give min-vote a policy), so condition 1 becomes
+unsatisfiable. (Whether to fix at all is a suspect for consultation — see
+`../characterization/`/`UPSTREAM_FINDINGS.md` S1/S2 — but the fix *shape*
+falls out of the criterion.)
+
 ---
 
 ## 5. Toward a Declarative Implementation

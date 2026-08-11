@@ -58,6 +58,8 @@ const SOURCES = [
     "overvote-rule.recorded.json",
     "undervote-rule.recorded.json",
     "minvote-rule.recorded.json",
+    "duprank-rule.recorded.json",
+    "prefgaps-rule.recorded.json",
 ]
 
 // The predicate lives in harness.mjs (isSilentDiscount) so the rule

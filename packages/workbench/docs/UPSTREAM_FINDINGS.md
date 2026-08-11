@@ -99,6 +99,15 @@ consumes it via `is_invalid()`.
 | over-vote | `over_vote_policy=allowed` + `invalid=allowed` | over the max |
 | min-vote | `min_votes ≥ 1` + `invalid=allowed` | below the min |
 
+**Structural characterization** (from the no-silent-discount query over
+all six rules): a rule is silent-discount-prone iff its own policy can be
+configured not to gate AND `invalid_vote_policy = allowed` removes the
+generic gate. Over-vote (`allowed` variant) and min-vote (no policy) meet
+this; the preferential rules do not (their enums have only
+`*_WARN_AND_DIALOG` variants) and are provably immune. A candidate fix
+therefore falls out: give every error-producing rule a mandatory dialog
+variant. See VALIDATION_LOGIC_DISTILLATION.md §4.5.
+
 **Why suspect:** the voter is given zero indication their vote will not
 count. **Confidence:** strong intuition this is a defect (or at minimum a
 combination that must be surfaced to election designers — e.g. an

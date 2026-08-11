@@ -1,0 +1,385 @@
+{
+  "contest": "Favourite fruit (ranked)",
+  "rows": [
+    {
+      "preference_gaps_policy": "allowed-warn-and-dialog",
+      "invalid_vote_policy": "allowed",
+      "state": "valid_full",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "preference_gaps_policy": "allowed-warn-and-dialog",
+      "invalid_vote_policy": "allowed",
+      "state": "gap",
+      "observed": {
+        "errors": [
+          "errors.implicit.preferenceOrderWithGaps"
+        ],
+        "alerts": [],
+        "hard": false,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [
+          "errors.implicit.preferenceOrderWithGaps"
+        ],
+        "alerts": [],
+        "hard": false,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "match": true
+    },
+    {
+      "preference_gaps_policy": "allowed-warn-and-dialog",
+      "invalid_vote_policy": "warn",
+      "state": "valid_full",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "preference_gaps_policy": "allowed-warn-and-dialog",
+      "invalid_vote_policy": "warn",
+      "state": "gap",
+      "observed": {
+        "errors": [
+          "errors.implicit.preferenceOrderWithGaps"
+        ],
+        "alerts": [],
+        "hard": false,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.preferenceOrderWithGaps"
+      ],
+      "predicted": {
+        "errors": [
+          "errors.implicit.preferenceOrderWithGaps"
+        ],
+        "alerts": [],
+        "hard": false,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "match": true
+    },
+    {
+      "preference_gaps_policy": "allowed-warn-and-dialog",
+      "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+      "state": "valid_full",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "preference_gaps_policy": "allowed-warn-and-dialog",
+      "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+      "state": "gap",
+      "observed": {
+        "errors": [
+          "errors.implicit.preferenceOrderWithGaps"
+        ],
+        "alerts": [],
+        "hard": false,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.preferenceOrderWithGaps"
+      ],
+      "predicted": {
+        "errors": [
+          "errors.implicit.preferenceOrderWithGaps"
+        ],
+        "alerts": [],
+        "hard": false,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "match": true
+    },
+    {
+      "preference_gaps_policy": "allowed-warn-and-dialog",
+      "invalid_vote_policy": "not-allowed",
+      "state": "valid_full",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "preference_gaps_policy": "allowed-warn-and-dialog",
+      "invalid_vote_policy": "not-allowed",
+      "state": "gap",
+      "observed": {
+        "errors": [
+          "errors.implicit.preferenceOrderWithGaps"
+        ],
+        "alerts": [],
+        "hard": true,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.preferenceOrderWithGaps"
+      ],
+      "predicted": {
+        "errors": [
+          "errors.implicit.preferenceOrderWithGaps"
+        ],
+        "alerts": [],
+        "hard": true,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "match": true
+    },
+    {
+      "preference_gaps_policy": "not-allowed-warn-and-dialog",
+      "invalid_vote_policy": "allowed",
+      "state": "valid_full",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "preference_gaps_policy": "not-allowed-warn-and-dialog",
+      "invalid_vote_policy": "allowed",
+      "state": "gap",
+      "observed": {
+        "errors": [
+          "errors.implicit.preferenceOrderWithGaps"
+        ],
+        "alerts": [],
+        "hard": true,
+        "soft": false,
+        "tally": "ImplicitInvalid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [
+          "errors.implicit.preferenceOrderWithGaps"
+        ],
+        "alerts": [],
+        "hard": true,
+        "soft": false,
+        "tally": "ImplicitInvalid"
+      },
+      "match": true
+    },
+    {
+      "preference_gaps_policy": "not-allowed-warn-and-dialog",
+      "invalid_vote_policy": "warn",
+      "state": "valid_full",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "preference_gaps_policy": "not-allowed-warn-and-dialog",
+      "invalid_vote_policy": "warn",
+      "state": "gap",
+      "observed": {
+        "errors": [
+          "errors.implicit.preferenceOrderWithGaps"
+        ],
+        "alerts": [],
+        "hard": true,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.preferenceOrderWithGaps"
+      ],
+      "predicted": {
+        "errors": [
+          "errors.implicit.preferenceOrderWithGaps"
+        ],
+        "alerts": [],
+        "hard": true,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "match": true
+    },
+    {
+      "preference_gaps_policy": "not-allowed-warn-and-dialog",
+      "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+      "state": "valid_full",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "preference_gaps_policy": "not-allowed-warn-and-dialog",
+      "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+      "state": "gap",
+      "observed": {
+        "errors": [
+          "errors.implicit.preferenceOrderWithGaps"
+        ],
+        "alerts": [],
+        "hard": true,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.preferenceOrderWithGaps"
+      ],
+      "predicted": {
+        "errors": [
+          "errors.implicit.preferenceOrderWithGaps"
+        ],
+        "alerts": [],
+        "hard": true,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "match": true
+    },
+    {
+      "preference_gaps_policy": "not-allowed-warn-and-dialog",
+      "invalid_vote_policy": "not-allowed",
+      "state": "valid_full",
+      "observed": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "derived_inline_visible": [],
+      "predicted": {
+        "errors": [],
+        "alerts": [],
+        "hard": false,
+        "soft": false,
+        "tally": "Valid"
+      },
+      "match": true
+    },
+    {
+      "preference_gaps_policy": "not-allowed-warn-and-dialog",
+      "invalid_vote_policy": "not-allowed",
+      "state": "gap",
+      "observed": {
+        "errors": [
+          "errors.implicit.preferenceOrderWithGaps"
+        ],
+        "alerts": [],
+        "hard": true,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "derived_inline_visible": [
+        "errors.implicit.preferenceOrderWithGaps"
+      ],
+      "predicted": {
+        "errors": [
+          "errors.implicit.preferenceOrderWithGaps"
+        ],
+        "alerts": [],
+        "hard": true,
+        "soft": true,
+        "tally": "ImplicitInvalid"
+      },
+      "match": true
+    }
+  ]
+}
