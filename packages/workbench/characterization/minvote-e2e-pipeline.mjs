@@ -45,7 +45,7 @@ const CELLS = [
     {min: 1, state: "none", labels: []},
     {min: 2, state: "none", labels: []},
     {min: 2, state: "one", labels: ["Yes"]},
-    {min: 2, state: "marker_only", labels: ["Blank vote"]},
+    {min: 2, state: "marker_only", labels: ["Blank vote (explicit blank)"]},
 ]
 
 const browser = await chromium.launch({channel: "chrome", headless: true})
@@ -121,7 +121,7 @@ for (const cell of CELLS) {
     }
     await page.waitForTimeout(1600)
     for (const label of cell.labels) {
-        await page.getByText(new RegExp(`^${label}$`)).first().click().catch(() => {})
+        await page.getByText(label, {exact: true}).first().click().catch(() => {})
         await page.waitForTimeout(500)
     }
 

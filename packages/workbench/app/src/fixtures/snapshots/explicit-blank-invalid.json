@@ -76,7 +76,7 @@
               "election_event_id": "44444444-4444-4444-4444-444444444002",
               "election_id": "44444444-4444-4444-4444-444444444003",
               "name": "Referendum (with explicit blank)",
-              "description": "Pick up to two. 'Blank vote' is an explicit-blank marker: selecting it alone is an explicit blank; selecting it together with Yes or No is an implicit invalid. max_votes is 2 so that the mixed case is not also an over-vote \u2014 the exclusivity rule is then the only reason the ballot is invalid.",
+              "description": "Pick up to two. 'Blank vote (explicit blank)' is an explicit-blank marker (the is_explicit_blank flag): selecting it alone is an explicit blank; selecting it together with Yes or No is an implicit invalid. max_votes is 2 so that the mixed case is not also an over-vote \u2014 the exclusivity rule is then the only reason the ballot is invalid.",
               "max_votes": 2,
               "min_votes": 0,
               "winning_candidates_num": 1,
@@ -105,7 +105,7 @@
                   "election_event_id": "44444444-4444-4444-4444-444444444002",
                   "election_id": "44444444-4444-4444-4444-444444444003",
                   "contest_id": "44444444-4444-4444-4444-44444444400c1",
-                  "name": "Blank vote",
+                  "name": "Blank vote (explicit blank)",
                   "presentation": {
                     "is_explicit_blank": true
                   }
@@ -118,7 +118,7 @@
               "election_event_id": "44444444-4444-4444-4444-444444444002",
               "election_id": "44444444-4444-4444-4444-444444444003",
               "name": "Council seat (with explicit invalid)",
-              "description": "Pick one. 'Null vote (invalid)' is an explicit-invalid marker (the is_explicit_invalid flag): selecting it makes the ballot explicitly invalid.",
+              "description": "Pick one. 'Null vote (explicit invalid)' is an explicit-invalid marker (the is_explicit_invalid flag): selecting it makes the ballot explicitly invalid.",
               "max_votes": 1,
               "min_votes": 0,
               "winning_candidates_num": 1,
@@ -147,7 +147,7 @@
                   "election_event_id": "44444444-4444-4444-4444-444444444002",
                   "election_id": "44444444-4444-4444-4444-444444444003",
                   "contest_id": "44444444-4444-4444-4444-44444444400c2",
-                  "name": "Null vote (invalid)",
+                  "name": "Null vote (explicit invalid)",
                   "presentation": {
                     "is_explicit_invalid": true
                   }

@@ -81,8 +81,25 @@ characterization harness (`packages/workbench/characterization/`).
 
 # Suspects — for consultation (adjudication pending)
 
-All four are recorded, reproducible behaviours (pointers below); the open
+All five are recorded, reproducible behaviours (pointers below); the open
 question in each case is *intent*, not *fact*.
+
+They are **not all the same kind of concern** — they sit on three distinct
+axes, and conflating them muddles the consultation:
+
+| Axis | What it is about | Suspects |
+|---|---|---|
+| **Silent discounting** | the voter is given no signal that their vote will not count | **S1** |
+| **Marker semantics** | what an explicit-blank / explicit-invalid marker *means* and does | **S3** (blank counts toward min), **S5** (invalid preserves choices) |
+| **Threshold consistency** | two mechanisms for one policy disagree on a boundary | **S4** |
+
+**S2 is not a fourth axis — it is the intersection of S1 and S3.** A
+deliberate explicit-blank (S3's marker-counting) that lands below
+`min_votes: 2` is discarded *silently* (S1). It is kept as its own entry
+only because it is the sharpest single cell where the two axes collide;
+its two consultation questions belong one to each axis (should a blank be
+subject to `min_votes`? → S3; should any rejection be silent? → S1). Read
+S2 as a worked example, not a separate root cause.
 
 ## S1. Silent vote discounting under `invalid_vote_policy = allowed`
 
@@ -122,16 +139,21 @@ admin-portal configuration warning). **Consultation question:** is
 *cast* silently" even though they are discarded, and if so, should the
 combination be flagged at configuration time?
 
-## S2. A deliberate explicit-blank vote silently discarded when `min_votes ≥ 2`
+## S2. (S1 ∩ S3) A deliberate explicit-blank vote silently discarded when `min_votes ≥ 2`
+
+*This is the intersection of S1 (silent discounting) and S3 (explicit-blank
+markers count toward `min_votes`), not an independent finding — see the
+axes table above. Recorded separately because it is the sharpest cell.*
 
 **Observed** (`characterization/minvote-rule.md`, `min_votes=2 ×
 marker_only`): a voter who selects the explicit-blank marker — an
 unambiguous, deliberate expression of "blank vote" — has the ballot
 silently classified `ImplicitInvalid`, because the marker counts as one
-selection and 1 < 2. Sub-case of S1's min-vote family but qualitatively
-sharper: this is not voter inattention; a clearly expressed intent is
-dropped without notice. Confirmed end-to-end through the full pipeline
-(the voter clicks "Blank vote", is shown nothing, ballot tallies
+selection and 1 < 2. The silence is the S1 facet; the "a blank counts as a
+selection" is the S3 facet. Qualitatively sharper than a plain S1 cell:
+this is not voter inattention; a clearly expressed intent is dropped
+without notice. Confirmed end-to-end through the full pipeline
+(the voter clicks "Blank vote (explicit blank)", is shown nothing, ballot tallies
 implicit-invalid) — `minvote-e2e-pipeline.recorded.json`, `min=2/marker_only`. **Consultation question:** should an explicit
 blank ever be subject to `min_votes` at all (see S3), and if it is,
 should its rejection ever be silent?

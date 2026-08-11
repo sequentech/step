@@ -98,7 +98,7 @@ for (const rx of [/start voting/i, /^vote/i, /continue/i, /next/i]) {
 await page.waitForTimeout(1600)
 await page.getByText(/^Ada$/).first().click().catch(() => {})
 await page.waitForTimeout(500)
-await page.getByText(new RegExp(`^${invalidMarkerName}$`)).first().click().catch(() => {})
+await page.getByText(invalidMarkerName, {exact: true}).first().click().catch(() => {})
 await page.waitForTimeout(800)
 
 // REACHABILITY: does the store hold both Ada selected AND the invalid flag?

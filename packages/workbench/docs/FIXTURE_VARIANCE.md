@@ -580,12 +580,12 @@ fixtures, which is a stronger statement.
 - **Branching sites**: `classify_ballot` and `get_explicit_blank_candidate_ids` in `workbench/velvet-core/src/counting/extended_metrics.rs`; `Candidate::is_explicit_blank()` / `is_explicit_invalid()`; the exclusivity rule in `setBallotSelectionVoteChoice` (choosing a regular candidate clears explicit-blank markers).
 - **Current fixture coverage**: `explicit-blank-invalid.json` — the first and
   only bundled snapshot defining marker candidates. Two contests:
-  - *Referendum* — Yes / No / **Blank vote** (`is_explicit_blank`),
+  - *Referendum* — Yes / No / **Blank vote (explicit blank)** (`is_explicit_blank`),
     `max_votes: 2`. The 2 is deliberate: at `max_votes: 1` a marker-plus-candidate
     selection would also trip the over-vote checker, and the fixture could not
     separate "invalid because mixed with an explicit blank" from "invalid because
     too many selections".
-  - *Council seat* — Ada / Bruno / **Null vote (invalid)** (`is_explicit_invalid`),
+  - *Council seat* — Ada / Bruno / **Null vote (explicit invalid)** (`is_explicit_invalid`),
     `max_votes: 1`.
 
   The other five bundled snapshots and all reference blobs still define none.
@@ -598,7 +598,7 @@ fixtures, which is a stronger statement.
   | `blank_votes` | 2 = **1 explicit** + 1 implicit |
   | `invalid_votes` | 1 = 0 explicit + **1 implicit** (the mixed ballot) |
 
-  Selecting *Null vote (invalid)* in *Council seat* yields `invalid_votes.explicit = 1`.
+  Selecting *Null vote (explicit invalid)* in *Council seat* yields `invalid_votes.explicit = 1`.
 - **Coverage gap assessment**: the classification path is now reachable, and the
   four `ParticipationSummary` rows that were structurally 0 render real values.
   Remaining: no fixture pairs a marker with a *non-default* `invalid_vote_policy`

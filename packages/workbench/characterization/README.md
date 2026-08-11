@@ -272,7 +272,7 @@ shown nothing and the ballot ending `total_valid_votes: 0`,
 - all four min-vote cells (`invalid=allowed`; `min=1/none`, `min=2/none`,
   `min=2/one`, `min=2/marker_only`) — `minvote-e2e-pipeline.recorded.json`.
 
-The sharpest is `min=2/marker_only`: the voter selects the **Blank vote**
+The sharpest is `min=2/marker_only`: the voter selects the **Blank vote (explicit blank)**
 marker — a deliberate blank — and it is silently discarded
 `ImplicitInvalid` (the marker counts as 1 < 2). The crypto-chaining TODO
 is closed for the whole finding. The cheaper two-halves browser runner

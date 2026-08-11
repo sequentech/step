@@ -46,7 +46,7 @@
       "min": 2,
       "state": "marker_only",
       "labels": [
-        "Blank vote"
+        "Blank vote (explicit blank)"
       ],
       "decodedBigInt": "2",
       "boothSilent": true,

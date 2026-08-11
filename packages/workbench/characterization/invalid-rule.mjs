@@ -8,7 +8,7 @@
 // The other runners only ever reach explicit invalidity one way: setting
 // the `is_explicit_invalid` FLAG on an otherwise-empty selection. There is
 // a second route never exercised — actually SELECTING the explicit-invalid
-// marker candidate ("Null vote (invalid)") as a choice. The two routes produce
+// marker candidate ("Null vote (explicit invalid)") as a choice. The two routes produce
 // different decoded structures (the flag travels in choices[0]; the marker
 // is skipped in the per-candidate slots), which is why the gates carry a
 // dedicated `explicit_invalid_marker_selected` dedup. This runner exercises
