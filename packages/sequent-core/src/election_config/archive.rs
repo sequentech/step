@@ -735,7 +735,11 @@ pub fn plan_in_delivery(
     use std::io::Read;
 
     let refused = |message: String| {
-        crate::election_config::Problem::error(Code::InvalidValue, "delivery", message)
+        crate::election_config::Problem::error(
+            Code::InvalidValue,
+            "delivery",
+            message,
+        )
     };
 
     let mut outer = zip::ZipArchive::new(std::io::Cursor::new(bytes)).map_err(|error| {
@@ -748,7 +752,12 @@ pub fn plan_in_delivery(
     // for listing. Cheap either way, and it means the failure can say what *was* in the
     // zip — which is the difference between fixing it and guessing.
     let names: Vec<String> = (0..outer.len())
-        .filter_map(|at| outer.by_index(at).ok().map(|entry| entry.name().to_string()))
+        .filter_map(|at| {
+            outer
+                .by_index(at)
+                .ok()
+                .map(|entry| entry.name().to_string())
+        })
         .collect();
 
     if !names.iter().any(|name| name == PLAN_MEMBER) {
@@ -766,9 +775,13 @@ pub fn plan_in_delivery(
     let mut plan = Vec::new();
     outer
         .by_name(PLAN_MEMBER)
-        .map_err(|error| refused(format!("{PLAN_MEMBER} could not be opened ({error})")))?
+        .map_err(|error| {
+            refused(format!("{PLAN_MEMBER} could not be opened ({error})"))
+        })?
         .read_to_end(&mut plan)
-        .map_err(|error| refused(format!("{PLAN_MEMBER} could not be read ({error})")))?;
+        .map_err(|error| {
+            refused(format!("{PLAN_MEMBER} could not be read ({error})"))
+        })?;
 
     Ok(plan)
 }

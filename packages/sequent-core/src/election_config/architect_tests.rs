@@ -3209,10 +3209,12 @@ fn a_delivery_reopens_as_the_plan_that_made_it() {
 
     let templates = TemplateSet::builtin().unwrap();
     let plan = sound();
-    let compiled = compile_plan(&plan, &templates, &BuildOptions::default(), None)
-        .expect("a sound plan compiles");
+    let compiled =
+        compile_plan(&plan, &templates, &BuildOptions::default(), None)
+            .expect("a sound plan compiles");
 
-    let delivery = archive::delivery(&compiled.layout).expect("a delivery is written");
+    let delivery =
+        archive::delivery(&compiled.layout).expect("a delivery is written");
     let reopened = archive::plan_in_delivery(&delivery.bytes)
         .expect("the delivery should carry the plan that made it");
 
@@ -3240,8 +3242,9 @@ fn a_zip_without_a_plan_says_what_it_had_instead() {
     use crate::election_config::archive;
 
     let templates = TemplateSet::builtin().unwrap();
-    let compiled = compile_plan(&sound(), &templates, &BuildOptions::default(), None)
-        .expect("a sound plan compiles");
+    let compiled =
+        compile_plan(&sound(), &templates, &BuildOptions::default(), None)
+            .expect("a sound plan compiles");
 
     // The importable member is exactly the wrong file to hand back, and the likeliest.
     let importable = archive::zip(&compiled.layout.importable).expect("a zip");
