@@ -6,10 +6,10 @@ schema {
 
 """whether this query should be cached (Hasura Cloud only)"""
 directive @cached(
-  """measured in seconds"""
-  ttl: Int! = 60
   """refresh the cache entry"""
   refresh: Boolean! = false
+  """measured in seconds"""
+  ttl: Int! = 60
 ) on QUERY
 
 type Aggregate {
