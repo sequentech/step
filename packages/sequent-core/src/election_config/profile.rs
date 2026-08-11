@@ -220,6 +220,43 @@ pub struct ClientProfile {
     /// others, where showing a third invites choosing it.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub only_our_presets: bool,
+
+    /// How voters may prove who they are, and the Keycloak configuration behind
+    /// each way.
+    ///
+    /// **The list a wizard offers comes from here and nowhere else.** A client's
+    /// identity provider is theirs, so the four Sequent ships are a *default*
+    /// rather than a ceiling — they are what
+    /// [`DEFAULT_PROFILE_JSON`] carries, and a profile naming its own replaces
+    /// them entirely rather than adding to them.
+    ///
+    /// Replacing rather than adding, unlike [`Self::presets`], and the difference
+    /// is worth stating: a ballot-rule set a client does not choose is a button
+    /// nobody presses, while a *sign-in flow* a client's realm cannot provision
+    /// is an election nobody can log into, discovered on the morning voting
+    /// opens. Offering ours alongside theirs would be offering exactly that.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub auth_presets: Vec<super::preset_doc::AuthPresetDoc>,
+}
+
+/// The profile a build with no `?profile=` uses.
+///
+/// In git, and `include_str!`'d rather than transcribed into Rust, so the
+/// Keycloak configuration exists exactly once. It is generated from
+/// [`super::presets::PRESETS`] and pinned by
+/// `default_profile_json_matches_the_shipped_presets` — nobody can read a
+/// two-hundred-line realm patch and be sure a transcription is faithful, so
+/// nobody is asked to.
+pub const DEFAULT_PROFILE_JSON: &str =
+    include_str!("presets/default_profile.json");
+
+/// The shipped profile, parsed.
+///
+/// Parsed on each call rather than held in a `OnceLock`: this is read once when a
+/// wizard starts, `include_str!` means there is no IO, and a global would be a
+/// second place for a mutated copy to hide.
+pub fn default_profile() -> Result<ClientProfile, serde_json::Error> {
+    serde_json::from_str(DEFAULT_PROFILE_JSON)
 }
 
 /// A named set of ballot rules a profile offers.

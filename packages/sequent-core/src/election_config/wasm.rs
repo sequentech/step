@@ -221,37 +221,68 @@ pub fn fixture_cases() -> Result<JsValue, JsError> {
 
 /// The authentication presets a front end can offer.
 ///
+/// **The list comes from a profile, not from Rust.** A client's identity provider
+/// is theirs, so the four Sequent ships are a default rather than a ceiling —
+/// pass the profile document a build loaded and get that client's own flows;
+/// pass nothing and get the shipped four out of `default_profile.json`.
+///
 /// Returned rather than duplicated in TypeScript, so a dropdown cannot list a
-/// preset that does not exist or miss one that does.
+/// flow the platform cannot provision or miss one it can.
 #[cfg(feature = "election_config_archive")]
 #[wasm_bindgen(js_name = authPresets)]
-pub fn auth_presets() -> Result<JsValue, JsError> {
-    #[derive(Serialize)]
-    struct Listed {
-        name: &'static str,
-        summary: &'static str,
-        uses_otp: bool,
-        required_parameters: Vec<&'static str>,
-        optional_parameters: Vec<&'static str>,
-        /// User-profile attributes this preset reads off a voter.
-        ///
-        /// The census's column chooser offers these, so a column somebody adds is one
-        /// the sign-in flow can actually read rather than one Keycloak drops.
-        profile_attributes: Vec<&'static str>,
+pub fn auth_presets(profile: JsValue) -> Result<JsValue, JsError> {
+    let listed = presets_for(profile)?;
+    to_js(&listed)
+}
+
+/// The shipped profile, as the document a profile author would edit.
+///
+/// Handed over whole rather than as a list of presets: a build with no
+/// `?profile=` is running *on* this profile, and a front end that fetched a
+/// profile and a front end that did not should be holding the same kind of thing
+/// afterwards. It is also what a profile author copies from — a default nobody
+/// can read is a default nobody can override deliberately.
+#[cfg(feature = "election_config_archive")]
+#[wasm_bindgen(js_name = defaultProfile)]
+pub fn default_profile() -> Result<JsValue, JsError> {
+    let document: serde_json::Value = serde_json::from_str(
+        profile::DEFAULT_PROFILE_JSON,
+    )
+    .map_err(|error| {
+        JsError::new(&format!("the shipped profile could not be read: {error}"))
+    })?;
+    to_js(&document)
+}
+
+/// The presets a profile offers, shipped ones when it names none.
+#[cfg(feature = "election_config_archive")]
+fn presets_for(
+    profile: JsValue,
+) -> Result<Vec<crate::election_config::preset_doc::AuthPresetDoc>, JsError> {
+    let named: Vec<crate::election_config::preset_doc::AuthPresetDoc> =
+        if profile.is_undefined() || profile.is_null() {
+            Vec::new()
+        } else {
+            let document: profile::ClientProfile =
+                serde_wasm_bindgen::from_value(profile).map_err(|error| {
+                    JsError::new(&format!(
+                        "this is not a client profile: {error}"
+                    ))
+                })?;
+            document.auth_presets
+        };
+
+    if !named.is_empty() {
+        return Ok(named);
     }
 
-    let listed: Vec<Listed> = presets::PRESETS
-        .iter()
-        .map(|preset| Listed {
-            name: preset.name,
-            summary: preset.summary,
-            uses_otp: preset.uses_otp,
-            required_parameters: preset.required_parameters.to_vec(),
-            optional_parameters: preset.optional_parameters.to_vec(),
-            profile_attributes: preset.profile_attributes.to_vec(),
+    profile::default_profile()
+        .map(|shipped| shipped.auth_presets)
+        .map_err(|error| {
+            JsError::new(&format!(
+                "the shipped profile could not be read: {error}"
+            ))
         })
-        .collect();
-    to_js(&listed)
 }
 
 /// Build an importable bundle from a workbook the user picked.
