@@ -259,19 +259,22 @@ an error (only alerts), the two preferential rules are immune by construction (n
 variant), and the invalid rule only ever tallies `ExplicitInvalid`, which
 the property excludes.
 
-The over-vote family is confirmed at two strengths. The browser runner
-(`overvote-rule.browser.mjs`) reproduces the violation in two halves that
-share an input — booth signals from the real UI, tally from the real
-decode/velvet-wasm — across the whole policy grid (the cheaper check).
-And **`overvote-e2e-pipeline.mjs` confirms it as ONE continuous run of
-the real workbench pipeline**: an over-vote cast through the booth
-(`over=allowed, invalid=allowed`, voter shown nothing) → encrypted →
-cast → decrypted by the bridge → decoded (checkers populate
-`invalid_errors`) → tallied → `total_valid_votes: 0`,
-`invalid_votes.implicit: 1`. Recorded in
-`overvote-e2e-pipeline.recorded.json`. This closes the crypto-chaining
-TODO for the over-vote family (min-vote's continuous-pipeline
-reproduction remains open).
+**All five violations are confirmed through ONE continuous run of the
+real workbench pipeline** — booth encrypt → cast → bridge decrypt →
+decode (checkers populate `invalid_errors`) → tally — with the voter
+shown nothing and the ballot ending `total_valid_votes: 0`,
+`invalid_votes.implicit: 1`:
+
+- over-vote (`over=allowed, invalid=allowed, over_max`) —
+  `overvote-e2e-pipeline.recorded.json`;
+- all four min-vote cells (`invalid=allowed`; `min=1/none`, `min=2/none`,
+  `min=2/one`, `min=2/marker_only`) — `minvote-e2e-pipeline.recorded.json`.
+
+The sharpest is `min=2/marker_only`: the voter selects the **Blank vote**
+marker — a deliberate blank — and it is silently discarded
+`ImplicitInvalid` (the marker counts as 1 < 2). The crypto-chaining TODO
+is closed for the whole finding. The cheaper two-halves browser runner
+(`overvote-rule.browser.mjs`) stays as the whole-policy-grid check.
 
 **A faithfulness rule this exercise taught** (an earlier revision of the
 e2e check got it wrong and reported "Valid"): the tally classifies
@@ -302,7 +305,7 @@ all six are:
 | Gates | 2 (headless wasm) | blank, over-vote, under-vote, min-vote, duplicated-rank, preference-gaps, invalid rules done |
 | Filter | 3 (browser, booth) | blank + over-vote rules done (under/min-vote headless only so far) |
 | Input constraint | 3 (browser) — the `constraint` component of the effect triple | observed **behaviourally** for `NOT_ALLOWED_WITH_MSG_AND_DISABLE` (the over-vote state does not form through the UI); the direct `disabled`-attribute probe is a DOM-selector TODO |
-| Marker exclusivity (prevention) | browser — *reachability*, not effects | first reachability recording exists (over-vote under DISABLE: the state does not form); the S1 over-vote violation is confirmed through the full booth→cast→decrypt→tally pipeline (). Prevention is characterized by *attempting* to create each state through the UI and recording whether it forms; the mixed marker state's booth-reachability is still an open cell. |
+| Marker exclusivity (prevention) | browser — *reachability*, not effects | first reachability recording exists (over-vote under DISABLE: the state does not form); all five S1/S2 violations (over-vote + four min-vote) are confirmed through the full booth→cast→decrypt→tally pipeline (`overvote-e2e-pipeline.mjs`, `minvote-e2e-pipeline.mjs`). Prevention is characterized by *attempting* to create each state through the UI and recording whether it forms; the mixed marker state's booth-reachability is still an open cell. |
 | Tally classifier | headless (velvet-wasm `tally_decoded_ballots`) | **done**: per-cell `tally` column in all seven rule tables, plus the standalone 32-cell six-class decision table (`classifier-table.md`, 32/32 matching the documented precedence) |
 
 Two consequences worth stating plainly. First, a per-rule recording like
@@ -319,7 +322,8 @@ enumerations.
 Copy `blank-rule.mjs`, swap the policy/state dimensions and the `predict()`
 transcription, and pick or extend a bundled fixture whose contest carries
 the rule's preconditions (see FIXTURE_VARIANCE.md §13.2 for why marker
-candidates are preconditions, not policies). Rules still uncharacterized:
-min-vote's full-pipeline reproduction (S1's min-vote half at the same
-strength as over-vote), and the decline-to-vote booth flow (the classifier's decline cells are now
-recorded, but no booth-side runner drives a declined ballot).
+candidates are preconditions, not policies). Still open:
+the decline-to-vote booth flow (the classifier's decline cells are now
+recorded, but no booth-side runner drives a declined ballot), and the
+blank-vs-invalid marker exclusivity asymmetry (a browser-reachability
+check, deferred to the decline work).

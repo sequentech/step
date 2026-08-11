@@ -108,6 +108,12 @@ this; the preferential rules do not (their enums have only
 therefore falls out: give every error-producing rule a mandatory dialog
 variant. See VALIDATION_LOGIC_DISTILLATION.md §4.5.
 
+**Evidence strength:** all violating cells (over-vote and both min-vote
+sub-cases) are reproduced through ONE continuous run of the real workbench
+pipeline — booth encrypt → cast → decrypt → decode → tally — with the
+voter shown nothing and the ballot ending 0 valid / 1 implicit-invalid
+(`characterization/{overvote,minvote}-e2e-pipeline.recorded.json`).
+
 **Why suspect:** the voter is given zero indication their vote will not
 count. **Confidence:** strong intuition this is a defect (or at minimum a
 combination that must be surfaced to election designers — e.g. an
@@ -124,7 +130,9 @@ unambiguous, deliberate expression of "blank vote" — has the ballot
 silently classified `ImplicitInvalid`, because the marker counts as one
 selection and 1 < 2. Sub-case of S1's min-vote family but qualitatively
 sharper: this is not voter inattention; a clearly expressed intent is
-dropped without notice. **Consultation question:** should an explicit
+dropped without notice. Confirmed end-to-end through the full pipeline
+(the voter clicks "Blank vote", is shown nothing, ballot tallies
+implicit-invalid) — `minvote-e2e-pipeline.recorded.json`, `min=2/marker_only`. **Consultation question:** should an explicit
 blank ever be subject to `min_votes` at all (see S3), and if it is,
 should its rejection ever be silent?
 

@@ -1,0 +1,62 @@
+{
+  "invalid_vote_policy": "allowed",
+  "cells": [
+    {
+      "min": 1,
+      "state": "none",
+      "labels": [],
+      "decodedBigInt": "0",
+      "boothSilent": true,
+      "summary": {
+        "total_votes": 1,
+        "total_valid_votes": 0,
+        "invalid_implicit": 1
+      },
+      "confirmed": true
+    },
+    {
+      "min": 2,
+      "state": "none",
+      "labels": [],
+      "decodedBigInt": "0",
+      "boothSilent": true,
+      "summary": {
+        "total_votes": 1,
+        "total_valid_votes": 0,
+        "invalid_implicit": 1
+      },
+      "confirmed": true
+    },
+    {
+      "min": 2,
+      "state": "one",
+      "labels": [
+        "Yes"
+      ],
+      "decodedBigInt": "4",
+      "boothSilent": true,
+      "summary": {
+        "total_votes": 1,
+        "total_valid_votes": 0,
+        "invalid_implicit": 1
+      },
+      "confirmed": true
+    },
+    {
+      "min": 2,
+      "state": "marker_only",
+      "labels": [
+        "Blank vote"
+      ],
+      "decodedBigInt": "2",
+      "boothSilent": true,
+      "summary": {
+        "total_votes": 1,
+        "total_valid_votes": 0,
+        "invalid_implicit": 1
+      },
+      "confirmed": true
+    }
+  ],
+  "all_confirmed": true
+}
