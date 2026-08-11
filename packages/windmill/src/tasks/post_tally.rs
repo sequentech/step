@@ -26,6 +26,7 @@ use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::pdf::sync::PdfRenderer;
 use sequent_core::sqlite::results_event::find_results_event_sqlite;
 use sequent_core::sqlite::results_event::update_results_event_documents_sqlite;
+use sequent_core::types::ceremonies::TallyRunReason;
 use sequent_core::types::ceremonies::TallySessionDocuments;
 use sequent_core::types::results::ResultsEvent;
 use sequent_core::types::templates::PrintToPdfOptionsLocal;
@@ -375,6 +376,7 @@ pub async fn post_tally_task_impl(
         Some(results_event_id),
         tally_session_execution.session_ids,
         Some(updated_documents),
+        TallyRunReason::NORMAL,
     )
     .await?;
 

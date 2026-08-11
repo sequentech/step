@@ -572,6 +572,7 @@ pub async fn create_tally_ceremony(
         None,
         None,
         None,
+        TallyRunReason::NORMAL,
     )
     .await?;
 
@@ -857,6 +858,7 @@ pub async fn set_private_key(
         None,
         None,
         None,
+        TallyRunReason::NORMAL,
     )
     .await?;
 
@@ -1052,6 +1054,12 @@ pub async fn begin_tally_session_recount(
         None,
         None,
         None,
+        // The durable record that a recount was asked for. The celery message
+        // this function's callers send afterwards is only a nudge: if it is
+        // lost -- expired while no worker was consuming, or dropped because a
+        // concurrent run held the lock -- the next process_board tick reads
+        // this row and performs the recount anyway.
+        TallyRunReason::RECOUNT,
     )
     .await?;
 
@@ -1169,6 +1177,9 @@ async fn restore_previous_tally_session_execution(
         previous_execution.results_event_id.clone(),
         previous_execution.session_ids.clone(),
         restored_documents,
+        // Restoring the pre-recount row also withdraws the recount reason,
+        // which is correct: the task was never enqueued.
+        TallyRunReason::NORMAL,
     )
     .await
     .with_context(|| "failed to insert restored previous execution")?;
