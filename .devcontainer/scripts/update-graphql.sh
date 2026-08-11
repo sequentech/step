@@ -12,36 +12,35 @@ env -u LD_LIBRARY_PATH docker compose restart graphql-engine
 
 # Generate graphql schema.
 #
-# Readiness is defined as "the introspection we need succeeds", rather than a
-# fixed wait or the container healthcheck: the healthcheck has no explicit
-# interval, so it inherits Docker's 30s default and can report unhealthy for
-# half a minute after Hasura is already serving.
-#
-# The output goes to a temporary file and is moved into place only on success.
-# Redirecting straight into graphql.schema.json truncates it before gq runs, so
-# any failure used to leave the tracked schema empty.
+# graphql-engine defines no healthcheck, so readiness is defined as "the
+# introspection we need succeeds" and retried until a deadline.
 cd packages/admin-portal
 
-# The temporary file is created in the destination directory, not $TMPDIR, so
-# that the final step is a rename within a single filesystem and therefore
-# atomic: no reader ever sees a partially written schema, and a cross-device
-# copy cannot fail halfway.
-SCHEMA_TMP="$(mktemp ./graphql.schema.json.XXXXXX)"
-trap 'rm -f "${SCHEMA_TMP}"' EXIT
+# Written to a temporary file in the destination directory and renamed on
+# success, so a failed run leaves the tracked schema untouched rather than
+# truncated.
+SCHEMA_TMP="$(mktemp ./.graphql.schema.json.XXXXXX)"
+GQ_STDERR="$(mktemp)"
+trap 'rm -f "${SCHEMA_TMP}" "${GQ_STDERR}"' EXIT INT TERM
 
-# Sourced from .devcontainer/.env, and the same value compose feeds
-# graphql-engine as HASURA_GRAPHQL_ADMIN_SECRET. Resolved once, and required,
-# so a missing configuration fails immediately instead of looking like a
-# graphql-engine that never becomes ready.
-HASURA_ADMIN_SECRET="${KEYCLOAK_ADMIN_CLIENT_SECRET:?KEYCLOAK_ADMIN_CLIENT_SECRET is not set; expected it from .devcontainer/.env}"
+# Compose feeds graphql-engine HASURA_GRAPHQL_ADMIN_SECRET from
+# KEYCLOAK_ADMIN_CLIENT_SECRET locally, but remote deployments set it
+# independently.
+HASURA_ADMIN_SECRET="${HASURA_GRAPHQL_ADMIN_SECRET:-${KEYCLOAK_ADMIN_CLIENT_SECRET:?neither HASURA_GRAPHQL_ADMIN_SECRET nor KEYCLOAK_ADMIN_CLIENT_SECRET is set; expected one from .devcontainer/.env}}"
 
 HASURA_READY_TIMEOUT_SECS="${HASURA_READY_TIMEOUT_SECS:-120}"
 deadline=$((SECONDS + HASURA_READY_TIMEOUT_SECS))
 
+# graphql-engine restarts always, so it reads as not running for a moment on
+# every restart. Only consecutive observations mean it is really down.
+not_running_count=0
+
 while true; do
     remaining=$((deadline - SECONDS))
     if [ "${remaining}" -le 0 ]; then
-        echo "graphql-engine was not ready within ${HASURA_READY_TIMEOUT_SECS}s; check 'docker logs hasura'" >&2
+        echo "graphql-engine was not ready within ${HASURA_READY_TIMEOUT_SECS}s; last introspection error:" >&2
+        cat "${GQ_STDERR}" >&2
+        echo "check 'docker logs hasura'" >&2
         exit 1
     fi
 
@@ -51,24 +50,30 @@ while true; do
             -H "X-Hasura-Admin-Secret: ${HASURA_ADMIN_SECRET}" \
             --introspect \
             --format json \
-            > "${SCHEMA_TMP}" 2>/dev/null \
+            > "${SCHEMA_TMP}" 2>"${GQ_STDERR}" \
         && [ -s "${SCHEMA_TMP}" ]; then
         break
     fi
 
-    # A container that is not running will never become ready, so fail now with
-    # a pointer to the cause rather than waiting out the whole timeout. A failed
+    # A container that stays down will never become ready, so fail now with a
+    # pointer to the cause rather than waiting out the whole timeout. A failed
     # migration leaves graphql-engine in a restart loop and lands here.
     if [ "$(env -u LD_LIBRARY_PATH docker inspect -f '{{.State.Running}}' hasura 2>/dev/null)" != "true" ]; then
-        echo "graphql-engine is not running; check 'docker logs hasura'" >&2
-        exit 1
+        not_running_count=$((not_running_count + 1))
+        if [ "${not_running_count}" -ge 3 ]; then
+            echo "graphql-engine is not running; check 'docker logs hasura'" >&2
+            exit 1
+        fi
+    else
+        not_running_count=0
     fi
 
     sleep 2
 done
 
 mv "${SCHEMA_TMP}" graphql.schema.json
-trap - EXIT
+rm -f "${GQ_STDERR}"
+trap - EXIT INT TERM
 
 # Copy the schema to the apps
 cd ..
