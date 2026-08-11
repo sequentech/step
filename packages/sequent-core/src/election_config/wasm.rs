@@ -74,6 +74,19 @@ export interface Report {
     problems: Problem[];
 }
 
+/**
+ * What `openConfiguration` made of the bytes it was given.
+ *
+ * `plan` is null when nothing could be read, and `report` says why — a report
+ * rather than a thrown error, because a screen can group one by tab and point at
+ * cells with it.
+ */
+export interface Opened {
+    plan: unknown | null;
+    report: Report;
+    source?: "delivery" | "plan" | "workbook";
+}
+
 /** The verdict every caller of the validator must reach on a fixture. */
 export interface Expect {
     errors: string[];
@@ -643,6 +656,53 @@ pub fn plan_in_delivery_js(bytes: &[u8]) -> Result<JsValue, JsError> {
         })?;
 
     to_js(&value)
+}
+
+/// A delivery zip, a plan `.json` or a workbook `.xlsx` — whichever this is.
+///
+/// One call for all three, because telling them apart cannot be done outside Rust:
+/// an `.xlsx` has the same `PK` magic as a delivery, so a host sniffing bytes hands
+/// a spreadsheet to the delivery reader and gets "no plan in this zip" about a
+/// perfectly good workbook. Opening the archive and looking inside is the archive
+/// reader's job.
+///
+/// **A bad file comes back as a report rather than as an exception**, which is the
+/// rule the rest of this module follows and the reason it matters here: a report is
+/// something a screen can group by tab and point at cells with, and an exception is
+/// a string. `plan` is `null` when nothing could be read.
+#[cfg(all(
+    feature = "election_config_xlsx",
+    feature = "election_config_archive"
+))]
+#[wasm_bindgen(js_name = openConfiguration)]
+pub fn open_configuration(bytes: &[u8]) -> Result<JsValue, JsError> {
+    #[derive(serde::Serialize)]
+    struct Answer {
+        plan: Option<serde_json::Value>,
+        report: Report,
+        source: Option<crate::election_config::open::Source>,
+    }
+
+    let answer = match crate::election_config::open::open(bytes) {
+        Ok(opened) => Answer {
+            plan: Some(serde_json::to_value(&opened.plan).map_err(
+                |error| {
+                    JsError::new(&format!(
+                        "this plan could not be read: {error}"
+                    ))
+                },
+            )?),
+            report: opened.report,
+            source: Some(opened.source),
+        },
+        Err(report) => Answer {
+            plan: None,
+            report,
+            source: None,
+        },
+    };
+
+    to_js(&answer)
 }
 
 /// What a profile hides, so the wizard knows what not to draw.

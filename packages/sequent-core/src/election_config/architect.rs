@@ -3327,6 +3327,24 @@ pub fn compile_plan(
         });
     }
 
+    // The same configuration, in the format a delivery engineer works in.
+    //
+    // Gated, and the gate is not decoration: this function is behind
+    // `election_config_templates`, the writer is behind `election_config_xlsx`, and
+    // `election_config_archive` implies the first but not the second. Without it,
+    // the `election_config_archive` feature check stops compiling.
+    //
+    // A write failure loses the spreadsheet rather than the build — the same
+    // choice `delivery()` already makes. Everything it would have carried is in
+    // `blueprint.json` beside it, so nobody loses work over a tab name.
+    #[cfg(feature = "election_config_xlsx")]
+    if let Ok(bytes) = super::xlsx_write::write_xlsx(&workbook) {
+        layout.auxiliary.push(Artifact {
+            name: super::archive::WORKBOOK_MEMBER.to_string(),
+            bytes,
+        });
+    }
+
     Ok(Compiled {
         bundle,
         layout,

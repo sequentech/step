@@ -3290,6 +3290,58 @@ fn a_zip_without_a_plan_says_what_it_had_instead() {
     );
 }
 
+/// A delivery carries the spreadsheet, beside the plan and outside the import.
+///
+/// Auxiliary on purpose: the platform's importer has never been handed a
+/// spreadsheet and must not start now. It is there for the person — the same
+/// configuration as `blueprint.json`, in the format they work in.
+#[cfg(feature = "election_config_xlsx")]
+#[test]
+fn a_delivery_carries_the_workbook_beside_the_plan() {
+    let compiled = compile_plan(
+        &sound(),
+        &TemplateSet::builtin().unwrap(),
+        &BuildOptions::default(),
+        None,
+    )
+    .expect("the sample plan compiles");
+
+    let auxiliary: Vec<&str> = compiled
+        .layout
+        .auxiliary
+        .iter()
+        .map(|file| file.name.as_str())
+        .collect();
+
+    assert!(
+        auxiliary.contains(&crate::election_config::archive::WORKBOOK_MEMBER),
+        "the delivery carries the spreadsheet: {auxiliary:?}"
+    );
+    assert!(
+        auxiliary.contains(&"blueprint.json"),
+        "and the plan, which is still the full-fidelity record"
+    );
+    assert!(
+        !compiled
+            .layout
+            .importable
+            .iter()
+            .any(|file| file.name.ends_with(".xlsx")),
+        "and no spreadsheet reaches the importer"
+    );
+
+    // It is a real file, not an empty placeholder.
+    let workbook = compiled
+        .layout
+        .auxiliary
+        .iter()
+        .find(|file| {
+            file.name == crate::election_config::archive::WORKBOOK_MEMBER
+        })
+        .unwrap();
+    assert!(workbook.bytes.starts_with(b"PK"), "and it is a zip");
+}
+
 // -- the sheets only a plan holds -----------------------------------------------
 
 /// The six exist so the delivery's spreadsheet is the whole plan.
