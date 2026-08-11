@@ -18,6 +18,7 @@ use crate::postgres::tally_session_contest::{
 use crate::postgres::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
+use crate::postgres::tally_sheet::get_approved_tally_sheets_by_event;
 use crate::services::ceremonies::keys_ceremony::find_trustee_private_key;
 use crate::services::ceremonies::serialize_logs::{
     append_tally_trustee_log, generate_tally_initial_log,
@@ -31,7 +32,10 @@ use anyhow::{anyhow, Context, Result};
 use b4::messages::newtypes::BatchNumber;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::try_join;
-use sequent_core::ballot::{AllowTallyStatus, ContestEncryptionPolicy};
+use sequent_core::ballot::{
+    AllowTallyStatus, BallotStyle as SequentBallotStyle, ContestEncryptionPolicy,
+    DecodedBallotsInclusionPolicy, DelegatedVotingPolicy, Weight, WeightedVotingPolicy,
+};
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::area_tree::ContestsData;
 use sequent_core::services::area_tree::TreeNode;
@@ -43,6 +47,7 @@ use sequent_core::types::hasura::core::{
     BallotStyle, Election, TallySession, TallySessionContest, TallySessionExecution,
 };
 use sequent_core::types::hasura::core::{Contest, ElectionEvent};
+use sequent_core::types::keycloak::VOTE_WEIGHT_BATCHES;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -206,6 +211,10 @@ pub async fn insert_tally_session_contests(
     contests_map: &HashMap<String, Contest>,
     configuration: &TallySessionConfiguration,
 ) -> Result<()> {
+    // Each contest area owns `VOTE_WEIGHT_BATCHES` consecutive batches starting
+    // at its `session_id`. Only `VOTERS_WEIGHTED_VOTING` fills more than the
+    // first, but the stride is unconditional so that a session created under
+    // one policy can never allocate a batch inside a run created under another.
     let mut batch: BatchNumber =
         get_tally_session_highest_batch(hasura_transaction, tenant_id, election_event_id).await?;
 
@@ -236,7 +245,7 @@ pub async fn insert_tally_session_contests(
                 &election_id,
             )
             .await?;
-            batch = batch + 1;
+            batch = batch + VOTE_WEIGHT_BATCHES as BatchNumber;
         }
     } else if ContestEncryptionPolicy::SINGLE_CONTEST == contest_encryption_policy {
         for area_contest in relevant_area_contests {
@@ -254,7 +263,7 @@ pub async fn insert_tally_session_contests(
                 &contest.election_id,
             )
             .await?;
-            batch = batch + 1;
+            batch = batch + VOTE_WEIGHT_BATCHES as BatchNumber;
         }
     }
     Ok(())
@@ -295,10 +304,143 @@ pub async fn create_tally_ceremony(
     let contest_encryption_policy = election_event.get_contest_encryption_policy();
     let decoded_ballots_inclusion_policy = election_event.get_decoded_ballots_inclusion_policy();
     let delegated_voting_policy = election_event.get_delegated_voting_policy();
+    let weighted_voting_policy = election_event.get_weighted_voting_policy();
+    if weighted_voting_policy == WeightedVotingPolicy::VOTERS_WEIGHTED_VOTING {
+        // A delegate's ballot has no defined weighted semantics, and applying
+        // both would silently compute weight * (1 + delegate_count).
+        if delegated_voting_policy == DelegatedVotingPolicy::ENABLED {
+            return Err(anyhow!(
+                "Delegated voting and voter-weighted voting cannot both be \
+                 enabled on the same election event"
+            ));
+        }
+        // The mix batch no longer repeats a ciphertext, but the tally still
+        // expands each batch's plaintexts by that batch's multiplier, so the
+        // decoded ballots would carry each voter's weight as a run of identical
+        // plaintexts. This closes the most direct disclosure; it does not make
+        // the scheme secret-ballot safe on its own, since a ballot still
+        // appears in one batch per bit of its weight and every batch is
+        // public.
+        if decoded_ballots_inclusion_policy == DecodedBallotsInclusionPolicy::INCLUDED {
+            return Err(anyhow!(
+                "Decoded ballots cannot be included in the results when \
+                 voter-weighted voting is enabled, because the repeated \
+                 ballots would reveal each voter's weight"
+            ));
+        }
+
+        // A tally sheet reports a count of paper ballots and has nowhere to
+        // carry a weight, so velvet adds its votes to the weighted electronic
+        // totals at one vote each. That does not just under-count them: it
+        // decides contests, since a few hundred paper ballots worth 1 land
+        // beside electronic ballots worth thousands. It also breaks the
+        // published percentages, because a sheet contributes to the candidate
+        // totals but not to the weighted base they are divided by.
+        // Scoped to the elections being tallied, like the two refusals below.
+        // An approved sheet belonging to a different election in the same event
+        // says nothing about this tally, and refusing on it would name a remedy
+        // -- withdraw the sheet -- that destroys that other election's paper
+        // count.
+        let approved_tally_sheets: Vec<_> =
+            get_approved_tally_sheets_by_event(&transaction, &tenant_id, &election_event_id)
+                .await?
+                .into_iter()
+                // An empty list needs no fallback: a session that names no
+                // elections has no contest rows, so there is no tally for a
+                // sheet to be counted into.
+                .filter(|sheet| election_ids.contains(&sheet.election_id))
+                .collect();
+        if !approved_tally_sheets.is_empty() {
+            return Err(anyhow!(
+                "Approved tally sheets cannot be counted when voter-weighted \
+                 voting is enabled: a tally sheet reports a ballot count with no \
+                 weight, so its votes would be added to the weighted totals at a \
+                 weight of one each. {} approved tally sheet(s) exist for this \
+                 election event",
+                approved_tally_sheets.len()
+            ));
+        }
+
+        // Nothing downstream stops an area weight being applied on top of the
+        // per-voter weight, so this refusal is the only thing that does.
+        // It reads the ballot style snapshot frozen at publication, because
+        // that is the value velvet will use: clearing the live area row without
+        // republishing would otherwise satisfy the check while the tally still
+        // double-counted every ballot.
+        let published_ballot_styles = get_ballot_styles_by_elections(
+            &transaction,
+            &tenant_id,
+            &election_event_id,
+            &election_ids,
+        )
+        .await?;
+        let mut weighted_areas: Vec<String> = Vec::new();
+        let mut unsupported_contests: Vec<String> = Vec::new();
+        for published in &published_ballot_styles {
+            let Some(eml) = published.ballot_eml.clone().filter(|eml| !eml.is_empty()) else {
+                // No published ballot for this style, so nothing the tally will
+                // read from it and nothing to check.
+                continue;
+            };
+            let ballot_style: SequentBallotStyle = deserialize_str(&eml).map_err(|error| {
+                anyhow!(
+                    "Could not read published ballot style {}: {error:?}",
+                    published.id
+                )
+            })?;
+            // An absent weight and an explicit 1 are the same value, so only a
+            // weight that would actually multiply is a conflict.
+            let is_weighted = ballot_style
+                .area_annotations
+                .as_ref()
+                .map(|annotations| annotations.get_weight())
+                .is_some_and(|weight| weight != Weight::default());
+            if is_weighted && !weighted_areas.contains(&ballot_style.area_id) {
+                weighted_areas.push(ballot_style.area_id.clone());
+            }
+
+            // Duplicating a ballot is only defined for the algorithm this
+            // feature was specified and tested for. Others would silently
+            // accept repeated ballots with untested quota and elimination
+            // behaviour. An unset algorithm resolves to plurality-at-large, and
+            // could not have been published otherwise.
+            for contest in &ballot_style.contests {
+                if contest.get_counting_algorithm() != CountingAlgType::PluralityAtLarge
+                    && !unsupported_contests.contains(&contest.id)
+                {
+                    unsupported_contests.push(contest.id.clone());
+                }
+            }
+        }
+        if !weighted_areas.is_empty() {
+            return Err(anyhow!(
+                "Voter-weighted voting cannot be used while published ballots \
+                 still carry an area weight, because the two would multiply: \
+                 {}. This has to be corrected \
+                 before the ballots are published: set the weighted voting \
+                 policy back to areas-weighted voting, which makes the weight \
+                 editable again, clear it on these areas, set the policy to \
+                 voters-weighted voting and publish. Once voting has begun the \
+                 ballots cannot be republished, so at this point there is no \
+                 remedy left",
+                weighted_areas.join(", ")
+            ));
+        }
+
+        if !unsupported_contests.is_empty() {
+            return Err(anyhow!(
+                "Voter-weighted voting only supports the plurality-at-large \
+                 counting algorithm. These contests use another algorithm: {}",
+                unsupported_contests.join(", ")
+            ));
+        }
+    }
+
     let mut final_configuration = configuration.clone().unwrap_or_default();
     final_configuration.contest_encryption_policy = Some(contest_encryption_policy);
     final_configuration.decoded_ballots_inclusion_policy = Some(decoded_ballots_inclusion_policy);
     final_configuration.delegated_voting_policy = Some(delegated_voting_policy);
+    final_configuration.weighted_voting_policy = Some(weighted_voting_policy);
     let contests: Vec<Contest> = all_contests
         .into_iter()
         .filter(|contest| election_ids.contains(&contest.election_id))
