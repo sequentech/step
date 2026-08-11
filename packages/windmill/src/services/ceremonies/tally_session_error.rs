@@ -9,7 +9,6 @@ use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use sequent_core::services::date::ISO8601;
 use sequent_core::types::ceremonies::Log;
-use sequent_core::types::ceremonies::TallyRunReason;
 use tracing::{event, info, instrument, Level};
 
 use super::tally_ceremony::get_tally_ceremony_status;
@@ -71,7 +70,12 @@ pub async fn handle_tally_session_error(
         last_execution.results_event_id.clone(),
         last_execution.session_ids.clone(),
         None,
-        TallyRunReason::NORMAL,
+        // Carried forward with the rest of the previous row. An error is not
+        // the run happening, so it must not consume a pending reason: writing
+        // NORMAL here would drop a recount that failed once and stop it ever
+        // being retried, which is the silent loss this reason exists to
+        // prevent.
+        last_execution.run_reason(),
     )
     .await?;
 

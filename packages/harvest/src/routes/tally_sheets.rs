@@ -27,11 +27,9 @@ use serde_json::Value;
 use std::collections::HashSet;
 use tracing::{event, instrument, Level};
 use windmill::postgres::{
-    contest::get_contest_by_id,
-    document::get_document,
+    contest::get_contest_by_id, document::get_document,
     election_event::get_election_event_by_id,
-    tally_session::get_tally_sessions_by_election_event_id,
-    tally_sheet,
+    tally_session::get_tally_sessions_by_election_event_id, tally_sheet,
     tally_sheet_import::get_tally_sheet_import_items_for_review,
 };
 use windmill::services::{
