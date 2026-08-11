@@ -650,16 +650,44 @@ fn service_account_exclusion(alias: &str) -> String {
     format!("{alias}.service_account_client_link IS NULL")
 }
 
+/// Base parameters shared by every voter-scoped query: realm and optional id allowlist.
+/// This is the single source of truth for where `filter.realm`/`filter.user_ids` land in the
+/// `params` slice, so `voter_scope_clause` and the query's own filter clauses can reference
+/// their positions without hardcoding or re-deriving them independently.
+struct VoterScopeParams<'a> {
+    params: Vec<&'a (dyn ToSql + Sync)>,
+    realm_param: i32,
+    user_ids_param: i32,
+    next_param_number: i32,
+}
+
+/// Takes `realm`/`user_ids` by reference (rather than `&ListUsersFilter`) so callers keep
+/// borrowing only those two fields — a whole-struct borrow here would conflict with the
+/// later partial moves out of other `filter` fields (e.g. `filter.sort`).
+fn voter_scope_params<'a>(
+    realm: &'a String,
+    user_ids: &'a Option<Vec<String>>,
+) -> VoterScopeParams<'a> {
+    VoterScopeParams {
+        params: vec![realm, user_ids],
+        realm_param: 1,
+        user_ids_param: 2,
+        next_param_number: 3,
+    }
+}
+
 /// WHERE-clause head shared by the voter count and voter listing queries: scope to the realm,
 /// drop service accounts, then apply the caller's filters. `filters_clause` is the caller's
 /// already-composed column filters, which carries its own trailing boolean operator when set.
-fn voter_scope_clause(filters_clause: &str) -> String {
+/// `realm_param`/`user_ids_param` must be the positions returned by `voter_scope_params` for
+/// the same `params` vec, so the placeholders here always match where the values were pushed.
+fn voter_scope_clause(filters_clause: &str, realm_param: i32, user_ids_param: i32) -> String {
     let no_service_accounts = service_account_exclusion("u");
     format!(
-        r#"ra.name = $1 AND
+        r#"ra.name = ${realm_param} AND
             {no_service_accounts} AND
             {filters_clause}
-            (u.id = ANY($2) OR $2 IS NULL)"#
+            (u.id = ANY(${user_ids_param}) OR ${user_ids_param} IS NULL)"#
     )
 }
 
@@ -718,8 +746,12 @@ pub async fn count_keycloak_users(
     filter: ListUsersFilter,
 ) -> Result<i32> {
     // Start by setting up the base parameters: realm and user_ids.
-    let mut params: Vec<&(dyn ToSql + Sync)> = vec![&filter.realm, &filter.user_ids];
-    let mut next_param_number = 3;
+    let VoterScopeParams {
+        mut params,
+        realm_param,
+        user_ids_param,
+        mut next_param_number,
+    } = voter_scope_params(&filter.realm, &filter.user_ids);
 
     // Build filter clauses for basic fields.
     let mut filters_clause = String::new();
@@ -824,9 +856,8 @@ pub async fn count_keycloak_users(
         format!("AND ({})", dynamic_attr_conditions.join(" OR "))
     };
 
-    let scope_clause = voter_scope_clause(&filters_clause);
-
     // Build the count query using only the necessary filtering clauses.
+    let scope_clause = voter_scope_clause(&filters_clause, realm_param, user_ids_param);
     let count_query = format!(
         r#"
         SELECT COUNT(*) AS total_count
@@ -869,8 +900,12 @@ pub async fn list_users(
         std::cmp::min(low_sql_limit, filter.limit.unwrap_or(default_sql_limit)).into();
     let query_offset: i64 = filter.offset.unwrap_or(0).into();
 
-    let mut params: Vec<&(dyn ToSql + Sync)> = vec![&filter.realm, &filter.user_ids];
-    let mut next_param_number = 3;
+    let VoterScopeParams {
+        mut params,
+        realm_param,
+        user_ids_param,
+        mut next_param_number,
+    } = voter_scope_params(&filter.realm, &filter.user_ids);
 
     let mut filters_clause = "".to_string();
     let mut filter_params: Vec<String> = vec![];
@@ -992,7 +1027,7 @@ pub async fn list_users(
 
     debug!("parameters count: {}", next_param_number - 1);
     debug!("params {:?}", params);
-    let scope_clause = voter_scope_clause(&filters_clause);
+    let scope_clause = voter_scope_clause(&filters_clause, realm_param, user_ids_param);
     let statement_str = format!(
         r#"
         WITH limited_users AS MATERIALIZED (
@@ -1154,8 +1189,12 @@ pub async fn list_users_ids(
         std::cmp::min(low_sql_limit, filter.limit.unwrap_or(default_sql_limit)).into();
     let query_offset: i64 = filter.offset.unwrap_or(0).into();
 
-    let mut params: Vec<&(dyn ToSql + Sync)> = vec![&filter.realm, &filter.user_ids];
-    let mut next_param_number = 3;
+    let VoterScopeParams {
+        mut params,
+        realm_param,
+        user_ids_param,
+        mut next_param_number,
+    } = voter_scope_params(&filter.realm, &filter.user_ids);
 
     let mut filters_clause = "".to_string();
     let mut filter_params: Vec<String> = vec![];
@@ -1277,7 +1316,7 @@ pub async fn list_users_ids(
 
     debug!("parameters count: {}", next_param_number - 1);
     debug!("params {:?}", params);
-    let scope_clause = voter_scope_clause(&filters_clause);
+    let scope_clause = voter_scope_clause(&filters_clause, realm_param, user_ids_param);
     let statement_str = format!(
         r#"
             SELECT
@@ -2053,7 +2092,7 @@ mod tests {
 
     #[test]
     fn test_voter_scope_clause_excludes_service_accounts() {
-        let clause = voter_scope_clause("");
+        let clause = voter_scope_clause("", 1, 2);
         assert!(
             clause.contains("u.service_account_client_link IS NULL"),
             "voter queries must not report Keycloak service accounts as voters: {clause}"
@@ -2063,7 +2102,7 @@ mod tests {
     #[test]
     fn test_voter_scope_clause_keeps_realm_and_caller_filters() {
         let filters_clause = format!(r#"("email" = $3){}"#, SqlBooleanOperator::And);
-        let clause = voter_scope_clause(&filters_clause);
+        let clause = voter_scope_clause(&filters_clause, 1, 2);
 
         assert!(clause.contains("ra.name = $1"));
         assert!(clause.contains(r#"("email" = $3) AND"#));
