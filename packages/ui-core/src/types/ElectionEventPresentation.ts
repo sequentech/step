@@ -83,6 +83,7 @@ export enum EElectionEventAutomaticRecountPolicy {
 export enum EElectionEventWeightedVotingPolicy {
     AREAS_WEIGHTED_VOTING = "areas-weighted-voting",
     DISABLED_WEIGHTED_VOTING = "disabled-weighted-voting",
+    VOTERS_WEIGHTED_VOTING = "voters-weighted-voting",
 }
 
 export enum EElectionEventDelegatedVotingPolicy {
@@ -203,6 +204,7 @@ export interface IElectionEventPresentation {
     keys_ceremony_policy?: KeysCeremonyPolicy
     locked_down?: EElectionEventLockedDown
     contest_encryption_policy?: EElectionEventContestEncryptionPolicy
+    decoded_ballot_inclusion_policy?: EElectionEventDecodedBallots
     publish_policy?: EElectionEventPublishPolicy
     enrollment?: EElectionEventEnrollment
     otp?: EElectionEventOTP

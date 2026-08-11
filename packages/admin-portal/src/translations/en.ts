@@ -650,7 +650,12 @@ const englishTranslation = {
                     options: {
                         "areas-weighted-voting": "Weighted Voting for Areas",
                         "disabled-weighted-voting": "Disabled Weighted Voting",
+                        "voters-weighted-voting": "Weighted Voting for Voters",
                     },
+                    noDelegated:
+                        "Weighted Voting for Voters cannot be combined with Delegated Voting",
+                    noDecodedBallots:
+                        "Weighted Voting for Voters cannot be combined with including decoded ballots in the results",
                 },
                 delegatedVotingPolicy: {
                     policyLabel: "Delegated Voting Policy",
@@ -1080,6 +1085,7 @@ const englishTranslation = {
                 },
                 fields: {
                     "has_voted": "Voted",
+                    "vote-weight": "Vote Weight",
                     "voted-channel": "Voted Channel",
                     "disable-comment": "Disable Comment",
                     "username": "Username",

@@ -651,8 +651,13 @@ const basqueTranslation: TranslationType = {
                     policyLabel: "Bozketa Ponderatuaren Politika",
                     options: {
                         "areas-weighted-voting": "Eremuen araberako Bozketa Ponderatua",
+                        "voters-weighted-voting": "Bozkatzaileen araberako Bozketa Ponderatua",
                         "disabled-weighted-voting": "Bozketa Ponderatua Desgaituta",
                     },
+                    noDelegated:
+                        "Bozkatzaileen araberako Bozketa Ponderatua ezin da Boto Delegatuarekin konbinatu",
+                    noDecodedBallots:
+                        "Bozkatzaileen araberako Bozketa Ponderatua ezin da emaitzetan deszifratutako botoak sartzearekin konbinatu",
                 },
                 delegatedVotingPolicy: {
                     policyLabel: "Botoa Eskualdatzeko Politika",
@@ -1087,6 +1092,7 @@ const basqueTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Bozkatu du",
+                    "vote-weight": "Botoaren pisua",
                     "voted-channel": "Boto-kanala",
                     "disable-comment": "Desgaitzeko iruzkina",
                     "username": "Erabiltzaile izena",

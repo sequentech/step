@@ -12,6 +12,7 @@ use crate::{
     ballot::{
         ConsolidatedReportPolicy, ContestEncryptionPolicy,
         DecodedBallotsInclusionPolicy, DelegatedVotingPolicy,
+        WeightedVotingPolicy,
     },
     serialization::deserialize_with_path::deserialize_value,
     types::{
@@ -450,6 +451,7 @@ pub struct TallySessionConfiguration {
     pub decoded_ballots_inclusion_policy: Option<DecodedBallotsInclusionPolicy>,
     pub delegated_voting_policy: Option<DelegatedVotingPolicy>,
     pub consolidated_report_policy: Option<ConsolidatedReportPolicy>,
+    pub weighted_voting_policy: Option<WeightedVotingPolicy>,
 }
 
 impl TallySessionConfiguration {
@@ -458,6 +460,9 @@ impl TallySessionConfiguration {
     }
     pub fn get_delegated_voting_policy(&self) -> DelegatedVotingPolicy {
         self.delegated_voting_policy.clone().unwrap_or_default()
+    }
+    pub fn get_weighted_voting_policy(&self) -> WeightedVotingPolicy {
+        self.weighted_voting_policy.clone().unwrap_or_default()
     }
     pub fn get_decoded_ballots_policy(&self) -> DecodedBallotsInclusionPolicy {
         self.decoded_ballots_inclusion_policy
@@ -495,6 +500,15 @@ pub struct TallySessionContestAnnotations {
     pub casted_ballots: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub votes_by_channel: Option<VotesByChannel>,
+    /// Which of the contest area's `VOTE_WEIGHT_BATCHES` batches were actually
+    /// posted, as a bitmask over the offset from `session_id`. Only
+    /// `VOTERS_WEIGHTED_VOTING` sets more than bit 0. Recorded by the ballot
+    /// dump because it is the only place that knows which weights occur, and
+    /// read back to decide which batches the tally must wait for -- an unset
+    /// bit means "no such batch", which is otherwise indistinguishable from
+    /// "that batch has not been mixed yet" and would hang the session.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub weight_bit_mask: Option<u32>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -593,6 +607,7 @@ mod tally_session_contest_annotations_tests {
             ballots_without_voter: 0,
             casted_ballots: 0,
             votes_by_channel: Some(VotesByChannel::new()),
+            weight_bit_mask: None,
         };
         let serialized = serde_json::to_value(current).unwrap();
         assert_eq!(serialized["votes_by_channel"], serde_json::json!({}));

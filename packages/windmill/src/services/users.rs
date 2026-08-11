@@ -309,6 +309,16 @@ async fn get_area_ids(
     Ok((Some(area_ids), area_ids_join_clause, area_ids_where_clause))
 }
 
+/// Which optional multiplicity column the voter dump emits, if any. Delegated
+/// voting and voter-weighted voting are mutually exclusive, so this is one
+/// choice rather than two independent flags.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VoterMultiplicityColumn {
+    None,
+    DelegateCount,
+    VoteWeight,
+}
+
 #[instrument(skip(keycloak_transaction), err)]
 pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
     keycloak_transaction: &Transaction<'_>,
@@ -316,12 +326,16 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
     area_id: &str,
     election_alias: &str,
     output_file: &PathBuf,
-    delegated_voting_enabled: bool,
+    multiplicity_column: VoterMultiplicityColumn,
 ) -> Result<()> {
-    let delegated_statement = if delegated_voting_enabled {
-        let no_service_account_delegators = service_account_exclusion("delegator");
-        format!(
-            r#"
+    // At most one extra column is emitted, always at index 1. Both variants are
+    // correlated scalar subqueries rather than joins so that `GROUP BY u.id`
+    // still holds.
+    let multiplicity_statement = match multiplicity_column {
+        VoterMultiplicityColumn::DelegateCount => {
+            let no_service_account_delegators = service_account_exclusion("delegator");
+            format!(
+                r#"
             ,(
                 SELECT
                     COUNT(delegator.id)
@@ -335,9 +349,31 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
                     ua_delegate.value = u.username
             ) AS delegate_count
         "#
-        )
-    } else {
-        "".to_string()
+            )
+        }
+        VoterMultiplicityColumn::VoteWeight => {
+            // COALESCE is mandatory: a voter without the attribute yields SQL NULL,
+            // which COPY .. FORMAT CSV writes as an empty field. The cast to bigint
+            // makes the aggregate numeric rather than lexicographic, which
+            // matters because Keycloak allows several rows for one
+            // (user_id, name) pair. MIN rather than MAX so an unexpected
+            // duplicate cannot silently grant more voting power than the
+            // smallest value recorded for the voter.
+            format!(
+                r#"
+            ,(
+                SELECT
+                    COALESCE(MIN((NULLIF(ua_weight.value, ''))::bigint), {DEFAULT_VOTE_WEIGHT})
+                FROM
+                    user_attribute AS ua_weight
+                WHERE
+                    ua_weight.user_id = u.id AND
+                    ua_weight.name = '{VOTE_WEIGHT_ATTR_NAME}'
+            ) AS vote_weight
+        "#
+            )
+        }
+        VoterMultiplicityColumn::None => "".to_string(),
     };
 
     // COPY does not support parameters so we have to add them using format.
@@ -353,7 +389,7 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
         r#"
         SELECT
             u.id
-            {delegated_statement}
+            {multiplicity_statement}
         FROM
             user_entity AS u
         JOIN

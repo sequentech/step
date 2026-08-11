@@ -655,8 +655,13 @@ const frenchTranslation: TranslationType = {
                     policyLabel: "Politique de Vote Pondéré",
                     options: {
                         "areas-weighted-voting": "Vote Pondéré par Zones",
+                        "voters-weighted-voting": "Vote Pondéré par Électeurs",
                         "disabled-weighted-voting": "Vote Pondéré Désactivé",
                     },
+                    noDelegated:
+                        "Le Vote Pondéré par Électeurs ne peut pas être combiné avec le Vote Délégué",
+                    noDecodedBallots:
+                        "Le Vote Pondéré par Électeurs ne peut pas être combiné avec l'inclusion des bulletins déchiffrés dans les résultats",
                 },
                 delegatedVotingPolicy: {
                     policyLabel: "Politique de vote délégué",
@@ -1093,6 +1098,7 @@ const frenchTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "A voté",
+                    "vote-weight": "Poids du vote",
                     "voted-channel": "Canal de vote",
                     "disable-comment": "Commentaire de désactivation",
                     "username": "Nom d'Utilisateur",
