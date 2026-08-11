@@ -2790,6 +2790,15 @@ fn trustees_sheet(plan: &Blueprint) -> Option<Result<Sheet, Problem>> {
 /// wall clock somebody typed, the zone they were in, and the offset that was
 /// resolved at that moment. Writing only the first would make a ceremony drift by
 /// an hour when the file is reopened somewhere else.
+///
+/// The **voting window's zone** is here too, which looks out of place on a sheet
+/// called Ceremony and is not. That window goes to the platform's own
+/// ScheduledEvents sheet as RFC3339, because its scheduler parses it that way — and
+/// RFC3339 carries an *offset*, `-08:00`, not a zone *name*. The instant survives
+/// the round trip either way; `America/Los_Angeles` does not, and without it a
+/// reopened plan says "09:00" where it used to say "09:00 — Los Angeles time", and
+/// a later edit resolves its offset against the wrong place. This sheet is the
+/// wizard's own, so it is where anything the platform's sheets cannot express goes.
 fn ceremony_sheet(plan: &Blueprint) -> Option<Result<Sheet, Problem>> {
     let mut rows: Vec<Vec<Cell>> = vec![
         vec![
@@ -2821,6 +2830,23 @@ fn ceremony_sheet(plan: &Blueprint) -> Option<Result<Sheet, Problem>> {
                 Cell::text(format!("{name}.offset_minutes")),
                 Cell::Int(i64::from(stamp.offset_minutes)),
             ]);
+        }
+    }
+
+    // The zone name only: the wall clock and the offset are both in the RFC3339
+    // value on ScheduledEvents, and writing them twice would let two copies of one
+    // fact disagree.
+    for (name, when) in [
+        ("voting_opens", &plan.schedule.voting_opens),
+        ("voting_closes", &plan.schedule.voting_closes),
+    ] {
+        if let Some(stamp) = when {
+            if !stamp.zone.is_empty() {
+                rows.push(vec![
+                    Cell::text(format!("{name}.zone")),
+                    Cell::text(stamp.zone.clone()),
+                ]);
+            }
         }
     }
 

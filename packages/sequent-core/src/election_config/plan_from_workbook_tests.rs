@@ -42,8 +42,16 @@ fn sound() -> Blueprint {
             {"name": "Alan Turing", "email": "alan@example.org"}
         ],
         "schedule": {
-            "voting_opens": {"local": "2027-03-01T09:00", "zone": "", "offset_minutes": 0},
-            "voting_closes": {"local": "2027-03-05T17:00", "zone": "", "offset_minutes": 0},
+            "voting_opens": {
+                "local": "2027-03-01T09:00",
+                "zone": "America/Los_Angeles",
+                "offset_minutes": -480
+            },
+            "voting_closes": {
+                "local": "2027-03-05T17:00",
+                "zone": "America/Los_Angeles",
+                "offset_minutes": -480
+            },
             "key_ceremony": {
                 "local": "2027-02-25T10:00",
                 "zone": "America/Los_Angeles",

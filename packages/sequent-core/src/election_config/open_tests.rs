@@ -134,6 +134,17 @@ fn an_empty_zip_says_what_it_contained_rather_than_guessing() {
         .problems
         .iter()
         .any(|problem| problem.message.contains("neither a delivery nor a")));
+
+    // And it says *empty* rather than trailing off after a colon with nothing
+    // listed, which is what naming the members produces when there are none.
+    assert!(
+        refused
+            .problems
+            .iter()
+            .any(|problem| problem.message.ends_with("it is empty")),
+        "an empty archive should say so: {:?}",
+        refused.problems
+    );
 }
 
 #[test]
