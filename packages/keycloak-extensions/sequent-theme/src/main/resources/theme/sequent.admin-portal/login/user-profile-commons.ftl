@@ -200,7 +200,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<#if attribute.annotations.inputTypeSize??>size="${attribute.annotations.inputTypeSize}"</#if>
 		<#if attribute.annotations.inputTypeMaxlength??>maxlength="${attribute.annotations.inputTypeMaxlength}"</#if>
 		<#if attribute.annotations.inputTypeMinlength??>minlength="${attribute.annotations.inputTypeMinlength}"</#if>
-		<#if attribute.annotations.inputTypeMax??>max="${attribute.annotations.inputTypeMax}"</#if>
+		<#-- A bare input[type=date] accepts a year of four OR MORE digits, so a
+		     voter can enter 123456-01-01. Bound it unless the attribute sets its
+		     own max. Compared against the raw annotation rather than the output
+		     of <@inputTagType/>: capturing a macro under Keycloak's HTML output
+		     format yields markup, not a string, and any string operation on it
+		     throws at render time. -->
+		<#local dateInputType = (attribute.annotations.inputType!'') == 'html5-date'
+			|| (attribute.annotations.inputType!'') == 'date'>
+		<#if attribute.annotations.inputTypeMax??>
+			max="${attribute.annotations.inputTypeMax}"
+		<#elseif dateInputType>
+			max="9999-12-31"
+		</#if>
 		<#if attribute.annotations.inputTypeMin??>min="${attribute.annotations.inputTypeMin}"</#if>
 		<#if attribute.annotations.inputTypeStep??>step="${attribute.annotations.inputTypeStep}"</#if>
 		<#if attribute.annotations.inputTypeStep??>step="${attribute.annotations.inputTypeStep}"</#if>
