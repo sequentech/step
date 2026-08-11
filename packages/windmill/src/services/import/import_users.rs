@@ -20,7 +20,10 @@ use sequent_core::services::keycloak::{
     get_event_realm, get_tenant_realm, MULTIVALUE_USER_ATTRIBUTE_SEPARATOR,
 };
 use sequent_core::services::uuid_validation::parse_uuid_v4;
-use sequent_core::types::keycloak::{AREA_ID_ATTR_NAME, TENANT_ID_ATTR_NAME};
+use sequent_core::types::keycloak::{
+    AREA_ID_ATTR_NAME, DEFAULT_VOTE_WEIGHT, MAX_TOTAL_VOTE_WEIGHT, MAX_VOTE_WEIGHT,
+    MIN_VOTE_WEIGHT, TENANT_ID_ATTR_NAME, VOTE_WEIGHT_ATTR_NAME,
+};
 use std::num::NonZeroU32;
 use std::sync::LazyLock;
 use tempfile::NamedTempFile;
@@ -54,6 +57,26 @@ const RESERVED_COL_NAMES: [&str; 6] = [
 static PBKDF2_ALGORITHM: pbkdf2::Algorithm = pbkdf2::PBKDF2_HMAC_SHA256;
 const CREDENTIAL_LEN: usize = digest::SHA256_OUTPUT_LEN;
 pub type Credential = [u8; CREDENTIAL_LEN];
+
+/// Validates a non-empty `vote-weight` cell. The bulk import writes straight
+/// into Keycloak's tables, bypassing the realm user profile validators, so this
+/// is the only place a bad weight is caught before it reaches the tally.
+fn validate_vote_weight(value: &str, row: usize) -> Result<u64> {
+    let weight: u64 = value.parse().map_err(|_| {
+        anyhow!(
+            "Invalid `{VOTE_WEIGHT_ATTR_NAME}` value {value:?} on row {row}: \
+             must be a whole number between 1 and {MAX_VOTE_WEIGHT}"
+        )
+    })?;
+    if !(MIN_VOTE_WEIGHT..=MAX_VOTE_WEIGHT).contains(&weight) {
+        return Err(anyhow!(
+            "Invalid `{VOTE_WEIGHT_ATTR_NAME}` value {value:?} on row {row}: \
+             must be between {MIN_VOTE_WEIGHT} and {MAX_VOTE_WEIGHT}"
+        )
+        .into());
+    }
+    Ok(weight)
+}
 
 fn sanitize_db_key(key: &String) -> String {
     key.replace(".", "_").replace("-", "_")
@@ -100,6 +123,8 @@ fn hash_password(password: &String, salt: &[u8]) -> Result<String> {
  *  - username: string. Example: "johndoe"
  *  - sequent.read-only.mobile-number: string. Example: "+34666777888"
  *  - area_name: string. Example "Area 52"
+ *  - vote-weight: positive whole number. Example "3". Only meaningful when
+ *    the election event uses the voters-weighted voting policy.
  *  - group_name: string. Example "voter"
  *  - password: string: Example "secret-password"
  */
@@ -158,6 +183,40 @@ fn get_copy_from_query(
             Vec::new().into_iter()
         })
         .collect::<Vec<String>>();
+
+    // Two headers can map to the same field (`area_name` and `area-id`), or to
+    // the same temp table column once sanitized. Left alone that surfaces as a
+    // duplicate-column error from Postgres that names neither header.
+    // `vote_weight` is the spelling an operator is most likely to reach for, and
+    // it would be accepted as an ordinary attribute, stored under a name the
+    // ballot dump never reads, and tallied as weight 1 for every voter. Refuse
+    // it by name rather than let that happen silently.
+    let vote_weight_key = VOTE_WEIGHT_ATTR_NAME.replace('-', "");
+    for header in headers_vec.iter() {
+        let normalised = header.replace(['_', '.', '-'], "");
+        if normalised.eq_ignore_ascii_case(&vote_weight_key) && header != VOTE_WEIGHT_ATTR_NAME {
+            return Err(anyhow!(
+                "Column `{header}` is not recognised. The per-voter vote weight \
+                 column is spelled exactly `{VOTE_WEIGHT_ATTR_NAME}`, in lower \
+                 case and hyphenated"
+            ));
+        }
+    }
+
+    // Compare sanitized, case-folded names, since that is what becomes the temp
+    // table column: `area-id` and `area_id`, or `Email` and `email`, are
+    // distinct headers that collide there.
+    let mut seen: Vec<String> = Vec::with_capacity(processed_column_names.len());
+    for column_name in &processed_column_names {
+        let sanitized = sanitize_db_key(column_name).to_lowercase();
+        if seen.contains(&sanitized) {
+            return Err(anyhow!(
+                "Duplicate column `{column_name}` in the import file: two headers \
+                 map to the same field"
+            ));
+        }
+        seen.push(sanitized);
+    }
 
     // Create the table creation query
     let quoted_table_name = escape_sql_identifier(&temp_table_name);
@@ -612,8 +671,16 @@ pub async fn import_users_file(
     //    `get_copy_from_query()`. It's important to match these two
     //    together or else the temporal voters data table will be polluted
     //    with incorrectly assigned data.
+    // A lower bound on the ciphertexts this file's voters will contribute: it
+    // cannot see voters imported earlier, does not know which of them will
+    // actually vote, and pools areas that the tally keeps separate. It only
+    // ever warns, so none of that can reject a valid import.
+    let mut imported_weight_total: u64 = 0;
     let mut owned_data: Vec<String> = Vec::new();
+    // 1-based and counting the header, so it matches what a spreadsheet shows.
+    let mut row_number: usize = 1;
     for result in rdr.records() {
+        row_number += 1;
         let record = match result {
             Ok(record) => record,
             Err(err) => {
@@ -641,6 +708,26 @@ pub async fn import_users_file(
                                 info!("Area not found by name `{data}`, setting area to NULL");
                                 "".to_string()
                             }
+                        }
+                    }
+                    column_name if column_name == VOTE_WEIGHT_ATTR_NAME => {
+                        let trimmed = data.trim();
+                        // A blank cell votes with the default weight, so it
+                        // counts as one ciphertext here too.
+                        imported_weight_total = imported_weight_total.saturating_add(
+                            trimmed.parse::<u64>().unwrap_or(DEFAULT_VOTE_WEIGHT),
+                        );
+                        // A blank cell means "no weight for this voter", which
+                        // the ballot dump resolves to the default. Requiring a
+                        // value would reject the usual way of authoring the
+                        // file: weights for some voters, blanks for the rest.
+                        if trimmed.is_empty() {
+                            trimmed.to_string()
+                        } else {
+                            // Store the canonical number: `+5` and `007` parse
+                            // here but would be rejected by the realm's integer
+                            // validator on any later edit.
+                            validate_vote_weight(trimmed, row_number)?.to_string()
                         }
                     }
                     column_name if column_name == USERNAME_COL_NAME => data.to_lowercase(),
@@ -712,6 +799,17 @@ pub async fn import_users_file(
         )));
     }
 
+    // Warn rather than refuse: the limit applies per contest area, and this file
+    // may spread its voters across several, so exceeding it here does not prove
+    // any one area will. The exact check runs where the ballots are extracted.
+    if imported_weight_total > MAX_TOTAL_VOTE_WEIGHT {
+        warn!(
+            "Imported vote weights total {imported_weight_total}, above the \
+             per-area maximum of {MAX_TOTAL_VOTE_WEIGHT}. If these voters share \
+             a contest area the tally will refuse to count them."
+        );
+    }
+
     let num_rows = keycloak_transaction
         .execute(insert_user_query.as_str(), &[])
         .await
@@ -726,4 +824,78 @@ pub async fn import_users_file(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use csv::StringRecord;
+
+    /// The import writes `user_attribute.name` straight from these lists and the
+    /// ballot dump reads the attribute by name, so the column has to survive
+    /// under exactly the name the dump looks for. If it does not, every weight
+    /// silently resolves to the default and the election tallies unweighted.
+    /// Sharing the name also keeps an export -> edit -> re-import round trip
+    /// working, since the export names columns after the realm attributes.
+    #[test]
+    fn vote_weight_column_survives_as_the_attribute_the_dump_reads() {
+        let headers = StringRecord::from(vec!["username", VOTE_WEIGHT_ATTR_NAME]);
+        let (_, _, _, input_columns, processed_columns, _) =
+            get_copy_from_query(&headers).expect("query builds");
+
+        assert!(
+            input_columns.contains(&VOTE_WEIGHT_ATTR_NAME.to_string()),
+            "input columns must carry the attribute name, got {input_columns:?}"
+        );
+        assert!(
+            processed_columns.contains(&VOTE_WEIGHT_ATTR_NAME.to_string()),
+            "processed columns must carry the attribute name, got {processed_columns:?}"
+        );
+    }
+
+    /// Headers that differ only by the characters `sanitize_db_key` rewrites,
+    /// or by case, become one temp table column. Postgres would reject that with
+    /// an error naming neither header.
+    #[test]
+    fn colliding_headers_are_rejected_with_both_names_visible() {
+        for headers in [
+            vec!["username", "area-id", "area_id"],
+            vec!["username", "Email", "email"],
+        ] {
+            let record = StringRecord::from(headers.clone());
+            let error =
+                get_copy_from_query(&record).expect_err(&format!("{headers:?} must be rejected"));
+            assert!(
+                error.to_string().contains("Duplicate column"),
+                "unexpected error for {headers:?}: {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn valid_vote_weights_are_accepted() {
+        for value in ["1", "5", "100000"] {
+            assert!(
+                validate_vote_weight(value, 2).is_ok(),
+                "vote weight {value} must be accepted"
+            );
+        }
+    }
+
+    #[test]
+    fn invalid_vote_weights_are_rejected_naming_row_and_column() {
+        for value in ["0", "-1", "1.5", "abc", "100001", ""] {
+            let error = validate_vote_weight(value, 7)
+                .expect_err(&format!("vote weight {value:?} must be rejected"));
+            let message = error.to_string();
+            assert!(
+                message.contains(VOTE_WEIGHT_ATTR_NAME),
+                "error must name the column, got: {message}"
+            );
+            assert!(
+                message.contains("row 7"),
+                "error must name the row, got: {message}"
+            );
+        }
+    }
 }

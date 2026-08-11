@@ -2742,6 +2742,8 @@ pub enum WeightedVotingPolicy {
     DISABLED_WEIGHTED_VOTING,
     #[serde(rename = "areas-weighted-voting")]
     AREAS_WEIGHTED_VOTING,
+    #[serde(rename = "voters-weighted-voting")]
+    VOTERS_WEIGHTED_VOTING,
 }
 
 #[derive(
