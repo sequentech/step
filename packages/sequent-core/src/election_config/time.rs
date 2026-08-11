@@ -131,6 +131,30 @@ impl Timestamp {
         Ok(self.instant()?.to_rfc3339())
     }
 
+    /// The inverse of [`Timestamp::to_rfc3339`], as far as a spreadsheet carries it.
+    ///
+    /// The instant survives exactly: the wall clock and the offset both come back.
+    /// **The IANA name does not**, because RFC 3339 has no field for one — a time
+    /// read back this way is the same moment and has lost only its label. That is
+    /// the price of the voting window travelling as an instant, which it must:
+    /// `DateTime::parse_from_rfc3339` is the only reader of it on the platform, and
+    /// an offset-less value is an event that silently never fires.
+    pub fn from_rfc3339(text: &str) -> Result<Self, Problem> {
+        let parsed =
+            DateTime::parse_from_rfc3339(text.trim()).map_err(|_| {
+                Problem::error(
+                    Code::InvalidValue,
+                    "schedule",
+                    format!("'{text}' is not a date and time with an offset"),
+                )
+            })?;
+        Ok(Timestamp {
+            local: parsed.format("%Y-%m-%dT%H:%M").to_string(),
+            zone: String::new(),
+            offset_minutes: parsed.offset().local_minus_utc() / 60,
+        })
+    }
+
     /// `local` as a date and time, accepting it with or without seconds.
     fn naive(&self) -> Result<NaiveDateTime, Problem> {
         let text = self.local.trim();

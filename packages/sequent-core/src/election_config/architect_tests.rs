@@ -2820,11 +2820,29 @@ fn messages_leave_as_two_files_outside_the_bundle() {
     assert!(messaging.contains("\"weekly\""));
 
     // And not inside the import, which is the whole point of it being here.
-    let workbook = to_workbook(&plan).expect("a workbook");
+    //
+    // Asserted on the built bundle rather than on the workbook, and the difference
+    // matters now: the workbook carries a Messages sheet so that the spreadsheet in
+    // a delivery is the whole plan, and `build` never reads it. "Not in the
+    // workbook" and "not in the import" were the same sentence until there were
+    // sheets the builder does not visit. This is the one that was always meant.
+    let bundle = compiled(&plan);
     assert!(
-        !format!("{workbook:?}").contains("get-out-the-vote"),
+        !bundle.export.to_string().contains("get-out-the-vote"),
         "a tenant's templates must not ride in an election event import"
     );
+    assert!(
+        !bundle
+            .templates
+            .iter()
+            .any(|template| template.alias.contains("get-out-the-vote")),
+        "and the builder minted no template from the plan's messages"
+    );
+
+    // The sheet is there, though — that is what puts it in the delivery's
+    // spreadsheet rather than only in two JSON files beside it.
+    let workbook = to_workbook(&plan).expect("a workbook");
+    assert!(workbook.has("messages"), "the plan's messages are a sheet");
 }
 
 /// The verdict may not lie: anything the builder refuses, the wizard refuses first.
@@ -3270,6 +3288,392 @@ fn a_zip_without_a_plan_says_what_it_had_instead() {
         "{}",
         refused.message
     );
+}
+
+/// A delivery carries the spreadsheet, beside the plan and outside the import.
+///
+/// Auxiliary on purpose: the platform's importer has never been handed a
+/// spreadsheet and must not start now. It is there for the person — the same
+/// configuration as `blueprint.json`, in the format they work in.
+#[cfg(feature = "election_config_xlsx")]
+#[test]
+fn a_delivery_carries_the_workbook_beside_the_plan() {
+    let compiled = compile_plan(
+        &sound(),
+        &TemplateSet::builtin().unwrap(),
+        &BuildOptions::default(),
+        None,
+    )
+    .expect("the sample plan compiles");
+
+    let auxiliary: Vec<&str> = compiled
+        .layout
+        .auxiliary
+        .iter()
+        .map(|file| file.name.as_str())
+        .collect();
+
+    assert!(
+        auxiliary.contains(&crate::election_config::archive::WORKBOOK_MEMBER),
+        "the delivery carries the spreadsheet: {auxiliary:?}"
+    );
+    assert!(
+        auxiliary.contains(&"blueprint.json"),
+        "and the plan, which is still the full-fidelity record"
+    );
+    assert!(
+        !compiled
+            .layout
+            .importable
+            .iter()
+            .any(|file| file.name.ends_with(".xlsx")),
+        "and no spreadsheet reaches the importer"
+    );
+
+    // It is a real file, not an empty placeholder.
+    let workbook = compiled
+        .layout
+        .auxiliary
+        .iter()
+        .find(|file| {
+            file.name == crate::election_config::archive::WORKBOOK_MEMBER
+        })
+        .unwrap();
+    assert!(workbook.bytes.starts_with(b"PK"), "and it is a zip");
+}
+
+// -- the sheets only a plan holds -----------------------------------------------
+
+/// The six exist so the delivery's spreadsheet is the whole plan.
+///
+/// Contacts, trustees, the ceremony and its dates, the milestones, the messages and
+/// the notes were reachable only as JSON files beside the archive, which is fine for
+/// a machine and useless to somebody working in a spreadsheet.
+#[test]
+fn the_plans_own_sheets_are_in_the_workbook() {
+    let mut plan = sound();
+    plan.contacts = vec![Contact {
+        name: "Dana Reed".to_string(),
+        role: "Returning officer".to_string(),
+        email: "dana@example.org".to_string(),
+    }];
+    plan.notes = "Ask about the hall booking.".to_string();
+    plan.schedule.milestones = vec![Milestone {
+        event: "Nominations close".to_string(),
+        date: "2027-02-01".to_string(),
+    }];
+
+    let workbook = to_workbook(&plan).unwrap();
+
+    assert_eq!(workbook.rows("contacts").len(), 1);
+    assert_eq!(
+        workbook.rows("contacts")[0].get("email"),
+        Some(&serde_json::json!("dana@example.org"))
+    );
+    assert!(
+        !workbook.rows("trustees").is_empty(),
+        "the sound plan has trustees"
+    );
+    assert_eq!(workbook.rows("milestones").len(), 1);
+    assert_eq!(
+        workbook.rows("notes")[0].get("notes"),
+        Some(&serde_json::json!("Ask about the hall booking."))
+    );
+}
+
+/// The threshold and the policy, on a sheet of their own rather than as columns.
+///
+/// Load-bearing: `build` deep-merges every non-control column on the ElectionEvent
+/// row onto the event template as a dotted path, so a `trustee_threshold` column
+/// there would end up inside the exported event JSON. A sheet cannot leak.
+#[test]
+fn the_ceremony_sheet_keeps_the_threshold_out_of_the_event() {
+    let mut plan = sound();
+    plan.trustee_threshold = 3;
+
+    let workbook = to_workbook(&plan).unwrap();
+    let value = |key: &str| {
+        workbook
+            .rows("ceremony")
+            .iter()
+            .find(|row| row.get("key") == Some(&serde_json::json!(key)))
+            .and_then(|row| row.get("value"))
+            .cloned()
+    };
+
+    assert_eq!(value("threshold"), Some(serde_json::json!(3)));
+    assert_eq!(
+        value("policy"),
+        Some(serde_json::json!("manual-ceremonies"))
+    );
+
+    let bundle = compiled(&plan);
+    assert!(
+        !bundle.export["election_event"]
+            .as_object()
+            .unwrap()
+            .contains_key("threshold"),
+        "the threshold is not a field of an election event"
+    );
+}
+
+/// A ceremony time keeps its zone and its offset, not just its wall clock.
+///
+/// Three rows rather than one, because a timestamp is three things: what somebody
+/// typed, where they were, and the offset resolved at that moment. Writing only the
+/// first would move a ceremony by an hour when the file is reopened elsewhere.
+#[test]
+fn a_ceremony_time_survives_with_its_zone() {
+    let mut plan = sound();
+    plan.schedule.key_ceremony = Some(Timestamp::new(
+        "2027-03-01T09:00",
+        "America/Los_Angeles",
+        -480,
+    ));
+
+    let workbook = to_workbook(&plan).unwrap();
+    let value = |key: &str| {
+        workbook
+            .rows("ceremony")
+            .iter()
+            .find(|row| row.get("key") == Some(&serde_json::json!(key)))
+            .and_then(|row| row.get("value"))
+            .cloned()
+    };
+
+    assert_eq!(
+        value("key_ceremony"),
+        Some(serde_json::json!("2027-03-01T09:00"))
+    );
+    assert_eq!(
+        value("key_ceremony.zone"),
+        Some(serde_json::json!("America/Los_Angeles"))
+    );
+    assert_eq!(
+        value("key_ceremony.offset_minutes"),
+        Some(serde_json::json!(-480))
+    );
+}
+
+/// Adding them changes nothing the importer sees.
+///
+/// The guarantee that makes them safe: `build` reads only the sheets it names, so
+/// six more tabs cannot alter a byte of the bundle.
+#[test]
+fn the_plans_own_sheets_do_not_reach_the_bundle() {
+    let mut plain = sound();
+    plain.contacts = Vec::new();
+    plain.trustees = Vec::new();
+    plain.messages = Vec::new();
+    plain.notes = String::new();
+    plain.schedule.milestones = Vec::new();
+
+    let mut furnished = plain.clone();
+    furnished.contacts = vec![Contact {
+        name: "Dana Reed".to_string(),
+        role: "Returning officer".to_string(),
+        email: "dana@example.org".to_string(),
+    }];
+    furnished.notes = "Anything at all.".to_string();
+    furnished.schedule.milestones = vec![Milestone {
+        event: "Nominations close".to_string(),
+        date: "2027-02-01".to_string(),
+    }];
+
+    assert_eq!(
+        compiled(&plain).export,
+        compiled(&furnished).export,
+        "the importer sees the same event either way"
+    );
+}
+
+/// An empty list is no sheet at all, rather than a tab with only headers.
+#[test]
+fn a_plan_that_says_nothing_grows_no_empty_tabs() {
+    let mut plan = sound();
+    plan.contacts = Vec::new();
+    plan.messages = Vec::new();
+    plan.notes = "   ".to_string();
+    plan.schedule.milestones = Vec::new();
+
+    let workbook = to_workbook(&plan).unwrap();
+    assert!(!workbook.has("contacts"));
+    assert!(!workbook.has("messages"));
+    assert!(!workbook.has("milestones"));
+    assert!(!workbook.has("notes"), "whitespace is not a note");
+    // The ceremony sheet is always there: a threshold and a policy always exist.
+    assert!(workbook.has("ceremony"));
+}
+
+/// Every sheet this file writes is one the reader knows.
+#[test]
+fn every_sheet_the_wizard_writes_is_a_known_one() {
+    let mut plan = sound();
+    plan.notes = "something".to_string();
+    plan.schedule.milestones = vec![Milestone {
+        event: "Nominations close".to_string(),
+        date: "2027-02-01".to_string(),
+    }];
+    plan.contacts = vec![Contact::default()];
+
+    let workbook = to_workbook(&plan).unwrap();
+    assert_eq!(
+        workbook.unread_sheets(),
+        Vec::<&str>::new(),
+        "a sheet the reader does not know is a tab it would report as a typo"
+    );
+}
+
+// -- the sheets the wizard has no screens for ----------------------------------
+
+/// A `Sheet` built from a grid of text, the way a workbook's own arrives.
+fn platform_sheet(name: &str, grid: &[&[&str]]) -> Sheet {
+    let cells: Vec<Vec<crate::election_config::paths::Cell>> = grid
+        .iter()
+        .map(|row| {
+            row.iter()
+                .map(|text| crate::election_config::paths::Cell::text(*text))
+                .collect()
+        })
+        .collect();
+    Sheet::from_grid(name, &cells).unwrap()
+}
+
+/// A Parameters sheet reaches the event, because `build` already knows how.
+///
+/// This is the whole argument for carrying these sheets rather than interpreting
+/// them: `election_event.*` is a prefix `build` already patches onto the event
+/// template, so a delivery engineer who opens a real janitor workbook in the wizard
+/// and rebuilds keeps the setting they had.
+#[test]
+fn a_parameters_sheet_patches_the_event_it_came_with() {
+    let mut plan = sound();
+    plan.platform = vec![platform_sheet(
+        "Parameters",
+        &[
+            &["key", "value"],
+            &["election_event.presentation.theme", "union-dark"],
+        ],
+    )];
+
+    let bundle = compiled(&plan);
+    assert_eq!(
+        bundle.export["election_event"]["presentation"]["theme"],
+        serde_json::json!("union-dark"),
+        "the patch the workbook carried is on the event"
+    );
+}
+
+/// Admin users, permissions and templates come out in the delivery.
+///
+/// Auxiliary, which is where they already were for a janitor build — outside the
+/// importable zip, because `admin_users.csv` carries clear-text passwords and
+/// importing an election must never be able to create an account.
+#[test]
+fn the_admin_portal_imports_survive_a_round_trip_through_the_wizard() {
+    let mut plan = sound();
+    plan.platform = vec![
+        platform_sheet(
+            "Admin Users",
+            &[
+                &["username", "password", "permission_labels"],
+                &["returning-officer", "secret", "union-2027-admin"],
+            ],
+        ),
+        platform_sheet(
+            "Permissions",
+            &[
+                &["permission", "union-2027-admin"],
+                &["election-view", "TRUE"],
+            ],
+        ),
+    ];
+
+    let bundle = compiled(&plan);
+    let layout = crate::election_config::archive::layout(&bundle);
+    let auxiliary: Vec<&str> = layout
+        .auxiliary
+        .iter()
+        .map(|file| file.name.as_str())
+        .collect();
+
+    assert!(
+        auxiliary.iter().any(|name| *name == "admin_users.csv"),
+        "the delivery carries the admin users: {auxiliary:?}"
+    );
+    assert!(
+        auxiliary
+            .iter()
+            .any(|name| name.starts_with("export_permissions-")),
+        "and the permission matrix: {auxiliary:?}"
+    );
+    // Not importable, and that is the point rather than an accident.
+    assert!(
+        !layout
+            .importable
+            .iter()
+            .any(|file| file.name == "admin_users.csv"),
+        "clear-text passwords stay out of the importable zip"
+    );
+}
+
+/// A plan with none of them builds exactly what it built before.
+///
+/// The guard that this is additive: the field exists for every plan, and a plan the
+/// wizard produced from nothing must be byte-identical to one built before the
+/// field did.
+#[test]
+fn a_plan_with_no_platform_sheets_is_unchanged() {
+    let plain = sound();
+    let mut with_empty = sound();
+    with_empty.platform = Vec::new();
+
+    assert_eq!(
+        to_workbook(&plain).unwrap(),
+        to_workbook(&with_empty).unwrap()
+    );
+    assert_eq!(
+        compiled(&plain).export,
+        compiled(&with_empty).export,
+        "the same bytes, either way"
+    );
+}
+
+/// A carried sheet the wizard *does* own is a refusal, not a coin toss.
+#[test]
+fn a_platform_sheet_that_collides_with_a_real_one_is_refused() {
+    let mut plan = sound();
+    plan.platform = vec![platform_sheet(
+        "Election Event",
+        &[&["external_id"], &["somewhere-else"]],
+    )];
+
+    let refused = to_workbook(&plan)
+        .expect_err("two ElectionEvent sheets cannot both be meant");
+    assert_eq!(refused.code, Code::ConflictingColumns);
+}
+
+/// It survives being saved and reopened, which is what `blueprint.json` is for.
+#[test]
+fn a_carried_sheet_survives_the_saved_plan() {
+    let mut plan = sound();
+    plan.platform = vec![platform_sheet(
+        "Parameters",
+        &[&["key", "value"], &["tenant_id", "union"]],
+    )];
+
+    let saved = serde_json::to_string(&plan).unwrap();
+    let reopened: Blueprint = serde_json::from_str(&saved).unwrap();
+    assert_eq!(reopened.platform, plan.platform);
+
+    // And a plan saved before the field existed still opens.
+    let older = serde_json::json!({
+        "version": BLUEPRINT_VERSION,
+        "external_id": "union-2027",
+        "name": {"en": "Union Election 2027"},
+    });
+    let opened: Blueprint = serde_json::from_value(older).unwrap();
+    assert!(opened.platform.is_empty());
 }
 
 /// Write the sample plan out as a real file, for a person to open.

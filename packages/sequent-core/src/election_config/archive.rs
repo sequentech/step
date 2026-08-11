@@ -679,6 +679,16 @@ pub const IMPORTABLE_MEMBER: &str = "official_election_setup.zip";
 /// `plan_in_delivery` cannot disagree about it.
 pub const PLAN_MEMBER: &str = "blueprint.json";
 
+/// The reopenable spreadsheet inside a delivery.
+///
+/// **Auxiliary, never importable.** It sits at the delivery root beside
+/// [`PLAN_MEMBER`], where nothing can mistake it for the nested
+/// [`IMPORTABLE_MEMBER`] — the platform's importer has never been handed a
+/// spreadsheet and must not start now. It is there for the person: the same
+/// configuration as `blueprint.json`, in the format they actually work in, so a
+/// change to a built election is a spreadsheet edit rather than a wizard session.
+pub const WORKBOOK_MEMBER: &str = "election_workbook.xlsx";
+
 /// Everything the wizard hands over: one zip that is **not** importable, holding one
 /// that is.
 ///

@@ -23,6 +23,7 @@
 
 use crate::election_config::paths::{coerce_cell, expand, Cell};
 use crate::election_config::problem::{Code, Problem};
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::fmt;
 
@@ -51,6 +52,20 @@ pub const SHEET_REPORTS: &str = "reports";
 /// `engineering/how-a-support-material-travels-in-a-bundle` in beyond.
 pub const SHEET_MATERIALS: &str = "materials";
 
+/// The six the *plan* holds and the importer does not.
+///
+/// Contacts, trustees, the ceremony policy and its dates, the messages and the
+/// notes. `build` never reads them — a sheet it does not name is never visited —
+/// and they are listed here so a workbook carrying them does not report six
+/// renamed tabs. They exist so the spreadsheet in a delivery is the whole plan
+/// rather than the importable part of it.
+pub const SHEET_CONTACTS: &str = "contacts";
+pub const SHEET_TRUSTEES: &str = "trustees";
+pub const SHEET_CEREMONY: &str = "ceremony";
+pub const SHEET_MILESTONES: &str = "milestones";
+pub const SHEET_MESSAGES: &str = "messages";
+pub const SHEET_NOTES: &str = "notes";
+
 /// Every sheet that carries meaning. Anything else is reported as unread, which
 /// is how a renamed or misspelled tab gets noticed instead of silently ignored.
 pub const KNOWN_SHEETS: &[&str] = &[
@@ -68,6 +83,12 @@ pub const KNOWN_SHEETS: &[&str] = &[
     SHEET_TEMPLATES,
     SHEET_REPORTS,
     SHEET_MATERIALS,
+    SHEET_CONTACTS,
+    SHEET_TRUSTEES,
+    SHEET_CEREMONY,
+    SHEET_MILESTONES,
+    SHEET_MESSAGES,
+    SHEET_NOTES,
 ];
 
 /// Columns whose cells hold `||`-separated lists, for one sheet.
@@ -82,6 +103,9 @@ pub fn multi_value_columns(sheet_key: &str) -> &'static [&'static str] {
         SHEET_VOTERS => &["authorized-election-ids"],
         SHEET_ADMIN_USERS => &["permission_labels", "authorized-election-ids"],
         SHEET_REPORTS => &["permission_label"],
+        // A reminder's days are a list in one cell, the same way a voter's
+        // authorised elections are.
+        SHEET_MESSAGES => &["weekly"],
         _ => &[],
     }
 }
@@ -147,7 +171,10 @@ impl fmt::Display for Origin {
 }
 
 /// One entity's worth of cells, plus where it came from.
-#[derive(Debug, Clone, PartialEq)]
+///
+/// Serialisable because a plan can carry sheets the wizard has no screens for —
+/// see `Blueprint::platform` — and those live in `blueprint.json` verbatim.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Row {
     pub sheet: String,
 
@@ -223,7 +250,7 @@ impl Row {
 }
 
 /// One worksheet, read and coerced.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Sheet {
     /// Name as it appears in the document, for messages.
     pub name: String,

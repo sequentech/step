@@ -101,6 +101,18 @@ pub mod xlsx;
 #[cfg(feature = "election_config_xlsx")]
 pub mod xlsx_write;
 
+/// Reading a workbook back as a plan — the inverse of `architect::to_workbook`.
+#[cfg(feature = "election_config_templates")]
+pub mod plan_from_workbook;
+
+/// One door for a delivery, a plan or a workbook. Needs both a zip reader and a
+/// spreadsheet reader, so it is the one place both features are required at once.
+#[cfg(all(
+    feature = "election_config_archive",
+    feature = "election_config_xlsx"
+))]
+pub mod open;
+
 #[cfg(test)]
 mod validate_tests;
 
