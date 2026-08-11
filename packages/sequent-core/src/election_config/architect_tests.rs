@@ -2057,51 +2057,49 @@ fn a_ragged_sheet_is_refused_rather_than_written() {
     .is_ok());
 }
 
-/// The trustees become a key ceremony the importer can act on.
+/// The trustees and their threshold travel, and *not* as a key ceremony.
 ///
-/// The plan has collected trustees and a threshold from the beginning and emitted
-/// no ceremony, so an event imported with a key nobody had been asked to generate.
+/// They used to become one, and it was the wrong shape. A ceremony's `trustee_ids`
+/// carries trustee *names*, which the importer resolves against trustees the target
+/// tenant already has — one it cannot find becomes `""` and then fails to parse as a
+/// `Uuid`, refusing the whole import with a message that never mentions trustees. Neither
+/// a spreadsheet nor a browser knows which trustees a tenant has, and no derivation fixes
+/// it, because a valid value is a row in that database.
+///
+/// So this is delivery information. It leaves the wizard in the outer zip, where a person
+/// reads it and then makes the ceremony in the Admin Portal, picking trustees from the
+/// ones that exist rather than spelling them.
 #[test]
-fn the_trustees_become_a_key_ceremony() {
+fn the_trustees_and_threshold_travel_as_delivery_information() {
     let plan = sound();
     let bundle = compiled(&plan);
-    let ceremonies = bundle.export["keys_ceremonies"]
-        .as_array()
-        .expect("an array");
-    assert_eq!(ceremonies.len(), 1);
 
-    let ceremony = &ceremonies[0];
-    assert_eq!(
-        ceremony["threshold"].as_i64(),
-        Some(i64::from(plan.trustee_threshold))
+    assert!(
+        bundle.export["keys_ceremonies"]
+            .as_array()
+            .expect("an array")
+            .is_empty(),
+        "the import must not be handed a ceremony naming trustees it cannot resolve"
     );
 
-    // Names, not identifiers. `import_election_event.rs` builds a
-    // `HashMap<name, id>` from `get_all_trustees(tenant_id)` and maps this field
-    // through it — the same way a voter's area name is resolved. Emitting
-    // identifiers here would resolve to nothing.
-    let named: Vec<&str> = ceremony["trustee_ids"]
-        .as_array()
-        .expect("an array")
+    // The names and the threshold are not lost — `side_files` carries them beside the
+    // archive, which is what the delivery zip nests them into.
+    let beside = side_files(&plan);
+    let names: Vec<&str> =
+        beside.iter().map(|(name, _)| name.as_str()).collect();
+    assert!(
+        names.contains(&"trustees_list.json"),
+        "the trustee list should travel beside the archive: {names:?}"
+    );
+
+    let trustees = beside
         .iter()
-        .map(|value| value.as_str().unwrap_or_default())
-        .collect();
-    assert_eq!(
-        named,
-        plan.trustees
-            .iter()
-            .map(|trustee| trustee.name.as_str())
-            .collect::<Vec<&str>>()
-    );
-
-    // The tenant and event it belongs to, so the importer does not have to guess.
-    assert_eq!(
-        ceremony["election_event_id"].as_str(),
-        Some(bundle.event_id.as_str())
-    );
-    assert_eq!(
-        ceremony["tenant_id"].as_str(),
-        Some(bundle.tenant_id.as_str())
+        .find(|(name, _)| name == "trustees_list.json")
+        .map(|(_, contents)| contents.as_str())
+        .expect("the trustee list");
+    assert!(
+        trustees.contains(&plan.trustee_threshold.to_string()),
+        "the threshold should travel with the names: {trustees}"
     );
 }
 
@@ -2392,29 +2390,6 @@ fn a_plan_that_says_nothing_new_writes_no_new_columns() {
     ] {
         assert!(rows[0].get(column).is_none(), "{column} should be absent");
     }
-}
-
-/// Absent, `KeysCeremony::policy()` reads manual — so silence is a decision.
-#[test]
-fn the_ceremony_says_who_runs_it() {
-    // The bug this closes: the builder wrote no `settings`, so every event this
-    // tool has ever produced imported as a manual ceremony whether or not that is
-    // what anybody chose, and no screen said so.
-    let plan = sound();
-    assert_eq!(plan.ceremony_policy, CeremoniesPolicy::MANUAL_CEREMONIES);
-
-    let bundle = compiled(&plan);
-    assert_eq!(
-        bundle.export["keys_ceremonies"][0]["settings"]["policy"],
-        "manual-ceremonies"
-    );
-
-    let mut automated = sound();
-    automated.ceremony_policy = CeremoniesPolicy::AUTOMATED_CEREMONIES;
-    assert_eq!(
-        compiled(&automated).export["keys_ceremonies"][0]["settings"]["policy"],
-        "automated-ceremonies"
-    );
 }
 
 /// A plan written before the field existed still opens, and still means manual.
@@ -2982,5 +2957,338 @@ fn a_plan_the_builder_refuses_is_refused_by_the_wizard_first() {
         "the Final Review verdict would say Ready to build for a plan that \
          cannot be built:\n  {}",
         lies.join("\n  ")
+    );
+}
+
+/// The bundle says which platform version wrote it.
+///
+/// This is the field that lets an importer refuse a bundle it cannot read *as a version
+/// mismatch* rather than as a serde error twelve fields deep, and it is the reason this
+/// tool does not need to emit anything for older platforms.
+///
+/// Worth a test of its own because of how a real report played out. A zip from this tool
+/// was refused by a v9.5 environment with `election_event: missing field \`name\` at line
+/// 244 column 3` — `name` having become `external_id` in `f016a4b4a7`. The tempting fix
+/// was to emit `name` again for the benefit of older platforms. It was the wrong one:
+/// the bundle correctly declared `v10.0.0`, and v9.5's importer deserialized *before*
+/// checking the version, so the gate that exists precisely to say "upgrade your system"
+/// never ran. That ordering is already fixed on `main`, which reads the version off the
+/// raw JSON first.
+///
+/// So the contract this tool owes is exactly this one: say what wrote you, truthfully.
+/// Shaping the output for every platform that ever existed is the alternative, and it
+/// has no end.
+#[test]
+fn the_bundle_declares_the_version_that_wrote_it() {
+    let templates = TemplateSet::builtin().unwrap();
+    let compiled =
+        compile_plan(&sound(), &templates, &BuildOptions::default(), None)
+            .expect("a sound plan compiles");
+
+    let declared = compiled
+        .bundle
+        .export
+        .get("version")
+        .and_then(|value| value.as_str())
+        .expect("the export should say which version wrote it");
+
+    assert_eq!(
+        declared,
+        crate::election_config::build::DEFAULT_VERSION,
+        "the bundle should declare the version this build writes"
+    );
+
+    // And the platform's own checker has to accept it against itself. `extract_semver`
+    // is private, so this asks the public function the importer actually calls: a
+    // version that cannot be parsed is refused as "Could not parse imported version"
+    // rather than as a mismatch, which is the gate failing open in the other direction.
+    assert!(
+        crate::util::version::check_version_compatibility(declared, declared).is_ok(),
+        "the platform's own version check cannot read '{declared}', so an importer \
+         would refuse this bundle without ever reaching a mismatch verdict"
+    );
+
+    // And the version has to *discriminate*, which is the property the whole
+    // arrangement rests on: a platform of a different major must refuse this bundle on
+    // the version alone, before it ever tries to read a field that has moved. Asserted
+    // in both directions because both happen — an operator importing into an
+    // environment behind this build, and into one ahead of it.
+    let (major, _, _) = declared
+        .trim_start_matches('v')
+        .split('.')
+        .map(|part| part.parse::<u32>().unwrap_or(0))
+        .fold((0u32, 0u32, 0u32), |(a, b, _), next| {
+            (if a == 0 { next } else { a }, b, 0)
+        });
+
+    for other in [major.saturating_sub(1), major + 1] {
+        if other == major {
+            continue;
+        }
+        let platform = format!("{other}.0.0");
+        assert!(
+            crate::util::version::check_version_compatibility(declared, &platform)
+                .is_err(),
+            "a platform on {platform} would accept a {declared} bundle, so a schema \
+             change between them surfaces as a serde error deep in the file instead of \
+             'Please upgrade your system' — which is exactly how a v9.5 environment \
+             reported `missing field \\`name\\`` for a v10 export"
+        );
+    }
+}
+
+/// The archive names no trustees, because it cannot name them correctly.
+///
+/// A real import failed with `Error parsing trustee_ids as UUIDs`, and the message is
+/// worth unpacking because it says nothing about what went wrong. A keys ceremony's
+/// `trustee_ids` carries trustee **names**, which the importer resolves against the
+/// trustees a tenant already has; a name it cannot find becomes an empty string through
+/// `unwrap_or_default`, and the insert then tries to parse `""` as a `Uuid`. So one
+/// unrecognised name does not produce a ceremony with a gap — it refuses the entire
+/// import, and the event is never created.
+///
+/// The wizard runs in a browser with no connection to the environment being imported
+/// into, so it cannot know which trustees exist and cannot emit this safely. It emits
+/// nothing, says so in the report, and the names, threshold and dates travel in
+/// `auxiliary` for the person who will make the ceremony in the Admin Portal.
+#[test]
+fn the_archive_carries_no_keys_ceremony_it_cannot_fill_in_correctly() {
+    let templates = TemplateSet::builtin().unwrap();
+    let plan = sound();
+    assert!(
+        !plan.trustees.is_empty(),
+        "this test is meaningless unless the plan names trustees"
+    );
+
+    let compiled =
+        compile_plan(&plan, &templates, &BuildOptions::default(), None)
+            .expect("a sound plan compiles");
+
+    let ceremonies = compiled
+        .bundle
+        .export
+        .get("keys_ceremonies")
+        .and_then(|value| value.as_array())
+        .expect("the key should still be present, as an empty list");
+    assert!(
+        ceremonies.is_empty(),
+        "a ceremony naming trustees the tenant may not have refuses the whole import: \
+         {ceremonies:?}"
+    );
+
+    // The names and the threshold still leave the wizard — beside the archive, not
+    // inside it, because they are for a person rather than for the importer.
+    let beside: Vec<&str> = compiled
+        .layout
+        .auxiliary
+        .iter()
+        .map(|artifact| artifact.name.as_str())
+        .collect();
+    assert!(
+        beside.iter().any(|name| name.contains("ceremony")),
+        "the ceremony details should travel beside the archive: {beside:?}"
+    );
+}
+
+/// What a client is handed: a zip that is not importable, holding one that is.
+///
+/// The shape is `election_architect`'s, and the nesting is the point. Handing over the
+/// importable zip alone loses the reopenable plan, the trustee list and the ceremony
+/// dates; handing the loose files over beside it leaves somebody to work out which
+/// single file goes to the Admin Portal, and one of the others can carry administrator
+/// passwords. Nested, the only thing that can be imported is the only thing that looks
+/// like an import.
+#[test]
+fn the_delivery_is_a_zip_that_is_not_importable_holding_one_that_is() {
+    use crate::election_config::archive;
+
+    let templates = TemplateSet::builtin().unwrap();
+    let compiled =
+        compile_plan(&sound(), &templates, &BuildOptions::default(), None)
+            .expect("a sound plan compiles");
+
+    let delivery =
+        archive::delivery(&compiled.layout).expect("a delivery is written");
+
+    // Read it back rather than trusting the writer: a zip of the right length whose
+    // members are nonsense is a failure this repository has shipped before.
+    let mut outer = zip::ZipArchive::new(std::io::Cursor::new(&delivery.bytes))
+        .expect("the delivery should be a readable zip");
+
+    let names: Vec<String> = (0..outer.len())
+        .map(|at| outer.by_index(at).unwrap().name().to_string())
+        .collect();
+
+    assert!(
+        names.contains(&archive::IMPORTABLE_MEMBER.to_string()),
+        "the delivery should nest the importable zip: {names:?}"
+    );
+
+    // The delivery information travels here, and must not be inside the importable
+    // member — `blueprint.json` is the plan somebody reopens, and the trustee list and
+    // ceremony dates are what the Admin Portal must never be handed.
+    for expected in [
+        "blueprint.json",
+        "trustees_list.json",
+        "ceremony_schedule.json",
+    ] {
+        assert!(
+            names.contains(&expected.to_string()),
+            "the delivery should carry {expected}: {names:?}"
+        );
+    }
+
+    // And the nested member really is the importable bundle.
+    let mut nested = Vec::new();
+    {
+        use std::io::Read;
+        outer
+            .by_name(archive::IMPORTABLE_MEMBER)
+            .expect("the nested member")
+            .read_to_end(&mut nested)
+            .expect("the nested member reads");
+    }
+    let inner = zip::ZipArchive::new(std::io::Cursor::new(&nested))
+        .expect("the nested member should itself be a zip");
+    let inner_names: Vec<String> = (0..inner.len())
+        .map(|at| inner.clone().by_index(at).unwrap().name().to_string())
+        .collect();
+    assert!(
+        inner_names.iter().any(|name| name.ends_with(".json")),
+        "the importable member should carry the bundle: {inner_names:?}"
+    );
+    assert!(
+        !inner_names.iter().any(|name| name == "blueprint.json"),
+        "the plan must not be inside the importable member: {inner_names:?}"
+    );
+}
+
+/// No keys ceremony is emitted, by either producer.
+///
+/// `trustee_ids` carries trustee *names*, resolved against trustees the target tenant
+/// already has; one it cannot find becomes `""` and then fails to parse as a `Uuid`,
+/// refusing the whole import with a message that never mentions trustees. Neither a
+/// spreadsheet nor a browser knows which trustees a tenant has, and no derivation helps
+/// — a valid value is a row in that database. So it is delivery information, and the
+/// export says nothing about it.
+#[test]
+fn no_keys_ceremony_is_ever_emitted() {
+    let templates = TemplateSet::builtin().unwrap();
+    let plan = sound();
+    assert!(
+        !plan.trustees.is_empty(),
+        "meaningless unless the plan names trustees"
+    );
+
+    let compiled =
+        compile_plan(&plan, &templates, &BuildOptions::default(), None)
+            .expect("a sound plan compiles");
+
+    let ceremonies = compiled
+        .bundle
+        .export
+        .get("keys_ceremonies")
+        .and_then(|value| value.as_array())
+        .expect("the key stays present, as an empty list");
+    assert!(
+        ceremonies.is_empty(),
+        "naming trustees a tenant may not have refuses the whole import: {ceremonies:?}"
+    );
+}
+
+/// A delivery goes out and the same plan comes back.
+///
+/// The round trip is the thing worth testing, and it is testable here because both ends
+/// are here: `archive::delivery` writes the zip and `archive::plan_in_delivery` reads it.
+/// Doing either in TypeScript would have put the layout in two places and let them drift —
+/// and drift in this particular pair means a client's own configuration will not reopen,
+/// which is the failure they notice a year later when they need last year's answers.
+#[test]
+fn a_delivery_reopens_as_the_plan_that_made_it() {
+    use crate::election_config::archive;
+
+    let templates = TemplateSet::builtin().unwrap();
+    let plan = sound();
+    let compiled =
+        compile_plan(&plan, &templates, &BuildOptions::default(), None)
+            .expect("a sound plan compiles");
+
+    let delivery =
+        archive::delivery(&compiled.layout).expect("a delivery is written");
+    let reopened = archive::plan_in_delivery(&delivery.bytes)
+        .expect("the delivery should carry the plan that made it");
+
+    let back: Blueprint =
+        serde_json::from_slice(&reopened).expect("the plan should deserialize");
+
+    // The identity a person recognises, rather than a byte comparison: the plan is
+    // serialized with `skip_serializing_if` in places, so equality of bytes is a stricter
+    // claim than this needs to make and would fail for reasons nobody cares about.
+    assert_eq!(back.external_id, plan.external_id);
+    assert_eq!(back.name, plan.name);
+    assert_eq!(back.elections.len(), plan.elections.len());
+    assert_eq!(back.trustees.len(), plan.trustees.len());
+    assert_eq!(back.trustee_threshold, plan.trustee_threshold);
+}
+
+/// A zip with no plan in it says what it had instead.
+///
+/// The likely mistake is handing over the *importable* member — it is a zip, it is the one
+/// with the official-sounding name, and it deliberately does not contain the plan. A
+/// refusal that only said "no plan" would leave somebody opening both files to find out
+/// which was which.
+#[test]
+fn a_zip_without_a_plan_says_what_it_had_instead() {
+    use crate::election_config::archive;
+
+    let templates = TemplateSet::builtin().unwrap();
+    let compiled =
+        compile_plan(&sound(), &templates, &BuildOptions::default(), None)
+            .expect("a sound plan compiles");
+
+    // The importable member is exactly the wrong file to hand back, and the likeliest.
+    let importable = archive::zip(&compiled.layout.importable).expect("a zip");
+    let refused = archive::plan_in_delivery(&importable)
+        .expect_err("the importable member carries no plan");
+
+    assert!(
+        refused.message.contains(archive::PLAN_MEMBER),
+        "the refusal should name what it looked for: {}",
+        refused.message
+    );
+    assert!(
+        refused.message.contains(".json") || refused.message.contains(".csv"),
+        "the refusal should list what the zip did contain: {}",
+        refused.message
+    );
+
+    // And something that is not a zip at all fails as that, not as a missing member.
+    let refused = archive::plan_in_delivery(b"this is not a zip")
+        .expect_err("plain text is not a configuration");
+    assert!(
+        refused.message.contains("not a configuration"),
+        "{}",
+        refused.message
+    );
+}
+
+/// Write the sample plan out as a real file, for a person to open.
+///
+/// Ignored: it is not an assertion, it is the only way to satisfy the one
+/// acceptance criterion no test can — that Excel and LibreOffice open what this
+/// writes. `cargo test -- --ignored emit_a_workbook_to_look_at --nocapture`.
+#[test]
+#[ignore]
+fn emit_a_workbook_to_look_at() {
+    let workbook = to_workbook(&sound()).expect("the sample plan writes");
+    let bytes = crate::election_config::xlsx_write::write_xlsx(&workbook)
+        .expect("and it becomes a file");
+    let at = std::env::temp_dir().join("election_workbook.xlsx");
+    std::fs::write(&at, &bytes).unwrap();
+    println!(
+        "wrote {} bytes and {} sheets to {}",
+        bytes.len(),
+        workbook.sheets().len(),
+        at.display()
     );
 }

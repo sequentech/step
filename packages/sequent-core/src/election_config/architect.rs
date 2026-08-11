@@ -3047,16 +3047,29 @@ pub fn compile_plan(
     // cannot hold bytes. The sheet carries each one's identifier and the builder
     // composes the url; these are the files themselves, on their way to the archive.
     let with_ceremony = BuildOptions {
-        keys_ceremony: (!plan.trustees.is_empty()).then(|| {
-            super::build::KeysCeremonyPlan {
-                trustee_names: plan
-                    .trustees
-                    .iter()
-                    .map(|trustee| trustee.name.clone())
-                    .collect(),
-                threshold: i64::from(plan.trustee_threshold),
-            }
-        }),
+        // No keys ceremony in the archive, and this is a considered omission rather
+        // than a gap.
+        //
+        // `trustee_ids` on a ceremony carries trustee **names**, which the importer
+        // resolves against trustees already provisioned in the target tenant
+        // (`import_election_event.rs`: `trustee_map` from `get_all_trustees`). A name
+        // it cannot find becomes an empty string through `unwrap_or_default`, and the
+        // insert then parses that as a `Uuid` — so a bundle naming trustees the tenant
+        // does not have fails the *whole* import with `Error parsing trustee_ids as
+        // UUIDs`, which says nothing about trustees and stops the event being created
+        // at all.
+        //
+        // The wizard cannot know which trustees a tenant has: it runs in a browser with
+        // no connection to the environment being imported into. So it cannot emit this
+        // safely, and emitting it optimistically trades a working import for one that
+        // fails opaquely — which is what a real deployment hit.
+        //
+        // Nothing is lost. The names, the threshold and the ceremony dates travel in
+        // `auxiliary` as `ceremony_schedule.json` and the trustee list, which is where
+        // a person reads them, and the ceremony itself is made in the Admin Portal
+        // after import — where the trustees exist and can be picked rather than
+        // spelled. `check_trustees` says so in the report.
+        keys_ceremony: None,
         images: plan_images(plan),
         ceremony_policy: plan.ceremony_policy.clone(),
         materials: plan_materials(plan),

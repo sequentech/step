@@ -62,6 +62,12 @@ export interface Problem {
     path: string;
     message: string;
     external_id?: string;
+    /**
+     * Where in a source spreadsheet, structurally — so a screen can group by tab
+     * and point at a cell rather than parsing `path` back apart. Absent for a
+     * problem about a plan or a bundle, neither of which has a row 12.
+     */
+    at?: {sheet: string; row?: number; column?: string};
 }
 
 export interface Report {
@@ -94,6 +100,14 @@ export interface BuildOutput {
     importable: Artifact[];
     /** Files that must NOT go inside the archive. */
     auxiliary: Artifact[];
+    /**
+     * The whole delivery: a zip that is *not* importable, holding one that is.
+     *
+     * `official_election_setup.zip` nested beside the reopenable plan and the files a
+     * person needs. Only a plan build produces one.
+     */
+    delivery?: Artifact;
+
     /** The importable archive, ready to download. */
     archive?: Artifact;
     /** Everything found, errors and warnings together. */
@@ -304,6 +318,7 @@ pub fn build_from_workbook(
             name: layout.archive_name,
             bytes: zipped,
         }),
+        delivery: None,
         report,
         event_external_id: Some(bundle.event_external_id.clone()),
     })
@@ -388,6 +403,13 @@ pub fn compile_plan_js(
             name: compiled.layout.archive_name.clone(),
             bytes: zipped,
         }),
+        delivery: match archive::delivery(&compiled.layout) {
+            Ok(artifact) => Some(File::from(&artifact)),
+            // A delivery that cannot be written is a bug in this tool rather than a
+            // problem with the plan, and the importable zip above is unaffected — so
+            // the build still succeeds and the host falls back to it.
+            Err(_) => None,
+        },
         report: compiled.report,
         event_external_id: Some(compiled.bundle.event_external_id.clone()),
     })
@@ -596,6 +618,31 @@ fn read_profile(profile: JsValue) -> Result<Option<profile::Profile>, Report> {
         })?;
 
     profile::Profile::read(&document).map(Some)
+}
+
+/// The plan inside a delivery zip, so `Import Configuration` can open what a client kept.
+///
+/// A client keeps the whole delivery, not the `blueprint.json` inside it — so the wizard
+/// has to open the zip rather than asking somebody to unzip it and pick the right file out
+/// of eight, one of which can carry administrator passwords.
+///
+/// Returns the plan as a `JsValue`, already parsed, because the host's next move is to put
+/// it into wizard state. A zip with no plan in it comes back as an error naming what the
+/// zip *did* contain, which is the difference between fixing it and guessing.
+#[cfg(feature = "election_config_archive")]
+#[wasm_bindgen(js_name = planInDelivery)]
+pub fn plan_in_delivery_js(bytes: &[u8]) -> Result<JsValue, JsError> {
+    let plan = archive::plan_in_delivery(bytes)
+        .map_err(|problem| JsError::new(&problem.message))?;
+
+    let value: serde_json::Value =
+        serde_json::from_slice(&plan).map_err(|error| {
+            JsError::new(&format!(
+                "the plan inside this configuration is not readable: {error}"
+            ))
+        })?;
+
+    to_js(&value)
 }
 
 /// What a profile hides, so the wizard knows what not to draw.
@@ -935,6 +982,18 @@ struct Output {
     auxiliary: Vec<File>,
     #[serde(skip_serializing_if = "Option::is_none")]
     archive: Option<File>,
+
+    /// The whole delivery: one zip that is **not** importable, holding one that is.
+    ///
+    /// `archive` above is the importable member on its own, and it stays because the
+    /// downloads panel names it as the one file the Admin Portal takes. This is what a
+    /// client is actually handed — `official_election_setup.zip` nested beside the
+    /// reopenable plan, the points of contact, the trustee list and the ceremony dates,
+    /// in `election_architect`'s own layout.
+    ///
+    /// Only the plan path produces one. A workbook build is already a bundle rather than
+    /// a delivery, and its caller hands the importable zip over directly.
+    delivery: Option<File>,
     report: Report,
     #[serde(skip_serializing_if = "Option::is_none")]
     event_external_id: Option<String>,
@@ -947,6 +1006,7 @@ impl Output {
             importable: Vec::new(),
             auxiliary: Vec::new(),
             archive: None,
+            delivery: None,
             report,
             event_external_id: None,
         }

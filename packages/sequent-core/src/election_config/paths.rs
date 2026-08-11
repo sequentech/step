@@ -124,6 +124,37 @@ pub fn coerce_scalar(text: &str) -> Value {
     Value::String(text.to_string())
 }
 
+/// The text a cell must hold for [`coerce_cell`] to produce this value again.
+///
+/// The documented inverse, and the reason a workbook survives a round trip through
+/// a file. `multi_value` because the same `Value::Array` is `a || b` in a
+/// multi-valued column and `["a","b"]` in every other — the column decides, which
+/// is why the caller has to say.
+///
+/// **Four strings cannot round trip, and it is the format rather than this
+/// function.** A `Value::String` spelling `true`, `false` or `null`, one shaped
+/// like `-12.000`, and one that is bracketed JSON all read back as the thing they
+/// spell, because that is what those characters mean in a cell. A plain `"3"` is
+/// safe: [`coerce_scalar`] only numifies a *trailing-zero float*, so a digit string
+/// stays a string. There is no escape the reader would understand, and inventing
+/// one would mean a file Excel shows differently from what the platform reads.
+pub fn cell_text(value: &Value, multi_value: bool) -> String {
+    match value {
+        Value::Null => NULL_LITERAL.to_string(),
+        Value::Bool(true) => "true".to_string(),
+        Value::Bool(false) => "false".to_string(),
+        Value::Number(number) => number.to_string(),
+        Value::String(text) => text.clone(),
+        Value::Array(items) if multi_value => items
+            .iter()
+            .map(|item| cell_text(item, false))
+            .collect::<Vec<String>>()
+            .join(MULTI_VALUE_SEPARATOR),
+        other => serde_json::to_string(other)
+            .unwrap_or_else(|_| String::from(NULL_LITERAL)),
+    }
+}
+
 /// `"-12.000"` -> `-12`; anything else -> `None`.
 fn parse_integral_float(text: &str) -> Option<i64> {
     let (sign, digits) = match text.strip_prefix('-') {

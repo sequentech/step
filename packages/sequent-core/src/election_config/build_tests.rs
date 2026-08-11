@@ -2455,3 +2455,35 @@ fn the_platforms_own_census_columns_are_not_redeclared() {
         .count();
     assert_eq!(usernames, 1);
 }
+
+/// The point of the locator, asserted where it is actually produced.
+///
+/// `Problem::path` has said this all along, as the sentence `sheet 'Voters' row 3
+/// column 'username'`. A screen that wants to group four hundred complaints by tab
+/// and point at a cell would have to parse that back apart, which is the thing the
+/// structured field exists to prevent.
+#[test]
+fn a_workbook_problem_names_the_cell_it_came_from() {
+    // A voter row missing the one column the builder requires.
+    let workbook = with_sheet(
+        "Voters",
+        vec![
+            vec![Cell::text("username"), Cell::text("email")],
+            vec![Cell::Blank, Cell::text("nobody@example.org")],
+        ],
+    );
+
+    let report = refused(&workbook);
+    let located = report
+        .problems
+        .iter()
+        .find(|problem| problem.at.is_some())
+        .expect("at least one problem points at a cell");
+    let at = located.at.as_ref().unwrap();
+
+    assert_eq!(at.sheet, "Voters");
+    assert!(at.row.is_some(), "a row problem has a row");
+    // And the sentence still says the same thing, so nothing reading `path` has
+    // to change.
+    assert!(located.path.contains("sheet 'Voters'"));
+}

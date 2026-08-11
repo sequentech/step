@@ -667,3 +667,121 @@ mod tests {
         }
     }
 }
+
+/// The name of the importable zip *inside* the delivery zip.
+///
+/// `election_architect`'s own name for it, kept so a client who has been handed one of
+/// these before finds what they expect, and so the two tools' output is one format
+/// rather than two.
+pub const IMPORTABLE_MEMBER: &str = "official_election_setup.zip";
+
+/// The reopenable plan inside a delivery, named once so `delivery` and
+/// `plan_in_delivery` cannot disagree about it.
+pub const PLAN_MEMBER: &str = "blueprint.json";
+
+/// Everything the wizard hands over: one zip that is **not** importable, holding one
+/// that is.
+///
+/// The shape is `election_architect`'s. A delivery contains material a person needs and
+/// the Admin Portal must never see — the reopenable plan, the points of contact, the
+/// trustee list and threshold, the ceremony dates — beside a nested zip that is exactly
+/// what the importer takes. Handing the importable zip over on its own loses all of
+/// that; handing the loose files over as separate downloads, which is what this did
+/// before, leaves somebody to work out which single file goes to the importer, and one
+/// of the others can carry administrator passwords.
+///
+/// Nesting is what makes that unambiguous: the only thing that can be imported is the
+/// only thing that looks like an import, and the outer zip is refused by the Admin
+/// Portal rather than half-accepted.
+#[cfg(feature = "election_config_archive")]
+pub fn delivery(
+    layout: &Layout,
+) -> Result<Artifact, crate::election_config::Problem> {
+    let importable = zip(&layout.importable)?;
+
+    let mut members = Vec::with_capacity(layout.auxiliary.len() + 1);
+    members.push(Artifact {
+        name: IMPORTABLE_MEMBER.to_string(),
+        bytes: importable,
+    });
+    members.extend(layout.auxiliary.iter().cloned());
+
+    Ok(Artifact {
+        name: layout.archive_name.clone(),
+        bytes: zip(&members)?,
+    })
+}
+
+/// The plan inside a delivery zip, or the reason it is not there.
+///
+/// The other half of [`delivery`]. `Import Configuration` is handed whatever a client
+/// kept, and what a client keeps is the whole delivery — so the wizard has to open it and
+/// find `blueprint.json`, rather than asking somebody to unzip it first and pick the right
+/// file out of eight.
+///
+/// Here rather than in TypeScript, and the reason is the same one that put `delivery`
+/// here: the layout would then exist in two places and drift. `zip` is already a
+/// dependency of this crate, and the round trip — written by `delivery`, read by this —
+/// is testable in Rust where both ends are.
+///
+/// Deliberately narrow. It returns the plan's bytes and nothing else: whether they
+/// deserialize into a `Blueprint` is `validate_plan`'s business, and a caller that
+/// already has a bare `blueprint.json` should not come through here at all.
+#[cfg(feature = "election_config_archive")]
+pub fn plan_in_delivery(
+    bytes: &[u8],
+) -> Result<Vec<u8>, crate::election_config::Problem> {
+    use crate::election_config::problem::Code;
+    use std::io::Read;
+
+    let refused = |message: String| {
+        crate::election_config::Problem::error(
+            Code::InvalidValue,
+            "delivery",
+            message,
+        )
+    };
+
+    let mut outer = zip::ZipArchive::new(std::io::Cursor::new(bytes)).map_err(|error| {
+        refused(format!(
+            "this is not a configuration: it could not be opened as a zip ({error})"
+        ))
+    })?;
+
+    // The names first, so the borrow of `outer` for reading does not overlap the borrow
+    // for listing. Cheap either way, and it means the failure can say what *was* in the
+    // zip — which is the difference between fixing it and guessing.
+    let names: Vec<String> = (0..outer.len())
+        .filter_map(|at| {
+            outer
+                .by_index(at)
+                .ok()
+                .map(|entry| entry.name().to_string())
+        })
+        .collect();
+
+    if !names.iter().any(|name| name == PLAN_MEMBER) {
+        return Err(refused(format!(
+            "this zip has no {PLAN_MEMBER}, so there is no plan in it to reopen. It \
+             contains: {}",
+            if names.is_empty() {
+                "nothing".to_string()
+            } else {
+                names.join(", ")
+            }
+        )));
+    }
+
+    let mut plan = Vec::new();
+    outer
+        .by_name(PLAN_MEMBER)
+        .map_err(|error| {
+            refused(format!("{PLAN_MEMBER} could not be opened ({error})"))
+        })?
+        .read_to_end(&mut plan)
+        .map_err(|error| {
+            refused(format!("{PLAN_MEMBER} could not be read ({error})"))
+        })?;
+
+    Ok(plan)
+}
