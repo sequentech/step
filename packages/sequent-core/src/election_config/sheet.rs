@@ -14,11 +14,12 @@
 //! format. Which means the whole of table shaping, the part with the awkward
 //! cases in it, is testable without a fixture file.
 //!
-//! Known gap: a problem found here carries its [`Origin`] flattened into
-//! `Problem::path`. A spreadsheet front end that wants to highlight the offending
-//! cell needs the sheet, row and column separately, which will mean a structured
-//! origin on `Problem` — worth doing when there is a UI to consume it, not
-//! before.
+//! A problem found here carries its [`Origin`] twice: flattened into
+//! `Problem::path` as a sentence, for a log, and structurally in `Problem::at`,
+//! for a screen. That second one was deferred until something needed it, and the
+//! thing that needed it was a dialog that groups a workbook's complaints by tab
+//! and points at cells — parsing `sheet 'Voters' row 12 column 'email'` back apart
+//! is what it exists to prevent.
 
 use crate::election_config::paths::{coerce_cell, expand, Cell};
 use crate::election_config::problem::{Code, Problem};
@@ -186,11 +187,13 @@ impl Row {
     /// The cell, or a problem naming the empty one.
     pub fn require(&self, column: &str) -> Result<&Value, Problem> {
         self.get(column).ok_or_else(|| {
+            let origin = self.origin(Some(column));
             Problem::error(
                 Code::MissingField,
-                self.origin(Some(column)).to_string(),
+                origin.to_string(),
                 format!("'{column}' is required and this row leaves it empty"),
             )
+            .at(&origin)
         })
     }
 
@@ -322,7 +325,8 @@ fn read_headers(
                         first + 1,
                         index + 1
                     ),
-                ));
+                )
+                .at(&Origin::column(sheet_name, &header)));
             }
         }
         headers.push(header);
@@ -387,7 +391,8 @@ impl Workbook {
                          normalised. Which one is meant cannot be guessed.",
                         earlier.name, sheet.name
                     ),
-                ));
+                )
+                .at(&Origin::sheet(&sheet.name)));
             }
         }
         Ok(Workbook { sheets })

@@ -447,12 +447,16 @@ impl<'a> Builder<'a> {
         let event_external_id = match event_row.text("external_id") {
             Some(id) if !id.trim().is_empty() => id.trim().to_string(),
             _ => {
-                report.push(Problem::error(
-                    Code::MissingField,
-                    event_row.origin(Some("external_id")).to_string(),
-                    "the election event needs an external_id: every generated \
-                     identifier is derived from it",
-                ));
+                let origin = event_row.origin(Some("external_id"));
+                report.push(
+                    Problem::error(
+                        Code::MissingField,
+                        origin.to_string(),
+                        "the election event needs an external_id: every \
+                         generated identifier is derived from it",
+                    )
+                    .at(&origin),
+                );
                 return Err(report);
             }
         };
@@ -746,8 +750,12 @@ impl<'a> Builder<'a> {
         code: Code,
         message: impl Into<String>,
     ) {
-        self.report
-            .push(Problem::error(code, origin.to_string(), message));
+        // One line for roughly forty complaints, which is the whole reason this
+        // funnel exists: every check that reads the workbook comes through here
+        // already holding the `Origin`, so none of them can forget the locator.
+        self.report.push(
+            Problem::error(code, origin.to_string(), message).at(&origin),
+        );
     }
 
     pub(super) fn warn(

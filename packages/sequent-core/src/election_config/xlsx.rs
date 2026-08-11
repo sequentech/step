@@ -16,7 +16,7 @@
 
 use crate::election_config::paths::Cell;
 use crate::election_config::problem::{Code, Problem};
-use crate::election_config::sheet::{Sheet, Workbook};
+use crate::election_config::sheet::{Origin, Sheet, Workbook};
 use calamine::{Data, Reader, Xlsx};
 use std::io::Cursor;
 
@@ -45,6 +45,7 @@ pub fn read_xlsx(bytes: &[u8]) -> Result<Workbook, Problem> {
                 format!("sheet '{name}'"),
                 format!("could not be read: {error}"),
             )
+            .at(&Origin::sheet(&name))
         })?;
 
         let grid: Vec<Vec<Cell>> = range

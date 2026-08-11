@@ -117,6 +117,52 @@ pub struct Problem {
     /// has to fix the source, whereas an `external_id` is what they typed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub external_id: Option<String>,
+
+    /// Where in the source spreadsheet, structurally.
+    ///
+    /// [`Problem::path`] already says this, as a sentence — `sheet 'Voters' row 12
+    /// column 'email'` — which is right for a log and useless to a screen that
+    /// wants to group four hundred complaints by tab and point at a cell. Parsing
+    /// that sentence back apart is the thing this exists to prevent.
+    ///
+    /// Only the checks that read a document set it. The plan checks and the bundle
+    /// checks correctly leave it empty: they are about a plan or a bundle, and
+    /// neither has a row 12.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at: Option<Locator>,
+}
+
+/// A cell, or a sheet, in the document a problem came from.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Locator {
+    pub sheet: String,
+
+    /// The row as the spreadsheet numbers them, absent when the complaint is about
+    /// the sheet rather than a row in it.
+    ///
+    /// [`crate::election_config::sheet::Origin`] spells that case `row: 0`, which
+    /// is a convention a front end should not have to be taught. `Option` says it
+    /// instead.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub row: Option<usize>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub column: Option<String>,
+}
+
+impl Problem {
+    /// Point this at the cell it came from.
+    pub fn at(
+        mut self,
+        origin: &crate::election_config::sheet::Origin,
+    ) -> Self {
+        self.at = Some(Locator {
+            sheet: origin.sheet.clone(),
+            row: (origin.row > 0).then_some(origin.row),
+            column: origin.column.clone(),
+        });
+        self
+    }
 }
 
 impl Problem {
@@ -133,6 +179,7 @@ impl Problem {
             external_id: None,
             id: None,
             details: BTreeMap::new(),
+            at: None,
         }
     }
 
@@ -149,6 +196,7 @@ impl Problem {
             external_id: None,
             id: None,
             details: BTreeMap::new(),
+            at: None,
         }
     }
 
@@ -236,6 +284,7 @@ impl fmt::Display for Report {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::election_config::sheet::Origin;
 
     #[test]
     fn a_report_with_only_warnings_is_importable() {
@@ -288,5 +337,56 @@ mod tests {
         let problem = Problem::error(Code::MissingField, "p", "m");
         let json = serde_json::to_value(&problem).unwrap();
         assert!(json.get("external_id").is_none());
+    }
+
+    #[test]
+    fn a_locator_carries_the_sheet_the_row_and_the_column() {
+        let origin = Origin {
+            sheet: "Voters".to_string(),
+            row: 12,
+            column: Some("email".to_string()),
+        };
+        let problem = Problem::error(Code::MissingField, "p", "m").at(&origin);
+        let json = serde_json::to_value(&problem).unwrap();
+
+        assert_eq!(json["at"]["sheet"], "Voters");
+        assert_eq!(json["at"]["row"], 12);
+        assert_eq!(json["at"]["column"], "email");
+    }
+
+    #[test]
+    fn a_problem_about_a_whole_sheet_has_no_row() {
+        // `Origin` spells this `row: 0`, which a front end would have to be
+        // taught. An absent row says it instead, and a screen that points at
+        // "row 0" of a spreadsheet is pointing at the headers.
+        let problem = Problem::error(Code::ConflictingColumns, "p", "m")
+            .at(&Origin::sheet("Voters"));
+        let json = serde_json::to_value(&problem).unwrap();
+
+        assert_eq!(json["at"]["sheet"], "Voters");
+        assert!(json["at"].get("row").is_none());
+    }
+
+    #[test]
+    fn a_problem_with_no_locator_serialises_exactly_as_it_did() {
+        // The whole field is additive: a plan check and a bundle check are about
+        // a plan and a bundle, and neither has a row 12. Their JSON has to be
+        // byte-identical to what it was, or every consumer of a report sees a
+        // shape change for a feature they do not use.
+        let problem = Problem::error(Code::MissingField, "p", "m");
+        let json = serde_json::to_value(&problem).unwrap();
+        assert!(json.get("at").is_none());
+    }
+
+    #[test]
+    fn an_old_report_without_a_locator_still_reads() {
+        let json = serde_json::json!({
+            "severity": "error",
+            "code": "missing_field",
+            "path": "contests[0].name",
+            "message": "it needs a name",
+        });
+        let problem: Problem = serde_json::from_value(json).unwrap();
+        assert!(problem.at.is_none());
     }
 }

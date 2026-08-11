@@ -62,6 +62,12 @@ export interface Problem {
     path: string;
     message: string;
     external_id?: string;
+    /**
+     * Where in a source spreadsheet, structurally — so a screen can group by tab
+     * and point at a cell rather than parsing `path` back apart. Absent for a
+     * problem about a plan or a bundle, neither of which has a row 12.
+     */
+    at?: {sheet: string; row?: number; column?: string};
 }
 
 export interface Report {
