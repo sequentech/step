@@ -101,6 +101,10 @@ pub mod xlsx;
 #[cfg(feature = "election_config_xlsx")]
 pub mod xlsx_write;
 
+/// Reading a workbook back as a plan — the inverse of `architect::to_workbook`.
+#[cfg(feature = "election_config_templates")]
+pub mod plan_from_workbook;
+
 #[cfg(test)]
 mod validate_tests;
 
