@@ -14,8 +14,9 @@
 // the same selection is decoded (sequent-core) and tallied (velvet-wasm)
 // through the same real wasm the workbench tally sandbox uses, confirming
 // ImplicitInvalid. Chaining the two halves through the booth's actual
-// encrypt→cast→decrypt pipeline — whose links the M.4 canary verifies
-// separately — is a named TODO; this is not yet a single continuous flow.
+// encrypt→cast→decrypt pipeline is done separately, as one continuous
+// run, in `overvote-e2e-pipeline.mjs` (this runner stays the cheaper
+// input-shared check of the whole policy grid).
 //
 // Requires the dev server on :5173.
 

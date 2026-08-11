@@ -1,0 +1,24 @@
+{
+  "config": {
+    "over_vote_policy": "allowed",
+    "invalid_vote_policy": "allowed"
+  },
+  "booth": {
+    "formed": 2,
+    "inlineAtVote": [],
+    "inlineAtReview": [],
+    "transitionDialog": "none",
+    "boothSilent": true
+  },
+  "bridge": {
+    "council_biguint": "6"
+  },
+  "tally": {
+    "total_votes": 1,
+    "total_valid_votes": 0,
+    "total_invalid_votes": 1,
+    "invalid_explicit": 0,
+    "invalid_implicit": 1
+  },
+  "confirmed_end_to_end": true
+}

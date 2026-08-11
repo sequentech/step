@@ -233,16 +233,19 @@ because the marker counts as 1 < 2. Blank and under-vote contribute
 zero: blank's `ImplicitInvalid` cells hard-gate, and under-vote never
 produces an error (only alerts), so its ballots are structurally `Valid`.
 
-The browser runner then **reproduced the violation against the real
-components**, in two halves that share the input rather than one ballot
-flowing through the crypto pipeline: (a) the over-vote formed through the
-real booth UI with no inline message and no dialog; (b) the same
-selection, decoded via sequent-core and tallied via velvet-wasm — the
-same engines the workbench tally sandbox uses — classified
-`ImplicitInvalid`. What is **not** yet exercised as one continuous flow is
-the booth's `encrypt → cast → decrypt` pipeline connecting the two halves;
-the M.4 canary verifies those links separately. Closing that into a
-single booth-to-tally run is a named TODO.
+The over-vote family is confirmed at two strengths. The browser runner
+(`overvote-rule.browser.mjs`) reproduces the violation in two halves that
+share an input — booth signals from the real UI, tally from the real
+decode/velvet-wasm — across the whole policy grid (the cheaper check).
+And **`overvote-e2e-pipeline.mjs` confirms it as ONE continuous run of
+the real workbench pipeline**: an over-vote cast through the booth
+(`over=allowed, invalid=allowed`, voter shown nothing) → encrypted →
+cast → decrypted by the bridge → decoded (checkers populate
+`invalid_errors`) → tallied → `total_valid_votes: 0`,
+`invalid_votes.implicit: 1`. Recorded in
+`overvote-e2e-pipeline.recorded.json`. This closes the crypto-chaining
+TODO for the over-vote family (min-vote's continuous-pipeline
+reproduction remains open).
 
 **A faithfulness rule this exercise taught** (an earlier revision of the
 e2e check got it wrong and reported "Valid"): the tally classifies
@@ -273,7 +276,7 @@ all six are:
 | Gates | 2 (headless wasm) | blank, over-vote, under-vote, min-vote rules done |
 | Filter | 3 (browser, booth) | blank + over-vote rules done (under/min-vote headless only so far) |
 | Input constraint | 3 (browser) — the `constraint` component of the effect triple | observed **behaviourally** for `NOT_ALLOWED_WITH_MSG_AND_DISABLE` (the over-vote state does not form through the UI); the direct `disabled`-attribute probe is a DOM-selector TODO |
-| Marker exclusivity (prevention) | browser — *reachability*, not effects | first reachability recording exists (over-vote under DISABLE: the state does not form). Prevention is characterized by *attempting* to create each state through the UI and recording whether it forms; the mixed marker state's booth-reachability is still an open cell. |
+| Marker exclusivity (prevention) | browser — *reachability*, not effects | first reachability recording exists (over-vote under DISABLE: the state does not form); the S1 over-vote violation is confirmed through the full booth→cast→decrypt→tally pipeline (). Prevention is characterized by *attempting* to create each state through the UI and recording whether it forms; the mixed marker state's booth-reachability is still an open cell. |
 | Tally classifier | headless (velvet-wasm `tally_decoded_ballots`) | **done**: per-cell `tally` column in all four rule tables, plus the standalone 32-cell six-class decision table (`classifier-table.md`, 32/32 matching the documented precedence) |
 
 Two consequences worth stating plainly. First, a per-rule recording like

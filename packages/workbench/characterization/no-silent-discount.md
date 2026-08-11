@@ -17,8 +17,11 @@ definition (valid, voter-intended, and deliberate opt-in respectively).
 **Method.** Enumeration over recorded characterization cells whose tally
 class was recorded from the real velvet-wasm tally. Not a proof.
 Violations are reproduced against the real booth UI (signals observed
-live) plus real decode/tally on the same selection; chaining through the
-booth's encrypt→cast→decrypt pipeline is a named TODO.
+live) plus real decode/tally on the same selection. The over-vote
+family is additionally confirmed as ONE continuous run of the real
+workbench pipeline — booth encrypt → cast → bridge decrypt → decode →
+tally — in `overvote-e2e-pipeline.md` (cast over-vote → 0 valid, 1
+implicit-invalid; voter saw nothing).
 
 **Result: 5 violating cell(s)** across 196 scanned (sources: blank-rule.recorded.json, overvote-rule.recorded.json, undervote-rule.recorded.json, minvote-rule.recorded.json).
 
