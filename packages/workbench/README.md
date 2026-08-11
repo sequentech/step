@@ -295,6 +295,29 @@ obsolete openssl/FIPS backends to reach wasm32, and merges have resolved
 upstream feature PRs have been discarded rather than merged. Unlike
 velvet-core, nothing has been forward-ported here.
 
+**The workbench implements only the single-contest (`raw_ballot`)
+encryption path, not the compact `multi_ballot` one.** Production's booth
+chooses between them per election
+(`election_event_presentation.contest_encryption_policy`): the
+`MULTIPLE_CONTESTS` policy packs several plurality contests into one
+`multi_ballot` payload; otherwise each contest is encrypted separately
+(`raw_ballot`). The workbench always takes the per-contest route — its
+encrypt bridge wraps a single `[decoded]` contest and its decrypt bridge
+loops `contestIds` decrypting one ciphertext each. It handles ballots
+with multiple contests, but by encrypting them independently, never
+packed. Consequences: (1) the `MULTIPLE_CONTESTS` encoding and its
+30-byte capacity limits (FIXTURE_VARIANCE §12) are unexercised end-to-end
+here; (2) **decline-to-vote cannot round-trip** — the ballot-level
+decline bit lives only in `multi_ballot`, and `raw_ballot::decode`
+hardcodes `is_decline_to_vote: false`, so a ballot declined in the booth
+would decode as not-declined and tally as blank/invalid rather than
+`Declined`. The tally-side classification of `Declined` is still
+characterized headlessly (the classifier table feeds a decoded ballot
+directly); only the booth→wire→tally round-trip is blocked. Closing this
+means adding a `multi_ballot` encrypt/decrypt path to the workbench —
+deferred until the `MULTIPLE_CONTESTS` encoding is worth exercising for
+its own sake.
+
 **`yarn build` (`tsc -b`) does not pass.** The dev server is the
 supported workflow. Three separate causes: `tsconfig.json` uses
 `erasableSyntaxOnly` (TypeScript ≥ 5.8) while the app pins `~5.7.2`; the
