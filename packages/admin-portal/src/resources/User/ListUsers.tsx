@@ -14,6 +14,7 @@ import {
     useRefresh,
     useNotify,
     useGetList,
+    useGetOne,
     FunctionField,
     Button as ReactAdminButton,
     useRecordContext,
@@ -63,6 +64,7 @@ import {DELETE_USER} from "@/queries/DeleteUser"
 import {MANUAL_VERIFICATION} from "@/queries/ManualVerification"
 import {useMutation, useQuery} from "@apollo/client"
 import {ATTR_RESET_VALUE, IPermissions} from "@/types/keycloak"
+import {isDatafixElectionEvent} from "@/services/Datafix"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {IRole, IUser, translate} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
@@ -136,6 +138,15 @@ export interface ListUsersProps {
 export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, electionId}) => {
     const {t, i18n} = useTranslation()
     const [tenantId] = useTenantStore()
+    // The Voted Channel attribute can only ever be written by the Datafix
+    // integration, so the column and filter are gated on the event being
+    // configured for it. The event record is not otherwise in scope here.
+    const {data: electionEventRecord} = useGetOne<Sequent_Backend_Election_Event>(
+        "sequent_backend_election_event",
+        {id: electionEventId, meta: {tenant_id: tenantId}},
+        {enabled: Boolean(electionEventId && tenantId)}
+    )
+    const isDatafixEvent = isDatafixElectionEvent(electionEventRecord)
     const {globalSettings} = useContext(SettingsContext)
     const [isOpenSidebar] = useSidebarState()
     const location = useLocation()
@@ -241,17 +252,19 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         label={String(t("usersAndRolesScreen.users.fields.has_voted"))}
                     />
                 )
-                filters.push(
-                    <TextInput
-                        key={VOTED_CHANNEL}
-                        source={`attributes.${VOTED_CHANNEL}`}
-                        label={String(t("usersAndRolesScreen.users.fields.voted-channel"))}
-                    />
-                )
+                if (isDatafixEvent) {
+                    filters.push(
+                        <TextInput
+                            key={VOTED_CHANNEL}
+                            source={`attributes.${VOTED_CHANNEL}`}
+                            label={String(t("usersAndRolesScreen.users.fields.voted-channel"))}
+                        />
+                    )
+                }
             }
         }
         return filters
-    }, [userAttributes?.get_user_profile_attributes])
+    }, [userAttributes?.get_user_profile_attributes, isDatafixEvent])
 
     const [exportTenantUsers] = useMutation<ExportTenantUsersMutation>(EXPORT_TENANT_USERS, {
         context: {
@@ -1200,7 +1213,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         )}
 
                         {renderFields(listFields.attributesFields)}
-                        {electionEventId && (
+                        {electionEventId && isDatafixEvent && (
                             <FunctionField<IUser>
                                 source={`attributes['${VOTED_CHANNEL}']`}
                                 label={String(t("usersAndRolesScreen.users.fields.voted-channel"))}
