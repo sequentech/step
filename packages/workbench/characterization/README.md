@@ -183,6 +183,31 @@ enum — it always pushes a `selectedMin` *error* when the marker-inclusive
 count is below `min_votes` — and this rule **produces the second
 silent-discount family** (4 cells; see below).
 
+### classifier-table (2026-08-11) — the tally classifier's own decision table
+
+`classifier-table.mjs`: 32 cells — the **full cross-product of the inputs
+`classify_ballot` reads** (`is_decline_to_vote` × `is_explicit_invalid` ×
+errors-present × {none, regular, marker, mixed}) — with the class recorded
+through velvet-wasm's real tally. **32/32 match the documented
+precedence** → `classifier-table.recorded.json`, `classifier-table.md`.
+
+The contrast with the rule tables' `tally` column, made concrete: that
+column samples this same classifier only at the decoded ballots each
+rule's cells produce; this table probes it deliberately at every input
+combination, including pipeline-unreachable ones (decline rows exist only
+on multi-contest ballots; `has_errors` is synthetic here where the
+pipeline would derive it from decode).
+
+The recorded structure is itself a finding: **four of the six classes are
+singletons** — `Valid`, `ImplicitBlank`, `ExplicitBlank` and `Declined`
+are each produced by exactly one of the 32 combinations — while
+**`ImplicitInvalid` absorbs 20 of 32** (`ExplicitInvalid` takes the
+remaining 8: flag set, not declined). Every clean outcome is a knife-edge
+and the discarding class is the sink — the structural reason the
+silent-discount property matters. One precedence subtlety worth noting:
+`decline + explicit-invalid flag + empty` classifies **Implicit**Invalid,
+not ExplicitInvalid — the decline branch tests blankness, not the flag.
+
 ### no-silent-discount — first model-check query (2026-08-10)
 
 `no-silent-discount.mjs` scans every recorded cell that carries a tally
@@ -249,7 +274,7 @@ all six are:
 | Filter | 3 (browser, booth) | blank + over-vote rules done (under/min-vote headless only so far) |
 | Input constraint | 3 (browser) — the `constraint` component of the effect triple | observed **behaviourally** for `NOT_ALLOWED_WITH_MSG_AND_DISABLE` (the over-vote state does not form through the UI); the direct `disabled`-attribute probe is a DOM-selector TODO |
 | Marker exclusivity (prevention) | browser — *reachability*, not effects | first reachability recording exists (over-vote under DISABLE: the state does not form). Prevention is characterized by *attempting* to create each state through the UI and recording whether it forms; the mixed marker state's booth-reachability is still an open cell. |
-| Tally classifier | headless (velvet-wasm `tally_decoded_ballots`) | recorded per-cell for all four rules done so far (the `tally` column); the standalone six-class decision table over all flag combinations is still pending |
+| Tally classifier | headless (velvet-wasm `tally_decoded_ballots`) | **done**: per-cell `tally` column in all four rule tables, plus the standalone 32-cell six-class decision table (`classifier-table.md`, 32/32 matching the documented precedence) |
 
 Two consequences worth stating plainly. First, a per-rule recording like
 blank-rule is a *slice* of `f`, by design — the mapping decomposes per
@@ -266,6 +291,7 @@ Copy `blank-rule.mjs`, swap the policy/state dimensions and the `predict()`
 transcription, and pick or extend a bundled fixture whose contest carries
 the rule's preconditions (see FIXTURE_VARIANCE.md §13.2 for why marker
 candidates are preconditions, not policies). Rules still uncharacterized:
-invalid (beyond the blank/over/min interplays),
-duplicated-rank and preference-gaps (need a preferential fixture), the
-decline-to-vote flow, and the tally classifier's six-class table.
+invalid (beyond the blank/over/min interplays and the classifier table),
+duplicated-rank and preference-gaps (need a preferential fixture), and
+the decline-to-vote booth flow (the classifier's decline cells are now
+recorded, but no booth-side runner drives a declined ballot).

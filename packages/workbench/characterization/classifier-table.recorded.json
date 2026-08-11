@@ -1,0 +1,339 @@
+{
+  "contest": "Referendum (with explicit blank)",
+  "rows": [
+    {
+      "is_decline_to_vote": false,
+      "is_explicit_invalid": false,
+      "has_errors": false,
+      "selection": "none",
+      "observed_class": "ImplicitBlank",
+      "predicted_class": "ImplicitBlank",
+      "match": true
+    },
+    {
+      "is_decline_to_vote": false,
+      "is_explicit_invalid": false,
+      "has_errors": false,
+      "selection": "regular",
+      "observed_class": "Valid",
+      "predicted_class": "Valid",
+      "match": true
+    },
+    {
+      "is_decline_to_vote": false,
+      "is_explicit_invalid": false,
+      "has_errors": false,
+      "selection": "marker",
+      "observed_class": "ExplicitBlank",
+      "predicted_class": "ExplicitBlank",
+      "match": true
+    },
+    {
+      "is_decline_to_vote": false,
+      "is_explicit_invalid": false,
+      "has_errors": false,
+      "selection": "mixed",
+      "observed_class": "ImplicitInvalid",
+      "predicted_class": "ImplicitInvalid",
+      "match": true
+    },
+    {
+      "is_decline_to_vote": false,
+      "is_explicit_invalid": false,
+      "has_errors": true,
+      "selection": "none",
+      "observed_class": "ImplicitInvalid",
+      "predicted_class": "ImplicitInvalid",
+      "match": true
+    },
+    {
+      "is_decline_to_vote": false,
+      "is_explicit_invalid": false,
+      "has_errors": true,
+      "selection": "regular",
+      "observed_class": "ImplicitInvalid",
+      "predicted_class": "ImplicitInvalid",
+      "match": true
+    },
+    {
+      "is_decline_to_vote": false,
+      "is_explicit_invalid": false,
+      "has_errors": true,
+      "selection": "marker",
+      "observed_class": "ImplicitInvalid",
+      "predicted_class": "ImplicitInvalid",
+      "match": true
+    },
+    {
+      "is_decline_to_vote": false,
+      "is_explicit_invalid": false,
+      "has_errors": true,
+      "selection": "mixed",
+      "observed_class": "ImplicitInvalid",
+      "predicted_class": "ImplicitInvalid",
+      "match": true
+    },
+    {
+      "is_decline_to_vote": false,
+      "is_explicit_invalid": true,
+      "has_errors": false,
+      "selection": "none",
+      "observed_class": "ExplicitInvalid",
+      "predicted_class": "ExplicitInvalid",
+      "match": true
+    },
+    {
+      "is_decline_to_vote": false,
+      "is_explicit_invalid": true,
+      "has_errors": false,
+      "selection": "regular",
+      "observed_class": "ExplicitInvalid",
+      "predicted_class": "ExplicitInvalid",
+      "match": true
+    },
+    {
+      "is_decline_to_vote": false,
+      "is_explicit_invalid": true,
+      "has_errors": false,
+      "selection": "marker",
+      "observed_class": "ExplicitInvalid",
+      "predicted_class": "ExplicitInvalid",
+      "match": true
+    },
+    {
+      "is_decline_to_vote": false,
+      "is_explicit_invalid": true,
+      "has_errors": false,
+      "selection": "mixed",
+      "observed_class": "ExplicitInvalid",
+      "predicted_class": "ExplicitInvalid",
+      "match": true
+    },
+    {
+      "is_decline_to_vote": false,
+      "is_explicit_invalid": true,
+      "has_errors": true,
+      "selection": "none",
+      "observed_class": "ExplicitInvalid",
+      "predicted_class": "ExplicitInvalid",
+      "match": true
+    },
+    {
+      "is_decline_to_vote": false,
+      "is_explicit_invalid": true,
+      "has_errors": true,
+      "selection": "regular",
+      "observed_class": "ExplicitInvalid",
+      "predicted_class": "ExplicitInvalid",
+      "match": true
+    },
+    {
+      "is_decline_to_vote": false,
+      "is_explicit_invalid": true,
+      "has_errors": true,
+      "selection": "marker",
+      "observed_class": "ExplicitInvalid",
+      "predicted_class": "ExplicitInvalid",
+      "match": true
+    },
+    {
+      "is_decline_to_vote": false,
+      "is_explicit_invalid": true,
+      "has_errors": true,
+      "selection": "mixed",
+      "observed_class": "ExplicitInvalid",
+      "predicted_class": "ExplicitInvalid",
+      "match": true
+    },
+    {
+      "is_decline_to_vote": true,
+      "is_explicit_invalid": false,
+      "has_errors": false,
+      "selection": "none",
+      "observed_class": "Declined",
+      "predicted_class": "Declined",
+      "match": true
+    },
+    {
+      "is_decline_to_vote": true,
+      "is_explicit_invalid": false,
+      "has_errors": false,
+      "selection": "regular",
+      "observed_class": "ImplicitInvalid",
+      "predicted_class": "ImplicitInvalid",
+      "match": true
+    },
+    {
+      "is_decline_to_vote": true,
+      "is_explicit_invalid": false,
+      "has_errors": false,
+      "selection": "marker",
+      "observed_class": "ImplicitInvalid",
+      "predicted_class": "ImplicitInvalid",
+      "match": true
+    },
+    {
+      "is_decline_to_vote": true,
+      "is_explicit_invalid": false,
+      "has_errors": false,
+      "selection": "mixed",
+      "observed_class": "ImplicitInvalid",
+      "predicted_class": "ImplicitInvalid",
+      "match": true
+    },
+    {
+      "is_decline_to_vote": true,
+      "is_explicit_invalid": false,
+      "has_errors": true,
+      "selection": "none",
+      "observed_class": "ImplicitInvalid",
+      "predicted_class": "ImplicitInvalid",
+      "match": true
+    },
+    {
+      "is_decline_to_vote": true,
+      "is_explicit_invalid": false,
+      "has_errors": true,
+      "selection": "regular",
+      "observed_class": "ImplicitInvalid",
+      "predicted_class": "ImplicitInvalid",
+      "match": true
+    },
+    {
+      "is_decline_to_vote": true,
+      "is_explicit_invalid": false,
+      "has_errors": true,
+      "selection": "marker",
+      "observed_class": "ImplicitInvalid",
+      "predicted_class": "ImplicitInvalid",
+      "match": true
+    },
+    {
+      "is_decline_to_vote": true,
+      "is_explicit_invalid": false,
+      "has_errors": true,
+      "selection": "mixed",
+      "observed_class": "ImplicitInvalid",
+      "predicted_class": "ImplicitInvalid",
+      "match": true
+    },
+    {
+      "is_decline_to_vote": true,
+      "is_explicit_invalid": true,
+      "has_errors": false,
+      "selection": "none",
+      "observed_class": "ImplicitInvalid",
+      "predicted_class": "ImplicitInvalid",
+      "match": true
+    },
+    {
+      "is_decline_to_vote": true,
+      "is_explicit_invalid": true,
+      "has_errors": false,
+      "selection": "regular",
+      "observed_class": "ImplicitInvalid",
+      "predicted_class": "ImplicitInvalid",
+      "match": true
+    },
+    {
+      "is_decline_to_vote": true,
+      "is_explicit_invalid": true,
+      "has_errors": false,
+      "selection": "marker",
+      "observed_class": "ImplicitInvalid",
+      "predicted_class": "ImplicitInvalid",
+      "match": true
+    },
+    {
+      "is_decline_to_vote": true,
+      "is_explicit_invalid": true,
+      "has_errors": false,
+      "selection": "mixed",
+      "observed_class": "ImplicitInvalid",
+      "predicted_class": "ImplicitInvalid",
+      "match": true
+    },
+    {
+      "is_decline_to_vote": true,
+      "is_explicit_invalid": true,
+      "has_errors": true,
+      "selection": "none",
+      "observed_class": "ImplicitInvalid",
+      "predicted_class": "ImplicitInvalid",
+      "match": true
+    },
+    {
+      "is_decline_to_vote": true,
+      "is_explicit_invalid": true,
+      "has_errors": true,
+      "selection": "regular",
+      "observed_class": "ImplicitInvalid",
+      "predicted_class": "ImplicitInvalid",
+      "match": true
+    },
+    {
+      "is_decline_to_vote": true,
+      "is_explicit_invalid": true,
+      "has_errors": true,
+      "selection": "marker",
+      "observed_class": "ImplicitInvalid",
+      "predicted_class": "ImplicitInvalid",
+      "match": true
+    },
+    {
+      "is_decline_to_vote": true,
+      "is_explicit_invalid": true,
+      "has_errors": true,
+      "selection": "mixed",
+      "observed_class": "ImplicitInvalid",
+      "predicted_class": "ImplicitInvalid",
+      "match": true
+    }
+  ],
+  "byClass": {
+    "ImplicitBlank": [
+      "decline=0 flag=0 errors=0 sel=none"
+    ],
+    "Valid": [
+      "decline=0 flag=0 errors=0 sel=regular"
+    ],
+    "ExplicitBlank": [
+      "decline=0 flag=0 errors=0 sel=marker"
+    ],
+    "ImplicitInvalid": [
+      "decline=0 flag=0 errors=0 sel=mixed",
+      "decline=0 flag=0 errors=1 sel=none",
+      "decline=0 flag=0 errors=1 sel=regular",
+      "decline=0 flag=0 errors=1 sel=marker",
+      "decline=0 flag=0 errors=1 sel=mixed",
+      "decline=1 flag=0 errors=0 sel=regular",
+      "decline=1 flag=0 errors=0 sel=marker",
+      "decline=1 flag=0 errors=0 sel=mixed",
+      "decline=1 flag=0 errors=1 sel=none",
+      "decline=1 flag=0 errors=1 sel=regular",
+      "decline=1 flag=0 errors=1 sel=marker",
+      "decline=1 flag=0 errors=1 sel=mixed",
+      "decline=1 flag=1 errors=0 sel=none",
+      "decline=1 flag=1 errors=0 sel=regular",
+      "decline=1 flag=1 errors=0 sel=marker",
+      "decline=1 flag=1 errors=0 sel=mixed",
+      "decline=1 flag=1 errors=1 sel=none",
+      "decline=1 flag=1 errors=1 sel=regular",
+      "decline=1 flag=1 errors=1 sel=marker",
+      "decline=1 flag=1 errors=1 sel=mixed"
+    ],
+    "ExplicitInvalid": [
+      "decline=0 flag=1 errors=0 sel=none",
+      "decline=0 flag=1 errors=0 sel=regular",
+      "decline=0 flag=1 errors=0 sel=marker",
+      "decline=0 flag=1 errors=0 sel=mixed",
+      "decline=0 flag=1 errors=1 sel=none",
+      "decline=0 flag=1 errors=1 sel=regular",
+      "decline=0 flag=1 errors=1 sel=marker",
+      "decline=0 flag=1 errors=1 sel=mixed"
+    ],
+    "Declined": [
+      "decline=1 flag=0 errors=0 sel=none"
+    ]
+  }
+}
