@@ -8,7 +8,7 @@ import {IElectionEventPresentation, IElectionPresentation} from "@sequentech/ui-
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {GetTallyDataQuery} from "@/gql/graphql"
 
-const parsePresentation = <T,>(presentation: unknown): T | undefined => {
+const parsePresentation = <T>(presentation: unknown): T | undefined => {
     if (!presentation) return undefined
 
     try {
