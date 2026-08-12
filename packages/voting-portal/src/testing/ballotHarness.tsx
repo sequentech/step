@@ -26,7 +26,8 @@
 import {configureStore} from "@reduxjs/toolkit"
 import {ThemeProvider} from "@mui/material/styles"
 import {render, RenderResult} from "@testing-library/react"
-import {theme} from "@sequentech/ui-essentials"
+import {BallotSelectionProvider, theme} from "@sequentech/ui-essentials"
+import type {BallotSelectionPort} from "@sequentech/ui-essentials"
 import type {BallotSelection, ICandidate, IContest, IDecodedVoteContest} from "@sequentech/ui-core"
 import i18next from "i18next"
 import {I18nextProvider} from "react-i18next"
@@ -180,6 +181,57 @@ export const marks = (
  */
 export const anError = (message: string): {message: string} => ({message})
 
+
+/**
+ * The selection port, over a plain object.
+ *
+ * The third implementation of `BallotSelectionPort` — the portal has one over
+ * redux, the wizard will have one over local state, and this one is a mutable
+ * record. Having it here is not only convenience: if the port turned out to be
+ * satisfiable *only* by a redux store, the wizard could not satisfy it either, and
+ * this file is where that would show up first.
+ */
+const portOver = (
+    held: {current: IDecodedVoteContest},
+    isVoted = false
+): BallotSelectionPort => ({
+    contest: () => held.current,
+    choice: (_style, _contestId, candidateId) =>
+        held.current.choices.find((choice) => choice.id === candidateId),
+    setChoice: ({voteChoice}) => {
+        held.current = {
+            ...held.current,
+            choices: held.current.choices.map((choice) =>
+                choice.id === voteChoice.id ? {...choice, ...voteChoice} : choice
+            ),
+        } as IDecodedVoteContest
+    },
+    setBlank: ({candidateId}) => {
+        held.current = {
+            ...held.current,
+            choices: held.current.choices.map((choice) => ({
+                ...choice,
+                selected: choice.id === candidateId ? 0 : -1,
+            })),
+        } as IDecodedVoteContest
+    },
+    setInvalid: ({isExplicitInvalid}) => {
+        held.current = {
+            ...held.current,
+            is_explicit_invalid: isExplicitInvalid,
+        } as IDecodedVoteContest
+    },
+    reset: () => {
+        held.current = {
+            ...held.current,
+            is_explicit_invalid: false,
+            choices: held.current.choices.map((choice) => ({...choice, selected: -1})),
+        } as IDecodedVoteContest
+    },
+    isVoted: () => isVoted,
+    imageBaseUrl: "",
+})
+
 export interface MountErrorsOptions {
     /** What the encoder said about this contest. */
     alerts?: Array<{message: string}>
@@ -214,7 +266,7 @@ export const mountErrors = (
     }: MountErrorsOptions = {}
 ): RenderResult => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const {InvalidErrorsList} = require("../components/InvalidErrorsList/InvalidErrorsList") as {
+    const {InvalidErrorsList} = require("@sequentech/ui-essentials") as {
         InvalidErrorsList: React.FC<Record<string, unknown>>
     }
     // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -263,6 +315,7 @@ export const mountErrors = (
         <I18nextProvider i18n={i18n}>
             <ThemeProvider theme={theme}>
                 <Provider store={store}>
+                    <BallotSelectionProvider port={portOver({current: state}, isVoted)}>
                     <MemoryRouter
                         initialEntries={[
                             `/tenant/tenant-1/event/event-1/election/${ELECTION_ID}/vote`,
@@ -275,6 +328,7 @@ export const mountErrors = (
                             />
                         </Routes>
                     </MemoryRouter>
+                    </BallotSelectionProvider>
                 </Provider>
             </ThemeProvider>
         </I18nextProvider>
@@ -313,12 +367,16 @@ export const mountContest = (
     {selection, isReview = false, isDeclineToVote, errors = []}: MountOptions = {}
 ): Mounted => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const {Question} = require("../components/Question/Question") as {
+    const {Question} = require("@sequentech/ui-essentials") as {
         Question: React.FC<Record<string, unknown>>
     }
 
     const ballotStyle = aBallotStyle(contest)
     const chosen = selection ?? marks(contest)
+    // Held in a box the port mutates, so a click is visible to the next render —
+    // which is what the store used to do, and is the whole behaviour these tests
+    // are about.
+    const held = {current: chosen}
 
     const store = configureStore({
         reducer: {
@@ -339,6 +397,7 @@ export const mountContest = (
         <I18nextProvider i18n={i18n}>
             <ThemeProvider theme={theme}>
                 <Provider store={store}>
+                    <BallotSelectionProvider port={portOver(held)}>
                     <Question
                         ballotStyle={ballotStyle}
                         question={contest}
@@ -352,6 +411,7 @@ export const mountContest = (
                             disabled = value
                         }}
                     />
+                    </BallotSelectionProvider>
                 </Provider>
             </ThemeProvider>
         </I18nextProvider>

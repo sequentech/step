@@ -30,6 +30,7 @@ import {
 } from "./store/ballotStyles/ballotStylesSlice"
 import {selectElectionEventById} from "./store/electionEvents/electionEventsSlice"
 import WatermarkBackground from "./components/WaterMark/Watermark"
+import {BallotSelectionAdapter} from "./components/BallotSelectionAdapter"
 import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
 import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
 import {useElectionClassName} from "./hooks/useElectionClassName"
@@ -294,7 +295,16 @@ const App = () => {
                         role="main"
                     >
                         <WatermarkBackground />
-                        <Outlet />
+                        {/* The shared ballot asks a port for the voter's marks
+                            rather than reading this app's store, so that the
+                            Election Architect can render the same components over
+                            its own state. Supplied once, here, rather than per
+                            screen: two screens draw contests today and a third
+                            would otherwise be a silent failure at the first
+                            click. */}
+                        <BallotSelectionAdapter>
+                            <Outlet />
+                        </BallotSelectionAdapter>
                     </PageBanner>
                 </ApolloWrapper>
                 <Footer />

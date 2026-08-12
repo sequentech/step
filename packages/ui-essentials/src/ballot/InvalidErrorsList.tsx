@@ -2,11 +2,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useMemo, useState} from "react"
-import {WarnBox} from "@sequentech/ui-essentials"
-import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
-import {provideBallotService} from "../../services/BallotService"
-import {useAppSelector} from "../../store/hooks"
-import {selectBallotSelectionByElectionId} from "../../store/ballotSelections/ballotSelectionsSlice"
+import {WarnBox} from "../index"
+import {useBallotSelection} from "./selection"
+import {IBallotStyle} from "./types"
+// Three WASM-backed calls this list cannot do without: two interpret a selection
+// into the encoder's verdict, one counts what is left of a write-in's character
+// budget. `EA-F1-005` turns them into an injected engine so a host can supply the
+// build of the core it already loads; until then they come from `ui-core`.
+import {
+    getWriteInAvailableCharacters,
+    interpretContestSelection,
+    interpretMultiContestSelection,
+} from "@sequentech/ui-core"
 import {useTranslation} from "react-i18next"
 import {
     IDecodedVoteContest,
@@ -21,9 +28,7 @@ import {
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {Box} from "@mui/material"
-import {isVotedByElectionId} from "../../store/extra/extraSlice"
-import {useParams} from "react-router-dom"
-import {IInvalidPlaintextErrorType} from "../../types/errors"
+import {IInvalidPlaintextErrorType} from "./errors"
 
 const ErrorWrapper = styled(Box)`
     display: flex;
@@ -59,13 +64,11 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
 }) => {
     const {t} = useTranslation()
     // Note that if we have reviewed, then we can asume we have touched
-    const {electionId} = useParams<{electionId?: string}>()
-    const isVotedState = useAppSelector(isVotedByElectionId(electionId))
-    const {
-        interpretContestSelection,
-        interpretMultiContestSelection,
-        getWriteInAvailableCharacters,
-    } = provideBallotService()
+    // Was `useParams` for the election id plus a store read for the flag, which is
+    // why this component could not render outside a `RouterProvider` — a real
+    // obstacle for a preview, and a strange dependency for a list of warnings.
+    const selection = useBallotSelection()
+    const isVotedState = selection.isVoted(ballotStyle.election_id)
 
     let under_vote_policy: EUnderVotePolicy | undefined =
         question?.presentation?.under_vote_policy ?? undefined
