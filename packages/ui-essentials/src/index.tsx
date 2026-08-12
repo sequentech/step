@@ -97,6 +97,8 @@ export {Answer} from "./ballot/Answer"
 export {AnswersList} from "./ballot/AnswersList"
 export {InvalidErrorsList} from "./ballot/InvalidErrorsList"
 export {BallotSelectionProvider, useBallotSelection} from "./ballot/selection"
+export {BallotEngineProvider, useBallotEngine} from "./ballot/engine"
+export type {BallotEngine} from "./ballot/engine"
 export type {
     BallotSelectionPort,
     ContestSelection,

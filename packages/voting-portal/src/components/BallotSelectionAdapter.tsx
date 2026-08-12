@@ -34,8 +34,14 @@
  */
 
 import {PropsWithChildren, useContext, useMemo} from "react"
-import {BallotSelectionProvider} from "@sequentech/ui-essentials"
-import type {BallotSelectionPort} from "@sequentech/ui-essentials"
+import {BallotEngineProvider, BallotSelectionProvider} from "@sequentech/ui-essentials"
+import type {BallotEngine, BallotSelectionPort} from "@sequentech/ui-essentials"
+import {
+    checkIsBlank,
+    getWriteInAvailableCharacters,
+    isPreferential,
+    sortCandidatesInContest,
+} from "@sequentech/ui-core"
 import {useStore} from "react-redux"
 
 import {useAppDispatch, useAppSelector} from "../store/hooks"
@@ -50,6 +56,13 @@ import {
 import {isVotedByElectionId} from "../store/extra/extraSlice"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import type {RootState} from "../store/store"
+
+const ENGINE: BallotEngine = {
+    sortCandidatesInContest,
+    isPreferential,
+    checkIsBlank,
+    getWriteInAvailableCharacters,
+}
 
 export const BallotSelectionAdapter = ({children}: PropsWithChildren): React.JSX.Element => {
     const dispatch = useAppDispatch()
@@ -96,5 +109,17 @@ export const BallotSelectionAdapter = ({children}: PropsWithChildren): React.JSX
         [dispatch, store, globalSettings.PUBLIC_BUCKET_URL, selections, voted]
     )
 
-    return <BallotSelectionProvider port={port}>{children}</BallotSelectionProvider>
+    // This portal's build of the core. The wizard passes the same four functions
+    // out of `sequent-election-config`, which is the same Rust compiled with a
+    // different feature set — so the order a voter sees and the order an election
+    // manager approves come from one implementation.
+    //
+    // Constant, so it is defined outside the render: `ui-core`'s wrappers are module
+    // functions and re-wrapping them each render would give the context a new value
+    // every time and re-render every candidate row.
+    return (
+        <BallotEngineProvider engine={ENGINE}>
+            <BallotSelectionProvider port={port}>{children}</BallotSelectionProvider>
+        </BallotEngineProvider>
+    )
 }

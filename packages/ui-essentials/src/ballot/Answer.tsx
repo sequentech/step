@@ -11,7 +11,7 @@ import {
     ICandidate,
     IContest,
 } from "@sequentech/ui-core"
-import {Candidate} from "../index"
+import Candidate from "../components/Candidate/Candidate"
 import Image from "mui-image"
 import {
     checkAllowWriteIns,
@@ -23,9 +23,7 @@ import {
 import {IBallotStyle} from "./types"
 import {useTranslation} from "react-i18next"
 import {IDecodedVoteContest} from "sequent-core"
-// `EA-F1-005` replaces this with an injected engine; for now the two predicates
-// a row needs come from `ui-core` directly.
-import {isPreferential as isPreferentialAlgorithm} from "@sequentech/ui-core"
+import {useBallotEngine} from "./engine"
 import {ECandidatesIconCheckboxPolicy} from "@sequentech/ui-core"
 
 export interface IAnswerProps {
@@ -72,7 +70,8 @@ export const Answer: React.FC<IAnswerProps> = ({
     setIsTouched,
     showWhenListSelected,
 }) => {
-    const isPreferential = isPreferentialAlgorithm
+    const engine = useBallotEngine()
+    const {isPreferential} = engine
     const isPreferentialVote = useMemo(() => {
         if (!contest.counting_algorithm) return false
         return isPreferential(contest.counting_algorithm)

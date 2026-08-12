@@ -15,7 +15,8 @@ import {
     BallotSelection,
     ECollapsibleLists,
 } from "@sequentech/ui-core"
-import {theme, BlankAnswer} from "../index"
+import BlankAnswer from "../components/BlankAnswer/BlankAnswer"
+import {theme} from "../services/theme"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
 import {Answer} from "./Answer"
@@ -38,9 +39,7 @@ import {useTranslation} from "react-i18next"
 import {IDecodedVoteContest, IInvalidPlaintextError} from "@sequentech/ui-core"
 import {useBallotSelection} from "./selection"
 import {sortCandidatesInContest, checkIsBlank} from "@sequentech/ui-core"
-// Until `EA-F1-005` injects an engine, the two WASM-backed predicates a contest
-// needs come straight from `ui-core`, which this package already depends on.
-import {isPreferential as isPreferentialAlgorithm} from "@sequentech/ui-core"
+import {useBallotEngine} from "./engine"
 import {faAngleDown, faAngleRight} from "@fortawesome/free-solid-svg-icons"
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 
@@ -133,7 +132,8 @@ export const Question: React.FC<IQuestionProps> = ({
 }) => {
     // THIS IS A CONTEST COMPONENT
     const {i18n, t} = useTranslation()
-    const isPreferentialVote = isPreferentialAlgorithm(question.counting_algorithm)
+    const engine = useBallotEngine()
+    const isPreferentialVote = engine.isPreferential(question.counting_algorithm)
     let [candidatesOrder, setCandidatesOrder] = useState<Array<string> | null>(null)
     const [explicitBlank, setExplicitBlank] = useState<boolean>(false)
     let [categoriesMapOrder, setCategoriesMapOrder] = useState<CategoriesMap | null>(null)
@@ -189,12 +189,12 @@ export const Question: React.FC<IQuestionProps> = ({
     )
 
     // Sort invalid/blank candidates within their top/bottom blocks
-    let invalidBottomCandidates = sortCandidatesInContest(
+    let invalidBottomCandidates = engine.sortCandidatesInContest(
         invalidBottomCandidatesUnsorted,
         candidatesOrderType,
         true
     )
-    let invalidTopCandidates = sortCandidatesInContest(
+    let invalidTopCandidates = engine.sortCandidatesInContest(
         invalidTopCandidatesUnsorted,
         candidatesOrderType,
         true
@@ -252,7 +252,7 @@ export const Question: React.FC<IQuestionProps> = ({
     }
 
     if (null === candidatesOrder) {
-        let sortedCandidates = sortCandidatesInContest(
+        let sortedCandidates = engine.sortCandidatesInContest(
             noCategoryCandidates,
             candidatesOrderType,
             true
@@ -283,7 +283,7 @@ export const Question: React.FC<IQuestionProps> = ({
     // when isRadioChecked is true, clicking on another option works as a radio button:
     // it deselects the previously selected option to select the new one
     const isRadioSelection = checkIsRadioSelection(question)
-    const isBlank = isReview && contestState && checkIsBlank(contestState)
+    const isBlank = isReview && contestState && engine.checkIsBlank(contestState)
 
     return (
         <Box component="section" aria-labelledby={`contest-${question.id}-title`}>

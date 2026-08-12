@@ -2,18 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useMemo, useState} from "react"
-import {WarnBox} from "../index"
+import WarnBox from "../components/WarnBox/WarnBox"
 import {useBallotSelection} from "./selection"
 import {IBallotStyle} from "./types"
-// Three WASM-backed calls this list cannot do without: two interpret a selection
-// into the encoder's verdict, one counts what is left of a write-in's character
-// budget. `EA-F1-005` turns them into an injected engine so a host can supply the
-// build of the core it already loads; until then they come from `ui-core`.
-import {
-    getWriteInAvailableCharacters,
-    interpretContestSelection,
-    interpretMultiContestSelection,
-} from "@sequentech/ui-core"
+import {useBallotEngine} from "./engine"
 import {useTranslation} from "react-i18next"
 import {
     IDecodedVoteContest,
@@ -67,6 +59,7 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     // Was `useParams` for the election id plus a store read for the flag, which is
     // why this component could not render outside a `RouterProvider` — a real
     // obstacle for a preview, and a strange dependency for a list of warnings.
+    const engine = useBallotEngine()
     const selection = useBallotSelection()
     const isVotedState = selection.isVoted(ballotStyle.election_id)
 
@@ -213,7 +206,7 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
 
     const numAvailableChars =
         hasWriteIns && decodedContestSelection
-            ? getWriteInAvailableCharacters(decodedContestSelection, ballotStyle.ballot_eml)
+            ? engine.getWriteInAvailableCharacters(decodedContestSelection, ballotStyle.ballot_eml)
             : 0
 
     useEffect(() => {

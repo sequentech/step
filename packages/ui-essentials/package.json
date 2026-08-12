@@ -1,140 +1,141 @@
 {
-  "name": "@sequentech/ui-essentials",
-  "description": "React Typescript library, with Babel, Webpack and ESLint configuration",
-  "license": "MIT",
-  "version": "0.1.0",
-  "private": true,
-  "author": {
-    "name": "Findeton"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/sequentech/ui-essentials.git"
-  },
-  "scripts": {
-    "build": "webpack --config webpack.config.cjs --mode production",
-    "build:dev": "webpack --config webpack.config.cjs  --mode development",
-    "prettify": "prettier --check . --ignore-path .prettierignore",
-    "prettify:fix": "prettier --write . --ignore-path .prettierignore",
-    "lint": "eslint .",
-    "lint:fix": "eslint --fix .",
-    "test": "jest",
-    "storybook": "storybook dev -p 6006 --no-open",
-    "build-storybook": "NODE_OPTIONS=--openssl-legacy-provider storybook build",
-    "test-storybook": "storybook test",
-    "dev": "NODE_OPTIONS=--openssl-legacy-provider tsc --watch",
-    "chromatic": "NODE_OPTIONS=--openssl-legacy-provider npx chromatic --project-token=%CHROMATIC_PROJECT_TOKEN%"
-  },
-  "main": "dist/index.js",
-  "type": "module",
-  "module": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "dependencies": {
-    "@fortawesome/fontawesome-svg-core": "^7.0.1",
-    "@fortawesome/free-brands-svg-icons": "^7.0.1",
-    "@fortawesome/free-solid-svg-icons": "^7.0.1",
-    "@fortawesome/react-fontawesome": "^3.0.2",
-    "i18next": "^25.5.2",
-    "i18next-browser-languagedetector": "^8.2.0",
-    "qrcode.react": "3.1.0"
-  },
-  "peerDependencies": {
-    "@emotion/react": "11.14.0",
-    "@emotion/styled": "11.14.1",
-    "@mui/material": "7.3.2",
-    "@mui/x-data-grid": "8.17.0",
-    "@sequentech/ui-core": "*",
-    "apexcharts": "3.41.1",
-    "mui-image": "1.0.9",
-    "react": "19.1.1",
-    "react-apexcharts": "1.4.1",
-    "react-dom": "19.1.1",
-    "react-i18next": "15.7.3",
-    "react-router": "7.12.0"
-  },
-  "resolutions": {
-    "braces": "^3.0.3",
-    "webpack-dev-server": "^5.2.1",
-    "micromatch": "^4.0.8",
-    "ws": "^8.18.0",
-    "follow-redirects": "^1.15.9",
-    "semver": "^7.6.4",
-    "path-to-regexp": "^0.1.12"
-  },
-  "devDependencies": {
-    "@babel/cli": "7.12.8",
-    "@babel/core": "7.12.9",
-    "@babel/plugin-proposal-class-properties": "7.12.1",
-    "@babel/plugin-proposal-object-rest-spread": "7.12.1",
-    "@babel/plugin-syntax-dynamic-import": "7.8.3",
-    "@babel/preset-env": "7.22.4",
-    "@babel/preset-react": "7.22.3",
-    "@babel/preset-typescript": "7.21.5",
-    "@emotion/react": "11.14.0",
-    "@emotion/styled": "11.14.1",
-    "@eslint/js": "^9.39.1",
-    "@mui/material": "7.3.2",
-    "@mui/x-data-grid": "8.17.0",
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.0",
-    "@testing-library/user-event": "^14.6.1",
-    "@types/jest": "^30.0.0",
-    "@types/node": "^22",
-    "@types/react": "^19.1.13",
-    "@types/react-dom": "^19.1.9",
-    "@typescript-eslint/eslint-plugin": "^8.46.4",
-    "@typescript-eslint/parser": "^8.46.4",
-    "apexcharts": "3.41.1",
-    "babel-loader": "10.0.0",
-    "chromatic": "13.3.3",
-    "eslint": "^9.39.1",
-    "eslint-config-prettier": "6.15.0",
-    "eslint-config-react-app": "^7.0.1",
-    "eslint-plugin-mdx": "^3.6.2",
-    "eslint-plugin-prettier": "5.5.4",
-    "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "eslint-plugin-storybook": "10.0.6",
-    "eslint-webpack-plugin": "^5.0.2",
-    "globals": "^15.9.0",
-    "jest": "30",
-    "jest-environment-jsdom": "30",
-    "mui-image": "1.0.9",
-    "prettier": "^3.6.2",
-    "react": "19.1.1",
-    "react-apexcharts": "1.4.1",
-    "react-dom": "19.1.1",
-    "react-i18next": "15.7.3",
-    "react-router": "7.12.0",
-    "storybook-addon-pseudo-states": "^4.0.4",
-    "storybook-addon-remix-react-router": "^3.0.0",
-    "ts-jest": "26.4.4",
-    "ts-loader": "9.5.4",
-    "typescript": "^5.9.2",
-    "webpack": "5.94.0",
-    "webpack-cli": "6.0.1"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app"
-    ]
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
-  },
-  "bugs": {
-    "url": "https://github.com/sequentech/ui-essentials/issues"
-  },
-  "readme": "ERROR: No README data found!",
-  "homepage": "https://github.com/sequentech/ui-essentials#readme",
-  "_id": "ui-essentials@0.1.0"
+    "name": "@sequentech/ui-essentials",
+    "description": "React Typescript library, with Babel, Webpack and ESLint configuration",
+    "license": "MIT",
+    "version": "0.1.0",
+    "private": true,
+    "author": {
+        "name": "Findeton"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/sequentech/ui-essentials.git"
+    },
+    "scripts": {
+        "build": "webpack --config webpack.config.cjs --mode production && yarn build:ballot",
+        "build:dev": "webpack --config webpack.config.cjs  --mode development",
+        "prettify": "prettier --check . --ignore-path .prettierignore",
+        "prettify:fix": "prettier --write . --ignore-path .prettierignore",
+        "lint": "eslint .",
+        "lint:fix": "eslint --fix .",
+        "test": "jest",
+        "storybook": "storybook dev -p 6006 --no-open",
+        "build-storybook": "NODE_OPTIONS=--openssl-legacy-provider storybook build",
+        "test-storybook": "storybook test",
+        "dev": "NODE_OPTIONS=--openssl-legacy-provider tsc --watch",
+        "chromatic": "NODE_OPTIONS=--openssl-legacy-provider npx chromatic --project-token=%CHROMATIC_PROJECT_TOKEN%",
+        "build:ballot": "BALLOT_ENTRY=1 webpack --config webpack.config.cjs --mode production"
+    },
+    "main": "dist/index.js",
+    "type": "module",
+    "module": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "dependencies": {
+        "@fortawesome/fontawesome-svg-core": "^7.0.1",
+        "@fortawesome/free-brands-svg-icons": "^7.0.1",
+        "@fortawesome/free-solid-svg-icons": "^7.0.1",
+        "@fortawesome/react-fontawesome": "^3.0.2",
+        "i18next": "^25.5.2",
+        "i18next-browser-languagedetector": "^8.2.0",
+        "qrcode.react": "3.1.0"
+    },
+    "peerDependencies": {
+        "@emotion/react": "11.14.0",
+        "@emotion/styled": "11.14.1",
+        "@mui/material": "7.3.2",
+        "@mui/x-data-grid": "8.17.0",
+        "@sequentech/ui-core": "*",
+        "apexcharts": "3.41.1",
+        "mui-image": "1.0.9",
+        "react": "19.1.1",
+        "react-apexcharts": "1.4.1",
+        "react-dom": "19.1.1",
+        "react-i18next": "15.7.3",
+        "react-router": "7.12.0"
+    },
+    "resolutions": {
+        "braces": "^3.0.3",
+        "webpack-dev-server": "^5.2.1",
+        "micromatch": "^4.0.8",
+        "ws": "^8.18.0",
+        "follow-redirects": "^1.15.9",
+        "semver": "^7.6.4",
+        "path-to-regexp": "^0.1.12"
+    },
+    "devDependencies": {
+        "@babel/cli": "7.12.8",
+        "@babel/core": "7.12.9",
+        "@babel/plugin-proposal-class-properties": "7.12.1",
+        "@babel/plugin-proposal-object-rest-spread": "7.12.1",
+        "@babel/plugin-syntax-dynamic-import": "7.8.3",
+        "@babel/preset-env": "7.22.4",
+        "@babel/preset-react": "7.22.3",
+        "@babel/preset-typescript": "7.21.5",
+        "@emotion/react": "11.14.0",
+        "@emotion/styled": "11.14.1",
+        "@eslint/js": "^9.39.1",
+        "@mui/material": "7.3.2",
+        "@mui/x-data-grid": "8.17.0",
+        "@testing-library/jest-dom": "^6.9.1",
+        "@testing-library/react": "^16.3.0",
+        "@testing-library/user-event": "^14.6.1",
+        "@types/jest": "^30.0.0",
+        "@types/node": "^22",
+        "@types/react": "^19.1.13",
+        "@types/react-dom": "^19.1.9",
+        "@typescript-eslint/eslint-plugin": "^8.46.4",
+        "@typescript-eslint/parser": "^8.46.4",
+        "apexcharts": "3.41.1",
+        "babel-loader": "10.0.0",
+        "chromatic": "13.3.3",
+        "eslint": "^9.39.1",
+        "eslint-config-prettier": "6.15.0",
+        "eslint-config-react-app": "^7.0.1",
+        "eslint-plugin-mdx": "^3.6.2",
+        "eslint-plugin-prettier": "5.5.4",
+        "eslint-plugin-react": "^7.37.5",
+        "eslint-plugin-react-hooks": "^7.0.1",
+        "eslint-plugin-storybook": "10.0.6",
+        "eslint-webpack-plugin": "^5.0.2",
+        "globals": "^15.9.0",
+        "jest": "30",
+        "jest-environment-jsdom": "30",
+        "mui-image": "1.0.9",
+        "prettier": "^3.6.2",
+        "react": "19.1.1",
+        "react-apexcharts": "1.4.1",
+        "react-dom": "19.1.1",
+        "react-i18next": "15.7.3",
+        "react-router": "7.12.0",
+        "storybook-addon-pseudo-states": "^4.0.4",
+        "storybook-addon-remix-react-router": "^3.0.0",
+        "ts-jest": "26.4.4",
+        "ts-loader": "9.5.4",
+        "typescript": "^5.9.2",
+        "webpack": "5.94.0",
+        "webpack-cli": "6.0.1"
+    },
+    "eslintConfig": {
+        "extends": [
+            "react-app"
+        ]
+    },
+    "browserslist": {
+        "production": [
+            ">0.2%",
+            "not dead",
+            "not op_mini all"
+        ],
+        "development": [
+            "last 1 chrome version",
+            "last 1 firefox version",
+            "last 1 safari version"
+        ]
+    },
+    "bugs": {
+        "url": "https://github.com/sequentech/ui-essentials/issues"
+    },
+    "readme": "ERROR: No README data found!",
+    "homepage": "https://github.com/sequentech/ui-essentials#readme",
+    "_id": "ui-essentials@0.1.0"
 }

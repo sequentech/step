@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
-import {CandidatesList} from "../index"
+import CandidatesList from "../components/CandidatesList/CandidatesList"
 import {
     IDecodedVoteContest,
     isUndefined,
@@ -14,6 +14,7 @@ import {
     isCategoryListSelected,
 } from "@sequentech/ui-core"
 import {Answer} from "./Answer"
+import {useBallotEngine} from "./engine"
 import {useBallotSelection} from "./selection"
 import {ICategory} from "@sequentech/ui-core"
 import {IBallotStyle} from "./types"
@@ -66,6 +67,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
     onExpandedChange,
 }) => {
     const categoryAnswerId = category.header?.id || ""
+    const engine = useBallotEngine()
     const selection = useBallotSelection()
     const selectionState = selection.choice(ballotStyle, contestId, categoryAnswerId)
     const questionState = selection.contest(ballotStyle, contestId)
@@ -130,7 +132,9 @@ export const AnswersList: React.FC<AnswersListProps> = ({
 
     if (null === candidatesOrder) {
         setCandidatesOrder(
-            sortCandidatesInContest(category.candidates, candidatesOrderType, true).map((c) => c.id)
+            engine
+                .sortCandidatesInContest(category.candidates, candidatesOrderType, true)
+                .map((c) => c.id)
         )
     }
 

@@ -26,8 +26,8 @@
 import {configureStore} from "@reduxjs/toolkit"
 import {ThemeProvider} from "@mui/material/styles"
 import {render, RenderResult} from "@testing-library/react"
-import {BallotSelectionProvider, theme} from "@sequentech/ui-essentials"
-import type {BallotSelectionPort} from "@sequentech/ui-essentials"
+import {BallotEngineProvider, BallotSelectionProvider, theme} from "@sequentech/ui-essentials"
+import type {BallotEngine, BallotSelectionPort} from "@sequentech/ui-essentials"
 import type {BallotSelection, ICandidate, IContest, IDecodedVoteContest} from "@sequentech/ui-core"
 import i18next from "i18next"
 import {I18nextProvider} from "react-i18next"
@@ -181,7 +181,6 @@ export const marks = (
  */
 export const anError = (message: string): {message: string} => ({message})
 
-
 /**
  * The selection port, over a plain object.
  *
@@ -191,10 +190,7 @@ export const anError = (message: string): {message: string} => ({message})
  * satisfiable *only* by a redux store, the wizard could not satisfy it either, and
  * this file is where that would show up first.
  */
-const portOver = (
-    held: {current: IDecodedVoteContest},
-    isVoted = false
-): BallotSelectionPort => ({
+const portOver = (held: {current: IDecodedVoteContest}, isVoted = false): BallotSelectionPort => ({
     contest: () => held.current,
     choice: (_style, _contestId, candidateId) =>
         held.current.choices.find((choice) => choice.id === candidateId),
@@ -231,6 +227,27 @@ const portOver = (
     isVoted: () => isVoted,
     imageBaseUrl: "",
 })
+
+/**
+ * The engine, over the harness's stub of the WebAssembly boundary.
+ *
+ * Which makes the injection point visible in the tests rather than hidden in a
+ * module mock: these four are the calls a ballot cannot draw itself without, and
+ * this is where a test decides what they answer. The stubbed behaviours — order
+ * preserved, blank when nothing is selected, preferential when the algorithm's name
+ * says so — are documented in `ui-essentials/src/testing/sequentCoreStub.ts`, and
+ * the real rules are covered by `cargo test -p sequent-core`.
+ */
+const ENGINE: BallotEngine = {
+    sortCandidatesInContest: (candidates) => candidates,
+    isPreferential: (algorithm) =>
+        /borda|instant.?runoff|stv|preferential|ranked/i.test(String(algorithm ?? "")),
+    checkIsBlank: (contest) =>
+        contest.is_explicit_invalid === true
+            ? false
+            : (contest.choices ?? []).every((choice) => choice.selected < 0),
+    getWriteInAvailableCharacters: () => 240,
+}
 
 export interface MountErrorsOptions {
     /** What the encoder said about this contest. */
@@ -315,20 +332,22 @@ export const mountErrors = (
         <I18nextProvider i18n={i18n}>
             <ThemeProvider theme={theme}>
                 <Provider store={store}>
-                    <BallotSelectionProvider port={portOver({current: state}, isVoted)}>
-                    <MemoryRouter
-                        initialEntries={[
-                            `/tenant/tenant-1/event/event-1/election/${ELECTION_ID}/vote`,
-                        ]}
-                    >
-                        <Routes>
-                            <Route
-                                path="/tenant/:tenantId/event/:eventId/election/:electionId/vote"
-                                element={list}
-                            />
-                        </Routes>
-                    </MemoryRouter>
-                    </BallotSelectionProvider>
+                    <BallotEngineProvider engine={ENGINE}>
+                        <BallotSelectionProvider port={portOver({current: state}, isVoted)}>
+                            <MemoryRouter
+                                initialEntries={[
+                                    `/tenant/tenant-1/event/event-1/election/${ELECTION_ID}/vote`,
+                                ]}
+                            >
+                                <Routes>
+                                    <Route
+                                        path="/tenant/:tenantId/event/:eventId/election/:electionId/vote"
+                                        element={list}
+                                    />
+                                </Routes>
+                            </MemoryRouter>
+                        </BallotSelectionProvider>
+                    </BallotEngineProvider>
                 </Provider>
             </ThemeProvider>
         </I18nextProvider>
@@ -397,21 +416,23 @@ export const mountContest = (
         <I18nextProvider i18n={i18n}>
             <ThemeProvider theme={theme}>
                 <Provider store={store}>
-                    <BallotSelectionProvider port={portOver(held)}>
-                    <Question
-                        ballotStyle={ballotStyle}
-                        question={contest}
-                        isReview={isReview}
-                        isDeclineToVote={isDeclineToVote}
-                        errorSelectionState={errors}
-                        setDecodedContests={(next: IDecodedVoteContest) => {
-                            handedUp = next
-                        }}
-                        setDisableNext={(value: boolean) => {
-                            disabled = value
-                        }}
-                    />
-                    </BallotSelectionProvider>
+                    <BallotEngineProvider engine={ENGINE}>
+                        <BallotSelectionProvider port={portOver(held)}>
+                            <Question
+                                ballotStyle={ballotStyle}
+                                question={contest}
+                                isReview={isReview}
+                                isDeclineToVote={isDeclineToVote}
+                                errorSelectionState={errors}
+                                setDecodedContests={(next: IDecodedVoteContest) => {
+                                    handedUp = next
+                                }}
+                                setDisableNext={(value: boolean) => {
+                                    disabled = value
+                                }}
+                            />
+                        </BallotSelectionProvider>
+                    </BallotEngineProvider>
                 </Provider>
             </ThemeProvider>
         </I18nextProvider>
