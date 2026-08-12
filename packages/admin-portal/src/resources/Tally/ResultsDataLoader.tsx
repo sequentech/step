@@ -9,6 +9,7 @@ import {
     Sequent_Backend_Candidate,
     Sequent_Backend_Contest,
     Sequent_Backend_Election,
+    Sequent_Backend_Election_Event,
     Sequent_Backend_Results_Area_Contest,
     Sequent_Backend_Results_Area_Contest_Candidate,
     Sequent_Backend_Results_Contest,
@@ -80,6 +81,15 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
         {
             databaseName: databaseName,
             enabled: isDbReady && !!electionEventId && !!tenantId && electionIds.length > 0,
+        }
+    )
+
+    const {data: electionEvent, isReady: isElectionEventReady} = useSQLQuery(
+        `SELECT * FROM election_event WHERE id = ? and tenant_id = ?`,
+        [electionEventId, tenantId],
+        {
+            databaseName: databaseName,
+            enabled: isDbReady && !!electionEventId && !!tenantId,
         }
     )
 
@@ -174,6 +184,7 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
             sequent_backend_area: area as Sequent_Backend_Area[],
             sequent_backend_area_contest: area_contest as Sequent_Backend_Area_Contest[],
             sequent_backend_election: election as Sequent_Backend_Election[],
+            sequent_backend_election_event: electionEvent as Sequent_Backend_Election_Event[],
             sequent_backend_candidate: candidate as Sequent_Backend_Candidate[],
             sequent_backend_contest: contest as Sequent_Backend_Contest[],
             sequent_backend_results_event: results_event as Sequent_Backend_Results_Event[],
@@ -210,6 +221,7 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
             area,
             area_contest,
             election,
+            electionEvent,
             candidate,
             contest,
             results_event,
@@ -227,6 +239,7 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
         isAreaReady &&
         isAreaContestReady &&
         isElectionReady &&
+        isElectionEventReady &&
         isCandidateReady &&
         isContestReady &&
         isResultsEventReady &&
