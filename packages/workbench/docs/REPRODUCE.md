@@ -227,6 +227,33 @@ Recorded evidence:
 
 ---
 
+## Automated verification
+
+If you would rather not click through, the three recipes above are also
+checked end-to-end by
+[../characterization/reproduce-verify.mjs](../characterization/reproduce-verify.mjs).
+It drives them **exactly as written**: configuration is set through the
+Policy overrides panel (not a store shortcut), the booth is entered from the
+voter page, and all navigation after that is client-side so the ephemeral
+overrides survive. With the dev server running (`yarn dev`):
+
+```
+node characterization/reproduce-verify.mjs
+```
+
+It prints a `PASS` line per recipe and writes `reproduce-verify.recorded.json`.
+For the over-vote recipe it also reports the live selection count on the
+voting screen (`formed=2`) — proof that the panel override reached the booth,
+since a second selection in a max-1 contest is otherwise impossible.
+
+This uses the **same Playwright mechanism** as the full-pipeline evidence
+scripts (`overvote-e2e-pipeline.mjs`, `minvote-e2e-pipeline.mjs`,
+`invalid-latent-choices-e2e.mjs`), which confirm the same behaviours
+booth-to-tally. The one deliberate difference: those scripts set config via
+`window.__store.dispatch` (and so navigate with `page.goto`), whereas this
+one exercises the **panel UI** a reviewer actually uses — which is why it
+must navigate client-side (a full page load would drop the overrides).
+
 ## Where each finding is explained
 
 | finding | reproduce (here) | why (explanation) | evidence (generated) |
