@@ -340,6 +340,7 @@ const dutchTranslation: TranslationType = {
                 back: "Terug naar Kieslijst",
                 close: "Sluiten",
                 preview: "Voorbeeld",
+                download: "Downloaden",
             },
         },
         ballotLocator: {

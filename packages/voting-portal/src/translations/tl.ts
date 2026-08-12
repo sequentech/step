@@ -341,6 +341,7 @@ const tagalogTranslation: TranslationType = {
                 back: "Bumalik sa Listahan ng mga Balota",
                 close: "Isara",
                 preview: "Silipin",
+                download: "I-download",
             },
         },
         ballotLocator: {
