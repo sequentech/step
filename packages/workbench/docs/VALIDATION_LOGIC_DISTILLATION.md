@@ -282,11 +282,19 @@ it has a configuration where **all three** hold:
 1. its checker emits an `invalid_error` in that configuration — only
    errors reach the tally's `is_invalid()`; alerts have no tally
    consequence, so without an error there is nothing to discount;
-2. *its own* policy does not gate that error — either the policy has a
-   silent variant (over-vote `allowed`) or there is no policy at all
-   (min-vote is a fixed `n < min_votes` check); **and**
-3. `invalid_vote_policy = allowed`, which switches off the generic
-   error-visibility (master filter) and the generic gate.
+2. *its own* policy has a fully **signal-free** variant — one that
+   emits no inline alert, retains nothing on the master filter's
+   keep-list, and fires no rule-specific dialog. Over-vote `allowed` is
+   such a variant; `allowed-with-msg` is *not*, despite not gating — it
+   emits an inline alert and the keep-list preserves `selectedMax`
+   whenever the policy ≠ `allowed`. A rule with no policy at all
+   (min-vote is a fixed `n < min_votes` check) is signal-free by
+   default; **and**
+3. `invalid_vote_policy = allowed`, which switches off both generic
+   surfaces: the generic dialog gate and generic error-visibility (the
+   master filter hides every `invalid_error` not on its two-entry
+   keep-list — `selectedMax` iff `over_vote_policy ≠ allowed`,
+   `blankVote` iff `blank_vote_policy = not-allowed`).
 
 When all three hold, an error the checker produces internally reaches the
 tally (via `is_invalid()`) with no booth surface showing or blocking it.

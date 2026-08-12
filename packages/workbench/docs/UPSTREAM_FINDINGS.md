@@ -152,23 +152,42 @@ allowed`, a ballot that violates an
 error-producing rule is cast with **no inline message, no dialog, and no
 block**, then classified `ImplicitInvalid` at tally and excluded from the
 valid total. The checker flags the error internally in every case; the
-filter suppresses it and neither gate fires, while the tally still
-consumes it via `is_invalid()`.
+booth's message filter mutes it — under `invalid = allowed`,
+`filterErrorList` (`InvalidErrorsList.tsx`) hides every `invalid_error`
+except its two-entry **keep-list**: `selectedMax` survives iff
+`over_vote_policy ≠ allowed`, `blankVote` iff `blank = not-allowed` —
+and neither gate fires, while the tally still consumes the error via
+`is_invalid()`.
 
 | family | configuration | silently-discarded states |
 |---|---|---|
 | over-vote | `over_vote_policy=allowed` + `invalid=allowed` | over the max |
 | min-vote | `min_votes ≥ 1` + `invalid=allowed` | below the min |
 
+The keep-list explains the table's shape. Over-vote silence needs
+`over_vote_policy = allowed` because `allowed` is that rule's only
+*signal-free* variant: every other variant emits an inline alert from
+the checker, keeps `selectedMax` visible via the keep-list carve-out,
+and (for the `*_AND_ALERT` variants) raises a dialog. The recorded
+`allowed-with-msg × allowed` row shows this exactly: no gate fires,
+yet the inline signal makes it a non-violation (`overvote-rule.md`).
+Min-vote needs only `invalid = allowed`: `selectedMin` is on no
+keep-list and min-vote emits no alert, so nothing can rescue it.
+
 **Structural characterization** (from the no-silent-discount query over
 all six rules): a rule is silent-discount-prone iff all three hold —
 (i) its checker emits an `invalid_error` (only errors reach the tally's
 `is_invalid()`; alerts have no tally consequence, so without an error
-there is nothing to discount), (ii) its own policy does not gate that
-error in some configuration, and (iii) `invalid_vote_policy = allowed`
-removes the generic gate. Over-vote (error emitted unconditionally;
-`allowed` variant does not gate) and min-vote (error unconditional; no
-policy of its own) meet all three. The preferential rules fail (ii) —
+there is nothing to discount), (ii) its own policy has a fully
+*signal-free* configuration — one that emits no inline alert, retains
+nothing via the filter's keep-list, and fires no rule-specific dialog
+("does not gate" is too weak: over-vote `allowed-with-msg` does not
+gate yet signals inline, and is recorded as a non-violation), and
+(iii) `invalid_vote_policy = allowed` removes both generic surfaces —
+the generic dialog gate and inline-error visibility (the filter's
+mute). Over-vote (error emitted unconditionally; `allowed` is its only
+signal-free variant) and min-vote (error unconditional; no policy of
+its own, hence never any signal of its own) meet all three. The preferential rules fail (ii) —
 only `*_WARN_AND_DIALOG` variants — and are provably immune; under-vote
 fails (i) — its checker emits only alerts, so an under-voted ballot
 stays `Valid` and there is nothing to discount; blank fails (i)∧(ii)
