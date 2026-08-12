@@ -86,10 +86,10 @@ cp admin-portal/graphql.schema.json .
 yarn
 
 # Generate Ts types, functions and graphql queries
-yarn generate:admin-portal
-yarn generate:voting-portal
-yarn generate:ballot-verifier
-yarn generate:results-portal
+ADMIN_SECRET="${HASURA_ADMIN_SECRET}" yarn generate:admin-portal
+ADMIN_SECRET="${HASURA_ADMIN_SECRET}" yarn generate:voting-portal
+ADMIN_SECRET="${HASURA_ADMIN_SECRET}" yarn generate:ballot-verifier
+ADMIN_SECRET="${HASURA_ADMIN_SECRET}" yarn generate:results-portal
 
 # Format the generated source files
 yarn lint:fix && yarn prettify:fix
