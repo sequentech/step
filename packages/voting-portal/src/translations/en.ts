@@ -34,7 +34,7 @@ const englishTranslation = {
             ballotHelpDialog: {
                 title: "About this screen",
                 content:
-                    "This screen shows the contest you are eligible to vote in. You can make your selection by activating the checkbox next to the candidate or answer. To reset your selections, click the “<b>Clear choices</b>” button. To move to the next step, click the “<b>Next</b>” button below.",
+                    "This screen shows the contests you are eligible to vote in. You can make your selection by activating the checkbox to the right of the Candidate/Answer. To reset your selections, click the “<b>Clear selection</b>” button; to move to the next step, click the “<b>Next</b>” button below.",
                 ok: "OK",
             },
             nonVotedDialog: {
@@ -275,10 +275,11 @@ const englishTranslation = {
             chooserHelpDialog: {
                 title: "About the Ballot list",
                 content:
-                    "This screen lists the ballots you can access. Some may be open, scheduled, or closed. You can only vote on ballots that are open",
+                    "Welcome to the Voting Booth. This screen shows the ballots you can vote on. Ballots displayed in this list can be open to voting, scheduled, or closed. You will be able to access the ballot only if the voting period is open.",
                 ok: "OK",
             },
-            noResults: "No ballots are currently available",
+            noResults: "No ballots for now.",
+            resultsButton: "View results",
             demoDialog: {
                 title: "Demo voting booth",
                 content:
@@ -341,6 +342,9 @@ const englishTranslation = {
                 certAuthFailedTitle: "Certificate Authentication Failed",
                 certAuthFailedMessage:
                     "Your certificate could not be verified. Please check that you are using a valid voter certificate and try again.",
+                invalidLoginHintParametersTitle: "Invalid voting link",
+                invalidLoginHintParametersMessage:
+                    "This voting link contains invalid login information. Request a new link and try again.",
             },
         },
         materials: {
@@ -359,6 +363,8 @@ const englishTranslation = {
             locateAgain: "Find another Ballot",
             found: "Your ballot ID {{ballotId}} has been found",
             notFound: "Your ballot ID {{ballotId}} was not found",
+            ambiguous:
+                "More than one of your ballots matches {{ballotId}}. Use the full ballot ID.",
             contentDesc: "This is your Ballot content: ",
             wrongFormatBallotId: "Invalid Ballot ID format",
             ballotIdNotFoundAtFilter:
@@ -372,7 +378,7 @@ const englishTranslation = {
             titleHelpDialog: {
                 title: "About the Ballot Finder Screen",
                 content:
-                    "The Ballot Finder screen lets you enter your Ballot ID to locate your vote and confirm it was recorded correctly.",
+                    "This screen allows you to find your vote by using the Ballot ID to retrieve it. This procedure enables you to check that your ballot was correctly cast and that the recorded ballot matches the encrypted ballot you sent.",
                 ok: "OK",
             },
             tabs: {

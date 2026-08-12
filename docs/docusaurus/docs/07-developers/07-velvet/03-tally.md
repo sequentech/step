@@ -43,13 +43,23 @@ Ballots go through several stages:
 
 ## Invalid Votes
 
-The tally engine handles different types of invalid votes:
+The tally engine handles valid, blank, declined, and invalid ballots:
 
 - **Explicit invalid** - Voter intentionally marked ballot as invalid
 - **Implicit invalid** - Ballot is invalid due to errors (e.g., overvoting)
-- **Blank votes** - Ballot has no selections
+- **Explicit blank** - Voter selected the contest's explicit blank candidate
+- **Implicit blank** - Ballot has no selections
+- **Declined** - Ballot is covered by decline-to-vote policy and is not counted
+  as valid, invalid, or blank at contest level
 
 Invalid vote handling can be configured per election.
+
+Blank votes are a subset of valid votes. In result data,
+`total_valid_votes` is every ballot that is not invalid and not declined,
+including explicit and implicit blank votes. Votes for candidates are
+`total_valid_votes - total_blank_votes`. A ballot that selects the explicit
+blank candidate together with a regular candidate is treated as an implicit
+invalid vote, not as a blank vote.
 
 ## Extended Metrics
 
@@ -152,6 +162,25 @@ This behavior is implemented by `get_area_tally_operation`, which selects the co
 | Non-preferential            | `aggregate-results`    | `process-ballots-all`     |
 
 When in doubt or when configuration is missing, the tally engine will always choose a safe default based on the counting algorithm, so tallying can proceed even without explicit `tally_operation` settings.
+
+## Cast vote status guard
+
+Each cast vote carries a `status` (`in-progress`, `indeterminate`, `valid`, or
+`discarded`). Ordinary election events store votes as `valid` immediately. A
+Datafix vote enters as `in-progress` and is promoted to `valid` or `discarded`
+by `process_cast_vote`. An ambiguous external outcome becomes `indeterminate`
+and is not retried automatically.
+
+Only `valid` votes are extracted. To avoid silently under-counting, a tally
+session refuses to proceed while its election and area contain an `in-progress`
+or `indeterminate` vote. A second check runs immediately before ballot
+extraction.
+
+Wait for `in-progress` votes to drain, then re-run the tally. An
+`indeterminate` vote requires the documented operator reconciliation; waiting
+or repeatedly invoking `SetVoted` is not a safe resolution. See the
+[Datafix / VoterView integration](../../integrations/datafix_voterview_integration.md)
+for the state machine and runbook.
 
 ## Location
 

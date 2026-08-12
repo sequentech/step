@@ -75,6 +75,7 @@ const spanishTranslation: TranslationType = {
             markedInvalid: "Voto explícitamente marcado inválido",
             points: "({{points}} Puntos)",
             contestNotFound: "Pregunta no encontrada: {{contestId}}",
+            declineToVote: "Se abstuvo de votar",
         },
         footer: {
             poweredBy: "Funciona con <1></1>",

@@ -52,6 +52,16 @@ Your ballot ID [Ballot ID] has been located
 
 Below this message, you will see the Ballot Content. This is a JSON-formatted block of data that contains the technical details of your submission, including the timestamp and encrypted contest data, proving your vote is securely in the system.
 
+## Telephone voting ballot locator
+
+When the **Telephone voting** channel is enabled for an election, the IVR reads a short ballot locator after the vote is cast. This locator is the first four hexadecimal characters of the full Ballot ID. Hexadecimal characters can contain the digits `0` through `9` and the letters `a` through `f`.
+
+After logging in to the Voting Portal, enter either the four-character locator provided by the IVR or the full Ballot ID in the Ballot Locator. Short-locator searches are limited to ballots belonging to the authenticated voter in the current election. Enabling telephone voting only at the election-event level is not sufficient; the channel must be enabled for the individual election.
+
+### Collisions
+
+Because a four-character locator is shorter than the full Ballot ID, two or more of the voter's ballots can have the same prefix. If this happens, the Ballot Locator does not select the first, last, or any other matching ballot. It displays an ambiguity message and asks the voter to use the full Ballot ID instead.
+
 :::info
 **Ballot Content:** Please note that even though you have access to the content of your ballot, this is encrypted so that it's not possible to obtain the intention of the vote from the Ballot Content. This is a security measure intended to maintain the secrecy of the vote and preventing anyone to prove how they voted.
 :::
@@ -97,4 +107,3 @@ If the ballot is found, at the top of the screen you will see a green confirmati
 **"Your ballot ID [ID Number] has been located."**
 
 Below this message, you will see the Ballot Content. This is a JSON-formatted block of data that contains the technical details of your submission, including the timestamp and encrypted contest data, proving your vote is securely in the system.
-

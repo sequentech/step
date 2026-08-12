@@ -4,28 +4,20 @@
 
 import {useMemo} from "react"
 import {useAtomValue} from "jotai"
+import {IElectionEventPresentation, IElectionPresentation} from "@sequentech/ui-core"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {GetTallyDataQuery} from "@/gql/graphql"
-import {IElectionEventPresentation, IElectionPresentation} from "@sequentech/ui-core"
 
-function parsePresentation<T>(presentation: unknown): T | undefined {
-    if (!presentation) {
+const parsePresentation = <T,>(presentation: unknown): T | undefined => {
+    if (!presentation) return undefined
+
+    try {
+        return typeof presentation === "string"
+            ? (JSON.parse(presentation) as T)
+            : (presentation as T)
+    } catch {
         return undefined
     }
-
-    if (typeof presentation === "string") {
-        try {
-            return JSON.parse(presentation) as T
-        } catch {
-            return undefined
-        }
-    }
-
-    if (typeof presentation === "object") {
-        return presentation as T
-    }
-
-    return undefined
 }
 
 export function getDefaultElectionLang(
@@ -34,17 +26,15 @@ export function getDefaultElectionLang(
     electionEventId: string
 ): string | undefined {
     const election = tallyData?.sequent_backend_election?.find(
-        (e) => e.id === electionId && e.election_event_id === electionEventId
+        (item) => item.id === electionId && item.election_event_id === electionEventId
     )
     const electionEvent = tallyData?.sequent_backend_election_event?.[0]
-    const eventPresentation = parsePresentation<IElectionEventPresentation>(
-        electionEvent?.presentation
-    )
-    const electionPresentation = parsePresentation<IElectionPresentation>(election?.presentation)
 
     return (
-        electionPresentation?.language_conf?.default_language_code ||
-        eventPresentation?.language_conf?.default_language_code
+        parsePresentation<IElectionPresentation>(election?.presentation)?.language_conf
+            ?.default_language_code ||
+        parsePresentation<IElectionEventPresentation>(electionEvent?.presentation)?.language_conf
+            ?.default_language_code
     )
 }
 

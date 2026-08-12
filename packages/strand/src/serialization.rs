@@ -159,6 +159,45 @@ impl<T: Send + Sync + BorshDeserialize> BorshDeserialize
 
 }
 
+} else {
+use crate::shuffler_product::StrandRectangle;
+
+/// Sequential serialization for rectangles (WASM)
+impl<T: Send + Sync + BorshSerialize> BorshSerialize for StrandRectangle<T> {
+    fn serialize<W: std::io::Write>(
+        &self,
+        writer: &mut W,
+    ) -> std::io::Result<()> {
+        let vector = self.rows();
+
+        let vecs: Result<Vec<Vec<u8>>, std::io::Error> =
+            vector.iter().map(|t| borsh::to_vec(t)).collect();
+        let inside = vecs?;
+
+        inside.serialize(writer)
+    }
+}
+
+/// Sequential deserialization for rectangles (WASM)
+impl<T: Send + Sync + BorshDeserialize> BorshDeserialize
+    for StrandRectangle<T>
+{
+    fn deserialize_reader<R: std::io::Read>(
+        reader: &mut R,
+    ) -> Result<Self, std::io::Error> {
+        let vectors = <Vec<Vec<u8>>>::deserialize_reader(reader)?;
+        let results: std::io::Result<Vec<Vec<T>>> = vectors
+            .iter()
+            .map(|v| Vec::<T>::try_from_slice(&v))
+            .collect();
+
+        StrandRectangle::new(results?).map_err(|_| {
+            Error::new(ErrorKind::Other, "Parsed bytes were not rectangular")
+        })
+    }
+
+}
+
 }}
 
 #[cfg(test)]

@@ -288,7 +288,8 @@ const catalanTranslation: TranslationType = {
                     "Aquesta pantalla mostra la llista de paperetes a les quals podeu accedir. Poden estar obertes, programades o tancades. Només podeu votar en les que estan obertes",
                 ok: "D'acord",
             },
-            noResults: "No hi ha paperetes disponibles actualment",
+            noResults: "No hi ha eleccions per ara.",
+            resultsButton: "Veure resultats",
             demoDialog: {
                 title: "Cabina de votació de demostració",
                 content:
@@ -370,6 +371,8 @@ const catalanTranslation: TranslationType = {
             locateAgain: "Troba una altra Papereta",
             found: "El teu ID de Papereta {{ballotId}} ha estat trobat",
             notFound: "El teu ID de Papereta {{ballotId}} no ha estat trobat",
+            ambiguous:
+                "Més d'una de les teves paperetes coincideix amb {{ballotId}}. Utilitza l'ID complet de la papereta.",
             contentDesc: "Aquest és el contingut de la teva Papereta: ",
             wrongFormatBallotId: "Format incorrecte per l'ID de la Papereta",
             ballotIdNotFoundAtFilter:

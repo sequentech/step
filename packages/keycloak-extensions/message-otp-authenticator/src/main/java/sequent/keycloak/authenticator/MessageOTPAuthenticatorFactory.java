@@ -119,13 +119,13 @@ public class MessageOTPAuthenticatorFactory
             "Code length",
             "The number of digits of the generated code.",
             ProviderConfigProperty.STRING_TYPE,
-            6),
+            Utils.CODE_LENGTH_DEFAULT),
         new ProviderConfigProperty(
             Utils.CODE_TTL,
             "Time-to-live",
             "The time to live in seconds for the code to be valid.",
             ProviderConfigProperty.STRING_TYPE,
-            "300"),
+            Utils.CODE_TTL_DEFAULT),
         new ProviderConfigProperty(
             Utils.SENDER_ID,
             "SenderId",
@@ -145,6 +145,14 @@ public class MessageOTPAuthenticatorFactory
             ProviderConfigProperty.BOOLEAN_TYPE,
             "false"),
         new ProviderConfigProperty(
+            Utils.AUTO_CREATE_CREDENTIAL_ATTRIBUTE,
+            "Auto-create OTP credential",
+            "If enabled, the message-otp credential is automatically created during login for"
+                + " non-deferred users that have a mobile phone number or email address configured,"
+                + " so that no credential enrollment required action is needed.",
+            ProviderConfigProperty.BOOLEAN_TYPE,
+            "false"),
+        new ProviderConfigProperty(
             Utils.OTL_RESTORED_AUTH_NOTES_ATTRIBUTE,
             "Comma Separated Names of the Auth Notes to Restore",
             "When loading an OTL, these are the Auth Notes that will be restored from the previous session",
@@ -155,7 +163,7 @@ public class MessageOTPAuthenticatorFactory
             "Seconds to activate resend",
             "Time in seconds the resend code gets re activated",
             ProviderConfigProperty.STRING_TYPE,
-            "60"),
+            Utils.RESEND_ACTIVATION_TIMER_DEFAULT),
         new ProviderConfigProperty(
             Utils.TEST_MODE_ATTRIBUTE,
             "Test Mode",

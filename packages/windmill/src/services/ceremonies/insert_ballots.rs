@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 // use crate::hasura::trustee::get_trustees_by_name;
+use crate::postgres::cast_vote::count_unresolved_cast_votes;
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::trustee::get_trustees_by_name;
@@ -10,13 +11,19 @@ use crate::services::celery_app::get_worker_threads;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::election::get_election_event_elections;
 use crate::services::join::merge_join_csv;
+use crate::services::join::MultiplicitySource;
 use crate::services::protocol_manager::*;
 use crate::services::public_keys::deserialize_public_key;
-use crate::services::users::list_keycloak_enabled_users_by_area_id_and_authorized_elections;
+use crate::services::users::{
+    list_keycloak_enabled_users_by_area_id_and_authorized_elections, VoterMultiplicityColumn,
+};
+use crate::services::weight_batches::{reconcile_batch, weight_batch_offsets, BatchReconciliation};
 use anyhow::{anyhow, Context, Result};
-use b3::messages::message::Message;
-use b3::messages::newtypes::BatchNumber;
-use b3::messages::newtypes::TrusteeSet;
+use b4::messages::artifact::Ballots;
+use b4::messages::message::Message;
+use b4::messages::newtypes::BatchNumber;
+use b4::messages::newtypes::TrusteeSet;
+use b4::messages::statement::StatementType;
 use base64::{
     alphabet,
     engine::{self, general_purpose},
@@ -27,21 +34,27 @@ use csv::WriterBuilder;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{
     ContestEncryptionPolicy, DelegatedVotingPolicy, ElectionPresentation, HashableBallot,
+    WeightedVotingPolicy,
 };
 use sequent_core::multi_ballot::HashableMultiBallot;
 use sequent_core::serialization::base64::{Base64Deserialize, Base64Serialize};
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::{TallySessionContest, TallySessionContestAnnotations};
+use sequent_core::types::keycloak::{
+    MAX_TOTAL_VOTE_WEIGHT, MIN_WEIGHT_BATCH_ANONYMITY, VOTE_WEIGHT_BATCHES,
+};
 use serde_json::json;
 use std::collections::HashMap;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::elgamal::Ciphertext;
+use strand::serialization::StrandDeserialize;
 use strand::signature::StrandSignaturePk;
 use tempfile::NamedTempFile;
 use tokio::task::JoinHandle;
-use tracing::{event, info, instrument, Level};
+use tracing::{event, instrument, Level};
 
 use deadpool_postgres::Client as DbClient;
 
@@ -58,8 +71,19 @@ pub async fn insert_ballots_messages(
     tally_session_contests: Vec<TallySessionContest>,
     contest_encryption_policy: ContestEncryptionPolicy,
     delegated_voting_policy: DelegatedVotingPolicy,
-    skip_board_posting: bool,
+    weighted_voting_policy: WeightedVotingPolicy,
 ) -> Result<Vec<TallySessionContest>> {
+    // A delegate's ballot has no defined weighted semantics, so refuse rather
+    // than silently computing weight * (1 + delegate_count). This is a backstop:
+    // `create_tally_ceremony` rejects the same combination when the session is
+    // created, which is where an operator can still act on it.
+    let is_voter_weighted = weighted_voting_policy == WeightedVotingPolicy::VOTERS_WEIGHTED_VOTING;
+    if is_voter_weighted && delegated_voting_policy == DelegatedVotingPolicy::ENABLED {
+        return Err(anyhow!(
+            "Delegated voting and voter-weighted voting cannot both be enabled \
+             on the same election event"
+        ));
+    }
     let trustees = get_trustees_by_name(hasura_transaction, &tenant_id, &trustee_names).await?;
 
     event!(Level::INFO, "trustees len: {:?}", trustees.len());
@@ -128,7 +152,13 @@ pub async fn insert_ballots_messages(
             let contest_encryption_policy_clone = contest_encryption_policy.clone();
             let realm_clone = realm.clone();
             let board_messages_clone = Arc::clone(&board_messages); // board_messages also needs to be cloned if it's not Sync + Send
-            let is_delegated = delegated_voting_policy == DelegatedVotingPolicy::ENABLED;
+            let multiplicity_column = if delegated_voting_policy == DelegatedVotingPolicy::ENABLED {
+                VoterMultiplicityColumn::DelegateCount
+            } else if is_voter_weighted {
+                VoterMultiplicityColumn::VoteWeight
+            } else {
+                VoterMultiplicityColumn::None
+            };
 
             let task = tokio::task::spawn_blocking(move || {
                 tokio::runtime::Handle::current().block_on(async move {
@@ -169,6 +199,33 @@ pub async fn insert_ballots_messages(
                         ballots_temp_file.path()
                     );
 
+                    // Backstop for the tally-session guard: never extract
+                    // ballots while this contest area has an unresolved vote.
+                    let tenant_uuid = parse_uuid_v4(&tenant_id_clone)
+                        .with_context(|| "Error parsing tenant_id")?;
+                    let election_event_uuid = parse_uuid_v4(&election_event_id_clone)
+                        .with_context(|| "Error parsing election_event_id")?;
+                    let election_uuid = parse_uuid_v4(&tally_session_contest.election_id)
+                        .with_context(|| "Error parsing election_id")?;
+                    let area_uuid = parse_uuid_v4(&tally_session_contest.area_id)
+                        .with_context(|| "Error parsing area_id")?;
+                    let unresolved_count = count_unresolved_cast_votes(
+                        &hasura_transaction_clone,
+                        &tenant_uuid,
+                        &election_event_uuid,
+                        &election_uuid,
+                        &area_uuid,
+                    )
+                    .await?;
+                    if unresolved_count > 0 {
+                        return Err(anyhow!(
+                            "Refusing to extract ballots for election {} area {}: \
+                             {unresolved_count} cast vote(s) have an unresolved Datafix outcome",
+                            tally_session_contest.election_id,
+                            tally_session_contest.area_id,
+                        ));
+                    }
+
                     find_area_ballots(
                         &hasura_transaction_clone,
                         &tenant_id_clone,
@@ -203,7 +260,7 @@ pub async fn insert_ballots_messages(
                         &tally_session_contest.area_id,
                         &election_alias,
                         &users_temp_file.path().to_path_buf(),
-                        is_delegated,
+                        multiplicity_column,
                     )
                     .await?;
 
@@ -211,27 +268,129 @@ pub async fn insert_ballots_messages(
 
                     // Use a join function to filter and extract the ballot content
                     let ballots_output_index = 1;
+                    let ballots_channel_index = 2;
                     let ballots_join_indexes = 0;
                     let users_join_idexes = 0;
                     let contest_id = tally_session_contest.contest_id.clone();
 
-                    // Add the index where the username of the delegated vote is if the election has delegation enabled.
-                    let delegate_count_index = if is_delegated { Some(1) } else { None };
+                    // At most one multiplicity column is emitted by the voter
+                    // dump, always at index 1.
+                    let multiplicity_source = match multiplicity_column {
+                        VoterMultiplicityColumn::DelegateCount => {
+                            Some(MultiplicitySource::DelegateCount(1))
+                        }
+                        VoterMultiplicityColumn::VoteWeight => {
+                            Some(MultiplicitySource::VoteWeight(1))
+                        }
+                        VoterMultiplicityColumn::None => None,
+                    };
 
-                    let (ballot_contents, elegible_voters, ballots_without_voter, casted_ballots) =
-                        merge_join_csv(
-                            &ballots_temp_file,
-                            &users_temp_file,
-                            ballots_join_indexes,
-                            users_join_idexes,
-                            ballots_output_index,
-                            delegate_count_index,
+                    let merge_result = merge_join_csv(
+                        &ballots_temp_file,
+                        &users_temp_file,
+                        ballots_join_indexes,
+                        users_join_idexes,
+                        ballots_output_index,
+                        Some(ballots_channel_index),
+                        multiplicity_source,
+                    )?;
+
+                    // Checked before anything is posted, so a run that would
+                    // be refused does not leave batches on an append-only
+                    // board. Only weighting can inflate this beyond the ballot
+                    // count, so the cap must not constrain an election that is
+                    // not using it. Weighting no longer grows the mix batch --
+                    // it grows the plaintexts the tally expands after mixing --
+                    // so this bounds that expansion rather than the shuffle.
+                    let total_weight: u64 = merge_result
+                        .ballot_contents
+                        .iter()
+                        .map(|(_, multiplicity)| *multiplicity)
+                        .sum();
+                    if is_voter_weighted && total_weight > MAX_TOTAL_VOTE_WEIGHT {
+                        return Err(anyhow!(
+                            "Refusing to tally a summed vote weight of \
+                             {total_weight} for election {} area {}: the maximum \
+                             is {MAX_TOTAL_VOTE_WEIGHT}. This bounds the votes \
+                             the tally expands after mixing, not the mix itself. \
+                             It cannot be resolved without rescaling the weights \
+                             of the voters in this area, which changes the result",
+                            tally_session_contest.election_id,
+                            tally_session_contest.area_id,
+                        ));
+                    }
+
+                    // Which of this area's batches are already on the board.
+                    // Scanned over the whole run only when weighting is on:
+                    // rows allocated before this layout existed sit one apart,
+                    // and only a weighted row is guaranteed to own a full run,
+                    // so a wider scan would read a neighbour's batch as this
+                    // area's.
+                    let base_batch = tally_session_contest.session_id as BatchNumber;
+                    let scanned_offsets = if is_voter_weighted {
+                        VOTE_WEIGHT_BATCHES
+                    } else {
+                        1
+                    };
+                    let posted_mask: u32 = (0..scanned_offsets)
+                        .filter(|bit| {
+                            let batch = base_batch + *bit as BatchNumber;
+                            board_messages_clone.iter().any(|message| {
+                                message.statement.get_batch_number() == batch
+                                    && StatementType::Ballots == message.statement.get_kind()
+                            })
+                        })
+                        .fold(0u32, |acc, bit| acc | (1u32 << bit));
+
+                    // Which of this area's batches will exist. A weight sets
+                    // the bits of the batches its voter's ciphertext goes into,
+                    // so the union over voters is exactly the set of non-empty
+                    // batches. Computed here rather than beside the posting
+                    // because the annotations record it whether or not this run
+                    // is the one that posts them.
+                    let weight_bit_mask: Option<u32> = if is_voter_weighted {
+                        let union = merge_result.ballot_contents.iter().try_fold(
+                            0u64,
+                            |acc, (_, weight)| -> Result<u64> {
+                                // Same refusal the split makes, so the mask can
+                                // never claim a batch the split would not fill.
+                                let bits = weight_batch_offsets(*weight)?
+                                    .map(|bit| 1u64 << bit)
+                                    .sum::<u64>();
+                                Ok(acc | bits)
+                            },
                         )?;
+                        // No ballots at all: keep the single empty batch this
+                        // area would have had without weighting, so the tally
+                        // still has something to wait for.
+                        let computed = if union == 0 { 1 } else { union as u32 };
+
+                        // A batch on the board that these weights do not
+                        // produce means the weights changed since it was
+                        // posted. There is no mask that counts such a board
+                        // correctly: including the batch counts those voters
+                        // under their old weight *and* their new one, since
+                        // the same ciphertext sits in both sets of batches,
+                        // and excluding it drops votes that braid will mix and
+                        // publish anyway. The board is append-only, so neither
+                        // is repairable here. The refusal itself is below,
+                        // beside the rest of the reconciliation, so that no
+                        // batch is appended to the board by a run that then
+                        // refuses.
+                        Some(computed)
+                    } else {
+                        // Absent for every other policy, which leaves the stored
+                        // annotations byte-identical to what they were before
+                        // weighting existed.
+                        None
+                    };
 
                     let annotations = TallySessionContestAnnotations {
-                        elegible_voters,
-                        ballots_without_voter,
-                        casted_ballots,
+                        elegible_voters: merge_result.eligible_voters,
+                        ballots_without_voter: merge_result.ballots_without_voter,
+                        casted_ballots: merge_result.casted_ballots,
+                        votes_by_channel: Some(merge_result.casted_ballots_by_channel),
+                        weight_bit_mask,
                     };
 
                     let annotations = serde_json::to_value(&annotations)?;
@@ -251,61 +410,188 @@ pub async fn insert_ballots_messages(
                         election_id: tally_session_contest.election_id.clone(),
                     };
 
-                    if !skip_board_posting {
-                        let ciphertexts = ballot_contents
-                            .into_iter()
-                            .map(|ballot_str| {
-                                info!("ballot_str: {ballot_str}");
-                                let ciphertext: Ciphertext<RistrettoCtx> =
-                                    if ContestEncryptionPolicy::MULTIPLE_CONTESTS
-                                        == contest_encryption_policy_clone
-                                    {
-                                        let hashable_multi_ballot: HashableMultiBallot =
-                                            deserialize_str(&ballot_str)?;
+                    {
+                        // One vector per batch this area owns. Under
+                        // weighting a voter contributes at most one ciphertext
+                        // to each, so no batch is larger than the electorate
+                        // however large the weights are; every other policy
+                        // fills only the first.
+                        let mut batches: Vec<Vec<Ciphertext<RistrettoCtx>>> =
+                            vec![Vec::new(); VOTE_WEIGHT_BATCHES as usize];
+                        for (ballot_str, multiplicity) in merge_result.ballot_contents {
+                            let ciphertext: Ciphertext<RistrettoCtx> =
+                                if ContestEncryptionPolicy::MULTIPLE_CONTESTS
+                                    == contest_encryption_policy_clone
+                                {
+                                    let hashable_multi_ballot: HashableMultiBallot =
+                                        deserialize_str(&ballot_str)?;
 
-                                        let hashable_multi_ballot_contests = hashable_multi_ballot
-                                            .deserialize_contests()
-                                            .map_err(|err| anyhow!("{:?}", err))?;
-                                        Some(hashable_multi_ballot_contests.ciphertext)
-                                    } else {
-                                        let hashable_ballot: HashableBallot =
-                                            deserialize_str(&ballot_str)?;
-                                        let contests = hashable_ballot
-                                            .deserialize_contests()
-                                            .map_err(|err| anyhow!("{:?}", err))?;
-                                        contests
-                                            .iter()
-                                            .find(|contest| {
-                                                contest.contest_id
-                                                    == contest_id.clone().unwrap_or_default()
-                                            })
-                                            .map(|contest| contest.ciphertext.clone())
-                                    }
-                                    .ok_or(anyhow!("Could not get ciphertext"))?;
-                                Ok(ciphertext)
-                            })
-                            .collect::<Result<Vec<_>>>()?;
+                                    let hashable_multi_ballot_contests = hashable_multi_ballot
+                                        .deserialize_contests()
+                                        .map_err(|err| anyhow!("{:?}", err))?;
+                                    Some(hashable_multi_ballot_contests.ciphertext)
+                                } else {
+                                    let hashable_ballot: HashableBallot =
+                                        deserialize_str(&ballot_str)?;
+                                    let contests = hashable_ballot
+                                        .deserialize_contests()
+                                        .map_err(|err| anyhow!("{:?}", err))?;
+                                    contests
+                                        .iter()
+                                        .find(|contest| {
+                                            contest.contest_id
+                                                == contest_id.clone().unwrap_or_default()
+                                        })
+                                        .map(|contest| contest.ciphertext.clone())
+                                }
+                                .ok_or(anyhow!("Could not get ciphertext"))?;
+                            if is_voter_weighted {
+                                // The ciphertext appears once in the batch for
+                                // each bit the weight sets, and the tally
+                                // multiplies batch `bit` by 2^bit. Summing those
+                                // multipliers over the set bits reconstructs the
+                                // weight, so the count is exact -- and because no
+                                // batch ever holds the same ciphertext twice, the
+                                // board shows no repetition to read a weight off.
+                                for bit in weight_batch_offsets(multiplicity)? {
+                                    batches[bit as usize].push(ciphertext.clone());
+                                }
+                            } else {
+                                // Delegated voting still repeats within the one
+                                // batch, exactly as it did before weighting.
+                                batches[0]
+                                    .extend(std::iter::repeat_n(ciphertext, multiplicity as usize));
+                            }
+                        }
 
-                        event!(
-                            Level::INFO,
-                            "insertable_ballots len: {:?}",
-                            ciphertexts.len()
-                        );
+                        // Reconcile against the board before appending
+                        // anything to it. A run that is going to refuse must not
+                        // first post a batch, because the board is append-only
+                        // and braid mixes and publishes whatever carries a
+                        // Ballots message -- a refusal that leaves a one-ballot
+                        // batch behind is worse than the state it refused.
+                        for bit in 0..scanned_offsets {
+                            if posted_mask & (1u32 << bit) == 0 {
+                                continue;
+                            }
+                            let posted = board_messages_clone
+                                .iter()
+                                .find(|message| {
+                                    message.statement.get_batch_number()
+                                        == base_batch + bit as BatchNumber
+                                        && StatementType::Ballots == message.statement.get_kind()
+                                })
+                                .and_then(|message| message.artifact.clone())
+                                .and_then(|artifact| {
+                                    Ballots::<RistrettoCtx>::strand_deserialize(&artifact).ok()
+                                })
+                                .map(|ballots| ballots.ciphertexts.0);
+                            let built = batches
+                                .get(bit as usize)
+                                .map(|built| built.as_slice())
+                                .unwrap_or_default();
+
+                            // Compares the ciphertexts themselves, not their
+                            // number, so weights permuted between two voters --
+                            // a voters file re-imported one row out of step --
+                            // is caught even though every batch keeps its size.
+                            if BatchReconciliation::Diverged
+                                != reconcile_batch(posted.as_deref(), built)
+                            {
+                                continue;
+                            }
+
+                            if is_voter_weighted {
+                                return Err(anyhow!(
+                                    "Election {} area {} already has ballots on the board in \
+                                     weight batch offset {bit} that these voters and weights do \
+                                     not produce. Something changed since the ballots were \
+                                     extracted -- a vote weight, or who may vote. The board is \
+                                     append-only, so the ballots already on it will be mixed and \
+                                     published whatever this tally counts; the tally can only \
+                                     proceed once this area's voters and weights produce them \
+                                     again",
+                                    tally_session_contest.election_id,
+                                    tally_session_contest.area_id,
+                                ));
+                            }
+                            event!(
+                                Level::WARN,
+                                "Batch {} for election {} area {} is already on the board with \
+                                 {} ballots and will be counted as it is, but this run built \
+                                 {}. The census recorded now will differ from what is tallied",
+                                base_batch + bit as BatchNumber,
+                                tally_session_contest.election_id,
+                                tally_session_contest.area_id,
+                                posted.as_ref().map_or(0, |posted| posted.len()), // always Some here
+                                built.len(),
+                            );
+                        }
 
                         let mut board = get_b3_pgsql_client().await?;
-                        let batch = tally_session_contest.session_id.clone() as BatchNumber;
-                        add_ballots_to_board(
-                            &protocol_manager_arc_clone, // Use the Arc clone here
-                            &mut board,
-                            &board_name_clone,
-                            &board_messages_clone, // Use the cloned board_messages
-                            &configuration_clone,
-                            public_key_hash_clone,
-                            selected_trustees_clone,
-                            ciphertexts,
-                            batch,
-                        )
-                        .await?;
+                        for (bit, ciphertexts) in batches.into_iter().enumerate() {
+                            // Post exactly the batches the mask names, so the
+                            // tally waits for exactly what was posted. Every
+                            // masked batch is non-empty except in the one case
+                            // the mask is forced to 1: an area with no ballots
+                            // at all, which posts a single empty batch just as
+                            // it did before weighting existed. Without weighting
+                            // the mask is absent and batch 0 is always posted.
+                            let is_expected = weight_bit_mask
+                                .map(|mask| mask & (1u32 << bit) != 0)
+                                .unwrap_or(bit == 0);
+                            // Already reconciled above; `add_ballots_to_board`
+                            // would skip it anyway.
+                            if !is_expected || posted_mask & (1u32 << bit) != 0 {
+                                continue;
+                            }
+                            event!(
+                                Level::INFO,
+                                "insertable_ballots len: {:?} for batch offset {}",
+                                ciphertexts.len(),
+                                bit
+                            );
+                            // The mix hides a ballot among the others in its
+                            // batch, and a batch this small has few others, so
+                            // its decrypted votes are close to individually
+                            // attributable. This is one way a voter can be
+                            // isolated, not the only one -- comparing two
+                            // batches whose memberships differ by one voter
+                            // exposes that voter however large both are -- so a
+                            // silent run is not evidence of the opposite. Not a
+                            // refusal: the dump runs after voting has closed,
+                            // where refusing would leave no remedy, and this
+                            // policy already publishes the weights.
+                            if is_voter_weighted
+                                && !ciphertexts.is_empty()
+                                && ciphertexts.len() < MIN_WEIGHT_BATCH_ANONYMITY
+                            {
+                                event!(
+                                    Level::WARN,
+                                    "Weight batch offset {} for election {} area {} holds only \
+                                     {} ballot(s), so its decrypted votes are close to \
+                                     individually attributable to the voters whose weight sets \
+                                     bit {}",
+                                    bit,
+                                    tally_session_contest.election_id,
+                                    tally_session_contest.area_id,
+                                    ciphertexts.len(),
+                                    bit
+                                );
+                            }
+                            add_ballots_to_board(
+                                &protocol_manager_arc_clone, // Use the Arc clone here
+                                &mut board,
+                                &board_name_clone,
+                                &board_messages_clone, // Use the cloned board_messages
+                                &configuration_clone,
+                                public_key_hash_clone.clone(),
+                                selected_trustees_clone.clone(),
+                                ciphertexts,
+                                base_batch + bit as BatchNumber,
+                            )
+                            .await?;
+                        }
                     }
 
                     Ok(updated_tally_session_contest)

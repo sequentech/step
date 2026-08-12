@@ -35,6 +35,21 @@ const AWS_S3_SERVICE_HOST_PREFIX: &str = "s3";
 const S3_LIST_MAX_KEYS: i32 = 1000;
 const S3_ERR_NO_DETAILS: &str = "no additional details available";
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum S3Endpoint {
+    Server,
+    Client,
+}
+
+impl S3Endpoint {
+    fn env_var_name(self) -> &'static str {
+        match self {
+            Self::Server => AWS_S3_PRIVATE_URI_ENV,
+            Self::Client => AWS_S3_PUBLIC_URI_ENV,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 struct ResolvedS3ListTargetParts {
     service_endpoint: Option<String>,
@@ -179,13 +194,9 @@ fn resolve_s3_list_target_parts(
 #[instrument(err)]
 async fn get_s3_list_target(
     logical_bucket: &str,
-    use_server_endpoint: bool,
+    endpoint: S3Endpoint,
 ) -> Result<ResolvedS3ListTarget> {
-    let env_var_name = if use_server_endpoint {
-        AWS_S3_PRIVATE_URI_ENV
-    } else {
-        AWS_S3_PUBLIC_URI_ENV
-    };
+    let env_var_name = endpoint.env_var_name();
     let endpoint_uri = env::var(env_var_name)
         .with_context(|| format!("{env_var_name} must be set"))?;
     let sdk_config = get_from_env_aws_config().await?;
@@ -676,9 +687,9 @@ pub async fn download_s3_file_to_string(file_url: &str) -> Result<String> {
 pub async fn delete_files_from_s3(
     s3_bucket: String,
     prefix: String,
-    is_public: bool,
+    endpoint: S3Endpoint,
 ) -> Result<()> {
-    let resolved_target = get_s3_list_target(&s3_bucket, !is_public)
+    let resolved_target = get_s3_list_target(&s3_bucket, endpoint)
         .await
         .with_context(|| "Error getting s3 list target")?;
     info!("S3 list target acquired");
@@ -807,7 +818,7 @@ pub async fn get_files_from_s3(
     s3_bucket: String,
     prefix: String,
 ) -> Result<Vec<TempPath>> {
-    let resolved_target = get_s3_list_target(&s3_bucket, true)
+    let resolved_target = get_s3_list_target(&s3_bucket, S3Endpoint::Server)
         .await
         .with_context(|| "Error getting s3 list target")?;
     let list_prefix = resolved_target.qualify_prefix(&prefix);
@@ -883,7 +894,7 @@ pub async fn get_files_names_bytes_from_s3(
     s3_bucket: String,
     prefix: String,
 ) -> Result<Vec<(String, Vec<u8>)>> {
-    let resolved_target = get_s3_list_target(&s3_bucket, true)
+    let resolved_target = get_s3_list_target(&s3_bucket, S3Endpoint::Server)
         .await
         .with_context(|| "Error getting S3 list target")?;
     let list_prefix = resolved_target.qualify_prefix(&prefix);
@@ -939,12 +950,49 @@ pub async fn get_files_names_bytes_from_s3(
     Ok(files_data)
 }
 
+/// Get the size (in bytes) of an object in S3 using HEAD Object (very cheap, no download)
+#[instrument(fields(bucket = %bucket, key = %key), err)]
+pub async fn get_object_size(bucket: &str, key: &str) -> Result<usize> {
+    let config = get_s3_aws_config(true)
+        .await
+        .with_context(|| "Error getting s3 aws config")?;
+    let client = get_s3_client(config.clone())
+        .await
+        .with_context(|| "Error getting s3 client")?;
+
+    let head_result = client
+        .head_object()
+        .bucket(bucket)
+        .key(key)
+        .send()
+        .await
+        .with_context(|| {
+            format!("HEAD Object failed for s3://{bucket}/{key}")
+        })?;
+
+    let size = head_result
+        .content_length()
+        .ok_or_else(|| anyhow!("S3 HEAD response missing Content-Length"))?
+        as usize;
+
+    tracing::debug!(size, "Retrieved object size via HEAD");
+
+    Ok(size)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
         join_s3_path, parse_aws_bucket_endpoint, resolve_s3_list_target_parts,
-        ResolvedS3ListTargetParts,
+        ResolvedS3ListTargetParts, S3Endpoint,
     };
+    use crate::util::aws::{AWS_S3_PRIVATE_URI_ENV, AWS_S3_PUBLIC_URI_ENV};
+
+    #[test]
+    fn s3_endpoint_selects_the_expected_uri() {
+        assert_eq!(S3Endpoint::Server.env_var_name(), AWS_S3_PRIVATE_URI_ENV);
+        assert_eq!(S3Endpoint::Client.env_var_name(), AWS_S3_PUBLIC_URI_ENV);
+    }
 
     #[test]
     fn join_s3_path_handles_empty_segments() {

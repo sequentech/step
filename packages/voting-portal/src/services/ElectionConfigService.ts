@@ -17,17 +17,13 @@ export const getImageUrl = (answer: ICandidate): string | undefined =>
 
 export const getLinkUrl = (answer: ICandidate): string | undefined => findUrlByTitle(answer, "URL")
 
-export const checkIsCategoryList = (candidate: ICandidate): boolean =>
-    candidate.presentation?.is_category_list || false
+export {checkIsCategoryList, checkIsExplicitBlankVote} from "@sequentech/ui-core"
 
 export const checkIsWriteIn = (answer: ICandidate): boolean =>
     answer.presentation?.is_write_in || false
 
 export const checkIsInvalidVote = (answer: ICandidate): boolean =>
     answer.presentation?.is_explicit_invalid || false
-
-export const checkIsExplicitBlankVote = (answer: ICandidate): boolean =>
-    answer.presentation?.is_explicit_blank || false
 
 export const checkPositionIsTop = (answer: ICandidate): boolean =>
     "top" === answer.presentation?.invalid_vote_position

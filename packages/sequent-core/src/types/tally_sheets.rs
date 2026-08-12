@@ -6,9 +6,10 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::str::FromStr;
-use strum_macros::{Display, EnumString};
+use strum_macros::{AsRefStr, Display, EnumString};
 
 #[derive(
+    AsRefStr,
     Display,
     Serialize,
     Deserialize,
@@ -23,6 +24,24 @@ pub enum VotingChannel {
     PAPER,
     POSTAL,
     IN_PERSON,
+}
+
+#[derive(
+    Debug,
+    Default,
+    Serialize,
+    Deserialize,
+    Clone,
+    Eq,
+    PartialEq,
+    Display,
+    EnumString,
+)]
+pub enum TallySheetStatus {
+    #[default]
+    PENDING,
+    APPROVED,
+    DISAPPROVED,
 }
 
 impl Default for VotingChannel {
@@ -51,7 +70,7 @@ pub struct CandidateResults {
     pub total_votes: Option<u64>,
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, Debug, Clone)]
+#[derive(PartialEq, Eq, Serialize, Deserialize, Debug, Clone, Default)]
 pub struct AreaContestResults {
     pub area_id: String,
     pub contest_id: String,

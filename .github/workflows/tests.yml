@@ -12,21 +12,21 @@ on:
 jobs:
   run-tests:
     name: Run Rust tests
-    runs-on: gcp-selfhosted-ubuntu24
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     strategy:
       matrix:
         include:
           #- service: braid # these take too long!
+          - service: electoral-log
           - service: harvest
           - service: strand
           - service: immu-board
           - service: immudb-rs
           - service: sequent-core
-            extra: --features keycloak
+            extra: --features keycloak,default_features
+          - service: step-cli
           - service: velvet
-          - service: windmill
-            build_jobs: 2
           - service: wrap-map-err
 
       fail-fast: false
@@ -34,35 +34,12 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Set up Rust tests
+        uses: ./.github/actions/setup-rust-tests
         with:
-          toolchain: 1.90.0
-          components: rustfmt
-          targets: x86_64-unknown-linux-musl
-
-      - name: Cache Cargo registry
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-registry-
-
-      - name: Cache Cargo build
-        uses: actions/cache@v4
-        with:
-          path: packages/${{ matrix.service }}/target
-          key: ${{ runner.os }}-cargo-test-${{ matrix.service }}-${{ hashFiles('packages/${{ matrix.service }}/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-test-${{ matrix.service }}-
-
-      - name: Install system dependencies
-        run: |
-            sudo apt-get update
-            sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler libprotobuf-dev
+          cargo-build-name: ${{ matrix.service }}
+          cargo-build-path: packages/${{ matrix.service }}/target
+          cargo-lock-path: packages/${{ matrix.service }}/Cargo.lock
 
       - name: Install Chrome
         run: |
@@ -76,13 +53,13 @@ jobs:
           PROTOC: "/usr/bin/protoc"
           KEYCLOAK_DB__USER: "test"
           KEYCLOAK_DB__PASSWORD: "test"
-          KEYCLOAK_DB__HOST: "test"
+          KEYCLOAK_DB__HOST: "127.0.0.1"
           KEYCLOAK_DB__PORT: "3322"
           KEYCLOAK_DB__DBNAME: "test"
           KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: "Verified"
           HASURA_DB__USER: "test"
           HASURA_DB__PASSWORD: "test"
-          HASURA_DB__HOST: "test"
+          HASURA_DB__HOST: "127.0.0.1"
           HASURA_DB__PORT: "3322"
           HASURA_DB__DBNAME: "test"
           HASURA_DB__MANAGER__RECYCLING_METHOD: "Verified"
@@ -92,6 +69,109 @@ jobs:
           CARGO_BUILD_JOBS: ${{ matrix.build_jobs || 4 }}
         run: cd packages/${{ matrix.service }} && cargo test ${{ matrix.extra }}
 
+  # Windmill has PostgreSQL-backed tests, so it uses a dedicated job with an
+  # unconditional service container instead of matrix-dependent service YAML.
+  run-windmill-tests:
+    name: Run Windmill tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      RUST_BACKTRACE: "full"
+      PROTOC: "/usr/bin/protoc"
+      KEYCLOAK_DB__USER: "test"
+      KEYCLOAK_DB__PASSWORD: "test"
+      KEYCLOAK_DB__HOST: "127.0.0.1"
+      KEYCLOAK_DB__PORT: "3322"
+      KEYCLOAK_DB__DBNAME: "test"
+      KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: "Verified"
+      HASURA_DB__USER: "test"
+      HASURA_DB__PASSWORD: "test"
+      HASURA_DB__HOST: "127.0.0.1"
+      HASURA_DB__PORT: "3322"
+      HASURA_DB__DBNAME: "test"
+      HASURA_DB__MANAGER__RECYCLING_METHOD: "Verified"
+      LOW_SQL_LIMIT: "1000"
+      DEFAULT_SQL_LIMIT: "20"
+      DEFAULT_SQL_BATCH_SIZE: "1000"
+      CARGO_BUILD_JOBS: "2"
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
+        ports:
+          - 3322:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust tests
+        uses: ./.github/actions/setup-rust-tests
+        with:
+          cargo-build-name: windmill
+          cargo-build-path: packages/windmill/target
+          cargo-lock-path: packages/windmill/Cargo.lock
+
+      - name: Run Windmill tests
+        run: cargo test
+        working-directory: packages/windmill
+
+      - name: Run PostgreSQL-backed voter-channel regression
+        run: >-
+          cargo test
+          services::cast_votes::tests::voters_by_channel_defaults_legacy_votes_and_uses_latest_valid_revote
+          -- --ignored --exact
+        working-directory: packages/windmill
+
+  # ===========================================================================
+  # JOB: run-frontend-tests
+  # ===========================================================================
+  # Runs the Jest frontend tests and the Node.js theme tests.
+  # ===========================================================================
+  run-frontend-tests:
+    name: Run frontend tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      matrix:
+        include:
+          - package: ui-core
+            test_args: --runInBand
+          - package: ui-essentials
+            test_args: --runInBand
+          - package: admin-portal
+            test_args: --runInBand
+          - package: voting-portal
+            test_args: --runInBand
+          - package: keycloak-extensions/sequent-theme
+            test_args: ''
+      fail-fast: false
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: yarn
+          cache-dependency-path: packages/yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile --non-interactive --prefer-offline
+        working-directory: packages
+
+      - name: Run ${{ matrix.package }} tests
+        run: yarn --cwd ./${{ matrix.package }} test ${{ matrix.test_args }}
+        working-directory: packages
+
   # ===========================================================================
   # JOB: notify-on-failure
   # ===========================================================================
@@ -100,9 +180,9 @@ jobs:
   # ===========================================================================
   notify-on-failure:
     name: Notify on failure
-    needs: run-tests
+    needs: [run-tests, run-windmill-tests, run-frontend-tests]
     if: failure()
-    runs-on: gcp-selfhosted-ubuntu24
+    runs-on: ubuntu-24.04
     steps:
       - name: Slack notification
         uses: slackapi/slack-github-action@v1.24.0

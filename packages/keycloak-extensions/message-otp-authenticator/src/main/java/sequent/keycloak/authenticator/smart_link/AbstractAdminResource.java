@@ -23,6 +23,7 @@ import org.keycloak.services.resources.admin.AdminAuth;
 import org.keycloak.services.resources.admin.AdminEventBuilder;
 import org.keycloak.services.resources.admin.fgap.AdminPermissionEvaluator;
 import org.keycloak.services.resources.admin.fgap.AdminPermissions;
+import sequent.keycloak.login_bridge.CorsResource;
 
 @JBossLog
 public abstract class AbstractAdminResource {

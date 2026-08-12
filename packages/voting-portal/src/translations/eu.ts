@@ -103,7 +103,7 @@ const basqueTranslation: TranslationType = {
             auditBallotHelpDialog: {
                 title: "Bozketa auditatu nahi duzu?",
                 content:
-                    "<p>Kontuan izan zure bozketa auditatzeak baliogabetu egingo duela, bozketa prozesua berriz hasi beharko duzularik. Auditoria prozesuak zure bozketa zuzen kodetu dela egiaztatzeko aukera ematen dizu, baina urrats tekniko aurreratuak dakartza. Zure trebetasun teknikoetan konfiantza baduzu soilik jarraitzea gomendatzen dugu. Zure bozketa eman besterik ez baduzu nahi, sakatu <u>Ezeztatu</u> bozketa berrikuspena pantailara itzultzeko.</b></p>",
+                    "<p>Kontuan izan zure bozketa auditatzeak baliogabetu egingo duela, bozketa prozesua berriz hasi beharko duzularik. Auditoria prozesuak zure bozketa zuzen kodetu dela egiaztatzeko aukera ematen dizu, baina urrats tekniko aurreratuak dakartza. Zure trebetasun teknikoetan konfiantza baduzu soilik jarraitzea gomendatzen dugu. Zure bozketa eman besterik ez baduzu nahi, sakatu <u>Ezeztatu</u> bozketa berrikuspena pantailara itzultzeko.</p>",
                 ok: "Bai, nire bozketa baztertu nahi dut auditatzeko",
                 cancel: "Ezeztatu",
             },
@@ -286,7 +286,8 @@ const basqueTranslation: TranslationType = {
                     "Pantaila honek bozkatu dezakezun Bozketen zerrenda erakusten du. Bozketara sar zaitezke bozketa aldia irekita dagoenean.",
                 ok: "Ados",
             },
-            noResults: "Ez dago bozketarik eskuragarri oraingoz.",
+            noResults: "Ez dago bozketarik oraingoz.",
+            resultsButton: "Ikusi emaitzak",
             demoDialog: {
                 title: "Demo bozketa kabina",
                 content:
@@ -367,6 +368,8 @@ const basqueTranslation: TranslationType = {
             locateAgain: "Bilatu beste Bozketa bat",
             found: "Zure bozketa IDa {{ballotId}} aurkitu da",
             notFound: "Zure bozketa IDa {{ballotId}} ez da aurkitu",
+            ambiguous:
+                "Zure boto bat baino gehiago dator bat {{ballotId}} identifikatzailearekin. Erabili boto-identifikatzaile osoa.",
             contentDesc: "Hau da zure Bozketa edukia: ",
             wrongFormatBallotId: "Bozketa IDaren formatu okerra",
             ballotIdNotFoundAtFilter: "Zure bozketa IDa ez da {{ballotId}} bozketa zerrendan",

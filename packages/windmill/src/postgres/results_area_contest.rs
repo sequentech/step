@@ -47,8 +47,14 @@ impl TryFrom<Row> for ResultsAreaContestWrapper {
             implicit_invalid_votes: item
                 .try_get::<_, Option<i32>>("implicit_invalid_votes")?
                 .map(|val| val as i64),
-            blank_votes: item
-                .try_get::<_, Option<i32>>("blank_votes")?
+            total_blank_votes: item
+                .try_get::<_, Option<i32>>("total_blank_votes")?
+                .map(|val| val as i64),
+            explicit_blank_votes: item
+                .try_get::<_, Option<i32>>("explicit_blank_votes")?
+                .map(|val| val as i64),
+            implicit_blank_votes: item
+                .try_get::<_, Option<i32>>("implicit_blank_votes")?
                 .map(|val| val as i64),
             created_at: item.get("created_at"),
             last_updated_at: item.get("last_updated_at"),
@@ -72,14 +78,24 @@ impl TryFrom<Row> for ResultsAreaContestWrapper {
                 .to_f64()
                 .map(NotNan::new)
                 .transpose()?,
-            blank_votes_percent: item
-                .try_get::<_, Decimal>("blank_votes_percent")?
-                .to_f64()
-                .map(NotNan::new)
-                .transpose()?,
             implicit_invalid_votes_percent: item
                 .try_get::<_, Decimal>("implicit_invalid_votes_percent")?
                 .to_f64()
+                .map(NotNan::new)
+                .transpose()?,
+            total_blank_votes_percent: item
+                .try_get::<_, Option<Decimal>>("total_blank_votes_percent")?
+                .and_then(|val| val.to_f64())
+                .map(NotNan::new)
+                .transpose()?,
+            explicit_blank_votes_percent: item
+                .try_get::<_, Option<Decimal>>("explicit_blank_votes_percent")?
+                .and_then(|val| val.to_f64())
+                .map(NotNan::new)
+                .transpose()?,
+            implicit_blank_votes_percent: item
+                .try_get::<_, Option<Decimal>>("implicit_blank_votes_percent")?
+                .and_then(|val| val.to_f64())
                 .map(NotNan::new)
                 .transpose()?,
             total_votes: item
@@ -279,8 +295,12 @@ pub async fn insert_results_area_contests(
         explicit_invalid_votes_percent: Option<f64>,
         implicit_invalid_votes: Option<i64>,
         implicit_invalid_votes_percent: Option<f64>,
-        blank_votes: Option<i64>,
-        blank_votes_percent: Option<f64>,
+        total_blank_votes: Option<i64>,
+        explicit_blank_votes: Option<i64>,
+        implicit_blank_votes: Option<i64>,
+        total_blank_votes_percent: Option<f64>,
+        explicit_blank_votes_percent: Option<f64>,
+        implicit_blank_votes_percent: Option<f64>,
         annotations: Option<serde_json::Value>,
     }
 
@@ -326,8 +346,21 @@ pub async fn insert_results_area_contests(
                     .implicit_invalid_votes_percent
                     .clone()
                     .map(|n| n.into()),
-                blank_votes: area_contest.blank_votes,
-                blank_votes_percent: area_contest.blank_votes_percent.clone().map(|n| n.into()),
+                total_blank_votes: area_contest.total_blank_votes,
+                explicit_blank_votes: area_contest.explicit_blank_votes,
+                implicit_blank_votes: area_contest.implicit_blank_votes,
+                total_blank_votes_percent: area_contest
+                    .total_blank_votes_percent
+                    .clone()
+                    .map(|n| n.into()),
+                explicit_blank_votes_percent: area_contest
+                    .explicit_blank_votes_percent
+                    .clone()
+                    .map(|n| n.into()),
+                implicit_blank_votes_percent: area_contest
+                    .implicit_blank_votes_percent
+                    .clone()
+                    .map(|n| n.into()),
                 annotations: area_contest.annotations.clone(),
             })
         })
@@ -358,8 +391,12 @@ pub async fn insert_results_area_contests(
                 explicit_invalid_votes_percent FLOAT8,
                 implicit_invalid_votes BIGINT,
                 implicit_invalid_votes_percent FLOAT8,
-                blank_votes BIGINT,
-                blank_votes_percent FLOAT8,
+                total_blank_votes BIGINT,
+                explicit_blank_votes BIGINT,
+                implicit_blank_votes BIGINT,
+                total_blank_votes_percent FLOAT8,
+                explicit_blank_votes_percent FLOAT8,
+                implicit_blank_votes_percent FLOAT8,
                 annotations JSONB
             )
         )
@@ -383,8 +420,12 @@ pub async fn insert_results_area_contests(
             explicit_invalid_votes_percent,
             implicit_invalid_votes,
             implicit_invalid_votes_percent,
-            blank_votes,
-            blank_votes_percent,
+            total_blank_votes,
+            explicit_blank_votes,
+            implicit_blank_votes,
+            total_blank_votes_percent,
+            explicit_blank_votes_percent,
+            implicit_blank_votes_percent,
             annotations
         )
         SELECT
@@ -407,8 +448,12 @@ pub async fn insert_results_area_contests(
             explicit_invalid_votes_percent,
             implicit_invalid_votes,
             implicit_invalid_votes_percent,
-            blank_votes,
-            blank_votes_percent,
+            total_blank_votes,
+            explicit_blank_votes,
+            implicit_blank_votes,
+            total_blank_votes_percent,
+            explicit_blank_votes_percent,
+            implicit_blank_votes_percent,
             annotations
         FROM data
         RETURNING *;
@@ -485,7 +530,9 @@ struct InsertableResultsAreaContest {
     total_valid_votes: Option<i64>,
     explicit_invalid_votes: Option<i64>,
     implicit_invalid_votes: Option<i64>,
-    blank_votes: Option<i64>,
+    total_blank_votes: Option<i64>,
+    explicit_blank_votes: Option<i64>,
+    implicit_blank_votes: Option<i64>,
     created_at: Option<DateTime<Local>>,
     last_updated_at: Option<DateTime<Local>>,
     labels: Option<Value>,
@@ -494,8 +541,10 @@ struct InsertableResultsAreaContest {
     total_invalid_votes: Option<i64>,
     total_invalid_votes_percent: Option<f64>,
     explicit_invalid_votes_percent: Option<f64>,
-    blank_votes_percent: Option<f64>,
     implicit_invalid_votes_percent: Option<f64>,
+    total_blank_votes_percent: Option<f64>,
+    explicit_blank_votes_percent: Option<f64>,
+    implicit_blank_votes_percent: Option<f64>,
     total_votes: Option<i64>,
     total_votes_percent: Option<f64>,
     documents: Option<Value>,
@@ -529,7 +578,9 @@ pub async fn insert_many_results_area_contests(
                 total_valid_votes: r.total_valid_votes,
                 explicit_invalid_votes: r.explicit_invalid_votes,
                 implicit_invalid_votes: r.implicit_invalid_votes,
-                blank_votes: r.blank_votes,
+                total_blank_votes: r.total_blank_votes,
+                explicit_blank_votes: r.explicit_blank_votes,
+                implicit_blank_votes: r.implicit_blank_votes,
                 created_at: r.created_at,
                 last_updated_at: r.last_updated_at,
                 labels: r.labels.clone(),
@@ -540,9 +591,15 @@ pub async fn insert_many_results_area_contests(
                 explicit_invalid_votes_percent: r
                     .explicit_invalid_votes_percent
                     .map(|v| v.into_inner()),
-                blank_votes_percent: r.blank_votes_percent.map(|v| v.into_inner()),
                 implicit_invalid_votes_percent: r
                     .implicit_invalid_votes_percent
+                    .map(|v| v.into_inner()),
+                total_blank_votes_percent: r.total_blank_votes_percent.map(|v| v.into_inner()),
+                explicit_blank_votes_percent: r
+                    .explicit_blank_votes_percent
+                    .map(|v| v.into_inner()),
+                implicit_blank_votes_percent: r
+                    .implicit_blank_votes_percent
                     .map(|v| v.into_inner()),
                 total_votes: r.total_votes,
                 total_votes_percent: r.total_votes_percent.map(|v| v.into_inner()),
@@ -571,7 +628,9 @@ pub async fn insert_many_results_area_contests(
                 total_valid_votes BIGINT,
                 explicit_invalid_votes BIGINT,
                 implicit_invalid_votes BIGINT,
-                blank_votes BIGINT,
+                total_blank_votes BIGINT,
+                explicit_blank_votes BIGINT,
+                implicit_blank_votes BIGINT,
                 created_at TIMESTAMPTZ,
                 last_updated_at TIMESTAMPTZ,
                 labels JSONB,
@@ -580,8 +639,10 @@ pub async fn insert_many_results_area_contests(
                 total_invalid_votes BIGINT,
                 total_invalid_votes_percent FLOAT8,
                 explicit_invalid_votes_percent FLOAT8,
-                blank_votes_percent FLOAT8,
                 implicit_invalid_votes_percent FLOAT8,
+                total_blank_votes_percent FLOAT8,
+                explicit_blank_votes_percent FLOAT8,
+                implicit_blank_votes_percent FLOAT8,
                 total_votes BIGINT,
                 total_votes_percent FLOAT8,
                 documents JSONB,
@@ -592,19 +653,23 @@ pub async fn insert_many_results_area_contests(
         INSERT INTO sequent_backend.results_area_contest (
             id, tenant_id, election_event_id, election_id, contest_id, area_id,
             results_event_id, elegible_census, total_valid_votes, explicit_invalid_votes,
-            implicit_invalid_votes, blank_votes, created_at, last_updated_at,
+            implicit_invalid_votes, total_blank_votes, explicit_blank_votes,
+            implicit_blank_votes, created_at, last_updated_at,
             labels, annotations, total_valid_votes_percent, total_invalid_votes,
-            total_invalid_votes_percent, explicit_invalid_votes_percent, blank_votes_percent,
-            implicit_invalid_votes_percent, total_votes, total_votes_percent,
+            total_invalid_votes_percent, explicit_invalid_votes_percent,
+            implicit_invalid_votes_percent, total_blank_votes_percent,
+            explicit_blank_votes_percent, implicit_blank_votes_percent, total_votes, total_votes_percent,
             documents, total_auditable_votes, total_auditable_votes_percent
         )
         SELECT
             id, tenant_id, election_event_id, election_id, contest_id, area_id,
             results_event_id, elegible_census, total_valid_votes, explicit_invalid_votes,
-            implicit_invalid_votes, blank_votes, created_at, last_updated_at,
+            implicit_invalid_votes, total_blank_votes, explicit_blank_votes,
+            implicit_blank_votes, created_at, last_updated_at,
             labels, annotations, total_valid_votes_percent, total_invalid_votes,
-            total_invalid_votes_percent, explicit_invalid_votes_percent, blank_votes_percent,
-            implicit_invalid_votes_percent, total_votes, total_votes_percent,
+            total_invalid_votes_percent, explicit_invalid_votes_percent,
+            implicit_invalid_votes_percent, total_blank_votes_percent,
+            explicit_blank_votes_percent, implicit_blank_votes_percent, total_votes, total_votes_percent,
             documents, total_auditable_votes, total_auditable_votes_percent
         FROM data
         RETURNING *;

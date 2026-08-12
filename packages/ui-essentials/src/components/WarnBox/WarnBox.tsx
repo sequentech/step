@@ -22,10 +22,37 @@ const WarnContainer = styled(Paper)`
 interface WarnBoxProps {
     onClose?: () => void
     variant?: "error" | "success" | "warning" | "info"
+    className?: string
+    id?: string
+    warnId?: string
+    warnType?: string
 }
 
-const WarnBox: React.FC<PropsWithChildren<WarnBoxProps>> = ({onClose, variant, children}) => (
-    <WarnContainer variant={variant}>
+// Derives a CSS class from a warning id (e.g. "errors.implicit.underVote" ->
+// "warn--errors-implicit-underVote") so it can be targeted from custom CSS
+// without escaping dots
+export const warnIdToClassName = (warnId: string): string =>
+    `warn--${warnId.replace(/[^a-zA-Z0-9_-]/g, "-")}`
+
+const WarnBox: React.FC<PropsWithChildren<WarnBoxProps>> = ({
+    onClose,
+    variant,
+    className,
+    id,
+    warnId,
+    warnType,
+    children,
+}) => (
+    <WarnContainer
+        variant={variant}
+        id={id}
+        className={
+            [className, warnId ? warnIdToClassName(warnId) : undefined].filter(Boolean).join(" ") ||
+            undefined
+        }
+        data-warn-id={warnId}
+        data-warn-type={warnType}
+    >
         <Icon icon={faWarning} size="lg" />
         <Box flexGrow={2}>{children}</Box>
         {onClose ? <IconButton icon={faTimes} onClick={onClose} /> : undefined}

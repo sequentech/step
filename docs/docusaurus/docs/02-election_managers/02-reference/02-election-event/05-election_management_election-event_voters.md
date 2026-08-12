@@ -86,3 +86,54 @@ View logs of all actions performed by the voter.
 You can add additional fields like the voter's birthday or sex. [Check out the tutorial for that](../../01-tutorials/99-admin_portal_tutorials_add-user-attributes-to-keycloak.md).
 
 **Important:** Additional attributes for voters must be added before the enrollment process. For instance, if the sex attribute is not added, this trait will not be reflected in the reports and statistics.
+
+### External system (i.e. Datafix) voter-list reconciliation
+
+Users with the `election-event-voter-list-reconciliation` permission can open
+the reconciliation wizard from the Voters tab. Run reconciliation only during
+an agreed external-system freeze window:
+
+1. Upload the complete external-system reconciliation CSV. The first line must
+   be the `#META` line and file channels must be uppercase.
+2. Review the external-system and Sequent tables. If the external-system table
+   is non-empty, download its patch, have the external system apply it, and
+   upload the newly generated reconciliation file. Never apply the Sequent
+   side first.
+3. When the external-system table is empty, review the category totals and
+   explicitly apply the Sequent changes.
+4. Review the row-failure table. A completed apply can contain rows that were
+   safely rejected; these are business-level reconciliation results, not a
+   failed background task. Resolve them and retry the same `Sequence`.
+5. Upload the last file again as a diff-only convergence check. Both tables
+   must be empty before the round is considered converged.
+6. Compare the source and patch hashes with the electoral logs before ending
+   the freeze.
+
+An Internet ballot that is still `in-progress` is deliberately reported as a
+row failure. During a hard-down external-system freeze it cannot resolve
+because the review beat must reach the external system. If all remaining
+failures have this cause, complete the freeze hash checks, restore
+external-system connectivity, wait for the review beat to resolve the
+ballots, and retry the same `Sequence`. Apply-time snapshot validation
+prevents that retry from overwriting voter data changed in the meantime.
+
+Both the real-time `/unmark-voted` operation and file reconciliation clear the
+voted-channel marker. They only re-enable a voter when the corresponding
+`MarkVoted` operation owns the disable. An independent administrator disable
+and its comment are preserved, but the channel is still cleared so the voter
+does not remain permanently blocked in an unresolved external-system state.
+The administrator can then decide separately whether the account should be
+re-enabled.
+
+The task result shows at most the first 1,000 apply-time row-failure details
+and always reports the complete failure count. Resolve the common cause and
+retry the same `Sequence` to reveal any remaining failures.
+
+#### Capacity validation
+
+Before production use, UAT must exercise the largest expected voter roll,
+including a first synchronization where most voters are additions. For a
+100,000-voter test, record the generated envelope and audit-artifact sizes,
+backend peak memory, browser peak memory, wizard rendering responsiveness, and
+total Keycloak apply duration. These measurements determine the operational
+batch size and freeze-window duration for that deployment.

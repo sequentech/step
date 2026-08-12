@@ -35,6 +35,11 @@ pub struct GenerateVoters {
     pub sequence_email_number: bool,
     pub sequence_start_number: i64,
     pub voter_password: String,
+    /// Governs how each generated voter's plaintext password is chosen. Defaults to
+    /// `Fixed` (every voter gets `voter_password` verbatim) so existing
+    /// `external_config.json` files - which predate this field - keep working unchanged.
+    #[serde(default)]
+    pub voter_password_policy: VoterPasswordPolicy,
     pub password_salt: String,
     pub hashed_password: String,
     pub overseas_reference: String,
@@ -42,6 +47,18 @@ pub struct GenerateVoters {
     pub max_age: i64,
     pub authorized_elections_count: i64,
     pub email_verified: bool,
+}
+
+/// Policy for the plaintext password `generate-voters` assigns to each generated voter.
+#[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "kebab-case")]
+pub enum VoterPasswordPolicy {
+    /// Every voter gets the literal `voter_password` value.
+    #[default]
+    Fixed,
+    /// Every voter gets its own random numeric password of `digits` digits (e.g. a
+    /// 16-digit PIN), independent of `voter_password`.
+    RandomNumeric { digits: u32 },
 }
 
 #[derive(Debug, Serialize, Deserialize)]

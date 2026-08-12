@@ -62,7 +62,7 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
     }
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     AuthenticatorConfigModel config = Utils.getConfig(authSession.getRealm()).get();
-    boolean isOtl = config.getConfig().get(Utils.ONE_TIME_LINK).equals("true");
+    boolean isOtl = "true".equals(config.getConfig().get(Utils.ONE_TIME_LINK));
     String code = authSession.getAuthNote(Utils.CODE);
     String ttl = authSession.getAuthNote(Utils.CODE_TTL);
     String codeLength = config.getConfig().get(Utils.CODE_LENGTH);
@@ -127,7 +127,7 @@ public class VerifyOTPEmailRequiredAction implements RequiredActionFactory, Requ
     String sessionId = context.getAuthenticationSession().getParentSession().getId();
     AuthenticatorConfigModel config = Utils.getConfig(authSession.getRealm()).get();
     String resendTimer = config.getConfig().get(Utils.RESEND_ACTIVATION_TIMER);
-    boolean isOtl = config.getConfig().get(Utils.ONE_TIME_LINK).equals("true");
+    boolean isOtl = "true".equals(config.getConfig().get(Utils.ONE_TIME_LINK));
     String codeLength = config.getConfig().get(Utils.CODE_LENGTH);
     // initial form
     LoginFormsProvider form =

@@ -15,7 +15,6 @@ const ListContainer = styled(Box)<{isactive: string}>`
     box-shadow: 0 2px 4px 2px rgba(0, 0, 0, 0.25);
     border-radius: 5px;
     flex-grow: 2;
-    width: 50%;
     @media (max-width: ${({theme}) => theme.breakpoints.values.md}px) {
         width: initial;
     }
@@ -34,6 +33,15 @@ const ListHeader = styled(Box)`
     align-items: center;
     flex-wrap: nowrap;
     gap: 12px;
+    width: 100%;
+`
+
+const ListTitleSection = styled(Box)`
+    display: flex;
+    align-items: center;
+    flex: 1 1 auto;
+    gap: 8px;
+    min-width: 0;
 `
 
 const ListChildrenContainer = styled("ul")`
@@ -49,16 +57,19 @@ const ListChildrenContainer = styled("ul")`
 `
 
 const ListTitle = styled(Typography)`
-    flex: 1 1 160px;
-    margin-top: 10px;
-    margin-bottom: 26px;
+    flex: 1 1 auto;
     min-width: 0;
     text-align: left;
     font-size: 24px;
+    margin: 0;
 `
 
 const CollapseToggleButton = styled(Button)(({theme}) => ({
-    "marginRight": "-30px",
+    "flexShrink": 0,
+    "whiteSpace": "nowrap",
+    "& > span:first-of-type": {
+        margin: 0,
+    },
     "&&": {
         border: "none",
         boxShadow: "none",
@@ -72,7 +83,7 @@ const CollapseToggleButton = styled(Button)(({theme}) => ({
     "&&:focus": {
         border: "none",
         outline: `2px solid ${theme.palette.brandSuccess}`,
-        outlineOffset: "2px",
+        outlineOffset: "-4px",
     },
 }))
 
@@ -163,7 +174,7 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
             aria-disabled={shouldDisable}
         >
             <ListHeader className="candidates-list-header">
-                <Box>
+                <ListTitleSection>
                     {isCollapsible ? (
                         <CollapseToggleButton
                             variant="secondary"
@@ -178,14 +189,14 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
                             <CollapseToggleText>{collapseLabel}</CollapseToggleText>
                         </CollapseToggleButton>
                     ) : null}
-                </Box>
-                <ListTitle
-                    color={theme.palette.customGrey.contrastText}
-                    fontSize="24px"
-                    className="candidates-list-title"
-                >
-                    {title}
-                </ListTitle>
+                    <ListTitle
+                        color={theme.palette.customGrey.contrastText}
+                        fontSize="24px"
+                        className="candidates-list-title"
+                    >
+                        {title}
+                    </ListTitle>
+                </ListTitleSection>
                 <Box
                     sx={(muiTheme) => ({
                         display: "flex",

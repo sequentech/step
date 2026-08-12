@@ -78,6 +78,20 @@ export function ErrorPage() {
                 </Typography>
             </>
         )
+    } else if (
+        error instanceof VotingPortalError &&
+        error.type === VotingPortalErrorType.INVALID_LOGIN_HINT_PARAMETERS
+    ) {
+        content = (
+            <>
+                <StyledTitle variant="h3" sx={{marginBottom: "24px"}}>
+                    {t("errors.page.invalidLoginHintParametersTitle")}
+                </StyledTitle>
+                <Typography variant="h6" sx={{marginBottom: "24px"}}>
+                    {t("errors.page.invalidLoginHintParametersMessage")}
+                </Typography>
+            </>
+        )
     } else if (isErrorType) {
         content = (
             <>

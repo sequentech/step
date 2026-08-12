@@ -104,16 +104,18 @@ We can use this [validator crate](https://crates.io/crates/validator).
 ### Keycloak Realms
 
 ```.env.development
-# Path to the default configuration file when creating a new realm related to an
-# election event. For production, this can be coming from a mounted volume, so
-# that it can be changed without requiring a new OCI/Docker image.
-KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH=/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559.json
-
-# Path to the default configuration file when creating a new realm related to
-# a tenant. For production, this can be coming from a mounted volume, so that
-# it can be changed without requiring a new OCI/Docker image.
-KEYCLOAK_TENANT_REALM_CONFIG_PATH=/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json
+# Keys are relative to AWS_S3_BUCKET and must not start with `/`.
+KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY=defaults/keycloak/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559.json
+KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY=defaults/keycloak/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json
 ```
+
+Windmill fetches these templates from the private S3-compatible object store
+when it creates a realm. Development, remote-compose, and air-gapped MinIO
+deployments upload the tracked `.devcontainer/keycloak/import/` templates
+through `configure-minio`. Production operators must upload those templates before
+deploying Windmill; see the
+[Windmill production provisioning documentation](../docusaurus/docs/07-developers/08-windmill/developers_windmill.md#production-provisioning)
+for the migration procedure.
 
 The master realm: `master`
 

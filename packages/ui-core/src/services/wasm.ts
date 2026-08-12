@@ -12,6 +12,9 @@ import SequentCoreLibInit, {
     get_default_consolidated_report_policy_js,
     get_default_language_detection_policy_js,
     get_default_decline_to_vote_policy_js,
+    get_default_voting_screen_back_policy_js,
+    get_voting_screen_back_policy_values_js,
+    IVotingScreenBackPolicy,
 } from "sequent-core"
 import {
     sort_elections_list_js,
@@ -463,6 +466,24 @@ export const getDefaultLanguageDetectionPolicy = (): ELanguageDetectionPolicy =>
 export const getDefaultDeclineToVotePolicy = (): EDeclineToVotePolicy => {
     try {
         return get_default_decline_to_vote_policy_js() as EDeclineToVotePolicy
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const getDefaultVotingScreenBackPolicy = (): IVotingScreenBackPolicy => {
+    try {
+        return get_default_voting_screen_back_policy_js() as IVotingScreenBackPolicy
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const getVotingScreenBackPolicyValues = (): IVotingScreenBackPolicy[] => {
+    try {
+        return get_voting_screen_back_policy_values_js() as IVotingScreenBackPolicy[]
     } catch (error) {
         console.log(error)
         throw error

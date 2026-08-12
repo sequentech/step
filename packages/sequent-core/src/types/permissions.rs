@@ -23,6 +23,10 @@ pub enum Permissions {
     ELECTION_EVENT_READ,
     #[strum(serialize = "election-event-write")]
     ELECTION_EVENT_WRITE,
+    #[strum(serialize = "keycloak-realm-attributes-read")]
+    KEYCLOAK_REALM_ATTRIBUTES_READ,
+    #[strum(serialize = "keycloak-realm-attributes-write")]
+    KEYCLOAK_REALM_ATTRIBUTES_WRITE,
     #[strum(serialize = "election-event-delete")]
     ELECTION_EVENT_DELETE,
     #[strum(serialize = "election-event-archive")]
@@ -101,6 +105,10 @@ pub enum Permissions {
     PUBLISH_READ,
     #[strum(serialize = "publish-write")]
     PUBLISH_WRITE,
+    #[strum(serialize = "publish-results-read")]
+    PUBLISH_RESULTS_READ,
+    #[strum(serialize = "publish-results-write")]
+    PUBLISH_RESULTS_WRITE,
     #[strum(serialize = "logs-read")]
     LOGS_READ,
     #[strum(serialize = "tasks-read")]
@@ -111,6 +119,8 @@ pub enum Permissions {
     DOCUMENT_UPLOAD,
     #[strum(serialize = "document-download")]
     DOCUMENT_DOWNLOAD,
+    #[strum(serialize = "document-password-read")]
+    DOCUMENT_PASSWORD_READ,
     #[strum(serialize = "admin-ceremony")]
     ADMIN_CEREMONY,
     #[strum(serialize = "admin-dashboard-view")]
@@ -119,10 +129,16 @@ pub enum Permissions {
     TALLY_SHEET_VIEW,
     #[strum(serialize = "tally-sheet-create")]
     TALLY_SHEET_CREATE,
-    #[strum(serialize = "tally-sheet-publish")]
-    TALLY_SHEET_PUBLISH,
-    #[strum(serialize = "tally-sheet-delete")]
-    TALLY_SHEET_DELETE,
+    #[strum(serialize = "tally-sheet-review")]
+    TALLY_SHEET_REVIEW,
+    #[strum(serialize = "tally-sheet-import-view")]
+    TALLY_SHEET_IMPORT_VIEW,
+    #[strum(serialize = "tally-sheet-import-create")]
+    TALLY_SHEET_IMPORT_CREATE,
+    #[strum(serialize = "tally-sheet-import-review")]
+    TALLY_SHEET_IMPORT_REVIEW,
+    #[strum(serialize = "tally-recount-execute")]
+    TALLY_RECOUNT_EXECUTE,
     #[strum(serialize = "cast-vote-read")]
     CAST_VOTE_READ,
     #[strum(serialize = "document-read")]
@@ -203,6 +219,8 @@ pub enum Permissions {
     ELECTION_EVENT_SCHEDULED_TAB,
     #[strum(serialize = "election-event-reports-tab")]
     ELECTION_EVENT_REPORTS_TAB,
+    #[strum(serialize = "election-event-ivr-tab")]
+    ELECTION_EVENT_IVR_TAB,
     #[strum(serialize = "election-event-cas-tab")]
     ELECTION_EVENT_CAS_TAB,
     #[strum(serialize = "ca-read")]
@@ -257,6 +275,8 @@ pub enum Permissions {
     VOTER_MANUALLY_VERIFY,
     #[strum(serialize = "voter-change-password")]
     VOTER_CHANGE_PASSWORD,
+    #[strum(serialize = "voter-information-letter")]
+    VOTER_INFORMATION_LETTER,
     #[strum(serialize = "election-event-localization-selector")]
     EE_LOCALIZATION_SELECTOR,
     #[strum(serialize = "localization-create")]
@@ -377,6 +397,16 @@ pub enum Permissions {
     PREVIEW_READ,
     #[strum(serialize = "tally-resolution-submit")]
     TALLY_RESOLUTION_SUBMIT,
+    #[strum(serialize = "phone-blacklist-read")]
+    PHONE_BLACKLIST_READ,
+    #[strum(serialize = "phone-blacklist-create")]
+    PHONE_BLACKLIST_CREATE,
+    #[strum(serialize = "phone-blacklist-update")]
+    PHONE_BLACKLIST_UPDATE,
+    #[strum(serialize = "phone-blacklist-delete")]
+    PHONE_BLACKLIST_DELETE,
+    #[strum(serialize = "election-event-voter-list-reconciliation")]
+    ELECTION_EVENT_VOTER_LIST_SYNC,
 }
 
 #[allow(non_camel_case_types)]

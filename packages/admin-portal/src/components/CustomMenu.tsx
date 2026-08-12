@@ -123,6 +123,11 @@ export const CustomMenu = () => {
     const {t, i18n} = useTranslation()
 
     const showUsers = authContext.isAuthorized(true, authContext.tenantId, IPermissions.USERS_MENU)
+    const isTrustee = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.TRUSTEE_CEREMONY
+    )
     const showSettings = authContext.isAuthorized(
         true,
         authContext.tenantId,
@@ -169,6 +174,13 @@ export const CustomMenu = () => {
                 <MenuWrapper>
                     <ElectionEvents />
 
+                    {tenant && isTrustee && (
+                        <StyledItem
+                            to="/trustee"
+                            primaryText={open ? "Trustee Dashboard" : null}
+                            leftIcon={<GroupIcon sx={{color: adminTheme.palette.brandColor}} />}
+                        />
+                    )}
                     {tenant && showUsers && (
                         <StyledItem
                             to="/user-roles"

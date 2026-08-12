@@ -119,6 +119,38 @@ const StyledButton = styled(Button)`
     min-width: unset;
 `
 
+const ElectionActions = styled(Box)`
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-shrink: 0;
+    gap: 16px;
+
+    .election-results-button {
+        min-width: 150px;
+        padding: 10px 24px;
+        justify-content: center;
+        font-weight: 500;
+        line-height: 24px;
+        white-space: nowrap;
+    }
+
+    @media (max-width: ${({theme}) => theme.breakpoints.values.md}px) {
+        width: 100%;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    @media (max-width: ${({theme}) => theme.breakpoints.values.sm}px) {
+        flex-direction: column;
+        align-items: stretch;
+
+        > .MuiButton-root {
+            width: 100%;
+        }
+    }
+`
+
 const DatesContainer = styled(Box)`
     display: flex;
     flex-direction: column;
@@ -157,9 +189,11 @@ export interface SelectElectionProps {
     hasVoted: boolean
     onClickToVote?: () => void
     onClickBallotLocator?: () => void
+    resultsUrl?: string
     electionDates?: IElectionDates
     isStarted: boolean
     className?: string | null
+    formatDateTime?: (input: string) => string
 }
 
 /**
@@ -231,15 +265,18 @@ const SelectElection: React.FC<SelectElectionProps> = ({
     hasVoted,
     onClickToVote,
     onClickBallotLocator,
+    resultsUrl,
     electionDates,
     isStarted,
     className,
+    formatDateTime,
 }) => {
     const {t} = useTranslation()
+    const formatElectionDate = formatDateTime ?? formatDate
     const startVotingDate = getStartDate(electionDates) ?? ""
     const endVotingDate = getEndDate(electionDates) ?? ""
-    const openDate = hasDate(startVotingDate) && formatDate(startVotingDate)
-    const closeDate = hasDate(endVotingDate) && formatDate(endVotingDate)
+    const openDate = hasDate(startVotingDate) && formatElectionDate(startVotingDate)
+    const closeDate = hasDate(endVotingDate) && formatElectionDate(endVotingDate)
     const timeLeft = useSelectElectionCountdown({date: startVotingDate ?? ""})
 
     const handleClickToVote: React.MouseEventHandler<HTMLButtonElement | HTMLDivElement> = (
@@ -262,6 +299,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
     }
 
     const displayBallotLocator = !!onClickBallotLocator
+    const displayResults = !!resultsUrl
 
     return (
         <Box>
@@ -325,15 +363,24 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                         </StyledLink>
                     </Box>
                 </DatesUrlWrap>
-                <Box sx={{display: "flex"}} className="election-actions">
+                <ElectionActions className="election-actions">
                     {displayBallotLocator && (
-                        <StyledButton
-                            sx={{marginRight: "16px"}}
-                            variant="secondary"
-                            onClick={handleClickBallotLocator}
-                        >
+                        <StyledButton variant="secondary" onClick={handleClickBallotLocator}>
                             {t("selectElection.ballotLocator")}
                         </StyledButton>
+                    )}
+                    {displayResults && (
+                        <Button
+                            className="results-button election-results-button"
+                            variant="secondary"
+                            component="a"
+                            href={resultsUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(event) => event.stopPropagation()}
+                        >
+                            {t("selectElection.resultsButton")}
+                        </Button>
                     )}
                     {isOpen && (
                         <StyledButton
@@ -344,7 +391,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                             {t("selectElection.voteButton")}
                         </StyledButton>
                     )}
-                </Box>
+                </ElectionActions>
             </BorderBox>
             {
                 // Only show the countdown when there's a start date, the voting

@@ -1,1 +1,78 @@
-[]
+- name: allowed-queries
+  definition:
+      queries:
+          - name: IvrIsPhoneBlacklisted
+            query: |
+                query IvrIsPhoneBlacklisted ($phone: String!, $event_id: uuid!) {
+                  blacklist: sequent_backend_phone_blacklist_aggregate(where: {phone_e164:{_eq:$phone},election_event_id:{_eq:$event_id}}, limit: 1) {
+                    aggregate {
+                      count
+                    }
+                  }
+                }
+          - name: IvrGetElectionStatus
+            query: |
+                query IvrGetElectionStatus ($election_id: uuid!) {
+                  election: sequent_backend_election(where: {id:{_eq:$election_id}}, limit: 1) {
+                    status
+                  }
+                }
+          - name: IvrGetElectionEvent
+            query: |
+                query IvrGetElectionEvent ($event_id: uuid!) {
+                  election_event: sequent_backend_election_event(where: {id:{_eq:$event_id}}, limit: 1) {
+                    id
+                    tenant_id
+                    description
+                    annotations
+                    presentation
+                    status
+                  }
+                }
+          - name: IvrGetBallotStyles
+            query: |
+                query IvrGetBallotStyles ($event_id: uuid!) {
+                  ballot_styles: sequent_backend_ballot_style(where: {deleted_at:{_is_null:true},election_event_id:{_eq:$event_id}}) {
+                    id
+                    tenant_id
+                    election_event_id
+                    election_id
+                    area_id
+                    ballot_eml
+                  }
+                }
+          - name: IvrGetBallotStyle
+            query: |
+                query IvrGetBallotStyle ($event_id: uuid!, $style_id: uuid!) {
+                  ballot_style: sequent_backend_ballot_style(where: {id:{_eq:$style_id},election_event_id:{_eq:$event_id}}, limit: 1) {
+                    id
+                    tenant_id
+                    election_event_id
+                    election_id
+                    area_id
+                    ballot_eml
+                  }
+                }
+          - name: IvrGetCastVotes
+            query: |
+                query IvrGetCastVotes ($event_id: uuid!) {
+                  cast_votes: sequent_backend_cast_vote(where: {election_event_id:{_eq:$event_id}}) {
+                    id
+                    tenant_id
+                    election_event_id
+                    election_id
+                    area_id
+                    ballot_id
+                  }
+                }
+          - name: IvrInsertCastVote
+            query: |
+                mutation IvrInsertCastVote ($election_id: uuid!, $ballot_id: String!, $content: String!) {
+                  insert_cast_vote(election_id: $election_id, ballot_id: $ballot_id, content: $content) {
+                    id
+                    tenant_id
+                    election_event_id
+                    election_id
+                    ballot_id
+                  }
+                }

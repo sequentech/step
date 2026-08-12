@@ -7,7 +7,7 @@ resolver = "2"
 
 members = [
     "braid",
-    "b3",
+    "b4",
     "electoral-log",
     "harvest",
     "strand",
@@ -22,8 +22,15 @@ members = [
     "e2e",
     "orare",
     "orare/doc_renderer",
-    "plugins/*",
+    "plugins/*"
 ]
+
+[workspace.dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.40", features = ["full"] }
+anyhow = "1.0"
+
 
 [patch.crates-io]
 celery = { git = "https://github.com/Findeton/rusty-celery.git", rev = "b4145925aaaf742b7ba54499fff45313bcadfca1" }

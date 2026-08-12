@@ -72,6 +72,7 @@ export type TPublishGenerate = {
     kioskModeEnabled: IChannelButtonInfo
     onlineModeEnabled: IChannelButtonInfo
     earlyVotingEnabled: IChannelButtonInfo
+    telephoneVotingEnabled: IChannelButtonInfo
 }
 
 export const PublishGenerate: React.FC<TPublishGenerate> = ({
@@ -89,6 +90,7 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
     kioskModeEnabled,
     onlineModeEnabled,
     earlyVotingEnabled,
+    telephoneVotingEnabled,
 }): React.JSX.Element => {
     const {t} = useTranslation()
     const notify = useNotify()
@@ -132,6 +134,7 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                     kioskModeEnabled={kioskModeEnabled}
                     onlineModeEnabled={onlineModeEnabled}
                     earlyVotingEnabled={earlyVotingEnabled}
+                    telephoneVotingEnabled={telephoneVotingEnabled}
                     changingStatus={changingStatus}
                     onPublish={onPublish}
                     onGenerate={onGenerate}

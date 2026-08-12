@@ -2,15 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use b3::client::pgsql::{PgsqlB3Client, PgsqlConnectionParams};
-use b3::messages::artifact::Shares;
-use b3::messages::artifact::{Ballots, Channel, Configuration, DkgPublicKey, TrusteeShareData};
-use b3::messages::message::Message;
-use b3::messages::newtypes::BatchNumber;
-use b3::messages::newtypes::PublicKeyHash;
-use b3::messages::newtypes::{TrusteeSet, MAX_TRUSTEES, NULL_TRUSTEE};
-use b3::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
-use b3::messages::statement::StatementType;
+use b4::client::pgsql::{PgsqlB3Client, PgsqlConnectionParams};
+use b4::messages::artifact::Shares;
+use b4::messages::artifact::{Ballots, Channel, Configuration, DkgPublicKey, TrusteeShareData};
+use b4::messages::message::Message;
+use b4::messages::newtypes::BatchNumber;
+use b4::messages::newtypes::PublicKeyHash;
+use b4::messages::newtypes::{TrusteeSet, MAX_TRUSTEES, NULL_TRUSTEE};
+use b4::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
+use b4::messages::statement::StatementType;
 use deadpool_postgres::Transaction;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
@@ -25,7 +25,7 @@ use std::marker::PhantomData;
 use tracing::{event, info, instrument, Level};
 
 use crate::services::vault;
-use b3::client::pgsql::B3MessageRow;
+use b4::client::pgsql::B3MessageRow;
 use electoral_log::BoardClient;
 use immudb_rs::{sql_value::Value, Client, NamedParam, SqlValue};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
@@ -59,7 +59,8 @@ pub async fn create_protocol_manager_keys(
 
 #[instrument]
 pub fn gen_protocol_manager<C: Ctx>() -> Result<ProtocolManager<C>> {
-    let pmkey: StrandSignatureSk = StrandSignatureSk::gen().map_err(|err| anyhow!("{:?}", err))?;
+    let pmkey: StrandSignatureSk =
+        StrandSignatureSk::generate().map_err(|err| anyhow!("{:?}", err))?;
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,
@@ -426,11 +427,11 @@ pub async fn get_board_client() -> Result<BoardClient> {
 
 #[instrument(err)]
 pub async fn get_b3_pgsql_client() -> Result<PgsqlB3Client> {
-    let username = env::var("B3_PG_USER").context("B3_PG_USER must be set")?;
-    let password = env::var("B3_PG_PASSWORD").context("B3_PG_PASSWORD must be set")?;
-    let host = env::var("B3_PG_HOST").context("B3_PG_HOST must be set")?;
-    let port = env::var("B3_PG_PORT").context("B3_PG_PORT must be set")?;
-    let database = env::var("B3_PG_DATABASE").context("B3_PG_DATABASE must be set")?;
+    let username = env::var("B4_PG_USER").context("B4_PG_USER must be set")?;
+    let password = env::var("B4_PG_PASSWORD").context("B4_PG_PASSWORD must be set")?;
+    let host = env::var("B4_PG_HOST").context("B4_PG_HOST must be set")?;
+    let port = env::var("B4_PG_PORT").context("B4_PG_PORT must be set")?;
+    let database = env::var("B4_PG_DATABASE").context("B4_PG_DATABASE must be set")?;
 
     let port: u32 = port.parse::<u32>()?;
 

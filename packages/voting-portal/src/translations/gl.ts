@@ -286,7 +286,8 @@ const galegoTranslation: TranslationType = {
                     "Esta pantalla amosa a lista de papeletas nas que podes votar. Só poderás acceder á papeleta se o período de votación está aberto.",
                 ok: "OK",
             },
-            noResults: "Sen papeletas dispoñibles de momento.",
+            noResults: "Sen papeletas por agora.",
+            resultsButton: "Ver resultados",
             demoDialog: {
                 title: "Cabina de votación de demostración",
                 content:
@@ -367,6 +368,8 @@ const galegoTranslation: TranslationType = {
             locateAgain: "Buscar outra Papeleta",
             found: "O teu ID de papeleta {{ballotId}} foi atopado",
             notFound: "O teu ID de papeleta {{ballotId}} non foi atopado",
+            ambiguous:
+                "Máis dunha das túas papeletas coincide con {{ballotId}}. Usa o ID completo da papeleta.",
             contentDesc: "Este é o contido da túa Papeleta:",
             wrongFormatBallotId: "Formato incorrecto para o ID da Papeleta",
             ballotIdNotFoundAtFilter:

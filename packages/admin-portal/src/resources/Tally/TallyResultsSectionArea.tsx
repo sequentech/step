@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useEffect, useMemo, useState} from "react"
+import React, {useMemo} from "react"
 import {useRecordContext} from "react-admin"
 import {
     Sequent_Backend_Candidate,
@@ -10,20 +10,27 @@ import {
     Sequent_Backend_Election_Event,
 } from "../../gql/graphql"
 import {useTranslation} from "react-i18next"
-import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {Sequent_Backend_Candidate_Extended, ParsedAnnotations, RunoffStatus} from "./types"
+import {Sequent_Backend_Candidate_Extended, RunoffStatus} from "./types"
 import {useAtomValue} from "jotai"
 import {sortCandidates} from "@/utils/candidateSort"
 import {tallyQueryData} from "@/atoms/tally-candidates"
-import {EElectionEventWeightedVotingPolicy} from "@sequentech/ui-core"
-import {TallyResultsSummary} from "./TallyResultsSummary"
-import {TallyResultsCandidatesPlurality} from "./TallyResultsCandidatesPlurality"
-import {TallyResultsCandidatesIRV} from "./TallyResultsCandidatesIRV"
-import {ICountingAlgorithm} from "@sequentech/ui-core"
-import {winningPositionComparator, parseProcessResults} from "./utils"
+import {
+    EElectionEventWeightedVotingPolicy,
+    ICountingAlgorithm,
+    TallySheetVotingChannel,
+    VotingStatusChannel,
+} from "@sequentech/ui-core"
+import {parseProcessResults, parseResultAnnotations} from "./utils"
 import {LoadingResults} from "./TallyElectionsResults"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useDefaultElectionLang} from "@/hooks/useDefaultElectionLang"
+import {
+    CandidateResultRow,
+    PreferentialProcessResults,
+    ResultsAndParticipation,
+    ResultsAndParticipationLabelOverrides,
+    ResultsParticipationSummary,
+} from "@sequentech/ui-essentials"
 
 interface TallyResultsCandidatesProps {
     areaId: string | null | undefined
@@ -45,12 +52,7 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
         resultsEventId,
         counting_algorithm,
     } = props
-    const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Candidate>>([])
-    const orderedResultsData = useMemo(() => {
-        return (resultsData as Sequent_Backend_Candidate_Extended[]).sort(sortCandidates)
-    }, [resultsData])
-    const {t, i18n} = useTranslation()
-    const {globalSettings} = useContext(SettingsContext)
+    const {t} = useTranslation()
     const tallyData = useAtomValue(tallyQueryData)
     const aliasRenderer = useAliasRenderer()
     const defaultElectionLang = useDefaultElectionLang(electionId, electionEventId)
@@ -82,18 +84,34 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
                     electionId === areaContestCandidate.election_id &&
                     areaId === areaContestCandidate.area_id
             ),
-        [tallyData?.sequent_backend_results_area_contest_candidate, contestId, electionId]
+        [tallyData?.sequent_backend_results_area_contest_candidate, contestId, electionId, areaId]
     )
 
+    const resultsData = useMemo<Array<Sequent_Backend_Candidate_Extended>>(() => {
+        if (!results || !candidates) return []
+
+        return candidates.map((candidate, index): Sequent_Backend_Candidate_Extended => {
+            const candidateResult = results.find((r) => r.candidate_id === candidate.id)
+
+            return {
+                ...candidate,
+                rowId: index,
+                id: candidate.id || "",
+                name: aliasRenderer(candidate.presentation, defaultElectionLang),
+                status: "",
+                cast_votes: candidateResult?.cast_votes,
+                cast_votes_percent: candidateResult?.cast_votes_percent,
+                winning_position: candidateResult?.winning_position,
+            }
+        })
+    }, [results, candidates, aliasRenderer, defaultElectionLang])
+
+    const orderedResultsData = useMemo(() => {
+        return [...resultsData].sort(sortCandidates)
+    }, [resultsData])
+
     const weight = useMemo((): number | null => {
-        try {
-            const parsedAnnotations: ParsedAnnotations | null = general?.[0]?.annotations
-                ? (JSON.parse(general[0].annotations as string) as ParsedAnnotations)
-                : null
-            return parsedAnnotations?.extended_metrics?.weight ?? null
-        } catch {
-            return null
-        }
+        return parseResultAnnotations(general?.[0]?.annotations)?.extended_metrics?.weight ?? null
     }, [general?.[0]])
 
     const processResults = useMemo(
@@ -103,6 +121,94 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
                 counting_algorithm
             ) as RunoffStatus | null,
         [general?.[0]?.annotations, counting_algorithm]
+    )
+
+    const summary = useMemo<ResultsParticipationSummary | null>(() => {
+        const result = general?.[0]
+        if (!result) return null
+
+        return {
+            id: result.id,
+            eligibleCensus: result.elegible_census,
+            totalAuditableVotes: result.total_auditable_votes,
+            totalAuditableVotesPercent: result.total_auditable_votes_percent,
+            totalVotes: result.total_votes,
+            totalVotesPercent: result.total_votes_percent,
+            totalValidVotes: result.total_valid_votes,
+            totalValidVotesPercent: result.total_valid_votes_percent,
+            totalInvalidVotes: result.total_invalid_votes,
+            totalInvalidVotesPercent: result.total_invalid_votes_percent,
+            explicitInvalidVotes: result.explicit_invalid_votes,
+            explicitInvalidVotesPercent: result.explicit_invalid_votes_percent,
+            implicitInvalidVotes: result.implicit_invalid_votes,
+            implicitInvalidVotesPercent: result.implicit_invalid_votes_percent,
+            blankVotes: result.total_blank_votes,
+            blankVotesPercent: result.total_blank_votes_percent,
+            explicitBlankVotes: result.explicit_blank_votes,
+            explicitBlankVotesPercent: result.explicit_blank_votes_percent,
+            implicitBlankVotes: result.implicit_blank_votes,
+            implicitBlankVotesPercent: result.implicit_blank_votes_percent,
+            weight,
+            votesByChannel: parseResultAnnotations(result.annotations)?.extended_metrics
+                ?.votes_by_channel,
+        }
+    }, [general, weight])
+
+    const resultRows = useMemo<CandidateResultRow[]>(
+        () =>
+            orderedResultsData.map((candidate) => ({
+                id: candidate.id,
+                name: candidate.name ?? "-",
+                castVotes: candidate.cast_votes,
+                castVotesPercent: candidate.cast_votes_percent,
+                winningPosition: candidate.winning_position,
+            })),
+        [orderedResultsData]
+    )
+
+    const labels = useMemo<ResultsAndParticipationLabelOverrides>(
+        () => ({
+            participationSummary: t("tally.table.global"),
+            candidateResults: t("tally.table.candidates"),
+            total: t("tally.table.total"),
+            turnout: t("tally.table.turnout"),
+            eligibleCensus: t("tally.table.elegible_census"),
+            totalAuditableVotes: t("tally.table.total_auditable_votes"),
+            totalVotesCounted: t("tally.table.total_votes_counted"),
+            totalValidVotes: t("tally.table.total_valid_votes"),
+            totalInvalidVotes: t("tally.table.total_invalid_votes"),
+            explicitInvalidVotes: t("tally.table.explicit_invalid_votes"),
+            implicitInvalidVotes: t("tally.table.implicit_invalid_votes"),
+            blankVotes: t("tally.table.blank_votes"),
+            explicitBlankVotes: t("tally.table.explicit_blank_votes"),
+            implicitBlankVotes: t("tally.table.implicit_blank_votes"),
+            blankVotesChart: t("tally.chart.blankVotes"),
+            weight: t("tally.table.weight"),
+            options: t("tally.table.options"),
+            castVotes: t("tally.table.cast_votes"),
+            castVotesPercent: t("tally.table.cast_votes_percent"),
+            winningPosition: t("tally.table.winning_position"),
+            votesForCandidates: t("tally.chart.votesForCandidates"),
+            invalidVotes: t("tally.chart.invalidVotes"),
+            nonVoters: t("tally.chart.nonVoters"),
+            candidate: t("tally.table.preferential.candidate"),
+            round: t("tally.table.preferential.round"),
+            winner: t("tally.table.preferential.winner"),
+            eliminated: t("tally.table.preferential.eliminated"),
+            empty: t("common.label.noResult"),
+            participationByChannel: t("tally.table.participation_by_channel"),
+            channel: t("tally.table.channel"),
+            channelNames: {
+                [VotingStatusChannel.Online]: t("tally.table.channel_online"),
+                [VotingStatusChannel.Kiosk]: t("tally.table.channel_kiosk"),
+                [VotingStatusChannel.EarlyVoting]: t("tally.table.channel_early_voting"),
+                [VotingStatusChannel.Telephone]: t("tally.table.channel_telephone"),
+                [TallySheetVotingChannel.Paper]: t("tally.table.channel_paper"),
+                [TallySheetVotingChannel.Postal]: t("tally.table.channel_postal"),
+                [TallySheetVotingChannel.InPerson]: t("tally.table.channel_in_person"),
+            },
+        }),
+        [t]
     )
 
     const eventRecord = useRecordContext<Sequent_Backend_Election_Event>()
@@ -120,7 +226,7 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
         return election?.presentation
             ? aliasRenderer(election.presentation, defaultElectionLang)
             : undefined
-    }, [tallyData?.sequent_backend_election, electionId, defaultElectionLang, aliasRenderer])
+    }, [tallyData?.sequent_backend_election, electionId, aliasRenderer, defaultElectionLang])
 
     const contestName: string | undefined = useMemo(() => {
         const contest = tallyData?.sequent_backend_contest?.find(
@@ -129,7 +235,7 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
         return contest?.presentation
             ? aliasRenderer(contest.presentation, defaultElectionLang)
             : undefined
-    }, [tallyData?.sequent_backend_contest, contestId, defaultElectionLang, aliasRenderer])
+    }, [tallyData?.sequent_backend_contest, contestId, aliasRenderer, defaultElectionLang])
 
     const areaName: string | undefined | null = useMemo(
         () => tallyData?.sequent_backend_area?.find((area) => area.id === areaId)?.name,
@@ -151,59 +257,24 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
         )
     }, [tallyData?.sequent_backend_results_event, resultsEventId])
 
-    useEffect(() => {
-        if (results && candidates) {
-            const temp: Array<Sequent_Backend_Candidate_Extended> | undefined = candidates?.map(
-                (candidate, index) => {
-                    let candidateResult = results.find((r) => r.candidate_id === candidate.id)
-                    let candidateName = aliasRenderer(candidate.presentation, defaultElectionLang)
-                    return {
-                        ...candidate,
-                        rowId: index,
-                        id: candidate.id || "",
-                        name: candidateName,
-                        status: "",
-                        cast_votes: candidateResult?.cast_votes,
-                        cast_votes_percent: candidateResult?.cast_votes_percent,
-                        winning_position: candidateResult?.winning_position,
-                    }
-                }
-            )
-
-            setResultsData(temp)
-        }
-    }, [results, candidates, i18n.language, defaultElectionLang, aliasRenderer])
-
     return (
         <>
             {!isTallyDataMatchCurrentResults ? (
                 <LoadingResults />
             ) : (
-                <>
-                    <TallyResultsSummary
-                        general={general}
-                        chartName={getChartName()}
-                        showWeight={weightedVotingForAreas}
-                        weight={weight}
-                    />
-                    {counting_algorithm === ICountingAlgorithm.PLURALITY_AT_LARGE && (
-                        <TallyResultsCandidatesPlurality
-                            resultsData={resultsData as Sequent_Backend_Candidate_Extended[]}
-                            orderedResultsData={orderedResultsData}
-                            chartName={getChartName()}
-                            electionId={electionId}
-                            electionEventId={electionEventId}
-                        />
-                    )}
-                    {counting_algorithm === ICountingAlgorithm.INSTANT_RUNOFF && processResults && (
-                        <TallyResultsCandidatesIRV
-                            resultsData={resultsData as Sequent_Backend_Candidate_Extended[]}
-                            processResults={processResults}
-                            electionId={electionId}
-                            electionEventId={electionEventId}
-                        />
-                    )}
-                </>
+                <ResultsAndParticipation
+                    summary={summary}
+                    candidates={resultRows}
+                    chartName={getChartName()}
+                    labels={labels}
+                    showWeight={weightedVotingForAreas}
+                    processResults={
+                        counting_algorithm === ICountingAlgorithm.INSTANT_RUNOFF
+                            ? (processResults as PreferentialProcessResults | null)
+                            : null
+                    }
+                    preferential={counting_algorithm === ICountingAlgorithm.INSTANT_RUNOFF}
+                />
             )}
         </>
     )

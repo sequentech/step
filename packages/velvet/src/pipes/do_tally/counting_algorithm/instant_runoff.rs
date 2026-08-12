@@ -5,7 +5,7 @@
 use super::Result;
 use super::{CountingAlgorithm, Error};
 use crate::pipes::do_tally::{
-    counting_algorithm::utils::*, tally::Tally, CandidateResult, ContestResult,
+    counting_algorithm::utils::*, tally::Tally, BlankVotes, CandidateResult, ContestResult,
     ExtendedMetricsContest, InvalidVotes,
 };
 use rand::prelude::IndexedRandom;
@@ -55,7 +55,7 @@ pub struct BallotsStatus<'a> {
     ballots: Vec<(BallotStatus, &'a DecodedVoteContest, Weight)>,
     count_valid: u64,
     count_invalid_votes: InvalidVotes,
-    count_blank: u64,
+    blank_votes: BlankVotes,
     extended_metrics: ExtendedMetricsContest,
 }
 
@@ -67,45 +67,60 @@ impl BallotsStatus<'_> {
         votes: &'a Vec<(DecodedVoteContest, Weight)>,
         contest: &Contest,
     ) -> BallotsStatus<'a> {
-        let mut count_invalid_votes = InvalidVotes {
-            explicit: 0,
-            implicit: 0,
-        };
-        let mut count_blank: u64 = 0;
+        let explicit_blank_candidate_ids = get_explicit_blank_candidate_ids(contest);
+        let mut count_invalid_votes = InvalidVotes::default();
+        let mut blank_votes = BlankVotes::default();
         let mut extended_metrics = ExtendedMetricsContest::default();
         let mut ballots = Vec::with_capacity(votes.len());
 
+        let mut count_declined_to_vote: u64 = 0;
+
         for (vote, weight) in votes {
-            let status = match (vote.is_invalid(), vote.is_blank()) {
-                (true, _) => {
-                    if vote.is_explicit_invalid {
-                        count_invalid_votes.explicit += 1;
-                    } else {
-                        count_invalid_votes.implicit += 1;
-                    }
+            let status = match classify_ballot(vote, &explicit_blank_candidate_ids) {
+                BallotClass::ExplicitInvalid => {
+                    count_invalid_votes.explicit += 1;
                     BallotStatus::Invalid
                 }
-                (false, true) => {
-                    count_blank += 1;
+                BallotClass::ImplicitInvalid => {
+                    count_invalid_votes.implicit += 1;
+                    BallotStatus::Invalid
+                }
+                BallotClass::Declined => {
+                    count_declined_to_vote = count_declined_to_vote.saturating_add(1);
+                    BallotStatus::Invalid
+                }
+                BallotClass::ExplicitBlank => {
+                    blank_votes.explicit += 1;
                     BallotStatus::Blank
                 }
-                (false, false) => BallotStatus::Valid,
+                BallotClass::ImplicitBlank => {
+                    blank_votes.implicit += 1;
+                    BallotStatus::Blank
+                }
+                BallotClass::Valid => BallotStatus::Valid,
             };
-            extended_metrics = update_extended_metrics(vote, &extended_metrics, contest);
+            extended_metrics = update_extended_metrics(
+                vote,
+                &extended_metrics,
+                contest,
+                &explicit_blank_candidate_ids,
+            );
             ballots.push((status, vote, weight.clone()));
         }
         let total_ballots = votes.len() as u64;
         extended_metrics.total_ballots = total_ballots;
+        let count_blank = blank_votes.total();
+        extended_metrics.total_declined_to_vote = count_declined_to_vote;
         let count_valid = total_ballots
             - count_invalid_votes.explicit
             - count_invalid_votes.implicit
-            - count_blank;
+            - count_declined_to_vote;
         BallotsStatus {
             ballots,
             count_valid,
             count_invalid_votes,
             extended_metrics,
-            count_blank,
+            blank_votes,
         }
     }
 }
@@ -657,12 +672,14 @@ impl InstantRunoff {
         let votes: &Vec<(DecodedVoteContest, Weight)> = &self.tally.ballots;
 
         let mut ballots_status = BallotsStatus::initialize_ballots_status(votes, contest);
-        let count_blank = ballots_status.count_blank;
+        let blank_votes = ballots_status.blank_votes;
+        let count_blank = blank_votes.total();
         let count_valid = ballots_status.count_valid;
         let count_invalid_votes = ballots_status.count_invalid_votes;
         let count_invalid = count_invalid_votes.explicit + count_invalid_votes.implicit;
-        let extended_metrics = ballots_status.extended_metrics;
-        let percentage_votes_denominator = count_valid - count_blank;
+        let extended_metrics = ballots_status.extended_metrics.clone();
+        debug_assert!(count_blank <= count_valid);
+        let percentage_votes_denominator = count_valid.saturating_sub(count_blank);
 
         let (candidate_result, process_results) = match op {
             TallyOperation::SkipCandidateResults => (vec![], None),
@@ -685,7 +702,7 @@ impl InstantRunoff {
 
                 let candidate_result = self.tally.create_candidate_results(
                     vote_count,
-                    count_blank,
+                    blank_votes,
                     count_invalid_votes.clone(),
                     extended_metrics.clone(),
                     count_valid,
@@ -699,7 +716,7 @@ impl InstantRunoff {
         self.tally.create_contest_result(
             process_results,
             candidate_result,
-            count_blank,
+            blank_votes,
             count_invalid_votes,
             extended_metrics,
             count_valid,
@@ -726,6 +743,237 @@ impl CountingAlgorithm for InstantRunoff {
                 self.process_ballots(op)?
             }
         };
-        Ok(contest_result)
+
+        Ok(self
+            .tally
+            .tally_sheet_results
+            .iter()
+            .fold(contest_result, |result, tally_sheet_result| {
+                result.aggregate(tally_sheet_result, false)
+            }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sequent_core::ballot::CandidatePresentation;
+    use sequent_core::types::{participation::VotesByChannel, tally_sheets::VotingChannel};
+
+    fn candidate(id: &str, is_explicit_blank: bool) -> Candidate {
+        Candidate {
+            id: id.to_string(),
+            presentation: Some(CandidatePresentation {
+                is_explicit_blank: Some(is_explicit_blank),
+                ..CandidatePresentation::default()
+            }),
+            ..Candidate::default()
+        }
+    }
+
+    fn contest() -> Contest {
+        Contest {
+            id: "contest".to_string(),
+            max_votes: 1,
+            candidates: vec![candidate("normal", false), candidate("blank", true)],
+            ..Contest::default()
+        }
+    }
+
+    fn contest_with_regular_candidates_and_blank() -> Contest {
+        Contest {
+            id: "contest".to_string(),
+            max_votes: 1,
+            counting_algorithm: Some(
+                sequent_core::types::ceremonies::CountingAlgType::InstantRunoff,
+            ),
+            candidates: vec![
+                candidate("candidate_a", false),
+                candidate("candidate_b", false),
+                candidate("blank", true),
+            ],
+            ..Contest::default()
+        }
+    }
+
+    fn vote_with_selected_ids(selected_ids: &[&str]) -> DecodedVoteContest {
+        let selected = |candidate_id: &str| {
+            if selected_ids.contains(&candidate_id) {
+                0
+            } else {
+                -1
+            }
+        };
+
+        DecodedVoteContest {
+            contest_id: "contest".to_string(),
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: vec![
+                DecodedVoteChoice {
+                    id: "candidate_a".to_string(),
+                    selected: selected("candidate_a"),
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: "candidate_b".to_string(),
+                    selected: selected("candidate_b"),
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: "blank".to_string(),
+                    selected: selected("blank"),
+                    write_in_text: None,
+                },
+            ],
+        }
+    }
+
+    fn instant_runoff(ballots: Vec<DecodedVoteContest>) -> InstantRunoff {
+        let ballots = ballots
+            .into_iter()
+            .map(|ballot| (ballot, Weight::default()))
+            .collect();
+
+        InstantRunoff {
+            tally: Tally {
+                id: sequent_core::types::ceremonies::CountingAlgType::InstantRunoff,
+                scope_operation: ScopeOperation::Contest(TallyOperation::ProcessBallotsAll),
+                contest: contest_with_regular_candidates_and_blank(),
+                ballots,
+                census: 10,
+                auditable_votes: 10,
+                tally_sheet_results: vec![],
+                tally_results: vec![],
+            },
+        }
+    }
+
+    fn mixed_explicit_blank_vote() -> DecodedVoteContest {
+        DecodedVoteContest {
+            contest_id: "contest".to_string(),
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: vec![
+                DecodedVoteChoice {
+                    id: "normal".to_string(),
+                    selected: 0,
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: "blank".to_string(),
+                    selected: 0,
+                    write_in_text: None,
+                },
+            ],
+        }
+    }
+
+    #[test]
+    fn mixed_explicit_blank_vote_initializes_as_implicit_invalid() {
+        let contest = contest();
+        let votes = vec![(mixed_explicit_blank_vote(), Weight::default())];
+
+        let status = BallotsStatus::initialize_ballots_status(&votes, &contest);
+
+        assert_eq!(status.count_valid, 0);
+        assert_eq!(status.count_invalid_votes.explicit, 0);
+        assert_eq!(status.count_invalid_votes.implicit, 1);
+        assert_eq!(status.blank_votes.explicit, 0);
+        assert_eq!(status.blank_votes.implicit, 0);
+        assert_eq!(status.ballots[0].0, BallotStatus::Invalid);
+    }
+
+    #[test]
+    fn blank_heavy_contest_reports_blanks_as_valid_and_candidate_percentages_exclude_blanks() {
+        let mut ballots = Vec::new();
+        for _ in 0..3 {
+            ballots.push(vote_with_selected_ids(&["blank"]));
+            ballots.push(vote_with_selected_ids(&[]));
+        }
+        for _ in 0..4 {
+            ballots.push(vote_with_selected_ids(&["candidate_a"]));
+        }
+
+        let result = instant_runoff(ballots)
+            .process_ballots(TallyOperation::ProcessBallotsAll)
+            .expect("blank-heavy contest should tally without underflow");
+
+        assert_eq!(result.total_valid_votes, 10);
+        assert_eq!(result.total_blank_votes, 6);
+        assert_eq!(result.blank_votes.explicit, 3);
+        assert_eq!(result.blank_votes.implicit, 3);
+        assert_eq!(result.total_invalid_votes, 0);
+
+        let candidate_a = result
+            .candidate_result
+            .iter()
+            .find(|candidate| candidate.candidate.id == "candidate_a")
+            .expect("candidate A result should exist");
+        assert_eq!(candidate_a.total_count, 4);
+        assert_eq!(candidate_a.percentage_votes, 100.0);
+
+        let candidate_b = result
+            .candidate_result
+            .iter()
+            .find(|candidate| candidate.candidate.id == "candidate_b")
+            .expect("candidate B result should exist");
+        assert_eq!(candidate_b.total_count, 0);
+        assert_eq!(candidate_b.percentage_votes, 0.0);
+    }
+
+    #[test]
+    fn contest_tally_includes_tally_sheet_results() {
+        let mut tally = instant_runoff(vec![vote_with_selected_ids(&["candidate_a"])]);
+        tally.tally.auditable_votes = 0;
+        let candidate_a = tally
+            .tally
+            .contest
+            .candidates
+            .iter()
+            .find(|candidate| candidate.id == "candidate_a")
+            .unwrap()
+            .clone();
+        tally.tally.tally_sheet_results = vec![ContestResult {
+            contest: tally.tally.contest.clone(),
+            total_votes: 2,
+            total_valid_votes: 2,
+            candidate_result: vec![CandidateResult {
+                candidate: candidate_a,
+                percentage_votes: 100.0,
+                total_count: 2,
+            }],
+            extended_metrics: Some(ExtendedMetricsContest {
+                votes_by_channel: VotesByChannel::from([(VotingChannel::PAPER.into(), 2)]),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }];
+
+        let result = tally
+            .tally()
+            .expect("IRV contest tally should include tally sheets");
+
+        assert_eq!(result.total_votes, 3);
+        assert_eq!(result.total_valid_votes, 3);
+        assert_eq!(
+            result
+                .candidate_result
+                .iter()
+                .find(|candidate| candidate.candidate.id == "candidate_a")
+                .map(|candidate| candidate.total_count),
+            Some(3)
+        );
+        assert_eq!(
+            result
+                .extended_metrics
+                .as_ref()
+                .and_then(|metrics| { metrics.votes_by_channel.get(&VotingChannel::PAPER.into()) }),
+            Some(&2)
+        );
     }
 }
