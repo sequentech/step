@@ -30,6 +30,10 @@ cells in `minvote-e2e-pipeline.recorded.json`.
 but adjudication belongs to the parties with design authority, not to
 this report.
 
+**Reproduce.** Click-by-click workbench recipes for these cells (booth →
+no signal → tally → discarded) are in
+[../docs/REPRODUCE.md](../docs/REPRODUCE.md).
+
 ## Violating configurations
 
 Each row is a policy combination that *permits* a silently-discounted

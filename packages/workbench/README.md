@@ -172,7 +172,9 @@ workbench/
 │                        on it and re-exports it; see Known gaps.
 ├── velvet-wasm/         wasm-bindgen wrapper exposing velvet-core to JS
 ├── docs/                Vote-validation deep dives (VOTE_VALIDATION.md,
-│                        VALIDATION_LOGIC_DISTILLATION.md, FIXTURE_VARIANCE.md)
+│                        VALIDATION_LOGIC_DISTILLATION.md, FIXTURE_VARIANCE.md);
+│                        findings (UPSTREAM_FINDINGS.md) + reviewer
+│                        reproduction recipes (REPRODUCE.md)
 ├── characterization/    Recorded validation-behaviour tables + the harness
 │                        that generates them (headless wasm + browser)
 ├── WORKBENCH.md         Workbench-side design: inspector, snapshots,

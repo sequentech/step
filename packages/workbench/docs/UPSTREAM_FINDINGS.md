@@ -101,6 +101,11 @@ its two consultation questions belong one to each axis (should a blank be
 subject to `min_votes`? → S3; should any rejection be silent? → S1). Read
 S2 as a worked example, not a separate root cause.
 
+**Reproducing the serious ones.** S1, S2, and S5 — the disenfranchisement
+and privacy findings — have click-by-click workbench recipes in
+[REPRODUCE.md](REPRODUCE.md), kept separate from the explanations here so a
+reviewer can reach and check the behaviour firsthand.
+
 ## S1. Silent vote discounting under `invalid_vote_policy = allowed`
 
 **Observed** (`characterization/no-silent-discount.md`, 196 cells, two
@@ -137,7 +142,9 @@ combination that must be surfaced to election designers — e.g. an
 admin-portal configuration warning). **Consultation question:** is
 `invalid_vote_policy = allowed` intended to mean "invalid ballots may be
 *cast* silently" even though they are discarded, and if so, should the
-combination be flagged at configuration time?
+combination be flagged at configuration time? **Reproduce:**
+[REPRODUCE.md](REPRODUCE.md) Part 1, Recipe 1 (over-vote) and Recipe 2
+(below-min).
 
 ## S2. (S1 ∩ S3) A deliberate explicit-blank vote silently discarded when `min_votes ≥ 2`
 
@@ -156,7 +163,8 @@ without notice. Confirmed end-to-end through the full pipeline
 (the voter clicks "Blank vote (explicit blank)", is shown nothing, ballot tallies
 implicit-invalid) — `minvote-e2e-pipeline.recorded.json`, `min=2/marker_only`. **Consultation question:** should an explicit
 blank ever be subject to `min_votes` at all (see S3), and if it is,
-should its rejection ever be silent?
+should its rejection ever be silent? **Reproduce:**
+[REPRODUCE.md](REPRODUCE.md) Part 1, Recipe 2, variant d.
 
 ## S3. Explicit-blank markers count toward `min_votes`
 
@@ -246,4 +254,6 @@ ballot, recoverable by anyone who can decrypt it (a tally, an audit).
 worth a careful answer. **Consultation question:** should the invalid
 (null-vote) reducer clear `choices` the way the blank reducer does, so a
 null ballot carries no latent candidate preference — or is preserving
-them intended (and if so, why)?
+them intended (and if so, why)? **Reproduce:** [REPRODUCE.md](REPRODUCE.md)
+Part 2 (decrypt the cast ciphertext in the ballot pipeline; the choice
+falls out of the plaintext).
