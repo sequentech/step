@@ -80,6 +80,7 @@ type CastVotesByIp {
 }
 
 type CastVotesPerDay {
+  bucket: String!
   channel: String!
   day: date!
   day_count: Int!
@@ -210,6 +211,10 @@ type DeleteUsersOutput {
   ids: String
 }
 
+type DocumentPasswordOutput {
+  password: String!
+}
+
 enum EarlyVotingPolicy {
   allow_early_voting
   no_early_voting
@@ -236,9 +241,11 @@ input EditUsersInput {
 }
 
 input ElectionEventStatsInput {
+  bucket_count: Int
   election_event_id: uuid!
   end_date: String!
   start_date: String!
+  time_resolution: String
   user_timezone: String!
 }
 
@@ -252,10 +259,12 @@ type ElectionEventStatsOutput {
 }
 
 input ElectionStatsInput {
+  bucket_count: Int
   election_event_id: uuid!
   election_id: uuid!
   end_date: String!
   start_date: String!
+  time_resolution: String
   user_timezone: String!
 }
 
@@ -783,6 +792,16 @@ type PublishResultsWebsiteOutput {
   task_execution_id: String!
 }
 
+type RealmPasswordPolicy {
+  configured: Boolean!
+  include_digits: Boolean!
+  include_lowercase: Boolean!
+  include_special_characters: Boolean!
+  include_uppercase: Boolean!
+  maximum_length: Int!
+  minimum_length: Int!
+}
+
 type RefreshResultsPublicationIndexOutput {
   election_event_id: String!
   results_enabled: Boolean!
@@ -998,6 +1017,10 @@ type UpdateRealmAttributesOutput {
   updated: Boolean!
 }
 
+type UpdateRealmPasswordPolicyOutput {
+  updated: Boolean!
+}
+
 type UpsertAreaOutput {
   id: String!
 }
@@ -1013,6 +1036,12 @@ type UserProfileAttribute {
   required: jsonb
   selector: jsonb
   validations: jsonb
+}
+
+type VoterInformationLetterOutput {
+  document_id: String!
+  pdf_password: String!
+  task_execution: tasks_execution_type!
 }
 
 type VotersByChannel {
@@ -1705,6 +1734,7 @@ type mutation_root {
   generate_report(election_event_id: String, report_id: String!, report_mode: String!, tenant_id: String!): generateReportOutput
   generate_template(election_event_id: String!, election_id: String!, tally_session_id: String!, type: String!): GenerateTemplateOutput
   generate_transmission_report(election_event_id: String!, election_id: String, tally_session_id: String, tenant_id: String!): generateReportOutput
+  generate_voter_information_letter(election_event_id: String!, voter_id: String!): VoterInformationLetterOutput!
   get_ballot_publication_changes(ballot_publication_id: uuid!, election_event_id: uuid!, limit: Int): GetBallotPublicationChangesOutput
   get_manual_verification_pdf(body: GetManualVerificationInput!): GetManualVerificationOutput
   """get private key"""
@@ -2533,6 +2563,7 @@ type mutation_root {
   update_election_voting_status(election_event_id: uuid!, election_id: uuid!, voting_channels: [VotingStatusChannel], voting_status: VotingStatus!): UpdateElectionVotingStatusOutput
   update_event_voting_status(election_event_id: uuid!, voting_channels: [VotingStatusChannel], voting_status: VotingStatus!): UpdateEventVotingStatusOutput
   update_realm_attributes(attributes: jsonb!, election_event_id: String!): UpdateRealmAttributesOutput
+  update_realm_password_policy(election_event_id: String!, include_digits: Boolean!, include_lowercase: Boolean!, include_special_characters: Boolean!, include_uppercase: Boolean!, maximum_length: Int!, minimum_length: Int!): UpdateRealmPasswordPolicyOutput!
   """
   update data of the table: "sequent_backend.applications"
   """
@@ -4959,9 +4990,11 @@ type query_root {
   getElectionEventStats(object: ElectionEventStatsInput!): ElectionEventStatsOutput
   """get election event stats"""
   getElectionStats(object: ElectionStatsInput!): ElectionStatsOutput
+  get_document_password(document_id: String!): DocumentPasswordOutput!
   """list permissions"""
   get_permissions(body: GetPermissionsInput!): GetPermissionsOutput!
   get_realm_attributes(election_event_id: String!): GetRealmAttributesOutput!
+  get_realm_password_policy(election_event_id: String!): RealmPasswordPolicy!
   get_roles(body: GetRolesInput!): GetRolesOutput!
   get_top_votes_by_ip(body: GetTopCastVotesByIpInput!): GetTopCastVotesByIpOutput
   get_user_profile_attributes(election_event_id: String, tenant_id: String!): [UserProfileAttribute!]!
