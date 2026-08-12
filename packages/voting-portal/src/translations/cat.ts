@@ -361,6 +361,7 @@ const catalanTranslation: TranslationType = {
                 back: "Tornar a la llista de votacions",
                 close: "Tancar",
                 preview: "Vista prèvia",
+                download: "Descarregar",
             },
         },
         ballotLocator: {

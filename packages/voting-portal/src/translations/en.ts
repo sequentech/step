@@ -353,6 +353,7 @@ const englishTranslation = {
                 back: "Back to ballot list",
                 close: "Close",
                 preview: "Preview",
+                download: "Download",
             },
         },
         ballotLocator: {

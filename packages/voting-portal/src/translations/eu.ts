@@ -358,6 +358,7 @@ const basqueTranslation: TranslationType = {
                 back: "Itzuli bozketa zerrendara",
                 close: "Itxi",
                 preview: "Aurrebista",
+                download: "Deskargatu",
             },
         },
         ballotLocator: {
