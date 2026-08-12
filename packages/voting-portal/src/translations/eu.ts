@@ -286,7 +286,8 @@ const basqueTranslation: TranslationType = {
                     "Pantaila honek bozkatu dezakezun Bozketen zerrenda erakusten du. Bozketara sar zaitezke bozketa aldia irekita dagoenean.",
                 ok: "Ados",
             },
-            noResults: "Ez dago bozketarik eskuragarri oraingoz.",
+            noResults: "Ez dago bozketarik oraingoz.",
+            resultsButton: "Ikusi emaitzak",
             demoDialog: {
                 title: "Demo bozketa kabina",
                 content:
@@ -367,6 +368,8 @@ const basqueTranslation: TranslationType = {
             locateAgain: "Bilatu beste Bozketa bat",
             found: "Zure bozketa IDa {{ballotId}} aurkitu da",
             notFound: "Zure bozketa IDa {{ballotId}} ez da aurkitu",
+            ambiguous:
+                "Zure boto bat baino gehiago dator bat {{ballotId}} identifikatzailearekin. Erabili boto-identifikatzaile osoa.",
             contentDesc: "Hau da zure Bozketa edukia: ",
             wrongFormatBallotId: "Bozketa IDaren formatu okerra",
             ballotIdNotFoundAtFilter: "Zure bozketa IDa ez da {{ballotId}} bozketa zerrendan",

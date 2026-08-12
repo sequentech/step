@@ -6,28 +6,28 @@ import {TranslationType} from "./en"
 const frenchTranslation: TranslationType = {
     translations: {
         common: {
-            goBack: "Revenir",
+            goBack: "Retour",
             showMore: "Afficher plus",
             showLess: "Afficher moins",
         },
         candidatesList: {
-            collapseToggle: "Basculer la liste {{listTitle}}",
+            collapseToggle: "Masquer la liste {{listTitle}}",
             showCandidates: "Afficher les candidats",
             hideCandidates: "Masquer les candidats",
             selectedCandidate: "{{count}} candidat sélectionné",
             selectedCandidates: "{{count}} candidats sélectionnés",
-            expandAll: "Tout développer",
+            expandAll: "Tout afficher",
             collapseAll: "Tout réduire",
         },
         breadcrumbSteps: {
-            electionList: "Élections",
+            electionList: "Liste des élections",
             ballot: "Bulletin de vote",
             review: "Révision",
             confirmation: "Confirmer",
             audit: "Auditer",
         },
         footer: {
-            poweredBy: "Propulsé par <1></1>",
+            poweredBy: "Développé par <1></1>",
         },
         votingScreen: {
             backButton: "Retour",
@@ -36,22 +36,22 @@ const frenchTranslation: TranslationType = {
             ballotHelpDialog: {
                 title: "À propos de l'écran de vote",
                 content:
-                    "Cet écran affiche le vote pour lequel vous êtes éligible. Activez la case à droite pour sélectionner un Candidat/Réponse. Pour réinitialiser, cliquez sur “<b>Effacer la sélection</b>”, pour continuer, cliquez sur “<b>Suivant</b>”.",
+                    "Cet écran affiche le vote auquel vous êtes éligible. Cochez la case à droite pour sélectionner un(e) Candidat(e). Pour réinitialiser, cliquez sur “<b>Effacer la sélection</b>”, pour continuer, cliquez sur “<b>Suivant</b>”.",
                 ok: "OK",
             },
             nonVotedDialog: {
                 title: "Vote invalide ou blanc",
                 content:
-                    "Certaines de vos réponses pourraient rendre le bulletin invalide ou blanc dans une ou plusieurs questions.",
-                ok: "Revenir et réviser",
+                    "Certaines de vos réponses pourraient rendre le bulletin invalide ou blanc dans une ou plusieurs sélections.",
+                ok: "Réviser mes réponses",
                 continue: "Continuer",
                 cancel: "Annuler",
             },
             warningDialog: {
                 title: "Vérifiez votre bulletin",
                 content:
-                    "Votre bulletin contient des sélections qui peuvent nécessiter votre attention (comme sélectionner moins d'options que permis). Votre bulletin est valide et sera compté tel que soumis.",
-                ok: "Retour et vérification",
+                    "Votre bulletin contient des sélections à vérifier (par exemple, si vous avez sélectionné moins d'options que le nombre autorisé). Votre bulletin est valide et sera comptabilisé tel qu'il a été soumis.",
+                ok: "Réviser mes réponses",
                 continue: "Continuer",
                 cancel: "Annuler",
             },
@@ -62,21 +62,21 @@ const frenchTranslation: TranslationType = {
             declineToVoteDialog: {
                 title: "Confirmer l’abstention de vote",
                 content:
-                    "Êtes-vous sûr de vouloir vous abstenir de voter ?<br />Vous accéderez directement à la révision et votre statut de participation sera enregistré comme <b>S’est abstenu de voter</b>.",
+                    "Êtes-vous certain de vouloir vous abstenir de voter ?<br />Vous accéderez directement à l'étape de vérification et votre statut de participation sera enregistré comme <b>S’est abstenu de voter</b>.",
                 continue: "S’abstenir de voter",
                 cancel: "Annuler",
             },
             instructionsTitle: "Comment voter",
-            instructionsDescription: "Suivez ces étapes pour voter :",
+            instructionsDescription: "Suivez les étapes suivantes pour voter:",
             step1Title: "1. Sélectionnez votre option de vote",
             step1Description:
-                "Sélectionnez vos candidats et répondez aux questions. Vous pouvez modifier votre bulletin jusqu'à être prêt.",
+                "Sélectionnez vos candidats et répondez aux questions. Vous pourrez modifier votre bulletin jusqu'au moment de le soumettre.",
             step2Title: "2. Révisez votre bulletin",
             step2Description:
-                "Nous chiffrerons votre bulletin et vous montrerons une révision finale. Vous recevrez un ID de suivi unique.",
+                "Votre bulletin sera chiffré, puis une dernière vérification vous sera présentée. Vous recevrez un identifiant de suivi unique.",
             step3Title: "3. Envoyez votre vote",
             step3Description:
-                "Envoyez votre bulletin pour qu'il soit enregistré, ou choisissez d'auditer pour confirmer qu'il a été chiffré correctement.",
+                "Soumettez votre bulletin pour qu'il soit enregistré, ou lancez un audit afin de vérifier qu'il a été correctement chiffré.",
         },
         reviewScreen: {
             title: "Révisez votre vote",
@@ -95,14 +95,14 @@ const frenchTranslation: TranslationType = {
             ballotIdHelpDialog: {
                 title: "Vote non émis",
                 content:
-                    "<p>Vous êtes sur le point de copier le Localisateur de Vote, mais <b>votre vote n'a pas encore été émis</b>. Si vous tentez de rechercher le Localisateur de Vote, vous ne le trouverez pas.</p><p>La raison pour laquelle nous affichons le Localisateur de Vote à ce moment est pour que vous puissiez auditer la correction du vote chiffré avant de l'émettre. Si c'est la raison pour laquelle vous souhaitez copier le Localisateur de Vote, procédez à sa copie puis auditez votre vote.</p>",
+                    "<p>Vous êtes sur le point de copier le Localisateur de vote, mais <b>votre vote n'a pas encore été soumis</b>. Si vous essayez de rechercher le Localisateur de vote, vous ne le trouverez pas.</p><p>Nous affichons le Localisateur de vote à cette étape afin que vous puissiez vérifier, au moyen d'un audit, que votre bulletin a été correctement chiffré avant de le soumettre. Si c'est la raison pour laquelle vous souhaitez copier le Localisateur de vote, copiez-le d'abord, ensuite effectuez un audit de votre vote.</p>",
                 ok: "Je comprends que mon vote n'a pas été émis",
                 cancel: "Annuler",
             },
             auditBallotHelpDialog: {
                 title: "Voulez-vous vraiment Auditer votre bulletin ?",
                 content:
-                    "<p>L'audit du bulletin l'invalidera et vous devrez recommencer le processus de vote si vous souhaitez émettre votre vote. Le processus d'audit du bulletin permet de vérifier qu'il est correctement codé. Ce processus nécessite des connaissances techniques importantes, donc il n'est pas recommandé si vous ne savez pas ce que vous faites.</p><p><b>Si vous souhaitez émettre votre vote, cliquez sur <u>Annuler</u> pour revenir à l'écran de révision du vote.</b></p>",
+                    "<p>L'audit du bulletin l'invalidera et vous devrez recommencer le processus de vote si vous souhaitez soumettre votre vote. L'audit du bulletin permet de vérifier que celui-ci a été correctement chiffré. Cette procédure requiert des connaissances techniques approfondies et n'est pas recommandée si vous ne maîtrisez pas son fonctionnement.</p><p><b>Si vous souhaitez soumettre votre vote, cliquez sur <u>Annuler</u> pour revenir à l'écran de vérification de votre bulletin.</b></p>",
                 ok: "Oui, je veux invalider mon bulletin pour l'auditer",
                 cancel: "Annuler",
             },
@@ -136,7 +136,7 @@ const frenchTranslation: TranslationType = {
                 CAST_VOTE_ElectoralLogNotFound:
                     "Votre enregistrement de vote n'a pas pu être trouvé. Veuillez contacter le support pour obtenir de l'aide.",
                 CAST_VOTE_CheckPreviousVotesFailed:
-                    "Une erreur est survenue lors de la vérification de votre statut de vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                    "Une erreur est survenue lors de la vérification du statut du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
                 CAST_VOTE_GetClientCredentialsFailed:
                     "Échec de la vérification de vos informations d'identification. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
                 CAST_VOTE_GetAreaIdFailed:
@@ -162,29 +162,29 @@ const frenchTranslation: TranslationType = {
                 CAST_VOTE_CheckVotesInOtherAreasFailed:
                     "Vous avez déjà voté dans une autre zone. Veuillez réessayer ultérieurement ou contacter l'assistance pour obtenir de l'aide.",
                 CAST_VOTE_UnknownError:
-                    "Une erreur inconnue est survenue lors du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                    "Une erreur inconnue est survenue lors du vote. Veuillez réessayer ultérieurement ou contacter le support pour obtenir de l'aide.",
                 NO_BALLOT_SELECTION:
-                    "L'état de sélection pour cette élection est introuvable. Veuillez vous assurer que vous avez sélectionné vos choix correctement ou contactez le support.",
+                    "L'état de sélection pour cette élection est introuvable. Veuillez vous assurer que vous avez sélectionné correctement vos choix ou contactez le support.",
                 NO_BALLOT_STYLE:
                     "Le style du bulletin de vote n'est pas disponible. Veuillez contacter le support.",
                 NO_AUDITABLE_BALLOT:
                     "Aucun bulletin de vote vérifiable n'est disponible. Veuillez contacter le support.",
                 INCONSISTENT_HASH:
-                    "Une erreur liée au processus de hachage du bulletin de vote est survenue. Le BallotId: {{ballotId}} n'est pas cohérent avec le Hash du bulletin vérifiable: {{auditableBallotHash}}. Veuillez signaler ce problème au support.",
+                    "Une erreur est survenue lors du calcul du hachage du bulletin. L'identifiant du bulletin ({{ballotId}}) ne correspond pas au hachage du bulletin vérifiable ({{auditableBallotHash}}). Veuillez signaler ce problème au service d'aide.",
                 ELECTION_EVENT_NOT_OPEN:
                     "L'événement électoral est fermé. Veuillez contacter le support.",
                 PARSE_ERROR:
-                    "Une erreur est survenue lors de l'analyse du bulletin de vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                    "Une erreur est survenue lors de l'analyse du bulletin de vote. Veuillez réessayer ultérieurement ou contacter le support pour obtenir de l'aide.",
                 DESERIALIZE_AUDITABLE_ERROR:
-                    "Une erreur est survenue lors de la désérialisation du bulletin vérifiable. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                    "Une erreur est survenue lors de la désérialisation du bulletin vérifiable. Veuillez réessayer ultérieurement ou contacter le support pour obtenir de l'aide.",
                 DESERIALIZE_HASHABLE_ERROR:
-                    "Une erreur est survenue lors de la désérialisation du bulletin haché. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                    "Une erreur est survenue lors de la désérialisation du bulletin haché. Veuillez réessayer ultérieurement ou contacter le support pour obtenir de l'aide.",
                 CONVERT_ERROR:
-                    "Une erreur est survenue lors de la conversion du bulletin de vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                    "Une erreur est survenue lors de la conversion du bulletin de vote. Veuillez réessayer ultérieurement ou contacter le support pour obtenir de l'aide.",
                 SERIALIZE_ERROR:
-                    "Une erreur est survenue lors de la sérialisation du bulletin de vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                    "Une erreur est survenue lors de la sérialisation du bulletin de vote. Veuillez réessayer ultérieurement ou contacter le support pour obtenir de l'aide.",
                 UNKNOWN_ERROR:
-                    "Une erreur est survenue. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                    "Une erreur est survenue. Veuillez réessayer ultérieurement ou contacter le support pour obtenir de l'aide.",
                 REAUTH_FAILED:
                     "L'authentification a échoué. Veuillez réessayer ou contacter le support pour obtenir de l'aide.",
                 SESSION_EXPIRED: "Votre session a expiré. Veuillez recommencer depuis le début.",
@@ -193,15 +193,15 @@ const frenchTranslation: TranslationType = {
                 SESSION_STORAGE_ERROR:
                     "Le stockage de session n'est pas disponible. Veuillez réessayer ou contacter le support.",
                 PARSE_BALLOT_DATA_ERROR:
-                    "Une erreur s'est produite lors de l'analyse des données du bulletin de vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                    "Une erreur s'est produite lors de l'analyse des données du bulletin de vote. Veuillez réessayer ultérieurement ou contacter le support pour obtenir de l'aide.",
                 NOT_VALID_BALLOT_DATA_ERROR:
-                    "Les données du bulletin de vote ne sont pas valides. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                    "Les données du bulletin de vote ne sont pas valides. Veuillez réessayer ultérieurement ou contacter le support pour obtenir de l'aide.",
                 FETCH_DATA_TIMEOUT_ERROR:
-                    "Erreur de délai d'attente pour récupérer les données. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                    "Erreur de délai d'attente pour récupérer les données. Veuillez réessayer ultérieurement ou contacter le support pour obtenir de l'aide.",
                 TO_HASHABLE_BALLOT_ERROR:
-                    "Erreur lors de la conversion en bulletin de vote hashable. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                    "Erreur lors de la conversion en bulletin de vote hashable. Veuillez réessayer ultérieurement ou contacter le support pour obtenir de l'aide.",
                 INTERNAL_ERROR:
-                    "Une erreur interne s'est produite lors du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                    "Une erreur interne s'est produite lors du vote. Veuillez réessayer ultérieurement ou contacter le support pour obtenir de l'aide.",
             },
             declineToVote: "S’abstenir de voter",
         },
@@ -214,7 +214,7 @@ const frenchTranslation: TranslationType = {
             finishButton: "Terminer",
             verifyCastTitle: "Vérifiez que votre vote a été émis",
             verifyCastDescription:
-                "Vous pouvez vérifier à tout moment que votre bulletin a été émis correctement en utilisant le code QR ci-dessous :",
+                "Vous pouvez vérifier à tout moment que votre bulletin a été émis correctement en utilisant le code QR ci-dessous:",
             confirmationHelpDialog: {
                 title: "À propos de l'écran de confirmation",
                 content:
@@ -228,13 +228,13 @@ const frenchTranslation: TranslationType = {
             },
             demoBallotUrlDialog: {
                 title: "Suivi du Bulletin",
-                content: "Impossible d'utiliser le code, désactivé en mode démo.",
+                content: "Impossible d'utiliser le code, celui-ci est désactivé en mode démo.",
                 ok: "OK",
             },
             ballotIdHelpDialog: {
                 title: "À propos du Localisateur de Bulletin",
                 content:
-                    "Le Localisateur de Bulletin est un code qui vous permet de retrouver votre bulletin dans l'urne, ce Localisateur est unique et ne contient aucune information sur vos sélections.",
+                    "Le Localisateur de Bulletin est un code qui vous permet de retrouver votre bulletin dans l'urne, ce Localisateur est unique et ne contient aucune information sur vos choix.",
                 ok: "OK",
             },
             ballotIdDemoHelpDialog: {
@@ -254,10 +254,10 @@ const frenchTranslation: TranslationType = {
             printButton: "Imprimer",
             restartButton: "Démarrer le vote",
             title: "Vérifiez votre Bulletin",
-            description: "Pour vérifier votre bulletin, suivez les étapes suivantes :",
+            description: "Pour vérifier votre bulletin, suivez les étapes suivantes:",
             step1Title: "1. Téléchargez ou copiez les informations suivantes",
             step1Description:
-                "Votre <b>Localisateur de Vote</b> qui apparaît en haut de l'écran et votre bulletin chiffré ci-dessous :",
+                "Votre <b>Localisateur de Vote</b> apparaît en haut de l'écran et votre bulletin chiffré ci-dessous:",
             step1HelpDialog: {
                 title: "Copier le Vote Chiffré",
                 content:
@@ -271,7 +271,7 @@ const frenchTranslation: TranslationType = {
             step2HelpDialog: {
                 title: "Tutoriel sur l'Audit du Vote",
                 content:
-                    "Pour auditer votre vote, vous devez suivre les étapes indiquées dans le tutoriel, qui incluent le téléchargement d'une application de bureau utilisée pour vérifier le vote chiffré indépendamment du site web.",
+                    "Pour auditer votre vote, vous devez suivre les étapes décrites dans le tutoriel, notamment télécharger une application de bureau permettant de vérifier le bulletin chiffré de manière indépendante, sans passer par le site Web.",
                 ok: "OK",
             },
             bottomWarning:
@@ -279,50 +279,51 @@ const frenchTranslation: TranslationType = {
         },
         electionSelectionScreen: {
             title: "Élections",
-            description: "Sélectionnez l'élection pour laquelle vous souhaitez voter",
+            description: "Sélectionnez l'élection à laquelle vous souhaitez voter",
             chooserHelpDialog: {
                 title: "À propos de la liste des élections",
                 content:
-                    "Cet écran montre la liste des élections dans lesquelles vous pouvez voter. L'accès est possible uniquement si la période de vote est ouverte.",
+                    "Cet écran montre la liste des élections auxquelles vous pouvez voter. Vous pouvez y accéder uniquement si la période de vote est ouverte.",
                 ok: "OK",
             },
-            noResults: "Aucun bulletin disponible pour le moment.",
+            noResults: "Il n'y a pas d'élections pour le moment.",
+            resultsButton: "Voir les résultats",
             demoDialog: {
                 title: "Bureau de vote de démonstration",
                 content:
-                    "Vous entrez dans un bureau de vote de démonstration. <strong>Votre vote ne sera pas compté.</strong> Uniquement à des fins de démonstration.",
-                ok: "Je comprends que mon vote ne sera pas compté",
+                    "Vous entrez dans un bureau de vote de démonstration. <strong>Votre vote ne sera pas comptabilisé.</strong> Uniquement à des fins de démonstration.",
+                ok: "Je comprends que mon vote ne sera pas comptabilisé",
             },
             errors: {
-                noVotingArea: "Zone de vote non assignée. Veuillez réessayer plus tard.",
+                noVotingArea: "Zone de vote non assignée. Veuillez réessayer ultérieurement.",
                 networkError:
-                    "Il y a eu un problème de réseau. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                    "Il y a eu un problème de réseau. Veuillez réessayer ultérieurement ou contacter le support pour obtenir de l'aide.",
                 unableToFetchData:
-                    "Il y a eu un problème pour récupérer les données. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                    "Il y a eu un problème pour récupérer les données. Veuillez réessayer ultérieurement ou contacter le support pour obtenir de l'aide.",
                 noElectionEvent:
-                    "L'événement électoral n'existe pas. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                    "L'événement électoral n'existe pas. Veuillez réessayer ultérieurement ou contacter le support pour obtenir de l'aide.",
                 ballotStylesEmlError:
-                    "Il y a eu une erreur avec la publication du style de bulletin. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                    "Il y a eu une erreur avec la publication du style de bulletin. Veuillez réessayer ultérieurement ou contacter le support pour obtenir de l'aide.",
                 obtainingElectionFromID:
-                    "Il y a eu une erreur pour obtenir les élections associées aux identifiants d'élection suivants : {{electionIds}}. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                    "Il y a eu une erreur pour obtenir les élections associées aux identifiants d'élection suivants : {{electionIds}}. Veuillez réessayer ultérieurement ou contacter le support pour obtenir de l'aide.",
             },
             alerts: {
                 noElections:
-                    "Il n'y a pas d'élections pour lesquelles vous pouvez voter. Cela pourrait être parce que la zone n'a aucun concours associé. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                    "Il n'y a pas d'élections pour lesquelles vous pouvez voter. Cela pourrait être parce que la zone n'a aucun concours associé. Veuillez réessayer ultérieurement ou contacter le support pour obtenir de l'aide.",
                 electionEventNotPublished:
-                    "L'événement électoral n'a pas encore été publié. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                    "L'événement électoral n'a pas encore été publié. Veuillez réessayer ultérieurement ou contacter le support pour obtenir de l'aide.",
             },
         },
         errors: {
             encoding: {
-                notEnoughChoices: "Pas assez de choix à décoder",
-                writeInChoiceOutOfRange: "Choix écrit hors de la plage : {{index}}",
-                writeInNotEndInZero: "L'écrit ne se termine pas par 0",
+                notEnoughChoices: "Nombre d'options insuffisant pour le déchiffrement",
+                writeInChoiceOutOfRange: "Entrée de saisie libre hors limites : {{index}}",
+                writeInNotEndInZero: "Le texte saisi ne se termine pas par 0",
                 writeInCharsExceeded:
-                    "L'écrit dépasse la longueur maximale de {{numCharsExceeded}} caractères. Veuillez le raccourcir.",
+                    "Le texte saisi dépasse la longueur maximale de {{numCharsExceeded}} caractères. Veuillez le raccourcir.",
                 bytesToUtf8Conversion:
-                    "Erreur lors de la conversion de l'écrit de bytes en chaîne UTF-8 : {{errorMessage}}",
-                ballotTooLarge: "Bulletin plus grand que prévu",
+                    "Erreur lors de la conversion du texte de bytes en chaîne UTF-8 : {{errorMessage}}",
+                ballotTooLarge: "La taille du bulletin dépasse la limite prévue",
             },
             implicit: {
                 selectedMax:
@@ -338,60 +339,61 @@ const frenchTranslation: TranslationType = {
                 blankVote: "Vote blanc : 0 choix sélectionnés",
             },
             explicit: {
-                notAllowed:
-                    "Le bulletin est marqué comme explicitement invalide, mais la question ne le permet pas",
+                notAllowed: "Bulletin marqué comme invalide, mais cette question ne l'autorise pas",
                 alert: "Cette sélection sera comptée comme un vote invalide",
             },
             page: {
                 oopsWithStatus: "Oups ! {{status}}",
-                oopsWithoutStatus: "Oups ! Erreur inattendue",
-                somethingWrong: "Quelque chose s'est mal passé.",
-                certAuthFailedTitle: "Échec de l'Authentification par Certificat",
+                oopsWithoutStatus: "Oups ! Une erreur inattendue est survenue.",
+                somethingWrong: "Une erreur est survenue.",
+                certAuthFailedTitle: "Échec de l'authentification par certificat",
                 certAuthFailedMessage:
-                    "Votre certificat n'a pas pu être vérifié. Veuillez vérifier que vous utilisez un certificat de votant valide et réessayez.",
+                    "Votre certificat n'a pas pu être vérifié. Veuillez vous assurer que vous utilisez un certificat d'électeur valide, puis réessayez.",
             },
         },
         materials: {
             common: {
-                label: "Matériaux de Support",
-                back: "Revenir à la liste des élections",
+                label: "Documentation et support",
+                back: "Retour à la liste des élections",
                 close: "Fermer",
                 preview: "Aperçu",
             },
         },
         ballotLocator: {
-            title: "Trouvez votre Bulletin",
+            title: "Localisez votre bulletin de vote",
             titleResult: "Résultat de la recherche de votre Bulletin",
             description: "Vérifiez que votre bulletin a été émis correctement",
-            locate: "Trouvez votre Bulletin",
-            locateAgain: "Trouvez un autre Bulletin",
-            found: "Votre ID de Bulletin {{ballotId}} a été trouvé",
-            notFound: "Votre ID de Bulletin {{ballotId}} n'a pas été trouvé",
-            contentDesc: "Voici le contenu de votre Bulletin : ",
-            wrongFormatBallotId: "Format incorrect pour l'ID du Bulletin",
+            locate: "Trouvez votre bulletin",
+            locateAgain: "Trouvez un autre bulletin",
+            found: "Votre numéro d'identification de bulletin {{ballotId}} a été trouvé",
+            notFound: "Votre numéro d'identification de bulletin {{ballotId}} n'a pas été trouvé",
+            ambiguous:
+                "Plusieurs de vos bulletins correspondent à {{ballotId}}. Utilisez le numéro d'identification complet du bulletin.",
+            contentDesc: "Voici le contenu de votre bulletin : ",
+            wrongFormatBallotId: "Format incorrect pour le numéro d'identification du bulletin",
             ballotIdNotFoundAtFilter:
-                "Non trouvé, veuillez verifier que l'ID du Bulletin soit correct et appartenir a cet utilisateur.",
-            filterByBallotId: "Filtrez par ID de Bulletin",
+                "Non trouvé, veuillez vérifier que le numéro d'identification du bulletin soit correct et appartenir à cet utilisateur.",
+            filterByBallotId: "Filtrez par numéro d'identification du bulletin",
             totalBallots: "Total: {{total}}",
             steps: {
-                lookup: "Trouvez votre Bulletin",
+                lookup: "Trouvez votre bulletin de vote",
                 result: "Résultat",
             },
             titleHelpDialog: {
-                title: "À propos du Localisateur de Bulletin",
+                title: "À propos du localisateur de bulletin",
                 content:
-                    "Le Localisateur de Bulletin vous permet de saisir l'ID du Bulletin pour trouver votre vote et confirmer qu'il a été enregistré correctement.",
+                    "Le localisateur de bulletin vous permet de saisir le numéro d'identification du bulletin pour trouver votre vote et confirmer qu'il a été enregistré correctement.",
                 ok: "OK",
             },
             tabs: {
                 logs: "Logs",
-                ballotLocator: "Recherche de Bulletin",
+                ballotLocator: "Recherche de bulletin",
             },
             column: {
                 statement_kind: "Type",
                 statement_timestamp: "Marque de temps",
                 username: "Nom d'utilisateur",
-                ballot_id: "ID de Bulletin",
+                ballot_id: "Numéro d'identification du bulletin",
                 message: "Message",
             },
         },

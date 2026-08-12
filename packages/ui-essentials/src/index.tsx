@@ -41,3 +41,44 @@ export {default as ExpandableText} from "./components/ExpandableText/ExpandableT
 export {ActionsContainer, StyledButton} from "./components/ConfirmationActions/ConfirmationActions"
 export {PlaintextVoteContest} from "./components/PlaintextVoteContest/PlaintextVoteContest"
 export type {PlaintextVoteContestProps} from "./components/PlaintextVoteContest/PlaintextVoteContest"
+export {
+    CandidateResults,
+    CandidateResultsChart,
+    default as ResultsAndParticipation,
+    defaultResultsAndParticipationLabels,
+    ParticipationSummary,
+    ParticipationSummaryChart,
+    ParticipationByChannel,
+    PreferentialCandidateResults,
+    sortCandidateResults,
+    TALLY_RESULTS_PIE_HEIGHT,
+    TALLY_RESULTS_PIE_PANEL_WIDTH,
+} from "./components/TallyResults/TallyResults"
+export {
+    default as ResultsSelectorTabs,
+    ResultsSelectorTabs as ResultsSelectorTabsComponent,
+} from "./components/TallyResults/ResultsSelectorTabs"
+export type {
+    CandidateReference,
+    CandidateResultRow,
+    ParticipationChannelNames,
+    ResultsAndParticipationLabelOverrides,
+    ResultsAndParticipationLabels,
+    ResultsAndParticipationProps,
+    ResultsParticipationSummary,
+    VotesByChannel,
+    PreferentialProcessResults,
+    PreferentialRound,
+} from "./components/TallyResults/TallyResults"
+export type {
+    ResultsSelectorAreaOption,
+    ResultsSelectorLabels,
+    ResultsSelectorOption,
+    ResultsSelectorSelection,
+    ResultsSelectorTabsProps,
+} from "./components/TallyResults/ResultsSelectorTabs"
+export {default as ReviewChangesTable} from "./components/ReviewChangesTable/ReviewChangesTable"
+export type {
+    ReviewChangesRow,
+    ReviewChangesTableProps,
+} from "./components/ReviewChangesTable/ReviewChangesTable"

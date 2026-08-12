@@ -286,7 +286,8 @@ const dutchTranslation: TranslationType = {
                     "Dit scherm toont de lijst met stembiljetten waarvoor u kunt stemmen. U kunt alleen toegang krijgen als de stemperiode open is.",
                 ok: "OK",
             },
-            noResults: "Geen stembiljetten beschikbaar.",
+            noResults: "Momenteel geen stembiljetten.",
+            resultsButton: "Resultaten bekijken",
             demoDialog: {
                 title: "Demo stemhokje",
                 content:
@@ -367,6 +368,8 @@ const dutchTranslation: TranslationType = {
             locateAgain: "Zoek een ander Stembiljet",
             found: "Uw stembiljet ID {{ballotId}} is gevonden",
             notFound: "Uw stembiljet ID {{ballotId}} is niet gevonden",
+            ambiguous:
+                "Meer dan één van uw stembiljetten komt overeen met {{ballotId}}. Gebruik de volledige stembiljet-ID.",
             contentDesc: "Dit is de inhoud van uw stembiljet: ",
             wrongFormatBallotId: "Verkeerd formaat voor Stembiljet ID",
             ballotIdNotFoundAtFilter:

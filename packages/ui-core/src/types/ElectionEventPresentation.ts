@@ -83,6 +83,7 @@ export enum EElectionEventAutomaticRecountPolicy {
 export enum EElectionEventWeightedVotingPolicy {
     AREAS_WEIGHTED_VOTING = "areas-weighted-voting",
     DISABLED_WEIGHTED_VOTING = "disabled-weighted-voting",
+    VOTERS_WEIGHTED_VOTING = "voters-weighted-voting",
 }
 
 export enum EElectionEventDelegatedVotingPolicy {
@@ -94,6 +95,99 @@ export enum EVoterCertificatePolicy {
     ENABLED = "enabled",
     DISABLED = "disabled",
 }
+
+export enum EResultsWebsiteStatus {
+    ENABLED = "enabled",
+    DISABLED = "disabled",
+}
+
+export enum EResultsWebsiteAccess {
+    PUBLIC = "public",
+    AUTHENTICATED = "authenticated",
+}
+
+export enum EResultsWebsiteVisibilityScope {
+    FULL_EVENT = "full_event",
+    AREA_BASED = "area_based",
+}
+
+export enum EResultsRouteScope {
+    EVENT = "event",
+    ELECTION = "election",
+}
+
+export enum EResultsPublicationStatus {
+    PUBLISHING = "Publishing",
+    PUBLISHED = "Published",
+    FAILED = "Failed",
+    REVOKED = "Revoked",
+    SUPERSEDED = "Superseded",
+}
+
+export interface IResultsWebsitePolicy {
+    status: EResultsWebsiteStatus
+    access: EResultsWebsiteAccess
+    visibility_scope: EResultsWebsiteVisibilityScope
+}
+
+export const defaultResultsWebsitePolicy = (): IResultsWebsitePolicy => ({
+    status: EResultsWebsiteStatus.DISABLED,
+    access: EResultsWebsiteAccess.PUBLIC,
+    visibility_scope: EResultsWebsiteVisibilityScope.FULL_EVENT,
+})
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === "object" && value !== null && !Array.isArray(value)
+
+export const parseResultsWebsitePolicy = (value: unknown): IResultsWebsitePolicy | undefined => {
+    try {
+        const parsed: unknown = typeof value === "string" ? JSON.parse(value) : value
+        if (!isRecord(parsed)) return undefined
+
+        const {status, access, visibility_scope: visibilityScope} = parsed
+        if (status !== EResultsWebsiteStatus.ENABLED && status !== EResultsWebsiteStatus.DISABLED) {
+            return undefined
+        }
+        if (
+            access !== EResultsWebsiteAccess.PUBLIC &&
+            access !== EResultsWebsiteAccess.AUTHENTICATED
+        ) {
+            return undefined
+        }
+        if (
+            visibilityScope !== EResultsWebsiteVisibilityScope.FULL_EVENT &&
+            visibilityScope !== EResultsWebsiteVisibilityScope.AREA_BASED
+        ) {
+            return undefined
+        }
+
+        return {status, access, visibility_scope: visibilityScope}
+    } catch {
+        return undefined
+    }
+}
+export enum EVotingPortalDateTimeFormat {
+    LEGACY_GB_24H = "legacy-gb-24h",
+    ISO_LOCAL = "iso-local",
+    US_12H = "us-12h",
+    LOCALE_MEDIUM = "locale-medium",
+    DATE_ONLY = "date-only",
+    CUSTOM = "custom",
+}
+
+/**
+ * The `CUSTOM` policy carries the operator-supplied pattern inline, mirroring the
+ * Rust `VotingPortalDateTimeFormat::Custom(String)` variant. Stored in the same
+ * `voting_portal_datetime_format` field as `{custom: "<pattern>"}`; presets remain
+ * plain strings.
+ */
+export interface IVotingPortalCustomDateTimeFormat {
+    custom: string
+}
+
+export type VotingPortalDateTimeFormat =
+    | EVotingPortalDateTimeFormat
+    | IVotingPortalCustomDateTimeFormat
 
 export interface IElectionEventPresentation {
     i18n?: Record<string, Record<string, string>>
@@ -110,6 +204,7 @@ export interface IElectionEventPresentation {
     keys_ceremony_policy?: KeysCeremonyPolicy
     locked_down?: EElectionEventLockedDown
     contest_encryption_policy?: EElectionEventContestEncryptionPolicy
+    decoded_ballot_inclusion_policy?: EElectionEventDecodedBallots
     publish_policy?: EElectionEventPublishPolicy
     enrollment?: EElectionEventEnrollment
     otp?: EElectionEventOTP
@@ -118,5 +213,7 @@ export interface IElectionEventPresentation {
     weighted_voting_policy?: EElectionEventWeightedVotingPolicy
     voter_signing_policy?: EVoterSigningPolicy
     voter_certificate_policy?: EVoterCertificatePolicy
+    results_website?: string
     delegated_voting_policy: EElectionEventDelegatedVotingPolicy
+    voting_portal_datetime_format?: VotingPortalDateTimeFormat
 }

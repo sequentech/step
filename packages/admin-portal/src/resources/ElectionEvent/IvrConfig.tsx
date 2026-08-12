@@ -3,11 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useMemo, useState} from "react"
 import {useNotify, useRecordContext, useRefresh, useUpdate} from "react-admin"
-import {Box, Button} from "@mui/material"
+import {Box, Button, TextField} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
-import {IVR_CONFIG_ANNOTATION} from "@/utils/ivr"
+import {IVR_CONFIG_ANNOTATION, IVR_PHONE_NUMBER_ANNOTATION} from "@/utils/ivr"
 import {DefaultValueFunction, JsonEditor} from "json-edit-react"
+import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 
 const RESOURCE = "sequent_backend_election_event"
 
@@ -19,6 +20,11 @@ export const IvrConfig: React.FC = () => {
     const [update] = useUpdate()
 
     const annotations = (record?.annotations ?? {}) as Record<string, unknown>
+    const recordPhone = useMemo<string>(() => {
+        return typeof annotations[IVR_PHONE_NUMBER_ANNOTATION] === "string"
+            ? (annotations[IVR_PHONE_NUMBER_ANNOTATION] as string)
+            : ""
+    }, [annotations[IVR_PHONE_NUMBER_ANNOTATION]])
     const stringConfig =
         typeof annotations[IVR_CONFIG_ANNOTATION] === "string"
             ? (annotations[IVR_CONFIG_ANNOTATION] as string)
@@ -34,14 +40,18 @@ export const IvrConfig: React.FC = () => {
 
     const [saving, setSaving] = useState(false)
     const [editorData, setEditorData] = useState(parsedConfig)
-    const pendingConfigPayload = useMemo(() => {
+    const [phoneNumber, setPhoneNumber] = useState<string>(recordPhone)
+    const pendingConfigPayload = useMemo<string>(() => {
         return JSON.stringify(editorData)
     }, [editorData])
 
-    const dirty = pendingConfigPayload !== stringConfig
+    const dirty = pendingConfigPayload !== stringConfig || phoneNumber !== recordPhone
     useEffect(() => {
         setEditorData(parsedConfig)
     }, [parsedConfig])
+    useEffect(() => {
+        setPhoneNumber(recordPhone)
+    }, [recordPhone])
 
     if (!record?.id) {
         return null
@@ -52,10 +62,11 @@ export const IvrConfig: React.FC = () => {
             return {phase: "", name: ""}
         }
     }
-    const handleCancel = () => {
+    const handleCancel = (): void => {
+        setPhoneNumber(recordPhone)
         setEditorData(parsedConfig)
     }
-    const handleSave = () => {
+    const handleSave = (): void => {
         setSaving(true)
         update(
             RESOURCE,
@@ -65,6 +76,7 @@ export const IvrConfig: React.FC = () => {
                     annotations: {
                         ...annotations,
                         [IVR_CONFIG_ANNOTATION]: pendingConfigPayload,
+                        [IVR_PHONE_NUMBER_ANNOTATION]: phoneNumber,
                     },
                 },
                 previousData: record,
@@ -84,24 +96,31 @@ export const IvrConfig: React.FC = () => {
     }
 
     return (
-        <Box>
-            <Box sx={{display: "flex", flexDirection: "column", gap: 2, mt: 2, maxWidth: 640}}>
-                <JsonEditor
-                    data={editorData}
-                    rootName="ivr:config"
-                    defaultValue={handleDefault}
-                    setData={(nextData) => {
-                        setEditorData(nextData)
-                    }}
-                />
-                <Box sx={{mt: 3, display: "flex", gap: 2}}>
-                    <Button variant="contained" onClick={handleSave} disabled={!dirty || saving}>
-                        {t("common.label.save")}
-                    </Button>
-                    <Button variant="contained" onClick={handleCancel} disabled={!dirty || saving}>
-                        {t("common.label.cancel")}
-                    </Button>
-                </Box>
+        <Box sx={{display: "flex", flexDirection: "column", gap: 2}}>
+            <ElectionHeaderStyles.SubTitle>
+                {t("electionEventScreen.ivr.config.infoMsg")}
+            </ElectionHeaderStyles.SubTitle>
+            <TextField
+                label={t("electionEventScreen.ivr.config.configuredPhone")}
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value.trim())}
+            />
+            <JsonEditor
+                data={editorData}
+                rootName="ivr:config"
+                defaultValue={handleDefault}
+                maxWidth={"100%"}
+                setData={(nextData) => {
+                    setEditorData(nextData)
+                }}
+            />
+            <Box sx={{mt: 3, display: "flex", gap: 2}}>
+                <Button variant="contained" onClick={handleSave} disabled={!dirty || saving}>
+                    {t("common.label.save")}
+                </Button>
+                <Button variant="contained" onClick={handleCancel} disabled={!dirty || saving}>
+                    {t("common.label.cancel")}
+                </Button>
             </Box>
         </Box>
     )

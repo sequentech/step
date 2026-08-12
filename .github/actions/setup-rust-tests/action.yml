@@ -1,0 +1,51 @@
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: Set up Rust tests
+description: Install the Rust toolchain, restore Cargo caches, and install native test dependencies
+
+inputs:
+  cargo-build-name:
+    description: Stable name used to isolate the Cargo build cache
+    required: true
+  cargo-build-path:
+    description: Path to the package Cargo target directory
+    required: true
+  cargo-lock-path:
+    description: Cargo lockfile used to invalidate the package build cache
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: 1.96.0
+        components: rustfmt
+        targets: x86_64-unknown-linux-musl
+
+    - name: Cache Cargo registry
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-registry-
+
+    - name: Cache Cargo build
+      uses: actions/cache@v4
+      with:
+        path: ${{ inputs.cargo-build-path }}
+        key: ${{ runner.os }}-cargo-test-${{ inputs.cargo-build-name }}-${{ hashFiles(inputs.cargo-lock-path) }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-test-${{ inputs.cargo-build-name }}-
+
+    - name: Install system dependencies
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler libprotobuf-dev

@@ -36,6 +36,14 @@ async fn rocket() -> _ {
                 routes::error_catchers::default
             ],
         )
+        .register(
+            "/api/datafix",
+            catchers![
+                routes::error_catchers::datafix_invalid_request,
+                routes::error_catchers::datafix_malformed_body,
+                routes::error_catchers::datafix_forbidden
+            ],
+        )
         .mount(
             "/api/datafix",
             routes![
@@ -57,6 +65,7 @@ async fn rocket() -> _ {
                 routes::voter_electoral_log::list_cast_vote_messages,
                 routes::insert_cast_vote::insert_cast_vote,
                 routes::fetch_document::fetch_document,
+                routes::document_password::get_document_password,
                 routes::elections::create_election,
                 routes::areas::upsert_area,
                 routes::election_event_stats::get_election_event_stats,
@@ -116,6 +125,8 @@ async fn rocket() -> _ {
                 routes::tally_sheets::preview_tally_sheet_import,
                 routes::tally_sheets::create_tally_sheet_import,
                 routes::tally_sheets::review_tally_sheet_import,
+                routes::external_reconciliation::create_reconciliation_import,
+                routes::external_reconciliation::apply_reconciliation_changes,
                 routes::create_ballot_receipt::create_ballot_receipt,
                 routes::election_dates::manage_election_dates,
                 routes::custom_urls::update_custom_url,
@@ -133,13 +144,23 @@ async fn rocket() -> _ {
                 routes::reports::generate_template,
                 routes::reports::generate_report,
                 routes::reports::encrypt_report_route,
+                routes::results_publication::configure_results_website_policy,
+                routes::results_publication::publish_results_website,
+                routes::results_publication::resolve_results_publication,
+                routes::results_publication::fetch_results_artifact,
+                routes::results_publication::revoke_results_publication,
+                routes::results_publication::refresh_results_publication_index,
                 routes::templates::get_user_template,
                 routes::applications::verify_user_application,
                 routes::applications::change_application_status,
                 routes::export_application::export_application_route,
                 routes::import_application::import_application_route,
                 routes::trustees::export_trustees_route,
+                routes::realm_attributes::get_realm_attributes_route,
                 routes::realm_attributes::update_realm_attributes_route,
+                routes::realm_password_policy::get_realm_password_policy_route,
+                routes::realm_password_policy::update_realm_password_policy_route,
+                routes::voter_information_letter::generate_voter_information_letter,
                 routes::set_voter_authentication::set_voter_authentication,
                 routes::export_tally_results::export_tally_results_route,
                 routes::google_meet::generate_google_meeting,

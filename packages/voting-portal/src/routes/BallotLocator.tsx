@@ -14,7 +14,11 @@ import {
     Dialog,
     ExpandableText,
 } from "@sequentech/ui-essentials"
-import {stringToHtml, EShowCastVoteLogsPolicy} from "@sequentech/ui-core"
+import {
+    stringToHtml,
+    EShowCastVoteLogsPolicy,
+    formatVotingPortalDateTime,
+} from "@sequentech/ui-core"
 import {Box, TextField, Typography, Button, Stack} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import Tabs from "@mui/material/Tabs"
@@ -25,6 +29,7 @@ import {useQuery} from "@apollo/client/react"
 import {
     GetBallotStylesQuery,
     GetCastVoteQuery,
+    GetElectionsQuery,
     GetElectionEventQuery,
     ListCastVoteMessagesQuery,
 } from "../gql/graphql"
@@ -37,6 +42,7 @@ import {selectFirstBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import useUpdateTranslation from "../hooks/useUpdateTranslation"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
+import {GET_ELECTIONS} from "../queries/GetElections"
 import {IElectionEvent} from "../store/electionEvents/electionEventsSlice"
 import Table from "@mui/material/Table"
 import TableSortLabel from "@mui/material/TableSortLabel"
@@ -130,7 +136,7 @@ const CustomTabPanel: React.FC<TabPanelProps> = ({children, index, value}) => {
 }
 
 const BallotLocator: React.FC = () => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const location = useLocation()
     const {tenantId, eventId, electionId} = useParams()
     const allowSendRequest = useRef<boolean>(true)
@@ -308,6 +314,14 @@ const BallotLocator: React.FC = () => {
                         page={page}
                         handleChangePage={handleChangePage}
                         somethingWentWrongErr={somethingWentWrongErr}
+                        formatDateTime={(timestamp) =>
+                            formatVotingPortalDateTime(
+                                timestamp,
+                                dataElectionEvent
+                                    ?.sequent_backend_election_event[0] as IElectionEvent,
+                                i18n.resolvedLanguage || i18n.language
+                            )
+                        }
                     />
                 </CustomTabPanel>
                 <Box
@@ -340,6 +354,7 @@ interface LogsTableProps {
     page: number
     handleChangePage: (event: unknown, newValue: number) => void
     somethingWentWrongErr: boolean
+    formatDateTime: (timestamp: number) => string
 }
 
 interface MessageCellProps {
@@ -412,6 +427,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
     page,
     handleChangePage,
     somethingWentWrongErr = false,
+    formatDateTime,
 }) => {
     const {t} = useTranslation()
     const [orderBy, setOrderBy] = useState<string>("")
@@ -581,7 +597,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                         padding: "2px 4px",
                                     }}
                                 >
-                                    {new Date(row.statement_timestamp * 1000).toUTCString()}
+                                    {formatDateTime(row.statement_timestamp * 1000)}
                                 </TableCell>
                                 <TableCell
                                     align="justify"
@@ -669,6 +685,24 @@ const BallotLocatorLogic = () => {
 
     const hasBallotId = !!ballotId
     const {data: dataBallotStyles} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
+    const {data: dataElections, loading: loadingElections} = useQuery<GetElectionsQuery>(
+        GET_ELECTIONS,
+        {
+            variables: {
+                electionIds: electionId ? [electionId] : [],
+            },
+            skip: globalSettings.DISABLE_AUTH || !electionId,
+        }
+    )
+
+    const election = dataElections?.sequent_backend_election.find((item) => item.id === electionId)
+    const telephoneVotingEnabled = election?.voting_channels?.telephone === true
+    const normalizedBallotId = ballotId?.toLowerCase() ?? ""
+    const ballotIdPattern = /^[0-9a-f]+$/.test(normalizedBallotId)
+        ? telephoneVotingEnabled && normalizedBallotId.length === 4
+            ? `${normalizedBallotId}%`
+            : normalizedBallotId
+        : ""
 
     const dispatch = useAppDispatch()
     const ballotStyle = useAppSelector(selectFirstBallotStyle)
@@ -678,9 +712,9 @@ const BallotLocatorLogic = () => {
             tenantId,
             electionEventId: eventId,
             electionId,
-            ballotId,
+            ballotIdPattern,
         },
-        skip: globalSettings.DISABLE_AUTH || !hasBallotId, // Skip query if in demo mode
+        skip: globalSettings.DISABLE_AUTH || !hasBallotId || loadingElections,
     })
 
     useEffect(() => {
@@ -691,9 +725,10 @@ const BallotLocatorLogic = () => {
 
     const validatedBallotId = isHex(inputBallotId ?? "")
 
-    const ballotContent =
-        data?.["sequent_backend_cast_vote"]?.find((item) => item.ballot_id === ballotId)?.content ??
-        null
+    const matchingBallots = data?.["sequent_backend_cast_vote"] ?? []
+    const ambiguousBallotId = matchingBallots.length > 1
+    const ballotContent = matchingBallots.length === 1 ? matchingBallots[0].content : null
+    const lookupLoading = loadingElections || loading
 
     const locate = (withBallotId = false) => {
         let id = withBallotId ? inputBallotId : ""
@@ -762,9 +797,11 @@ const BallotLocatorLogic = () => {
                 </Box>
             </Box>
 
-            {hasBallotId && !loading && (
+            {hasBallotId && !lookupLoading && (
                 <Box>
-                    {hasBallotId && !!ballotContent ? (
+                    {ambiguousBallotId ? (
+                        <MessageFailed>{t("ballotLocator.ambiguous", {ballotId})}</MessageFailed>
+                    ) : hasBallotId && !!ballotContent ? (
                         <MessageSuccess>{t("ballotLocator.found", {ballotId})}</MessageSuccess>
                     ) : (
                         <MessageFailed>{t("ballotLocator.notFound", {ballotId})}</MessageFailed>

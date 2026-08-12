@@ -44,6 +44,8 @@ path = [
 	"packages/voting-portal/src/gql/**",
 	"packages/voting-portal/tests_output/**",
 	"packages/voting-portal/reports/**",
+	"packages/results-portal/graphql.schema.json",
+	"packages/results-portal/src/gql/**",
 	"packages/windmill/src/graphql/**",
 	"packages/immudb-rs/proto/immudb/**",
 	"packages/keycloak-extensions/message-otp-authenticator/src/main/resources/theme-resources/templates/**",
@@ -55,7 +57,6 @@ path = [
 	".devcontainer/minio/certs.json",
 	"packages/orare/doc_renderer/assets/**",
 	"packages/windmill/external-bin/janitor/**.xlsx",
-	"packages/step-cli/rust-local-target/release/step-cli",
 	"packages/strand/browserstack/package-lock.json"
 ]
 precedence = "aggregate"
@@ -106,3 +107,9 @@ path = "packages/admin-portal/public/sql-wasm.wasm"
 precedence = "aggregate"
 SPDX-FileCopyrightText = ["", "2025 Sequent Tech <legal@sequentech.io>"]
 SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "packages/admin-portal/src/services/generated/ivr_emulator_wasm.d.ts"
+precedence = "aggregate"
+SPDX-FileCopyrightText = ["", "2026 Sequent Tech Inc <legal@sequentech.io>"]
+SPDX-License-Identifier = "AGPL-3.0-only"

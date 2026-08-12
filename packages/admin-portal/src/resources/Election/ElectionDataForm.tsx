@@ -263,6 +263,8 @@ export const ElectionDataForm: React.FC = () => {
             temp.presentation.grace_period_policy ??= EGracePeriodPolicy.NO_GRACE_PERIOD
             temp.presentation.grace_period_secs ??= 0
             temp.presentation.consolidated_report_policy ??= getDefaultConsolidatedReportPolicy()
+            temp.presentation.decline_to_vote_policy ??= getDefaultDeclineToVotePolicy()
+            temp.presentation.voting_screen_back_policy ??= getDefaultVotingScreenBackPolicy()
 
             const votingSettings = data?.voting_channels || tenantData?.voting_channels
 
@@ -396,7 +398,7 @@ export const ElectionDataForm: React.FC = () => {
                                 label={String(t("electionEventScreen.field.description"))}
                             />
                             <TextInput
-                                source={`annotations[${IVR_ENTITY_I18N_ANNOTATION}][prompt][${lang}]`}
+                                source={`annotations.${IVR_ENTITY_I18N_ANNOTATION}.${lang}.prompt`}
                                 label={String(t("electionScreen.field.ivrPrompt"))}
                             />
                             {hasTos ? (

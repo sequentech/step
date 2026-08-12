@@ -104,6 +104,103 @@ const galegoTranslation: TranslationType = {
                 next: "Seguinte",
             },
         },
+        reconciliation: {
+            menuButton: "Sincr. votantes ext.",
+            categories: {
+                VOTED_INTERNET: "Votou por Internet",
+                VOTED_OTHER_CHANNEL: "Votou por outra canle",
+                DISABLED_DELETE_CALL: "Votante desactivado",
+                DELETION_REVERTED: "Eliminación revertida",
+                PROFILE_UPDATE: "Perfil actualizado",
+                VOTER_ADDED: "Votante engadido",
+                REENABLED: "Votante reactivado",
+                VOTED_UNMARKED: "Votante desmarcado como votante",
+                ROW_FAILURE: "Erro de fila",
+            },
+            table: {
+                voterId: "ID de Votante",
+                field: "Campo",
+                category: "Categoría",
+                currentValue: "Valor actual",
+                newValue: "Valor novo",
+                reason: "Motivo",
+                rowLabel: "Fila",
+                noDifferences: "Non se atoparon diferenzas - os sistemas están sincronizados.",
+            },
+            wizard: {
+                title: "Sincronización de reconciliación externa",
+                subtitle: "Sincroniza a lista de votantes co sistema externo",
+                drop: {
+                    description:
+                        "Solta o ficheiro de reconciliación xerado polo sistema externo - ambos os diffs (lado externo e lado Sequent) calcúlanse automaticamente e móstranse en táboas separadas.",
+                    fileFormatLabel: "Ficheiro CSV",
+                    uploading: "Subindo {{fileName}} e calculando ambos os diffs...",
+                },
+                review: {
+                    fileSummary: "{{fileName}} - Secuencia {{sequence}}, xerado {{generatedAt}}",
+                    rowFailuresWarning:
+                        "{{count}} fila(s) non se puideron reconciliar de forma segura e quedan excluídas de ambos os diffs - ver detalles abaixo.",
+                    noDifferences: "Non hai diferenzas - ambos os sistemas xa están sincronizados.",
+                    diffOnlyDifferences:
+                        "Esta é unha comprobación de converxencia dunha secuencia xa aplicada. As diferenzas móstranse para o seu seguimento, pero esta rolda non se pode volver aplicar.",
+                    externalDiffTitle: "Diff externo",
+                    sequentDiffTitle: "Diff de Sequent",
+                    downloadExternalPatch: "Descargar parche externo",
+                    externalDiffCaption:
+                        "Descarga o parche e entrégao ao sistema externo fóra desta ferramenta. Unha vez que o aplique e xere o seguinte ficheiro de reconciliación, preme en 'Atrás' e solta ese ficheiro - 'Aplicar' actívase cando esta táboa estea baleira.",
+                    noExternalDifferences: "Non hai diferenzas do lado externo.",
+                    sequentDiffCaption:
+                        "Aplica os cambios directamente a Sequent premendo en 'Aplicar' - non se xera ficheiro de parche para estes.",
+                    noSequentDifferences: "Non hai diferenzas do lado de Sequent.",
+                },
+                applying: {
+                    inProgress: "Aplicando os cambios do lado de Sequent...",
+                    rowFailures:
+                        "{{count}} fila(s) quedaron excluídas desta ronda e precisan seguimento manual - ver detalles abaixo.",
+                    rowFailuresTruncated:
+                        "Amósanse os primeiros {{shown}} de {{count}} erros de fila. Resolve a causa común e téntao de novo para ver os erros restantes.",
+                    success: "Todos os cambios do lado de Sequent aplicáronse correctamente.",
+                },
+                actions: {
+                    cancel: "Cancelar",
+                    back: "Atrás",
+                    apply: "Aplicar",
+                    next: "Seguinte",
+                    startOver: "Comezar de novo",
+                    close: "Pechar",
+                },
+                confirm: {
+                    title: "Confirmar cambios de reconciliación",
+                    categoriesNote:
+                        "As categorías resaltadas en laranxa ({{categories}}) afectan o estado de voto ou desactivan votantes.",
+                    applyChanges: "Aplicar cambios",
+                    continue: "Continuar",
+                },
+                summary: {
+                    votedOtherChannel: "marca {{count}} votante(s) como votado(s) por outra canle",
+                    disabled: "desactiva {{count}} votante(s)",
+                    reenabled: "reactiva {{count}} votante(s)",
+                    votedUnmarked: "desmarca {{count}} votante(s) como votante",
+                    profileUpdated: "actualiza {{count}} perfil(s)",
+                    voterAdded: "engade {{count}} votante(s)",
+                    prefix: "Isto aplicará cambios que {{parts}}.",
+                    empty: "Non hai cambios do lado de Sequent para aplicar.",
+                },
+                notifications: {
+                    envelopeLoadError:
+                        "Non se puido cargar o diff de reconciliación - téntao de novo.",
+                    generateFailed:
+                        "Non se puido calcular o diff de reconciliación - consulta o widget de tarefas para máis detalles.",
+                    applyFailed:
+                        "Non se puideron aplicar os cambios do lado de Sequent - consulta o widget de tarefas para máis detalles.",
+                    uploadUrlError: "Non se puido obter unha URL de subida",
+                    generateTaskError: "Non se puido iniciar a tarefa de diff de reconciliación",
+                    uploadError: "Non se puido subir o ficheiro de reconciliación",
+                    applyTaskError: "Non se puido iniciar a tarefa de aplicación",
+                    applyError: "Non se puideron aplicar os cambios de reconciliación",
+                },
+            },
+        },
         logsScreen: {
             noPermissions: "Non tes permiso para acceder aos rexistros.",
             title: "Rexistros",
@@ -157,10 +254,12 @@ const galegoTranslation: TranslationType = {
                 logs: "Rexistros",
             },
             tasksExecution: {
+                VOTER_INFORMATION_LETTER: "Carta de información para o votante",
                 EXPORT_ELECTION_EVENT: "Exportar evento electoral",
                 CREATE_ELECTION_EVENT: "Crear Evento Electoral",
                 IMPORT_ELECTION_EVENT: "Importar evento electoral",
                 IMPORT_USERS: "Importar usuarios",
+                EDIT_USER: "Editar votante",
                 IMPORT_CANDIDATES: "Importar candidatos",
                 EXPORT_VOTERS: "Exportar votantes",
                 CREATE_TRANSMISSION_PACKAGE: "Crear paquete de transmisión",
@@ -180,6 +279,20 @@ const galegoTranslation: TranslationType = {
                 PREPARE_PUBLICATION_PREVIEW: "Preparar a vista previa da publicación",
                 EXPORT_TALLY_RESULTS_XLSX: "Exportar os resultados do reconto en formato XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Exportar autoridades de certificación",
+                PUBLISH_RESULTS_WEBSITE: "Publicar sitio web de resultados",
+            },
+            documentAccess: {
+                title: "Acceso ao documento",
+                sensitivityNotice:
+                    "Información sensible. Comparta este contrasinal só co destinatario previsto.",
+                passwordLabel: "Contrasinal para abrir o PDF cifrado",
+                showPassword: "Amosar o contrasinal",
+                copyPassword: "Copiar o contrasinal",
+                passwordCopied: "Contrasinal copiado",
+                passwordError: "Non se puido recuperar o contrasinal do PDF",
+                copyError: "Non se puido copiar o contrasinal",
+                guidance:
+                    "O contrasinal só se carga despois de escoller Amosar o contrasinal. Unha vez cargado, aparecerá aquí un campo de só lectura coa opción de copiar.",
             },
             widget: {
                 taskTitle: "Tarefa: {{title}}",
@@ -316,6 +429,12 @@ const galegoTranslation: TranslationType = {
         },
         dashboard: {
             voteByDay: "Votos por día",
+            votesOverTime: "Votos ao longo do tempo",
+            timeResolution: "Resolución temporal",
+            timeRange: "Intervalo de tempo",
+            minute: "Minuto",
+            hour: "Hora",
+            day: "Día",
             votersByChannels: "Votantes por canle",
             voterLoginURL: "URL de Inicio de Sesión do Votante",
             voterEnrollURL: "URL de Rexistro do Votante",
@@ -355,6 +474,16 @@ const galegoTranslation: TranslationType = {
                 importCandidates: "Importar Candidatos",
                 custom_filters: "Filtros Personalizados",
                 voter_authentication: "Autenticación de votantes",
+                realm_attributes: "Keycloak realm attributes",
+                realm_attributes_load_error: "Error loading Keycloak realm attributes",
+                realm_attributes_update_error: "Error updating Keycloak realm attributes",
+                realm_attributes_not_loaded:
+                    "Keycloak realm attributes have not loaded, changes were not saved",
+                password_policy: "Password Policy",
+                password_policy_load_error: "Error loading Keycloak password policy",
+                password_policy_update_error: "Error updating Keycloak password policy",
+                password_policy_not_loaded:
+                    "Keycloak password policy has not loaded, changes were not saved",
             },
             customUrls: {
                 login: "Iniciar Sesión",
@@ -366,6 +495,8 @@ const galegoTranslation: TranslationType = {
                 notify: {
                     success: "Localización actualizada correctamente",
                     error: "Fallou a actualización da localización",
+                    invalidDateTimeFormat:
+                        "Formato de data/hora non válido. Usa os tokens yyyy, MM, dd, HH, mm, ss (p. ex. dd/MM/yyyy HH:mm).",
                 },
                 common: {
                     title: "Localización",
@@ -377,6 +508,37 @@ const galegoTranslation: TranslationType = {
                 },
             },
             field: {
+                passwordPolicy: {
+                    minimumLength: "Lonxitude mínima",
+                    maximumLength: "Lonxitude máxima",
+                    includeUppercase: "Incluír letras maiúsculas",
+                    includeLowercase: "Incluír letras minúsculas",
+                    includeDigits: "Incluír díxitos",
+                    includeSpecialCharacters: "Incluír caracteres especiais",
+                    help: {
+                        minimumLength:
+                            "O número mínimo de caracteres requiridos para o contrasinal.",
+                        maximumLength:
+                            "O número máximo de caracteres permitidos para o contrasinal.",
+                        includeUppercase:
+                            "O contrasinal debe incluír polo menos unha letra maiúscula.",
+                        includeLowercase:
+                            "O contrasinal debe incluír polo menos unha letra minúscula.",
+                        includeDigits: "O contrasinal debe incluír polo menos un díxito.",
+                        includeSpecialCharacters:
+                            "O contrasinal debe incluír polo menos un carácter especial.",
+                    },
+                    notConfigured:
+                        "Non hai ningunha política de contrasinais configurada. Ao gardar aplicaranse os valores predeterminados que se mostran a continuación.",
+                    errors: {
+                        lengthRange:
+                            "As lonxitudes do contrasinal deben ser números enteiros entre 1 e 256.",
+                        minimumExceedsMaximum:
+                            "A lonxitude mínima non pode superar a lonxitude máxima.",
+                        characterClassRequired:
+                            "Seleccione polo menos unha clase de caracteres para o contrasinal.",
+                    },
+                },
                 name: "Nome",
                 alias: "Alias",
                 description: "Descrición",
@@ -418,6 +580,26 @@ const galegoTranslation: TranslationType = {
                         "multiple-contests": "Varios concursos",
                     },
                     policyLabel: "Política de cifrado de concurso",
+                },
+                votingPortalDateTimeFormat: {
+                    policyLabel: "Formato de data e hora do portal de votación",
+                    helperText:
+                        'Aplícase a todo o evento. Para substituílo por idioma, engade a clave "votingPortalDateTimeFormat" na pestana Localización usando os tokens yyyy, MM, dd, HH, mm, ss (p. ex. dd/MM/yyyy HH:mm). Consulta a documentación para máis detalles.',
+                    options: {
+                        "legacy-gb-24h": "Legacy GB 24h (dd/MM/yyyy HH:mm, 24h)",
+                        "iso-local": "ISO Local (yyyy-MM-dd HH:mm)",
+                        "us-12h": "US 12h (MM/dd/yyyy h:mm AM/PM)",
+                        "locale-medium": "Locale Medium (data media, hora curta)",
+                        "date-only": "Date Only (sen hora)",
+                        "custom": "Formato personalizado",
+                    },
+                    customFormat: {
+                        label: "Formato de data e hora personalizado",
+                        helperText:
+                            "Usa os tokens yyyy, MM, dd, HH, mm, ss (p. ex. dd/MM/yyyy HH:mm). Calquera outro carácter móstrase literalmente.",
+                        invalid:
+                            "Formato non válido. Usa polo menos un dos tokens yyyy, MM, dd, HH, mm, ss.",
+                    },
                 },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Sen Conta Atrás",
@@ -472,8 +654,13 @@ const galegoTranslation: TranslationType = {
                     policyLabel: "Política de Votación Ponderada",
                     options: {
                         "areas-weighted-voting": "Votación Ponderada por Áreas",
+                        "voters-weighted-voting": "Votación Ponderada por Votantes",
                         "disabled-weighted-voting": "Votación Ponderada Desactivada",
                     },
+                    noDelegated:
+                        "A Votación Ponderada por Votantes non pode combinarse co Voto Delegado",
+                    noDecodedBallots:
+                        "A Votación Ponderada por Votantes non pode combinarse coa inclusión de papeletas descifradas nos resultados",
                 },
                 delegatedVotingPolicy: {
                     policyLabel: "Política de Voto Delegado",
@@ -506,6 +693,7 @@ const galegoTranslation: TranslationType = {
                     config: "Configuración",
                     blacklist: "Lista de bloqueo",
                     prompts: "Locucións",
+                    emulator: "Emulador",
                 },
                 common: {
                     saveSuccess: "Gardado correctamente",
@@ -513,15 +701,63 @@ const galegoTranslation: TranslationType = {
                     deleteSuccess: "Eliminado correctamente",
                     deleteError: "Non se puido eliminar",
                 },
+                config: {
+                    configuredPhone: "Número de teléfono configurado",
+                    infoMsg:
+                        "Configure o fluxo do IVR e as súas propiedades a continuación. Para máis detalles, póñase en contacto con Sequent.",
+                },
+                prompts: {
+                    emptyMsg: "Aínda non se creou ningunha mensaxe",
+                    infoMsg:
+                        "Configure as mensaxes utilizadas polo IVR. As mensaxes de anuncio son obrigatorias, e as mensaxes do sistema pódense sobrescribir para os idiomas desexados. Admítese SSML, tamén para mesturar idiomas.",
+                    editorTitle: "Mensaxe",
+                    editorSubtitle: "Configuración da mensaxe",
+                },
                 blacklist: {
                     columns: {
                         phone: "Número de teléfono",
                         reason: "Motivo",
                         createdAt: "Creado o",
                         createdBy: "Creado por",
+                        createdBefore: "Creado antes",
+                        createdAfter: "Creado despois",
                     },
                     emptyMsg: "Non hai entradas na lista de bloqueo",
+                    infoMsg:
+                        "Configure a lista de bloqueo do IVR. As chamadas destes números serán desconectadas automaticamente polo sistema.",
+
+                    noFilterMatch: "Ningunha entrada coincide cos filtros indicados",
                     phoneRequired: "O número de teléfono é obrigatorio",
+                },
+                emulator: {
+                    infoMsg:
+                        "Seleccione unha área e as eleccións desexadas para probar a sesión IVR.",
+                    apiStatus: {
+                        unavailable: "O sistema do emulador non está dispoñible na súa contorna",
+                        loading: "Cargando o sistema do emulador",
+                        error: "Erro ao cargar o sistema do emulador",
+                    },
+                    hints: {
+                        title: "Suxestións",
+                        publishRequired:
+                            "Calquera cambio realizado nas eleccións, nas contendas ou nos candidatos debe publicarse primeiro para que estea dispoñible. No emulador só se utilizarán os estilos de papeleta publicados máis recentemente para a área correspondente.",
+                        eventChangesImmediate:
+                            "Os cambios realizados no evento electoral, como a configuración IVR ou as modificacións das mensaxes, están dispoñibles inmediatamente ao reiniciar a sesión do emulador.",
+                        credentials:
+                            'O identificador de votante e o PIN válidos son "123" e "123".',
+                    },
+                    sendDtmf: "Enviar entrada DTMF",
+                    sendTimeout: "Enviar tempo de espera",
+                    disconnected: "Desconectado",
+                    startSession: "Iniciar unha nova sesión",
+                    endSession: "Finalizar a sesión",
+                    noStylesFound:
+                        "Non se atoparon estilos de papeleta publicados que coincidan coas súas seleccións",
+                    inputPlaceholder:
+                        "Introduza a súa entrada (máximo de díxitos={{maxDigits}}, entradas válidas={{validInputs}}, tempo de espera={{timeout}} s)",
+                    blacklistCaller: "Bloquear a persoa que chama",
+                    elections: "Eleccións",
+                    area: "Área",
                 },
             },
             stats: {
@@ -822,6 +1058,16 @@ const galegoTranslation: TranslationType = {
                 mobileNumber: "Móbil",
             },
             editPassword: {
+                passwordPolicyViolation:
+                    "O contrasinal non cumpre a Política de contrasinais deste evento electoral. Revise a política en Datos do evento electoral e introduza un contrasinal válido.",
+                passwordPolicyRules: {
+                    minimumLength: "A lonxitude mínima do contrasinal é {{count}}.",
+                    maximumLength: "A lonxitude máxima do contrasinal é {{count}}.",
+                    uppercase: "Caracteres en maiúscula requiridos: {{count}}.",
+                    lowercase: "Caracteres en minúscula requiridos: {{count}}.",
+                    digits: "Díxitos requiridos: {{count}}.",
+                    specialCharacters: "Caracteres especiais requiridos: {{count}}.",
+                },
                 label: "Cambiar contrasinal",
                 temporatyLabel: "Temporal",
                 temporatyInfo:
@@ -830,6 +1076,15 @@ const galegoTranslation: TranslationType = {
             users: {
                 title: "Usuarios",
                 subtitle: "Ver e editar datos de usuarios",
+                review: {
+                    title: "Revisar cambios",
+                    subtitle: "Confirma estas actualizacións antes de envialas.",
+                    confirm: "Confirmar cambios",
+                    noChanges: "Non hai cambios para revisar",
+                    field: "Campo",
+                    currentValue: "Valor actual",
+                    newValue: "Novo valor",
+                },
                 edit: {
                     title: "Datos do Usuario",
                     subtitle: "Ver e editar usuario",
@@ -840,6 +1095,9 @@ const galegoTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Votou",
+                    "vote-weight": "Peso do voto",
+                    "voted-channel": "Canle de voto",
+                    "disable-comment": "Comentario de desactivación",
                     "username": "Nome de Usuario",
                     "first_name": "Nome",
                     "last_name": "Apelidos",
@@ -877,8 +1135,31 @@ const galegoTranslation: TranslationType = {
                 },
             },
             voters: {
+                voterInformationLetter: {
+                    label: "Carta de información para o votante",
+                    generate: "Xerar",
+                    confirmation:
+                        "Xerar unha Carta de información para este votante? Asignarase un novo contrasinal e incluirase nun PDF cifrado.",
+                    generationStarted: "Iniciouse a xeración da Carta de información",
+                    generationError: "Non se puido xerar a Carta de información",
+                    policyNotConfigured:
+                        "A Política de contrasinais non está configurada. Configúrea en Datos do evento electoral antes de xerar unha carta.",
+                    policyMinimumLengthMissing:
+                        "A Política de contrasinais debe incluír unha lonxitude mínima antes de xerar unha carta.",
+                    policyCharacterClassMissing:
+                        "A Política de contrasinais debe incluír polo menos unha clase de caracteres antes de xerar unha carta.",
+                },
                 title: "Votantes",
                 subtitle: "Ver e editar datos de votantes",
+                review: {
+                    title: "Revisar cambios",
+                    subtitle: "Confirma estas actualizacións antes de envialas.",
+                    confirm: "Confirmar cambios",
+                    noChanges: "Non hai cambios para revisar",
+                    field: "Campo",
+                    currentValue: "Valor actual",
+                    newValue: "Novo valor",
+                },
                 logs: {
                     label: "Rexistros do Usuario",
                 },
@@ -943,6 +1224,7 @@ const galegoTranslation: TranslationType = {
                 },
             },
             permissions: {
+                "voter-information-letter": "Xerar Carta de información para o votante",
                 "admin-user": "Administración",
                 "admin-dashboard-view": "Vista del Panel de Administración",
                 "application-export": "Exportación de Aplicaciones",
@@ -953,6 +1235,8 @@ const galegoTranslation: TranslationType = {
                 "election-event-create": "Crear Evento Electoral",
                 "election-event-read": "Leer Evento Electoral",
                 "election-event-write": "Editar Evento Electoral",
+                "keycloak-realm-attributes-read": "Read Keycloak realm attributes",
+                "keycloak-realm-attributes-write": "Edit Keycloak realm attributes",
                 "election-event-delete": "Eliminar Evento Electoral",
                 "voter-create": "Crear Votante",
                 "voter-read": "Leer Votante",
@@ -990,11 +1274,14 @@ const galegoTranslation: TranslationType = {
                 "tally-results-read": "Leer Resultados de Recuento",
                 "publish-read": "Leer Publicación",
                 "publish-write": "Editar Publicación",
+                "publish-results-read": "Leer Publicación de Resultados",
+                "publish-results-write": "Editar Publicación de Resultados",
                 "logs-read": "Leer Registros",
                 "tasks-read": "Leer la Ejecución de Tareas",
                 "keys-read": "Leer Claves",
                 "document-upload": "Subir Documentos",
                 "document-download": "Descargar Documentos",
+                "document-password-read": "Ler contrasinais de documentos",
                 "tally-sheet-create": "Crear Acta de Recuento",
                 "tally-sheet-import-create": "Crear importación de actas de reconto",
                 "tally-sheet-import-review": "Revisar importación de actas de reconto",
@@ -1318,6 +1605,8 @@ const galegoTranslation: TranslationType = {
                 unarchive: "Desarquivar",
                 cancel: "Cancelar",
                 edit: "Editar",
+                yes: "Si",
+                no: "Non",
                 save: "Gardar",
                 close: "Pechar",
                 back: "Atrás",
@@ -1357,6 +1646,7 @@ const galegoTranslation: TranslationType = {
                 kiosk: "Quiosco",
                 early_voting: "Votación anticipada",
                 telephone: "Votación telefónica",
+                other: "Outros",
             },
             message: {
                 delete: "¿Estás seguro de que queres eliminar este elemento?",
@@ -1693,6 +1983,56 @@ const galegoTranslation: TranslationType = {
         tally: {
             errorUploadingSignature: "Houbo un erro ao cargar a sinatura",
             downloadTransmissionPackage: "Descargar Paquete de Transmisión",
+            resultsPublication: {
+                sectionTitle: "Publish to results website",
+                policyTitle: "Results Website",
+                policyAccess: "Results Website Access",
+                policyVisibility: "Results Website Visibility",
+                enabled: "Enabled",
+                disabled: "Disabled",
+                fullEvent: "Full event",
+                areaBased: "Area based",
+                publishStarted: "Results publication started",
+                publishError: "Could not start results publication",
+                revoked: "Results publication revoked",
+                revokeError: "Could not revoke results publication",
+                waitingForTally: "Results can be published after this tally has completed.",
+                writePermissionRequired:
+                    "You need publish-results-write permission to publish or revoke results.",
+                readPermissionRequired:
+                    "You need publish-results-read permission to view publication history.",
+                disabledPolicy:
+                    "Results website publishing is disabled for this election event. Enable it in the election event data before publishing results.",
+                loadingElectionContext: "Results publication is loading election context.",
+                route: "Route",
+                eventResults: "Event results",
+                electionResults: "Election results",
+                election: "Election",
+                access: "Access",
+                publicAccess: "Public access",
+                authenticatedAccess: "Authenticated access",
+                visibility: "Visibility",
+                fullPublishedScope: "Full published scope",
+                personalVisibility: "Personal visibility",
+                contests: "Contests",
+                noTalliedContests: "No tallied contests available.",
+                publishSelectedContests: "Publish selected contests",
+                selectedContestCount: "{{count}} contest selected",
+                selectedContestCount_plural: "{{count}} contests selected",
+                history: "Publication history",
+                version: "Version",
+                status: "Status",
+                published: "Published",
+                revokedAt: "Revoked",
+                actions: "Actions",
+                open: "Open",
+                revoke: "Revoke",
+                noPublications: "No publications yet.",
+                confirmTitle: "Start publish to results website?",
+                confirmDescription:
+                    "This will create a new publication from the current tally execution. The existing voter-facing results stay active until this publish task succeeds.",
+                close: "Close",
+            },
             transmissionPackage: {
                 title: "Paquete de Transmisión para a Área '{{name}}' e Elección '{{eventName}}'",
                 description:
@@ -1887,6 +2227,15 @@ const galegoTranslation: TranslationType = {
                     round: "Rolda",
                 },
                 total_declined_to_vote: "Total de votos de renuncia",
+                participation_by_channel: "Participación por canle",
+                channel: "Canle",
+                channel_online: "En liña",
+                channel_kiosk: "Quiosco",
+                channel_early_voting: "Votación anticipada",
+                channel_telephone: "Teléfono",
+                channel_paper: "Papel",
+                channel_postal: "Postal",
+                channel_in_person: "Presencial",
             },
             pendingResolutions: {
                 round: "Rolda {{round}}",
@@ -1996,6 +2345,7 @@ const galegoTranslation: TranslationType = {
                 ko: "Cancelar",
                 error: "Erro ao cargar a publicación de papeletas",
                 error_publish: "Erro ao publicar a publicación de papeletas",
+                error_capacity: "Erro ao xerar o estilo de papeleta: {{message}}",
                 error_status: "Erro ao cambiar o estado da publicación de papeletas",
                 error_preview: "Erro ao previsualizar a publicación",
                 diff: "Renderizar todos os cambios pode facer que a páxina non responda. ¿Estás seguro de que queres continuar?",

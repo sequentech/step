@@ -24,6 +24,50 @@ See [sequentech/meta#11928](https://github.com/sequentech/meta/issues/11928) for
 ### ✨ Import versioning constraints
 Events can no longer be imported into a different major version. If you rely on cross-version imports, review [sequentech/meta#11114](https://github.com/sequentech/meta/issues/11114) before upgrading.
 
+### ✨ Prefill login and registration fields from notification links
+
+Voting Portal `/login` and `/enroll` routes now accept up to five bounded
+`login_hint__<field>` query parameters. A `username` value is also forwarded as
+the standard OIDC `login_hint`. Existing links continue to work unchanged.
+
+For deployments enabling prefill:
+
+1. **Notification templates**: append only approved `login_hint__<field>`
+  parameters. Wrap every dynamic value with the Handlebars `url_encode` helper.
+  Custom Keycloak attributes are available as `user.<attribute>` for the first
+  value and `user.attributes.<attribute>` for the complete value array. Use
+  `{{lookup user "attribute.with-dots"}}` for names containing dots or dashes.
+2. **Stock Keycloak registration**: add the
+  **Sequent: Login hint registration prefill** action as **Required** before the
+  registration user-creation execution, then bind the updated registration
+  flow to the realm.
+3. **Deferred registration**: leave **Prefill Parameters Policy** at its default
+  `IGNORE` value unless the realm explicitly permits prefill. Set it to `ACCEPT`
+  only after reviewing which managed, writable profile fields may appear in
+  notification URLs.
+4. **Realm rollout**: update and upload the default tenant and election-event
+  realm templates for newly created realms. Update existing realms separately;
+  replacing a default template does not modify them.
+5. **Verification**: test direct `/enroll`, `/login` redirected to registration,
+  and deferred registration. Confirm submitted form values override hints and
+  verification or credential fields are never prefilled.
+
+Notification delivery records and logs changed alongside this feature. The
+electoral log entry for a sent message now records the channel, the receiver and
+the rendered subject instead of the rendered message bodies, and the AWS SES,
+SMTP and AWS SNS transports no longer log receivers, subjects or body previews.
+Rendered bodies carry the notification URL, including any `login_hint__*`
+values, and the electoral log cannot be redacted once written. The console
+transport used by local development still prints the complete message.
+
+Hints are editable, untrusted convenience data. Do not include passwords,
+one-time passwords (OTPs), tokens, secrets, government identifiers, or other
+inappropriate sensitive values, and never use a hint to bypass authentication
+or mark identity, contact details, or eligibility as verified. Percent encoding
+protects query structure, not confidentiality or authenticity. See
+[sequentech/meta#12617](https://github.com/sequentech/meta/issues/12617) for
+details.
+
 ## 📝 Highlights
 
 ### ✨ Keycloak and authentication enhancements
@@ -189,4 +233,3 @@ See [sequentech/meta#11570](https://github.com/sequentech/meta/issues/11570) for
 
 - ✨ Prepare Release 9.5 ([sequentech/step#2639](https://github.com/sequentech/step/pull/2639))
   by @Findeton
-

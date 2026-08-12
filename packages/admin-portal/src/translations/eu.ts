@@ -104,6 +104,104 @@ const basqueTranslation: TranslationType = {
                 next: "Hurrengoa",
             },
         },
+        reconciliation: {
+            menuButton: "Kanpo bozk. sink.",
+            categories: {
+                VOTED_INTERNET: "Internet bidez bozkatu du",
+                VOTED_OTHER_CHANNEL: "Beste kanal batetik bozkatu du",
+                DISABLED_DELETE_CALL: "Bozkatzailea desgaituta",
+                DELETION_REVERTED: "Ezabaketa desegina",
+                PROFILE_UPDATE: "Profila eguneratuta",
+                VOTER_ADDED: "Bozkatzailea gehituta",
+                REENABLED: "Bozkatzailea berriz gaituta",
+                VOTED_UNMARKED: "Bozkatzaileari boto-marka kendu zaio",
+                ROW_FAILURE: "Errenkada-errorea",
+            },
+            table: {
+                voterId: "Bozkatzailearen IDa",
+                field: "Eremua",
+                category: "Kategoria",
+                currentValue: "Uneko balioa",
+                newValue: "Balio berria",
+                reason: "Arrazoia",
+                rowLabel: "Errenkada",
+                noDifferences: "Ez da desberdintasunik aurkitu - sistemak sinkronizatuta daude.",
+            },
+            wizard: {
+                title: "Kanpoko bat-egite sinkronizazioa",
+                subtitle: "Sinkronizatu bozkatzaileen zerrenda kanpoko sistemarekin",
+                drop: {
+                    description:
+                        "Jaregin kanpoko sistemak sortutako bat-egite fitxategia - bi diffak (kanpoko aldea eta Sequent aldea) automatikoki kalkulatzen dira eta taula bereizietan erakusten dira.",
+                    fileFormatLabel: "CSV fitxategia",
+                    uploading: "{{fileName}} igotzen eta bi diffak kalkulatzen...",
+                },
+                review: {
+                    fileSummary: "{{fileName}} - {{sequence}} sekuentzia, {{generatedAt}} sortua",
+                    rowFailuresWarning:
+                        "{{count}} errenkada ezin izan dira modu seguruan bateratu eta bi diffetatik kanpo geratzen dira - ikusi xehetasunak behean.",
+                    noDifferences:
+                        "Ez dago desberdintasunik - bi sistemak jada sinkronizatuta daude.",
+                    diffOnlyDifferences:
+                        "Dagoeneko aplikatutako sekuentzia baten konbergentzia-egiaztapena da hau. Aldeak jarraipenerako erakusten dira, baina txanda hau ezin da berriro aplikatu.",
+                    externalDiffTitle: "Kanpoko diff-a",
+                    sequentDiffTitle: "Sequent diff-a",
+                    downloadExternalPatch: "Deskargatu kanpoko adabakia",
+                    externalDiffCaption:
+                        "Deskargatu adabakia eta eman ezazu kanpoko sistemari tresna honetatik kanpo. Adabakia aplikatu eta hurrengo bat-egite fitxategia sortu ondoren, sakatu 'Atzera' eta jaregin fitxategi hori - 'Aplikatu' gaitzen da taula hau hutsik dagoenean.",
+                    noExternalDifferences: "Ez dago desberdintasunik kanpoko aldean.",
+                    sequentDiffCaption:
+                        "Aplikatu aldaketak zuzenean Sequent-i 'Aplikatu' sakatuz - hauetarako ez da adabaki-fitxategirik sortzen.",
+                    noSequentDifferences: "Ez dago desberdintasunik Sequent aldean.",
+                },
+                applying: {
+                    inProgress: "Sequent aldeko aldaketak aplikatzen...",
+                    rowFailures:
+                        "{{count}} errenkada bat-egite honetatik kanpo geratu dira eta eskuzko jarraipena behar dute - ikusi xehetasunak behean.",
+                    rowFailuresTruncated:
+                        "{{count}} errenkada-hutsegiteetatik lehen {{shown}} erakusten dira. Ebatzi kausa komuna eta saiatu berriro gainerakoak ikusteko.",
+                    success: "Sequent aldeko aldaketa guztiak ondo aplikatu dira.",
+                },
+                actions: {
+                    cancel: "Ezeztatu",
+                    back: "Atzera",
+                    apply: "Aplikatu",
+                    next: "Hurrengoa",
+                    startOver: "Hasi berriro",
+                    close: "Itxi",
+                },
+                confirm: {
+                    title: "Berretsi bat-egite aldaketak",
+                    categoriesNote:
+                        "Laranjaz nabarmendutako kategoriek ({{categories}}) boto-egoerari eragiten diote edo bozkatzaileak desgaitzen dituzte.",
+                    applyChanges: "Aplikatu aldaketak",
+                    continue: "Jarraitu",
+                },
+                summary: {
+                    votedOtherChannel:
+                        "{{count}} bozkatzaile beste kanal batetik bozkatu izana adierazten du",
+                    disabled: "{{count}} bozkatzaile desgaitzen ditu",
+                    reenabled: "{{count}} bozkatzaile berriz gaitzen ditu",
+                    votedUnmarked: "{{count}} bozkatzaileari boto-marka kentzen dio",
+                    profileUpdated: "{{count}} profil eguneratzen ditu",
+                    voterAdded: "{{count}} bozkatzaile gehitzen ditu",
+                    prefix: "Honek {{parts}} dituzten aldaketak aplikatuko ditu.",
+                    empty: "Ez dago Sequent aldeko aldaketarik aplikatzeko.",
+                },
+                notifications: {
+                    envelopeLoadError: "Ezin izan da bat-egite diff-a kargatu - saiatu berriro.",
+                    generateFailed:
+                        "Ezin izan da bat-egite diff-a kalkulatu - ikusi zereginen widget-a xehetasunetarako.",
+                    applyFailed:
+                        "Ezin izan dira Sequent aldeko aldaketak aplikatu - ikusi zereginen widget-a xehetasunetarako.",
+                    uploadUrlError: "Ezin izan da igotzeko URLa lortu",
+                    generateTaskError: "Ezin izan da bat-egite diff zeregina abiarazi",
+                    uploadError: "Ezin izan da bat-egite fitxategia igo",
+                    applyTaskError: "Ezin izan da aplikatzeko zeregina abiarazi",
+                    applyError: "Ezin izan dira bat-egite aldaketak aplikatu",
+                },
+            },
+        },
         logsScreen: {
             noPermissions: "Ez duzu egunkariak atzitzeko baimenik.",
             title: "Egunkariak",
@@ -157,10 +255,12 @@ const basqueTranslation: TranslationType = {
                 logs: "Egunkariak",
             },
             tasksExecution: {
+                VOTER_INFORMATION_LETTER: "Hauteslearen informazio-gutuna",
                 EXPORT_ELECTION_EVENT: "Esportatu Hauteskunde Gertaera",
                 CREATE_ELECTION_EVENT: "Sortu Hauteskunde Gertaera",
                 IMPORT_ELECTION_EVENT: "Inportatu Hauteskunde Gertaera",
                 IMPORT_USERS: "Inportatu Erabiltzaileak",
+                EDIT_USER: "Editatu Hauteslea",
                 IMPORT_CANDIDATES: "Inportatu Hautagaiak",
                 EXPORT_VOTERS: "Esportatu Bozkatzaileak",
                 CREATE_TRANSMISSION_PACKAGE: "Sortu Transmisio Paketea",
@@ -180,6 +280,20 @@ const basqueTranslation: TranslationType = {
                 PREPARE_PUBLICATION_PREVIEW: "Argitalpenaren aurrebista prestatu",
                 EXPORT_TALLY_RESULTS_XLSX: "Esportatu zenbaketa-emaitzak XLSX formatuan",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Ziurtagiri-agintaritzak esportatu",
+                PUBLISH_RESULTS_WEBSITE: "Argitaratu emaitzen webgunea",
+            },
+            documentAccess: {
+                title: "Dokumenturako sarbidea",
+                sensitivityNotice:
+                    "Informazio sentikorra. Partekatu pasahitz hau aurreikusitako hartzailearekin soilik.",
+                passwordLabel: "PDF zifratua irekitzeko pasahitza",
+                showPassword: "Erakutsi pasahitza",
+                copyPassword: "Kopiatu pasahitza",
+                passwordCopied: "Pasahitza kopiatu da",
+                passwordError: "Ezin izan da PDFaren pasahitza eskuratu",
+                copyError: "Ezin izan da pasahitza kopiatu",
+                guidance:
+                    "Pasahitza Erakutsi pasahitza aukeratu ondoren bakarrik kargatzen da. Kargatu ondoren, kopiatzeko aukera duen irakurtzeko soilik den eremu bat agertuko da hemen.",
             },
             widget: {
                 taskTitle: "Ataza: {{title}}",
@@ -316,6 +430,12 @@ const basqueTranslation: TranslationType = {
         },
         dashboard: {
             voteByDay: "Eguneko botoak",
+            votesOverTime: "Botoak denboran zehar",
+            timeResolution: "Denbora-bereizmena",
+            timeRange: "Denbora-tartea",
+            minute: "Minutua",
+            hour: "Ordua",
+            day: "Eguna",
             votersByChannels: "Kanaleko bozkatzaileak",
             voterLoginURL: "Bozkatzaile Sarrera URLa",
             voterEnrollURL: "Bozkatzaile Matrikula URLa",
@@ -355,6 +475,16 @@ const basqueTranslation: TranslationType = {
                 importCandidates: "Inportatu Hautagaiak",
                 custom_filters: "Iragazki pertsonalizatuak",
                 voter_authentication: "Bozkatzaile Autentifikazioa",
+                realm_attributes: "Keycloak realm attributes",
+                realm_attributes_load_error: "Error loading Keycloak realm attributes",
+                realm_attributes_update_error: "Error updating Keycloak realm attributes",
+                realm_attributes_not_loaded:
+                    "Keycloak realm attributes have not loaded, changes were not saved",
+                password_policy: "Password Policy",
+                password_policy_load_error: "Error loading Keycloak password policy",
+                password_policy_update_error: "Error updating Keycloak password policy",
+                password_policy_not_loaded:
+                    "Keycloak password policy has not loaded, changes were not saved",
             },
             customUrls: {
                 login: "Sarrera",
@@ -366,6 +496,8 @@ const basqueTranslation: TranslationType = {
                 notify: {
                     success: "Lokalizazioa arrakastaz eguneratua",
                     error: "Lokalizazio eguneraketa huts egin du",
+                    invalidDateTimeFormat:
+                        "Data/orduaren formatu baliogabea. Erabili yyyy, MM, dd, HH, mm, ss tokenak (adib. dd/MM/yyyy HH:mm).",
                 },
                 common: {
                     title: "Lokalizazioa",
@@ -377,6 +509,33 @@ const basqueTranslation: TranslationType = {
                 },
             },
             field: {
+                passwordPolicy: {
+                    minimumLength: "Gutxieneko luzera",
+                    maximumLength: "Gehieneko luzera",
+                    includeUppercase: "Sartu letra larriak",
+                    includeLowercase: "Sartu letra xeheak",
+                    includeDigits: "Sartu digituak",
+                    includeSpecialCharacters: "Sartu karaktere bereziak",
+                    help: {
+                        minimumLength: "Pasahitzak izan behar duen gutxieneko karaktere kopurua.",
+                        maximumLength: "Pasahitzak izan dezakeen gehieneko karaktere kopurua.",
+                        includeUppercase: "Pasahitzak gutxienez letra larri bat izan behar du.",
+                        includeLowercase: "Pasahitzak gutxienez letra xehe bat izan behar du.",
+                        includeDigits: "Pasahitzak gutxienez digitu bat izan behar du.",
+                        includeSpecialCharacters:
+                            "Pasahitzak gutxienez karaktere berezi bat izan behar du.",
+                    },
+                    notConfigured:
+                        "Ez dago pasahitz-politikarik konfiguratuta. Gordetzean, beheko balio lehenetsiak aplikatuko dira.",
+                    errors: {
+                        lengthRange:
+                            "Pasahitzaren luzera-balioek 1 eta 256 arteko zenbaki osoak izan behar dute.",
+                        minimumExceedsMaximum:
+                            "Gutxieneko luzerak ezin du gehieneko luzera gainditu.",
+                        characterClassRequired:
+                            "Hautatu gutxienez karaktere-klase bat pasahitzerako.",
+                    },
+                },
                 name: "Izena",
                 alias: "Ezizena",
                 description: "Deskribapena",
@@ -418,6 +577,26 @@ const basqueTranslation: TranslationType = {
                         "multiple-contests": "Lehiaketa Anitzak",
                     },
                     policyLabel: "Lehiaketa zifratze politika",
+                },
+                votingPortalDateTimeFormat: {
+                    policyLabel: "Bozketa-atariko data eta orduaren formatua",
+                    helperText:
+                        'Gertaera osoari aplikatzen zaio. Hizkuntza bakoitzeko gainjartzeko, gehitu "votingPortalDateTimeFormat" gakoa Lokalizazioa fitxan, yyyy, MM, dd, HH, mm, ss tokenak erabiliz (adib. dd/MM/yyyy HH:mm). Ikus dokumentazioa xehetasunetarako.',
+                    options: {
+                        "legacy-gb-24h": "Legacy GB 24h (dd/MM/yyyy HH:mm, 24h)",
+                        "iso-local": "ISO Local (yyyy-MM-dd HH:mm)",
+                        "us-12h": "US 12h (MM/dd/yyyy h:mm AM/PM)",
+                        "locale-medium": "Locale Medium (data ertaina, ordu laburra)",
+                        "date-only": "Date Only (ordurik gabe)",
+                        "custom": "Formatu pertsonalizatua",
+                    },
+                    customFormat: {
+                        label: "Data eta ordu formatu pertsonalizatua",
+                        helperText:
+                            "Erabili yyyy, MM, dd, HH, mm, ss tokenak (adib. dd/MM/yyyy HH:mm). Beste edozein karaktere literalki erakusten da.",
+                        invalid:
+                            "Formatu baliogabea. Erabili yyyy, MM, dd, HH, mm, ss tokenetako bat gutxienez.",
+                    },
                 },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Ez dago Kontaketa Atzera",
@@ -472,8 +651,13 @@ const basqueTranslation: TranslationType = {
                     policyLabel: "Bozketa Ponderatuaren Politika",
                     options: {
                         "areas-weighted-voting": "Eremuen araberako Bozketa Ponderatua",
+                        "voters-weighted-voting": "Bozkatzaileen araberako Bozketa Ponderatua",
                         "disabled-weighted-voting": "Bozketa Ponderatua Desgaituta",
                     },
+                    noDelegated:
+                        "Bozkatzaileen araberako Bozketa Ponderatua ezin da Boto Delegatuarekin konbinatu",
+                    noDecodedBallots:
+                        "Bozkatzaileen araberako Bozketa Ponderatua ezin da emaitzetan deszifratutako botoak sartzearekin konbinatu",
                 },
                 delegatedVotingPolicy: {
                     policyLabel: "Botoa Eskualdatzeko Politika",
@@ -506,6 +690,7 @@ const basqueTranslation: TranslationType = {
                     config: "Konfigurazioa",
                     blacklist: "Blokeatze-zerrenda",
                     prompts: "Ahots-mezuak",
+                    emulator: "Emuladorea",
                 },
                 common: {
                     saveSuccess: "Behar bezala gorde da",
@@ -513,15 +698,62 @@ const basqueTranslation: TranslationType = {
                     deleteSuccess: "Behar bezala ezabatu da",
                     deleteError: "Ezin izan da ezabatu",
                 },
+                config: {
+                    configuredPhone: "Konfiguratutako telefono-zenbakia",
+                    infoMsg:
+                        "Konfiguratu IVRaren fluxua eta haren propietateak behean. Xehetasun gehiagorako, jarri harremanetan Sequent-ekin.",
+                },
+                prompts: {
+                    emptyMsg: "Oraindik ez da promptik sortu",
+                    infoMsg:
+                        "Konfiguratu IVRak erabiltzen dituen promptak. Iragarpen-promptak nahitaezkoak dira, eta sistema-promptak nahi diren hizkuntzetarako gainidatz daitezke. SSML onartzen da, hizkuntzak nahasteko ere bai.",
+                    editorTitle: "Prompta",
+                    editorSubtitle: "Promptaren konfigurazioa",
+                },
                 blacklist: {
                     columns: {
                         phone: "Telefono-zenbakia",
                         reason: "Arrazoia",
                         createdAt: "Sortze-data",
                         createdBy: "Nork sortua",
+                        createdBefore: "Noiz baino lehen sortua",
+                        createdAfter: "Noiz baino ondoren sortua",
                     },
                     emptyMsg: "Ez dago sarrerarik blokeatze-zerrendan",
+                    infoMsg:
+                        "Konfiguratu IVRaren blokeo-zerrenda. Zenbaki hauetatik datozen deiak automatikoki deskonektatuko ditu sistemak.",
+
+                    noFilterMatch: "Ez dago emandako iragazkiekin bat datorren sarrerarik",
                     phoneRequired: "Telefono-zenbakia nahitaezkoa da",
+                },
+                emulator: {
+                    infoMsg:
+                        "Hautatu eremu bat eta nahi dituzun hauteskundeak IVR saioa probatzeko.",
+                    apiStatus: {
+                        unavailable: "Emuladore-sistema ez dago erabilgarri zure ingurunean",
+                        loading: "Emuladore-sistema kargatzen",
+                        error: "Errorea emuladore-sistema kargatzean",
+                    },
+                    hints: {
+                        title: "Aholkuak",
+                        publishRequired:
+                            "Hauteskundeetan, lehiaketetan edo hautagaietan egindako edozein aldaketa lehenik argitaratu behar da erabilgarri egon dadin. Dagokion eremurako azkenik argitaratutako boto-paper estiloak soilik erabiliko dira emuladorean.",
+                        eventChangesImmediate:
+                            "Hauteskunde-ekitaldian egindako aldaketak, hala nola IVR konfigurazioa edo mezuen gainidazketak, berehala egongo dira erabilgarri emuladorearen saioa berrabiaraztean.",
+                        credentials: 'Baliozko hautesle-IDa eta PINa "123" eta "123" dira.',
+                    },
+                    sendDtmf: "Bidali DTMF sarrera",
+                    sendTimeout: "Bidali denbora-muga",
+                    disconnected: "Deskonektatuta",
+                    startSession: "Hasi saio berria",
+                    endSession: "Amaitu saioa",
+                    noStylesFound:
+                        "Ez da aurkitu zure hautapenekin bat datorren argitaratutako boto-paper estilorik",
+                    inputPlaceholder:
+                        "Idatzi sarrera (gehienezko digitu kopurua={{maxDigits}}, baliozko sarrerak={{validInputs}}, denbora-muga={{timeout}} s)",
+                    blacklistCaller: "Blokeatu deitzailea",
+                    elections: "Hauteskundeak",
+                    area: "Eremua",
                 },
             },
             stats: {
@@ -823,6 +1055,16 @@ const basqueTranslation: TranslationType = {
                 mobileNumber: "Mugikorra",
             },
             editPassword: {
+                passwordPolicyViolation:
+                    "Pasahitzak ez du betetzen hauteskunde-gertaera honetako Pasahitz-politika. Berrikusi politika Hauteskunde-gertaeraren datuak atalean eta idatzi baliozko pasahitz bat.",
+                passwordPolicyRules: {
+                    minimumLength: "Pasahitzaren gutxieneko luzera {{count}} da.",
+                    maximumLength: "Pasahitzaren gehieneko luzera {{count}} da.",
+                    uppercase: "Beharrezko letra larriak: {{count}}.",
+                    lowercase: "Beharrezko letra xeheak: {{count}}.",
+                    digits: "Beharrezko digituak: {{count}}.",
+                    specialCharacters: "Beharrezko karaktere bereziak: {{count}}.",
+                },
                 label: "Aldatu pasahitza",
                 temporatyLabel: "Behin-behinekoa",
                 temporatyInfo:
@@ -831,6 +1073,15 @@ const basqueTranslation: TranslationType = {
             users: {
                 title: "Erabiltzaileak",
                 subtitle: "Ikusi eta editatu erabiltzaile datuak",
+                review: {
+                    title: "Aldaketak berrikusi",
+                    subtitle: "Berretsi eguneratze hauek bidali aurretik.",
+                    confirm: "Aldaketak berretsi",
+                    noChanges: "Ez dago berrikusteko aldaketarik",
+                    field: "Eremua",
+                    currentValue: "Uneko balioa",
+                    newValue: "Balio berria",
+                },
                 edit: {
                     title: "Erabiltzaile Datuak",
                     subtitle: "Ikusi eta editatu erabiltzailea",
@@ -841,6 +1092,9 @@ const basqueTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Bozkatu du",
+                    "vote-weight": "Botoaren pisua",
+                    "voted-channel": "Boto-kanala",
+                    "disable-comment": "Desgaitzeko iruzkina",
                     "username": "Erabiltzaile izena",
                     "first_name": "Izena",
                     "last_name": "Abizena",
@@ -876,8 +1130,31 @@ const basqueTranslation: TranslationType = {
                 },
             },
             voters: {
+                voterInformationLetter: {
+                    label: "Hauteslearen informazio-gutuna",
+                    generate: "Sortu",
+                    confirmation:
+                        "Hautesle honentzako informazio-gutuna sortu? Pasahitz berri bat esleituko da eta PDF zifratu batean sartuko da.",
+                    generationStarted: "Informazio-gutuna sortzen hasi da",
+                    generationError: "Ezin izan da informazio-gutuna sortu",
+                    policyNotConfigured:
+                        "Pasahitz-politika ez dago konfiguratuta. Konfiguratu Hauteskunde-gertaeraren datuak atalean gutuna sortu aurretik.",
+                    policyMinimumLengthMissing:
+                        "Pasahitz-politikak gutxieneko luzera izan behar du gutuna sortu aurretik.",
+                    policyCharacterClassMissing:
+                        "Pasahitz-politikak gutxienez karaktere-klase bat izan behar du gutuna sortu aurretik.",
+                },
                 title: "Bozkatzaileak",
                 subtitle: "Ikusi eta editatu bozkatzaile datuak",
+                review: {
+                    title: "Aldaketak berrikusi",
+                    subtitle: "Berretsi eguneratze hauek bidali aurretik.",
+                    confirm: "Aldaketak berretsi",
+                    noChanges: "Ez dago berrikusteko aldaketarik",
+                    field: "Eremua",
+                    currentValue: "Uneko balioa",
+                    newValue: "Balio berria",
+                },
                 logs: {
                     label: "Erabiltzailearen Egunkariak",
                 },
@@ -942,6 +1219,7 @@ const basqueTranslation: TranslationType = {
                 },
             },
             permissions: {
+                "voter-information-letter": "Hauteslearen informazio-gutuna sortu",
                 "admin-user": "Admin Erabiltzailea",
                 "admin-dashboard-view": "Admin Panela Ikusi",
                 "application-export": "Aplikazio Esportazioa",
@@ -952,6 +1230,8 @@ const basqueTranslation: TranslationType = {
                 "election-event-create": "Sortu Hauteskunde Gertaera",
                 "election-event-read": "Irakurri Hauteskunde Gertaera",
                 "election-event-write": "Editatu Hauteskunde Gertaera",
+                "keycloak-realm-attributes-read": "Read Keycloak realm attributes",
+                "keycloak-realm-attributes-write": "Edit Keycloak realm attributes",
                 "election-event-delete": "Ezabatu Hauteskunde Gertaera",
                 "voter-create": "Sortu Bozkatzailea",
                 "voter-read": "Irakurri Bozkatzailea",
@@ -989,11 +1269,14 @@ const basqueTranslation: TranslationType = {
                 "tally-results-read": "Irakurri Zenbaketa Emaitzak",
                 "publish-read": "Irakurri Argitalpena",
                 "publish-write": "Editatu Argitalpena",
+                "publish-results-read": "Irakurri Emaitzen Argitalpena",
+                "publish-results-write": "Editatu Emaitzen Argitalpena",
                 "logs-read": "Irakurri Egunkariak",
                 "tasks-read": "Irakurri Ataza Exekuzioa",
                 "keys-read": "Irakurri Giltzak",
                 "document-upload": "Igo Dokumentuak",
                 "document-download": "Deskargatu Dokumentuak",
+                "document-password-read": "Irakurri dokumentuen pasahitzak",
                 "tally-sheet-create": "Sortu Zenbaketa Orria",
                 "tally-sheet-import-create": "Sortu zenbaketa orrien inportazioa",
                 "tally-sheet-import-review": "Berrikusi zenbaketa orrien inportazioa",
@@ -1313,6 +1596,8 @@ const basqueTranslation: TranslationType = {
                 unarchive: "Desartxibatu",
                 cancel: "Ezeztatu",
                 edit: "Editatu",
+                yes: "Bai",
+                no: "Ez",
                 save: "Gorde",
                 close: "Itxi",
                 back: "Atzera",
@@ -1352,6 +1637,7 @@ const basqueTranslation: TranslationType = {
                 kiosk: "Kiosko",
                 early_voting: "Aurre-botoa",
                 telephone: "Telefono bozketa",
+                other: "Beste batzuk",
             },
             message: {
                 delete: "Ziur zaude elementu hau ezabatu nahi duzula?",
@@ -1691,6 +1977,56 @@ const basqueTranslation: TranslationType = {
         tally: {
             errorUploadingSignature: "Errorea izan da sinadura igotzean",
             downloadTransmissionPackage: "Deskargatu Transmisio Paketea",
+            resultsPublication: {
+                sectionTitle: "Publish to results website",
+                policyTitle: "Results Website",
+                policyAccess: "Results Website Access",
+                policyVisibility: "Results Website Visibility",
+                enabled: "Enabled",
+                disabled: "Disabled",
+                fullEvent: "Full event",
+                areaBased: "Area based",
+                publishStarted: "Results publication started",
+                publishError: "Could not start results publication",
+                revoked: "Results publication revoked",
+                revokeError: "Could not revoke results publication",
+                waitingForTally: "Results can be published after this tally has completed.",
+                writePermissionRequired:
+                    "You need publish-results-write permission to publish or revoke results.",
+                readPermissionRequired:
+                    "You need publish-results-read permission to view publication history.",
+                disabledPolicy:
+                    "Results website publishing is disabled for this election event. Enable it in the election event data before publishing results.",
+                loadingElectionContext: "Results publication is loading election context.",
+                route: "Route",
+                eventResults: "Event results",
+                electionResults: "Election results",
+                election: "Election",
+                access: "Access",
+                publicAccess: "Public access",
+                authenticatedAccess: "Authenticated access",
+                visibility: "Visibility",
+                fullPublishedScope: "Full published scope",
+                personalVisibility: "Personal visibility",
+                contests: "Contests",
+                noTalliedContests: "No tallied contests available.",
+                publishSelectedContests: "Publish selected contests",
+                selectedContestCount: "{{count}} contest selected",
+                selectedContestCount_plural: "{{count}} contests selected",
+                history: "Publication history",
+                version: "Version",
+                status: "Status",
+                published: "Published",
+                revokedAt: "Revoked",
+                actions: "Actions",
+                open: "Open",
+                revoke: "Revoke",
+                noPublications: "No publications yet.",
+                confirmTitle: "Start publish to results website?",
+                confirmDescription:
+                    "This will create a new publication from the current tally execution. The existing voter-facing results stay active until this publish task succeeds.",
+                close: "Close",
+            },
             transmissionPackage: {
                 title: "'{{name}}' Eremuaren eta '{{eventName}}' Hauteskundearen Transmisio Paketea",
                 description:
@@ -1884,6 +2220,15 @@ const basqueTranslation: TranslationType = {
                     round: "Txanda",
                 },
                 total_declined_to_vote: "Bozkatzeari uko egindakoen guztira",
+                participation_by_channel: "Parte-hartzea kanalaren arabera",
+                channel: "Kanala",
+                channel_online: "Linean",
+                channel_kiosk: "Kioskoa",
+                channel_early_voting: "Boto aurreratua",
+                channel_telephone: "Telefonoa",
+                channel_paper: "Papera",
+                channel_postal: "Posta",
+                channel_in_person: "Aurrez aurre",
             },
             pendingResolutions: {
                 round: "Txanda {{round}}",
@@ -1989,6 +2334,7 @@ const basqueTranslation: TranslationType = {
                 ko: "Ezeztatu",
                 error: "Errorea bozketa argitalpena kargatzerakoan",
                 error_publish: "Errorea bozketa argitalpena argitaratzerakoan",
+                error_capacity: "Bozketa-estiloa sortzeak huts egin du: {{message}}",
                 error_status: "Errorea bozketa argitalpen egoera aldatzerakoan",
                 error_preview: "Errorea argitalpena aurreikusterakoan",
                 diff: "Aldaketa guztiak errendatzeak orria erantzunik gabe utzi dezake. Ziur zaude jarraitu nahi duzula?",

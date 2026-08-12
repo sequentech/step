@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {Sequent_Backend_Candidate} from "@/gql/graphql"
+import type {VotesByChannel} from "@sequentech/ui-essentials"
 
 export interface Sequent_Backend_Candidate_Extended extends Sequent_Backend_Candidate {
     rowId: number
@@ -21,6 +22,7 @@ export interface ExtendedMetricsContest {
     expected_votes: number
     total_ballots: number
     weight: number
+    votes_by_channel?: VotesByChannel
 }
 
 export interface CandidateReference {
@@ -64,6 +66,6 @@ export interface RunoffStatus {
 }
 
 export interface ParsedAnnotations {
-    extended_metrics: ExtendedMetricsContest
+    extended_metrics?: ExtendedMetricsContest
     process_results?: RunoffStatus | unknown
 }

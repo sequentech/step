@@ -250,6 +250,45 @@ pub async fn get_event_tally_session_executions(
     Ok(elements)
 }
 
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_tally_session_execution_documents(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_execution_id: &str,
+) -> Result<Option<TallySessionDocuments>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT documents
+                FROM sequent_backend.tally_session_execution
+                WHERE tenant_id = $1
+                  AND election_event_id = $2
+                  AND id = $3;
+            "#,
+        )
+        .await?;
+    let row = hasura_transaction
+        .query_opt(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(tally_session_execution_id)?,
+            ],
+        )
+        .await?;
+
+    row.map(|row| {
+        row.try_get::<_, Option<Value>>("documents")?
+            .map(serde_json::from_value)
+            .transpose()
+            .map_err(anyhow::Error::from)
+    })
+    .transpose()
+    .map(Option::flatten)
+}
+
 #[derive(Debug, Serialize)]
 struct InsertableTallySessionExecution {
     id: Uuid,

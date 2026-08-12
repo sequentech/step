@@ -36,6 +36,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<version>6.0.3</version>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-core</artifactId>
+			<version>5.19.0</version>
+			<scope>test</scope>
+		</dependency>
+		<!-- Supplies the JAX-RS RuntimeDelegate used by response-building unit tests. -->
+		<dependency>
+			<groupId>org.glassfish.jersey.core</groupId>
+			<artifactId>jersey-common</artifactId>
+			<version>3.1.6</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>

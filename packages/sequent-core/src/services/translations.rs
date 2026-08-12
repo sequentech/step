@@ -7,7 +7,8 @@ use crate::{
         Contest, ContestEncryptionPolicy, ContestPresentation,
         DecodedBallotsInclusionPolicy, DelegatedVotingPolicy,
         ElectionEventPresentation, ElectionPresentation, I18nContent,
-        LanguageDetectionPolicy,
+        LanguageDetectionPolicy, VotingPortalDateTimeFormat,
+        WeightedVotingPolicy,
     },
     serialization::deserialize_with_path::deserialize_value,
     types::hasura::core::{Election, ElectionEvent},
@@ -83,10 +84,24 @@ impl ElectionEvent {
             .unwrap_or_default()
     }
 
+    pub fn get_weighted_voting_policy(&self) -> WeightedVotingPolicy {
+        parse_presentation::<ElectionEventPresentation>(&self.presentation)
+            .and_then(|p| p.weighted_voting_policy)
+            .unwrap_or_default()
+    }
+
     pub fn get_language_detection_policy(&self) -> LanguageDetectionPolicy {
         parse_presentation::<ElectionEventPresentation>(&self.presentation)
             .and_then(|p| p.language_conf)
             .and_then(|c| c.language_detection_policy)
+            .unwrap_or_default()
+    }
+
+    pub fn get_voting_portal_datetime_format(
+        &self,
+    ) -> VotingPortalDateTimeFormat {
+        parse_presentation::<ElectionEventPresentation>(&self.presentation)
+            .and_then(|p| p.voting_portal_datetime_format)
             .unwrap_or_default()
     }
 }
@@ -158,5 +173,72 @@ impl Name for Contest {
             .flatten();
 
         alias.or(name).unwrap_or("-".into())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ballot::VotingPortalDateTimeFormat;
+    use crate::types::hasura::core::ElectionEvent;
+
+    fn election_event_with_presentation(
+        presentation: Option<serde_json::Value>,
+    ) -> ElectionEvent {
+        let mut value = serde_json::json!({
+            "id": "event-1",
+            "tenant_id": "tenant-1",
+            "is_archived": false,
+            "encryption_protocol": "test",
+        });
+        if let Some(presentation) = presentation {
+            value["presentation"] = presentation;
+        }
+        serde_json::from_value(value).expect("valid election event")
+    }
+
+    #[test]
+    fn datetime_format_defaults_to_legacy_when_absent() {
+        let event = election_event_with_presentation(None);
+        assert_eq!(
+            event.get_voting_portal_datetime_format(),
+            VotingPortalDateTimeFormat::LegacyGb24h
+        );
+
+        // Presentation present but without the field still defaults to legacy.
+        let event =
+            election_event_with_presentation(Some(serde_json::json!({})));
+        assert_eq!(
+            event.get_voting_portal_datetime_format(),
+            VotingPortalDateTimeFormat::LegacyGb24h
+        );
+    }
+
+    #[test]
+    fn datetime_format_reads_each_preset() {
+        let cases = [
+            ("legacy-gb-24h", VotingPortalDateTimeFormat::LegacyGb24h),
+            ("iso-local", VotingPortalDateTimeFormat::IsoLocal),
+            ("us-12h", VotingPortalDateTimeFormat::Us12h),
+            ("locale-medium", VotingPortalDateTimeFormat::LocaleMedium),
+            ("date-only", VotingPortalDateTimeFormat::DateOnly),
+        ];
+        for (wire, expected) in cases {
+            let event =
+                election_event_with_presentation(Some(serde_json::json!({
+                    "voting_portal_datetime_format": wire,
+                })));
+            assert_eq!(event.get_voting_portal_datetime_format(), expected);
+        }
+    }
+
+    #[test]
+    fn datetime_format_reads_custom_variant() {
+        let event = election_event_with_presentation(Some(serde_json::json!({
+            "voting_portal_datetime_format": {"custom": "dd/MM/yyyy HH:mm"},
+        })));
+        assert_eq!(
+            event.get_voting_portal_datetime_format(),
+            VotingPortalDateTimeFormat::Custom("dd/MM/yyyy HH:mm".to_string())
+        );
     }
 }

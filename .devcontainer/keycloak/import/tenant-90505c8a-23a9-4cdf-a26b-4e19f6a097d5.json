@@ -339,6 +339,15 @@
         "attributes": {}
       },
       {
+        "id": "27bdcdfa-0e11-4e79-881f-02fc252bec77",
+        "name": "document-password-read",
+        "description": "Allows reading a password associated with an authorized document",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "12250c04-0e34-4b76-8910-cfcc26323c18",
         "name": "document-read",
         "description": "",
@@ -728,6 +737,24 @@
       {
         "id": "6ba698f4-9a4f-4ffa-ad74-b7276e4fdefb",
         "name": "election-event-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "b79ac682-20f0-4d8b-88d3-e5f59f5627e1",
+        "name": "keycloak-realm-attributes-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "a13e45b8-7bc8-4f86-bbe2-4b919f39ba9d",
+        "name": "keycloak-realm-attributes-write",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1185,6 +1212,15 @@
         "attributes": {}
       },
       {
+        "id": "82c938c9-6b22-4337-a9e5-31b0742837a5",
+        "name": "publish-results-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "be6acccc-ea93-405d-8440-b4add13c3236",
         "name": "transmission-report-generate",
         "description": "",
@@ -1223,6 +1259,15 @@
       {
         "id": "11567034-d3d1-41af-87e6-8108a3d9d8d2",
         "name": "publish-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ee80dcde-cda1-4019-9ce6-409fa40cac01",
+        "name": "publish-results-write",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1752,6 +1797,15 @@
         "attributes": {}
       },
       {
+        "id": "a7ed90f3-bfb8-4775-88df-aa910071c90a",
+        "name": "voter-information-letter",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "c1571748-eb6a-4234-929a-0da717139e80",
         "name": "voter-create",
         "description": "",
@@ -1772,6 +1826,15 @@
       {
         "id": "70df8925-5f5c-449f-b3a6-0a02d58779ee",
         "name": "voter-export",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "2f6b8e4a-9c1d-4e3f-8a7b-5d0c6f2a1b3e",
+        "name": "election-event-voter-list-reconciliation",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -2330,6 +2393,8 @@
         "user-write",
         "election-event-write",
         "election-event-ivr-tab",
+        "keycloak-realm-attributes-read",
+        "keycloak-realm-attributes-write",
         "election-event-cas-tab",
         "ca-read",
         "ca-write",
@@ -2401,6 +2466,7 @@
         "election-voters-tab",
         "election-approvals-tab",
         "permission-label-write",
+        "document-password-read",
         "document-read",
         "notification-read",
         "election-event-keys-tab",
@@ -2428,6 +2494,7 @@
         "election-event-scheduled-tab",
         "election-type-write",
         "publish-write",
+        "publish-results-write",
         "tasks-read",
         "support-material-read",
         "contest-create",
@@ -2472,6 +2539,7 @@
         "contest-write",
         "election-type-create",
         "publish-read",
+        "publish-results-read",
         "publish-create",
         "publish-regenerate",
         "publish-export",
@@ -2492,9 +2560,11 @@
         "ee-voters-filters",
         "ee-voters-logs",
         "voter-change-password",
+        "voter-information-letter",
         "voter-export",
         "voter-import",
         "voter-manually-verify",
+        "election-event-voter-list-reconciliation",
         "election-event-tally-columns",
         "election-event-tally-back-button",
         "transmition-ceremony",
@@ -2527,8 +2597,10 @@
         "election-event-publish-tab",
         "admin-user",
         "publish-write",
+        "publish-results-write",
         "election-event-read",
-        "publish-read"
+        "publish-read",
+        "publish-results-read"
       ],
       "clientRoles": {}
     },
@@ -2602,6 +2674,7 @@
         "tenant-create",
         "election-type-write",
         "publish-write",
+        "publish-results-write",
         "support-material-read",
         "communication-template-read",
         "document-write",
@@ -2609,7 +2682,8 @@
         "tenant-write",
         "document-download",
         "election-type-create",
-        "publish-read"
+        "publish-read",
+        "publish-results-read"
       ],
       "clientRoles": {}
     },

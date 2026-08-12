@@ -19,6 +19,7 @@ services:
     depends_on:
       - admin-portal
       - voting-portal
+      - results-portal
       - graphql-engine
       - keycloak
       - minio-proxy
@@ -27,8 +28,10 @@ services:
     profiles: ["full", "base"]
     container_name: keycloak
     build:
-      context: ../packages/
+      context: ../packages
       dockerfile: Dockerfile.keycloak
+      additional_contexts:
+        beyond: ../beyond
     restart: always
     environment:
       AMQP_ADDR: ${AMQP_ADDR}
@@ -65,7 +68,7 @@ services:
       KC_SPI_TRUSTSTORE_PROVIDER: ${KC_SPI_TRUSTSTORE_PROVIDER:-}
       KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS: ${KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS:-0}
     volumes:
-      - ./keycloak/import:/opt/keycloak/data/import:z
+      - ./keycloak/import:/opt/keycloak/data/import:ro,z
     entrypoint: >
       /opt/keycloak/bin/kc.sh start-dev
       --features=preview
@@ -208,6 +211,8 @@ services:
     build:
       context: ./minio
       dockerfile: Dockerfile
+    volumes:
+      - ./keycloak/import:/realm-configs:ro,z
     depends_on:
       minio:
         condition: service_healthy
@@ -219,6 +224,8 @@ services:
       - MINIO_PRIVATE_URI=${AWS_S3_PRIVATE_URI}
       - MINIO_PUBLIC_BUCKET=${AWS_S3_PUBLIC_BUCKET}
       - MINIO_BUCKET=${AWS_S3_BUCKET}
+      - KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY=${KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY}
+      - KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY=${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY}
     entrypoint: /scripts/entrypoint.sh
 
   loadtest:
@@ -410,8 +417,6 @@ services:
       KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: ${KEYCLOAK_DB__MANAGER__RECYCLING_METHOD}
       AMQP_ADDR: ${AMQP_ADDR}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
-      KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH: ${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH}
-      KEYCLOAK_TENANT_REALM_CONFIG_PATH: ${KEYCLOAK_TENANT_REALM_CONFIG_PATH}
       KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
       KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
@@ -517,7 +522,6 @@ services:
       harvest:
         condition: service_started
     volumes:
-      - ./keycloak/import:/import:z
       - ../packages/:/app:z
     restart: always
     working_dir: /app/immu-board
@@ -624,7 +628,10 @@ services:
     volumes:
       - ..:/workspaces/step:z
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_started
+      configure-minio:
+        condition: service_completed_successfully
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
       RUST_BACKTRACE: ${RUST_BACKTRACE}
@@ -653,14 +660,15 @@ services:
       SECRETS_BACKEND: ${SECRETS_BACKEND}
       MASTER_SECRET: ${MASTER_SECRET}
       AWS_SM_KEY_PREFIX: ${AWS_SM_KEY_PREFIX}
-      KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH: ${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH}
-      KEYCLOAK_TENANT_REALM_CONFIG_PATH: ${KEYCLOAK_TENANT_REALM_CONFIG_PATH}
+      KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY: ${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY}
+      KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY: ${KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY}
       KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
       KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
       VOTING_PORTAL_URL: ${VOTING_PORTAL_URL}
+      RESULTS_PORTAL_URL: ${RESULTS_PORTAL_URL}
       KEYCLOAK_PUBLIC_URL: ${KEYCLOAK_PUBLIC_URL}
       SMS_TRANSPORT_NAME: ${SMS_TRANSPORT_NAME}
       AWS_SNS_ATTRIBUTES: ${AWS_SNS_ATTRIBUTES}
@@ -696,6 +704,7 @@ services:
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
       BALLOT_VERIFIER_URL: ${BALLOT_VERIFIER_URL}
       ENV_SLUG: ${ENV_SLUG}
+      KEYCLOAK_VOTER_GROUP_NAME: ${KEYCLOAK_VOTER_GROUP_NAME}
 
   beat:
     profiles: ["full", "base"]
@@ -804,6 +813,7 @@ services:
         KEYCLOAK_URL: ${KEYCLOAK_PUBLIC_URL}/
         PUBLIC_BUCKET_URL: ${AWS_S3_PUBLIC_URI}/public/
         VOTING_PORTAL_URL: ${VOTING_PORTAL_URL}
+        RESULTS_PORTAL_URL: ${RESULTS_PORTAL_URL}
         APP_VERSION: ${APP_VERSION}
         APP_HASH: ${APP_HASH}
         DEFAULT_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
@@ -832,9 +842,29 @@ services:
         APP_VERSION: ${APP_VERSION}
         APP_HASH: ${APP_HASH}
         BALLOT_VERIFIER_URL: ${BALLOT_VERIFIER_URL}
+        RESULTS_PORTAL_URL: ${RESULTS_PORTAL_URL}
         PUBLIC_BUCKET_URL: ${AWS_S3_PUBLIC_URI}/public/
         KEYCLOAK_ACCESS_TOKEN_LIFESPAN_SECS: 900
         POLLING_DURATION_TIMEOUT: 12000
+
+  results-portal:
+    profiles: ["full"]
+    image: sequentech.local/results-portal-prod
+    container_name: results-portal
+    build:
+      context: ../packages/
+      dockerfile: Dockerfile.prod
+      args:
+        SPA_NAME: results-portal
+    ports:
+      - 3004:8000
+    environment:
+        RESULTS_PORTAL_CLIENT_ID: results-portal
+        KEYCLOAK_URL: ${KEYCLOAK_PUBLIC_URL}/
+        HASURA_URL: ${HASURA_ENDPOINT}
+        APP_VERSION: ${APP_VERSION}
+        APP_HASH: ${APP_HASH}
+        PUBLIC_BUCKET_URL: ${AWS_S3_PUBLIC_URI}/public/
 
 volumes:
   db_data:

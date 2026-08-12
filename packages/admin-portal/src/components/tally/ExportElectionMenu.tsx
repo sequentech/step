@@ -23,6 +23,7 @@ import {GenerateReport} from "./GenerateReport"
 import {GeneratePDF} from "./GeneratePdf"
 import {GenerateResultsXlsx} from "./GenerateResultsXlsx"
 import {ExportMenuItem} from "./ExportMenuItem"
+import {getExportDocumentId} from "./exportDocuments"
 
 interface PerformDownloadProps {
     onDownload: () => void
@@ -133,16 +134,10 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
     }, [])
 
     const handleExport = (documents: IResultDocuments, format: EExportFormat) => {
-        let documentId = documents?.[format]
+        const documentId = getExportDocumentId(documents, format)
         if (!documentId) {
             console.log("handleExport ERROR missing document id")
             return
-        }
-
-        // If the requested format is tar_gz, check if a tar_gz_pdfs version exists.
-        // If it does, use it as the primary download source.
-        if (format === EExportFormat.TAR_GZ && documents?.tar_gz_pdfs) {
-            documentId = documents.tar_gz_pdfs
         }
 
         console.log("handleExport setPerformDownload")
@@ -155,7 +150,7 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
     }
 
     const isExportFormatDisabled = (documents: IResultDocuments, format: EExportFormat): boolean =>
-        !documents?.[format]
+        !getExportDocumentId(documents, format)
 
     const getMenuClassName = (
         format: EExportFormat,
