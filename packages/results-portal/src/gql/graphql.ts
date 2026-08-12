@@ -97,6 +97,7 @@ export type CastVotesByIp = {
 
 export type CastVotesPerDay = {
   __typename?: 'CastVotesPerDay';
+  bucket: Scalars['String']['output'];
   channel: Scalars['String']['output'];
   day: Scalars['date']['output'];
   day_count: Scalars['Int']['output'];
@@ -240,6 +241,11 @@ export type DeleteUsersOutput = {
   ids?: Maybe<Scalars['String']['output']>;
 };
 
+export type DocumentPasswordOutput = {
+  __typename?: 'DocumentPasswordOutput';
+  password: Scalars['String']['output'];
+};
+
 export enum EarlyVotingPolicy {
   AllowEarlyVoting = 'allow_early_voting',
   NoEarlyVoting = 'no_early_voting'
@@ -267,9 +273,11 @@ export type EditUsersInput = {
 };
 
 export type ElectionEventStatsInput = {
+  bucket_count?: InputMaybe<Scalars['Int']['input']>;
   election_event_id: Scalars['uuid']['input'];
   end_date: Scalars['String']['input'];
   start_date: Scalars['String']['input'];
+  time_resolution?: InputMaybe<Scalars['String']['input']>;
   user_timezone: Scalars['String']['input'];
 };
 
@@ -284,10 +292,12 @@ export type ElectionEventStatsOutput = {
 };
 
 export type ElectionStatsInput = {
+  bucket_count?: InputMaybe<Scalars['Int']['input']>;
   election_event_id: Scalars['uuid']['input'];
   election_id: Scalars['uuid']['input'];
   end_date: Scalars['String']['input'];
   start_date: Scalars['String']['input'];
+  time_resolution?: InputMaybe<Scalars['String']['input']>;
   user_timezone: Scalars['String']['input'];
 };
 
@@ -865,6 +875,17 @@ export type PublishResultsWebsiteOutput = {
   task_execution_id: Scalars['String']['output'];
 };
 
+export type RealmPasswordPolicy = {
+  __typename?: 'RealmPasswordPolicy';
+  configured: Scalars['Boolean']['output'];
+  include_digits: Scalars['Boolean']['output'];
+  include_lowercase: Scalars['Boolean']['output'];
+  include_special_characters: Scalars['Boolean']['output'];
+  include_uppercase: Scalars['Boolean']['output'];
+  maximum_length: Scalars['Int']['output'];
+  minimum_length: Scalars['Int']['output'];
+};
+
 export type RefreshResultsPublicationIndexOutput = {
   __typename?: 'RefreshResultsPublicationIndexOutput';
   election_event_id: Scalars['String']['output'];
@@ -1087,6 +1108,11 @@ export type UpdateRealmAttributesOutput = {
   updated: Scalars['Boolean']['output'];
 };
 
+export type UpdateRealmPasswordPolicyOutput = {
+  __typename?: 'UpdateRealmPasswordPolicyOutput';
+  updated: Scalars['Boolean']['output'];
+};
+
 export type UpsertAreaOutput = {
   __typename?: 'UpsertAreaOutput';
   id: Scalars['String']['output'];
@@ -1104,6 +1130,13 @@ export type UserProfileAttribute = {
   required?: Maybe<Scalars['jsonb']['output']>;
   selector?: Maybe<Scalars['jsonb']['output']>;
   validations?: Maybe<Scalars['jsonb']['output']>;
+};
+
+export type VoterInformationLetterOutput = {
+  __typename?: 'VoterInformationLetterOutput';
+  document_id: Scalars['String']['output'];
+  pdf_password: Scalars['String']['output'];
+  task_execution: Tasks_Execution_Type;
 };
 
 export type VotersByChannel = {
@@ -1476,6 +1509,7 @@ export type Mutation_Root = {
   generate_report?: Maybe<GenerateReportOutput>;
   generate_template?: Maybe<GenerateTemplateOutput>;
   generate_transmission_report?: Maybe<GenerateReportOutput>;
+  generate_voter_information_letter: VoterInformationLetterOutput;
   get_ballot_publication_changes?: Maybe<GetBallotPublicationChangesOutput>;
   get_manual_verification_pdf?: Maybe<GetManualVerificationOutput>;
   /** get private key */
@@ -1700,6 +1734,7 @@ export type Mutation_Root = {
   update_election_voting_status?: Maybe<UpdateElectionVotingStatusOutput>;
   update_event_voting_status?: Maybe<UpdateEventVotingStatusOutput>;
   update_realm_attributes?: Maybe<UpdateRealmAttributesOutput>;
+  update_realm_password_policy: UpdateRealmPasswordPolicyOutput;
   /** update data of the table: "sequent_backend.applications" */
   update_sequent_backend_applications?: Maybe<Sequent_Backend_Applications_Mutation_Response>;
   /** update single row of the table: "sequent_backend.applications" */
@@ -2915,6 +2950,13 @@ export type Mutation_RootGenerate_Transmission_ReportArgs = {
 
 
 /** mutation root */
+export type Mutation_RootGenerate_Voter_Information_LetterArgs = {
+  election_event_id: Scalars['String']['input'];
+  voter_id: Scalars['String']['input'];
+};
+
+
+/** mutation root */
 export type Mutation_RootGet_Ballot_Publication_ChangesArgs = {
   ballot_publication_id: Scalars['uuid']['input'];
   election_event_id: Scalars['uuid']['input'];
@@ -3826,6 +3868,18 @@ export type Mutation_RootUpdate_Event_Voting_StatusArgs = {
 export type Mutation_RootUpdate_Realm_AttributesArgs = {
   attributes: Scalars['jsonb']['input'];
   election_event_id: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Realm_Password_PolicyArgs = {
+  election_event_id: Scalars['String']['input'];
+  include_digits: Scalars['Boolean']['input'];
+  include_lowercase: Scalars['Boolean']['input'];
+  include_special_characters: Scalars['Boolean']['input'];
+  include_uppercase: Scalars['Boolean']['input'];
+  maximum_length: Scalars['Int']['input'];
+  minimum_length: Scalars['Int']['input'];
 };
 
 
@@ -5201,9 +5255,11 @@ export type Query_Root = {
   getElectionEventStats?: Maybe<ElectionEventStatsOutput>;
   /** get election event stats */
   getElectionStats?: Maybe<ElectionStatsOutput>;
+  get_document_password: DocumentPasswordOutput;
   /** list permissions */
   get_permissions: GetPermissionsOutput;
   get_realm_attributes: GetRealmAttributesOutput;
+  get_realm_password_policy: RealmPasswordPolicy;
   get_roles: GetRolesOutput;
   get_top_votes_by_ip?: Maybe<GetTopCastVotesByIpOutput>;
   get_user_profile_attributes: Array<UserProfileAttribute>;
@@ -5509,12 +5565,22 @@ export type Query_RootGetElectionStatsArgs = {
 };
 
 
+export type Query_RootGet_Document_PasswordArgs = {
+  document_id: Scalars['String']['input'];
+};
+
+
 export type Query_RootGet_PermissionsArgs = {
   body: GetPermissionsInput;
 };
 
 
 export type Query_RootGet_Realm_AttributesArgs = {
+  election_event_id: Scalars['String']['input'];
+};
+
+
+export type Query_RootGet_Realm_Password_PolicyArgs = {
   election_event_id: Scalars['String']['input'];
 };
 

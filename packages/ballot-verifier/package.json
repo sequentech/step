@@ -40,7 +40,7 @@
     "test-storybook": "test-storybook",
     "dev": "tsc --watch",
     "serve": "NODE_OPTIONS=--openssl-legacy-provider webpack serve",
-    "generate": "NODE_OPTIONS=--openssl-legacy-provider ADMIN_SECRET=admin graphql-codegen --config codegen.ts"
+    "generate": "NODE_OPTIONS=--openssl-legacy-provider ADMIN_SECRET=\"${ADMIN_SECRET:-admin}\" graphql-codegen --config codegen.ts"
   },
   "proxy": "https://i.imgur.com",
   "browserslist": {

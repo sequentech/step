@@ -40,7 +40,7 @@
     "prettify:fix": "prettier --write . --ignore-path .prettierignore",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
-    "generate": "NODE_OPTIONS=--openssl-legacy-provider ADMIN_SECRET=admin graphql-codegen --config codegen.ts"
+    "generate": "NODE_OPTIONS=--openssl-legacy-provider ADMIN_SECRET=\"${ADMIN_SECRET:-admin}\" graphql-codegen --config codegen.ts"
   },
   "browserslist": {
     "production": [

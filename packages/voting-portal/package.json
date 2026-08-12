@@ -52,7 +52,7 @@
     "build-storybook": "NODE_OPTIONS=--openssl-legacy-provider sb build -s public",
     "test-storybook": "NODE_OPTIONS=--openssl-legacy-provider test-storybook",
     "dev": "NODE_OPTIONS=--openssl-legacy-provider tsc --watch",
-    "generate": "NODE_OPTIONS=--openssl-legacy-provider ADMIN_SECRET=admin graphql-codegen --config codegen.ts",
+    "generate": "NODE_OPTIONS=--openssl-legacy-provider ADMIN_SECRET=\"${ADMIN_SECRET:-admin}\" graphql-codegen --config codegen.ts",
     "serve": "NODE_OPTIONS=--openssl-legacy-provider webpack serve"
   },
   "proxy": "https://i.imgur.com",
