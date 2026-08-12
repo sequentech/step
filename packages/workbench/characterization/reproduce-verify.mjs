@@ -228,6 +228,19 @@ async function readTallyResult() {
     })
 }
 
+// Compact tally view for the recorded artifact — mirrors the summary the
+// sibling *-e2e-pipeline recordings store, rather than the full ContestResult.
+function slimTally(t) {
+    return t
+        ? {
+              total_votes: t.total_votes,
+              total_valid_votes: t.total_valid_votes,
+              invalid_implicit: t.invalid_votes?.implicit,
+              invalid_explicit: t.invalid_votes?.explicit,
+          }
+        : null
+}
+
 // From the inspector rail, open a contest → Open in tally → Run tally.
 async function tallyFromContest(contestId) {
     await clickLink("/wb") // Shell "Snapshots" — back to the inspector
@@ -268,7 +281,7 @@ const results = {}
     const notCounted =
         tally != null && tally.total_valid_votes === 0 && tally.invalid_votes?.implicit >= 1
     const pass = formed > 1 && booth.silent && notCounted
-    results.overvote = {formed, silent: booth.silent, tally, notCounted, pass}
+    results.overvote = {formed, silent: booth.silent, tally: slimTally(tally), notCounted, pass}
     console.log(
         `Recipe 1 over-vote: panel set → formed=${formed} selections (>1 proves the ` +
             `override reached the voting screen), silent=${booth.silent}, ` +
@@ -298,7 +311,7 @@ const results = {}
     const notCounted =
         tally != null && tally.total_valid_votes === 0 && tally.invalid_votes?.implicit >= 1
     const pass = booth.silent && notCounted
-    results.minvote_s2 = {silent: booth.silent, tally, notCounted, pass}
+    results.minvote_s2 = {silent: booth.silent, tally: slimTally(tally), notCounted, pass}
     console.log(
         `Recipe 2d min-vote/S2: panel min_votes=2 + invalid=allowed, blank marker only → ` +
             `silent=${booth.silent}, tally(valid=${tally?.total_valid_votes},impl=${tally?.invalid_votes?.implicit}) → PASS=${pass}`
@@ -373,7 +386,7 @@ const results = {}
         decodedFlag,
         decodedSelected,
         choicePreserved,
-        tally,
+        tally: slimTally(tally),
         spoiled,
         pass,
     }
