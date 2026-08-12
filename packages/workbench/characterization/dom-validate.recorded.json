@@ -1,0 +1,679 @@
+{
+  "cells": [
+    {
+      "rule": "over-vote",
+      "cell": "allowed × allowed × empty",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed × allowed × at_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed × allowed × over_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed × warn × empty",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed × warn × at_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed × warn × over_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed × warn-invalid-implicit-and-explicit × empty",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed × warn-invalid-implicit-and-explicit × at_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed × warn-invalid-implicit-and-explicit × over_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed × not-allowed × empty",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed × not-allowed × at_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed × not-allowed × over_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed-with-msg × allowed × empty",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed-with-msg × allowed × at_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed-with-msg × allowed × over_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed-with-msg × warn × empty",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed-with-msg × warn × at_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed-with-msg × warn × over_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed-with-msg × warn-invalid-implicit-and-explicit × empty",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed-with-msg × warn-invalid-implicit-and-explicit × at_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed-with-msg × warn-invalid-implicit-and-explicit × over_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed-with-msg × not-allowed × empty",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed-with-msg × not-allowed × at_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed-with-msg × not-allowed × over_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed-with-msg-and-alert × allowed × empty",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed-with-msg-and-alert × allowed × at_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed-with-msg-and-alert × allowed × over_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed-with-msg-and-alert × warn × empty",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed-with-msg-and-alert × warn × at_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed-with-msg-and-alert × warn × over_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed-with-msg-and-alert × warn-invalid-implicit-and-explicit × empty",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed-with-msg-and-alert × warn-invalid-implicit-and-explicit × at_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed-with-msg-and-alert × warn-invalid-implicit-and-explicit × over_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed-with-msg-and-alert × not-allowed × empty",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed-with-msg-and-alert × not-allowed × at_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "allowed-with-msg-and-alert × not-allowed × over_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "not-allowed-with-msg-and-alert × allowed × empty",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "not-allowed-with-msg-and-alert × allowed × at_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "not-allowed-with-msg-and-alert × allowed × over_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "not-allowed-with-msg-and-alert × warn × empty",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "not-allowed-with-msg-and-alert × warn × at_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "not-allowed-with-msg-and-alert × warn × over_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "not-allowed-with-msg-and-alert × warn-invalid-implicit-and-explicit × empty",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "not-allowed-with-msg-and-alert × warn-invalid-implicit-and-explicit × at_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "not-allowed-with-msg-and-alert × warn-invalid-implicit-and-explicit × over_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "not-allowed-with-msg-and-alert × not-allowed × empty",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "not-allowed-with-msg-and-alert × not-allowed × at_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "not-allowed-with-msg-and-alert × not-allowed × over_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "not-allowed-with-msg-and-disable × allowed × empty",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "not-allowed-with-msg-and-disable × allowed × at_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "not-allowed-with-msg-and-disable × allowed × over_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "not-allowed-with-msg-and-disable × warn × empty",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "not-allowed-with-msg-and-disable × warn × at_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "not-allowed-with-msg-and-disable × warn × over_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "not-allowed-with-msg-and-disable × warn-invalid-implicit-and-explicit × empty",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "not-allowed-with-msg-and-disable × warn-invalid-implicit-and-explicit × at_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "not-allowed-with-msg-and-disable × warn-invalid-implicit-and-explicit × over_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "not-allowed-with-msg-and-disable × not-allowed × empty",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "not-allowed-with-msg-and-disable × not-allowed × at_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "over-vote",
+      "cell": "not-allowed-with-msg-and-disable × not-allowed × over_max",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "min-vote",
+      "cell": "min=1 × allowed × none",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "min-vote",
+      "cell": "min=1 × allowed × one",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "min-vote",
+      "cell": "min=1 × allowed × marker_only",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "min-vote",
+      "cell": "min=1 × warn × none",
+      "inlineOk": false,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": false
+    },
+    {
+      "rule": "min-vote",
+      "cell": "min=1 × warn × one",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "min-vote",
+      "cell": "min=1 × warn × marker_only",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "min-vote",
+      "cell": "min=1 × warn-invalid-implicit-and-explicit × none",
+      "inlineOk": false,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": false
+    },
+    {
+      "rule": "min-vote",
+      "cell": "min=1 × warn-invalid-implicit-and-explicit × one",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "min-vote",
+      "cell": "min=1 × warn-invalid-implicit-and-explicit × marker_only",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "min-vote",
+      "cell": "min=1 × not-allowed × none",
+      "inlineOk": false,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": false
+    },
+    {
+      "rule": "min-vote",
+      "cell": "min=1 × not-allowed × one",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "min-vote",
+      "cell": "min=1 × not-allowed × marker_only",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "min-vote",
+      "cell": "min=2 × allowed × none",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "min-vote",
+      "cell": "min=2 × allowed × one",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "min-vote",
+      "cell": "min=2 × allowed × marker_only",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "min-vote",
+      "cell": "min=2 × warn × none",
+      "inlineOk": false,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": false
+    },
+    {
+      "rule": "min-vote",
+      "cell": "min=2 × warn × one",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "min-vote",
+      "cell": "min=2 × warn × marker_only",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "min-vote",
+      "cell": "min=2 × warn-invalid-implicit-and-explicit × none",
+      "inlineOk": false,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": false
+    },
+    {
+      "rule": "min-vote",
+      "cell": "min=2 × warn-invalid-implicit-and-explicit × one",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "min-vote",
+      "cell": "min=2 × warn-invalid-implicit-and-explicit × marker_only",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "min-vote",
+      "cell": "min=2 × not-allowed × none",
+      "inlineOk": false,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": false
+    },
+    {
+      "rule": "min-vote",
+      "cell": "min=2 × not-allowed × one",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    },
+    {
+      "rule": "min-vote",
+      "cell": "min=2 × not-allowed × marker_only",
+      "inlineOk": true,
+      "dialogOk": true,
+      "reachableOk": true,
+      "ok": true
+    }
+  ],
+  "passed": 78,
+  "total": 84,
+  "all_ok": false
+}
