@@ -28,6 +28,7 @@ import {
     loadMarkerFixture,
     extractErrors,
 } from "./harness.mjs"
+import {hardGate, softGate, classify, inlineVisible, MSG} from "./spec.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
@@ -95,47 +96,44 @@ function makeEml(overPolicy, invalidPolicy) {
 // the implementation by construction; mismatches are findings.
 // ---------------------------------------------------------------------------
 function predict(over, invalid, state) {
+    // rule-specific emissions (the over-vote checker)
     const errors = []
     const alerts = []
     if (state === "over_max") {
-        errors.push("errors.implicit.selectedMax") // pushed regardless of policy
-        if (over !== "allowed") alerts.push("errors.implicit.selectedMax")
+        errors.push(MSG.selectedMax) // pushed regardless of policy
+        if (over !== "allowed") alerts.push(MSG.selectedMax)
     }
     if (state === "at_max" && over === "not-allowed-with-msg-and-disable") {
-        alerts.push("errors.implicit.overVoteDisabled")
+        alerts.push(MSG.overVoteDisabled)
     }
-
-    const hard =
-        (state === "over_max" && over === "not-allowed-with-msg-and-alert") ||
-        (errors.length > 0 && invalid === "not-allowed")
-    const soft =
-        (errors.length > 0 && invalid !== "allowed") ||
-        (state === "over_max" && over === "allowed-with-msg-and-alert")
-
-    // classifier: any checker error → ImplicitInvalid; empty (no errors,
-    // default blank policy) → ImplicitBlank; at_max → Valid.
-    const tally =
-        state === "over_max"
-            ? "ImplicitInvalid"
-            : state === "empty"
-              ? "ImplicitBlank"
-              : "Valid"
-
-    return {errors, alerts, hard, soft, tally}
+    // shared spec composes everything downstream. Council seat: max 1, min 0.
+    const selections = state === "empty" ? 0 : state === "at_max" ? 1 : 2
+    const selection = state === "empty" ? "none" : "regular"
+    const facts = {
+        errors,
+        alerts,
+        explicitInvalid: false,
+        selections,
+        min: 0,
+        max: 1,
+        selection,
+        policies: {over, invalid},
+    }
+    return {
+        errors,
+        alerts,
+        hard: hardGate(facts),
+        soft: softGate(facts),
+        tally: classify({hasErrors: errors.length > 0, selection}),
+    }
 }
 
-// Derived (convention 3: labelled as such, not an observation): what the
-// booth's master filter leaves visible inline, computed from the recorded
-// checker output plus the verified filterErrorList rules. The browser
-// runner confirms the headline cells.
 function derivedInlineVisible(observed, over, invalid) {
-    const keptErrors = observed.errors.filter((m) => {
-        if (invalid !== "allowed") return true
-        if (m === "errors.implicit.selectedMax" && over !== "allowed") return true
-        // blankVote exception not relevant here (blank policy at default)
-        return false
+    return inlineVisible({
+        errors: observed.errors,
+        alerts: observed.alerts,
+        policies: {over, invalid},
     })
-    return [...keptErrors, ...observed.alerts]
 }
 
 // ---------------------------------------------------------------------------

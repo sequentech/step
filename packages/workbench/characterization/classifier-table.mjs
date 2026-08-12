@@ -34,6 +34,7 @@ import {writeFileSync} from "node:fs"
 import {fileURLToPath} from "node:url"
 import path from "node:path"
 import {loadWasm, loadVelvetWasm, tallyClass, loadMarkerFixture} from "./harness.mjs"
+import {classify} from "./spec.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
@@ -99,16 +100,10 @@ function makeDecoded(decline, flag, errors, selection) {
 //   5. nothing selected → ImplicitBlank
 //   6. otherwise → Valid
 // ---------------------------------------------------------------------------
+// This runner's prediction IS the shared classifier — the classifier table
+// validates spec.classify directly against velvet-wasm's real tally.
 function predict(decline, flag, errors, selection) {
-    const invalid = flag || errors
-    const nothingSelected = selection === "none"
-    const blank = !invalid && nothingSelected
-    if (decline) return blank ? "Declined" : "ImplicitInvalid"
-    if (invalid) return flag ? "ExplicitInvalid" : "ImplicitInvalid"
-    if (selection === "mixed") return "ImplicitInvalid"
-    if (selection === "marker") return "ExplicitBlank"
-    if (nothingSelected) return "ImplicitBlank"
-    return "Valid"
+    return classify({decline, explicitInvalid: flag, hasErrors: errors, selection})
 }
 
 // ---------------------------------------------------------------------------

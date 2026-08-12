@@ -36,6 +36,7 @@ import {
     loadMarkerFixture,
     extractErrors,
 } from "./harness.mjs"
+import {hardGate, softGate, classify, inlineVisible, MSG} from "./spec.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
@@ -99,47 +100,64 @@ function makeEml(invalidPolicy) {
     return clone
 }
 
-// PREDICTION — documented rules. All three explicit-invalid routes
-// (flag_only, marker, marker_plus) end with is_explicit_invalid = true, so
-// the invalid checker fires identically on all of them; the prediction is
-// therefore route-independent, and the recording's job is to confirm the
-// two routes actually converge.
+// PREDICTION — rule-specific emissions composed with the shared spec. All
+// three explicit-invalid routes (flag_only, marker, marker_plus) end with
+// is_explicit_invalid = true, so the invalid checker fires identically on all
+// of them; the prediction is route-independent, and the recording's job is to
+// confirm the routes actually converge. The shared spec then handles the
+// gates (an Explicit-type error trips the hard fast path; the warn-both
+// condition and the generic errors≠allowed condition both feed the soft gate)
+// and the classifier (the explicit flag short-circuits to ExplicitInvalid).
 function predict(invalid, state) {
-    const explicit = state === "flag_only" || state === "marker" || state === "marker_plus"
+    const explicit =
+        state === "flag_only" || state === "marker" || state === "marker_plus"
     const errors = []
     const alerts = []
     if (explicit) {
-        if (invalid === "not-allowed") errors.push("errors.explicit.notAllowed")
+        if (invalid === "not-allowed") errors.push(MSG.explicitNotAllowed)
         if (invalid === "warn-invalid-implicit-and-explicit")
-            alerts.push("errors.explicit.alert")
+            alerts.push(MSG.explicitAlert)
     }
-    // hard gate: an Explicit-type error (notAllowed) trips the fast path,
-    // and also the generic errors+not-allowed condition.
-    const hard = explicit && invalid === "not-allowed"
-    // soft gate: two conditions can fire on an explicit-invalid ballot —
-    // the warn-both condition, AND the generic "errors present && invalid
-    // != allowed" (so not-allowed trips BOTH gates: the two functions are
-    // independent booleans; the UI lets hard win). Recording corrected the
-    // first transcription, which omitted the not-allowed soft case.
-    const soft =
-        explicit &&
-        (invalid === "warn-invalid-implicit-and-explicit" || invalid === "not-allowed")
-    // classifier: explicit flag → ExplicitInvalid; none → ImplicitBlank;
-    // regular → Valid.
-    const tally = explicit
-        ? "ExplicitInvalid"
-        : state === "none"
-          ? "ImplicitBlank"
-          : "Valid"
-    return {errors, alerts, hard, soft, tally}
+    // marker-inclusive selections: none=0, marker_plus=2 (marker+regular),
+    // everything else=1. Council seat max forced to 2 (makeEml).
+    const selections = state === "none" ? 0 : state === "marker_plus" ? 2 : 1
+    const selection =
+        state === "regular"
+            ? "regular"
+            : state === "marker"
+              ? "marker"
+              : state === "marker_plus"
+                ? "mixed"
+                : "none" // none / flag_only
+    const facts = {
+        errors,
+        alerts,
+        explicitInvalid: explicit,
+        selections,
+        min: 0,
+        max: 2,
+        selection,
+        policies: {invalid},
+    }
+    return {
+        errors,
+        alerts,
+        hard: hardGate(facts),
+        soft: softGate(facts),
+        tally: classify({
+            explicitInvalid: explicit,
+            hasErrors: errors.length > 0,
+            selection,
+        }),
+    }
 }
 
-// errors.explicit.notAllowed is an Explicit-type error; the master filter's
-// ALLOWED suppression concerns *implicit* errors — but under NOT_ALLOWED the
-// filter does not suppress anyway. explicit.alert is an alert (shown).
 function derivedInlineVisible(observed, invalid) {
-    const keptErrors = observed.errors.filter(() => invalid !== "allowed")
-    return [...keptErrors, ...observed.alerts]
+    return inlineVisible({
+        errors: observed.errors,
+        alerts: observed.alerts,
+        policies: {invalid},
+    })
 }
 
 const rows = []

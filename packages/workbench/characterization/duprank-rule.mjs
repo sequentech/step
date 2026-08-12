@@ -34,6 +34,7 @@ import {
     isSilentDiscount,
     extractErrors,
 } from "./harness.mjs"
+import {hardGate, softGate, classify, inlineVisible, MSG} from "./spec.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
@@ -88,28 +89,41 @@ function makeEml(dupPolicy, invalidPolicy) {
     return clone
 }
 
-// PREDICTION — documented rules.
+// PREDICTION — rule-specific emissions composed with the shared spec.
+// check_duplicated_rank_policy pushes a `duplicatedPosition` error on a
+// duplicate-rank ballot; gates/classifier/filter are the shared spec.
 function predict(dup, invalid, state) {
     const errors = []
-    if (state === "duplicate") errors.push("errors.implicit.duplicatedPosition")
+    if (state === "duplicate") errors.push(MSG.duplicatedPosition)
     const alerts = []
-    const errPresent = errors.length > 0
-    const hard =
-        errPresent &&
-        (dup === "not-allowed-warn-and-dialog" || invalid === "not-allowed")
-    const soft =
-        errPresent &&
-        (invalid !== "allowed" || dup === "allowed-warn-and-dialog")
-    // classifier: any invalid_errors → ImplicitInvalid; else Valid
-    const tally = errPresent ? "ImplicitInvalid" : "Valid"
-    return {errors, alerts, hard, soft, tally}
+    const selections = makeSelection(state).choices.filter(
+        (c) => c.selected === 0
+    ).length
+    const facts = {
+        errors,
+        alerts,
+        explicitInvalid: false,
+        selections,
+        min: contest.min_votes ?? 0,
+        max: contest.max_votes,
+        selection: "regular",
+        policies: {dup, invalid},
+    }
+    return {
+        errors,
+        alerts,
+        hard: hardGate(facts),
+        soft: softGate(facts),
+        tally: classify({hasErrors: errors.length > 0, selection: "regular"}),
+    }
 }
 
-// duplicatedPosition is NOT in the master filter's keep-list, so under
-// invalid=allowed it is suppressed; otherwise shown.
 function derivedInlineVisible(observed, invalid) {
-    const keptErrors = observed.errors.filter(() => invalid !== "allowed")
-    return [...keptErrors, ...observed.alerts]
+    return inlineVisible({
+        errors: observed.errors,
+        alerts: observed.alerts,
+        policies: {invalid},
+    })
 }
 
 const rows = []

@@ -30,6 +30,7 @@ import {
     loadMarkerFixture,
     extractErrors,
 } from "./harness.mjs"
+import {hardGate, softGate, classify, inlineVisible, MSG} from "./spec.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
@@ -99,59 +100,49 @@ function makeEml(blankPolicy, invalidPolicy) {
 // are findings, not bugs in this file.
 // ---------------------------------------------------------------------------
 function predict(blank, invalid, state) {
+    const explicit = state === "explicit_invalid"
+    // marker-inclusive count (= selections_with_markers): empty 0, everything
+    // else 1 (marker_only, one_regular, and the explicit flag each count 1).
+    const count = state === "empty" ? 0 : 1
+    // rule-specific emissions
     const errors = []
     const alerts = []
-    // marker-inclusive count
-    const count =
-        state === "empty" ? 0 : 1 // explicit_invalid / marker_only / one_regular all count 1
-
-    // blank checker: count == 0 && !is_explicit_invalid && policy != allowed
-    if (count === 0 && state !== "explicit_invalid" && blank !== "allowed") {
-        ;(blank === "not-allowed" ? errors : alerts).push(
-            "errors.implicit.blankVote"
-        )
+    if (count === 0 && !explicit && blank !== "allowed") {
+        ;(blank === "not-allowed" ? errors : alerts).push(MSG.blankVote)
     }
-    // invalid checker: only fires on the explicit flag
-    if (state === "explicit_invalid") {
-        if (invalid === "not-allowed") errors.push("errors.explicit.notAllowed")
+    if (explicit) {
+        if (invalid === "not-allowed") errors.push(MSG.explicitNotAllowed)
         if (invalid === "warn-invalid-implicit-and-explicit")
-            alerts.push("errors.explicit.alert")
+            alerts.push(MSG.explicitAlert)
     }
-
-    // hard gate
-    const hasExplicitTypeError =
-        state === "explicit_invalid" && invalid === "not-allowed"
-    const hard =
-        hasExplicitTypeError ||
-        (errors.length > 0 && invalid === "not-allowed") ||
-        (count === 0 && blank === "not-allowed")
-
-    // soft gate
-    const soft =
-        (errors.length > 0 && invalid !== "allowed") ||
-        (invalid === "warn-invalid-implicit-and-explicit" &&
-            state === "explicit_invalid") ||
-        (blank === "warn" && count === 0)
-
-    // classifier (documented precedence): explicit flag / errors →
-    // Explicit-/ImplicitInvalid; marker alone → ExplicitBlank; nothing at
-    // all → ImplicitBlank; else Valid. States here: empty → ImplicitBlank
-    // unless blank=not-allowed (error → ImplicitInvalid) or the explicit
-    // flag is set; marker_only → ExplicitBlank; one_regular → Valid.
-    let tally
-    if (state === "explicit_invalid") {
-        tally = "ExplicitInvalid"
-    } else if (errors.length > 0) {
-        tally = "ImplicitInvalid"
-    } else if (state === "marker_only") {
-        tally = "ExplicitBlank"
-    } else if (state === "empty") {
-        tally = "ImplicitBlank"
-    } else {
-        tally = "Valid"
+    // shared spec. Referendum: max 2, min 0.
+    const selection =
+        state === "marker_only"
+            ? "marker"
+            : state === "one_regular"
+              ? "regular"
+              : "none" // empty / explicit_invalid (flag short-circuits classify)
+    const facts = {
+        errors,
+        alerts,
+        explicitInvalid: explicit,
+        selections: count,
+        min: 0,
+        max: 2,
+        selection,
+        policies: {blank, invalid},
     }
-
-    return {errors, alerts, hard, soft, tally}
+    return {
+        errors,
+        alerts,
+        hard: hardGate(facts),
+        soft: softGate(facts),
+        tally: classify({
+            explicitInvalid: explicit,
+            hasErrors: errors.length > 0,
+            selection,
+        }),
+    }
 }
 
 // Derived (convention 3: labelled, not an observation): what the booth's
@@ -162,12 +153,11 @@ function predict(blank, invalid, state) {
 // separate observation point, not modelled in this during-voting view).
 // The browser runner confirms the headline cells.
 function derivedInlineVisible(observed, blank, invalid) {
-    const keptErrors = observed.errors.filter((m) => {
-        if (invalid !== "allowed") return true
-        if (m === "errors.implicit.blankVote" && blank === "not-allowed") return true
-        return false
+    return inlineVisible({
+        errors: observed.errors,
+        alerts: observed.alerts,
+        policies: {blank, invalid},
     })
-    return [...keptErrors, ...observed.alerts]
 }
 
 // ---------------------------------------------------------------------------

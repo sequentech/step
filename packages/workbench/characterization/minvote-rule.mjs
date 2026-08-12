@@ -33,6 +33,7 @@ import {
     loadMarkerFixture,
     extractErrors,
 } from "./harness.mjs"
+import {hardGate, softGate, classify, inlineVisible, MSG} from "./spec.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
@@ -100,32 +101,44 @@ function markerInclusiveCount(state) {
     return state === "none" ? 0 : 1
 }
 
-// PREDICTION — documented rules.
+// PREDICTION — rule-specific emissions composed with the shared spec
+// (spec.mjs). Min-vote is a fixed rule, not a policy: check_min_vote_policy
+// pushes a `selectedMin` error whenever the marker-inclusive count is below
+// min_votes. Everything downstream (gates, classifier) is the shared spec;
+// selectedMin is not on the filter's keep-list, so inlineVisible suppresses
+// it under invalid=allowed.
 function predict(min, invalid, state) {
+    const count = markerInclusiveCount(state)
     const errors = []
     const alerts = []
-    const count = markerInclusiveCount(state)
-    if (count < min) errors.push("errors.implicit.selectedMin")
-    // blank checker: count==0 && blank policy != allowed → default allowed,
-    // so no blank output. (state=none, count 0, but blank allowed.)
-
-    const hard = errors.length > 0 && invalid === "not-allowed"
-    const soft = errors.length > 0 && invalid !== "allowed"
-
-    // classifier
-    let tally
-    if (errors.length > 0) tally = "ImplicitInvalid"
-    else if (state === "marker_only") tally = "ExplicitBlank"
-    else if (count === 0) tally = "ImplicitBlank"
-    else tally = "Valid"
-    return {errors, alerts, hard, soft, tally}
+    if (count < min) errors.push(MSG.selectedMin)
+    const selection =
+        state === "none" ? "none" : state === "marker_only" ? "marker" : "regular"
+    const facts = {
+        errors,
+        alerts,
+        explicitInvalid: false,
+        selections: count,
+        min,
+        max: 3, // makeEml forces max_votes = 3
+        selection,
+        policies: {invalid},
+    }
+    return {
+        errors,
+        alerts,
+        hard: hardGate(facts),
+        soft: softGate(facts),
+        tally: classify({hasErrors: errors.length > 0, selection}),
+    }
 }
 
-// selectedMin is NOT in the master filter keep-list, so under
-// invalid=allowed it is suppressed; otherwise shown. Alerts always shown.
 function derivedInlineVisible(observed, invalid) {
-    const keptErrors = observed.errors.filter(() => invalid !== "allowed")
-    return [...keptErrors, ...observed.alerts]
+    return inlineVisible({
+        errors: observed.errors,
+        alerts: observed.alerts,
+        policies: {invalid},
+    })
 }
 
 const rows = []

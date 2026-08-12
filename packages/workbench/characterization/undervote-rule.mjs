@@ -30,6 +30,7 @@ import {
     loadMarkerFixture,
     extractErrors,
 } from "./harness.mjs"
+import {hardGate, softGate, classify, inlineVisible} from "./spec.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
@@ -91,32 +92,47 @@ function makeEml(underPolicy, invalidPolicy) {
 // observation-point concern, not a checker one — so the checker record is
 // identical for warn / warn-only-in-review / warn-and-alert).
 function predict(under, invalid, state) {
+    // rule-specific emissions (the under-vote checker). FINDING (recording
+    // corrected the first transcription): the checker's under-vote zone is
+    // `min ≤ n < max`. With min_votes = 0 that INCLUDES n = 0, so an *empty*
+    // ballot is also an under-vote — the alert fires at both empty and under,
+    // overlapping the blank condition. Under-vote pushes only ALERTS, never
+    // errors. (blank policy is the default `allowed`, so no blankVote dedup.)
     const errors = []
     const alerts = []
-    // FINDING (recording corrected the first transcription): the checker's
-    // under-vote zone is `min ≤ n < max`. With min_votes = 0 that INCLUDES
-    // n = 0, so an *empty* ballot is also an under-vote — the alert fires at
-    // both empty and under, overlapping the blank condition. (Here blank
-    // policy is the default `allowed`, so no blankVote fires to dedup it.)
     if ((state === "empty" || state === "under") && under !== "allowed") {
         alerts.push("errors.implicit.underVote")
     }
-    const hard = false // under-vote never errors; nothing for invalid policy to bite
-    // ASYMMETRY: the soft gate requires n > 0 (`selections_with_markers > 0`),
-    // so it fires only for `under`, NOT for the empty ballot the checker just
-    // alerted on. Alert threshold and gate threshold differ.
-    const soft = state === "under" && under === "warn-and-alert"
-    // classifier: no errors here → empty = ImplicitBlank, else Valid
-    const tally = state === "empty" ? "ImplicitBlank" : "Valid"
-    return {errors, alerts, hard, soft, tally}
+    // shared spec. Contest: min 0, max 2; empty/under/full = 0/1/2 selections.
+    // The soft gate's under clause requires n > 0 (`selections > 0`), so it
+    // fires only for `under`, NOT the empty ballot the checker just alerted on
+    // — the S4 threshold discrepancy, now expressed by the shared softGate.
+    const selections = state === "empty" ? 0 : state === "under" ? 1 : 2
+    const selection = state === "empty" ? "none" : "regular"
+    const facts = {
+        errors,
+        alerts,
+        explicitInvalid: false,
+        selections,
+        min: 0,
+        max: 2,
+        selection,
+        policies: {under, invalid},
+    }
+    return {
+        errors,
+        alerts,
+        hard: hardGate(facts),
+        soft: softGate(facts),
+        tally: classify({hasErrors: errors.length > 0, selection}),
+    }
 }
 
 function derivedInlineVisible(observed) {
-    // under-vote produces only alerts; the master filter's error-suppression
-    // does not touch alerts. WARN_ONLY_IN_REVIEW review-gating is a separate
-    // observation point (during-voting suppression handled in the browser
-    // runner); this during-voting view shows the alert.
-    return [...observed.errors, ...observed.alerts]
+    // under-vote produces only alerts; the filter's error-suppression does not
+    // touch alerts. WARN_ONLY_IN_REVIEW review-gating is a separate observation
+    // point (browser); this during-voting view shows the alert.
+    return inlineVisible({errors: observed.errors, alerts: observed.alerts})
 }
 
 const rows = []
