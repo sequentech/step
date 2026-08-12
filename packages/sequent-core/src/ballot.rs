@@ -967,10 +967,53 @@ pub enum KeysCeremonyPolicy {
     Eq,
     Debug,
     Clone,
+    Copy,
+    Default,
+    EnumString,
+    Display,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum SupportMaterialsPolicy {
+    #[default]
+    Off,
+    Optional,
+    MandatoryForVoting,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
     Default,
 )]
 pub struct ElectionEventMaterials {
+    /// Deprecated: superseded by `policy`. Kept for backwards compatibility
+    /// with election events created before `SupportMaterialsPolicy` existed;
+    /// see `effective_policy`.
     pub activated: Option<bool>,
+    pub policy: Option<SupportMaterialsPolicy>,
+}
+
+impl ElectionEventMaterials {
+    /// Resolves the effective policy, falling back to the legacy `activated`
+    /// boolean when `policy` hasn't been set (e.g. election events created
+    /// before this field existed).
+    pub fn effective_policy(&self) -> SupportMaterialsPolicy {
+        self.policy.unwrap_or_else(|| {
+            if self.activated.unwrap_or(false) {
+                SupportMaterialsPolicy::Optional
+            } else {
+                SupportMaterialsPolicy::Off
+            }
+        })
+    }
 }
 
 #[derive(
@@ -2968,5 +3011,83 @@ mod presentation_borsh_compat_tests {
             ..election_presentation
         };
         assert_eq!(borsh::to_vec(&election_with_css).unwrap(), election_bytes);
+    }
+}
+
+#[cfg(test)]
+mod support_materials_policy_tests {
+    use super::*;
+
+    #[test]
+    fn test_default_is_off() {
+        assert_eq!(
+            SupportMaterialsPolicy::default(),
+            SupportMaterialsPolicy::Off
+        );
+    }
+
+    // Pins the serialized values: admin-portal and voting-portal hand-mirror
+    // this enum in TypeScript and must stay in sync with these strings.
+    #[test]
+    fn test_serialized_values() {
+        assert_eq!(
+            serde_json::to_string(&SupportMaterialsPolicy::Off).unwrap(),
+            "\"off\""
+        );
+        assert_eq!(
+            serde_json::to_string(&SupportMaterialsPolicy::Optional).unwrap(),
+            "\"optional\""
+        );
+        assert_eq!(
+            serde_json::to_string(&SupportMaterialsPolicy::MandatoryForVoting)
+                .unwrap(),
+            "\"mandatory_for_voting\""
+        );
+    }
+
+    #[test]
+    fn test_materials_without_field_is_backwards_compatible() {
+        let materials: ElectionEventMaterials =
+            serde_json::from_str("{}").unwrap();
+        assert_eq!(materials.policy, None);
+        assert_eq!(materials.activated, None);
+        assert_eq!(materials.effective_policy(), SupportMaterialsPolicy::Off);
+    }
+
+    // Election events created before `policy` existed only have `activated`.
+    #[test]
+    fn test_effective_policy_falls_back_to_legacy_activated_flag() {
+        let materials = ElectionEventMaterials {
+            activated: Some(true),
+            policy: None,
+        };
+        assert_eq!(
+            materials.effective_policy(),
+            SupportMaterialsPolicy::Optional
+        );
+
+        let materials = ElectionEventMaterials {
+            activated: Some(false),
+            policy: None,
+        };
+        assert_eq!(materials.effective_policy(), SupportMaterialsPolicy::Off);
+
+        let materials = ElectionEventMaterials {
+            activated: None,
+            policy: None,
+        };
+        assert_eq!(materials.effective_policy(), SupportMaterialsPolicy::Off);
+    }
+
+    #[test]
+    fn test_effective_policy_prefers_explicit_policy_over_legacy_flag() {
+        let materials = ElectionEventMaterials {
+            activated: Some(false),
+            policy: Some(SupportMaterialsPolicy::MandatoryForVoting),
+        };
+        assert_eq!(
+            materials.effective_policy(),
+            SupportMaterialsPolicy::MandatoryForVoting
+        );
     }
 }
