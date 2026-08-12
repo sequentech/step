@@ -235,7 +235,30 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
                                     allow="autoplay"
                                 ></iframe>
                             </Box>
-                        ) : null}
+                        ) : (
+                            <Box
+                                sx={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    justifyContent: "center",
+                                    alignItems: "center",
+                                    gap: "16px",
+                                }}
+                            >
+                                <DescriptionIcon sx={{fontSize: "80px"}} />
+                                <Button
+                                    sx={{padding: "10px 24px", minWidth: "unset"}}
+                                    variant="secondary"
+                                    component="a"
+                                    href={documentUrl}
+                                    download={documentName}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    {t("materials.common.download")}
+                                </Button>
+                            </Box>
+                        )}
                     </Box>
                 </Box>
             </Dialog>
