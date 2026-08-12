@@ -340,28 +340,15 @@ pub async fn preview_tally_sheet_import(
     .map_err(map_tally_sheet_import_error)?;
     verify_source_sha256(input.sha256.as_deref(), &source_bytes)
         .map_err(|e| (Status::BadRequest, format!("{e:?}")))?;
-    let contest_vote_config = contest_vote_config_by_external_id(
+    let conversion = build_canonical_csv_conversion(
         &hasura_transaction,
         &claims.hasura_claims.tenant_id,
         &input.election_event_id,
-    )
-    .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let configured_area_names = configured_area_names(
-        &hasura_transaction,
-        &claims.hasura_claims.tenant_id,
-        &input.election_event_id,
-    )
-    .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let conversion = canonical_csv_bytes(
         &source_bytes,
         &input.source_format,
         &input.selected_channel,
-        &contest_vote_config,
-        &configured_area_names,
     )
-    .map_err(|e| (Status::BadRequest, format!("{e:?}")))?;
+    .await?;
 
     let preview = preview_tally_sheet_import_service(
         &hasura_transaction,
@@ -420,28 +407,15 @@ pub async fn create_tally_sheet_import(
     .map_err(map_tally_sheet_import_error)?;
     verify_source_sha256(input.sha256.as_deref(), &source_bytes)
         .map_err(|e| (Status::BadRequest, format!("{e:?}")))?;
-    let contest_vote_config = contest_vote_config_by_external_id(
+    let conversion = build_canonical_csv_conversion(
         &hasura_transaction,
         &claims.hasura_claims.tenant_id,
         &input.election_event_id,
-    )
-    .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let configured_area_names = configured_area_names(
-        &hasura_transaction,
-        &claims.hasura_claims.tenant_id,
-        &input.election_event_id,
-    )
-    .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let conversion = canonical_csv_bytes(
         &source_bytes,
         &input.source_format,
         &input.selected_channel,
-        &contest_vote_config,
-        &configured_area_names,
     )
-    .map_err(|e| (Status::BadRequest, format!("{e:?}")))?;
+    .await?;
     let annotations = conversion.area_grouping.map(|area_grouping| {
         serde_json::json!({ ESS_AREA_GROUPING_ANNOTATION_KEY: area_grouping })
     });
@@ -772,15 +746,23 @@ async fn read_import_document(
 /// Returns the canonical CSV bytes plus any validation errors already known
 /// before parsing (only possible for XML sources, where a problem scoped to
 /// one Contest skips just that contest instead of failing the whole file).
-/// The `Result` here is reserved for genuinely file-wide problems (invalid
-/// UTF-8, unparseable XML, an unreadable CSV byte stream).
-fn canonical_csv_bytes(
+///
+/// The election event's contest and area configuration is only fetched for
+/// source formats that need it to convert: canonical CSV already carries its
+/// own contest and area names, so both queries are skipped for it.
+///
+/// Errors are returned pre-mapped to their HTTP status: a failed
+/// configuration lookup is a server-side problem, while a file this
+/// converter can't read at all (invalid UTF-8, unparseable XML) is a bad
+/// request.
+async fn build_canonical_csv_conversion(
+    hasura_transaction: &deadpool_postgres::Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
     source_bytes: &[u8],
     source_format: &TallySheetImportSourceFormat,
     selected_channel: &VotingChannel,
-    contest_vote_config: &HashMap<String, ContestVoteConfig>,
-    configured_area_names: &HashSet<String>,
-) -> Result<CanonicalCsvConversion> {
+) -> Result<CanonicalCsvConversion, (Status, String)> {
     match source_format {
         TallySheetImportSourceFormat::CANONICAL_CSV => {
             Ok(CanonicalCsvConversion {
@@ -790,14 +772,29 @@ fn canonical_csv_bytes(
             })
         }
         TallySheetImportSourceFormat::ESS_ENHANCED_XML => {
+            let contest_vote_config = contest_vote_config_by_external_id(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+            )
+            .await
+            .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+            let configured_area_names = configured_area_names(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+            )
+            .await
+            .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
             let conversion =
                 convert_ess_enhanced_xml_to_csv_for_reporting_group(
                     source_bytes,
                     selected_channel.clone(),
                     DEFAULT_IMPORT_REPORTING_GROUP_ID,
-                    contest_vote_config,
-                    configured_area_names,
-                )?;
+                    &contest_vote_config,
+                    &configured_area_names,
+                )
+                .map_err(|e| (Status::BadRequest, format!("{e:?}")))?;
             Ok(CanonicalCsvConversion {
                 canonical_csv: conversion.canonical_csv,
                 validation_errors: conversion.validation_errors,

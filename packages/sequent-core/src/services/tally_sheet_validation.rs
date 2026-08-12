@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::types::ceremonies::CountingAlgType;
 use crate::types::tally_sheets::AreaContestResults;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -30,13 +31,41 @@ pub fn effective_max_marks_per_ballot(
     counting_algorithm: Option<&str>,
     cumulative_number_of_checkboxes: Option<u64>,
 ) -> u64 {
+    let is_cumulative = counting_algorithm
+        .map(|value| value.eq_ignore_ascii_case("cumulative"))
+        .unwrap_or(false);
+    max_marks_per_ballot(
+        max_votes,
+        is_cumulative,
+        cumulative_number_of_checkboxes,
+    )
+}
+
+/// Typed counterpart of [`effective_max_marks_per_ballot`], for callers that
+/// already hold a `CountingAlgType` and would otherwise have to stringify it
+/// only for this comparison. Both delegate to the same computation, so they
+/// cannot disagree about the same contest.
+pub fn effective_max_marks_per_ballot_typed(
+    max_votes: Option<i64>,
+    counting_algorithm: CountingAlgType,
+    cumulative_number_of_checkboxes: Option<u64>,
+) -> u64 {
+    max_marks_per_ballot(
+        max_votes,
+        counting_algorithm == CountingAlgType::Cumulative,
+        cumulative_number_of_checkboxes,
+    )
+}
+
+fn max_marks_per_ballot(
+    max_votes: Option<i64>,
+    is_cumulative: bool,
+    cumulative_number_of_checkboxes: Option<u64>,
+) -> u64 {
     let base = max_votes
         .filter(|value| *value > 0)
         .map(|value| value as u64)
         .unwrap_or(1);
-    let is_cumulative = counting_algorithm
-        .map(|value| value.eq_ignore_ascii_case("cumulative"))
-        .unwrap_or(false);
     if is_cumulative {
         let checkboxes = cumulative_number_of_checkboxes
             .filter(|value| *value > 0)

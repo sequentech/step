@@ -79,8 +79,101 @@ mod tests {
     use std::collections::HashMap;
 
     use sequent_core::types::tally_sheets::{CandidateResults, InvalidVotes};
+    use serde_json::json;
 
     use super::*;
+
+    fn contest(
+        max_votes: Option<i64>,
+        counting_algorithm: Option<&str>,
+        presentation: Option<serde_json::Value>,
+    ) -> Contest {
+        Contest {
+            id: "contest-1".to_string(),
+            tenant_id: "tenant-1".to_string(),
+            election_event_id: "event-1".to_string(),
+            election_id: "election-1".to_string(),
+            created_at: None,
+            last_updated_at: None,
+            labels: None,
+            annotations: None,
+            is_acclaimed: None,
+            is_active: None,
+            description: None,
+            presentation,
+            min_votes: None,
+            max_votes,
+            winning_candidates_num: None,
+            voting_type: None,
+            counting_algorithm: counting_algorithm.map(str::to_string),
+            is_encrypted: None,
+            tally_configuration: None,
+            image_document_id: None,
+            conditions: None,
+            external_id: None,
+        }
+    }
+
+    #[test]
+    fn max_marks_is_one_for_single_choice_contest() {
+        let contest = contest(Some(1), Some("plurality-at-large"), None);
+        assert_eq!(contest_max_marks_per_ballot(&contest), Some(1));
+    }
+
+    #[test]
+    fn max_marks_is_max_votes_for_vote_for_n_contest() {
+        let contest = contest(Some(4), Some("plurality-at-large"), None);
+        assert_eq!(contest_max_marks_per_ballot(&contest), Some(4));
+    }
+
+    #[test]
+    fn max_marks_multiplies_checkboxes_for_cumulative_contest() {
+        let contest = contest(
+            Some(3),
+            Some("cumulative"),
+            Some(json!({"cumulative_number_of_checkboxes": 5})),
+        );
+        assert_eq!(contest_max_marks_per_ballot(&contest), Some(15));
+    }
+
+    #[test]
+    fn max_marks_ignores_checkboxes_for_non_cumulative_contest() {
+        let contest = contest(
+            Some(3),
+            Some("plurality-at-large"),
+            Some(json!({"cumulative_number_of_checkboxes": 5})),
+        );
+        assert_eq!(contest_max_marks_per_ballot(&contest), Some(3));
+    }
+
+    #[test]
+    fn max_marks_falls_back_to_max_votes_when_cumulative_checkboxes_unusable() {
+        // Absent, wrong-typed, and non-positive checkbox counts all collapse
+        // to a multiplier of 1 rather than zeroing the bound out.
+        for presentation in [
+            None,
+            Some(json!({})),
+            Some(json!({"cumulative_number_of_checkboxes": "5"})),
+            Some(json!({"cumulative_number_of_checkboxes": 0})),
+        ] {
+            let contest = contest(Some(3), Some("cumulative"), presentation);
+            assert_eq!(contest_max_marks_per_ballot(&contest), Some(3));
+        }
+    }
+
+    #[test]
+    fn max_marks_defaults_to_one_when_max_votes_absent_or_non_positive() {
+        for max_votes in [None, Some(0), Some(-2)] {
+            let contest = contest(max_votes, Some("plurality-at-large"), None);
+            assert_eq!(contest_max_marks_per_ballot(&contest), Some(1));
+        }
+    }
+
+    #[test]
+    fn max_marks_defaults_to_one_when_counting_algorithm_absent() {
+        let contest = contest(None, None, None);
+        assert_eq!(contest_max_marks_per_ballot(&contest), Some(1));
+    }
 
     #[test]
     fn accepts_consistent_vote_bucket_arithmetic() {

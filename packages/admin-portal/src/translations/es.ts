@@ -2431,7 +2431,8 @@ const spanishTranslation: TranslationType = {
             inputError: {
                 totalValidDoesNotMatch:
                     "Los votos de candidatos ({{candidateVotesSum}}) deben estar entre {{lowerBound}} y {{upperBound}} según las reglas de votación de esta contienda ({{nonBlankValidVotes}} votos válidos no en blanco × hasta {{maxMarks}} marcas por papeleta)",
-                censusTooSmall: "El censo debe ser mayor o igual al total de votos",
+                censusTooSmall:
+                    "El total de votos ({{totalVotes}}) no puede ser mayor que el censo ({{census}})",
                 totalInvalidDoesNotMatch:
                     "El total de votos inválidos ({{totalInvalid}}) debe ser igual a los votos inválidos implícitos ({{implicitInvalid}}) más los votos inválidos explícitos ({{explicitInvalid}})",
                 totalVotesDoesNotMatch:

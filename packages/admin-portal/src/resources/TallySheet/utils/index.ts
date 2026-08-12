@@ -19,15 +19,26 @@ export interface ISharedValidationError {
     params?: Record<string, string> | null
 }
 
+// Error codes emitted by sequent_core::services::tally_sheet_validation.
+// The values must match the Rust side exactly.
+export const VALIDATION_ERROR_CODES = {
+    INVALID_TOTAL_VALID_VOTES: "invalid_total_valid_votes",
+    TOTAL_VOTES_EXCEEDS_CENSUS: "total_votes_exceeds_census",
+    INVALID_TOTAL_INVALID: "invalid_total_invalid",
+    INVALID_TOTAL_VOTES: "invalid_total_votes",
+} as const
+
 // Maps a shared tally sheet validation error's `code` (from
 // sequent_core::services::tally_sheet_validation, used by both manual entry
 // and tally sheet import) to the i18n key used to render it. Codes without
 // an entry here fall back to `tallysheet.inputError.<code>`.
 const VALIDATION_ERROR_TRANSLATION_KEYS: Record<string, string> = {
-    invalid_total_valid_votes: "tallysheet.inputError.totalValidDoesNotMatch",
-    total_votes_exceeds_census: "tallysheet.inputError.censusTooSmall",
-    invalid_total_invalid: "tallysheet.inputError.totalInvalidDoesNotMatch",
-    invalid_total_votes: "tallysheet.inputError.totalVotesDoesNotMatch",
+    [VALIDATION_ERROR_CODES.INVALID_TOTAL_VALID_VOTES]:
+        "tallysheet.inputError.totalValidDoesNotMatch",
+    [VALIDATION_ERROR_CODES.TOTAL_VOTES_EXCEEDS_CENSUS]: "tallysheet.inputError.censusTooSmall",
+    [VALIDATION_ERROR_CODES.INVALID_TOTAL_INVALID]:
+        "tallysheet.inputError.totalInvalidDoesNotMatch",
+    [VALIDATION_ERROR_CODES.INVALID_TOTAL_VOTES]: "tallysheet.inputError.totalVotesDoesNotMatch",
 }
 
 // `t` is typed loosely (matching react-i18next's `useTranslation().t`)

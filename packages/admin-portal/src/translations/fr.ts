@@ -2443,7 +2443,8 @@ const frenchTranslation: TranslationType = {
             inputError: {
                 totalValidDoesNotMatch:
                     "Les votes des candidats ({{candidateVotesSum}}) doivent être compris entre {{lowerBound}} et {{upperBound}} selon les règles de vote de ce scrutin ({{nonBlankValidVotes}} votes valides non blancs × jusqu'à {{maxMarks}} marques par bulletin)",
-                censusTooSmall: "Le recensement doit être supérieur ou égal au total des votes",
+                censusTooSmall:
+                    "Le total des votes ({{totalVotes}}) ne doit pas être supérieur au recensement ({{census}})",
                 totalInvalidDoesNotMatch:
                     "Le total des votes invalides ({{totalInvalid}}) doit être égal aux votes invalides implicites ({{implicitInvalid}}) plus les votes invalides explicites ({{explicitInvalid}})",
                 totalVotesDoesNotMatch:

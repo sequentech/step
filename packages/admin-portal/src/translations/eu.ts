@@ -2419,7 +2419,7 @@ const basqueTranslation: TranslationType = {
                 totalValidDoesNotMatch:
                     "Hautagaien botoek ({{candidateVotesSum}}) {{lowerBound}} eta {{upperBound}} artean egon behar dute lehiaketa honen bozketa-arauen arabera ({{nonBlankValidVotes}} baliozko boto ez-zuri × gehienez {{maxMarks}} marka boto-txartel bakoitzeko)",
                 censusTooSmall:
-                    "Erroldak boto guztien kopurua baino handiagoa edo berdina izan behar du",
+                    "Boto guztien kopurua ({{totalVotes}}) ezin da erroldakoa ({{census}}) baino handiagoa izan",
                 totalInvalidDoesNotMatch:
                     "Boto baliogabeen guztizkoak ({{totalInvalid}}) boto baliogabe inplizituen ({{implicitInvalid}}) eta boto baliogabe esplizituen ({{explicitInvalid}}) baturaren berdina izan behar du",
                 totalVotesDoesNotMatch:

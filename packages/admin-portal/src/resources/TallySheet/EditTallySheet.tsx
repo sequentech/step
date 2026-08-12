@@ -31,7 +31,12 @@ import {
 } from "@mui/material"
 import TextField from "@mui/material/TextField"
 import {IAreaContestResults, ICandidateResults, IInvalidVotes} from "@/types/TallySheets"
-import {sortFunction, translateSharedValidationError} from "./utils"
+import {
+    ISharedValidationError,
+    sortFunction,
+    translateSharedValidationError,
+    VALIDATION_ERROR_CODES,
+} from "./utils"
 import {
     EEnableCheckableLists,
     ICandidatePresentation,
@@ -82,13 +87,6 @@ interface IContest {
     label?: Maybe<string> | undefined
 }
 
-interface SharedValidationError {
-    code: string
-    message: string
-    field: string
-    params: Record<string, string>
-}
-
 interface IContestMarkBounds {
     max_votes?: Maybe<number>
     counting_algorithm?: Maybe<string>
@@ -98,7 +96,7 @@ interface IContestMarkBounds {
 const validateAreaContestResults = (
     content: IAreaContestResults,
     contestBounds: IContestMarkBounds
-): SharedValidationError[] =>
+): ISharedValidationError[] =>
     validate_area_contest_results_js(normalizeAreaContestResults(content), contestBounds)
 
 const numbersRegExp = /^[0-9]+$/
@@ -117,7 +115,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     const {t, i18n} = useTranslation()
     const aliasRenderer = useAliasRenderer()
 
-    const translateValidationError = (error: SharedValidationError): string =>
+    const translateValidationError = (error: ISharedValidationError): string =>
         translateSharedValidationError(t, error)
 
     const [areasList, setAreasList] = useState<IArea[]>([])
@@ -140,7 +138,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     const [areaNameFilter, setAreaNameFilter] = useState<string | null>(null)
     const [contestNameFilter, setContestNameFilter] = useState<string | null>(null)
     const [areaIds, setAreaIds] = useState<Array<string>>([])
-    const [sharedValidationErrors, setSharedValidationErrors] = useState<SharedValidationError[]>(
+    const [sharedValidationErrors, setSharedValidationErrors] = useState<ISharedValidationError[]>(
         []
     )
     const {data: areaContests} = useGetList<Sequent_Backend_Area_Contest>(
@@ -607,15 +605,15 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     }, [choosenContest])
 
     const totalValidVotesError = sharedValidationErrors.find(
-        (error) => error.code === "invalid_total_valid_votes"
+        (error) => error.code === VALIDATION_ERROR_CODES.INVALID_TOTAL_VALID_VOTES
     )
     const censusExceededError = sharedValidationErrors.find(
-        (error) => error.code === "total_votes_exceeds_census"
+        (error) => error.code === VALIDATION_ERROR_CODES.TOTAL_VOTES_EXCEEDS_CENSUS
     )
     const otherValidationErrors = sharedValidationErrors.filter(
         (error) =>
-            error.code !== "invalid_total_valid_votes" &&
-            error.code !== "total_votes_exceeds_census"
+            error.code !== VALIDATION_ERROR_CODES.INVALID_TOTAL_VALID_VOTES &&
+            error.code !== VALIDATION_ERROR_CODES.TOTAL_VOTES_EXCEEDS_CENSUS
     )
 
     return (
@@ -730,7 +728,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                         <StyledError>{translateValidationError(totalValidVotesError)}</StyledError>
                     )}
                     {otherValidationErrors.map((error) => (
-                        <StyledError key={error.code + error.field}>
+                        <StyledError key={error.code + (error.field ?? "")}>
                             {translateValidationError(error)}
                         </StyledError>
                     ))}

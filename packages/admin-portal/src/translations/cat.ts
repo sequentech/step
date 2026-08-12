@@ -2439,7 +2439,8 @@ const catalanTranslation: TranslationType = {
             inputError: {
                 totalValidDoesNotMatch:
                     "Els vots de candidats ({{candidateVotesSum}}) han d'estar entre {{lowerBound}} i {{upperBound}} segons les regles de votació d'aquesta contesa ({{nonBlankValidVotes}} vots vàlids no en blanc × fins a {{maxMarks}} marques per papereta)",
-                censusTooSmall: "El cens ha de ser major o igual al total de vots",
+                censusTooSmall:
+                    "El total de vots ({{totalVotes}}) no pot ser major que el cens ({{census}})",
                 totalInvalidDoesNotMatch:
                     "El total de vots invàlids ({{totalInvalid}}) ha de ser igual als vots invàlids implícits ({{implicitInvalid}}) més els vots invàlids explícits ({{explicitInvalid}})",
                 totalVotesDoesNotMatch:
