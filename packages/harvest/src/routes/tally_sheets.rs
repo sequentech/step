@@ -24,10 +24,11 @@ use sequent_core::types::tally_sheets::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use tracing::{event, instrument, Level};
 use windmill::postgres::{
-    contest::get_contest_by_id,
+    area::get_event_areas,
+    contest::{export_contests, get_contest_by_id},
     document::get_document,
     election_event::get_election_event_by_id,
     tally_session::{
@@ -41,7 +42,10 @@ use windmill::services::{
     ceremonies::tally_ceremony::reset_tally_session_status_after_failed_recount_task,
     database::get_hasura_pool,
     documents::get_document_as_temp_file,
-    ess_xml_converter::convert_ess_enhanced_xml_to_csv,
+    ess_xml_converter::{
+        convert_ess_enhanced_xml_to_csv_for_reporting_group, ContestVoteConfig,
+        DEFAULT_IMPORT_REPORTING_GROUP_ID, ESS_AREA_GROUPING_ANNOTATION_KEY,
+    },
     tally_sheet_import::{
         application::{
             create_tally_sheet_import as create_tally_sheet_import_service,
@@ -50,6 +54,7 @@ use windmill::services::{
         },
         errors::TallySheetImportError,
         hash::hash_bytes,
+        validation::contest_max_marks_per_ballot,
     },
 };
 use windmill::tasks::execute_tally_session::execute_tally_session;
@@ -95,18 +100,6 @@ pub async fn create_new_tally_sheet(
         vec![Permissions::TALLY_SHEET_CREATE],
     )?;
     let input = body.into_inner();
-    let validation_errors = validate_area_contest_results(&input.content);
-    if !validation_errors.is_empty() {
-        let messages = validation_errors
-            .into_iter()
-            .map(|error| format!("{}: {}", error.code, error.message))
-            .collect::<Vec<String>>()
-            .join("; ");
-        return Err((
-            Status::BadRequest,
-            format!("Invalid tally sheet content: {messages}"),
-        ));
-    }
 
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -134,6 +127,22 @@ pub async fn create_new_tally_sheet(
             format!("Contest {} not found ", input.contest_id),
         ));
     };
+
+    let validation_errors = validate_area_contest_results(
+        &input.content,
+        contest_max_marks_per_ballot(&contest),
+    );
+    if !validation_errors.is_empty() {
+        let messages = validation_errors
+            .into_iter()
+            .map(|error| format!("{}: {}", error.code, error.message))
+            .collect::<Vec<String>>()
+            .join("; ");
+        return Err((
+            Status::BadRequest,
+            format!("Invalid tally sheet content: {messages}"),
+        ));
+    }
 
     tally_sheet::lock_ballot_box_version_assignment(
         &hasura_transaction,
@@ -331,10 +340,26 @@ pub async fn preview_tally_sheet_import(
     .map_err(map_tally_sheet_import_error)?;
     verify_source_sha256(input.sha256.as_deref(), &source_bytes)
         .map_err(|e| (Status::BadRequest, format!("{e:?}")))?;
-    let (canonical_csv, conversion_validation_errors) = canonical_csv_bytes(
+    let contest_vote_config = contest_vote_config_by_external_id(
+        &hasura_transaction,
+        &claims.hasura_claims.tenant_id,
+        &input.election_event_id,
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let configured_area_names = configured_area_names(
+        &hasura_transaction,
+        &claims.hasura_claims.tenant_id,
+        &input.election_event_id,
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let conversion = canonical_csv_bytes(
         &source_bytes,
         &input.source_format,
         &input.selected_channel,
+        &contest_vote_config,
+        &configured_area_names,
     )
     .map_err(|e| (Status::BadRequest, format!("{e:?}")))?;
 
@@ -345,8 +370,8 @@ pub async fn preview_tally_sheet_import(
         &input.document_id,
         input.source_format,
         input.selected_channel,
-        &canonical_csv,
-        conversion_validation_errors,
+        &conversion.canonical_csv,
+        conversion.validation_errors,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
@@ -395,12 +420,31 @@ pub async fn create_tally_sheet_import(
     .map_err(map_tally_sheet_import_error)?;
     verify_source_sha256(input.sha256.as_deref(), &source_bytes)
         .map_err(|e| (Status::BadRequest, format!("{e:?}")))?;
-    let (canonical_csv, conversion_validation_errors) = canonical_csv_bytes(
+    let contest_vote_config = contest_vote_config_by_external_id(
+        &hasura_transaction,
+        &claims.hasura_claims.tenant_id,
+        &input.election_event_id,
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let configured_area_names = configured_area_names(
+        &hasura_transaction,
+        &claims.hasura_claims.tenant_id,
+        &input.election_event_id,
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let conversion = canonical_csv_bytes(
         &source_bytes,
         &input.source_format,
         &input.selected_channel,
+        &contest_vote_config,
+        &configured_area_names,
     )
     .map_err(|e| (Status::BadRequest, format!("{e:?}")))?;
+    let annotations = conversion.area_grouping.map(|area_grouping| {
+        serde_json::json!({ ESS_AREA_GROUPING_ANNOTATION_KEY: area_grouping })
+    });
 
     let import = create_tally_sheet_import_service(
         &hasura_transaction,
@@ -410,10 +454,11 @@ pub async fn create_tally_sheet_import(
         document.name.as_deref(),
         input.source_format,
         input.selected_channel,
-        &canonical_csv,
+        &conversion.canonical_csv,
         &source_bytes,
         &claims.hasura_claims.user_id,
-        conversion_validation_errors,
+        conversion.validation_errors,
+        annotations,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
@@ -733,18 +778,85 @@ fn canonical_csv_bytes(
     source_bytes: &[u8],
     source_format: &TallySheetImportSourceFormat,
     selected_channel: &VotingChannel,
-) -> Result<(Vec<u8>, Vec<TallySheetImportValidationError>)> {
+    contest_vote_config: &HashMap<String, ContestVoteConfig>,
+    configured_area_names: &HashSet<String>,
+) -> Result<CanonicalCsvConversion> {
     match source_format {
         TallySheetImportSourceFormat::CANONICAL_CSV => {
-            Ok((source_bytes.to_vec(), Vec::new()))
+            Ok(CanonicalCsvConversion {
+                canonical_csv: source_bytes.to_vec(),
+                validation_errors: Vec::new(),
+                area_grouping: None,
+            })
         }
         TallySheetImportSourceFormat::ESS_ENHANCED_XML => {
-            convert_ess_enhanced_xml_to_csv(
-                source_bytes,
-                selected_channel.clone(),
-            )
+            let conversion =
+                convert_ess_enhanced_xml_to_csv_for_reporting_group(
+                    source_bytes,
+                    selected_channel.clone(),
+                    DEFAULT_IMPORT_REPORTING_GROUP_ID,
+                    contest_vote_config,
+                    configured_area_names,
+                )?;
+            Ok(CanonicalCsvConversion {
+                canonical_csv: conversion.canonical_csv,
+                validation_errors: conversion.validation_errors,
+                area_grouping: Some(conversion.area_grouping),
+            })
         }
     }
+}
+
+/// A source file turned into canonical CSV. `area_grouping` records which
+/// source element supplied the area names, for the import's annotations; it
+/// is `None` for canonical CSV sources, which carry their area names
+/// directly and so have nothing to detect.
+struct CanonicalCsvConversion {
+    canonical_csv: Vec<u8>,
+    validation_errors: Vec<TallySheetImportValidationError>,
+    area_grouping: Option<&'static str>,
+}
+
+/// Every area name configured on the election event, for a source-format
+/// converter to match the file's own area names against. Areas without a
+/// name are skipped; they could never be matched by name anyway.
+async fn configured_area_names(
+    hasura_transaction: &deadpool_postgres::Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<HashSet<String>> {
+    let areas =
+        get_event_areas(hasura_transaction, tenant_id, election_event_id)
+            .await?;
+    Ok(areas.into_iter().filter_map(|area| area.name).collect())
+}
+
+/// Fetches every contest in the election event and maps its external id to
+/// its `max_votes`, the "vote for N" bound a source-format converter needs
+/// to turn per-selection counts into ballot counts. Contests missing an
+/// external id are skipped — rows can't be matched to them by external id
+/// anyway, and the converter reports each one it can't resolve.
+async fn contest_vote_config_by_external_id(
+    hasura_transaction: &deadpool_postgres::Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<HashMap<String, ContestVoteConfig>> {
+    let contests =
+        export_contests(hasura_transaction, tenant_id, election_event_id)
+            .await?;
+    Ok(contests
+        .into_iter()
+        .filter_map(|contest| {
+            contest.external_id.map(|external_id| {
+                (
+                    external_id,
+                    ContestVoteConfig {
+                        max_votes: contest.max_votes.unwrap_or(1),
+                    },
+                )
+            })
+        })
+        .collect())
 }
 
 fn verify_source_sha256(

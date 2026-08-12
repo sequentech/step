@@ -2433,9 +2433,13 @@ const tagalogTranslation: TranslationType = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "Ang kabuuang bilang ng mga balidong boto ay hindi tumutugma sa suma ng mga boto ng kandidato at mga blangkong boto",
+                    "Ang mga boto ng kandidato ({{candidateVotesSum}}) ay dapat nasa pagitan ng {{lowerBound}} at {{upperBound}} ayon sa mga panuntunan sa pagboto ng paligsahang ito ({{nonBlankValidVotes}} balidong hindi blangkong boto × hanggang {{maxMarks}} marka bawat balota)",
                 censusTooSmall:
                     "Ang senso ay dapat na mas malaki o katumbas ng kabuuang bilang ng mga boto",
+                totalInvalidDoesNotMatch:
+                    "Ang kabuuang bilang ng mga di-balidong boto ({{totalInvalid}}) ay dapat katumbas ng implicit na di-balidong boto ({{implicitInvalid}}) kasama ang explicit na di-balidong boto ({{explicitInvalid}})",
+                totalVotesDoesNotMatch:
+                    "Ang kabuuang bilang ng boto ({{totalVotes}}) ay dapat katumbas ng kabuuang balidong boto ({{totalValidVotes}}) kasama ang kabuuang di-balidong boto ({{totalInvalid}})",
             },
             label: {
                 area: "Lugar",

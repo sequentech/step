@@ -446,6 +446,7 @@ mod tests {
                 total_blank_votes: Some(blank_votes),
                 census: Some(candidate_votes + blank_votes + 1),
                 candidate_results,
+                annotations: None,
             }),
             channel: None,
             deleted_at: None,

@@ -2417,9 +2417,13 @@ const basqueTranslation: TranslationType = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "Baliozko botoen guztizko kopurua ez dator bat hautagaien botoen eta boto zurien baturarekin",
+                    "Hautagaien botoek ({{candidateVotesSum}}) {{lowerBound}} eta {{upperBound}} artean egon behar dute lehiaketa honen bozketa-arauen arabera ({{nonBlankValidVotes}} baliozko boto ez-zuri × gehienez {{maxMarks}} marka boto-txartel bakoitzeko)",
                 censusTooSmall:
                     "Erroldak boto guztien kopurua baino handiagoa edo berdina izan behar du",
+                totalInvalidDoesNotMatch:
+                    "Boto baliogabeen guztizkoak ({{totalInvalid}}) boto baliogabe inplizituen ({{implicitInvalid}}) eta boto baliogabe esplizituen ({{explicitInvalid}}) baturaren berdina izan behar du",
+                totalVotesDoesNotMatch:
+                    "Boto guztizkoak ({{totalVotes}}) boto baliodun guztizkoen ({{totalValidVotes}}) eta boto baliogabe guztizkoen ({{totalInvalid}}) baturaren berdina izan behar du",
             },
             label: {
                 area: "Eremua",

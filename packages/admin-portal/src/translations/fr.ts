@@ -2442,8 +2442,12 @@ const frenchTranslation: TranslationType = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "Le total des votes valides ne correspond pas à la somme des votes des candidats plus les votes blancs",
+                    "Les votes des candidats ({{candidateVotesSum}}) doivent être compris entre {{lowerBound}} et {{upperBound}} selon les règles de vote de ce scrutin ({{nonBlankValidVotes}} votes valides non blancs × jusqu'à {{maxMarks}} marques par bulletin)",
                 censusTooSmall: "Le recensement doit être supérieur ou égal au total des votes",
+                totalInvalidDoesNotMatch:
+                    "Le total des votes invalides ({{totalInvalid}}) doit être égal aux votes invalides implicites ({{implicitInvalid}}) plus les votes invalides explicites ({{explicitInvalid}})",
+                totalVotesDoesNotMatch:
+                    "Le total des votes ({{totalVotes}}) doit être égal au total des votes valides ({{totalValidVotes}}) plus le total des votes invalides ({{totalInvalid}})",
             },
             label: {
                 area: "Zone",

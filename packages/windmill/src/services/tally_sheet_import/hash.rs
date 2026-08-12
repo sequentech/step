@@ -135,6 +135,7 @@ mod tests {
             total_blank_votes: Some(1),
             census: Some(25),
             candidate_results,
+            annotations: None,
         }
     }
 }
