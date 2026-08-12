@@ -77,6 +77,41 @@ every gate evaluation in the browser console.
 **How found:** the log surfaced in Node while running the headless
 characterization harness (`packages/workbench/characterization/`).
 
+## 3. `InvalidErrorsList.tsx`: tautological dedup predicate
+
+**Where:**
+`packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx`
+(~L149-151):
+
+```ts
+// if overvote is an error, remove the info message
+("errors.implicit.selectedMax" === error.message &&
+    containsError(ret, "errors.implicit.selectedMax"))
+```
+
+The filter runs over `ret.invalid_alerts`, and `containsError`
+searches `ret` — which still contains the very alert being examined —
+so the predicate is true for every `selectedMax` alert and the alert
+is dropped unconditionally. Currently benign (the checker always
+pushes a paired `selectedMax` into `invalid_errors`, so the intended
+"drop the alert copy when an error copy exists" would also always
+fire), but the predicate is self-referential and will misfire the day
+that pairing changes.
+
+**How found:** `invalid_vote_policy` intent investigation
+(`INVALID_VOTE_POLICY_INTENT.md`, 2026-08-12).
+
+## 4. `InvalidErrorsList.tsx`: stale `useMemo` — policy arguments missing from deps
+
+**Where:** same file, ~L173-193: `filterErrorList` takes
+`invalid_vote_policy` and `over_vote_policy` as arguments, but the
+`useMemo` dependency array lists neither — a policy change without a
+selection change renders with the stale filter. Latent in production
+(policies are static per session); an exhaustive-deps lint would flag
+it.
+
+**How found:** same investigation.
+
 ---
 
 # Suspects — for consultation (adjudication pending)
@@ -135,6 +170,21 @@ sub-cases) are reproduced through ONE continuous run of the real workbench
 pipeline — booth encrypt → cast → decrypt → decode → tally — with the
 voter shown nothing and the ballot ending 0 valid / 1 implicit-invalid
 (`characterization/{overvote,minvote}-e2e-pipeline.recorded.json`).
+
+**Provenance of the silence** (full evidence chain:
+[INVALID_VOTE_POLICY_INTENT.md](INVALID_VOTE_POLICY_INTENT.md)): the
+message-layer suppression is recent. Until `7b0a1c71e8` ("🐞
+Inconsistencies in Voting Portal (#2018)", 2025-09-29, meta#8235) the
+booth filter never consulted `invalid_vote_policy` — an over-vote or
+below-min ballot under `allowed` showed its inline error by the review
+screen at the latest, so the original posture was "no dialog, but
+informed". That commit added the suppression (untested, undocumented)
+that composes with the older dialog-gate condition into full silence.
+Note also that the min-vote family fires under **factory defaults**
+(`allowed` is the platform default; only `min_votes ≥ 1` is needed).
+**Sharpened consultation question:** did meta#8235 intend to suppress
+implicit-invalid messages under `allowed`, or is the suppression
+overreach in a marker-display fix?
 
 **Why suspect:** the voter is given zero indication their vote will not
 count. **Confidence:** strong intuition this is a defect (or at minimum a
@@ -257,3 +307,18 @@ null ballot carries no latent candidate preference — or is preserving
 them intended (and if so, why)? **Reproduce:** [REPRODUCE.md](REPRODUCE.md)
 Part 2 (decrypt the cast ciphertext in the ballot pipeline; the choice
 falls out of the plaintext).
+
+**Upstream evolution (2026-08-05, substantially answers the mechanism
+question):** `23932601d2` ("✨ Explicit Invalid/Decline to vote should
+support mutual exclusivity (#2949)", on `release/10.0`, not yet on
+`origin/main`) adds a fifth policy value
+`allowed-with-exclusive-explicit` that does exactly what the question
+above proposes — the null marker clears other selections — as an
+**opt-in**, and documents why the default does not: combining
+explicit-invalid with candidates "remains an intentionally supported
+ballot shape for clients that rely on it". So preservation is
+intended (client reliance) and exclusivity is now available. **Open
+residue:** the privacy-adjacent facet — under the default the latent
+preference is still encrypted into the cast ballot, and #2949 does
+not address it. See
+[INVALID_VOTE_POLICY_INTENT.md §8](INVALID_VOTE_POLICY_INTENT.md).
