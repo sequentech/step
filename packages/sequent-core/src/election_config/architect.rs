@@ -612,6 +612,26 @@ pub struct MessageSchedule {
     /// language, and this file is read by whatever the client uses to send.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub weekly: Vec<u8>,
+
+    /// The time of day the weekly repeat goes out, `HH:MM`.
+    ///
+    /// **A wall clock rather than a `Timestamp`, and that is the whole
+    /// argument.** A repeat has no date, so it has no instant to resolve an
+    /// offset at — the offset for "every Monday at 09:30" is two different
+    /// numbers either side of a daylight-saving change, and a `Timestamp` would
+    /// force one of them to be written down as if it were the answer all year.
+    /// Read on the plan's own schedule zone, which is the clock the dates in
+    /// `on` already carry.
+    ///
+    /// One time for the whole repeat, not one per day. "Every Monday and
+    /// Thursday at 09:30" is what a reminder campaign is; a time per day would
+    /// change the shape of `weekly` for a case nobody has asked for.
+    ///
+    /// Empty means the plan predates this field, or a person left it blank.
+    /// `validate_plan` says so out loud rather than inventing an hour, because a
+    /// send-at-midnight nobody chose is worse than a question.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub weekly_at: String,
 }
 
 /// One message, in every language the ballot offers.
@@ -1270,6 +1290,30 @@ pub fn validate_plan(plan: &Blueprint) -> Report {
             )
             .id("messages.not-automatic"),
         );
+    }
+
+    // A repeat with no hour in it.
+    //
+    // The screen makes this unreachable — ticking *Repeat every week* writes an
+    // hour alongside the day — so this is here for the plans the screen did not
+    // write: one from before the field existed, one hand-edited, one round-tripped
+    // through a workbook somebody cleared a cell in. Whoever sends it would
+    // otherwise have to guess, and the guess that costs least to make is midnight.
+    for message in &plan.messages {
+        if !message.schedule.weekly.is_empty()
+            && message.schedule.weekly_at.is_empty()
+        {
+            report.push(
+                Problem::warning(
+                    Code::MissingField,
+                    "messages",
+                    "a message repeats every week but does not say at what time, \
+                     so whoever sends it has to choose an hour nobody wrote down.",
+                )
+                .id("messages.weekly-no-time"),
+            );
+            break;
+        }
     }
 
     if plan.contacts.is_empty() {
@@ -3180,10 +3224,18 @@ pub fn side_files(plan: &Blueprint) -> Vec<(String, String)> {
             .messages
             .iter()
             .map(|message| {
+                // Named one at a time rather than serialising the schedule
+                // whole, which means every field added to `MessageSchedule` has
+                // to be added here too or it is silently dropped from the file a
+                // delivery engineer actually reads. `weekly_at` is the first one
+                // to find that out. Left as it is on purpose — this file's shape
+                // is something people script against — and recorded as its own
+                // item rather than restructured in a change about the hour.
                 serde_json::json!({
                     "alias": message.kind.alias(),
                     "on": message.schedule.on,
                     "weekly": message.schedule.weekly,
+                    "weekly_at": message.schedule.weekly_at,
                 })
             })
             .collect();
