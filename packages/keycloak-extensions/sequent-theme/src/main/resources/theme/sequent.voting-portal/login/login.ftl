@@ -38,6 +38,8 @@ SPDX-License-Identifier: AGPL-3.0-only
                                         <@renderIntlTelInput id=field.name name=field.name autofocus=(field?index == 0)/>
                                     <#else>
                                         <input tabindex="${field?index + 1}" id="${field.name}" class="${properties.kcInputClass!}" name="${field.name}" type="${field.type!'text'}"
+                                               <#-- see user-profile-commons.ftl: date inputs accept 5+ digit years -->
+                                               <#if (field.type!'') == 'date'>max="${field.max!'9999-12-31'}"</#if>
                                                <#if field?index == 0>autofocus</#if> autocomplete="off"
                                                <#if credentialFieldError>aria-invalid="true"</#if>
                                         />

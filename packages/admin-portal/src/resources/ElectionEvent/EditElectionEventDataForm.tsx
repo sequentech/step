@@ -494,23 +494,68 @@ export const EditElectionEventDataForm: React.FC = () => {
     // validation for this form must therefore live here, keyed by the field's
     // source path so the error reaches the input's helper text.
     const formValidator = (values: {
-        presentation?: {voting_portal_datetime_format?: VotingPortalDateTimeFormat}
+        presentation?: {
+            voting_portal_datetime_format?: VotingPortalDateTimeFormat
+            weighted_voting_policy?: EElectionEventWeightedVotingPolicy
+            delegated_voting_policy?: EElectionEventDelegatedVotingPolicy
+            decoded_ballot_inclusion_policy?: EElectionEventDecodedBallots
+        }
     }): Record<string, unknown> => {
         const errors: Record<string, unknown> = {}
+        const presentationErrors: Record<string, unknown> = {}
         const dateTimeFormat = values?.presentation?.voting_portal_datetime_format
         if (
             isCustomVotingPortalDateTimeFormat(dateTimeFormat) &&
             !isValidVotingPortalDateTimePattern(dateTimeFormat.custom)
         ) {
-            errors.presentation = {
-                voting_portal_datetime_format: {
-                    custom: String(
-                        t(
-                            "electionEventScreen.field.votingPortalDateTimeFormat.customFormat.invalid"
-                        )
-                    ),
-                },
+            presentationErrors.voting_portal_datetime_format = {
+                custom: String(
+                    t("electionEventScreen.field.votingPortalDateTimeFormat.customFormat.invalid")
+                ),
             }
+        }
+
+        // A voter's weight is applied by counting their ballot more than once, so it has no
+        // defined meaning combined with a delegated ballot, and publishing the
+        // decoded ballots would show the weight as a run of identical
+        // plaintexts. The tally refuses both, but only once voting has closed.
+        // Each message is also keyed onto the field it conflicts with, so the
+        // error is visible whichever of the two the operator is looking at.
+        const weightedPolicyMessages: string[] = []
+        if (
+            values?.presentation?.weighted_voting_policy ===
+            EElectionEventWeightedVotingPolicy.VOTERS_WEIGHTED_VOTING
+        ) {
+            if (
+                values?.presentation?.delegated_voting_policy ===
+                EElectionEventDelegatedVotingPolicy.ENABLED
+            ) {
+                const message = String(
+                    t("electionEventScreen.field.weightedVotingPolicy.noDelegated")
+                )
+                weightedPolicyMessages.push(message)
+                presentationErrors.delegated_voting_policy = message
+            }
+            if (
+                values?.presentation?.decoded_ballot_inclusion_policy ===
+                EElectionEventDecodedBallots.INCLUDED
+            ) {
+                const message = String(
+                    t("electionEventScreen.field.weightedVotingPolicy.noDecodedBallots")
+                )
+                weightedPolicyMessages.push(message)
+                presentationErrors.decoded_ballot_inclusion_policy = message
+            }
+        }
+
+        // Both conflicts can hold at once, and one assignment would replace the
+        // other, so the weighted field reports every conflict it has.
+        if (weightedPolicyMessages.length > 0) {
+            presentationErrors.weighted_voting_policy = weightedPolicyMessages.join(" ")
+        }
+
+        if (Object.keys(presentationErrors).length > 0) {
+            errors.presentation = presentationErrors
         }
         return errors
     }
@@ -1629,7 +1674,9 @@ export const EditElectionEventDataForm: React.FC = () => {
                         <SelectInput
                             source={"presentation.weighted_voting_policy"}
                             choices={weightedVotingPolicyOptions()}
-                            label={"Weighted Voting Policy"}
+                            label={String(
+                                t("electionEventScreen.field.weightedVotingPolicy.policyLabel")
+                            )}
                             defaultValue={
                                 EElectionEventWeightedVotingPolicy.DISABLED_WEIGHTED_VOTING
                             }
@@ -1639,7 +1686,9 @@ export const EditElectionEventDataForm: React.FC = () => {
                         <SelectInput
                             source={"presentation.delegated_voting_policy"}
                             choices={delegatedVotingPolicyOptions()}
-                            label={"Delegated Voting Policy"}
+                            label={String(
+                                t("electionEventScreen.field.delegatedVotingPolicy.policyLabel")
+                            )}
                             defaultValue={EElectionEventDelegatedVotingPolicy.DISABLED}
                             emptyText={undefined}
                             validate={required()}
