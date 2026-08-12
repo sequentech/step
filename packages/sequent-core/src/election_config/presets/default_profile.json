@@ -1,32 +1,15 @@
 {
+  "id": "default",
+  "display_name": "Sequent's own",
+  "defaults": {},
+  "locked": [],
+  "hidden": [],
+  "required": [],
   "auth_presets": [
     {
       "name": "digital_certificates",
-      "optional_parameters": [],
-      "parameter_defaults": {},
-      "patch": {
-        "patch": {
-          "identityProviders": [
-            {
-              "addReadTokenRoleOnCreate": false,
-              "alias": "digital-certificates",
-              "authenticateByDefault": false,
-              "displayName": "Digital Certificates",
-              "enabled": true,
-              "firstBrokerLoginFlowAlias": "certificate-first-login-flow",
-              "linkOnly": false,
-              "providerId": "keycloak-oidc",
-              "storeToken": false,
-              "trustEmail": false,
-              "updateProfileFirstLoginMode": "off"
-            }
-          ],
-          "registrationAllowed": false,
-          "resetPasswordAllowed": false
-        }
-      },
-      "profile_attributes": [],
-      "required_parameters": [],
+      "summary": "The voter presents a digital certificate, brokered through the platform's digital-certificates provider.",
+      "uses_otp": false,
       "requires": [
         {
           "kind": "flow",
@@ -34,56 +17,36 @@
           "why": "a first-time certificate login is handed to this flow"
         }
       ],
-      "summary": "The voter presents a digital certificate, brokered through the platform's digital-certificates provider.",
-      "uses_otp": false
+      "required_parameters": [],
+      "optional_parameters": [],
+      "profile_attributes": [],
+      "parameter_defaults": {},
+      "patch": {
+        "patch": {
+          "identityProviders": [
+            {
+              "alias": "digital-certificates",
+              "providerId": "keycloak-oidc",
+              "displayName": "Digital Certificates",
+              "enabled": true,
+              "trustEmail": false,
+              "storeToken": false,
+              "addReadTokenRoleOnCreate": false,
+              "authenticateByDefault": false,
+              "linkOnly": false,
+              "updateProfileFirstLoginMode": "off",
+              "firstBrokerLoginFlowAlias": "certificate-first-login-flow"
+            }
+          ],
+          "registrationAllowed": false,
+          "resetPasswordAllowed": false
+        }
+      }
     },
     {
       "name": "otp_email_or_sms",
-      "optional_parameters": [
-        "otp_sender_id",
-        "otp_length",
-        "otp_ttl_seconds"
-      ],
-      "parameter_defaults": {
-        "otp_length": "6",
-        "otp_sender_id": "Sequent",
-        "otp_ttl_seconds": "900"
-      },
-      "patch": {
-        "bind_authenticator_config": {
-          "authenticator": "message-otp-authenticator",
-          "config_alias": "janitor-otp-by-availability"
-        },
-        "patch": {
-          "authenticatorConfig": [
-            {
-              "alias": "janitor-otp-by-availability",
-              "config": {
-                "deferredUserAttribute": "false",
-                "length": "{{otp_length}}",
-                "max-receiver-reuse": "1",
-                "messageCourierAttribute": "BOTH",
-                "one-time-link": "false",
-                "resendCoudActivationTimer": "60",
-                "senderId": "{{otp_sender_id}}",
-                "telUserAttribute": "sequent.read-only.mobile-number",
-                "test-mode": "false",
-                "ttl": "{{otp_ttl_seconds}}"
-              }
-            }
-          ],
-          "bruteForceProtected": true,
-          "loginWithEmailAllowed": false,
-          "registrationAllowed": true,
-          "registrationEmailAsUsername": false,
-          "resetPasswordAllowed": false
-        }
-      },
-      "profile_attributes": [
-        "email",
-        "mobile"
-      ],
-      "required_parameters": [],
+      "summary": "The voter types their member id, then a one-time code sent to whichever of email and mobile the census holds for them.",
+      "uses_otp": true,
       "requires": [
         {
           "kind": "authenticator",
@@ -91,15 +54,71 @@
           "why": "the one-time code step is bound to this authenticator's config"
         }
       ],
-      "summary": "The voter types their member id, then a one-time code sent to whichever of email and mobile the census holds for them.",
-      "uses_otp": true
+      "required_parameters": [],
+      "optional_parameters": [
+        "otp_sender_id",
+        "otp_length",
+        "otp_ttl_seconds"
+      ],
+      "profile_attributes": [
+        "email",
+        "mobile"
+      ],
+      "parameter_defaults": {
+        "otp_length": "6",
+        "otp_ttl_seconds": "900",
+        "otp_sender_id": "Sequent"
+      },
+      "patch": {
+        "patch": {
+          "authenticatorConfig": [
+            {
+              "alias": "janitor-otp-by-availability",
+              "config": {
+                "messageCourierAttribute": "BOTH",
+                "telUserAttribute": "sequent.read-only.mobile-number",
+                "deferredUserAttribute": "false",
+                "one-time-link": "false",
+                "length": "{{otp_length}}",
+                "ttl": "{{otp_ttl_seconds}}",
+                "resendCoudActivationTimer": "60",
+                "max-receiver-reuse": "1",
+                "senderId": "{{otp_sender_id}}",
+                "test-mode": "false"
+              }
+            }
+          ],
+          "registrationAllowed": true,
+          "registrationEmailAsUsername": false,
+          "loginWithEmailAllowed": false,
+          "resetPasswordAllowed": false,
+          "bruteForceProtected": true
+        },
+        "bind_authenticator_config": {
+          "authenticator": "message-otp-authenticator",
+          "config_alias": "janitor-otp-by-availability"
+        }
+      }
     },
     {
       "name": "saml_sso_idp_initiated",
+      "summary": "The client's SAML identity provider authenticates the voter and posts an assertion to Keycloak. Voters need no email address or mobile number.",
+      "uses_otp": false,
+      "requires": [
+        {
+          "kind": "flow",
+          "name": "saml-first-broker-flow",
+          "why": "a first-time SAML login is handed to this flow to match the assertion against an existing census voter"
+        }
+      ],
+      "required_parameters": [
+        "saml_idp_metadata_url"
+      ],
       "optional_parameters": [
         "saml_idp_alias",
         "saml_principal_attribute"
       ],
+      "profile_attributes": [],
       "parameter_defaults": {
         "saml_idp_alias": "client-saml-idp",
         "saml_idp_metadata_url": "",
@@ -109,158 +128,52 @@
         "patch": {
           "identityProviders": [
             {
-              "addReadTokenRoleOnCreate": false,
               "alias": "{{saml_idp_alias}}",
+              "displayName": "Sign in with your organisation",
+              "providerId": "saml",
+              "enabled": true,
+              "trustEmail": false,
+              "storeToken": false,
+              "addReadTokenRoleOnCreate": false,
               "authenticateByDefault": false,
+              "linkOnly": false,
+              "updateProfileFirstLoginMode": "off",
+              "firstBrokerLoginFlowAlias": "saml-first-broker-flow",
               "config": {
-                "allowCreate": "false",
-                "allowedClockSkew": "30",
-                "authnContextComparisonType": "exact",
-                "backchannelSupported": "false",
-                "enabledFromMetadata": "true",
-                "forceAuthn": "false",
-                "hideOnLoginPage": "false",
                 "metadataDescriptorUrl": "{{saml_idp_metadata_url}}",
-                "nameIDPolicyFormat": "urn:oasis:names:tc:SAML:2.0:nameid-format:transient",
+                "enabledFromMetadata": "true",
+                "validateSignature": "true",
+                "wantAssertionsSigned": "true",
+                "wantAssertionsEncrypted": "false",
+                "wantAuthnRequestsSigned": "false",
+                "signSpMetadata": "false",
+                "forceAuthn": "false",
+                "postBindingResponse": "true",
                 "postBindingAuthnRequest": "true",
                 "postBindingLogout": "true",
-                "postBindingResponse": "true",
-                "principalAttribute": "{{saml_principal_attribute}}",
+                "backchannelSupported": "false",
                 "principalType": "ATTRIBUTE",
-                "signSpMetadata": "false",
+                "principalAttribute": "{{saml_principal_attribute}}",
+                "nameIDPolicyFormat": "urn:oasis:names:tc:SAML:2.0:nameid-format:transient",
                 "syncMode": "IMPORT",
-                "validateSignature": "true",
-                "wantAssertionsEncrypted": "false",
-                "wantAssertionsSigned": "true",
-                "wantAuthnRequestsSigned": "false"
-              },
-              "displayName": "Sign in with your organisation",
-              "enabled": true,
-              "firstBrokerLoginFlowAlias": "saml-first-broker-flow",
-              "linkOnly": false,
-              "providerId": "saml",
-              "storeToken": false,
-              "trustEmail": false,
-              "updateProfileFirstLoginMode": "off"
+                "allowCreate": "false",
+                "hideOnLoginPage": "false",
+                "authnContextComparisonType": "exact",
+                "allowedClockSkew": "30"
+              }
             }
           ],
-          "loginWithEmailAllowed": false,
           "registrationAllowed": false,
-          "rememberMe": false,
-          "resetPasswordAllowed": false
+          "resetPasswordAllowed": false,
+          "loginWithEmailAllowed": false,
+          "rememberMe": false
         }
-      },
-      "profile_attributes": [],
-      "required_parameters": [
-        "saml_idp_metadata_url"
-      ],
-      "requires": [
-        {
-          "kind": "flow",
-          "name": "saml-first-broker-flow",
-          "why": "a first-time SAML login is handed to this flow to match the assertion against an existing census voter"
-        }
-      ],
-      "summary": "The client's SAML identity provider authenticates the voter and posts an assertion to Keycloak. Voters need no email address or mobile number.",
-      "uses_otp": false
+      }
     },
     {
       "name": "voter_link_plus_dob",
-      "optional_parameters": [
-        "otp_sender_id",
-        "otp_length",
-        "otp_ttl_seconds"
-      ],
-      "parameter_defaults": {
-        "otp_length": "6",
-        "otp_sender_id": "Sequent",
-        "otp_ttl_seconds": "900"
-      },
-      "patch": {
-        "bind_authenticator_config": {
-          "authenticator": "message-otp-authenticator",
-          "config_alias": "janitor-otp-by-availability"
-        },
-        "patch": {
-          "authenticatorConfig": [
-            {
-              "alias": "janitor-otp-by-availability",
-              "config": {
-                "deferredUserAttribute": "false",
-                "length": "{{otp_length}}",
-                "max-receiver-reuse": "1",
-                "messageCourierAttribute": "BOTH",
-                "one-time-link": "false",
-                "resendCoudActivationTimer": "60",
-                "senderId": "{{otp_sender_id}}",
-                "telUserAttribute": "sequent.read-only.mobile-number",
-                "test-mode": "false",
-                "ttl": "{{otp_ttl_seconds}}"
-              }
-            },
-            {
-              "alias": "deferred",
-              "config": {
-                "form-mode": "LOGIN",
-                "hidden-profile-attributes": "locale,firstName,lastName,ssn4",
-                "password-expiration-user-attribute": "sequent.read-only.expirationDate",
-                "password-required": "false",
-                "prefill-parameters-policy": "ACCEPT",
-                "search-attributes": "username,dateOfBirth",
-                "user-status": "sequent.read-only.id-card-number-validated"
-              }
-            }
-          ],
-          "bruteForceProtected": true,
-          "loginWithEmailAllowed": false,
-          "registrationAllowed": true,
-          "registrationEmailAsUsername": false,
-          "resetPasswordAllowed": false
-        },
-        "user_profile": {
-          "dateOfBirth": {
-            "annotations": {
-              "inputType": "html5-date",
-              "loginHintPrefillPolicy": "IGNORE"
-            },
-            "permissions": {
-              "edit": [
-                "admin",
-                "user"
-              ],
-              "view": [
-                "admin",
-                "user"
-              ]
-            },
-            "required": {
-              "roles": [
-                "user"
-              ]
-            }
-          },
-          "username": {
-            "annotations": {
-              "loginHintPrefillPolicy": "READ_ONLY"
-            },
-            "permissions": {
-              "edit": [
-                "admin",
-                "user"
-              ],
-              "view": [
-                "admin",
-                "user"
-              ]
-            }
-          }
-        }
-      },
-      "profile_attributes": [
-        "dateOfBirth",
-        "mobile"
-      ],
-      "required_parameters": [],
+      "summary": "A voter-specific link carries the member id read-only; the voter types their date of birth, then a one-time code.",
+      "uses_otp": true,
       "requires": [
         {
           "kind": "authenticator",
@@ -273,14 +186,101 @@
           "why": "the login form's fields and prefill policy are set on this config"
         }
       ],
-      "summary": "A voter-specific link carries the member id read-only; the voter types their date of birth, then a one-time code.",
-      "uses_otp": true
+      "required_parameters": [],
+      "optional_parameters": [
+        "otp_sender_id",
+        "otp_length",
+        "otp_ttl_seconds"
+      ],
+      "profile_attributes": [
+        "dateOfBirth",
+        "mobile"
+      ],
+      "parameter_defaults": {
+        "otp_length": "6",
+        "otp_ttl_seconds": "900",
+        "otp_sender_id": "Sequent"
+      },
+      "patch": {
+        "patch": {
+          "authenticatorConfig": [
+            {
+              "alias": "janitor-otp-by-availability",
+              "config": {
+                "messageCourierAttribute": "BOTH",
+                "telUserAttribute": "sequent.read-only.mobile-number",
+                "deferredUserAttribute": "false",
+                "one-time-link": "false",
+                "length": "{{otp_length}}",
+                "ttl": "{{otp_ttl_seconds}}",
+                "resendCoudActivationTimer": "60",
+                "max-receiver-reuse": "1",
+                "senderId": "{{otp_sender_id}}",
+                "test-mode": "false"
+              }
+            },
+            {
+              "alias": "deferred",
+              "config": {
+                "form-mode": "LOGIN",
+                "password-required": "false",
+                "search-attributes": "username,dateOfBirth",
+                "hidden-profile-attributes": "locale,firstName,lastName,ssn4",
+                "prefill-parameters-policy": "ACCEPT",
+                "user-status": "sequent.read-only.id-card-number-validated",
+                "password-expiration-user-attribute": "sequent.read-only.expirationDate"
+              }
+            }
+          ],
+          "registrationAllowed": true,
+          "registrationEmailAsUsername": false,
+          "loginWithEmailAllowed": false,
+          "resetPasswordAllowed": false,
+          "bruteForceProtected": true
+        },
+        "bind_authenticator_config": {
+          "authenticator": "message-otp-authenticator",
+          "config_alias": "janitor-otp-by-availability"
+        },
+        "user_profile": {
+          "username": {
+            "permissions": {
+              "view": [
+                "admin",
+                "user"
+              ],
+              "edit": [
+                "admin",
+                "user"
+              ]
+            },
+            "annotations": {
+              "loginHintPrefillPolicy": "READ_ONLY"
+            }
+          },
+          "dateOfBirth": {
+            "permissions": {
+              "view": [
+                "admin",
+                "user"
+              ],
+              "edit": [
+                "admin",
+                "user"
+              ]
+            },
+            "required": {
+              "roles": [
+                "user"
+              ]
+            },
+            "annotations": {
+              "inputType": "html5-date",
+              "loginHintPrefillPolicy": "IGNORE"
+            }
+          }
+        }
+      }
     }
-  ],
-  "defaults": {},
-  "display_name": "Sequent's own",
-  "hidden": [],
-  "id": "default",
-  "locked": [],
-  "required": []
+  ]
 }
