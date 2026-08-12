@@ -41,4 +41,7 @@ export {default as Candidate} from "../components/Candidate/Candidate"
 export {default as BlankAnswer} from "../components/BlankAnswer/BlankAnswer"
 export {default as CandidatesList} from "../components/CandidatesList/CandidatesList"
 export {default as WarnBox} from "../components/WarnBox/WarnBox"
+// The card the ballot-list screen stacks, one per election. Exported so a preview can
+// show that screen with the component a voter meets rather than a drawing of it.
+export {default as SelectElection} from "../components/SelectElection/SelectElection"
 export {theme} from "../services/theme"
