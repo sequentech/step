@@ -757,6 +757,23 @@ fn read_ceremony(
     };
     plan.schedule.key_ceremony = stamp("key_ceremony");
     plan.schedule.tally_ceremony = stamp("tally_ceremony");
+
+    // The voting window's zone *name*, put back on the stamps `read_schedule`
+    // already built from RFC3339. It cannot come from there: RFC3339 carries the
+    // offset and not the name, so a window written in Los Angeles reopens as an
+    // instant with no place attached, and the next edit resolves against whatever
+    // zone the browser is in. Runs after `read_schedule` for that reason — it is
+    // patching what that produced, not producing it.
+    for (name, when) in [
+        ("voting_opens", &mut plan.schedule.voting_opens),
+        ("voting_closes", &mut plan.schedule.voting_closes),
+    ] {
+        if let (Some(stamp), Some(zone)) =
+            (when.as_mut(), value(&format!("{name}.zone")))
+        {
+            stamp.zone = zone;
+        }
+    }
 }
 
 /// The messages, out of the sheet the writer put them in.

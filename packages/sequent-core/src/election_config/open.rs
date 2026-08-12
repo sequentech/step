@@ -115,11 +115,17 @@ pub fn open(bytes: &[u8]) -> Result<Opened, Report> {
     }
 
     // Named, because "that is not a configuration" about a zip somebody is sure
-    // is the right one is a dead end.
-    Err(refuse(format!(
-        "this .zip is neither a delivery nor a workbook. It contains: {}",
-        names.join(", ")
-    )))
+    // is the right one is a dead end. An empty archive gets its own sentence
+    // rather than a list with nothing after the colon.
+    Err(refuse(if names.is_empty() {
+        "this .zip is neither a delivery nor a workbook: it is empty"
+            .to_string()
+    } else {
+        format!(
+            "this .zip is neither a delivery nor a workbook. It contains: {}",
+            names.join(", ")
+        )
+    }))
 }
 
 fn one(problem: Problem) -> Report {

@@ -515,6 +515,7 @@ fn a_profile_document_round_trips_through_json() {
     let document = ClientProfile {
         presets: Vec::new(),
         only_our_presets: false,
+        auth_presets: Vec::new(),
         id: "smart-td".to_string(),
         display_name: Some("SMART TD Locals".to_string()),
         defaults: defaults(&[("trustee_threshold", Value::from(3))]),

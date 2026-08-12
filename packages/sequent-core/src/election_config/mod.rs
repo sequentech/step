@@ -62,6 +62,13 @@ pub mod preview;
 
 pub mod presets;
 
+/// An authentication preset as data, so a client profile can carry one.
+///
+/// The four in [`presets`] are Rust; these are the same four as a file, plus
+/// whatever a client's own profile adds. See the module docs for why a preset
+/// stopped being a function.
+pub mod preset_doc;
+
 /// Bundles with known verdicts, shared by every caller of [`validate`] so the two
 /// reach the same answer rather than each agreeing with itself.
 pub mod fixtures;
