@@ -817,6 +817,7 @@ services:
     # that we can reuse it:
     depends_on:
       devcontainer:
+        condition: service_started
       harvest:
         condition: service_started
     working_dir: /workspaces/step/packages/windmill
