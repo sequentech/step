@@ -417,7 +417,26 @@ This is not a rewrite proposal. The path is incremental:
 > `invalid_vote_policy = allowed`; every violating cell is confirmed
 > through one continuous booth → encrypt → cast → decrypt → decode →
 > tally run, with click-by-click reviewer recipes in `REPRODUCE.md` and
-> policy-intent evidence in `INVALID_VOTE_POLICY_INTENT.md`.
+> policy-intent evidence in `INVALID_VOTE_POLICY_INTENT.md`. The spec is now
+> single-sourced in `characterization/spec.mjs` (gates / classifier / filter
+> / constraint), each runner supplying only its checker emissions; the
+> tables carry an `inline (shown)` column with two validation lanes (gates/
+> classifier WASM-checked on every cell by `pred?`; filter/constraint are
+> predictions, DOM-validated where a browser runner covers the cell).
+
+> **e2e-cost measurement (2026-08-12).** The DOM lane's viability was the
+> open question for validating the two prediction-only surfaces broadly.
+> Measured: a **reload-free** browser probe (`dom-probe-overvote.mjs` —
+> one snapshot load, then client-side navigation per cell, `waitForSelector`
+> instead of fixed sleeps) observes inline visibility + dialog + input
+> constraint/reachability at **~675 ms/cell**, versus ~17 s/cell for the
+> reload-per-cell `*.browser.mjs` runners. That is **~2.8 min serial for the
+> full 248-cell grid** (further parallelisable across browser contexts), so
+> a per-cell DOM-validation lane is practical, not just a headline-cell
+> luxury. The probe already validates the over-vote grid against the real
+> DOM — including the constraint (`not-allowed-with-msg-and-disable ×
+> over_max` is unreachable, `formed=1`, matching `spec.inputConstraint`).
+> Next: generalise it across rules and wire per-cell DOM-✓ into the tables.
 
 1. **Enumerate the current mapping** — exercise every cell of the input
    space through the existing code and record the observed effects. Include
