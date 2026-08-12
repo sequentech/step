@@ -1646,14 +1646,14 @@ fn a_plan_may_carry_its_own_census() {
             email: "ada@example.org".into(),
             first_name: "Ada".into(),
             last_name: "Lovelace".into(),
-            area_name: "North Local 1".into(),
+            area_external_id: "local-1".into(),
             extra: [("department".to_string(), "engineering".to_string())]
                 .into_iter()
                 .collect(),
         },
         PlannedVoter {
             username: "grace".into(),
-            area_name: "North Local 1".into(),
+            area_external_id: "local-1".into(),
             ..Default::default()
         },
     ];
@@ -1782,8 +1782,8 @@ fn a_voter_in_an_area_that_does_not_exist_is_refused() {
     plan.voters = vec![PlannedVoter {
         username: "ada".into(),
         // The census says one thing and the areas another, which is what
-        // retyping a name rather than copying it produces.
-        area_name: "N. Local 1".into(),
+        // retyping an identifier rather than copying it produces.
+        area_external_id: "local-one".into(),
         ..Default::default()
     }];
 
@@ -1793,7 +1793,7 @@ fn a_voter_in_an_area_that_does_not_exist_is_refused() {
         report
             .problems
             .iter()
-            .any(|problem| problem.path == "voters[0].area_name"),
+            .any(|problem| problem.path == "voters[0].area.external_id"),
         "{:?}",
         report.problems
     );
@@ -2967,7 +2967,7 @@ fn a_plan_the_builder_refuses_is_refused_by_the_wizard_first() {
         let mut blank_area = sound();
         blank_area.voters = vec![PlannedVoter {
             username: "ada".into(),
-            area_name: String::new(),
+            area_external_id: String::new(),
             ..Default::default()
         }];
         cases.push(("a voter with no area", blank_area));
@@ -2977,7 +2977,7 @@ fn a_plan_the_builder_refuses_is_refused_by_the_wizard_first() {
         let mut wrong_area = sound();
         wrong_area.voters = vec![PlannedVoter {
             username: "ada".into(),
-            area_name: "Nowhere".into(),
+            area_external_id: "nowhere".into(),
             ..Default::default()
         }];
         cases.push(("a voter in an area that does not exist", wrong_area));
@@ -3962,5 +3962,52 @@ fn reads_back(plan: &Blueprint) {
                 );
             }
         }
+    }
+}
+
+/// A plan saved under version 2 keeps every voter's area.
+///
+/// Version 2 keyed a voter's area by the area's **name**; version 3 keys it by
+/// `external_id`. Every plan anybody has saved carries names, so without the
+/// migration each of them would open with an area nothing recognises — the census
+/// would look intact on screen and the build would refuse every row of it.
+#[test]
+fn a_version_two_plan_keeps_its_voters_in_their_areas() {
+    let document = r#"{
+        "version": 2,
+        "external_id": "old",
+        "name": {"en": "Old"},
+        "areas": [
+            {"external_id": "local-1", "name": "North Local 1"},
+            {"external_id": "local-2", "name": "South Local 2"}
+        ],
+        "voters": [
+            {"username": "ada", "area_name": "North Local 1"},
+            {"username": "grace", "area_name": "South Local 2"},
+            {"username": "alan", "area_name": "Nowhere At All"},
+            {"username": "kay"}
+        ]
+    }"#;
+
+    let plan = read_plan(document).expect("a version 2 plan still opens");
+    assert_eq!(plan.version, BLUEPRINT_VERSION);
+
+    assert_eq!(plan.voters[0].area_external_id, "local-1");
+    assert_eq!(plan.voters[1].area_external_id, "local-2");
+
+    // A name no area answers to is kept as written rather than dropped, so
+    // validation reports it against the row that has it. Dropping it would turn a
+    // loud problem into a voter who quietly gets no ballot.
+    assert_eq!(plan.voters[2].area_external_id, "Nowhere At All");
+    assert_eq!(plan.voters[3].area_external_id, "");
+
+    // And the old key does not survive as a passthrough attribute, which would
+    // collide with the `area_name` column the finished bundle emits.
+    for voter in &plan.voters {
+        assert!(
+            !voter.extra.contains_key("area_name"),
+            "{:?} kept the old key",
+            voter.username
+        );
     }
 }

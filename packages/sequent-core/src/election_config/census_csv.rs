@@ -237,7 +237,7 @@ mod tests {
     #[test]
     fn pads_a_row_that_stops_early() {
         // A spreadsheet that omits trailing empty cells is not a broken file.
-        let rows = all("username,email,area_name\nada\n");
+        let rows = all("username,email,area.external_id\nada\n");
         assert_eq!(
             rows[0],
             vec!["ada".to_owned(), String::new(), String::new()]

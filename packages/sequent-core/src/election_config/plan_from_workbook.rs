@@ -99,7 +99,7 @@ pub fn plan_from_workbook(workbook: &Workbook) -> Result<ReadPlan, Report> {
 
     plan.areas = areas;
     plan.elections = elections;
-    plan.voters = read_voters(workbook, &mut report);
+    plan.voters = read_voters(workbook, &plan.areas, &mut report);
     plan.materials = read_materials(workbook, &plan.languages, &mut report);
 
     read_schedule(workbook, &mut plan, &mut report);
@@ -562,7 +562,44 @@ fn read_area_contests(
     }
 }
 
-fn read_voters(workbook: &Workbook, report: &mut Report) -> Vec<PlannedVoter> {
+/// A voter's area, by identifier, however the sheet spelled it.
+///
+/// `area.external_id` when it is there. Otherwise the older `area_name`, resolved
+/// against the plan's own areas — and an unmatched name is **kept as written**
+/// rather than blanked, so validation reports "no area has external_id 'North
+/// Local 4'" against the row that has it. A blank would be a voter who silently
+/// gets no ballot, which is the same information with nowhere to act on it.
+fn area_of(row: &Row, areas: &[PlannedArea]) -> String {
+    let by_id = text(row, "area.external_id");
+    if !by_id.trim().is_empty() {
+        return by_id;
+    }
+
+    let name = text(row, "area_name");
+    let name = name.trim();
+    if name.is_empty() {
+        return String::new();
+    }
+    areas
+        .iter()
+        .find(|area| area.name.trim() == name)
+        .map(|area| area.external_id.clone())
+        .unwrap_or_else(|| name.to_string())
+}
+
+/// The voters sheet, keyed to areas by `area.external_id`.
+///
+/// `areas` is passed in for one reason: a file written before this column existed
+/// carries `area_name` instead, and every census a client already has is such a
+/// file. Read strictly, all of them would open with every voter's area blank —
+/// thousands of rows, each of them refused by the build, and nothing on screen to
+/// say the column had simply moved. So a sheet with no `area.external_id` falls
+/// back to resolving the name, once, on the way in.
+fn read_voters(
+    workbook: &Workbook,
+    areas: &[PlannedArea],
+    report: &mut Report,
+) -> Vec<PlannedVoter> {
     let known = [
         "username",
         "email",
@@ -604,7 +641,7 @@ fn read_voters(workbook: &Workbook, report: &mut Report) -> Vec<PlannedVoter> {
                 email: text(row, "email"),
                 first_name: text(row, "first_name"),
                 last_name: text(row, "last_name"),
-                area_name: text(row, "area_name"),
+                area_external_id: area_of(row, areas),
                 extra,
             })
         })

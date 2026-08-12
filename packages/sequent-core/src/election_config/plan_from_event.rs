@@ -649,6 +649,18 @@ fn voters_into(plan: &mut Blueprint, csv: &str, report: &mut Report) {
         "authorized-election-ids",
     ];
 
+    // The export's CSV names a voter's area by its *name*, because that is the
+    // column the platform's own importer reads. A plan keys it by `external_id`
+    // (version 3), so this resolves one to the other through the areas the
+    // document just gave us. A name nothing matches is kept rather than dropped —
+    // `check_census` reports it against the row, which is more use than a voter
+    // who silently belongs nowhere.
+    let by_name: BTreeMap<String, String> = plan
+        .areas
+        .iter()
+        .map(|area| (area.name.clone(), area.external_id.clone()))
+        .collect();
+
     let pick = |row: &[String], index: Option<usize>| -> String {
         index
             .and_then(|at| row.get(at))
@@ -656,6 +668,7 @@ fn voters_into(plan: &mut Blueprint, csv: &str, report: &mut Report) {
             .unwrap_or_default()
     };
 
+    let mut people: Vec<super::architect::PlannedVoter> = Vec::new();
     loop {
         let batch = match reader.next_batch(BATCH) {
             Ok(batch) if batch.is_empty() => break,
@@ -667,7 +680,7 @@ fn voters_into(plan: &mut Blueprint, csv: &str, report: &mut Report) {
                     format!(
                         "the voter list stopped being readable after {} rows: \
                          {error}",
-                        plan.voters.len()
+                        people.len()
                     ),
                 ));
                 break;
@@ -689,16 +702,19 @@ fn voters_into(plan: &mut Blueprint, csv: &str, report: &mut Report) {
                 extra.insert(column.clone(), value.clone());
             }
 
-            plan.voters.push(super::architect::PlannedVoter {
+            let named = pick(&row, at("area_name"));
+            people.push(super::architect::PlannedVoter {
                 username: pick(&row, username),
                 email: pick(&row, email),
                 first_name: pick(&row, at("first_name")),
                 last_name: pick(&row, at("last_name")),
-                area_name: pick(&row, at("area_name")),
+                area_external_id: by_name.get(&named).cloned().unwrap_or(named),
                 extra,
             });
         }
     }
+
+    plan.voters = people;
 }
 
 /// How many census rows to read at a time. The reader's own unit of work.

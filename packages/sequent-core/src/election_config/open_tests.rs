@@ -378,7 +378,7 @@ fn peopled() -> Blueprint {
             "email": "ada@example.org",
             "first_name": "Ada",
             "last_name": "Lovelace",
-            "area_name": "All voters",
+            "area_external_id": "all-voters",
             "department": "Engineering"
         }))
         .unwrap(),
@@ -387,7 +387,7 @@ fn peopled() -> Blueprint {
             "email": "grace@example.org",
             "first_name": "Grace",
             "last_name": "Hopper",
-            "area_name": "All voters"
+            "area_external_id": "all-voters"
         }))
         .unwrap(),
     ];
