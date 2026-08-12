@@ -248,9 +248,12 @@ Reading: `allowed` is the default posture and the shipped template
 for a null-vote election; the configs in-repo that most resemble real
 public deployments (the janitor precinct import) deliberately move
 off it to `not-allowed`. Both real postures exist, which is the point
-of having the policy — but note the janitor deployment could not have
-offered null votes and over-vote blocking simultaneously if it had
-wanted both (§1, off-diagonal gap).
+of having the policy. (Had that deployment wanted a null option *as
+well as* its over-vote blocking, it could have had both — the
+over-vote rule's own policy blocks independently of
+`invalid_vote_policy`. What it could not have added is a hard-blocked
+below-minimum zone — that is the off-diagonal gap of §1, and it is
+specific to the min-vote rule.)
 
 An unmerged 2026 branch (`feat/meta-12769…`, `7c89ba69b3`) carries
 the only prose rationale for `allowed` found anywhere: a `permissive`

@@ -84,6 +84,19 @@ its source within minutes of being written.
    for humans; **suspects** live in `../docs/UPSTREAM_FINDINGS.md` until
    consultation adjudicates them. The spec is validated against the
    recording by enumeration, not by eye.
+5. **Narrative claims meet the table standard.** The prose in `../docs/`
+   is the reviewer's interface; the tables are its evidence — if the
+   prose is wrong, correct tables do not save the material. Before a
+   claim lands in findings prose, run the cheap test that would falsify
+   it: a *causal* claim ("because", "produces") must survive the
+   counterfactual against the recorded cells (would the outcome differ
+   if the premise were false?); a *distinction* claim ("two harms",
+   "also") must survive an identity test (can the two things come apart,
+   even in principle?); a *category* word must fit its definition (an
+   asymmetry is not a discrepancy). Ground each such claim in the
+   specific cell, diff, or code line that supports it — connective
+   tissue is derived bottom-up from the evidence, never written
+   top-down from plausibility.
 
 ## Harness
 

@@ -128,9 +128,11 @@ axes, and conflating them muddles the consultation:
 | **Marker semantics** | what an explicit-blank / explicit-invalid marker *means* and does | **S3** (a blank is subject to the count rules), **S5** (invalid preserves choices) |
 | **Threshold consistency** | two mechanisms for one policy disagree on a boundary | **S4** |
 
-**S2 is not a fourth axis — it is the intersection of S1 and S3.** A
-deliberate explicit-blank, run through the `min_votes` rule at all
-(S3's domain facet) and failing it, is discarded *silently* (S1). It is
+**S2 is not a fourth axis — it is the intersection of S1 and S3,**
+realized by the classifier's invalid-outranks-marker precedence (see
+S2's body). A deliberate explicit-blank, run through the `min_votes`
+rule at all (S3's domain facet) and failing it, is discarded *silently*
+(S1). It is
 kept as its own entry
 only because it is the sharpest single cell where the two axes collide;
 its two consultation questions belong one to each axis (should a blank be
@@ -144,8 +146,9 @@ reviewer can reach and check the behaviour firsthand.
 
 ## S1. Silent vote discounting under `invalid_vote_policy = allowed`
 
-**Observed** (`characterization/no-silent-discount.md`, 196 cells, two
-families): with `invalid_vote_policy = allowed`, a ballot that violates an
+**Observed** (`characterization/no-silent-discount.md`, 248 cells
+scanned / 5 violating, two families): with `invalid_vote_policy =
+allowed`, a ballot that violates an
 error-producing rule is cast with **no inline message, no dialog, and no
 block**, then classified `ImplicitInvalid` at tally and excluded from the
 valid total. The checker flags the error internally in every case; the
@@ -158,13 +161,20 @@ consumes it via `is_invalid()`.
 | min-vote | `min_votes ≥ 1` + `invalid=allowed` | below the min |
 
 **Structural characterization** (from the no-silent-discount query over
-all six rules): a rule is silent-discount-prone iff its own policy can be
-configured not to gate AND `invalid_vote_policy = allowed` removes the
-generic gate. Over-vote (`allowed` variant) and min-vote (no policy) meet
-this; the preferential rules do not (their enums have only
-`*_WARN_AND_DIALOG` variants) and are provably immune. A candidate fix
-therefore falls out: give every error-producing rule a mandatory dialog
-variant. See VALIDATION_LOGIC_DISTILLATION.md §4.5.
+all six rules): a rule is silent-discount-prone iff all three hold —
+(i) its checker emits an `invalid_error` (only errors reach the tally's
+`is_invalid()`; alerts have no tally consequence, so without an error
+there is nothing to discount), (ii) its own policy does not gate that
+error in some configuration, and (iii) `invalid_vote_policy = allowed`
+removes the generic gate. Over-vote (error emitted unconditionally;
+`allowed` variant does not gate) and min-vote (error unconditional; no
+policy of its own) meet all three. The preferential rules fail (ii) —
+only `*_WARN_AND_DIALOG` variants — and are provably immune; under-vote
+fails (i) — its checker emits only alerts, so an under-voted ballot
+stays `Valid` and there is nothing to discount; blank fails (i)∧(ii)
+jointly — it emits an error only under `not-allowed`, which hard-gates.
+A candidate fix therefore falls out: give every error-producing rule a
+mandatory dialog variant. See VALIDATION_LOGIC_DISTILLATION.md §4.5.
 
 **Evidence strength:** all violating cells (over-vote and both min-vote
 sub-cases) are reproduced through ONE continuous run of the real workbench
@@ -224,15 +234,17 @@ two harms**: a blank elects nobody either way, so "discarding" it can
 only mean booking it as `ImplicitInvalid` instead of `ExplicitBlank`.
 What distinguishes S2 from the generic S1 cells is where that act
 lands. In the generic cells the landing category is *truthful* — an
-over-vote really is an accidental rule violation — so the published
-record stays internally accurate and the harm is the voter's lost
-chance to fix the ballot. Here the same single reclassification also
-rewrites the published record: it shifts `total_valid_votes` (blanks
-count as valid — "not invalid and not declined",
-`velvet-core/src/result.rs`), `blank_votes.explicit`, and
-`invalid_votes.implicit`, plus their percentages — and the
-blank/invalid split exists precisely to separate deliberate abstention
-from error, so it now reports a protest as an accident. Whether
+over-vote really does violate the rule it is booked under, whatever the
+voter's intent — so the published record stays internally accurate and
+the harm is the voter's lost chance to fix the ballot. Here the same
+single reclassification also rewrites the published record: it shifts
+`total_valid_votes` (blanks count as valid — "not invalid and not
+declined", `velvet-core/src/result.rs`), `blank_votes.explicit`, and
+`invalid_votes.implicit`, plus their percentages — and those categories
+exist to separate declared intent from derived condition (the docs
+gloss explicit invalid as "null votes, spoiled ballots, protest
+actions"; implicit as "invalid due to configuration"), so a declared
+abstention is published as derived invalidity. Whether
 "misreport" is the right word presupposes the S3(i) domain answer:
 under rules-as-implemented the label is internally consistent.
 Qualitatively sharper than a plain S1 cell:
@@ -240,8 +252,11 @@ this is not voter inattention; a clearly expressed intent is dropped
 without notice. Confirmed end-to-end through the full pipeline
 (the voter clicks "Blank vote (explicit blank)", is shown nothing, ballot tallies
 implicit-invalid) — `minvote-e2e-pipeline.recorded.json`, `min=2/marker_only`. **Consultation question:** should an explicit
-blank ever be subject to `min_votes` at all (see S3), and if it is,
-should its rejection ever be silent? **Reproduce:**
+blank ever be subject to `min_votes` at all (see S3); if it is, should
+its rejection ever be silent; and even if both stand, should a
+failed-minimum blank still be *classified and reported* as a blank
+rather than as implicit-invalid (a third lever, in the classifier)?
+**Reproduce:**
 [REPRODUCE.md](REPRODUCE.md) Part 1, Recipe 2, variant d.
 
 ## S3. A deliberate blank is subject to the selection-count rules (the marker counting as one selection)

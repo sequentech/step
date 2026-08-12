@@ -277,27 +277,34 @@ whose position they cannot move.
 The `no-silent-discount` query (payoff 4.3, run over all six
 characterized rules) yields a precise structural criterion for *which*
 rules can silently discard a vote. A rule is **silent-discount-prone iff**
-it has a configuration where **both**:
+it has a configuration where **all three** hold:
 
-1. *its own* policy does not gate the error it produces — either the
-   policy has a silent variant (over-vote `allowed`) or there is no policy
-   at all (min-vote is a fixed `n < min_votes` check); **and**
-2. `invalid_vote_policy = allowed`, which switches off the generic
+1. its checker emits an `invalid_error` in that configuration — only
+   errors reach the tally's `is_invalid()`; alerts have no tally
+   consequence, so without an error there is nothing to discount;
+2. *its own* policy does not gate that error — either the policy has a
+   silent variant (over-vote `allowed`) or there is no policy at all
+   (min-vote is a fixed `n < min_votes` check); **and**
+3. `invalid_vote_policy = allowed`, which switches off the generic
    error-visibility (master filter) and the generic gate.
 
-When both hold, an error the checker produces internally reaches the tally
-(via `is_invalid()`) with no booth surface showing or blocking it. The
-over-vote and min-vote families are exactly the rules that meet both
-conditions.
+When all three hold, an error the checker produces internally reaches the
+tally (via `is_invalid()`) with no booth surface showing or blocking it.
+The over-vote and min-vote families are exactly the rules that meet all
+three.
 
-The preferential rules (`duplicated_rank`, `preference_gaps`) are **immune
-by construction**: their enums have *only* `*_WARN_AND_DIALOG` variants —
-no silent `allowed` — so condition 1 can never hold; a gate always fires
-when their error is present, whatever `invalid_vote_policy` is. This is
-also the shape of a candidate fix for the prone rules: give every
-error-producing rule a mandatory dialog variant (remove the silent
-`allowed` from over-vote; give min-vote a policy), so condition 1 becomes
-unsatisfiable. (Whether to fix at all is a suspect for consultation — see
+The other four rules each fail a specific condition. The preferential
+rules (`duplicated_rank`, `preference_gaps`) fail condition 2 **by
+construction**: their enums have *only* `*_WARN_AND_DIALOG` variants — no
+silent `allowed` — so a gate always fires when their error is present,
+whatever `invalid_vote_policy` is. Under-vote fails condition 1: its
+checker emits only alerts, never errors, so an under-voted (but
+above-min) ballot stays `Valid` at tally. Blank fails conditions 1∧2
+jointly: it emits an error only under `not-allowed`, and `not-allowed`
+hard-gates. This is also the shape of a candidate fix for the prone
+rules: give every error-producing rule a mandatory dialog variant (remove
+the silent `allowed` from over-vote; give min-vote a policy), so
+condition 2 becomes unsatisfiable. (Whether to fix at all is a suspect for consultation — see
 `../characterization/`/`UPSTREAM_FINDINGS.md` S1/S2 — but the fix *shape*
 falls out of the criterion.)
 
@@ -388,17 +395,21 @@ switch (effect) {
 
 This is not a rewrite proposal. The path is incremental:
 
-> **Status (2026-08-11):** step 1 is under way —
-> [`../characterization/`](../characterization/README.md) holds the harness
-> and four recorded rules (blank, over-vote, under-vote, min-vote: 196
-> checker+gate+tally cells headless, blank and over-vote also through the
-> real booth). Each runner's `predict()` is the embryonic declarative table
-> of step 3, and the first §4.3 query (`no-silent-discount`) already runs
-> over all four: it finds 5 violating cells in two families — the over-vote
-> case §4.2 predicted, and a min-vote family this pass discovered
-> (`selectedMin` is suppressed under `invalid=allowed`, so a below-minimum
-> ballot is silently discarded). Both families require
-> `invalid_vote_policy = allowed`.
+> **Status (2026-08-12):** step 1 is well under way —
+> [`../characterization/`](../characterization/README.md) holds the
+> harness, seven recorded rule tables (blank — plus its filter view —
+> over-vote, under-vote, min-vote, duplicated-rank, preference-gaps,
+> invalid) and the tally classifier's own decision table. Each runner's
+> `predict()` is the embryonic declarative table of step 3, and the first
+> §4.3 query (`no-silent-discount`) runs over all of them: 248 recorded
+> cells, 5 violating, in two families — the over-vote case §4.2
+> predicted, and a min-vote family the pass discovered (`selectedMin` is
+> suppressed under `invalid=allowed`, so a below-minimum ballot is
+> silently discarded). Both families require
+> `invalid_vote_policy = allowed`; every violating cell is confirmed
+> through one continuous booth → encrypt → cast → decrypt → decode →
+> tally run, with click-by-click reviewer recipes in `REPRODUCE.md` and
+> policy-intent evidence in `INVALID_VOTE_POLICY_INTENT.md`.
 
 1. **Enumerate the current mapping** — exercise every cell of the input
    space through the existing code and record the observed effects. Include
