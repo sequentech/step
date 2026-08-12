@@ -712,9 +712,14 @@ const ElectionSelectionScreen: React.FC = () => {
                             {t("electionSelectionScreen.resultsButton")}
                         </Button>
                     ) : null}
-                    {isMaterialsActivated ? (
+                    {isMaterialsActivated && electionEvent ? (
                         <Button onClick={handleNavigateMaterials}>
-                            {t("materials.common.label")}
+                            {translateFromPresentation(
+                                electionEvent,
+                                "materialsTitle",
+                                i18n.language,
+                                {defaultLanguageCode: eventDefaultLanguageCode}
+                            ) || t("materials.common.label")}
                         </Button>
                     ) : null}
                 </PageActions>
