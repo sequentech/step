@@ -38,7 +38,7 @@ import {
 import {clearDeclinedToVoteForElection, clearIsVoted, setIsVoted} from "../store/extra/extraSlice"
 import {TenantEventType} from ".."
 import {provideBallotService} from "../services/BallotService"
-import {Question} from "../components/Question/Question"
+import {Question} from "@sequentech/ui-essentials"
 import {CircularProgress} from "@mui/material"
 import {selectElectionById} from "../store/elections/electionsSlice"
 import {useRootBackLink} from "../hooks/root-back-link"

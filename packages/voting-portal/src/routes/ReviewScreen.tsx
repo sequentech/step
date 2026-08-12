@@ -46,7 +46,7 @@ import {
 import {useTranslation} from "react-i18next"
 import Button from "@mui/material/Button"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
-import {Question} from "../components/Question/Question"
+import {Question} from "@sequentech/ui-essentials"
 import {useMutation, useQuery} from "@apollo/client/react"
 import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
 import {GetElectionEventQuery, InsertCastVoteMutation, GetElectionsQuery} from "../gql/graphql"

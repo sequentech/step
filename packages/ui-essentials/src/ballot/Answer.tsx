@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useMemo, useState} from "react"
-import {useAppDispatch, useAppSelector} from "../../store/hooks"
+import {useBallotSelection} from "./selection"
 import {
     stringToHtml,
     isUndefined,
@@ -11,28 +11,19 @@ import {
     ICandidate,
     IContest,
 } from "@sequentech/ui-core"
-import {Candidate} from "@sequentech/ui-essentials"
+import Candidate from "../components/Candidate/Candidate"
 import Image from "mui-image"
-import {
-    resetBallotSelection,
-    selectBallotSelectionQuestion,
-    selectBallotSelectionVoteChoice,
-    setBallotSelectionBlankVote,
-    setBallotSelectionInvalidVote,
-    setBallotSelectionVoteChoice,
-} from "../../store/ballotSelections/ballotSelectionsSlice"
 import {
     checkAllowWriteIns,
     checkIsInvalidVote,
     checkIsWriteIn,
     getImageUrl,
     getLinkUrl,
-} from "../../services/ElectionConfigService"
-import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
+} from "./presentation"
+import {IBallotStyle} from "./types"
 import {useTranslation} from "react-i18next"
-import {SettingsContext} from "../../providers/SettingsContextProvider"
 import {IDecodedVoteContest} from "sequent-core"
-import {provideBallotService} from "../../services/BallotService"
+import {useBallotEngine} from "./engine"
 import {ECandidatesIconCheckboxPolicy} from "@sequentech/ui-core"
 
 export interface IAnswerProps {
@@ -79,25 +70,20 @@ export const Answer: React.FC<IAnswerProps> = ({
     setIsTouched,
     showWhenListSelected,
 }) => {
-    const {isPreferential} = provideBallotService()
+    const engine = useBallotEngine()
+    const {isPreferential} = engine
     const isPreferentialVote = useMemo(() => {
         if (!contest.counting_algorithm) return false
         return isPreferential(contest.counting_algorithm)
     }, [contest.counting_algorithm])
     const totalCandidates = contest.candidates.length
-    const selectionState = useAppSelector(
-        selectBallotSelectionVoteChoice(ballotStyle.election_id, contestId, answer.id)
-    )
-    const questionState = useAppSelector(
-        selectBallotSelectionQuestion(ballotStyle.election_id, contestId)
-    )
+    const selection = useBallotSelection()
+    const selectionState = selection.choice(ballotStyle, contestId, answer.id)
+    const questionState = selection.contest(ballotStyle, contestId)
     const question = ballotStyle.ballot_eml.contests.find((contest) => contest.id === contestId)
-    const dispatch = useAppDispatch()
-    const {globalSettings} = useContext(SettingsContext)
     const imageUrl = getImageUrl(answer)
     const infoUrl = getLinkUrl(answer)
     const {i18n} = useTranslation()
-    const ballotService = provideBallotService()
     const isInvalidVote = useMemo(
         () => isInvalidVoteInput ?? checkIsInvalidVote(answer),
         [isInvalidVoteInput, answer]
@@ -118,24 +104,20 @@ export const Answer: React.FC<IAnswerProps> = ({
         return !isUndefined(selectionState) && selectionState.selected > -1
     }
     const setInvalidVote = (value: boolean) => {
-        dispatch(
-            setBallotSelectionInvalidVote({
-                ballotStyle,
-                contestId,
-                isExplicitInvalid: value,
-            })
-        )
+        selection.setInvalid({
+            ballotStyle,
+            contestId,
+            isExplicitInvalid: value,
+        })
     }
 
     const setBlankVote = () => {
         setExplicitBlank(true)
-        dispatch(
-            setBallotSelectionBlankVote({
-                ballotStyle,
-                contestId,
-                candidateId: answer.id,
-            })
-        )
+        selection.setBlank({
+            ballotStyle,
+            contestId,
+            candidateId: answer.id,
+        })
     }
 
     const handlePreferentialChange = (position: number | null) => {
@@ -146,17 +128,15 @@ export const Answer: React.FC<IAnswerProps> = ({
         setSelectedPosition(position)
         let cleanedText =
             selectionState?.write_in_text && normalizeWriteInText(selectionState?.write_in_text)
-        dispatch(
-            setBallotSelectionVoteChoice({
-                ballotStyle,
-                contestId,
-                voteChoice: {
-                    id: answer.id,
-                    selected: position ? position - 1 : -1,
-                    write_in_text: cleanedText,
-                },
-            })
-        )
+        selection.setChoice({
+            ballotStyle,
+            contestId,
+            voteChoice: {
+                id: answer.id,
+                selected: position ? position - 1 : -1,
+                write_in_text: cleanedText,
+            },
+        })
     }
     const setChecked = (value: boolean) => {
         if (!isSelectable || isReview || isPreferentialVote) {
@@ -173,17 +153,15 @@ export const Answer: React.FC<IAnswerProps> = ({
                 setBlankVote()
             } else {
                 setExplicitBlank(false)
-                dispatch(
-                    setBallotSelectionVoteChoice({
-                        ballotStyle,
-                        contestId,
-                        voteChoice: {
-                            id: answer.id,
-                            selected: -1,
-                            write_in_text: selectionState?.write_in_text,
-                        },
-                    })
-                )
+                selection.setChoice({
+                    ballotStyle,
+                    contestId,
+                    voteChoice: {
+                        id: answer.id,
+                        selected: -1,
+                        write_in_text: selectionState?.write_in_text,
+                    },
+                })
             }
             return
         } else if (value && explicitBlank) {
@@ -194,26 +172,22 @@ export const Answer: React.FC<IAnswerProps> = ({
             selectionState?.write_in_text && normalizeWriteInText(selectionState?.write_in_text)
 
         if (isRadioSelection) {
-            dispatch(
-                resetBallotSelection({
-                    ballotStyle,
-                    force: true,
-                    contestId: contest.id,
-                })
-            )
+            selection.reset({
+                ballotStyle,
+                force: true,
+                contestId: contest.id,
+            })
         }
 
-        dispatch(
-            setBallotSelectionVoteChoice({
-                ballotStyle,
-                contestId,
-                voteChoice: {
-                    id: answer.id,
-                    selected: value ? 0 : -1,
-                    write_in_text: cleanedText,
-                },
-            })
-        )
+        selection.setChoice({
+            ballotStyle,
+            contestId,
+            voteChoice: {
+                id: answer.id,
+                selected: value ? 0 : -1,
+                write_in_text: cleanedText,
+            },
+        })
     }
 
     const shouldDisable = disableSelect && !isChecked()
@@ -227,17 +201,15 @@ export const Answer: React.FC<IAnswerProps> = ({
         }
         let cleanedText = normalizeWriteInText(writeInText)
 
-        dispatch(
-            setBallotSelectionVoteChoice({
-                ballotStyle,
-                contestId,
-                voteChoice: {
-                    id: answer.id,
-                    selected: isUndefined(selectionState) ? -1 : selectionState.selected,
-                    write_in_text: cleanedText,
-                },
-            })
-        )
+        selection.setChoice({
+            ballotStyle,
+            contestId,
+            voteChoice: {
+                id: answer.id,
+                selected: isUndefined(selectionState) ? -1 : selectionState.selected,
+                write_in_text: cleanedText,
+            },
+        })
     }
 
     if (isReview && !isChecked() && !showWhenListSelected) {
@@ -267,7 +239,7 @@ export const Answer: React.FC<IAnswerProps> = ({
             handlePreferentialChange={handlePreferentialChange}
         >
             {imageUrl ? (
-                <Image src={`${globalSettings.PUBLIC_BUCKET_URL}${imageUrl}`} duration={100} />
+                <Image src={`${selection.imageBaseUrl}${imageUrl}`} duration={100} />
             ) : null}
         </Candidate>
     )

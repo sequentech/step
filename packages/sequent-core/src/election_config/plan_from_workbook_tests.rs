@@ -94,7 +94,8 @@ fn sound() -> Blueprint {
             "html": {"en": "<p>There is still time.</p>"},
             "schedule": {
                 "on": [{"local": "2027-03-04T09:00", "zone": "", "offset_minutes": 0}],
-                "weekly": [1, 3]
+                "weekly": [1, 3],
+                "weekly_at": "09:30"
             }
         }],
         "auth_preset": "otp-by-availability"
@@ -209,7 +210,18 @@ fn a_message_and_its_schedule_survive() {
         "the HTML body travels: a sender that can render it should not be \
          handed the plain text and told to guess the markup"
     );
+    // The whole struct, so a field added to `MessageSchedule` is covered by this
+    // test the moment it is added to the fixture — which is the point of comparing
+    // structs rather than fields.
     assert_eq!(message.schedule, plan.messages[0].schedule);
+    // And named, so a failure says which field rather than printing two structs
+    // and leaving the reader to diff them. The hour rides inside the schedule's
+    // JSON cell and needed no column of its own; this is the assertion that says
+    // so out loud.
+    assert_eq!(
+        message.schedule.weekly_at, "09:30",
+        "the weekly repeat's time of day survives the workbook"
+    );
 }
 
 /// A language with no translation of its own comes back with one.

@@ -11,14 +11,28 @@
  * component rather than a missing browser API.
  */
 
+// This package's tsconfig sets `"types": []`, which switches off automatic
+// `@types` inclusion so a component library does not compile against ambient Node
+// globals it has no business using. That is right for `src/components`, and it is
+// why this one test-support file opts itself in explicitly rather than the setting
+// being relaxed for everything.
+/// <reference types="node" />
+
 import "@testing-library/jest-dom"
 import {TextDecoder, TextEncoder} from "node:util"
 
-// jsdom does not expose these, and `react-router` reads them at import time —
-// reached from `ui-essentials`' theme, which sets `LinkBehavior` as the default
-// component for `MuiLink`. So a test that only wants a ballot still pulls the
-// router in. `EA-F1-005` cuts that edge for the shared ballot entry; until then
+// jsdom's environment does not expose these, and `react-router` reads them at
+// import time — reached from this package's theme, which sets `LinkBehavior` as the
+// default component for `MuiLink`. So a test that only wants a ballot still pulls
+// the router in. `EA-F1-005` cuts that edge for the shared ballot entry; until then
 // the polyfill is what makes the theme importable at all.
+//
+// From `node:util`, not off `global`. Reading `global.TextEncoder` was the first
+// attempt and fails in a way worth recording: under `jest-environment-jsdom`,
+// `global` *is* the jsdom window, where `TextEncoder` does not exist — so the
+// assignment set `undefined` and the failure surfaced two files away as
+// "TextEncoder is not a constructor" from inside `react-router`. The import costs
+// `@types/node` as a devDependency, which a package that runs jest can own.
 if (typeof globalThis.TextEncoder === "undefined") {
     Object.assign(globalThis, {TextEncoder, TextDecoder})
 }

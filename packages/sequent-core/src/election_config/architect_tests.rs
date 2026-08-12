@@ -2784,6 +2784,89 @@ fn a_planned_message_says_that_nothing_will_send_it() {
     assert!(says(&report, "nothing sends these"));
 }
 
+/// "Every Monday" is not a time, and whoever sends it should not have to guess.
+#[test]
+fn a_weekly_repeat_with_no_time_says_so() {
+    let mut plan = sound();
+    plan.messages.push(PlannedMessage {
+        kind: MessageKind::GetOutTheVote,
+        subject: Translated::new("You have not voted yet"),
+        body: Translated::new("There is still time."),
+        html: Translated::default(),
+        schedule: MessageSchedule {
+            on: vec![],
+            weekly: vec![1, 4],
+            // Deliberately absent, which is what every plan written before this
+            // field existed looks like.
+            weekly_at: String::new(),
+        },
+    });
+
+    let report = validate_plan(&plan);
+    assert!(!report.has_errors(), "a missing hour does not stop a build");
+    assert!(
+        report
+            .problems
+            .iter()
+            .any(|problem| problem.id.as_deref()
+                == Some("messages.weekly-no-time")),
+        "expected messages.weekly-no-time, got {report}"
+    );
+}
+
+/// And it stops saying so once the hour is there, or the warning is noise.
+#[test]
+fn a_weekly_repeat_with_a_time_is_quiet_about_it() {
+    let mut plan = sound();
+    plan.messages.push(PlannedMessage {
+        kind: MessageKind::GetOutTheVote,
+        subject: Translated::new("You have not voted yet"),
+        body: Translated::new("There is still time."),
+        html: Translated::default(),
+        schedule: MessageSchedule {
+            on: vec![],
+            weekly: vec![1, 4],
+            weekly_at: "09:30".to_string(),
+        },
+    });
+
+    let report = validate_plan(&plan);
+    assert!(
+        !report
+            .problems
+            .iter()
+            .any(|problem| problem.id.as_deref()
+                == Some("messages.weekly-no-time")),
+        "the hour is there, so nothing to say: {report}"
+    );
+}
+
+/// A send-once message has no weekly hour to be missing.
+#[test]
+fn a_message_that_does_not_repeat_is_not_asked_for_an_hour() {
+    let mut plan = sound();
+    plan.messages.push(PlannedMessage {
+        kind: MessageKind::InvitationToVote,
+        subject: Translated::new("Your ballot is ready"),
+        body: Translated::new("Vote here."),
+        html: Translated::default(),
+        // No `weekly`, so the question does not arise. Without this the check
+        // would nag every single-send message on the screen, which is how a
+        // warning list stops being read.
+        schedule: MessageSchedule::default(),
+    });
+
+    let report = validate_plan(&plan);
+    assert!(
+        !report
+            .problems
+            .iter()
+            .any(|problem| problem.id.as_deref()
+                == Some("messages.weekly-no-time")),
+        "a message that never repeats has no hour to give: {report}"
+    );
+}
+
 /// Templates belong to the tenant, so they travel beside the import, not in it.
 #[test]
 fn messages_leave_as_two_files_outside_the_bundle() {
@@ -2797,6 +2880,7 @@ fn messages_leave_as_two_files_outside_the_bundle() {
             // Several dates, which is the shape a reminder campaign has.
             on: vec![],
             weekly: vec![1, 4],
+            weekly_at: "09:30".to_string(),
         },
     });
 
@@ -2818,6 +2902,13 @@ fn messages_leave_as_two_files_outside_the_bundle() {
     let messaging = named("voter_messaging.json").expect("the schedule");
     assert!(messaging.contains("\"sends_automatically\": false"));
     assert!(messaging.contains("\"weekly\""));
+    // The hour, in the file somebody actually reads to send these by hand. The
+    // `sends` object is built field by field, so a field not named there is
+    // dropped without anything failing — this is what notices.
+    assert!(
+        messaging.contains("09:30"),
+        "the send file carries the hour, not only the day: {messaging}"
+    );
 
     // And not inside the import, which is the whole point of it being here.
     //

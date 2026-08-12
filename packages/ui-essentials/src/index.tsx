@@ -82,3 +82,28 @@ export type {
     ReviewChangesRow,
     ReviewChangesTableProps,
 } from "./components/ReviewChangesTable/ReviewChangesTable"
+
+// The ballot a voter marks, and the port a host implements to hold their marks.
+//
+// One implementation, two consumers: the voting portal renders these over its
+// redux store, and the Election Architect's preview renders the same components
+// over local state. Previously the wizard drew byte-identical *copies* of the
+// candidate row, kept honest by a parity checker, and could not draw a contest at
+// all — so a preview could differ from the ballot, which for an election is not a
+// cosmetic problem.
+export {Question} from "./ballot/Question"
+export type {IQuestionProps} from "./ballot/Question"
+export {Answer} from "./ballot/Answer"
+export {AnswersList} from "./ballot/AnswersList"
+export {InvalidErrorsList} from "./ballot/InvalidErrorsList"
+export {BallotSelectionProvider, useBallotSelection} from "./ballot/selection"
+export {BallotEngineProvider, useBallotEngine} from "./ballot/engine"
+export type {BallotEngine} from "./ballot/engine"
+export type {
+    BallotSelectionPort,
+    ContestSelection,
+    VoteChoice,
+} from "./ballot/selection"
+export type {IBallotStyle as IBallotStyleRow} from "./ballot/types"
+export * from "./ballot/presentation"
+export {IInvalidPlaintextErrorType} from "./ballot/errors"
