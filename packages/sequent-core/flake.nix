@@ -27,8 +27,8 @@
           };
           configureRustTargets = targets : pkgs
             .rust-bin
-            .nightly
-            ."2025-01-29"
+            .stable
+            ."1.96.0"
             .default
             .override {
                 extensions = [ "rust-src" ];
