@@ -219,13 +219,23 @@ marker-inclusive count **rescues** the blank (1 ≥ 1, no error, tallied
 `ExplicitBlank` — `minvote-rule.md`, `min=1 × marker_only`), which is
 why S2 exists only at `min ≥ 2`.
 
-A second harm, distinct from the silence: the ballot is not merely
-discounted but **misreported**. A deliberate blank lands in the
-implicit-invalid (accident) bucket instead of the explicit-blank
-bucket — a first-class reported category (the results report carries an
-"Explicit blank votes" line, and blanks count inside "total valid votes
-(including blanks)"). Even the aggregate statistics misstate the
-voter's intent. Qualitatively sharper than a plain S1 cell:
+For a blank ballot the discount and the misreport are **one act, not
+two harms**: a blank elects nobody either way, so "discarding" it can
+only mean booking it as `ImplicitInvalid` instead of `ExplicitBlank`.
+What distinguishes S2 from the generic S1 cells is where that act
+lands. In the generic cells the landing category is *truthful* — an
+over-vote really is an accidental rule violation — so the published
+record stays internally accurate and the harm is the voter's lost
+chance to fix the ballot. Here the same single reclassification also
+rewrites the published record: it shifts `total_valid_votes` (blanks
+count as valid — "not invalid and not declined",
+`velvet-core/src/result.rs`), `blank_votes.explicit`, and
+`invalid_votes.implicit`, plus their percentages — and the
+blank/invalid split exists precisely to separate deliberate abstention
+from error, so it now reports a protest as an accident. Whether
+"misreport" is the right word presupposes the S3(i) domain answer:
+under rules-as-implemented the label is internally consistent.
+Qualitatively sharper than a plain S1 cell:
 this is not voter inattention; a clearly expressed intent is dropped
 without notice. Confirmed end-to-end through the full pipeline
 (the voter clicks "Blank vote (explicit blank)", is shown nothing, ballot tallies
