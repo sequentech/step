@@ -34,7 +34,7 @@
  * move.
  */
 
-import {createContext, PropsWithChildren, useContext} from "react"
+import React, {createContext, PropsWithChildren, useContext} from "react"
 import type {IDecodedVoteChoice, IDecodedVoteContest} from "@sequentech/ui-core"
 
 import type {IBallotStyle} from "./types"
