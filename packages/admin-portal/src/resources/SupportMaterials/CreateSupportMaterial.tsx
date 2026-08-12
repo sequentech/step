@@ -17,8 +17,8 @@ import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
 import {Tabs} from "@/components/Tabs"
 import {DropFile} from "@sequentech/ui-essentials"
-import {TextField} from "@mui/material"
 import {Box, styled} from "@mui/material"
+import {MaterialLanguageFields} from "./MaterialLanguageFields"
 import {JsonInput} from "react-admin-json-view"
 import {useMutation} from "@apollo/client"
 import {GetUploadUrlMutation} from "@/gql/graphql"
@@ -80,35 +80,23 @@ export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (prop
             if (parsedValue?.enabled_languages[lang]) {
                 tabNodes.push({
                     label: t(`common.language.${lang}`),
-                    component: () => (
-                        <>
-                            <TextField
-                                label={String(t("electionEventScreen.field.materialTitle"))}
-                                size="small"
-                                value={valueMaterials.title_i18n[lang] || ""}
-                                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                                    setValueMaterials((prev) => ({
-                                        ...prev,
-                                        title_i18n: {...prev.title_i18n, [lang]: e.target.value},
-                                    }))
-                                }
-                            />
-                            <TextField
-                                label={String(t("electionEventScreen.field.materialSubTitle"))}
-                                size="small"
-                                value={valueMaterials.subtitle_i18n[lang] || ""}
-                                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                                    setValueMaterials((prev) => ({
-                                        ...prev,
-                                        subtitle_i18n: {
-                                            ...prev.subtitle_i18n,
-                                            [lang]: e.target.value,
-                                        },
-                                    }))
-                                }
-                            />
-                        </>
-                    ),
+                    component: MaterialLanguageFields,
+                    props: {
+                        titleLabel: String(t("electionEventScreen.field.materialTitle")),
+                        subtitleLabel: String(t("electionEventScreen.field.materialSubTitle")),
+                        titleValue: valueMaterials.title_i18n[lang] || "",
+                        subtitleValue: valueMaterials.subtitle_i18n[lang] || "",
+                        onTitleChange: (value: string) =>
+                            setValueMaterials((prev) => ({
+                                ...prev,
+                                title_i18n: {...prev.title_i18n, [lang]: value},
+                            })),
+                        onSubtitleChange: (value: string) =>
+                            setValueMaterials((prev) => ({
+                                ...prev,
+                                subtitle_i18n: {...prev.subtitle_i18n, [lang]: value},
+                            })),
+                    },
                 })
             }
         }
