@@ -331,6 +331,7 @@ const englishTranslation = {
                 back: "Back to Ballot List",
                 close: "Close",
                 preview: "Preview",
+                download: "Download",
             },
         },
         ballotLocator: {
