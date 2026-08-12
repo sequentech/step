@@ -657,10 +657,14 @@ impl Translated {
 /// Two, because two are what an election actually sends: one telling somebody
 /// their ballot is ready, one telling them it is nearly too late. A free-text
 /// alias would let a client invent a third that nothing downstream knows about.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum MessageKind {
     /// Sent when voting opens: here is your ballot.
+    ///
+    /// The default only so that a `PlannedMessage` can be built without naming
+    /// every field — nothing chooses a kind by defaulting.
+    #[default]
     InvitationToVote,
     /// Sent before it closes: you have not voted yet.
     GetOutTheVote,
@@ -721,7 +725,7 @@ pub struct MessageSchedule {
 }
 
 /// One message, in every language the ballot offers.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct PlannedMessage {
     pub kind: MessageKind,
 

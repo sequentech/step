@@ -168,6 +168,58 @@ fn a_path_reaching_into_a_contest_is_accepted() {
     });
 }
 
+/// Hiding a whole screen is the commonest thing a delivery profile does, and it
+/// was refused.
+///
+/// The builder's "All hidden" button writes the step's *prefixes* — `schedule`,
+/// `messages`, `voting_channels` — none of which is a settings row, so none of
+/// them gets a default seeded. Every such profile was then refused on load, and
+/// the only symptom was a wizard that would not start.
+#[test]
+fn hiding_a_screen_needs_no_default() {
+    for path in ["schedule", "messages", "voters", "voting_channels"] {
+        let document = ClientProfile {
+            id: "acme".to_string(),
+            hidden: vec![path.to_string()],
+            ..Default::default()
+        };
+        assert!(
+            Profile::read(&document).is_ok(),
+            "hiding '{path}' is what a delivery profile does and must load"
+        );
+    }
+}
+
+/// The other half, and the reason the rule existed: a *locked* path with nothing
+/// to lock to shows the client a value it does not fix.
+#[test]
+fn locking_without_a_value_is_still_refused() {
+    let report = refused(ClientProfile {
+        id: "acme".to_string(),
+        locked: vec!["trustee_threshold".to_string()],
+        ..Default::default()
+    });
+    assert!(says(&report, "locked but has no default"));
+}
+
+/// Hiding does not stop enforcing where a value *is* given — the split is about
+/// what a profile must say, not about what it may.
+#[test]
+fn a_hidden_path_with_a_value_still_fixes_it() {
+    let profile = profile_of(ClientProfile {
+        id: "acme".to_string(),
+        defaults: defaults(&[("trustee_threshold", Value::from(5))]),
+        hidden: vec!["trustee_threshold".to_string()],
+        ..Default::default()
+    });
+    let plan = Blueprint {
+        trustee_threshold: 2,
+        ..Default::default()
+    };
+    let applied = apply_profile(&plan, &profile).expect("applies");
+    assert_eq!(applied.trustee_threshold, 5);
+}
+
 #[test]
 fn a_profile_needs_an_id() {
     let report = refused(ClientProfile::default());

@@ -366,20 +366,38 @@ impl Profile {
             ));
         }
 
-        for path in locked.iter().chain(hidden.iter()) {
+        // Locked only, and the asymmetry is the point.
+        //
+        // An error, not a warning. `apply_profile` writes only what `defaults`
+        // names, so a lock with nothing to lock *to* fixes the field at whatever
+        // the plan happens to say — which for a new plan is nothing. A client is
+        // shown that value, greyed out, above a caption saying their
+        // organisation set it. There is no case where that is useful.
+        //
+        // **Hidden is not the same question, and requiring a value there was a
+        // mistake.** Nothing is drawn, so there is nothing to be wrong about on
+        // screen, and this module's own opening says `hidden` is not access
+        // control — a saved plan can carry anything in a field the wizard never
+        // showed. Demanding a default in the name of enforcement claimed a
+        // guarantee the design explicitly disclaims.
+        //
+        // What it cost: hiding a whole screen is the commonest thing a delivery
+        // profile does, and the builder writes the step's *prefixes* to do it —
+        // `schedule`, `messages`, `voting_channels` — none of which is a
+        // settings row, so none of them had a default to seed. Every such
+        // profile was refused, and the only symptom was a wizard that would not
+        // start.
+        //
+        // A hidden path with a value still fixes it: this is about what a
+        // profile must say, not about what it may.
+        for path in locked.iter() {
             if !defaults.iter().any(|(each, _)| each == path) {
-                // An error, not a warning. `apply_profile` writes only what
-                // `defaults` names, so a lock with nothing to lock *to* fixes
-                // the field at whatever the plan happens to say — which for a
-                // new plan is nothing. There is no case where that is useful,
-                // and a profile that quietly enforces none of what it claims is
-                // worse than one that will not load.
                 report.push(Problem::error(
                     Code::MissingField,
                     "defaults",
                     format!(
-                        "'{path}' is locked or hidden but has no default, so \
-                         nothing would be enforced. Give it a value."
+                        "'{path}' is locked but has no default, so nothing \
+                         would be enforced. Give it a value."
                     ),
                 ));
             }
@@ -577,6 +595,10 @@ fn shape_of_a_plan() -> Value {
         ..Default::default()
     };
     plan.contacts.push(Default::default());
+    // `messages` carries `skip_serializing_if`, so an empty plan has no such
+    // key and `hidden: ["messages"]` — which is how the Voter Messaging screen
+    // is dropped — read as a typo. Same trap as `Overrides` and `shared` below.
+    plan.messages.push(Default::default());
     plan.trustees.push(Default::default());
     plan.areas.push(Default::default());
     plan.schedule.milestones.push(Default::default());
