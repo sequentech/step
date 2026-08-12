@@ -84,7 +84,12 @@ export interface Report {
 export interface Opened {
     plan: unknown | null;
     report: Report;
-    source?: "delivery" | "plan" | "workbook";
+    source?:
+        | "delivery"
+        | "plan"
+        | "workbook"
+        | "election-event"
+        | "election-event-archive";
 }
 
 /** The verdict every caller of the validator must reach on a fixture. */
@@ -706,7 +711,15 @@ pub fn plan_in_delivery_js(bytes: &[u8]) -> Result<JsValue, JsError> {
     feature = "election_config_archive"
 ))]
 #[wasm_bindgen(js_name = openConfiguration)]
-pub fn open_configuration(bytes: &[u8]) -> Result<JsValue, JsError> {
+pub fn open_configuration(
+    bytes: &[u8],
+    // The file's own name, for the one refusal that cannot be read out of the
+    // bytes: an encrypted `.ezip` is AES-CBC from its first byte, so it has no
+    // zip magic and no valid UTF-8, and without the name it comes back as
+    // "neither a .zip, an .xlsx, nor text". Optional, so every existing caller
+    // keeps working and a renamed file still opens as whatever it is.
+    name: Option<String>,
+) -> Result<JsValue, JsError> {
     #[derive(serde::Serialize)]
     struct Answer {
         plan: Option<serde_json::Value>,
@@ -714,7 +727,10 @@ pub fn open_configuration(bytes: &[u8]) -> Result<JsValue, JsError> {
         source: Option<crate::election_config::open::Source>,
     }
 
-    let answer = match crate::election_config::open::open(bytes) {
+    let answer = match crate::election_config::open::open_named(
+        bytes,
+        name.as_deref(),
+    ) {
         Ok(opened) => Answer {
             plan: Some(serde_json::to_value(&opened.plan).map_err(
                 |error| {

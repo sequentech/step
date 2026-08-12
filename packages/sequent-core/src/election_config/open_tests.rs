@@ -40,6 +40,14 @@ fn sound() -> Blueprint {
     .unwrap()
 }
 
+/// Whether a report says something, by the words a reader would see.
+fn says(report: &Report, needle: &str) -> bool {
+    report
+        .problems
+        .iter()
+        .any(|problem| problem.message.contains(needle))
+}
+
 fn delivery_of(plan: &Blueprint) -> Vec<u8> {
     let compiled = compile_plan(
         plan,
@@ -130,10 +138,12 @@ fn an_empty_zip_says_what_it_contained_rather_than_guessing() {
 
     let refused =
         open(&empty).expect_err("an empty zip is not a configuration");
-    assert!(refused
-        .problems
-        .iter()
-        .any(|problem| problem.message.contains("neither a delivery nor a")));
+    // Every kind it knows how to open, so somebody holding the wrong file learns
+    // what the right ones are. The list grew when election event exports were
+    // added, which is why this asserts the whole clause rather than a prefix.
+    assert!(refused.problems.iter().any(|problem| problem
+        .message
+        .contains("neither a delivery, a workbook nor an election event")));
 
     // And it says *empty* rather than trailing off after a colon with nothing
     // listed, which is what naming the members produces when there are none.
@@ -229,4 +239,275 @@ fn a_workbook_with_only_warnings_opens_and_says_so() {
             .any(|problem| problem.message.contains("logo.png")),
         "and it names what could not travel"
     );
+}
+
+/// The importable zip inside a delivery, which is what the Admin Portal exports.
+///
+/// Taken out of a real delivery rather than assembled by hand: the point of these
+/// tests is that the *actual* export is recognised, and a zip built here to look
+/// like one would only prove that the detection agrees with this author.
+fn election_event_archive(plan: &Blueprint) -> Vec<u8> {
+    let delivery = delivery_of(plan);
+    let mut reader =
+        zip::ZipArchive::new(std::io::Cursor::new(delivery)).expect("a zip");
+    let mut inner = reader
+        .by_name(super::super::archive::IMPORTABLE_MEMBER)
+        .expect("the importable zip inside the delivery");
+    let mut bytes = Vec::new();
+    std::io::Read::read_to_end(&mut inner, &mut bytes).expect("read");
+    bytes
+}
+
+/// The bare `export_election_event-<id>.json`, on its own.
+fn election_event_json(plan: &Blueprint) -> Vec<u8> {
+    let archive = election_event_archive(plan);
+    let mut reader =
+        zip::ZipArchive::new(std::io::Cursor::new(archive)).expect("a zip");
+    let name = reader
+        .file_names()
+        .find(|name| {
+            name.contains("export_election_event") && name.ends_with(".json")
+        })
+        .expect("the export document")
+        .to_string();
+    let mut entry = reader.by_name(&name).expect("by name");
+    let mut bytes = Vec::new();
+    std::io::Read::read_to_end(&mut entry, &mut bytes).expect("read");
+    bytes
+}
+
+#[test]
+fn an_election_event_export_opens_as_a_plan() {
+    let plan = sound();
+    let opened = open(&election_event_json(&plan)).expect("an export opens");
+
+    assert_eq!(opened.source, Source::ElectionEvent);
+    assert_eq!(opened.plan.external_id, plan.external_id);
+    assert_eq!(opened.plan.elections.len(), 1);
+    assert_eq!(opened.plan.elections[0].contests[0].candidates.len(), 2);
+    // Warnings, because an export is not a whole plan — but not errors, because
+    // it is a perfectly good election event.
+    assert!(!opened.report.has_errors(), "{}", opened.report);
+    assert!(!opened.report.is_empty(), "it says what it could not carry");
+}
+
+#[test]
+fn an_election_event_archive_opens_as_a_plan() {
+    let plan = sound();
+    let opened =
+        open(&election_event_archive(&plan)).expect("an export zip opens");
+
+    assert_eq!(opened.source, Source::ElectionEventArchive);
+    assert_eq!(opened.plan.external_id, plan.external_id);
+    assert_eq!(opened.plan.elections.len(), 1);
+}
+
+#[test]
+fn an_election_event_is_not_mistaken_for_a_plan() {
+    // **The ordering test.** `Blueprint` requires only `version` and
+    // `external_id`, so a document with neither fails — but the failure would be
+    // an opaque serde message about a plan, when what somebody handed over was a
+    // perfectly good export. The fingerprint has to be checked first.
+    let json = election_event_json(&sound());
+    let opened = open(&json).expect("opens");
+    assert_ne!(
+        opened.source,
+        Source::Plan,
+        "an export must not be read as a plan"
+    );
+}
+
+#[test]
+fn a_plan_is_not_mistaken_for_an_election_event() {
+    // And the other direction, which is the one a loose fingerprint would break.
+    let plan = sound();
+    let bytes = serde_json::to_vec(&plan).unwrap();
+    let opened = open(&bytes).expect("opens");
+    assert_eq!(opened.source, Source::Plan);
+}
+
+#[test]
+fn an_encrypted_export_says_that_it_is_encrypted() {
+    // An `.ezip` is AES-CBC from its first byte, so it has no `PK` magic and no
+    // valid UTF-8 — it would otherwise come back as "neither a .zip, an .xlsx,
+    // nor text", which sends somebody looking for a corrupted download instead
+    // of asking for the unencrypted export.
+    //
+    // Recognised by the name, because that is the only thing about an encrypted
+    // file that is not encrypted.
+    let refused = open_named(
+        &[0x53, 0x61, 0x6c, 0x74, 0x65, 0x64, 0x5f, 0x5f, 9, 9],
+        Some("election-event-1-export-sha256-abc.ezip"),
+    )
+    .expect_err("an encrypted export is refused");
+    assert!(
+        says(&refused, "encrypted"),
+        "it should name the encryption: {refused}"
+    );
+}
+
+#[test]
+fn a_zip_that_is_nothing_recognisable_still_lists_what_it_held() {
+    let mut zip = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    zip.start_file::<_, ()>(
+        "notes.txt",
+        zip::write::SimpleFileOptions::default(),
+    )
+    .unwrap();
+    std::io::Write::write_all(&mut zip, b"hello").unwrap();
+    let bytes = zip.finish().unwrap().into_inner();
+
+    let refused = open(&bytes).expect_err("not a configuration");
+    assert!(says(&refused, "notes.txt"), "{refused}");
+}
+
+/// A plan with a census and a candidate's photograph, so the archive has both.
+fn peopled() -> Blueprint {
+    let mut plan = sound();
+    // Declared rather than left to the builder: validation runs before the
+    // synthesised area exists, so a voter naming one the plan does not declare is
+    // refused before there is anything to match.
+    plan.areas = vec![serde_json::from_value(serde_json::json!({
+        "external_id": "all-voters",
+        "name": "All voters"
+    }))
+    .unwrap()];
+    plan.voters = vec![
+        serde_json::from_value(serde_json::json!({
+            "username": "ada",
+            "email": "ada@example.org",
+            "first_name": "Ada",
+            "last_name": "Lovelace",
+            "area_name": "All voters",
+            "department": "Engineering"
+        }))
+        .unwrap(),
+        serde_json::from_value(serde_json::json!({
+            "username": "grace",
+            "email": "grace@example.org",
+            "first_name": "Grace",
+            "last_name": "Hopper",
+            "area_name": "All voters"
+        }))
+        .unwrap(),
+    ];
+    if let Some(candidate) = plan
+        .elections
+        .first_mut()
+        .and_then(|election| election.contests.first_mut())
+        .and_then(|contest| contest.candidates.first_mut())
+    {
+        candidate.image =
+            Some(crate::election_config::architect::CandidateImage {
+                file_name: "alice.png".to_string(),
+                bytes: vec![0x89, b'P', b'N', b'G', 1, 2, 3],
+            });
+    }
+    plan
+}
+
+#[test]
+fn an_election_event_archive_brings_the_census_with_it() {
+    // "Import all the data it contains" — the census is in the archive and not in
+    // the document, so this is the assertion that separates the two doors.
+    let plan = peopled();
+    let opened =
+        open(&election_event_archive(&plan)).expect("an export zip opens");
+
+    assert_eq!(opened.source, Source::ElectionEventArchive);
+    assert_eq!(opened.plan.voters.len(), 2, "{}", opened.report);
+    let ada = &opened.plan.voters[0];
+    assert_eq!(ada.username, "ada");
+    assert_eq!(ada.email, "ada@example.org");
+    assert_eq!(ada.first_name, "Ada");
+    // A column the wizard has no field for rides in `extra`, which is how a
+    // client keeps a reporting breakout without a code change.
+    assert_eq!(
+        ada.extra.get("department").map(String::as_str),
+        Some("Engineering")
+    );
+}
+
+#[test]
+fn an_election_event_archive_brings_the_photographs_with_it() {
+    let plan = peopled();
+    let opened = open(&election_event_archive(&plan)).expect("opens");
+
+    let alice = &opened.plan.elections[0].contests[0].candidates[0];
+    let image = alice.image.as_ref().expect("Alice's photograph came back");
+    assert_eq!(image.file_name, "alice.png");
+    assert_eq!(image.bytes, vec![0x89, b'P', b'N', b'G', 1, 2, 3]);
+    // And nothing complains about a photograph it did find.
+    assert!(
+        !says(&opened.report, "does not contain it"),
+        "{}",
+        opened.report
+    );
+}
+
+#[test]
+fn the_bare_document_says_the_census_is_not_in_it() {
+    // The bare JSON cannot carry a census, and the difference between the two
+    // doors is only useful if the wizard can say which one you used.
+    let plan = peopled();
+    let opened = open(&election_event_json(&plan)).expect("opens");
+
+    assert_eq!(opened.source, Source::ElectionEvent);
+    assert!(
+        opened.plan.voters.is_empty(),
+        "a bare document has no census in it"
+    );
+}
+
+/// The same archive, with its entries renamed the way the platform names them.
+///
+/// **The case a delivery built here cannot produce.** The platform's own exporter
+/// prefixes each `images/` and `export_S3_files/` entry with twelve characters of
+/// tempfile name — `images/enGgihs9azd5document_<uuid>_alice.png` — and
+/// `extract_document_uuid` on the import side matches unanchored because of it. A
+/// test that only ever sees our own naming would pass against an anchored match
+/// and drop every photograph from a real export.
+fn with_tempfile_prefixes(archive: Vec<u8>) -> Vec<u8> {
+    let mut reader =
+        zip::ZipArchive::new(std::io::Cursor::new(archive)).expect("a zip");
+    let mut out = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+
+    for index in 0..reader.len() {
+        let mut entry = reader.by_index(index).expect("an entry");
+        let name = entry.name().to_string();
+        let mut bytes = Vec::new();
+        std::io::Read::read_to_end(&mut entry, &mut bytes).expect("read");
+
+        let renamed = match name.split_once('/') {
+            Some((folder, file))
+                if folder == "images" || folder == "export_S3_files" =>
+            {
+                format!("{folder}/enGgihs9azd5{file}")
+            }
+            _ => name,
+        };
+        out.start_file::<_, ()>(
+            renamed,
+            zip::write::SimpleFileOptions::default(),
+        )
+        .expect("start");
+        std::io::Write::write_all(&mut out, &bytes).expect("write");
+    }
+
+    out.finish().expect("finish").into_inner()
+}
+
+#[test]
+fn a_photograph_is_found_through_the_platforms_own_tempfile_prefix() {
+    let plan = peopled();
+    let archive = with_tempfile_prefixes(election_event_archive(&plan));
+    let opened = open(&archive).expect("a real-shaped export opens");
+
+    let alice = &opened.plan.elections[0].contests[0].candidates[0];
+    let image = alice.image.as_ref().expect("Alice's photograph came back");
+    // And the *file's* name, not the entry's: a plan rebuilt from this must
+    // produce `images/document_<id>_alice.png` again rather than baking somebody
+    // else's tempfile prefix into the next export.
+    assert_eq!(image.file_name, "alice.png");
+    assert_eq!(image.bytes, vec![0x89, b'P', b'N', b'G', 1, 2, 3]);
 }

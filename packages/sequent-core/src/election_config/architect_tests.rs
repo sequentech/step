@@ -3787,3 +3787,180 @@ fn emit_a_workbook_to_look_at() {
         at.display()
     );
 }
+
+/// An election event exported from a plan reads back as that plan.
+///
+/// **The strongest test available for this mapping, and the reason it is here
+/// rather than beside `plan_from_event`.** The importable document is produced by
+/// `Blueprint` → `to_workbook` → `build`, through handlebars templates, across
+/// forty-odd fields. A hand-written expectation for the reverse direction would be
+/// a second opinion about what the templates emit, and it would share whatever
+/// this author misread. Compiling a plan and reading it back compares the mapping
+/// against the *emitter*, so a field either survives the round trip or the test
+/// names it.
+///
+/// What cannot survive is asserted separately, in `plan_from_event_tests`: an
+/// export carries no trustees, contacts, messages or census, because those are
+/// the architect's own and travel in a delivery's auxiliary files. This asserts
+/// what *should* come back, so a regression in the mapping shows up as a
+/// difference rather than as a missing feature nobody notices.
+#[test]
+fn an_exported_event_reads_back_as_the_plan_that_made_it() {
+    for plan in [sound(), districted(), opinionated()] {
+        reads_back(&plan);
+    }
+}
+
+/// A districted plan with a contest that disagrees with the event about its rules.
+///
+/// `sound()` names no areas and overrides nothing, so a round trip over it alone
+/// would prove the easy half: an export whose every contest inherits everything
+/// cannot show a difference between inherited and chosen. This one can — which is
+/// what makes the behaviour assertion below worth having.
+fn opinionated() -> Blueprint {
+    let mut plan = districted();
+    if let Some(contest) = plan
+        .elections
+        .first_mut()
+        .and_then(|election| election.contests.first_mut())
+    {
+        contest.max_votes = 3;
+        contest.winners = 2;
+        contest.overrides.tally.counting_algorithm =
+            Some("cumulative".to_string());
+        contest.overrides.tally.min_votes = Some(1);
+        contest.overrides.layout.columns = Some(2);
+    }
+    plan
+}
+
+fn reads_back(plan: &Blueprint) {
+    let plan = plan.clone();
+    let bundle = compiled(&plan);
+
+    let read = crate::election_config::plan_from_event::plan_from_event(
+        &bundle.export,
+    )
+    .expect("the document this crate just wrote is readable");
+    let back = read.plan;
+
+    assert!(
+        !read.report.has_errors(),
+        "reading back what we wrote should not be an error: {}",
+        read.report
+    );
+
+    // Compared as a *reader* sees it, per language, not as a map.
+    //
+    // The emitter fills every enabled language with the English fallback — that
+    // is what `an_untranslated_string_comes_back_as_a_real_translation` records
+    // for the workbook door, and it is the same decision here: `Translated::get`
+    // falls back deliberately, because a blank is never the right answer for a
+    // name a voter reads. So a plan that named only English comes back naming
+    // both, and asserting on the map would be asserting that the fallback does
+    // not happen.
+    let reads = |was: &Translated, now: &Translated| {
+        for language in ["en", "es"] {
+            assert_eq!(
+                now.get(language),
+                was.get(language),
+                "the text a {language} reader sees"
+            );
+        }
+    };
+
+    assert_eq!(back.external_id, plan.external_id);
+    reads(&plan.name, &back.name);
+    assert_eq!(back.languages, plan.languages);
+    assert_eq!(back.elections_order, plan.elections_order);
+    assert_eq!(back.show_cast_vote_logs, plan.show_cast_vote_logs);
+    assert_eq!(back.voting_channels, plan.voting_channels);
+
+    // The ballot, which is the part with the most to lose.
+    assert_eq!(back.elections.len(), plan.elections.len());
+    for (was, now) in plan.elections.iter().zip(back.elections.iter()) {
+        assert_eq!(now.external_id, was.external_id);
+        reads(&was.name, &now.name);
+        assert_eq!(now.num_allowed_revotes, was.num_allowed_revotes);
+        assert_eq!(now.contests.len(), was.contests.len());
+
+        for (before, after) in was.contests.iter().zip(now.contests.iter()) {
+            assert_eq!(after.external_id, before.external_id);
+            reads(&before.name, &after.name);
+            reads(&before.description, &after.description);
+            assert_eq!(after.max_votes, before.max_votes);
+            assert_eq!(after.winners, before.winners);
+            assert_eq!(
+                after.candidates.len(),
+                before.candidates.len(),
+                "the candidates of {}",
+                before.external_id
+            );
+            for (was_who, now_who) in
+                before.candidates.iter().zip(after.candidates.iter())
+            {
+                assert_eq!(now_who.external_id, was_who.external_id);
+                reads(&was_who.name, &now_who.name);
+            }
+            // The rules a contest ends up with, which is the field an import
+            // getting this wrong would change silently.
+            assert_eq!(
+                plan.defaults.apply(&before.overrides),
+                back.defaults.apply(&after.overrides),
+                "the behaviour of contest {}",
+                before.external_id
+            );
+        }
+    }
+
+    // Every area the plan named comes back — but not necessarily *only* those.
+    //
+    // A plan that does no districting still compiles to an event with one area,
+    // because the platform requires a contest to serve somewhere; `sound()` names
+    // none, so the export carries the minted one and reading it back finds it.
+    // That is the export being honest about its contents rather than a fault in
+    // the mapping, and asserting equal lengths here would be asserting that an
+    // election event can have no areas at all.
+    for was in &plan.areas {
+        let found = back
+            .areas
+            .iter()
+            .find(|now| now.external_id == was.external_id)
+            .unwrap_or_else(|| {
+                panic!("the area {} came back", was.external_id)
+            });
+        assert_eq!(found.name, was.name);
+    }
+    assert!(
+        !back.areas.is_empty(),
+        "an export always names at least the area its contests serve"
+    );
+
+    // And every contest still serves the areas it served, by the names a plan
+    // uses rather than by the identifiers the export uses.
+    for (was, now) in plan.elections.iter().zip(back.elections.iter()) {
+        for (before, after) in was.contests.iter().zip(now.contests.iter()) {
+            if !before.areas.is_empty() {
+                assert_eq!(
+                    after.areas, before.areas,
+                    "the areas contest {} serves",
+                    before.external_id
+                );
+            } else {
+                // **"No areas" means "every area", and an export says so out
+                // loud.** A plan leaves the list empty to mean the contest is on
+                // every ballot; `build` then writes an `area_contests` row per
+                // area, because the platform has no notion of "all". So the
+                // imported plan states explicitly what the original left
+                // implicit — behaviourally the same election, and a difference
+                // worth asserting rather than smoothing over, because somebody
+                // reading the imported plan will notice the list is now full.
+                assert_eq!(
+                    after.areas.len(),
+                    back.areas.len(),
+                    "a contest that named no area serves all of them"
+                );
+            }
+        }
+    }
+}
