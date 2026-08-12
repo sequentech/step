@@ -28,13 +28,11 @@ jobs:
           sudo apt-get install -y protobuf-compiler musl-tools libssl-dev pkg-config musl-dev libunwind-dev
 
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
-          toolchain: nightly
+          toolchain: 1.96.0
           components: rustfmt
-          override: true
-          target: x86_64-unknown-linux-musl
+          targets: x86_64-unknown-linux-musl
 
       - name: Link openssl
         working-directory: packages/step-cli

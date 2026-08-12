@@ -4,14 +4,18 @@
 
 // Election Styles
 
+import React from "react"
 import styled from "@emotion/styled"
 import {styled as muiStyled} from "@mui/material/styles"
 
-import {SaveButton, Toolbar} from "react-admin"
+import {SaveButton, Toolbar, ToolbarProps} from "react-admin"
 import {AccordionDetails, Box, Chip, Typography, CircularProgress} from "@mui/material"
 import Button from "@mui/material/Button"
 import DoneOutlineIcon from "@mui/icons-material/DoneOutline"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
+
+const RawToolbar = Toolbar as unknown as React.ComponentType<ToolbarProps>
+const WizardToolbar = (props: ToolbarProps) => React.createElement(RawToolbar, props)
 
 export const WizardStyles = {
     WizardWrapper: styled(Box)`
@@ -24,7 +28,7 @@ export const WizardStyles = {
         width: 100%;
         margin: auto;
     `,
-    Toolbar: styled(Toolbar)`
+    Toolbar: styled(WizardToolbar)`
         bottom: 0;
         position: sticky;
         flex-direction: row;
