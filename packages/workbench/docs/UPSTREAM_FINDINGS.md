@@ -169,8 +169,9 @@ The keep-list explains the table's shape. Over-vote silence needs
 *signal-free* variant: every other variant emits an inline alert from
 the checker, keeps `selectedMax` visible via the keep-list carve-out,
 and (for the `*_AND_ALERT` variants) raises a dialog. The recorded
-`allowed-with-msg × allowed` row shows this exactly: no gate fires,
-yet the inline signal makes it a non-violation (`overvote-rule.md`).
+`allowed-with-msg × allowed × over_max` row shows this exactly: no
+gate fires, yet the inline signal makes it a non-violation
+(`overvote-rule.md`).
 Min-vote needs only `invalid = allowed`: `selectedMin` is on no
 keep-list and min-vote emits no alert, so nothing can rescue it.
 
