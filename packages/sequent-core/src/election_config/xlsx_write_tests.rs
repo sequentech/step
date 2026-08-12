@@ -32,6 +32,26 @@ fn book(sheets: Vec<Sheet>) -> Workbook {
     Workbook::new(sheets).unwrap()
 }
 
+/// One part of the written file, as text.
+///
+/// The styling tests read the XML directly because there is nothing else to read
+/// it with: the reader in `xlsx.rs` throws styles away, quite correctly — a width
+/// is not data. So a column that lost its colour or its frozen header would round
+/// trip perfectly and look wrong, and this is what notices.
+fn part(bytes: &[u8], name: &str) -> String {
+    let mut archive =
+        zip::ZipArchive::new(std::io::Cursor::new(bytes)).expect("it is a zip");
+    let mut text = String::new();
+    std::io::Read::read_to_string(
+        &mut archive
+            .by_name(name)
+            .unwrap_or_else(|_| panic!("no {name}")),
+        &mut text,
+    )
+    .expect("it is text");
+    text
+}
+
 /// Write it, read it, and it is the same workbook.
 fn round_trip(workbook: &Workbook) -> Workbook {
     let bytes = write_xlsx(workbook).expect("this workbook writes");
@@ -346,4 +366,248 @@ fn every_value_kind_survives_the_file() {
         );
     }
     assert_eq!(back, workbook);
+}
+
+/// A column of prose is capped and wrapped; one of identifiers is neither.
+#[test]
+fn a_long_description_wraps_and_an_id_stays_narrow() {
+    let headers = vec!["external_id".to_string(), "description".to_string()];
+    let rows = vec![vec![
+        "okonjo".to_string(),
+        "Alice has served on the executive committee since 2019 and chairs the \
+         grievance panel. She is standing on a platform of shorter shifts."
+            .to_string(),
+    ]];
+    let shape = shapes(&headers, &rows);
+
+    assert_eq!(
+        shape[0],
+        Shape {
+            width: 13.0,
+            wrap: false
+        }
+    );
+    assert_eq!(
+        shape[1],
+        Shape {
+            width: WIDEST_PROSE,
+            wrap: true
+        }
+    );
+}
+
+/// Markup is never wrapped, however long it is.
+///
+/// The request was explicit about this, and the reason is that a template is read
+/// by scanning it: `<html>` broken across six lines of a 52-wide column is harder
+/// to read than one line running off the edge, which a person can widen or click
+/// into. Every form of it — a tag, a handlebars expression, JSON, a URL, a long
+/// unbroken token — because the Templates sheet carries all five.
+#[test]
+fn nothing_that_is_markup_is_ever_wrapped() {
+    for value in [
+        "<html><body><h1>Vote</h1></body></html>",
+        "Dear {{voter.name}}, voting closes on {{voting_closes}}.",
+        r#"{"policy": "plurality-at-large", "seats": 3}"#,
+        "https://example.org/elections/union-2027/ballot?lang=en&area=north",
+        "d5f3a1b9c7e24a6f8b0d2e4a6c8f0b2d4e6a8c0f2b4d6e8a0c2e4f6a8b0d2e4f",
+    ] {
+        let headers = vec!["body".to_string()];
+        let shape = shapes(&headers, &vec![vec![value.to_string()]]);
+        assert!(!shape[0].wrap, "wrapped markup: {value}");
+        assert!(shape[0].width <= WIDEST_FIXED);
+    }
+}
+
+/// Prose long enough to wrap, next to markup, in the same column: markup wins.
+///
+/// One templated row among a hundred plain ones is the realistic case — a Messages
+/// sheet whose first message is plain text — and it is the one where wrapping would
+/// mangle the row that matters most.
+#[test]
+fn one_templated_row_stops_the_whole_column_wrapping() {
+    let headers = vec!["body".to_string()];
+    let rows = vec![
+        vec!["A plain sentence, long enough on its own to pass the cap and then some more words after it to be sure.".to_string()],
+        vec!["<p>{{voter.name}}</p>".to_string()],
+    ];
+    assert!(!shapes(&headers, &rows)[0].wrap);
+}
+
+/// A long header does not widen a column full of two-letter values.
+///
+/// `presentation.language_conf.enabled_language_codes` over a column of `en` made
+/// that column 51 characters wide, which is what the sample plan looked like before
+/// this: half the sheet was header. It wraps onto a second line instead.
+#[test]
+fn a_field_path_header_wraps_rather_than_widening_its_column() {
+    let headers =
+        vec!["presentation.language_conf.enabled_language_codes".to_string()];
+    let shape = shapes(&headers, &vec![vec!["en".to_string()]]);
+
+    assert_eq!(shape[0].width, HEADER_WIDE + 2.0);
+    assert_eq!(header_lines(&headers, &shape), 2);
+}
+
+/// The header row is tall enough for the tallest header on the sheet.
+#[test]
+fn the_header_row_is_as_tall_as_its_deepest_header() {
+    let one = vec!["name".to_string(), "email".to_string()];
+    let shape =
+        shapes(&one, &vec![vec!["Alice".to_string(), "a@b.c".to_string()]]);
+    assert_eq!(header_lines(&one, &shape), 1);
+
+    // One deep header makes the whole row two lines, not just its own cell.
+    let two = vec![
+        "name".to_string(),
+        "tally_configuration.tie_breaking_policy".to_string(),
+    ];
+    let shape =
+        shapes(&two, &vec![vec!["Alice".to_string(), "random".to_string()]]);
+    assert_eq!(header_lines(&two, &shape), 2);
+}
+
+/// An empty column is still wide enough to click on.
+#[test]
+fn a_column_with_nothing_in_it_keeps_a_usable_width() {
+    let headers = vec!["id".to_string()];
+    assert_eq!(shapes(&headers, &[])[0].width, NARROWEST);
+}
+
+/// The header cells carry the header format, and ordinary cells carry nothing.
+///
+/// The second half is the one worth a test: a census is a hundred thousand rows,
+/// and `s="0"` on every cell of it is bytes that say exactly nothing. Asserted on
+/// the XML rather than through the reader, because the reader is indifferent to
+/// styles — which is the whole reason a regression here would otherwise be silent.
+#[test]
+fn only_the_cells_that_need_a_format_carry_one() {
+    let workbook = book(vec![sheet(
+        "Voters",
+        &[&["username", "email"], &["alice", "alice@example.org"]],
+    )]);
+    let sheet_xml =
+        part(&write_xlsx(&workbook).unwrap(), "xl/worksheets/sheet1.xml");
+
+    assert!(sheet_xml
+        .contains(&format!(r#"<c r="A1" s="{HEADER_STYLE}" t="inlineStr">"#)));
+    assert!(sheet_xml.contains(r#"<c r="A2" t="inlineStr">"#));
+    assert!(!sheet_xml.contains(r#"s="0""#));
+}
+
+/// The navy is written the way the format reads colour, and the header row freezes.
+///
+/// `FF` in front of the six digits is not decoration: a `rgb` of `0F054C` is four
+/// bytes short, and LibreOffice reads the missing alpha as transparent — a header
+/// whose white bold text lands on white. It renders correctly in Excel, so this is
+/// the kind of thing that ships.
+#[test]
+fn the_header_is_navy_and_the_top_row_stays_put() {
+    let bytes =
+        write_xlsx(&book(vec![sheet("Voters", &[&["username"], &["alice"]])]))
+            .unwrap();
+
+    assert!(
+        part(&bytes, "xl/styles.xml").contains(r#"<fgColor rgb="FF0F054C"/>"#)
+    );
+    assert!(
+        part(&bytes, "xl/worksheets/sheet1.xml").contains(r#"state="frozen""#)
+    );
+}
+
+/// Write a workbook with prose and markup in it, for a person to open.
+///
+/// Ignored, and not a duplicate of `architect_tests::emit_a_workbook_to_look_at`:
+/// that one writes the *sample plan*, whose every value is an id or an enum, so it
+/// shows the header band and nothing else. Wrapping — the half of `EA-F5-006` that
+/// needed the most judgement — only happens past fifty-two characters of prose, and
+/// nothing in the sample plan is that long. This carries all three shapes: short
+/// identifiers, a description that must wrap, and a template that must not.
+///
+/// `cargo test -p sequent-core --features election_config_archive,election_config_xlsx
+///  dump_a_workbook -- --ignored --nocapture`
+#[test]
+#[ignore]
+fn dump_a_workbook() {
+    let candidates = sheet(
+        "Candidates",
+        &[
+            &["external_id", "name", "description", "winners"],
+            &[
+                "okonjo",
+                "Alice Okonjo",
+                "Alice has served on the executive committee since 2019 and chairs \
+                 the grievance panel. She is standing on a platform of shorter \
+                 shifts and a rebuilt apprenticeship programme.",
+                "1",
+            ],
+            &[
+                "iyer",
+                "Bob Iyer",
+                "Bob is a shop steward at the Northgate depot.",
+                "1",
+            ],
+        ],
+    );
+
+    let templates = sheet(
+        "Messages",
+        &[
+            &["name", "body"],
+            &[
+                "invitation",
+                "<html><body><h1>{{election.name}}</h1><p>Voting is open until \
+                 {{voting_closes}}. <a href=\"{{link}}\">Cast your ballot</a>.\
+                 </p></body></html>",
+            ],
+        ],
+    );
+
+    let bytes =
+        write_xlsx(&book(vec![candidates, templates])).expect("it writes");
+    let at = std::env::temp_dir().join("sample-workbook.xlsx");
+    std::fs::write(&at, &bytes).expect("written");
+    println!("wrote {} bytes to {}", bytes.len(), at.display());
+}
+
+/// A sentence is not markup because it contains a `<`.
+///
+/// `wages < $15/hr` is an ordinary thing for a union election to say, and one such
+/// row was enough to stop a whole column of descriptions wrapping — one value
+/// decides the column, so a false positive here is expensive.
+#[test]
+fn a_less_than_sign_in_a_sentence_is_not_a_tag() {
+    let headers = vec!["description".to_string()];
+    let prose = "Standing to make sure nobody at this depot is left on wages \
+                 < $15/hr while the executive votes itself another raise."
+        .to_string();
+    assert!(shapes(&headers, &vec![vec![prose]])[0].wrap);
+
+    // And a real tag still is one.
+    for markup in ["<p>Vote</p>", "</div>", "<!-- draft -->"] {
+        assert!(
+            !shapes(&headers, &vec![vec![markup.to_string()]])[0].wrap,
+            "{markup} should not wrap"
+        );
+    }
+}
+
+/// A description in a language written without spaces still wraps.
+///
+/// The long-unbroken-token rule is how an id or a base64 blob is recognised, and
+/// "no spaces in it" is a fine test for that in English. Japanese, Chinese and Thai
+/// are *written* without spaces, so without the ASCII clause a Japanese description
+/// is read as an identifier and left on one line running off the sheet — a failure
+/// aimed squarely at the languages least likely to be checked before a delivery
+/// goes out.
+#[test]
+fn prose_in_a_language_written_without_spaces_still_wraps() {
+    let headers = vec!["description".to_string()];
+    let japanese =
+        "組合員の皆様にお知らせいたします。今回の選挙では、労働時間の短縮と\
+                    見習い制度の再建を公約に掲げる候補者が立候補しております。"
+            .to_string();
+
+    assert!(japanese.chars().count() > 40 && !japanese.contains(' '));
+    assert!(shapes(&headers, &vec![vec![japanese]])[0].wrap);
 }
