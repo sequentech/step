@@ -11,6 +11,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -25,6 +26,11 @@ import org.keycloak.util.JsonSerialization;
  */
 public final class ClientCredentialsTokenClient {
 
+  // Bounds the wait for the token endpoint's response. Callers run on a Keycloak
+  // request thread (protocol mappers, authenticators), so an unbounded wait would
+  // pin that thread for as long as the peer holds the connection open.
+  private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
+
   private ClientCredentialsTokenClient() {}
 
   public static String requestAccessToken(
@@ -36,12 +42,7 @@ public final class ClientCredentialsTokenClient {
     data.put("client_secret", clientSecret);
     data.put("grant_type", "client_credentials");
 
-    HttpRequest request =
-        HttpRequest.newBuilder()
-            .uri(URI.create(tokenUrl))
-            .header("Content-Type", "application/x-www-form-urlencoded")
-            .POST(HttpRequest.BodyPublishers.ofString(formUrlEncode(data)))
-            .build();
+    HttpRequest request = buildTokenRequest(tokenUrl, data);
 
     try {
       HttpResponse<String> response =
@@ -51,6 +52,15 @@ public final class ClientCredentialsTokenClient {
       Thread.currentThread().interrupt();
       throw new IOException("Interrupted while requesting Keycloak access token", e);
     }
+  }
+
+  static HttpRequest buildTokenRequest(String tokenUrl, Map<Object, Object> data) {
+    return HttpRequest.newBuilder()
+        .uri(URI.create(tokenUrl))
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .timeout(REQUEST_TIMEOUT)
+        .POST(HttpRequest.BodyPublishers.ofString(formUrlEncode(data)))
+        .build();
   }
 
   // Percent-encodes each key/value pair so that secrets containing reserved

@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.net.URLDecoder;
+import java.net.http.HttpRequest;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -62,6 +63,19 @@ class ClientCredentialsTokenClientTest {
             IllegalStateException.class,
             () -> ClientCredentialsTokenClient.extractAccessToken(responseBody));
     assertTrue(ex.getMessage().contains("invalid_client"));
+  }
+
+  @Test
+  void tokenRequestCarriesABoundedTimeout() {
+    // Without a timeout the calling Keycloak request thread waits indefinitely
+    // when the token endpoint accepts the connection but never responds.
+    HttpRequest request =
+        ClientCredentialsTokenClient.buildTokenRequest(
+            "https://keycloak.example/realms/tenant/protocol/openid-connect/token",
+            new HashMap<>());
+
+    assertTrue(request.timeout().isPresent());
+    assertTrue(request.timeout().get().toMillis() > 0);
   }
 
   @Test
