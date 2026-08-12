@@ -123,6 +123,19 @@ cast protest/null votes" is confirmed as a requirement the platform is
 engineered to serve — at the encoding, reporting, and even
 paper-reconciliation layers.
 
+**Terminology guard — two senses of "spoil".** The platform also has
+an election-level `spoil_ballot_option` column
+(`windmill/src/postgres/election.rs`), which is **not** this feature:
+it belongs to the Benaloh cast-or-audit challenge — a ballot
+deliberately discarded to prove its encryption was honest, after
+which the voter votes again; it never reaches the tally and has no
+result category (voter docs: `03-voters/01-tutorials/
+03-voter_audit_ballot.md`). The protest sense — the one this document
+is about — is contest-level (`is_explicit_invalid` marker +
+`invalid_vote_policy`) and is tallied and reported. The collision is
+easy to fall into because the candidate docs suggest "Spoil Ballot"
+as a marker name; the two mechanisms share nothing.
+
 ## 4. What `allowed` does *not* do: enable null voting
 
 The follow-on hypothesis — that casting a null vote is only possible
