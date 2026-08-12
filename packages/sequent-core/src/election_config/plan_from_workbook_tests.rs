@@ -85,7 +85,7 @@ fn sound() -> Blueprint {
         }],
         "voters": [
             {"username": "ada", "email": "ada@example.org",
-             "area_name": "North Local 1", "department": "Engineering"}
+             "area_external_id": "north", "department": "Engineering"}
         ],
         "messages": [{
             "kind": "get-out-the-vote",
@@ -261,7 +261,7 @@ fn a_voters_own_columns_come_back_with_them() {
     let voter = &back.voters[0];
 
     assert_eq!(voter.username, "ada");
-    assert_eq!(voter.area_name, "North Local 1");
+    assert_eq!(voter.area_external_id, "north");
     assert_eq!(
         voter.extra.get("department").map(String::as_str),
         Some("Engineering"),
@@ -586,4 +586,82 @@ fn every_blueprint_field_is_accounted_for() {
          Add it to ROUND_TRIPS, BYTES_ONLY or DERIVED — and if it round trips, \
          make sure it actually does."
     );
+}
+
+/// A Voters sheet with these headers and rows, in place of the fixture's.
+fn with_voters(grid: &[&[&str]]) -> Blueprint {
+    use crate::election_config::paths::Cell;
+    use crate::election_config::sheet::{Sheet, Workbook};
+
+    let cells: Vec<Vec<Cell>> = grid
+        .iter()
+        .map(|row| row.iter().map(|text| Cell::text(*text)).collect())
+        .collect();
+    let voters = Sheet::from_grid("Voters", &cells).unwrap();
+
+    let workbook = to_workbook(&sound()).expect("the plan writes");
+    let sheets: Vec<Sheet> = workbook
+        .sheets()
+        .iter()
+        .map(|sheet| {
+            if sheet.key == "voters" {
+                voters.clone()
+            } else {
+                sheet.clone()
+            }
+        })
+        .collect();
+
+    plan_from_workbook(&Workbook::new(sheets).unwrap())
+        .expect("it reads")
+        .plan
+}
+
+/// A census written before the column moved still loads.
+///
+/// Every census a client already has spells the area `area_name`, and read
+/// strictly all of them would open with every voter's area blank — thousands of
+/// rows, each refused by the build, and nothing on screen to say the column had
+/// simply been renamed. The name is resolved to its identifier once, on the way
+/// in, and what is saved afterwards is the new spelling.
+#[test]
+fn a_sheet_that_still_names_the_area_is_understood() {
+    let plan = with_voters(&[
+        &["username", "area_name"],
+        &["ada", "North Local 1"],
+        &["grace", "South Local 2"],
+    ]);
+
+    assert_eq!(plan.voters[0].area_external_id, "north");
+    assert_eq!(plan.voters[1].area_external_id, "south");
+}
+
+/// `area.external_id` wins when a sheet carries both.
+///
+/// A sheet saved by the version that wrote both columns, then edited. The
+/// identifier is what the builder has always read, so it is what a disagreement
+/// resolves to — and the name does not survive as a passthrough attribute, which
+/// would collide with the `area_name` the finished bundle emits.
+#[test]
+fn the_identifier_wins_over_a_stale_name() {
+    let plan = with_voters(&[
+        &["username", "area.external_id", "area_name"],
+        &["ada", "south", "North Local 1"],
+    ]);
+
+    assert_eq!(plan.voters[0].area_external_id, "south");
+    assert!(!plan.voters[0].extra.contains_key("area_name"));
+}
+
+/// A name no area answers to is kept, not blanked.
+///
+/// It is already broken. Keeping the text means validation says "no area has
+/// external_id 'North Local 4'" against the row that has it, which is visible and
+/// fixable; blanking it would leave a voter who silently gets no ballot.
+#[test]
+fn an_area_name_matching_nothing_survives_to_be_reported() {
+    let plan =
+        with_voters(&[&["username", "area_name"], &["ada", "North Local 4"]]);
+
+    assert_eq!(plan.voters[0].area_external_id, "North Local 4");
 }

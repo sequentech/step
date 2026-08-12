@@ -65,7 +65,7 @@ use serde::{Deserialize, Serialize};
 /// somebody spent an afternoon on; being able to say "this is from an older
 /// version" beats failing to deserialize it with a serde error about a missing
 /// field.
-pub const BLUEPRINT_VERSION: u32 = 2;
+pub const BLUEPRINT_VERSION: u32 = 3;
 
 /// Bring a version 1 plan up to date, in place.
 ///
@@ -133,6 +133,79 @@ fn migrate_v1(document: &mut serde_json::Value) {
     object.insert("version".to_string(), serde_json::json!(2));
 }
 
+/// Bring a version 2 plan up to date, in place.
+///
+/// Version 2 keyed a voter's area by the area's **name**; version 3 keys it by
+/// `external_id`. Every saved plan carries names, so without this every voter in
+/// every existing plan would open with an area nothing recognises — the census
+/// would look intact and the build would refuse each row.
+///
+/// A name that matches no area is **kept as written** rather than dropped. It is
+/// already broken, and moving it into the identifier field means validation says
+/// "no area has external_id 'North Local 4'" against the row it is on, which is
+/// visible and fixable. Dropping it would turn a loud problem into a voter who
+/// quietly has no ballot.
+///
+/// Ambiguity cannot arise here: version 2 refused a plan whose areas shared a
+/// name, so at most one area answers to any of these.
+fn migrate_v2(document: &mut serde_json::Value) {
+    let Some(object) = document.as_object_mut() else {
+        return;
+    };
+    if object.get("version").and_then(serde_json::Value::as_u64) != Some(2) {
+        return;
+    }
+
+    let ids: Vec<(String, String)> = object
+        .get("areas")
+        .and_then(serde_json::Value::as_array)
+        .map(|areas| {
+            areas
+                .iter()
+                .filter_map(|area| {
+                    let text = |key: &str| {
+                        area.get(key)
+                            .and_then(serde_json::Value::as_str)
+                            .unwrap_or_default()
+                            .to_string()
+                    };
+                    let name = text("name");
+                    (!name.is_empty()).then(|| (name, text("external_id")))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    if let Some(voters) = object
+        .get_mut("voters")
+        .and_then(serde_json::Value::as_array_mut)
+    {
+        for voter in voters {
+            let Some(row) = voter.as_object_mut() else {
+                continue;
+            };
+            let Some(was) = row.remove("area_name") else {
+                continue;
+            };
+            let name = was.as_str().unwrap_or_default().trim().to_string();
+            if name.is_empty() {
+                continue;
+            }
+            let resolved = ids
+                .iter()
+                .find(|(each, _)| each.trim() == name)
+                .map(|(_, id)| id.clone())
+                .unwrap_or(name);
+            row.insert(
+                "area_external_id".to_string(),
+                serde_json::json!(resolved),
+            );
+        }
+    }
+
+    object.insert("version".to_string(), serde_json::json!(3));
+}
+
 /// Read a saved plan, bringing an older one up to date.
 ///
 /// The only way a plan should be deserialized. A plan from a *newer* version is
@@ -151,6 +224,7 @@ pub fn read_plan(document: &str) -> Result<Blueprint, Problem> {
         })?;
 
     migrate_v1(&mut value);
+    migrate_v2(&mut value);
 
     serde_json::from_value(value).map_err(|error| {
         Problem::error(
@@ -524,9 +598,21 @@ pub struct PlannedVoter {
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub last_name: String,
 
-    /// Which area's ballot they get. Matched **by name** against `areas`.
+    /// Which area's ballot they get, by the area's `external_id`.
+    ///
+    /// **By identifier, not by name**, and the change of key is the point. A name
+    /// is a label somebody edits: renaming an area used to silently strip every
+    /// voter in it of a ballot, and two areas could not share a display name
+    /// because the name *was* the key — which is why `area.duplicate-name` had to
+    /// exist. A parent-scoped org chart with two locals called "North Local 2" is
+    /// ordinary, and it was refused.
+    ///
+    /// It also removes a translation nobody asked for: the plan keyed by name, the
+    /// sheet carried both columns, and the builder read the identifier — so a
+    /// voter's area went name → id → name on one round trip, with two consumers
+    /// disagreeing about which column was authoritative.
     #[serde(default, skip_serializing_if = "String::is_empty")]
-    pub area_name: String,
+    pub area_external_id: String,
 
     /// Everything else the client carries, passed through as user attributes.
     #[serde(flatten)]
@@ -1792,8 +1878,11 @@ fn check_census(plan: &Blueprint, report: &mut Report) {
         return;
     }
 
-    let named: std::collections::BTreeSet<&str> =
-        plan.areas.iter().map(|area| area.name.as_str()).collect();
+    let named: std::collections::BTreeSet<&str> = plan
+        .areas
+        .iter()
+        .map(|area| area.external_id.as_str())
+        .collect();
 
     let mut seen: std::collections::BTreeMap<&str, usize> =
         std::collections::BTreeMap::new();
@@ -1829,11 +1918,11 @@ fn check_census(plan: &Blueprint, report: &mut Report) {
         // area is a plan that cannot be built — and this screen was calling it
         // Ready to build. There is no default: an area is how a voter is given a
         // ballot at all.
-        let area = voter.area_name.trim();
+        let area = voter.area_external_id.trim();
         if area.is_empty() {
             report.push(Problem::error(
                 Code::MissingField,
-                format!("voters[{index}].area_name"),
+                format!("voters[{index}].area.external_id"),
                 "a voter needs an area: it is what decides which ballot they are \
                  handed, and the build refuses a census row without one",
             )
@@ -1842,9 +1931,12 @@ fn check_census(plan: &Blueprint, report: &mut Report) {
         } else if !named.contains(area) {
             report.push(Problem::error(
                 Code::DanglingReference,
-                format!("voters[{index}].area_name"),
+                format!("voters[{index}].area.external_id"),
                 format!(
-                    "no area is called '{area}'. Voters are matched to their                      area by name, so this voter would get no ballot. Copy the                      name from the area rather than retyping it."
+                    "no area has external_id '{area}', so this voter would get no \
+                     ballot. Copy the identifier from the area rather than \
+                     retyping it — it is the column headed `area.external_id`, \
+                     not the area's name."
                 ),
             )
 .id("voter.area-unknown").detail("area", area).detail("row", index + 1));
@@ -1858,7 +1950,7 @@ fn check_census(plan: &Blueprint, report: &mut Report) {
         && plan
             .voters
             .iter()
-            .all(|voter| voter.area_name.trim().is_empty())
+            .all(|voter| voter.area_external_id.trim().is_empty())
     {
         report.push(Problem::warning(
             Code::MissingField,
@@ -2661,23 +2753,24 @@ fn voters_sheet(plan: &Blueprint) -> Result<Option<Sheet>, Problem> {
     /// does not — reaching for it would drag the whole builder into a front end
     /// that only wants to describe a plan. The two lists are checked against
     /// each other by `the_voters_sheet_matches_what_the_builder_reads`.
-    /// `area.external_id` is what the builder *requires*, and it was missing.
     ///
-    /// `build_tables::voter_area_name` reads `area.external_id` off every voter row
-    /// and reports "a voter needs an area" when it is absent — so a plan whose
-    /// census was otherwise perfect compiled to nothing. The wizard wrote
-    /// `area_name` only, which is what the finished CSV carries; the builder is the
-    /// thing that turns an id into that name, so it needs the id.
+    /// **`area.external_id` and no `area_name`.** The sheet used to carry both, and
+    /// each end read a different one: reopening a plan read `area_name`, the builder
+    /// read `area.external_id`, and the writer derived the second from the first by
+    /// matching names. So a voter's area went name → id → name on one round trip,
+    /// nothing said which column was authoritative, and editing the wrong one of the
+    /// two did nothing at all — the worst kind of silent, because the spreadsheet
+    /// looked like it had been corrected.
     ///
-    /// The old agreement test could not catch this: it asserted every column emitted
-    /// is one the builder knows, which is the wrong direction. A column the builder
-    /// cannot live without simply never appeared in the list it checked.
+    /// `build_tables::voter_area_name` still turns the identifier back into a name
+    /// for the finished CSV, because that is what the platform's importer matches on
+    /// ([`PlannedArea::name`]). That translation belongs there, at the boundary,
+    /// rather than in the authoring format.
     const NAMED: &[&str] = &[
         "username",
         "email",
         "first_name",
         "last_name",
-        "area_name",
         "area.external_id",
     ];
 
@@ -2709,16 +2802,7 @@ fn voters_sheet(plan: &Blueprint) -> Result<Option<Sheet>, Problem> {
                 text_or_blank(&voter.email),
                 text_or_blank(&voter.first_name),
                 text_or_blank(&voter.last_name),
-                text_or_blank(&voter.area_name),
-                // A plan names a voter's area the way a person would — by its
-                // name — and the builder matches on the identifier. Resolved here
-                // rather than asking somebody to type both: two spellings of one
-                // area is a census that imports into the wrong district.
-                plan.areas
-                    .iter()
-                    .find(|area| area.name == voter.area_name)
-                    .map(|area| Cell::text(area.external_id.clone()))
-                    .unwrap_or(Cell::Blank),
+                text_or_blank(&voter.area_external_id),
             ];
             row.extend(extra.iter().map(|key| {
                 voter
