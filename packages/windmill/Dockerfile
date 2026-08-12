@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM rust:1.90.0-slim-bookworm AS builder
+FROM rust:1.96.0-slim-bookworm AS builder
 
 WORKDIR /app
 COPY ./immu-board ./immu-board
@@ -15,9 +15,6 @@ COPY ./wrap-map-err ./wrap-map-err
 COPY ./velvet ./velvet
 
 RUN cp /app/windmill/external-bin/ecies-tool.jar /usr/local/bin/
-
-RUN rustup toolchain install nightly-2024-09-01 \
-    && rustup default nightly-2024-09-01
 
 # Use Docker build arguments to determine the architecture
 ARG TARGETARCH
