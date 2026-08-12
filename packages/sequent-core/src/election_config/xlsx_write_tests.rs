@@ -569,3 +569,45 @@ fn dump_a_workbook() {
     std::fs::write(&at, &bytes).expect("written");
     println!("wrote {} bytes to {}", bytes.len(), at.display());
 }
+
+/// A sentence is not markup because it contains a `<`.
+///
+/// `wages < $15/hr` is an ordinary thing for a union election to say, and one such
+/// row was enough to stop a whole column of descriptions wrapping — one value
+/// decides the column, so a false positive here is expensive.
+#[test]
+fn a_less_than_sign_in_a_sentence_is_not_a_tag() {
+    let headers = vec!["description".to_string()];
+    let prose = "Standing to make sure nobody at this depot is left on wages \
+                 < $15/hr while the executive votes itself another raise."
+        .to_string();
+    assert!(shapes(&headers, &vec![vec![prose]])[0].wrap);
+
+    // And a real tag still is one.
+    for markup in ["<p>Vote</p>", "</div>", "<!-- draft -->"] {
+        assert!(
+            !shapes(&headers, &vec![vec![markup.to_string()]])[0].wrap,
+            "{markup} should not wrap"
+        );
+    }
+}
+
+/// A description in a language written without spaces still wraps.
+///
+/// The long-unbroken-token rule is how an id or a base64 blob is recognised, and
+/// "no spaces in it" is a fine test for that in English. Japanese, Chinese and Thai
+/// are *written* without spaces, so without the ASCII clause a Japanese description
+/// is read as an identifier and left on one line running off the sheet — a failure
+/// aimed squarely at the languages least likely to be checked before a delivery
+/// goes out.
+#[test]
+fn prose_in_a_language_written_without_spaces_still_wraps() {
+    let headers = vec!["description".to_string()];
+    let japanese =
+        "組合員の皆様にお知らせいたします。今回の選挙では、労働時間の短縮と\
+                    見習い制度の再建を公約に掲げる候補者が立候補しております。"
+            .to_string();
+
+    assert!(japanese.chars().count() > 40 && !japanese.contains(' '));
+    assert!(shapes(&headers, &vec![vec![japanese]])[0].wrap);
+}

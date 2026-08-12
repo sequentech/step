@@ -20,9 +20,18 @@
 //! second copy of the zip crate into a bundle that is already 4.7 MB and goes to a
 //! browser. What is needed here is a header row and typed cells; that is this file.
 //!
-//! Only what the format needs: inline strings, numbers, booleans. No shared-string
-//! table, no styles, no column widths. A [`Workbook`] holds `serde_json::Value`
-//! and nothing else, so there is nothing else to write.
+//! Only what the format needs: inline strings, numbers, booleans, and no
+//! shared-string table. A [`Workbook`] holds `serde_json::Value` and nothing else,
+//! so there is no other *data* to write.
+//!
+//! There is presentation, though, and it is not decoration. A delivery is opened by
+//! somebody who has to read it, and ninety columns of identical default width — an
+//! `external_id` as wide as a biography, a description running off the edge of the
+//! sheet, a header row indistinguishable from the data under it — is a file they
+//! have to rebuild before they can use it. So this writer also decides a width and
+//! a wrap for each column ([`shapes`]) and writes an `xl/styles.xml` ([`STYLES`]).
+//! Both are derived from the content rather than from a table of known column
+//! names, because the columns belong to the client.
 
 use std::io::{Cursor, Write};
 
@@ -117,13 +126,12 @@ fn checked_name(name: &str) -> Result<&str, Problem> {
     Ok(name)
 }
 
-/// One cell, typed the way a spreadsheet stores it.
+/// One cell, typed the way a spreadsheet stores it, optionally carrying a format.
 ///
 /// Booleans and numbers are written as booleans and numbers so a person opening
 /// the file sees what the platform sees — and so the reader's own coercion is
 /// exercised rather than bypassed. Everything else is an inline string, which is
 /// what makes a shared-string table unnecessary.
-/// One cell, optionally carrying a `cellXfs` index.
 ///
 /// `style` is `None` for the overwhelming majority — a census is a hundred
 /// thousand rows of plain cells, and an `s="0"` on each of them is bytes that say
@@ -155,11 +163,6 @@ fn cell_xml(
     }
 }
 
-/// Write a workbook as the bytes of an `.xlsx`.
-///
-/// Reproducible: the same workbook gives the same bytes, because every member
-/// carries the fixed timestamp [`super::archive::zip`] already uses for the same
-/// reason. A delivery somebody diffs against last week's is the point.
 /// The three cell formats this writer uses, as a whole `xl/styles.xml`.
 ///
 /// Hand-written, like the rest of the part: the format wants a fixed order —
@@ -294,15 +297,35 @@ pub(crate) fn header_lines(headers: &[String], shape: &[Shape]) -> usize {
 /// Markup, a handlebars template, JSON, a URL, or a long run with no spaces at
 /// all. Wrapping any of these makes them *less* readable, which is the opposite of
 /// the point: somebody opening the Templates sheet is there to read the markup.
+///
+/// One value decides the whole column, so a false positive is expensive: it leaves
+/// every description on the sheet unwrapped. Both loose tests below were tightened
+/// for exactly that reason.
 fn is_markup(text: &str) -> bool {
-    text.contains('<')
-        || text.contains("{{")
+    // An opening *tag*, not the character. `wages < $15/hr` is an ordinary thing
+    // for a union election to say, and testing for `<` alone let one such sentence
+    // stop a whole column of descriptions wrapping.
+    let tag = text.match_indices('<').any(|(at, _)| {
+        match text[at + 1..].chars().next() {
+            Some(next) => {
+                next.is_ascii_alphabetic() || next == '/' || next == '!'
+            }
+            None => false,
+        }
+    });
+
+    tag || text.contains("{{")
         || text.starts_with('{')
         || text.starts_with('[')
         || text.starts_with("http://")
         || text.starts_with("https://")
-        // A long token with no break in it — an id, a base64 blob, a path.
-        || (text.len() > 40 && !text.contains(' '))
+        // A long token with no break in it — an id, a base64 blob, a path. Only
+        // when it is ASCII, because Japanese, Chinese and Thai are *written*
+        // without spaces: without that clause a Japanese description is read as an
+        // identifier and left on one unreadable line, which is the failure this
+        // whole function exists to prevent, aimed at the languages least likely to
+        // be checked before a delivery goes out.
+        || (text.is_ascii() && text.len() > 40 && !text.contains(' '))
 }
 
 /// The shape of every column on a sheet, in column order.
@@ -354,6 +377,12 @@ pub(crate) fn shapes(headers: &[String], values: &[Vec<String>]) -> Vec<Shape> {
         .collect()
 }
 
+/// Write a workbook as the bytes of an `.xlsx`.
+///
+/// Reproducible: the same workbook gives the same bytes, because every member
+/// carries the fixed timestamp [`super::archive::zip`] already uses for the same
+/// reason. A delivery somebody diffs against last week's is the point — and it is
+/// why nothing here consults a clock, including the styling.
 pub fn write_xlsx(workbook: &Workbook) -> Result<Vec<u8>, Problem> {
     let sheets = workbook.sheets();
     for sheet in sheets {
