@@ -36,6 +36,19 @@ tally and the counter that incremented is the class. `pred?` compares
 against the documented precedence (decline → invalid → mix → marker →
 empty → valid); ✗ = code and docs disagree.
 
+**Precedence semantics: first matching guard wins.** A ballot often
+satisfies several class descriptions at once (e.g. blank marker +
+a `selectedMin` error); its class is decided by the *earliest* guard
+it trips, and every later description it also satisfies is never
+consulted. Two guards split internally: *decline* is purity-guarded
+(decline + otherwise-empty → Declined, decline + any content →
+ImplicitInvalid) and *invalid* splits on the flag (flag →
+ExplicitInvalid even when errors are also present; errors alone →
+ImplicitInvalid). This ordering is why a marker-only ballot with an
+error can never reach ExplicitBlank (S2's transmutation) and why
+ImplicitInvalid dominates the table — it is the sink every
+contradiction drains into.
+
 | decline | flag | errors | selection | class (recorded) | pred? |
 |---|---|---|---|---|---|
 | f | f | f | none | ImplicitBlank | ✓ |
