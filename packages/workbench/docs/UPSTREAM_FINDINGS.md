@@ -171,7 +171,7 @@ combination was not considered. **Confidence:** genuinely uncertain.
 **Consultation question:** is the marker-inclusive count intended
 semantics or an artifact of implementation convenience?
 
-## S4. Under-vote alert/gate threshold asymmetries at `n = 0`
+## S4. Under-vote alert/gate threshold discrepancy at `n = 0`
 
 **Observed** (`characterization/undervote-rule.md`): (a) with
 `min_votes = 0`, the under-vote zone `min ≤ n < max` includes `n = 0`, so
@@ -179,12 +179,37 @@ the under-vote alert fires on a completely empty ballot, overlapping the
 blank condition (the UI dedups only when a blankVote message is also
 present); (b) the checker alerts at `n = 0` but the soft gate requires
 `n > 0`, so the WARN_AND_ALERT dialog never fires for the empty ballot
-the checker just alerted on. **Why suspect:** the thresholds of two
-mechanisms that appear to implement one policy differ; possibly
-deliberate (blank policy owns the empty case), possibly an off-by-design
-inconsistency. **Confidence:** low stakes either way; worth a question,
-not an alarm. **Consultation question:** are the alert and gate meant to
-share a threshold?
+the checker just alerted on.
+
+**Root cause** (`checker.rs:check_under_vote_policy` vs
+`voting_screen.rs:check_voting_error_dialog_util`): the boundary is defined
+*twice*. For the ranked-choice rules the gate raises its dialog by reading
+the checker's verdict — it searches `invalid_errors` for
+`duplicatedPosition` / `preferenceOrderWithGaps` — so those cannot disagree
+with the checker. The under-vote branch does not: it re-derives the zone
+from `selections_with_markers` / `min` / `max`, and its re-derivation adds
+an `n > 0` guard the checker lacks (the checker uses `n ≥ min` with `min`
+defaulting to `0`). Two independent expressions for one boundary, drifted
+at `n = 0`.
+
+**Defect or intended?** Our read: the `n > 0` guard itself is probably
+*deliberate* — it hands the empty ballot to the blank branch (which fires
+at `selections_with_markers == 0`) to avoid double-dialoging. What is
+defect-shaped is that this carve-out was made by *recomputing* in the gate
+rather than in the shared predicate, so the checker never got the same
+carve-out and still alerts "under-vote" on the very ballot the gate treats
+as "blank". The gate already demonstrates the clean pattern (consume the
+checker's verdict) for the ranked-choice rules; under-vote/over-vote/blank
+were simply never migrated to it — this reads as incremental accretion, not
+a designed split. The fix that removes the whole class: define the boundary
+once (in the checker), have the gate consume its `underVote` alert, and
+decide the `n = 0` hand-off to the blank rule in that one place.
+
+**Confidence:** low stakes behaviourally (a missing dialog on an empty
+ballot, which the blank policy usually covers), but the duplicated predicate
+is a real latent-defect smell. **Consultation question:** is the `n = 0`
+hand-off to the blank rule intended — and if so, should the checker and gate
+share one predicate so they cannot drift again?
 
 ## S5. A null vote preserves the voter's candidate selections in the ciphertext
 
