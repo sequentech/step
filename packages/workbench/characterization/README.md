@@ -78,10 +78,11 @@ its source within minutes of being written.
    belongs in a cross-layer view labelled as such, never in a raw
    observation cell.
 4. **Roles of the artifacts.** The recorded JSON is the *characterization*
-   (evidence, and after adjudication the regression oracle); the
-   `predict()` rule set is the embryonic *specification* (the canonical
-   statement of behaviour — small, readable, per-rule); tables are *views*
-   for humans; **suspects** live in `../docs/UPSTREAM_FINDINGS.md` until
+   (evidence, and after adjudication the regression oracle); the embryonic
+   *specification* is [`spec.mjs`](spec.mjs) (the shared, canonical
+   statement of the gates / classifier / filter / constraint) composed with
+   each runner's rule-specific `predict()` emissions; tables are *views* for
+   humans; **suspects** live in `../docs/UPSTREAM_FINDINGS.md` until
    consultation adjudicates them. The spec is validated against the
    recording by enumeration, not by eye.
 5. **Narrative claims meet the table standard.** The prose in `../docs/`
@@ -116,10 +117,30 @@ Two runners per rule, matching the functional model in
   every WarnBox carries (upstream #2832), which yields raw message keys —
   no i18n ambiguity.
 
-Each layers-1+2 runner also carries a `predict()` function — a direct
-transcription of the documented rules. It is deliberately independent of
-the implementation: it is the embryonic declarative mapping, and every
-recorded cell is compared against it (`pred?` column / mismatch report).
+Each layers-1+2 runner carries a `predict()` function — the embryonic
+declarative mapping, deliberately independent of the implementation, against
+which every recorded cell is compared (`pred?` column / mismatch report).
+Since the spec-consolidation, `predict()` supplies only its rule-specific
+**checker emissions** (which errors/alerts the checker produces per config ×
+state); everything downstream — the two gates, the tally classifier, the
+booth filter (inline visibility), and the input-constraint model — composes
+[`spec.mjs`](spec.mjs), the single shared transcription of the production
+rules. The `classifier-table` runner's `predict()` *is* `spec.classify`, so
+that table validates the shared classifier directly.
+
+**Two validation lanes, unequal coverage.** `spec.mjs`'s gates and classifier
+transcribe Rust that IS compiled to wasm, so `pred?` checks them against the
+real wasm on every cell (independent derivations — this JS vs that Rust —
+so agreement is real information). Its `inlineVisible` / `inputConstraint`
+transcribe TypeScript that is NOT callable headlessly (`filterErrorList`;
+the input disable), so they are **predictions only** in a Node runner — the
+`inline (shown)` column is one — validated against the real DOM only where a
+browser runner covers the cell, and never against a re-computation of
+themselves (that check would be tautological). A per-cell DOM-validation
+lane is future work, gated on confirming the browser runners run fast enough
+(see the e2e-cost note in
+[`../docs/VALIDATION_LOGIC_DISTILLATION.md`](../docs/VALIDATION_LOGIC_DISTILLATION.md)
+§5.3).
 
 ## Coverage so far
 
