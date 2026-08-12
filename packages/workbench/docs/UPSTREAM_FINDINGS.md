@@ -125,12 +125,13 @@ axes, and conflating them muddles the consultation:
 | Axis | What it is about | Suspects |
 |---|---|---|
 | **Silent discounting** | the voter is given no signal that their vote will not count | **S1** |
-| **Marker semantics** | what an explicit-blank / explicit-invalid marker *means* and does | **S3** (blank counts toward min), **S5** (invalid preserves choices) |
+| **Marker semantics** | what an explicit-blank / explicit-invalid marker *means* and does | **S3** (a blank is subject to the count rules), **S5** (invalid preserves choices) |
 | **Threshold consistency** | two mechanisms for one policy disagree on a boundary | **S4** |
 
 **S2 is not a fourth axis — it is the intersection of S1 and S3.** A
-deliberate explicit-blank (S3's marker-counting) that lands below
-`min_votes: 2` is discarded *silently* (S1). It is kept as its own entry
+deliberate explicit-blank, run through the `min_votes` rule at all
+(S3's domain facet) and failing it, is discarded *silently* (S1). It is
+kept as its own entry
 only because it is the sharpest single cell where the two axes collide;
 its two consultation questions belong one to each axis (should a blank be
 subject to `min_votes`? → S3; should any rejection be silent? → S1). Read
@@ -198,16 +199,33 @@ combination be flagged at configuration time? **Reproduce:**
 
 ## S2. (S1 ∩ S3) A deliberate explicit-blank vote silently discarded when `min_votes ≥ 2`
 
-*This is the intersection of S1 (silent discounting) and S3 (explicit-blank
-markers count toward `min_votes`), not an independent finding — see the
+*This is the intersection of S1 (silent discounting) and S3 (a deliberate
+blank subject to `min_votes`), not an independent finding — see the
 axes table above. Recorded separately because it is the sharpest cell.*
 
 **Observed** (`characterization/minvote-rule.md`, `min_votes=2 ×
 marker_only`): a voter who selects the explicit-blank marker — an
 unambiguous, deliberate expression of "blank vote" — has the ballot
-silently classified `ImplicitInvalid`, because the marker counts as one
-selection and 1 < 2. The silence is the S1 facet; the "a blank counts as a
-selection" is the S3 facet. Qualitatively sharper than a plain S1 cell:
+silently classified `ImplicitInvalid`. The silence is the S1 facet. The
+S3 facet is the rule's *applicability*, not the count value: the
+`min_votes` check runs against a deliberately-blank ballot at all, and
+the resulting `selectedMin` error outranks the blank marker at
+classification (`classifier-table.md`: errors × marker →
+ImplicitInvalid; precedence decline → invalid → mix → marker → empty →
+valid). That the marker counts as one selection is immaterial here — a
+non-counting design would fail `0 < 2` identically. Counting decides
+only *where* the collision first appears: at `min_votes: 1` the
+marker-inclusive count **rescues** the blank (1 ≥ 1, no error, tallied
+`ExplicitBlank` — `minvote-rule.md`, `min=1 × marker_only`), which is
+why S2 exists only at `min ≥ 2`.
+
+A second harm, distinct from the silence: the ballot is not merely
+discounted but **misreported**. A deliberate blank lands in the
+implicit-invalid (accident) bucket instead of the explicit-blank
+bucket — a first-class reported category (the results report carries an
+"Explicit blank votes" line, and blanks count inside "total valid votes
+(including blanks)"). Even the aggregate statistics misstate the
+voter's intent. Qualitatively sharper than a plain S1 cell:
 this is not voter inattention; a clearly expressed intent is dropped
 without notice. Confirmed end-to-end through the full pipeline
 (the voter clicks "Blank vote (explicit blank)", is shown nothing, ballot tallies
@@ -216,18 +234,24 @@ blank ever be subject to `min_votes` at all (see S3), and if it is,
 should its rejection ever be silent? **Reproduce:**
 [REPRODUCE.md](REPRODUCE.md) Part 1, Recipe 2, variant d.
 
-## S3. Explicit-blank markers count toward `min_votes`
+## S3. A deliberate blank is subject to the selection-count rules (the marker counting as one selection)
 
 **Observed** (`raw_ballot.rs` decode: `num_selected_with_markers`;
-recorded in `characterization/blank-rule.md` and `minvote-rule.md`): a
-selected explicit-blank marker counts as a selection for the min/max/
-under/blank rules — so it *satisfies* `min_votes: 1`, and *fails*
-`min_votes: 2` (producing S2). **Why suspect:** defensible design either
-way (a blank is "a choice" vs. "the absence of choices"), but the
-interaction with `min_votes ≥ 2` produces S2, which suggests the
+recorded in `characterization/blank-rule.md` and `minvote-rule.md`): two
+nested facts. (i) **Domain** — an explicit-blank ballot is run through
+the min/max/under/blank count rules at all. (ii) **Count value** — the
+selected marker counts as one selection in them. The count value masks
+the domain fact in the common case: the marker *satisfies*
+`min_votes: 1`, so a deliberate blank sails through. At `min_votes ≥ 2`
+the mask fails and the **domain** fact produces S2 — the count value is
+immaterial there (0 and 1 both fall below the min). **Why suspect:**
+defensible design either way (a blank is "a choice" vs. "the absence of
+choices"), but the `min ≥ 2` interaction produces S2, which suggests the
 combination was not considered. **Confidence:** genuinely uncertain.
-**Consultation question:** is the marker-inclusive count intended
-semantics or an artifact of implementation convenience?
+**Consultation questions:** (i) should a deliberately-blank ballot be
+inside the count rules' domain at all? (ii) if it is, is the
+marker-inclusive count intended semantics or an artifact of
+implementation convenience?
 
 ## S4. Under-vote alert/gate threshold discrepancy at `n = 0`
 
