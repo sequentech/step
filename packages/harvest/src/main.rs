@@ -128,6 +128,8 @@ async fn rocket() -> _ {
                 routes::external_reconciliation::create_reconciliation_import,
                 routes::external_reconciliation::apply_reconciliation_changes,
                 routes::create_ballot_receipt::create_ballot_receipt,
+                routes::support_materials::acknowledge_support_materials_route,
+                routes::support_materials::get_support_materials_acknowledgment_route,
                 routes::election_dates::manage_election_dates,
                 routes::custom_urls::update_custom_url,
                 routes::custom_urls::get_custom_url,
