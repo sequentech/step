@@ -242,3 +242,4 @@ writeFileSync(
     ) + "\n"
 )
 log("\nwrote overvote-e2e-pipeline.recorded.json")
+if (!confirmed) process.exitCode = 1

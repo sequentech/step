@@ -245,3 +245,4 @@ writeFileSync(
     ) + "\n"
 )
 console.log("\nwrote invalid-latent-choices-e2e.recorded.json")
+if (!confirmed) process.exitCode = 1

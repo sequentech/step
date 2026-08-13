@@ -229,30 +229,31 @@ Recorded evidence:
 
 ## Automated verification
 
-If you would rather not click through, the three recipes above are also
-checked end-to-end by
+If you would rather not click through, each finding is confirmed end-to-end
+(booth → encrypt → cast → decrypt → decode → tally) by a dedicated pipeline
+runner — `overvote-e2e-pipeline.mjs` (S1), `minvote-e2e-pipeline.mjs` (S2),
+and `invalid-latent-choices-e2e.mjs` (S5). To run all three and get one
+aggregate verdict, use the orchestrator
 [../characterization/reproduce-verify.mjs](../characterization/reproduce-verify.mjs).
-It drives them **exactly as written**: configuration is set through the
-Policy overrides panel (not a store shortcut), the booth is entered from the
-voter page, and all navigation after that is client-side so the ephemeral
-overrides survive. With the dev server running (`yarn dev`):
+With the dev server running (`corepack yarn workspace "@sequentech/workbench-app" dev`):
 
 ```
 node characterization/reproduce-verify.mjs
 ```
 
-It prints a `PASS` line per recipe and writes `reproduce-verify.recorded.json`.
-For the over-vote recipe it also reports the live selection count on the
-voting screen (`formed=2`) — proof that the panel override reached the booth,
-since a second selection in a max-1 contest is otherwise impossible.
+It runs the three runners in sequence (they each reset and reload the
+fixture, so they cannot overlap), checks each one's exit code and recorded
+confirmed-flag, prints a `PASS` line per finding, writes
+`reproduce-verify.recorded.json`, and exits nonzero if any finding is not
+confirmed.
 
-This uses the **same Playwright mechanism** as the full-pipeline evidence
-scripts (`overvote-e2e-pipeline.mjs`, `minvote-e2e-pipeline.mjs`,
-`invalid-latent-choices-e2e.mjs`), which confirm the same behaviours
-booth-to-tally. The one deliberate difference: those scripts set config via
-`window.__store.dispatch` (and so navigate with `page.goto`), whereas this
-one exercises the **panel UI** a reviewer actually uses — which is why it
-must navigate client-side (a full page load would drop the overrides).
+These runners set configuration via `window.__store.dispatch` and confirm the
+crypto path booth-to-tally. The complementary **reviewer path** — the same
+Policy-overrides panel a reviewer actually clicks — is exercised separately,
+across *every* cell of the validation grid, by
+[../characterization/dom-validate.mjs](../characterization/dom-validate.mjs)
+(it configures through the panel on purpose), so it is no longer re-checked
+here.
 
 ## Where each finding is explained
 

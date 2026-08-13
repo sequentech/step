@@ -1,43 +1,27 @@
 {
-  "config_path": "policy-overrides-panel-ui",
-  "results": {
-    "overvote": {
-      "formed": 2,
-      "silent": true,
-      "tally": {
-        "total_votes": 1,
-        "total_valid_votes": 0,
-        "invalid_implicit": 1,
-        "invalid_explicit": 0
-      },
-      "notCounted": true,
+  "role": "orchestrator over the *-e2e pipeline runners",
+  "runners": [
+    {
+      "finding": "S1 — over-vote silently discarded",
+      "script": "overvote-e2e-pipeline.mjs",
+      "exit": 0,
+      "recordedConfirmed": true,
       "pass": true
     },
-    "minvote_s2": {
-      "silent": true,
-      "tally": {
-        "total_votes": 1,
-        "total_valid_votes": 0,
-        "invalid_implicit": 1,
-        "invalid_explicit": 0
-      },
-      "notCounted": true,
+    {
+      "finding": "S2 — deliberate blank below min_votes silently discarded",
+      "script": "minvote-e2e-pipeline.mjs",
+      "exit": 0,
+      "recordedConfirmed": true,
       "pass": true
     },
-    "s5": {
-      "decryptedBigInt": "3",
-      "decodedFlag": true,
-      "decodedSelected": 1,
-      "choicePreserved": true,
-      "tally": {
-        "total_votes": 1,
-        "total_valid_votes": 0,
-        "invalid_implicit": 0,
-        "invalid_explicit": 1
-      },
-      "spoiled": true,
+    {
+      "finding": "S5 — null vote preserves the candidate selection in the ciphertext",
+      "script": "invalid-latent-choices-e2e.mjs",
+      "exit": 0,
+      "recordedConfirmed": true,
       "pass": true
     }
-  },
+  ],
   "all_pass": true
 }

@@ -229,3 +229,4 @@ writeFileSync(
     JSON.stringify({invalid_vote_policy: "allowed", cells: results, all_confirmed: allConfirmed}, null, 2) + "\n"
 )
 console.log("wrote minvote-e2e-pipeline.recorded.json")
+if (!allConfirmed) process.exitCode = 1
