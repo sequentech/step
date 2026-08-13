@@ -679,7 +679,9 @@ impl Translated {
 /// Two, because two are what an election actually sends: one telling somebody
 /// their ballot is ready, one telling them it is nearly too late. A free-text
 /// alias would let a client invent a third that nothing downstream knows about.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize,
+)]
 #[serde(rename_all = "kebab-case")]
 pub enum MessageKind {
     /// Sent when voting opens: here is your ballot.
