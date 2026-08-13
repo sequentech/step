@@ -179,8 +179,8 @@ writeFileSync(
 const short = (xs) =>
     xs.length === 0 ? "—" : xs.map((m) => m.replace(/^errors\.\w+\./, "")).join("<br>")
 const fmt = (r) =>
-    `| ${isSilentDiscount(r) ? "**⚠** " : ""}${r.under_vote_policy} | ${r.invalid_vote_policy} | ${r.state} | ` +
-    `${short(r.observed.errors)} | ${short(r.observed.alerts)} | ${short(r.derived_inline_visible)} | ` +
+    `| ${r.under_vote_policy} | ${r.invalid_vote_policy} | ${r.state} | ` +
+    `${short(r.observed.errors)} | ${short(r.observed.alerts)} | ` +
     `${r.observed.hard ? "**block**" : "—"} | ${r.observed.soft ? "dialog" : "—"} | ` +
     `${r.observed.tally} | ${r.match ? "✓" : "**✗**"} |`
 const md = [
@@ -203,10 +203,13 @@ const md = [
     "Columns: *errors* / *alerts* = checker record (keys, prefix stripped);",
     "*hard/soft gate* = review-transition gates; *tally* = **recorded**",
     "per-ballot class (velvet-wasm). `pred?`: ✗ = code and docs disagree.",
-    "A row prefixed **⚠** is a derived silent-discount marker",
-    "(`harness.mjs::isSilentDiscount`). **The under-vote rule produces none by",
-    "design**: the checker emits only alerts, never errors, so an under-voted",
-    "ballot is structurally `Valid` — confirming §4.4's 'cosmetic policy'.",
+    "",
+    "This is the **partial (headless) table** (WASM observations only); inline",
+    "visibility, the input constraint, and the silent-discount marker (⚠) are",
+    "browser-only and live in the complete table (`dom-validate.mjs`). **The",
+    "under-vote rule produces no silent discounts by design**: the checker",
+    "emits only alerts, never errors, so an under-voted ballot is structurally",
+    "`Valid` — confirming §4.4's 'cosmetic policy'.",
     "",
     "Two facts this recording pinned (both initially mis-transcribed, then",
     "corrected against the code): with `min_votes = 0` the under-vote zone",
@@ -216,24 +219,9 @@ const md = [
     "only for `under`, not for the empty ballot the checker alerted on —",
     "the alert and gate thresholds differ.",
     "",
-    "| under_policy | invalid_policy | state | errors | alerts | inline (shown) | hard gate | soft gate | tally | pred? |",
-    "|---|---|---|---|---|---|---|---|---|---|",
+    "| under_policy | invalid_policy | state | errors | alerts | hard gate | soft gate | tally | pred? |",
+    "|---|---|---|---|---|---|---|---|---|",
     ...rows.map(fmt),
-    "",
-    "**inline (shown)** — what the voter actually sees inline, after the booth's",
-    "master filter (`spec.inlineVisible`). It can differ from the raw *errors*",
-    "column: under `invalid_vote_policy = allowed` the filter hides every error",
-    "except its keep-list (`selectedMax` unless `over_vote_policy = allowed`;",
-    "`blankVote` when `blank = not-allowed`). An error listed in *errors* but",
-    "absent here, with no gate, is exactly what a silent **⚠** turns on.",
-    "",
-    "**Provenance.** *errors*, *alerts*, *hard/soft gate*, *tally* are",
-    "WASM-observed and checked cell-by-cell by `pred?`. *inline (shown)* is a",
-    "PREDICTION from the shared spec (`spec.mjs`) — `filterErrorList` is",
-    "TypeScript, not callable headlessly — validated against the real DOM only",
-    "for browser-covered cells (the silent-discount cells, via the e2e runners);",
-    "prediction-only elsewhere. A per-cell DOM-validation lane is deferred (see",
-    "the e2e-cost note in VALIDATION_LOGIC_DISTILLATION.md §5.3).",
     "",
 ].join("\n")
 writeFileSync(path.join(here, "undervote-rule.md"), md)

@@ -18,48 +18,36 @@ encode); *marker_plus* adds a regular candidate. *none* / *regular* are
 blank / valid controls.
 
 Columns as in the other rule tables; *tally* is the **recorded** class.
-`⚠` never appears: explicit invalidity is a deliberate voter opt-in and
-is excluded from the silent-discount property by definition.
+This is the **partial (headless) table** (WASM observations only); inline
+visibility and the input constraint are browser-only and live in the
+complete table (`dom-validate.mjs`). Silent-discount marking (⚠) never
+applies here: explicit invalidity is a deliberate voter opt-in, excluded
+from the property by definition.
 
 **Route convergence: recorded** — flag_only and
 marker produce identical checker/gate/tally on every policy (the gates'
 `explicit_invalid_marker_selected` dedup working as intended); see the
 runner's console output and `routes_converge` in the recorded JSON.
 
-| invalid_policy | state | errors | alerts | inline (shown) | hard gate | soft gate | tally | pred? |
-|---|---|---|---|---|---|---|---|---|
-| allowed | none | — | — | — | — | — | ImplicitBlank | ✓ |
-| allowed | regular | — | — | — | — | — | Valid | ✓ |
-| allowed | flag_only | — | — | — | — | — | ExplicitInvalid | ✓ |
-| allowed | marker | — | — | — | — | — | ExplicitInvalid | ✓ |
-| allowed | marker_plus | — | — | — | — | — | ExplicitInvalid | ✓ |
-| warn | none | — | — | — | — | — | ImplicitBlank | ✓ |
-| warn | regular | — | — | — | — | — | Valid | ✓ |
-| warn | flag_only | — | — | — | — | — | ExplicitInvalid | ✓ |
-| warn | marker | — | — | — | — | — | ExplicitInvalid | ✓ |
-| warn | marker_plus | — | — | — | — | — | ExplicitInvalid | ✓ |
-| warn-invalid-implicit-and-explicit | none | — | — | — | — | — | ImplicitBlank | ✓ |
-| warn-invalid-implicit-and-explicit | regular | — | — | — | — | — | Valid | ✓ |
-| warn-invalid-implicit-and-explicit | flag_only | — | alert | alert | — | dialog | ExplicitInvalid | ✓ |
-| warn-invalid-implicit-and-explicit | marker | — | alert | alert | — | dialog | ExplicitInvalid | ✓ |
-| warn-invalid-implicit-and-explicit | marker_plus | — | alert | alert | — | dialog | ExplicitInvalid | ✓ |
-| not-allowed | none | — | — | — | — | — | ImplicitBlank | ✓ |
-| not-allowed | regular | — | — | — | — | — | Valid | ✓ |
-| not-allowed | flag_only | notAllowed | — | notAllowed | **block** | dialog | ExplicitInvalid | ✓ |
-| not-allowed | marker | notAllowed | — | notAllowed | **block** | dialog | ExplicitInvalid | ✓ |
-| not-allowed | marker_plus | notAllowed | — | notAllowed | **block** | dialog | ExplicitInvalid | ✓ |
-
-**inline (shown)** — what the voter actually sees inline, after the booth's
-master filter (`spec.inlineVisible`). It can differ from the raw *errors*
-column: under `invalid_vote_policy = allowed` the filter hides every error
-except its keep-list (`selectedMax` unless `over_vote_policy = allowed`;
-`blankVote` when `blank = not-allowed`). An error listed in *errors* but
-absent here, with no gate, is exactly what a silent **⚠** turns on.
-
-**Provenance.** *errors*, *alerts*, *hard/soft gate*, *tally* are
-WASM-observed and checked cell-by-cell by `pred?`. *inline (shown)* is a
-PREDICTION from the shared spec (`spec.mjs`) — `filterErrorList` is
-TypeScript, not callable headlessly — validated against the real DOM only
-for browser-covered cells (the silent-discount cells, via the e2e runners);
-prediction-only elsewhere. A per-cell DOM-validation lane is deferred (see
-the e2e-cost note in VALIDATION_LOGIC_DISTILLATION.md §5.3).
+| invalid_policy | state | errors | alerts | hard gate | soft gate | tally | pred? |
+|---|---|---|---|---|---|---|---|
+| allowed | none | — | — | — | — | ImplicitBlank | ✓ |
+| allowed | regular | — | — | — | — | Valid | ✓ |
+| allowed | flag_only | — | — | — | — | ExplicitInvalid | ✓ |
+| allowed | marker | — | — | — | — | ExplicitInvalid | ✓ |
+| allowed | marker_plus | — | — | — | — | ExplicitInvalid | ✓ |
+| warn | none | — | — | — | — | ImplicitBlank | ✓ |
+| warn | regular | — | — | — | — | Valid | ✓ |
+| warn | flag_only | — | — | — | — | ExplicitInvalid | ✓ |
+| warn | marker | — | — | — | — | ExplicitInvalid | ✓ |
+| warn | marker_plus | — | — | — | — | ExplicitInvalid | ✓ |
+| warn-invalid-implicit-and-explicit | none | — | — | — | — | ImplicitBlank | ✓ |
+| warn-invalid-implicit-and-explicit | regular | — | — | — | — | Valid | ✓ |
+| warn-invalid-implicit-and-explicit | flag_only | — | alert | — | dialog | ExplicitInvalid | ✓ |
+| warn-invalid-implicit-and-explicit | marker | — | alert | — | dialog | ExplicitInvalid | ✓ |
+| warn-invalid-implicit-and-explicit | marker_plus | — | alert | — | dialog | ExplicitInvalid | ✓ |
+| not-allowed | none | — | — | — | — | ImplicitBlank | ✓ |
+| not-allowed | regular | — | — | — | — | Valid | ✓ |
+| not-allowed | flag_only | notAllowed | — | **block** | dialog | ExplicitInvalid | ✓ |
+| not-allowed | marker | notAllowed | — | **block** | dialog | ExplicitInvalid | ✓ |
+| not-allowed | marker_plus | notAllowed | — | **block** | dialog | ExplicitInvalid | ✓ |

@@ -17,10 +17,13 @@ States: *empty* = 0 selections; *under* = 1 (the under-vote zone,
 Columns: *errors* / *alerts* = checker record (keys, prefix stripped);
 *hard/soft gate* = review-transition gates; *tally* = **recorded**
 per-ballot class (velvet-wasm). `pred?`: ✗ = code and docs disagree.
-A row prefixed **⚠** is a derived silent-discount marker
-(`harness.mjs::isSilentDiscount`). **The under-vote rule produces none by
-design**: the checker emits only alerts, never errors, so an under-voted
-ballot is structurally `Valid` — confirming §4.4's 'cosmetic policy'.
+
+This is the **partial (headless) table** (WASM observations only); inline
+visibility, the input constraint, and the silent-discount marker (⚠) are
+browser-only and live in the complete table (`dom-validate.mjs`). **The
+under-vote rule produces no silent discounts by design**: the checker
+emits only alerts, never errors, so an under-voted ballot is structurally
+`Valid` — confirming §4.4's 'cosmetic policy'.
 
 Two facts this recording pinned (both initially mis-transcribed, then
 corrected against the code): with `min_votes = 0` the under-vote zone
@@ -30,68 +33,53 @@ blankVote dedups it). And the soft gate requires `n > 0`, so it fires
 only for `under`, not for the empty ballot the checker alerted on —
 the alert and gate thresholds differ.
 
-| under_policy | invalid_policy | state | errors | alerts | inline (shown) | hard gate | soft gate | tally | pred? |
-|---|---|---|---|---|---|---|---|---|---|
-| allowed | allowed | empty | — | — | — | — | — | ImplicitBlank | ✓ |
-| allowed | allowed | under | — | — | — | — | — | Valid | ✓ |
-| allowed | allowed | full | — | — | — | — | — | Valid | ✓ |
-| allowed | warn | empty | — | — | — | — | — | ImplicitBlank | ✓ |
-| allowed | warn | under | — | — | — | — | — | Valid | ✓ |
-| allowed | warn | full | — | — | — | — | — | Valid | ✓ |
-| allowed | warn-invalid-implicit-and-explicit | empty | — | — | — | — | — | ImplicitBlank | ✓ |
-| allowed | warn-invalid-implicit-and-explicit | under | — | — | — | — | — | Valid | ✓ |
-| allowed | warn-invalid-implicit-and-explicit | full | — | — | — | — | — | Valid | ✓ |
-| allowed | not-allowed | empty | — | — | — | — | — | ImplicitBlank | ✓ |
-| allowed | not-allowed | under | — | — | — | — | — | Valid | ✓ |
-| allowed | not-allowed | full | — | — | — | — | — | Valid | ✓ |
-| warn | allowed | empty | — | underVote | underVote | — | — | ImplicitBlank | ✓ |
-| warn | allowed | under | — | underVote | underVote | — | — | Valid | ✓ |
-| warn | allowed | full | — | — | — | — | — | Valid | ✓ |
-| warn | warn | empty | — | underVote | underVote | — | — | ImplicitBlank | ✓ |
-| warn | warn | under | — | underVote | underVote | — | — | Valid | ✓ |
-| warn | warn | full | — | — | — | — | — | Valid | ✓ |
-| warn | warn-invalid-implicit-and-explicit | empty | — | underVote | underVote | — | — | ImplicitBlank | ✓ |
-| warn | warn-invalid-implicit-and-explicit | under | — | underVote | underVote | — | — | Valid | ✓ |
-| warn | warn-invalid-implicit-and-explicit | full | — | — | — | — | — | Valid | ✓ |
-| warn | not-allowed | empty | — | underVote | underVote | — | — | ImplicitBlank | ✓ |
-| warn | not-allowed | under | — | underVote | underVote | — | — | Valid | ✓ |
-| warn | not-allowed | full | — | — | — | — | — | Valid | ✓ |
-| warn-only-in-review | allowed | empty | — | underVote | underVote | — | — | ImplicitBlank | ✓ |
-| warn-only-in-review | allowed | under | — | underVote | underVote | — | — | Valid | ✓ |
-| warn-only-in-review | allowed | full | — | — | — | — | — | Valid | ✓ |
-| warn-only-in-review | warn | empty | — | underVote | underVote | — | — | ImplicitBlank | ✓ |
-| warn-only-in-review | warn | under | — | underVote | underVote | — | — | Valid | ✓ |
-| warn-only-in-review | warn | full | — | — | — | — | — | Valid | ✓ |
-| warn-only-in-review | warn-invalid-implicit-and-explicit | empty | — | underVote | underVote | — | — | ImplicitBlank | ✓ |
-| warn-only-in-review | warn-invalid-implicit-and-explicit | under | — | underVote | underVote | — | — | Valid | ✓ |
-| warn-only-in-review | warn-invalid-implicit-and-explicit | full | — | — | — | — | — | Valid | ✓ |
-| warn-only-in-review | not-allowed | empty | — | underVote | underVote | — | — | ImplicitBlank | ✓ |
-| warn-only-in-review | not-allowed | under | — | underVote | underVote | — | — | Valid | ✓ |
-| warn-only-in-review | not-allowed | full | — | — | — | — | — | Valid | ✓ |
-| warn-and-alert | allowed | empty | — | underVote | underVote | — | — | ImplicitBlank | ✓ |
-| warn-and-alert | allowed | under | — | underVote | underVote | — | dialog | Valid | ✓ |
-| warn-and-alert | allowed | full | — | — | — | — | — | Valid | ✓ |
-| warn-and-alert | warn | empty | — | underVote | underVote | — | — | ImplicitBlank | ✓ |
-| warn-and-alert | warn | under | — | underVote | underVote | — | dialog | Valid | ✓ |
-| warn-and-alert | warn | full | — | — | — | — | — | Valid | ✓ |
-| warn-and-alert | warn-invalid-implicit-and-explicit | empty | — | underVote | underVote | — | — | ImplicitBlank | ✓ |
-| warn-and-alert | warn-invalid-implicit-and-explicit | under | — | underVote | underVote | — | dialog | Valid | ✓ |
-| warn-and-alert | warn-invalid-implicit-and-explicit | full | — | — | — | — | — | Valid | ✓ |
-| warn-and-alert | not-allowed | empty | — | underVote | underVote | — | — | ImplicitBlank | ✓ |
-| warn-and-alert | not-allowed | under | — | underVote | underVote | — | dialog | Valid | ✓ |
-| warn-and-alert | not-allowed | full | — | — | — | — | — | Valid | ✓ |
-
-**inline (shown)** — what the voter actually sees inline, after the booth's
-master filter (`spec.inlineVisible`). It can differ from the raw *errors*
-column: under `invalid_vote_policy = allowed` the filter hides every error
-except its keep-list (`selectedMax` unless `over_vote_policy = allowed`;
-`blankVote` when `blank = not-allowed`). An error listed in *errors* but
-absent here, with no gate, is exactly what a silent **⚠** turns on.
-
-**Provenance.** *errors*, *alerts*, *hard/soft gate*, *tally* are
-WASM-observed and checked cell-by-cell by `pred?`. *inline (shown)* is a
-PREDICTION from the shared spec (`spec.mjs`) — `filterErrorList` is
-TypeScript, not callable headlessly — validated against the real DOM only
-for browser-covered cells (the silent-discount cells, via the e2e runners);
-prediction-only elsewhere. A per-cell DOM-validation lane is deferred (see
-the e2e-cost note in VALIDATION_LOGIC_DISTILLATION.md §5.3).
+| under_policy | invalid_policy | state | errors | alerts | hard gate | soft gate | tally | pred? |
+|---|---|---|---|---|---|---|---|---|
+| allowed | allowed | empty | — | — | — | — | ImplicitBlank | ✓ |
+| allowed | allowed | under | — | — | — | — | Valid | ✓ |
+| allowed | allowed | full | — | — | — | — | Valid | ✓ |
+| allowed | warn | empty | — | — | — | — | ImplicitBlank | ✓ |
+| allowed | warn | under | — | — | — | — | Valid | ✓ |
+| allowed | warn | full | — | — | — | — | Valid | ✓ |
+| allowed | warn-invalid-implicit-and-explicit | empty | — | — | — | — | ImplicitBlank | ✓ |
+| allowed | warn-invalid-implicit-and-explicit | under | — | — | — | — | Valid | ✓ |
+| allowed | warn-invalid-implicit-and-explicit | full | — | — | — | — | Valid | ✓ |
+| allowed | not-allowed | empty | — | — | — | — | ImplicitBlank | ✓ |
+| allowed | not-allowed | under | — | — | — | — | Valid | ✓ |
+| allowed | not-allowed | full | — | — | — | — | Valid | ✓ |
+| warn | allowed | empty | — | underVote | — | — | ImplicitBlank | ✓ |
+| warn | allowed | under | — | underVote | — | — | Valid | ✓ |
+| warn | allowed | full | — | — | — | — | Valid | ✓ |
+| warn | warn | empty | — | underVote | — | — | ImplicitBlank | ✓ |
+| warn | warn | under | — | underVote | — | — | Valid | ✓ |
+| warn | warn | full | — | — | — | — | Valid | ✓ |
+| warn | warn-invalid-implicit-and-explicit | empty | — | underVote | — | — | ImplicitBlank | ✓ |
+| warn | warn-invalid-implicit-and-explicit | under | — | underVote | — | — | Valid | ✓ |
+| warn | warn-invalid-implicit-and-explicit | full | — | — | — | — | Valid | ✓ |
+| warn | not-allowed | empty | — | underVote | — | — | ImplicitBlank | ✓ |
+| warn | not-allowed | under | — | underVote | — | — | Valid | ✓ |
+| warn | not-allowed | full | — | — | — | — | Valid | ✓ |
+| warn-only-in-review | allowed | empty | — | underVote | — | — | ImplicitBlank | ✓ |
+| warn-only-in-review | allowed | under | — | underVote | — | — | Valid | ✓ |
+| warn-only-in-review | allowed | full | — | — | — | — | Valid | ✓ |
+| warn-only-in-review | warn | empty | — | underVote | — | — | ImplicitBlank | ✓ |
+| warn-only-in-review | warn | under | — | underVote | — | — | Valid | ✓ |
+| warn-only-in-review | warn | full | — | — | — | — | Valid | ✓ |
+| warn-only-in-review | warn-invalid-implicit-and-explicit | empty | — | underVote | — | — | ImplicitBlank | ✓ |
+| warn-only-in-review | warn-invalid-implicit-and-explicit | under | — | underVote | — | — | Valid | ✓ |
+| warn-only-in-review | warn-invalid-implicit-and-explicit | full | — | — | — | — | Valid | ✓ |
+| warn-only-in-review | not-allowed | empty | — | underVote | — | — | ImplicitBlank | ✓ |
+| warn-only-in-review | not-allowed | under | — | underVote | — | — | Valid | ✓ |
+| warn-only-in-review | not-allowed | full | — | — | — | — | Valid | ✓ |
+| warn-and-alert | allowed | empty | — | underVote | — | — | ImplicitBlank | ✓ |
+| warn-and-alert | allowed | under | — | underVote | — | dialog | Valid | ✓ |
+| warn-and-alert | allowed | full | — | — | — | — | Valid | ✓ |
+| warn-and-alert | warn | empty | — | underVote | — | — | ImplicitBlank | ✓ |
+| warn-and-alert | warn | under | — | underVote | — | dialog | Valid | ✓ |
+| warn-and-alert | warn | full | — | — | — | — | Valid | ✓ |
+| warn-and-alert | warn-invalid-implicit-and-explicit | empty | — | underVote | — | — | ImplicitBlank | ✓ |
+| warn-and-alert | warn-invalid-implicit-and-explicit | under | — | underVote | — | dialog | Valid | ✓ |
+| warn-and-alert | warn-invalid-implicit-and-explicit | full | — | — | — | — | Valid | ✓ |
+| warn-and-alert | not-allowed | empty | — | underVote | — | — | ImplicitBlank | ✓ |
+| warn-and-alert | not-allowed | under | — | underVote | — | dialog | Valid | ✓ |
+| warn-and-alert | not-allowed | full | — | — | — | — | Valid | ✓ |

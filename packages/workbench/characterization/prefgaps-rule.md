@@ -15,7 +15,9 @@ States: *valid_full* = ranks 0,1,2 (well-ordered); *gap* = ranks 0,2
 (skipping rank 1 → PreferenceOrderWithGaps). `duplicated_rank` at default.
 
 Columns as in the other rule tables; *tally* is the **recorded** class.
-A row prefixed **⚠** is a derived silent-discount marker.
+This is the **partial (headless) table** (WASM observations only); inline
+visibility, the input constraint, and the silent-discount marker (⚠) are
+browser-only and live in the complete table (`dom-validate.mjs`).
 
 **Result: zero silent-discount cells** — and that is the finding.
 `EPreferenceGapsPolicy` has only `*_WARN_AND_DIALOG` variants (no silent
@@ -27,36 +29,21 @@ because their rules *can* be configured to not gate (over=`allowed`,
 min-vote has no policy) while `invalid=allowed` removes the generic
 gate; a preferential rule cannot be put in that state.
 
-| gap_policy | invalid_policy | state | errors | alerts | inline (shown) | hard gate | soft gate | tally | pred? |
-|---|---|---|---|---|---|---|---|---|---|
-| allowed-warn-and-dialog | allowed | valid_full | — | — | — | — | — | Valid | ✓ |
-| allowed-warn-and-dialog | allowed | gap | preferenceOrderWithGaps | — | — | — | dialog | ImplicitInvalid | ✓ |
-| allowed-warn-and-dialog | warn | valid_full | — | — | — | — | — | Valid | ✓ |
-| allowed-warn-and-dialog | warn | gap | preferenceOrderWithGaps | — | preferenceOrderWithGaps | — | dialog | ImplicitInvalid | ✓ |
-| allowed-warn-and-dialog | warn-invalid-implicit-and-explicit | valid_full | — | — | — | — | — | Valid | ✓ |
-| allowed-warn-and-dialog | warn-invalid-implicit-and-explicit | gap | preferenceOrderWithGaps | — | preferenceOrderWithGaps | — | dialog | ImplicitInvalid | ✓ |
-| allowed-warn-and-dialog | not-allowed | valid_full | — | — | — | — | — | Valid | ✓ |
-| allowed-warn-and-dialog | not-allowed | gap | preferenceOrderWithGaps | — | preferenceOrderWithGaps | **block** | dialog | ImplicitInvalid | ✓ |
-| not-allowed-warn-and-dialog | allowed | valid_full | — | — | — | — | — | Valid | ✓ |
-| not-allowed-warn-and-dialog | allowed | gap | preferenceOrderWithGaps | — | — | **block** | — | ImplicitInvalid | ✓ |
-| not-allowed-warn-and-dialog | warn | valid_full | — | — | — | — | — | Valid | ✓ |
-| not-allowed-warn-and-dialog | warn | gap | preferenceOrderWithGaps | — | preferenceOrderWithGaps | **block** | dialog | ImplicitInvalid | ✓ |
-| not-allowed-warn-and-dialog | warn-invalid-implicit-and-explicit | valid_full | — | — | — | — | — | Valid | ✓ |
-| not-allowed-warn-and-dialog | warn-invalid-implicit-and-explicit | gap | preferenceOrderWithGaps | — | preferenceOrderWithGaps | **block** | dialog | ImplicitInvalid | ✓ |
-| not-allowed-warn-and-dialog | not-allowed | valid_full | — | — | — | — | — | Valid | ✓ |
-| not-allowed-warn-and-dialog | not-allowed | gap | preferenceOrderWithGaps | — | preferenceOrderWithGaps | **block** | dialog | ImplicitInvalid | ✓ |
-
-**inline (shown)** — what the voter actually sees inline, after the booth's
-master filter (`spec.inlineVisible`). It can differ from the raw *errors*
-column: under `invalid_vote_policy = allowed` the filter hides every error
-except its keep-list (`selectedMax` unless `over_vote_policy = allowed`;
-`blankVote` when `blank = not-allowed`). An error listed in *errors* but
-absent here, with no gate, is exactly what a silent **⚠** turns on.
-
-**Provenance.** *errors*, *alerts*, *hard/soft gate*, *tally* are
-WASM-observed and checked cell-by-cell by `pred?`. *inline (shown)* is a
-PREDICTION from the shared spec (`spec.mjs`) — `filterErrorList` is
-TypeScript, not callable headlessly — validated against the real DOM only
-for browser-covered cells (the silent-discount cells, via the e2e runners);
-prediction-only elsewhere. A per-cell DOM-validation lane is deferred (see
-the e2e-cost note in VALIDATION_LOGIC_DISTILLATION.md §5.3).
+| gap_policy | invalid_policy | state | errors | alerts | hard gate | soft gate | tally | pred? |
+|---|---|---|---|---|---|---|---|---|
+| allowed-warn-and-dialog | allowed | valid_full | — | — | — | — | Valid | ✓ |
+| allowed-warn-and-dialog | allowed | gap | preferenceOrderWithGaps | — | — | dialog | ImplicitInvalid | ✓ |
+| allowed-warn-and-dialog | warn | valid_full | — | — | — | — | Valid | ✓ |
+| allowed-warn-and-dialog | warn | gap | preferenceOrderWithGaps | — | — | dialog | ImplicitInvalid | ✓ |
+| allowed-warn-and-dialog | warn-invalid-implicit-and-explicit | valid_full | — | — | — | — | Valid | ✓ |
+| allowed-warn-and-dialog | warn-invalid-implicit-and-explicit | gap | preferenceOrderWithGaps | — | — | dialog | ImplicitInvalid | ✓ |
+| allowed-warn-and-dialog | not-allowed | valid_full | — | — | — | — | Valid | ✓ |
+| allowed-warn-and-dialog | not-allowed | gap | preferenceOrderWithGaps | — | **block** | dialog | ImplicitInvalid | ✓ |
+| not-allowed-warn-and-dialog | allowed | valid_full | — | — | — | — | Valid | ✓ |
+| not-allowed-warn-and-dialog | allowed | gap | preferenceOrderWithGaps | — | **block** | — | ImplicitInvalid | ✓ |
+| not-allowed-warn-and-dialog | warn | valid_full | — | — | — | — | Valid | ✓ |
+| not-allowed-warn-and-dialog | warn | gap | preferenceOrderWithGaps | — | **block** | dialog | ImplicitInvalid | ✓ |
+| not-allowed-warn-and-dialog | warn-invalid-implicit-and-explicit | valid_full | — | — | — | — | Valid | ✓ |
+| not-allowed-warn-and-dialog | warn-invalid-implicit-and-explicit | gap | preferenceOrderWithGaps | — | **block** | dialog | ImplicitInvalid | ✓ |
+| not-allowed-warn-and-dialog | not-allowed | valid_full | — | — | — | — | Valid | ✓ |
+| not-allowed-warn-and-dialog | not-allowed | gap | preferenceOrderWithGaps | — | **block** | dialog | ImplicitInvalid | ✓ |
