@@ -22,9 +22,7 @@ use sequent_core::{
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use windmill::postgres::election::get_elections_by_ids;
-use windmill::postgres::tally_session::{
-    get_tally_session_by_id, update_tally_session_status,
-};
+use windmill::postgres::tally_session::get_tally_session_by_id;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::ceremonies::tally_ceremony::{self};
 use windmill::services::ceremonies::tally_resolution;
@@ -325,21 +323,27 @@ pub async fn recount_tally_session(
         ));
     }
 
-    update_tally_session_status(
+    let election_ids = tally_session.election_ids.clone().unwrap_or_default();
+    let recount_started = tally_ceremony::begin_tally_session_recount(
         &hasura_transaction,
         &tenant_id,
         &input.election_event_id,
         &input.tally_session_id,
-        TallyExecutionStatus::IN_PROGRESS,
-        false,
+        &election_ids,
     )
     .await
     .map_err(|err| {
         (
             Status::InternalServerError,
-            format!("Error marking tally session for recount: {err:?}"),
+            format!("Error starting tally session recount: {err:?}"),
         )
     })?;
+    if !recount_started {
+        return Err((
+            Status::Conflict,
+            "Only a completed tally session with execution history can be recounted".to_string(),
+        ));
+    }
 
     hasura_transaction.commit().await.map_err(|err| {
         (Status::InternalServerError, format!("Commit failed: {err}"))
@@ -357,61 +361,21 @@ pub async fn recount_tally_session(
         ))
         .await;
 
-    if let Err(err) = task {
-        let mut reset_db_client: DbClient = get_hasura_pool().await.get().await.map_err(|pool_err| {
-            (
-                Status::InternalServerError,
-                format!(
-                    "Failed to send recount task ({err:?}) and failed to get hasura db pool for reset: {pool_err}"
-                ),
-            )
-        })?;
-        let reset_transaction = reset_db_client.transaction().await.map_err(|txn_err| {
-            (
-                Status::InternalServerError,
-                format!(
-                    "Failed to send recount task ({err:?}) and failed to start reset transaction: {txn_err}"
-                ),
-            )
-        })?;
-        update_tally_session_status(
-            &reset_transaction,
-            &tenant_id,
-            &input.election_event_id,
-            &input.tally_session_id,
-            TallyExecutionStatus::SUCCESS,
-            true,
-        )
-        .await
-        .map_err(|reset_err| {
-            (
-                Status::InternalServerError,
-                format!(
-                    "Failed to send recount task ({err:?}) and failed to reset tally status: {reset_err:?}"
-                ),
-            )
-        })?;
-        reset_transaction.commit().await.map_err(|commit_err| {
-            (
-                Status::InternalServerError,
-                format!(
-                    "Failed to send recount task ({err:?}) and failed to commit reset: {commit_err}"
-                ),
-            )
-        })?;
-
-        return Err((
-            Status::InternalServerError,
-            format!("Failed to send recount task: {err:?}"),
-        ));
+    match task {
+        Ok(_) => event!(
+            Level::INFO,
+            "Sent recount tally task for election_event_id={}, tally_session_id={}",
+            input.election_event_id,
+            input.tally_session_id,
+        ),
+        Err(err) => event!(
+            Level::ERROR,
+            "Recount request is durable but its immediate task nudge failed for \
+             election_event_id={}, tally_session_id={}; process_board will retry: {err:?}",
+            input.election_event_id,
+            input.tally_session_id,
+        ),
     }
-
-    event!(
-        Level::INFO,
-        "Sent recount tally task for election_event_id={}, tally_session_id={}",
-        input.election_event_id,
-        input.tally_session_id,
-    );
 
     Ok(Json(CreateTallyCeremonyOutput {
         tally_session_id: input.tally_session_id,

@@ -125428,6 +125428,18 @@
             "deprecationReason": null
           },
           {
+            "name": "run_reason",
+            "description": "TallyRunReason: NORMAL | RECOUNT | TIE_BREAK_RERUN. NULL means NORMAL.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "session_ids",
             "description": null,
             "args": [],
@@ -125948,6 +125960,16 @@
             "defaultValue": null
           },
           {
+            "name": "run_reason",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "String_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "session_ids",
             "description": null,
             "type": {
@@ -126312,6 +126334,16 @@
             "defaultValue": null
           },
           {
+            "name": "run_reason",
+            "description": "TallyRunReason: NORMAL | RECOUNT | TIE_BREAK_RERUN. NULL means NORMAL.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "session_ids",
             "description": null,
             "type": {
@@ -126442,6 +126474,18 @@
             "deprecationReason": null
           },
           {
+            "name": "run_reason",
+            "description": "TallyRunReason: NORMAL | RECOUNT | TIE_BREAK_RERUN. NULL means NORMAL.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "session_ids",
             "description": null,
             "args": [],
@@ -126563,6 +126607,18 @@
             "type": {
               "kind": "SCALAR",
               "name": "uuid",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "run_reason",
+            "description": "TallyRunReason: NORMAL | RECOUNT | TIE_BREAK_RERUN. NULL means NORMAL.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
               "ofType": null
             },
             "isDeprecated": false,
@@ -126823,6 +126879,16 @@
             "defaultValue": null
           },
           {
+            "name": "run_reason",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "session_ids",
             "description": null,
             "type": {
@@ -127034,6 +127100,12 @@
             "deprecationReason": null
           },
           {
+            "name": "run_reason",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "session_ids",
             "description": "column name",
             "isDeprecated": false,
@@ -127152,6 +127224,16 @@
             "type": {
               "kind": "SCALAR",
               "name": "uuid",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "run_reason",
+            "description": "TallyRunReason: NORMAL | RECOUNT | TIE_BREAK_RERUN. NULL means NORMAL.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
               "ofType": null
             },
             "defaultValue": null
@@ -127410,6 +127492,16 @@
             "defaultValue": null
           },
           {
+            "name": "run_reason",
+            "description": "TallyRunReason: NORMAL | RECOUNT | TIE_BREAK_RERUN. NULL means NORMAL.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "session_ids",
             "description": null,
             "type": {
@@ -127543,6 +127635,12 @@
           },
           {
             "name": "results_event_id",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "run_reason",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null

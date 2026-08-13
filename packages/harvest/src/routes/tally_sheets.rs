@@ -27,18 +27,14 @@ use serde_json::Value;
 use std::collections::HashSet;
 use tracing::{event, instrument, Level};
 use windmill::postgres::{
-    contest::get_contest_by_id,
-    document::get_document,
+    contest::get_contest_by_id, document::get_document,
     election_event::get_election_event_by_id,
-    tally_session::{
-        get_tally_sessions_by_election_event_id, update_tally_session_status,
-    },
-    tally_sheet,
+    tally_session::get_tally_sessions_by_election_event_id, tally_sheet,
     tally_sheet_import::get_tally_sheet_import_items_for_review,
 };
 use windmill::services::{
     celery_app::get_celery_app,
-    ceremonies::tally_ceremony::reset_tally_session_status_after_failed_recount_task,
+    ceremonies::tally_ceremony::begin_tally_session_recount,
     database::get_hasura_pool,
     documents::get_document_as_temp_file,
     ess_xml_converter::convert_ess_enhanced_xml_to_csv,
@@ -493,7 +489,7 @@ pub async fn review_tally_sheet_import(
             Ok(recount_count) => {
                 event!(
                     Level::INFO,
-                    "Automatic recount policy processed for tally sheet import {}, enqueued {} recount task(s)",
+                    "Automatic recount policy processed for tally sheet import {}, persisted {} recount request(s)",
                     import_id,
                     recount_count
                 );
@@ -597,25 +593,46 @@ async fn maybe_trigger_automatic_recount_for_import(
         .await
         .with_context(|| "error committing automatic recount selection")?;
 
-    let recount_count = sessions_to_recount.len();
+    // Each session's recount is independent: one session failing (e.g. a
+    // corrupt/legacy status blob) must not stop the rest of the batch from
+    // being attempted, or later sessions would silently miss their
+    // automatic recount for this import with no retry.
+    let mut requested_recount_count = 0usize;
     for tally_session in sessions_to_recount {
-        enqueue_automatic_recount_tally_session(
+        let tally_session_id = tally_session.id.clone();
+        match request_automatic_recount_tally_session(
             tenant_id,
             election_event_id,
             &tally_session,
         )
-        .await?;
+        .await
+        {
+            Ok(true) => requested_recount_count += 1,
+            Ok(false) => {}
+            Err(err) => {
+                event!(
+                    Level::ERROR,
+                    "Failed to persist automatic recount for tally session {}: {err:?}",
+                    tally_session_id,
+                );
+            }
+        }
     }
 
-    Ok(recount_count)
+    Ok(requested_recount_count)
 }
 
-async fn enqueue_automatic_recount_tally_session(
+/// Returns `Ok(true)` once the recount request is durable, even if the
+/// immediate celery nudge fails; `process_board` will deliver it later.
+/// Returns `Ok(false)` if the session is no longer eligible or has no
+/// execution history to recount.
+async fn request_automatic_recount_tally_session(
     tenant_id: &str,
     election_event_id: &str,
     tally_session: &TallySession,
-) -> Result<()> {
+) -> Result<bool> {
     let tally_session_id = tally_session.id.clone();
+    let election_ids = tally_session.election_ids.clone().unwrap_or_default();
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.with_context(|| {
             "error getting hasura db pool for automatic recount status update"
@@ -625,15 +642,24 @@ async fn enqueue_automatic_recount_tally_session(
             "error starting automatic recount status transaction"
         })?;
 
-    update_tally_session_status(
+    let recount_started = begin_tally_session_recount(
         &hasura_transaction,
         tenant_id,
         election_event_id,
         &tally_session_id,
-        TallyExecutionStatus::IN_PROGRESS,
-        false,
+        &election_ids,
     )
-    .await?;
+    .await
+    .with_context(|| "error starting automatic tally session recount")?;
+    if !recount_started {
+        event!(
+            Level::INFO,
+            "Tally session {} is no longer eligible or has no execution history; \
+             skipping automatic recount",
+            tally_session_id,
+        );
+        return Ok(false);
+    }
 
     hasura_transaction
         .commit()
@@ -652,27 +678,23 @@ async fn enqueue_automatic_recount_tally_session(
         ))
         .await;
 
-    if let Err(err) = task {
-        reset_tally_session_status_after_failed_recount_task(
-            tenant_id,
+    match task {
+        Ok(_) => event!(
+            Level::INFO,
+            "Sent automatic recount tally task for election_event_id={}, tally_session_id={}",
             election_event_id,
-            &tally_session_id,
-            &format!("{err:?}"),
-        )
-        .await?;
-        return Err(anyhow::anyhow!(
-            "Failed to send automatic recount task: {err:?}"
-        ));
+            tally_session_id,
+        ),
+        Err(err) => event!(
+            Level::ERROR,
+            "Automatic recount request is durable but its immediate task nudge failed for \
+             election_event_id={}, tally_session_id={}; process_board will retry: {err:?}",
+            election_event_id,
+            tally_session_id,
+        ),
     }
 
-    event!(
-        Level::INFO,
-        "Sent automatic recount tally task for election_event_id={}, tally_session_id={}",
-        election_event_id,
-        tally_session_id,
-    );
-
-    Ok(())
+    Ok(true)
 }
 
 const MAX_TALLY_SHEET_IMPORT_BYTES: u64 = 50 * 1024 * 1024;

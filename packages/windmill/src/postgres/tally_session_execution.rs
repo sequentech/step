@@ -6,7 +6,7 @@ use chrono::{DateTime, Local};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::{
-    ceremonies::{TallyCeremonyStatus, TallySessionDocuments},
+    ceremonies::{TallyCeremonyStatus, TallyRunReason, TallySessionDocuments},
     hasura::core::TallySessionExecution,
 };
 use serde::{Deserialize, Serialize};
@@ -37,6 +37,7 @@ impl TryFrom<Row> for TallySessionExecutionWrapper {
                 .try_get::<_, Option<Uuid>>("results_event_id")?
                 .map(|val| val.to_string()),
             documents: item.try_get("documents")?,
+            run_reason: item.try_get("run_reason")?,
         }))
     }
 }
@@ -52,7 +53,9 @@ pub async fn insert_tally_session_execution(
     results_event_id: Option<String>,
     session_ids: Option<Vec<i32>>,
     documents: Option<TallySessionDocuments>,
+    run_reason: TallyRunReason,
 ) -> Result<TallySessionExecution> {
+    let run_reason_value = run_reason.to_string();
     let json_status = match status {
         Some(value) => Some(serde_json::to_value(value)?),
         None => None,
@@ -72,7 +75,7 @@ pub async fn insert_tally_session_execution(
             r#"
                 INSERT INTO
                     sequent_backend.tally_session_execution
-                (tenant_id, election_event_id, current_message_id, tally_session_id, status, results_event_id, session_ids, documents)
+                (tenant_id, election_event_id, current_message_id, tally_session_id, status, results_event_id, session_ids, documents, run_reason, created_at)
                 VALUES(
                     $1,
                     $2,
@@ -81,7 +84,12 @@ pub async fn insert_tally_session_execution(
                     $5,
                     $6,
                     $7,
-                    $8
+                    $8,
+                    $9,
+                    -- `now()` is the transaction start time. Runtime readers
+                    -- order these rows by `created_at`, so record the actual
+                    -- insertion time after any state lock wait instead.
+                    clock_timestamp()
                 )
                 RETURNING
                     *;
@@ -100,6 +108,7 @@ pub async fn insert_tally_session_execution(
                 &results_event_uuid,
                 &session_ids,
                 &documents_value,
+                &run_reason_value,
             ],
         )
         .await
