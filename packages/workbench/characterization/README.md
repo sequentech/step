@@ -148,6 +148,61 @@ emits the **complete** tables in [`dom-validate.md`](dom-validate.md) —
 [`../docs/VALIDATION_LOGIC_DISTILLATION.md`](../docs/VALIDATION_LOGIC_DISTILLATION.md)
 §5.3).
 
+## Running the analysis
+
+All commands run from `packages/workbench`; each runner writes its artifacts
+next to itself in `characterization/`. There are two lanes — a fast headless
+one and a browser one.
+
+### Headless lane (no dev server)
+
+Needs the sequent-core wasm at `packages/sequent-core/pkg/` (built by the
+workbench's `predev`, or `yarn build:sequent-core`). Each runner is
+independent and takes a second or two (WASM in Node, no browser), and writes a
+**partial (headless) table** — the WASM observations (checker emissions,
+gates, recorded tally) with a `pred?` column comparing them to `spec.mjs`:
+
+| command (`node characterization/…`) | produces |
+|---|---|
+| `blank-rule.mjs` | `blank-rule.recorded.json` + `.md` |
+| `overvote-rule.mjs` | `overvote-rule.recorded.json` + `.md` |
+| `undervote-rule.mjs` | `undervote-rule.recorded.json` + `.md` |
+| `minvote-rule.mjs` | `minvote-rule.recorded.json` + `.md` |
+| `duprank-rule.mjs` | `duprank-rule.recorded.json` + `.md` |
+| `prefgaps-rule.mjs` | `prefgaps-rule.recorded.json` + `.md` |
+| `invalid-rule.mjs` | `invalid-rule.recorded.json` + `.md` |
+| `classifier-table.mjs` | `classifier-table.recorded.json` + `.md` |
+
+### Browser lane (dev server on :5173)
+
+Start the dev server first (its `predev` builds the wasm):
+
+```
+corepack yarn workspace "@sequentech/workbench-app" dev
+```
+
+Then, from `packages/workbench`:
+
+| command (`node characterization/…`) | produces | what it does |
+|---|---|---|
+| `dom-validate.mjs` | `dom-validate.md` + `.recorded.json` | the **complete** tables — `spec.mjs` vs the real DOM across every cell of all seven rules (inline visibility at review + reachability); 228/228, ~8 min |
+| `no-silent-discount.mjs` | `no-silent-discount.md` + `.report.json` | the no-silent-discount property query (headless pre-filter → browser confirm at review) |
+| `reproduce-verify.mjs` | `reproduce-verify.recorded.json` | runs the three end-to-end runners below in sequence and aggregates one pass/fail |
+| `overvote-e2e-pipeline.mjs` | `overvote-e2e-pipeline.recorded.json` | S1 over-vote: booth → cast → decrypt → decode → tally in one continuous run |
+| `minvote-e2e-pipeline.mjs` | `minvote-e2e-pipeline.recorded.json` | S2 below-min (all four cells), same full pipeline |
+| `invalid-latent-choices-e2e.mjs` | `invalid-latent-choices-e2e.recorded.json` | S5 null-vote choice leakage, same full pipeline |
+
+Each of these browser runners exits nonzero on failure, so they compose in
+CI. The earlier per-rule filter runners (`blank-rule.browser.mjs` →
+`blank-rule.filter.recorded.json` + `.md`; `overvote-rule.browser.mjs` →
+`overvote-rule.filter.recorded.json`) predate `dom-validate` and are kept as
+the cheaper two-halves grid check; `dom-validate` now covers the filter lane
+for all seven rules.
+
+`harness.mjs`, `spec.mjs`, `rule-specs.mjs`, and `browser-harness.mjs` are
+shared modules (imported, not run); `dom-probe-overvote.mjs` is a timing
+spike with no artifact.
+
 ## Coverage so far
 
 ### blank-rule (2026-08-10) — all three layers, zero disagreements
@@ -350,7 +405,7 @@ all six are:
 | Gates | 2 (headless wasm) | blank, over-vote, under-vote, min-vote, duplicated-rank, preference-gaps, invalid rules done |
 | Filter | 3 (browser, booth) | **done for all seven rules** — `dom-validate.mjs` observes inline visibility at the review screen across every cell of the five plurality rules (explicit-blank-invalid fixture) and the two preferential rules (IRV fixture, ranked selection): **228/228** |
 | Input constraint | 3 (browser) — the `constraint` component of the effect triple | **done** — observed both **behaviourally** across every rule cell (the `reachable` column of `dom-validate.md`: the state forms or it does not) and **directly** for the over-vote `disable` policy (the `disable × over_max` cells read `no (disabled)`, from probing the (max+1)th control's `disabled` attribute) |
-| Marker exclusivity (prevention) | browser — *reachability*, not effects | first reachability recording exists (over-vote under DISABLE: the state does not form); all five S1/S2 violations (over-vote + four min-vote) are confirmed through the full booth→cast→decrypt→tally pipeline (`overvote-e2e-pipeline.mjs`, `minvote-e2e-pipeline.mjs`). Prevention is characterized by *attempting* to create each state through the UI and recording whether it forms; the mixed marker state's booth-reachability is still an open cell. |
+| Marker exclusivity (prevention) | browser — *reachability*, not effects | first reachability recording exists (over-vote under DISABLE: the state does not form); all five S1/S2 violations (over-vote + four min-vote) are confirmed through the full booth→cast→decrypt→tally pipeline (`overvote-e2e-pipeline.mjs`, `minvote-e2e-pipeline.mjs`). Prevention is characterized by *attempting* to create each state through the UI and recording whether it forms. The mixed invalid-marker state (a regular + the null marker) is now recorded **reachable** — `invalid-latent-choices-e2e.mjs` forms it end-to-end and `dom-validate`'s invalid `marker_plus` cells confirm it. Open: the mirror check that the blank marker *clears* a co-selected regular, and the decline booth flow. |
 | Tally classifier | headless (velvet-wasm `tally_decoded_ballots`) | **done**: per-cell `tally` column in all seven rule tables, plus the standalone 32-cell six-class decision table (`classifier-table.md`, 32/32 matching the documented precedence) |
 
 Two consequences worth stating plainly. First, a per-rule recording like
@@ -364,11 +419,22 @@ enumerations.
 
 ## Adding a rule
 
-Copy `blank-rule.mjs`, swap the policy/state dimensions and the `predict()`
-transcription, and pick or extend a bundled fixture whose contest carries
-the rule's preconditions (see FIXTURE_VARIANCE.md §13.2 for why marker
-candidates are preconditions, not policies). Still open:
-the decline-to-vote booth flow (the classifier's decline cells are now
-recorded, but no booth-side runner drives a declined ballot), and the
-blank-vs-invalid marker exclusivity asymmetry (a browser-reachability
-check, deferred to the decline work).
+1. **Headless runner.** Copy `blank-rule.mjs`, swap the policy/state
+   dimensions and the `predict()` transcription (only the rule-specific
+   checker emissions — gates, classifier, and filter compose from
+   `spec.mjs`), and pick or extend a bundled fixture whose contest carries
+   the rule's preconditions (see FIXTURE_VARIANCE.md §13.2 for why marker
+   candidates are preconditions, not policies). This writes the partial
+   `<rule>.recorded.json` + `.md`.
+2. **Complete table.** Add a `RULE_SPECS` entry in `rule-specs.mjs` (keyed by
+   the recorded-JSON name — contest selector, panel config, selection,
+   landmark, reachability) and a `RULES` entry in `dom-validate.mjs`. The
+   rule's cells then join the DOM-validated complete table.
+
+Still open: the **decline-to-vote booth flow** — the classifier's decline
+cells are recorded headlessly (`classifier-table`), but no booth-side runner
+drives a declined ballot. The blank-vs-invalid marker exclusivity asymmetry
+is now half-characterized: the invalid marker's non-clearing is confirmed in
+the browser (`invalid-latent-choices-e2e.mjs` and `dom-validate`'s invalid
+`marker_plus` cells both form {regular + null marker}); the remaining piece
+is the mirror check that the blank marker *clears* a co-selected regular.
