@@ -18816,6 +18816,8 @@ export type Sequent_Backend_Tally_Session_Execution = {
     labels?: Maybe<Scalars["jsonb"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
     results_event_id?: Maybe<Scalars["uuid"]["output"]>
+    /** TallyRunReason: NORMAL | RECOUNT | TIE_BREAK_RERUN. NULL means NORMAL. */
+    run_reason?: Maybe<Scalars["String"]["output"]>
     session_ids?: Maybe<Array<Scalars["Int"]["output"]>>
     status?: Maybe<Scalars["jsonb"]["output"]>
     tally_session_id: Scalars["uuid"]["output"]
@@ -18899,6 +18901,7 @@ export type Sequent_Backend_Tally_Session_Execution_Bool_Exp = {
     labels?: InputMaybe<Jsonb_Comparison_Exp>
     last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>
     results_event_id?: InputMaybe<Uuid_Comparison_Exp>
+    run_reason?: InputMaybe<String_Comparison_Exp>
     session_ids?: InputMaybe<Int_Array_Comparison_Exp>
     status?: InputMaybe<Jsonb_Comparison_Exp>
     tally_session_id?: InputMaybe<Uuid_Comparison_Exp>
@@ -18951,6 +18954,8 @@ export type Sequent_Backend_Tally_Session_Execution_Insert_Input = {
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     results_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    /** TallyRunReason: NORMAL | RECOUNT | TIE_BREAK_RERUN. NULL means NORMAL. */
+    run_reason?: InputMaybe<Scalars["String"]["input"]>
     session_ids?: InputMaybe<Array<Scalars["Int"]["input"]>>
     status?: InputMaybe<Scalars["jsonb"]["input"]>
     tally_session_id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -18966,6 +18971,8 @@ export type Sequent_Backend_Tally_Session_Execution_Max_Fields = {
     id?: Maybe<Scalars["uuid"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
     results_event_id?: Maybe<Scalars["uuid"]["output"]>
+    /** TallyRunReason: NORMAL | RECOUNT | TIE_BREAK_RERUN. NULL means NORMAL. */
+    run_reason?: Maybe<Scalars["String"]["output"]>
     session_ids?: Maybe<Array<Scalars["Int"]["output"]>>
     tally_session_id?: Maybe<Scalars["uuid"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
@@ -18980,6 +18987,8 @@ export type Sequent_Backend_Tally_Session_Execution_Min_Fields = {
     id?: Maybe<Scalars["uuid"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
     results_event_id?: Maybe<Scalars["uuid"]["output"]>
+    /** TallyRunReason: NORMAL | RECOUNT | TIE_BREAK_RERUN. NULL means NORMAL. */
+    run_reason?: Maybe<Scalars["String"]["output"]>
     session_ids?: Maybe<Array<Scalars["Int"]["output"]>>
     tally_session_id?: Maybe<Scalars["uuid"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
@@ -19012,6 +19021,7 @@ export type Sequent_Backend_Tally_Session_Execution_Order_By = {
     labels?: InputMaybe<Order_By>
     last_updated_at?: InputMaybe<Order_By>
     results_event_id?: InputMaybe<Order_By>
+    run_reason?: InputMaybe<Order_By>
     session_ids?: InputMaybe<Order_By>
     status?: InputMaybe<Order_By>
     tally_session_id?: InputMaybe<Order_By>
@@ -19054,6 +19064,8 @@ export enum Sequent_Backend_Tally_Session_Execution_Select_Column {
     /** column name */
     ResultsEventId = "results_event_id",
     /** column name */
+    RunReason = "run_reason",
+    /** column name */
     SessionIds = "session_ids",
     /** column name */
     Status = "status",
@@ -19074,6 +19086,8 @@ export type Sequent_Backend_Tally_Session_Execution_Set_Input = {
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     results_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    /** TallyRunReason: NORMAL | RECOUNT | TIE_BREAK_RERUN. NULL means NORMAL. */
+    run_reason?: InputMaybe<Scalars["String"]["input"]>
     session_ids?: InputMaybe<Array<Scalars["Int"]["input"]>>
     status?: InputMaybe<Scalars["jsonb"]["input"]>
     tally_session_id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -19117,6 +19131,8 @@ export type Sequent_Backend_Tally_Session_Execution_Stream_Cursor_Value_Input = 
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     results_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    /** TallyRunReason: NORMAL | RECOUNT | TIE_BREAK_RERUN. NULL means NORMAL. */
+    run_reason?: InputMaybe<Scalars["String"]["input"]>
     session_ids?: InputMaybe<Array<Scalars["Int"]["input"]>>
     status?: InputMaybe<Scalars["jsonb"]["input"]>
     tally_session_id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -19149,6 +19165,8 @@ export enum Sequent_Backend_Tally_Session_Execution_Update_Column {
     LastUpdatedAt = "last_updated_at",
     /** column name */
     ResultsEventId = "results_event_id",
+    /** column name */
+    RunReason = "run_reason",
     /** column name */
     SessionIds = "session_ids",
     /** column name */
