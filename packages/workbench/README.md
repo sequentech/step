@@ -196,7 +196,6 @@ workbench/
 │                        ("Running the analysis")
 ├── WORKBENCH.md         Workbench-side design: inspector, snapshots,
 │                        overlay state, Diagnostics, authoring workflow
-├── DARK.md              Dark-theme palette and its revert procedure
 ├── LIFTING.md           Procedure for embedding voting-portal source
 └── LIFTING-TALLY.md     Velvet → ui-essentials tally adapter mapping
 ```
@@ -206,9 +205,9 @@ own top: **README** — what the workbench is, how to run it, and where
 drift is tracked. **WORKBENCH.md** — everything workbench-owned that lives
 *around* the lifted code. **LIFTING.md** — the voting-portal embedding
 procedure and its canaries; wins over WORKBENCH.md on any lift fact.
-**LIFTING-TALLY.md** — the velvet-to-ui-essentials adapter. (DARK.md is a
-single-purpose palette note; the validation work documents itself in
-`docs/` and `characterization/README.md`.)
+**LIFTING-TALLY.md** — the velvet-to-ui-essentials adapter. (The
+validation work documents itself in `docs/` and
+`characterization/README.md`.)
 
 ## Embedding strategy
 
@@ -301,10 +300,11 @@ calls `thread_rng()` internally, because velvet-core depends only on
 footprint minimal. Landing the extraction upstream is what would stop
 this recurring; until then, budget for the port on each catch-up.
 
-Tally semantics are currently **up to date** with `origin/main`: the
-explicit/implicit blank split, the invalid-vote policy, decline-to-vote
-and participation-by-channel were all ported into velvet-core, along
-with upstream's tests for them (16 passing).
+How current velvet-core's tally semantics are against `origin/main` is
+not asserted here — it changes with every upstream merge. Read it live
+from the Diagnostics page (`/diagnostics` → *Shared-source drift*, which
+reports how many commits `origin/main` is ahead), and treat any upstream
+`do_tally` change as a forward-port task per the paragraph above.
 
 **strand carries an unreconciled divergence.** This branch removed the
 obsolete openssl/FIPS backends to reach wasm32, and merges have resolved
