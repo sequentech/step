@@ -192,7 +192,13 @@ for (const rule of RULES) {
             JSON.stringify(uniq(obs.inlineAtReview ?? [])) ===
                 JSON.stringify(uniq(r.derived_inline_visible))
         const dialogOk = constrained || obs.dialog === expectedDialog(r)
-        const ok = inlineOk && dialogOk && reachableOk
+        // Direct DOM evidence for the input constraint: when the spec predicts
+        // the state is constrained, the (max+1)th control must actually carry
+        // `disabled` in the DOM (obs.constraintProbe === true) — a second
+        // signal beyond behavioural non-reachability. Cells with no probe
+        // (obs.constraintProbe === null) are unconstrained, so this is vacuous.
+        const constraintDirectOk = !constrained || obs.constraintProbe === true
+        const ok = inlineOk && dialogOk && reachableOk && constraintDirectOk
 
         // Observation-derived silent-discount marker: discarded, reachable, and
         // no signal on any surface (no dialog, nothing inline at review).
@@ -212,6 +218,7 @@ for (const rule of RULES) {
             hard: r.observed.hard,
             soft: r.observed.soft,
             reachable: domReachable,
+            constraintProbe: obs.constraintProbe,
             dialog: obs.dialog,
             tally: r.observed.tally,
             silent,
@@ -222,7 +229,8 @@ for (const rule of RULES) {
                 `✗ ${rule.name} ${rule.label(r)}: ` +
                     `inline@review=${JSON.stringify(uniq(obs.inlineAtReview ?? []))} ` +
                     `pred=${JSON.stringify(uniq(r.derived_inline_visible))} ` +
-                    `dialog=${obs.dialog}/${expectedDialog(r)} reachable=${domReachable}/${!constrained}`
+                    `dialog=${obs.dialog}/${expectedDialog(r)} reachable=${domReachable}/${!constrained} ` +
+                    `disabledProbe=${obs.constraintProbe}/${constrained}`
             )
         }
     }
@@ -247,7 +255,8 @@ const fmtRow = (x) =>
     `| ${x.silent ? "**⚠** " : ""}${x.config} | ${x.state} | ` +
     `${short(x.errors)} | ${short(x.alerts)} | ${x.inlineReview} | ` +
     `${x.hard ? "**block**" : "—"} | ${x.soft ? "dialog" : "—"} | ` +
-    `${x.reachable ? "yes" : "**no**"} | ${x.tally} | ${x.ok ? "✓" : "**✗**"} |`
+    `${x.reachable ? "yes" : x.constraintProbe === true ? "**no** (disabled)" : "**no**"} | ` +
+    `${x.tally} | ${x.ok ? "✓" : "**✗**"} |`
 const md = [
     "<!--",
     " SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>",
@@ -265,7 +274,9 @@ const md = [
     "view ADDS the two browser-only surfaces the partial cannot show —",
     "*inline (review)* (inline visibility at the decisive review screen, where",
     "the untouched-clear does not apply) and *reachable* (the input constraint;",
-    "`no` = the state cannot be formed) — plus the observation-derived **⚠**",
+    "`no` = the state cannot be formed, `no (disabled)` = that is also confirmed",
+    "directly by the (max+1)th control carrying the `disabled` attribute in the",
+    "DOM) — plus the observation-derived **⚠**",
     "(discarded ∧ reachable ∧ no signal on any surface). The single",
     "*matches spec?* column subsumes the partial's `pred?` and extends it to the",
     "browser surfaces (including the observed dialog vs the gates): ✗ = spec and",

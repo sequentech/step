@@ -47,6 +47,15 @@ export const RULE_SPECS = {
             }
         },
         want: (c) => (c.state === "over_max" ? 2 : c.state === "at_max" ? 1 : 0),
+        // Direct DOM evidence for the input constraint: under DISABLE, once the
+        // contest is at max the (max+1)th control is disabled, so `over_max`
+        // cannot form. Probe the second Council candidate's checkbox `disabled`
+        // attribute — a second signal beyond behavioural non-reachability.
+        // null = not applicable (only the disable policy at `over_max` applies).
+        probeDisabled: async (page, c) =>
+            c.over_vote_policy === "not-allowed-with-msg-and-disable" && c.state === "over_max"
+                ? page.locator('input.candidate-input[aria-label="Bruno"]').isDisabled().catch(() => null)
+                : null,
     },
     "minvote-rule": {
         contestFlag: "is_explicit_blank", // Referendum (Yes / No / blank marker)
@@ -221,6 +230,10 @@ export async function observeBooth(page, {electionId, contestId, voterId, spec, 
         {electionId, contestId}
     )
     const inlineAtVote = await warnIds(page)
+    // Optional direct DOM probe on the voting screen (before Next) — e.g. the
+    // over-vote DISABLE policy disables the (max+1)th control. null = the spec
+    // has no probe, or it does not apply to this cell.
+    const constraintProbe = spec.probeDisabled ? await spec.probeDisabled(page, cell) : null
 
     let dialog = "none"
     let inlineAtReview = null
@@ -246,7 +259,7 @@ export async function observeBooth(page, {electionId, contestId, voterId, spec, 
         await dismissDialog(page)
     }
     await backToInspector(page)
-    return {formed, selected, explicitInvalid, inlineAtVote, dialog, inlineAtReview}
+    return {formed, selected, explicitInvalid, constraintProbe, inlineAtVote, dialog, inlineAtReview}
 }
 
 /** Did the intended cell state form? Default: the marker-inclusive selection

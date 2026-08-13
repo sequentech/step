@@ -14,7 +14,9 @@ the partial's (*errors*, *alerts*, *hard/soft gate*, *tally*); the complete
 view ADDS the two browser-only surfaces the partial cannot show —
 *inline (review)* (inline visibility at the decisive review screen, where
 the untouched-clear does not apply) and *reachable* (the input constraint;
-`no` = the state cannot be formed) — plus the observation-derived **⚠**
+`no` = the state cannot be formed, `no (disabled)` = that is also confirmed
+directly by the (max+1)th control carrying the `disabled` attribute in the
+DOM) — plus the observation-derived **⚠**
 (discarded ∧ reachable ∧ no signal on any surface). The single
 *matches spec?* column subsumes the partial's `pred?` and extends it to the
 browser surfaces (including the observed dialog vs the gates): ✗ = spec and
@@ -79,16 +81,16 @@ its meaning is noted under each rule heading below.
 | not-allowed-with-msg-and-alert × not-allowed | over_max | selectedMax | selectedMax | (blocked) | **block** | dialog | yes | ImplicitInvalid | ✓ |
 | not-allowed-with-msg-and-disable × allowed | empty | — | — | — | — | — | yes | ImplicitBlank | ✓ |
 | not-allowed-with-msg-and-disable × allowed | at_max | — | overVoteDisabled | — | — | — | yes | Valid | ✓ |
-| not-allowed-with-msg-and-disable × allowed | over_max | selectedMax | selectedMax | — | — | — | **no** | ImplicitInvalid | ✓ |
+| not-allowed-with-msg-and-disable × allowed | over_max | selectedMax | selectedMax | — | — | — | **no** (disabled) | ImplicitInvalid | ✓ |
 | not-allowed-with-msg-and-disable × warn | empty | — | — | — | — | — | yes | ImplicitBlank | ✓ |
 | not-allowed-with-msg-and-disable × warn | at_max | — | overVoteDisabled | — | — | — | yes | Valid | ✓ |
-| not-allowed-with-msg-and-disable × warn | over_max | selectedMax | selectedMax | — | — | dialog | **no** | ImplicitInvalid | ✓ |
+| not-allowed-with-msg-and-disable × warn | over_max | selectedMax | selectedMax | — | — | dialog | **no** (disabled) | ImplicitInvalid | ✓ |
 | not-allowed-with-msg-and-disable × warn-invalid-implicit-and-explicit | empty | — | — | — | — | — | yes | ImplicitBlank | ✓ |
 | not-allowed-with-msg-and-disable × warn-invalid-implicit-and-explicit | at_max | — | overVoteDisabled | — | — | — | yes | Valid | ✓ |
-| not-allowed-with-msg-and-disable × warn-invalid-implicit-and-explicit | over_max | selectedMax | selectedMax | — | — | dialog | **no** | ImplicitInvalid | ✓ |
+| not-allowed-with-msg-and-disable × warn-invalid-implicit-and-explicit | over_max | selectedMax | selectedMax | — | — | dialog | **no** (disabled) | ImplicitInvalid | ✓ |
 | not-allowed-with-msg-and-disable × not-allowed | empty | — | — | — | — | — | yes | ImplicitBlank | ✓ |
 | not-allowed-with-msg-and-disable × not-allowed | at_max | — | overVoteDisabled | — | — | — | yes | Valid | ✓ |
-| not-allowed-with-msg-and-disable × not-allowed | over_max | selectedMax | selectedMax | — | **block** | dialog | **no** | ImplicitInvalid | ✓ |
+| not-allowed-with-msg-and-disable × not-allowed | over_max | selectedMax | selectedMax | — | **block** | dialog | **no** (disabled) | ImplicitInvalid | ✓ |
 
 ## min-vote
 

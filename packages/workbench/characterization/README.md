@@ -190,10 +190,12 @@ plus two firsts —
 - **First reachability recording.** Under
   `NOT_ALLOWED_WITH_MSG_AND_DISABLE` the over-vote state **did not form**
   through the UI (selection count stayed at max after clicking a further
-  candidate); the `overVoteDisabled` alert was visible. Prevention
-  observed behaviourally. (The direct probe of the input's `disabled`
-  attribute returned null — DOM-selector gap, listed as a TODO — but the
-  state-level evidence is conclusive.)
+  candidate); the `overVoteDisabled` alert was visible. Prevention observed
+  behaviourally — and now **also directly**: `dom-validate.mjs` probes the
+  (max+1)th control's `disabled` attribute
+  (`input.candidate-input[aria-label="Bruno"]`) on every `disable × over_max`
+  cell, which reads `no (disabled)` in the complete table. Two independent
+  signals for the same constraint.
 - **Violation reproduced against the real components** — see below.
 
 ### undervote-rule (2026-08-11) — headless, layers 1+2 + tally
@@ -346,7 +348,7 @@ all six are:
 | Checkers | 1 (headless wasm) | blank, over-vote, under-vote, min-vote, duplicated-rank, preference-gaps, invalid rules done. One recording serves **both** bands: the tally decode runs the identical function, so layer 1 is also the tally-side checker characterization. |
 | Gates | 2 (headless wasm) | blank, over-vote, under-vote, min-vote, duplicated-rank, preference-gaps, invalid rules done |
 | Filter | 3 (browser, booth) | **done for all seven rules** — `dom-validate.mjs` observes inline visibility at the review screen across every cell of the five plurality rules (explicit-blank-invalid fixture) and the two preferential rules (IRV fixture, ranked selection): **228/228** |
-| Input constraint | 3 (browser) — the `constraint` component of the effect triple | observed **behaviourally** across every rule cell as the `reachable` column of `dom-validate.md` (the state forms or it does not — e.g. the over-vote state does not form under `NOT_ALLOWED_WITH_MSG_AND_DISABLE`); the direct `disabled`-attribute probe is a DOM-selector TODO |
+| Input constraint | 3 (browser) — the `constraint` component of the effect triple | **done** — observed both **behaviourally** across every rule cell (the `reachable` column of `dom-validate.md`: the state forms or it does not) and **directly** for the over-vote `disable` policy (the `disable × over_max` cells read `no (disabled)`, from probing the (max+1)th control's `disabled` attribute) |
 | Marker exclusivity (prevention) | browser — *reachability*, not effects | first reachability recording exists (over-vote under DISABLE: the state does not form); all five S1/S2 violations (over-vote + four min-vote) are confirmed through the full booth→cast→decrypt→tally pipeline (`overvote-e2e-pipeline.mjs`, `minvote-e2e-pipeline.mjs`). Prevention is characterized by *attempting* to create each state through the UI and recording whether it forms; the mixed marker state's booth-reachability is still an open cell. |
 | Tally classifier | headless (velvet-wasm `tally_decoded_ballots`) | **done**: per-cell `tally` column in all seven rule tables, plus the standalone 32-cell six-class decision table (`classifier-table.md`, 32/32 matching the documented precedence) |
 
