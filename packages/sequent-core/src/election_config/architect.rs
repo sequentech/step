@@ -53,7 +53,7 @@ use crate::election_config::problem::{Code, Problem, Report, Severity};
 use crate::election_config::profile::{apply_profile, check_required, Profile};
 use crate::election_config::render::TemplateSet;
 use crate::election_config::schema::ImportElectionEventSchema;
-use crate::election_config::sheet::{Sheet, Workbook};
+use crate::election_config::sheet::{Row, Sheet, Workbook, SHEET_PARAMETERS};
 use crate::election_config::time::{self, Timestamp};
 use crate::election_config::validate::{ALLOW_EARLY_VOTING, NO_EARLY_VOTING};
 use crate::types::ceremonies::CeremoniesPolicy;
@@ -566,6 +566,31 @@ pub struct Blueprint {
     /// Admin Portal's own editor writes, and the two have to be the same file.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub i18n: BTreeMap<String, BTreeMap<String, String>>,
+
+    /// Wording overrides for the **sign-in page**, per language.
+    ///
+    /// Same shape as [`Blueprint::i18n`] and a different destination, because they
+    /// are different programs. `i18n` reaches everything that reads the event's
+    /// presentation — the Voting Portal, and the ballot verifier with it — through
+    /// `overwriteTranslations`. The sign-in page is Keycloak: a Java application
+    /// that never sees the event's presentation and looks its wording up in the
+    /// realm's own `localizationTexts`.
+    ///
+    /// So these are emitted as `keycloak_event_realm.localizationTexts.<locale>.<key>`
+    /// parameters, which is the road `login_custom_css` already travels
+    /// (`branding::login_css_patch`) and the prefix `PARAMETER_PREFIXES` already
+    /// carries into the realm patch. Nothing in the realm builder had to change:
+    /// the patch merges by path, so a plan's wording lands beside whatever a base
+    /// export brought rather than replacing the object it lives in.
+    ///
+    /// **Not MessageFormat-escaped**, unlike the CSS beside it. `login_css_patch`
+    /// escapes because a stylesheet is full of braces and Keycloak reads a message
+    /// as a MessageFormat pattern; a *translation* may legitimately carry `{0}`,
+    /// and escaping it would put the literal characters on the page where the
+    /// voter's name should be. A brace that is not a well-formed placeholder is
+    /// worth a warning rather than a silent rewrite — see `check_keycloak_messages`.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub keycloak_messages: BTreeMap<String, BTreeMap<String, String>>,
 
     /// Anything the wizard has no field for. Carried, not interpreted.
     #[serde(default)]
@@ -2304,12 +2329,35 @@ pub fn to_workbook(plan: &Blueprint) -> Result<Workbook, Problem> {
         }
     }
 
+    // The sign-in page's wording, which is a *parameter* rather than a sheet of
+    // its own — see `parameters_sheet`. Emitted before the carried sheets and
+    // excluded from them below, because a plan opened from a workbook already has
+    // that sheet and `Workbook::new` refuses a duplicate key.
+    let parameters = match parameters_sheet(plan) {
+        Some(Ok(sheet)) => Some(sheet),
+        Some(Err(why)) => return Err(why),
+        None => None,
+    };
+    let replaced = parameters.is_some();
+    if let Some(sheet) = parameters {
+        sheets.push(sheet);
+    }
+
     // Last, and untouched. These are the sheets the wizard has no screens for,
     // carried through so `build` can do to them exactly what it does to a
     // janitor's own file. `Workbook::new` refuses a duplicate key, so a plan that
     // somehow carried a second ElectionEvent is a refusal rather than a silent
     // choice between two.
-    sheets.extend(plan.platform.iter().cloned());
+    //
+    // `parameters` is the one exception, and only when there is wording to add:
+    // the copy pushed above *is* the carried sheet with rows appended, so passing
+    // the original through as well would be that refusal.
+    sheets.extend(
+        plan.platform
+            .iter()
+            .filter(|sheet| !(replaced && sheet.key == SHEET_PARAMETERS))
+            .cloned(),
+    );
 
     Workbook::new(sheets)
 }
@@ -3096,6 +3144,120 @@ fn messages_sheet(
         .collect();
 
     Some(sheet_of("Messages", columns, rows))
+}
+
+/// The sign-in page's wording, as realm parameters.
+///
+/// `keycloak_event_realm.localizationTexts.<locale>.<key>`, one row each, which is
+/// a prefix `PARAMETER_PREFIXES` already carries into the realm patch — so this
+/// emitter is the whole of the feature on the build side and `build_realm.rs` did
+/// not change.
+///
+/// Returns nothing when the plan says nothing, and that matters more than it looks:
+/// `parameters` is one of the sheets a plan carries through from a workbook it was
+/// opened from, and `Workbook::new` refuses a duplicate key. A plan with no
+/// sign-in wording therefore emits no sheet at all, so opening a janitor's workbook
+/// and rebuilding it is byte-for-byte what it was before this existed. Where the
+/// plan *does* have wording and *did* come from such a workbook, the rows are
+/// merged into that sheet by {@link merge_parameters} rather than added beside it.
+fn keycloak_message_rows(plan: &Blueprint) -> Vec<(String, String)> {
+    let mut rows = Vec::new();
+    for (locale, messages) in &plan.keycloak_messages {
+        if locale.trim().is_empty() {
+            continue;
+        }
+        for (key, text) in messages {
+            if key.trim().is_empty() {
+                continue;
+            }
+            rows.push((
+                format!(
+                    "keycloak_event_realm.localizationTexts.{}.{}",
+                    locale.trim(),
+                    key.trim()
+                ),
+                text.clone(),
+            ));
+        }
+    }
+    rows
+}
+
+/// The parameters sheet the plan carries, with the sign-in wording added to it.
+///
+/// Two shapes to reconcile: a plan opened from a workbook brings that workbook's
+/// own `parameters` sheet through `platform`, and a plan authored in the wizard has
+/// none. Either way the result is exactly one parameters sheet, because two would
+/// be refused — and refusing a plan somebody assembled by opening a real workbook
+/// and adding a translation would be the worst possible time to find that out.
+///
+/// The carried sheet's own columns are kept. Its rows are `key`/`value`/`type`, so
+/// the added rows are laid out to match by position, and a sheet whose columns are
+/// in another order is left alone with the wording appended by header name.
+fn parameters_sheet(plan: &Blueprint) -> Option<Result<Sheet, Problem>> {
+    let rows = keycloak_message_rows(plan);
+    if rows.is_empty() {
+        return None;
+    }
+
+    // The sheet a plan opened from a workbook brought with it, if any.
+    let carried = plan
+        .platform
+        .iter()
+        .find(|sheet| sheet.key == SHEET_PARAMETERS);
+
+    let Some(carried) = carried else {
+        return Some(sheet_of(
+            "Parameters",
+            vec!["key".to_string(), "value".to_string()],
+            rows.into_iter()
+                .map(|(key, value)| vec![Cell::text(key), Cell::text(value)])
+                .collect(),
+        ));
+    };
+
+    // Appended to what the workbook already said, keyed by the headers that sheet
+    // uses. `Row.cells` holds only non-blank cells, keyed by raw header, so there
+    // is nothing to pad and no column order to guess at.
+    let mut merged = carried.clone();
+    let key_header = merged
+        .headers
+        .iter()
+        .find(|header| header.as_str() == "key")
+        .cloned();
+    let value_header = merged
+        .headers
+        .iter()
+        .find(|header| header.as_str() == "value")
+        .cloned();
+    let (Some(key_header), Some(value_header)) = (key_header, value_header)
+    else {
+        // A `parameters` sheet with no `key` column is not one the builder reads
+        // either, and quietly dropping the wording is the failure this file spends
+        // most of its comments arguing against.
+        return Some(Err(Problem::error(
+            Code::MissingField,
+            "keycloak_messages",
+            "the workbook this plan came from has a Parameters sheet without \
+             `key` and `value` columns, so the sign-in page's wording has \
+             nowhere to go. Remove that sheet or give it those columns.",
+        )));
+    };
+
+    let mut number =
+        merged.rows.iter().map(|row| row.number).max().unwrap_or(1);
+    for (key, value) in rows {
+        number += 1;
+        merged.rows.push(Row {
+            sheet: merged.name.clone(),
+            number,
+            cells: vec![
+                (key_header.clone(), serde_json::Value::String(key)),
+                (value_header.clone(), serde_json::Value::String(value)),
+            ],
+        });
+    }
+    Some(Ok(merged))
 }
 
 fn notes_sheet(plan: &Blueprint) -> Option<Result<Sheet, Problem>> {

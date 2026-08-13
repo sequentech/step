@@ -4120,3 +4120,135 @@ fn saying_nothing_about_wording_writes_an_empty_cell() {
         "expected an empty cell, got {written:?}"
     );
 }
+
+/// The sign-in page's wording reaches the realm, by the road the CSS already took.
+///
+/// Keycloak is a Java application that never sees the event's presentation, so
+/// `Blueprint::i18n` — which the Voting Portal and the ballot verifier read —
+/// cannot reach it. These become
+/// `keycloak_event_realm.localizationTexts.<locale>.<key>` parameters, a prefix
+/// `PARAMETER_PREFIXES` already carries into the realm patch, which is why the
+/// realm builder did not have to change.
+#[test]
+fn the_sign_in_pages_wording_is_written_as_realm_parameters() {
+    let mut plan = sound();
+    plan.keycloak_messages = BTreeMap::from([
+        (
+            "en".to_string(),
+            BTreeMap::from([(
+                "doLogIn".to_string(),
+                "Sign in to vote".to_string(),
+            )]),
+        ),
+        (
+            "es".to_string(),
+            BTreeMap::from([(
+                "doLogIn".to_string(),
+                "Entra para votar".to_string(),
+            )]),
+        ),
+    ]);
+
+    let workbook = to_workbook(&plan).expect("the plan compiles to rows");
+    let said: Vec<(String, String)> = workbook
+        .rows(sheet::SHEET_PARAMETERS)
+        .iter()
+        .filter_map(|row| {
+            Some((row.text("key")?.to_string(), row.text("value")?.to_string()))
+        })
+        .collect();
+
+    assert!(
+        said.contains(&(
+            "keycloak_event_realm.localizationTexts.en.doLogIn".to_string(),
+            "Sign in to vote".to_string()
+        )),
+        "{said:?}"
+    );
+    assert!(
+        said.contains(&(
+            "keycloak_event_realm.localizationTexts.es.doLogIn".to_string(),
+            "Entra para votar".to_string()
+        )),
+        "{said:?}"
+    );
+}
+
+/// A translation keeps its placeholders, unlike the stylesheet beside it.
+///
+/// `login_css_patch` escapes MessageFormat's braces because a stylesheet is full of
+/// them. A *translation* may legitimately carry `{0}`, and escaping it would put the
+/// literal characters on the sign-in page where the voter's name belongs.
+#[test]
+fn a_translation_is_not_message_format_escaped() {
+    let mut plan = sound();
+    plan.keycloak_messages = BTreeMap::from([(
+        "en".to_string(),
+        BTreeMap::from([("hello".to_string(), "Welcome, {0}".to_string())]),
+    )]);
+
+    let workbook = to_workbook(&plan).expect("the plan compiles to rows");
+    let value = workbook.rows(sheet::SHEET_PARAMETERS)[0]
+        .text("value")
+        .map(str::to_string);
+    assert_eq!(value, Some("Welcome, {0}".to_string()));
+}
+
+/// A plan that says nothing about the sign-in page emits no sheet at all.
+///
+/// `parameters` is one of the sheets a plan carries through from the workbook it was
+/// opened from, and `Workbook::new` refuses a duplicate key. Emitting an empty one
+/// would make every plan that came from a janitor's workbook a refusal, and would
+/// change what a rebuild of an untouched workbook produces.
+#[test]
+fn no_sign_in_wording_means_no_parameters_sheet() {
+    let workbook = to_workbook(&sound()).expect("the plan compiles to rows");
+    assert!(
+        workbook.sheet(sheet::SHEET_PARAMETERS).is_none(),
+        "a plan with no sign-in wording should not invent a Parameters sheet"
+    );
+}
+
+/// Wording is appended to the workbook's own parameters, not put beside them.
+///
+/// The case that would otherwise be a refusal: a plan opened from a real workbook
+/// carries that workbook's `parameters` sheet in `platform`, and somebody then adds
+/// a translation. One sheet comes out, holding both.
+#[test]
+fn wording_is_appended_to_a_carried_parameters_sheet() {
+    let mut plan = sound();
+    plan.platform = vec![sheet::Sheet::from_grid(
+        "Parameters",
+        &[
+            vec![
+                Cell::text("key".to_string()),
+                Cell::text("value".to_string()),
+            ],
+            vec![
+                Cell::text("tenant_id".to_string()),
+                Cell::text("acme".to_string()),
+            ],
+        ],
+    )
+    .expect("a two-column sheet")];
+    plan.keycloak_messages = BTreeMap::from([(
+        "en".to_string(),
+        BTreeMap::from([("doLogIn".to_string(), "Sign in".to_string())]),
+    )]);
+
+    let workbook = to_workbook(&plan).expect("the plan compiles to rows");
+    let keys: Vec<String> = workbook
+        .rows(sheet::SHEET_PARAMETERS)
+        .iter()
+        .filter_map(|row| row.text("key").map(str::to_string))
+        .collect();
+
+    assert_eq!(
+        keys,
+        vec![
+            "tenant_id".to_string(),
+            "keycloak_event_realm.localizationTexts.en.doLogIn".to_string(),
+        ],
+        "the workbook's own parameter comes first, and the wording after it"
+    );
+}
