@@ -84,6 +84,37 @@ pub enum TallyExecutionStatus {
     CANCELLED,
 }
 
+/// Why a tally session execution was created, recorded on the
+/// `tally_session_execution` row itself so that the reason survives the loss of
+/// the celery message that would otherwise carry it.
+///
+/// The task reads the reason from the newest execution row, and a completed run
+/// appends a fresh `NORMAL` row -- so finishing the work consumes the reason
+/// without a separate clearing step, while a run that bails out early writes no
+/// row at all and is therefore retried by the next `process_board` tick.
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
+pub enum TallyRunReason {
+    /// Advance the tally with board messages that have not been processed yet.
+    #[default]
+    NORMAL,
+    /// Re-run a completed session over the same board messages, producing a
+    /// fresh results event.
+    RECOUNT,
+    /// Re-run after tie-break resolutions were submitted.
+    TIE_BREAK_RERUN,
+}
+
 #[derive(
     Display,
     Serialize,

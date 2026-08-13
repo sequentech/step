@@ -57,6 +57,8 @@ use crate::election_config::sheet::{Sheet, Workbook};
 use crate::election_config::time::{self, Timestamp};
 use crate::election_config::validate::{ALLOW_EARLY_VOTING, NO_EARLY_VOTING};
 use crate::types::ceremonies::CeremoniesPolicy;
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 /// The plan format's version.
@@ -544,6 +546,26 @@ pub struct Blueprint {
     /// identically; now the bottom of a three-level resolution.
     #[serde(default)]
     pub defaults: Behaviour,
+
+    /// A stylesheet for the voting portal, applied to what a voter sees.
+    ///
+    /// A raw string, because that is what the platform stores and applies:
+    /// `election_event.presentation.css`, interpolated into a styled component
+    /// by the portal's own shell. There is no token set to model — no primary
+    /// colour, no branding object — anywhere in the platform, and inventing one
+    /// here would be a second opinion the importer does not share.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub css: String,
+
+    /// Wording overrides for the voting portal, per language.
+    ///
+    /// `{language: {dotted.key: text}}` — the shape
+    /// `presentation.i18n` already carries and `overwriteTranslations` already
+    /// applies, splitting each key on `.` and deep-merging over the shipped
+    /// catalogue. Flat keys rather than a nested map because that is what the
+    /// Admin Portal's own editor writes, and the two have to be the same file.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub i18n: BTreeMap<String, BTreeMap<String, String>>,
 
     /// Anything the wizard has no field for. Carried, not interpreted.
     #[serde(default)]
@@ -1362,27 +1384,20 @@ pub fn validate_plan(plan: &Blueprint) -> Report {
     check_ballot(plan, &mut report);
     check_unique_identifiers(plan, &mut report);
 
-    // The most valuable thing this screen ships, and it is a sentence.
+    // There was a `messages.not-automatic` warning here, on every plan carrying a
+    // message: `scheduled_events.rs` handles `SEND_TEMPLATE` with an empty arm, so
+    // nothing sent them and the wizard said so.
     //
-    // `windmill/src/tasks/scheduled_events.rs` handles `SEND_TEMPLATE` with an
-    // empty arm — deliberately, so a new processor is a compile error — and
-    // `import_scheduled_events` rebuilds the payload as a
-    // `ManageElectionDatePayload`, discarding the body. So a schedule in this plan
-    // is a note for a person. Said out loud, because a client who fills this in and
-    // is not told will believe their reminders went out.
-    if !plan.messages.is_empty() {
-        report.push(
-            Problem::warning(
-                Code::MissingSchedule,
-                "messages",
-                "nothing sends these. The platform's scheduled-event processor for \
-                 templates does nothing, so the dates below are a note for whoever \
-                 sends them by hand. The text and the schedule are exported either \
-                 way.",
-            )
-            .id("messages.not-automatic"),
-        );
-    }
+    // Removed deliberately, and not because the sentence was wrong. It is a
+    // statement about a gap in the *platform* rather than about anything in the
+    // plan, and it fired on every message anybody wrote — so the one screen where
+    // a client does creative work always ended in an amber panel about somebody
+    // else's roadmap. That is a warning nobody can act on, which is how a list of
+    // warnings comes to be scrolled past.
+    //
+    // The gap is being closed. When it is, nothing here needs changing; if it is
+    // not, the people who need to know are the delivery team, and the delivery
+    // guide tells them. `validate_plan` is for what is wrong with *this plan*.
 
     // A repeat with no hour in it.
     //
@@ -2422,12 +2437,23 @@ fn event_sheet(
     languages: &[String],
 ) -> Result<Sheet, Problem> {
     let mut columns = vec!["external_id".to_string()];
+    // **Before** the named `presentation.i18n.<lang>.name` columns, and the
+    // order is load-bearing. `set_path` inserts rather than merges, so this
+    // whole-object column written *after* them would replace the object it had
+    // just filled and take the event's own name and description with it. First,
+    // the object exists and the named columns descend into it.
+    columns.extend(
+        languages
+            .iter()
+            .map(|language| format!("presentation.i18n.{language}")),
+    );
     columns.extend(i18n_columns("presentation", "name", languages));
     columns.extend(i18n_columns("presentation", "description", languages));
     // The flat column too, mirroring the English one. The Admin Portal keeps
     // both in step — `newEvent.description = presentation.i18n.en.description` —
     // and a bundle with only the i18n block leaves every list view blank.
     columns.push("description".to_string());
+    columns.push("presentation.css".to_string());
     columns.push("presentation.elections_order".to_string());
     columns.push("presentation.show_cast_vote_logs".to_string());
     columns
@@ -2436,9 +2462,26 @@ fn event_sheet(
         .push("presentation.language_conf.default_language_code".to_string());
 
     let mut row = vec![Cell::text(plan.external_id.clone())];
+    // A JSON object per language, which `coerce_scalar` parses because it is
+    // bracketed. One column per *key* is not available: `split_path` splits on
+    // `.` and portal keys are dotted — `candidate.preferential.none` would
+    // become three levels of nesting nobody asked for.
+    row.extend(languages.iter().map(|language| {
+        let written = plan.i18n.get(language);
+        match written {
+            Some(keys) if !keys.is_empty() => Cell::text(
+                serde_json::to_string(keys)
+                    .unwrap_or_else(|_| "{}".to_string()),
+            ),
+            // Empty rather than `{}`: a blank cell is skipped by the reader, and
+            // writing `{}` would replace whatever a base export already had.
+            _ => Cell::text(String::new()),
+        }
+    }));
     row.extend(i18n_values(&plan.name, languages));
     row.extend(i18n_values(&plan.description, languages));
     row.push(english_of(&plan.description));
+    row.push(Cell::text(plan.css.clone()));
     row.push(Cell::text(plan.elections_order.clone()));
     row.push(Cell::text(plan.show_cast_vote_logs.clone()));
     // A JSON array in one cell: the reader parses bracketed text as JSON, which is

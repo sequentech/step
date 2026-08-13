@@ -2767,9 +2767,15 @@ fn a_sheet_naming_a_logo_nobody_supplied_is_refused() {
     );
 }
 
-/// A schedule nobody honours is worse than no schedule, so it is said out loud.
+/// A message is not a defect, and nothing about it is said unprompted.
+///
+/// This asserted the opposite until the `messages.not-automatic` warning was
+/// removed: it fired on every plan carrying a message, so the one screen where a
+/// client does creative work always ended in an amber panel about a gap in the
+/// platform rather than anything in their plan. Kept as the inverse, because
+/// "adding a message produces no complaint" is worth holding still.
 #[test]
-fn a_planned_message_says_that_nothing_will_send_it() {
+fn a_planned_message_is_not_itself_a_problem() {
     let mut plan = sound();
     plan.messages.push(PlannedMessage {
         kind: MessageKind::InvitationToVote,
@@ -2781,7 +2787,17 @@ fn a_planned_message_says_that_nothing_will_send_it() {
 
     let report = validate_plan(&plan);
     assert!(!report.has_errors(), "a message is not a defect");
-    assert!(says(&report, "nothing sends these"));
+    assert!(
+        !says(&report, "nothing sends these"),
+        "the platform's own gap is not this plan's problem: {report}"
+    );
+    assert!(
+        !report
+            .problems
+            .iter()
+            .any(|problem| problem.path == "messages"),
+        "a message with nothing wrong with it draws no comment: {report}"
+    );
 }
 
 /// "Every Monday" is not a time, and whoever sends it should not have to guess.
@@ -4010,4 +4026,97 @@ fn a_version_two_plan_keeps_its_voters_in_their_areas() {
             voter.username
         );
     }
+}
+
+// -- the client's own wording and stylesheet ---------------------------------
+
+/// The whole-object i18n column must come **before** the named ones.
+///
+/// `set_path` inserts rather than merges. Written after
+/// `presentation.i18n.en.name`, this column replaces the object that column had
+/// just filled and takes the event's own name and description with it — a build
+/// whose every list view is blank, from a column order nobody would think to
+/// look at. Named for the ordering so a later tidy-up has to read this.
+#[test]
+fn the_wording_blob_is_written_before_the_named_columns() {
+    let mut plan = sound();
+    plan.i18n.insert(
+        "en".to_string(),
+        [(
+            "candidate.blankVote".to_string(),
+            "None of these".to_string(),
+        )]
+        .into_iter()
+        .collect(),
+    );
+
+    let workbook = to_workbook(&plan).expect("the plan compiles to rows");
+    let row = workbook.rows(sheet::SHEET_ELECTION_EVENT)[0].clone();
+    let order: Vec<String> =
+        row.without(&[]).into_iter().map(|(name, _)| name).collect();
+    let blob = order.iter().position(|each| each == "presentation.i18n.en");
+    let named = order
+        .iter()
+        .position(|each| each == "presentation.i18n.en.name");
+
+    assert!(
+        blob.is_some() && named.is_some() && blob < named,
+        "the whole-object column must precede the named ones, or it clobbers \
+         them: {order:?}"
+    );
+}
+
+/// And the event's own name survives being written into that object.
+#[test]
+fn the_event_keeps_its_name_when_a_client_overrides_wording() {
+    let mut plan = sound();
+    let was = plan.name.clone();
+    plan.i18n.insert(
+        "en".to_string(),
+        [(
+            "candidate.blankVote".to_string(),
+            "None of these".to_string(),
+        )]
+        .into_iter()
+        .collect(),
+    );
+
+    let workbook = to_workbook(&plan).expect("the plan compiles to rows");
+    let row = workbook.rows(sheet::SHEET_ELECTION_EVENT)[0].clone();
+    assert_eq!(
+        row.text("presentation.i18n.en.name").unwrap_or_default(),
+        was.get("en").unwrap_or_default().to_string()
+    );
+}
+
+/// A stylesheet reaches the column the portal reads.
+#[test]
+fn a_stylesheet_reaches_the_event_sheet() {
+    let mut plan = sound();
+    plan.css = ".candidate { border-color: rebeccapurple; }".to_string();
+
+    let workbook = to_workbook(&plan).expect("the plan compiles to rows");
+    let row = workbook.rows(sheet::SHEET_ELECTION_EVENT)[0].clone();
+    assert_eq!(
+        row.text("presentation.css"),
+        Some(".candidate { border-color: rebeccapurple; }")
+    );
+}
+
+/// Nothing written means nothing said, not an empty object.
+///
+/// `{}` in the cell would *replace* whatever a base export already carried,
+/// which for an event being rebuilt is the wording somebody set in the Admin
+/// Portal.
+#[test]
+fn saying_nothing_about_wording_writes_an_empty_cell() {
+    let plan = sound();
+
+    let workbook = to_workbook(&plan).expect("the plan compiles to rows");
+    let row = workbook.rows(sheet::SHEET_ELECTION_EVENT)[0].clone();
+    let written = row.text("presentation.i18n.en");
+    assert!(
+        written.is_none() || written == Some(""),
+        "expected an empty cell, got {written:?}"
+    );
 }
