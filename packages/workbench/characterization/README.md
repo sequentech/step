@@ -316,9 +316,10 @@ shown nothing and the ballot ending `total_valid_votes: 0`,
 
 The sharpest is `min=2/marker_only`: the voter selects the **Blank vote (explicit blank)**
 marker — a deliberate blank — and it is silently discarded
-`ImplicitInvalid` (the marker counts as 1 < 2). The crypto-chaining TODO
-is closed for the whole finding. The cheaper two-halves browser runner
-(`overvote-rule.browser.mjs`) stays as the whole-policy-grid check.
+`ImplicitInvalid` (the marker counts as 1 < 2). The end-to-end
+crypto-chaining check is complete for the whole finding. The cheaper
+two-halves browser runner (`overvote-rule.browser.mjs`) stays as the
+whole-policy-grid check.
 
 **A faithfulness rule this exercise taught** (an earlier revision of the
 e2e check got it wrong and reported "Valid"): the tally classifies

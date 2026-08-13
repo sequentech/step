@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// Closes the crypto-chaining TODO: confirms the S1 over-vote silent-discount
+// End-to-end crypto-chaining check: confirms the S1 over-vote silent-discount
 // through ONE continuous flow of the real workbench pipeline, not two
 // input-sharing halves.
 //
