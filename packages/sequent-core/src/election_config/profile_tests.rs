@@ -155,6 +155,40 @@ fn the_paths_the_docs_advertise_are_accepted() {
     }
 }
 
+/// Every scalar the wizard lets a profile fix, whether or not a default plan
+/// serialises it.
+///
+/// `auth_preset` is an `Option` that skips serialising while empty, so the shape
+/// a path is checked against had no such key and *How voters sign in* — a setting
+/// the client profile builder offers, and one somebody would obviously hide —
+/// was refused with `'auth_preset' names nothing a plan has`. A profile
+/// downloaded from the builder with that row touched could not be loaded at all,
+/// and the message sent whoever met it looking for a typo they had not made.
+///
+/// The others are here because they are the same shape of field and the mistake
+/// is not specific to one of them: any `Option` or `skip_serializing_if` added to
+/// `Blueprint` is invisible to `shape_of_a_plan` until somebody fills it in.
+#[test]
+fn a_profile_may_fix_a_field_an_empty_plan_leaves_out() {
+    for path in [
+        "auth_preset",
+        "logo_url",
+        "schedule.key_ceremony",
+        "schedule.tally_ceremony",
+    ] {
+        let document = ClientProfile {
+            id: "acme".to_string(),
+            defaults: defaults(&[(path, Value::from("x"))]),
+            hidden: vec![path.to_string()],
+            ..Default::default()
+        };
+        assert!(
+            Profile::read(&document).is_ok(),
+            "'{path}' is a setting the wizard offers and must be usable"
+        );
+    }
+}
+
 #[test]
 fn a_path_reaching_into_a_contest_is_accepted() {
     profile_of(ClientProfile {

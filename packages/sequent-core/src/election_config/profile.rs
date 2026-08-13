@@ -611,6 +611,13 @@ fn shape_of_a_plan() -> Value {
     plan.schedule.voting_opens = moment.clone();
     plan.schedule.voting_closes = moment.clone();
     plan.schedule.tally_ceremony = moment;
+    // The same trap once more. `auth_preset` is an `Option` that skips
+    // serialising while empty, so a shape built from defaults has no such key
+    // and every profile naming *How voters sign in* was refused —
+    // `'auth_preset' names nothing a plan has` — even though the plan has it and
+    // the wizard offers it. A profile downloaded from the client profile builder
+    // with that setting touched could not be loaded at all.
+    plan.auth_preset = Some(String::new());
 
     // Filled rather than defaulted, because `Overrides` and `Option<Overrides>`
     // both carry `skip_serializing_if`. Left empty they vanish from the shape,
