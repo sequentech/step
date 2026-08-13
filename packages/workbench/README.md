@@ -347,6 +347,53 @@ type-checking the lifted portal sources under the workbench's stricter
 flags. Fixing it means mirroring the Vite aliases as tsconfig `paths` and
 excluding portal sources from the check.
 
+## What's next
+
+Where the work stands (2026-08-13): the validation characterization is
+complete — all seven rules recorded headlessly and DOM-validated against
+the real booth (229/229, [characterization/README.md](characterization/README.md)),
+the findings confirmed end-to-end and documented — with exactly one open
+cell (the decline-to-vote booth flow). The natural next moves, roughly by
+payoff:
+
+1. **Consultation on the findings.** S1/S2 (silent discounting) and S5
+   (null-vote choice preservation) are documented
+   ([docs/UPSTREAM_FINDINGS.md](docs/UPSTREAM_FINDINGS.md)), reproducible
+   click-by-click ([docs/REPRODUCE.md](docs/REPRODUCE.md)) and in one
+   command (`node characterization/reproduce-verify.mjs`), with
+   policy-intent evidence assembled
+   ([docs/INVALID_VOTE_POLICY_INTENT.md](docs/INVALID_VOTE_POLICY_INTENT.md)).
+   Per the three-state model (characterized → suspect → adjudicated),
+   escalating them to the parties with design authority is the step this
+   repo cannot take by itself — and the sharpest open question is
+   answerable inside Sequent: *what does meta#8235 say?*
+2. **The decline-to-vote booth flow** — the one open characterization
+   cell. Blocked on adding a `multi_ballot` encrypt/decrypt path (the
+   decline bit does not exist in `raw_ballot`; see Known gaps above), so
+   it is a feature lift, not a rule extension.
+3. **Distillation step 3** — `spec.mjs` is now validated against the
+   whole grid, so the next step in
+   [docs/VALIDATION_LOGIC_DISTILLATION.md](docs/VALIDATION_LOGIC_DISTILLATION.md)
+   §5.3 is expressing the (post-adjudication) table declaratively — a
+   Rust match expression or a loadable data structure — then
+   property-testing it for equivalence against the live implementation.
+
+Standing maintenance, as upstream moves:
+
+- **Land the velvet-core extraction upstream** — what would stop the
+  recurring `do_tally` forward-ports (Known gaps above); until then,
+  budget the port on each catch-up merge and reconcile the strand
+  divergence deliberately rather than by merge default.
+- **When #2949's `allowed-with-exclusive-explicit` reaches `main`**,
+  extend the invalid-rule characterization with the fifth policy value —
+  both current marker directions are already observed as its baseline
+  (INVALID_VOTE_POLICY_INTENT.md §8).
+- **After any portal refresh**, re-run the characterization suite
+  (headless runners + `dom-validate.mjs`) and the consumer census —
+  LIFTING.md's refresh runbook ends with this step.
+- **Fix `yarn build`** (three known causes above) if a static production
+  build is ever needed rather than the dev server.
+
 ## License
 
 AGPL-3.0-only
