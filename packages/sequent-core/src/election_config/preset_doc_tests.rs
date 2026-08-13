@@ -255,6 +255,46 @@ fn a_placeholder_in_a_key_is_substituted_too() {
         .contains_key("memberId"));
 }
 
+/// Every object key sorted, however this build spells a JSON map.
+///
+/// **Without this the shipped file depends on which crates the build happens to
+/// include, and that is not a hypothetical.** `serde_json::Map` is a `BTreeMap`
+/// normally and an `IndexMap` when the `preserve_order` feature is on — sorted keys
+/// against insertion-order keys — and cargo unifies features across a build, so
+/// anything in the graph asking for it changes the bytes this test produces. In
+/// this crate that is `biscuit`, a JWT dependency the `keycloak` feature pulls in:
+/// the file was generated without `keycloak` and CI runs
+/// `--features keycloak,default_features,…`, so CI regenerated it into insertion
+/// order and reported the shipped file as out of date. Both documents were
+/// semantically identical; the diff was three hundred lines of nothing.
+///
+/// Sorting is the canonical form rather than an arbitrary pick: it is what every
+/// feature set that does *not* pull `preserve_order` already produces, and it is
+/// what the committed file already was, so choosing it changed no bytes.
+///
+/// Comparing the parsed documents instead would also have gone green, and is worse.
+/// A byte comparison is the property actually wanted — the file is `include_str!`'d
+/// and ships as itself, so "exactly reproducible" is worth keeping — and dropping to
+/// a semantic comparison would leave whoever next runs
+/// `SEQUENT_WRITE_DEFAULT_PROFILE=1` committing a three-hundred-line no-op diff that
+/// passes.
+fn sorted(value: Value) -> Value {
+    match value {
+        Value::Object(fields) => Value::Object(
+            fields
+                .into_iter()
+                .collect::<std::collections::BTreeMap<_, _>>()
+                .into_iter()
+                .map(|(key, value)| (key, sorted(value)))
+                .collect(),
+        ),
+        Value::Array(items) => {
+            Value::Array(items.into_iter().map(sorted).collect())
+        }
+        other => other,
+    }
+}
+
 /// The file in git is what the functions produce.
 ///
 /// Pinned rather than trusted, because the file is the thing that ships and the
@@ -262,7 +302,7 @@ fn a_placeholder_in_a_key_is_substituted_too() {
 /// regenerating fails here, which is the only moment anybody would notice.
 #[test]
 fn default_profile_json_matches_the_shipped_presets() {
-    let written = serde_json::to_string_pretty(&json!({
+    let written = serde_json::to_string_pretty(&sorted(json!({
         "id": "default",
         "display_name": "Sequent's own",
         "defaults": {},
@@ -270,7 +310,7 @@ fn default_profile_json_matches_the_shipped_presets() {
         "hidden": [],
         "required": [],
         "auth_presets": derived(),
-    }))
+    })))
     .expect("the presets serialize")
         + "\n";
 
