@@ -4,7 +4,12 @@
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# Dark theme implementation plan
+# Dark theme palette (implemented 2026-05-26, `800dcdbec5`)
+
+> This began as the implementation plan and was executed the same day.
+> The **palette tables below are the live reference** for the workbench's
+> colour semantics; the step-by-step procedure is retained as history and
+> its counts/details reflect the code as of implementation day.
 
 ## Goal
 
@@ -92,7 +97,7 @@ purple tint — pure neutral values throughout.
 | Secondary button text | `#e0e0e0` | Light text on gray buttons |
 | Secondary button border | `#555` | Subtle border on secondary buttons |
 | Success / green | `#4ade80` | Checkmarks ("contest ✓ · keypair ✓") |
-| Error / dirty indicator | `#ef4444` | Red asterisk on dirty snapshot, error states |
+| Error | `#ef4444` | Error states (the dirty-snapshot asterisk was later switched to gold `#f0c200`, `8e81c76b9b`) |
 | Warning / gold | `#f0c200` | Alert-level validation messages |
 | Warning badge background | `#3d3000` | Dark amber bg for warning banners |
 | Filled row accent | `#1f7a8c` | Teal left-border on filled pipeline rows |
@@ -168,6 +173,9 @@ Bulk replace of ~98 color values. Key areas:
 
 - `BoothSpike.tsx` — lifted voting-portal screens; they have their own
   MUI `ThemeProvider` and are visually separate from the workbench chrome.
+  (`BoothLayout` later gained a light-reset wrapper — `607823ca78` —
+  keeping the booth's production light appearance inside the dark chrome;
+  that wrapper is workbench chrome, not a lifted-screen change.)
 - Any files outside `workbench/app/src/`.
 - No new dependencies needed (MUI's `createTheme` is already available).
 - No CSS files to create — keep the inline-style-object pattern.
@@ -201,20 +209,10 @@ Common substitutions applied across all files:
 
 ## Revert
 
-All dark-theme changes were applied in commit `800dcdbec5`. To revert:
-
-```bash
-git revert 800dcdbec5
-```
-
-This will cleanly undo every color change across all 5 files and restore the
-original light theme. No other code was changed in that commit — it is purely
-a cosmetic palette swap with no logic changes.
-
-If you need to partially revert (e.g. keep one file dark), cherry-pick the
-revert commit and then re-apply the changes for the files you want to keep:
-
-```bash
-git revert 800dcdbec5
-git checkout 800dcdbec5 -- app/src/WorkbenchInspector.tsx  # re-apply dark to this file
-```
+The initial swap was one commit (`800dcdbec5`, purely cosmetic, no logic
+changes), but **a plain `git revert 800dcdbec5` no longer applies
+cleanly**: the themed files have been edited many times since (and the
+dirty indicator recoloured, the booth light-reset wrapper added), so the
+revert would conflict and would not restore a coherent light theme.
+Reverting today means using the light→dark mapping table above in
+reverse, file by file.

@@ -146,8 +146,10 @@ reviewer can reach and check the behaviour firsthand.
 
 ## S1. Silent vote discounting under `invalid_vote_policy = allowed`
 
-**Observed** (`characterization/no-silent-discount.md`, 248 cells
-scanned / 5 violating, two families): with `invalid_vote_policy =
+**Observed** (`characterization/no-silent-discount.md` — observation-based:
+248 recorded cells scanned → 7 candidates (`tally = ImplicitInvalid` ∧ no
+gate) → **5 browser-confirmed** at the review screen, two families): with
+`invalid_vote_policy =
 allowed`, a ballot that violates an
 error-producing rule is cast with **no inline message, no dialog, and no
 block**, then classified `ImplicitInvalid` at tally and excluded from the
@@ -168,15 +170,16 @@ The keep-list explains the table's shape. Over-vote silence needs
 `over_vote_policy = allowed` because `allowed` is that rule's only
 *signal-free* variant: every other variant emits an inline alert from
 the checker, keeps `selectedMax` visible via the keep-list carve-out,
-and (for the `*_AND_ALERT` variants) raises a dialog. The recorded
+and (for the `*_AND_ALERT` variants) raises a dialog. The
 `allowed-with-msg × allowed × over_max` row shows this exactly: no
-gate fires, yet the inline signal makes it a non-violation
-(`overvote-rule.md`).
+gate fires, yet the inline signal — observed live at the review screen
+(`characterization/dom-validate.md`, over-vote table) — makes it a
+non-violation.
 Min-vote needs only `invalid = allowed`: `selectedMin` is on no
 keep-list and min-vote emits no alert, so nothing can rescue it.
 
 **Structural characterization** (from the no-silent-discount query over
-all six rules): a rule is silent-discount-prone iff all three hold —
+all seven rules): a rule is silent-discount-prone iff all three hold —
 (i) its checker emits an `invalid_error` (only errors reach the tally's
 `is_invalid()`; alerts have no tally consequence, so without an error
 there is nothing to discount), (ii) its own policy has a fully
@@ -192,15 +195,25 @@ its own, hence never any signal of its own) meet all three. The preferential rul
 only `*_WARN_AND_DIALOG` variants — and are provably immune; under-vote
 fails (i) — its checker emits only alerts, so an under-voted ballot
 stays `Valid` and there is nothing to discount; blank fails (i)∧(ii)
-jointly — it emits an error only under `not-allowed`, which hard-gates.
+jointly — it emits an error only under `not-allowed`, which hard-gates;
+the invalid rule fails (i) under the only configurations (iii) permits —
+under `invalid = allowed` its marker sets a flag, not an error, and its
+discard class (`ExplicitInvalid`) is voter-intended, excluded from the
+property by definition.
 A candidate fix therefore falls out: give every error-producing rule a
 mandatory dialog variant. See VALIDATION_LOGIC_DISTILLATION.md §4.5.
 
-**Evidence strength:** all violating cells (over-vote and both min-vote
-sub-cases) are reproduced through ONE continuous run of the real workbench
-pipeline — booth encrypt → cast → decrypt → decode → tally — with the
-voter shown nothing and the ballot ending 0 valid / 1 implicit-invalid
-(`characterization/{overvote,minvote}-e2e-pipeline.recorded.json`).
+**Evidence strength:** each of the five violating cells (over-vote plus
+the four min-vote cells) is reproduced through one continuous run of the
+real workbench pipeline — booth encrypt → cast → decrypt → decode → tally
+— with the voter shown nothing and the ballot ending 0 valid / 1
+implicit-invalid
+(`characterization/{overvote,minvote}-e2e-pipeline.recorded.json`;
+re-runnable in one command via `characterization/reproduce-verify.mjs`).
+The booth-surface half (nothing inline at review, no dialog, reachable) is
+additionally observed across the whole grid in
+`characterization/dom-validate.md` (all seven rules, 229/229 matching the
+spec).
 
 **Provenance of the silence** (full evidence chain:
 [INVALID_VOTE_POLICY_INTENT.md](INVALID_VOTE_POLICY_INTENT.md)): the
@@ -233,10 +246,12 @@ combination be flagged at configuration time? **Reproduce:**
 blank subject to `min_votes`), not an independent finding — see the
 axes table above. Recorded separately because it is the sharpest cell.*
 
-**Observed** (`characterization/minvote-rule.md`, `min_votes=2 ×
-marker_only`): a voter who selects the explicit-blank marker — an
-unambiguous, deliberate expression of "blank vote" — has the ballot
-silently classified `ImplicitInvalid`. The silence is the S1 facet. The
+**Observed** (`min_votes=2 × marker_only`; tally class in
+`characterization/minvote-rule.md`, the silence — nothing inline at
+review, no dialog — observed live in `characterization/dom-validate.md`
+and confirmed by `no-silent-discount.md`): a voter who selects the
+explicit-blank marker — an unambiguous, deliberate expression of "blank
+vote" — has the ballot silently classified `ImplicitInvalid`. The silence is the S1 facet. The
 S3 facet is the rule's *applicability*, not the count value: the
 `min_votes` check runs against a deliberately-blank ballot at all, and
 the resulting `selectedMin` error outranks the blank marker at
@@ -360,7 +375,11 @@ decoded ballot carries `is_explicit_invalid = true` **and** one regular
 selection, and the tally is `ExplicitInvalid` (0 valid, the candidate
 counted for no one). So the voter's would-be vote lives in the cast
 ciphertext even though nothing tallies or (as far as the consumer census
-found) reads it.
+found) reads it. Both directions of the asymmetry are also observed live
+in `characterization/dom-validate.md`: the invalid `marker_plus` cell
+*forms* ({regular + null marker}, reachable), while the blank
+`regular_then_marker` cell *collapses* (`no (cleared)` — the marker
+deselects the regular).
 
 **Why suspect:** **not** a silent discount — the voter opts into the null
 vote deliberately, and its exclusion from the count is intended. But the

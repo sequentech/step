@@ -34,8 +34,9 @@ Responses to either kind sit on one severity ladder:
 > silence → inline message → dismissible dialog → hard block
 
 ("Not permitted" is not a separate concept from signaling — a hard
-block is the top of the ladder.) The four values are points in that
-2-axis space:
+block is the top of the ladder.) The four values on `origin/main` are
+points in that 2-axis space (a fifth, release/10.0-only value exists —
+§8):
 
 | value | response to explicit invalid | response to implicit invalid |
 |---|---|---|
@@ -269,9 +270,11 @@ account of current behaviour, not as original design intent.
 mutual exclusivity (#2949)", 2026-08-05) — merged to the
 `release/10.0` branch family, **not yet on `origin/main`** and absent
 from this workbench's tree — adds a fifth value,
-`allowed-with-exclusive-explicit`: selecting the null marker clears
-other selections and vice versa, mirroring the blank marker. Its doc
-line also states why the default does *not* clear:
+`allowed-with-exclusive-explicit`: per its commit message, the null
+marker and other selections become mutually exclusive, mirroring the
+blank marker's clearing behaviour (the exact reducer mechanics are not
+verifiable from this tree). Its doc line also states why the default
+does *not* clear:
 
 > "Combining an explicit-invalid selection with other candidates
 > (e.g. via an older client) is still tallied like Allowed, since
@@ -286,8 +289,13 @@ under every `allowed`-family default the latent candidate preference
 is still encrypted into the cast ballot.
 
 **Workbench follow-up:** when #2949 reaches main, the invalid-rule
-characterization gains a fifth policy value, and the marker-exclusivity
-preventer (`ballotSelectionsSlice.ts`) becomes policy-dependent.
+characterization gains a fifth policy value, and marker exclusivity
+(`ballotSelectionsSlice.ts`) becomes policy-dependent for the invalid
+marker — which today has **no** exclusivity (the mixed state forms; only
+the blank marker clears). Both current directions are observed in
+`characterization/dom-validate.md` (invalid `marker_plus` reachable;
+blank `regular_then_marker` → `no (cleared)`), giving the fifth value a
+full observed baseline to diff against.
 
 ## 9. Bearing on the findings
 
@@ -314,8 +322,9 @@ concern — *can occur in a real election* AND *is not intended* —
   intent but none distinguishes the message layer from the dialog
   layer or mentions the discount consequence.
 
-The sharpest remaining question is now concrete and internally
-answerable: **what does meta#8235 say?**
+The sharpest remaining question is now concrete and answerable inside
+Sequent (the ticket was not readable from this environment — §5):
+**what does meta#8235 say?**
 
 **S5 (null vote preserves choices).** Substantially answered by
 #2949 (§8): preservation is intended (client reliance), exclusivity
@@ -339,4 +348,7 @@ becomes expressible at all.
 
 Investigation date: 2026-08-12. Behavioural claims cross-checked
 against the workbench's recorded characterization
-(`characterization/invalid-rule.md`, `no-silent-discount.md`).
+(`characterization/invalid-rule.md`, `no-silent-discount.md`; the
+booth-surface claims — inline visibility under `allowed`, marker
+reachability — are since observed across the whole grid in
+`characterization/dom-validate.md`, 229/229).
