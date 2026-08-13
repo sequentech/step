@@ -1,13 +1,21 @@
-# VARIANCE.md — Election/Ballot Fixture Variance Catalogue
+<!--
+ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
+# FIXTURE_VARIANCE.md — Election/Ballot Fixture Variance Catalogue
 
 ## Fixture-location convention
 
 Two directories hold JSON, with very different roles:
 
-- [`packages/workbench/app/src/fixtures/snapshots/`](packages/workbench/app/src/fixtures/snapshots) — **bundled snapshots**. Each file is a full `PersistedSnapshot` and is eagerly imported at build time by [`bundledSnapshots.ts`](packages/workbench/app/src/fixtures/bundledSnapshots.ts#L36) (`import.meta.glob("./snapshots/*.json", { eager: true })`). The filename (minus `.json`) becomes the snapshot id surfaced in the inspector's Snapshots table. To add coverage, drop a JSON + matching `.license` sidecar here.
-- [`packages/workbench/app/src/fixtures/velvet/`](packages/workbench/app/src/fixtures/velvet) — **reference election-config blobs**. Not loaded by any code path. They exist purely so an operator can copy them into a form field (or hand-promote one into `snapshots/`). Calling them "fixtures" in coverage tables is misleading; they exercise nothing on their own.
+- [`packages/workbench/app/src/fixtures/snapshots/`](../app/src/fixtures/snapshots) — **bundled snapshots**. Each file is a full `PersistedSnapshot` and is eagerly imported at build time by [`bundledSnapshots.ts`](../app/src/fixtures/bundledSnapshots.ts#L36) (`import.meta.glob("./snapshots/*.json", { eager: true })`). The filename (minus `.json`) becomes the snapshot id surfaced in the inspector's Snapshots table. To add coverage, drop a JSON + matching `.license` sidecar here.
+- [`packages/workbench/app/src/fixtures/velvet/`](../app/src/fixtures/velvet) — **reference election-config blobs**. Not loaded by any code path. They exist purely so an operator can copy them into a form field (or hand-promote one into `snapshots/`). Calling them "fixtures" in coverage tables is misleading; they exercise nothing on their own.
 
 The coverage assessments below use the term **bundled fixture** for `snapshots/*.json` and **reference blob** for `velvet/*.json`.
+
+> **How to read the verdicts in this document.** "Untested" / "never tested" below means **bundled-fixture coverage** — *does a shipped snapshot exercise it?* — **not** system-level test coverage. In particular, the characterization suite observes every variant of all six vote-validation policies (§10.A) against the real booth DOM, 229/229 cells matching the shared spec — see [`../characterization/README.md`](../characterization/README.md) and [`../characterization/dom-validate.md`](../characterization/dom-validate.md). Verdicts that would otherwise be misleading carry an explicit qualifier.
 
 ---
 
@@ -26,12 +34,12 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
 | Candidates per contest | 1..N | Partial | Bundled fixtures use 2-4 (max is `mixed-3contests` City council); reference blobs go up to 5 |
 | allow_writeins | { true, false } | Yes | No bundled fixture sets allow_writeins (default true); only reference blobs set false |
 | base32_writeins | { true, false } | Yes | Never exercised as false |
-| InvalidVotePolicy | 4 variants | Yes | All defaults; no bundled fixture sets it |
-| UnderVotePolicy | 4 variants | Yes | All defaults; no bundled fixture sets it |
-| OverVotePolicy | 5 variants | Yes | All defaults; NOT_ALLOWED_WITH_MSG_AND_DISABLE missing everywhere |
-| BlankVotePolicy | 4 variants | Yes | All defaults; no bundled fixture sets it |
-| DuplicatedRankPolicy | 2 variants | Yes | Untested; first IRV bundled fixture (`instant-runoff-3cand`) leaves it default |
-| PreferenceGapsPolicy | 2 variants | Yes | Untested; same as DuplicatedRankPolicy |
+| InvalidVotePolicy | 4 variants | Yes | All defaults; no bundled fixture sets it (all four variants DOM-observed in the characterization suite) |
+| UnderVotePolicy | 4 variants | Yes | All defaults; no bundled fixture sets it (all four variants DOM-observed in the characterization suite) |
+| OverVotePolicy | 5 variants | Yes | All defaults; NOT_ALLOWED_WITH_MSG_AND_DISABLE missing everywhere (all five variants DOM-observed, incl. the disable variant via a direct `disabled`-attribute probe) |
+| BlankVotePolicy | 4 variants | Yes | All defaults; no bundled fixture sets it (all four variants DOM-observed in the characterization suite) |
+| DuplicatedRankPolicy | 2 variants | Yes | Fixture-untested; first IRV bundled fixture (`instant-runoff-3cand`) leaves it default (both variants DOM-observed via ranked selection) |
+| PreferenceGapsPolicy | 2 variants | Yes | Fixture-untested; same as DuplicatedRankPolicy (both variants DOM-observed via ranked selection) |
 | CandidatesOrder | 3 variants | Yes | Random/Custom never exercised; Alphabetical default |
 | CandidatesSelectionPolicy | 2 variants | Yes | CUMULATIVE default; RADIO untested |
 | CandidatesIconCheckboxPolicy | 2 variants | Yes | SQUARE_CHECKBOX default; ROUND_CHECKBOX untested |
@@ -46,9 +54,9 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
 | WeightedVotingPolicy | 2 variants | Yes | Election-event level; DISABLED_WEIGHTED_VOTING default; AREAS_WEIGHTED_VOTING untested |
 | DelegatedVotingPolicy | 2 variants | Yes | DISABLED default; ENABLED untested |
 | Multi-ballot encoding (capacity) | Up to 30 bytes | Yes | Encoding limits not stress-tested |
-| **DeclineToVotePolicy** (§13.1) | 2 variants | Yes | New upstream; never set. Selections carry `is_decline_to_vote: false` only |
+| **DeclineToVotePolicy** (§13.1) | 2 variants | Yes | Never set. Selections carry `is_decline_to_vote: false` only |
 | **Explicit-blank / explicit-invalid marker candidates** (§13.2) | per candidate | Partial | `explicit-blank-invalid` bundles both markers and the mixed case; other fixtures still have none |
-| **Voting channel / participation** (§13.3) | map | Yes | New upstream; workbench tallies one electronic channel by construction |
+| **Voting channel / participation** (§13.3) | map | Yes | Workbench tallies one electronic channel by construction |
 | **Tally sheets** (§13.4) | per-sheet totals | Yes | Unit-tested in velvet-core; no bundled snapshot, no UI |
 | **Tie construction** (§13.5) | n/a | Yes | No fixture produces a tie, so by-lot and pending-resolution paths are dead |
 | **EVoterSigningPolicy** (§13.6) | 2 variants | Yes | Signing branch of the encrypt path never exercised |
@@ -59,16 +67,16 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
 
 ### 1. Voters & Assignments (workbench-only overlay)
 
-- **Field / type**: [`packages/workbench/app/src/workbenchStore.ts`](packages/workbench/app/src/workbenchStore.ts) (`Voter`, `activeVoterId: string | null`, `assignments: Record<string, string[]>`, `ballotStylePool: Record<string, unknown[]>`)
+- **Field / type**: [`packages/workbench/app/src/workbenchStore.ts`](../app/src/workbenchStore.ts) (`Voter`, `activeVoterId: string | null`, `assignments: Record<string, string[]>`, `ballotStylePool: Record<string, unknown[]>`)
 - **Value space**:
   - `Voter[]` — workbench-generated personas; displayName is free text; stable across reloads.
   - `activeVoterId` — `null` (anonymous/default) or a voter id; when set, cast votes are attributed to that voter.
   - `assignments: Record<voterId, ballotStyleIds[]>` — per-voter eligibility map; which ballot styles voter may receive; controls eligibility-overlay swap on voter change.
   - `ballotStylePool: Record<electionId, BallotStyle[]>` — full pool of ballot styles per election; portal's `ballotStyles` slice only ever holds one at a time.
 - **Branching sites**:
-  - [`packages/workbench/app/src/persistence.ts`](packages/workbench/app/src/persistence.ts) — `setActiveVoter` listener uses `assignments[voterId]` to rewrite portal slice from `ballotStylePool`.
-  - [`packages/workbench/app/src/workbenchStore.ts:L163-L200`](packages/workbench/app/src/workbenchStore.ts#L163) — `setActiveVoter` mutation branches on `assignments` presence to pick which ballot styles to dispatch.
-  - [`packages/workbench/app/src/workbenchStore.ts:L91-L120`](packages/workbench/app/src/workbenchStore.ts#L91) — `attributeCastVote` maps `castVote.id` to `activeVoterId` in `castBy` ledger.
+  - [`packages/workbench/app/src/persistence.ts`](../app/src/persistence.ts) — `setActiveVoter` listener uses `assignments[voterId]` to rewrite portal slice from `ballotStylePool`.
+  - [`packages/workbench/app/src/workbenchStore.ts:L163-L200`](../app/src/workbenchStore.ts#L163) — `setActiveVoter` mutation branches on `assignments` presence to pick which ballot styles to dispatch.
+  - [`packages/workbench/app/src/workbenchStore.ts:L91-L120`](../app/src/workbenchStore.ts#L91) — `attributeCastVote` maps `castVote.id` to `activeVoterId` in `castBy` ledger.
 - **Current fixture coverage**: 
   - `default.json`, `instant-runoff-3cand.json`, `mixed-3contests.json`, `two-elections.json`: two personas (Alice, Bob); `activeVoterId=null`; `assignments` absent (single-BS fixtures, no swap needed).
   - `multi-bs-shared-contest.json`: two personas (Alice North, Bob South); `workbench.assignments` populated (`{alice: [bsNorth], bob: [bsSouth]}`); `workbench.ballotStylePool` populated with both BSes; clicking a voter swaps `state.ballotStyles[electionId]` to the assigned BS.
@@ -80,11 +88,11 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
 
 ### 1b. Elections per Snapshot
 
-- **Field / type**: `state.elections: Record<electionId, Election>` (portal slice) + `state.electionEvent[eventId].elections: string[]` ([`packages/sequent-core/src/ballot.rs`](packages/sequent-core/src/ballot.rs)). One event can host N elections; one snapshot can persist multiple events.
+- **Field / type**: `state.elections: Record<electionId, Election>` (portal slice) + `state.electionEvent[eventId].elections: string[]` ([`packages/sequent-core/src/ballot.rs`](../../sequent-core/src/ballot.rs)). One event can host N elections; one snapshot can persist multiple events.
 - **Value space**: 1..N elections per snapshot; bundled hydrator iterates `Object.values(state.elections)` and dispatches each.
 - **Branching sites**:
-  - [`packages/workbench/app/src/persistence.ts`](packages/workbench/app/src/persistence.ts) — `hydrateFromSnapshot` loops elections; one `setBallotSelection` per contest across all elections.
-  - Inspector tree: [`packages/workbench/app/src/WorkbenchInspector.tsx`](packages/workbench/app/src/WorkbenchInspector.tsx) renders one subtree per election under the event.
+  - [`packages/workbench/app/src/persistence.ts`](../app/src/persistence.ts) — `hydrateFromSnapshot` loops elections; one `setBallotSelection` per contest across all elections.
+  - Inspector tree: [`packages/workbench/app/src/WorkbenchInspector.tsx`](../app/src/WorkbenchInspector.tsx) renders one subtree per election under the event.
   - Booth route `/event/<id>/election/<id>/vote` resolves a single election per render.
 - **Current fixture coverage**:
   - `two-elections.json` (bundled): one event hosting two independent elections (City council + School board), each with its own BS and its own initial `ballotSelections` entry. Each booth is addressable by its own `/election/<id>/vote` URL.
@@ -96,11 +104,11 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
 
 ### 2. Ballot-Style Count per Election
 
-- **Field / type**: [`packages/sequent-core/src/ballot.rs:L2405`](packages/sequent-core/src/ballot.rs#L2405) (`Election.contests: Vec<Contest>`) paired with [`packages/sequent-core/src/ballot.rs:L802`](packages/sequent-core/src/ballot.rs#L802) (`Election.id` → ballot_styles array in ElectionConfig)
+- **Field / type**: [`packages/sequent-core/src/ballot.rs:L2405`](../../sequent-core/src/ballot.rs#L2405) (`Election.contests: Vec<Contest>`) paired with [`packages/sequent-core/src/ballot.rs:L802`](../../sequent-core/src/ballot.rs#L802) (`Election.id` → ballot_styles array in ElectionConfig)
 - **Value space**: 1 to N ballot styles per election; each ballot style has one `election_id` reference.
 - **Branching sites**:
-  - [`packages/voting-portal/src/store/ballotStyles/ballotStylesSlice.ts`](packages/voting-portal/src/store/ballotStyles/ballotStylesSlice.ts) — Redux slice holds one ballot style per election at a time; booth shows one.
-  - [`packages/workbench/app/src/workbenchStore.ts:L32`](packages/workbench/app/src/workbenchStore.ts#L32) — `ballotStylePool` indexed by election_id, holds all ballot styles for that election.
+  - [`packages/voting-portal/src/store/ballotStyles/ballotStylesSlice.ts`](../../voting-portal/src/store/ballotStyles/ballotStylesSlice.ts) — Redux slice holds one ballot style per election at a time; booth shows one.
+  - [`packages/workbench/app/src/workbenchStore.ts:L32`](../app/src/workbenchStore.ts#L32) — `ballotStylePool` indexed by election_id, holds all ballot styles for that election.
   - Tally aggregation (area-vs-contest operations) loops over all ballot styles per election.
 - **Current fixture coverage**: 
   - Bundled snapshots (`snapshots/*.json`):
@@ -112,23 +120,23 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
     - `velvet-approval.json`: one ballot style, one election.
     - `velvet-multi-bs.json`: **two ballot styles**, two areas, **same contest id** shared between them (disjoint candidate pool) — most complex reference blob.
 - **Velvet upstream variants**: 
-  - [`packages/velvet/src/fixtures/elections.rs:L48`](packages/velvet/src/fixtures/elections.rs#L48) (`get_election_config_1`) — one ballot style.
-  - [`packages/velvet/src/fixtures/elections.rs:L60`](packages/velvet/src/fixtures/elections.rs#L60) (`get_election_config_2`) — **two ballot styles**, different areas, same contest.
-  - [`packages/velvet/src/fixtures/elections.rs:L100`](packages/velvet/src/fixtures/elections.rs#L100) (`get_election_config_3`) — one ballot style, hierarchical areas (parent_id set).
+  - [`packages/velvet/src/fixtures/elections.rs:L48`](../../velvet/src/fixtures/elections.rs#L48) (`get_election_config_1`) — one ballot style.
+  - [`packages/velvet/src/fixtures/elections.rs:L60`](../../velvet/src/fixtures/elections.rs#L60) (`get_election_config_2`) — **two ballot styles**, different areas, same contest.
+  - [`packages/velvet/src/fixtures/elections.rs:L100`](../../velvet/src/fixtures/elections.rs#L100) (`get_election_config_3`) — one ballot style, hierarchical areas (parent_id set).
 - **Coverage gap assessment**: Three or more ballot styles per election still untested. Cross-ballot-style contest aggregation now bundled (`multi-bs-shared-contest`) but only at N=2.
 
 ---
 
 ### 4. Contest-Sharing Across Ballot Styles (Equivalence Classes)
 
-- **Field / type**: [`packages/sequent-core/src/ballot.rs:L1482`](packages/sequent-core/src/ballot.rs#L1482) (`Contest.id`) referenced by multiple ballot styles' `contests` arrays.
+- **Field / type**: [`packages/sequent-core/src/ballot.rs:L1482`](../../sequent-core/src/ballot.rs#L1482) (`Contest.id`) referenced by multiple ballot styles' `contests` arrays.
 - **Value space**: Three equivalence classes per election:
   1. **Disjoint**: Each ballot style has unique contests (no id overlap).
   2. **Fully shared**: All ballot styles carry the same contest(s).
   3. **Partial**: Some ballot styles share a contest, others differ.
 - **Branching sites**:
-  - [`packages/voting-portal/src/store/ballotSelections/ballotSelectionsSlice.ts`](packages/voting-portal/src/store/ballotSelections/ballotSelectionsSlice.ts) — Redux slice maintains one `ballotSelections` state across all contests visible to active ballot style; booth UI renders contests from active style.
-  - Tally: [`packages/velvet/src/pipes/do_tally/do_tally.rs`](packages/velvet/src/pipes/do_tally/do_tally.rs) — aggregates results per contest across all areas/ballot styles carrying that contest.
+  - [`packages/voting-portal/src/store/ballotSelections/ballotSelectionsSlice.ts`](../../voting-portal/src/store/ballotSelections/ballotSelectionsSlice.ts) — Redux slice maintains one `ballotSelections` state across all contests visible to active ballot style; booth UI renders contests from active style.
+  - Tally: [`packages/velvet/src/pipes/do_tally/do_tally.rs`](../../velvet/src/pipes/do_tally/do_tally.rs) — aggregates results per contest across all areas/ballot styles carrying that contest.
   - Area-contest matching (workbench): determines which contests are visible per area during tally.
 - **Current fixture coverage**: 
   - Bundled single-BS fixtures (`default.json`, `instant-runoff-3cand.json`, `mixed-3contests.json`, `two-elections.json`): one ballot style each → trivially "fully shared" within the style.
@@ -148,12 +156,12 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
 
 ### 5. Contests Per Ballot Style
 
-- **Field / type**: [`packages/sequent-core/src/ballot.rs:L2405`](packages/sequent-core/src/ballot.rs#L2405) (`BallotStyle.contests: Vec<Contest>`)
+- **Field / type**: [`packages/sequent-core/src/ballot.rs:L2405`](../../sequent-core/src/ballot.rs#L2405) (`BallotStyle.contests: Vec<Contest>`)
 - **Value space**: 1 to N contests per ballot style; no fixed upper limit in type.
 - **Branching sites**:
-  - [`packages/voting-portal/src/routes/VotingScreen.tsx`](packages/voting-portal/src/routes/VotingScreen.tsx) — renders all contests from `state.ballotSelections` (indexed by contest_id). (An earlier revision of this document cited a `components/BoothLayout.tsx`; no such file exists in voting-portal — `BoothLayout` is workbench-side, in `app/src/BoothSpike.tsx`.)
-  - [`packages/voting-portal/src/store/ballotSelections/ballotSelectionsSlice.ts`](packages/voting-portal/src/store/ballotSelections/ballotSelectionsSlice.ts) — initializes one selection entry per contest in ballot style.
-  - Ballot encoding: [`packages/sequent-core/src/ballot_codec/multi_ballot.rs`](packages/sequent-core/src/ballot_codec/multi_ballot.rs) — encodes multiple contests' selections into fixed-size 30-byte payload.
+  - [`packages/voting-portal/src/routes/VotingScreen.tsx`](../../voting-portal/src/routes/VotingScreen.tsx) — renders all contests from `state.ballotSelections` (indexed by contest_id). (`BoothLayout` is workbench-side, in `app/src/BoothSpike.tsx` — there is no such component in voting-portal.)
+  - [`packages/voting-portal/src/store/ballotSelections/ballotSelectionsSlice.ts`](../../voting-portal/src/store/ballotSelections/ballotSelectionsSlice.ts) — initializes one selection entry per contest in ballot style.
+  - Ballot encoding: [`packages/sequent-core/src/ballot_codec/multi_ballot.rs`](../../sequent-core/src/ballot_codec/multi_ballot.rs) — encodes multiple contests' selections into fixed-size 30-byte payload.
 - **Current fixture coverage**: 
   - `mixed-3contests.json` (bundled): **3 contests** in a single ballot style — Mayor (plurality, max=1), City council (plurality, max=2, winning=2), Park funding (IRV, max=3) — also exercises algorithm mixing on one ballot (see §6).
   - `multi-bs-shared-contest.json` (bundled): **2 contests per ballot style** (shared Federal president + per-area district representative).
@@ -166,7 +174,7 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
 
 ### 6. CountingAlgType (Enumeration & Tally Branching)
 
-- **Field / type**: [`packages/sequent-core/src/types/ceremonies.rs:L323`](packages/sequent-core/src/types/ceremonies.rs#L323) (`pub enum CountingAlgType`); [`packages/sequent-core/src/ballot.rs:L1497`](packages/sequent-core/src/ballot.rs#L1497) (`Contest.counting_algorithm: Option<CountingAlgType>`)
+- **Field / type**: [`packages/sequent-core/src/types/ceremonies.rs:L323`](../../sequent-core/src/types/ceremonies.rs#L323) (`pub enum CountingAlgType`); [`packages/sequent-core/src/ballot.rs:L1497`](../../sequent-core/src/ballot.rs#L1497) (`Contest.counting_algorithm: Option<CountingAlgType>`)
 - **Value space**: 10 variants
   - `PluralityAtLarge` (default)
   - `InstantRunoff`
@@ -179,13 +187,13 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
   - `Desborda`
   - `Cumulative`
   
-  **UI support** (TypeScript mirrors; see [`packages/ui-core/src/types/CoreTypes.ts:L15`](packages/ui-core/src/types/CoreTypes.ts#L15)): Only `PluralityAtLarge` and `InstantRunoff` are uncommented; others commented out until velvet tally support extends.
+  **UI support** (TypeScript mirrors; see [`packages/ui-core/src/types/CoreTypes.ts:L15`](../../ui-core/src/types/CoreTypes.ts#L15)): Only `PluralityAtLarge` and `InstantRunoff` are uncommented; others commented out until velvet tally support extends.
 
 - **Branching sites** (Tally dispatch):
-  - [`packages/velvet/src/pipes/do_tally/tally.rs:L110-L111`](packages/velvet/src/pipes/do_tally/tally.rs#L110) — `create_tally()` match on `CountingAlgType`: dispatches to `PluralityAtLarge::new()` or `InstantRunoff::new()`, errors on others.
-  - [`packages/sequent-core/src/ballot_codec/bases.rs:L23-L26`](packages/sequent-core/src/ballot_codec/bases.rs#L23) — `get_bases()` match: `PluralityAtLarge` → base 2; `Cumulative` → `cumulative_number_of_checkboxes + 1`; others (preferential) → `max_votes + 1`.
-  - [`packages/sequent-core/src/interpret_plaintext.rs:L64-L86`](packages/sequent-core/src/interpret_plaintext.rs#L64) — `get_contest_layout_properties()` match: distinct layout for each algorithm.
-  - Voting booth (UI): [`packages/voting-portal/src/components/Answer/Answer.tsx:L82-L84`](packages/voting-portal/src/components/Answer/Answer.tsx#L82) — `isPreferential()` check (InstantRunoff only) switches answer rendering to ranked-choice style.
+  - [`packages/velvet/src/pipes/do_tally/tally.rs:L110-L111`](../../velvet/src/pipes/do_tally/tally.rs#L110) — `create_tally()` match on `CountingAlgType`: dispatches to `PluralityAtLarge::new()` or `InstantRunoff::new()`, errors on others.
+  - [`packages/sequent-core/src/ballot_codec/bases.rs:L23-L26`](../../sequent-core/src/ballot_codec/bases.rs#L23) — `get_bases()` match: `PluralityAtLarge` → base 2; `Cumulative` → `cumulative_number_of_checkboxes + 1`; others (preferential) → `max_votes + 1`.
+  - [`packages/sequent-core/src/interpret_plaintext.rs:L64-L86`](../../sequent-core/src/interpret_plaintext.rs#L64) — `get_contest_layout_properties()` match: distinct layout for each algorithm.
+  - Voting booth (UI): [`packages/voting-portal/src/components/Answer/Answer.tsx:L82-L84`](../../voting-portal/src/components/Answer/Answer.tsx#L82) — `isPreferential()` check (InstantRunoff only) switches answer rendering to ranked-choice style.
 
 - **Current fixture coverage**: 
   - Bundled: `default.json` / `two-elections.json` / `multi-bs-shared-contest.json` use `PluralityAtLarge`; `instant-runoff-3cand.json` uses `InstantRunoff` (3 candidates, min=0, max=3); `mixed-3contests.json` **mixes both** on a single ballot (2 plurality contests + 1 IRV) — exercises booth dispatching `isPreferential()` per-contest within the same render.
@@ -203,7 +211,7 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
 
 ### 7. min_votes / max_votes / winning_candidates_num on Contest
 
-- **Field / type**: [`packages/sequent-core/src/ballot.rs:L1482`](packages/sequent-core/src/ballot.rs#L1482) (`Contest.min_votes: i64`, `max_votes: i64`, `winning_candidates_num: i64`)
+- **Field / type**: [`packages/sequent-core/src/ballot.rs:L1482`](../../sequent-core/src/ballot.rs#L1482) (`Contest.min_votes: i64`, `max_votes: i64`, `winning_candidates_num: i64`)
 - **Value space**: 
   - `min_votes`: [0, $\infty$); semantically ≤ `max_votes`.
   - `max_votes`: [0, $\infty$); semantically ≤ candidate count.
@@ -211,12 +219,12 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
   - Typical ranges in fixtures: min_votes ∈ {0, 1}, max_votes ∈ {1, 2, 3}, winning_candidates_num ∈ {1}.
 
 - **Branching sites** (Validation):
-  - [`packages/sequent-core/src/ballot_codec/checker.rs:L37`](packages/sequent-core/src/ballot_codec/checker.rs#L87) — `check_max_min_votes_policy()`: validates max/min are convertible to usize; returns error if not.
-  - [`packages/sequent-core/src/ballot_codec/checker.rs:L80`](packages/sequent-core/src/ballot_codec/checker.rs#L130) — `check_min_vote_policy()`: if num_selected < min_votes, error.
-  - [`packages/sequent-core/src/ballot_codec/checker.rs:L137`](packages/sequent-core/src/ballot_codec/checker.rs#L187) — `check_over_vote_policy()`: if num_selected > max_votes, errors; alerts depend on `over_vote_policy`.
-  - [`packages/sequent-core/src/ballot_codec/checker.rs:L197`](packages/sequent-core/src/ballot_codec/checker.rs#L247) — `check_under_vote_policy()`: if num_selected < max_votes (and ≥ min_votes), alert depends on `under_vote_policy`.
-  - Ballot encoding (bases): [`packages/sequent-core/src/ballot_codec/bases.rs:L23`](packages/sequent-core/src/ballot_codec/bases.rs#L23) — base computed as `max_votes + 1` for preferential; dimension of choice space.
-  - UI (voting portal): [`packages/voting-portal/src/components/Question/Question.tsx`](packages/voting-portal/src/components/Question/Question.tsx) — contest rendering and validation depend on max/min for checkbox limit enforcement.
+  - [`packages/sequent-core/src/ballot_codec/checker.rs:L87`](../../sequent-core/src/ballot_codec/checker.rs#L87) — `check_max_min_votes_policy()`: validates max/min are convertible to usize; returns error if not.
+  - [`packages/sequent-core/src/ballot_codec/checker.rs:L130`](../../sequent-core/src/ballot_codec/checker.rs#L130) — `check_min_vote_policy()`: if num_selected < min_votes, error.
+  - [`packages/sequent-core/src/ballot_codec/checker.rs:L187`](../../sequent-core/src/ballot_codec/checker.rs#L187) — `check_over_vote_policy()`: if num_selected > max_votes, errors; alerts depend on `over_vote_policy`.
+  - [`packages/sequent-core/src/ballot_codec/checker.rs:L247`](../../sequent-core/src/ballot_codec/checker.rs#L247) — `check_under_vote_policy()`: if num_selected < max_votes (and ≥ min_votes), alert depends on `under_vote_policy`.
+  - Ballot encoding (bases): [`packages/sequent-core/src/ballot_codec/bases.rs:L23`](../../sequent-core/src/ballot_codec/bases.rs#L23) — base computed as `max_votes + 1` for preferential; dimension of choice space.
+  - UI (voting portal): [`packages/voting-portal/src/components/Question/Question.tsx`](../../voting-portal/src/components/Question/Question.tsx) — contest rendering and validation depend on max/min for checkbox limit enforcement.
 
 - **Current fixture coverage**: 
   - Bundled:
@@ -238,16 +246,16 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
 - **Coverage gap assessment**: 
   - **Range**: Bundled covers min ∈ {0,1}, max ∈ {1,2,3}, winning ∈ {1,2}. Missing: min ≥ 2, max ≥ 4, winning ≥ 3.
   - **Edge cases**: max=0 (impossible vote), min > max (invalid), negative values — not tested.
-  - **Interaction with under/over/blank vote policies**: Validation logic is dense; boundary conditions (num_selected exactly at min/max) under-exercised.
+  - **Interaction with under/over/blank vote policies**: Validation logic is dense; boundary conditions (num_selected exactly at min/max) under-exercised by fixtures — the characterization suite's DOM lane exercises exactly these states.
 
 ---
 
 ### 8. Candidates Per Contest & Write-In Support
 
 - **Field / type**: 
-  - [`packages/sequent-core/src/ballot.rs:L1482`](packages/sequent-core/src/ballot.rs#L1482) (`Contest.candidates: Vec<Candidate>`)
-  - [`packages/sequent-core/src/ballot.rs:L1408-L1439`](packages/sequent-core/src/ballot.rs#L1408) (`ContestPresentation.allow_writeins: Option<bool>`, `base32_writeins: Option<bool>`)
-  - [`packages/sequent-core/src/ballot.rs:L2048`](packages/sequent-core/src/ballot.rs#L2048) (`Candidate.presentation.is_write_in: Option<bool>`)
+  - [`packages/sequent-core/src/ballot.rs:L1482`](../../sequent-core/src/ballot.rs#L1482) (`Contest.candidates: Vec<Candidate>`)
+  - [`packages/sequent-core/src/ballot.rs:L1408-L1439`](../../sequent-core/src/ballot.rs#L1408) (`ContestPresentation.allow_writeins: Option<bool>`, `base32_writeins: Option<bool>`)
+  - [`packages/sequent-core/src/ballot.rs:L2048`](../../sequent-core/src/ballot.rs#L2048) (`Candidate.presentation.is_write_in: Option<bool>`)
 
 - **Value space**: 
   - Candidate count: 1 to N; typical 2–5 in fixtures.
@@ -256,13 +264,13 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
   - `is_write_in` (candidate marker): true for write-in candidate entries (placeholder).
 
 - **Branching sites**:
-  - Voting-portal UI: [`packages/voting-portal/src/services/ElectionConfigService.ts:L35-L36`](packages/voting-portal/src/services/ElectionConfigService.ts#L35) — `checkAllowWriteIns()` checks `presentation?.allow_writeins` to show/hide write-in input fields.
-  - [`packages/voting-portal/src/components/Answer/Answer.tsx`](packages/voting-portal/src/components/Answer/Answer.tsx) — renders write-in candidates distinctly if `is_write_in` true.
-  - Ballot encoding: [`packages/sequent-core/src/ballot_codec/bases.rs:L45-L54`](packages/sequent-core/src/ballot_codec/bases.rs#L45) — if `allow_writeins()`, adds bases for each write-in candidate's character map.
-  - Character set: [`packages/sequent-core/src/ballot_codec/character_map.rs`](packages/sequent-core/src/ballot_codec/character_map.rs) — if `base32_writeins`, base 32; else base (ASCII).
+  - Voting-portal UI: [`packages/voting-portal/src/services/ElectionConfigService.ts:L35-L36`](../../voting-portal/src/services/ElectionConfigService.ts#L35) — `checkAllowWriteIns()` checks `presentation?.allow_writeins` to show/hide write-in input fields.
+  - [`packages/voting-portal/src/components/Answer/Answer.tsx`](../../voting-portal/src/components/Answer/Answer.tsx) — renders write-in candidates distinctly if `is_write_in` true.
+  - Ballot encoding: [`packages/sequent-core/src/ballot_codec/bases.rs:L45-L54`](../../sequent-core/src/ballot_codec/bases.rs#L45) — if `allow_writeins()`, adds bases for each write-in candidate's character map.
+  - Character set: [`packages/sequent-core/src/ballot_codec/character_map.rs`](../../sequent-core/src/ballot_codec/character_map.rs) — if `base32_writeins`, base 32; else base (ASCII).
 
 - **Current fixture coverage**: 
-  - Bundled (all five, verified against the JSON):
+  - Bundled (all six, verified against the JSON):
     - `default.json`: 2 candidates.
     - `instant-runoff-3cand.json`: 3 candidates.
     - `mixed-3contests.json`: 3 / **4** / 3 candidates across its three contests — the
@@ -292,7 +300,7 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
 
 This section groups two distinct families of contest-level policy fields that both live in `ContestPresentation`:
 
-- **10.A Vote validation policies** — policies that define what *is* (or is not) an allowed vote. They are consulted both (a) by the voting portal while the user is constructing the ballot (to surface warnings / errors / disable controls and to gate submission) and (b) by velvet's codec during the cast-and-tally pipeline (`raw_ballot::decode`, `multi_ballot::decode`, which call the per-policy checkers in [`packages/sequent-core/src/ballot_codec/checker.rs`](packages/sequent-core/src/ballot_codec/checker.rs)). The 1:1 TypeScript mirror lives in [`packages/ui-core/src/types/ContestPresentation.ts`](packages/ui-core/src/types/ContestPresentation.ts).
+- **10.A Vote validation policies** — policies that define what *is* (or is not) an allowed vote. They are consulted both (a) by the voting portal while the user is constructing the ballot (to surface warnings / errors / disable controls and to gate submission) and (b) by velvet's codec during the cast-and-tally pipeline (`raw_ballot::decode`, `multi_ballot::decode`, which call the per-policy checkers in [`packages/sequent-core/src/ballot_codec/checker.rs`](../../sequent-core/src/ballot_codec/checker.rs)). The 1:1 TypeScript mirror lives in [`packages/ui-core/src/types/ContestPresentation.ts`](../../ui-core/src/types/ContestPresentation.ts).
 - **10.B Presentation / layout policies** — policies that affect rendering, ordering, or post-tally tie resolution. They never appear in `checker.rs` and `raw_ballot::decode` never branches on them; a vote is equally "allowed" or "disallowed" regardless of their value.
 
 The split matters for fixture coverage: validation policies must be exercised through both the booth gating layer *and* the tally decode layer (and ideally with edge selections that actually trip each branch), whereas presentation policies only need rendering coverage.
@@ -303,33 +311,33 @@ The six policies below are the complete set of `ContestPresentation` fields that
 
 | Policy | Checker (`ballot_codec/checker.rs`) | Booth-side gating (encode path) | Tally decode path |
 |---|---|---|---|
-| `InvalidVotePolicy` | [`check_invalid_vote_policy` L281](packages/sequent-core/src/ballot_codec/checker.rs#L331) | [`InvalidErrorsList.tsx`](packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx); [`voting_screen.rs`](packages/sequent-core/src/util/voting_screen.rs) | [`raw_ballot.rs` L343](packages/sequent-core/src/ballot_codec/raw_ballot.rs#L378); [`multi_ballot.rs` L648](packages/sequent-core/src/ballot_codec/multi_ballot.rs#L869) |
-| `EOverVotePolicy` | [`check_over_vote_policy` L137](packages/sequent-core/src/ballot_codec/checker.rs#L187) | [`InvalidErrorsList.tsx`](packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx); [`Question.tsx`](packages/voting-portal/src/components/Question/Question.tsx) (`NOT_ALLOWED_WITH_MSG_AND_DISABLE` disables checkboxes) | [`raw_ballot.rs` L359](packages/sequent-core/src/ballot_codec/raw_ballot.rs#L407); [`multi_ballot.rs` L657](packages/sequent-core/src/ballot_codec/multi_ballot.rs#L884) |
-| `EUnderVotePolicy` | [`check_under_vote_policy` L197](packages/sequent-core/src/ballot_codec/checker.rs#L247) | [`InvalidErrorsList.tsx`](packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx); [`voting_screen.rs`](packages/sequent-core/src/util/voting_screen.rs) | [`raw_ballot.rs` L372](packages/sequent-core/src/ballot_codec/raw_ballot.rs#L421); [`multi_ballot.rs` L670](packages/sequent-core/src/ballot_codec/multi_ballot.rs#L899) |
-| `EBlankVotePolicy` | [`check_blank_vote_policy` L103](packages/sequent-core/src/ballot_codec/checker.rs#L153) | [`InvalidErrorsList.tsx`](packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx); [`voting_screen.rs`](packages/sequent-core/src/util/voting_screen.rs) | [`raw_ballot.rs` L381](packages/sequent-core/src/ballot_codec/raw_ballot.rs#L431); [`multi_ballot.rs` L679](packages/sequent-core/src/ballot_codec/multi_ballot.rs#L909) |
-| `EDuplicatedRankPolicy` (preferential only) | [`check_duplicated_rank_policy` L235](packages/sequent-core/src/ballot_codec/checker.rs#L285) | [`voting_screen.rs`](packages/sequent-core/src/util/voting_screen.rs); default surfaced via [`getDefaultDuplicatedRankPolicy()` in ui-core/wasm.ts L425](packages/ui-core/src/services/wasm.ts#L425) | [`raw_ballot.rs` L401](packages/sequent-core/src/ballot_codec/raw_ballot.rs#L451) (preferential branch only) |
-| `EPreferenceGapsPolicy` (preferential only) | [`check_preference_gaps_policy` L258](packages/sequent-core/src/ballot_codec/checker.rs#L308) | [`voting_screen.rs`](packages/sequent-core/src/util/voting_screen.rs); default surfaced via [`getDefaultPreferenceGapsPolicy()` in ui-core/wasm.ts L434](packages/ui-core/src/services/wasm.ts#L434) | [`raw_ballot.rs` L396](packages/sequent-core/src/ballot_codec/raw_ballot.rs#L446) (preferential branch only) |
+| `InvalidVotePolicy` | [`check_invalid_vote_policy` L331](../../sequent-core/src/ballot_codec/checker.rs#L331) | [`InvalidErrorsList.tsx`](../../voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx); [`voting_screen.rs`](../../sequent-core/src/util/voting_screen.rs) | [`raw_ballot.rs` L378](../../sequent-core/src/ballot_codec/raw_ballot.rs#L378); [`multi_ballot.rs` L869](../../sequent-core/src/ballot_codec/multi_ballot.rs#L869) |
+| `EOverVotePolicy` | [`check_over_vote_policy` L187](../../sequent-core/src/ballot_codec/checker.rs#L187) | [`InvalidErrorsList.tsx`](../../voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx); [`Question.tsx`](../../voting-portal/src/components/Question/Question.tsx) (`NOT_ALLOWED_WITH_MSG_AND_DISABLE` disables checkboxes) | [`raw_ballot.rs` L407](../../sequent-core/src/ballot_codec/raw_ballot.rs#L407); [`multi_ballot.rs` L884](../../sequent-core/src/ballot_codec/multi_ballot.rs#L884) |
+| `EUnderVotePolicy` | [`check_under_vote_policy` L247](../../sequent-core/src/ballot_codec/checker.rs#L247) | [`InvalidErrorsList.tsx`](../../voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx); [`voting_screen.rs`](../../sequent-core/src/util/voting_screen.rs) | [`raw_ballot.rs` L421](../../sequent-core/src/ballot_codec/raw_ballot.rs#L421); [`multi_ballot.rs` L899](../../sequent-core/src/ballot_codec/multi_ballot.rs#L899) |
+| `EBlankVotePolicy` | [`check_blank_vote_policy` L153](../../sequent-core/src/ballot_codec/checker.rs#L153) | [`InvalidErrorsList.tsx`](../../voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx); [`voting_screen.rs`](../../sequent-core/src/util/voting_screen.rs) | [`raw_ballot.rs` L431](../../sequent-core/src/ballot_codec/raw_ballot.rs#L431); [`multi_ballot.rs` L909](../../sequent-core/src/ballot_codec/multi_ballot.rs#L909) |
+| `EDuplicatedRankPolicy` (preferential only) | [`check_duplicated_rank_policy` L285](../../sequent-core/src/ballot_codec/checker.rs#L285) | [`voting_screen.rs`](../../sequent-core/src/util/voting_screen.rs); default surfaced via [`getDefaultDuplicatedRankPolicy()` in ui-core/wasm.ts L425](../../ui-core/src/services/wasm.ts#L425) | [`raw_ballot.rs` L451](../../sequent-core/src/ballot_codec/raw_ballot.rs#L451) (preferential branch only) |
+| `EPreferenceGapsPolicy` (preferential only) | [`check_preference_gaps_policy` L308](../../sequent-core/src/ballot_codec/checker.rs#L308) | [`voting_screen.rs`](../../sequent-core/src/util/voting_screen.rs); default surfaced via [`getDefaultPreferenceGapsPolicy()` in ui-core/wasm.ts L434](../../ui-core/src/services/wasm.ts#L434) | [`raw_ballot.rs` L446](../../sequent-core/src/ballot_codec/raw_ballot.rs#L446) (preferential branch only) |
 
 Notes on the encode/decode surfaces:
 
-- `multi_ballot::decode` invokes only the four non-preferential checkers (it rejects non-Plurality contests up-front at [`multi_ballot.rs` L125–L129](packages/sequent-core/src/ballot_codec/multi_ballot.rs#L125)); IRV / Borda* ballots therefore travel the `raw_ballot::decode` path, which is where `check_duplicated_rank_policy` and `check_preference_gaps_policy` run.
+- `multi_ballot::decode` invokes six checker functions — the four non-preferential policy checkers above plus `check_max_min_votes_policy` and `check_min_vote_policy` — and never the preferential pair (it rejects non-Plurality contests up-front at [`multi_ballot.rs` L125–L129](../../sequent-core/src/ballot_codec/multi_ballot.rs#L125)); IRV / Borda* ballots therefore travel the `raw_ballot::decode` path, which is where `check_duplicated_rank_policy` and `check_preference_gaps_policy` run.
 - `min_votes` / `max_votes` / `winning_candidates_num` are the numeric thresholds these six policies branch against (catalogued separately in §7); they are not themselves "policies."
-- The booth's submission-gate predicate in [`voting_screen.rs::check_voting_not_allowed_next_util`](packages/sequent-core/src/util/voting_screen.rs#L14) treats `NOT_ALLOWED` / `NOT_ALLOWED_WITH_MSG_AND_ALERT` / `NOT_ALLOWED_WARN_AND_DIALOG` as hard blockers across all six policies — these are the variants where (a) and (b) can disagree (booth refuses to submit) versus the various `WARN*` and `ALLOWED*` variants (booth admits, codec decoder still annotates / errors per policy).
+- The booth's submission-gate predicate in [`voting_screen.rs::check_voting_not_allowed_next_util`](../../sequent-core/src/util/voting_screen.rs#L14) treats `NOT_ALLOWED` / `NOT_ALLOWED_WITH_MSG_AND_ALERT` / `NOT_ALLOWED_WARN_AND_DIALOG` as hard blockers across all six policies — these are the variants where (a) and (b) can disagree (booth refuses to submit) versus the various `WARN*` and `ALLOWED*` variants (booth admits, codec decoder still annotates / errors per policy).
 
 #### 10.A.1 InvalidVotePolicy
 
-- **Field / type**: [`packages/sequent-core/src/ballot.rs:L833`](packages/sequent-core/src/ballot.rs#L833) (`pub enum InvalidVotePolicy`)
+- **Field / type**: [`packages/sequent-core/src/ballot.rs:L833`](../../sequent-core/src/ballot.rs#L833) (`pub enum InvalidVotePolicy`)
 - **Value space**: 4 variants
   - `ALLOWED` (default) — explicitly invalid candidates are allowed.
   - `WARN` — warn if user selects explicit invalid.
   - `WARN_INVALID_IMPLICIT_AND_EXPLICIT` — warn on both implicit and explicit invalidity.
   - `NOT_ALLOWED` — reject ballots with explicit invalid selections.
 - **Branching sites**:
-  - [`packages/sequent-core/src/ballot_codec/checker.rs:L281`](packages/sequent-core/src/ballot_codec/checker.rs#L331) — `check_invalid_vote_policy()`: if explicit invalid selected and policy != ALLOWED, add error or alert.
-  - [`packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx:L75-L76`](packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx#L75) — retrieves policy; displays warnings/errors.
+  - [`packages/sequent-core/src/ballot_codec/checker.rs:L331`](../../sequent-core/src/ballot_codec/checker.rs#L331) — `check_invalid_vote_policy()`: if explicit invalid selected and policy != ALLOWED, add error or alert.
+  - [`packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx:L75-L76`](../../voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx#L75) — retrieves policy; displays warnings/errors.
 - **Current fixture coverage**: `invalid_vote_policy: ALLOWED` set in `velvet-plurality-5cand.json` reference blob; no bundled fixture sets it (defaults to ALLOWED).
 - **Velvet upstream variants**: `get_contest_1()` sets ALLOWED.
-- **Coverage gap assessment**: WARN, WARN_INVALID_IMPLICIT_AND_EXPLICIT, NOT_ALLOWED never tested.
+- **Coverage gap assessment**: WARN, WARN_INVALID_IMPLICIT_AND_EXPLICIT, NOT_ALLOWED never tested by a bundled fixture (all four variants DOM-observed in the characterization suite).
 - **Precondition the policy depends on**: the *explicit* branch of this policy only
   fires when the voter selects a candidate carrying
   `presentation.is_explicit_invalid`. Setting `invalid_vote_policy` on a fixture
@@ -340,22 +348,22 @@ Notes on the encode/decode surfaces:
 
 #### 10.A.2 UnderVotePolicy
 
-- **Field / type**: [`packages/sequent-core/src/ballot.rs:L1128`](packages/sequent-core/src/ballot.rs#L1128) (`pub enum EUnderVotePolicy`)
+- **Field / type**: [`packages/sequent-core/src/ballot.rs:L1128`](../../sequent-core/src/ballot.rs#L1128) (`pub enum EUnderVotePolicy`)
 - **Value space**: 4 variants
   - `ALLOWED` (default) — under-voting (selecting fewer than max_votes) is fine.
   - `WARN` — warn if num_selected < max_votes (but ≥ min_votes).
   - `WARN_ONLY_IN_REVIEW` — warn only on review screen, not during voting.
   - `WARN_AND_ALERT` — warn + popup alert.
 - **Branching sites**:
-  - [`packages/sequent-core/src/ballot_codec/checker.rs:L197`](packages/sequent-core/src/ballot_codec/checker.rs#L247) — `check_under_vote_policy()`: checks if num_selected < max_votes and policy != ALLOWED, adds alert.
-  - Voting-portal: [`packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx:L71-L72`](packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx#L71) — reads policy; display logic.
+  - [`packages/sequent-core/src/ballot_codec/checker.rs:L247`](../../sequent-core/src/ballot_codec/checker.rs#L247) — `check_under_vote_policy()`: checks if num_selected < max_votes and policy != ALLOWED, adds alert.
+  - Voting-portal: [`packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx:L71-L72`](../../voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx#L71) — reads policy; display logic.
 - **Current fixture coverage**: `under_vote_policy: ALLOWED` set in `velvet-plurality-5cand.json` reference blob; no bundled fixture sets it (defaults ALLOWED).
 - **Velvet upstream variants**: `get_contest_1()` sets ALLOWED.
-- **Coverage gap assessment**: WARN, WARN_ONLY_IN_REVIEW, WARN_AND_ALERT never tested.
+- **Coverage gap assessment**: WARN, WARN_ONLY_IN_REVIEW, WARN_AND_ALERT never tested by a bundled fixture (all four variants DOM-observed in the characterization suite).
 
 #### 10.A.3 OverVotePolicy
 
-- **Field / type**: [`packages/sequent-core/src/ballot.rs:L1192`](packages/sequent-core/src/ballot.rs#L1192) (`pub enum EOverVotePolicy`)
+- **Field / type**: [`packages/sequent-core/src/ballot.rs:L1192`](../../sequent-core/src/ballot.rs#L1192) (`pub enum EOverVotePolicy`)
 - **Value space**: 5 variants
   - `ALLOWED` — over-voting is silently allowed (extra votes ignored).
   - `ALLOWED_WITH_MSG` — allow with message.
@@ -363,26 +371,26 @@ Notes on the encode/decode surfaces:
   - `NOT_ALLOWED_WITH_MSG_AND_ALERT` — reject with message + alert.
   - `NOT_ALLOWED_WITH_MSG_AND_DISABLE` — disable checkboxes when max reached (strict UX).
 - **Branching sites**:
-  - [`packages/sequent-core/src/ballot_codec/checker.rs:L137`](packages/sequent-core/src/ballot_codec/checker.rs#L187) — `check_over_vote_policy()`: if num_selected > max_votes, error added; alerts vary by policy.
-  - Voting-portal: [`packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx:L77-L78`](packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx#L77) — reads policy; checkbox disabling logic in Answer component.
+  - [`packages/sequent-core/src/ballot_codec/checker.rs:L187`](../../sequent-core/src/ballot_codec/checker.rs#L187) — `check_over_vote_policy()`: if num_selected > max_votes, error added; alerts vary by policy.
+  - Voting-portal: [`packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx:L77-L78`](../../voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx#L77) — reads policy; checkbox disabling logic in Answer component.
 - **Current fixture coverage**: `over_vote_policy: ALLOWED_WITH_MSG_AND_ALERT` set in `velvet-plurality-5cand.json` reference blob; no bundled fixture sets it (defaults ALLOWED_WITH_MSG_AND_ALERT).
 - **Velvet upstream variants**: `get_contest_1()` sets ALLOWED_WITH_MSG_AND_ALERT.
-- **Coverage gap assessment**: ALLOWED, ALLOWED_WITH_MSG, NOT_ALLOWED_WITH_MSG_AND_ALERT, NOT_ALLOWED_WITH_MSG_AND_DISABLE rarely tested; strict checkbox-disable UX (NOT_ALLOWED_WITH_MSG_AND_DISABLE) never exercised.
+- **Coverage gap assessment**: ALLOWED, ALLOWED_WITH_MSG, NOT_ALLOWED_WITH_MSG_AND_ALERT, NOT_ALLOWED_WITH_MSG_AND_DISABLE rarely tested by fixtures; strict checkbox-disable UX (NOT_ALLOWED_WITH_MSG_AND_DISABLE) never exercised by a bundled fixture (all five variants DOM-observed in the characterization suite — the disable variant's cells read `no (disabled)`, with the `disabled` attribute probed directly).
 
 #### 10.A.4 BlankVotePolicy
 
-- **Field / type**: [`packages/sequent-core/src/ballot.rs:L1160`](packages/sequent-core/src/ballot.rs#L1160) (`pub enum EBlankVotePolicy`)
+- **Field / type**: [`packages/sequent-core/src/ballot.rs:L1160`](../../sequent-core/src/ballot.rs#L1160) (`pub enum EBlankVotePolicy`)
 - **Value space**: 4 variants
   - `ALLOWED` (default) — blank ballots OK.
   - `WARN` — warn if no selections made.
   - `WARN_ONLY_IN_REVIEW` — warn on review only.
   - `NOT_ALLOWED` — reject blank ballots (enforce min_votes ≥ 1).
 - **Branching sites**:
-  - [`packages/sequent-core/src/ballot_codec/checker.rs:L103`](packages/sequent-core/src/ballot_codec/checker.rs#L153) — `check_blank_vote_policy()`: if num_selected == 0 and policy != ALLOWED, add alert or error.
-  - Voting-portal: [`packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx:L73-L74`](packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx#L73) — display logic.
+  - [`packages/sequent-core/src/ballot_codec/checker.rs:L153`](../../sequent-core/src/ballot_codec/checker.rs#L153) — `check_blank_vote_policy()`: if num_selected == 0 and policy != ALLOWED, add alert or error.
+  - Voting-portal: [`packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx:L73-L74`](../../voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx#L73) — display logic.
 - **Current fixture coverage**: `blank_vote_policy` absent in all fixtures (defaults ALLOWED).
 - **Velvet upstream variants**: Not set in generators.
-- **Coverage gap assessment**: WARN, WARN_ONLY_IN_REVIEW, NOT_ALLOWED never tested.
+- **Coverage gap assessment**: WARN, WARN_ONLY_IN_REVIEW, NOT_ALLOWED never tested by a bundled fixture (all four variants DOM-observed in the characterization suite).
 - **Explicit vs implicit blank is now a first-class distinction** (upstream #2842).
   A ballot is an *explicit* blank when the voter selects a candidate carrying
   `presentation.is_explicit_blank`, and an *implicit* blank when nothing is
@@ -395,56 +403,56 @@ Notes on the encode/decode surfaces:
 
 #### 10.A.5 DuplicatedRankPolicy (Preferential Voting)
 
-- **Field / type**: [`packages/sequent-core/src/ballot.rs:L1243`](packages/sequent-core/src/ballot.rs#L1243) (`pub enum EDuplicatedRankPolicy`)
+- **Field / type**: [`packages/sequent-core/src/ballot.rs:L1243`](../../sequent-core/src/ballot.rs#L1243) (`pub enum EDuplicatedRankPolicy`)
 - **Value space**: 2 variants
   - `ALLOWED_WARN_AND_DIALOG` (default) — allow duplicate ranks but warn with dialog.
   - `NOT_ALLOWED_WARN_AND_DIALOG` — reject duplicates with warning dialog.
 - **Branching sites**:
-  - [`packages/sequent-core/src/ballot_codec/checker.rs:L235`](packages/sequent-core/src/ballot_codec/checker.rs#L285) — `check_duplicated_rank_policy()`: validates ranked votes; error/alert if duplicates and policy rejects.
+  - [`packages/sequent-core/src/ballot_codec/checker.rs:L285`](../../sequent-core/src/ballot_codec/checker.rs#L285) — `check_duplicated_rank_policy()`: validates ranked votes; error/alert if duplicates and policy rejects.
   - Applies only to preferential (InstantRunoff, Borda*) contests.
 - **Current fixture coverage**: `duplicated_rank_policy` not set anywhere. The new `instant-runoff-3cand.json` bundled fixture is the first preferential contest — leaves this at default.
 - **Velvet upstream variants**: Not set; no IRV fixtures to test.
-- **Coverage gap assessment**: Both values untested; dependence on preferential-only semantics untested.
+- **Coverage gap assessment**: Both values fixture-untested (both DOM-observed via ranked selection on the IRV fixture in the characterization suite); dependence on preferential-only semantics untested by fixtures.
 
 #### 10.A.6 PreferenceGapsPolicy (Preferential Voting)
 
-- **Field / type**: [`packages/sequent-core/src/ballot.rs:L1267`](packages/sequent-core/src/ballot.rs#L1267) (`pub enum EPreferenceGapsPolicy`)
+- **Field / type**: [`packages/sequent-core/src/ballot.rs:L1267`](../../sequent-core/src/ballot.rs#L1267) (`pub enum EPreferenceGapsPolicy`)
 - **Value space**: 2 variants
   - `ALLOWED_WARN_AND_DIALOG` (default) — gaps in rankings allowed (e.g., rank 1, rank 3, skip rank 2).
   - `NOT_ALLOWED_WARN_AND_DIALOG` — enforce contiguous ranking.
 - **Branching sites**:
-  - [`packages/sequent-core/src/ballot_codec/checker.rs:L258`](packages/sequent-core/src/ballot_codec/checker.rs#L308) — `check_preference_gaps_policy()`: validates no gaps if policy requires contiguous ranks.
+  - [`packages/sequent-core/src/ballot_codec/checker.rs:L308`](../../sequent-core/src/ballot_codec/checker.rs#L308) — `check_preference_gaps_policy()`: validates no gaps if policy requires contiguous ranks.
   - Preferential-only.
 - **Current fixture coverage**: Not set anywhere. The new `instant-runoff-3cand.json` bundled fixture is the first preferential contest — leaves this at default.
 - **Velvet upstream variants**: Not set.
-- **Coverage gap assessment**: Both variants untested; gap validation untested.
+- **Coverage gap assessment**: Both variants fixture-untested (both DOM-observed via ranked selection on the IRV fixture in the characterization suite); gap validation untested by fixtures.
 
 #### 10.B Presentation / layout policies
 
-The remaining `ContestPresentation` (and per-contest) fields below influence rendering, candidate ordering, list layout, or post-tally tie resolution. None of them are read by [`packages/sequent-core/src/ballot_codec/checker.rs`](packages/sequent-core/src/ballot_codec/checker.rs), and `raw_ballot::decode` / `multi_ballot::decode` never branch on them — flipping their values cannot change whether a given selection counts as a valid vote. Fixture coverage for these is a rendering-test concern, not a validation-correctness concern.
+The remaining `ContestPresentation` (and per-contest) fields below influence rendering, candidate ordering, list layout, or post-tally tie resolution. None of them are read by [`packages/sequent-core/src/ballot_codec/checker.rs`](../../sequent-core/src/ballot_codec/checker.rs), and `raw_ballot::decode` / `multi_ballot::decode` never branch on them — flipping their values cannot change whether a given selection counts as a valid vote. Fixture coverage for these is a rendering-test concern, not a validation-correctness concern.
 
 #### 10.B.1 CandidatesOrder
 
-- **Field / type**: [`packages/sequent-core/src/ballot.rs:L575`](packages/sequent-core/src/ballot.rs#L575) (`pub enum CandidatesOrder`)
+- **Field / type**: [`packages/sequent-core/src/ballot.rs:L575`](../../sequent-core/src/ballot.rs#L575) (`pub enum CandidatesOrder`)
 - **Value space**: 3 variants
   - `Random` — shuffle candidates on each ballot.
   - `Custom` — display in fixture-defined order.
   - `Alphabetical` (default) — sort by name.
 - **Branching sites**:
-  - Voting-portal: [`packages/voting-portal/src/components/AnswersList/AnswersList.tsx:L98`](packages/voting-portal/src/components/AnswersList/AnswersList.tsx#L98) — `sortCandidatesInContest()` dispatches on `candidatesOrderType`.
-  - [`packages/voting-portal/src/components/Question/Question.tsx:L178`](packages/voting-portal/src/components/Question/Question.tsx#L178) — sets `candidatesOrderType`; used for rendering.
+  - Voting-portal: [`packages/voting-portal/src/components/AnswersList/AnswersList.tsx:L98`](../../voting-portal/src/components/AnswersList/AnswersList.tsx#L98) — `sortCandidatesInContest()` dispatches on `candidatesOrderType`.
+  - [`packages/voting-portal/src/components/Question/Question.tsx:L178`](../../voting-portal/src/components/Question/Question.tsx#L178) — sets `candidatesOrderType`; used for rendering.
 - **Current fixture coverage**: `candidates_order` absent in all fixtures (defaults Alphabetical).
 - **Velvet upstream variants**: Not set.
 - **Coverage gap assessment**: Random and Custom never exercised; only Alphabetical (default) present.
 
 #### 10.B.2 CandidatesSelectionPolicy
 
-- **Field / type**: [`packages/sequent-core/src/ballot.rs:L1001`](packages/sequent-core/src/ballot.rs#L1001) (`pub enum CandidatesSelectionPolicy`)
+- **Field / type**: [`packages/sequent-core/src/ballot.rs:L1001`](../../sequent-core/src/ballot.rs#L1001) (`pub enum CandidatesSelectionPolicy`)
 - **Value space**: 2 variants
   - `Radio` — single selection; deselects previous when new one clicked.
   - `Cumulative` (default) — multiple independent selections (checkboxes).
 - **Branching sites**:
-  - Voting-portal: [`packages/voting-portal/src/components/Question/Question.tsx`](packages/voting-portal/src/components/Question/Question.tsx) — toggle button or checkbox based on policy (not explicitly branching, but UI adapts).
+  - Voting-portal: [`packages/voting-portal/src/components/Question/Question.tsx`](../../voting-portal/src/components/Question/Question.tsx) — toggle button or checkbox based on policy (not explicitly branching, but UI adapts).
   - Redux ballot selections: deselection logic in reducer depends on this.
 - **Current fixture coverage**: Absent in all fixtures (defaults Cumulative).
 - **Velvet upstream variants**: Not set.
@@ -452,7 +460,7 @@ The remaining `ContestPresentation` (and per-contest) fields below influence ren
 
 #### 10.B.3 CandidatesIconCheckboxPolicy
 
-- **Field / type**: [`packages/sequent-core/src/ballot.rs:L1055`](packages/sequent-core/src/ballot.rs#L1055) (`pub enum CandidatesIconCheckboxPolicy`)
+- **Field / type**: [`packages/sequent-core/src/ballot.rs:L1055`](../../sequent-core/src/ballot.rs#L1055) (`pub enum CandidatesIconCheckboxPolicy`)
 - **Value space**: 2 variants
   - `SquareCheckbox` (default) — standard checkbox icon.
   - `RoundCheckbox` — radio-button icon (visual only, regardless of selection policy).
@@ -465,7 +473,7 @@ The remaining `ContestPresentation` (and per-contest) fields below influence ren
 
 #### 10.B.4 EnableCheckableLists, CollapsibleLists, ShuffleCategories, Columns, Pagination, Show/CumulativeCheckboxes
 
-- **Fields**: [`packages/sequent-core/src/ballot.rs:L1408-L1432`](packages/sequent-core/src/ballot.rs#L1408)
+- **Fields**: [`packages/sequent-core/src/ballot.rs:L1408-L1432`](../../sequent-core/src/ballot.rs#L1408)
 - **Value spaces**:
   - `enable_checkable_lists: Option<String>` — { "disabled", "allow-selecting-candidates-and-lists", "allow-selecting-candidates", "allow-selecting-lists" }; default undefined (disabled).
   - `collapsible_lists: Option<String>` — { "disabled", "enabled-expanded", "enabled-collapsed" }; default undefined.
@@ -476,8 +484,8 @@ The remaining `ContestPresentation` (and per-contest) fields below influence ren
   - `show_points: Option<bool>` — display point tallies; default false.
 
 - **Branching sites**:
-  - Voting-portal: [`packages/voting-portal/src/components/Question/Question.tsx:L151-L214`](packages/voting-portal/src/components/Question/Question.tsx#L151) — `getCheckableOptions()`, `collapsibleListsPolicy`, `columnCount` determine category presentation.
-  - Cumulative: [`packages/sequent-core/src/ballot_codec/bases.rs:L24`](packages/sequent-core/src/ballot_codec/bases.rs#L24) — base = cumulative_number_of_checkboxes + 1.
+  - Voting-portal: [`packages/voting-portal/src/components/Question/Question.tsx:L151-L214`](../../voting-portal/src/components/Question/Question.tsx#L151) — `getCheckableOptions()`, `collapsibleListsPolicy`, `columnCount` determine category presentation.
+  - Cumulative: [`packages/sequent-core/src/ballot_codec/bases.rs:L24`](../../sequent-core/src/ballot_codec/bases.rs#L24) — base = cumulative_number_of_checkboxes + 1.
 
 - **Current fixture coverage**: 
   - `shuffle_categories=true` only in `velvet-plurality-5cand.json` reference blob (not bundled).
@@ -494,13 +502,13 @@ The remaining `ContestPresentation` (and per-contest) fields below influence ren
 
 #### 10.B.5 TieBreakingPolicy (on Contest, not Presentation)
 
-- **Field / type**: [`packages/sequent-core/src/ballot.rs:L1482`](packages/sequent-core/src/ballot.rs#L1482) (`Contest.tie_breaking_policy: Option<TieBreakingPolicy>`)
+- **Field / type**: [`packages/sequent-core/src/ballot.rs:L1482`](../../sequent-core/src/ballot.rs#L1482) (`Contest.tie_breaking_policy: Option<TieBreakingPolicy>`)
 - **Value space**: 2 variants
   - `Random` (default) — break ties by random draw.
   - `ExternalProcedure` — defer to external (human) tie-breaking.
 - **Branching sites**:
-  - Tally: [`packages/velvet/src/pipes/do_tally/tally.rs`](packages/velvet/src/pipes/do_tally/tally.rs) — when instantaneous runoff reaches a tie, invokes tie-breaking based on policy. (Implementation not fully visible; depends on velvet-core.)
-  - Workbench: [`packages/workbench/app/src/TallyPage.tsx`](packages/workbench/app/src/TallyPage.tsx) — displays pending tie-break resolutions if policy is ExternalProcedure.
+  - Tally: [`packages/velvet/src/pipes/do_tally/tally.rs`](../../velvet/src/pipes/do_tally/tally.rs) — when instantaneous runoff reaches a tie, invokes tie-breaking based on policy. (Implementation not fully visible; depends on velvet-core.)
+  - Workbench: [`packages/workbench/app/src/TallyPage.tsx`](../app/src/TallyPage.tsx) — displays pending tie-break resolutions if policy is ExternalProcedure.
 - **Current fixture coverage**: Absent in all fixtures (defaults Random).
 - **Velvet upstream variants**: Not set.
 - **Coverage gap assessment**: ExternalProcedure tie-breaking (manual resolution UI) never tested.
@@ -511,20 +519,20 @@ The remaining `ContestPresentation` (and per-contest) fields below influence ren
 
 #### 11.1 WeightedVotingPolicy
 
-- **Field / type**: [`packages/sequent-core/src/ballot.rs:L2554`](packages/sequent-core/src/ballot.rs#L2554) (`pub enum WeightedVotingPolicy`)
+- **Field / type**: [`packages/sequent-core/src/ballot.rs:L2554`](../../sequent-core/src/ballot.rs#L2554) (`pub enum WeightedVotingPolicy`)
 - **Value space**: 2 variants
   - `DisabledWeightedVoting` (default) — all votes weighted 1:1.
   - `AreasWeightedVoting` — votes per area weighted by area annotation (`AreaAnnotations.weight`).
 - **Branching sites**:
-  - Tally: [`packages/velvet/src/pipes/do_tally/tally.rs:L30-L44`](packages/velvet/src/pipes/do_tally/tally.rs#L30) — `get_ballots()` pairs each decoded vote with a `Weight` from ballot file metadata or area annotations; weighted votes passed to tally.
-  - Tally aggregation: [`packages/velvet/src/pipes/do_tally/do_tally.rs:L244`](packages/velvet/src/pipes/do_tally/do_tally.rs#L244) — children areas' weights accumulated.
+  - Tally: [`packages/velvet/src/pipes/do_tally/tally.rs:L30-L44`](../../velvet/src/pipes/do_tally/tally.rs#L30) — `get_ballots()` pairs each decoded vote with a `Weight` from ballot file metadata or area annotations; weighted votes passed to tally.
+  - Tally aggregation: [`packages/velvet/src/pipes/do_tally/do_tally.rs:L244`](../../velvet/src/pipes/do_tally/do_tally.rs#L244) — children areas' weights accumulated.
 - **Current fixture coverage**: WeightedVotingPolicy not set in any fixture; no area weights in annotations.
 - **Velvet upstream variants**: Not set; election_event_annotations absent.
 - **Coverage gap assessment**: AreasWeightedVoting never tested; weight accumulation and normalization untested.
 
 #### 11.2 DelegatedVotingPolicy & other ElectionEventPresentation fields
 
-- **Field / type**: [`packages/sequent-core/src/ballot.rs:L966`](packages/sequent-core/src/ballot.rs#L966) (`pub struct ElectionEventPresentation`)
+- **Field / type**: [`packages/sequent-core/src/ballot.rs:L966`](../../sequent-core/src/ballot.rs#L966) (`pub struct ElectionEventPresentation`)
 - **Value space**: Multiple policies (DelegatedVotingPolicy, ConsolidatedReportPolicy, Enrollment, Otp, VoterSigningPolicy, etc.); see source.
 - **Branching sites**: Primarily at API/backend authorization level (outside booth/tally scope); not branched in voting-portal fixture code.
 - **Current fixture coverage**: Not set; election_event_presentation typically absent.
@@ -534,13 +542,13 @@ The remaining `ContestPresentation` (and per-contest) fields below influence ren
 
 ### 12. Multi-Ballot Encoding Capacity & Limits
 
-- **Field / type**: [`packages/sequent-core/src/ballot_codec/multi_ballot.rs:L202`](packages/sequent-core/src/ballot_codec/multi_ballot.rs#L202) — fixed 30-byte encoding size.
+- **Field / type**: [`packages/sequent-core/src/ballot_codec/multi_ballot.rs:L274`](../../sequent-core/src/ballot_codec/multi_ballot.rs#L274) (`BallotChoices` doc comment) with [`encode_to_30_bytes` L452-L465](../../sequent-core/src/ballot_codec/multi_ballot.rs#L452) / [`decode_from_30_bytes` L656-L686](../../sequent-core/src/ballot_codec/multi_ballot.rs#L656) — fixed 30-byte encoding size.
 - **Value space**: Single encoded ballot must fit in 30 bytes; capacity depends on contest count and max_votes per contest.
   - Capacity formula (approximate): sum(log2(candidate_count) * max_votes for all contests) < 30*8 bits.
-  - Multi-ballot codec only supports Plurality-at-large; comment at line 742 enforces this.
+  - Multi-ballot codec only supports Plurality-at-large; the codec-context constructor enforces this.
 - **Branching sites**:
-  - [`packages/sequent-core/src/ballot_codec/multi_ballot.rs:L719-L742`](packages/sequent-core/src/ballot_codec/multi_ballot.rs#L719) — `get_bases()` validates no non-PluralityAtLarge contests; errors if mixed.
-  - Encoding: [`packages/sequent-core/src/ballot_codec/multi_ballot.rs:L240-L250`](packages/sequent-core/src/ballot_codec/multi_ballot.rs#L240) — comment documents capacity constraint.
+  - [`packages/sequent-core/src/ballot_codec/multi_ballot.rs:L125-L129`](../../sequent-core/src/ballot_codec/multi_ballot.rs#L125) — the codec-context constructor rejects any non-PluralityAtLarge contest; errors if mixed.
+  - Capacity bound: [`multi_ballot.rs:L1057-L1066`](../../sequent-core/src/ballot_codec/multi_ballot.rs#L1057) — `MAX_SIZE_BYTES` (29-byte payload limit; byte 0 is the length prefix) and `maximum_size_bytes()`.
 - **Current fixture coverage**: 
   - `mixed-3contests.json` (bundled): 3 contests per ballot style — exercises multi-contest encoding path; capacity not stressed (3 contests with ≤3 candidates each fits comfortably in 30 bytes).
   - `multi-bs-shared-contest.json` (bundled): 2 contests per ballot style.
@@ -555,13 +563,14 @@ The remaining `ContestPresentation` (and per-contest) fields below influence ren
 Five feature PRs landed between the branch point and `origin/main@0db8f855ec` —
 explicit blank votes (#2842), election-level decline to vote (#2687), consistent
 invalid vote policy (#2697), tally sheets input (#1929) and participation by
-voting channel (#2920). They add the dimensions below. **None has bundled-fixture
-coverage**, and several are not merely untested but *unreachable* from current
-fixtures, which is a stronger statement.
+voting channel (#2920). They add the dimensions below. **Apart from the marker
+candidates (§13.2, now bundled as `explicit-blank-invalid`), none has
+bundled-fixture coverage**, and several are not merely untested but
+*unreachable* from current fixtures, which is a stronger statement.
 
 #### 13.1 DeclineToVotePolicy (election-event presentation)
 
-- **Field / type**: [`packages/sequent-core/src/ballot.rs:L2863`](packages/sequent-core/src/ballot.rs#L2863) (`pub enum DeclineToVotePolicy`), carried on `ElectionEventPresentation.decline_to_vote_policy`.
+- **Field / type**: [`packages/sequent-core/src/ballot.rs:L2863`](../../sequent-core/src/ballot.rs#L2863) (`pub enum DeclineToVotePolicy`), carried on `ElectionEventPresentation.decline_to_vote_policy`.
 - **Value space**: 2 variants — `DISABLED` (default), `ENABLED` (voter may decline at the **election** level, i.e. all contests at once).
 - **Branching sites**:
   - Portal state: `declinedToVote` map plus `setDeclinedToVote` / `clearDeclinedToVoteForElection` / `isDeclineToVoteByElectionId` in `store/extra/extraSlice.ts`; `setAllBallotSelectionsDeclineToVote` in `store/ballotSelections/ballotSelectionsSlice.ts`.
@@ -569,15 +578,15 @@ fixtures, which is a stronger statement.
   - Per-contest carrier: `IDecodedVoteContest.is_decline_to_vote` — a **required** field; sequent-core refuses to deserialise tally input without it.
   - Tally: declined ballots accumulate into `extended_metrics.total_declined_to_vote` and are **excluded from the valid total**, whereas blank ballots stay valid.
 - **Note**: this policy does **not** appear in `checker.rs`. It is not a vote-validity policy in the §10.A sense; it changes booth flow and tally accounting.
-- **Current fixture coverage**: no fixture sets the policy. All five bundled snapshots now carry `is_decline_to_vote: false` on every persisted selection (backfilled when the field became required), so they are schema-current but exercise only the not-declined path.
+- **Current fixture coverage**: no fixture sets the policy. All six bundled snapshots now carry `is_decline_to_vote: false` on every persisted selection (backfilled when the field became required), so they are schema-current but exercise only the not-declined path.
 - **Coverage gap assessment**: `ENABLED` never set; no fixture produces a declined ballot; `total_declined_to_vote` is always 0; the declined-vs-blank distinction in the tally is untested.
 
 #### 13.2 Explicit-blank and explicit-invalid marker candidates
 
-- **Field / type**: [`packages/sequent-core/src/ballot.rs:L457`](packages/sequent-core/src/ballot.rs#L457) (`CandidatePresentation.is_explicit_blank`) and its sibling `is_explicit_invalid`.
+- **Field / type**: [`packages/sequent-core/src/ballot.rs:L457`](../../sequent-core/src/ballot.rs#L457) (`CandidatePresentation.is_explicit_blank`) and its sibling `is_explicit_invalid`.
 - **Value space**: per candidate, { true, false / absent }.
 - **Why this is its own dimension**: these markers are the *precondition* for the explicit branches of `InvalidVotePolicy` (§10.A.1) and `EBlankVotePolicy` (§10.A.4), and for the explicit/implicit split in the tally result. Cataloguing only the policies hides the fact that setting them changes nothing unless a marker candidate exists.
-- **Branching sites**: `classify_ballot` and `get_explicit_blank_candidate_ids` in `workbench/velvet-core/src/counting/extended_metrics.rs`; `Candidate::is_explicit_blank()` / `is_explicit_invalid()`; the exclusivity rule in `setBallotSelectionVoteChoice` (choosing a regular candidate clears explicit-blank markers).
+- **Branching sites**: `classify_ballot` and `get_explicit_blank_candidate_ids` in `workbench/velvet-core/src/counting/extended_metrics.rs`; `Candidate::is_explicit_blank()` / `is_explicit_invalid()`; the exclusivity rule in `setBallotSelectionVoteChoice` (choosing a regular candidate clears explicit-blank markers). The two markers are not symmetric: `setBallotSelectionBlankVote` clears every other choice and resets `is_explicit_invalid`, while `setBallotSelectionInvalidVote` sets only the flag and leaves choices intact (finding S5 in [`UPSTREAM_FINDINGS.md`](UPSTREAM_FINDINGS.md); both directions observed in [`dom-validate.md`](../characterization/dom-validate.md) — blank `regular_then_marker` → `no (cleared)`, invalid `marker_plus` → reachable).
 - **Current fixture coverage**: `explicit-blank-invalid.json` — the first and
   only bundled snapshot defining marker candidates. Two contests:
   - *Referendum* — Yes / No / **Blank vote (explicit blank)** (`is_explicit_blank`),
@@ -599,11 +608,17 @@ fixtures, which is a stronger statement.
   | `invalid_votes` | 1 = 0 explicit + **1 implicit** (the mixed ballot) |
 
   Selecting *Null vote (explicit invalid)* in *Council seat* yields `invalid_votes.explicit = 1`.
+  The marker+Yes ballot cannot be formed by clicking in the booth —
+  `setBallotSelectionBlankVote` clears the other choices — so that row was
+  produced from constructed state injected into the store, not through the
+  booth UI.
 - **Coverage gap assessment**: the classification path is now reachable, and the
   four `ParticipationSummary` rows that were structurally 0 render real values.
   Remaining: no fixture pairs a marker with a *non-default* `invalid_vote_policy`
   or `blank_vote_policy`, so the explicit branches are only exercised under
-  `ALLOWED`; and no preferential contest carries a marker.
+  `ALLOWED` (true of fixtures only — the characterization suite's DOM lane
+  pairs both markers with all four variants of each policy); and no
+  preferential contest carries a marker.
 
 #### 13.3 Voting channel and participation
 
@@ -637,7 +652,7 @@ contest awaiting external resolution.
 
 #### 13.6 EVoterSigningPolicy (election-event presentation)
 
-- **Field / type**: [`packages/ui-core/src/types/ElectionEventPresentation.ts:L18`](packages/ui-core/src/types/ElectionEventPresentation.ts#L18) — `NO_SIGNATURE` (default) / `WITH_SIGNATURE`.
+- **Field / type**: [`packages/ui-core/src/types/ElectionEventPresentation.ts:L18`](../../ui-core/src/types/ElectionEventPresentation.ts#L18) — `NO_SIGNATURE` (default) / `WITH_SIGNATURE`.
 - **Branching sites**: `useEncryptBallotForReview` signs the hashable ballot when the policy is `WITH_SIGNATURE`, changing what `cv.content` holds.
 - **Current fixture coverage**: absent; every fixture takes the unsigned path.
 - **Coverage gap assessment**: the signing branch of the encrypt path is never exercised, and the workbench's decrypt bridge has never seen a signed ballot envelope.
@@ -648,14 +663,14 @@ contest awaiting external resolution.
 
 ### D.1 Tally Operation Scope & Aggregation
 
-- **Field / type**: [`packages/sequent-core/src/types/ceremonies.rs:L290`](packages/sequent-core/src/types/ceremonies.rs#L290) (`pub enum TallyOperation`)
+- **Field / type**: [`packages/sequent-core/src/types/ceremonies.rs:L290`](../../sequent-core/src/types/ceremonies.rs#L290) (`pub enum TallyOperation`)
 - **Value space**: 3 variants
   - `ProcessBallotsAll` — count votes per candidate; report participation.
   - `AggregateResults` — sum area/contest results (no per-candidate detail).
   - `SkipCandidateResults` — participation only, no results.
 - **Branching sites**:
-  - Tally orchestration: [`packages/velvet/src/pipes/do_tally/do_tally.rs`](packages/velvet/src/pipes/do_tally/do_tally.rs) — dispatches tally per operation scope.
-  - Default per algorithm: [`packages/sequent-core/src/types/ceremonies.rs:L362-L371`](packages/sequent-core/src/types/ceremonies.rs#L362) — `CountingAlgType::get_default_tally_operation_for_contest()` assigns ProcessBallotsAll for preferential, AggregateResults for Plurality.
+  - Tally orchestration: [`packages/velvet/src/pipes/do_tally/do_tally.rs`](../../velvet/src/pipes/do_tally/do_tally.rs) — dispatches tally per operation scope.
+  - Default per algorithm: [`packages/sequent-core/src/types/ceremonies.rs:L362-L371`](../../sequent-core/src/types/ceremonies.rs#L362) — `CountingAlgType::get_default_tally_operation_for_contest()` assigns ProcessBallotsAll for preferential, AggregateResults for Plurality.
 - **Current fixture coverage**: Operation type implicit in default algorithm; not explicitly tested as a varying dimension.
 - **Coverage gap assessment**: AggregateResults and SkipCandidateResults behavior rarely exercised; preferential-specific defaults untested.
 
@@ -666,12 +681,12 @@ contest awaiting external resolution.
 
 | Dimension | Gap | Impact | Priority |
 |-----------|-----|--------|----------|
-| Explicit-blank / explicit-invalid markers | Closed by `explicit-blank-invalid`. Remaining: no fixture pairs a marker with a non-default `invalid_vote_policy` / `blank_vote_policy` | Explicit policy branches still take the default variant | Medium |
-| CountingAlgType — 9/10 unsupported | Only Plurality-at-Large + IRV bundled (incl. mixed on one ballot via `mixed-3contests`) | Tally dispatch, ballot encoding, validation | Critical |
+| Explicit-blank / explicit-invalid markers | Closed by `explicit-blank-invalid`. Remaining: no fixture pairs a marker with a non-default `invalid_vote_policy` / `blank_vote_policy` (fixture-only — the DOM lane pairs both markers with all four variants of each) | Explicit policy branches take the default variant in bundled fixtures | Medium |
+| CountingAlgType — 8/10 unsupported | Only Plurality-at-Large + IRV bundled (incl. mixed on one ballot via `mixed-3contests`) | Tally dispatch, ballot encoding, validation | Critical |
 | Decline to vote (§13.1) | Policy never enabled; no declined ballot produced | Declined-vs-blank tally accounting, booth back-navigation | High |
 | Contest-sharing (disjoint/shared/partial) | Partial bundled (`multi-bs-shared-contest`); fully-shared-identical and disjoint-candidates-same-id still bundled-only as reference blobs | Multi-ballot-style aggregation incomplete | High |
-| Preference policies (Dup/Gap/etc.) | Untested; depends on IRV; `instant-runoff-3cand` leaves both at default | Validation of preferential votes incomplete | High |
-| Vote constraint policies (under/over/blank/invalid) | Only ALLOWED tested | Validation policy branching incomplete | High |
+| Preference policies (Dup/Gap/etc.) | Fixture-untested; `instant-runoff-3cand` leaves both at default (both variants of each DOM-observed in the characterization suite) | Bundled-fixture convenience only — preferential validation behaviour is characterized | Low |
+| Vote constraint policies (under/over/blank/invalid) | Only ALLOWED set in fixtures (every variant DOM-observed in the characterization suite) | Bundled-fixture convenience only — validation branching is characterized | Low |
 | Multi-contest ballot styles | N=3 now bundled (`mixed-3contests`); near-30-byte capacity still untested | Encoding capacity untested at limit | Medium |
 | Multiple elections / events per snapshot | N=2 elections now bundled (`two-elections`); multi-event and N≥3 untested | Hydrator + workbench overlay coverage incomplete | Medium |
 | Write-in encoding (allow_writeins=true, text submission) | Never exercised end-to-end | Write-in text encoding/decoding untested | Medium |
@@ -684,13 +699,12 @@ contest awaiting external resolution.
 1. **Priority 1: CountingAlgType variants**
    - ✅ `instant-runoff-3cand.json` bundled: min_votes=0, max_votes=3, 3 candidates (minimal IRV) — first preferential bundled fixture.
    - ✅ `mixed-3contests.json` bundled: plurality + IRV on the same ballot — exercises per-contest algorithm dispatch in the booth.
-   - Borda/Desborda/Cumulative/Pairwise fixtures are blocked: velvet's `create_tally()` only dispatches PluralityAtLarge and InstantRunoff and errors on the rest (see [packages/velvet/src/pipes/do_tally/tally.rs](packages/velvet/src/pipes/do_tally/tally.rs#L109-L115)). Defer until velvet tally support lands.
+   - Borda/Desborda/Cumulative/Pairwise fixtures are blocked: velvet's `create_tally()` only dispatches PluralityAtLarge and InstantRunoff and errors on the rest (see [packages/velvet/src/pipes/do_tally/tally.rs](../../velvet/src/pipes/do_tally/tally.rs#L109-L115)). Defer until velvet tally support lands.
 
 2. **Priority 2: Vote validation policies** (see §10.A for the canonical set and surface map)
-   - Scope is the six policies that branch in [`packages/sequent-core/src/ballot_codec/checker.rs`](packages/sequent-core/src/ballot_codec/checker.rs) and are consulted by both the booth gating layer (encode path) and `raw_ballot::decode` / `multi_ballot::decode` (tally decode path): `InvalidVotePolicy`, `EOverVotePolicy`, `EUnderVotePolicy`, `EBlankVotePolicy`, plus the preferential-only `EDuplicatedRankPolicy` and `EPreferenceGapsPolicy`.
-   - Plurality fixture: exercise non-default variants of the first four in a small matrix, with selections crafted to trip each checker branch (under, over, blank, and an explicit-invalid candidate).
-   - Preferential fixture: extend the IRV bundle to non-default `duplicated_rank_policy` and `preference_gaps_policy`, with ranked selections that actually contain a duplicate and a gap.
-   - For each policy include at least one `NOT_ALLOWED*` variant so the booth's hard-block path in [`voting_screen.rs::check_voting_not_allowed_next_util`](packages/sequent-core/src/util/voting_screen.rs#L14) is reachable.
+   - Scope is the six policies that branch in [`packages/sequent-core/src/ballot_codec/checker.rs`](../../sequent-core/src/ballot_codec/checker.rs) and are consulted by both the booth gating layer (encode path) and `raw_ballot::decode` / `multi_ballot::decode` (tally decode path): `InvalidVotePolicy`, `EOverVotePolicy`, `EUnderVotePolicy`, `EBlankVotePolicy`, plus the preferential-only `EDuplicatedRankPolicy` and `EPreferenceGapsPolicy`.
+   - **Superseded as a behaviour question by the characterization suite**: [`dom-validate.mjs`](../characterization/dom-validate.mjs) observes every variant of all six policies against the real booth DOM (229/229 vs [`spec.mjs`](../characterization/spec.mjs)) — selections trip each checker branch (under, over, blank, both markers, a ranked duplicate and a gap), the `NOT_ALLOWED*` hard-block path in [`voting_screen.rs::check_voting_not_allowed_next_util`](../../sequent-core/src/util/voting_screen.rs#L14) is reached, and the disable variant's `disabled` attribute is probed directly.
+   - What remains is bundled-fixture convenience only: a snapshot pre-setting non-default variants (a small plurality matrix over the first four; an IRV bundle with non-default `duplicated_rank_policy` / `preference_gaps_policy`) would let an operator reproduce those states by hand without editing config.
    - Excluded from this priority (catalogued under §10.B): `CandidatesOrder`, `CandidatesSelectionPolicy`, `CandidatesIconCheckboxPolicy`, the list/layout/pagination fields in §10.B.4, and `TieBreakingPolicy` — none of them affect vote validity.
 
 3. **Priority 3: Multi-ballot-style scenarios**
