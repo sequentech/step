@@ -67,6 +67,7 @@ import {ATTR_RESET_VALUE, IPermissions} from "@/types/keycloak"
 import {isDatafixElectionEvent} from "@/services/Datafix"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {IRole, IUser, translate} from "@sequentech/ui-core"
+import {ESupportMaterialsPolicy, getEffectiveSupportMaterialsPolicy} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {FormStyles} from "@/components/styles/FormStyles"
@@ -104,6 +105,7 @@ import {getVoterInformationLetterPasswordPolicyError} from "./editPasswordError"
 export const AUTHORIZED_ELECTION_IDS = "authorized-election-ids"
 export const VOTED_CHANNEL = "voted-channel"
 export const DISABLE_COMMENT = "disable-comment"
+export const SUPPORT_MATERIALS_ACKNOWLEDGED = "support-materials-acknowledged"
 
 const DataGridContainerStyle = styled(DatagridConfigurable, {
     shouldForwardProp: (prop) => prop !== "isOpenSideBar", // Prevent `isOpenSideBar` from being passed to the DOM
@@ -147,6 +149,9 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         {enabled: Boolean(electionEventId && tenantId)}
     )
     const isDatafixEvent = isDatafixElectionEvent(electionEventRecord)
+    const isSupportMaterialsMandatory =
+        getEffectiveSupportMaterialsPolicy(electionEventRecord?.presentation?.materials) ===
+        ESupportMaterialsPolicy.MANDATORY_FOR_VOTING
     const {globalSettings} = useContext(SettingsContext)
     const [isOpenSidebar] = useSidebarState()
     const location = useLocation()
@@ -1008,6 +1013,9 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         userAttributes?.get_user_profile_attributes.forEach((attr) => {
             if (attr.name && userBasicInfo.includes(attr.name)) {
                 basicInfoFields.push(attr)
+            } else if (attr.name === SUPPORT_MATERIALS_ACKNOWLEDGED) {
+                // Has its own dedicated boolean column below; must not be
+                // auto-omitted like other Keycloak-attribute-derived columns.
             } else {
                 omitFields.push(`attributes['${attr.name}']`)
                 attributesFields.push(attr)
@@ -1109,6 +1117,11 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             }
         }
         return false
+    }
+
+    const checkSupportMaterialsViewed = (record: IUser) => {
+        const values = record?.attributes?.[SUPPORT_MATERIALS_ACKNOWLEDGED]
+        return Array.isArray(values) && values.length > 0
     }
 
     const checkIsVoted = (record: IUser) => {
@@ -1254,6 +1267,27 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                         <BooleanField
                                             record={newRecord}
                                             source={source as keyof IUser}
+                                        />
+                                    ) : null
+                                }}
+                            />
+                        )}
+                        {electionEventId && isSupportMaterialsMandatory && (
+                            <FunctionField<IUser>
+                                source={`attributes['${SUPPORT_MATERIALS_ACKNOWLEDGED}']`}
+                                label={String(
+                                    t("usersAndRolesScreen.users.fields.support_materials_viewed")
+                                )}
+                                render={(record, source) => {
+                                    let newRecord = {
+                                        support_materials_viewed:
+                                            checkSupportMaterialsViewed(record),
+                                        ...record,
+                                    }
+                                    return source ? (
+                                        <BooleanField
+                                            record={newRecord}
+                                            source="support_materials_viewed"
                                         />
                                     ) : null
                                 }}

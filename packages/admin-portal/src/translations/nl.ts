@@ -548,6 +548,16 @@ const dutchTranslation: TranslationType = {
                 language: "Taal",
                 votingChannels: "Stemkanalen",
                 materialActivated: "Ondersteunend materiaal geactiveerd",
+                supportMaterialsPolicy: {
+                    label: "Support Materials Policy",
+                    helperText:
+                        "Mandatory for Voting requires voters to open each Support Material and acknowledge that they have read them before they can vote.",
+                    options: {
+                        off: "Off",
+                        optional: "Optional",
+                        mandatory_for_voting: "Mandatory for Voting",
+                    },
+                },
                 materialTitle: "Titel",
                 materialSubTitle: "Ondertitel",
                 logoUrl: "Logo URL",
@@ -1094,6 +1104,7 @@ const dutchTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Gestemd",
+                    "support_materials_viewed": "Support Materials Viewed",
                     "vote-weight": "Stemgewicht",
                     "voted-channel": "Stemkanaal",
                     "disable-comment": "Deactiveringsopmerking",
