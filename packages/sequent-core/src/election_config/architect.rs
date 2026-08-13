@@ -1384,27 +1384,20 @@ pub fn validate_plan(plan: &Blueprint) -> Report {
     check_ballot(plan, &mut report);
     check_unique_identifiers(plan, &mut report);
 
-    // The most valuable thing this screen ships, and it is a sentence.
+    // There was a `messages.not-automatic` warning here, on every plan carrying a
+    // message: `scheduled_events.rs` handles `SEND_TEMPLATE` with an empty arm, so
+    // nothing sent them and the wizard said so.
     //
-    // `windmill/src/tasks/scheduled_events.rs` handles `SEND_TEMPLATE` with an
-    // empty arm — deliberately, so a new processor is a compile error — and
-    // `import_scheduled_events` rebuilds the payload as a
-    // `ManageElectionDatePayload`, discarding the body. So a schedule in this plan
-    // is a note for a person. Said out loud, because a client who fills this in and
-    // is not told will believe their reminders went out.
-    if !plan.messages.is_empty() {
-        report.push(
-            Problem::warning(
-                Code::MissingSchedule,
-                "messages",
-                "nothing sends these. The platform's scheduled-event processor for \
-                 templates does nothing, so the dates below are a note for whoever \
-                 sends them by hand. The text and the schedule are exported either \
-                 way.",
-            )
-            .id("messages.not-automatic"),
-        );
-    }
+    // Removed deliberately, and not because the sentence was wrong. It is a
+    // statement about a gap in the *platform* rather than about anything in the
+    // plan, and it fired on every message anybody wrote — so the one screen where
+    // a client does creative work always ended in an amber panel about somebody
+    // else's roadmap. That is a warning nobody can act on, which is how a list of
+    // warnings comes to be scrolled past.
+    //
+    // The gap is being closed. When it is, nothing here needs changing; if it is
+    // not, the people who need to know are the delivery team, and the delivery
+    // guide tells them. `validate_plan` is for what is wrong with *this plan*.
 
     // A repeat with no hour in it.
     //
@@ -2477,7 +2470,8 @@ fn event_sheet(
         let written = plan.i18n.get(language);
         match written {
             Some(keys) if !keys.is_empty() => Cell::text(
-                serde_json::to_string(keys).unwrap_or_else(|_| "{}".to_string()),
+                serde_json::to_string(keys)
+                    .unwrap_or_else(|_| "{}".to_string()),
             ),
             // Empty rather than `{}`: a blank cell is skipped by the reader, and
             // writing `{}` would replace whatever a base export already had.

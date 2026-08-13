@@ -2767,9 +2767,15 @@ fn a_sheet_naming_a_logo_nobody_supplied_is_refused() {
     );
 }
 
-/// A schedule nobody honours is worse than no schedule, so it is said out loud.
+/// A message is not a defect, and nothing about it is said unprompted.
+///
+/// This asserted the opposite until the `messages.not-automatic` warning was
+/// removed: it fired on every plan carrying a message, so the one screen where a
+/// client does creative work always ended in an amber panel about a gap in the
+/// platform rather than anything in their plan. Kept as the inverse, because
+/// "adding a message produces no complaint" is worth holding still.
 #[test]
-fn a_planned_message_says_that_nothing_will_send_it() {
+fn a_planned_message_is_not_itself_a_problem() {
     let mut plan = sound();
     plan.messages.push(PlannedMessage {
         kind: MessageKind::InvitationToVote,
@@ -2781,7 +2787,17 @@ fn a_planned_message_says_that_nothing_will_send_it() {
 
     let report = validate_plan(&plan);
     assert!(!report.has_errors(), "a message is not a defect");
-    assert!(says(&report, "nothing sends these"));
+    assert!(
+        !says(&report, "nothing sends these"),
+        "the platform's own gap is not this plan's problem: {report}"
+    );
+    assert!(
+        !report
+            .problems
+            .iter()
+            .any(|problem| problem.path == "messages"),
+        "a message with nothing wrong with it draws no comment: {report}"
+    );
 }
 
 /// "Every Monday" is not a time, and whoever sends it should not have to guess.
