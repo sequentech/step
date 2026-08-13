@@ -42,6 +42,7 @@ import {
     selectionCount,
 } from "./browser-harness.mjs"
 import {inputConstraint} from "./spec.mjs"
+import {RULE_SPECS} from "./rule-specs.mjs"
 
 const require = createRequire("C:/work/projects/step/packages/")
 const {chromium} = require("playwright")
@@ -53,33 +54,19 @@ const SNAPSHOT = "bundled:explicit-blank-invalid"
 
 const rec = (f) => JSON.parse(readFileSync(path.join(here, f), "utf8")).rows
 const uniq = (xs) => [...new Set(xs)].sort()
-const clickText = (page, rx) => page.getByText(rx).first().click().catch(() => {})
-const clickExact = (page, s) =>
-    page.getByText(s, {exact: true}).first().click().catch(() => {})
 
 // Predicted dialog from the recorded gates: hard → blocking, soft → dismissible.
 const expectedDialog = (r) => (r.observed.hard ? "blocking" : r.observed.soft ? "dismissible" : "none")
 
+// The browser-driving specs (contest, config, selection, landmark) come from
+// rule-specs.mjs — the single source shared with no-silent-discount. Here we
+// add only the validation extras: the recorded rows to validate against, the
+// predicted input-constraint, and a display label.
 const RULES = [
     {
         name: "over-vote",
+        ...RULE_SPECS["overvote-rule"],
         rows: rec("overvote-rule.recorded.json"),
-        contestFlag: "is_explicit_invalid", // Council seat
-        landmark: /^Ada$/,
-        config: (r) => ({
-            selects: {
-                "Over-vote policy": r.over_vote_policy,
-                "Invalid-vote policy": r.invalid_vote_policy,
-            },
-        }),
-        select: async (page, r) => {
-            if (r.state === "at_max") await clickText(page, /^Ada$/)
-            else if (r.state === "over_max") {
-                await clickText(page, /^Ada$/)
-                await clickText(page, /^Bruno$/)
-            }
-        },
-        want: (r) => r.state === "over_max" ? 2 : r.state === "at_max" ? 1 : 0,
         constraint: (r) =>
             inputConstraint({
                 selections: r.state === "over_max" ? 2 : r.state === "at_max" ? 1 : 0,
@@ -90,19 +77,8 @@ const RULES = [
     },
     {
         name: "min-vote",
+        ...RULE_SPECS["minvote-rule"],
         rows: rec("minvote-rule.recorded.json"),
-        contestFlag: "is_explicit_blank", // Referendum
-        landmark: /^Yes$/,
-        config: (r) => ({
-            selects: {"Invalid-vote policy": r.invalid_vote_policy},
-            bounds: {min_votes: r.min_votes},
-        }),
-        select: async (page, r) => {
-            if (r.state === "one") await clickText(page, /^Yes$/)
-            else if (r.state === "marker_only")
-                await clickExact(page, "Blank vote (explicit blank)")
-        },
-        want: (r) => (r.state === "none" ? 0 : 1),
         constraint: () => null, // min-vote imposes no input constraint
         label: (r) => `min=${r.min_votes} × ${r.invalid_vote_policy} × ${r.state}`,
     },

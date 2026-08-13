@@ -1,26 +1,26 @@
 {
   "property": "no-silent-discount",
+  "method": "observation-based (headless pre-filter + browser confirm at review)",
   "scanned": 248,
-  "violation_count": 5,
+  "candidates": 7,
+  "confirmed_count": 5,
   "byConfig": {
-    "over_vote_policy=allowed, invalid_vote_policy=allowed": [
+    "over=allowed invalid=allowed": [
       "over_max"
     ],
-    "min_votes=1, invalid_vote_policy=allowed": [
+    "min_votes=1 invalid=allowed": [
       "none"
     ],
-    "min_votes=2, invalid_vote_policy=allowed": [
+    "min_votes=2 invalid=allowed": [
       "none",
       "one",
       "marker_only"
     ]
   },
-  "violations": [
+  "confirmed": [
     {
-      "source": "overvote-rule.recorded.json",
-      "contest": "Council seat (with explicit invalid)",
-      "over_vote_policy": "allowed",
-      "invalid_vote_policy": "allowed",
+      "rule": "overvote-rule",
+      "cfg": "over=allowed invalid=allowed",
       "state": "over_max",
       "observed": {
         "errors": [
@@ -31,23 +31,15 @@
         "soft": false,
         "tally": "ImplicitInvalid"
       },
-      "derived_inline_visible": [],
-      "predicted": {
-        "errors": [
-          "errors.implicit.selectedMax"
-        ],
-        "alerts": [],
-        "hard": false,
-        "soft": false,
-        "tally": "ImplicitInvalid"
-      },
-      "match": true
+      "formed": 2,
+      "reachable": true,
+      "inlineAtReview": [],
+      "dialog": "none",
+      "confirmed": true
     },
     {
-      "source": "minvote-rule.recorded.json",
-      "contest": "Referendum (with explicit blank)",
-      "min_votes": 1,
-      "invalid_vote_policy": "allowed",
+      "rule": "minvote-rule",
+      "cfg": "min_votes=1 invalid=allowed",
       "state": "none",
       "observed": {
         "errors": [
@@ -58,23 +50,15 @@
         "soft": false,
         "tally": "ImplicitInvalid"
       },
-      "derived_inline_visible": [],
-      "predicted": {
-        "errors": [
-          "errors.implicit.selectedMin"
-        ],
-        "alerts": [],
-        "hard": false,
-        "soft": false,
-        "tally": "ImplicitInvalid"
-      },
-      "match": true
+      "formed": 0,
+      "reachable": true,
+      "inlineAtReview": [],
+      "dialog": "none",
+      "confirmed": true
     },
     {
-      "source": "minvote-rule.recorded.json",
-      "contest": "Referendum (with explicit blank)",
-      "min_votes": 2,
-      "invalid_vote_policy": "allowed",
+      "rule": "minvote-rule",
+      "cfg": "min_votes=2 invalid=allowed",
       "state": "none",
       "observed": {
         "errors": [
@@ -85,23 +69,15 @@
         "soft": false,
         "tally": "ImplicitInvalid"
       },
-      "derived_inline_visible": [],
-      "predicted": {
-        "errors": [
-          "errors.implicit.selectedMin"
-        ],
-        "alerts": [],
-        "hard": false,
-        "soft": false,
-        "tally": "ImplicitInvalid"
-      },
-      "match": true
+      "formed": 0,
+      "reachable": true,
+      "inlineAtReview": [],
+      "dialog": "none",
+      "confirmed": true
     },
     {
-      "source": "minvote-rule.recorded.json",
-      "contest": "Referendum (with explicit blank)",
-      "min_votes": 2,
-      "invalid_vote_policy": "allowed",
+      "rule": "minvote-rule",
+      "cfg": "min_votes=2 invalid=allowed",
       "state": "one",
       "observed": {
         "errors": [
@@ -112,23 +88,15 @@
         "soft": false,
         "tally": "ImplicitInvalid"
       },
-      "derived_inline_visible": [],
-      "predicted": {
-        "errors": [
-          "errors.implicit.selectedMin"
-        ],
-        "alerts": [],
-        "hard": false,
-        "soft": false,
-        "tally": "ImplicitInvalid"
-      },
-      "match": true
+      "formed": 1,
+      "reachable": true,
+      "inlineAtReview": [],
+      "dialog": "none",
+      "confirmed": true
     },
     {
-      "source": "minvote-rule.recorded.json",
-      "contest": "Referendum (with explicit blank)",
-      "min_votes": 2,
-      "invalid_vote_policy": "allowed",
+      "rule": "minvote-rule",
+      "cfg": "min_votes=2 invalid=allowed",
       "state": "marker_only",
       "observed": {
         "errors": [
@@ -139,17 +107,57 @@
         "soft": false,
         "tally": "ImplicitInvalid"
       },
-      "derived_inline_visible": [],
-      "predicted": {
+      "formed": 1,
+      "reachable": true,
+      "inlineAtReview": [],
+      "dialog": "none",
+      "confirmed": true
+    }
+  ],
+  "rejected": [
+    {
+      "rule": "overvote-rule",
+      "cfg": "over=allowed-with-msg invalid=allowed",
+      "state": "over_max",
+      "observed": {
         "errors": [
-          "errors.implicit.selectedMin"
+          "errors.implicit.selectedMax"
         ],
-        "alerts": [],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
         "hard": false,
         "soft": false,
         "tally": "ImplicitInvalid"
       },
-      "match": true
+      "formed": 2,
+      "reachable": true,
+      "inlineAtReview": [
+        "errors.implicit.selectedMax"
+      ],
+      "dialog": "none",
+      "confirmed": false
+    },
+    {
+      "rule": "overvote-rule",
+      "cfg": "over=not-allowed-with-msg-and-disable invalid=allowed",
+      "state": "over_max",
+      "observed": {
+        "errors": [
+          "errors.implicit.selectedMax"
+        ],
+        "alerts": [
+          "errors.implicit.selectedMax"
+        ],
+        "hard": false,
+        "soft": false,
+        "tally": "ImplicitInvalid"
+      },
+      "formed": 1,
+      "reachable": false,
+      "inlineAtReview": [],
+      "dialog": "none",
+      "confirmed": false
     }
   ]
 }

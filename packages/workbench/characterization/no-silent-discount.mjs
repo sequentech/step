@@ -2,110 +2,139 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// The first model-check query over the recorded characterization tables
-// (VALIDATION_LOGIC_DISTILLATION.md payoff 4.3).
+// The no-silent-discount query — now OBSERVATION-based end to end (no model in
+// the finding path; VALIDATION_LOGIC_DISTILLATION.md payoff 4.3).
 //
 //   no-silent-discount :=
-//     ¬∃ (config, vote_state) such that
-//         the ballot is silent on every booth surface
-//       ∧ the tally classifies it ImplicitInvalid
+//     ¬∃ (config, vote_state) reachable through the booth such that
+//         the voter is shown NO signal on any surface
+//       ∧ the tally classifies the ballot ImplicitInvalid
 //
-// i.e. the voter is given NO indication (no inline message, no dialog, no
-// input constraint they'd notice) that their ballot will not count, yet
-// the tally discards it as implicit-invalid. Blanks are valid and excluded;
-// Declined is voter-intended and excluded; ExplicitInvalid is a deliberate
-// opt-in and excluded — only *implicit* invalidity can be "silent" in the
-// sense that matters.
+// Two phases:
+//   1. Pre-filter (headless): a candidate is any recorded cell with
+//      `tally == ImplicitInvalid` ∧ no gate (`¬hard ∧ ¬soft`). Both are real
+//      WASM observations (velvet tally; the checker/gate WASM), so this is a
+//      SOUND superset — every real silent discount is a candidate; it only
+//      over-includes cells that show something inline, or are unreachable.
+//   2. Confirm (browser): drive each candidate through the real booth and
+//      observe the two surfaces the headless side cannot — inline visibility
+//      at the REVIEW screen (the decisive last surface before cast; the
+//      untouched-clear does not apply there) and reachability (did the state
+//      form?). A candidate is a CONFIRMED silent discount iff it is reachable
+//      and shows nothing inline at review with no dialog.
 //
-// This is enumeration over recorded cells, not a proof: every cell's tally
-// class was recorded from the real velvet-wasm tally and every booth effect
-// from the real checker/gates. Violations are additionally reproduced
-// against the real booth UI (signals observed live) plus real decode/tally
-// on the same selection by the browser runner. ALL FIVE violations are
-// further confirmed as ONE continuous flow through the real workbench
-// pipeline (booth encrypt → cast → bridge decrypt → decode → tally):
-// over-vote in `overvote-e2e-pipeline.mjs`, all four min-vote cells in
-// `minvote-e2e-pipeline.mjs`. The inline-visibility input is the runner's
-// `derived_inline_visible` (checker record ∩ master filter).
+// The tally half stays headless (velvet is a Node WASM call, not a booth
+// observation); the signal half is the browser. No `derived_inline_visible`
+// (the model) is consulted — the model is the spec, validated separately by
+// `dom-validate`, not the detector here.
 //
-// Run:  node characterization/no-silent-discount.mjs   (from packages/workbench)
+// Blank / Declined / ExplicitInvalid are excluded by definition (valid,
+// voter-intended, deliberate opt-in). Requires the dev server on :5173.
 
+import {createRequire} from "node:module"
 import {readFileSync, writeFileSync} from "node:fs"
-import {isSilentDiscount} from "./harness.mjs"
 import {fileURLToPath} from "node:url"
 import path from "node:path"
+import {loadSnapshot} from "./browser-harness.mjs"
+import {RULE_SPECS, contestAndVoter, observeBooth} from "./rule-specs.mjs"
+
+const require = createRequire("C:/work/projects/step/packages/")
+const {chromium} = require("playwright")
 
 const here = path.dirname(fileURLToPath(import.meta.url))
+const base = "http://localhost:5173"
+const ELECTION = "44444444-4444-4444-4444-444444444003"
+const SNAPSHOT = "bundled:explicit-blank-invalid"
 
-// A cell's *configuration* is every field that is not an observation,
-// a derivation, or the vote-state. Crucially this includes non-policy
-// knobs like `min_votes` — grouping only by `*_policy` keys would merge
-// distinct min-vote configs and understate the lint surface.
+const SOURCES = [
+    "blank-rule",
+    "overvote-rule",
+    "undervote-rule",
+    "minvote-rule",
+    "duprank-rule",
+    "prefgaps-rule",
+    "invalid-rule",
+]
 const NON_CONFIG = new Set([
     "observed",
     "derived_inline_visible",
     "predicted",
     "match",
     "state",
-    "source",
+    "rule",
     "contest",
 ])
 const configEntries = (cell) =>
     Object.entries(cell).filter(([k]) => !NON_CONFIG.has(k))
 
-// Recordings that carry a `tally` observable participate in the query.
-const SOURCES = [
-    "blank-rule.recorded.json",
-    "overvote-rule.recorded.json",
-    "undervote-rule.recorded.json",
-    "minvote-rule.recorded.json",
-    "duprank-rule.recorded.json",
-    "prefgaps-rule.recorded.json",
-    "invalid-rule.recorded.json",
-]
-
-// The predicate lives in harness.mjs (isSilentDiscount) so the rule
-// tables' derived ⚠ column and this query can never drift apart.
-
-const violations = []
+// ---- phase 1: headless pre-filter (observed tally ∧ observed gates) ---------
+const candidates = []
 let scanned = 0
 for (const src of SOURCES) {
-    const doc = JSON.parse(readFileSync(path.join(here, src), "utf8"))
+    const doc = JSON.parse(readFileSync(path.join(here, `${src}.recorded.json`), "utf8"))
     for (const cell of doc.rows) {
         scanned++
-        if (isSilentDiscount(cell)) {
-            violations.push({source: src, contest: doc.contest, ...cell})
+        const o = cell.observed
+        if (o.tally === "ImplicitInvalid" && !o.hard && !o.soft) {
+            candidates.push({rule: src, contest: doc.contest, ...cell})
         }
     }
 }
+console.log(
+    `pre-filter: ${scanned} scanned → ${candidates.length} candidates ` +
+        `(tally=ImplicitInvalid ∧ no gate)\n`
+)
 
-console.log(`no-silent-discount: scanned ${scanned} cells, ${violations.length} violations\n`)
-for (const v of violations) {
-    const cfg = configEntries(v)
-        .map(([k, val]) => `${k.replace("_vote_policy", "")}=${val}`)
+// ---- phase 2: browser-confirm each candidate at the review surface ----------
+const browser = await chromium.launch({channel: "chrome", headless: true})
+const page = await browser.newPage()
+await loadSnapshot(page, base, SNAPSHOT)
+
+const ctx = {} // per-rule {contestId, voterId}, resolved once
+const confirmed = []
+const rejected = []
+for (const cand of candidates) {
+    const spec = RULE_SPECS[cand.rule]
+    if (!spec) {
+        // no browser spec yet for this rule — record as unconfirmed
+        rejected.push({...cand, reason: "no browser spec", confirmed: false})
+        continue
+    }
+    ctx[cand.rule] ??= await contestAndVoter(page, ELECTION, spec.contestFlag)
+    const {contestId, voterId} = ctx[cand.rule]
+    const obs = await observeBooth(page, {electionId: ELECTION, contestId, voterId, spec, cell: cand})
+
+    const reachable = obs.formed === spec.want(cand)
+    const silentAtReview = (obs.inlineAtReview ?? []).length === 0 && obs.dialog === "none"
+    const isSilent = reachable && silentAtReview
+    const cfg = configEntries(cand)
+        .map(([k, v]) => `${k.replace("_vote_policy", "")}=${v}`)
         .join(" ")
-    console.log(`  VIOLATION [${cfg} state=${v.state}]`)
+    const rec = {rule: cand.rule, cfg, state: cand.state, observed: cand.observed,
+        formed: obs.formed, reachable, inlineAtReview: obs.inlineAtReview, dialog: obs.dialog, confirmed: isSilent}
+    ;(isSilent ? confirmed : rejected).push(rec)
     console.log(
-        `    booth: inline=${JSON.stringify(v.derived_inline_visible)} ` +
-            `hard=${v.observed.hard} soft=${v.observed.soft} → tally=${v.observed.tally}`
+        `  ${isSilent ? "✓ SILENT" : "· rejected"} [${cfg} state=${cand.state}]: ` +
+            `formed=${obs.formed} reachable=${reachable} ` +
+            `inlineAtReview=${JSON.stringify(obs.inlineAtReview)} dialog=${obs.dialog}`
     )
 }
+await browser.close()
+console.log(
+    `\nconfirmed silent discounts: ${confirmed.length} / ${candidates.length} candidates ` +
+        `(${rejected.length} rejected: shown inline, or unreachable)`
+)
 
-// Group violations by the config knobs the voter/admin can actually set,
-// so the output reads as "these policy combinations permit silent
-// discounting" — the shape of a future admin-portal config lint.
+// ---- group confirmed by config (the admin-lint shape) + report --------------
 const byConfig = {}
-for (const v of violations) {
-    const key = configEntries(v)
-        .map(([k, val]) => `${k}=${val}`)
-        .join(", ")
-    ;(byConfig[key] ??= []).push(v.state)
-}
+for (const c of confirmed) (byConfig[c.cfg] ??= []).push(c.state)
 
 writeFileSync(
     path.join(here, "no-silent-discount.report.json"),
     JSON.stringify(
-        {property: "no-silent-discount", scanned, violation_count: violations.length, byConfig, violations},
+        {property: "no-silent-discount", method: "observation-based (headless pre-filter + browser confirm at review)",
+            scanned, candidates: candidates.length, confirmed_count: confirmed.length,
+            byConfig, confirmed, rejected},
         null,
         2
     ) + "\n"
@@ -118,41 +147,44 @@ const md = [
     "SPDX-License-Identifier: AGPL-3.0-only",
     "-->",
     "",
-    "# no-silent-discount — model-check report",
+    "# no-silent-discount — observation-based report",
     "",
     "Generated by `characterization/no-silent-discount.mjs`; do not edit by hand.",
     "",
-    "**Property.** No reachable (config, vote-state) exists where the voter",
-    "receives no booth signal at all — no inline message, no dialog, no input",
-    "constraint — yet the tally classifies the ballot `ImplicitInvalid` and",
-    "discards it. Blank / Declined / ExplicitInvalid are excluded by",
-    "definition (valid, voter-intended, and deliberate opt-in respectively).",
+    "**Property.** No reachable (config, vote-state) exists where the voter is",
+    "shown no signal on any booth surface — no inline message, no dialog, no",
+    "input constraint they'd notice — yet the tally classifies the ballot",
+    "`ImplicitInvalid` and discards it. Blank / Declined / ExplicitInvalid are",
+    "excluded by definition (valid, voter-intended, deliberate opt-in).",
     "",
-    "**Method.** Enumeration over recorded characterization cells whose tally",
-    "class was recorded from the real velvet-wasm tally. Not a proof.",
-    "All five violations are confirmed as ONE continuous run of the real",
-    "workbench pipeline — booth encrypt → cast → bridge decrypt → decode →",
-    "tally (voter shown nothing, ballot → 0 valid, 1 implicit-invalid):",
-    "over-vote in `overvote-e2e-pipeline.recorded.json`, all four min-vote",
-    "cells in `minvote-e2e-pipeline.recorded.json`.",
+    "**Method — observation-based, no model in the finding path.**",
+    "*Phase 1 (headless):* a candidate is any recorded cell with `tally ==",
+    "ImplicitInvalid` ∧ no gate (`¬hard ∧ ¬soft`) — both real WASM observations",
+    "(velvet tally; the checker/gate WASM), so this is a **sound superset**",
+    "(every real silent discount is a candidate; it only over-includes cells",
+    "that show something inline, or are unreachable). *Phase 2 (browser):* each",
+    "candidate is driven through the real booth; it is a **confirmed** silent",
+    "discount iff it is reachable and shows nothing inline at the **review**",
+    "screen (the decisive last surface before cast) with no dialog. The tally",
+    "half is headless (velvet is a Node WASM call, not a booth observation);",
+    "the signal half is the browser. `derived_inline_visible` (the model) is",
+    "not consulted.",
     "",
-    `**Result: ${violations.length} violating cell(s)** across ${scanned} scanned` +
-        ` (sources: ${SOURCES.join(", ")}).`,
+    `**Result: ${candidates.length} candidates → ${confirmed.length} confirmed** ` +
+        `across ${scanned} scanned (sources: ${SOURCES.map((s) => `${s}.recorded.json`).join(", ")}). ` +
+        `${rejected.length} candidate(s) rejected (shown inline, or unreachable).`,
     "",
     "**Status: SUSPECT — escalated for consultation** as S1/S2 in",
-    "`../docs/UPSTREAM_FINDINGS.md`. Strong intuition that this is a defect",
-    "(or at minimum a combination requiring a configuration-time warning),",
-    "but adjudication belongs to the parties with design authority, not to",
-    "this report.",
+    "`../docs/UPSTREAM_FINDINGS.md`. Adjudication belongs to the parties with",
+    "design authority, not to this report.",
     "",
-    "**Reproduce.** Click-by-click workbench recipes for these cells (booth →",
-    "no signal → tally → discarded) are in",
+    "**Reproduce.** Click-by-click workbench recipes are in",
     "[../docs/REPRODUCE.md](../docs/REPRODUCE.md).",
     "",
-    "## Violating configurations",
+    "## Confirmed silently-discounting configurations",
     "",
-    "Each row is a policy combination that *permits* a silently-discounted",
-    "vote — the candidate content of an admin-portal config lint.",
+    "Each row is a policy combination that *permits* a silently-discounted vote",
+    "— the candidate content of an admin-portal config lint.",
     "",
     "| configuration | states |",
     "|---|---|",
@@ -160,4 +192,5 @@ const md = [
     "",
 ].join("\n")
 writeFileSync(path.join(here, "no-silent-discount.md"), md)
-console.log(`\nwrote no-silent-discount.report.json and no-silent-discount.md`)
+console.log("\nwrote no-silent-discount.report.json and no-silent-discount.md")
+if (confirmed.length === 0) process.exitCode = 1
