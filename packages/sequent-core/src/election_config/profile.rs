@@ -618,6 +618,28 @@ fn shape_of_a_plan() -> Value {
     // the wizard offers it. A profile downloaded from the client profile builder
     // with that setting touched could not be loaded at all.
     plan.auth_preset = Some(String::new());
+    // **The fifth and sixth**, and the pattern is now unmistakable: `i18n` and
+    // `keycloak_messages` are maps carrying `skip_serializing_if`, so a shape built
+    // from defaults has neither key and every profile touching *Wording overrides* or
+    // *Sign-in page wording* was refused outright — including one downloaded from the
+    // client profile builder with those rows hidden, which is how this was reported.
+    //
+    // Compensating field by field is what has happened four times before this, and it
+    // will keep happening: any `Option` or `skip_serializing_if` added to `Blueprint`
+    // is invisible here until somebody fills it in. What is new is that it now fails
+    // in CI rather than at a client's screen — `check-core-contract.mjs` in `beyond`
+    // builds a profile naming *every* path its catalogue offers and asks this function
+    // to accept it, so the catalogue and the shape cannot drift again without a red
+    // job. The catalogue is where "paths the product offers" actually lives, which is
+    // why the check belongs there rather than as a list retyped here.
+    plan.i18n.insert(
+        String::from("en"),
+        BTreeMap::from([(String::from("key"), String::new())]),
+    );
+    plan.keycloak_messages.insert(
+        String::from("en"),
+        BTreeMap::from([(String::from("key"), String::new())]),
+    );
 
     // Filled rather than defaulted, because `Overrides` and `Option<Overrides>`
     // both carry `skip_serializing_if`. Left empty they vanish from the shape,

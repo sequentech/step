@@ -168,6 +168,13 @@ fn the_paths_the_docs_advertise_are_accepted() {
 /// The others are here because they are the same shape of field and the mistake
 /// is not specific to one of them: any `Option` or `skip_serializing_if` added to
 /// `Blueprint` is invisible to `shape_of_a_plan` until somebody fills it in.
+///
+/// **This list is not the guard.** It is six fields somebody remembered, and it grew
+/// by two only because a client met the sixth. The guard is in `beyond`:
+/// `check-core-contract.mjs` builds a profile naming *every* path the client profile
+/// builder's catalogue offers and asks this crate to accept it, so the catalogue and
+/// the shape cannot drift without a red job. That check runs where the catalogue
+/// lives, which is why it is not a list retyped here.
 #[test]
 fn a_profile_may_fix_a_field_an_empty_plan_leaves_out() {
     for path in [
@@ -175,6 +182,13 @@ fn a_profile_may_fix_a_field_an_empty_plan_leaves_out() {
         "logo_url",
         "schedule.key_ceremony",
         "schedule.tally_ceremony",
+        // The fifth and sixth, reported from the wizard: both are maps with
+        // `skip_serializing_if`, so a profile hiding *Wording overrides* or *Sign-in
+        // page wording* — two rows the builder offers side by side — was refused
+        // with `'i18n' names nothing a plan has`, and reloading did not help because
+        // the document was the thing being refused.
+        "i18n",
+        "keycloak_messages",
     ] {
         let document = ClientProfile {
             id: "acme".to_string(),
