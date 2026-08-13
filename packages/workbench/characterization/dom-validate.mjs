@@ -30,19 +30,9 @@ import {readFileSync, writeFileSync} from "node:fs"
 import {performance} from "node:perf_hooks"
 import {fileURLToPath} from "node:url"
 import path from "node:path"
-import {
-    warnIds,
-    dialogKind,
-    loadSnapshot,
-    setPanelConfig,
-    enterBooth,
-    clearSelections,
-    dismissDialog,
-    backToInspector,
-    selectionCount,
-} from "./browser-harness.mjs"
+import {loadSnapshot} from "./browser-harness.mjs"
 import {inputConstraint} from "./spec.mjs"
-import {RULE_SPECS} from "./rule-specs.mjs"
+import {RULE_SPECS, contestAndVoter, observeBooth} from "./rule-specs.mjs"
 
 const require = createRequire("C:/work/projects/step/packages/")
 const {chromium} = require("playwright")
@@ -88,70 +78,70 @@ const browser = await chromium.launch({channel: "chrome", headless: true})
 const page = await browser.newPage()
 await loadSnapshot(page, base, SNAPSHOT)
 
-const contestIdFor = (flag) =>
-    page.evaluate(
-        ({electionId, flag}) => {
-            const bs = window.__store.getState().ballotStyles[electionId]
-            const c = bs.ballot_eml.contests.find((x) =>
-                x.candidates.some((cd) => cd.presentation?.[flag])
-            )
-            return c.id
-        },
-        {electionId: ELECTION, flag}
-    )
-const voterId = await page.evaluate(() => {
-    const raw = localStorage.getItem("workbench:state:v1")
-    return raw ? JSON.parse(raw)?.workbench?.voters?.[0]?.id ?? null : null
-})
+const short = (xs) =>
+    !xs || xs.length === 0
+        ? "—"
+        : uniq(xs).map((m) => m.replace(/^errors\.\w+\./, "")).join("<br>")
 
 const results = []
 const t0 = performance.now()
 for (const rule of RULES) {
-    const contestId = await contestIdFor(rule.contestFlag)
+    const {contestId, voterId} = await contestAndVoter(page, ELECTION, rule.contestFlag)
     for (const r of rule.rows) {
-        await setPanelConfig(page, contestId, rule.config(r))
-        await enterBooth(page, voterId)
-        await page.getByText(rule.landmark).first().waitFor({timeout: 15000})
-        await clearSelections(page)
-        await rule.select(page, r)
+        const obs = await observeBooth(page, {electionId: ELECTION, contestId, voterId, spec: rule, cell: r})
 
-        const formed = await selectionCount(page, ELECTION, contestId)
-        const inlineDom = await warnIds(page)
-        let dialog = "none"
-        const next = page.getByRole("button", {name: /next|review/i}).first()
-        if (await next.count().catch(() => 0)) {
-            await next.click().catch(() => {})
-            dialog = await dialogKind(page)
-        }
-        if (dialog !== "none") await dismissDialog(page)
-        await backToInspector(page)
-
-        // compare DOM vs the recorded predictions
         const constrained = rule.constraint(r) === "inputs_disabled"
-        const domReachable = formed === rule.want(r)
+        const domReachable = obs.formed === rule.want(r)
         const reachableOk = domReachable === !constrained
-        // A prevented (unreachable) state can't exist in the DOM, so it shows a
-        // DIFFERENT reachable state's signals — the recorded inline/dialog
-        // (predicted for the phantom state) don't apply. Reachability is the
-        // whole validation for these prevention-guarded cells.
+
+        // Inline is validated at the REVIEW surface (the model's surface; the
+        // untouched-clear does not apply there). Not comparable when the state
+        // is unreachable (a phantom state) or a blocking gate preempts review —
+        // there the constraint / the blocking dialog is the signal, validated
+        // by reachableOk / dialogOk.
+        const inlineComparable = !constrained && obs.dialog !== "blocking"
         const inlineOk =
-            constrained ||
-            JSON.stringify(uniq(inlineDom)) === JSON.stringify(uniq(r.derived_inline_visible))
-        const dialogOk = constrained || dialog === expectedDialog(r)
+            !inlineComparable ||
+            JSON.stringify(uniq(obs.inlineAtReview ?? [])) ===
+                JSON.stringify(uniq(r.derived_inline_visible))
+        const dialogOk = constrained || obs.dialog === expectedDialog(r)
         const ok = inlineOk && dialogOk && reachableOk
-        results.push({rule: rule.name, cell: rule.label(r), inlineOk, dialogOk, reachableOk, ok})
+
+        // Observation-derived silent-discount marker: discarded, reachable, and
+        // no signal on any surface (no dialog, nothing inline at review).
+        const silent =
+            r.observed.tally === "ImplicitInvalid" &&
+            obs.dialog === "none" &&
+            (obs.inlineAtReview ?? []).length === 0 &&
+            domReachable
+
+        results.push({
+            rule: rule.name,
+            config: rule.label(r).replace(` × ${r.state}`, ""),
+            state: r.state,
+            inlineReview: obs.dialog === "blocking" ? "(blocked)" : short(obs.inlineAtReview),
+            reachable: domReachable,
+            dialog: obs.dialog,
+            tally: r.observed.tally,
+            silent,
+            ok,
+        })
         if (!ok) {
             console.log(
                 `✗ ${rule.name} ${rule.label(r)}: ` +
-                    `inline dom=${JSON.stringify(uniq(inlineDom))} pred=${JSON.stringify(uniq(r.derived_inline_visible))} ` +
-                    `| dialog dom=${dialog} pred=${expectedDialog(r)} ` +
-                    `| reachable dom=${domReachable} pred=${!constrained}`
+                    `inline@review=${JSON.stringify(uniq(obs.inlineAtReview ?? []))} ` +
+                    `pred=${JSON.stringify(uniq(r.derived_inline_visible))} ` +
+                    `dialog=${obs.dialog}/${expectedDialog(r)} reachable=${domReachable}/${!constrained}`
             )
         }
     }
-    const ruleCells = results.filter((x) => x.rule === rule.name)
-    console.log(`${rule.name}: ${ruleCells.filter((x) => x.ok).length}/${ruleCells.length} cells DOM-✓`)
+    const rc = results.filter((x) => x.rule === rule.name)
+    console.log(
+        `${rule.name}: ${rc.filter((x) => x.ok).length}/${rc.length} DOM-✓, ` +
+            `${rc.filter((x) => x.silent).length} silent`
+    )
 }
+await browser.close()
 
 const totalMs = Math.round(performance.now() - t0)
 const passed = results.filter((x) => x.ok).length
@@ -160,9 +150,49 @@ console.log(
     `\n${passed}/${results.length} cells validated against the real DOM in ${totalMs}ms ` +
         `(~${Math.round(totalMs / results.length)}ms/cell). all DOM-✓: ${allOk}`
 )
-await browser.close()
+
+// --- complete tables (one per rule) -----------------------------------------
+const fmtRow = (x) =>
+    `| ${x.silent ? "**⚠** " : ""}${x.config} | ${x.state} | ${x.inlineReview} | ` +
+    `${x.reachable ? "yes" : "**no**"} | ${x.dialog} | ${x.tally} | ${x.ok ? "✓" : "**✗**"} |`
+const md = [
+    "<!--",
+    " SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>",
+    "",
+    "SPDX-License-Identifier: AGPL-3.0-only",
+    "-->",
+    "",
+    "# DOM-validated complete tables",
+    "",
+    "Generated by `characterization/dom-validate.mjs`; do not edit by hand.",
+    "",
+    "The **complete** view — every value is an OBSERVATION. The browser-only",
+    "surfaces the partial rule tables cannot show are observed live in the real",
+    "booth: *inline (review)* is inline visibility at the decisive review screen",
+    "(the untouched-clear does not apply there); *reachable* is the input",
+    "constraint (`no` = the state cannot be formed). *tally* is the recorded",
+    "velvet class. **⚠** marks an observation-derived silent discount —",
+    "discarded, reachable, and no signal on any surface. The single",
+    "*matches spec?* column asks whether the spec (`spec.mjs`) agrees with every",
+    "observation in the row; ✗ = spec and DOM disagree. `(blocked)` inline means",
+    "a blocking dialog preempts review — the dialog is the signal there.",
+    "",
+]
+for (const rule of RULES) {
+    const rc = results.filter((x) => x.rule === rule.name)
+    md.push(
+        `## ${rule.name}`,
+        "",
+        "| config | state | inline (review) | reachable | dialog | tally | matches spec? |",
+        "|---|---|---|---|---|---|---|",
+        ...rc.map(fmtRow),
+        ""
+    )
+}
+writeFileSync(path.join(here, "dom-validate.md"), md.join("\n") + "\n")
 writeFileSync(
     path.join(here, "dom-validate.recorded.json"),
     JSON.stringify({cells: results, passed, total: results.length, all_ok: allOk}, null, 2) + "\n"
 )
+console.log("wrote dom-validate.md and dom-validate.recorded.json")
 if (!allOk) process.exitCode = 1

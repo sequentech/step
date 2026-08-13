@@ -108,8 +108,13 @@ export async function observeBooth(page, {electionId, contestId, voterId, spec, 
         await next.click().catch(() => {})
         dialog = await dialogKind(page)
     }
-    if (dialog === "none") {
-        // no gate → the booth advanced to review; observe inline there
+    // A dismissible dialog is a signal but does not block: continue through it
+    // to reach review. A blocking dialog cannot be passed — review is
+    // unreachable, so `inlineAtReview` stays null (the dialog is the signal).
+    if (dialog === "dismissible") {
+        await page.getByRole("button", {name: /continue/i}).first().click().catch(() => {})
+    }
+    if (dialog !== "blocking") {
         await page
             .locator(".cast-ballot-button")
             .first()

@@ -149,12 +149,16 @@ export function classify(f) {
     return "Valid"
 }
 
-/** Booth message filter — `filterErrorList`'s keep-list. Given the checker
- *  emissions, returns what stays VISIBLE inline to the voter. Under
- *  `invalid = allowed` every error is hidden except the two keep-list
- *  carve-outs; alerts are not suppressed by the invalid policy (their own
- *  observation-point filtering — WARN_ONLY_IN_REVIEW, untouched-clear — is a
- *  browser concern this during-voting view does not model).
+/** Booth message filter — `filterErrorList`'s keep-list, at the **review**
+ *  surface (the decisive last screen before cast, and the surface the DOM
+ *  validators observe). Under `invalid = allowed` every error is hidden except
+ *  the two keep-list carve-outs. Two observation-point rules are review-
+ *  specific and modelled here: the untouched-clear (empty contests show
+ *  nothing while untouched) is a *voting-only* behaviour and does NOT apply at
+ *  review, so it is correctly absent; and `overVoteDisabled` (the "maximum
+ *  reached" hint) is a voting-only hint that filterErrorList hides at review
+ *  (`… && isReview`), so it is excluded here. (WARN_ONLY_IN_REVIEW alerts show
+ *  at review; not exercised by the rules with a complete table yet.)
  *
  *  PREDICTION ONLY in a Node runner (see the module header): validate against
  *  the real DOM in a browser runner, never against a re-computation of this. */
@@ -168,7 +172,9 @@ export function inlineVisible(f) {
         if (m === MSG.blankVote && p.blank === "not-allowed") return true
         return false
     })
-    return [...keptErrors, ...alerts]
+    // `overVoteDisabled` is a voting-only hint, hidden at review.
+    const shownAlerts = alerts.filter((m) => m !== MSG.overVoteDisabled)
+    return [...keptErrors, ...shownAlerts]
 }
 
 /** Input-constraint model — the surface only a browser can observe directly

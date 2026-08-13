@@ -1197,9 +1197,7 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.overVoteDisabled"
-      ],
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [
@@ -1277,9 +1275,7 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.overVoteDisabled"
-      ],
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [
@@ -1357,9 +1353,7 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.overVoteDisabled"
-      ],
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [
@@ -1437,9 +1431,7 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.overVoteDisabled"
-      ],
+      "derived_inline_visible": [],
       "predicted": {
         "errors": [],
         "alerts": [
