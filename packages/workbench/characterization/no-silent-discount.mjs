@@ -36,7 +36,7 @@ import {readFileSync, writeFileSync} from "node:fs"
 import {fileURLToPath} from "node:url"
 import path from "node:path"
 import {loadSnapshot} from "./browser-harness.mjs"
-import {RULE_SPECS, contestAndVoter, observeBooth} from "./rule-specs.mjs"
+import {RULE_SPECS, contestAndVoter, observeBooth, isReached} from "./rule-specs.mjs"
 
 const require = createRequire("C:/work/projects/step/packages/")
 const {chromium} = require("playwright")
@@ -104,7 +104,7 @@ for (const cand of candidates) {
     const {contestId, voterId} = ctx[cand.rule]
     const obs = await observeBooth(page, {electionId: ELECTION, contestId, voterId, spec, cell: cand})
 
-    const reachable = obs.formed === spec.want(cand)
+    const reachable = isReached(spec, obs, cand)
     const silentAtReview = (obs.inlineAtReview ?? []).length === 0 && obs.dialog === "none"
     const isSilent = reachable && silentAtReview
     const cfg = configEntries(cand)

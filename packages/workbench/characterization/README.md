@@ -133,12 +133,17 @@ transcribe Rust that IS compiled to wasm, so `pred?` checks them against the
 real wasm on every cell (independent derivations — this JS vs that Rust —
 so agreement is real information). Its `inlineVisible` / `inputConstraint`
 transcribe TypeScript that is NOT callable headlessly (`filterErrorList`;
-the input disable), so they are **predictions only** in a Node runner — the
-`inline (shown)` column is one — validated against the real DOM only where a
-browser runner covers the cell, and never against a re-computation of
-themselves (that check would be tautological). A per-cell DOM-validation
-lane is future work, gated on confirming the browser runners run fast enough
-(see the e2e-cost note in
+the input disable), so they are **predictions only** in a Node runner,
+validated against the real DOM only where a browser runner covers the cell,
+and never against a re-computation of themselves (that check would be
+tautological). That per-cell DOM-validation lane now exists:
+[`dom-validate.mjs`](dom-validate.mjs) drives every cell of the five
+plurality rules (over-vote, min-vote, blank, under-vote, invalid) through the
+real booth reload-free, observing inline visibility at the review screen and
+reachability (the input constraint), and emits the **complete** tables in
+[`dom-validate.md`](dom-validate.md) — **196/196 matching the spec**. The two
+IRV rules (duplicate-rank, preference-gaps) need the ranked fixture and are
+not covered yet (see the e2e-cost note in
 [`../docs/VALIDATION_LOGIC_DISTILLATION.md`](../docs/VALIDATION_LOGIC_DISTILLATION.md)
 §5.3).
 
@@ -339,8 +344,8 @@ all six are:
 |---|---|---|
 | Checkers | 1 (headless wasm) | blank, over-vote, under-vote, min-vote, duplicated-rank, preference-gaps, invalid rules done. One recording serves **both** bands: the tally decode runs the identical function, so layer 1 is also the tally-side checker characterization. |
 | Gates | 2 (headless wasm) | blank, over-vote, under-vote, min-vote, duplicated-rank, preference-gaps, invalid rules done |
-| Filter | 3 (browser, booth) | blank + over-vote rules done (under/min-vote headless only so far) |
-| Input constraint | 3 (browser) — the `constraint` component of the effect triple | observed **behaviourally** for `NOT_ALLOWED_WITH_MSG_AND_DISABLE` (the over-vote state does not form through the UI); the direct `disabled`-attribute probe is a DOM-selector TODO |
+| Filter | 3 (browser, booth) | **done for the five plurality rules** (over-vote, min-vote, blank, under-vote, invalid) — `dom-validate.mjs` observes inline visibility at the review screen across every cell (196/196); IRV rules (duplicated-rank, preference-gaps) need the ranked fixture |
+| Input constraint | 3 (browser) — the `constraint` component of the effect triple | observed **behaviourally** across every plurality-rule cell as the `reachable` column of `dom-validate.md` (the state forms or it does not — e.g. the over-vote state does not form under `NOT_ALLOWED_WITH_MSG_AND_DISABLE`); the direct `disabled`-attribute probe is a DOM-selector TODO |
 | Marker exclusivity (prevention) | browser — *reachability*, not effects | first reachability recording exists (over-vote under DISABLE: the state does not form); all five S1/S2 violations (over-vote + four min-vote) are confirmed through the full booth→cast→decrypt→tally pipeline (`overvote-e2e-pipeline.mjs`, `minvote-e2e-pipeline.mjs`). Prevention is characterized by *attempting* to create each state through the UI and recording whether it forms; the mixed marker state's booth-reachability is still an open cell. |
 | Tally classifier | headless (velvet-wasm `tally_decoded_ballots`) | **done**: per-cell `tally` column in all seven rule tables, plus the standalone 32-cell six-class decision table (`classifier-table.md`, 32/32 matching the documented precedence) |
 

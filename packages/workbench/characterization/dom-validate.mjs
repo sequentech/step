@@ -22,8 +22,10 @@
 // message twice (the kept error + its alert copy), but the booth renders one
 // WarnBox per message, so the set is what "does the voter see it?" turns on.
 //
-// Requires the dev server on :5173. Currently covers over-vote + min-vote
-// (the finding families); adding a rule is a RULES entry.
+// Requires the dev server on :5173. Covers the five plurality rules
+// (over-vote, min-vote, blank, under-vote, invalid) on the explicit-blank-
+// invalid fixture; the two IRV rules (duplicate-rank, preference-gaps) need
+// the ranked fixture and are not covered yet. Adding a rule is a RULES entry.
 
 import {createRequire} from "node:module"
 import {readFileSync, writeFileSync} from "node:fs"
@@ -32,7 +34,7 @@ import {fileURLToPath} from "node:url"
 import path from "node:path"
 import {loadSnapshot} from "./browser-harness.mjs"
 import {inputConstraint} from "./spec.mjs"
-import {RULE_SPECS, contestAndVoter, observeBooth} from "./rule-specs.mjs"
+import {RULE_SPECS, contestAndVoter, observeBooth, isReached} from "./rule-specs.mjs"
 
 const require = createRequire("C:/work/projects/step/packages/")
 const {chromium} = require("playwright")
@@ -76,11 +78,42 @@ const RULES = [
             "*config* = `min_votes` × `invalid_vote_policy` — min-vote is a fixed " +
             "rule, so the `min_votes` bound is the knob, not a policy.",
     },
+    {
+        name: "blank",
+        ...RULE_SPECS["blank-rule"],
+        rows: rec("blank-rule.recorded.json").filter((r) => r.state !== "explicit_invalid"),
+        constraint: () => null, // blank imposes no input constraint
+        label: (r) => `${r.blank_vote_policy} × ${r.invalid_vote_policy} × ${r.state}`,
+        configNote:
+            "*config* = `blank_vote_policy` × `invalid_vote_policy`. The " +
+            "`explicit_invalid` state is headless-only — this contest has no " +
+            "invalid marker to set the flag through the booth — so it lives in " +
+            "the partial table, not here.",
+    },
+    {
+        name: "undervote",
+        ...RULE_SPECS["undervote-rule"],
+        rows: rec("undervote-rule.recorded.json"),
+        constraint: () => null, // under-vote imposes no input constraint
+        label: (r) => `${r.under_vote_policy} × ${r.invalid_vote_policy} × ${r.state}`,
+        configNote: "*config* = `under_vote_policy` × `invalid_vote_policy`.",
+    },
+    {
+        name: "invalid",
+        ...RULE_SPECS["invalid-rule"],
+        rows: rec("invalid-rule.recorded.json").filter((r) => r.state !== "flag_only"),
+        constraint: () => null, // invalid imposes no input constraint
+        label: (r) => `${r.invalid_vote_policy} × ${r.state}`,
+        configNote:
+            "*config* = `invalid_vote_policy`. The `flag_only` state is " +
+            "headless-only — the booth sets the invalid flag only via the marker " +
+            "(the `marker` state it converges with) — so it lives in the partial " +
+            "table, not here.",
+    },
 ]
 
 const browser = await chromium.launch({channel: "chrome", headless: true})
 const page = await browser.newPage()
-await loadSnapshot(page, base, SNAPSHOT)
 
 const short = (xs) =>
     !xs || xs.length === 0
@@ -90,12 +123,18 @@ const short = (xs) =>
 const results = []
 const t0 = performance.now()
 for (const rule of RULES) {
+    // Reload per rule for a clean baseline. Panel overrides are ephemeral and
+    // per-contest, and several rules share a contest (over-vote/invalid on
+    // Council; min-vote/blank/undervote on Referendum), so a policy one rule
+    // leaves unset would otherwise inherit the previous rule's value. Reloading
+    // between rules (once each) keeps the per-cell reload-free speed.
+    await loadSnapshot(page, base, SNAPSHOT)
     const {contestId, voterId} = await contestAndVoter(page, ELECTION, rule.contestFlag)
     for (const r of rule.rows) {
         const obs = await observeBooth(page, {electionId: ELECTION, contestId, voterId, spec: rule, cell: r})
 
         const constrained = rule.constraint(r) === "inputs_disabled"
-        const domReachable = obs.formed === rule.want(r)
+        const domReachable = isReached(rule, obs, r)
         const reachableOk = domReachable === !constrained
 
         // Inline is validated at the REVIEW surface (the model's surface; the

@@ -121,3 +121,136 @@ its meaning is noted under each rule heading below.
 | min=2 × not-allowed | one | selectedMin | — | (blocked) | **block** | dialog | yes | ImplicitInvalid | ✓ |
 | min=2 × not-allowed | marker_only | selectedMin | — | (blocked) | **block** | dialog | yes | ImplicitInvalid | ✓ |
 
+## blank
+
+*config* = `blank_vote_policy` × `invalid_vote_policy`. The `explicit_invalid` state is headless-only — this contest has no invalid marker to set the flag through the booth — so it lives in the partial table, not here.
+
+| config | state | errors | alerts | inline (review) | hard gate | soft gate | reachable | tally | matches spec? |
+|---|---|---|---|---|---|---|---|---|---|
+| allowed × allowed | empty | — | — | — | — | — | yes | ImplicitBlank | ✓ |
+| allowed × allowed | marker_only | — | — | — | — | — | yes | ExplicitBlank | ✓ |
+| allowed × allowed | one_regular | — | — | — | — | — | yes | Valid | ✓ |
+| allowed × warn | empty | — | — | — | — | — | yes | ImplicitBlank | ✓ |
+| allowed × warn | marker_only | — | — | — | — | — | yes | ExplicitBlank | ✓ |
+| allowed × warn | one_regular | — | — | — | — | — | yes | Valid | ✓ |
+| allowed × warn-invalid-implicit-and-explicit | empty | — | — | — | — | — | yes | ImplicitBlank | ✓ |
+| allowed × warn-invalid-implicit-and-explicit | marker_only | — | — | — | — | — | yes | ExplicitBlank | ✓ |
+| allowed × warn-invalid-implicit-and-explicit | one_regular | — | — | — | — | — | yes | Valid | ✓ |
+| allowed × not-allowed | empty | — | — | — | — | — | yes | ImplicitBlank | ✓ |
+| allowed × not-allowed | marker_only | — | — | — | — | — | yes | ExplicitBlank | ✓ |
+| allowed × not-allowed | one_regular | — | — | — | — | — | yes | Valid | ✓ |
+| warn × allowed | empty | — | blankVote | blankVote | — | dialog | yes | ImplicitBlank | ✓ |
+| warn × allowed | marker_only | — | — | — | — | — | yes | ExplicitBlank | ✓ |
+| warn × allowed | one_regular | — | — | — | — | — | yes | Valid | ✓ |
+| warn × warn | empty | — | blankVote | blankVote | — | dialog | yes | ImplicitBlank | ✓ |
+| warn × warn | marker_only | — | — | — | — | — | yes | ExplicitBlank | ✓ |
+| warn × warn | one_regular | — | — | — | — | — | yes | Valid | ✓ |
+| warn × warn-invalid-implicit-and-explicit | empty | — | blankVote | blankVote | — | dialog | yes | ImplicitBlank | ✓ |
+| warn × warn-invalid-implicit-and-explicit | marker_only | — | — | — | — | — | yes | ExplicitBlank | ✓ |
+| warn × warn-invalid-implicit-and-explicit | one_regular | — | — | — | — | — | yes | Valid | ✓ |
+| warn × not-allowed | empty | — | blankVote | blankVote | — | dialog | yes | ImplicitBlank | ✓ |
+| warn × not-allowed | marker_only | — | — | — | — | — | yes | ExplicitBlank | ✓ |
+| warn × not-allowed | one_regular | — | — | — | — | — | yes | Valid | ✓ |
+| warn-only-in-review × allowed | empty | — | blankVote | blankVote | — | — | yes | ImplicitBlank | ✓ |
+| warn-only-in-review × allowed | marker_only | — | — | — | — | — | yes | ExplicitBlank | ✓ |
+| warn-only-in-review × allowed | one_regular | — | — | — | — | — | yes | Valid | ✓ |
+| warn-only-in-review × warn | empty | — | blankVote | blankVote | — | — | yes | ImplicitBlank | ✓ |
+| warn-only-in-review × warn | marker_only | — | — | — | — | — | yes | ExplicitBlank | ✓ |
+| warn-only-in-review × warn | one_regular | — | — | — | — | — | yes | Valid | ✓ |
+| warn-only-in-review × warn-invalid-implicit-and-explicit | empty | — | blankVote | blankVote | — | — | yes | ImplicitBlank | ✓ |
+| warn-only-in-review × warn-invalid-implicit-and-explicit | marker_only | — | — | — | — | — | yes | ExplicitBlank | ✓ |
+| warn-only-in-review × warn-invalid-implicit-and-explicit | one_regular | — | — | — | — | — | yes | Valid | ✓ |
+| warn-only-in-review × not-allowed | empty | — | blankVote | blankVote | — | — | yes | ImplicitBlank | ✓ |
+| warn-only-in-review × not-allowed | marker_only | — | — | — | — | — | yes | ExplicitBlank | ✓ |
+| warn-only-in-review × not-allowed | one_regular | — | — | — | — | — | yes | Valid | ✓ |
+| not-allowed × allowed | empty | blankVote | — | (blocked) | **block** | — | yes | ImplicitInvalid | ✓ |
+| not-allowed × allowed | marker_only | — | — | — | — | — | yes | ExplicitBlank | ✓ |
+| not-allowed × allowed | one_regular | — | — | — | — | — | yes | Valid | ✓ |
+| not-allowed × warn | empty | blankVote | — | (blocked) | **block** | dialog | yes | ImplicitInvalid | ✓ |
+| not-allowed × warn | marker_only | — | — | — | — | — | yes | ExplicitBlank | ✓ |
+| not-allowed × warn | one_regular | — | — | — | — | — | yes | Valid | ✓ |
+| not-allowed × warn-invalid-implicit-and-explicit | empty | blankVote | — | (blocked) | **block** | dialog | yes | ImplicitInvalid | ✓ |
+| not-allowed × warn-invalid-implicit-and-explicit | marker_only | — | — | — | — | — | yes | ExplicitBlank | ✓ |
+| not-allowed × warn-invalid-implicit-and-explicit | one_regular | — | — | — | — | — | yes | Valid | ✓ |
+| not-allowed × not-allowed | empty | blankVote | — | (blocked) | **block** | dialog | yes | ImplicitInvalid | ✓ |
+| not-allowed × not-allowed | marker_only | — | — | — | — | — | yes | ExplicitBlank | ✓ |
+| not-allowed × not-allowed | one_regular | — | — | — | — | — | yes | Valid | ✓ |
+
+## undervote
+
+*config* = `under_vote_policy` × `invalid_vote_policy`.
+
+| config | state | errors | alerts | inline (review) | hard gate | soft gate | reachable | tally | matches spec? |
+|---|---|---|---|---|---|---|---|---|---|
+| allowed × allowed | empty | — | — | — | — | — | yes | ImplicitBlank | ✓ |
+| allowed × allowed | under | — | — | — | — | — | yes | Valid | ✓ |
+| allowed × allowed | full | — | — | — | — | — | yes | Valid | ✓ |
+| allowed × warn | empty | — | — | — | — | — | yes | ImplicitBlank | ✓ |
+| allowed × warn | under | — | — | — | — | — | yes | Valid | ✓ |
+| allowed × warn | full | — | — | — | — | — | yes | Valid | ✓ |
+| allowed × warn-invalid-implicit-and-explicit | empty | — | — | — | — | — | yes | ImplicitBlank | ✓ |
+| allowed × warn-invalid-implicit-and-explicit | under | — | — | — | — | — | yes | Valid | ✓ |
+| allowed × warn-invalid-implicit-and-explicit | full | — | — | — | — | — | yes | Valid | ✓ |
+| allowed × not-allowed | empty | — | — | — | — | — | yes | ImplicitBlank | ✓ |
+| allowed × not-allowed | under | — | — | — | — | — | yes | Valid | ✓ |
+| allowed × not-allowed | full | — | — | — | — | — | yes | Valid | ✓ |
+| warn × allowed | empty | — | underVote | underVote | — | — | yes | ImplicitBlank | ✓ |
+| warn × allowed | under | — | underVote | underVote | — | — | yes | Valid | ✓ |
+| warn × allowed | full | — | — | — | — | — | yes | Valid | ✓ |
+| warn × warn | empty | — | underVote | underVote | — | — | yes | ImplicitBlank | ✓ |
+| warn × warn | under | — | underVote | underVote | — | — | yes | Valid | ✓ |
+| warn × warn | full | — | — | — | — | — | yes | Valid | ✓ |
+| warn × warn-invalid-implicit-and-explicit | empty | — | underVote | underVote | — | — | yes | ImplicitBlank | ✓ |
+| warn × warn-invalid-implicit-and-explicit | under | — | underVote | underVote | — | — | yes | Valid | ✓ |
+| warn × warn-invalid-implicit-and-explicit | full | — | — | — | — | — | yes | Valid | ✓ |
+| warn × not-allowed | empty | — | underVote | underVote | — | — | yes | ImplicitBlank | ✓ |
+| warn × not-allowed | under | — | underVote | underVote | — | — | yes | Valid | ✓ |
+| warn × not-allowed | full | — | — | — | — | — | yes | Valid | ✓ |
+| warn-only-in-review × allowed | empty | — | underVote | underVote | — | — | yes | ImplicitBlank | ✓ |
+| warn-only-in-review × allowed | under | — | underVote | underVote | — | — | yes | Valid | ✓ |
+| warn-only-in-review × allowed | full | — | — | — | — | — | yes | Valid | ✓ |
+| warn-only-in-review × warn | empty | — | underVote | underVote | — | — | yes | ImplicitBlank | ✓ |
+| warn-only-in-review × warn | under | — | underVote | underVote | — | — | yes | Valid | ✓ |
+| warn-only-in-review × warn | full | — | — | — | — | — | yes | Valid | ✓ |
+| warn-only-in-review × warn-invalid-implicit-and-explicit | empty | — | underVote | underVote | — | — | yes | ImplicitBlank | ✓ |
+| warn-only-in-review × warn-invalid-implicit-and-explicit | under | — | underVote | underVote | — | — | yes | Valid | ✓ |
+| warn-only-in-review × warn-invalid-implicit-and-explicit | full | — | — | — | — | — | yes | Valid | ✓ |
+| warn-only-in-review × not-allowed | empty | — | underVote | underVote | — | — | yes | ImplicitBlank | ✓ |
+| warn-only-in-review × not-allowed | under | — | underVote | underVote | — | — | yes | Valid | ✓ |
+| warn-only-in-review × not-allowed | full | — | — | — | — | — | yes | Valid | ✓ |
+| warn-and-alert × allowed | empty | — | underVote | underVote | — | — | yes | ImplicitBlank | ✓ |
+| warn-and-alert × allowed | under | — | underVote | underVote | — | dialog | yes | Valid | ✓ |
+| warn-and-alert × allowed | full | — | — | — | — | — | yes | Valid | ✓ |
+| warn-and-alert × warn | empty | — | underVote | underVote | — | — | yes | ImplicitBlank | ✓ |
+| warn-and-alert × warn | under | — | underVote | underVote | — | dialog | yes | Valid | ✓ |
+| warn-and-alert × warn | full | — | — | — | — | — | yes | Valid | ✓ |
+| warn-and-alert × warn-invalid-implicit-and-explicit | empty | — | underVote | underVote | — | — | yes | ImplicitBlank | ✓ |
+| warn-and-alert × warn-invalid-implicit-and-explicit | under | — | underVote | underVote | — | dialog | yes | Valid | ✓ |
+| warn-and-alert × warn-invalid-implicit-and-explicit | full | — | — | — | — | — | yes | Valid | ✓ |
+| warn-and-alert × not-allowed | empty | — | underVote | underVote | — | — | yes | ImplicitBlank | ✓ |
+| warn-and-alert × not-allowed | under | — | underVote | underVote | — | dialog | yes | Valid | ✓ |
+| warn-and-alert × not-allowed | full | — | — | — | — | — | yes | Valid | ✓ |
+
+## invalid
+
+*config* = `invalid_vote_policy`. The `flag_only` state is headless-only — the booth sets the invalid flag only via the marker (the `marker` state it converges with) — so it lives in the partial table, not here.
+
+| config | state | errors | alerts | inline (review) | hard gate | soft gate | reachable | tally | matches spec? |
+|---|---|---|---|---|---|---|---|---|---|
+| allowed | none | — | — | — | — | — | yes | ImplicitBlank | ✓ |
+| allowed | regular | — | — | — | — | — | yes | Valid | ✓ |
+| allowed | marker | — | — | — | — | — | yes | ExplicitInvalid | ✓ |
+| allowed | marker_plus | — | — | — | — | — | yes | ExplicitInvalid | ✓ |
+| warn | none | — | — | — | — | — | yes | ImplicitBlank | ✓ |
+| warn | regular | — | — | — | — | — | yes | Valid | ✓ |
+| warn | marker | — | — | — | — | — | yes | ExplicitInvalid | ✓ |
+| warn | marker_plus | — | — | — | — | — | yes | ExplicitInvalid | ✓ |
+| warn-invalid-implicit-and-explicit | none | — | — | — | — | — | yes | ImplicitBlank | ✓ |
+| warn-invalid-implicit-and-explicit | regular | — | — | — | — | — | yes | Valid | ✓ |
+| warn-invalid-implicit-and-explicit | marker | — | alert | alert | — | dialog | yes | ExplicitInvalid | ✓ |
+| warn-invalid-implicit-and-explicit | marker_plus | — | alert | alert | — | dialog | yes | ExplicitInvalid | ✓ |
+| not-allowed | none | — | — | — | — | — | yes | ImplicitBlank | ✓ |
+| not-allowed | regular | — | — | — | — | — | yes | Valid | ✓ |
+| not-allowed | marker | notAllowed | — | (blocked) | **block** | dialog | yes | ExplicitInvalid | ✓ |
+| not-allowed | marker_plus | notAllowed | — | (blocked) | **block** | dialog | yes | ExplicitInvalid | ✓ |
+

@@ -36,6 +36,7 @@ export const RULE_SPECS = {
                 "Over-vote policy": c.over_vote_policy,
                 "Invalid-vote policy": c.invalid_vote_policy,
             },
+            bounds: {min_votes: 0, max_votes: 1},
         }),
         select: async (page, c) => {
             if (c.state === "at_max") await clickText(page, /^Ada$/)
@@ -51,7 +52,7 @@ export const RULE_SPECS = {
         landmark: /^Yes$/,
         config: (c) => ({
             selects: {"Invalid-vote policy": c.invalid_vote_policy},
-            bounds: {min_votes: c.min_votes},
+            bounds: {min_votes: c.min_votes, max_votes: 3},
         }),
         select: async (page, c) => {
             if (c.state === "one") await clickText(page, /^Yes$/)
@@ -59,6 +60,67 @@ export const RULE_SPECS = {
                 await clickExact(page, "Blank vote (explicit blank)")
         },
         want: (c) => (c.state === "none" ? 0 : 1),
+    },
+    "blank-rule": {
+        contestFlag: "is_explicit_blank", // Referendum (Yes / No / blank marker)
+        landmark: /^Yes$/,
+        config: (c) => ({
+            selects: {
+                "Blank-vote policy": c.blank_vote_policy,
+                "Invalid-vote policy": c.invalid_vote_policy,
+            },
+            bounds: {min_votes: 0, max_votes: 2},
+        }),
+        select: async (page, c) => {
+            if (c.state === "one_regular") await clickText(page, /^Yes$/)
+            else if (c.state === "marker_only")
+                await clickExact(page, "Blank vote (explicit blank)")
+        },
+        want: (c) => (c.state === "empty" ? 0 : 1),
+    },
+    "undervote-rule": {
+        contestFlag: "is_explicit_blank", // Referendum (Yes / No / blank marker)
+        landmark: /^Yes$/,
+        config: (c) => ({
+            selects: {
+                "Under-vote policy": c.under_vote_policy,
+                "Invalid-vote policy": c.invalid_vote_policy,
+            },
+            bounds: {min_votes: 0, max_votes: 2},
+        }),
+        select: async (page, c) => {
+            if (c.state === "under") await clickText(page, /^Yes$/)
+            else if (c.state === "full") {
+                await clickText(page, /^Yes$/)
+                await clickText(page, /^No$/)
+            }
+        },
+        want: (c) => (c.state === "empty" ? 0 : c.state === "under" ? 1 : 2),
+    },
+    "invalid-rule": {
+        contestFlag: "is_explicit_invalid", // Council (Ada / Bruno / null marker)
+        landmark: /^Ada$/,
+        config: (c) => ({
+            selects: {"Invalid-vote policy": c.invalid_vote_policy},
+            bounds: {min_votes: 0, max_votes: 2},
+        }),
+        select: async (page, c) => {
+            if (c.state === "regular") await clickText(page, /^Ada$/)
+            else if (c.state === "marker")
+                await clickExact(page, "Null vote (explicit invalid)")
+            else if (c.state === "marker_plus") {
+                await clickExact(page, "Null vote (explicit invalid)")
+                await clickText(page, /^Ada$/)
+            }
+        },
+        // The invalid marker sets the `is_explicit_invalid` FLAG, not a counted
+        // selection (unlike the blank marker), so reachability checks the flag
+        // AND the regular-candidate count — `want` alone (selectionCount) can't
+        // tell `marker` (flag, 0 regulars) from `none` (no flag, 0 regulars).
+        want: (c) => (c.state === "regular" || c.state === "marker_plus" ? 1 : 0),
+        reached: (obs, c) =>
+            obs.formed === (c.state === "regular" || c.state === "marker_plus" ? 1 : 0) &&
+            obs.explicitInvalid === (c.state === "marker" || c.state === "marker_plus"),
     },
 }
 
@@ -99,6 +161,14 @@ export async function observeBooth(page, {electionId, contestId, voterId, spec, 
     await spec.select(page, cell)
 
     const formed = await selectionCount(page, electionId, contestId)
+    const explicitInvalid = await page.evaluate(
+        ({electionId, contestId}) => {
+            const sel = window.__store.getState().ballotSelections[electionId] ?? []
+            const c = sel.find((x) => x.contest_id === contestId)
+            return !!(c && c.is_explicit_invalid)
+        },
+        {electionId, contestId}
+    )
     const inlineAtVote = await warnIds(page)
 
     let dialog = "none"
@@ -125,5 +195,12 @@ export async function observeBooth(page, {electionId, contestId, voterId, spec, 
         await dismissDialog(page)
     }
     await backToInspector(page)
-    return {formed, inlineAtVote, dialog, inlineAtReview}
+    return {formed, explicitInvalid, inlineAtVote, dialog, inlineAtReview}
 }
+
+/** Did the intended cell state form? Default: the marker-inclusive selection
+ *  count matches `want`. A spec may override with `reached(obs, cell)` when the
+ *  count alone is insufficient — e.g. the invalid marker sets the
+ *  `is_explicit_invalid` FLAG, not a counted selection (see `invalid-rule`). */
+export const isReached = (spec, obs, cell) =>
+    spec.reached ? spec.reached(obs, cell) : obs.formed === spec.want(cell)
