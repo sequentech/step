@@ -28,17 +28,43 @@ const {ProgressPlugin} = require("webpack")
  * compiled comes with it; and the four calls that genuinely need the encoder are not
  * here at all — a host passes them in through `BallotEngine`.
  */
-const BALLOT_EXTERNALS = {
-    "react": "react",
-    "react-dom": "react-dom",
-    "@mui/material": "@mui/material",
-    "@emotion/react": "@emotion/react",
-    "@emotion/styled": "@emotion/styled",
-    "react-i18next": "react-i18next",
-    "@fortawesome/fontawesome-svg-core": "@fortawesome/fontawesome-svg-core",
-    "@fortawesome/free-solid-svg-icons": "@fortawesome/free-solid-svg-icons",
-    "@fortawesome/react-fontawesome": "@fortawesome/react-fontawesome",
-}
+/**
+ * What the ballot bundle does not carry.
+ *
+ * **By prefix, not by exact name, and that distinction cost a day.** Listing
+ * `"@mui/material"` externalises only the barrel: a deep import — `@mui/material/Box`,
+ * and everything MUI itself reaches, `@mui/system`, `@mui/styled-engine`,
+ * `@mui/utils` — did not match, so webpack *bundled MUI's CommonJS build into this
+ * file*. Two consequences, one invisible and one worse than invisible:
+ *
+ *  - The host ends up with **two copies of MUI**, one in its own graph and one inside
+ *    this bundle, with separate theme contexts.
+ *  - Those bundled CommonJS modules reach their dependencies through
+ *    `_interopRequireDefault`, which assumes webpack resolved them. Hand the bundle
+ *    to another bundler and the assumption fails: `(0 , a.default) is not a function`,
+ *    thrown from minified MUI while `Box` renders. That is why jest here cannot load
+ *    the real ballot, and why the wizard's **Storybook** rendered nothing at all —
+ *    every story module failed to register, so all 33 pictures in the delivery guide
+ *    came back as "rendered nothing", naming neither MUI nor this file.
+ *
+ * A prefix regex leaves every one of those paths to the host, which is what a peer
+ * dependency means. The bundle then holds this repository's components and nothing
+ * else — the point of it.
+ */
+const BALLOT_EXTERNALS = [
+    // Exact, because these have no subpaths worth externalising differently.
+    {
+        "react": "react",
+        "react-dom": "react-dom",
+        "react-i18next": "react-i18next",
+    },
+    // By prefix, so deep imports go to the host too.
+    /^@mui\//,
+    /^@emotion\//,
+    /^@fortawesome\//,
+    /^react-dom\//,
+    /^react\//,
+]
 
 module.exports = function (env, argv) {
     const ballotOnly = process.env.BALLOT_ENTRY === "1"
@@ -57,6 +83,33 @@ module.exports = function (env, argv) {
             clean: !ballotOnly,
         },
         experiments: {outputModule: true},
+
+        /**
+         * How the ballot bundle reaches the packages it does not carry.
+         *
+         * Only on this pass, and it is load-bearing. The default for an ES module
+         * library is `externalsType: "module"`, which imports every external as a
+         * *namespace* and then reaches any default export through webpack's own
+         * `__webpack_require__.n` interop helper. That helper assumes webpack's module
+         * objects: given a namespace that says `__esModule` but carries no `default`,
+         * it hands back `undefined`, and the first render dies with
+         *
+         *     TypeError: (0 , a.default) is not a function
+         *
+         * twelve frames inside somebody else's minified output. Inside webpack that
+         * never happens, so the bundle looked fine in the wizard while being unusable
+         * anywhere else: it is why jest in beyond cannot load the real ballot, and it
+         * silently emptied the wizard's **Storybook**, where Vite re-bundles this file
+         * — every story module failed to register and all 33 pictures in the delivery
+         * guide came out as "rendered nothing", with no error naming this bundle.
+         *
+         * `module-import` emits the import *form the source wrote*: a default import
+         * stays `import styled from "@emotion/styled"`, so there is no helper and no
+         * assumption to break. Note that `commonjs2` is not the answer either — it
+         * moves the exports to runtime, and Rollup then cannot see them
+         * (`"getImageUrl" is not exported by ballot.js`).
+         */
+        ...(ballotOnly ? {externalsType: "module-import"} : {}),
         devtool: "source-map",
         module: {
             rules: [
