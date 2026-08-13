@@ -91,10 +91,11 @@ interface VelvetRunoff {
     max_rounds?: number
 }
 
-/** Everything the workbench's tally visualization needs. The first five
- *  fields map 1:1 onto `ResultsAndParticipation`'s props; the last two
- *  have no counterpart on that component and are rendered by the
- *  workbench itself (TallyPage). */
+/** Everything the workbench's tally visualization needs. The first three
+ *  fields map 1:1 onto `ResultsAndParticipation`'s props (TallyPage adds a
+ *  literal `preferential={false}` — see LIFTING-TALLY.md adaptation 2);
+ *  `processResults` feeds `PreferentialCandidateResults`; the last two
+ *  have no component counterpart and are rendered by TallyPage itself. */
 export interface VelvetTallyView {
     chartName: string
     summary: ResultsParticipationSummary
