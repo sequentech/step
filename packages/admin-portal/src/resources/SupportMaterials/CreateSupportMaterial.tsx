@@ -183,7 +183,7 @@ export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (prop
                 <SimpleForm
                     validate={formValidator}
                     toolbar={
-                        <Toolbar {...props}>
+                        <Toolbar>
                             <SaveButton alwaysEnable />
                         </Toolbar>
                     }

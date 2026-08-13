@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useEffect, Suspense, lazy} from "react"
-import {TabbedShowLayout, useRecordContext, useSidebarState} from "react-admin"
+import React, {useContext, useEffect, Suspense, lazy, useCallback, useMemo} from "react"
+import {useRecordContext, useSidebarState} from "react-admin"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
 import ElectionHeader from "@/components/ElectionHeader"
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -66,6 +66,130 @@ const EditElectionEventReports = lazy(() =>
         default: module.EditReportsTab,
     }))
 )
+
+// ---------------------------------------------------------------------------
+// Stable module-level tab components — never recreated during re-renders.
+// Using module-level definitions prevents React from seeing a "new" component
+// type each render, which would cause unnecessary unmount/remount cycles and
+// the infinite fetch loop triggered by EditBase re-initialising on each mount.
+// ---------------------------------------------------------------------------
+
+interface DashboardTabProps {
+    refreshRef: React.MutableRefObject<HTMLButtonElement | undefined>
+    handleChildMount: () => void
+}
+
+const DashboardTab: React.FC<DashboardTabProps> = ({refreshRef, handleChildMount}) => (
+    <Suspense fallback={<div>Loading Dashboard...</div>}>
+        <Box sx={{overflowX: "auto"}}>
+            <DashboardElectionEvent refreshRef={refreshRef} onMount={handleChildMount} />
+        </Box>
+    </Suspense>
+)
+
+const OVOFDashboardTab: React.FC<DashboardTabProps> = ({refreshRef, handleChildMount}) => (
+    <Suspense fallback={<div>Loading Dashboard...</div>}>
+        <Box sx={{overflowX: "auto"}}>
+            <OVOFDashboardElectionEvent refreshRef={refreshRef} onMount={handleChildMount} />
+        </Box>
+    </Suspense>
+)
+
+const DataTab: React.FC = () => (
+    <Suspense fallback={<div>Loading Data...</div>}>
+        <EditElectionEventData />
+    </Suspense>
+)
+
+const LocalizationTab: React.FC = () => (
+    <Suspense fallback={<div>Loading Text Data...</div>}>
+        <EditElectionEventTextData />
+    </Suspense>
+)
+
+const VotersTab: React.FC = () => {
+    const record = useRecordContext<Sequent_Backend_Election_Event>()
+    return (
+        <Suspense fallback={<div>Loading Voters...</div>}>
+            <EditElectionEventUsers electionEventId={record?.id as string | undefined} />
+        </Suspense>
+    )
+}
+
+const AreasTab: React.FC = () => (
+    <Suspense fallback={<div>Loading Areas...</div>}>
+        <EditElectionEventAreas />
+    </Suspense>
+)
+
+const KeysTab: React.FC<{isShowCeremony: string | null; isShowTrusteeCeremony: string | null}> = ({
+    isShowCeremony,
+    isShowTrusteeCeremony,
+}) => (
+    <Suspense fallback={<div>Loading Keys...</div>}>
+        <EditElectionEventKeys
+            isShowCeremony={isShowCeremony}
+            isShowTrusteeCeremony={isShowTrusteeCeremony}
+        />
+    </Suspense>
+)
+
+const TallyTab: React.FC = () => (
+    <Suspense fallback={<div>Loading Tally...</div>}>
+        <EditElectionEventTally />
+    </Suspense>
+)
+
+const PublishTab: React.FC<{showList: string | undefined}> = ({showList}) => {
+    const record = useRecordContext<Sequent_Backend_Election_Event>()
+    return (
+        <Suspense fallback={<div>Loading Publish...</div>}>
+            <Publish electionEventId={record?.id} type={EPublishType.Event} showList={showList} />
+        </Suspense>
+    )
+}
+
+const TasksTab: React.FC<{showList: string | undefined}> = ({showList}) => (
+    <Suspense fallback={<div>Loading Tasks...</div>}>
+        <EditElectionEventTasks showList={showList} />
+    </Suspense>
+)
+
+const LogsTab: React.FC = () => (
+    <Suspense fallback={<div>Loading Logs...</div>}>
+        <ElectoralLog />
+    </Suspense>
+)
+
+const EventsTab: React.FC = () => {
+    const record = useRecordContext<Sequent_Backend_Election_Event>()
+    return (
+        <Suspense fallback={<div>Loading Events...</div>}>
+            <EditElectionEventEvents electionEventId={record?.id as string} />
+        </Suspense>
+    )
+}
+
+const ReportsTab: React.FC = () => {
+    const record = useRecordContext<Sequent_Backend_Election_Event>()
+    return (
+        <Suspense fallback={<div>Loading Reports...</div>}>
+            <EditElectionEventReports electionEventId={record?.id as string} />
+        </Suspense>
+    )
+}
+
+const ApprovalsTab: React.FC<{showList: string | undefined}> = ({showList}) => {
+    const record = useRecordContext<Sequent_Backend_Election_Event>()
+    return (
+        <Suspense fallback={<div>Loading Approvals...</div>}>
+            <EditElectionEventApprovals
+                electionEventId={record?.id as string}
+                showList={showList}
+            />
+        </Suspense>
+    )
+}
 
 export const ElectionEventTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -174,20 +298,186 @@ export const ElectionEventTabs: React.FC = () => {
     useEffect(() => {
         if (record) {
             const locArr = location.pathname.split("/").slice(0, 3).join("/")
-            navigate(locArr)
+            console.log("[ElectionEventTabs] navigate effect:", {
+                pathname: location.pathname,
+                locArr,
+                willNavigate: location.pathname !== locArr,
+            })
+            if (location.pathname !== locArr) {
+                navigate(locArr)
+            }
         }
     }, [location.pathname, navigate, record])
 
-    // Code to refresh the dashboard when the user navigates to it
-    const handleChildMount = () => {
+    const handleChildMount = useCallback(() => {
         setLoadedChildren((prev) => (prev < 2 ? prev + 1 : prev))
-    }
+    }, [])
 
     useEffect(() => {
         if (loadedChildren === 1 || loadedChildren === 2) {
             refreshRef.current?.click()
         }
     }, [loadedChildren])
+
+    const tabs = useMemo(
+        () => [
+            ...(showDashboard
+                ? [
+                      {
+                          label: t("electionEventScreen.tabs.dashboard"),
+                          component: DashboardTab,
+                          props: {refreshRef, handleChildMount},
+                      },
+                  ]
+                : []),
+            ...(showMonitoringDashboard
+                ? [
+                      {
+                          label: t("electionEventScreen.tabs.monitoring"),
+                          component: OVOFDashboardTab,
+                          props: {refreshRef, handleChildMount},
+                      },
+                  ]
+                : []),
+            ...(showData
+                ? [
+                      {
+                          label: t("electionEventScreen.tabs.data"),
+                          component: DataTab,
+                      },
+                  ]
+                : []),
+            ...(showTextData
+                ? [
+                      {
+                          label: t("electionEventScreen.tabs.localization"),
+                          component: LocalizationTab,
+                      },
+                  ]
+                : []),
+            ...(showVoters
+                ? [
+                      {
+                          label: t("electionEventScreen.tabs.voters"),
+                          component: VotersTab,
+                      },
+                  ]
+                : []),
+            ...(showAreas
+                ? [
+                      {
+                          label: t("electionEventScreen.tabs.areas"),
+                          component: AreasTab,
+                      },
+                  ]
+                : []),
+            ...(showKeys
+                ? [
+                      {
+                          label: t("electionEventScreen.tabs.keys"),
+                          component: KeysTab,
+                          props: {
+                              isShowCeremony: showKeysList,
+                              isShowTrusteeCeremony: showKeysList,
+                          },
+                          action: () => setShowKeysList(uuidv4()),
+                      },
+                  ]
+                : []),
+            ...(showTally
+                ? [
+                      {
+                          label: t("electionEventScreen.tabs.tally"),
+                          component: TallyTab,
+                          action: () => setTallyId(null),
+                      },
+                  ]
+                : []),
+            ...(showPublish
+                ? [
+                      {
+                          label: t("electionEventScreen.tabs.publish"),
+                          component: PublishTab,
+                          props: {showList: showPublishList},
+                          action: (index: number) => {
+                              localStorage.setItem("electionEventPublishTabIndex", index.toString())
+                              setShowPublishList(uuidv4())
+                          },
+                      },
+                  ]
+                : []),
+            ...(showTasksExecution
+                ? [
+                      {
+                          label: t("electionEventScreen.tabs.tasks"),
+                          component: TasksTab,
+                          props: {showList: showTaskList},
+                          action: () => setShowTaskList(uuidv4()),
+                      },
+                  ]
+                : []),
+            ...(showLogs
+                ? [
+                      {
+                          label: t("electionEventScreen.tabs.logs"),
+                          component: LogsTab,
+                      },
+                  ]
+                : []),
+            ...(showEvents
+                ? [
+                      {
+                          label: t("electionEventScreen.tabs.events"),
+                          component: EventsTab,
+                      },
+                  ]
+                : []),
+            ...(showReports
+                ? [
+                      {
+                          label: t("electionEventScreen.tabs.reports"),
+                          component: ReportsTab,
+                      },
+                  ]
+                : []),
+            ...(showApprovalsExecution
+                ? [
+                      {
+                          label: t("electionEventScreen.tabs.approvals"),
+                          component: ApprovalsTab,
+                          props: {showList: showApprovalList},
+                          action: () => {
+                              setShowApprovalList(uuidv4())
+                              localStorage.setItem("approvals_status_filter", "pending")
+                          },
+                      },
+                  ]
+                : []),
+        ],
+        [
+            showDashboard,
+            showMonitoringDashboard,
+            showData,
+            showTextData,
+            showVoters,
+            showAreas,
+            showKeys,
+            showKeysList,
+            showTally,
+            showPublish,
+            showPublishList,
+            showTasksExecution,
+            showTaskList,
+            showLogs,
+            showEvents,
+            showReports,
+            showApprovalsExecution,
+            showApprovalList,
+            t,
+            handleChildMount,
+            setTallyId,
+        ]
+    )
 
     if (!record) {
         return (
@@ -211,220 +501,7 @@ export const ElectionEventTabs: React.FC = () => {
                     bgcolor: "background.paper",
                 }}
             >
-                <Tabs
-                    elements={[
-                        ...(showDashboard
-                            ? [
-                                  {
-                                      label: t("electionEventScreen.tabs.dashboard"),
-                                      component: () => (
-                                          <Suspense fallback={<div>Loading Dashboard...</div>}>
-                                              <Box sx={{overflowX: "auto"}}>
-                                                  <DashboardElectionEvent
-                                                      refreshRef={refreshRef}
-                                                      onMount={handleChildMount}
-                                                  />
-                                              </Box>
-                                          </Suspense>
-                                      ),
-                                  },
-                              ]
-                            : []),
-                        ...(showMonitoringDashboard
-                            ? [
-                                  {
-                                      label: t("electionEventScreen.tabs.monitoring"),
-                                      component: () => (
-                                          <Suspense fallback={<div>Loading Dashboard...</div>}>
-                                              <OVOFDashboardElectionEvent
-                                                  refreshRef={refreshRef}
-                                                  onMount={handleChildMount}
-                                              />
-                                          </Suspense>
-                                      ),
-                                  },
-                              ]
-                            : []),
-                        ...(showData
-                            ? [
-                                  {
-                                      label: t("electionEventScreen.tabs.data"),
-                                      component: () => (
-                                          <Suspense fallback={<div>Loading Data...</div>}>
-                                              <EditElectionEventData />
-                                          </Suspense>
-                                      ),
-                                  },
-                              ]
-                            : []),
-                        ...(showTextData
-                            ? [
-                                  {
-                                      label: t("electionEventScreen.tabs.localization"),
-                                      component: () => (
-                                          <Suspense fallback={<div>Loading Text Data...</div>}>
-                                              <EditElectionEventTextData />
-                                          </Suspense>
-                                      ),
-                                  },
-                              ]
-                            : []),
-                        ...(showVoters
-                            ? [
-                                  {
-                                      label: t("electionEventScreen.tabs.voters"),
-                                      component: () => (
-                                          <Suspense fallback={<div>Loading Voters...</div>}>
-                                              <EditElectionEventUsers
-                                                  electionEventId={record?.id}
-                                              />
-                                          </Suspense>
-                                      ),
-                                  },
-                              ]
-                            : []),
-                        ...(showAreas
-                            ? [
-                                  {
-                                      label: t("electionEventScreen.tabs.areas"),
-                                      component: () => (
-                                          <Suspense fallback={<div>Loading Areas...</div>}>
-                                              <EditElectionEventAreas />
-                                          </Suspense>
-                                      ),
-                                  },
-                              ]
-                            : []),
-                        ...(showKeys
-                            ? [
-                                  {
-                                      label: t("electionEventScreen.tabs.keys"),
-                                      component: () => (
-                                          <Suspense fallback={<div>Loading Keys...</div>}>
-                                              <EditElectionEventKeys
-                                                  isShowCeremony={showKeysList}
-                                                  isShowTrusteeCeremony={showKeysList}
-                                              />
-                                          </Suspense>
-                                      ),
-                                      action: () => {
-                                          setShowKeysList(uuidv4())
-                                      },
-                                  },
-                              ]
-                            : []),
-                        ...(showTally
-                            ? [
-                                  {
-                                      label: t("electionEventScreen.tabs.tally"),
-                                      component: () => (
-                                          <Suspense fallback={<div>Loading Tally...</div>}>
-                                              <EditElectionEventTally />
-                                          </Suspense>
-                                      ),
-                                      action: () => setTallyId(null),
-                                  },
-                              ]
-                            : []),
-                        ...(showPublish
-                            ? [
-                                  {
-                                      label: t("electionEventScreen.tabs.publish"),
-                                      component: () => (
-                                          <Suspense fallback={<div>Loading Publish...</div>}>
-                                              <Publish
-                                                  electionEventId={record?.id}
-                                                  type={EPublishType.Event}
-                                                  showList={showPublishList}
-                                              />
-                                          </Suspense>
-                                      ),
-                                      action: (index: number) => {
-                                          localStorage.setItem(
-                                              "electionEventPublishTabIndex",
-                                              index.toString()
-                                          )
-                                          setShowPublishList(uuidv4())
-                                      },
-                                  },
-                              ]
-                            : []),
-                        ...(showTasksExecution
-                            ? [
-                                  {
-                                      label: t("electionEventScreen.tabs.tasks"),
-                                      component: () => (
-                                          <Suspense fallback={<div>Loading Tasks...</div>}>
-                                              <EditElectionEventTasks showList={showTaskList} />
-                                          </Suspense>
-                                      ),
-                                      action: () => {
-                                          setShowTaskList(uuidv4())
-                                      },
-                                  },
-                              ]
-                            : []),
-                        ...(showLogs
-                            ? [
-                                  {
-                                      label: t("electionEventScreen.tabs.logs"),
-                                      component: () => (
-                                          <Suspense fallback={<div>Loading Logs...</div>}>
-                                              <ElectoralLog />
-                                          </Suspense>
-                                      ),
-                                  },
-                              ]
-                            : []),
-                        ...(showEvents
-                            ? [
-                                  {
-                                      label: t("electionEventScreen.tabs.events"),
-                                      component: () => (
-                                          <Suspense fallback={<div>Loading Events...</div>}>
-                                              <EditElectionEventEvents
-                                                  electionEventId={record?.id}
-                                              />
-                                          </Suspense>
-                                      ),
-                                  },
-                              ]
-                            : []),
-                        ...(showReports
-                            ? [
-                                  {
-                                      label: t("electionEventScreen.tabs.reports"),
-                                      component: () => (
-                                          <Suspense fallback={<div>Loading Reports...</div>}>
-                                              <EditElectionEventReports
-                                                  electionEventId={record?.id}
-                                              />
-                                          </Suspense>
-                                      ),
-                                  },
-                              ]
-                            : []),
-                        ...(showApprovalsExecution
-                            ? [
-                                  {
-                                      label: t("electionEventScreen.tabs.approvals"),
-                                      component: () => (
-                                          <Suspense fallback={<div>Loading Approvals...</div>}>
-                                              <EditElectionEventApprovals
-                                                  electionEventId={record?.id}
-                                                  showList={showApprovalList}
-                                              />
-                                          </Suspense>
-                                      ),
-                                      action: () => {
-                                          setShowApprovalList(uuidv4())
-                                          localStorage.setItem("approvals_status_filter", "pending")
-                                      },
-                                  },
-                              ]
-                            : []),
-                    ]}
-                />
+                <Tabs elements={tabs} />
             </Box>
         </Box>
     )

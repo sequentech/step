@@ -494,8 +494,11 @@ const ElectionSelectionScreen: React.FC = () => {
                 </Box>
                 {isMaterialsActivated && electionEvent ? (
                     <Button onClick={handleNavigateMaterials}>
-                        {translateFromPresentation(electionEvent, "materialsTitle", i18n.language) ||
-                            t("materials.common.label")}
+                        {translateFromPresentation(
+                            electionEvent,
+                            "materialsTitle",
+                            i18n.language
+                        ) || t("materials.common.label")}
                     </Button>
                 ) : null}
             </Box>
