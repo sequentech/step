@@ -6,34 +6,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Tally visualization: velvet → `@sequentech/ui-essentials`
 
-## Status: no longer a lift
+## Status
 
-This document used to describe a **copy lift** — admin-portal's tally
-views re-hosted into `ui-essentials` as
-`TallyResultsView` / `TallyResultsCharts` /
-`TallyResultsCandidatesPlurality` / `TallyResultsCandidatesIRV`, with a
-hardcoded English `strings.ts` shim standing in for i18n.
-
-That lift is **gone**. Upstream built its own production tally
-visualization in the same place (`ui-essentials/src/components/
-TallyResults/`), shared with `results-portal`, and the workbench adopted
-it wholesale when `main` was merged. The eight copy-lifted files were
-deleted; nothing is copied or re-hosted any more.
-
-What remains is a single adapter, and this document is now just its
-mapping table plus the conventions that are easy to get wrong.
-
-| | before (copy lift) | now |
-|---|---|---|
-| Component source | copied from admin-portal, adapted | upstream `ui-essentials`, unmodified |
-| i18n | `strings.ts` shim | `labels?: Partial<ResultsAndParticipationLabels>` with English defaults |
-| Catch-up cost | re-apply every adaptation on each refresh | none — the component is upstream's, so upstream changes arrive by merging |
-| Workbench-owned code | 8 files | 1 adapter |
-
-Because the workbench now renders the **same component production
-renders**, there is no refresh procedure and no canary list. If upstream
-changes the props, the adapter fails to type-check — that is the whole
-early-warning system.
+The tally visualization is the upstream `ui-essentials` component
+(`src/components/TallyResults/`, shared with `results-portal`),
+imported unmodified; nothing is copied or re-hosted. The workbench's
+only code is the thin adapter below, mapping velvet's output onto the
+component's props — if upstream changes them, the adapter fails to
+type-check, which is the whole early-warning system.
 
 ---
 
@@ -41,8 +21,10 @@ early-warning system.
 
 `adaptVelvetContestResult(result, contestName)` maps velvet's serialised
 `ContestResult` (see `workbench/velvet-core/src/result.rs`) onto a
-`VelvetTallyView`, whose first four fields are passed straight to
-`ResultsAndParticipation`.
+`VelvetTallyView`. `TallyPage` passes its `chartName`, `summary` and
+`candidates` straight to `ResultsAndParticipation` (with a literal
+`preferential={false}` — see adaptation 2 below) and mounts
+`PreferentialCandidateResults` on `processResults`.
 
 ### Participation summary
 

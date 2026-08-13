@@ -42,8 +42,9 @@ The same conservatism applies to **any** production source the workbench
 touches, not just the portal — `sequent-core`, `velvet` and `strand`
 included. Where an edit was genuinely unavoidable it is inventoried in
 section **L**, and the workbench's Diagnostics page (*Shared-source
-drift*) diffs every such tree against `origin/main` so an undocumented
-edit is visible rather than discovered during the next catch-up merge.
+drift*) diffs every such tree against the merge-base with
+`origin/main` so an undocumented edit is visible rather than
+discovered during the next catch-up merge.
 
 ---
 
@@ -74,8 +75,8 @@ The workbench app needs `voting-portal` as a workspace dep (`"*"`), plus
 any npm dep that the lifted portal source files `import` **and that Vite
 fails to resolve** under the workbench's `node_modules` layout. Most
 transitive deps of voting-portal resolve via yarn workspace hoisting
-through the `voting-portal` package itself — e.g. `@mui/icons-material`,
-`@mui/system`, `lodash`, `keycloak-js`, `web-vitals`,
+through the `voting-portal` package itself — e.g. `@mui/system`,
+`lodash`, `keycloak-js`, `web-vitals`,
 `@fortawesome/free-solid-svg-icons`, `@graphql-typed-document-node/core`
 all appear in portal `import` lines and yet are absent from
 `app/package.json` because the workbench never has to resolve them
@@ -88,6 +89,9 @@ workbench itself needs):
 - `@apollo/client`, `graphql` — voting-portal uses Apollo for GraphQL.
 - `@emotion/react`, `@emotion/styled` — MUI's required peer.
 - `@mui/material` — UI framework.
+- `@mui/icons-material`, `@mui/x-data-grid` — imported by
+  ui-essentials' `TallyResults` components, which the A4 alias has
+  Vite compile from source.
 - `@reduxjs/toolkit`, `react-redux` — state.
 - `@sequentech/ui-core`, `@sequentech/ui-essentials` — workspace deps.
 - `i18next`, `i18next-browser-languagedetector`, `react-i18next` — translations.
@@ -256,16 +260,17 @@ Two structural decisions follow from inspecting `voting-portal/src/index.tsx`:
    `/tenant/${tenantId}/event/${eventId}/election/${electionId}/vote`. A
    `/booth/...` prefix would 404 on every internal `<Link>`. So the
    workbench root path tree mirrors the portal, and the only workbench-
-   specific routes are `/wb/...` and `/pipeline`.
+   specific routes are `/wb/...`, `/pipeline`, `/tally` and
+   `/diagnostics`.
 
 Concretely, `main.tsx`:
 
 - Builds a `createBrowserRouter` with a `<Shell>` layout containing a
   small nav, the global `<ReduxProvider>`, and an `<Outlet />`.
-- **Workbench-owned subtree** under `/wb/...` and `/pipeline`. Lift-irrelevant
-  detail — see `WORKBENCH.md` for the inspector routes. The only fact the
-  lift cares about is that nothing under `/wb/...` resolves to a lifted
-  portal screen.
+- **Workbench-owned subtree** under `/wb/...`, `/pipeline`, `/tally`
+  and `/diagnostics`. Lift-irrelevant detail — see `WORKBENCH.md` for
+  the inspector routes. The only fact the lift cares about is that
+  nothing under `/wb/...` resolves to a lifted portal screen.
 - **Booth subtree**: `<BoothLayout />` mounting `boothChildren` (defined
   in `BoothSpike.tsx`). `boothChildren` mirrors the portal's
   `tenant/:tenantId/event/:eventId/{election-chooser, election/:electionId/*}`
@@ -361,6 +366,8 @@ The shipping `default.json` snapshot encodes:
   Belt-and-braces with the previous point: even if a future change
   makes the early-voting branch reachable, the fixture won't crash —
   it will just report "no early voting policy enabled" and fall back
+  to the online-OPEN path.
+
 **Editing the bundled snapshot.** Do not hand-edit `default.json`
 blindly — a Vite plugin enforces snapshot-keypair ↔ ballot-style
 consistency at build start (see §M.2 below). The authoring workflow
@@ -516,6 +523,8 @@ booth screens themselves are unaffected — the layering matches
 routes.
 
 ### I. Source code under `voting-portal/src/` — UNCHANGED
+
+This is the central invariant of the lift. Every adaptation above lives
 *outside* the portal source tree. If you ever feel tempted to edit a portal
 file to make the workbench work:
 
@@ -574,7 +583,8 @@ workbench keeps this state in a tiny separate mini-store
 - `useSyncExternalStore`-based subscription (`useWorkbench` hook).
 - A handful of named mutations: `addVoter`, `removeVoter`,
   `setActiveVoter`, `attributeCastVote`, `captureRepairedCastVote`,
-  `setRepairedDecodedBigInts`, `setKeypair`, `replaceWorkbenchState`.
+  `setRepairedDecodedBigInts`, `dropCastVoteOverlay`, `setKeypair`,
+  `selectBallotStyleForVoter`, `replaceWorkbenchState`.
 
 State fields:
 
@@ -717,8 +727,8 @@ cast-votes watcher — captures **only the plaintext selection**:
 
 2. Read `state.ballotSelections[cv.election_id]` — the structured
    `DecodedVoteContest[]` the voter just built. This is also the
-   value the future inline tally will encode via `tally.ts`'s
-   `encodeBallot` and feed into `runTally`. We JSON deep-clone
+   value the tally page encodes via `tally.ts`'s `encodeBallot`
+   and feeds into `runTally`. We JSON deep-clone
    before storing so later in-place Redux mutations can't corrupt
    the snapshot.
 
@@ -790,8 +800,8 @@ fields were wrong:
 - `election_id = eventId` mis-bucketed the cast vote: the slice keys
   by `election_id`, so `selectCastVotesByElectionId(realElectionId)`
   returned `[]`. Anything reading cast votes by election (the booth's
-  own confirmation screen, the workbench's election detail, a future
-  tally) had to know to look under the event id instead.
+  own confirmation screen, the workbench's election detail, the tally
+  page) had to know to look under the event id instead.
 
 The fix changes the helper's signature from `() => void` to
 `(electionId, ballotId, content) => void` (see L.2 for the `content`
@@ -812,10 +822,10 @@ in `goldenUserCastBallotAction`). `id` now takes the unique per-cast
   one function plus its two callers (~10 lines diff).
 - Without the fix, the workbench had to maintain a parallel
   "bridged election_id" column and a dual-bin cast-votes view in
-  every screen, AND any future inline tally would need the same
-  pivot. The bridge documented in section K still exists (for
-  plaintext selection), but it no longer has to repair the
-  election id.
+  every screen, AND the contest page's cast-vote collection that
+  feeds `/tally` would need the same pivot. The bridge documented
+  in section K still exists (for plaintext selection), but it no
+  longer has to repair the election id.
 
 **Refresh-PR guardrail.** If voting-portal renames the helper, changes
 its parameter list, or adds new call sites, the refresh PR must
@@ -929,9 +939,7 @@ in one tick.
   of the slice's internals (forbidden) or (b) re-dispatching the full
   remaining bucket through `addCastVotes` after wiping, which is more
   intrusive than a single targeted reducer.
-- The diff is ~10 lines in `castVotesSlice.ts` plus the export. The
-  workbench cap-and-counter machinery that briefly sat on top of this
-  was removed in a follow-up; only the reducer remains.
+- The diff is ~10 lines in `castVotesSlice.ts` plus the export.
 
 **Refresh-PR guardrail.** If voting-portal refactors `castVotesSlice`
 (e.g. moves it to RTK Query, changes the bucketing key away from
@@ -972,7 +980,7 @@ workspace graph to supply the wasm32 bits. Two files:
 
 4. `pub mod areas;` and `pub mod wasm;` move from `#[cfg(feature =
    "wasmtest")]` to `#[cfg(feature = "wasm")]`. This is what makes
-   `yarn build:sequent-core` (which runs `--features=wasm,default_features`)
+   `yarn build:sequent-core` (which runs `--features=wasmtest,default_features`)
    emit the area-tree and locale exports the lifted booth calls — see
    §A7.
 
@@ -1021,8 +1029,9 @@ decrypt surface, this section can simply go away.
 #### M.1 The `velvet-wasm` surface (`packages/workbench/velvet-wasm/`)
 
 The workbench's local wasm package exposes wasm-bindgen functions on
-top of `sequent-core` (in-tree source) and `strand`. The four
-functions that participate in the encrypt → decrypt → tally loop are:
+top of `sequent-core` (in-tree source) and `strand`. The five
+functions that participate in the encrypt → decrypt → decode → tally
+loop are:
 
 - `generate_keypair() -> {pkB64, skB64}` — calls
   `strand::elgamal::generate_keypair::<RistrettoCtx>` and
@@ -1038,21 +1047,26 @@ functions that participate in the encrypt → decrypt → tally loop are:
   by tests and by future round-trip checks: the value it produces
   must match what `decrypt_ballot_content` recovers from the same
   `Contest` + `DecodedVoteContest` pair.
-- `tally_plaintext_ballots(...)` — the lower-level tally entry used
-  by `TallyPage.tsx` (the centralised tally execution point) once
-  decrypted `BigUint`s have been collected. See §M.4 for how the
-  workbench feeds it.
-
-The package also re-exports a handful of `get_sample_*` JSON helpers
-used only by `/pipeline` (the ballot-pipeline sandbox) and by ad-hoc
-REPL experiments; they are workbench-internal and have no canary.
+- `decode_bigint_to_decoded_vote_contest(contest_json, bigint_str) ->
+  string` — the inverse of `encode_ballot`: wraps
+  `Contest::decode_plaintext_contest_bigint(&bigint)` to turn a
+  decimal-`BigUint` plaintext back into the structured
+  `DecodedVoteContest`.
+- `tally_decoded_ballots(contest_json, decoded_ballots) -> string` —
+  the single tally entry used by `TallyPage.tsx` (the centralised
+  tally execution point): JSON `DecodedVoteContest`s in, JSON
+  `ContestResult` out. It replaced `tally_plaintext_ballots` (which
+  took `BigUint` strings) so there is exactly one tally entry shape;
+  callers that start from BigUints decode them explicitly via
+  `decode_bigint_to_decoded_vote_contest` first. See §M.4 for how
+  the workbench feeds it.
 
 **Canonical-surface rule.** `velvet-wasm` is reserved for operations
 that have no canonical `sequent-core` wasm-bindgen counterpart — at
-the time of writing those are exactly the four listed above plus the
-`get_sample_*` fixtures. **Any pipeline stage whose underlying logic
-already lives behind a `#[wasm_bindgen]` export in
-`sequent-core/src/wasm/` MUST call that export directly**, not a
+the time of writing those are exactly the five listed above. **Any
+pipeline stage whose underlying logic already lives behind a
+`#[wasm_bindgen]` export in `sequent-core/src/wasm/` MUST call that
+export directly**, not a
 re-implementation in `velvet-wasm`. The `/pipeline` encrypt stage is
 the working precedent: `tally.ts` imports `encrypt_decoded_contest_js`
 + `to_hashable_ballot_js` from `"sequent-core"` (the same chain the
@@ -1144,15 +1158,21 @@ was last written.
 
 #### M.4 Tally consumption
 
-The decrypted BigUints in `repairedCastVotes[*].decodedBigInts` are
-fed to `TallyPage.tsx` (the centralised tally execution point) via
-the "Open in tally" hand-off from the contest detail page or by
-navigating to `/tally` directly. There is no re-encrypt-then-decrypt
-trip through wasm at tally time; the BigUints flow straight from the
-decrypt bridge into the tally code path, exactly the way a production
-trustee would feed decrypted plaintexts in. Policy overlays are
-applied at tally execution time by `TallyPage.tsx` (re-encodes and
-re-decodes with `applyPolicyOverlayToContest` before tallying).
+The decrypted BigUints in `repairedCastVotes[*].decodedBigInts` reach
+the tally through the contest detail page: its "Open in tally"
+hand-off decodes each BigUint into a `DecodedVoteContest` (via
+`decode_bigint_to_decoded_vote_contest`) and ships the array plus the
+contest descriptor to `TallyPage.tsx` (the centralised tally
+execution point) in react-router location state. At "Run tally" the
+page applies the operator's policy overlay to the contest
+(`applyPolicyOverlayToContest`), then round-trips every ballot —
+`encodeBallot` back to a BigInt, `decodeBigIntToDecodedVoteContest`
+under the effective contest — before `runTally`. That round-trip is
+deliberate: decoding is where the validation checkers run, so it is
+what classifies checker-populated ballots under the current policy,
+mirroring production where decode happens at tally time with the
+authoritative contest config. Nothing is re-encrypted at tally time —
+decryption happened once, in the bridge (§M.3).
 
 **End-to-end canary.** Cast a Blue vote on the bundled fixture
 (plurality-at-large, two candidates, `max_votes=1`); expected
@@ -1203,6 +1223,11 @@ broken or you want to validate fidelity.
    It uses `velvet-wasm` (the wasm-bindgen wrapper around `velvet-core`)
    directly and is unaffected by portal changes; if it breaks, the
    problem is in workbench glue or wasm-pack output, not the lift.
+6. **Re-run the characterization suite.** A portal refresh can move
+   the booth selectors and labels the recorded analyses depend on. Run
+   the headless rule runners and `characterization/dom-validate.mjs`
+   (see `characterization/README.md`, *Running the analysis*) and
+   check the tables still report all-match.
 
 ## Adaptations to add as we lift more screens
 
@@ -1214,29 +1239,13 @@ broken or you want to validate fidelity.
   paths.
 
 When extending past these, the following are the most likely next-step
-categories of work (in roughly the order they will be needed):
+categories of work (in roughly the order they will be needed). Three
+earlier entries are done and now live in the inventory: the
+workbench-owned public key in the ballot-style fixture (sections F
+and M), the fixture-seeded `ballotSelections` entry (section F), and
+the mounted `ApolloProvider` with an empty link (section D, layer 4).
 
-1. **A real election public key in the ballot style fixture.** ✅ Done,
-   and since superseded. The fixture briefly used
-   `DEFAULT_PUBLIC_KEY_RISTRETTO_STR` from sequent-core, which made
-   `encryptBallotSelection` produce real ciphertext but validated the
-   *encrypt* path only — nobody holds that key's secret half. It now
-   carries the workbench-owned keypair from `workbench.keypair`, so the
-   whole encrypt → decrypt → decode → tally loop closes in the browser.
-   See sections F and M.
-2. **Initialize `ballotSelections` from the fixture, not only from
-   StartScreen.** ✅ Done — the bundled `default.json` snapshot ships a
-   pre-initialized `ballotSelections[electionId]` entry, so every URL
-   is a valid entry point (hot reload on `/vote`, deep links). See
-   section F.
-3. **Mounting `<ApolloProvider>`.** ✅ Done. The workbench mounts an
-   `ApolloProvider` with a client whose link is `ApolloLink.empty()`, so
-   `useQuery`/`useMutation` are satisfied at context level but no network
-   call is ever made. Under `DISABLE_AUTH: true` ReviewScreen takes
-   `useAddFakeCastVote` and the real mutation is never invoked, so the
-   full booth flow (Start → Vote → Review → Confirmation) succeeds
-   end-to-end without any GraphQL plumbing. See section D, layer 4.
-4. **Per-operation GraphQL fixtures for screens whose query results
+1. **Per-operation GraphQL fixtures for screens whose query results
    aren't already in Redux.** **Deferred — not required by any
    voting-portal screen lifted to date.** Every `useQuery` in the booth
    path **and in `ElectionSelectionScreen`** is gated on
@@ -1273,16 +1282,16 @@ categories of work (in roughly the order they will be needed):
    Redux** gets a `setX` dispatch in a fixture module; data that
    **production reads via GraphQL** would get an `ApolloLink` entry. Do
    not smear one across the other.
-5. **Translation key fidelity.** Once a screen renders, missing
+2. **Translation key fidelity.** Once a screen renders, missing
    translations show as raw keys (`booth.start.title`). Decide between
    shipping a copy of the portal's locales as a static asset and silencing
    the warnings.
-6. **Apollo mocks vs. a fake transport.** If a single workbench-local
+3. **Apollo mocks vs. a fake transport.** If a single workbench-local
    `ApolloLink` switch becomes unwieldy (dozens of operations,
    interdependent state), an in-memory schema (with
    `@graphql-tools/mock`) may scale better. Decision deferred until pain
    is felt.
-7. **Extending the bundled snapshot.** As later screens consume more
+4. **Extending the bundled snapshot.** As later screens consume more
    of the store (cast votes, audit data, etc.), `default.json` grows.
    The `validateBundledSnapshots` plugin keeps the snapshot-keypair ↔
    ballot-style invariants honest on every build. Prefer one snapshot
@@ -1327,7 +1336,7 @@ about a fact related to a voting-portal lift step, `LIFTING.md` wins.
   path). They mask drift. Aliases should be either workspace paths or the
   specific tsconfig paths the portal itself defines.
 - **Editing `voting-portal/src/`** to silence a workbench error. See
-  section F.
+  sections I and L.
 - **Using `Stop-Process` on the Vite port mid-debug.** It races with the
   dev server's own startup and gives misleading "port in use" / exit-code
   noise. If port 5173 is busy, find and stop the specific old node
