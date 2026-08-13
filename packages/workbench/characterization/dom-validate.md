@@ -19,9 +19,13 @@ the untouched-clear does not apply) and *reachable* (the input constraint;
 *matches spec?* column subsumes the partial's `pred?` and extends it to the
 browser surfaces (including the observed dialog vs the gates): ✗ = spec and
 DOM disagree. `(blocked)` inline means a blocking dialog preempts review —
-the dialog is the signal there.
+the dialog is the signal there. Every column is common and defined here
+except *config*, which packs each rule's own policy knobs into one cell —
+its meaning is noted under each rule heading below.
 
 ## over-vote
+
+*config* = `over_vote_policy` × `invalid_vote_policy`.
 
 | config | state | errors | alerts | inline (review) | hard gate | soft gate | reachable | tally | matches spec? |
 |---|---|---|---|---|---|---|---|---|---|
@@ -87,6 +91,8 @@ the dialog is the signal there.
 | not-allowed-with-msg-and-disable × not-allowed | over_max | selectedMax | selectedMax | — | **block** | dialog | **no** | ImplicitInvalid | ✓ |
 
 ## min-vote
+
+*config* = `min_votes` × `invalid_vote_policy` — min-vote is a fixed rule, so the `min_votes` bound is the knob, not a policy.
 
 | config | state | errors | alerts | inline (review) | hard gate | soft gate | reachable | tally | matches spec? |
 |---|---|---|---|---|---|---|---|---|---|

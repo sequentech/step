@@ -64,6 +64,7 @@ const RULES = [
                 policies: {over: r.over_vote_policy},
             }),
         label: (r) => `${r.over_vote_policy} × ${r.invalid_vote_policy} × ${r.state}`,
+        configNote: "*config* = `over_vote_policy` × `invalid_vote_policy`.",
     },
     {
         name: "min-vote",
@@ -71,6 +72,9 @@ const RULES = [
         rows: rec("minvote-rule.recorded.json"),
         constraint: () => null, // min-vote imposes no input constraint
         label: (r) => `min=${r.min_votes} × ${r.invalid_vote_policy} × ${r.state}`,
+        configNote:
+            "*config* = `min_votes` × `invalid_vote_policy` — min-vote is a fixed " +
+            "rule, so the `min_votes` bound is the knob, not a policy.",
     },
 ]
 
@@ -183,13 +187,17 @@ const md = [
     "*matches spec?* column subsumes the partial's `pred?` and extends it to the",
     "browser surfaces (including the observed dialog vs the gates): ✗ = spec and",
     "DOM disagree. `(blocked)` inline means a blocking dialog preempts review —",
-    "the dialog is the signal there.",
+    "the dialog is the signal there. Every column is common and defined here",
+    "except *config*, which packs each rule's own policy knobs into one cell —",
+    "its meaning is noted under each rule heading below.",
     "",
 ]
 for (const rule of RULES) {
     const rc = results.filter((x) => x.rule === rule.name)
     md.push(
         `## ${rule.name}`,
+        "",
+        rule.configNote,
         "",
         "| config | state | errors | alerts | inline (review) | hard gate | soft gate | reachable | tally | matches spec? |",
         "|---|---|---|---|---|---|---|---|---|---|",
