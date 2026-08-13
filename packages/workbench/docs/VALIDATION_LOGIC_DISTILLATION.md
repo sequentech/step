@@ -72,9 +72,8 @@ both land in `ImplicitInvalid`):
 Note the aggregation column: "valid" and "contributes to candidate tallies"
 are distinct observables (blanks are valid but contribute to no candidate),
 and the blank/declined distinction is precisely a disagreement about the
-valid total. An earlier revision of this document had a three-class
-taxonomy; the 2026-08 merge (explicit blanks #2842, decline-to-vote #2687)
-made that obsolete.
+valid total. (The six-class taxonomy dates from the 2026-08 merge —
+explicit blanks #2842, decline-to-vote #2687.)
 
 **Key principle:** Effects are *atomic observables*. Timing and location are
 part of the *input space*, not the effect taxonomy. For example,
@@ -146,11 +145,9 @@ rejects a contest with more than one explicit-blank marker, producing a
 
 ### Combinatorial size
 
-The naive worst-case product is large and not the useful number. (An earlier
-revision stated ≈40,960; the factors it listed actually multiply to ≈819,200,
-and the post-merge dimensions above grow it further — the config side alone
-is 4·5·4·4·2·2·2·2·2·2 = 40,960 combinations before the vote-state and
-context factors.)
+The naive worst-case product is large and not the useful number — the
+config side alone is 4·5·4·4·2·2·2·2·2·2 = 20,480 combinations before the
+vote-state and context factors.
 
 The useful observation is that the mapping **decomposes**: each rule reads
 at most three dimensions (its own policy, one or two vote-state fields, and
@@ -237,8 +234,8 @@ This is by design — the policies control *enforcement strictness*, not
   silence: under the *default* overvote policy the master filter still lets
   the overvote error through — see VOTE_VALIDATION.md, "UI filter behavior".)
 
-The silent-cell combination is therefore narrower than an earlier revision
-of this document claimed, but it exists, and the design question stands: if
+The silent-cell combination is therefore narrow, but it exists, and the
+design question stands: if
 a voter receives zero indication (1e) that their vote will be invalid at
 tally (2c), is that intentional? The answer depends on whether "ALLOWED"
 means "allowed to be cast" or "counted as valid." Current code: it means
@@ -274,10 +271,10 @@ whose position they cannot move.
 
 ### 4.5 The silent-discount criterion (derived from characterization)
 
-The `no-silent-discount` query (payoff 4.3, run over all six
-characterized rules) yields a precise structural criterion for *which*
-rules can silently discard a vote. A rule is **silent-discount-prone iff**
-it has a configuration where **all three** hold:
+The `no-silent-discount` query (run over all seven characterized rules)
+yields a precise structural criterion for *which* rules can silently
+discard a vote. A rule is **silent-discount-prone iff** it has a
+configuration where **all three** hold:
 
 1. its checker emits an `invalid_error` in that configuration — only
    errors reach the tally's `is_invalid()`; alerts have no tally
@@ -301,7 +298,7 @@ tally (via `is_invalid()`) with no booth surface showing or blocking it.
 The over-vote and min-vote families are exactly the rules that meet all
 three.
 
-The other four rules each fail a specific condition. The preferential
+The other five rules each fail a specific condition. The preferential
 rules (`duplicated_rank`, `preference_gaps`) fail condition 2 **by
 construction**: their enums have *only* `*_WARN_AND_DIALOG` variants — no
 silent `allowed` — so a gate always fires when their error is present,
@@ -309,12 +306,17 @@ whatever `invalid_vote_policy` is. Under-vote fails condition 1: its
 checker emits only alerts, never errors, so an under-voted (but
 above-min) ballot stays `Valid` at tally. Blank fails conditions 1∧2
 jointly: it emits an error only under `not-allowed`, and `not-allowed`
-hard-gates. This is also the shape of a candidate fix for the prone
-rules: give every error-producing rule a mandatory dialog variant (remove
-the silent `allowed` from over-vote; give min-vote a policy), so
-condition 2 becomes unsatisfiable. (Whether to fix at all is a suspect for consultation — see
-`../characterization/`/`UPSTREAM_FINDINGS.md` S1/S2 — but the fix *shape*
-falls out of the criterion.)
+hard-gates. The invalid rule fails condition 1 in the only
+configurations condition 3 permits: under `invalid_vote_policy =
+allowed` the marker sets a flag, not an error — and its discard class
+(`ExplicitInvalid`) is excluded from the property by definition, a null
+vote's exclusion from the count being voter-intended. This is also the
+shape of a candidate fix for the prone rules: give every error-producing
+rule a mandatory dialog variant (remove the silent `allowed` from
+over-vote; give min-vote a policy), so condition 2 becomes
+unsatisfiable. (Whether to fix at all is a suspect for consultation —
+see [`UPSTREAM_FINDINGS.md`](./UPSTREAM_FINDINGS.md) S1/S2 — but the fix
+*shape* falls out of the criterion.)
 
 ---
 
@@ -403,40 +405,38 @@ switch (effect) {
 
 This is not a rewrite proposal. The path is incremental:
 
-> **Status (2026-08-12):** step 1 is well under way —
+> **Status (2026-08-13):** step 1 is complete for the seven rules —
 > [`../characterization/`](../characterization/README.md) holds the
-> harness, seven recorded rule tables (blank — plus its filter view —
-> over-vote, under-vote, min-vote, duplicated-rank, preference-gaps,
-> invalid) and the tally classifier's own decision table. Each runner's
-> `predict()` is the embryonic declarative table of step 3, and the first
-> §4.3 query (`no-silent-discount`) runs over all of them: 248 recorded
-> cells, 5 violating, in two families — the over-vote case §4.2
-> predicted, and a min-vote family the pass discovered (`selectedMin` is
-> suppressed under `invalid=allowed`, so a below-minimum ballot is
-> silently discarded). Both families require
+> harness, seven recorded rule tables (blank, over-vote, under-vote,
+> min-vote, duplicated-rank, preference-gaps, invalid), the tally
+> classifier's own decision table, and the single-sourced spec
+> ([`../characterization/spec.mjs`](../characterization/spec.mjs) — gates
+> / classifier / filter / constraint — the embryonic declarative table of
+> step 3; each runner supplies only its rule-specific checker emissions).
+> The spec is validated in two lanes: the partial (headless) tables check
+> its gates/classifier against the real WASM on every cell (`pred?`), and
+> the **complete** tables (`dom-validate.mjs`) drive every cell of all
+> seven rules through the real booth — panel-driven config, reload-free
+> (one snapshot load per rule, then client-side navigation; ~2 s/cell,
+> the full 229-cell grid in ~8 min) — observing inline visibility at the
+> review screen and reachability, with direct constraint evidence
+> (`no (disabled)` from probing the (max+1)th control's `disabled`
+> attribute; `no (cleared)` from the blank marker clearing a co-selected
+> regular): **229/229 matching the spec**. The §4.5 query
+> (`no-silent-discount`) is observation-based end to end: 248 recorded
+> cells → 7 candidates (`tally = ImplicitInvalid` ∧ no gate) → **5
+> browser-confirmed** silent discounts in two families — the over-vote
+> case §4.2 predicted, and a min-vote family the pass discovered
+> (`selectedMin` is suppressed under `invalid=allowed`, so a
+> below-minimum ballot is silently discarded). Both families require
 > `invalid_vote_policy = allowed`; every violating cell is confirmed
 > through one continuous booth → encrypt → cast → decrypt → decode →
-> tally run, with click-by-click reviewer recipes in `REPRODUCE.md` and
-> policy-intent evidence in `INVALID_VOTE_POLICY_INTENT.md`. The spec is now
-> single-sourced in `characterization/spec.mjs` (gates / classifier / filter
-> / constraint), each runner supplying only its checker emissions; the
-> tables carry an `inline (shown)` column with two validation lanes (gates/
-> classifier WASM-checked on every cell by `pred?`; filter/constraint are
-> predictions, DOM-validated where a browser runner covers the cell).
-
-> **e2e-cost measurement (2026-08-12).** The DOM lane's viability was the
-> open question for validating the two prediction-only surfaces broadly.
-> Measured: a **reload-free** browser probe (`dom-probe-overvote.mjs` —
-> one snapshot load, then client-side navigation per cell, `waitForSelector`
-> instead of fixed sleeps) observes inline visibility + dialog + input
-> constraint/reachability at **~675 ms/cell**, versus ~17 s/cell for the
-> reload-per-cell `*.browser.mjs` runners. That is **~2.8 min serial for the
-> full 248-cell grid** (further parallelisable across browser contexts), so
-> a per-cell DOM-validation lane is practical, not just a headline-cell
-> luxury. The probe already validates the over-vote grid against the real
-> DOM — including the constraint (`not-allowed-with-msg-and-disable ×
-> over_max` is unreachable, `formed=1`, matching `spec.inputConstraint`).
-> Next: generalise it across rules and wire per-cell DOM-✓ into the tables.
+> tally run (`reproduce-verify.mjs` orchestrates the three e2e runners),
+> with click-by-click reviewer recipes in `REPRODUCE.md` and
+> policy-intent evidence in `INVALID_VOTE_POLICY_INTENT.md`. The one
+> open cell: the decline-to-vote **booth flow** — the classifier's
+> decline cells are recorded headlessly, but no booth runner drives a
+> declined ballot.
 
 1. **Enumerate the current mapping** — exercise every cell of the input
    space through the existing code and record the observed effects. Include
@@ -446,7 +446,8 @@ This is not a rewrite proposal. The path is incremental:
    `get_contest_plurality` fixture builder), and `classify_ballot` is
    natively unit-testable in velvet-core. The only layer that resists
    headless enumeration is `filterErrorList`, which is component-internal
-   TypeScript.
+   TypeScript — covered instead by the browser lane (`dom-validate.mjs`),
+   which observes it per cell in the real booth.
 2. **Distinguish three states, not two.** The recording in step 1 is a
    **characterization** — a description of what the code does, bugs
    included (`fdc7f92db5` is a recent example of a bug that enumeration

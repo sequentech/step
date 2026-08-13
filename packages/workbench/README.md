@@ -23,6 +23,11 @@ via WASM.
   against local fixture data.
 - **Policy overrides** — per-contest runtime overrides for presentation
   policies and min/max vote bounds.
+- **Validation characterization** — recorded tables of the vote-validation
+  behaviour (seven rules, headless WASM + a browser DOM-validation lane),
+  the findings they surfaced, and reviewer reproduction recipes. See
+  [characterization/README.md](characterization/README.md) and
+  [docs/UPSTREAM_FINDINGS.md](docs/UPSTREAM_FINDINGS.md).
 
 ## Prerequisites
 
@@ -30,7 +35,7 @@ via WASM.
 |------|---------|---------|
 | Node.js | ≥ 20 (verified on 24) | JS runtime. 20.x is EOL and no longer offered by most installers; nothing here depends on it. |
 | Yarn | 1.x (classic) | Package manager — the repo is a Yarn workspace |
-| Rust + wasm-pack | stable | Compile `velvet-wasm` (and optionally `sequent-core`) to WASM |
+| Rust + wasm-pack | stable | Compile `velvet-wasm` and `sequent-core` to WASM (both built by `predev`/`prebuild`) |
 | `wasm32-unknown-unknown` | — | `rustup target add wasm32-unknown-unknown` |
 
 Nothing above requires a C toolchain: the workbench's Rust stack
@@ -64,7 +69,7 @@ corepack yarn workspace "@sequentech/workbench-app" dev
 Vite serves on `http://localhost:5173` with HMR. The `predev` hook
 compiles **both** wasm packages — `velvet-wasm` and
 `sequent-core/pkg` — so Rust edits in either are picked up on the next
-`yarn dev`. Neither is committed; both are build outputs.
+dev-server start. Neither is committed; both are build outputs.
 
 TypeScript edits hot-reload. **Rust edits never do**: `predev` is a
 one-shot hook and the `sequent-core` alias is resolved when the config
@@ -129,7 +134,8 @@ it just returns old numbers.
 corepack yarn workspace "@sequentech/workbench-app" build
 ```
 
-This runs `prebuild` (wasm-pack) → `tsc -b` (type-check) → `vite build`.
+This runs `prebuild` (both wasm builds, via the prepare scripts that also
+sync `node_modules/velvet-wasm`) → `tsc -b` (type-check) → `vite build`.
 Output lands in `workbench/app/dist/` — fully static HTML/JS/WASM with no
 runtime server dependencies.
 
@@ -161,9 +167,14 @@ workbench/
 │   ├── src/
 │   │   ├── main.tsx              Router & app shell
 │   │   ├── WorkbenchInspector.tsx Snapshot/contest/voter pages
+│   │   ├── ContestPolicyOverridesPanel.tsx  Policy-overrides panel
+│   │   ├── policyOverridesStore.ts Ephemeral per-tab override store
 │   │   ├── BallotPipeline.tsx    Encode→encrypt→decrypt→decode sandbox
 │   │   ├── TallyPage.tsx         Tally sandbox
+│   │   ├── tally.ts              velvet-wasm tally bridge
 │   │   ├── BoothSpike.tsx        Lifted voting-portal screens
+│   │   ├── persistence.ts        Snapshot/checkpoint persistence
+│   │   ├── import/               Portal / velvet import helpers
 │   │   ├── fixtures/snapshots/   Bundled election snapshots (validated at build)
 │   │   └── lib/                  Shared utilities
 │   └── vite.config.ts            Build plugins & alias resolution
@@ -177,7 +188,12 @@ workbench/
 │                        reproduction recipes (REPRODUCE.md), policy-intent
 │                        evidence (INVALID_VOTE_POLICY_INTENT.md)
 ├── characterization/    Recorded validation-behaviour tables + the harness
-│                        that generates them (headless wasm + browser)
+│                        that generates them: seven headless rule runners +
+│                        shared spec (spec.mjs), the browser DOM-validation
+│                        lane (dom-validate.mjs), the no-silent-discount
+│                        query, and the e2e pipeline runners. Commands and
+│                        outputs: characterization/README.md
+│                        ("Running the analysis")
 ├── WORKBENCH.md         Workbench-side design: inspector, snapshots,
 │                        overlay state, Diagnostics, authoring workflow
 ├── DARK.md              Dark-theme palette and its revert procedure
@@ -185,12 +201,14 @@ workbench/
 └── LIFTING-TALLY.md     Velvet → ui-essentials tally adapter mapping
 ```
 
-The four documents divide as follows, and each says so at its own top:
-**README** — what the workbench is, how to run it, and where drift is
-tracked. **WORKBENCH.md** — everything workbench-owned that lives
+The four root design documents divide as follows, and each says so at its
+own top: **README** — what the workbench is, how to run it, and where
+drift is tracked. **WORKBENCH.md** — everything workbench-owned that lives
 *around* the lifted code. **LIFTING.md** — the voting-portal embedding
 procedure and its canaries; wins over WORKBENCH.md on any lift fact.
-**LIFTING-TALLY.md** — the velvet-to-ui-essentials adapter.
+**LIFTING-TALLY.md** — the velvet-to-ui-essentials adapter. (DARK.md is a
+single-purpose palette note; the validation work documents itself in
+`docs/` and `characterization/README.md`.)
 
 ## Embedding strategy
 
@@ -210,14 +228,11 @@ resolved normally and have no embedding story.)
 
 ### Where drift actually lives
 
-This table deliberately does **not** rank drift risk per row. An earlier
-version did, and it was misleading: it scored the mechanisms on how
-faithfully workbench and production see the same code *within this
-branch*, which for a shared crate is trivially "none — same source".
-
-That is the wrong axis. The risk that matters is **this branch versus
-`main`**, and by that measure the rows scoring best above are among the
-worst. `velvet-core` is "shared source" and therefore drift-free
+This table deliberately does **not** rank drift risk per row: scoring how
+faithfully workbench and production see the same code *within this branch*
+is the wrong axis (for a shared crate it is trivially "none — same
+source"). The risk that matters is **this branch versus `main`**, and by
+that measure the rows scoring best above are among the worst. `velvet-core` is "shared source" and therefore drift-free
 in-branch, yet it is the single largest divergence we carry, because the
 extraction that makes it shared has not landed upstream and main's tally
 logic keeps moving. Conversely a row can be modified in-branch and pose
@@ -227,7 +242,7 @@ that upstream will accept or that rebase trivially.
 So drift is tracked where it can be measured rather than guessed:
 
 - **Live**, per subtree, on the workbench's own **Diagnostics page**
-  (`/wb` → Diagnostics → *Shared-source drift*). Each tracked tree is
+  (`/diagnostics` → *Shared-source drift*). Each tracked tree is
   diffed `HEAD` vs the merge-base with `origin/main`, and carries an
   `expectation` describing what should be there — so an undocumented
   change reads as undocumented. It also reports how many commits
@@ -237,14 +252,16 @@ So drift is tracked where it can be measured rather than guessed:
   production source.
 
 **The version-skew trap.** `sequent-core` reaches the workbench through
-*two* of these rows at once: the booth encrypts using the prebuilt tgz,
-while `velvet-wasm` decrypts and tallies using `packages/sequent-core`
-Rust source compiled by `wasm-pack`. Nothing keeps those in step. If the
-tgz is regenerated upstream (or you edit the Rust) without rebuilding
-`velvet-wasm`, the two halves of the encrypt → decrypt → tally loop run
-different versions of the encoding rules, and the mismatch surfaces as a
-wrong `BigUint` rather than an error. After any change to either, rebuild
-`velvet-wasm` and re-run the §M.4 canary in [LIFTING.md](LIFTING.md).
+*two* of these rows at once: the booth's encrypt and `velvet-wasm`'s
+decrypt/tally each carry their own build of the same crate. **By default
+they cannot skew** — `predev` rebuilds both from the same source on every
+dev-server start. The trap arms in two situations: opting into the tgz
+(`WORKBENCH_SEQUENT_CORE=tgz` pins the booth to the *committed* artifact
+while the tally half still builds from local source), or rebuilding one
+half manually under a running server. Skewed halves run different versions
+of the encoding rules, and the mismatch surfaces as a wrong `BigUint`
+rather than an error. If numbers look wrong, restart the dev server (both
+halves rebuild) and re-run the §M.4 canary in [LIFTING.md](LIFTING.md).
 
 ### Voting-portal (alias lift)
 
@@ -265,9 +282,6 @@ shared with `results-portal`. The workbench imports it unmodified; a
 `ResultsAndParticipation`'s props. Labels are injected via the
 component's own `labels` prop, which ships English defaults — no i18n
 provider needed.
-
-This was previously a copy lift into `ui-essentials`; that copy was
-deleted once upstream shipped its own version.
 
 Adapter mapping table and the two percentage conventions:
 [LIFTING-TALLY.md](LIFTING-TALLY.md).
@@ -315,8 +329,10 @@ decline bit lives only in `multi_ballot`, and `raw_ballot::decode`
 hardcodes `is_decline_to_vote: false`, so a ballot declined in the booth
 would decode as not-declined and tally as blank/invalid rather than
 `Declined`. The tally-side classification of `Declined` is still
-characterized headlessly (the classifier table feeds a decoded ballot
-directly); only the booth→wire→tally round-trip is blocked. Closing this
+characterized headlessly
+([characterization/classifier-table.md](characterization/classifier-table.md)
+feeds a decoded ballot directly); only the booth→wire→tally round-trip is
+blocked — the one open cell in the characterization suite. Closing this
 means adding a `multi_ballot` encrypt/decrypt path to the workbench —
 deferred until the `MULTIPLE_CONTESTS` encoding is worth exercising for
 its own sake.

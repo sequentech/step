@@ -30,24 +30,33 @@ router; required by the lifted portal — see `LIFTING.md` §E):
   - `/wb` (index) — working-copy overview (`SnapshotOverviewPage`).
   - `/wb/snapshot/:id` — bundled snapshot or named checkpoint detail.
   - `/wb/ballot-style/:id` — per-ballot-style detail (pk, sk, contests).
-  - `/wb/contest/:id` — contest detail with inline tally.
+  - `/wb/contest/:id` — contest detail: decoded selections, the
+    Policy-overrides panel, and hand-offs (*Open in tally*, *Open in
+    ballot pipeline*) — tally execution itself is centralised on
+    `/tally`.
   - `/wb/voter/:id` — voter detail with attribution + booth CTA.
 - `/pipeline` — single-contest **ballot pipeline** playground
   (`BallotPipeline`): walks one `DecodedVoteContest` through the full
   encode → encrypt → decrypt → decode → tally chain, each stage a
   textarea + button. No Redux integration; runs entirely against
   `velvet-wasm`. See *Ballot pipeline page* below.
+- `/tally` — the **tally page** (`TallyPage`); all tally execution is
+  centralised here (see *Tally page* below).
+- `/diagnostics` — build status, shared-source drift, booth
+  sequent-core provenance (see *Diagnostics page* below).
 - `/tenant/:tenantId/event/:eventId/...` — the **production-mirror**
   booth subtree, mounted under `<BoothLayout />`. Paths and route shape
   are dictated by voting-portal and must not diverge (see `LIFTING.md`
   §E for why).
 
-The split is deliberate: `/wb/...` is workbench-owned chrome we are free
-to evolve; `/tenant/:t/event/:e/...` is the production-mirror surface
-where we MUST NOT diverge.
+The split is deliberate: `/wb/...`, `/pipeline`, `/tally`, and
+`/diagnostics` are workbench-owned chrome we are free to evolve;
+`/tenant/:t/event/:e/...` is the production-mirror surface where we MUST
+NOT diverge.
 
-The `Shell` nav has two links: **Workbench** → `/wb`, **Ballot
-pipeline** → `/pipeline`. The
+The `Shell` nav has four links: **Snapshots** → `/wb`, **Ballot
+pipeline** → `/pipeline`, **Tally** → `/tally`, **Diagnostics** →
+`/diagnostics`. The
 `ReduxProvider` lives in `Shell` (outside the booth subtree) so the
 workbench's own pages read the same store the booth writes to — the
 same layering as `voting-portal/src/index.tsx`.
@@ -62,8 +71,9 @@ voting-portal, not from admin-portal. The decision is in `LIFTING.md`'s
 workbench ships its own minimal inspector to introspect the scenario and
 the snapshot graph.
 
-The entire surface lives in one file (`WorkbenchInspector.tsx`) and is
-mounted by `main.tsx` as `<InspectorLayout>` with five child routes.
+The entire surface lives in one file (`WorkbenchInspector.tsx`).
+`main.tsx` mounts `<InspectorLayout>` twice: once for `/wb`'s five child
+routes, and once for the `/pipeline` + `/tally` + `/diagnostics` trio.
 The layout is a fixed two-pane chrome:
 
 ```
@@ -109,22 +119,22 @@ All five are exported from `WorkbenchInspector.tsx`:
   `savedAt` first). Columns: name, kind, forked-from (NavLink to the
   parent row's snapshot detail page), saved-at, voters, elections,
   ballot styles, cast votes, action. Bundled and checkpoint rows
-  carry a *Load* button (bundled → `hydrateFromSnapshot` with the
-  bundled-id tag; checkpoint → `loadCheckpoint`); the working-copy
-  row carries the *Save…* button. Counts come from `selectStateCounts`
+  carry a *Load* button — both go through `loadSnapshotViaReload`
+  (bundled with the bundled-id tag, checkpoint with the checkpoint-id
+  tag as `parentId`); the working-copy row carries the *Save…* button. Counts come from `selectStateCounts`
   applied to each snapshot's `state` plus `snapshot.workbench?.voters`;
   the working-copy row uses scalar `useSelector`s (not object-returning)
   to avoid react-redux's referential-equality warning on every dispatch.
   Checkpoint rows live-update via `useCheckpointList`.
 
-  Below the table sits an *Import JSON into working copy…* panel:
-  paste a full `PersistedSnapshot` blob and it is loaded straight
-  into the working copy as a root via `loadSnapshotViaReload(parsed,
-  null)` — the snapshot is written into the auto-resume slot and the
-  page is reloaded, so the boot path hydrates a fresh empty store
-  from it. The `null` `parentId` makes the imported state a root
-  regardless of what the source JSON carried. To keep the imported
-  state, click *Save…* on the working-copy row after importing.
+  Below the table sit three import buttons (*Import snapshot JSON…*,
+  *Import portal ballot style…*, *Import velvet election…* — see
+  *Import paths* below): paste a blob and it is first materialized as
+  a timestamped checkpoint (`materializeAsCheckpoint`), then loaded
+  via `loadSnapshotViaReload(parsed, ckptId)` — the snapshot is
+  written into the auto-resume slot and the page is reloaded, so the
+  boot path hydrates a fresh empty store from it, with the checkpoint
+  as provenance parent.
 - `SnapshotDetailPage` at `/wb/snapshot/:id`. The `:id` is a tagged id
   (`bundled:<name>` or `checkpoint:<name>`, URL-encoded). Renders the
   same summary `<dl>` as the overview plus a *Load* button (uses
@@ -143,9 +153,12 @@ All five are exported from `WorkbenchInspector.tsx`:
   matching this BS's `ballot_eml.public_key.public_key`) is surfaced
   as a warning row rather than silently swallowed.
 - `ContestDetailPage` at `/wb/contest/:id`. Scans ballot styles for
-  the first one containing the contest, shows decoded selections, and
-  provides an "Open in tally" button that navigates to `/tally` with
-  the contest's decoded ballots as a seed. All tally execution is
+  the first one containing the contest, shows decoded selections,
+  hosts the **Policy-overrides panel**
+  (`ContestPolicyOverridesPanel` — ephemeral, per-tab, wiped by a
+  full page load), and provides two hand-offs: "Open in tally"
+  (navigates to `/tally` with the contest's decoded ballots as a
+  seed) and "Open in ballot pipeline". All tally execution is
   centralised in `TallyPage.tsx` — contest detail pages do not run
   tallies inline.
 - `VoterDetailPage` at `/wb/voter/:id`. Shows the voter, all their
@@ -158,9 +171,7 @@ All five are exported from `WorkbenchInspector.tsx`:
 
 After `LIFTING.md` §L.1 fixed the demo's election-id bucket, cast votes
 land where production puts them (`state.castVotes[electionId]`); the
-inspector reads from that single bin everywhere. Earlier revisions had
-a dual-bin display (which had to show both `state.castVotes[electionId]`
-and `state.castVotes[eventId]`); that is no longer needed.
+inspector reads from that single bin everywhere.
 
 ### Rules
 
@@ -174,13 +185,13 @@ and `state.castVotes[eventId]`); that is no longer needed.
   booth's MUI theme would imply that these are booth screens, which
   they are not.
 - New detail pages should be added as inspector children
-  (`/wb/<kind>/:id`), reusing `InspectorLayout`. There is no longer a
-  workbench-native drilldown (tenant → event → election) — that
-  hierarchy is collapsed into the rail.
+  (`/wb/<kind>/:id`), reusing `InspectorLayout`. The tenant → event →
+  election hierarchy is collapsed into the rail; there are no
+  drilldown pages.
 
 ---
 
-## Diagnostics page (`/wb` → *Diagnostics*)
+## Diagnostics page (`/diagnostics`)
 
 An inspector page whose job is to answer questions about the *workbench
 itself* rather than about the election under test. All of its data is
@@ -223,11 +234,9 @@ If it is in neither, that is the bug — either the edit should not exist
 or the docs are stale. The reasoning for tracking drift this way, rather
 than as a static per-row risk rating, is in the README.
 
-There is deliberately **no** tally-lift section. The tally components
-were once copied from admin-portal into `ui-essentials` and diffed
-path-against-path; that copy was deleted when upstream shipped its own
-tally visualization, which the workbench now imports unmodified. With
-nothing copied, git history is the whole drift story.
+There is deliberately **no** tally-lift block: the tally visualization
+is imported unmodified from `ui-essentials` (nothing is copied), so git
+history is the whole drift story.
 
 **Current workbench state.** The live snapshot + overlay as importable
 JSON — paste it into *Import snapshot JSON…* on the snapshots page to
@@ -252,7 +261,7 @@ parentId?: string | null }`):
 | Tier | Trigger | Storage key | Lifetime | Mutability |
 |---|---|---|---|---|
 | Auto-resume slot | Every Redux or workbench-overlay dispatch | `localStorage["workbench:state:v1"]` | Until reset / wiped | Constantly overwritten |
-| Named checkpoint | Operator clicks *Save current state as checkpoint…* on `/wb` | `localStorage["workbench:checkpoint:v1:<name>"]` (plus index at `workbench:checkpoints:v1`) | Until deleted | Frozen at save time |
+| Named checkpoint | Operator clicks *Save…* on the working-copy row at `/wb` | `localStorage["workbench:checkpoint:v1:<name>"]` (plus index at `workbench:checkpoints:v1`) | Until deleted | Frozen at save time |
 | Bundled snapshot | Shipped in git | `app/src/fixtures/snapshots/*.json` | Forever | Read-only at runtime |
 
 All three go through the same `hydrateFromSnapshot` /
@@ -375,17 +384,15 @@ The shortest path to a new scenario is:
 
 1. Boot the workbench fresh, mutate state via the booth and the
    inspector until it looks right.
-2. Click *Save current state as checkpoint…* on `/wb`.
+2. Click *Save…* on the working-copy row at `/wb`.
 3. Visit the checkpoint's `/wb/snapshot/<id>` page and copy its
    bundled JSON (the *Copy JSON* button strips `parentId` so the
    export becomes a root).
-4. Paste it under `app/src/fixtures/snapshots/<name>.json`. (An earlier
-   revision of this document called for a `.json.license` sidecar; none of
-   the bundled snapshots has one, and `REUSE.toml` does not list them
-   either, so adding one would make the new file inconsistent with its
-   siblings. If REUSE compliance is wanted here it should be a single
-   `packages/workbench/app/src/fixtures/snapshots/**` annotation covering
-   all of them, not a per-file sidecar.)
+4. Paste it under `app/src/fixtures/snapshots/<name>.json`. (No
+   `.json.license` sidecar — the bundled snapshots carry none; if REUSE
+   compliance is wanted here it should be a single
+   `packages/workbench/app/src/fixtures/snapshots/**` annotation in
+   `REUSE.toml` covering all of them, not per-file sidecars.)
 5. Restart Vite. The validator will refuse to start the dev server
    if anything is inconsistent.
 
@@ -506,13 +513,16 @@ hydration boundary.
 ### Importers (three flows)
 
 The snapshot overview page offers three import buttons, each
-producing a `PersistedSnapshot` that's fed through
-`loadSnapshotViaReload(snap, null)` (wipe + reload as a root, no
-provenance):
+producing a `PersistedSnapshot` that is first materialized as a
+timestamped checkpoint (`materializeAsCheckpoint`) and then fed
+through `loadSnapshotViaReload(snap, ckptId)` — wipe + reload, with
+the checkpoint as the provenance parent:
 
 1. **Import snapshot JSON** — paste a full
    `PersistedSnapshot` (the shape the *Bundled JSON* block on any
-   snapshot detail page emits). No transformation; loaded verbatim.
+   snapshot detail page emits). Validated before load: a blob
+   without a `workbench.keypair` (pkB64/skB64) is rejected with a
+   message steering you to the ballot-style / velvet variants.
 2. **Import portal ballot style** — paste a single portal
    `IBallotStyle` row (the shape returned by
    `select * from public.ballot_styles where id = …`, or by the
@@ -623,38 +633,21 @@ operates on encoded plaintext rather than decoded selections.
 
 ### Building, and the yarn-classic dep-cache gotcha
 
-`app/package.json` runs `wasm-pack build --target web --out-dir pkg`
-on `predev` / `prebuild`. The output `pkg/` directory is consumed
-through the `"velvet-wasm": "file:../velvet-wasm/pkg"` dependency.
+`app/package.json` runs `build:wasm` on `predev` / `prebuild`, which
+executes `app/scripts/prepare-velvet-wasm.mjs`: it wasm-pack-builds
+`velvet-wasm/pkg/` **and then copies it into
+`node_modules/velvet-wasm`**. The copy step exists because the app
+consumes the build through the `"velvet-wasm": "file:../velvet-wasm/pkg"`
+dependency, and **yarn classic (1.x) resolves `file:` deps by copying,
+not symlinking** — without the sync, `node_modules/velvet-wasm/` would
+hold a snapshot taken at install time and freshly built artifacts would
+be invisible to Vite (symptom: a `SyntaxError: … does not provide an
+export named '<new_export>'` page error after adding a wasm export).
+With the prepare script in place, starting the dev server is
+sufficient — no manual copy or re-install.
 
-**Yarn classic (1.x) resolves `file:` deps by copying, not
-symlinking.** As a result `node_modules/velvet-wasm/` holds a
-snapshot taken at install time, and changes to `pkg/` after that —
-including the freshly built artifacts the `predev` hook just produced
-— are *not* visible to Vite. Symptom: a `SyntaxError: … does not
-provide an export named '<new_export>'` page error after adding a
-wasm export, even though the source clearly exports it.
-
-The fix is one of:
-
-- Copy `pkg/*` into `node_modules/velvet-wasm/` after building, then
-  restart Vite with `--force` (busts the optimizer cache); or
-- Rerun `corepack yarn install` to refresh the copy; or
-- Eventually migrate to yarn berry (`nodeLinker: pnp` / `node-modules`
-  with proper symlinks) so `file:` deps live-update.
-
-The `predev` hook builds the wasm but does not update the copy in
-`node_modules/`, so adding wasm exports always requires one of the
-two manual steps above.
-
-**This is now handled automatically.** `build:wasm` runs
-`app/scripts/prepare-velvet-wasm.mjs`, which builds `pkg/` and then
-copies it into `node_modules/velvet-wasm`, so `yarn dev` is sufficient.
-Before that, `predev` built an artifact the app never read: the built
-`pkg/` and the installed copy could sit hours apart.
-
-The reason it mattered is worth keeping in mind if the sync is ever
-refactored away. A *missing export* throws, so you find it immediately.
+The hazard the sync guards against is worth keeping in mind if it is
+ever refactored away. A *missing export* throws, so you find it immediately.
 A change that only alters **behaviour** — a velvet-core tally fix, a
 sequent-core or strand bump underneath it — produces no error at all:
 the stale copy keeps serving the old logic and the workbench reports old
@@ -666,23 +659,19 @@ canary is the check after any Rust change.
 
 `velvet-wasm` is the workbench's *own* wasm-bindgen layer; the
 lifted booth, by contrast, imports the `sequent-core` package
-directly (locale helpers, area tree, `IBallot*` types). Those
-imports normally resolve to the prebuilt tgz unpacked under
-`packages/node_modules/sequent-core/`, which means local edits to
-`packages/sequent-core/src/**/*.rs` are invisible to the lifted
-booth until the tgz is regenerated.
-
-The workbench therefore **does not use the tarball by default**. The
-`sequent-core` import is aliased to `packages/sequent-core/pkg` — the
-wasm-pack output of the in-tree crate — and `predev` / `prebuild` build
-that directory via `app/scripts/prepare-sequent-core.mjs`. `pkg/` is
-gitignored: it is produced, never committed.
+directly (locale helpers, area tree, `IBallot*` types). **By default
+that import is aliased to `packages/sequent-core/pkg`** — the
+wasm-pack output of the in-tree crate — which `predev` / `prebuild`
+build via `app/scripts/prepare-sequent-core.mjs`. `pkg/` is
+gitignored: it is produced, never committed. (The prebuilt tgz
+unpacked under `packages/node_modules/sequent-core/` — the artifact
+production ships — is opt-in; see below.)
 
 That default exists because the tally half always compiles the crate
-from source (Cargo path dep → velvet-wasm), so pointing the booth at a
-committed snapshot meant the two halves could run different code with
-no error — just wrong numbers — and meant local Rust edits silently did
-not appear.
+from source (Cargo path dep → velvet-wasm): pointing the booth at a
+committed snapshot would let the two halves run different code with no
+error — just wrong numbers — and would make local Rust edits invisible
+to the booth.
 
 - Editing pure Rust internals consumed only via `velvet-wasm`:
   `predev`/`prebuild` rebuild `velvet-wasm/pkg/` and Cargo's path-dep
@@ -698,18 +687,35 @@ To reproduce what a *deployed* booth does, opt into the tarball
 explicitly:
 
 ```sh
-WORKBENCH_SEQUENT_CORE=tgz yarn dev
+WORKBENCH_SEQUENT_CORE=tgz corepack yarn workspace "@sequentech/workbench-app" dev
 ```
 
 That skips the build and leaves the alias unregistered. The choice is
-made by this flag alone — never by whether `pkg/` happens to exist,
-which was invisible state and the source of the confusion this
-replaced. In default mode a missing `pkg/` makes the config **throw with
+made by this flag alone — never by whether `pkg/` happens to exist. In
+default mode a missing `pkg/` makes the config **throw with
 instructions** rather than quietly falling back to the tarball.
 
 The active source is shown on the Diagnostics page as *Booth
 sequent-core*, green for the local build and amber for the tarball.
 Full rationale and canaries: `LIFTING.md` §A7.
+
+---
+
+## Validation characterization (pointer)
+
+The largest workbench-owned machinery is not a page but a test suite:
+`characterization/` records the vote-validation behaviour (checker →
+gates → filter → tally classifier) as generated tables — seven headless
+rule runners plus a browser DOM-validation lane that drives every cell
+through the real booth (`dom-validate.mjs`, using the Policy-overrides
+panel and reload-free client-side navigation). Its conventions, commands,
+and outputs are documented in
+[characterization/README.md](characterization/README.md); the findings it
+surfaced live in [docs/UPSTREAM_FINDINGS.md](docs/UPSTREAM_FINDINGS.md)
+with reviewer recipes in [docs/REPRODUCE.md](docs/REPRODUCE.md). This
+document deliberately does not duplicate any of that — the workbench
+pages it *does* describe (booth, panel, pipeline, tally) are the
+instruments those tools drive.
 
 ---
 

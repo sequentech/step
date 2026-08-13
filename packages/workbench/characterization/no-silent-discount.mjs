@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 // The no-silent-discount query — now OBSERVATION-based end to end (no model in
-// the finding path; VALIDATION_LOGIC_DISTILLATION.md payoff 4.3).
+// the finding path; the criterion it yields is VALIDATION_LOGIC_DISTILLATION.md
+// §4.5).
 //
 //   no-silent-discount :=
 //     ¬∃ (config, vote_state) reachable through the booth such that
