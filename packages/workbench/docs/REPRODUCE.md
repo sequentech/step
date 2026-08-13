@@ -35,9 +35,10 @@ result — report it.
 
 ## Before you begin
 
-**Start the workbench.** From `packages/workbench`, run `yarn dev` and open
+**Start the workbench.** From the monorepo `packages/` root, run
+`corepack yarn workspace "@sequentech/workbench-app" dev` and open
 `http://localhost:5173` (see the [workbench README](../README.md) for
-prerequisites — it auto-builds `velvet-wasm` first).
+prerequisites — it auto-builds the wasm packages first).
 
 **Load the demo snapshot.** Every recipe below uses one bundled fixture.
 Go to **Snapshots** (`/wb`), find the row **"Explicit blank / invalid
@@ -55,7 +56,9 @@ deliberate blank; selecting *Null vote* makes the ballot explicitly invalid
 **Set configuration with the Policy overrides panel.** Open a contest from
 the left rail (**Elections → …**). Near the bottom of the contest page is a
 **Policy overrides** panel exposing `min_votes` / `max_votes` as number
-inputs and the six vote-validation policies as dropdowns. These overrides
+inputs and the vote-validation policies as dropdowns (four on these
+plurality contests — the two preferential-only policies are hidden, as
+the panel's footnote explains). These overrides
 are **ephemeral, per-browser-tab**: they are applied at booth-open and at
 tally-run, and are **not** saved to the snapshot. To reset, click each
 field's **reset**, or simply reload the page.

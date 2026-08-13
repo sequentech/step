@@ -49,7 +49,7 @@ internals and tests:
 | `InvalidErrorsList.tsx`, `VotingScreen.tsx`, `ballotSelectionsSlice.ts` | booth inline messages, dialogs, persisted record | **covered** (layers 1–3) |
 | `voting_screen.rs` | gates | **covered** (layer 2) |
 | `normalize_vote.rs`, `character_map.rs`, codec internals | round-trip plumbing | **covered** implicitly by layer 1 (they run inside the recorded decode) |
-| `velvet-core` counting (`classify_ballot`, plurality, IRV) | tally classes + aggregates | known pending (classifier table) |
+| `velvet-core` counting (`classify_ballot`, plurality, IRV) | tally classes + aggregates | **covered** — per-cell `tally` column in every rule table + the standalone classifier decision table (`classifier-table.md`, 32/32) |
 | `PlaintextVoteContest.tsx` ← ballot-verifier `ConfirmationScreen` | the standalone ballot-verifier's display of a decoded ballot | **out of scope** (decision 2026-08-10) — the ballot-verifier is not part of the workbench replication; revisit if/when it is lifted. The more durable of the two exclusions. |
 | `wasm_plaintext.rs` | plaintext-interpretation WASM entry feeding the above | **out of scope** (same channel, same decision) |
 | `velvet` `mcballot_images.rs` | rendered ballot images | **out of scope** (decision 2026-08-10) — conditional: ballot-images functionality is not in the workbench (verified: no trace in velvet-wasm / velvet-core / app); include this channel if it ever is. Defects found here are recorded in [`../docs/UPSTREAM_FINDINGS.md`](../docs/UPSTREAM_FINDINGS.md) for reporting, not tracked as census gaps. |
@@ -101,21 +101,25 @@ its source within minutes of being written.
 
 ## Harness
 
-Two runners per rule, matching the functional model in
-[`docs/VOTE_VALIDATION.md`](../docs/VOTE_VALIDATION.md):
+One headless runner per rule plus one shared browser lane, matching the
+functional model in [`docs/VOTE_VALIDATION.md`](../docs/VOTE_VALIDATION.md):
 
-- **Layers 1+2 (checker + gates), headless.** `harness.mjs` loads the
-  sequent-core wasm package directly in Node — no browser, no dev server —
-  and calls the same entry points the booth calls
+- **Layers 1+2 (checker + gates), headless — per rule.** `harness.mjs`
+  loads the sequent-core wasm package directly in Node — no browser, no dev
+  server — and calls the same entry points the booth calls
   (`test_contest_reencoding_js`, `check_voting_not_allowed_next`,
   `check_voting_error_dialog`). Requires `packages/sequent-core/pkg/` (built
   by the workbench's `predev`, or `yarn build:sequent-core`).
-- **Layer 3 (filter + dialog wiring), browser.** `*.browser.mjs` drives the
-  real booth via Playwright against the dev server on :5173, swapping
-  policies per cell by dispatching a modified ballot style into the portal
-  store. Inline visibility is observed through the `data-warn-id` attribute
-  every WarnBox carries (upstream #2832), which yields raw message keys —
-  no i18n ambiguity.
+- **Layer 3 (filter, constraint, dialog wiring), browser — shared.**
+  [`dom-validate.mjs`](dom-validate.mjs) drives every cell of every rule
+  through the real booth via Playwright against the dev server on :5173,
+  setting config through the **Policy-overrides panel** (the reviewer path)
+  and navigating reload-free. Inline visibility is observed through the
+  `data-warn-id` attribute every WarnBox carries (upstream #2832), which
+  yields raw message keys — no i18n ambiguity. (The two `*.browser.mjs`
+  runners predate it — per-rule, store-dispatch config, reload-per-cell —
+  and are kept as a cheaper dispatch-path check; see *Running the
+  analysis*.)
 
 Each layers-1+2 runner carries a `predict()` function — the embryonic
 declarative mapping, deliberately independent of the implementation, against
@@ -144,7 +148,7 @@ invalid fixture, and the two preferential rules (duplicate-rank,
 preference-gaps) on the IRV fixture with ranked selection — observing inline
 visibility at the review screen and reachability (the input constraint), and
 emits the **complete** tables in [`dom-validate.md`](dom-validate.md) —
-**228/228 matching the spec** (see the e2e-cost note in
+**229/229 matching the spec** (see the e2e-cost note in
 [`../docs/VALIDATION_LOGIC_DISTILLATION.md`](../docs/VALIDATION_LOGIC_DISTILLATION.md)
 §5.3).
 
@@ -185,7 +189,7 @@ Then, from `packages/workbench`:
 
 | command (`node characterization/…`) | produces | what it does |
 |---|---|---|
-| `dom-validate.mjs` | `dom-validate.md` + `.recorded.json` | the **complete** tables — `spec.mjs` vs the real DOM across every cell of all seven rules (inline visibility at review + reachability); 228/228, ~8 min |
+| `dom-validate.mjs` | `dom-validate.md` + `.recorded.json` | the **complete** tables — `spec.mjs` vs the real DOM across every cell of all seven rules (inline visibility at review + reachability); 229/229, ~8 min |
 | `no-silent-discount.mjs` | `no-silent-discount.md` + `.report.json` | the no-silent-discount property query (headless pre-filter → browser confirm at review) |
 | `reproduce-verify.mjs` | `reproduce-verify.recorded.json` | runs the three end-to-end runners below in sequence and aggregates one pass/fail |
 | `overvote-e2e-pipeline.mjs` | `overvote-e2e-pipeline.recorded.json` | S1 over-vote: booth → cast → decrypt → decode → tally in one continuous run |
@@ -204,6 +208,13 @@ shared modules (imported, not run); `dom-probe-overvote.mjs` is a timing
 spike with no artifact.
 
 ## Coverage so far
+
+A dated log of when each recording landed and what it pinned — milestones,
+not current validation state. The current state is the status table at the
+end of this file and [`dom-validate.md`](dom-validate.md): **all seven
+rules DOM-validated, 229/229**. In particular, entries below that say
+"headless" describe what that recording did at the time; every rule has
+since been driven through the real booth by `dom-validate.mjs`.
 
 ### blank-rule (2026-08-10) — all three layers, zero disagreements
 
@@ -330,13 +341,28 @@ selections are preserved into the cast ciphertext (confirmed end-to-end,
 `invalid-latent-choices-e2e.recorded.json`). Not a silent discount; a
 privacy-adjacent asymmetry.
 
-### no-silent-discount — first model-check query (2026-08-10)
+### duprank-rule + prefgaps-rule (2026-08-11) — the preferential pair
 
-`no-silent-discount.mjs` scans every recorded cell that carries a tally
-class for: *silent on every booth surface ∧ classified `ImplicitInvalid`*.
-Sources are all seven rule recordings (blank, over-vote, under-vote,
-min-vote, duplicated-rank, preference-gaps, invalid) — **248 cells** — and the
-result is **5 violating cells in two distinct families**, all requiring
+`duprank-rule.mjs` / `prefgaps-rule.mjs`: 16 cells each (its own policy ×
+`invalid_vote_policy` × {valid_full, duplicate|gap}) over the IRV
+*Favourite fruit* contest (`instant-runoff-3cand` fixture; `selected` =
+rank). **16/16 + 16/16 match.** The structural finding is shared: both
+enums have *only* `*_WARN_AND_DIALOG` variants — no silent `allowed` — so
+a gate always fires when the rule's error is present, whatever
+`invalid_vote_policy` is. Zero silent-discount cells for both, **by
+construction** (see VALIDATION_LOGIC_DISTILLATION.md §4.5, condition 2).
+
+### no-silent-discount — the property query (first run 2026-08-10; observation-based since 2026-08-12)
+
+`no-silent-discount.mjs` is **observation-based end to end** — no model in
+the finding path. *Phase 1 (headless):* scan every recorded cell across
+all seven rule recordings (blank, over-vote, under-vote, min-vote,
+duplicated-rank, preference-gaps, invalid) — **248 cells** — for
+`tally = ImplicitInvalid` ∧ no gate (both real WASM observations), a sound
+superset: **7 candidates**. *Phase 2 (browser):* drive each candidate
+through the real booth and confirm it is reachable and shows nothing
+inline at the review screen with no dialog. Result: **5 confirmed silent
+discounts in two distinct families** (2 candidates rejected), all requiring
 `invalid_vote_policy = allowed`
 (`no-silent-discount.report.json`, `no-silent-discount.md`):
 
@@ -358,8 +384,8 @@ an error (only alerts), the two preferential rules are immune by construction (n
 variant), and the invalid rule only ever tallies `ExplicitInvalid`, which
 the property excludes.
 
-**All five violations are confirmed through ONE continuous run of the
-real workbench pipeline** — booth encrypt → cast → bridge decrypt →
+**Each of the five violations is confirmed through one continuous run of
+the real workbench pipeline** — booth encrypt → cast → bridge decrypt →
 decode (checkers populate `invalid_errors`) → tally — with the voter
 shown nothing and the ballot ending `total_valid_votes: 0`,
 `invalid_votes.implicit: 1`:
@@ -372,9 +398,8 @@ shown nothing and the ballot ending `total_valid_votes: 0`,
 The sharpest is `min=2/marker_only`: the voter selects the **Blank vote (explicit blank)**
 marker — a deliberate blank — and it is silently discarded
 `ImplicitInvalid` (the marker counts as 1 < 2). The end-to-end
-crypto-chaining check is complete for the whole finding. The cheaper
-two-halves browser runner (`overvote-rule.browser.mjs`) stays as the
-whole-policy-grid check.
+crypto-chaining check is complete for the whole finding; the whole-grid
+booth-surface check is `dom-validate.mjs` (all seven rules, 229/229).
 
 **A faithfulness rule this exercise taught** (an earlier revision of the
 e2e check got it wrong and reported "Valid"): the tally classifies
@@ -403,8 +428,8 @@ all six are:
 |---|---|---|
 | Checkers | 1 (headless wasm) | blank, over-vote, under-vote, min-vote, duplicated-rank, preference-gaps, invalid rules done. One recording serves **both** bands: the tally decode runs the identical function, so layer 1 is also the tally-side checker characterization. |
 | Gates | 2 (headless wasm) | blank, over-vote, under-vote, min-vote, duplicated-rank, preference-gaps, invalid rules done |
-| Filter | 3 (browser, booth) | **done for all seven rules** — `dom-validate.mjs` observes inline visibility at the review screen across every cell of the five plurality rules (explicit-blank-invalid fixture) and the two preferential rules (IRV fixture, ranked selection): **228/228** |
-| Input constraint | 3 (browser) — the `constraint` component of the effect triple | **done** — observed both **behaviourally** across every rule cell (the `reachable` column of `dom-validate.md`: the state forms or it does not) and **directly** for the over-vote `disable` policy (the `disable × over_max` cells read `no (disabled)`, from probing the (max+1)th control's `disabled` attribute) |
+| Filter | 3 (browser, booth) | **done for all seven rules** — `dom-validate.mjs` observes inline visibility at the review screen across every cell of the five plurality rules (explicit-blank-invalid fixture) and the two preferential rules (IRV fixture, ranked selection): **229/229** |
+| Input constraint | 3 (browser) — the `constraint` component of the effect triple | **done** — observed both **behaviourally** across every rule cell (the `reachable` column of `dom-validate.md`: the state forms or it does not) and **directly** for both prevention mechanisms: the over-vote `disable` policy (`no (disabled)`, from probing the (max+1)th control's `disabled` attribute) and blank-marker exclusivity (`no (cleared)`, the marker collapsing a co-selected regular) |
 | Marker exclusivity (prevention) | browser — *reachability*, not effects | first reachability recording exists (over-vote under DISABLE: the state does not form); all five S1/S2 violations (over-vote + four min-vote) are confirmed through the full booth→cast→decrypt→tally pipeline (`overvote-e2e-pipeline.mjs`, `minvote-e2e-pipeline.mjs`). Prevention is characterized by *attempting* to create each state through the UI and recording whether it forms. Both marker directions are now recorded in `dom-validate`: the invalid marker does **not** clear (the `marker_plus` state forms — reachable `yes` — also confirmed end-to-end by `invalid-latent-choices-e2e.mjs`), and the blank marker **does** clear (the `regular_then_marker` state collapses to {marker only} — reachable `no (cleared)`). Open: the decline booth flow. |
 | Tally classifier | headless (velvet-wasm `tally_decoded_ballots`) | **done**: per-cell `tally` column in all seven rule tables, plus the standalone 32-cell six-class decision table (`classifier-table.md`, 32/32 matching the documented precedence) |
 
