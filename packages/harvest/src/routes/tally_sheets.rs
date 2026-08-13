@@ -34,10 +34,7 @@ use windmill::postgres::{
 };
 use windmill::services::{
     celery_app::get_celery_app,
-    ceremonies::tally_ceremony::{
-        begin_tally_session_recount,
-        reset_tally_session_status_after_failed_recount_task,
-    },
+    ceremonies::tally_ceremony::begin_tally_session_recount,
     database::get_hasura_pool,
     documents::get_document_as_temp_file,
     ess_xml_converter::convert_ess_enhanced_xml_to_csv,
@@ -492,7 +489,7 @@ pub async fn review_tally_sheet_import(
             Ok(recount_count) => {
                 event!(
                     Level::INFO,
-                    "Automatic recount policy processed for tally sheet import {}, enqueued {} recount task(s)",
+                    "Automatic recount policy processed for tally sheet import {}, persisted {} recount request(s)",
                     import_id,
                     recount_count
                 );
@@ -600,35 +597,36 @@ async fn maybe_trigger_automatic_recount_for_import(
     // corrupt/legacy status blob) must not stop the rest of the batch from
     // being attempted, or later sessions would silently miss their
     // automatic recount for this import with no retry.
-    let mut enqueued_recount_count = 0usize;
+    let mut requested_recount_count = 0usize;
     for tally_session in sessions_to_recount {
         let tally_session_id = tally_session.id.clone();
-        match enqueue_automatic_recount_tally_session(
+        match request_automatic_recount_tally_session(
             tenant_id,
             election_event_id,
             &tally_session,
         )
         .await
         {
-            Ok(true) => enqueued_recount_count += 1,
+            Ok(true) => requested_recount_count += 1,
             Ok(false) => {}
             Err(err) => {
                 event!(
                     Level::ERROR,
-                    "Failed to enqueue automatic recount for tally session {}: {err:?}",
+                    "Failed to persist automatic recount for tally session {}: {err:?}",
                     tally_session_id,
                 );
             }
         }
     }
 
-    Ok(enqueued_recount_count)
+    Ok(requested_recount_count)
 }
 
-/// Returns `Ok(true)` if a recount task was enqueued, `Ok(false)` if the
-/// session has no execution history to recount (skipped, not an error — see
-/// `begin_tally_session_recount`), or `Err` on a genuine failure.
-async fn enqueue_automatic_recount_tally_session(
+/// Returns `Ok(true)` once the recount request is durable, even if the
+/// immediate celery nudge fails; `process_board` will deliver it later.
+/// Returns `Ok(false)` if the session is no longer eligible or has no
+/// execution history to recount.
+async fn request_automatic_recount_tally_session(
     tenant_id: &str,
     election_event_id: &str,
     tally_session: &TallySession,
@@ -644,7 +642,7 @@ async fn enqueue_automatic_recount_tally_session(
             "error starting automatic recount status transaction"
         })?;
 
-    let Some((last_execution, original_status)) = begin_tally_session_recount(
+    let recount_started = begin_tally_session_recount(
         &hasura_transaction,
         tenant_id,
         election_event_id,
@@ -652,22 +650,16 @@ async fn enqueue_automatic_recount_tally_session(
         &election_ids,
     )
     .await
-    .with_context(|| "error starting automatic tally session recount")?
-    else {
-        // The session is marked SUCCESS/completed but has no execution
-        // history, so it was never actually tallied: nothing to recount.
-        // Such a session is also inert for a *first* tally, since
-        // process_board_impl only enqueues sessions still IN_PROGRESS with
-        // is_execution_completed = false. Logged at WARN so the mismatch
-        // stays visible rather than being silently skipped.
+    .with_context(|| "error starting automatic tally session recount")?;
+    if !recount_started {
         event!(
-            Level::WARN,
-            "Tally session {} is marked completed but has no execution history \
-             (never actually tallied); skipping automatic recount",
+            Level::INFO,
+            "Tally session {} is no longer eligible or has no execution history; \
+             skipping automatic recount",
             tally_session_id,
         );
         return Ok(false);
-    };
+    }
 
     hasura_transaction
         .commit()
@@ -686,27 +678,21 @@ async fn enqueue_automatic_recount_tally_session(
         ))
         .await;
 
-    if let Err(err) = task {
-        reset_tally_session_status_after_failed_recount_task(
-            tenant_id,
+    match task {
+        Ok(_) => event!(
+            Level::INFO,
+            "Sent automatic recount tally task for election_event_id={}, tally_session_id={}",
             election_event_id,
-            &tally_session_id,
-            &last_execution,
-            original_status,
-            &format!("{err:?}"),
-        )
-        .await?;
-        return Err(anyhow::anyhow!(
-            "Failed to send automatic recount task: {err:?}"
-        ));
+            tally_session_id,
+        ),
+        Err(err) => event!(
+            Level::ERROR,
+            "Automatic recount request is durable but its immediate task nudge failed for \
+             election_event_id={}, tally_session_id={}; process_board will retry: {err:?}",
+            election_event_id,
+            tally_session_id,
+        ),
     }
-
-    event!(
-        Level::INFO,
-        "Sent automatic recount tally task for election_event_id={}, tally_session_id={}",
-        election_event_id,
-        tally_session_id,
-    );
 
     Ok(true)
 }

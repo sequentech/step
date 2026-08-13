@@ -324,28 +324,26 @@ pub async fn recount_tally_session(
     }
 
     let election_ids = tally_session.election_ids.clone().unwrap_or_default();
-    let Some((last_execution, original_status)) =
-        tally_ceremony::begin_tally_session_recount(
-            &hasura_transaction,
-            &tenant_id,
-            &input.election_event_id,
-            &input.tally_session_id,
-            &election_ids,
+    let recount_started = tally_ceremony::begin_tally_session_recount(
+        &hasura_transaction,
+        &tenant_id,
+        &input.election_event_id,
+        &input.tally_session_id,
+        &election_ids,
+    )
+    .await
+    .map_err(|err| {
+        (
+            Status::InternalServerError,
+            format!("Error starting tally session recount: {err:?}"),
         )
-        .await
-        .map_err(|err| {
-            (
-                Status::InternalServerError,
-                format!("Error starting tally session recount: {err:?}"),
-            )
-        })?
-    else {
+    })?;
+    if !recount_started {
         return Err((
             Status::Conflict,
-            "This tally session has never completed an execution, so there is nothing to recount"
-                .to_string(),
+            "Only a completed tally session with execution history can be recounted".to_string(),
         ));
-    };
+    }
 
     hasura_transaction.commit().await.map_err(|err| {
         (Status::InternalServerError, format!("Commit failed: {err}"))
@@ -363,37 +361,21 @@ pub async fn recount_tally_session(
         ))
         .await;
 
-    if let Err(err) = task {
-        tally_ceremony::reset_tally_session_status_after_failed_recount_task(
-            &tenant_id,
-            &input.election_event_id,
-            &input.tally_session_id,
-            &last_execution,
-            original_status,
-            &format!("{err:?}"),
-        )
-        .await
-        .map_err(|reset_err| {
-            (
-                Status::InternalServerError,
-                format!(
-                    "Failed to send recount task ({err:?}) and failed to reset tally session: {reset_err:?}"
-                ),
-            )
-        })?;
-
-        return Err((
-            Status::InternalServerError,
-            format!("Failed to send recount task: {err:?}"),
-        ));
+    match task {
+        Ok(_) => event!(
+            Level::INFO,
+            "Sent recount tally task for election_event_id={}, tally_session_id={}",
+            input.election_event_id,
+            input.tally_session_id,
+        ),
+        Err(err) => event!(
+            Level::ERROR,
+            "Recount request is durable but its immediate task nudge failed for \
+             election_event_id={}, tally_session_id={}; process_board will retry: {err:?}",
+            input.election_event_id,
+            input.tally_session_id,
+        ),
     }
-
-    event!(
-        Level::INFO,
-        "Sent recount tally task for election_event_id={}, tally_session_id={}",
-        input.election_event_id,
-        input.tally_session_id,
-    );
 
     Ok(Json(CreateTallyCeremonyOutput {
         tally_session_id: input.tally_session_id,

@@ -75,7 +75,7 @@ pub async fn insert_tally_session_execution(
             r#"
                 INSERT INTO
                     sequent_backend.tally_session_execution
-                (tenant_id, election_event_id, current_message_id, tally_session_id, status, results_event_id, session_ids, documents, run_reason)
+                (tenant_id, election_event_id, current_message_id, tally_session_id, status, results_event_id, session_ids, documents, run_reason, created_at)
                 VALUES(
                     $1,
                     $2,
@@ -85,7 +85,11 @@ pub async fn insert_tally_session_execution(
                     $6,
                     $7,
                     $8,
-                    $9
+                    $9,
+                    -- `now()` is the transaction start time. Runtime readers
+                    -- order these rows by `created_at`, so record the actual
+                    -- insertion time after any state lock wait instead.
+                    clock_timestamp()
                 )
                 RETURNING
                     *;

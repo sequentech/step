@@ -43,7 +43,9 @@ use crate::services::tasks_semaphore::acquire_semaphore;
 use chrono::Duration;
 
 use crate::postgres::results_event::{get_results_event_by_id, update_results_event_documents};
-use crate::postgres::tally_session::set_post_tally_task_completed;
+use crate::postgres::tally_session::{
+    lock_tally_session_for_update, set_post_tally_task_completed,
+};
 use crate::services::documents::get_document_as_temp_file;
 use tokio::time::Duration as ChronoDuration;
 
@@ -174,6 +176,7 @@ pub async fn post_tally_task_impl(
     )
     .await?
     .ok_or(anyhow!("Could not find last tally session execution."))?;
+    let starting_execution_id = tally_session_execution.id.clone();
 
     let sqlite_file: NamedTempFile = download_sqlite_database(
         &tenant_id,
@@ -364,6 +367,41 @@ pub async fn post_tally_task_impl(
             .status
             .ok_or(anyhow!("No documents in tally session execution"))?,
     )?;
+
+    // Recount creation takes the same row lock before appending its marker.
+    // Re-read the head only after acquiring it: if this long-running task
+    // started from an execution that is no longer current, committing its
+    // NORMAL row would consume or hide the newer RECOUNT request.
+    lock_tally_session_for_update(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session_id,
+    )
+    .await?;
+    let latest_execution = get_last_tally_session_execution(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session_id,
+    )
+    .await?
+    .ok_or(anyhow!("Could not find last tally session execution."))?;
+
+    if latest_execution.id != starting_execution_id
+        || latest_execution.run_reason() == TallyRunReason::RECOUNT
+    {
+        info!(
+            "Skipping stale post-tally finalization for event {} and session {}: \
+             execution head changed from {} to {}",
+            election_event_id, tally_session_id, starting_execution_id, latest_execution.id,
+        );
+        hasura_transaction
+            .rollback()
+            .await
+            .with_context(|| "error rolling back stale post-tally transaction")?;
+        return Ok(());
+    }
 
     // Add a new tally session execution
     insert_tally_session_execution(
