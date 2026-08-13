@@ -27,6 +27,8 @@ pub enum Permissions {
     KEYCLOAK_REALM_ATTRIBUTES_READ,
     #[strum(serialize = "keycloak-realm-attributes-write")]
     KEYCLOAK_REALM_ATTRIBUTES_WRITE,
+    #[strum(serialize = "keycloak-user-attributes-read")]
+    KEYCLOAK_USER_ATTRIBUTES_READ,
     #[strum(serialize = "election-event-delete")]
     ELECTION_EVENT_DELETE,
     #[strum(serialize = "election-event-archive")]
@@ -416,4 +418,6 @@ pub enum Permissions {
 pub enum VoterPermissions {
     #[strum(serialize = "user")]
     CAST_VOTE,
+    #[strum(serialize = "ack-support-materials")]
+    ACK_SUPPORT_MATERIALS,
 }
