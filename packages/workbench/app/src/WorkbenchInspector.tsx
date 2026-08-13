@@ -229,9 +229,8 @@ function SnapshotsSection(): JSX.Element {
             {/* The working copy is intentionally *not* a node in the
                 forest — per the locked design, the auto-resume slot
                 stays out of the provenance tree. The working-copy
-                overview lives at /wb (the index route) and is reached
-                via the top-nav "Inspector" link. Task 6 will add the
-                `Save current state as checkpoint…` button here. */}
+                overview lives at /wb (the index route), where its
+                pinned row carries the Save… action. */}
             <ul style={listStyle}>
                 {roots.map((n) => (
                     <ProvenanceTreeNode
@@ -1047,14 +1046,12 @@ export function SnapshotOverviewPage(): JSX.Element {
                                 Paste a full <code>PersistedSnapshot</code>{" "}
                                 (same shape as the <em>Bundled JSON</em>{" "}
                                 block on any snapshot detail page). It
-                                is loaded straight into the working
-                                copy as a root — the working copy's{" "}
-                                <code>parentId</code> is set to{" "}
-                                <code>null</code> regardless of what the
-                                source JSON says, so the imported state
-                                has no provenance. To keep it around,
-                                click <em>Save…</em> on the
-                                working-copy row after importing.
+                                is first saved as a timestamped
+                                checkpoint, then loaded into the
+                                working copy with that checkpoint as
+                                its provenance parent — so the import
+                                survives a reset and appears in the
+                                snapshot tree.
                             </p>
                         )}
                         {importMode === "ballotStyle" && (
