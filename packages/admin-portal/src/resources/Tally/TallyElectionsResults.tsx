@@ -4,6 +4,7 @@
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useGetMany, useGetList} from "react-admin"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {getDefaultElectionLang} from "@/hooks/useDefaultElectionLang"
 import Chart, {Props} from "react-apexcharts"
 import CardChart from "@/components/dashboard/charts/Charts"
 import {Box} from "@mui/material"
@@ -43,7 +44,8 @@ type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
 interface GeneralInformationChartsProps {
     results: Sequent_Backend_Election_Extended[]
     selectedElectionId?: string
-    aliasRenderer: (item: any) => string
+    aliasRenderer: (item: any, defaultLang?: string) => string
+    defaultLangByElectionId: Map<string, string | undefined>
 }
 
 export const LoadingResults: React.FC = () => {
@@ -67,6 +69,7 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
     results,
     selectedElectionId,
     aliasRenderer,
+    defaultLangByElectionId,
 }) => {
     const {t} = useTranslation()
 
@@ -89,7 +92,7 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
     }
 
     const result = selectedResult
-    const election_name = aliasRenderer(result.presentation)
+    const election_name = aliasRenderer(result.presentation, defaultLangByElectionId.get(result.id))
     const eligibleCensus = result.elegible_census as number
     const totalVoters = result.total_voters as number
     const nonVoters = Math.max(eligibleCensus - totalVoters, 0)
@@ -193,6 +196,17 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
         )
     }, [tallyData?.sequent_backend_results_event, resultsEventId])
 
+    const defaultLangByElectionId = useMemo(() => {
+        const map = new Map<string, string | undefined>()
+        elections?.forEach((election) => {
+            map.set(
+                election.id,
+                getDefaultElectionLang(tallyData, election.id, election.election_event_id)
+            )
+        })
+        return map
+    }, [elections, tallyData?.sequent_backend_election, tallyData?.sequent_backend_election_event])
+
     const safeParseJson = (value: unknown) => {
         if (typeof value !== "string") {
             return value
@@ -265,7 +279,9 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                 flex: 1,
                 editable: false,
                 valueGetter(value, row) {
-                    return value ? value : aliasRenderer(row.presentation)
+                    return value
+                        ? value
+                        : aliasRenderer(row.presentation, defaultLangByElectionId.get(row.id))
                 },
             },
             {
@@ -303,7 +319,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                     isNumber(props["value"]) ? formatPercentOne(props["value"]) : "-",
             },
         ],
-        [aliasRenderer, i18n.language, showTotalInvalidVotesColumn, t]
+        [aliasRenderer, defaultLangByElectionId, i18n.language, showTotalInvalidVotesColumn, t]
     )
 
     return (
@@ -326,6 +342,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                             results={resultsData}
                             selectedElectionId={selectedElectionId || undefined}
                             aliasRenderer={aliasRenderer}
+                            defaultLangByElectionId={defaultLangByElectionId}
                         />
                     </Box>
                     <Box
