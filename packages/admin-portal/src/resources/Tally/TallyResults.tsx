@@ -135,6 +135,15 @@ const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResults
             [aliasRenderer, defaultLangByElectionId]
         )
 
+        const getContestAlias = useCallback(
+            (contest: unknown, electionId?: string | null) =>
+                aliasRenderer(
+                    contest,
+                    electionId ? defaultLangByElectionId.get(electionId) : undefined
+                ),
+            [aliasRenderer, defaultLangByElectionId]
+        )
+
         const electionOptions = useMemo<ElectionOption[]>(
             () =>
                 elections.map((election) => ({
@@ -169,11 +178,11 @@ const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResults
 
                 return contests.map((contest) => ({
                     id: contest.id,
-                    label: aliasRenderer(contest),
+                    label: getContestAlias(contest, selection.election?.id),
                     data: contest,
                 }))
             },
-            [aliasRenderer, contestsByElectionId, i18n.language]
+            [getContestAlias, contestsByElectionId, i18n.language]
         )
 
         const getAreaOptions = useCallback(
@@ -271,13 +280,13 @@ const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResults
                     ? {
                           documents,
                           name: selection.contest?.data
-                              ? aliasRenderer(selection.contest.data)
+                              ? getContestAlias(selection.contest.data, selection.electionId)
                               : "contest",
                           class_type: "contest",
                       }
                     : null
             },
-            [aliasRenderer, resultsEventId, tallyData?.sequent_backend_results_contest]
+            [getContestAlias, resultsEventId, tallyData?.sequent_backend_results_contest]
         )
 
         const getAreaDocuments = useCallback(
@@ -300,13 +309,13 @@ const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResults
                     ? {
                           documents,
                           name: selection.contest?.data
-                              ? aliasRenderer(selection.contest.data)
+                              ? getContestAlias(selection.contest.data, selection.electionId)
                               : "contest",
                           class_type: "contest-area",
                       }
                     : null
             },
-            [aliasRenderer, resultsEventId, tallyData?.sequent_backend_results_area_contest]
+            [getContestAlias, resultsEventId, tallyData?.sequent_backend_results_area_contest]
         )
 
         const renderElectionActions = useCallback(
@@ -360,14 +369,14 @@ const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResults
                         electionEventId={selection.election.data.election_event_id}
                         itemName={
                             selection.contest?.data
-                                ? aliasRenderer(selection.contest.data)
+                                ? getContestAlias(selection.contest.data, selection.electionId)
                                 : "contest"
                         }
                         tallySessionId={tally.id}
                     />
                 )
             },
-            [aliasRenderer, canExportCeremony, getContestDocuments, tally?.id]
+            [getContestAlias, canExportCeremony, getContestDocuments, tally?.id]
         )
 
         const renderAreaActions = useCallback(
@@ -388,14 +397,14 @@ const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResults
                         electionEventId={selection.election.data.election_event_id}
                         itemName={
                             selection.contest?.data
-                                ? aliasRenderer(selection.contest.data)
+                                ? getContestAlias(selection.contest.data, selection.electionId)
                                 : "contest"
                         }
                         tallySessionId={tally.id}
                     />
                 )
             },
-            [aliasRenderer, canExportCeremony, getAreaDocuments, tally?.id]
+            [getContestAlias, canExportCeremony, getAreaDocuments, tally?.id]
         )
 
         const renderResult = useCallback(
