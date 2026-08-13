@@ -19812,6 +19812,8 @@ type tally_session_execution {
   ): jsonb
   last_updated_at: timestamptz
   results_event_id: uuid
+  """TallyRunReason: NORMAL | RECOUNT | TIE_BREAK_RERUN. NULL means NORMAL."""
+  run_reason: String
   session_ids: [Int!]
   status(
     """JSON select path"""
@@ -19875,6 +19877,7 @@ input tally_session_execution_bool_exp {
   labels: jsonb_comparison_exp
   last_updated_at: timestamptz_comparison_exp
   results_event_id: uuid_comparison_exp
+  run_reason: String_comparison_exp
   session_ids: Int_array_comparison_exp
   status: jsonb_comparison_exp
   tally_session_id: uuid_comparison_exp
@@ -19941,6 +19944,8 @@ input tally_session_execution_insert_input {
   labels: jsonb
   last_updated_at: timestamptz
   results_event_id: uuid
+  """TallyRunReason: NORMAL | RECOUNT | TIE_BREAK_RERUN. NULL means NORMAL."""
+  run_reason: String
   session_ids: [Int!]
   status: jsonb
   tally_session_id: uuid
@@ -19955,6 +19960,8 @@ type tally_session_execution_max_fields {
   id: uuid
   last_updated_at: timestamptz
   results_event_id: uuid
+  """TallyRunReason: NORMAL | RECOUNT | TIE_BREAK_RERUN. NULL means NORMAL."""
+  run_reason: String
   session_ids: [Int!]
   tally_session_id: uuid
   tenant_id: uuid
@@ -19968,6 +19975,8 @@ type tally_session_execution_min_fields {
   id: uuid
   last_updated_at: timestamptz
   results_event_id: uuid
+  """TallyRunReason: NORMAL | RECOUNT | TIE_BREAK_RERUN. NULL means NORMAL."""
+  run_reason: String
   session_ids: [Int!]
   tally_session_id: uuid
   tenant_id: uuid
@@ -20005,6 +20014,7 @@ input tally_session_execution_order_by {
   labels: order_by
   last_updated_at: order_by
   results_event_id: order_by
+  run_reason: order_by
   session_ids: order_by
   status: order_by
   tally_session_id: order_by
@@ -20051,6 +20061,8 @@ enum tally_session_execution_select_column {
   """column name"""
   results_event_id
   """column name"""
+  run_reason
+  """column name"""
   session_ids
   """column name"""
   status
@@ -20073,6 +20085,8 @@ input tally_session_execution_set_input {
   labels: jsonb
   last_updated_at: timestamptz
   results_event_id: uuid
+  """TallyRunReason: NORMAL | RECOUNT | TIE_BREAK_RERUN. NULL means NORMAL."""
+  run_reason: String
   session_ids: [Int!]
   status: jsonb
   tally_session_id: uuid
@@ -20115,6 +20129,8 @@ input tally_session_execution_stream_cursor_value_input {
   labels: jsonb
   last_updated_at: timestamptz
   results_event_id: uuid
+  """TallyRunReason: NORMAL | RECOUNT | TIE_BREAK_RERUN. NULL means NORMAL."""
+  run_reason: String
   session_ids: [Int!]
   status: jsonb
   tally_session_id: uuid
@@ -20148,6 +20164,8 @@ enum tally_session_execution_update_column {
   last_updated_at
   """column name"""
   results_event_id
+  """column name"""
+  run_reason
   """column name"""
   session_ids
   """column name"""
