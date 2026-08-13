@@ -85,8 +85,18 @@ export const RULE_SPECS = {
             if (c.state === "one_regular") await clickText(page, /^Yes$/)
             else if (c.state === "marker_only")
                 await clickExact(page, "Blank vote (explicit blank)")
+            else if (c.state === "regular_then_marker") {
+                // marker exclusivity: a regular FIRST, then the blank marker,
+                // which must CLEAR the regular (the mirror of invalid
+                // marker_plus, which does not clear — S5).
+                await clickText(page, /^Yes$/)
+                await clickExact(page, "Blank vote (explicit blank)")
+            }
         },
-        want: (c) => (c.state === "empty" ? 0 : 1),
+        // `regular_then_marker` wants the uncleared mixed state (2); observing
+        // only 1 (the marker) is the clearing, expected by `marker_cleared`.
+        want: (c) =>
+            c.state === "empty" ? 0 : c.state === "regular_then_marker" ? 2 : 1,
     },
     "undervote-rule": {
         contestFlag: "is_explicit_blank", // Referendum (Yes / No / blank marker)

@@ -405,7 +405,7 @@ all six are:
 | Gates | 2 (headless wasm) | blank, over-vote, under-vote, min-vote, duplicated-rank, preference-gaps, invalid rules done |
 | Filter | 3 (browser, booth) | **done for all seven rules** — `dom-validate.mjs` observes inline visibility at the review screen across every cell of the five plurality rules (explicit-blank-invalid fixture) and the two preferential rules (IRV fixture, ranked selection): **228/228** |
 | Input constraint | 3 (browser) — the `constraint` component of the effect triple | **done** — observed both **behaviourally** across every rule cell (the `reachable` column of `dom-validate.md`: the state forms or it does not) and **directly** for the over-vote `disable` policy (the `disable × over_max` cells read `no (disabled)`, from probing the (max+1)th control's `disabled` attribute) |
-| Marker exclusivity (prevention) | browser — *reachability*, not effects | first reachability recording exists (over-vote under DISABLE: the state does not form); all five S1/S2 violations (over-vote + four min-vote) are confirmed through the full booth→cast→decrypt→tally pipeline (`overvote-e2e-pipeline.mjs`, `minvote-e2e-pipeline.mjs`). Prevention is characterized by *attempting* to create each state through the UI and recording whether it forms. The mixed invalid-marker state (a regular + the null marker) is now recorded **reachable** — `invalid-latent-choices-e2e.mjs` forms it end-to-end and `dom-validate`'s invalid `marker_plus` cells confirm it. Open: the mirror check that the blank marker *clears* a co-selected regular, and the decline booth flow. |
+| Marker exclusivity (prevention) | browser — *reachability*, not effects | first reachability recording exists (over-vote under DISABLE: the state does not form); all five S1/S2 violations (over-vote + four min-vote) are confirmed through the full booth→cast→decrypt→tally pipeline (`overvote-e2e-pipeline.mjs`, `minvote-e2e-pipeline.mjs`). Prevention is characterized by *attempting* to create each state through the UI and recording whether it forms. Both marker directions are now recorded in `dom-validate`: the invalid marker does **not** clear (the `marker_plus` state forms — reachable `yes` — also confirmed end-to-end by `invalid-latent-choices-e2e.mjs`), and the blank marker **does** clear (the `regular_then_marker` state collapses to {marker only} — reachable `no (cleared)`). Open: the decline booth flow. |
 | Tally classifier | headless (velvet-wasm `tally_decoded_ballots`) | **done**: per-cell `tally` column in all seven rule tables, plus the standalone 32-cell six-class decision table (`classifier-table.md`, 32/32 matching the documented precedence) |
 
 Two consequences worth stating plainly. First, a per-rule recording like
@@ -433,8 +433,9 @@ enumerations.
 
 Still open: the **decline-to-vote booth flow** — the classifier's decline
 cells are recorded headlessly (`classifier-table`), but no booth-side runner
-drives a declined ballot. The blank-vs-invalid marker exclusivity asymmetry
-is now half-characterized: the invalid marker's non-clearing is confirmed in
-the browser (`invalid-latent-choices-e2e.mjs` and `dom-validate`'s invalid
-`marker_plus` cells both form {regular + null marker}); the remaining piece
-is the mirror check that the blank marker *clears* a co-selected regular.
+drives a declined ballot. (The blank-vs-invalid marker exclusivity asymmetry
+is now fully observed: the invalid marker does *not* clear — `dom-validate`'s
+invalid `marker_plus` cell forms {regular + null marker}, confirmed
+end-to-end by `invalid-latent-choices-e2e.mjs` — and the blank marker *does*
+— `dom-validate`'s blank `regular_then_marker` cell collapses to {marker
+only}, `no (cleared)`.)

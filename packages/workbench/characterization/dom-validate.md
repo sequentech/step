@@ -14,9 +14,10 @@ the partial's (*errors*, *alerts*, *hard/soft gate*, *tally*); the complete
 view ADDS the two browser-only surfaces the partial cannot show —
 *inline (review)* (inline visibility at the decisive review screen, where
 the untouched-clear does not apply) and *reachable* (the input constraint;
-`no` = the state cannot be formed, `no (disabled)` = that is also confirmed
-directly by the (max+1)th control carrying the `disabled` attribute in the
-DOM) — plus the observation-derived **⚠**
+`no` = the state cannot be formed; `no (disabled)` = also confirmed by the
+(max+1)th control carrying `disabled` in the DOM; `no (cleared)` = a marker
+cleared a co-selected candidate, collapsing the state) — plus the
+observation-derived **⚠**
 (discarded ∧ reachable ∧ no signal on any surface). The single
 *matches spec?* column subsumes the partial's `pred?` and extends it to the
 browser surfaces (including the observed dialog vs the gates): ✗ = spec and
@@ -125,7 +126,7 @@ its meaning is noted under each rule heading below.
 
 ## blank
 
-*config* = `blank_vote_policy` × `invalid_vote_policy`. The `explicit_invalid` state is headless-only — this contest has no invalid marker to set the flag through the booth — so it lives in the partial table, not here.
+*config* = `blank_vote_policy` × `invalid_vote_policy`. The `explicit_invalid` state is headless-only — this contest has no invalid marker to set the flag through the booth — so it lives in the partial table, not here. The `regular_then_marker` row is a browser-only marker-exclusivity check: a regular then the blank marker collapses to {marker only} (`no (cleared)`) — the mirror of the invalid `marker_plus` cell, which does not clear.
 
 | config | state | errors | alerts | inline (review) | hard gate | soft gate | reachable | tally | matches spec? |
 |---|---|---|---|---|---|---|---|---|---|
@@ -177,6 +178,7 @@ its meaning is noted under each rule heading below.
 | not-allowed × not-allowed | empty | blankVote | — | (blocked) | **block** | dialog | yes | ImplicitInvalid | ✓ |
 | not-allowed × not-allowed | marker_only | — | — | — | — | — | yes | ExplicitBlank | ✓ |
 | not-allowed × not-allowed | one_regular | — | — | — | — | — | yes | Valid | ✓ |
+| allowed × allowed | regular_then_marker | — | — | — | — | — | **no** (cleared) | ExplicitBlank | ✓ |
 
 ## undervote
 
