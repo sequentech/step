@@ -4,7 +4,7 @@
 
 import React, {Suspense, useContext, useEffect, useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
-import {useRecordContext, useSidebarState, RecordContextProvider} from "react-admin"
+import {useRecordContext, useSidebarState, Identifier, RecordContextProvider} from "react-admin"
 import {v4 as uuidv4} from "uuid"
 
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -22,6 +22,9 @@ import {EElectionEventLockedDown, i18n, translateFromPresentation} from "@sequen
 import {EditElectionEventApprovals} from "../ElectionEvent/EditElectionEventApprovals"
 import {Tabs} from "@/components/Tabs"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {TallySheetWizard, WizardSteps} from "../TallySheet/TallySheetWizard"
+import {Sequent_Backend_Contest} from "../../gql/graphql"
+import {ListTallySheet} from "../TallySheet/ListTallySheet"
 
 // ---------------------------------------------------------------------
 // Stable Tab Components
@@ -74,11 +77,70 @@ const ApprovalsTab: React.FC = () => {
     )
 }
 
+const TallySheetsTab: React.FC = () => {
+    const [action, setAction] = useState<number>(WizardSteps.List)
+    const [refresh, setRefresh] = useState<string | null>(null)
+    const [tallySheetId, setTallySheetId] = useState<Identifier | undefined>()
+    const electionRecord = useRecordContext<Sequent_Backend_Election>()
+
+    const handleAction = (action: number, id?: Identifier) => {
+        setAction(action)
+        setRefresh(new Date().getTime().toString())
+        if (id) {
+            setTallySheetId(id)
+        }
+    }
+
+    if (!electionRecord) {
+        return null
+    }
+
+    return (
+        <Suspense fallback={<div>Loading Tally Sheets...</div>}>
+            <ElectionHeader title="tallysheet.title" subtitle="tallysheet.subtitle" />
+            {action === WizardSteps.List ? (
+                <ListTallySheet
+                    election={electionRecord}
+                    doAction={handleAction}
+                    reload={refresh}
+                />
+            ) : action === WizardSteps.Start ? (
+                <TallySheetWizard
+                    election={electionRecord}
+                    action={action}
+                    doAction={handleAction}
+                />
+            ) : action === WizardSteps.Edit ? (
+                <TallySheetWizard
+                    tallySheetId={tallySheetId}
+                    election={electionRecord}
+                    action={action}
+                    doAction={handleAction}
+                />
+            ) : action === WizardSteps.Confirm ? (
+                <TallySheetWizard
+                    tallySheetId={tallySheetId}
+                    election={electionRecord}
+                    action={action}
+                    doAction={handleAction}
+                />
+            ) : action === WizardSteps.View ? (
+                <TallySheetWizard
+                    tallySheetId={tallySheetId}
+                    election={electionRecord}
+                    action={action}
+                    doAction={handleAction}
+                />
+            ) : null}
+        </Suspense>
+    )
+}
+
 // ---------------------------------------------------------------------
 // Main Component
 // ---------------------------------------------------------------------
 export const ElectionTabs: React.FC = () => {
-    const record = useRecordContext<Sequent_Backend_Election>()
+    const electionRecord = useRecordContext<Sequent_Backend_Election>()
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
     const usersPermissionLabels = authContext.permissionLabels
@@ -87,7 +149,7 @@ export const ElectionTabs: React.FC = () => {
     const aliasRenderer = useAliasRenderer()
 
     const isElectionEventLocked =
-        record?.presentation?.locked_down === EElectionEventLockedDown.LOCKED_DOWN
+        electionRecord?.presentation?.locked_down === EElectionEventLockedDown.LOCKED_DOWN
 
     // Permission checks
     const showDashboard = authContext.isAuthorized(
@@ -118,18 +180,24 @@ export const ElectionTabs: React.FC = () => {
         !isElectionEventLocked &&
         authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_APPROVALS_TAB)
 
+    const showTallySheets = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.TALLY_SHEET_VIEW
+    )
+
     // Permission label check
     useEffect(() => {
         if (
             usersPermissionLabels &&
-            record?.permission_label &&
-            !usersPermissionLabels.includes(record.permission_label)
+            electionRecord?.permission_label &&
+            !usersPermissionLabels.includes(electionRecord.permission_label)
         ) {
             setHasPermissionToViewElection(false)
         } else {
             setHasPermissionToViewElection(true)
         }
-    }, [usersPermissionLabels, record?.permission_label])
+    }, [electionRecord, usersPermissionLabels])
 
     // Build tabs with stable references
     const tabs = useMemo(() => {
@@ -177,10 +245,25 @@ export const ElectionTabs: React.FC = () => {
             })
         }
 
-        return result
-    }, [showDashboard, showData, showVoters, showPublish, showApprovalsExecution, t])
+        if (showTallySheets) {
+            result.push({
+                label: t("electionScreen.tabs.tallySheets"),
+                component: TallySheetsTab,
+            })
+        }
 
-    if (!record || !hasPermissionToViewElection) {
+        return result
+    }, [
+        showDashboard,
+        showData,
+        showVoters,
+        showPublish,
+        showApprovalsExecution,
+        showTallySheets,
+        t,
+    ])
+
+    if (!electionRecord || !hasPermissionToViewElection) {
         return (
             <ResourceListStyles.EmptyBox>
                 <Typography variant="h4" paragraph>
@@ -199,11 +282,11 @@ export const ElectionTabs: React.FC = () => {
             className="election-box"
         >
             <ElectionHeader
-                title={aliasRenderer(record)}
+                title={aliasRenderer(electionRecord)}
                 subtitle="electionScreen.common.subtitle"
             />
             <Box sx={{bgcolor: "background.paper"}}>
-                <RecordContextProvider value={record}>
+                <RecordContextProvider value={electionRecord}>
                     <Tabs elements={tabs} />
                 </RecordContextProvider>
             </Box>

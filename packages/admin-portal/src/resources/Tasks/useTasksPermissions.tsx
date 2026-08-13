@@ -15,6 +15,9 @@ export function useTasksPermissions() {
      * Permissions
      */
     const canReadTasks = authContext.isAuthorized(true, tenantId, IPermissions.TASKS_READ)
+    const canReadDocumentPassword =
+        authContext.isAuthorized(true, tenantId, IPermissions.DOCUMENT_PASSWORD_READ) &&
+        authContext.isAuthorized(true, tenantId, IPermissions.DOCUMENT_DOWNLOAD)
     const canExportTasks = authContext.isAuthorized(true, tenantId, IPermissions.TASKS_EXPORT)
 
     const showTasksColumns = authContext.isAuthorized(true, tenantId, IPermissions.EE_TASKS_COLUMNS)
@@ -30,6 +33,7 @@ export function useTasksPermissions() {
 
     return {
         canReadTasks,
+        canReadDocumentPassword,
         canExportTasks,
         showTasksColumns,
         showTasksFilters,

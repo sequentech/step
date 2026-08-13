@@ -58,6 +58,14 @@ const basqueTranslation: TranslationType = {
         },
         startScreen: {
             startButton: "Hasi Bozketa",
+            declineToVoteButton: "Bozkatzeari uko egin",
+            declineToVoteDialog: {
+                title: "Berretsi bozkatzeari uko egitea",
+                content:
+                    "Ziur zaude bozkatzeari uko egin nahi diozula?<br />Zuzenean berrikuspen pantailara joango zara, eta zure parte-hartze egoera <b>Bozkatzeari uko egina</b> bezala gordeko da.",
+                continue: "Bozkatzeari uko egin",
+                cancel: "Utzi",
+            },
             instructionsTitle: "Jarraibideak",
             instructionsDescription: "Mesedez, jarraitu urrats hauek zure bozketa emateko:",
             step1Title: "1. Hautatu zure aukerak",
@@ -95,7 +103,7 @@ const basqueTranslation: TranslationType = {
             auditBallotHelpDialog: {
                 title: "Bozketa auditatu nahi duzu?",
                 content:
-                    "<p>Kontuan izan zure bozketa auditatzeak baliogabetu egingo duela, bozketa prozesua berriz hasi beharko duzularik. Auditoria prozesuak zure bozketa zuzen kodetu dela egiaztatzeko aukera ematen dizu, baina urrats tekniko aurreratuak dakartza. Zure trebetasun teknikoetan konfiantza baduzu soilik jarraitzea gomendatzen dugu. Zure bozketa eman besterik ez baduzu nahi, sakatu <u>Ezeztatu</u> bozketa berrikuspena pantailara itzultzeko.</b></p>",
+                    "<p>Kontuan izan zure bozketa auditatzeak baliogabetu egingo duela, bozketa prozesua berriz hasi beharko duzularik. Auditoria prozesuak zure bozketa zuzen kodetu dela egiaztatzeko aukera ematen dizu, baina urrats tekniko aurreratuak dakartza. Zure trebetasun teknikoetan konfiantza baduzu soilik jarraitzea gomendatzen dugu. Zure bozketa eman besterik ez baduzu nahi, sakatu <u>Ezeztatu</u> bozketa berrikuspena pantailara itzultzeko.</p>",
                 ok: "Bai, nire bozketa BAZTERTU nahi dut auditatzeko",
                 cancel: "Ezeztatu",
             },
@@ -195,6 +203,7 @@ const basqueTranslation: TranslationType = {
                 INTERNAL_ERROR:
                     "Barne-errore bat gertatu da botoa ematean. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin.",
             },
+            declineToVote: "Bozkatzeari uko egin",
         },
         confirmationScreen: {
             title: "Zure botoa eman da",
@@ -278,6 +287,7 @@ const basqueTranslation: TranslationType = {
                 ok: "Ados",
             },
             noResults: "Ez dago bozketarik oraingoz.",
+            resultsButton: "Ikusi emaitzak",
             demoDialog: {
                 title: "Demo bozketa kabina",
                 content:
@@ -327,10 +337,12 @@ const basqueTranslation: TranslationType = {
             title: "Lokalizatu zure Bozketa",
             titleResult: "Zure Bozketa Bilaketak Emaitza",
             description: "Egiaztatu zure Bozketa zuzen bidali dela",
-            locate: "Lokalizatu zure Bozketa",
-            locateAgain: "Lokalizatu beste Bozketa bat",
-            found: "Zure bozketa IDa {{ballotId}} lokalizatu da",
-            notFound: "Zure bozketa IDa {{ballotId}} ez da lokalizatu",
+            locate: "Bilatu zure Bozketa",
+            locateAgain: "Bilatu beste Bozketa bat",
+            found: "Zure bozketa IDa {{ballotId}} aurkitu da",
+            notFound: "Zure bozketa IDa {{ballotId}} ez da aurkitu",
+            ambiguous:
+                "Zure boto bat baino gehiago dator bat {{ballotId}} identifikatzailearekin. Erabili boto-identifikatzaile osoa.",
             contentDesc: "Hau da zure Bozketa edukia: ",
             wrongFormatBallotId: "Bozketa IDaren formatu okerra",
             ballotIdNotFoundAtFilter: "Zure bozketa IDa ez da {{ballotId}} bozketa zerrendan",

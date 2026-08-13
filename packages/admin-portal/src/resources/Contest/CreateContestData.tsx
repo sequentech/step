@@ -5,6 +5,7 @@
 import React from "react"
 import {CreateBase} from "react-admin"
 import {ContestDataForm} from "./EditContestDataForm"
+import {serializeIvrEntityAnnotations} from "@/utils/ivr"
 
 export const CreateContestData: React.FC = () => {
     const transform = (data: any) => {
@@ -25,6 +26,7 @@ export const CreateContestData: React.FC = () => {
         // i18n
         // is alll object, no change needed
         delete data.enabled_languages
+        data.annotations = serializeIvrEntityAnnotations(data.annotations)
 
         return {
             ...data,

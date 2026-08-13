@@ -12,7 +12,10 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 cp .devcontainer/.env.development .devcontainer/.env
 # Load .devcontainer/.env environment variables
 source .devcontainer/.env
-# Set LOCAL_WORKSPACE_FOLDER environment variable if not already set
-[ ! -z "${localWorkspaceFolder}" ] || printf "\nLOCAL_WORKSPACE_FOLDER=${SCRIPT_DIR}/..\n" >> .devcontainer/.env
+# Record the host workspace path for Docker bind mounts. The Dev Containers CLI
+# provides localWorkspaceFolder; direct invocations fall back to the repository
+# root derived from this script's location.
+workspace_folder="${LOCAL_WORKSPACE_FOLDER:-${localWorkspaceFolder:-$(cd "${SCRIPT_DIR}/../.." && pwd)}}"
+printf "\nLOCAL_WORKSPACE_FOLDER=%s\n" "$workspace_folder" >> .devcontainer/.env
 
 echo "$(pwd)/.devcontainer/.env file initialized successfully"

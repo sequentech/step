@@ -2,6 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+/** Sentinel value for a cleared/unset Keycloak user attribute — mirrors the
+ * backend's `sequent_core::types::keycloak::ATTR_RESET_VALUE`. */
+export const ATTR_RESET_VALUE = "NONE"
+
 export enum IPermissions {
     ADMIN_USER = "admin-user",
     TENANT_CREATE = "tenant-create",
@@ -10,6 +14,8 @@ export enum IPermissions {
     ELECTION_EVENT_CREATE = "election-event-create",
     ELECTION_EVENT_READ = "election-event-read",
     ELECTION_EVENT_WRITE = "election-event-write",
+    KEYCLOAK_REALM_ATTRIBUTES_READ = "keycloak-realm-attributes-read",
+    KEYCLOAK_REALM_ATTRIBUTES_WRITE = "keycloak-realm-attributes-write",
     ELECTION_EVENT_DELETE = "election-event-delete",
     ELECTION_EVENT_ARCHIVE = "election-event-archive",
     VOTER_CREATE = "voter-create",
@@ -48,16 +54,22 @@ export enum IPermissions {
     TALLY_WRITE = "tally-write",
     TALLY_SHEET_VIEW = "tally-sheet-view",
     TALLY_SHEET_CREATE = "tally-sheet-create",
-    TALLY_SHEET_PUBLISH = "tally-sheet-publish",
-    TALLY_SHEET_DELETE = "tally-sheet-delete",
+    TALLY_SHEET_REVIEW = "tally-sheet-review",
+    TALLY_SHEET_IMPORT_VIEW = "tally-sheet-import-view",
+    TALLY_SHEET_IMPORT_CREATE = "tally-sheet-import-create",
+    TALLY_SHEET_IMPORT_REVIEW = "tally-sheet-import-review",
+    TALLY_RECOUNT_EXECUTE = "tally-recount-execute",
     TALLY_RESULTS_READ = "tally-results-read",
     PUBLISH_READ = "publish-read",
     PUBLISH_WRITE = "publish-write",
+    PUBLISH_RESULTS_READ = "publish-results-read",
+    PUBLISH_RESULTS_WRITE = "publish-results-write",
     LOGS_READ = "logs-read",
     KEYS_READ = "keys-read",
     TASKS_READ = "tasks-read",
     DOCUMENT_UPLOAD = "document-upload",
     DOCUMENT_DOWNLOAD = "document-download",
+    DOCUMENT_PASSWORD_READ = "document-password-read",
     ADMIN_CEREMONY = "admin-ceremony",
     ADMIN_DASHBOARD_VIEW = "admin-dashboard-view",
     CAST_VOTE_READ = "cast-vote-read",
@@ -99,6 +111,7 @@ export enum IPermissions {
     ELECTION_EVENT_SCHEDULED_TAB = "election-event-scheduled-tab",
     ELECTION_EVENT_REPORTS_TAB = "election-event-reports-tab",
     ELECTION_EVENT_APPROVALS_TAB = "election-event-approvals-tab",
+    ELECTION_EVENT_IVR_TAB = "election-event-ivr-tab",
     ELECTION_EVENT_CAS_TAB = "election-event-cas-tab",
     CA_READ = "ca-read",
     CA_WRITE = "ca-write",
@@ -141,6 +154,7 @@ export enum IPermissions {
     VOTER_DELETE = "voter-delete",
     VOTER_MANUALLY_VERIFY = "voter-manually-verify",
     VOTER_CHANGE_PASSWORD = "voter-change-password",
+    VOTER_INFORMATION_LETTER = "voter-information-letter",
     EE_LOCALIZATION_SELECTOR = "election-event-localization-selector",
     LOCALIZATION_CREATE = "localization-create",
     LOCALIZATION_READ = "localization-read",
@@ -200,4 +214,9 @@ export enum IPermissions {
     PREVIEW_READ = "preview-read",
     GENERATE_PREVIEW = "generate-preview",
     TALLY_RESOLUTION_SUBMIT = "tally-resolution-submit",
+    PHONE_BLACKLIST_READ = "phone-blacklist-read",
+    PHONE_BLACKLIST_CREATE = "phone-blacklist-create",
+    PHONE_BLACKLIST_DELETE = "phone-blacklist-delete",
+    PHONE_BLACKLIST_UPDATE = "phone-blacklist-update",
+    ELECTION_EVENT_VOTER_LIST_SYNC = "election-event-voter-list-reconciliation",
 }

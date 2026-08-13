@@ -23,8 +23,7 @@ import {EPublishType} from "../Publish/EPublishType"
 import {
     EElectionEventLockedDown,
     EVoterCertificatePolicy,
-    i18n,
-    translateFromPresentation,
+    IVotingChannelsConfig,
 } from "@sequentech/ui-core"
 import {Box, CircularProgress} from "@mui/material"
 import {Tabs} from "@/components/Tabs"
@@ -53,8 +52,16 @@ const EditElectionEventKeys = lazy(() =>
 const EditElectionEventCAs = lazy(() =>
     import("./EditElectionEventCAs").then((m) => ({default: m.EditElectionEventCAs}))
 )
+const EditElectionEventIvr = lazy(() =>
+    import("./EditElectionEventIvr").then((m) => ({default: m.EditElectionEventIvr}))
+)
 const EditElectionEventTally = lazy(() =>
     import("./EditElectionEventTally").then((m) => ({default: m.EditElectionEventTally}))
+)
+const TallySheetImports = lazy(() =>
+    import("../TallySheetImport/TallySheetImports").then((m) => ({
+        default: m.TallySheetImports,
+    }))
 )
 const Publish = lazy(() =>
     import("@/resources/Publish/Publish").then((m) => ({default: m.Publish}))
@@ -136,9 +143,27 @@ const CAsTab: React.FC = () => {
     )
 }
 
+const IvrTab: React.FC = () => {
+    const {t} = useTranslation()
+    return (
+        <Suspense fallback={<div>{t("common.label.loadingData")}</div>}>
+            <EditElectionEventIvr />
+        </Suspense>
+    )
+}
+
 const TallyTab: React.FC = () => (
     <Suspense fallback={<div>Loading Tally...</div>}>
         <EditElectionEventTally />
+    </Suspense>
+)
+
+const TallySheetImportsTab: React.FC<{
+    openImportId?: string | null
+    onOpenImportHandled?: () => void
+}> = ({openImportId, onOpenImportHandled}) => (
+    <Suspense fallback={<div>Loading Tally Sheet Imports...</div>}>
+        <TallySheetImports openImportId={openImportId} onOpenImportHandled={onOpenImportHandled} />
     </Suspense>
 )
 
@@ -209,6 +234,28 @@ export const ElectionEventTabs: React.FC = () => {
     const [showTaskList, setShowTaskList] = useState<string | undefined>()
     const [showPublishList, setShowPublishList] = useState<string | undefined>()
     const [showApprovalList, setShowApprovalList] = useState<string | undefined>()
+    const [pendingTallySheetImportId, setPendingTallySheetImportId] = useState<string | null>(
+        () => {
+            const baseUrl = new URL(window.location.href)
+            return baseUrl.searchParams.get("tallySheetImportId")
+        }
+    )
+    const [selectedTab, setSelectedTab] = useState(() => {
+        const baseUrl = new URL(window.location.href)
+        return Number.parseInt(baseUrl.searchParams.get("tabIndex") ?? "0")
+    })
+    const clearPendingTallySheetImportId = useCallback(() => {
+        setPendingTallySheetImportId(null)
+        const searchParams = new URLSearchParams(location.search)
+        if (searchParams.has("tallySheetImportId")) {
+            searchParams.delete("tallySheetImportId")
+            const search = searchParams.toString()
+            navigate(
+                {pathname: location.pathname, search: search ? `?${search}` : ""},
+                {replace: true}
+            )
+        }
+    }, [location.pathname, location.search, navigate])
 
     // Dashboard refresh logic// Dashboard refresh logic
     const [loadedChildren, setLoadedChildren] = useState(0)
@@ -268,6 +315,9 @@ export const ElectionEventTabs: React.FC = () => {
             IPermissions.TALLY_START,
         ]) &&
         authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_TALLY_TAB)
+    const showTallySheetImports =
+        !isElectionEventLocked &&
+        authContext.isAuthorized(true, authContext.tenantId, IPermissions.TALLY_SHEET_IMPORT_VIEW)
     const showPublish =
         !isElectionEventLocked &&
         authContext.isAuthorized(
@@ -305,12 +355,18 @@ export const ElectionEventTabs: React.FC = () => {
     const showCAs =
         authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_CAS_TAB) &&
         record?.presentation?.voter_certificate_policy === EVoterCertificatePolicy.ENABLED
+    const isTelephoneChannelEnabled =
+        (record?.voting_channels as IVotingChannelsConfig | undefined)?.telephone ?? false
+    const showIvr =
+        isTelephoneChannelEnabled &&
+        authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_IVR_TAB)
 
     // -----------------------------------------------------------------
     // Build tabs with 100% stable references
     // -----------------------------------------------------------------
     const tabs = useMemo(() => {
         const result: Array<{
+            id?: string
             label: string
             component: React.FC<any>
             props?: any
@@ -329,6 +385,11 @@ export const ElectionEventTabs: React.FC = () => {
         // Data
         if (showData) {
             result.push({label: t("electionEventScreen.tabs.data"), component: DataTab})
+        }
+
+        // IVR
+        if (showIvr) {
+            result.push({label: t("electionEventScreen.tabs.ivr"), component: IvrTab})
         }
 
         // Localization
@@ -367,9 +428,22 @@ export const ElectionEventTabs: React.FC = () => {
         // Tally
         if (showTally) {
             result.push({
+                id: "tally",
                 label: t("electionEventScreen.tabs.tally"),
                 component: TallyTab,
                 action: () => setTallyId(null),
+            })
+        }
+
+        if (showTallySheetImports) {
+            result.push({
+                id: "tally-sheet-imports",
+                label: t("electionEventScreen.tabs.tallySheetImports"),
+                component: TallySheetImportsTab,
+                props: {
+                    openImportId: pendingTallySheetImportId,
+                    onOpenImportHandled: clearPendingTallySheetImportId,
+                },
             })
         }
 
@@ -436,6 +510,7 @@ export const ElectionEventTabs: React.FC = () => {
         showAreas,
         showKeys,
         showTally,
+        showTallySheetImports,
         showPublish,
         showLogs,
         showTasksExecution,
@@ -443,6 +518,7 @@ export const ElectionEventTabs: React.FC = () => {
         showReports,
         showApprovalsExecution,
         showCAs,
+        showIvr,
         t,
         showKeysList,
         showPublishList,
@@ -451,7 +527,26 @@ export const ElectionEventTabs: React.FC = () => {
         refreshRef,
         handleChildMount,
         setTallyId,
+        pendingTallySheetImportId,
+        clearPendingTallySheetImportId,
     ])
+
+    const tallySheetImportsTabIndex = tabs.findIndex((tab) => tab.id === "tally-sheet-imports")
+
+    useEffect(() => {
+        const searchParams = new URLSearchParams(location.search)
+        const tabId = searchParams.get("tabId")
+        const importId = searchParams.get("tallySheetImportId")
+        if (tallySheetImportsTabIndex < 0) {
+            return
+        }
+        if (tabId === "tally-sheet-imports" || importId) {
+            setSelectedTab(tallySheetImportsTabIndex)
+        }
+        if (importId) {
+            setPendingTallySheetImportId(importId)
+        }
+    }, [location.search, tallySheetImportsTabIndex])
 
     if (!record) {
         return (
@@ -475,7 +570,11 @@ export const ElectionEventTabs: React.FC = () => {
             />
             <Box sx={{bgcolor: "background.paper"}}>
                 <RecordContextProvider value={record}>
-                    <Tabs elements={tabs} />
+                    <Tabs
+                        elements={tabs}
+                        selectedTab={selectedTab}
+                        onSelectedTabChange={setSelectedTab}
+                    />
                 </RecordContextProvider>
             </Box>
         </Box>

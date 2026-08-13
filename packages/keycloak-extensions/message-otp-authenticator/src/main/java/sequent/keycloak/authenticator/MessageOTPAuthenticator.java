@@ -20,6 +20,7 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
+import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
 
 @JBossLog
@@ -146,6 +147,22 @@ public class MessageOTPAuthenticator
             authSession.setAuthNote(EMAIL_VERIFIED, "true");
           }
 
+          // If the user doesn't have a MessageOTPCredential yet, create one now
+          // so that on subsequent logins the authenticator is "configured" and
+          // appears alongside other ALTERNATIVE authenticators (e.g. passkey)
+          // in the credential chooser. This avoids the need for a separate
+          // `message-otp-ra` required action on first login, which would result
+          // in the user receiving two OTP codes.
+          if (!deferredUser && user != null) {
+            MessageOTPCredentialProvider credentialProvider = getCredentialProvider(session);
+            if (!credentialProvider.isConfiguredFor(
+                context.getRealm(), user, credentialProvider.getType())) {
+              log.info("Creating MessageOTPCredential for user on successful authentication");
+              credentialProvider.createCredential(
+                  context.getRealm(), user, MessageOTPCredentialModel.create(/* isSetup= */ true));
+            }
+          }
+
           // valid
           context.getEvent().success();
           context.success();
@@ -231,6 +248,18 @@ public class MessageOTPAuthenticator
     boolean deferredUser = "true".equals(configMap.get(Utils.DEFERRED_USER_ATTRIBUTE));
     boolean codeJustSent = false;
     UserModel user = context.getUser();
+    // `requiresUser()` returns false so Keycloak may invoke this authenticator
+    // before a user has been identified (e.g. during pre-evaluation of the
+    // alternatives in a sub-flow). In that case there is no mobile number or
+    // email to send the OTP to, so mark this attempt as not applicable and let
+    // Keycloak move on to the next alternative (typically the passkey
+    // authenticator). This prevents a NullPointerException deep inside
+    // Utils.getMobile / Utils.getEmailAddress.
+    if (!deferredUser && user == null) {
+      log.info("intiateForm(): user is null and not in deferred mode -> attempted()");
+      context.attempted();
+      return;
+    }
     Utils.buildEventDetails(context, this.getClass().getSimpleName());
     // handle OTL
     boolean isOtl = "true".equals(configMap.get(Utils.ONE_TIME_LINK));
@@ -338,33 +367,53 @@ public class MessageOTPAuthenticator
   @Override
   public boolean configuredFor(KeycloakSession session, RealmModel realm, UserModel user) {
     log.info("configuredFor() called");
-    MessageOTPCredentialProvider provider = getCredentialProvider(session);
-    if (provider == null || !provider.isConfiguredFor(realm, user, getType(session))) {
-      return false;
-    }
-
     Optional<AuthenticatorConfigModel> config = Utils.getConfig(realm);
+    Map<String, String> configMap =
+        MessageOTPAuthenticatorFactory.getConfigMap(config.orElse(null));
+    boolean deferredUser = "true".equals(configMap.get(Utils.DEFERRED_USER_ATTRIBUTE));
 
-    // If no configuration is found, fall back to default behavior
-    if (!config.isPresent() && user != null) {
-      return user.getFirstAttribute(MOBILE_NUMBER_FIELD) != null;
-    }
-    boolean deferredUser =
-        config.get().getConfig().get(Utils.DEFERRED_USER_ATTRIBUTE).equals("true");
     String mobileNumber = null;
     String emailAddress = null;
-
     if (deferredUser) {
       AuthenticationSessionModel authSession = session.getContext().getAuthenticationSession();
-      String mobileNumberAttribute = config.get().getConfig().get(Utils.TEL_USER_ATTRIBUTE);
+      String mobileNumberAttribute = configMap.get(Utils.TEL_USER_ATTRIBUTE);
       mobileNumber = authSession.getAuthNote(mobileNumberAttribute);
       emailAddress = authSession.getAuthNote("email");
     } else if (user != null) {
-      mobileNumber = Utils.getMobile(config.get(), user);
-      emailAddress = user.getEmail();
+      mobileNumber = Utils.getMobile(config.orElse(null), user);
+      emailAddress = config.isPresent() ? user.getEmail() : null;
+    }
+    boolean hasOtpAddress = mobileNumber != null || emailAddress != null;
+
+    // In deferred mode the OTP address comes from the auth session notes (set during
+    // deferred registration/login), not from a stored credential, so a
+    // MessageOTPCredential must not be required. Otherwise, deferred users (which
+    // never get a credential created for them) would silently be filtered out of the
+    // authentication selection list, failing the flow with `invalid_user_credentials`.
+    if (!deferredUser) {
+      if (user == null) {
+        return false;
+      }
+      MessageOTPCredentialProvider provider = getCredentialProvider(session);
+      if (provider == null) {
+        return false;
+      }
+      if (!provider.isConfiguredFor(realm, user, getType(session))) {
+        // If enabled, automatically create the message-otp credential for users
+        // that have a mobile phone number or email address configured, so that
+        // imported/edited voters don't need a credential enrollment required action.
+        boolean autoCreateCredential =
+            "true".equals(configMap.get(Utils.AUTO_CREATE_CREDENTIAL_ATTRIBUTE));
+        if (!autoCreateCredential || !hasOtpAddress) {
+          return false;
+        }
+        log.info("Auto-creating MessageOTPCredential for user with configured mobile/email");
+        provider.createCredential(
+            realm, user, MessageOTPCredentialModel.create(/* isSetup= */ true));
+      }
     }
 
-    return mobileNumber != null || emailAddress != null;
+    return hasOtpAddress;
   }
 
   @Override

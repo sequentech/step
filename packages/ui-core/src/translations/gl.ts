@@ -110,6 +110,12 @@ const galegoTranslation: TranslationType = {
                     "A papeleta está marcada como explícitamente inválida, pero a pregunta non o permite",
                 alert: "A selección marcada será considerada voto inválido.",
             },
+            configuration: {
+                multipleExplicitInvalidCandidates:
+                    "Configuración de voto inválida: o concurso define {{count}} candidatos explicitamente inválidos, pero só se permite un.",
+                multipleExplicitBlankCandidates:
+                    "Configuración de voto inválida: o concurso define {{count}} candidatos de voto en branco explícito, pero só se permite un.",
+            },
         },
         ballotHash: "O teu ID de Papeleta: {{ballotId}}",
         version: {

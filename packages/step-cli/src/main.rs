@@ -47,6 +47,7 @@ enum StepCommands {
     StartTally(commands::start_tally::StartTallyCeremony),
     UpdateTally(commands::update_tally_status::UpdateTallyStatus),
     SubmitTallyResolution(commands::submit_tally_resolution::SubmitTallyResolution),
+    TallySheet(commands::tally_sheet::TallySheetCommand),
     ConfirmKeyTally(commands::confirm_tally_ceremoney_key::ConfirmKeyForTally),
     RenderTemplate(commands::render_template::RenderTemplate),
     GenerateVoters(commands::generate_voters::GenerateVoters),
@@ -60,6 +61,9 @@ enum StepCommands {
     ),
     DownloadTallyResults(commands::download_tally_results::DownloadTallyResults),
     GeneratePreviewUrl(commands::generate_preview::GeneratePreview),
+    ConfigureResultsWebsite(commands::results_publication::ConfigureResultsWebsite),
+    PublishResults(commands::results_publication::PublishResults),
+    RevokeResultsPublication(commands::results_publication::RevokeResultsPublication),
 }
 
 fn main() {
@@ -86,6 +90,7 @@ fn main() {
             StepCommands::StartTally(start) => start.run(),
             StepCommands::UpdateTally(update) => update.run(),
             StepCommands::SubmitTallyResolution(submit) => submit.run(),
+            StepCommands::TallySheet(command) => command.run(),
             StepCommands::ConfirmKeyTally(confirm) => confirm.run(),
             StepCommands::RenderTemplate(render) => render.run(),
             StepCommands::GenerateVoters(render) => render.run(),
@@ -101,6 +106,13 @@ fn main() {
             }
             StepCommands::DownloadTallyResults(download) => download.run(),
             StepCommands::GeneratePreviewUrl(render) => render.run(),
+            StepCommands::ConfigureResultsWebsite(configure_results_website) => {
+                configure_results_website.run()
+            }
+            StepCommands::PublishResults(publish_results) => publish_results.run(),
+            StepCommands::RevokeResultsPublication(revoke_results_publication) => {
+                revoke_results_publication.run()
+            }
         },
     }
 }

@@ -384,6 +384,79 @@ cli step download-tally-results \
 
 ---
 
+## Tally Sheets
+
+Create and review single tally-sheet versions:
+
+```bash
+cli step tally-sheet create \
+  --election-event-id <ELECTION_EVENT_ID> \
+  --area-id <AREA_ID> \
+  --contest-id <CONTEST_ID> \
+  --channel PAPER \
+  --content-file <AREA_CONTEST_RESULTS_JSON>
+
+cli step tally-sheet review \
+  --election-event-id <ELECTION_EVENT_ID> \
+  --tally-sheet-id <TALLY_SHEET_ID> \
+  --status APPROVED
+```
+
+Preview, create, review, inspect, and download tally-sheet imports:
+
+```bash
+cli step tally-sheet import-preview \
+  --election-event-id <ELECTION_EVENT_ID> \
+  --file-path <SOURCE_XML_OR_CSV> \
+  --source-format ESS_ENHANCED_XML \
+  --selected-channel PAPER
+
+cli step tally-sheet import-create \
+  --election-event-id <ELECTION_EVENT_ID> \
+  --file-path <SOURCE_XML_OR_CSV> \
+  --source-format ESS_ENHANCED_XML \
+  --selected-channel PAPER
+
+cli step tally-sheet import-review \
+  --election-event-id <ELECTION_EVENT_ID> \
+  --import-id <IMPORT_ID> \
+  --decision APPROVE
+
+cli step tally-sheet import-list \
+  --election-event-id <ELECTION_EVENT_ID> \
+  --limit 50
+
+cli step tally-sheet import-show \
+  --election-event-id <ELECTION_EVENT_ID> \
+  --import-id <IMPORT_ID>
+
+cli step tally-sheet import-download-source \
+  --election-event-id <ELECTION_EVENT_ID> \
+  --import-id <IMPORT_ID> \
+  --output-dir <OUTPUT_DIR>
+```
+
+Use `--document-id <DOCUMENT_ID>` instead of `--file-path` when the source document is already uploaded. Use `--sha256 <HEX_SHA256>` with an existing document to enable source verification. For local development uploads, add `--is-local`.
+
+Convert an ES&S Enhanced XML file to canonical tally-sheet CSV without uploading it:
+
+```bash
+cli step tally-sheet convert-ess-xml \
+  --input <SOURCE_XML> \
+  --output <CANONICAL_CSV> \
+  --selected-channel PAPER
+```
+
+Recount a completed tally session with fresh result IDs:
+
+```bash
+cli step tally-sheet recount \
+  --election-event-id <ELECTION_EVENT_ID> \
+  --tally-id <TALLY_ID>
+```
+
+---
+
 ## Render Template
 
 ```bash

@@ -12,8 +12,10 @@ services:
     profiles: ["full", "base"]
     container_name: keycloak
     build:
-      context: ../packages/
+      context: ../packages
       dockerfile: Dockerfile.keycloak
+      additional_contexts:
+        beyond: ../beyond
     restart: always
     ports:
       - 8090:8090
@@ -52,7 +54,7 @@ services:
       KC_PROXY_HEADERS: xforwarded
     volumes:
       # https://www.keycloak.org/server/containers#_importing_a_realm_on_startup
-      - ./keycloak/import:/opt/keycloak/data/import:z
+      - ./keycloak/import:/opt/keycloak/data/import:ro,z
     # Below we're using the dummy email email sender provider but that's just for
     # development, in production we should still use the default SMTP email provider
     #
@@ -80,10 +82,8 @@ services:
     depends_on:
       postgres-keycloak:
         condition: service_healthy
-      minio:
-        condition: service_healthy
-      configure-minio:
-        condition: service_completed_successfully
+      harvest:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8090"]
       interval: 5s

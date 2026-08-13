@@ -8,15 +8,12 @@ import {
     IDecodedVoteContest,
     IDecodedVoteChoice,
     BallotSelection,
+    EInvalidVotePolicy,
 } from "@sequentech/ui-core"
 import {IBallotStyle} from "../ballotStyles/ballotStylesSlice"
 
-export interface IDecodedVoteContestState extends IDecodedVoteContest {
-    is_explicit_blank: boolean
-}
-
 export interface BallotSelectionsState {
-    [electionId: string]: IDecodedVoteContestState[] | undefined
+    [electionId: string]: BallotSelection | undefined
 }
 
 const initialState: BallotSelectionsState = {}
@@ -38,9 +35,7 @@ export const ballotSelectionsSlice = createSlice({
         ): BallotSelectionsState => {
             let currentElection = state[action.payload.ballotStyle.election_id]
             if (currentElection) {
-                state[action.payload.ballotStyle.election_id] = action.payload.ballotSelection.map(
-                    (contest) => ({...contest, is_explicit_blank: false})
-                )
+                state[action.payload.ballotStyle.election_id] = action.payload.ballotSelection
             }
 
             return state
@@ -57,7 +52,7 @@ export const ballotSelectionsSlice = createSlice({
             if (!currentElection || action.payload.force) {
                 state[action.payload.ballotStyle.election_id] =
                     action.payload.ballotStyle.ballot_eml.contests.map(
-                        (question): IDecodedVoteContestState => {
+                        (question): IDecodedVoteContest => {
                             let currentContestValue = state[
                                 action.payload.ballotStyle.election_id
                             ]?.find((contest) => contest.contest_id === question.id)
@@ -70,7 +65,7 @@ export const ballotSelectionsSlice = createSlice({
                                 return {
                                     contest_id: currentContestValue.contest_id,
                                     is_explicit_invalid: currentContestValue.is_explicit_invalid,
-                                    is_explicit_blank: currentContestValue.is_explicit_blank,
+                                    is_decline_to_vote: currentContestValue.is_decline_to_vote,
                                     invalid_errors: currentContestValue.invalid_errors,
                                     invalid_alerts: currentContestValue.invalid_alerts,
                                     choices: currentContestValue.choices,
@@ -80,7 +75,7 @@ export const ballotSelectionsSlice = createSlice({
                             return {
                                 contest_id: question.id,
                                 is_explicit_invalid: false,
-                                is_explicit_blank: false,
+                                is_decline_to_vote: false,
                                 invalid_errors: [],
                                 invalid_alerts: [],
                                 choices: question.candidates.map((answer) => ({
@@ -117,6 +112,21 @@ export const ballotSelectionsSlice = createSlice({
             // update state
             if (!isUndefined(currentQuestion)) {
                 currentQuestion.is_explicit_invalid = action.payload.isExplicitInvalid
+
+                // Under ALLOWED_WITH_EXCLUSIVE_EXPLICIT, marking the ballot
+                // explicit-invalid is mutually exclusive with any other
+                // selection in the contest, mirroring how blank vote already
+                // clears everything else when selected.
+                if (
+                    action.payload.isExplicitInvalid &&
+                    ballotEmlContest.presentation?.invalid_vote_policy ===
+                        EInvalidVotePolicy.ALLOWED_WITH_EXCLUSIVE_EXPLICIT
+                ) {
+                    currentQuestion.choices = currentQuestion.choices.map((choice) => ({
+                        ...choice,
+                        selected: -1,
+                    }))
+                }
             }
             return state
         },
@@ -125,6 +135,7 @@ export const ballotSelectionsSlice = createSlice({
             action: PayloadAction<{
                 ballotStyle: IBallotStyle
                 contestId: string
+                candidateId: string
             }>
         ): BallotSelectionsState => {
             const ballotEmlContest = action.payload.ballotStyle.ballot_eml.contests.find(
@@ -142,12 +153,11 @@ export const ballotSelectionsSlice = createSlice({
             // update state
             if (!isUndefined(currentQuestion)) {
                 currentQuestion.is_explicit_invalid = false
-                currentQuestion.is_explicit_blank = true
                 currentQuestion.choices = currentQuestion.choices.map((choice) => {
-                    if (choice.selected > -1) {
-                        choice.selected = -1
+                    return {
+                        ...choice,
+                        selected: choice.id === action.payload.candidateId ? 0 : -1,
                     }
-                    return choice
                 })
             }
             return state
@@ -188,10 +198,60 @@ export const ballotSelectionsSlice = createSlice({
 
             // modify
             if (currentQuestion && !isUndefined(currentChoiceIndex)) {
-                currentQuestion.is_explicit_blank = false
                 currentQuestion.choices[currentChoiceIndex] = action.payload.voteChoice
+
+                const explicitBlankCandidateIds = new Set(
+                    ballotEmlContest.candidates
+                        .filter((candidate) => candidate.presentation?.is_explicit_blank)
+                        .map((candidate) => candidate.id)
+                )
+                const isSelectingExplicitBlank =
+                    explicitBlankCandidateIds.has(action.payload.voteChoice.id) &&
+                    action.payload.voteChoice.selected > -1
+
+                if (action.payload.voteChoice.selected > -1 && !isSelectingExplicitBlank) {
+                    currentQuestion.choices = currentQuestion.choices.map((choice) =>
+                        explicitBlankCandidateIds.has(choice.id)
+                            ? {...choice, selected: -1}
+                            : choice
+                    )
+
+                    // Under ALLOWED_WITH_EXCLUSIVE_EXPLICIT, selecting a real
+                    // candidate is mutually exclusive with explicit invalid.
+                    if (
+                        ballotEmlContest.presentation?.invalid_vote_policy ===
+                        EInvalidVotePolicy.ALLOWED_WITH_EXCLUSIVE_EXPLICIT
+                    ) {
+                        currentQuestion.is_explicit_invalid = false
+                    }
+                }
             }
 
+            return state
+        },
+        setAllBallotSelectionsDeclineToVote: (
+            state,
+            action: PayloadAction<{
+                ballotStyle: IBallotStyle
+            }>
+        ): BallotSelectionsState => {
+            let currentElection = state[action.payload.ballotStyle.election_id]
+
+            if (!isUndefined(currentElection)) {
+                currentElection.forEach((currentQuestion) => {
+                    currentQuestion.is_decline_to_vote = true
+                    // A declined ballot must not carry per-contest explicit
+                    // invalid markers, otherwise it would be tallied as
+                    // invalid instead of declined.
+                    currentQuestion.is_explicit_invalid = false
+                    currentQuestion.choices = currentQuestion.choices.map((choice) => {
+                        if (choice.selected > -1) {
+                            choice.selected = -1
+                        }
+                        return choice
+                    })
+                })
+            }
             return state
         },
     },
@@ -218,6 +278,7 @@ export const {
     setBallotSelectionInvalidVote,
     setBallotSelectionBlankVote,
     setBallotSelectionVoteChoice,
+    setAllBallotSelectionsDeclineToVote,
 } = ballotSelectionsSlice.actions
 
 export const selectBallotSelectionVoteChoice =

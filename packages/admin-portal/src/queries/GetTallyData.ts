@@ -219,8 +219,12 @@ export const GET_TALLY_DATA = gql`
             created_at
             counting_algorithm
             contest_id
-            blank_votes_percent
-            blank_votes
+            total_blank_votes_percent
+            total_blank_votes
+            explicit_blank_votes
+            explicit_blank_votes_percent
+            implicit_blank_votes
+            implicit_blank_votes_percent
             annotations
         }
         sequent_backend_results_area_contest_candidate(
@@ -257,8 +261,6 @@ export const GET_TALLY_DATA = gql`
         ) {
             annotations
             area_id
-            blank_votes
-            blank_votes_percent
             contest_id
             created_at
             documents
@@ -268,6 +270,12 @@ export const GET_TALLY_DATA = gql`
             explicit_invalid_votes
             explicit_invalid_votes_percent
             id
+            total_blank_votes
+            total_blank_votes_percent
+            explicit_blank_votes
+            explicit_blank_votes_percent
+            implicit_blank_votes
+            implicit_blank_votes_percent
             implicit_invalid_votes
             implicit_invalid_votes_percent
             labels

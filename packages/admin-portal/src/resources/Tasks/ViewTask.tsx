@@ -2,8 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {GetTaskByIdQuery, Sequent_Backend_Election_Event} from "@/gql/graphql"
-import React, {useContext, useState} from "react"
+import {
+    GetTaskByIdQuery,
+    GetDocumentPasswordQuery,
+    Sequent_Backend_Election_Event,
+} from "@/gql/graphql"
+import React, {useContext, useEffect, useState} from "react"
 import DownloadIcon from "@mui/icons-material/Download"
 import {useTranslation} from "react-i18next"
 import {theme, Dialog} from "@sequentech/ui-essentials"
@@ -17,16 +21,20 @@ import TableCell from "@mui/material/TableCell"
 import TableContainer from "@mui/material/TableContainer"
 import TableRow from "@mui/material/TableRow"
 import Paper from "@mui/material/Paper"
-import {Button, Identifier} from "react-admin"
+import {Button, Identifier, useNotify} from "react-admin"
 import {Logs} from "@/components/Logs"
 import {ETaskExecutionStatus} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {useQuery} from "@apollo/client"
+import {useLazyQuery, useQuery} from "@apollo/client"
 import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
+import {GET_DOCUMENT_PASSWORD} from "@/queries/DocumentPassword"
 import {CancelButton} from "../Tally/styles"
 import {useTasksPermissions} from "./useTasksPermissions"
 import {DownloadDocument} from "../User/DownloadDocument"
 import {DownloaButton} from "@/components/styles/WidgetStyle"
+import {ETasksExecution} from "@/types/tasksExecution"
+import {IPermissions} from "@/types/keycloak"
+import {VoterInformationLetterDocumentAccess} from "./VoterInformationLetterDocumentAccess"
 
 export const statusColor: (status: string) => string = (status) => {
     if (status === ETaskExecutionStatus.STARTED) {
@@ -56,12 +64,29 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
     isModal = false,
 }) => {
     const {t} = useTranslation()
+    const notify = useNotify()
     const [progressExpanded, setProgressExpanded] = useState(true)
     const {globalSettings} = useContext(SettingsContext)
     const [exportDocumentId, setExportDocumentId] = useState<string | undefined>(undefined)
     const [downloading, setDownloading] = useState<boolean>(false)
+    const [pdfPassword, setPdfPassword] = useState<string>()
 
-    const {showTasksBackButton} = useTasksPermissions()
+    const {showTasksBackButton, canReadDocumentPassword} = useTasksPermissions()
+    const [getDocumentPassword, {loading: passwordLoading}] =
+        useLazyQuery<GetDocumentPasswordQuery>(GET_DOCUMENT_PASSWORD, {
+            fetchPolicy: "no-cache",
+            context: {
+                headers: {
+                    "x-hasura-role": IPermissions.DOCUMENT_PASSWORD_READ,
+                },
+            },
+        })
+
+    useEffect(() => {
+        setPdfPassword(undefined)
+        setExportDocumentId(undefined)
+        setDownloading(false)
+    }, [currTaskId])
 
     const {data: taskData} = useQuery<GetTaskByIdQuery>(GET_TASK_BY_ID, {
         variables: {task_id: currTaskId},
@@ -73,6 +98,46 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
 
     if (!task) {
         return <CircularProgress />
+    }
+    const isVoterInformationLetter = task.type === ETasksExecution.VOTER_INFORMATION_LETTER
+    const voterInformationLetterDocumentId = task.annotations?.document_id
+    const canAccessVoterInformationLetterDocument =
+        isVoterInformationLetter &&
+        canReadDocumentPassword &&
+        task.execution_status === ETaskExecutionStatus.SUCCESS &&
+        Boolean(task.election_event_id) &&
+        Boolean(voterInformationLetterDocumentId)
+    const canDownloadDocument =
+        Boolean(task.election_event_id) &&
+        Boolean(voterInformationLetterDocumentId) &&
+        (!isVoterInformationLetter || canAccessVoterInformationLetterDocument)
+
+    const revealDocumentPassword = async (): Promise<boolean> => {
+        try {
+            const {data} = await getDocumentPassword({
+                variables: {documentId: String(voterInformationLetterDocumentId)},
+            })
+            const password = data?.get_document_password?.password
+            if (!password) {
+                throw new Error("PDF password was not returned")
+            }
+            setPdfPassword(password)
+            return true
+        } catch {
+            notify(t("tasksScreen.documentAccess.passwordError"), {type: "error"})
+            return false
+        }
+    }
+
+    const downloadDocument = async () => {
+        if (!canDownloadDocument || !voterInformationLetterDocumentId) {
+            return
+        }
+        if (isVoterInformationLetter && !pdfPassword && !(await revealDocumentPassword())) {
+            return
+        }
+        setDownloading(true)
+        setExportDocumentId(String(voterInformationLetterDocumentId))
     }
 
     const Content = (
@@ -140,9 +205,44 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
                 </WizardStyles.AccordionDetails>
             </Accordion>
 
+            {canAccessVoterInformationLetterDocument ? (
+                <VoterInformationLetterDocumentAccess
+                    taskId={String(task.id)}
+                    pdfPassword={pdfPassword}
+                    loading={passwordLoading}
+                    onReveal={() => void revealDocumentPassword()}
+                />
+            ) : null}
             <Logs logs={task?.logs} />
         </>
     )
+
+    const downloadAction = canDownloadDocument ? (
+        <DownloaButton
+            onClick={() => void downloadDocument()}
+            disabled={
+                downloading ||
+                task.execution_status !== ETaskExecutionStatus.SUCCESS ||
+                (isVoterInformationLetter && passwordLoading)
+            }
+            label={String(t("tasksScreen.widget.downloadDocument"))}
+            sx={isModal ? undefined : {marginLeft: "auto"}}
+        >
+            <DownloadIcon />
+        </DownloaButton>
+    ) : null
+
+    const downloadTrigger = exportDocumentId ? (
+        <DownloadDocument
+            documentId={exportDocumentId}
+            electionEventId={task.election_event_id ?? ""}
+            fileName={null}
+            onDownload={() => {
+                setDownloading(false)
+                setExportDocumentId(undefined)
+            }}
+        />
+    ) : null
 
     if (isModal) {
         return (
@@ -154,8 +254,12 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
                 ok={String(t("tasksScreen.ok"))}
                 fullWidth={true}
                 maxWidth="md"
+                middleActions={downloadAction ? [downloadAction] : undefined}
             >
-                <>{Content}</>
+                <>
+                    {Content}
+                    {downloadTrigger}
+                </>
             </Dialog>
         )
     }
@@ -174,36 +278,10 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
                             {t("common.label.back")}
                         </CancelButton>
                     ) : null}
-                    {task?.election_event_id && task?.annotations?.document_id ? (
-                        <DownloaButton
-                            onClick={() => {
-                                setDownloading(true)
-                                setExportDocumentId(task?.annotations?.document_id)
-                            }}
-                            disabled={
-                                downloading ||
-                                task?.execution_status !== ETaskExecutionStatus.SUCCESS
-                            }
-                            label={String(t("tasksScreen.widget.downloadDocument"))}
-                        >
-                            <DownloadIcon />
-                        </DownloaButton>
-                    ) : null}
+                    {downloadAction}
                 </WizardStyles.StyledFooter>
 
-                {exportDocumentId && (
-                    <>
-                        <DownloadDocument
-                            documentId={exportDocumentId ?? ""}
-                            electionEventId={task?.election_event_id ?? ""}
-                            fileName={null}
-                            onDownload={() => {
-                                setDownloading(false)
-                                setExportDocumentId(undefined)
-                            }}
-                        />
-                    </>
-                )}
+                {downloadTrigger}
             </WizardStyles.FooterContainer>
         </WizardStyles.WizardContainer>
     )

@@ -148,6 +148,8 @@ services:
     build:
       context: ./minio
       dockerfile: Dockerfile
+    volumes:
+      - "${LOCAL_WORKSPACE_FOLDER:-..}/.devcontainer/keycloak/import:/realm-configs:ro,z"
     depends_on:
       minio:
         condition: service_healthy
@@ -159,6 +161,8 @@ services:
       - MINIO_PRIVATE_URI=${AWS_S3_PRIVATE_URI}
       - MINIO_PUBLIC_BUCKET=${AWS_S3_PUBLIC_BUCKET}
       - MINIO_BUCKET=${AWS_S3_BUCKET}
+      - KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY=${KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY}
+      - KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY=${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY}
     entrypoint: /scripts/entrypoint.sh
 
   # hashicorp vault to store secrets
@@ -450,12 +454,13 @@ services:
       KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: ${KEYCLOAK_DB__MANAGER__RECYCLING_METHOD}
       AMQP_ADDR: ${AMQP_ADDR}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
-      KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH: ${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH}
-      KEYCLOAK_TENANT_REALM_CONFIG_PATH: ${KEYCLOAK_TENANT_REALM_CONFIG_PATH}
       KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
       KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+      KEYCLOAK_IVR_SERVICE_CLIENT_ID: ${KEYCLOAK_IVR_SERVICE_CLIENT_ID}
+      KEYCLOAK_IVR_SERVICE_CLIENT_SECRET: ${KEYCLOAK_IVR_SERVICE_CLIENT_SECRET}
+      KEYCLOAK_IVR_VOTING_CLIENT_SECRET: ${KEYCLOAK_IVR_VOTING_CLIENT_SECRET}
       HASURA_ENDPOINT: ${HASURA_ENDPOINT}
       HASURA_DB__USER: ${HASURA_DB__USER}
       HASURA_DB__PASSWORD: ${HASURA_DB__PASSWORD}
@@ -510,6 +515,12 @@ services:
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:
      - ${HARVEST_PORT}:${HARVEST_PORT}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3030/ready || exit 1"]
+      interval: 5s
+      timeout: 10s
+      retries: 25
+      start_period: 30s
 
   trustee1:
     profiles: ["full"]
@@ -598,9 +609,9 @@ services:
     # that the `sequentech.local/cargo-packages` image is locally build, so
     # that we can reuse it:
     depends_on:
-      - harvest
+      harvest:
+        condition: service_started
     volumes:
-      - ./keycloak/import:/import:z
       - ../packages/:/app:z
     restart: always
     working_dir: /app/immu-board
@@ -716,8 +727,12 @@ services:
     volumes_from:
       - devcontainer
     depends_on:
-      - devcontainer
-      - rabbitmq
+      devcontainer:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
+      configure-minio:
+        condition: service_completed_successfully
       #- postgres
       #- postgres-keycloak
     environment:
@@ -754,14 +769,18 @@ services:
       MASTER_SECRET: ${MASTER_SECRET}
       AWS_SM_KEY_PREFIX: ${AWS_SM_KEY_PREFIX}
 
-      KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH: ${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH}
-      KEYCLOAK_TENANT_REALM_CONFIG_PATH: ${KEYCLOAK_TENANT_REALM_CONFIG_PATH}
+      KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY: ${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY}
+      KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY: ${KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY}
       KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
       KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+      KEYCLOAK_IVR_SERVICE_CLIENT_ID: ${KEYCLOAK_IVR_SERVICE_CLIENT_ID}
+      KEYCLOAK_IVR_SERVICE_CLIENT_SECRET: ${KEYCLOAK_IVR_SERVICE_CLIENT_SECRET}
+      KEYCLOAK_IVR_VOTING_CLIENT_SECRET: ${KEYCLOAK_IVR_VOTING_CLIENT_SECRET}
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
       VOTING_PORTAL_URL: ${VOTING_PORTAL_URL}
+      RESULTS_PORTAL_URL: ${RESULTS_PORTAL_URL}
       KEYCLOAK_PUBLIC_URL: ${KEYCLOAK_PUBLIC_URL}
       SMS_TRANSPORT_NAME: ${SMS_TRANSPORT_NAME}
       AWS_SNS_ATTRIBUTES: ${AWS_SNS_ATTRIBUTES}
@@ -787,6 +806,7 @@ services:
       WINDMILL_PROBE_READY_PATH: ${WINDMILL_PROBE_READY_PATH}
       APP_VERSION: ${APP_VERSION}
       APP_HASH: ${APP_HASH}
+      KEYCLOAK_VOTER_GROUP_NAME: ${KEYCLOAK_VOTER_GROUP_NAME}
 
       PUBLIC_ASSETS_PATH: ${PUBLIC_ASSETS_PATH}
        #Demo key
@@ -811,8 +831,12 @@ services:
     # that the `sequentech.local/cargo-packages` image is locally build, so
     # that we can reuse it:
     depends_on:
-      - devcontainer
-      - harvest
+      devcontainer:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
+      harvest:
+        condition: service_started
     working_dir: /workspaces/step/packages/windmill
     entrypoint: ["/usr/local/bin/entrypoint.sh"]
     command: [

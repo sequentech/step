@@ -37,7 +37,7 @@ const englishTranslation = {
             ballotHelpDialog: {
                 title: "Information: Ballot screen",
                 content:
-                    "This screen shows the contest you are elegible to vote. You can make your section by activate the checkbox on the Candidate/Answer right. To reset your selections, click “<b>Clear selection</b>” button, to move to next step, click “<b>Next</b>” button below.",
+                    "This screen shows the contests you are eligible to vote in. You can make your selection by activating the checkbox to the right of the Candidate/Answer. To reset your selections, click the “<b>Clear selection</b>” button; to move to the next step, click the “<b>Next</b>” button below.",
                 ok: "OK",
             },
             nonVotedDialog: {
@@ -59,6 +59,14 @@ const englishTranslation = {
         },
         startScreen: {
             startButton: "Start Voting",
+            declineToVoteButton: "Decline to Vote",
+            declineToVoteDialog: {
+                title: "Confirm decline to vote",
+                content:
+                    "Are you sure you want to decline to vote?<br />You will go directly to review and your participation status will be saved as <b>Declined to vote</b>.",
+                continue: "Decline to vote",
+                cancel: "Cancel",
+            },
             instructionsTitle: "Instructions",
             instructionsDescription: "Please follow these steps to cast your ballot:",
             step1Title: "1. Select your options",
@@ -96,7 +104,7 @@ const englishTranslation = {
             auditBallotHelpDialog: {
                 title: "Do you want to audit the ballot?",
                 content:
-                    "<p>Please note that auditing your ballot will void it, requiring you to restart the voting process. The audit process lets you verify that your ballot is correctly encoded, but it involves advanced technical steps. We recommend proceeding only if you are confident in your technical skills. If you just want to cast your ballot, click <u>Cancel</u> to go back to the review ballot screen.</b></p>",
+                    "<p>Please note that auditing your ballot will void it, requiring you to restart the voting process. The audit process lets you verify that your ballot is correctly encoded, but it involves advanced technical steps. We recommend proceeding only if you are confident in your technical skills. If you just want to cast your ballot, click <u>Cancel</u> to go back to the review ballot screen.</p>",
                 ok: "Yes, I want to DISCARD my ballot to audit it",
                 cancel: "Cancel",
             },
@@ -192,6 +200,7 @@ const englishTranslation = {
                 INTERNAL_ERROR:
                     "There was an internal error while casting the vote. Please try again later or contact support for assistance.",
             },
+            declineToVote: "Decline to vote",
         },
         confirmationScreen: {
             title: "Your vote has been cast",
@@ -267,14 +276,15 @@ const englishTranslation = {
         },
         electionSelectionScreen: {
             title: "Ballot list",
-            description: "Select the Ballot you want to vote",
+            description: "Select the ballot you want to vote on",
             chooserHelpDialog: {
                 title: "Information: Ballot List",
                 content:
-                    "Welcome to the Voting Booth, this screen shows the list of Ballots you can cast a ballot. Ballots displayed in this list can be open to voting, scheduled, or closed. You will be able to access the ballot only if the voting period is open.",
+                    "Welcome to the Voting Booth. This screen shows the ballots you can vote on. Ballots displayed in this list can be open to voting, scheduled, or closed. You will be able to access the ballot only if the voting period is open.",
                 ok: "OK",
             },
             noResults: "No ballots for now.",
+            resultsButton: "View results",
             demoDialog: {
                 title: "Demo voting booth",
                 content:
@@ -310,6 +320,9 @@ const englishTranslation = {
                 certAuthFailedTitle: "Certificate Authentication Failed",
                 certAuthFailedMessage:
                     "Your certificate could not be verified. Please check that you are using a valid voter certificate and try again.",
+                invalidLoginHintParametersTitle: "Invalid voting link",
+                invalidLoginHintParametersMessage:
+                    "This voting link contains invalid login information. Request a new link and try again.",
             },
         },
         materials: {
@@ -321,13 +334,15 @@ const englishTranslation = {
             },
         },
         ballotLocator: {
-            title: "Locate your Ballot",
-            titleResult: "Result of your Ballot Lookup",
-            description: "Verify that your Ballot has been correctly submitted",
-            locate: "Locate your Ballot",
-            locateAgain: "Locate another Ballot",
-            found: "Your ballot ID {{ballotId}} has been located",
-            notFound: "Your ballot ID {{ballotId}} has not been located",
+            title: "Find your Ballot",
+            titleResult: "Your Ballot Lookup Results",
+            description: "Confirm your ballot was cast correctly",
+            locate: "Find your Ballot",
+            locateAgain: "Find another Ballot",
+            found: "Your ballot ID {{ballotId}} has been found",
+            notFound: "Your ballot ID {{ballotId}} was not found",
+            ambiguous:
+                "More than one of your ballots matches {{ballotId}}. Use the full ballot ID.",
             contentDesc: "This is your Ballot content: ",
             wrongFormatBallotId: "Wrong format for Ballot ID",
             ballotIdNotFoundAtFilter:
@@ -341,7 +356,7 @@ const englishTranslation = {
             titleHelpDialog: {
                 title: "Information: Ballot Locator screen",
                 content:
-                    "This screen allows the voter to find their vote by using the Ballot ID to retrieve it. This procedure enables checking that their ballot was correctly cast and that the recorded ballot coincides with the encrypted ballot they sent.",
+                    "This screen allows you to find your vote by using the Ballot ID to retrieve it. This procedure enables you to check that your ballot was correctly cast and that the recorded ballot matches the encrypted ballot you sent.",
                 ok: "OK",
             },
             tabs: {

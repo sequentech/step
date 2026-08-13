@@ -6,7 +6,7 @@ import {TranslationType} from "./en"
 const frenchTranslation: TranslationType = {
     translations: {
         language: "Français",
-        welcome: "Commençons : Importation de bulletin de vote auditable.",
+        welcome: "Commençons : Importation de bulletin de vote vérifiable.",
         breadcrumbSteps: {
             select: "Sélectionner un vérificateur",
             import: "Importer des données",
@@ -39,14 +39,14 @@ const frenchTranslation: TranslationType = {
         homeScreen: {
             title: "Vérificateur de vote Sequent",
             description1:
-                "Le vérificateur de vote est utilisé lorsque l'électeur choisit d'auditer le bulletin de vote dans l'isoloir. La vérification doit prendre de 1 à 2 minutes.",
+                "Le vérificateur de vote est utilisé lorsque l'électeur choisit d'auditer son bulletin de vote dans l'isoloir. La vérification doit prendre de 1 à 2 minutes.",
             description2:
-                "Le vérificateur de vote permet à l'électeur de s'assurer que le vote chiffré capture correctement les choix faits dans l'isoloir. Permettre cette vérification est appelé vérifiabilité de transmission telle que prévue et empêche les erreurs et les activités malveillantes pendant le chiffrement du vote.",
+                "Le vérificateur de vote permet à l'électeur de s'assurer que le bulletin chiffré reflète fidèlement les choix effectués dans l'isoloir. Cette vérification permet de détecter les erreurs et les tentatives de manipulation lors du chiffrement du bulletin.",
             descriptionMore: "Plus d'informations",
             startButton: "Sélectionnez un fichier",
-            dragDropOption: "Ou glissez le fichier ici",
+            dragDropOption: "Ou faites glisser le fichier ici",
             importErrorDescription:
-                "Il y a eu un problème lors de l'importation du vote auditable. Avez-vous choisi le bon fichier ?",
+                "Une erreur est survenue lors de l'importation du bulletin vérifiable. Avez-vous sélectionné le bon fichier ?",
             importErrorMoreInfo: "Plus d'informations",
             importErrorTitle: "Erreur",
             useSampleText: "Vous n'avez pas de vote vérifiable ?",
@@ -55,16 +55,16 @@ const frenchTranslation: TranslationType = {
         confirmationScreen: {
             title: "Vérificateur de vote Sequent",
             topDescription1:
-                "Sur la base des informations du vote auditable importé, nous calculons que :",
-            topDescription2: "Si cet ID de vote est affiché dans l'isoloir :",
+                "À partir des informations du bulletin vérifiable importé, nous avons calculé que :",
+            topDescription2: "Si ce numéro d'identification de vote est affiché dans l'isoloir :",
             bottomDescription1:
                 "Votre vote a été correctement chiffré. Vous pouvez maintenant fermer cette fenêtre et retourner à l'isoloir.",
             bottomDescription2:
                 "Si elles ne correspondent pas, cliquez ici pour plus d'informations sur les raisons possibles et les mesures à prendre.",
-            ballotChoicesDescription: "Et vos choix de vote sont :",
+            ballotChoicesDescription: "Vos choix de vote sont:",
             helpAndFaq: "Aide et FAQ",
             backButton: "Retour",
-            markedInvalid: "Vote explicitement marqué invalide",
+            markedInvalid: "Vote explicitement marqué comme invalide",
         },
         ballotSelectionsScreen: {
             statusModal: {
@@ -75,16 +75,16 @@ const frenchTranslation: TranslationType = {
             },
         },
         footer: {
-            poweredBy: "Propulsé par <1></1>",
+            poweredBy: "Développé par <1></1>",
         },
         errors: {
             encoding: {
-                notEnoughChoices: "Pas assez d'options pour déchiffrer",
-                writeInChoiceOutOfRange: "Option de vote écrite hors de portée : {{index}}",
-                writeInNotEndInZero: "L'option de vote écrite ne se termine pas par 0",
+                notEnoughChoices: "Nombre d'options insuffisant pour le déchiffrement",
+                writeInChoiceOutOfRange: "Entrée de saisie libre hors limites: {{index}}",
+                writeInNotEndInZero: "Le texte de saisie libre ne se termine pas par 0",
                 bytesToUtf8Conversion:
-                    "Erreur de conversion des octets de l'option de vote écrite en chaîne UTF-8 : {{errorMessage}}",
-                ballotTooLarge: "Vote plus grand que prévu",
+                    "Erreur lors de la conversion des octets de l'entrée en saisie libre en chaîne UTF-8 : {{errorMessage}}",
+                ballotTooLarge: "La taille du bulletin dépasse la limite prévue",
             },
             implicit: {
                 selectedMax:
@@ -93,34 +93,33 @@ const frenchTranslation: TranslationType = {
                     "Le nombre d'options sélectionnées {{numSelected}} est inférieur au minimum {{min}}",
             },
             explicit: {
-                notAllowed:
-                    "Vote explicitement marqué comme invalide mais la question ne le permet pas",
+                notAllowed: "Vote marqué comme invalide mais la question ne l'autorise pas",
             },
         },
-        ballotHash: "Votre Localisateur de Vote : {{ballotId}}",
+        ballotHash: "Votre localisateur de vote : {{ballotId}}",
         version: {
             header: "Version:",
         },
         hash: {
-            header: "Hash:",
+            header: "Hachage:",
         },
         logout: {
             buttonText: "Fermer la session",
             modal: {
                 title: "Êtes-vous sûr de vouloir fermer la session ?",
                 content:
-                    "Vous êtes sur le point de fermer cette application. Cette action ne peut pas être annulée.",
+                    "Vous êtes sur le point de fermer cette application. Cette action ne pourra pas être annulée.",
                 ok: "OK",
                 close: "Fermer",
             },
         },
         stories: {
-            openDialog: "Ouvrir le dialogue",
+            openDialog: "Ouvrir la boîte de dialogue",
         },
         dragNDrop: {
-            firstLine: "Glisser-déposer des fichiers ou",
-            browse: "Charger un fichier",
-            format: "Formats supportés : txt",
+            firstLine: "Glissez-déposez des fichiers ou",
+            browse: "Sélectionner un fichier",
+            format: "Formats pris en charge : txt",
         },
         selectElection: {
             electionWebsite: "Site web électoral",
@@ -128,13 +127,13 @@ const frenchTranslation: TranslationType = {
                 "L’élection commence dans {{years}} ans, {{months}} mois, {{weeks}} semaines, {{days}} jours, {{hours}} heures, {{minutes}} minutes, {{seconds}} secondes",
             openElection: "Ouverte",
             closedElection: "Fermée",
-            voted: "Voté",
-            notVoted: "Non voté",
+            voted: "Vote enregistré",
+            notVoted: "Vote non enregistré",
             resultsButton: "Résultats de l'élection",
             voteButton: "Cliquez pour voter",
-            openDate: "Ouverte : ",
-            closeDate: "Fermée : ",
-            ballotLocator: "Localisez votre vote",
+            openDate: "Ouverture : ",
+            closeDate: "Clôture : ",
+            ballotLocator: "Localisez votre bulletin",
         },
         header: {
             profile: "Profil",

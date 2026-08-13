@@ -1,0 +1,42 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+import {DocumentNode, print} from "graphql"
+
+export interface GraphqlResponse<T> {
+    data?: T
+    errors?: Array<{message: string}>
+}
+
+export const graphqlFetch = async <T, TVariables extends object>(
+    hasuraUrl: string,
+    query: DocumentNode,
+    variables: TVariables,
+    token?: string
+): Promise<T> => {
+    const response = await fetch(hasuraUrl, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            ...(token ? {Authorization: `Bearer ${token}`} : {}),
+        },
+        body: JSON.stringify({query: print(query), variables}),
+    })
+
+    if (!response.ok) {
+        throw new Error(`GraphQL request failed with HTTP ${response.status}`)
+    }
+
+    const body = (await response.json()) as GraphqlResponse<T>
+
+    if (body.errors?.length) {
+        throw new Error(body.errors.map((error) => error.message).join("; "))
+    }
+
+    if (!body.data) {
+        throw new Error("GraphQL request returned no data")
+    }
+
+    return body.data
+}

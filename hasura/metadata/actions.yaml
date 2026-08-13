@@ -83,6 +83,39 @@ actions:
           - role: voter-read
           - role: user-read
           - role: admin-user
+    - name: fetchResultsArtifact
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/fetch-results-artifact
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+          - role: admin-user
+      comment: Fetch voter-authorized results website artifact URLs
+    - name: configureResultsWebsitePolicy
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/configure-results-website-policy
+          forward_client_headers: true
+          headers:
+              - name: X-Hasura-Admin-Secret
+                value_from_env: ACTIONS_ADMIN_SECRET
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: publish-results-write
+      comment: Configure the results website policy for an election event
     - name: createScheduledEvent
       definition:
           kind: synchronous
@@ -160,6 +193,19 @@ actions:
               version: 2
       permissions:
           - role: admin-user
+    - name: create_phone_blacklist_entry
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/create-phone-blacklist-entry
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: phone-blacklist-create
     - name: create_role
       definition:
           kind: synchronous
@@ -245,6 +291,19 @@ actions:
               version: 2
       permissions:
           - role: admin-user
+    - name: delete_phone_blacklist_entry
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/delete-phone-blacklist-entry
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: phone-blacklist-delete
     - name: delete_role
       definition:
           kind: synchronous
@@ -328,10 +387,54 @@ actions:
           - role: voter-manually-verify
           - role: voter-write
           - role: admin-user
+    - name: create_external_reconciliation_import
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/create-reconciliation-import
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: election-event-voter-list-reconciliation
+          - role: admin-user
+      comment: uploads an external (i.e. Datafix) reconciliation file and kicks off the diff-calculation task
+    - name: apply_external_reconciliation_changes
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/apply-reconciliation-changes
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: election-event-voter-list-reconciliation
+          - role: admin-user
+      comment: applies the Sequent-side reconciliation diff for an already-computed import
     - name: update_realm_attributes
       definition:
           kind: synchronous
           handler: http://{{HARVEST_DOMAIN}}/update-realm-attributes
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: keycloak-realm-attributes-write
+    - name: update_realm_password_policy
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/update-realm-password-policy
           forward_client_headers: true
           request_transform:
               body:
@@ -464,6 +567,75 @@ actions:
               version: 2
       permissions:
           - role: tasks-read
+    - name: publishResultsWebsite
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/publish-results-website
+          forward_client_headers: true
+          headers:
+              - name: X-Hasura-Admin-Secret
+                value_from_env: ACTIONS_ADMIN_SECRET
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: publish-results-write
+      comment: Publish selected tally contests to the results website
+    - name: resolveResultsPublication
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/resolve-results-publication
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+          - role: admin-user
+      comment: Resolve the active results website publication for authenticated viewers
+    - name: revokeResultsPublication
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/revoke-results-publication
+          forward_client_headers: true
+          headers:
+              - name: X-Hasura-Admin-Secret
+                value_from_env: ACTIONS_ADMIN_SECRET
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: publish-results-write
+      comment: Revoke an active results website publication
+    - name: refreshResultsPublicationIndex
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/refresh-results-publication-index
+          forward_client_headers: true
+          headers:
+              - name: X-Hasura-Admin-Secret
+                value_from_env: ACTIONS_ADMIN_SECRET
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: publish-results-write
+      comment: Refresh the public results publication index using the current results website policy
     - name: export_template
       definition:
           kind: synchronous
@@ -616,6 +788,21 @@ actions:
       permissions:
           - role: report-generate
           - role: report-read
+    - name: generate_voter_information_letter
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/generate-voter-information-letter
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: document-password-read
+          - role: voter-information-letter
     - name: generate_transmission_report
       definition:
           kind: synchronous
@@ -705,6 +892,48 @@ actions:
       permissions:
           - role: admin-user
       comment: list permissions
+    - name: get_realm_attributes
+      definition:
+          kind: ""
+          handler: http://{{HARVEST_DOMAIN}}/get-realm-attributes
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: keycloak-realm-attributes-read
+    - name: get_realm_password_policy
+      definition:
+          kind: ""
+          handler: http://{{HARVEST_DOMAIN}}/get-realm-password-policy
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: election-event-read
+    - name: get_document_password
+      definition:
+          kind: ""
+          handler: http://{{HARVEST_DOMAIN}}/get-document-password
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: document-password-read
     - name: get_private_key
       definition:
           kind: synchronous
@@ -1135,21 +1364,6 @@ actions:
       permissions:
           - role: publish-write
           - role: admin-user
-    - name: publish_tally_sheet
-      definition:
-          kind: synchronous
-          handler: http://{{HARVEST_DOMAIN}}/publish-tally-sheet
-          forward_client_headers: true
-          request_transform:
-              body:
-                  action: transform
-                  template: "{{$body.input}}"
-              template_engine: Kriti
-              version: 2
-      permissions:
-          - role: tally-sheet-publish
-          - role: admin-user
-      comment: publish_tally_sheet
     - name: render_document_pdf
       definition:
           kind: synchronous
@@ -1288,6 +1502,21 @@ actions:
       permissions:
           - role: trustee-read
           - role: admin-user
+    - name: recount_tally_session
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/recount-tally-session
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: tally-recount-execute
+      comment: Recount a completed tally session with fresh result ids
     - name: submit_tally_resolution
       definition:
           kind: synchronous
@@ -1402,6 +1631,81 @@ actions:
           - role: admin-user
           - role: ca-read
       comment: Export certificate authorities as a PEM bundle for an election event
+    - name: create_new_tally_sheet
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/create-new-tally-sheet
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: tally-sheet-create
+      comment: create_new_tally_sheet
+    - name: review_tally_sheet
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/review-tally-sheet
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: tally-sheet-review
+      comment: review_tally_sheet
+    - name: preview_tally_sheet_import
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/preview-tally-sheet-import
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: tally-sheet-import-create
+      comment: preview_tally_sheet_import
+    - name: create_tally_sheet_import
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/create-tally-sheet-import
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: tally-sheet-import-create
+      comment: create_tally_sheet_import
+    - name: review_tally_sheet_import
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/review-tally-sheet-import
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: tally-sheet-import-review
+      comment: review_tally_sheet_import
 custom_types:
     enums:
         - name: EarlyVotingPolicy
@@ -1461,6 +1765,9 @@ custom_types:
               - description: null
                 is_deprecated: null
                 value: EARLY_VOTING
+              - description: null
+                is_deprecated: null
+                value: TELEPHONE
     input_objects:
         - name: TemplateInput
         - name: PgAuditFilter
@@ -1497,10 +1804,12 @@ custom_types:
         - name: CountUsersInput
     objects:
         - name: GetManualVerificationOutput
+        - name: GetRealmAttributesOutput
         - name: UpdateRealmAttributesOutput
         - name: CreateKeysCeremonyOutput
         - name: GetPrivateKeyOutput
         - name: CastVotesPerDay
+        - name: VotersByChannel
         - name: ElectionEventStatsOutput
         - name: ElectionStatsOutput
         - name: CheckPrivateKeyOutput
@@ -1524,6 +1833,7 @@ custom_types:
         - name: VotesInfo
         - name: KeycloakUser
         - name: GetUsersOutput
+        - name: EditUserOutput
         - name: GetPermissionsOutput
         - name: KeycloakPermission
         - name: GetRolesOutput
@@ -1533,6 +1843,7 @@ custom_types:
         - name: CreateUserOutput
         - name: SetRolePermissionOutput
         - name: OptionalId
+        - name: TallySheetOutput
         - name: PrepareBallotPublicationPreviewOutput
         - name: ExportUsersOutput
         - name: SetUserRoleOutput
@@ -1544,7 +1855,6 @@ custom_types:
         - name: BallotPublicationStyles
         - name: GetBallotPublicationChangesOutput
         - name: RestorePrivateKeyOutput
-        - name: PublishTallyOutput
         - name: InsertCastVoteOutput
         - name: createBallotReceiptOutput
         - name: OptionalImportEvent
@@ -1603,4 +1913,13 @@ custom_types:
         - name: GeneratePreviewUrlOutput
         - name: ImportCertificateAuthorityOutput
         - name: DeleteCertificateAuthorityOutput
+        - name: PhoneBlacklistEntry
+        - name: IdOutput
+        - name: ConfigureResultsWebsitePolicyOutput
+        - name: PublishResultsWebsiteOutput
+        - name: ResolveResultsPublicationOutput
+        - name: FetchResultsArtifactOutput
+        - name: RevokeResultsPublicationOutput
+        - name: VoterInformationLetterOutput
+        - name: DocumentPasswordOutput
     scalars: []

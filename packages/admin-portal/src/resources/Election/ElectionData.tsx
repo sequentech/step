@@ -9,6 +9,7 @@ import {Sequent_Backend_Election_Extended} from "./ElectionDataForm"
 import {ITemplateMethod, IRECEIPTS} from "@/types/templates"
 import {Sequent_Backend_Contest, Sequent_Backend_Election} from "@/gql/graphql"
 import {ContestsOrder, IContestPresentation, IElectionPresentation} from "@sequentech/ui-core"
+import {serializeIvrEntityAnnotations} from "@/utils/ivr"
 
 export const EditElectionData: React.FC = () => {
     const [update] = useUpdate()
@@ -87,6 +88,7 @@ export const EditElectionData: React.FC = () => {
             ""
         data.description = fromPresentationDescription
         // END name, alias and description fields
+        data.annotations = serializeIvrEntityAnnotations(data.annotations)
 
         return {
             ...data,

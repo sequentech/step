@@ -71,6 +71,7 @@ const englishTranslation = {
             markedInvalid: "Ballot explicitly marked invalid",
             points: "({{points}} Points)",
             contestNotFound: "Contest not found: {{contestId}}",
+            declineToVote: "Declined to vote",
         },
         footer: {
             poweredBy: "Powered by <1></1>",

@@ -6,11 +6,6 @@
 # will have compiled files and executables
 target/
 rust-*-target/
-!packages/step-cli/rust-local-target/
-packages/step-cli/rust-local-target/*
-!packages/step-cli/rust-local-target/release/
-packages/step-cli/rust-local-target/release/*
-!packages/step-cli/rust-local-target/release/step-cli
 
 # Remove Cargo.lock from gitignore if creating an executable, leave it for libraries
 # More information here https://doc.rust-lang.org/cargo/guide/cargo-toml-vs-cargo-lock.html

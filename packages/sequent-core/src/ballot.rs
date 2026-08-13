@@ -14,7 +14,8 @@ use crate::types::ceremonies::TallySessionResolutionData;
 use crate::types::ceremonies::{
     CeremoniesPolicy, CountingAlgType, TallyOperation,
 };
-use crate::types::hasura::core::{self, Area, ElectionEvent};
+use crate::types::hasura::core as hasura_core;
+use crate::types::hasura::core::{Area, ElectionEvent};
 use ::core::convert::TryInto;
 use anyhow::anyhow;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -33,9 +34,9 @@ use strand::signature::StrandSignaturePk;
 use strand::signature::StrandSignatureSk;
 use strand::zkp::Schnorr;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
-use strum_macros::{Display, EnumString, IntoStaticStr};
+use strum_macros::{AsRefStr, Display, EnumIter, EnumString, IntoStaticStr};
 
-pub const TYPES_VERSION: u32 = 1;
+pub const TYPES_VERSION: u32 = 2;
 
 pub type I18nContent<T = Option<String>> = HashMap<String, T>;
 
@@ -775,6 +776,45 @@ pub enum ShowCastVoteLogs {
     Display,
     Default,
 )]
+pub enum VotingPortalDateTimeFormat {
+    #[strum(serialize = "legacy-gb-24h")]
+    #[serde(rename = "legacy-gb-24h")]
+    #[default]
+    LegacyGb24h,
+    #[strum(serialize = "iso-local")]
+    #[serde(rename = "iso-local")]
+    IsoLocal,
+    #[strum(serialize = "us-12h")]
+    #[serde(rename = "us-12h")]
+    Us12h,
+    #[strum(serialize = "locale-medium")]
+    #[serde(rename = "locale-medium")]
+    LocaleMedium,
+    #[strum(serialize = "date-only")]
+    #[serde(rename = "date-only")]
+    DateOnly,
+    /// Operator-supplied pattern using the shared date/time tokens
+    /// (`yyyy`, `MM`, `dd`, `HH`, `mm`, `ss`). Serializes as `{"custom": "<pattern>"}`
+    /// so it coexists with the preset variants in the same presentation field.
+    #[strum(default)]
+    #[serde(rename = "custom")]
+    Custom(String),
+}
+
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
 pub enum ElectionsOrder {
     #[strum(serialize = "random")]
     #[serde(rename = "random")]
@@ -844,6 +884,14 @@ pub enum InvalidVotePolicy {
     #[strum(serialize = "not-allowed")]
     #[serde(rename = "not-allowed")]
     NOT_ALLOWED,
+    // Same as ALLOWED, except the explicit-invalid marker becomes a
+    // mutually exclusive selection: picking it clears any other selected
+    // candidates (and vice versa), so it can't be bundled with them. See
+    // `ballotSelectionsSlice.ts` for the enforcement, which mirrors how
+    // blank vote is already exclusive against other selections.
+    #[strum(serialize = "allowed-with-exclusive-explicit")]
+    #[serde(rename = "allowed-with-exclusive-explicit")]
+    ALLOWED_WITH_EXCLUSIVE_EXPLICIT,
 }
 
 #[derive(
@@ -961,6 +1009,109 @@ pub struct ElectionEventLanguageConf {
     Eq,
     Debug,
     Clone,
+    Copy,
+    Default,
+    EnumString,
+    Display,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ResultsWebsiteStatus {
+    Enabled,
+    #[default]
+    Disabled,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    EnumString,
+    Display,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ResultsWebsiteAccess {
+    #[default]
+    Public,
+    Authenticated,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    EnumString,
+    Display,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ResultsWebsiteVisibilityScope {
+    #[default]
+    FullEvent,
+    AreaBased,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Default,
+)]
+pub struct ResultsWebsitePolicy {
+    pub status: ResultsWebsiteStatus,
+    pub access: ResultsWebsiteAccess,
+    pub visibility_scope: ResultsWebsiteVisibilityScope,
+}
+
+fn deserialize_optional_json_string<'de, D>(
+    deserializer: D,
+) -> Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = Option::<serde_json::Value>::deserialize(deserializer)?;
+    match value {
+        None | Some(serde_json::Value::Null) => Ok(None),
+        Some(serde_json::Value::String(value)) => Ok(Some(value)),
+        Some(value) => serde_json::to_string(&value)
+            .map(Some)
+            .map_err(serde::de::Error::custom),
+    }
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
     Default,
 )]
 pub struct ElectionEventPresentation {
@@ -988,6 +1139,10 @@ pub struct ElectionEventPresentation {
     pub weighted_voting_policy: Option<WeightedVotingPolicy>,
     pub ceremonies_policy: Option<CeremoniesPolicy>,
     pub delegated_voting_policy: Option<DelegatedVotingPolicy>,
+    #[borsh(skip)]
+    #[serde(default, deserialize_with = "deserialize_optional_json_string")]
+    pub results_website: Option<String>,
+    pub voting_portal_datetime_format: Option<VotingPortalDateTimeFormat>,
 }
 
 impl ElectionEvent {
@@ -1291,9 +1446,17 @@ pub struct ElectionPresentation {
     pub initialization_report_policy: Option<EInitializeReportPolicy>,
     pub security_confirmation_policy: Option<ESecurityConfirmationPolicy>,
     pub consolidated_report_policy: Option<ConsolidatedReportPolicy>,
+    /// The policy to determine if the voter can decline to vote for an election level.
+    pub decline_to_vote_policy: Option<DeclineToVotePolicy>,
+    /// The policy to determine the screen the back button of the voting
+    /// screen navigates to. Defaults to the election selection screen for
+    /// backwards compatibility.
+    pub voting_screen_back_policy: Option<VotingScreenBackPolicy>,
+    #[borsh(skip)]
+    pub css: Option<String>,
 }
 
-impl core::Election {
+impl hasura_core::Election {
     pub fn get_presentation(&self) -> Option<ElectionPresentation> {
         let election_presentation: Option<ElectionPresentation> = self
             .presentation
@@ -1329,6 +1492,9 @@ impl Default for ElectionPresentation {
             consolidated_report_policy: Some(
                 ConsolidatedReportPolicy::default(),
             ),
+            decline_to_vote_policy: Some(DeclineToVotePolicy::default()),
+            voting_screen_back_policy: Some(VotingScreenBackPolicy::default()),
+            css: None,
         }
     }
 }
@@ -1817,9 +1983,11 @@ pub struct ElectionEventStatus {
     pub voting_status: VotingStatus,
     pub kiosk_voting_status: VotingStatus,
     pub early_voting_status: VotingStatus,
+    pub telephone_voting_status: VotingStatus,
     pub voting_period_dates: PeriodDates,
     pub kiosk_voting_period_dates: PeriodDates,
     pub early_voting_period_dates: PeriodDates,
+    pub telephone_voting_period_dates: PeriodDates,
 }
 
 impl Default for ElectionEventStatus {
@@ -1829,9 +1997,11 @@ impl Default for ElectionEventStatus {
             voting_status: VotingStatus::NOT_STARTED,
             kiosk_voting_status: VotingStatus::NOT_STARTED,
             early_voting_status: VotingStatus::NOT_STARTED,
+            telephone_voting_status: VotingStatus::NOT_STARTED,
             voting_period_dates: Default::default(),
             kiosk_voting_period_dates: Default::default(),
             early_voting_period_dates: Default::default(),
+            telephone_voting_period_dates: Default::default(),
         }
     }
 }
@@ -1846,6 +2016,9 @@ impl ElectionEventStatus {
             VotingStatusChannel::KIOSK => self.kiosk_voting_status.clone(),
             VotingStatusChannel::EARLY_VOTING => {
                 self.early_voting_status.clone()
+            }
+            VotingStatusChannel::TELEPHONE => {
+                self.telephone_voting_status.clone()
             }
         }
     }
@@ -1889,6 +2062,10 @@ impl ElectionEventStatus {
             VotingStatusChannel::EARLY_VOTING => {
                 self.early_voting_status = new_status.clone();
                 &mut self.early_voting_period_dates
+            }
+            VotingStatusChannel::TELEPHONE => {
+                self.telephone_voting_status = new_status.clone();
+                &mut self.telephone_voting_period_dates
             }
         };
         period_dates.update_period_dates(&new_status);
@@ -2010,27 +2187,31 @@ pub enum AllowTallyStatus {
     Debug,
     PartialEq,
     Eq,
+    Hash,
     Clone,
     Copy,
     EnumString,
     JsonSchema,
     IntoStaticStr,
+    AsRefStr,
 )]
 pub enum VotingStatusChannel {
     ONLINE,
     KIOSK,
     EARLY_VOTING,
+    TELEPHONE,
 }
 
 impl VotingStatusChannel {
     pub fn channel_from(
         &self,
-        channels: &core::VotingChannels,
+        channels: &hasura_core::VotingChannels,
     ) -> Option<bool> {
         match self {
             &VotingStatusChannel::ONLINE => channels.online.clone(),
             &VotingStatusChannel::KIOSK => channels.kiosk.clone(),
             &VotingStatusChannel::EARLY_VOTING => channels.early_voting.clone(),
+            &VotingStatusChannel::TELEPHONE => channels.telephone.clone(),
         }
     }
 }
@@ -2296,9 +2477,11 @@ pub struct ElectionStatus {
     pub init_report: InitReport,
     pub kiosk_voting_status: VotingStatus,
     pub early_voting_status: VotingStatus,
+    pub telephone_voting_status: VotingStatus,
     pub voting_period_dates: PeriodDates,
     pub kiosk_voting_period_dates: PeriodDates,
     pub early_voting_period_dates: PeriodDates,
+    pub telephone_voting_period_dates: PeriodDates,
     pub allow_tally: AllowTallyStatus,
 }
 
@@ -2310,9 +2493,11 @@ impl Default for ElectionStatus {
             init_report: InitReport::ALLOWED,
             kiosk_voting_status: VotingStatus::NOT_STARTED,
             early_voting_status: VotingStatus::NOT_STARTED,
+            telephone_voting_status: VotingStatus::NOT_STARTED,
             voting_period_dates: Default::default(),
             kiosk_voting_period_dates: Default::default(),
             early_voting_period_dates: Default::default(),
+            telephone_voting_period_dates: Default::default(),
             allow_tally: Default::default(),
         }
     }
@@ -2329,6 +2514,9 @@ impl ElectionStatus {
             VotingStatusChannel::EARLY_VOTING => {
                 self.early_voting_status.clone()
             }
+            VotingStatusChannel::TELEPHONE => {
+                self.telephone_voting_status.clone()
+            }
         }
     }
 
@@ -2343,6 +2531,9 @@ impl ElectionStatus {
             }
             VotingStatusChannel::EARLY_VOTING => {
                 self.early_voting_period_dates.clone()
+            }
+            VotingStatusChannel::TELEPHONE => {
+                self.telephone_voting_period_dates.clone()
             }
         }
     }
@@ -2387,9 +2578,42 @@ impl ElectionStatus {
                 self.early_voting_status = new_status.clone();
                 &mut self.early_voting_period_dates
             }
+            VotingStatusChannel::TELEPHONE => {
+                self.telephone_voting_status = new_status.clone();
+                &mut self.telephone_voting_period_dates
+            }
         };
         period_dates.update_period_dates(&new_status);
     }
+}
+
+/// How multi-contest ballots lay out each contest's choice slots.
+#[allow(non_camel_case_types)]
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Copy,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum MultiContestEncodingMode {
+    /// One slot per `contest.max_votes`.
+    #[strum(serialize = "legacy")]
+    #[serde(rename = "legacy")]
+    #[default]
+    LEGACY,
+    /// One slot per ordinary candidate, to allow over-voting.
+    #[strum(serialize = "expanded-capacity")]
+    #[serde(rename = "expanded-capacity")]
+    EXPANDED_CAPACITY,
 }
 
 #[derive(
@@ -2419,6 +2643,8 @@ pub struct BallotStyle {
     pub election_event_annotations: Option<HashMap<String, String>>,
     pub election_annotations: Option<HashMap<String, String>>,
     pub area_annotations: Option<AreaAnnotations>,
+    /// Absent means `MultiContestEncodingMode::LEGACY`.
+    pub multi_contest_encoding_mode: Option<MultiContestEncodingMode>,
 }
 
 #[derive(
@@ -2524,6 +2750,8 @@ pub enum WeightedVotingPolicy {
     DISABLED_WEIGHTED_VOTING,
     #[serde(rename = "areas-weighted-voting")]
     AREAS_WEIGHTED_VOTING,
+    #[serde(rename = "voters-weighted-voting")]
+    VOTERS_WEIGHTED_VOTING,
 }
 
 #[derive(
@@ -2624,4 +2852,129 @@ pub enum LanguageDetectionPolicy {
     #[strum(serialize = "force-default")]
     #[serde(rename = "force-default")]
     FORCE_DEFAULT,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
+/// Used to determine if the user can decline to vote.
+pub enum DeclineToVotePolicy {
+    #[default]
+    #[strum(serialize = "disabled")]
+    #[serde(rename = "disabled")]
+    /// The user cannot decline to vote.
+    DISABLED,
+    #[strum(serialize = "enabled")]
+    #[serde(rename = "enabled")]
+    /// The user can decline to vote at the election level (for all contests).
+    ENABLED,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    EnumIter,
+    Default,
+    JsonSchema,
+)]
+/// Used to determine the screen the back button of the voting screen
+/// navigates to.
+///
+/// The serialized values must match the `IVotingScreenBackPolicy` TypeScript
+/// type exported in `wasm/wasm.rs`.
+pub enum VotingScreenBackPolicy {
+    #[default]
+    #[strum(serialize = "election-selection-screen")]
+    #[serde(rename = "election-selection-screen")]
+    /// The back button navigates to the election selection screen.
+    ELECTION_SELECTION_SCREEN,
+    #[strum(serialize = "start-screen")]
+    #[serde(rename = "start-screen")]
+    /// The back button navigates to the start screen of the election.
+    START_SCREEN,
+}
+
+#[cfg(test)]
+mod voting_screen_back_policy_tests {
+    use super::*;
+
+    #[test]
+    fn test_default_is_election_selection_screen() {
+        assert_eq!(
+            VotingScreenBackPolicy::default(),
+            VotingScreenBackPolicy::ELECTION_SELECTION_SCREEN
+        );
+    }
+
+    // Pins the serialized values: they must match the
+    // `IVotingScreenBackPolicy` TypeScript type exported in `wasm/wasm.rs`
+    #[test]
+    fn test_serialized_values() {
+        assert_eq!(
+            serde_json::to_string(
+                &VotingScreenBackPolicy::ELECTION_SELECTION_SCREEN
+            )
+            .unwrap(),
+            "\"election-selection-screen\""
+        );
+        assert_eq!(
+            serde_json::to_string(&VotingScreenBackPolicy::START_SCREEN)
+                .unwrap(),
+            "\"start-screen\""
+        );
+    }
+
+    // Election presentations created before this policy existed must
+    // deserialize without the field
+    #[test]
+    fn test_presentation_without_field_is_backwards_compatible() {
+        let presentation: ElectionPresentation =
+            serde_json::from_str("{}").unwrap();
+        assert_eq!(presentation.voting_screen_back_policy, None);
+    }
+}
+
+#[cfg(test)]
+mod presentation_borsh_compat_tests {
+    use super::*;
+
+    #[test]
+    fn json_only_results_fields_do_not_change_borsh_bytes() {
+        let event_presentation = ElectionEventPresentation::default();
+        let event_bytes = borsh::to_vec(&event_presentation).unwrap();
+        let event_with_results = ElectionEventPresentation {
+            results_website: Some("enabled".to_string()),
+            ..event_presentation
+        };
+        assert_eq!(borsh::to_vec(&event_with_results).unwrap(), event_bytes);
+
+        let election_presentation = ElectionPresentation::default();
+        let election_bytes = borsh::to_vec(&election_presentation).unwrap();
+        let election_with_css = ElectionPresentation {
+            css: Some(".results { color: red; }".to_string()),
+            ..election_presentation
+        };
+        assert_eq!(borsh::to_vec(&election_with_css).unwrap(), election_bytes);
+    }
 }

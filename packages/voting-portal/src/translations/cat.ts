@@ -58,6 +58,14 @@ const catalanTranslation: TranslationType = {
         },
         startScreen: {
             startButton: "Començar a votar",
+            declineToVoteButton: "Declinar votar",
+            declineToVoteDialog: {
+                title: "Confirma que vols declinar votar",
+                content:
+                    "Segur que vols declinar votar?<br />Aniràs directament a la revisió i el teu estat de participació es desarà com a <b>Ha declinat votar</b>.",
+                continue: "Declinar votar",
+                cancel: "Cancel·lar",
+            },
             instructionsTitle: "Instruccions",
             instructionsDescription: "Si us plau, segueixi aquests passos per emetre el seu vot:",
             step1Title: "1. Seleccioneu la seva opció de vot",
@@ -197,6 +205,7 @@ const catalanTranslation: TranslationType = {
                 INTERNAL_ERROR:
                     "S'ha produït un error intern en emetre el vot. Si us plau, torneu-ho a provar més tard o contacteu amb el suport per rebre assistència.",
             },
+            declineToVote: "Declinar votar",
         },
         confirmationScreen: {
             title: "El seu vot ha estat emès",
@@ -280,6 +289,7 @@ const catalanTranslation: TranslationType = {
                 ok: "D'acord",
             },
             noResults: "No hi ha eleccions per ara.",
+            resultsButton: "Veure resultats",
             demoDialog: {
                 title: "Cabina de votació de demostració",
                 content:
@@ -326,13 +336,15 @@ const catalanTranslation: TranslationType = {
             },
         },
         ballotLocator: {
-            title: "Localitza la teva Papereta",
-            titleResult: "Resultat de la cerca de la teva Papereta",
-            description: "Verifica que la teva Papereta ha estat emesa correctament",
-            locate: "Localitza la teva Papereta",
-            locateAgain: "Localitza una altra Papereta",
-            found: "El teu ID de Papereta {{ballotId}} ha estat localitzat",
-            notFound: "El teu ID de Papereta {{ballotId}} no ha estat localitzat",
+            title: "Troba la teva Papereta",
+            titleResult: "Resultats de la cerca de la teva Papereta",
+            description: "Confirma que la teva papereta va ser emesa correctament",
+            locate: "Troba la teva Papereta",
+            locateAgain: "Troba una altra Papereta",
+            found: "El teu ID de Papereta {{ballotId}} ha estat trobat",
+            notFound: "El teu ID de Papereta {{ballotId}} no ha estat trobat",
+            ambiguous:
+                "Més d'una de les teves paperetes coincideix amb {{ballotId}}. Utilitza l'ID complet de la papereta.",
             contentDesc: "Aquest és el contingut de la teva Papereta: ",
             wrongFormatBallotId: "Format incorrecte per l'ID de la Papereta",
             ballotIdNotFoundAtFilter:

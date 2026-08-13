@@ -15,11 +15,16 @@ const config: CodegenConfig = {
             },
         },
     ],
-    documents: "**/*.(graphql|ts|tsx)",
+    documents: ["**/*.(graphql|ts|tsx)", "!**/node_modules/**"],
     generates: {
         "src/gql/": {
             preset: "client",
             plugins: [],
+            config: {
+                enumValues: {
+                    VotingStatusChannel: "@sequentech/ui-core#VotingStatusChannel",
+                },
+            },
         },
         "./graphql.schema.json": {
             plugins: ["introspection"],
