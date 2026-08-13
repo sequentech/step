@@ -154,3 +154,15 @@ export async function selectionCount(page, electionId, contestId) {
         {electionId, contestId}
     )
 }
+
+/** Set a preferential candidate's rank via its MUI position `<Select>`. `index`
+ *  is the candidate's order in the contest; `position` is the 1-based rank
+ *  (0 = none, so `selected` becomes `position - 1`). Opens the Select, clicks
+ *  the option by its `data-value`, and waits for the menu to close. */
+export async function setRank(page, index, position) {
+    const sel = page.locator(".candidate-position-select").nth(index)
+    await sel.scrollIntoViewIfNeeded().catch(() => {})
+    await sel.click()
+    await page.locator(`li[role="option"][data-value="${position}"]`).first().click()
+    await page.waitForSelector('[role="listbox"]', {state: "detached", timeout: 4000}).catch(() => {})
+}

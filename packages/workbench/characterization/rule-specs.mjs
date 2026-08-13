@@ -21,6 +21,7 @@ import {
     dismissDialog,
     backToInspector,
     selectionCount,
+    setRank,
 } from "./browser-harness.mjs"
 
 const clickText = (page, rx) => page.getByText(rx).first().click().catch(() => {})
@@ -122,15 +123,62 @@ export const RULE_SPECS = {
             obs.formed === (c.state === "regular" || c.state === "marker_plus" ? 1 : 0) &&
             obs.explicitInvalid === (c.state === "marker" || c.state === "marker_plus"),
     },
+    "duprank-rule": {
+        contestCounting: "instant-runoff", // IRV Favourite fruit (Apple/Banana/Cherry)
+        landmark: /^Apple$/,
+        // ranked selection (`selected` = rank; -1 unranked). valid_full = a
+        // well-ordered 0,1,2; duplicate = two candidates sharing rank 0.
+        ranks: (c) => (c.state === "valid_full" ? [0, 1, 2] : [0, 0, -1]),
+        config: (c) => ({
+            selects: {
+                "Duplicated-rank policy": c.duplicated_rank_policy,
+                "Invalid-vote policy": c.invalid_vote_policy,
+            },
+        }),
+        select: rankedSelect,
+        // Reachability is the whole rank vector, not a count: valid_full and a
+        // gap/duplicate can share a rank-1 count, so compare the vector.
+        reached: (obs, c, spec) =>
+            JSON.stringify(obs.selected) === JSON.stringify(spec.ranks(c)),
+    },
+    "prefgaps-rule": {
+        contestCounting: "instant-runoff", // IRV Favourite fruit (Apple/Banana/Cherry)
+        landmark: /^Apple$/,
+        // valid_full = 0,1,2; gap = ranks 0 then 2, skipping rank 1.
+        ranks: (c) => (c.state === "valid_full" ? [0, 1, 2] : [0, 2, -1]),
+        config: (c) => ({
+            selects: {
+                "Preference-gaps policy": c.preference_gaps_policy,
+                "Invalid-vote policy": c.invalid_vote_policy,
+            },
+        }),
+        select: rankedSelect,
+        reached: (obs, c, spec) =>
+            JSON.stringify(obs.selected) === JSON.stringify(spec.ranks(c)),
+    },
 }
 
-/** Resolve a rule's contest id (by its marker flag) and the first voter id. */
-export async function contestAndVoter(page, electionId, contestFlag) {
+/** Selection driver for preferential rules: set every candidate's rank
+ *  explicitly (including to "none") so each cell fully specifies the ranking
+ *  and nothing bleeds from the previous cell. `position` = rank + 1, 0 = none. */
+async function rankedSelect(page, c, spec) {
+    const r = spec.ranks(c)
+    for (let i = 0; i < r.length; i++) {
+        await setRank(page, i, r[i] < 0 ? 0 : r[i] + 1)
+    }
+}
+
+/** Resolve a rule's contest id and the first voter id. The contest is found by
+ *  a candidate marker `flag` (plurality rules) or by `counting` algorithm
+ *  (preferential rules, which carry no marker). */
+export async function contestAndVoter(page, electionId, {flag, counting}) {
     return page.evaluate(
-        ({electionId, contestFlag}) => {
+        ({electionId, flag, counting}) => {
             const bs = window.__store.getState().ballotStyles[electionId]
             const c = bs.ballot_eml.contests.find((x) =>
-                x.candidates.some((cd) => cd.presentation?.[contestFlag])
+                counting
+                    ? x.counting_algorithm === counting
+                    : x.candidates.some((cd) => cd.presentation?.[flag])
             )
             const raw = localStorage.getItem("workbench:state:v1")
             const voter = raw
@@ -138,7 +186,7 @@ export async function contestAndVoter(page, electionId, contestFlag) {
                 : null
             return {contestId: c.id, voterId: voter}
         },
-        {electionId, contestFlag}
+        {electionId, flag, counting}
     )
 }
 
@@ -158,14 +206,17 @@ export async function observeBooth(page, {electionId, contestId, voterId, spec, 
     await enterBooth(page, voterId)
     await page.getByText(spec.landmark).first().waitFor({timeout: 15000})
     await clearSelections(page)
-    await spec.select(page, cell)
+    await spec.select(page, cell, spec)
 
     const formed = await selectionCount(page, electionId, contestId)
-    const explicitInvalid = await page.evaluate(
+    const {explicitInvalid, selected} = await page.evaluate(
         ({electionId, contestId}) => {
             const sel = window.__store.getState().ballotSelections[electionId] ?? []
             const c = sel.find((x) => x.contest_id === contestId)
-            return !!(c && c.is_explicit_invalid)
+            return {
+                explicitInvalid: !!(c && c.is_explicit_invalid),
+                selected: c ? c.choices.map((ch) => ch.selected) : [],
+            }
         },
         {electionId, contestId}
     )
@@ -195,12 +246,13 @@ export async function observeBooth(page, {electionId, contestId, voterId, spec, 
         await dismissDialog(page)
     }
     await backToInspector(page)
-    return {formed, explicitInvalid, inlineAtVote, dialog, inlineAtReview}
+    return {formed, selected, explicitInvalid, inlineAtVote, dialog, inlineAtReview}
 }
 
 /** Did the intended cell state form? Default: the marker-inclusive selection
- *  count matches `want`. A spec may override with `reached(obs, cell)` when the
- *  count alone is insufficient — e.g. the invalid marker sets the
- *  `is_explicit_invalid` FLAG, not a counted selection (see `invalid-rule`). */
+ *  count matches `want`. A spec may override with `reached(obs, cell, spec)`
+ *  when the count alone is insufficient — e.g. the invalid marker sets the
+ *  `is_explicit_invalid` FLAG, not a counted selection (`invalid-rule`), or a
+ *  preferential rule's reachability is the whole rank vector (`duprank`). */
 export const isReached = (spec, obs, cell) =>
-    spec.reached ? spec.reached(obs, cell) : obs.formed === spec.want(cell)
+    spec.reached ? spec.reached(obs, cell, spec) : obs.formed === spec.want(cell)

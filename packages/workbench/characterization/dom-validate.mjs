@@ -22,10 +22,11 @@
 // message twice (the kept error + its alert copy), but the booth renders one
 // WarnBox per message, so the set is what "does the voter see it?" turns on.
 //
-// Requires the dev server on :5173. Covers the five plurality rules
-// (over-vote, min-vote, blank, under-vote, invalid) on the explicit-blank-
-// invalid fixture; the two IRV rules (duplicate-rank, preference-gaps) need
-// the ranked fixture and are not covered yet. Adding a rule is a RULES entry.
+// Requires the dev server on :5173. Covers all seven rules: the five plurality
+// rules (over-vote, min-vote, blank, under-vote, invalid) on the explicit-
+// blank-invalid fixture, and the two preferential rules (duplicate-rank,
+// preference-gaps) on the IRV fixture with ranked selection. Adding a rule is a
+// RULES entry (+ a RULE_SPECS entry keyed by its recorded-JSON name).
 
 import {createRequire} from "node:module"
 import {readFileSync, writeFileSync} from "node:fs"
@@ -41,8 +42,20 @@ const {chromium} = require("playwright")
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const base = "http://localhost:5173"
-const ELECTION = "44444444-4444-4444-4444-444444444003"
-const SNAPSHOT = "bundled:explicit-blank-invalid"
+
+// Each rule names its fixture; the fixture fixes the snapshot to load and the
+// election id its contest lives under. Plurality rules ride the
+// explicit-blank-invalid fixture; the two preferential rules the IRV one.
+const FIXTURES = {
+    plurality: {
+        snapshot: "bundled:explicit-blank-invalid",
+        election: "44444444-4444-4444-4444-444444444003",
+    },
+    irv: {
+        snapshot: "bundled:instant-runoff-3cand",
+        election: "11111111-1111-1111-1111-111111111003",
+    },
+}
 
 const rec = (f) => JSON.parse(readFileSync(path.join(here, f), "utf8")).rows
 const uniq = (xs) => [...new Set(xs)].sort()
@@ -110,6 +123,32 @@ const RULES = [
             "(the `marker` state it converges with) — so it lives in the partial " +
             "table, not here.",
     },
+    {
+        name: "duplicate-rank",
+        ...RULE_SPECS["duprank-rule"],
+        fixture: "irv",
+        rows: rec("duprank-rule.recorded.json"),
+        constraint: () => null, // duplicates are not prevented at input
+        label: (r) => `${r.duplicated_rank_policy} × ${r.invalid_vote_policy} × ${r.state}`,
+        configNote:
+            "*config* = `duplicated_rank_policy` × `invalid_vote_policy` on the " +
+            "IRV *Favourite fruit* contest (Apple/Banana/Cherry, ranked). " +
+            "*state*: `valid_full` = ranks 1,2,3; `duplicate` = two candidates at " +
+            "rank 1.",
+    },
+    {
+        name: "preference-gaps",
+        ...RULE_SPECS["prefgaps-rule"],
+        fixture: "irv",
+        rows: rec("prefgaps-rule.recorded.json"),
+        constraint: () => null, // gaps are not prevented at input
+        label: (r) => `${r.preference_gaps_policy} × ${r.invalid_vote_policy} × ${r.state}`,
+        configNote:
+            "*config* = `preference_gaps_policy` × `invalid_vote_policy` on the " +
+            "IRV *Favourite fruit* contest (Apple/Banana/Cherry, ranked). " +
+            "*state*: `valid_full` = ranks 1,2,3; `gap` = ranks 1 then 3, " +
+            "skipping rank 2.",
+    },
 ]
 
 const browser = await chromium.launch({channel: "chrome", headless: true})
@@ -123,15 +162,20 @@ const short = (xs) =>
 const results = []
 const t0 = performance.now()
 for (const rule of RULES) {
-    // Reload per rule for a clean baseline. Panel overrides are ephemeral and
-    // per-contest, and several rules share a contest (over-vote/invalid on
-    // Council; min-vote/blank/undervote on Referendum), so a policy one rule
-    // leaves unset would otherwise inherit the previous rule's value. Reloading
+    // Reload per rule for a clean baseline (also switches fixture/snapshot for
+    // the preferential rules). Panel overrides are ephemeral and per-contest,
+    // and several rules share a contest (over-vote/invalid on Council;
+    // min-vote/blank/undervote on Referendum), so a policy one rule leaves
+    // unset would otherwise inherit the previous rule's value. Reloading
     // between rules (once each) keeps the per-cell reload-free speed.
-    await loadSnapshot(page, base, SNAPSHOT)
-    const {contestId, voterId} = await contestAndVoter(page, ELECTION, rule.contestFlag)
+    const {snapshot, election} = FIXTURES[rule.fixture ?? "plurality"]
+    await loadSnapshot(page, base, snapshot)
+    const {contestId, voterId} = await contestAndVoter(page, election, {
+        flag: rule.contestFlag,
+        counting: rule.contestCounting,
+    })
     for (const r of rule.rows) {
-        const obs = await observeBooth(page, {electionId: ELECTION, contestId, voterId, spec: rule, cell: r})
+        const obs = await observeBooth(page, {electionId: election, contestId, voterId, spec: rule, cell: r})
 
         const constrained = rule.constraint(r) === "inputs_disabled"
         const domReachable = isReached(rule, obs, r)

@@ -100,7 +100,10 @@ for (const cand of candidates) {
         rejected.push({...cand, reason: "no browser spec", confirmed: false})
         continue
     }
-    ctx[cand.rule] ??= await contestAndVoter(page, ELECTION, spec.contestFlag)
+    ctx[cand.rule] ??= await contestAndVoter(page, ELECTION, {
+        flag: spec.contestFlag,
+        counting: spec.contestCounting,
+    })
     const {contestId, voterId} = ctx[cand.rule]
     const obs = await observeBooth(page, {electionId: ELECTION, contestId, voterId, spec, cell: cand})
 

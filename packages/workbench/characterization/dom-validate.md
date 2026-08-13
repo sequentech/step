@@ -254,3 +254,49 @@ its meaning is noted under each rule heading below.
 | not-allowed | marker | notAllowed | — | (blocked) | **block** | dialog | yes | ExplicitInvalid | ✓ |
 | not-allowed | marker_plus | notAllowed | — | (blocked) | **block** | dialog | yes | ExplicitInvalid | ✓ |
 
+## duplicate-rank
+
+*config* = `duplicated_rank_policy` × `invalid_vote_policy` on the IRV *Favourite fruit* contest (Apple/Banana/Cherry, ranked). *state*: `valid_full` = ranks 1,2,3; `duplicate` = two candidates at rank 1.
+
+| config | state | errors | alerts | inline (review) | hard gate | soft gate | reachable | tally | matches spec? |
+|---|---|---|---|---|---|---|---|---|---|
+| allowed-warn-and-dialog × allowed | valid_full | — | — | — | — | — | yes | Valid | ✓ |
+| allowed-warn-and-dialog × allowed | duplicate | duplicatedPosition | — | — | — | dialog | yes | ImplicitInvalid | ✓ |
+| allowed-warn-and-dialog × warn | valid_full | — | — | — | — | — | yes | Valid | ✓ |
+| allowed-warn-and-dialog × warn | duplicate | duplicatedPosition | — | duplicatedPosition | — | dialog | yes | ImplicitInvalid | ✓ |
+| allowed-warn-and-dialog × warn-invalid-implicit-and-explicit | valid_full | — | — | — | — | — | yes | Valid | ✓ |
+| allowed-warn-and-dialog × warn-invalid-implicit-and-explicit | duplicate | duplicatedPosition | — | duplicatedPosition | — | dialog | yes | ImplicitInvalid | ✓ |
+| allowed-warn-and-dialog × not-allowed | valid_full | — | — | — | — | — | yes | Valid | ✓ |
+| allowed-warn-and-dialog × not-allowed | duplicate | duplicatedPosition | — | (blocked) | **block** | dialog | yes | ImplicitInvalid | ✓ |
+| not-allowed-warn-and-dialog × allowed | valid_full | — | — | — | — | — | yes | Valid | ✓ |
+| not-allowed-warn-and-dialog × allowed | duplicate | duplicatedPosition | — | (blocked) | **block** | — | yes | ImplicitInvalid | ✓ |
+| not-allowed-warn-and-dialog × warn | valid_full | — | — | — | — | — | yes | Valid | ✓ |
+| not-allowed-warn-and-dialog × warn | duplicate | duplicatedPosition | — | (blocked) | **block** | dialog | yes | ImplicitInvalid | ✓ |
+| not-allowed-warn-and-dialog × warn-invalid-implicit-and-explicit | valid_full | — | — | — | — | — | yes | Valid | ✓ |
+| not-allowed-warn-and-dialog × warn-invalid-implicit-and-explicit | duplicate | duplicatedPosition | — | (blocked) | **block** | dialog | yes | ImplicitInvalid | ✓ |
+| not-allowed-warn-and-dialog × not-allowed | valid_full | — | — | — | — | — | yes | Valid | ✓ |
+| not-allowed-warn-and-dialog × not-allowed | duplicate | duplicatedPosition | — | (blocked) | **block** | dialog | yes | ImplicitInvalid | ✓ |
+
+## preference-gaps
+
+*config* = `preference_gaps_policy` × `invalid_vote_policy` on the IRV *Favourite fruit* contest (Apple/Banana/Cherry, ranked). *state*: `valid_full` = ranks 1,2,3; `gap` = ranks 1 then 3, skipping rank 2.
+
+| config | state | errors | alerts | inline (review) | hard gate | soft gate | reachable | tally | matches spec? |
+|---|---|---|---|---|---|---|---|---|---|
+| allowed-warn-and-dialog × allowed | valid_full | — | — | — | — | — | yes | Valid | ✓ |
+| allowed-warn-and-dialog × allowed | gap | preferenceOrderWithGaps | — | — | — | dialog | yes | ImplicitInvalid | ✓ |
+| allowed-warn-and-dialog × warn | valid_full | — | — | — | — | — | yes | Valid | ✓ |
+| allowed-warn-and-dialog × warn | gap | preferenceOrderWithGaps | — | preferenceOrderWithGaps | — | dialog | yes | ImplicitInvalid | ✓ |
+| allowed-warn-and-dialog × warn-invalid-implicit-and-explicit | valid_full | — | — | — | — | — | yes | Valid | ✓ |
+| allowed-warn-and-dialog × warn-invalid-implicit-and-explicit | gap | preferenceOrderWithGaps | — | preferenceOrderWithGaps | — | dialog | yes | ImplicitInvalid | ✓ |
+| allowed-warn-and-dialog × not-allowed | valid_full | — | — | — | — | — | yes | Valid | ✓ |
+| allowed-warn-and-dialog × not-allowed | gap | preferenceOrderWithGaps | — | (blocked) | **block** | dialog | yes | ImplicitInvalid | ✓ |
+| not-allowed-warn-and-dialog × allowed | valid_full | — | — | — | — | — | yes | Valid | ✓ |
+| not-allowed-warn-and-dialog × allowed | gap | preferenceOrderWithGaps | — | (blocked) | **block** | — | yes | ImplicitInvalid | ✓ |
+| not-allowed-warn-and-dialog × warn | valid_full | — | — | — | — | — | yes | Valid | ✓ |
+| not-allowed-warn-and-dialog × warn | gap | preferenceOrderWithGaps | — | (blocked) | **block** | dialog | yes | ImplicitInvalid | ✓ |
+| not-allowed-warn-and-dialog × warn-invalid-implicit-and-explicit | valid_full | — | — | — | — | — | yes | Valid | ✓ |
+| not-allowed-warn-and-dialog × warn-invalid-implicit-and-explicit | gap | preferenceOrderWithGaps | — | (blocked) | **block** | dialog | yes | ImplicitInvalid | ✓ |
+| not-allowed-warn-and-dialog × not-allowed | valid_full | — | — | — | — | — | yes | Valid | ✓ |
+| not-allowed-warn-and-dialog × not-allowed | gap | preferenceOrderWithGaps | — | (blocked) | **block** | dialog | yes | ImplicitInvalid | ✓ |
+
