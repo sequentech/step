@@ -27,6 +27,7 @@ import {IPermissions} from "@/types/keycloak"
 import {ResetFilters} from "@/components/ResetFilters"
 import {useTasksPermissions} from "./useTasksPermissions"
 import {CircularProgress} from "@mui/material"
+import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
 
 export interface ListTasksProps {
     onViewTask: (id: Identifier) => void
@@ -135,7 +136,11 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRe
                 disableSyncWithLocation
             >
                 <ResetFilters />
-                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={false}>
+                <DatagridConfigurable
+                    header={ThreeStateDatagridHeader}
+                    omit={OMIT_FIELDS}
+                    bulkActionButtons={false}
+                >
                     <TextField source="id" />
                     <TextField source="name" />
                     <DateField
