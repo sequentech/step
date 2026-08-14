@@ -3170,13 +3170,32 @@ fn keycloak_message_rows(plan: &Blueprint) -> Vec<(String, String)> {
             if key.trim().is_empty() {
                 continue;
             }
+            // A stylesheet is escaped; a sentence is not.
+            //
+            // Keycloak resolves every `localizationTexts` value through
+            // `java.text.MessageFormat`, where `{` opens a placeholder and `'`
+            // quotes. That is harmless for wording — and fatal for CSS, which
+            // is mostly braces. `login_css_patch` already escapes on the
+            // workbook path; doing it here keeps the two paths agreeing about
+            // one key rather than about one entry point.
+            //
+            // Only this key. Escaping every message would break a translation
+            // that legitimately carries `{0}`, which is the whole reason the
+            // rule is per-key rather than per-channel.
+            let value = if key.trim() == super::branding::LOGIN_CUSTOM_CSS_KEY {
+                super::branding::escape_message_format(
+                    super::branding::unwrap_quoted(text),
+                )
+            } else {
+                text.clone()
+            };
             rows.push((
                 format!(
                     "keycloak_event_realm.localizationTexts.{}.{}",
                     locale.trim(),
                     key.trim()
                 ),
-                text.clone(),
+                value,
             ));
         }
     }

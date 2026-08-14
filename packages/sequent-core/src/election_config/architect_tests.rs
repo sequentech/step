@@ -4252,3 +4252,54 @@ fn wording_is_appended_to_a_carried_parameters_sheet() {
         "the workbook's own parameter comes first, and the wording after it"
     );
 }
+
+// -- the login page's stylesheet -------------------------------------------
+
+/// A stylesheet reaching Keycloak is MessageFormat-escaped; wording is not.
+///
+/// Keycloak resolves every `localizationTexts` value through
+/// `java.text.MessageFormat`, where `{` opens a placeholder. Raw CSS is mostly
+/// braces, so an unescaped stylesheet arrives mangled — and the failure is only
+/// visible on a real login page, which is the worst place to find it.
+///
+/// Per-key rather than per-channel, because escaping every message would break
+/// a translation legitimately carrying `{0}`.
+#[test]
+fn the_login_stylesheet_is_escaped_and_wording_is_not() {
+    let mut plan = sound();
+    plan.keycloak_messages.insert(
+        "en".to_string(),
+        [
+            (
+                "loginCustomCss".to_string(),
+                ".login { color: red; }".to_string(),
+            ),
+            (
+                "doLogIn".to_string(),
+                "Sign in, {0} of {1}".to_string(),
+            ),
+        ]
+        .into_iter()
+        .collect(),
+    );
+
+    let workbook = to_workbook(&plan).expect("the plan compiles to rows");
+    let row = workbook.rows(sheet::SHEET_PARAMETERS);
+    let value = |name: &str| {
+        row.iter()
+            .find(|each| each.text("key") == Some(name))
+            .and_then(|each| each.text("value"))
+            .unwrap_or_default()
+            .to_string()
+    };
+
+    assert_eq!(
+        value("keycloak_event_realm.localizationTexts.en.loginCustomCss"),
+        ".login '{' color: red; '}'"
+    );
+    // Untouched: a placeholder in a sentence is a placeholder.
+    assert_eq!(
+        value("keycloak_event_realm.localizationTexts.en.doLogIn"),
+        "Sign in, {0} of {1}"
+    );
+}
