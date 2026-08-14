@@ -21,65 +21,46 @@ Status legend: **[IN PLACE]** works today · **[PLANNED]** decided, not yet done
 
 ---
 
-## 1. Model checking — port the vs_lift `stateright` tests  [PLANNED, Tier 1]
+## 1. Model checking — `stateright` over the real implementation  [IN PLACE on `exp/braid-stateright/main`]
 
-The braid datalog (`crate::datalog`, §7) is a port of the vs_lift `ascent` rules;
-vs_lift also carried `stateright` model-checking harnesses that were **not**
-ported. Bringing them over is banked in spec §12 and carries real assurance value
-for the "brain". The source is restored (read-only) under
-`crates/braid/vs_lift/` for reference.
+Explicit-state model checking exists as **two harnesses that drive the real
+implementation** — the real `datalog::composed::run`, the real `BoardClient`
+(committed set §6.2/§6.3, outgoing mailbox §6.4), real wire assembly and
+signatures — rather than a port of the vs_lift harnesses. Design record,
+measurements and roadmap: `STATERIGHT.md`. Currently on the experimental
+branch; not yet mainlined.
 
-The harnesses split into two tiers with very different effort profiles.
+- `crates/braid/tests/model_check.rs` — real crypto end to end
+  (`Trustee::step`). Explores interleavings as a tree (nondeterministic crypto
+  never dedupes); checks the honest-path axioms: no trustee halts, and some
+  interleaving publishes exactly the encrypted inputs. `#[ignore]`d — run
+  explicitly (real crypto per explored transition).
+- `crates/braid/tests/model_check_symbolic.rs` — the real datalog, wire
+  assembly and signatures over **deterministic token artifacts**; canonical
+  order-free state identity makes the exploration a graph, so completion is
+  checked as a strong `eventually` over ALL paths. The fault program lives
+  here: faults are budgeted actions with provenance in the state, and the
+  first result stands — §6.4's compute-once/send-until-acked verified over
+  every ≤ 2-dropped-commit pattern and interleaving at n=2 (no halts, every
+  path completes). Runs in the ordinary test suite (~1s, several committee
+  configurations).
 
-### Tier 1 — ascent-logic model checks  [feasible, moderate]
+The port plan this section previously carried is **retired**, deliberately:
 
-Per-phase `stateright::Model`s for DKG / mix / decrypt (in
-`vs_lift/.../ascent_logic/{dkg,mix,decrypt}.rs` `mod stateright`), a shared board
-mock in `ascent_logic/mod.rs` (`HashBoard`), and a whole-protocol model in
-`protocol.rs` — ~1,400 lines total. Each model: `actions()` runs the **infer**
-program to get enabled actions; `next_state()` runs a test-only **execute**
-program that fabricates result messages with stub hashes; `properties()` asserts
-safety/liveness (e.g. "shares completed", collision ⇒ no progress); a `#[test]`
-BFS-checks a small committee (e.g. `<RistrettoCtx, 2, 2, 3>`). These depend only
-on `ascent_logic` + `cryptography::Context` + the `stateright` crate — **no**
-actor/handler coupling — so they plug straight into `crate::datalog`.
+- *Tier 1* (per-phase ascent-logic models with re-added stub-hash `execute`
+  fragments and a `HashBoard` mock) would have created a second, test-only
+  rendering of the protocol's action layer next to the real one — a drift
+  surface. The harnesses above check the real thing instead, which is strictly
+  stronger and turned out no more expensive.
+- *Tier 2* (the vs_lift integration/actor model, ~2,970 lines) remains
+  unportable as-is (v0.6 replaced that architecture), but it was **mined**: its
+  fault/property catalog — budgeted fault actions, fault provenance in state,
+  fault-conditioned safety/liveness, non-vacuity guards, no-exemption
+  agreement properties — is adopted as the template for the fault program (see
+  `STATERIGHT.md`).
 
-Effort is **comparable to the datalog rule port already completed**:
-
-- Reusable as-is: the composed **infer** program (`datalog::composed`), the rules,
-  the `Action`/`Predicate` types, and the newtypes.
-- To add (all native-only `#[cfg(test)]`):
-  1. a `stateright` dev-dependency;
-  2. a `HashBoard`-equivalent mock keyed on braid's `Predicate` (~100 lines,
-     mechanical);
-  3. the test-only **execute** ascent fragments (`*_execute`) — these were dropped
-     in our port and must be re-added (small: a couple of rules per phase, stub
-     hashes);
-  4. a `composed_execute` program (analogous to the existing `composed`);
-  5. the `Model`/`Property` impls per phase + the whole-protocol model
-     (mechanical translation).
-- Known friction (no architectural unknowns): vs_lift's positional `Message` enum
-  → braid's typed named-field `Predicate` (the same adaptation already done for
-  the infer input-mapping rules), the `message(…)` → `predicate(…)` relation
-  rename in the execute rules, and adding the test-only `active` relation (braid's
-  prelude does not carry it).
-- Suggested delivery: per phase (dkg → mix → decrypt → whole-protocol), each a
-  small self-contained addition under `datalog`.
-
-### Tier 2 — integration / actor model checks  [major; a rewrite, not a port]
-
-`vs_lift/integration_tests.rs` (~2,335 lines) + `integration_tests_basic.rs`
-(~634) build a `stateright::Model` over the **full actor system**
-(`trustee_administration_server::handlers`, `trustee_application::{handlers,
-top_level_actor}`, `trustee_cryptography`, `trustee_messages`). v0.6 deliberately
-**replaced** that architecture with `Trustee` + `BoardClient` + `b4`, so
-this is not portable as-is — it would mean re-expressing the integration model
-over braid's runtime (`Session`/`BoardClient`), i.e. new design work. Treat as a
-separate, later question if end-to-end model checking of the v0.6 runtime is ever
-wanted.
-
-**Verdict:** pursue **Tier 1** when scheduled (bounded, moderate, high
-value-for-effort). **Tier 2** is a major undertaking best framed as new work.
+The vs_lift source stays restored (read-only) under `crates/braid/vs_lift/`
+for reference.
 
 ---
 
