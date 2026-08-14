@@ -55,11 +55,15 @@ class TemplateSyntaxTest {
     String html = rendered.toString();
 
     assertTrue(html.contains("data-credential-pattern=\"dddd&quot; onfocus=&quot;alert(1)\""));
+    assertTrue(
+        html.contains(
+            "data-credential-input-placeholder=\"#&quot; onfocus=&quot;alert(4)\""));
     assertTrue(html.contains("&lt;img src=x onerror=alert(1)&gt;"));
     assertTrue(html.contains("data-paste-error=\"paste&quot; onfocus=&quot;alert(2)\""));
     assertTrue(html.contains("data-format-error=\"format&quot; onfocus=&quot;alert(3)\""));
     assertFalse(html.contains("<img src=x onerror=alert(1)>"));
     assertFalse(html.contains("data-credential-pattern=\"dddd\" onfocus="));
+    assertFalse(html.contains("data-credential-input-placeholder=\"#\" onfocus="));
   }
 
   @Test
@@ -148,11 +152,15 @@ class TemplateSyntaxTest {
     String html = rendered.toString();
 
     assertTrue(html.contains("data-credential-pattern=\"dddd&quot; onfocus=&quot;alert(1)\""));
+    assertTrue(
+        html.contains(
+            "data-credential-input-placeholder=\"#&quot; onfocus=&quot;alert(4)\""));
     assertTrue(html.contains("&lt;img src=x onerror=alert(1)&gt;"));
     assertTrue(html.contains("data-paste-error=\"paste&quot; onfocus=&quot;alert(2)\""));
     assertTrue(html.contains("data-format-error=\"format&quot; onfocus=&quot;alert(3)\""));
     assertTrue(html.contains("inputmode=\"numeric\""));
     assertFalse(html.contains("data-credential-pattern=\"dddd\" onfocus="));
+    assertFalse(html.contains("data-credential-input-placeholder=\"#\" onfocus="));
   }
 
   private static void assertParses(Path path) throws IOException {
@@ -238,7 +246,9 @@ class TemplateSyntaxTest {
                             "credential-input-policy",
                             credentialInputPolicy,
                             "credential-input-pattern",
-                            "dddd\" onfocus=\"alert(1)")),
+                            "dddd\" onfocus=\"alert(1)",
+                            "credential-input-placeholder",
+                            "#\" onfocus=\"alert(4)")),
                     Map.entry("password", true),
                     Map.entry("registrationAllowed", false),
                     Map.entry("loginWithEmailAllowed", false),

@@ -41,6 +41,8 @@ class RegisterTemplateTest {
     assertTrue(template.contains("data-structured-credential"));
     assertTrue(
         template.contains("realm.attributes['credential-input-pattern']!'dddd-dddd-dddd-dddd'"));
+    assertTrue(
+        template.contains("realm.attributes['credential-input-placeholder']!'d'"));
     assertFalse(template.contains("?html"));
     assertTrue(template.contains("msg(\"structuredCredentialError\")"));
     assertTrue(template.contains("data-paste-error=\"${msg('structuredCredentialPasteError')}\""));
