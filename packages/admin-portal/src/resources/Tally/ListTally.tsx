@@ -64,6 +64,7 @@ import {Add} from "@mui/icons-material"
 import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
 import {GET_TRUSTEES_NAMES} from "@/queries/GetTrusteesNames"
 import {StyledChip} from "@/components/StyledChip"
+import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
 
 const OMIT_FIELDS = ["ballot_eml", "trustees"]
 
@@ -513,7 +514,11 @@ export const ListTally: React.FC<ListAreaProps> = () => {
                 >
                     <ResetFilters />
                     <ElectionHeader title={"electionEventScreen.tally.title"} subtitle="" />
-                    <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={false}>
+                    <DatagridConfigurable
+                        header={ThreeStateDatagridHeader}
+                        omit={OMIT_FIELDS}
+                        bulkActionButtons={false}
+                    >
                         <TextField source="id" />
                         <FunctionField
                             label={String(t("electionEventScreen.tally.tallyType.label"))}

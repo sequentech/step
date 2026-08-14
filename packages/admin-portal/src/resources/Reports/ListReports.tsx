@@ -72,6 +72,7 @@ import {set} from "lodash"
 import {isArray} from "@sequentech/ui-core"
 import {DecryptHelp} from "@/components/election-event/export-data/PasswordDialog"
 import {EventProcessors} from "../ScheduledEvents/CreateScheduledEvent"
+import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
 
 export const decryptionCommand = `openssl enc -d -aes-256-cbc -in <encrypted_file> -out <decrypted_file> -pass pass:<password>  -md md5`
 
@@ -493,6 +494,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                 disableSyncWithLocation
             >
                 <DataGridContainerStyle
+                    header={ThreeStateDatagridHeader}
                     isOpenSideBar={isOpenSidebar}
                     omit={OMIT_FIELDS}
                     rowClick={false}

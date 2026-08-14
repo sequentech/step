@@ -89,6 +89,7 @@ import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import SelectArea from "@/components/area/SelectArea"
 import {WidgetProps} from "@/components/Widget"
 import {ResetFilters} from "@/components/ResetFilters"
+import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {UserActionTypes} from "@/components/types"
 import {useUsersPermissions} from "./useUsersPermissions"
@@ -1163,6 +1164,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             <>
                 {userAttributes?.get_user_profile_attributes && (
                     <DataGridContainerStyle
+                        header={ThreeStateDatagridHeader}
                         preferenceKey={getPreferenceKey(location.pathname, "voters")}
                         omit={listFields.omitFields}
                         isOpenSideBar={isOpenSidebar}
