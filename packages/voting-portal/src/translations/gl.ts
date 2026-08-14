@@ -313,6 +313,10 @@ const galegoTranslation: TranslationType = {
                 electionEventNotPublished:
                     "O evento electoral aínda non foi publicado. Inténteo de novo máis tarde ou contacte co soporte para obter asistencia.",
             },
+            materialsGate: {
+                instructions:
+                    "You must read the <MaterialsLink>Support Materials</MaterialsLink> before you can vote.",
+            },
         },
         errors: {
             encoding: {

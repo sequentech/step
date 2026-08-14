@@ -313,6 +313,10 @@ const dutchTranslation: TranslationType = {
                 electionEventNotPublished:
                     "De kiesgebeurtenis is nog niet gepubliceerd. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
             },
+            materialsGate: {
+                instructions:
+                    "You must read the <MaterialsLink>Support Materials</MaterialsLink> before you can vote.",
+            },
         },
         errors: {
             encoding: {

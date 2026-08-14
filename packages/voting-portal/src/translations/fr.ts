@@ -313,6 +313,10 @@ const frenchTranslation: TranslationType = {
                 electionEventNotPublished:
                     "L'événement électoral n'a pas encore été publié. Veuillez réessayer ultérieurement ou contacter le support pour obtenir de l'aide.",
             },
+            materialsGate: {
+                instructions:
+                    "You must read the <MaterialsLink>Support Materials</MaterialsLink> before you can vote.",
+            },
         },
         errors: {
             encoding: {

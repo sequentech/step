@@ -312,6 +312,10 @@ const tagalogTranslation: TranslationType = {
                 electionEventNotPublished:
                     "Ang kaganapan ng halalan ay hindi pa nailathala. Mangyaring subukan muli mamaya o makipag-ugnayan sa helpdesk para sa tulong.",
             },
+            materialsGate: {
+                instructions:
+                    "You must read the <MaterialsLink>Support Materials</MaterialsLink> before you can vote.",
+            },
         },
         errors: {
             encoding: {

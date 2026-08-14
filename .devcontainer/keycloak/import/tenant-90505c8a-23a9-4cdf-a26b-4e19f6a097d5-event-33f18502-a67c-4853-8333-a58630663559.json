@@ -131,6 +131,15 @@
         "clientRole": false,
         "containerId": "613e770d-7498-4726-90ff-b288f40a7b30",
         "attributes": {}
+      },
+      {
+        "id": "fdff7a41-a8c7-4a51-8d56-a94f852b22ad",
+        "name": "ack-support-materials",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "613e770d-7498-4726-90ff-b288f40a7b30",
+        "attributes": {}
       }
     ],
     "client": {
@@ -470,7 +479,8 @@
       "attributes": {},
       "realmRoles": [
         "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559",
-        "user"
+        "user",
+        "ack-support-materials"
       ],
       "clientRoles": {}
     }

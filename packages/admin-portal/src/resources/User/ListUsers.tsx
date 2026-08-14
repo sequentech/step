@@ -58,6 +58,7 @@ import {
     ManualVerificationMutation,
     GenerateVoterInformationLetterMutation,
     Sequent_Backend_Election_Event,
+    Sequent_Backend_Support_Material,
     UserProfileAttribute,
 } from "@/gql/graphql"
 import {DELETE_USER} from "@/queries/DeleteUser"
@@ -152,6 +153,30 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const isSupportMaterialsMandatory =
         getEffectiveSupportMaterialsPolicy(electionEventRecord?.presentation?.materials) ===
         ESupportMaterialsPolicy.MANDATORY_FOR_VOTING
+
+    // A voter has "viewed" Support Materials only once they've acknowledged
+    // every currently visible material for this Election Event, so the
+    // Voters list column/filter needs the full current set to compare
+    // against each voter's attributes['support-materials-acknowledged'].
+    const {data: supportMaterialsList} = useGetList<Sequent_Backend_Support_Material>(
+        "sequent_backend_support_material",
+        {
+            pagination: {page: 1, perPage: 9999},
+            filter: {
+                tenant_id: tenantId,
+                election_event_id: electionEventId,
+                is_hidden: false,
+            },
+        },
+        {enabled: Boolean(electionEventId && tenantId && isSupportMaterialsMandatory)}
+    )
+    const requiredSupportMaterialDocumentIds = useMemo(
+        () =>
+            (supportMaterialsList ?? [])
+                .map((material) => material.document_id)
+                .filter((documentId): documentId is string => Boolean(documentId)),
+        [supportMaterialsList]
+    )
     const {globalSettings} = useContext(SettingsContext)
     const [isOpenSidebar] = useSidebarState()
     const location = useLocation()
@@ -213,30 +238,32 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const Filters = useMemo(() => {
         let filters: ReactElement[] = []
         if (userAttributes?.get_user_profile_attributes) {
-            filters = userAttributes.get_user_profile_attributes.map((attr) => {
-                //covert to valid source string (if attr name is for example sequent.read-only.otp-method)
-                const source = attr.name?.replaceAll(".", "%")
-                if (attr.annotations?.inputType === "html5-date") {
+            filters = userAttributes.get_user_profile_attributes
+                .filter((attr) => attr.name !== SUPPORT_MATERIALS_ACKNOWLEDGED)
+                .map((attr) => {
+                    //covert to valid source string (if attr name is for example sequent.read-only.otp-method)
+                    const source = attr.name?.replaceAll(".", "%")
+                    if (attr.annotations?.inputType === "html5-date") {
+                        return (
+                            <DateInput
+                                key={attr.name}
+                                source={`attributes.${attr.name}`}
+                                label={getTranslationLabel(attr.name, attr.display_name, t)}
+                            />
+                        )
+                    }
                     return (
-                        <DateInput
+                        <TextInput
                             key={attr.name}
-                            source={`attributes.${attr.name}`}
+                            source={
+                                userBasicInfo.includes(`${attr.name}`)
+                                    ? `${attr.name}.IsLike`
+                                    : `attributes.${source}`
+                            }
                             label={getTranslationLabel(attr.name, attr.display_name, t)}
                         />
                     )
-                }
-                return (
-                    <TextInput
-                        key={attr.name}
-                        source={
-                            userBasicInfo.includes(`${attr.name}`)
-                                ? `${attr.name}.IsLike`
-                                : `attributes.${source}`
-                        }
-                        label={getTranslationLabel(attr.name, attr.display_name, t)}
-                    />
-                )
-            })
+                })
             filters.push(<BooleanInput key="enabled" source={"enabled"} />)
             filters.push(<BooleanInput key="email_verified" source={"email_verified"} />)
             if (electionEventId) {
@@ -1120,8 +1147,13 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     }
 
     const checkSupportMaterialsViewed = (record: IUser) => {
-        const values = record?.attributes?.[SUPPORT_MATERIALS_ACKNOWLEDGED]
-        return Array.isArray(values) && values.length > 0
+        const acknowledgedIds = record?.attributes?.[SUPPORT_MATERIALS_ACKNOWLEDGED] ?? []
+        return (
+            requiredSupportMaterialDocumentIds.length > 0 &&
+            requiredSupportMaterialDocumentIds.every((documentId) =>
+                acknowledgedIds.includes(documentId)
+            )
+        )
     }
 
     const checkIsVoted = (record: IUser) => {

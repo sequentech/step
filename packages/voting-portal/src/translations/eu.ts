@@ -313,6 +313,10 @@ const basqueTranslation: TranslationType = {
                 electionEventNotPublished:
                     "Hauteskunde gertaera ez da argitaratu oraindik. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
             },
+            materialsGate: {
+                instructions:
+                    "You must read the <MaterialsLink>Support Materials</MaterialsLink> before you can vote.",
+            },
         },
         errors: {
             encoding: {

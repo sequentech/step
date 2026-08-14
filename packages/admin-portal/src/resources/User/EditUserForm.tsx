@@ -63,7 +63,7 @@ import {faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 import {useUsersPermissions} from "./useUsersPermissions"
 import {CustomAutocompleteArrayInput, ReviewChangesTable} from "@sequentech/ui-essentials"
 import {useCustomNotify} from "@/hooks/useCustomNotify"
-import {VOTED_CHANNEL} from "./ListUsers"
+import {SUPPORT_MATERIALS_ACKNOWLEDGED, VOTED_CHANNEL} from "./ListUsers"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {computeRoleDiff, computeUserDiff, UserBaseline} from "@/services/UserEditReviewChanges"
 
@@ -722,6 +722,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const renderFormField = useCallback(
         (attr: UserProfileAttribute, index: number) => {
             if (attr.name === VOTED_CHANNEL) {
+                return
+            }
+            if (attr.name === SUPPORT_MATERIALS_ACKNOWLEDGED) {
                 return
             }
             if (attr.name) {

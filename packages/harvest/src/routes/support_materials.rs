@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::authorization::{authorize, authorize_voter_election};
+use crate::services::authorization::authorize_voter_election;
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -9,7 +9,7 @@ use rocket::serde::json::Json;
 use sequent_core::ballot::SupportMaterialsPolicy;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak::get_event_realm;
-use sequent_core::types::permissions::{Permissions, VoterPermissions};
+use sequent_core::types::permissions::VoterPermissions;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use windmill::postgres::election_event::get_election_event_by_id;
@@ -147,11 +147,20 @@ pub async fn get_support_materials_acknowledgment_route(
     body: Json<GetSupportMaterialsAcknowledgmentInput>,
     claims: JwtClaims,
 ) -> Result<Json<GetSupportMaterialsAcknowledgmentOutput>, (Status, String)> {
-    authorize(
+    let election_id = claims
+        .hasura_claims
+        .authorized_election_ids
+        .clone()
+        .and_then(|ids| ids.into_iter().next())
+        .ok_or((
+            Status::Unauthorized,
+            "Voter has no authorized elections".to_string(),
+        ))?;
+
+    authorize_voter_election(
         &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::KEYCLOAK_USER_ATTRIBUTES_READ],
+        vec![VoterPermissions::ACK_SUPPORT_MATERIALS],
+        &election_id,
     )?;
 
     let input = body.into_inner();
