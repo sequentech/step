@@ -107,7 +107,7 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
 
     return (
         <>
-            <BorderBox role="button" tabIndex={0}>
+            <BorderBox>
                 <Box>
                     {kind.includes("image") ? (
                         <ImageIcon sx={{fontSize: "42px", marginRight: "16px"}} />
@@ -130,6 +130,7 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
                         sx={{marginRight: "16px"}}
                         variant="secondary"
                         onClick={() => handleOpenDialog("video")}
+                        aria-label={t("a11y.previewMaterial", {title})}
                     >
                         <VisibilityIcon />
                     </StyledButton>

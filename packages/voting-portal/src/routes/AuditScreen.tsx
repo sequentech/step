@@ -62,7 +62,7 @@ const StyledButton = styled(Button)`
     }
 `
 
-const StyledTitle = styled(Typography)`
+const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     margin-top: 25.5px;
     display: flex;
     flex-direction: row;
@@ -170,13 +170,14 @@ const AuditScreen: React.FC = () => {
                 </Dialog>
                 <Stepper selected={4} warning={true} />
             </Box>
-            <StyledTitle variant="h4" fontSize="24px">
+            <StyledTitle variant="h4" component="h1" fontSize="24px">
                 <Box>{t("auditScreen.title")}</Box>
                 <IconButton
                     icon={faCircleQuestion}
                     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
                     fontSize="16px"
                     onClick={() => setOpenStep1Help(true)}
+                    ariaLabel={t("a11y.helpAbout", {topic: t("auditScreen.title")})}
                 />
                 <Dialog
                     handleClose={() => setOpenStep1Help(false)}
@@ -188,16 +189,17 @@ const AuditScreen: React.FC = () => {
                     {stringToHtml(t("auditScreen.step1HelpDialog.content"))}
                 </Dialog>
             </StyledTitle>
-            <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+            <Typography variant="body2" component="div" sx={{color: theme.palette.customGrey.main}}>
                 {stringToHtml(t("auditScreen.description"))}
             </Typography>
-            <StyledTitle variant="h5" fontWeight="bold" fontSize="18px">
+            <StyledTitle variant="h5" component="h2" fontWeight="bold" fontSize="18px">
                 <Box>{t("auditScreen.step1Title")}</Box>
                 <IconButton
                     icon={faCircleQuestion}
                     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
                     fontSize="16px"
                     onClick={() => setOpenStep1Help(true)}
+                    ariaLabel={t("a11y.helpAbout", {topic: t("auditScreen.step1Title")})}
                 />
                 <Dialog
                     handleClose={() => setOpenStep1Help(false)}
@@ -210,7 +212,11 @@ const AuditScreen: React.FC = () => {
                 </Dialog>
             </StyledTitle>
             <Step1Container>
-                <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+                <Typography
+                    variant="body2"
+                    component="div"
+                    sx={{color: theme.palette.customGrey.main}}
+                >
                     {stringToHtml(t("auditScreen.step1Description"))}
                 </Typography>
                 <StyledButton
@@ -226,10 +232,10 @@ const AuditScreen: React.FC = () => {
             </Step1Container>
 
             <InfoDataBox>{(auditableBallot && JSON.stringify(auditableBallot)) || ""}</InfoDataBox>
-            <StyledTitle variant="h5" fontWeight="bold" fontSize="18px">
+            <StyledTitle variant="h5" component="h2" fontWeight="bold" fontSize="18px">
                 <Box>{t("auditScreen.step2Title")}</Box>
             </StyledTitle>
-            <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+            <Typography variant="body2" component="div" sx={{color: theme.palette.customGrey.main}}>
                 <StyledLinkContainer>
                     <Trans
                         i18nKey="auditScreen.step2Description"

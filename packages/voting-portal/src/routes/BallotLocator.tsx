@@ -59,7 +59,7 @@ const StyledLink = styled(Link)`
     text-decoration: none;
 `
 
-const StyledTitle = styled(Typography)`
+const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     margin-top: 25.5px;
     display: flex;
     flex-direction: row;
@@ -76,6 +76,10 @@ const StyledError = styled(Typography)`
     margin-top: -12px;
     color: ${({theme}) => theme.palette.red.main};
 `
+
+// Only one of the two ballot-id errors is shown at a time, so they can share the
+// id that the input's aria-describedby points at.
+const BALLOT_ID_ERROR_ID = "ballot-id-error"
 
 const MessageSuccess = styled(Box)`
     display: flex;
@@ -280,7 +284,7 @@ const BallotLocator: React.FC = () => {
                     indicatorColor="primary"
                     textColor="inherit"
                     sx={{fontFamily: "Roboto"}}
-                    aria-label="ballot locator tabs"
+                    aria-label={t("a11y.ballotLocatorTabs")}
                     value={value}
                     onChange={handleChange}
                 >
@@ -384,6 +388,9 @@ const MessageCell: React.FC<MessageCellProps> = ({message, initialLength}) => {
                 icon={faCopy}
                 size="xs"
                 onClick={() => navigator.clipboard.writeText(formattedMessage)}
+                ariaLabel={t("a11y.copyToClipboard", {
+                    label: t("ballotLocator.column.message"),
+                })}
                 sx={{
                     "position": "absolute",
                     "top": "4px",
@@ -454,7 +461,9 @@ const LogsTable: React.FC<LogsTableProps> = ({
 
     return (
         <>
-            <StyledTitle variant="h5">{t("ballotLocator.totalBallots", {total})}</StyledTitle>
+            <StyledTitle variant="h5" component="h2">
+                {t("ballotLocator.totalBallots", {total})}
+            </StyledTitle>
             <TableContainer component={Paper} sx={{overflowX: "auto", width: "100%"}}>
                 <Table
                     sx={{
@@ -463,11 +472,15 @@ const LogsTable: React.FC<LogsTableProps> = ({
                             border: "1px solid #e0e0e0",
                         },
                     }}
-                    aria-label="simple table"
+                    aria-label={t("a11y.ballotsTable")}
                 >
                     <TableHead>
                         <TableRow>
-                            <TableCell align="center" sx={{fontWeight: "bold", padding: "2px 4px"}}>
+                            <TableCell
+                                align="center"
+                                sortDirection={orderBy === "username" ? order : false}
+                                sx={{fontWeight: "bold", padding: "2px 4px"}}
+                            >
                                 <TableSortLabel
                                     active={orderBy === "username"}
                                     direction={orderBy === "username" ? order : "asc"}
@@ -483,7 +496,11 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                     {t("ballotLocator.column.username")}
                                 </TableSortLabel>
                             </TableCell>
-                            <TableCell align="center" sx={{fontWeight: "bold", padding: "2px 4px"}}>
+                            <TableCell
+                                align="center"
+                                sortDirection={orderBy === "ballot_id" ? order : false}
+                                sx={{fontWeight: "bold", padding: "2px 4px"}}
+                            >
                                 <TableSortLabel
                                     active={orderBy === "ballot_id"}
                                     direction={orderBy === "ballot_id" ? order : "asc"}
@@ -499,7 +516,11 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                     {t("ballotLocator.column.ballot_id")}
                                 </TableSortLabel>
                             </TableCell>
-                            <TableCell align="center" sx={{fontWeight: "bold", padding: "2px 4px"}}>
+                            <TableCell
+                                align="center"
+                                sortDirection={orderBy === "statement_kind" ? order : false}
+                                sx={{fontWeight: "bold", padding: "2px 4px"}}
+                            >
                                 <TableSortLabel
                                     active={orderBy === "statement_kind"}
                                     direction={orderBy === "statement_kind" ? order : "asc"}
@@ -515,7 +536,11 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                     {t("ballotLocator.column.statement_kind")}
                                 </TableSortLabel>
                             </TableCell>
-                            <TableCell align="center" sx={{fontWeight: "bold", padding: "2px 4px"}}>
+                            <TableCell
+                                align="center"
+                                sortDirection={orderBy === "statement_timestamp" ? order : false}
+                                sx={{fontWeight: "bold", padding: "2px 4px"}}
+                            >
                                 <TableSortLabel
                                     active={orderBy === "statement_timestamp"}
                                     direction={orderBy === "statement_timestamp" ? order : "asc"}
@@ -649,6 +674,7 @@ const BallotIdInput: React.FC<BallotIdInputProps> = ({
     placeholderLabel,
 }) => {
     const {t} = useTranslation()
+    const hasBallotIdError = !validatedBallotId || ballotIdNotFoundErr
 
     return (
         <>
@@ -657,19 +683,26 @@ const BallotIdInput: React.FC<BallotIdInputProps> = ({
                     setInputBallotId(event.target.value)
                 }}
                 value={inputBallotId}
-                InputLabelProps={{
-                    shrink: true,
-                }}
-                label="Ballot ID"
+                label={t("a11y.ballotIdLabel")}
                 placeholder={t(placeholderLabel)}
                 onKeyDown={captureEnter}
+                error={hasBallotIdError}
+                slotProps={{
+                    htmlInput: {
+                        "aria-describedby": hasBallotIdError ? BALLOT_ID_ERROR_ID : undefined,
+                    },
+                    inputLabel: {shrink: true},
+                }}
             />
-            {!validatedBallotId && (
-                <StyledError>{t("ballotLocator.wrongFormatBallotId")}</StyledError>
-            )}
-            {ballotIdNotFoundErr && validatedBallotId && (
-                <StyledError>{t("ballotLocator.ballotIdNotFoundAtFilter")}</StyledError>
-            )}
+            {/* The live region stays mounted and only its text changes: a region
+                inserted at the same moment as its text is not reliably read. */}
+            <StyledError id={BALLOT_ID_ERROR_ID} role="alert">
+                {!validatedBallotId
+                    ? t("ballotLocator.wrongFormatBallotId")
+                    : ballotIdNotFoundErr
+                      ? t("ballotLocator.ballotIdNotFoundAtFilter")
+                      : ""}
+            </StyledError>
         </>
     )
 }
@@ -779,6 +812,9 @@ const BallotLocatorLogic = () => {
                             sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
                             fontSize="16px"
                             onClick={() => setOpenTitleHelp(true)}
+                            ariaLabel={t("a11y.helpAbout", {
+                                topic: t("ballotLocator.titleHelpDialog.title"),
+                            })}
                         />
                         <Dialog
                             handleClose={() => setOpenTitleHelp(false)}
@@ -797,17 +833,19 @@ const BallotLocatorLogic = () => {
                 </Box>
             </Box>
 
-            {hasBallotId && !lookupLoading && (
-                <Box>
-                    {ambiguousBallotId ? (
+            {/* The live region is always mounted so that the lookup result is
+                announced when the text appears inside it. */}
+            <Box role="status">
+                {hasBallotId && !lookupLoading ? (
+                    ambiguousBallotId ? (
                         <MessageFailed>{t("ballotLocator.ambiguous", {ballotId})}</MessageFailed>
-                    ) : hasBallotId && !!ballotContent ? (
+                    ) : ballotContent ? (
                         <MessageSuccess>{t("ballotLocator.found", {ballotId})}</MessageSuccess>
                     ) : (
                         <MessageFailed>{t("ballotLocator.notFound", {ballotId})}</MessageFailed>
-                    )}
-                </Box>
-            )}
+                    )
+                ) : null}
+            </Box>
             {!hasBallotId && (
                 <BallotIdInput
                     inputBallotId={inputBallotId}

@@ -13,6 +13,8 @@ import {
     Dialog,
     ActionsContainer,
     StyledButton,
+    VisuallyHidden,
+    DecorativeIconBox,
 } from "@sequentech/ui-essentials"
 import {
     stringToHtml,
@@ -57,7 +59,7 @@ import {
 import {GET_CAST_VOTES} from "../queries/GetCastVotes"
 import {GET_DOCUMENT} from "../queries/GetDocument"
 
-const StyledTitle = styled(Typography)`
+const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     margin-top: 25.5px;
     display: flex;
     flex-direction: row;
@@ -293,12 +295,15 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                 >
                     {isHitPrint ? (
-                        <StyledCircularProgress color="inherit" />
+                        <StyledCircularProgress color="inherit" aria-hidden="true" />
                     ) : (
                         <StyledIcon icon={faPrint} size="sm" />
                     )}
                     <Box>{t("confirmationScreen.printButton")}</Box>
                 </StyledButton>
+                {/* Generating the receipt is an asynchronous poll, so the wait
+                    and its end are announced rather than shown only as a spinner. */}
+                <VisuallyHidden role="status">{isHitPrint ? t("a11y.loading") : ""}</VisuallyHidden>
                 <StyledButton
                     className="finish-button"
                     onClick={onClickFinishButton}
@@ -416,13 +421,22 @@ const ConfirmationScreen: React.FC = () => {
             <Box marginTop="24px">
                 <Stepper selected={3} />
             </Box>
-            <StyledTitle variant="h4" fontSize="24px" fontWeight="bold" sx={{marginTop: "40px"}}>
+            <StyledTitle
+                variant="h4"
+                component="h1"
+                fontSize="24px"
+                fontWeight="bold"
+                sx={{marginTop: "40px"}}
+            >
                 <Box>{t("confirmationScreen.title")}</Box>
                 <IconButton
                     icon={faCircleQuestion}
                     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
                     fontSize="16px"
                     onClick={() => setOpenConfirmationHelp(true)}
+                    ariaLabel={t("a11y.helpAbout", {
+                        topic: t("confirmationScreen.confirmationHelpDialog.title"),
+                    })}
                 />
 
                 <Dialog
@@ -435,12 +449,13 @@ const ConfirmationScreen: React.FC = () => {
                     {stringToHtml(t("confirmationScreen.confirmationHelpDialog.content"))}
                 </Dialog>
             </StyledTitle>
-            <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+            <Typography variant="body2" component="div" sx={{color: theme.palette.customGrey.main}}>
                 {stringToHtml(t("confirmationScreen.description"))}
             </Typography>
             <BallotIdContainer>
                 <Typography
                     variant="h5"
+                    component="h2"
                     fontSize="18px"
                     fontWeight="bold"
                     sx={{display: {xs: "none", sm: "block"}}}
@@ -448,12 +463,17 @@ const ConfirmationScreen: React.FC = () => {
                     {t("confirmationScreen.ballotId")}
                 </Typography>
                 <BallotIdBorder>
-                    <IconButton
-                        icon={faCheck}
-                        sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
-                        fontSize="14px"
-                        color={theme.palette.customGrey.contrastText}
-                    />
+                    <DecorativeIconBox>
+                        <Icon
+                            icon={faCheck}
+                            style={{
+                                fontSize: "14px",
+                                lineHeight: "unset",
+                                paddingBottom: "2px",
+                            }}
+                            color={theme.palette.customGrey.contrastText}
+                        />
+                    </DecorativeIconBox>
                     <BallotIdLink
                         href={!isDemo ? ballotTrackerUrl : undefined}
                         target={!isDemo ? "_blank" : undefined}
@@ -481,6 +501,9 @@ const ConfirmationScreen: React.FC = () => {
                         onClick={() =>
                             isDemo ? setDemoBallotIdHelp(true) : setOpenBallotIdHelp(true)
                         }
+                        ariaLabel={t("a11y.helpAbout", {
+                            topic: t("confirmationScreen.ballotId"),
+                        })}
                     />
                     <Dialog
                         handleClose={() => setOpenBallotIdHelp(false)}
@@ -511,7 +534,7 @@ const ConfirmationScreen: React.FC = () => {
                     </Dialog>
                 </BallotIdBorder>
             </BallotIdContainer>
-            <Typography variant="h5" fontSize="18px" fontWeight="bold">
+            <Typography variant="h5" component="h2" fontSize="18px" fontWeight="bold">
                 {t("confirmationScreen.verifyCastTitle")}
             </Typography>
             <Typography

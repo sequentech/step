@@ -21,6 +21,21 @@ const catalanTranslation: TranslationType = {
             ended: "Finalitzat",
             results: "Resultats",
         },
+        a11y: {
+            closeDialog: "Tancar el diàleg",
+            dismissMessage: "Descartar el missatge",
+            ballotIdHelp: "Sobre el vostre ID de vot",
+            loading: "Carregant",
+            severity: {
+                error: "Error",
+                warning: "Advertiment",
+                success: "Correcte",
+                info: "Informació",
+            },
+            selectList: "Seleccionar tota la llista",
+            preferenceLabel: "Preferència",
+            writeInFor: "Nom del candidat per escrit",
+        },
         candidate: {
             moreInformationLink: "Més informació",
             writeInsPlaceholder: "Tecleja aquí el candidat per escrit",

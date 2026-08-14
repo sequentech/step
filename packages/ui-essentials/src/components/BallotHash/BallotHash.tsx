@@ -5,6 +5,8 @@ import {Box} from "@mui/material"
 import React from "react"
 import {styled} from "@mui/material/styles"
 import IconButton from "../IconButton/IconButton"
+import Icon from "../Icon/Icon"
+import DecorativeIconBox from "../Icon/DecorativeIconBox"
 import {useTranslation} from "react-i18next"
 import {faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-icons"
 import theme from "../../services/theme"
@@ -39,11 +41,12 @@ const BallotHash: React.FC<BallotHashProps> = ({hash, onHelpClick}) => {
 
     return (
         <HashContainer className="hash-container">
-            <IconButton
-                icon={faCheck}
-                sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
-                fontSize="14px"
-            />
+            <DecorativeIconBox className="hash-check">
+                <Icon
+                    icon={faCheck}
+                    style={{fontSize: "14px", lineHeight: "unset", paddingBottom: "2px"}}
+                />
+            </DecorativeIconBox>
             <BallotHashText className="hash-text">
                 {t("ballotHash", {ballotId: hash})}
             </BallotHashText>
@@ -58,6 +61,7 @@ const BallotHash: React.FC<BallotHashProps> = ({hash, onHelpClick}) => {
                 }}
                 fontSize="18px"
                 onClick={onHelpClick}
+                ariaLabel={t("a11y.ballotIdHelp")}
             />
         </HashContainer>
     )

@@ -19,7 +19,7 @@ const StyledLink = styled(Link)`
     margin-top: 40px;
 `
 
-const StyledTitle = styled(Typography)`
+const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     margin-top: 25.5px;
     display: flex;
     flex-direction: row;
@@ -39,10 +39,10 @@ export function ErrorPage() {
 
     let content = (
         <>
-            <StyledTitle variant="h3" sx={{marginBottom: "24px"}}>
+            <StyledTitle variant="h3" component="h1" sx={{marginBottom: "24px"}}>
                 {t("errors.page.oopsWithoutStatus")}
             </StyledTitle>
-            <Typography variant="h6" sx={{marginBottom: "24px"}}>
+            <Typography variant="h6" component="p" sx={{marginBottom: "24px"}}>
                 {t("errors.page.somethingWrong")}
             </Typography>
         </>
@@ -51,10 +51,10 @@ export function ErrorPage() {
     if (isRouteErrorResponse(error)) {
         content = (
             <>
-                <StyledTitle variant="h3" sx={{marginBottom: "24px"}}>
+                <StyledTitle variant="h3" component="h1" sx={{marginBottom: "24px"}}>
                     {t("errors.page.oopsWithStatus", {status: error.status})}
                 </StyledTitle>
-                <Typography variant="h6" sx={{marginBottom: "24px"}}>
+                <Typography variant="h6" component="p" sx={{marginBottom: "24px"}}>
                     {error.statusText}
                 </Typography>
                 {error.data?.message && (
@@ -70,10 +70,10 @@ export function ErrorPage() {
     ) {
         content = (
             <>
-                <StyledTitle variant="h3" sx={{marginBottom: "24px"}}>
+                <StyledTitle variant="h3" component="h1" sx={{marginBottom: "24px"}}>
                     {t("errors.page.certAuthFailedTitle")}
                 </StyledTitle>
-                <Typography variant="h6" sx={{marginBottom: "24px"}}>
+                <Typography variant="h6" component="p" sx={{marginBottom: "24px"}}>
                     {t("errors.page.certAuthFailedMessage")}
                 </Typography>
             </>
@@ -84,10 +84,10 @@ export function ErrorPage() {
     ) {
         content = (
             <>
-                <StyledTitle variant="h3" sx={{marginBottom: "24px"}}>
+                <StyledTitle variant="h3" component="h1" sx={{marginBottom: "24px"}}>
                     {t("errors.page.invalidLoginHintParametersTitle")}
                 </StyledTitle>
-                <Typography variant="h6" sx={{marginBottom: "24px"}}>
+                <Typography variant="h6" component="p" sx={{marginBottom: "24px"}}>
                     {t("errors.page.invalidLoginHintParametersMessage")}
                 </Typography>
             </>
@@ -95,10 +95,10 @@ export function ErrorPage() {
     } else if (isErrorType) {
         content = (
             <>
-                <StyledTitle variant="h3" sx={{marginBottom: "24px"}}>
+                <StyledTitle variant="h3" component="h1" sx={{marginBottom: "24px"}}>
                     {t("errors.page.oopsWithoutStatus")}
                 </StyledTitle>
-                <Typography variant="h6" sx={{marginBottom: "24px"}}>
+                <Typography variant="h6" component="p" sx={{marginBottom: "24px"}}>
                     {t("errors.page.somethingWrong")}
                 </Typography>
                 <Typography>

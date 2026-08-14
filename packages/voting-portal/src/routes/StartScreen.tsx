@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useMemo, useState} from "react"
+import React, {useEffect, useId, useMemo, useState} from "react"
 import {Box, Checkbox, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {Dialog, PageLimit, theme} from "@sequentech/ui-essentials"
@@ -34,7 +34,7 @@ import {clearIsVoted, setDeclinedToVote, setIsVoted} from "../store/extra/extraS
 import {useEncryptBallotForReview} from "../hooks/useEncryptBallotForReview"
 import {store} from "../store/store"
 
-const StyledTitle = styled(Typography)`
+const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     width: 100%;
     margin-top: 25.5px;
     margin-bottom: 10px;
@@ -105,6 +105,9 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
     const {tenantId, eventId} = useParams<TenantEventType>()
     const location = useLocation()
     const [checkboxChecked, setCheckboxChecked] = useState(false)
+    // The confirmation text is admin-authored HTML, so it labels the checkbox
+    // by reference rather than by being nested inside a <label>.
+    const securityConfirmationId = useId()
 
     const hasSecurityCheckbox =
         ESecurityConfirmationPolicy.MANDATORY ===
@@ -120,8 +123,21 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
         <>
             {hasSecurityCheckbox ? (
                 <StyledCheckboxWrapper onClick={() => setCheckboxChecked(!checkboxChecked)}>
-                    <StyledCheckbox checked={checkboxChecked} />
-                    <Typography variant="body2" marginTop="4px">
+                    <StyledCheckbox
+                        checked={checkboxChecked}
+                        onChange={(event) => setCheckboxChecked(event.target.checked)}
+                        // The wrapper keeps the whole row clickable for mouse
+                        // users; without this the wrapper would toggle a second
+                        // time and cancel the checkbox's own change.
+                        onClick={(event) => event.stopPropagation()}
+                        slotProps={{input: {"aria-labelledby": securityConfirmationId}}}
+                    />
+                    <Typography
+                        variant="body2"
+                        component="div"
+                        marginTop="4px"
+                        id={securityConfirmationId}
+                    >
                         {stringToHtml(
                             translateFromPresentation(
                                 election,
@@ -247,7 +263,7 @@ const StartScreen: React.FC = () => {
     }
 
     if (!election || !titleObject) {
-        return <CircularProgress />
+        return <CircularProgress aria-label={t("a11y.loading")} />
     }
 
     return (
@@ -255,7 +271,7 @@ const StartScreen: React.FC = () => {
             <Box marginTop="48px">
                 <Stepper selected={1} />
             </Box>
-            <StyledTitle variant="h3" justifyContent="center" fontWeight="bold">
+            <StyledTitle variant="h3" component="h1" justifyContent="center" fontWeight="bold">
                 <span>
                     {translateFromPresentation(titleObject, "name", i18n.language, {
                         defaultLanguageCode,
@@ -263,7 +279,11 @@ const StartScreen: React.FC = () => {
                 </span>
             </StyledTitle>
             {titleObject.description ? (
-                <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+                <Typography
+                    variant="body2"
+                    component="div"
+                    sx={{color: theme.palette.customGrey.main}}
+                >
                     {stringToHtml(
                         translateFromPresentation(titleObject, "description", i18n.language, {
                             defaultLanguageCode,
@@ -271,7 +291,9 @@ const StartScreen: React.FC = () => {
                     )}
                 </Typography>
             ) : null}
-            <Typography variant="h5">{t("startScreen.instructionsTitle")}</Typography>
+            <Typography variant="h5" component="h2">
+                {t("startScreen.instructionsTitle")}
+            </Typography>
             <Typography variant="body2">{t("startScreen.instructionsDescription")}</Typography>
             <Box
                 sx={{
@@ -281,19 +303,19 @@ const StartScreen: React.FC = () => {
                 }}
             >
                 <Box sx={{width: {xs: "100%", md: "33.33333333%"}}}>
-                    <Typography variant="h5" sx={{color: theme.palette.brandColor}}>
+                    <Typography variant="h5" component="h3" sx={{color: theme.palette.brandColor}}>
                         {t("startScreen.step1Title")}
                     </Typography>
                     <Typography variant="body2">{t("startScreen.step1Description")}</Typography>
                 </Box>
                 <Box sx={{width: {xs: "100%", md: "33.33333333%"}}}>
-                    <Typography variant="h5" sx={{color: theme.palette.brandColor}}>
+                    <Typography variant="h5" component="h3" sx={{color: theme.palette.brandColor}}>
                         {t("startScreen.step2Title")}
                     </Typography>
                     <Typography variant="body2">{t("startScreen.step2Description")}</Typography>
                 </Box>
                 <Box sx={{width: {xs: "100%", md: "33.33333333%"}}}>
-                    <Typography variant="h5" sx={{color: theme.palette.brandColor}}>
+                    <Typography variant="h5" component="h3" sx={{color: theme.palette.brandColor}}>
                         {t("startScreen.step3Title")}
                     </Typography>
                     <Typography variant="body2">{t("startScreen.step3Description")}</Typography>

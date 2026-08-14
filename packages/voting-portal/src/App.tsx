@@ -15,6 +15,7 @@ import {
     getValueFromCookie,
 } from "@sequentech/ui-core"
 import Stack from "@mui/material/Stack"
+import {useTranslation} from "react-i18next"
 import {useNavigate} from "react-router-dom"
 import {AuthContext} from "./providers/AuthContextProvider"
 import {SettingsContext} from "./providers/SettingsContextProvider"
@@ -133,6 +134,7 @@ const HeaderWithContext: React.FC = () => {
 }
 
 const App = () => {
+    const {t} = useTranslation()
     const navigate = useNavigate()
     const {globalSettings} = useContext(SettingsContext)
     const location = useLocation()
@@ -272,6 +274,9 @@ const App = () => {
         >
             <StyledApp className="voting-portal app-root">
                 <ScrollRestoration />
+                <a className="skip-link" href="#main-content">
+                    {t("a11y.skipToContent")}
+                </a>
                 <ApolloWrapper>
                     <HeaderWithContext />
                     <PageBanner
@@ -280,7 +285,7 @@ const App = () => {
                         className="main"
                         component="main"
                         id="main-content"
-                        role="main"
+                        tabIndex={-1}
                     >
                         <WatermarkBackground />
                         <Outlet />
