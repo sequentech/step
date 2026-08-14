@@ -189,6 +189,9 @@ fn a_profile_may_fix_a_field_an_empty_plan_leaves_out() {
         // the document was the thing being refused.
         "i18n",
         "keycloak_messages",
+        // The seventh: the stylesheet, whose absence `beyond`'s core-contract
+        // check found rather than a client did.
+        "css",
     ] {
         let document = ClientProfile {
             id: "acme".to_string(),
