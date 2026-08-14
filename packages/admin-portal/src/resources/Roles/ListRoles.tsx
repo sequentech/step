@@ -28,6 +28,7 @@ import {DELETE_ROLE} from "@/queries/DeleteRole"
 import {DeleteRoleMutation} from "@/gql/graphql"
 import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
+import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
 
 const OMIT_FIELDS: Array<string> = []
 
@@ -126,7 +127,11 @@ export const ListRoles: React.FC<ListRolesProps> = ({aside}) => {
                 filter={{tenant_id: tenantId}}
                 aside={aside}
             >
-                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
+                <DatagridConfigurable
+                    header={ThreeStateDatagridHeader}
+                    omit={OMIT_FIELDS}
+                    bulkActionButtons={<></>}
+                >
                     <TextField source="name" />
                     <TextField source="id" />
                     <ActionsColumn actions={actions} />
