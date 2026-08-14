@@ -56,8 +56,7 @@ class TemplateSyntaxTest {
 
     assertTrue(html.contains("data-credential-pattern=\"dddd&quot; onfocus=&quot;alert(1)\""));
     assertTrue(
-        html.contains(
-            "data-credential-input-placeholder=\"#&quot; onfocus=&quot;alert(4)\""));
+        html.contains("data-credential-input-placeholder=\"#&quot; onfocus=&quot;alert(4)\""));
     assertTrue(html.contains("&lt;img src=x onerror=alert(1)&gt;"));
     assertTrue(html.contains("data-paste-error=\"paste&quot; onfocus=&quot;alert(2)\""));
     assertTrue(html.contains("data-format-error=\"format&quot; onfocus=&quot;alert(3)\""));
@@ -153,8 +152,7 @@ class TemplateSyntaxTest {
 
     assertTrue(html.contains("data-credential-pattern=\"dddd&quot; onfocus=&quot;alert(1)\""));
     assertTrue(
-        html.contains(
-            "data-credential-input-placeholder=\"#&quot; onfocus=&quot;alert(4)\""));
+        html.contains("data-credential-input-placeholder=\"#&quot; onfocus=&quot;alert(4)\""));
     assertTrue(html.contains("&lt;img src=x onerror=alert(1)&gt;"));
     assertTrue(html.contains("data-paste-error=\"paste&quot; onfocus=&quot;alert(2)\""));
     assertTrue(html.contains("data-format-error=\"format&quot; onfocus=&quot;alert(3)\""));
