@@ -5,10 +5,13 @@
 import {resolveThreeStateSort} from "./threeStateSort"
 
 describe("resolveThreeStateSort", () => {
-    it("uses the requested sort for the ascending and descending states", () => {
+    it("starts a newly selected column in ascending order", () => {
         expect(
-            resolveThreeStateSort({field: "id", order: "ASC"}, {field: "username", order: "ASC"})
+            resolveThreeStateSort({field: "id", order: "ASC"}, {field: "username", order: "DESC"})
         ).toEqual({field: "username", order: "ASC"})
+    })
+
+    it("moves an ascending column to descending", () => {
         expect(
             resolveThreeStateSort(
                 {field: "username", order: "ASC"},
@@ -17,12 +20,12 @@ describe("resolveThreeStateSort", () => {
         ).toEqual({field: "username", order: "DESC"})
     })
 
-    it("returns to the default sort after descending", () => {
+    it("clears sorting after descending", () => {
         expect(
             resolveThreeStateSort(
                 {field: "username", order: "DESC"},
                 {field: "username", order: "ASC"}
             )
-        ).toEqual({field: "id", order: "ASC"})
+        ).toEqual({field: "", order: "ASC"})
     })
 })

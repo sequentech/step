@@ -4,15 +4,20 @@
 
 import type {SortPayload} from "react-admin"
 
-export const DEFAULT_LIST_SORT: SortPayload = {field: "id", order: "ASC"}
+export const DEFAULT_LIST_SORT: SortPayload = {field: "", order: "ASC"}
 
 export const resolveThreeStateSort = (
     currentSort: SortPayload | undefined,
     requestedSort: SortPayload,
     defaultSort: SortPayload = DEFAULT_LIST_SORT
-): SortPayload =>
-    currentSort?.field === requestedSort.field &&
-    currentSort.order === "DESC" &&
-    requestedSort.order === "ASC"
-        ? defaultSort
-        : requestedSort
+): SortPayload => {
+    if (currentSort?.field !== requestedSort.field) {
+        return {...requestedSort, order: "ASC"}
+    }
+
+    if (currentSort.order === "ASC") {
+        return {...requestedSort, order: "DESC"}
+    }
+
+    return defaultSort
+}

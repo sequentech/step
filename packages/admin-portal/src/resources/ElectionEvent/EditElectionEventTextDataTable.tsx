@@ -44,6 +44,7 @@ import {
 import {useTranslation} from "react-i18next"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 import {useLocalizationPermissions} from "./useLocalizationPermissions"
+import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
 
 interface LocalizationListProps {
     selectedLanguage: string
@@ -72,6 +73,7 @@ const LocalizationList: React.FC<LocalizationListProps> = ({selectedLanguage, ac
         <ListContextProvider value={listContext}>
             <Card>
                 <Datagrid
+                    header={ThreeStateDatagridHeader}
                     bulkActionButtons={false}
                     sx={{
                         "& .column-id": {minWidth: "150px"},
