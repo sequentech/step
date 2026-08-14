@@ -1,6 +1,5 @@
-/* eslint-disable */
-import * as types from './graphql';
-import { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/core';
+import * as types from "./graphql"
+import {TypedDocumentNode as DocumentNode} from "@graphql-typed-document-node/core"
 
 /**
  * Map of all GraphQL operations in the project.
@@ -14,11 +13,12 @@ import { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/
  * Learn more about it here: https://the-guild.dev/graphql/codegen/plugins/presets/preset-client#reducing-bundle-size
  */
 type Documents = {
-    "\n    query GetBallotStyles {\n        sequent_backend_ballot_style(where: {deleted_at: {_is_null: true}}) {\n            id\n            election_id\n            election_event_id\n            status\n            tenant_id\n            ballot_eml\n            ballot_signature\n            created_at\n            area_id\n            annotations\n            labels\n            last_updated_at\n            deleted_at\n        }\n    }\n": typeof types.GetBallotStylesDocument,
-};
+    "\n    query GetBallotStyles {\n        sequent_backend_ballot_style(where: {deleted_at: {_is_null: true}}) {\n            id\n            election_id\n            election_event_id\n            status\n            tenant_id\n            ballot_eml\n            ballot_signature\n            created_at\n            area_id\n            annotations\n            labels\n            last_updated_at\n            deleted_at\n        }\n    }\n": typeof types.GetBallotStylesDocument
+}
 const documents: Documents = {
-    "\n    query GetBallotStyles {\n        sequent_backend_ballot_style(where: {deleted_at: {_is_null: true}}) {\n            id\n            election_id\n            election_event_id\n            status\n            tenant_id\n            ballot_eml\n            ballot_signature\n            created_at\n            area_id\n            annotations\n            labels\n            last_updated_at\n            deleted_at\n        }\n    }\n": types.GetBallotStylesDocument,
-};
+    "\n    query GetBallotStyles {\n        sequent_backend_ballot_style(where: {deleted_at: {_is_null: true}}) {\n            id\n            election_id\n            election_event_id\n            status\n            tenant_id\n            ballot_eml\n            ballot_signature\n            created_at\n            area_id\n            annotations\n            labels\n            last_updated_at\n            deleted_at\n        }\n    }\n":
+        types.GetBallotStylesDocument,
+}
 
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -32,15 +32,18 @@ const documents: Documents = {
  * The query argument is unknown!
  * Please regenerate the types.
  */
-export function graphql(source: string): unknown;
+export function graphql(source: string): unknown
 
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n    query GetBallotStyles {\n        sequent_backend_ballot_style(where: {deleted_at: {_is_null: true}}) {\n            id\n            election_id\n            election_event_id\n            status\n            tenant_id\n            ballot_eml\n            ballot_signature\n            created_at\n            area_id\n            annotations\n            labels\n            last_updated_at\n            deleted_at\n        }\n    }\n"): (typeof documents)["\n    query GetBallotStyles {\n        sequent_backend_ballot_style(where: {deleted_at: {_is_null: true}}) {\n            id\n            election_id\n            election_event_id\n            status\n            tenant_id\n            ballot_eml\n            ballot_signature\n            created_at\n            area_id\n            annotations\n            labels\n            last_updated_at\n            deleted_at\n        }\n    }\n"];
+export function graphql(
+    source: "\n    query GetBallotStyles {\n        sequent_backend_ballot_style(where: {deleted_at: {_is_null: true}}) {\n            id\n            election_id\n            election_event_id\n            status\n            tenant_id\n            ballot_eml\n            ballot_signature\n            created_at\n            area_id\n            annotations\n            labels\n            last_updated_at\n            deleted_at\n        }\n    }\n"
+): (typeof documents)["\n    query GetBallotStyles {\n        sequent_backend_ballot_style(where: {deleted_at: {_is_null: true}}) {\n            id\n            election_id\n            election_event_id\n            status\n            tenant_id\n            ballot_eml\n            ballot_signature\n            created_at\n            area_id\n            annotations\n            labels\n            last_updated_at\n            deleted_at\n        }\n    }\n"]
 
 export function graphql(source: string) {
-  return (documents as any)[source] ?? {};
+    return (documents as any)[source] ?? {}
 }
 
-export type DocumentType<TDocumentNode extends DocumentNode<any, any>> = TDocumentNode extends DocumentNode<  infer TType,  any>  ? TType  : never;
+export type DocumentType<TDocumentNode extends DocumentNode<any, any>> =
+    TDocumentNode extends DocumentNode<infer TType, any> ? TType : never
