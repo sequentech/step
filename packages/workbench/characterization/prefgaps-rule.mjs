@@ -34,7 +34,8 @@ import {
     isSilentDiscount,
     extractErrors,
 } from "./harness.mjs"
-import {hardGate, softGate, classify, inlineVisible, MSG} from "./spec.mjs"
+import {f, inlineVisible} from "./spec.mjs"
+import {RULE_SPECS} from "./rule-specs.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
@@ -89,33 +90,15 @@ function makeEml(gapPolicy, invalidPolicy) {
     return clone
 }
 
-// PREDICTION — rule-specific emissions composed with the shared spec.
-// check_preference_gaps_policy pushes a `preferenceOrderWithGaps` error on a
-// gapped ranking; gates/classifier/filter are the shared spec.
+// PREDICTION — spec.mjs's complete mapping `f`, fed from this rule's cell
+// definitions (rule-specs.mjs: specConfig/voteState). The spec's emissions
+// push a `preferenceOrderWithGaps` error on a gapped ranking regardless of
+// policy; the policy decides only which gate reacts.
+const CELLS = RULE_SPECS["prefgaps-rule"]
 function predict(gap, invalid, state) {
-    const errors = []
-    if (state === "gap") errors.push(MSG.preferenceOrderWithGaps)
-    const alerts = []
-    const selections = makeSelection(state).choices.filter(
-        (c) => c.selected === 0
-    ).length
-    const facts = {
-        errors,
-        alerts,
-        explicitInvalid: false,
-        selections,
-        min: contest.min_votes ?? 0,
-        max: contest.max_votes,
-        selection: "regular",
-        policies: {gap, invalid},
-    }
-    return {
-        errors,
-        alerts,
-        hard: hardGate(facts),
-        soft: softGate(facts),
-        tally: classify({hasErrors: errors.length > 0, selection: "regular"}),
-    }
+    const cell = {preference_gaps_policy: gap, invalid_vote_policy: invalid, state}
+    const r = f(CELLS.specConfig(cell), CELLS.voteState(cell))
+    return {errors: r.errors, alerts: r.alerts, hard: r.hard, soft: r.soft, tally: r.tally}
 }
 
 function derivedInlineVisible(observed, invalid) {

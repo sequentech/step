@@ -47,6 +47,12 @@ purpose.
 - **Reference discipline.** Never cite a bare "row 46" or "§4.5" — name
   the artifact it lives in ("`overvote-rule.md` row 46",
   "VALIDATION_LOGIC_DISTILLATION.md §4.5"), in chat and in docs.
+- **Terminology carries cognitive load — pay it down at first use.** A
+  term that a reader cannot identify with a concrete piece of code or
+  functionality ("surface", "observation context", "lane") must be
+  defined where the document first uses it, or replaced by the concrete
+  thing it names. Prefer concrete over abstract wherever concrete will
+  do; a definition given three sections later does not count.
 - **The `// FIXME` lines in UPSTREAM_FINDINGS.md are faithful quotes of
   production source** — they are the *subject* of a finding. Do not
   "fix", reword, or remove them.

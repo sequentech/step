@@ -28,7 +28,8 @@ import {
     loadMarkerFixture,
     extractErrors,
 } from "./harness.mjs"
-import {hardGate, softGate, classify, inlineVisible, MSG} from "./spec.mjs"
+import {f, inlineVisible} from "./spec.mjs"
+import {RULE_SPECS} from "./rule-specs.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
@@ -91,41 +92,15 @@ function makeEml(overPolicy, invalidPolicy) {
 }
 
 // ---------------------------------------------------------------------------
-// PREDICTION — transcription of the documented rules (VOTE_VALIDATION.md:
-// over-vote checker, both gate tables, tally classifier). Independent of
-// the implementation by construction; mismatches are findings.
+// PREDICTION — spec.mjs's complete mapping `f`, fed from this rule's cell
+// definitions (rule-specs.mjs: specConfig/voteState). Independent of the
+// implementation by construction; mismatches are findings.
 // ---------------------------------------------------------------------------
+const CELLS = RULE_SPECS["overvote-rule"]
 function predict(over, invalid, state) {
-    // rule-specific emissions (the over-vote checker)
-    const errors = []
-    const alerts = []
-    if (state === "over_max") {
-        errors.push(MSG.selectedMax) // pushed regardless of policy
-        if (over !== "allowed") alerts.push(MSG.selectedMax)
-    }
-    if (state === "at_max" && over === "not-allowed-with-msg-and-disable") {
-        alerts.push(MSG.overVoteDisabled)
-    }
-    // shared spec composes everything downstream. Council seat: max 1, min 0.
-    const selections = state === "empty" ? 0 : state === "at_max" ? 1 : 2
-    const selection = state === "empty" ? "none" : "regular"
-    const facts = {
-        errors,
-        alerts,
-        explicitInvalid: false,
-        selections,
-        min: 0,
-        max: 1,
-        selection,
-        policies: {over, invalid},
-    }
-    return {
-        errors,
-        alerts,
-        hard: hardGate(facts),
-        soft: softGate(facts),
-        tally: classify({hasErrors: errors.length > 0, selection}),
-    }
+    const cell = {over_vote_policy: over, invalid_vote_policy: invalid, state}
+    const r = f(CELLS.specConfig(cell), CELLS.voteState(cell))
+    return {errors: r.errors, alerts: r.alerts, hard: r.hard, soft: r.soft, tally: r.tally}
 }
 
 function derivedInlineVisible(observed, over, invalid) {

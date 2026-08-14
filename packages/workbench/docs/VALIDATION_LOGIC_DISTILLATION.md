@@ -17,10 +17,21 @@ focuses on the *specification* layer rather than the *implementation* layer.
 
 ## 1. Observable Effects Taxonomy
 
-Every (voter-state × contest-configuration × observation-context) tuple
-produces one **observable effect per surface**, drawn from the following
-set — see the per-surface refinement at the end of this section for why
-"exactly one effect" holds per surface rather than per tuple.
+The system responds to a voter's selections through a small set of
+**surfaces** — concrete places where a response can be perceived: the
+inline warning box under a contest, the dialog that may open on clicking
+Next, the enabled/disabled state of the selection inputs themselves,
+and (after casting) the tally's classification of the ballot. What
+appears on each surface depends not only on the configuration and the
+selections but also on the **observation context** — *when and where we
+look*: the voting screen versus the review screen, and whether the
+voter has touched the contest yet.
+
+In those terms: every (voter-state × contest-configuration ×
+observation-context) tuple produces one **observable effect per
+surface**, drawn from the following set — see the per-surface
+refinement at the end of this section for why "exactly one effect"
+holds per surface rather than per tuple.
 
 **The set's closedness is a checkable claim, not an assumption.** It is
 closed relative to a **consumer census**: the enumeration of every read
@@ -87,15 +98,49 @@ mapped from a different observation point:
 
 **Refinement — casting effects are per-surface, not exclusive.** A single
 input tuple can legitimately produce an inline message (1a) *and* a dialog
-(1b/1c) *and* an input constraint (1d) simultaneously — e.g. an overvote
-under `NOT_ALLOWED_WITH_MSG_AND_ALERT` shows inline text during voting and
-a hard dialog on transition. "Exactly one effect" holds only per surface.
+(1b/1c) simultaneously — e.g. an overvote under
+`NOT_ALLOWED_WITH_MSG_AND_ALERT` shows inline text during voting and a
+hard dialog on transition. "Exactly one effect" holds only per surface.
 The casting codomain is therefore a product:
 
 ```
-CastingEffect = (inline: Set<Message>, gate: {none | dismissible | blocking},
-                 constraint: {none | inputs_disabled})
+CastingEffect = (inline: Set<Message>,
+                 gates: (hard: bool, soft: bool))   // dialog = a projection
 ```
+
+Two amendments to an earlier version of this type, both forced by what
+the characterization verified (`../characterization/spec.mjs` is the
+executable form):
+
+- **The gate surface is two independent booleans, not one three-valued
+  outcome.** Production evaluates two separate functions
+  (`check_voting_not_allowed_next_util` and
+  `check_voting_error_dialog_util`), and both can be true at once
+  (recorded: the `not-allowed` rows of
+  `../characterization/invalid-rule.md` trip both). The dialog the voter
+  actually meets is a projection — `hard ? blocking : soft ? dismissible
+  : none` — and that projection is what `dom-validate.mjs` checks
+  against the real DOM. Typing the surface as a single
+  `{none | dismissible | blocking}` value would erase the
+  both-gates-fire fact.
+- **The input constraint (1d) is no longer part of the effect product.**
+  Prevention prunes which states the booth UI can *produce*; it does not
+  change the mapping over states that exist anyway — hand-built or
+  decoded records still run through the checkers as defense-in-depth
+  (the §2 pruning caution). It is therefore modelled as a separate total
+  function over the same inputs:
+
+  ```
+  reachability(config, vote_state) → yes | inputs_disabled | marker_cleared
+  ```
+
+  with two prevention mechanisms: the DISABLE over-vote policy disabling
+  further inputs at max (`inputs_disabled`), and the blank marker
+  clearing co-selected regulars (`marker_cleared` — observed as
+  `no (cleared)` in `../characterization/dom-validate.md`; the invalid
+  marker deliberately does not clear — finding S5). Effect 1d in the
+  table above names the voter-perceived face of the first mechanism; the
+  second is imperceptible until tried.
 
 The tally codomain *is* single-valued: exactly one class per ballot.
 
@@ -410,9 +455,12 @@ This is not a rewrite proposal. The path is incremental:
 > harness, seven recorded rule tables (blank, over-vote, under-vote,
 > min-vote, duplicated-rank, preference-gaps, invalid), the tally
 > classifier's own decision table, and the single-sourced spec
-> ([`../characterization/spec.mjs`](../characterization/spec.mjs) — gates
-> / classifier / filter / constraint — the embryonic declarative table of
-> step 3; each runner supplies only its rule-specific checker emissions).
+> ([`../characterization/spec.mjs`](../characterization/spec.mjs) — the
+> whole mapping as one function `f(config, voteState, context)`: checker
+> emissions, both gates, the classifier, the message filter, and
+> reachability — the embryonic declarative table of step 3; each runner
+> supplies only its experiment grid, with the per-cell meaning defined
+> once in `rule-specs.mjs`).
 > The spec is validated in two lanes: the partial (headless) tables check
 > its gates/classifier against the real WASM on every cell (`pred?`), and
 > the **complete** tables (`dom-validate.mjs`) drive every cell of all

@@ -36,7 +36,8 @@ import {
     loadMarkerFixture,
     extractErrors,
 } from "./harness.mjs"
-import {hardGate, softGate, classify, inlineVisible, MSG} from "./spec.mjs"
+import {f, inlineVisible} from "./spec.mjs"
+import {RULE_SPECS} from "./rule-specs.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
@@ -100,56 +101,20 @@ function makeEml(invalidPolicy) {
     return clone
 }
 
-// PREDICTION — rule-specific emissions composed with the shared spec. All
-// three explicit-invalid routes (flag_only, marker, marker_plus) end with
-// is_explicit_invalid = true, so the invalid checker fires identically on all
-// of them; the prediction is route-independent, and the recording's job is to
-// confirm the routes actually converge. The shared spec then handles the
-// gates (an Explicit-type error trips the hard fast path; the warn-both
-// condition and the generic errors≠allowed condition both feed the soft gate)
-// and the classifier (the explicit flag short-circuits to ExplicitInvalid).
+// PREDICTION — spec.mjs's complete mapping `f`, fed from this rule's cell
+// definitions (rule-specs.mjs: specConfig/voteState). All three
+// explicit-invalid routes (flag_only, marker, marker_plus) map to the same
+// VoteState (`explicitInvalid: true`), so the prediction is
+// route-independent by construction, and the recording's job is to confirm
+// the routes actually converge. The spec then handles the gates (an
+// Explicit-type error trips the hard fast path; the warn-both condition and
+// the generic errors≠allowed condition both feed the soft gate) and the
+// classifier (the explicit flag short-circuits to ExplicitInvalid).
+const CELLS = RULE_SPECS["invalid-rule"]
 function predict(invalid, state) {
-    const explicit =
-        state === "flag_only" || state === "marker" || state === "marker_plus"
-    const errors = []
-    const alerts = []
-    if (explicit) {
-        if (invalid === "not-allowed") errors.push(MSG.explicitNotAllowed)
-        if (invalid === "warn-invalid-implicit-and-explicit")
-            alerts.push(MSG.explicitAlert)
-    }
-    // marker-inclusive selections: none=0, marker_plus=2 (marker+regular),
-    // everything else=1. Council seat max forced to 2 (makeEml).
-    const selections = state === "none" ? 0 : state === "marker_plus" ? 2 : 1
-    const selection =
-        state === "regular"
-            ? "regular"
-            : state === "marker"
-              ? "marker"
-              : state === "marker_plus"
-                ? "mixed"
-                : "none" // none / flag_only
-    const facts = {
-        errors,
-        alerts,
-        explicitInvalid: explicit,
-        selections,
-        min: 0,
-        max: 2,
-        selection,
-        policies: {invalid},
-    }
-    return {
-        errors,
-        alerts,
-        hard: hardGate(facts),
-        soft: softGate(facts),
-        tally: classify({
-            explicitInvalid: explicit,
-            hasErrors: errors.length > 0,
-            selection,
-        }),
-    }
+    const cell = {invalid_vote_policy: invalid, state}
+    const r = f(CELLS.specConfig(cell), CELLS.voteState(cell))
+    return {errors: r.errors, alerts: r.alerts, hard: r.hard, soft: r.soft, tally: r.tally}
 }
 
 function derivedInlineVisible(observed, invalid) {

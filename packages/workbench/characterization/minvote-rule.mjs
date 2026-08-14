@@ -33,7 +33,8 @@ import {
     loadMarkerFixture,
     extractErrors,
 } from "./harness.mjs"
-import {hardGate, softGate, classify, inlineVisible, MSG} from "./spec.mjs"
+import {f, inlineVisible} from "./spec.mjs"
+import {RULE_SPECS} from "./rule-specs.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
@@ -96,41 +97,17 @@ function makeEml(min, invalidPolicy) {
     return clone
 }
 
-// marker-inclusive count (explicit-blank marker counts toward min_votes)
-function markerInclusiveCount(state) {
-    return state === "none" ? 0 : 1
-}
-
-// PREDICTION — rule-specific emissions composed with the shared spec
-// (spec.mjs). Min-vote is a fixed rule, not a policy: check_min_vote_policy
-// pushes a `selectedMin` error whenever the marker-inclusive count is below
-// min_votes. Everything downstream (gates, classifier) is the shared spec;
-// selectedMin is not on the filter's keep-list, so inlineVisible suppresses
-// it under invalid=allowed.
+// PREDICTION — spec.mjs's complete mapping `f`, fed from this rule's cell
+// definitions (rule-specs.mjs: specConfig/voteState). Min-vote is a fixed
+// rule, not a policy: the spec's emissions push a `selectedMin` error
+// whenever the marker-inclusive count is below min_votes, and selectedMin is
+// not on the filter's keep-list, so inlineVisible suppresses it under
+// invalid=allowed.
+const CELLS = RULE_SPECS["minvote-rule"]
 function predict(min, invalid, state) {
-    const count = markerInclusiveCount(state)
-    const errors = []
-    const alerts = []
-    if (count < min) errors.push(MSG.selectedMin)
-    const selection =
-        state === "none" ? "none" : state === "marker_only" ? "marker" : "regular"
-    const facts = {
-        errors,
-        alerts,
-        explicitInvalid: false,
-        selections: count,
-        min,
-        max: 3, // makeEml forces max_votes = 3
-        selection,
-        policies: {invalid},
-    }
-    return {
-        errors,
-        alerts,
-        hard: hardGate(facts),
-        soft: softGate(facts),
-        tally: classify({hasErrors: errors.length > 0, selection}),
-    }
+    const cell = {min_votes: min, invalid_vote_policy: invalid, state}
+    const r = f(CELLS.specConfig(cell), CELLS.voteState(cell))
+    return {errors: r.errors, alerts: r.alerts, hard: r.hard, soft: r.soft, tally: r.tally}
 }
 
 function derivedInlineVisible(observed, invalid) {

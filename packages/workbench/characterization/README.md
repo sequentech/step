@@ -79,12 +79,14 @@ its source within minutes of being written.
    observation cell.
 4. **Roles of the artifacts.** The recorded JSON is the *characterization*
    (evidence, and after adjudication the regression oracle); the embryonic
-   *specification* is [`spec.mjs`](spec.mjs) (the shared, canonical
-   statement of the gates / classifier / filter / constraint) composed with
-   each runner's rule-specific `predict()` emissions; tables are *views* for
-   humans; **suspects** live in `../docs/UPSTREAM_FINDINGS.md` until
-   consultation adjudicates them. The spec is validated against the
-   recording by enumeration, not by eye.
+   *specification* is [`spec.mjs`](spec.mjs) — the whole mapping as one
+   function `f(config, voteState, context)`: checker emissions, both
+   gates, the classifier, the message filter, and reachability — with the
+   per-cell meaning of each rule's grid defined once in
+   [`rule-specs.mjs`](rule-specs.mjs); tables are *views* for humans;
+   **suspects** live in `../docs/UPSTREAM_FINDINGS.md` until consultation
+   adjudicates them. The spec is validated against the recording by
+   enumeration, not by eye.
 5. **Narrative claims meet the table standard.** The prose in `../docs/`
    is the reviewer's interface; the tables are its evidence — if the
    prose is wrong, correct tables do not save the material. Before a
@@ -121,23 +123,28 @@ functional model in [`docs/VOTE_VALIDATION.md`](../docs/VOTE_VALIDATION.md):
   and are kept as a cheaper dispatch-path check; see *Running the
   analysis*.)
 
-Each layers-1+2 runner carries a `predict()` function — the embryonic
-declarative mapping, deliberately independent of the implementation, against
-which every recorded cell is compared (`pred?` column / mismatch report).
-Since the spec-consolidation, `predict()` supplies only its rule-specific
-**checker emissions** (which errors/alerts the checker produces per config ×
-state); everything downstream — the two gates, the tally classifier, the
-booth filter (inline visibility), and the input-constraint model — composes
-[`spec.mjs`](spec.mjs), the single shared transcription of the production
-rules. The `classifier-table` runner's `predict()` *is* `spec.classify`, so
-that table validates the shared classifier directly.
+Every prediction comes from [`spec.mjs`](spec.mjs) — the single shared
+transcription of the production rules, exposed as one function
+`f(config, voteState, context)` covering the checker emissions (which
+errors/alerts the checker produces per config × vote state), the two
+gates, the tally classifier, the booth message filter (inline visibility
+at the review screen), and reachability (whether the booth UI lets a
+state form at all). A rule runner's `predict()` is a thin call into `f`,
+fed from the rule's cell definitions in [`rule-specs.mjs`](rule-specs.mjs)
+(`specConfig` / `voteState` — what each recorded row means in spec
+terms); the runner itself contributes only its experiment grid and the
+wire-level state construction. Every recorded cell is compared against
+the prediction (`pred?` column / mismatch report). The `classifier-table`
+runner's `predict()` *is* `spec.classify`, so that table validates the
+shared classifier directly.
 
-**Two validation lanes, unequal coverage.** `spec.mjs`'s gates and classifier
-transcribe Rust that IS compiled to wasm, so `pred?` checks them against the
-real wasm on every cell (independent derivations — this JS vs that Rust —
-so agreement is real information). Its `inlineVisible` / `inputConstraint`
-transcribe TypeScript that is NOT callable headlessly (`filterErrorList`;
-the input disable), so they are **predictions only** in a Node runner,
+**Two validation lanes, unequal coverage.** `spec.mjs`'s emissions, gates
+and classifier transcribe Rust that IS compiled to wasm, so `pred?` checks
+them against the real wasm on every cell (independent derivations — this
+JS vs that Rust — so agreement is real information). Its `inlineVisible` /
+`reachability` transcribe TypeScript that is NOT callable headlessly
+(`filterErrorList`; the input disable; the blank-marker clearing), so
+they are **predictions only** in a Node runner,
 validated against the real DOM only where a browser runner covers the cell,
 and never against a re-computation of themselves (that check would be
 tautological). That per-cell DOM-validation lane now exists:
@@ -429,7 +436,7 @@ all six are:
 | Checkers | 1 (headless wasm) | blank, over-vote, under-vote, min-vote, duplicated-rank, preference-gaps, invalid rules done. One recording serves **both** bands: the tally decode runs the identical function, so layer 1 is also the tally-side checker characterization. |
 | Gates | 2 (headless wasm) | blank, over-vote, under-vote, min-vote, duplicated-rank, preference-gaps, invalid rules done |
 | Filter | 3 (browser, booth) | **done for all seven rules** — `dom-validate.mjs` observes inline visibility at the review screen across every cell of the five plurality rules (explicit-blank-invalid fixture) and the two preferential rules (IRV fixture, ranked selection): **229/229** |
-| Input constraint | 3 (browser) — the `constraint` component of the effect triple | **done** — observed both **behaviourally** across every rule cell (the `reachable` column of `dom-validate.md`: the state forms or it does not) and **directly** for both prevention mechanisms: the over-vote `disable` policy (`no (disabled)`, from probing the (max+1)th control's `disabled` attribute) and blank-marker exclusivity (`no (cleared)`, the marker collapsing a co-selected regular) |
+| Input constraint | 3 (browser) — `spec.mjs`'s `reachability` | **done** — observed both **behaviourally** across every rule cell (the `reachable` column of `dom-validate.md`: the state forms or it does not) and **directly** for both prevention mechanisms: the over-vote `disable` policy (`no (disabled)`, from probing the (max+1)th control's `disabled` attribute) and blank-marker exclusivity (`no (cleared)`, the marker collapsing a co-selected regular) |
 | Marker exclusivity (prevention) | browser — *reachability*, not effects | first reachability recording exists (over-vote under DISABLE: the state does not form); all five S1/S2 violations (over-vote + four min-vote) are confirmed through the full booth→cast→decrypt→tally pipeline (`overvote-e2e-pipeline.mjs`, `minvote-e2e-pipeline.mjs`). Prevention is characterized by *attempting* to create each state through the UI and recording whether it forms. Both marker directions are now recorded in `dom-validate`: the invalid marker does **not** clear (the `marker_plus` state forms — reachable `yes` — also confirmed end-to-end by `invalid-latent-choices-e2e.mjs`), and the blank marker **does** clear (the `regular_then_marker` state collapses to {marker only} — reachable `no (cleared)`). Open: the decline booth flow. |
 | Tally classifier | headless (velvet-wasm `tally_decoded_ballots`) | **done**: per-cell `tally` column in all seven rule tables, plus the standalone 32-cell six-class decision table (`classifier-table.md`, 32/32 matching the documented precedence) |
 
@@ -444,17 +451,20 @@ enumerations.
 
 ## Adding a rule
 
-1. **Headless runner.** Copy `blank-rule.mjs`, swap the policy/state
-   dimensions and the `predict()` transcription (only the rule-specific
-   checker emissions — gates, classifier, and filter compose from
-   `spec.mjs`), and pick or extend a bundled fixture whose contest carries
-   the rule's preconditions (see FIXTURE_VARIANCE.md §13.2 for why marker
-   candidates are preconditions, not policies). This writes the partial
-   `<rule>.recorded.json` + `.md`.
-2. **Complete table.** Add a `RULE_SPECS` entry in `rule-specs.mjs` (keyed by
-   the recorded-JSON name — contest selector, panel config, selection,
-   landmark, reachability) and a `RULES` entry in `dom-validate.mjs`. The
-   rule's cells then join the DOM-validated complete table.
+1. **Spec.** Add the rule's checker emissions to `spec.mjs::emissions`
+   (transcribed from checker.rs, in decode order), and a `RULE_SPECS`
+   entry in `rule-specs.mjs` carrying the rule's cell definitions
+   (`specConfig` / `voteState` — what each cell means in spec terms).
+2. **Headless runner.** Copy `blank-rule.mjs`, swap the policy/state
+   dimensions and the wire-level state construction, and pick or extend a
+   bundled fixture whose contest carries the rule's preconditions (see
+   FIXTURE_VARIANCE.md §13.2 for why marker candidates are preconditions,
+   not policies). This writes the partial `<rule>.recorded.json` + `.md`.
+3. **Complete table.** Extend the rule's `RULE_SPECS` entry with the
+   browser-driving half (contest selector, panel config, selection
+   clicks, landmark, reachability checks) and add a `RULES` entry in
+   `dom-validate.mjs`. The rule's cells then join the DOM-validated
+   complete table.
 
 Still open: the **decline-to-vote booth flow** — the classifier's decline
 cells are recorded headlessly (`classifier-table`), but no booth-side runner

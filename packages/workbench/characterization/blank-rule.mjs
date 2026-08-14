@@ -30,7 +30,8 @@ import {
     loadMarkerFixture,
     extractErrors,
 } from "./harness.mjs"
-import {hardGate, softGate, classify, inlineVisible, MSG} from "./spec.mjs"
+import {f, inlineVisible} from "./spec.mjs"
+import {RULE_SPECS} from "./rule-specs.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
@@ -93,56 +94,16 @@ function makeEml(blankPolicy, invalidPolicy) {
 }
 
 // ---------------------------------------------------------------------------
-// PREDICTION — a direct transcription of the documented rules
-// (VOTE_VALIDATION.md: blank/invalid checker tables + both gate tables).
-// This is deliberately independent of the implementation: it is the first
-// draft of the declarative mapping, and disagreements with the recording
-// are findings, not bugs in this file.
+// PREDICTION — spec.mjs's complete mapping `f`, fed from this rule's cell
+// definitions (rule-specs.mjs: specConfig/voteState). Deliberately
+// independent of the implementation; disagreements with the recording are
+// findings, not bugs in this file.
 // ---------------------------------------------------------------------------
+const CELLS = RULE_SPECS["blank-rule"]
 function predict(blank, invalid, state) {
-    const explicit = state === "explicit_invalid"
-    // marker-inclusive count (= selections_with_markers): empty 0, everything
-    // else 1 (marker_only, one_regular, and the explicit flag each count 1).
-    const count = state === "empty" ? 0 : 1
-    // rule-specific emissions
-    const errors = []
-    const alerts = []
-    if (count === 0 && !explicit && blank !== "allowed") {
-        ;(blank === "not-allowed" ? errors : alerts).push(MSG.blankVote)
-    }
-    if (explicit) {
-        if (invalid === "not-allowed") errors.push(MSG.explicitNotAllowed)
-        if (invalid === "warn-invalid-implicit-and-explicit")
-            alerts.push(MSG.explicitAlert)
-    }
-    // shared spec. Referendum: max 2, min 0.
-    const selection =
-        state === "marker_only"
-            ? "marker"
-            : state === "one_regular"
-              ? "regular"
-              : "none" // empty / explicit_invalid (flag short-circuits classify)
-    const facts = {
-        errors,
-        alerts,
-        explicitInvalid: explicit,
-        selections: count,
-        min: 0,
-        max: 2,
-        selection,
-        policies: {blank, invalid},
-    }
-    return {
-        errors,
-        alerts,
-        hard: hardGate(facts),
-        soft: softGate(facts),
-        tally: classify({
-            explicitInvalid: explicit,
-            hasErrors: errors.length > 0,
-            selection,
-        }),
-    }
+    const cell = {blank_vote_policy: blank, invalid_vote_policy: invalid, state}
+    const r = f(CELLS.specConfig(cell), CELLS.voteState(cell))
+    return {errors: r.errors, alerts: r.alerts, hard: r.hard, soft: r.soft, tally: r.tally}
 }
 
 // Derived (convention 3: labelled, not an observation): what the booth's

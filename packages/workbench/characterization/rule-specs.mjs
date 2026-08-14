@@ -2,15 +2,21 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// Per-rule browser-driving specs + the shared drive-and-observe flow, used by
-// the browser tools that need to reach a specific (config × state) cell in the
-// booth: `dom-validate` (validate spec predictions vs the DOM) and
-// `no-silent-discount` (confirm candidates). Single-sources "how to configure
-// and form each cell's state" so a contest/candidate/label change is fixed
-// once, not per tool — the browser-side echo of `spec.mjs`.
+// Per-rule cell definitions + browser-driving specs + the shared
+// drive-and-observe flow. Each RULE_SPECS entry single-sources, for one rule:
 //
-// Keyed by the rule name used in the recorded JSONs ("overvote-rule", …), so a
-// candidate row `{rule, ...cell}` maps straight to its spec.
+//   - what a cell MEANS to the specification — `specConfig(cell)` /
+//     `voteState(cell)` map a recorded row's fields (its policy knobs and its
+//     `state` label) onto spec.mjs's Config and VoteState, so the headless
+//     runners and the browser tools feed `spec.f` from one definition;
+//   - how to REACH the cell in the real booth — panel `config`, the `select`
+//     clicks, the `landmark`, reachability checks — used by `dom-validate`
+//     (validate spec predictions vs the DOM) and `no-silent-discount`
+//     (confirm candidates).
+//
+// A contest/candidate/label change is fixed once, not per tool. Keyed by the
+// rule name used in the recorded JSONs ("overvote-rule", …), so a candidate
+// row `{rule, ...cell}` maps straight to its spec.
 
 import {
     warnIds,
@@ -32,6 +38,14 @@ export const RULE_SPECS = {
     "overvote-rule": {
         contestFlag: "is_explicit_invalid", // Council seat (Ada / Bruno / null)
         landmark: /^Ada$/,
+        specConfig: (c) => ({
+            min: 0,
+            max: 1,
+            policies: {over: c.over_vote_policy, invalid: c.invalid_vote_policy},
+        }),
+        voteState: (c) => ({
+            regulars: c.state === "over_max" ? 2 : c.state === "at_max" ? 1 : 0,
+        }),
         config: (c) => ({
             selects: {
                 "Over-vote policy": c.over_vote_policy,
@@ -60,6 +74,15 @@ export const RULE_SPECS = {
     "minvote-rule": {
         contestFlag: "is_explicit_blank", // Referendum (Yes / No / blank marker)
         landmark: /^Yes$/,
+        specConfig: (c) => ({
+            min: c.min_votes,
+            max: 3,
+            policies: {invalid: c.invalid_vote_policy},
+        }),
+        voteState: (c) =>
+            c.state === "marker_only"
+                ? {regulars: 0, blankMarker: true}
+                : {regulars: c.state === "one" ? 1 : 0},
         config: (c) => ({
             selects: {"Invalid-vote policy": c.invalid_vote_policy},
             bounds: {min_votes: c.min_votes, max_votes: 3},
@@ -74,6 +97,19 @@ export const RULE_SPECS = {
     "blank-rule": {
         contestFlag: "is_explicit_blank", // Referendum (Yes / No / blank marker)
         landmark: /^Yes$/,
+        specConfig: (c) => ({
+            min: 0,
+            max: 2,
+            policies: {blank: c.blank_vote_policy, invalid: c.invalid_vote_policy},
+        }),
+        voteState: (c) =>
+            c.state === "explicit_invalid"
+                ? {regulars: 0, explicitInvalid: true}
+                : c.state === "marker_only"
+                  ? {regulars: 0, blankMarker: true}
+                  : c.state === "regular_then_marker"
+                    ? {regulars: 1, blankMarker: true} // the mixed state the marker clears
+                    : {regulars: c.state === "one_regular" ? 1 : 0},
         config: (c) => ({
             selects: {
                 "Blank-vote policy": c.blank_vote_policy,
@@ -101,6 +137,14 @@ export const RULE_SPECS = {
     "undervote-rule": {
         contestFlag: "is_explicit_blank", // Referendum (Yes / No / blank marker)
         landmark: /^Yes$/,
+        specConfig: (c) => ({
+            min: 0,
+            max: 2,
+            policies: {under: c.under_vote_policy, invalid: c.invalid_vote_policy},
+        }),
+        voteState: (c) => ({
+            regulars: c.state === "full" ? 2 : c.state === "under" ? 1 : 0,
+        }),
         config: (c) => ({
             selects: {
                 "Under-vote policy": c.under_vote_policy,
@@ -120,6 +164,21 @@ export const RULE_SPECS = {
     "invalid-rule": {
         contestFlag: "is_explicit_invalid", // Council (Ada / Bruno / null marker)
         landmark: /^Ada$/,
+        // flag_only, marker and marker_plus all map to explicitInvalid: the
+        // flag and the marker converge on one decoded representation
+        // (recorded — invalid-rule.md, "Route convergence").
+        specConfig: (c) => ({
+            min: 0,
+            max: 2,
+            policies: {invalid: c.invalid_vote_policy},
+        }),
+        voteState: (c) => ({
+            regulars: c.state === "regular" || c.state === "marker_plus" ? 1 : 0,
+            explicitInvalid:
+                c.state === "flag_only" ||
+                c.state === "marker" ||
+                c.state === "marker_plus",
+        }),
         config: (c) => ({
             selects: {"Invalid-vote policy": c.invalid_vote_policy},
             bounds: {min_votes: 0, max_votes: 2},
@@ -145,6 +204,18 @@ export const RULE_SPECS = {
     "duprank-rule": {
         contestCounting: "instant-runoff", // IRV Favourite fruit (Apple/Banana/Cherry)
         landmark: /^Apple$/,
+        // Bounds are the instant-runoff-3cand contest's own (min_votes 0,
+        // max_votes 3) — this rule's panel config does not override them.
+        // `regulars` = candidates at rank 1 (see spec.mjs VoteState).
+        specConfig: (c) => ({
+            min: 0,
+            max: 3,
+            policies: {dup: c.duplicated_rank_policy, invalid: c.invalid_vote_policy},
+        }),
+        voteState: (c) =>
+            c.state === "duplicate"
+                ? {regulars: 2, duplicateRanks: true}
+                : {regulars: 1},
         // ranked selection (`selected` = rank; -1 unranked). valid_full = a
         // well-ordered 0,1,2; duplicate = two candidates sharing rank 0.
         ranks: (c) => (c.state === "valid_full" ? [0, 1, 2] : [0, 0, -1]),
@@ -163,6 +234,14 @@ export const RULE_SPECS = {
     "prefgaps-rule": {
         contestCounting: "instant-runoff", // IRV Favourite fruit (Apple/Banana/Cherry)
         landmark: /^Apple$/,
+        // Bounds as in duprank-rule (the IRV contest's own min 0 / max 3).
+        specConfig: (c) => ({
+            min: 0,
+            max: 3,
+            policies: {gap: c.preference_gaps_policy, invalid: c.invalid_vote_policy},
+        }),
+        voteState: (c) =>
+            c.state === "gap" ? {regulars: 1, rankGaps: true} : {regulars: 1},
         // valid_full = 0,1,2; gap = ranks 0 then 2, skipping rank 1.
         ranks: (c) => (c.state === "valid_full" ? [0, 1, 2] : [0, 2, -1]),
         config: (c) => ({

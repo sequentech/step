@@ -72,7 +72,7 @@ async function probeCell(over, state) {
 
     // `reachable` (did the state form?) is the robust constraint observable:
     // under the DISABLE over-vote policy the (max+1)th control is inert, so
-    // over_max never forms (formed stays at max) — matching spec.inputConstraint.
+    // over_max never forms (formed stays at max) — matching spec.reachability.
     const formed = await selectionCount(page, ELECTION, councilId)
     const inlineAtVote = await warnIds(page)
 

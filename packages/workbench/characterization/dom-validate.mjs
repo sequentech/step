@@ -5,9 +5,10 @@
 // General DOM validator — the browser half of the two prediction-only lanes.
 //
 // The headless runners predict inline visibility (`spec.inlineVisible`) and
-// the input constraint (`spec.inputConstraint`) but cannot observe them —
-// `filterErrorList` and the input disable are TypeScript/React. This validates
-// those predictions against the REAL DOM, reload-free (~675ms/cell), by:
+// reachability (`spec.reachability`) but cannot observe them —
+// `filterErrorList`, the input disable and the marker clearing are
+// TypeScript/React. This validates those predictions against the REAL DOM,
+// reload-free (~675ms/cell), by:
 //   - reading each rule's recorded JSON for the per-cell prediction
 //     (`derived_inline_visible`; the gates → expected dialog), and
 //   - driving the booth (panel config → cast state → observe) via
@@ -34,7 +35,7 @@ import {performance} from "node:perf_hooks"
 import {fileURLToPath} from "node:url"
 import path from "node:path"
 import {loadSnapshot} from "./browser-harness.mjs"
-import {inputConstraint} from "./spec.mjs"
+import {reachability} from "./spec.mjs"
 import {RULE_SPECS, contestAndVoter, observeBooth, isReached} from "./rule-specs.mjs"
 
 const require = createRequire("C:/work/projects/step/packages/")
@@ -72,12 +73,6 @@ const RULES = [
         name: "over-vote",
         ...RULE_SPECS["overvote-rule"],
         rows: rec("overvote-rule.recorded.json"),
-        constraint: (r) =>
-            inputConstraint({
-                selections: r.state === "over_max" ? 2 : r.state === "at_max" ? 1 : 0,
-                max: 1,
-                policies: {over: r.over_vote_policy},
-            }),
         label: (r) => `${r.over_vote_policy} × ${r.invalid_vote_policy} × ${r.state}`,
         configNote: "*config* = `over_vote_policy` × `invalid_vote_policy`.",
     },
@@ -85,7 +80,6 @@ const RULES = [
         name: "min-vote",
         ...RULE_SPECS["minvote-rule"],
         rows: rec("minvote-rule.recorded.json"),
-        constraint: () => null, // min-vote imposes no input constraint
         label: (r) => `min=${r.min_votes} × ${r.invalid_vote_policy} × ${r.state}`,
         configNote:
             "*config* = `min_votes` × `invalid_vote_policy` — min-vote is a fixed " +
@@ -112,9 +106,6 @@ const RULES = [
             rows.push({...JSON.parse(JSON.stringify(base)), state: "regular_then_marker"})
             return rows
         })(),
-        // Two prevention mechanisms produce an unreachable state: none here is
-        // an input disable; `regular_then_marker` is marker exclusivity.
-        constraint: (r) => (r.state === "regular_then_marker" ? "marker_cleared" : null),
         // Direct evidence the blank marker cleared the co-selected regular:
         // exactly the marker survives (Yes at index 0 deselected, the blank
         // marker at index 2 set) in the Referendum's [Yes, No, marker] order.
@@ -133,7 +124,6 @@ const RULES = [
         name: "undervote",
         ...RULE_SPECS["undervote-rule"],
         rows: rec("undervote-rule.recorded.json"),
-        constraint: () => null, // under-vote imposes no input constraint
         label: (r) => `${r.under_vote_policy} × ${r.invalid_vote_policy} × ${r.state}`,
         configNote: "*config* = `under_vote_policy` × `invalid_vote_policy`.",
     },
@@ -141,7 +131,6 @@ const RULES = [
         name: "invalid",
         ...RULE_SPECS["invalid-rule"],
         rows: rec("invalid-rule.recorded.json").filter((r) => r.state !== "flag_only"),
-        constraint: () => null, // invalid imposes no input constraint
         label: (r) => `${r.invalid_vote_policy} × ${r.state}`,
         configNote:
             "*config* = `invalid_vote_policy`. The `flag_only` state is " +
@@ -154,7 +143,6 @@ const RULES = [
         ...RULE_SPECS["duprank-rule"],
         fixture: "irv",
         rows: rec("duprank-rule.recorded.json"),
-        constraint: () => null, // duplicates are not prevented at input
         label: (r) => `${r.duplicated_rank_policy} × ${r.invalid_vote_policy} × ${r.state}`,
         configNote:
             "*config* = `duplicated_rank_policy` × `invalid_vote_policy` on the " +
@@ -167,7 +155,6 @@ const RULES = [
         ...RULE_SPECS["prefgaps-rule"],
         fixture: "irv",
         rows: rec("prefgaps-rule.recorded.json"),
-        constraint: () => null, // gaps are not prevented at input
         label: (r) => `${r.preference_gaps_policy} × ${r.invalid_vote_policy} × ${r.state}`,
         configNote:
             "*config* = `preference_gaps_policy` × `invalid_vote_policy` on the " +
@@ -205,8 +192,10 @@ for (const rule of RULES) {
 
         // The spec predicts a state cannot form by one of two prevention
         // mechanisms: an input disable ("inputs_disabled") or marker exclusivity
-        // ("marker_cleared"). Either way the cell is `constrained`.
-        const constraintPred = rule.constraint(r)
+        // ("marker_cleared"). Either way the cell is `constrained`. Computed
+        // uniformly from the same cell definitions the runners feed spec.f.
+        const reach = reachability(rule.specConfig(r), rule.voteState(r))
+        const constraintPred = reach === "yes" ? null : reach
         const constrained = constraintPred !== null
         const domReachable = isReached(rule, obs, r)
         const reachableOk = domReachable === !constrained
