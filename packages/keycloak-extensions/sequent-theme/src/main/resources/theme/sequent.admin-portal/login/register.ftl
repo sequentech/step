@@ -52,6 +52,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                                     <div class="${properties.kcInputGroup!}"<#if structuredCredentialLogin>
                                          data-structured-credential
                                          data-credential-pattern="${realm.attributes['credential-input-pattern']!'dddd-dddd-dddd-dddd'}"
+                                         data-credential-input-placeholder="${realm.attributes['credential-input-placeholder']!'d'}"
                                          data-group-status="${msg('structuredCredentialGroupStatus')}"
                                          data-paste-error="${msg('structuredCredentialPasteError')}"
                                          data-format-error="${msg('structuredCredentialFormatError')}"

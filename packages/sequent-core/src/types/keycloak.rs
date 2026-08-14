@@ -99,6 +99,8 @@ pub const REALM_ATTR_VOTER_CERTIFICATE_POLICY: &str =
 pub const REALM_ATTR_CREDENTIAL_INPUT_POLICY: &str = "credential-input-policy";
 pub const REALM_ATTR_CREDENTIAL_INPUT_PATTERN: &str =
     "credential-input-pattern";
+pub const REALM_ATTR_CREDENTIAL_INPUT_PLACEHOLDER: &str =
+    "credential-input-placeholder";
 pub const MAX_CREDENTIAL_PATTERN_GROUPS: usize = 8;
 pub const MAX_CREDENTIAL_PATTERN_GROUP_SIZE: usize = 12;
 pub const MAX_CREDENTIAL_PATTERN_TOTAL_SIZE: usize = 64;
