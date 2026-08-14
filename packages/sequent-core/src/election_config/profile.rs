@@ -566,12 +566,26 @@ pub fn check_required(
 /// Null, empty text, an empty list and an empty object all do. Zero and `false`
 /// do not — they are answers, and a threshold of 0 being treated as unset is how
 /// a default quietly overwrites a deliberate choice.
+/// Whether the plan says nothing here, so a starting value may be written.
+///
+/// **An object of empty values is empty**, and getting that wrong made every
+/// starting value for a translated field disappear. A new plan's name is
+/// `{"en": ""}` rather than `{}` — the wizard draws a box per language, so the
+/// map has a key the moment a language exists — and a shallow
+/// `object.is_empty()` reads that as an answer somebody gave. The profile's
+/// value was then skipped, and a delivery engineer who had fixed "SMART
+/// Elections" as the name opened the client's link to an empty box above an
+/// error asking for a name.
+///
+/// Recursive rather than special-cased for `Translated`: the same shape occurs
+/// wherever a map is drawn per language, and a rule that knows about one field
+/// would be wrong for the next one.
 fn is_unset(value: &Value) -> bool {
     match value {
         Value::Null => true,
         Value::String(text) => text.trim().is_empty(),
-        Value::Array(list) => list.is_empty(),
-        Value::Object(object) => object.is_empty(),
+        Value::Array(list) => list.iter().all(is_unset),
+        Value::Object(object) => object.values().all(is_unset),
         _ => false,
     }
 }
