@@ -650,14 +650,6 @@ fn shape_of_a_plan() -> Value {
         String::from("en"),
         BTreeMap::from([(String::from("key"), String::new())]),
     );
-    // **The seventh**, and it arrived exactly as the paragraph above predicted:
-    // `css` is a `String` with `skip_serializing_if`, added with the *Stylesheet*
-    // setting on the Election Event screen, and `check-core-contract.mjs` in
-    // `beyond` went red the same afternoon — `the catalogue offers 'css' and the
-    // core says it names nothing a plan has`. Which is the check doing its job:
-    // before it existed this reached a delivery engineer as a profile that would
-    // not load, with nothing on screen naming the cause.
-    plan.css = String::from("body {}");
 
     // Filled rather than defaulted, because `Overrides` and `Option<Overrides>`
     // both carry `skip_serializing_if`. Left empty they vanish from the shape,
