@@ -599,6 +599,16 @@ fn shape_of_a_plan() -> Value {
     // key and `hidden: ["messages"]` — which is how the Voter Messaging screen
     // is dropped — read as a typo. Same trap as `Overrides` and `shared` below.
     plan.messages.push(Default::default());
+    // `css` and `i18n` carry `skip_serializing_if` too, so an empty plan has
+    // neither key and a profile naming either is refused as a typo. Third time
+    // this trap has been hit — `Overrides`, then `messages`, now these — and it
+    // always looks the same from outside: a wizard that will not start for one
+    // client, over a field that plainly exists.
+    plan.css = "/* */".to_string();
+    plan.i18n
+        .entry("en".to_string())
+        .or_default()
+        .insert("a.key".to_string(), "Some words".to_string());
     plan.trustees.push(Default::default());
     plan.areas.push(Default::default());
     plan.schedule.milestones.push(Default::default());
