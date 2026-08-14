@@ -25,6 +25,12 @@ export type Scalars = {
   uuid: { input: any; output: any; }
 };
 
+export type AcknowledgeSupportMaterialsOutput = {
+  __typename?: 'AcknowledgeSupportMaterialsOutput';
+  document_ids: Array<Scalars['String']['output']>;
+  election_event_id: Scalars['uuid']['output'];
+};
+
 export type Aggregate = {
   __typename?: 'Aggregate';
   count: Scalars['Int']['output'];
@@ -527,6 +533,11 @@ export type GetRolesOutput = {
   __typename?: 'GetRolesOutput';
   items: Array<KeycloakRole>;
   total: TotalAggregate;
+};
+
+export type GetSupportMaterialsAcknowledgmentOutput = {
+  __typename?: 'GetSupportMaterialsAcknowledgmentOutput';
+  document_ids: Array<Scalars['String']['output']>;
 };
 
 export type GetTopCastVotesByIpInput = {
@@ -1277,6 +1288,8 @@ export type Mutation_Root = {
   ApplicationChangeStatus?: Maybe<ApplicationChangeStatusOutput>;
   /** Verify User Registration Application */
   VerifyApplication: Scalars['String']['output'];
+  /** acknowledge_support_materials */
+  acknowledge_support_materials?: Maybe<AcknowledgeSupportMaterialsOutput>;
   /** applies the Sequent-side reconciliation diff for an already-computed import */
   apply_external_reconciliation_changes?: Maybe<TaskOutput>;
   call_plugin_route: PluginsRouteOutput;
@@ -2010,6 +2023,13 @@ export type Mutation_RootApplicationChangeStatusArgs = {
 /** mutation root */
 export type Mutation_RootVerifyApplicationArgs = {
   body: ApplicationVerifyBody;
+};
+
+
+/** mutation root */
+export type Mutation_RootAcknowledge_Support_MaterialsArgs = {
+  document_ids: Array<Scalars['String']['input']>;
+  election_event_id: Scalars['uuid']['input'];
 };
 
 
@@ -5261,6 +5281,8 @@ export type Query_Root = {
   get_realm_attributes: GetRealmAttributesOutput;
   get_realm_password_policy: RealmPasswordPolicy;
   get_roles: GetRolesOutput;
+  /** get_support_materials_acknowledgment */
+  get_support_materials_acknowledgment: GetSupportMaterialsAcknowledgmentOutput;
   get_top_votes_by_ip?: Maybe<GetTopCastVotesByIpOutput>;
   get_user_profile_attributes: Array<UserProfileAttribute>;
   get_users: GetUsersOutput;
@@ -5587,6 +5609,11 @@ export type Query_RootGet_Realm_Password_PolicyArgs = {
 
 export type Query_RootGet_RolesArgs = {
   body: GetRolesInput;
+};
+
+
+export type Query_RootGet_Support_Materials_AcknowledgmentArgs = {
+  election_event_id: Scalars['uuid']['input'];
 };
 
 
