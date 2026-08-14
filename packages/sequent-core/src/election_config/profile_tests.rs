@@ -756,3 +756,26 @@ fn a_preset_needs_a_name() {
 
     assert!(Profile::read(&document).is_err());
 }
+
+/// A profile may name any field the plan has, including the skipped-when-empty
+/// ones.
+///
+/// Third time this trap has been hit — `Overrides`, then `messages`, now `css`
+/// and `i18n`. `shape_of_a_plan` is built from `Blueprint::default()`, and a
+/// field with `skip_serializing_if` is simply absent from it, so a profile
+/// naming one is refused as a typo. From outside it looks like a wizard that
+/// will not start for one client, over a field that plainly exists.
+#[test]
+fn a_profile_may_name_a_field_that_is_skipped_when_empty() {
+    for path in ["css", "i18n", "messages"] {
+        let document = ClientProfile {
+            id: "acme".to_string(),
+            hidden: vec![path.to_string()],
+            ..Default::default()
+        };
+        assert!(
+            Profile::read(&document).is_ok(),
+            "'{path}' is a real field and a profile must be able to name it"
+        );
+    }
+}
