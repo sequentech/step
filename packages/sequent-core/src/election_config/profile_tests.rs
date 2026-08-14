@@ -777,6 +777,57 @@ fn a_profile_may_name_a_field_that_is_skipped_when_empty() {
     }
 }
 
+/// A starting value reaches a translated field whose map is drawn but blank.
+///
+/// The reported bug. A new plan's `name` is `{"en": ""}` — the wizard draws a
+/// box per language, so the key exists before anybody types — and a shallow
+/// emptiness check read that as an answer already given, so the profile's value
+/// was skipped and the client saw an empty box above an error asking for a name.
+#[test]
+fn a_starting_value_fills_a_translated_field_that_is_only_apparently_set() {
+    let profile = profile_of(ClientProfile {
+        id: "acme".to_string(),
+        defaults: defaults(&[(
+            "name",
+            serde_json::json!({"en": "SMART Elections"}),
+        )]),
+        ..Default::default()
+    });
+    let plan = Blueprint {
+        name: Translated::new(""),
+        ..Default::default()
+    };
+
+    let seeded = apply_profile(&plan, &profile).expect("applies");
+    assert_eq!(
+        seeded.name.by_language.get("en").map(String::as_str),
+        Some("SMART Elections")
+    );
+}
+
+/// And still does not overwrite a real answer.
+#[test]
+fn a_starting_value_leaves_a_name_somebody_typed_alone() {
+    let profile = profile_of(ClientProfile {
+        id: "acme".to_string(),
+        defaults: defaults(&[(
+            "name",
+            serde_json::json!({"en": "SMART Elections"}),
+        )]),
+        ..Default::default()
+    });
+    let plan = Blueprint {
+        name: Translated::new("Their own name"),
+        ..Default::default()
+    };
+
+    let seeded = apply_profile(&plan, &profile).expect("applies");
+    assert_eq!(
+        seeded.name.by_language.get("en").map(String::as_str),
+        Some("Their own name")
+    );
+}
+
 /// A card that is a group of controls rather than a group of fields.
 ///
 /// **This was a live bug, not a new feature.** The builder has written
