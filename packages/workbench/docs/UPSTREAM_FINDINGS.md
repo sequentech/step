@@ -215,25 +215,38 @@ additionally observed across the whole grid in
 `characterization/dom-validate.md` (all seven rules, 229/229 matching the
 spec).
 
-**Provenance of the silence** (full evidence chain:
-[INVALID_VOTE_POLICY_INTENT.md](INVALID_VOTE_POLICY_INTENT.md)): the
-message-layer suppression is recent. Until `7b0a1c71e8` ("🐞
-Inconsistencies in Voting Portal (#2018)", 2025-09-29, meta#8235) the
-booth filter never consulted `invalid_vote_policy` — an over-vote or
-below-min ballot under `allowed` showed its inline error by the review
-screen at the latest, so the original posture was "no dialog, but
-informed". That commit added the suppression (untested, undocumented)
-that composes with the older dialog-gate condition into full silence.
-Note also that the min-vote family fires under **factory defaults**
-(`allowed` is the platform default; only `min_votes ≥ 1` is needed).
-**Sharpened consultation question:** did meta#8235 intend to suppress
-implicit-invalid messages under `allowed`, or is the suppression
-overreach in a marker-display fix?
+**Provenance of the silence** (full evidence chain, per family:
+[INVALID_VOTE_POLICY_INTENT.md §5](INVALID_VOTE_POLICY_INTENT.md)):
+the two families have different histories, both pinned against the
+pre-image of `7b0a1c71e8` ("🐞 Inconsistencies in Voting Portal
+(#2018)", 2025-09-29, meta#8235 — read in full 2026-08-14: it reports
+only *missing* warnings, all under `warn` configs, and never mentions
+`allowed` or any suppression). **Min-vote**: `selectedMin` was always
+emitted and the old filter showed it by review — the silence is new
+in that commit, unrequested by its ticket, untested, undocumented:
+accidental-collateral in shape. **Over-vote**: emission itself was
+guarded by `invalid ≠ allowed` (with a comment), so the silence
+predates the ticket and reads as intended semantics — but the same
+commit made emission unconditional, flipping that cell's tally
+outcome from *fully counted* (every selection, even past max) to
+*silently discarded*. Note also that the min-vote family fires under
+**factory defaults** (`allowed` is the platform default; only
+`min_votes ≥ 1` is needed). **Sharpened consultation questions** (to
+the commit's authors): for min-vote — was extending the `allowed`
+silence to `selectedMin`, a rule with no policy of its own to restore
+signal with, considered? For over-vote — is silence-by-double-`allowed`
+acceptable design, and was the tally flip considered for elections
+already configured that way?
 
 **Why suspect:** the voter is given zero indication their vote will not
-count. **Confidence:** strong intuition this is a defect (or at minimum a
-combination that must be surfaced to election designers — e.g. an
-admin-portal configuration warning). **Consultation question:** is
+count. **Confidence:** per family (provenance above) — min-vote (four of
+the five cells, S2 included): strong intuition this is a defect; the
+silence is accidental-collateral in shape and fires under factory
+defaults. Over-vote (one cell): the silence appears deliberate, so the
+suspicion shifts from "accident" to "questionable design" — plus the
+unexamined tally flip. Either way, at minimum a combination that must
+be surfaced to election designers (e.g. an admin-portal configuration
+warning). **Consultation question:** is
 `invalid_vote_policy = allowed` intended to mean "invalid ballots may be
 *cast* silently" even though they are discarded, and if so, should the
 combination be flagged at configuration time? **Reproduce:**

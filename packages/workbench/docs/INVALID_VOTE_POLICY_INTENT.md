@@ -16,9 +16,11 @@ unmodified (voting-portal, sequent-core, admin-portal), the shipped
 docusaurus documentation, and git history. Quotes are verbatim and
 commits are named so the chain can be re-audited. This is intent
 *evidence* gathered for consultation, not adjudication. The pivotal
-claims (the accessor rename, the filter pre-image, the release-branch
-location of #2949) were verified directly against `git show`; doc and
-i18n quotes carry their file paths for re-checking.
+claims (the accessor rename, the filter/checker/tally pre-images of
+`7b0a1c71e8`, the release-branch location of #2949) were verified
+directly against `git show`; meta#8235 and PR #2018 were read in full
+(2026-08-14); doc and i18n quotes carry their file paths for
+re-checking.
 
 ## 1. One dial, two policies
 
@@ -40,7 +42,7 @@ points in that 2-axis space (a fifth, release/10.0-only value exists —
 
 | value | response to explicit invalid | response to implicit invalid |
 |---|---|---|
-| `allowed` | silence | **silence** (since 2025-09; before: message, no dialog) |
+| `allowed` | silence | **silence** (min-vote: since 2025-09, visible before; over-vote: silent all along — but counted rather than discarded before; §5) |
 | `warn` | silence | message + dismissible dialog |
 | `warn-invalid-implicit-and-explicit` | alert + dismissible dialog | message + dismissible dialog |
 | `not-allowed` | hard block | hard block |
@@ -164,23 +166,81 @@ invalidity — which is exactly the silent-discount surface (S1).
 
 ## 5. What `allowed` uniquely does — and since when
 
-The full silence is recent. Until commit `7b0a1c71e8` ("🐞
-Inconsistencies in Voting Portal (#2018)", 2025-09-29, parent issue
-sequentech/meta#8235), the booth's message filter
-(`voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx`)
-**never consulted `invalid_vote_policy`**. Verified against the
-commit's pre-image: `invalid_errors` were filtered only by a
-"voter hasn't touched the contest yet" heuristic, and the review
-screen always showed them. Under `allowed`, an over-voted or
-below-min ballot displayed its inline error ("Number of selected
-choices … is less than the minimum …") by review at the latest.
+The full silence is recent — but its two families have different
+histories, and the difference is the finding. Everything below is
+verified against the pre-image of `7b0a1c71e8` ("🐞 Inconsistencies
+in Voting Portal (#2018)", 2025-09-29, parent issue
+sequentech/meta#8235; co-authored by Félix Robles and Eduardo Robles
+Elvira) — `git show 7b0a1c71e8^:<path>` for the filter, the checker,
+and the tally. (An earlier revision of this section checked only the
+filter pre-image and wrongly claimed that an *over-voted* ballot
+under `allowed` showed its inline error before 2025-09; only the
+below-min ballot did. Corrected 2026-08-14.)
 
-The original `allowed` posture was therefore **"no dialog
-interruptions, but the voter is informed"** — no silent discount at
-the message layer. `7b0a1c71e8` added the suppression block that
-hides *all* `invalid_errors` under `allowed` (with two carve-outs:
-over-vote when `over_vote_policy ≠ allowed`, blank when
-`blank_vote_policy = not-allowed`). That block:
+**Filter pre-image**
+(`voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx`):
+the booth's message filter **never consulted `invalid_vote_policy`**
+— `invalid_errors` were filtered only by a "voter hasn't touched the
+contest yet" heuristic, and the review screen showed whatever had
+been emitted.
+
+**Checker pre-image** (`sequent-core/src/ballot_codec/raw_ballot.rs`)
+— this is where the families split:
+
+- **min-vote**: the `selectedMin` error was pushed
+  **unconditionally**, so under `allowed` a below-min ballot really
+  did display its inline error ("Number of selected choices … is less
+  than the minimum …") by review at the latest. The original min-vote
+  posture was "no dialog interruptions, but the voter is informed".
+- **over-vote**: the `selectedMax` **error emission itself was
+  guarded** by `invalid_vote_policy != Some(ALLOWED)`, under the
+  comment "for errors, we use only invalid_vote_policy. Overvote
+  policy is going to be used only for alerts". Under explicitly-set
+  `allowed` — the common case: the `ContestPresentation` constructor
+  defaults the field to `Some(ALLOWED)` and the admin-portal form
+  falls back to it (§6) — no error existed, so nothing showed *and
+  nothing reached the tally*. Whether the voter saw anything was
+  carried entirely by the *alert*, which every over-vote variant
+  except `allowed` pushes.
+
+**Tally pre-image**
+(`velvet/src/pipes/do_tally/counting_algorithm/plurality_at_large.rs`
+with `plaintext.rs::is_invalid` = flag ∨ errors): a ballot with no
+error and no flag took the valid branch, which counts **every**
+`selected >= 0` choice with no cap. Before this commit, an over-max
+ballot under explicit `allowed` was therefore **counted fully valid —
+all selections counted, including those past `max_votes`** (two
+selections at `max_votes: 1` gave one vote to *each* candidate).
+
+**What `7b0a1c71e8` actually did is a migration.** It removed the
+over-vote emission guard — errors are now recorded unconditionally,
+plausibly a deliberate tally-integrity fix, given that over-max
+ballots had been fully counted — and reinstated the same "under
+`allowed`, no implicit-error signal" rule at the display layer,
+**generalized to all errors**, with two carve-outs (over-vote when
+`over_vote_policy ≠ allowed`, blank when `blank_vote_policy =
+not-allowed`) that reconstruct the old alert-driven visibility.
+Min-vote — always emitted, always visible before, and with no policy
+of its own to key a carve-out on — was swept into a rule written with
+over-vote's semantics in mind. Post-commit, min-vote is behaviourally
+identical to an over-vote-style rule whose policy is frozen at
+`allowed`: the `allowed × *` over-max rows of
+`../characterization/overvote-rule.md` are column-identical to the
+below-min rows of `../characterization/minvote-rule.md`. Per family:
+
+- **over-vote** (`over = allowed × invalid = allowed`): the *silence*
+  is old and deliberate (pre-ticket guard + comment); the *discount*
+  is new (recorded error → `is_invalid()` → discarded, where before
+  every selection counted).
+- **min-vote** (all four cells, S2's `marker_only` included): the
+  *discount* is old (`selectedMin` always reached the tally); the
+  *silence* is new, unrequested, and inverted previously-visible
+  behaviour.
+
+Both families end at the same cell — silent and discarded — each
+having gained the opposite half from this one commit.
+
+The suppression block itself:
 
 - arrived inside a bug-fix commit about display inconsistencies, not
   a feature commit;
@@ -191,19 +251,23 @@ over-vote when `over_vote_policy ≠ allowed`, blank when
   UPSTREAM_FINDINGS.md (a tautological dedup predicate; a stale
   `useMemo` dependency list).
 
-The behaviour the workbench characterized as S1 — checker flags
-internally, voter sees nothing, tally discards — is the composition
-of this 2025-09 message suppression with the older dialog-gate
-condition (`!invalid_errors.is_empty() && policy != ALLOWED`, present
-since the gates were written). Before 2025-09 the composition left
-the inline message visible; after, nothing.
-
-We could not read meta#8235 from this environment; it is the single
-most informative artifact left. If it describes marker-display fixes
-and never mentions suppressing implicit-invalid messages, the silence
-is overreach in a bug fix. If it specifies the suppression, the
-silence is intended and the consultation shifts to whether the intent
-is safe.
+**meta#8235, read in full 2026-08-14** (the ticket, its comments, PR
+#2018's body and review threads — the complete written record): five
+reported defects, **every one a warning that is missing or
+inconsistently shown** — the ticket asks for *more* voter signal,
+never less. Both of its configurations set `invalid_vote_policy:
+warn`; the value `allowed` appears nowhere; "Expected Behavior" is
+empty; there are no issue comments, and the PR body is only the
+parent-issue link. The ticket therefore specifies neither the display
+suppression nor the emission change; both are implementation
+decisions made inside the fix. What no artifact anywhere states is
+the **composition**: unconditional emission + display suppression +
+`is_invalid()` at tally = silent discount. No ticket line, test,
+comment, or doc connects the display decision to the tally
+consequence, and the over-vote tally flip (fully counted → silently
+discarded, for elections already configured `allowed`) is likewise
+unmentioned. The archival trail is exhausted; the remaining intent
+questions go to the commit's authors (§9).
 
 ## 6. Defaults, guidance, and steering
 
@@ -310,21 +374,34 @@ concern — *can occur in a real election* AND *is not intended* —
   Nothing in the admin portal or docs warns about either combination,
   and the null-vote requirement actively steers designers into the
   prone value (§6).
-- *Intent:* the full silence is ten months old, introduced by a
-  bug-fix commit, untested, undocumented, and it inverted the
-  original "informed but uninterrupted" posture (§5). Where upstream
-  *does* intend a surprising behaviour, it says so in writing —
-  #2949's "intentionally supported ballot shape" line is the house
-  style for documented intent — and no such language exists for
-  implicit-invalid silence. Honest counterweights: the docs gloss
-  "Submit without warning", the deliberate #2126 default choice, and
-  the unmerged-branch preset prose; all three are consistent with
-  intent but none distinguishes the message layer from the dialog
-  layer or mentions the discount consequence.
+- *Intent:* now split per family (§5; ticket read 2026-08-14). The
+  **min-vote** silence — four of the five confirmed cells, S2
+  included — is ten months old, introduced by a bug-fix commit whose
+  ticket asked for *more* warnings, untested, undocumented, and it
+  inverted previously-visible behaviour: the strongest defect-shaped
+  evidence in this document. The **over-vote** silence has pre-ticket
+  lineage (the emission guard and its comment) and reads as intended
+  semantics; for that cell the consultation question is not "was this
+  an accident" but "is this design acceptable" — noting that the same
+  commit silently flipped its tally outcome from fully-counted to
+  discarded. Where upstream *does* intend a surprising behaviour, it
+  says so in writing — #2949's "intentionally supported ballot shape"
+  line is the house style for documented intent — and no such
+  language exists for implicit-invalid silence, for the min-vote
+  generalization, or for the tally flip. Honest counterweights: the
+  docs gloss "Submit without warning", the deliberate #2126 default
+  choice, and the unmerged-branch preset prose; all three are
+  consistent with intent but none distinguishes the message layer
+  from the dialog layer or mentions the discount consequence.
 
-The sharpest remaining question is now concrete and answerable inside
-Sequent (the ticket was not readable from this environment — §5):
-**what does meta#8235 say?**
+With meta#8235 read (§5) the archival trail is exhausted; the
+remaining intent questions are for the commit's authors (Félix
+Robles, Eduardo Robles Elvira): (i) was extending the `allowed`
+silence to `selectedMin` — a rule with no policy of its own and no
+alert to fall back on — considered? (ii) was the over-vote tally
+change (over-max ballots under explicit `allowed`: fully counted
+before, silently discarded after) considered for elections already
+configured that way?
 
 **S5 (null vote preserves choices).** Substantially answered by
 #2949 (§8): preservation is intended (client reliance), exclusivity
@@ -341,7 +418,7 @@ becomes expressible at all.
 | commit | date | role |
 |---|---|---|
 | `b837d992b0` / `68a558ef34` | 2024 | policy ↔ explicit-marker coupling; removed `allow_explicit_invalid()` |
-| `7b0a1c71e8` (#2018, meta#8235) | 2025-09-29 | added the `allowed` message suppression → full silence |
+| `7b0a1c71e8` (#2018, meta#8235) | 2025-09-29 | made error emission unconditional (over-vote was guarded before) and moved the `allowed` suppression to the display layer → min-vote newly silent; over-vote tally flipped from fully-counted to discarded |
 | `ff6e47600d` (#2126) | 2025-10 | settled the default toward `allowed` |
 | `23932601d2` (#2949) | 2026-08-05 | `allowed-with-exclusive-explicit`, release/10.0 only |
 | `7c89ba69b3` (unmerged) | 2026-08 | only prose rationale for `allowed` |
@@ -352,3 +429,12 @@ against the workbench's recorded characterization
 booth-surface claims — inline visibility under `allowed`, marker
 reachability — are since observed across the whole grid in
 `characterization/dom-validate.md`, 229/229).
+
+Updated 2026-08-14: meta#8235 and PR #2018's full written record read
+via authenticated `gh`; the checker pre-image (`raw_ballot.rs`) and
+tally pre-image (`plurality_at_large.rs`, `plaintext.rs`) of
+`7b0a1c71e8` read via `git show`. §1's table row and §5 corrected
+accordingly — the earlier claim that an over-voted ballot under
+`allowed` showed an inline error before 2025-09 was wrong (only
+min-vote did; over-vote was silent at the message layer all along and
+its ballots were fully counted rather than discarded).

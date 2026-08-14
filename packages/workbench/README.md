@@ -365,8 +365,10 @@ payoff:
    ([docs/INVALID_VOTE_POLICY_INTENT.md](docs/INVALID_VOTE_POLICY_INTENT.md)).
    Per the three-state model (characterized → suspect → adjudicated),
    escalating them to the parties with design authority is the step this
-   repo cannot take by itself — and the sharpest open question is
-   answerable inside Sequent: *what does meta#8235 say?*
+   repo cannot take by itself. meta#8235 has now been read (2026-08-14;
+   evidence folded into that document's §5): it asks for *more* voter
+   signal, never suppression — the residual intent questions go to the
+   fix's authors.
 2. **The decline-to-vote booth flow** — the one open characterization
    cell. Blocked on adding a `multi_ballot` encrypt/decrypt path (the
    decline bit does not exist in `raw_ballot`; see Known gaps above), so
