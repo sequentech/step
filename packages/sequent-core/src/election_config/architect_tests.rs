@@ -4345,10 +4345,7 @@ fn the_login_stylesheet_is_escaped_and_wording_is_not() {
                 "loginCustomCss".to_string(),
                 ".login { color: red; }".to_string(),
             ),
-            (
-                "doLogIn".to_string(),
-                "Sign in, {0} of {1}".to_string(),
-            ),
+            ("doLogIn".to_string(), "Sign in, {0} of {1}".to_string()),
         ]
         .into_iter()
         .collect(),
