@@ -500,6 +500,8 @@ fn read_candidates(
                     .unwrap_or(false),
                 explicit_invalid: flag(row, "presentation.is_explicit_invalid")
                     .unwrap_or(false),
+                disabled: flag(row, "presentation.is_disabled")
+                    .unwrap_or(false),
                 // Bytes never travel in a cell. The identifier the writer put
                 // here is the platform's, derived from the candidate, so there is
                 // nothing to keep: a photograph has to be chosen again.
