@@ -1151,6 +1151,18 @@ pub struct PlannedCandidate {
     /// A "spoil my ballot" option rather than a person.
     #[serde(default)]
     pub explicit_invalid: bool,
+    /// On the ballot, drawn but not selectable — `presentation.is_disabled`.
+    ///
+    /// A candidate who stood down after the ballot was approved. The platform's own
+    /// concept, not one invented here: `CandidatePresentation::is_disabled` carries
+    /// it, `Candidate::is_disabled()` reads it, the voting portal draws such a
+    /// candidate at half opacity and `categoryService` leaves them out of a
+    /// category's list. The wizard has offered the checkbox for a while under the
+    /// name *Withdrawn*, and this struct had no field for it and no catch-all — so
+    /// every tick was accepted on screen, dropped by the core, absent from the
+    /// delivery, and gone when the event was reopened.
+    #[serde(default)]
+    pub disabled: bool,
 
     /// A photograph, shown beside the name on the ballot.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -2774,6 +2786,11 @@ fn candidates_sheet(
         "presentation.sort_order".to_string(),
         "presentation.is_explicit_blank".to_string(),
         "presentation.is_explicit_invalid".to_string(),
+        // Drawn but not selectable. The `candidate.hbs` template already defaults it
+        // to `false`, which is what makes this a column rather than a format change:
+        // the platform's shape has carried `is_disabled` all along and the sheet was
+        // simply never asked to fill it in.
+        "presentation.is_disabled".to_string(),
         "presentation.is_write_in".to_string(),
         // The photograph's half that lives in the JSON. Its `presentation.urls`
         // twin is composed by the builder rather than written here, because the url
@@ -2800,6 +2817,7 @@ fn candidates_sheet(
                     Cell::Int(order as i64),
                     Cell::Bool(candidate.explicit_blank),
                     Cell::Bool(candidate.explicit_invalid),
+                    Cell::Bool(candidate.disabled),
                     Cell::Bool(false),
                     match (&candidate.image, ids.as_ref()) {
                         (Some(_), Some(ids)) => Cell::text(image_document_id(
@@ -2834,6 +2852,9 @@ fn candidates_sheet(
                         Cell::text(contest.external_id.clone()),
                         Cell::Int((start as i64) + slot),
                         Cell::Bool(false),
+                        Cell::Bool(false),
+                        // Never disabled: a slot nobody can write in is a slot that
+                        // should not have been asked for.
                         Cell::Bool(false),
                         Cell::Bool(true),
                         // A write-in slot is a blank line, not a person, so it has

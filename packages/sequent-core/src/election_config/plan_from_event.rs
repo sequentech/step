@@ -492,6 +492,7 @@ fn candidates_of(
                 description: description_of(row, &presentation),
                 explicit_blank: flag(&presentation, "is_explicit_blank"),
                 explicit_invalid: flag(&presentation, "is_explicit_invalid"),
+                disabled: flag(&presentation, "is_disabled"),
                 // The photograph is deliberately absent here. `image_document_id`
                 // on the row names a file that travels *beside* the JSON, as an
                 // `export_S3_files/` member of the archive — so only the archive

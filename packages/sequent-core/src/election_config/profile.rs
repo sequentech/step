@@ -628,11 +628,13 @@ fn shape_of_a_plan() -> Value {
     // the wizard offers it. A profile downloaded from the client profile builder
     // with that setting touched could not be loaded at all.
     plan.auth_preset = Some(String::new());
-    // **The fifth and sixth**, and the pattern is now unmistakable: `i18n` and
-    // `keycloak_messages` are maps carrying `skip_serializing_if`, so a shape built
-    // from defaults has neither key and every profile touching *Wording overrides* or
-    // *Sign-in page wording* was refused outright — including one downloaded from the
-    // client profile builder with those rows hidden, which is how this was reported.
+    // **The fifth**, and the pattern is now unmistakable: `keycloak_messages` is a map
+    // carrying `skip_serializing_if`, so a shape built from defaults has no such key
+    // and every profile touching *Sign-in page wording* was refused outright —
+    // including one downloaded from the client profile builder with that row hidden,
+    // which is how this was reported. `i18n` is the same trap and is filled in above,
+    // next to `css`; it was filled twice for a while, once here and once there, and
+    // the second insertion silently replaced the first because both write `en`.
     //
     // Compensating field by field is what has happened four times before this, and it
     // will keep happening: any `Option` or `skip_serializing_if` added to `Blueprint`
@@ -642,10 +644,6 @@ fn shape_of_a_plan() -> Value {
     // to accept it, so the catalogue and the shape cannot drift again without a red
     // job. The catalogue is where "paths the product offers" actually lives, which is
     // why the check belongs there rather than as a list retyped here.
-    plan.i18n.insert(
-        String::from("en"),
-        BTreeMap::from([(String::from("key"), String::new())]),
-    );
     plan.keycloak_messages.insert(
         String::from("en"),
         BTreeMap::from([(String::from("key"), String::new())]),

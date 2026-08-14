@@ -97,6 +97,7 @@ fn sound() -> Blueprint {
                         description: Translated::default(),
                         explicit_blank: false,
                         explicit_invalid: false,
+                        disabled: false,
 
                         image: None,
                     },
@@ -106,6 +107,7 @@ fn sound() -> Blueprint {
                         description: Translated::default(),
                         explicit_blank: false,
                         explicit_invalid: false,
+                        disabled: false,
 
                         image: None,
                     },
@@ -603,6 +605,7 @@ fn a_multi_winner_contest_elects_what_the_plan_says() {
         description: Translated::default(),
         explicit_blank: false,
         explicit_invalid: false,
+        disabled: false,
 
         image: None,
     });
@@ -629,6 +632,7 @@ fn a_blank_option_is_marked_as_one_rather_than_becoming_a_candidate() {
             description: Translated::default(),
             explicit_blank: true,
             explicit_invalid: false,
+            disabled: false,
 
             image: None,
         });
@@ -642,6 +646,46 @@ fn a_blank_option_is_marked_as_one_rather_than_becoming_a_candidate() {
     assert_eq!(
         blank["presentation"]["is_explicit_blank"],
         serde_json::json!(true)
+    );
+}
+
+/// A candidate who stood down is delivered as one, rather than as a candidate.
+///
+/// The wizard has drawn this checkbox for a while. `PlannedCandidate` had no field
+/// for it and no `#[serde(flatten)]` catch-all, so every tick was accepted on
+/// screen, dropped here, absent from the delivery, and gone on reopen — the worst
+/// shape a setting can have, because nothing anywhere said it had not worked.
+#[test]
+fn a_candidate_who_stood_down_is_delivered_as_disabled() {
+    let mut plan = sound();
+    plan.elections[0].contests[0]
+        .candidates
+        .push(PlannedCandidate {
+            external_id: "stood-down".to_string(),
+            name: Translated::new("Dana"),
+            description: Translated::default(),
+            explicit_blank: false,
+            explicit_invalid: false,
+            disabled: true,
+            image: None,
+        });
+
+    let bundle = compiled(&plan);
+    let candidates = bundle.export["candidates"].as_array().unwrap();
+    let dana = candidates
+        .iter()
+        .find(|c| c["external_id"] == serde_json::json!("stood-down"))
+        .expect("the candidate who stood down");
+    assert_eq!(dana["presentation"]["is_disabled"], serde_json::json!(true));
+    // And the ones still standing are not, which is what makes the assertion above
+    // about this candidate rather than about the column's default.
+    let alice = candidates
+        .iter()
+        .find(|c| c["external_id"] == serde_json::json!("alice"))
+        .expect("a candidate still standing");
+    assert_eq!(
+        alice["presentation"]["is_disabled"],
+        serde_json::json!(false)
     );
 }
 
@@ -1268,6 +1312,7 @@ fn blank_and_invalid_options_do_not_count_as_candidates() {
         description: Translated::default(),
         explicit_blank: true,
         explicit_invalid: false,
+        disabled: false,
 
         image: None,
     });
@@ -1442,6 +1487,7 @@ fn districted() -> Blueprint {
             description: Translated::default(),
             explicit_blank: false,
             explicit_invalid: false,
+            disabled: false,
 
             image: None,
         }],
@@ -3846,6 +3892,13 @@ fn opinionated() -> Blueprint {
             Some("cumulative".to_string());
         contest.overrides.tally.min_votes = Some(1);
         contest.overrides.layout.columns = Some(2);
+        // Somebody who stood down after the ballot was approved. Here rather than in
+        // a fixture of its own because this is the plan the round trip already walks
+        // for everything unusual, and a flag is exactly the kind of field an import
+        // loses without anybody noticing.
+        if let Some(candidate) = contest.candidates.first_mut() {
+            candidate.disabled = true;
+        }
     }
     plan
 }
@@ -3917,6 +3970,24 @@ fn reads_back(plan: &Blueprint) {
             {
                 assert_eq!(now_who.external_id, was_who.external_id);
                 reads(&was_who.name, &now_who.name);
+                // The flags, which nothing compared until a candidate's `disabled`
+                // needed proving. All three, not just the new one: they travel the
+                // same way, and a round trip that checks one of three is a round
+                // trip that will lose the other two quietly.
+                assert_eq!(
+                    (
+                        now_who.explicit_blank,
+                        now_who.explicit_invalid,
+                        now_who.disabled,
+                    ),
+                    (
+                        was_who.explicit_blank,
+                        was_who.explicit_invalid,
+                        was_who.disabled,
+                    ),
+                    "the flags of candidate {}",
+                    was_who.external_id
+                );
             }
             // The rules a contest ends up with, which is the field an import
             // getting this wrong would change silently.
