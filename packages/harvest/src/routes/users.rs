@@ -20,7 +20,8 @@ use sequent_core::services::keycloak::{
 };
 use sequent_core::services::keycloak::{GroupInfo, KeycloakAdminClient};
 use sequent_core::types::keycloak::{
-    User, UserProfileAttribute, PERMISSION_LABELS, TENANT_ID_ATTR_NAME,
+    User, UserProfileAttribute, UserProfileConfiguration, PERMISSION_LABELS,
+    TENANT_ID_ATTR_NAME,
 };
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
@@ -1262,6 +1263,45 @@ pub async fn get_user_profile_attributes(
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     Ok(Json(attributes_res))
+}
+
+#[instrument(skip(claims))]
+#[post("/get-user-profile-configuration", format = "json", data = "<body>")]
+pub async fn get_user_profile_configuration(
+    claims: jwt::JwtClaims,
+    body: Json<GetUserProfileAttributesBody>,
+) -> Result<Json<UserProfileConfiguration>, (Status, String)> {
+    let required_perm = if body.election_event_id.is_some() {
+        Permissions::VOTER_READ
+    } else {
+        Permissions::USER_READ
+    };
+
+    let input = body.into_inner();
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![required_perm],
+    )?;
+
+    let realm = match input.election_event_id {
+        Some(election_event_id) => {
+            get_event_realm(&input.tenant_id, &election_event_id)
+        }
+        None => get_tenant_realm(&input.tenant_id),
+    };
+
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let configuration = client
+        .get_user_profile_configuration(&realm)
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    Ok(Json(configuration))
 }
 
 #[cfg(test)]

@@ -8,7 +8,7 @@ use anyhow::{anyhow, Context, Result};
 use keycloak::{
     types::{
         CredentialRepresentation, GroupRepresentation, UPAttribute, UPConfig,
-        UserRepresentation,
+        UPGroup, UserRepresentation,
     },
     KeycloakError,
 };
@@ -459,17 +459,20 @@ impl KeycloakAdminClient {
         self: &KeycloakAdminClient,
         realm: &str,
     ) -> Result<Vec<UserProfileAttribute>> {
+        Ok(self.get_user_profile_configuration(realm).await?.attributes)
+    }
+
+    #[instrument(skip(self), err)]
+    pub async fn get_user_profile_configuration(
+        self: &KeycloakAdminClient,
+        realm: &str,
+    ) -> Result<UserProfileConfiguration> {
         let response: UPConfig = self
             .client
             .realm_users_profile_get(&realm)
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
-        match response.attributes {
-            Some(attributes) => {
-                Ok(Self::get_formatted_attributes(&attributes.clone().into()))
-            }
-            None => Ok(vec![]),
-        }
+        Ok(Self::get_formatted_user_profile_configuration(response))
     }
 
     #[instrument(skip(self), err)]
@@ -565,13 +568,125 @@ impl KeycloakAdminClient {
             .collect();
         formatted_attributes
     }
+
+    pub fn get_formatted_groups(
+        groups: &Vec<UPGroup>,
+    ) -> Vec<UserProfileAttributeGroup> {
+        groups
+            .iter()
+            .map(|group| UserProfileAttributeGroup {
+                annotations: group.annotations.clone(),
+                display_description: group.display_description.clone(),
+                display_header: group.display_header.clone(),
+                name: group.name.clone(),
+            })
+            .collect()
+    }
+
+    pub fn get_formatted_user_profile_configuration(
+        configuration: UPConfig,
+    ) -> UserProfileConfiguration {
+        let attributes: Vec<UPAttribute> =
+            configuration.attributes.map(Into::into).unwrap_or_default();
+        let groups: Vec<UPGroup> =
+            configuration.groups.map(Into::into).unwrap_or_default();
+
+        UserProfileConfiguration {
+            attributes: Self::get_formatted_attributes(&attributes),
+            groups: Self::get_formatted_groups(&groups),
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::is_keycloak_bad_request;
+    use super::{is_keycloak_bad_request, KeycloakAdminClient};
     use anyhow::Context;
-    use keycloak::KeycloakError;
+    use keycloak::{
+        types::{UPAttribute, UPAttributePermissions, UPConfig, UPGroup},
+        KeycloakError,
+    };
+
+    fn editable_attribute(name: &str, group: Option<&str>) -> UPAttribute {
+        UPAttribute {
+            name: Some(name.to_string()),
+            group: group.map(str::to_string),
+            permissions: Some(UPAttributePermissions {
+                edit: Some(vec!["admin".to_string()].into()),
+                view: None,
+            }),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn formats_profile_attributes_and_groups_without_reordering() {
+        let configuration = UPConfig {
+            attributes: Some(
+                vec![
+                    editable_attribute("first", Some("identity")),
+                    editable_attribute("tenant-id", Some("internal")),
+                    editable_attribute("second", Some("contact")),
+                ]
+                .into(),
+            ),
+            groups: Some(
+                vec![
+                    UPGroup {
+                        name: Some("identity".to_string()),
+                        display_header: Some("Identity".to_string()),
+                        ..Default::default()
+                    },
+                    UPGroup {
+                        name: Some("contact".to_string()),
+                        display_header: Some("Contact".to_string()),
+                        ..Default::default()
+                    },
+                ]
+                .into(),
+            ),
+            ..Default::default()
+        };
+
+        let formatted =
+            KeycloakAdminClient::get_formatted_user_profile_configuration(
+                configuration,
+            );
+
+        assert_eq!(
+            vec![Some("first".to_string()), Some("second".to_string())],
+            formatted
+                .attributes
+                .iter()
+                .map(|attribute| attribute.name.clone())
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(
+            vec![Some("identity".to_string()), Some("contact".to_string())],
+            formatted
+                .groups
+                .iter()
+                .map(|group| group.name.clone())
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn formats_missing_profile_groups_as_an_empty_collection() {
+        let formatted =
+            KeycloakAdminClient::get_formatted_user_profile_configuration(
+                UPConfig {
+                    attributes: Some(
+                        vec![editable_attribute("first", None)].into(),
+                    ),
+                    groups: None,
+                    ..Default::default()
+                },
+            );
+
+        assert_eq!(1, formatted.attributes.len());
+        assert!(formatted.groups.is_empty());
+    }
 
     #[test]
     fn detects_a_keycloak_bad_request_through_anyhow_context() {

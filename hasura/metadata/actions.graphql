@@ -460,6 +460,13 @@ type Query {
     ): [UserProfileAttribute!]!
 }
 
+type Query {
+    get_user_profile_configuration(
+        tenant_id: String!
+        election_event_id: String
+    ): UserProfileConfiguration!
+}
+
 type Mutation {
     get_user_template(template_type: String!): GetUserTemplateOutput
 }
@@ -1542,6 +1549,18 @@ type UserProfileAttribute {
     validations: jsonb
     permissions: jsonb
     selector: jsonb
+}
+
+type UserProfileAttributeGroup {
+    annotations: jsonb
+    display_description: String
+    display_header: String
+    name: String
+}
+
+type UserProfileConfiguration {
+    attributes: [UserProfileAttribute!]!
+    groups: [UserProfileAttributeGroup!]!
 }
 
 type DeleteUsersOutput {

@@ -53,7 +53,7 @@ import {
     DeleteUsersMutation,
     ExportTenantUsersMutation,
     ExportUsersMutation,
-    GetUserProfileAttributesQuery,
+    GetUserProfileConfigurationQuery,
     ImportUsersMutation,
     ManualVerificationMutation,
     GenerateVoterInformationLetterMutation,
@@ -75,7 +75,7 @@ import {EXPORT_TENANT_USERS} from "@/queries/ExportTenantUsers"
 import {DownloadDocument} from "./DownloadDocument"
 import {IMPORT_USERS} from "@/queries/ImportUsers"
 import {ElectoralLogFilters, ElectoralLogList} from "@/components/ElectoralLogList"
-import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
+import {USER_PROFILE_CONFIGURATION} from "@/queries/GetUserProfileConfiguration"
 import {getAttributeLabel, getTranslationLabel, userBasicInfo} from "@/services/UserService"
 import CustomDateField from "./CustomDateField"
 import {ListActionsMenu} from "@/components/ListActionsMenu"
@@ -195,8 +195,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     )
     const PHONE_NUMBER_USER_ATTRIBUTE = "sequent.read-only.mobile-number"
 
-    const {data: userAttributes} = useQuery<GetUserProfileAttributesQuery>(
-        USER_PROFILE_ATTRIBUTES,
+    const {data: userProfileConfiguration} = useQuery<GetUserProfileConfigurationQuery>(
+        USER_PROFILE_CONFIGURATION,
         {
             variables: {
                 tenantId: tenantId,
@@ -204,6 +204,20 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             },
         }
     )
+    // Keep the existing list/filter consumers on their current attributes-only
+    // shape while create/edit also receives the new group metadata.
+    const userAttributes = useMemo(
+        () =>
+            userProfileConfiguration
+                ? {
+                      get_user_profile_attributes:
+                          userProfileConfiguration.get_user_profile_configuration.attributes,
+                  }
+                : undefined,
+        [userProfileConfiguration]
+    )
+    const userAttributeGroups =
+        userProfileConfiguration?.get_user_profile_configuration.groups ?? []
 
     const Filters = useMemo(() => {
         let filters: ReactElement[] = []
@@ -1328,6 +1342,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                     userAttributes={
                                         userAttributes?.get_user_profile_attributes || []
                                     }
+                                    userAttributeGroups={userAttributeGroups}
                                 />
                             }
                             withComponent={canCreateVoters}
@@ -1367,6 +1382,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     close={handleClose}
                     rolesList={rolesList || []}
                     userAttributes={userAttributes?.get_user_profile_attributes || []}
+                    userAttributeGroups={userAttributeGroups}
                     record={userRecord}
                     onTaskLaunched={handleEditUserTask}
                 />
@@ -1385,6 +1401,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     close={handleClose}
                     rolesList={rolesList || []}
                     userAttributes={userAttributes?.get_user_profile_attributes || []}
+                    userAttributeGroups={userAttributeGroups}
                 />
             </ResourceListStyles.Drawer>
             <Dialog
