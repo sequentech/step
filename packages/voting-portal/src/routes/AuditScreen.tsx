@@ -11,6 +11,7 @@ import {
     Dialog,
     IconButton,
     WarnBox,
+    EWarnBoxAnnouncement,
     theme,
     InfoDataBox,
 } from "@sequentech/ui-essentials"
@@ -246,7 +247,11 @@ const AuditScreen: React.FC = () => {
                 </StyledLinkContainer>
             </Typography>
             <Box margin="15px 0 25px 0">
-                <WarnBox variant="warning">{stringToHtml(t("auditScreen.bottomWarning"))}</WarnBox>
+                {/* Static advice that is part of the page, not a response to
+                    anything the voter did, so it is read in document order. */}
+                <WarnBox variant="warning" announcement={EWarnBoxAnnouncement.SILENT}>
+                    {stringToHtml(t("auditScreen.bottomWarning"))}
+                </WarnBox>
             </Box>
             <ActionButtons />
         </PageLimit>

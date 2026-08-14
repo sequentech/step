@@ -1,26 +1,23 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useId, useMemo, useState} from "react"
-import {Box, Checkbox, Typography} from "@mui/material"
+import React, {useEffect, useMemo, useState} from "react"
+import {Box, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {Dialog, PageLimit, theme} from "@sequentech/ui-essentials"
 import {
-    IElection,
     stringToHtml,
     translateFromPresentation,
     EStartScreenTitlePolicy,
-    ESecurityConfirmationPolicy,
     EElectionEventContestEncryptionPolicy,
     EDeclineToVotePolicy,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
-import {Link as RouterLink, useLocation, useNavigate, useParams} from "react-router-dom"
-import Button from "@mui/material/Button"
+import {useLocation, useNavigate, useParams} from "react-router-dom"
+import StartActions from "../components/StartActions/StartActions"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {selectElectionById} from "../store/elections/electionsSlice"
 import {CircularProgress} from "@mui/material"
-import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
 import Stepper from "../components/Stepper"
 import {selectBallotStyleByElectionId, showDemo} from "../store/ballotStyles/ballotStylesSlice"
@@ -48,142 +45,6 @@ const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     padding-left: 15px;
     padding-right: 15px;
 `
-
-const ActionsContainer = styled(Box)`
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    margin-bottom: 20px;
-    margin-top: 10px;
-    gap: 8px;
-`
-
-const StyledLink = styled(RouterLink)`
-    margin: auto 0;
-    text-decoration: none;
-`
-
-const StyledButton = styled(Button)`
-    display: flex;
-    padding: 5px;
-
-    span {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        padding: 5px;
-    }
-`
-
-const StyledCheckboxWrapper = styled(Box)`
-    display: flex;
-    flex-direction: row;
-    cursor: pointer;
-    align-items: flex-start;
-    padding: 10px 0;
-`
-
-const StyledCheckbox = styled(Checkbox)`
-    margin-top: 4px;
-    margin-right: 9px;
-    padding: 0;
-`
-interface ActionButtonsProps {
-    election: IElection
-    isDeclineToVotePolicyEnabled: boolean
-    onDeclineToVoteClick: () => void
-}
-
-const ActionButtons: React.FC<ActionButtonsProps> = ({
-    election,
-    isDeclineToVotePolicyEnabled,
-    onDeclineToVoteClick,
-}) => {
-    const {t, i18n} = useTranslation()
-    const {tenantId, eventId} = useParams<TenantEventType>()
-    const location = useLocation()
-    const [checkboxChecked, setCheckboxChecked] = useState(false)
-    // The confirmation text is admin-authored HTML, so it labels the checkbox
-    // by reference rather than by being nested inside a <label>.
-    const securityConfirmationId = useId()
-
-    const hasSecurityCheckbox =
-        ESecurityConfirmationPolicy.MANDATORY ===
-        election?.presentation?.security_confirmation_policy
-    const defaultTranslation = translateFromPresentation(
-        election,
-        "security_confirmation_html",
-        "en"
-    )
-    const disabledStart = hasSecurityCheckbox && !checkboxChecked
-
-    return (
-        <>
-            {hasSecurityCheckbox ? (
-                <StyledCheckboxWrapper onClick={() => setCheckboxChecked(!checkboxChecked)}>
-                    <StyledCheckbox
-                        checked={checkboxChecked}
-                        onChange={(event) => setCheckboxChecked(event.target.checked)}
-                        // The wrapper keeps the whole row clickable for mouse
-                        // users; without this the wrapper would toggle a second
-                        // time and cancel the checkbox's own change.
-                        onClick={(event) => event.stopPropagation()}
-                        slotProps={{input: {"aria-labelledby": securityConfirmationId}}}
-                    />
-                    <Typography
-                        variant="body2"
-                        component="div"
-                        marginTop="4px"
-                        id={securityConfirmationId}
-                    >
-                        {stringToHtml(
-                            translateFromPresentation(
-                                election,
-                                "security_confirmation_html",
-                                i18n.language
-                            ) ??
-                                defaultTranslation ??
-                                "-"
-                        )}
-                    </Typography>
-                </StyledCheckboxWrapper>
-            ) : null}
-            <ActionsContainer>
-                {disabledStart ? (
-                    <StyledButton
-                        className="start-voting-button"
-                        sx={{width: "100%"}}
-                        disabled={true}
-                    >
-                        {t("startScreen.startButton")}
-                    </StyledButton>
-                ) : (
-                    <StyledLink
-                        to={`/tenant/${tenantId}/event/${eventId}/election/${election.id}/vote${location.search}`}
-                        sx={{margin: "auto 0", width: "100%"}}
-                    >
-                        <StyledButton className="start-voting-button" sx={{width: "100%"}}>
-                            {t("startScreen.startButton")}
-                        </StyledButton>
-                    </StyledLink>
-                )}
-                {isDeclineToVotePolicyEnabled ? (
-                    <StyledButton
-                        className="decline-to-vote-button"
-                        sx={{width: "100%"}}
-                        variant="secondary"
-                        disabled={disabledStart}
-                        onClick={onDeclineToVoteClick}
-                    >
-                        {t("startScreen.declineToVoteButton")}
-                    </StyledButton>
-                ) : null}
-            </ActionsContainer>
-        </>
-    )
-}
 
 const StartScreen: React.FC = () => {
     const {t, i18n} = useTranslation()
@@ -321,7 +182,7 @@ const StartScreen: React.FC = () => {
                     <Typography variant="body2">{t("startScreen.step3Description")}</Typography>
                 </Box>
             </Box>
-            <ActionButtons
+            <StartActions
                 election={election}
                 isDeclineToVotePolicyEnabled={isDeclineToVotePolicyEnabled}
                 onDeclineToVoteClick={() => setOpenDeclineDialog(true)}

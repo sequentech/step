@@ -29,7 +29,9 @@ export enum EWarnBoxAnnouncement {
     ASSERTIVE = "assertive",
     // Announced when the screen reader next pauses — for informational messages.
     POLITE = "polite",
-    // Not announced at all; for content that is already announced some other way.
+    // Not announced at all; for a box that is already announced some other way —
+    // an enclosing live region, an aria-describedby reference, or simply being
+    // static content that is read in document order.
     SILENT = "silent",
 }
 

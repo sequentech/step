@@ -84,8 +84,10 @@ const StepLabel = styled(Box)<StepLabelProps>`
             : theme.palette.customGrey.main};
 
     /* On narrow screens only the current step's label is painted, but the other
-       labels stay in the accessibility tree so the sequence is still readable. */
-    @media (max-width: ${({theme}) => theme.breakpoints.values.sm}px) {
+       labels stay in the accessibility tree so the sequence is still readable.
+       Uses the theme's own down("sm") query so the cut-over lands on the same
+       pixel as the responsive display prop this replaced. */
+    ${({theme}) => theme.breakpoints.down("sm")} {
         ${({iscurrent}) =>
             iscurrent === "true"
                 ? ""
@@ -159,9 +161,11 @@ export default function BreadCrumbSteps({
 }: BreadCrumbStepsProps) {
     // Named with aria-label rather than wrapped in a <nav>: the steps are labels,
     // not links, so a navigation landmark would advertise nothing navigable —
-    // and consumers that pass no label would emit an unnamed landmark.
+    // and consumers that pass no label would emit an unnamed landmark. The
+    // explicit role="list" is needed because the <ol> is styled list-style: none,
+    // which makes Safari and VoiceOver drop the list semantics.
     return (
-        <StepsContainer className="step-container" aria-label={ariaLabel}>
+        <StepsContainer className="step-container" role="list" aria-label={ariaLabel}>
             {labels.map((label, index) => (
                 <Step
                     key={index}

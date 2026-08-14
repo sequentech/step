@@ -44,6 +44,20 @@ this: the checkbox, the rank select, the write-in field and the "more informatio
 all labelled by the rendered candidate title, composed with a visually hidden qualifier such
 as "Preference" or "Write-in candidate name".
 
+Labelling by reference is mandatory, not merely preferred, when the visible text is
+admin-authored HTML: a `<label>` may not contain arbitrary markup, so the text has to stay
+outside the control and be pointed at instead. `SecurityConfirmation` — the eligibility
+declaration on the start screen — is the case that matters most, because the voter is
+accepting a legally significant statement and the checkbox must announce it rather than just
+"checkbox, not checked". Its row is also clickable for mouse users, which is a second
+handler on top of the checkbox's own `onChange`; the checkbox stops the click propagating so
+the two cannot cancel each other out and toggle twice.
+
+Where a control's name comes from a `useId()` reference rather than a literal string, do not
+write test or automation selectors against `aria-label` — resolve the name through
+`aria-labelledby`, or match on the stable `class` hooks (`candidate-input`, `contest-title`)
+instead.
+
 Use the shared `VisuallyHidden` component from `ui-essentials` for text that assistive
 technology should read but that should not be painted. It wraps MUI's `visuallyHidden`
 style, and is the right tool instead of `display: none` — content hidden with `display: none`
@@ -57,11 +71,15 @@ is removed from the accessibility tree entirely.
   candidate subtype groups are `<h4>`. One known exception: the ballot locator's logs tab
   unmounts the panel that owns its `<h1>`, so that tab currently starts at `<h2>`.
 - **Lists** — repeated items must be `<li>` inside a `<ul>`/`<ol>`. Because the ballot lists
-  use `list-style: none`, they also carry an explicit `role="list"`; Safari and VoiceOver
-  otherwise drop list semantics from unstyled lists.
+  and the `BreadCrumbSteps` stepper use `list-style: none`, they also carry an explicit
+  `role="list"`; Safari and VoiceOver otherwise drop list semantics from unstyled lists. Any
+  new list that strips its markers needs the same treatment.
 - **Grouping** — a contest's options are wrapped in a `<fieldset>` whose visually hidden
   `<legend>` carries both the contest name and how many choices the voter may make, so the
-  question and the limit are announced with each option.
+  question and the limit are announced with each option. The limit is only added where the
+  options are actually selectable: the review screen renders the same `Question` read-only,
+  and telling a voter to "select up to 3 options" there describes something they can no
+  longer do.
 - **Injected HTML** — admin-authored HTML is rendered with `stringToHtml`, which sanitises
   then parses. Render it inside `Typography component="div"`, never a default `Typography`:
   the default renders a `<p>`, and a block element inside a `<p>` is auto-closed by the
@@ -70,13 +88,33 @@ is removed from the accessibility tree entirely.
 ### Announce what changes
 
 Dynamic content must be in a live region or it is invisible to a screen reader user.
-`WarnBox` — the ballot's entire validation surface — takes an `EWarnBoxAnnouncement`:
-`POLITE` (`role="status"`) is the default, `ASSERTIVE` (`role="alert"`) is reserved for a
-single blocking message, and `SILENT` opts out for content already announced some other way
-(the write-in length error uses it, because the write-in field points `aria-describedby` at
-it). Polite is the default deliberately: a screen renders one message list per contest, and
-assertive regions interrupt each other, so all but the last would be lost. Use an enum rather
-than a boolean for this kind of policy so it can grow.
+`WarnBox` — the ballot's entire validation surface — takes an `EWarnBoxAnnouncement`. Use an
+enum rather than a boolean for this kind of policy so it can grow. Pick the value from what
+the message *is*, not from how severe it looks:
+
+- `POLITE` (`role="status"`) is the default, for a message that appears in response to
+  something the voter did and can wait for the next pause. Polite is the default
+  deliberately: a screen renders one message list per contest, and assertive regions
+  interrupt each other, so all but the last would be lost.
+- `ASSERTIVE` (`role="alert"`) is reserved for a single message that blocks progress. The
+  review screen's cast-ballot failure uses it — it is the only message on the screen and the
+  voter cannot continue past it.
+- `SILENT` emits no live region at all. Three things need it: content already announced
+  through an enclosing live region (every `WarnBox` inside `InvalidErrorsList`, whose
+  wrapper is the region); content already reachable as a control's description (the write-in
+  length error, which the write-in field points `aria-describedby` at); and content that is
+  simply static and read in document order (the audit screen's standing warning, and the
+  decoded-ballot messages in `PlaintextVoteContest`).
+
+That last case matters beyond the Voting Portal. `PlaintextVoteContest` is rendered by the
+Ballot Verifier, Results Portal and Admin Portal, which have not been audited; leaving it on
+the `POLITE` default would have turned a static decoded ballot into a screenful of live
+regions in all three. A shared component must not change how an un-audited portal behaves
+just because its default changed.
+
+Regardless of the announcement, a `WarnBox` also states its severity in visually hidden text,
+because the severity is otherwise carried only by colour and by an icon that is identical for
+all four variants.
 
 A live region must be **mounted before** its text appears — a region inserted at the same
 moment as its content is not reliably announced. Keep the region rendered and swap its text,
@@ -107,12 +145,18 @@ the contest name and selection limit are announced with each option.
 
 ### Whole-row and whole-card click targets are mouse-only
 
-The candidate row (`Candidate`'s `<li>`), the candidate list container and the election card
-in `SelectElection` all respond to a click anywhere on them. These are conveniences layered
-on top of real controls: each row contains a real checkbox, and each election card contains a
-real button, so name, role and value are all correctly exposed and SC 4.1.2 is satisfied.
-Full keyboard parity for the surrounding surface is a separate criterion (SC 2.1.1) and was
-not in scope.
+The candidate row (`Candidate`'s `<li>`), the candidate list container, the election card in
+`SelectElection` and the eligibility declaration row in `SecurityConfirmation` all respond to
+a click anywhere on them. These are conveniences layered on top of real controls: each row
+contains a real checkbox, and each election card contains a real button, so name, role and
+value are all correctly exposed and SC 4.1.2 is satisfied. Full keyboard parity for the
+surrounding surface is a separate criterion (SC 2.1.1) and was not in scope.
+
+One consequence is worth knowing about before changing it: because the declaration row
+toggles on any click inside it, a link in the admin-authored declaration HTML both follows
+the link and ticks the checkbox. That predates this work and was left as it is, since the
+brief was to preserve the existing mouse behaviour. Excluding clicks that land on an
+interactive descendant would be the fix.
 
 ## Related work outside this scope
 
@@ -132,6 +176,8 @@ Automated checks:
 ```bash
 cd packages
 yarn lint
+yarn --cwd ./voting-portal test
+yarn --cwd ./ui-essentials test
 yarn prettify:fix:ui-essentials && yarn build:ui-essentials
 yarn build:voting-portal
 reuse lint
@@ -139,6 +185,25 @@ reuse lint
 
 Rebuilding `ui-essentials` is required — the Voting Portal consumes its built output, so
 component changes do not appear otherwise.
+
+The Voting Portal's Jest suite runs under `jsdom` so that component tests can assert on the
+accessibility tree rather than on markup. Write those assertions the way a screen reader
+resolves them — `getByRole("checkbox", {name: …})`, `toHaveFocus()`, `toBeChecked()` — so a
+test fails when the accessible name breaks, not merely when an attribute is renamed;
+`StartActions.test.tsx` is the worked example. Two notes for anyone adding a test there:
+`jsdom` provides neither `TextEncoder` nor `structuredClone`, so `src/setupJestGlobals.ts`
+polyfills them before any module loads, and `@sequentech/ui-core` resolves to its unbuilt
+`dist/`, so it is mapped to `src/__mocks__/uiCoreTestEntry.ts`, which re-exports the pieces
+that are safe to load outside the browser.
+
+Components that a test needs to render must not drag the Redux store or the WASM bundle in
+behind them. That is why the start screen's declaration and call to action live in
+`SecurityConfirmation` and `StartActions` rather than inside `StartScreen.tsx`.
+
+`ui-essentials` still runs under `node` and tests structure via `renderToStaticMarkup`. Its
+components call `useTranslation()`, so stub `react-i18next` in new test files or the suite
+fills with `NO_I18NEXT_INSTANCE` warnings, and wrap anything that reads a palette colour in
+`ThemeProvider` with the ui-essentials theme — MUI's default theme has no `customGrey`.
 
 Manual checks, walking the full voter journey with a screen reader and the
 [IBM Equal Access toolkit](https://www.ibm.com/able/toolkit/tools/#develop):
@@ -149,7 +214,10 @@ Manual checks, walking the full voter journey with a screen reader and the
 3. Over-voting is announced as it happens, and the write-in-too-long message is reachable as
    the field's description.
 4. Heading order runs h1 → h2 → h3 with exactly one h1 per screen, and the stepper announces
-   the current step.
+   itself as a list and marks the current step.
+5. With `security_confirmation_policy` set to `MANDATORY`, the start screen's checkbox
+   announces the whole declaration, and the row toggles once — not twice — when the text is
+   clicked.
 5. Every dialog announces its title when it opens.
 6. A contest description containing a list and a table with header cells keeps both intact.
 

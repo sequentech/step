@@ -293,7 +293,12 @@ export const Question: React.FC<IQuestionProps> = ({
     // How many choices the voter may make is otherwise only exposed through the
     // data-min/data-max attributes, which assistive technology cannot read. It
     // goes in the group's legend so it is announced along with every option.
+    // The review screen shows the same contests read-only, so there the limit
+    // would be announced for options the voter can no longer change.
     const selectionInstruction = useMemo(() => {
+        if (isReview) {
+            return ""
+        }
         const min = question.min_votes
         const max = question.max_votes
         if (min === max) {
@@ -303,7 +308,7 @@ export const Question: React.FC<IQuestionProps> = ({
             return t("a11y.selectBetween", {min, max})
         }
         return t("a11y.selectUpTo", {count: max})
-    }, [question.min_votes, question.max_votes, t])
+    }, [question.min_votes, question.max_votes, isReview, t])
 
     return (
         <Box component="section" aria-labelledby={`contest-${question.id}-title`}>
@@ -382,7 +387,9 @@ export const Question: React.FC<IQuestionProps> = ({
                         aria-describedby={contestErrorsId(question.id)}
                     >
                         <VisuallyHidden className="candidates-legend" component="legend">
-                            {`${translate(question, "name", i18n.language) || ""} ${selectionInstruction}`}
+                            {[translate(question, "name", i18n.language), selectionInstruction]
+                                .filter(Boolean)
+                                .join(" ")}
                         </VisuallyHidden>
                         {invalidTopCandidates.length ? (
                             <InvalidBlankWrapper

@@ -103,6 +103,13 @@ const SelectedCandidatesLabel = styled("span")`
     @media (max-width: ${({theme}) => theme.breakpoints.values.sm}px) {
         width: min-content;
     }
+
+    /* The element stays mounted while empty so that it is already a live region
+       when the count appears in it. It is still a flex item though, so cancel the
+       row gap it would otherwise add next to the checkbox. */
+    &:empty {
+        margin-inline-end: -${({theme}) => theme.spacing(1)};
+    }
 `
 
 export interface CandidatesListProps extends PropsWithChildren {

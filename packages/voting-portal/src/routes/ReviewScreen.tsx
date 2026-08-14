@@ -21,6 +21,7 @@ import {
     BallotHash,
     Dialog,
     WarnBox,
+    EWarnBoxAnnouncement,
 } from "@sequentech/ui-essentials"
 import {
     stringToHtml,
@@ -738,7 +739,11 @@ export const ReviewScreen: React.FC = () => {
     if (!ballotStyle || !auditableBallot) {
         return errorMsg ? (
             <Box sx={{margin: "auto 0"}}>
-                <WarnBox variant="error">{errorMsg}</WarnBox>
+                {/* The only message on the screen, and it blocks the voter from
+                    casting, so it interrupts rather than waiting for a pause. */}
+                <WarnBox variant="error" announcement={EWarnBoxAnnouncement.ASSERTIVE}>
+                    {errorMsg}
+                </WarnBox>
                 <Box
                     sx={{
                         display: "flex",
@@ -825,7 +830,11 @@ export const ReviewScreen: React.FC = () => {
                     {stringToHtml(t("reviewScreen.reviewScreenHelpDialog.content"))}
                 </Dialog>
             </StyledTitle>
-            {errorMsg && <WarnBox variant="error">{errorMsg}</WarnBox>}
+            {errorMsg && (
+                <WarnBox variant="error" announcement={EWarnBoxAnnouncement.ASSERTIVE}>
+                    {errorMsg}
+                </WarnBox>
+            )}
             <Typography variant="body2" component="div" sx={{color: theme.palette.customGrey.main}}>
                 {stringToHtml(
                     auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW ||
