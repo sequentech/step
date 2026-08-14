@@ -776,3 +776,46 @@ fn a_profile_may_name_a_field_that_is_skipped_when_empty() {
         );
     }
 }
+
+/// A card that is a group of controls rather than a group of fields.
+///
+/// **This was a live bug, not a new feature.** The builder has written
+/// `messages.invitation-to-vote` into `hidden` since those two cards existed — it is how
+/// somebody switches off *The message telling a voter their ballot is ready* — and
+/// `read` refused it, because a message is one of a list and that is not a path any plan
+/// has. So switching a messaging card off produced a profile the wizard would not start
+/// on. Found by asking the vendored core what it accepts, one path at a time.
+#[test]
+fn a_card_of_controls_can_be_switched_off() {
+    for path in [
+        "messages.invitation-to-vote",
+        "messages.get-out-the-vote",
+        "elections.exchange",
+    ] {
+        let document = ClientProfile {
+            id: "acme".to_string(),
+            hidden: vec![path.to_string()],
+            ..Default::default()
+        };
+        let read = Profile::read(&document);
+        assert!(
+            read.is_ok(),
+            "a profile hiding the card '{path}' should be readable: {:?}",
+            read.err()
+        );
+    }
+}
+
+/// And a typo is still a typo, which is the whole reason the refusal exists.
+#[test]
+fn a_path_naming_nothing_is_still_refused() {
+    let document = ClientProfile {
+        id: "acme".to_string(),
+        hidden: vec!["messages.invitation-to-vot".to_string()],
+        ..Default::default()
+    };
+    assert!(
+        Profile::read(&document).is_err(),
+        "one letter short of a control path is a typo, not a card"
+    );
+}

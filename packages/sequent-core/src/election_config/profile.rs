@@ -294,6 +294,38 @@ pub struct Profile {
     required: Vec<PlanPath>,
 }
 
+/**
+ * Paths that name a **control** rather than a field of a plan.
+ *
+ * Almost everything a profile hides is a plan field, and a path naming nothing is a
+ * typo that configures nothing silently — which is what `read` refuses, and rightly.
+ *
+ * A few of the wizard's cards are not groups of fields, though. *The message telling a
+ * voter their ballot is ready* is one message out of a list, named by its kind rather
+ * than by an index nobody can predict. *Import & Export* on the Ballot screen is three
+ * file widgets over a ballot that is already nameable — switching it off means "type it
+ * in by hand", not "have no ballot". Neither has a plan field of its own, and inventing
+ * one would put a setting in the delivery that no election uses.
+ *
+ * So they are named here, exactly, and the list is short on purpose: an entry is a
+ * promise that some screen honours it, and a wildcard here would turn every typo back
+ * into silence.
+ *
+ * **This was already broken.** The builder has written `messages.invitation-to-vote`
+ * since those cards existed, and `read` refused it — so switching off a messaging card
+ * produced a profile the wizard would not start on, reported as a build that "cannot
+ * start" with a path in the message. Found by asking the vendored core what it accepts,
+ * one path at a time, rather than by reading either side.
+ */
+fn names_a_control(text: &str) -> bool {
+    matches!(
+        text,
+        "messages.invitation-to-vote"
+            | "messages.get-out-the-vote"
+            | "elections.exchange"
+    )
+}
+
 impl Profile {
     /// Read a profile document, refusing one that cannot mean what it says.
     ///
@@ -310,7 +342,9 @@ impl Profile {
             for (index, text) in paths.iter().enumerate() {
                 match PlanPath::parse(text) {
                     Ok(path) => {
-                        if !reaches_anything(&path, &shape) {
+                        if !reaches_anything(&path, &shape)
+                            && !names_a_control(text)
+                        {
                             report.push(Problem::error(
                                 Code::DanglingReference,
                                 format!("{field}[{index}]"),
