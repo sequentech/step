@@ -233,7 +233,9 @@ const CustomDateTimeFormatInvalidNotifier: React.FC<{
     return null
 }
 
-export const EditElectionEventDataForm: React.FC = () => {
+export const EditElectionEventDataForm: React.FC<{
+    transform: (data: Sequent_Backend_Election_Event_Extended) => RaRecord<Identifier>
+}> = ({transform}) => {
     const {t} = useTranslation()
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [tenantId] = useTenantStore()
@@ -1122,7 +1124,7 @@ export const EditElectionEventDataForm: React.FC = () => {
         }
         setActivateSave(false)
 
-        return {
+        return transform({
             ...values,
             presentation: {
                 ...values.presentation,
@@ -1130,7 +1132,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                     ? {results_website: JSON.stringify(values.resultsWebsitePolicy)}
                     : {}),
             },
-        }
+        })
     }
     return (
         <>
