@@ -4,8 +4,9 @@
 
 use crate::services::area_tree::*;
 use crate::services::tally_sheet_validation::{
-    effective_max_marks_per_ballot, validate_area_contest_results,
+    effective_max_marks_per_ballot_typed, validate_area_contest_results,
 };
+use crate::types::ceremonies::CountingAlgType;
 use crate::types::hasura::core::AreaContest;
 use crate::types::tally_sheets::AreaContestResults;
 use crate::wasm::wasm::IntoResult;
@@ -99,9 +100,14 @@ pub fn validate_area_contest_results_js(
             )
         })?;
 
-    let max_marks_per_ballot = effective_max_marks_per_ballot(
+    let counting_algorithm = bounds
+        .counting_algorithm
+        .as_deref()
+        .and_then(|value| value.parse::<CountingAlgType>().ok())
+        .unwrap_or_default();
+    let max_marks_per_ballot = effective_max_marks_per_ballot_typed(
         bounds.max_votes,
-        bounds.counting_algorithm.as_deref(),
+        counting_algorithm,
         bounds.cumulative_number_of_checkboxes,
     );
 

@@ -5,8 +5,9 @@
 use std::collections::HashMap;
 
 use sequent_core::services::tally_sheet_validation::{
-    effective_max_marks_per_ballot, validate_area_contest_results,
+    effective_max_marks_per_ballot_typed, validate_area_contest_results,
 };
+use sequent_core::types::ceremonies::CountingAlgType;
 use sequent_core::types::hasura::core::Contest;
 use sequent_core::types::tally_sheet_import::TallySheetImportValidationError;
 use sequent_core::types::tally_sheets::{AreaContestResults, VotingChannel};
@@ -16,15 +17,21 @@ use tracing::instrument;
 /// ballot can legitimately contribute for the given contest, from its
 /// `max_votes`, `counting_algorithm`, and (for cumulative contests) the
 /// per-candidate checkbox budget stored in `presentation`.
+#[instrument(skip_all)]
 pub fn contest_max_marks_per_ballot(contest: &Contest) -> Option<u64> {
     let cumulative_number_of_checkboxes = contest
         .presentation
         .as_ref()
         .and_then(|value| value.get("cumulative_number_of_checkboxes"))
         .and_then(|value| value.as_u64());
-    Some(effective_max_marks_per_ballot(
+    let counting_algorithm = contest
+        .counting_algorithm
+        .as_deref()
+        .and_then(|value| value.parse::<CountingAlgType>().ok())
+        .unwrap_or_default();
+    Some(effective_max_marks_per_ballot_typed(
         contest.max_votes,
-        contest.counting_algorithm.as_deref(),
+        counting_algorithm,
         cumulative_number_of_checkboxes,
     ))
 }

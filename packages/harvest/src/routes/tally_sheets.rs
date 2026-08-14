@@ -779,6 +779,7 @@ async fn read_import_document(
 /// configuration lookup is a server-side problem, while a file this
 /// converter can't read at all (invalid UTF-8, unparseable XML) is a bad
 /// request.
+#[instrument(skip_all)]
 async fn build_canonical_csv_conversion(
     hasura_transaction: &deadpool_postgres::Transaction<'_>,
     tenant_id: &str,

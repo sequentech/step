@@ -425,6 +425,13 @@ impl CountingAlgType {
         )
     }
 
+    /// Returns true if a voter may give multiple points to the same
+    /// candidate, so per-candidate marks must be bounded by a checkbox
+    /// budget instead of a single mark per ballot.
+    pub fn is_cumulative(&self) -> bool {
+        matches!(self, CountingAlgType::Cumulative)
+    }
+
     pub fn get_default_tally_operation_for_contest(&self) -> TallyOperation {
         if self.is_preferential() {
             TallyOperation::ProcessBallotsAll

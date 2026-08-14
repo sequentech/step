@@ -26,25 +26,6 @@ pub struct TallySheetValidationError {
 /// behavior for ordinary contests. For `cumulative` contests, a voter may
 /// give multiple points to the same candidate, so the bound is further
 /// multiplied by the number of point checkboxes offered per candidate.
-pub fn effective_max_marks_per_ballot(
-    max_votes: Option<i64>,
-    counting_algorithm: Option<&str>,
-    cumulative_number_of_checkboxes: Option<u64>,
-) -> u64 {
-    let is_cumulative = counting_algorithm
-        .map(|value| value.eq_ignore_ascii_case("cumulative"))
-        .unwrap_or(false);
-    max_marks_per_ballot(
-        max_votes,
-        is_cumulative,
-        cumulative_number_of_checkboxes,
-    )
-}
-
-/// Typed counterpart of [`effective_max_marks_per_ballot`], for callers that
-/// already hold a `CountingAlgType` and would otherwise have to stringify it
-/// only for this comparison. Both delegate to the same computation, so they
-/// cannot disagree about the same contest.
 pub fn effective_max_marks_per_ballot_typed(
     max_votes: Option<i64>,
     counting_algorithm: CountingAlgType,
@@ -52,7 +33,7 @@ pub fn effective_max_marks_per_ballot_typed(
 ) -> u64 {
     max_marks_per_ballot(
         max_votes,
-        counting_algorithm == CountingAlgType::Cumulative,
+        counting_algorithm.is_cumulative(),
         cumulative_number_of_checkboxes,
     )
 }
@@ -191,12 +172,13 @@ fn error(
 mod tests {
     use std::collections::HashMap;
 
+    use crate::types::ceremonies::CountingAlgType;
     use crate::types::tally_sheets::{
         AreaContestResults, CandidateResults, InvalidVotes,
     };
 
     use super::{
-        effective_max_marks_per_ballot, validate_area_contest_results,
+        effective_max_marks_per_ballot_typed, validate_area_contest_results,
     };
 
     #[test]
@@ -443,21 +425,42 @@ mod tests {
 
     #[test]
     fn effective_max_marks_defaults_to_one_when_max_votes_absent() {
-        assert_eq!(effective_max_marks_per_ballot(None, None, None), 1);
+        assert_eq!(
+            effective_max_marks_per_ballot_typed(
+                None,
+                CountingAlgType::PluralityAtLarge,
+                None
+            ),
+            1
+        );
     }
 
     #[test]
     fn effective_max_marks_floors_non_positive_max_votes_to_one() {
-        assert_eq!(effective_max_marks_per_ballot(Some(0), None, None), 1);
-        assert_eq!(effective_max_marks_per_ballot(Some(-1), None, None), 1);
+        assert_eq!(
+            effective_max_marks_per_ballot_typed(
+                Some(0),
+                CountingAlgType::PluralityAtLarge,
+                None
+            ),
+            1
+        );
+        assert_eq!(
+            effective_max_marks_per_ballot_typed(
+                Some(-1),
+                CountingAlgType::PluralityAtLarge,
+                None
+            ),
+            1
+        );
     }
 
     #[test]
     fn effective_max_marks_uses_max_votes_for_non_cumulative_contests() {
         assert_eq!(
-            effective_max_marks_per_ballot(
+            effective_max_marks_per_ballot_typed(
                 Some(3),
-                Some("plurality-at-large"),
+                CountingAlgType::PluralityAtLarge,
                 None
             ),
             3
@@ -467,17 +470,9 @@ mod tests {
     #[test]
     fn effective_max_marks_multiplies_by_checkboxes_for_cumulative_contests() {
         assert_eq!(
-            effective_max_marks_per_ballot(
+            effective_max_marks_per_ballot_typed(
                 Some(2),
-                Some("cumulative"),
-                Some(3)
-            ),
-            6
-        );
-        assert_eq!(
-            effective_max_marks_per_ballot(
-                Some(2),
-                Some("Cumulative"),
+                CountingAlgType::Cumulative,
                 Some(3)
             ),
             6
@@ -487,7 +482,11 @@ mod tests {
     #[test]
     fn effective_max_marks_defaults_checkboxes_to_one_when_absent() {
         assert_eq!(
-            effective_max_marks_per_ballot(Some(2), Some("cumulative"), None),
+            effective_max_marks_per_ballot_typed(
+                Some(2),
+                CountingAlgType::Cumulative,
+                None
+            ),
             2
         );
     }

@@ -327,6 +327,7 @@ fn check_blank_votes_at_least_precinct_minimum(
 /// Returns `Err(validation_error)` when the two authorities disagree, or
 /// when there is no authority at all — the caller skips the contest rather
 /// than emitting rows built on a guessed bound.
+#[instrument(skip_all, err(Debug))]
 fn resolve_contest_max_votes(
     contest: Node<'_, '_>,
     contest_external_id: &str,
@@ -572,6 +573,7 @@ fn empty_canonical_csv() -> Result<Vec<u8>> {
 /// validation error at import time, same as it would for any other
 /// unrecognized area name; this function doesn't need its own separate
 /// check for it.
+#[instrument(skip_all, err)]
 fn convert_party_grouped(
     document: &Document<'_>,
     selected_channel: VotingChannel,
