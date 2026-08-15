@@ -30,19 +30,32 @@ export const Tabs: React.FC<{
         label: string
         component: React.ComponentType<any>
         action?: (index: number) => void
+        props?: Record<string, unknown>
     }>
-}> = ({elements, ...props}) => {
+    selectedTab?: number
+    onSelectedTabChange?: (index: number) => void
+}> = ({elements, selectedTab, onSelectedTabChange, ...props}) => {
     const {t} = useTranslation()
     const baseUrl = new URL(window.location.href)
-    const [selectedTab, setSelectedTab] = React.useState(
+    const [internalSelectedTab, setInternalSelectedTab] = React.useState(
         Number.parseInt(baseUrl?.searchParams?.get("tabIndex") ?? "0")
     )
+    const activeTab = selectedTab ?? internalSelectedTab
+    const selectedElement = elements[activeTab]
 
     const handleChange = (event: SyntheticEvent<Element, Event>, newValue: number) => {
-        setSelectedTab(newValue)
+        setInternalSelectedTab(newValue)
+        onSelectedTabChange?.(newValue)
     }
 
-    const SelectedComponent = elements[selectedTab]?.component
+    React.useEffect(() => {
+        if (elements.length > 0 && activeTab >= elements.length) {
+            setInternalSelectedTab(0)
+            onSelectedTabChange?.(0)
+        }
+    }, [activeTab, elements.length, onSelectedTabChange])
+
+    const SelectedComponent = selectedElement?.component
 
     return (
         <TabStyles.Wrapper>
@@ -57,7 +70,7 @@ export const Tabs: React.FC<{
                     variant="scrollable"
                     allowScrollButtonsMobile
                     scrollButtons="auto"
-                    value={selectedTab}
+                    value={selectedElement ? activeTab : false}
                     onChange={handleChange}
                     indicatorColor="primary"
                     textColor="primary"
@@ -76,7 +89,9 @@ export const Tabs: React.FC<{
             </Box>
             <TabStyles.Content>
                 <React.Suspense fallback={<div>{t("loading")}</div>}>
-                    {SelectedComponent ? <SelectedComponent {...props} /> : null}
+                    {SelectedComponent ? (
+                        <SelectedComponent {...props} {...selectedElement?.props} />
+                    ) : null}
                 </React.Suspense>
             </TabStyles.Content>
         </TabStyles.Wrapper>

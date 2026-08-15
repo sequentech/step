@@ -62,6 +62,25 @@ pub fn check_voting_not_allowed_next_util(
             let invalid_errors: &Vec<InvalidPlaintextError> =
                 &decoded_contest.invalid_errors;
 
+            // Selected explicit invalid/blank marker candidates count as
+            // selections. Marker candidates present in the decoded choices
+            // are already counted in choices_selected; the explicit invalid
+            // flag is only added when the marker candidate is not part of
+            // the decoded choices (single-contest encoding).
+            let explicit_invalid_marker_selected =
+                decoded_contest.choices.iter().any(|choice| {
+                    choice.selected == 0
+                        && contest.candidates.iter().any(|candidate| {
+                            candidate.id == choice.id
+                                && candidate.is_explicit_invalid()
+                        })
+                });
+            let selections_with_markers = choices_selected
+                + usize::from(
+                    decoded_contest.is_explicit_invalid
+                        && !explicit_invalid_marker_selected,
+                );
+
             // Show the modal dialog that forces user to change his selection
             // if:
             // - There's any explicit invalid plaintext or an encoding error
@@ -76,11 +95,11 @@ pub fn check_voting_not_allowed_next_util(
                 && *vote_policy == InvalidVotePolicy::NOT_ALLOWED)
             // - there's an blank vote because selection is empty and blank vote
             //   policy is NOT_ALLOWED
-                || (choices_selected == 0
+                || (selections_with_markers == 0
                     && *blank_policy == EBlankVotePolicy::NOT_ALLOWED)
             // - selection is more than maximum and over vote policy is
             //   NOT_ALLOWED_WITH_MSG_AND_ALERT
-                || (choices_selected as i64 > max
+                || (selections_with_markers as i64 > max
                     && over_vote_policy
                         == EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_ALERT)
             // - duplicated rank policy is NOT_ALLOWED and there's a
@@ -174,6 +193,24 @@ pub fn check_voting_error_dialog_util(
 
             console_log!("choices_selected={choices_selected:?}, explicit_invalid={explicit_invalid:?}");
 
+            // Selected explicit invalid/blank marker candidates count as
+            // selections. Marker candidates present in the decoded choices
+            // are already counted in choices_selected; the explicit invalid
+            // flag is only added when the marker candidate is not part of
+            // the decoded choices (single-contest encoding).
+            let explicit_invalid_marker_selected =
+                decoded_contest.choices.iter().any(|choice| {
+                    choice.selected == 0
+                        && contest.candidates.iter().any(|candidate| {
+                            candidate.id == choice.id
+                                && candidate.is_explicit_invalid()
+                        })
+                });
+            let selections_with_markers = choices_selected
+                + usize::from(
+                    explicit_invalid && !explicit_invalid_marker_selected,
+                );
+
             // Show Alert dialog if:
             // - there are invalid error and it's not allowed
             (!invalid_errors.is_empty()
@@ -185,18 +222,18 @@ pub fn check_voting_error_dialog_util(
                     && explicit_invalid)
             // - blank vote policy is WARN and contest has no selection
                 || (*blank_policy == EBlankVotePolicy::WARN
-                    && choices_selected == 0)
+                    && selections_with_markers == 0)
             // - more than max choices were selected and over vote policy is
             //   ALLOWED_WITH_MSG_AND_ALERT
-                || (choices_selected as i64 > max
+                || (selections_with_markers as i64 > max
                     && over_vote_policy
                         == EOverVotePolicy::ALLOWED_WITH_MSG_AND_ALERT)
             // - it's not a blank vote because there is at least one selection,
             //   the selection is less than the maximum (i.e. undervote) and
             //   undervote policy is WARN_AND_ALERT
-                || ((choices_selected > 0
-                    && (choices_selected as i64) >= min
-                    && (choices_selected as i64) < max)
+                || ((selections_with_markers > 0
+                    && (selections_with_markers as i64) >= min
+                    && (selections_with_markers as i64) < max)
                     && under_vote_policy == EUnderVotePolicy::WARN_AND_ALERT)
             // - duplicated rank policy is WARN_AND_ALERT and there's a
             //   duplicated position error
@@ -443,6 +480,7 @@ pub fn get_decoded_contest_plurality(contest: &Contest) -> DecodedVoteContest {
     DecodedVoteContest {
         contest_id: contest.id.clone(),
         is_explicit_invalid: true,
+        is_decline_to_vote: false,
         invalid_alerts: vec![InvalidPlaintextError {
             error_type: InvalidPlaintextErrorType::Explicit,
             candidate_id: None,

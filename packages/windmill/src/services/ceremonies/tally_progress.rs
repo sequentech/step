@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::weight_batches::contest_weight_batches;
 use anyhow::{anyhow, Context, Result};
-use b3::messages::{artifact::Plaintexts, message::Message, statement::StatementType};
+use b4::messages::{artifact::Plaintexts, message::Message, statement::StatementType};
 use sequent_core::types::{
     ceremonies::{TallyElection, TallyElectionStatus},
     hasura::core::{TallySession, TallySessionContest},
@@ -50,7 +51,19 @@ pub async fn generate_tally_progress(
             .get(&contest.election_id)
             .map(|v| v.clone())
             .unwrap_or(vec![]);
-        batch_ids.push(contest.session_id as i64);
+        // Every batch the area owns, not just the first. Under weighting the
+        // batch at `session_id` is not posted at all when no voter has an odd
+        // weight, so keying progress on it alone would leave a tally that has
+        // already published its results sitting at 0%.
+        batch_ids.extend(
+            contest_weight_batches(contest)?
+                .into_iter()
+                .map(|(batch, _)| batch),
+        );
+        // The batch counts below come from deduplicated message lists, so this
+        // must be deduplicated too or progress can never reach its target.
+        batch_ids.sort_unstable();
+        batch_ids.dedup();
         complete_map.insert(contest.election_id.clone(), batch_ids.clone());
     }
     let finished_batch_ids: Vec<i64> = get_session_ids_by_type(messages, StatementType::Plaintexts);

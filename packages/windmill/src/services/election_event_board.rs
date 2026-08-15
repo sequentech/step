@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use b3::client::pgsql::B3IndexRow;
+use b4::client::pgsql::B3IndexRow;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use serde::{Deserialize, Serialize};
 use serde_json::value::Value;

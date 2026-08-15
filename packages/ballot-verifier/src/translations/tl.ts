@@ -71,6 +71,7 @@ const tagalogTranslation = {
             markedInvalid: "Ang balota ay tahasang minarkahan bilang hindi wasto",
             points: "({{points}} Mga Punto)",
             contestNotFound: "Paligsahan hindi natagpuan: {{contestId}}",
+            declineToVote: "Hindi bumoto",
         },
         footer: {
             poweredBy: "Pinapagana ng <1></1>",

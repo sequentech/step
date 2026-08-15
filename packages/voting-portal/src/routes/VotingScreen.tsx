@@ -16,18 +16,27 @@ import {
     IContest,
     EElectionEventContestEncryptionPolicy,
     BallotSelection,
+    getDefaultVotingScreenBackPolicy,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
 import {faCircleQuestion, faAngleLeft, faAngleRight} from "@fortawesome/free-solid-svg-icons"
 import {useTranslation} from "react-i18next"
 import Button from "@mui/material/Button"
-import {Link as RouterLink, redirect, useNavigate, useParams, useSubmit} from "react-router-dom"
+import {
+    Link as RouterLink,
+    redirect,
+    useLocation,
+    useNavigate,
+    useParams,
+    useSubmit,
+} from "react-router-dom"
 import {
     selectBallotSelectionByElectionId,
     resetBallotSelection,
 } from "../store/ballotSelections/ballotSelectionsSlice"
 import {clearDeclinedToVoteForElection, clearIsVoted, setIsVoted} from "../store/extra/extraSlice"
+import {TenantEventType} from ".."
 import {provideBallotService} from "../services/BallotService"
 import {Question} from "../components/Question/Question"
 import {CircularProgress} from "@mui/material"
@@ -102,9 +111,18 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
 }) => {
     const {t} = useTranslation()
     const backLink = useRootBackLink()
-    const {electionId} = useParams<{electionId?: string}>()
+    const {tenantId, eventId, electionId} = useParams<TenantEventType & {electionId?: string}>()
+    const location = useLocation()
+    const election = useAppSelector(selectElectionById(String(electionId)))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const dispatch = useAppDispatch()
+
+    const votingScreenBackPolicy =
+        election?.presentation?.voting_screen_back_policy ?? getDefaultVotingScreenBackPolicy()
+    const exitLink =
+        votingScreenBackPolicy === "start-screen"
+            ? `/tenant/${tenantId}/event/${eventId}/election/${electionId}/start${location.search}`
+            : `${backLink}${location.search}`
 
     function handleClear() {
         if (ballotStyle) {
@@ -133,7 +151,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
 
             <ActionsContainer>
                 <StyledLink
-                    to={pageIndex && pageIndex > 0 ? "" : backLink}
+                    to={pageIndex && pageIndex > 0 ? {search: location.search} : exitLink}
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                     onClick={() => handlePrev()}
                 >
@@ -174,7 +192,7 @@ interface ContestPaginationProps {
     onSetDisableNext: (contest: any) => void
     onSetDecodedContests: (id: string) => (value: IDecodedVoteContest) => void
     encryptAndReview: () => void
-    disableNextButton: () => boolean
+    disableNextButton: (contests?: IContest[]) => boolean
 }
 
 const ContestPagination: React.FC<ContestPaginationProps> = ({
@@ -275,7 +293,7 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
                 handlePrev={handlePrev}
                 handleClearCustom={handleClear}
                 pageIndex={pageIndex}
-                disableNext={disableNextButton() && contests.length !== 1}
+                disableNext={disableNextButton(sortedContests) && contests.length !== 1}
             />
         </>
     )
@@ -298,6 +316,9 @@ const VotingScreen: React.FC = () => {
     const {encryptAndStoreBallot} = useEncryptBallotForReview()
     const election = useAppSelector(selectElectionById(String(electionId)))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
+    const defaultLanguageCode =
+        election?.presentation?.language_conf?.default_language_code ??
+        ballotStyle?.ballot_eml.election_event_presentation?.language_conf?.default_language_code
 
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")
@@ -324,8 +345,8 @@ const VotingScreen: React.FC = () => {
 
     // if true, when the user clicks next, there will be a dialog
     // that doesn't allow to continue and forces the user to fix the issues
-    const disableNextButton = (): boolean => {
-        return check_voting_not_allowed_next_bool(ballotStyle?.ballot_eml.contests, decodedContests)
+    const disableNextButton = (contests = ballotStyle?.ballot_eml.contests): boolean => {
+        return check_voting_not_allowed_next_bool(contests, decodedContests)
     }
 
     // if true, when the user click next, there will be a dialog that prompts
@@ -440,7 +461,9 @@ const VotingScreen: React.FC = () => {
             </Box>
             <StyledTitle variant="h4" className="title-container">
                 <Box className="selected-election-title">
-                    {translateFromPresentation(election, "name", i18n.language) ?? "-"}
+                    {translateFromPresentation(election, "name", i18n.language, {
+                        defaultLanguageCode,
+                    }) ?? "-"}
                 </Box>
                 <IconButton
                     className="title-question"
@@ -466,7 +489,9 @@ const VotingScreen: React.FC = () => {
                     sx={{color: theme.palette.customGrey.main}}
                 >
                     {stringToHtml(
-                        translateFromPresentation(election, "description", i18n.language) ?? "-"
+                        translateFromPresentation(election, "description", i18n.language, {
+                            defaultLanguageCode,
+                        }) ?? "-"
                     )}
                 </Typography>
             ) : null}

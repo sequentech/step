@@ -23,6 +23,7 @@ import {Button} from "react-admin"
 import {Alert, Box, Tooltip, Typography} from "@mui/material"
 import {
     ListKeysCeremonyQuery,
+    RecountTallySessionMutation,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Tally_Session,
     Sequent_Backend_Tally_Session_Execution,
@@ -31,6 +32,7 @@ import {
 } from "../../gql/graphql"
 import {ActionsColumn} from "../../components/ActionButons"
 import DescriptionIcon from "@mui/icons-material/Description"
+import ReplayIcon from "@mui/icons-material/Replay"
 import {Trans, useTranslation} from "react-i18next"
 import {useTenantStore} from "../../providers/TenantContextProvider"
 import ElectionHeader from "@/components/ElectionHeader"
@@ -52,6 +54,7 @@ import {
 } from "@/types/ceremonies"
 import {useMutation, useQuery} from "@apollo/client"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
+import {RECOUNT_TALLY_SESSION} from "@/queries/RecountTallySession"
 import {IPermissions} from "@/types/keycloak"
 import {ResetFilters} from "@/components/ResetFilters"
 import {LIST_KEYS_CEREMONY} from "@/queries/ListKeysCeremonies"
@@ -61,6 +64,7 @@ import {Add} from "@mui/icons-material"
 import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
 import {GET_TRUSTEES_NAMES} from "@/queries/GetTrusteesNames"
 import {StyledChip} from "@/components/StyledChip"
+import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
 
 const OMIT_FIELDS = ["ballot_eml", "trustees"]
 
@@ -114,6 +118,11 @@ export const ListTally: React.FC<ListAreaProps> = () => {
 
     const {setTallyId, setCreatingFlag} = useElectionEventTallyStore()
     const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
+    const canRecountTally = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.TALLY_RECOUNT_EXECUTE
+    )
     const canDoMiruAction = authContext.isAuthorized(true, tenantId, [
         IPermissions.MIRU_SIGN,
         IPermissions.MIRU_CREATE,
@@ -122,13 +131,18 @@ export const ListTally: React.FC<ListAreaProps> = () => {
     ])
 
     const [openCancelTally, openCancelTallySet] = React.useState(false)
+    const [openRecountTally, openRecountTallySet] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
+    const [recountId, setRecountId] = React.useState<Identifier | undefined>()
     const [isCreatingTally, setIsCreatingTally] = React.useState<boolean>(false)
+    const [isRecountingTally, setIsRecountingTally] = React.useState<boolean>(false)
 
     const isPublished = electionEventRecord?.status && electionEventRecord.status.is_published
 
     const [UpdateTallyCeremonyMutation] =
         useMutation<UpdateTallyCeremonyMutation>(UPDATE_TALLY_CEREMONY)
+    const [RecountTallySessionMutation] =
+        useMutation<RecountTallySessionMutation>(RECOUNT_TALLY_SESSION)
 
     const {data: keysCeremonies, error: errorCeremonies} = useQuery<ListKeysCeremonyQuery>(
         LIST_KEYS_CEREMONY,
@@ -277,6 +291,11 @@ export const ListTally: React.FC<ListAreaProps> = () => {
         openCancelTallySet(true)
     }
 
+    const recountAdminTally = (id: Identifier) => {
+        setRecountId(id)
+        openRecountTallySet(true)
+    }
+
     const actions = (record: RaRecord) => [
         {
             icon: isTrustee ? (
@@ -303,6 +322,18 @@ export const ListTally: React.FC<ListAreaProps> = () => {
                 (record.execution_status === ITallyExecutionStatus.NOT_STARTED ||
                     record.execution_status === ITallyExecutionStatus.STARTED ||
                     record.execution_status === ITallyExecutionStatus.CONNECTED),
+        },
+        {
+            icon: (
+                <Tooltip title={String(t("tally.recountTallyCeremony"))}>
+                    <ReplayIcon />
+                </Tooltip>
+            ),
+            action: recountAdminTally,
+            showAction: (id: Identifier) =>
+                canRecountTally &&
+                record.execution_status === ITallyExecutionStatus.SUCCESS &&
+                record.is_execution_completed,
         },
         {
             icon:
@@ -344,6 +375,37 @@ export const ListTally: React.FC<ListAreaProps> = () => {
         } catch (error) {
             console.log("TallyCeremony :: confirmCeremonyAction :: error", error)
             notify(t("tally.cancelTallyCeremonyError"), {type: "error"})
+        }
+    }
+
+    const confirmRecountAction = async () => {
+        try {
+            setIsRecountingTally(true)
+            const {data, errors} = await RecountTallySessionMutation({
+                variables: {
+                    election_event_id: electionEventRecord?.id,
+                    tally_session_id: recountId,
+                },
+            })
+
+            if (errors || !data?.recount_tally_session) {
+                notify(t("tally.recountTallyCeremonyError"), {
+                    type: "error",
+                })
+                return
+            }
+
+            notify(t("tally.recountTallyCeremonySuccess"), {
+                type: "success",
+            })
+            refresh()
+        } catch (error) {
+            console.log("TallyCeremony :: confirmRecountAction :: error", error)
+            notify(t("tally.recountTallyCeremonyError"), {
+                type: "error",
+            })
+        } finally {
+            setIsRecountingTally(false)
         }
     }
 
@@ -452,7 +514,11 @@ export const ListTally: React.FC<ListAreaProps> = () => {
                 >
                     <ResetFilters />
                     <ElectionHeader title={"electionEventScreen.tally.title"} subtitle="" />
-                    <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={false}>
+                    <DatagridConfigurable
+                        header={ThreeStateDatagridHeader}
+                        omit={OMIT_FIELDS}
+                        bulkActionButtons={false}
+                    >
                         <TextField source="id" />
                         <FunctionField
                             label={String(t("electionEventScreen.tally.tallyType.label"))}
@@ -537,6 +603,23 @@ export const ListTally: React.FC<ListAreaProps> = () => {
                 }}
             >
                 {t("tally.common.dialog.cancelMessage")}
+            </Dialog>
+            <Dialog
+                variant="warning"
+                open={openRecountTally}
+                ok={String(t("tally.recountTallyCeremonyOk"))}
+                cancel={String(t("tally.common.dialog.cancel"))}
+                title={String(t("tally.recountTallyCeremony"))}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        confirmRecountAction()
+                    }
+                    openRecountTallySet(false)
+                }}
+            >
+                {isRecountingTally
+                    ? t("tally.recountTallyCeremonyStarting")
+                    : t("tally.recountTallyCeremonyMessage")}
             </Dialog>
         </>
     )

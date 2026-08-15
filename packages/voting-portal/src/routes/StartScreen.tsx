@@ -28,7 +28,7 @@ import {selectElectionEventById} from "../store/electionEvents/electionEventsSli
 import {
     resetBallotSelection,
     selectBallotSelectionByElectionId,
-    setAllBallotSelectionsInvalidVote,
+    setAllBallotSelectionsDeclineToVote,
 } from "../store/ballotSelections/ballotSelectionsSlice"
 import {clearIsVoted, setDeclinedToVote, setIsVoted} from "../store/extra/extraSlice"
 import {useEncryptBallotForReview} from "../hooks/useEncryptBallotForReview"
@@ -192,6 +192,10 @@ const StartScreen: React.FC = () => {
             : election
     }, [election, electionEvent])
 
+    const defaultLanguageCode =
+        titleObject?.presentation?.language_conf?.default_language_code ??
+        electionEvent?.presentation?.language_conf?.default_language_code
+
     useEffect(() => {
         if (!election || !titleObject) {
             navigate(backLink)
@@ -224,7 +228,7 @@ const StartScreen: React.FC = () => {
         }
 
         setOpenDeclineDialog(false)
-        dispatch(setAllBallotSelectionsInvalidVote({ballotStyle}))
+        dispatch(setAllBallotSelectionsDeclineToVote({ballotStyle}))
         dispatch(setDeclinedToVote(ballotStyle.election_id))
         dispatch(setIsVoted(ballotStyle.election_id))
 
@@ -252,12 +256,18 @@ const StartScreen: React.FC = () => {
                 <Stepper selected={1} />
             </Box>
             <StyledTitle variant="h3" justifyContent="center" fontWeight="bold">
-                <span>{translateFromPresentation(titleObject, "name", i18n.language) ?? "-"}</span>
+                <span>
+                    {translateFromPresentation(titleObject, "name", i18n.language, {
+                        defaultLanguageCode,
+                    }) ?? "-"}
+                </span>
             </StyledTitle>
             {titleObject.description ? (
                 <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                     {stringToHtml(
-                        translateFromPresentation(titleObject, "description", i18n.language) ?? "-"
+                        translateFromPresentation(titleObject, "description", i18n.language, {
+                            defaultLanguageCode,
+                        }) ?? "-"
                     )}
                 </Typography>
             ) : null}

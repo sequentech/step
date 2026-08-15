@@ -41,6 +41,9 @@ export function useUsersPermissions() {
         tenantId,
         IPermissions.VOTER_CHANGE_PASSWORD
     )
+    const canGenerateVoterInformationLetter =
+        authContext.isAuthorized(true, tenantId, IPermissions.VOTER_INFORMATION_LETTER) &&
+        authContext.isAuthorized(true, tenantId, IPermissions.DOCUMENT_PASSWORD_READ)
 
     const showVotersColumns = authContext.isAuthorized(
         true,
@@ -58,6 +61,11 @@ export function useUsersPermissions() {
         tenantId,
         IPermissions.NOTIFICATION_SEND
     )
+    const showVoterListSync = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.ELECTION_EVENT_VOTER_LIST_SYNC
+    )
     /**
      * Permissions
      */
@@ -73,9 +81,11 @@ export function useUsersPermissions() {
         canExportVoters,
         canManuallyVerify,
         canChangePassword,
+        canGenerateVoterInformationLetter,
         showVotersColumns,
         showVotersFilters,
         showVotersLogs,
         canSendTemplates,
+        showVoterListSync,
     }
 }

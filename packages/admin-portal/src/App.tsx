@@ -62,10 +62,13 @@ import {SelectTenant} from "./screens/SelectTenant"
 import {AuthContext} from "./providers/AuthContextProvider"
 import {customSortData} from "./lib/helpers"
 import {UpsertArea} from "./resources/Area/UpsertArea"
+import {TrusteeDashboard} from "./screens/TrusteeDashboard"
 
 interface AppProps {}
 
-const StyledApp = styled(Box)<{customCss: string}>`
+const StyledApp = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "customCss",
+})<{customCss: string}>`
     ${({customCss}) => customCss}
 `
 
@@ -150,6 +153,7 @@ const App: React.FC<AppProps> = () => {
                     {/* <Route path="/logs" element={<Logs />} /> */}
                     <Route path="/tenant" element={<SelectTenant />} />
                     <Route path="/user-roles" element={<UserAndRoles />} />
+                    <Route path="/trustee" element={<TrusteeDashboard />} />
                     <Route path="/messages" element={<Messages />} />
                     <Route path="/settings/*" element={<SettingsScreen />} />
                 </CustomRoutes>

@@ -11,6 +11,12 @@ export enum EBallotError {
     SERIALIZE_ERROR,
 }
 
+export enum IInvalidPlaintextErrorType {
+    Explicit = "Explicit",
+    Implicit = "Implicit",
+    EncodingError = "EncodingError",
+}
+
 export interface IBallotError {
     error_type: WasmCastBallotsErrorType
     error_msg: string

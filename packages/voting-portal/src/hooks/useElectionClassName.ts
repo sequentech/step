@@ -5,29 +5,48 @@ import {useCallback, useEffect, useMemo} from "react"
 import {useParams} from "react-router"
 import {useAppSelector} from "../store/hooks"
 import {IElectionExtended, selectElectionById} from "../store/elections/electionsSlice"
+import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
 import {useTranslation} from "react-i18next"
 import {ROOT_CLASS_PREFIX, toValidClassName, translateFromPresentation} from "@sequentech/ui-core"
+
+const resolveElectionName = (
+    election: IElectionExtended,
+    language: string,
+    eventDefaultLanguageCode?: string
+) => {
+    const presentation = election.presentation
+    const defaultLanguageCode =
+        presentation?.language_conf?.default_language_code ?? eventDefaultLanguageCode
+
+    return (
+        translateFromPresentation(presentation, "alias", language) ||
+        translateFromPresentation(presentation, "name", language) ||
+        (defaultLanguageCode
+            ? translateFromPresentation(presentation, "alias", defaultLanguageCode) ||
+              translateFromPresentation(presentation, "name", defaultLanguageCode)
+            : undefined) ||
+        election.alias ||
+        election.name ||
+        election.id
+    )
+}
 
 /**
  * Manages election class on <html> and provides an election class formatter.
  */
 export const useElectionClassName = () => {
     const {i18n} = useTranslation()
-    const {electionId} = useParams<{electionId?: string}>()
+    const {electionId, eventId} = useParams<{electionId?: string; eventId?: string}>()
     const election = useAppSelector(selectElectionById(String(electionId ?? "")))
-
-    const extractElectionName = (election: IElectionExtended) => {
-        let language = i18n.resolvedLanguage || i18n.language
-        return (
-            translateFromPresentation(election, "alias", language) ||
-            translateFromPresentation(election, "name", language) ||
-            election.id
-        )
-    }
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
+    const language = i18n.resolvedLanguage || i18n.language
+    const eventDefaultLanguageCode =
+        electionEvent?.presentation?.language_conf?.default_language_code
 
     const getElectionClassName = useCallback(
-        (e: IElectionExtended) => toValidClassName(extractElectionName(e)),
-        [extractElectionName]
+        (e: IElectionExtended) =>
+            toValidClassName(resolveElectionName(e, language, eventDefaultLanguageCode)),
+        [eventDefaultLanguageCode, language]
     )
 
     const activeElectionClassName = useMemo(() => {

@@ -3,7 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {Dialog} from "@sequentech/ui-essentials"
-import {isString} from "@sequentech/ui-core"
+import {
+    isString,
+    isValidVotingPortalDateTimePattern,
+    VOTING_PORTAL_DATETIME_FORMAT_KEY,
+} from "@sequentech/ui-core"
 import React, {useMemo, useState} from "react"
 import {
     Button,
@@ -27,6 +31,7 @@ import {Sequent_Backend_Election_Event_Extended} from "./EditElectionEventDataFo
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import {
     Box,
+    Card,
     Drawer,
     FormControl,
     InputLabel,
@@ -39,6 +44,7 @@ import {
 import {useTranslation} from "react-i18next"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 import {useLocalizationPermissions} from "./useLocalizationPermissions"
+import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
 
 interface LocalizationListProps {
     selectedLanguage: string
@@ -64,19 +70,29 @@ const LocalizationList: React.FC<LocalizationListProps> = ({selectedLanguage, ac
 
     return (
         <ListContextProvider value={listContext}>
-            <Datagrid bulkActionButtons={false}>
-                <TextField
-                    source="id"
-                    label={String(t("electionEventScreen.localization.labels.key"))}
-                />
-                <TextField
-                    source="value"
-                    label={String(t("electionEventScreen.localization.labels.value"))}
-                />
-                <WrapperField label="Actions">
-                    <ActionsColumn actions={actions} />
-                </WrapperField>
-            </Datagrid>
+            <Card>
+                <Datagrid
+                    header={ThreeStateDatagridHeader}
+                    bulkActionButtons={false}
+                    sx={{
+                        "& .column-id": {minWidth: "150px"},
+                        "& .column-value": {width: "100%"},
+                        "& .column-actions": {minWidth: "100px", whiteSpace: "nowrap"},
+                    }}
+                >
+                    <TextField
+                        source="id"
+                        label={String(t("electionEventScreen.localization.labels.key"))}
+                    />
+                    <TextField
+                        source="value"
+                        label={String(t("electionEventScreen.localization.labels.value"))}
+                    />
+                    <WrapperField source="actions" label="Actions">
+                        <ActionsColumn actions={actions} />
+                    </WrapperField>
+                </Datagrid>
+            </Card>
             <TablePagination
                 component="div"
                 page={listContext.page - 1}
@@ -95,6 +111,12 @@ const EditElectionEventTextDataTable = () => {
 
     const {t} = useTranslation()
     const notify = useNotify()
+
+    // The Voting Portal date/time override is a free string typed by an operator. It is
+    // validated by the same parser the voter-facing helper uses, so an invalid pattern is
+    // rejected at save time instead of silently falling back to the preset at render time.
+    const isInvalidDateTimeOverride = (key: string, value: string): boolean =>
+        key === VOTING_PORTAL_DATETIME_FORMAT_KEY && !isValidVotingPortalDateTimePattern(value)
 
     const [selectedLanguage, setSelectedLanguage] = useState<string>(
         record?.presentation?.language_conf?.default_language_code ?? "en"
@@ -140,6 +162,12 @@ const EditElectionEventTextDataTable = () => {
         const newKey: string = e?.presentation?.i18n?.[selectedLanguage]?.newKey ?? ""
         const newValue: string = e?.presentation?.i18n?.[selectedLanguage]?.newVal ?? ""
         if (!newValue || !newKey) return
+        if (isInvalidDateTimeOverride(newKey, newValue)) {
+            notify(t("electionEventScreen.localization.notify.invalidDateTimeFormat"), {
+                type: "error",
+            })
+            return
+        }
         update(
             "sequent_backend_election_event",
             {
@@ -175,6 +203,12 @@ const EditElectionEventTextDataTable = () => {
         if (!e || !recordId) return
         const editVal: string = e?.editableVal ?? ""
         if (!editVal) return
+        if (isInvalidDateTimeOverride(recordId as string, editVal)) {
+            notify(t("electionEventScreen.localization.notify.invalidDateTimeFormat"), {
+                type: "error",
+            })
+            return
+        }
         update(
             "sequent_backend_election_event",
             {

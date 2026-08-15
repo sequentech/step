@@ -1,0 +1,64 @@
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+[package]
+name = "b4"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "b4"
+path = "src/main.rs"
+
+[[bin]]
+name = "monitor"
+path = "src/monitor.rs"
+required-features = ["monitor"]
+
+[features]
+client = ["dep:tokio", "dep:tokio-postgres", "dep:bb8-postgres"]
+monitor = ["dep:cursive", "dep:clap", "dep:tokio", "native"]
+wasm-core = ["strand/wasm", "dep:js-sys"]
+native = ["dep:tokio", "dep:tokio-postgres", "dep:bb8-postgres", "dep:aws-config", "dep:aws-sdk-s3", "dep:axum", "dep:tower", "dep:tower-http", "dep:sequent-core", "dep:dotenv"]
+
+[dependencies]
+strand = { path = "../strand" }
+tokio = { workspace = true, optional = true }
+tokio-postgres = { version = "0.7", optional = true }
+bb8-postgres = { version = "0.9", optional = true }
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sequent-core = { path="../sequent-core", features = ["log", "s3", "probe", "default_features"], optional = true }
+dotenv = { version = "0.15", optional = true } 
+
+# Message types dependencies
+borsh = { version = "1.5", features = ["derive"] }
+strum = { version = "0.27", features = ["derive"] }
+hex = "0.4"
+base64 = "0.22"
+log = "0.4"
+cfg-if = "1.0"
+
+# Web framework
+axum = { version = "0.7", optional = true }
+tower = { version = "0.5", optional = true }
+tower-http = { version = "0.6", features = ["cors"], optional = true }
+
+# S3
+aws-config = { version = "1.5", features = ["behavior-version-latest"], optional = true }
+aws-sdk-s3 = { version = "1.52", optional = true }
+
+# Utilities
+uuid = { version = "1.10", features = ["v4", "serde"] }
+chrono = "0.4"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Monitor tool dependencies (optional)
+cursive = { version = "0.21", optional = true }
+clap = { version = "4.5", features = ["derive", "env"], optional = true }
+
+# WASM dependencies
+js-sys = { version = "0.3", optional = true }

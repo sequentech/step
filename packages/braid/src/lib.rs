@@ -4,6 +4,11 @@
 extern crate cfg_if;
 
 pub mod protocol;
-pub mod test;
 pub mod util;
-pub mod verify;
+
+// Platform-specific modules
+// Note: native::board is available in both builds because NoOpStorage is used by WASM temporarily
+#[cfg(any(feature = "native", feature = "wasm"))]
+pub mod native;
+#[cfg(feature = "wasm")]
+pub mod wasm;

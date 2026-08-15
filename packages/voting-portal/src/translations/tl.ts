@@ -87,6 +87,9 @@ const tagalogTranslation: TranslationType = {
             backButton: "I-edit ang balota",
             castBallotButton: "I-submit ang balota",
             auditButton: "Suriin ang balota",
+            copyBallotId: "Kopyahin ang ballot ID",
+            ballotIdCopied: "Nakopya ang ballot ID",
+            ballotIdCopyError: "Hindi makopya ang ballot ID",
             reviewScreenHelpDialog: {
                 title: "Tungkol sa screen ng pagsusuri",
                 content:
@@ -103,7 +106,7 @@ const tagalogTranslation: TranslationType = {
             auditBallotHelpDialog: {
                 title: "Nais mo bang i-audit ang balota?",
                 content:
-                    "<p>Pakitandaan na ang pag-audit ng iyong balota ay magpapawalang-bisa dito, at kakailanganin mong magsimulang muli sa proseso ng pagboto. Sa proseso ng audit, maari mong tiyakin na ang iyong balota ay tamang naka-encode, ngunit ito ay nangangailangan ng mga advanced na teknikal na hakbang. Inirerekomenda naming magpatuloy ka lang kung ikaw ay kumpiyansa sa iyong kakayahang teknikal. Kung nais mo lamang i-submit ang iyong balota, i-click ang <u>Kanselahin</u> upang bumalik sa screen ng pagsusuri ng balota.</b></p>",
+                    "<p>Pakitandaan na ang pag-audit ng iyong balota ay magpapawalang-bisa dito, at kakailanganin mong magsimulang muli sa proseso ng pagboto. Sa proseso ng audit, maari mong tiyakin na ang iyong balota ay tamang naka-encode, ngunit ito ay nangangailangan ng mga advanced na teknikal na hakbang. Inirerekomenda naming magpatuloy ka lang kung ikaw ay kumpiyansa sa iyong kakayahang teknikal. Kung nais mo lamang i-submit ang iyong balota, i-click ang <u>Kanselahin</u> upang bumalik sa screen ng pagsusuri ng balota.</p>",
                 ok: "Oo, nais kong ibasura ang aking balota upang suriin ito",
                 cancel: "Kanselahin",
             },
@@ -285,7 +288,8 @@ const tagalogTranslation: TranslationType = {
                     "Ipinapakita ng screen na ito ang listahan ng mga Balota na maaari mong botohan. Magkakaroon ka ng access kung nakabukas ang panahon ng pagboto.",
                 ok: "OK",
             },
-            noResults: "Walang mga balota na available sa ngayon.",
+            noResults: "Walang mga balota sa ngayon.",
+            resultsButton: "Tingnan ang mga resulta",
             demoDialog: {
                 title: "Demo Voting Booth",
                 content:
@@ -366,6 +370,8 @@ const tagalogTranslation: TranslationType = {
             locateAgain: "Hanapin ang Isa Pang Balota",
             found: "Ang iyong ballot ID {{ballotId}} ay natagpuan",
             notFound: "Ang iyong ballot ID {{ballotId}} ay hindi natagpuan",
+            ambiguous:
+                "Higit sa isa sa iyong mga balota ang tumutugma sa {{ballotId}}. Gamitin ang buong Ballot ID.",
             contentDesc: "Ito ang nilalaman ng iyong balota: ",
             wrongFormatBallotId: "Mali ang format para sa Ballot ID",
             ballotIdNotFoundAtFilter: "Hindi natagpuan ang iyong ballot ID sa filter",

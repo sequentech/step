@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::Result;
-use b3::messages::message::Message;
+use b4::messages::message::Message;
 use sequent_core::services::date::ISO8601;
 use sequent_core::types::ceremonies::Log;
 use tracing::{event, instrument, Level};
@@ -147,6 +147,16 @@ pub fn append_tally_resumed_after_resolution(current_logs: &Vec<Log>) -> Vec<Log
     logs.push(Log {
         created_date: ISO8601::to_string(&ISO8601::now()),
         log_text: "Tally execution resumed after tie-break resolution submission".to_string(),
+    });
+    sort_logs(&logs)
+}
+
+#[instrument(skip(current_logs))]
+pub fn append_tally_recount_log(current_logs: &Vec<Log>, election_ids: &Vec<String>) -> Vec<Log> {
+    let mut logs: Vec<Log> = current_logs.clone();
+    logs.push(Log {
+        created_date: ISO8601::to_string(&ISO8601::now()),
+        log_text: format!("Recount launched for election ids: {election_ids:?}"),
     });
     sort_logs(&logs)
 }

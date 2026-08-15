@@ -66,7 +66,7 @@ Manage how the ballot appears in the Voting Portal.
 - **Show Cast Vote Logs Tab**: Policy to enable the CastVote Immutable logs in the Ballot Locator.
 - **Logo URL (optional)**: Provide a link to a logo to display.
 - **Redirect Finish URL (optional)**: Redirect users to a URL after completing voting.
-- **Custom CSS**: Apply custom styles to the ballot design.
+- **Custom CSS**: Apply custom styles to the ballot design. Ballot error and warning messages expose stable CSS classes that can be targeted here — see [Styling Ballot Errors and Warnings with Custom CSS](../08-ballot-errors-custom-css.md).
 
 ## Voting Channels Allowed
 
@@ -122,6 +122,132 @@ Configure advanced system behaviors for this Election Event.
   - Allow for the automatic generation of keys and tallies, eliminating the need for trustees involvement.
 - **Weighted Voting Policy**:
   - **Weighted Voting for Areas**: Enable weighted voting for areas.
+  - **Weighted Voting for Voters**: Give each voter their own weight, so that a
+    voter with weight `w` contributes `w` votes. Add a `vote-weight` column to
+    the imported voters csv holding a whole number between 1 and 100000. A voter
+    with no column, or with a blank cell, votes with weight 1. Near spellings that
+    differ only in case or in `_` and `.` — `vote_weight`, `voteWeight`,
+    `vote.weight` — are rejected rather than imported, because they would be
+    stored under a name the tally does not read. A column named simply `weight`
+    is **not** rejected: it is the name of the unrelated area weight, so it
+    imports as an ordinary attribute and every voter tallies at 1. The column is
+    named after the `vote-weight` voter attribute it becomes, so an exported
+    voters file can be edited and re-imported unchanged. Cannot be combined with
+    Delegate Voting, and every contest in the election event must use the
+    Plurality at Large counting algorithm — counting a ballot more than once
+    has no defined meaning for the others, so the tally refuses to run. Approved
+    tally sheets are refused for the same reason: a tally sheet reports a count
+    of paper ballots and has nowhere to record a weight, so its votes would be
+    added to the weighted totals at a weight of one each, which decides contests
+    rather than merely under-counting them. Decoded ballots cannot
+    be included in the published results either, for the reason in the warning
+    below. Check both before ballots are published: neither the counting
+    algorithm nor a published ballot can be changed once voting has begun.
+    The weights of everyone who votes in one area of a contest
+    must also add up to no more than 1000000, so a small number of voters on very
+    large weights is rejected even though each weight is individually allowed.
+    **This is checked when the tally runs, which is after voting has closed.** The
+    import writes a warning to the server log when the weights in one file
+    exceed it, but nothing surfaces that in the Admin Portal, and it counts only
+    that file rather than everything already in the area. Two hundred and one voters each carrying
+    5000 exceed it while every one of them imports cleanly. Plan around it before
+    voting opens: the remedy afterwards is to rescale every weight, which changes
+    the result. The limit does not come from the mix, which under this policy is
+    at most one ciphertext per voter per batch however large the weights are; it
+    comes from the tally expanding each batch's votes by that batch's multiplier
+    afterwards.
+
+    Turnout figures under this policy count voting power rather than voters: the
+    eligible-voter census and the cast-ballot total are sums of weights, so they
+    will not match a headcount shown elsewhere. Ballots with no matching voter
+    are the exception — they have no voter and so no weight, and are counted one
+    each, which mixes units into the cast-ballot total and into the auditable
+    ballot percentage. The Total voters and Non-voters figures on the Tally
+    screen are voting power under headcount labels.
+
+    If any area still carries a Weight from a previous Weighted Voting for Areas
+    configuration, the tally is refused until it is cleared, because the two
+    weightings would multiply. **Check this before publishing ballots.**
+    Selecting this policy hides the Weight column and field without clearing
+    what they hold, so an area can keep a weight that nothing in the interface
+    shows, and the refusal arrives only when the tally is created — after voting
+    has closed, when the ballots can no longer be republished and there is no
+    remedy left. Clearing it means switching back to Weighted Voting for
+    Areas, which makes the Weight field visible again, clearing the Weight on
+    each area, switching to Weighted Voting for Voters, and only then publishing
+    the ballots.
+
+    :::caution Set the weights before extracting ballots for a tally
+    Extracting the ballots for a tally writes them to the bulletin board, which
+    is append-only. If a vote weight is changed after that, or a voter who had
+    voted is disabled or removed, the board no longer matches and the tally
+    refuses rather than publishing a total that counts some voters at their old
+    weight and their new one at once. Putting back exactly what changed clears
+    it. Nothing else does: the ballots already on the board will be mixed and
+    published whatever the tally counts, so weights extracted wrongly cannot be
+    corrected afterwards, and a voter whose account was deleted rather than
+    disabled cannot be restored at all — that area can then never be tallied.
+
+    The refusal is not a guarantee that the weights used are the ones configured
+    now. A weight raised so that it only adds batches the interrupted run had
+    not yet written is applied as raised, because nothing already on the board
+    contradicts it. Get the weights right before starting the tally rather than
+    relying on this to catch a change.
+    :::
+
+    :::danger Voter weights are public, and results are attributable
+    A voter's weight is applied by splitting it into powers of two. A contest
+    area is mixed as up to 17 batches, the batch at position `n` counting each
+    ballot in it `2^n` times, and a voter's ballot is placed in the batch for
+    each power of two that adds up to their weight — weight 21 goes into the
+    batches for 1, 4 and 16. No batch ever holds the same ballot twice, so
+    nothing on the bulletin board repeats in a way that spells out a weight.
+
+    That is not enough to keep a weight private. The board is public so that the
+    mix can be verified, the same ciphertext appears in every batch its weight
+    selects, and each ciphertext is linkable to the voter who cast it, so adding
+    up the batches a ballot appears in recovers that voter's weight exactly.
+    **A voter's weight is therefore public, and it is public who holds it.** This
+    is the flip side of a property some bodies want: published weights can be
+    audited against the board.
+
+    The published per-candidate totals are sums over the weights of the voters
+    who chose each candidate. Where weights differ from one another, that sum
+    frequently identifies exactly who voted for whom — with distinct weights
+    such as 1, 2, 4, 8 it always does. Turning off decoded ballots in the results
+    does not prevent this; the totals alone are enough. Write-in answers are
+    worse again, since an uncommon write-in appears with exactly the weight of
+    the voter who wrote it.
+
+    A batch holding very few ballots publishes those voters' choices when it is
+    decrypted, because a mix of one hides nothing. Which batches are small
+    depends on how the weights are spread, not on how large they are: 999 voters
+    on weight 2 and one on weight 3 leave the batch for 1 holding a single
+    ballot. Extracting the ballots logs a warning naming any batch below five.
+    It does not refuse, since by then voting has closed and there is no remedy
+    left.
+
+    That warning is a floor, not a guarantee. A voter is exposed whenever the
+    batches single them out at all — two batches whose voters differ by one
+    person expose that person however large both batches are — and nothing
+    detects that. Check the spread of weights before opening voting.
+
+    Do not use this policy where ballot secrecy is required. It suits bodies
+    that already publish how each member voted, such as some shareholder or
+    delegate votes. Where secrecy matters and voters fall into a small number of
+    weight classes, Weighted Voting for Areas gives weighting without this
+    disclosure, because every voter in an area shares one weight.
+    :::
+
+    :::caution
+    The `vote-weight` attribute must be declared in the election event realm's
+    Keycloak user profile before use. Until it is, the weight column is missing
+    from the voters export, the field does not appear when editing a voter, and
+    editing a voter through the Admin Portal clears any weight that voter had.
+    Importing weights and tallying them work regardless. Realm user profiles are
+    not managed from this application, so declaring the attribute is an
+    administrator step on the realm configuration.
+    :::
   - **Disabled Weighted Voting**: Disable weighted voting.
 - **Delegate Voting Policy**:
   - Allows for voters to delegate their vote to another voter. An additional column needs to be included in the voters imported csv with the name `delegate-vote-to` with the username of the voter to delgate the vote to.

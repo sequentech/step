@@ -87,6 +87,9 @@ const spanishTranslation: TranslationType = {
             backButton: "Editar tu voto",
             castBallotButton: "Enviar voto",
             auditButton: "Auditar papeleta",
+            copyBallotId: "Copiar el ID de la papeleta",
+            ballotIdCopied: "ID de la papeleta copiado",
+            ballotIdCopyError: "No se pudo copiar el ID de la papeleta",
             reviewScreenHelpDialog: {
                 title: "Sobre la pantalla de revisión",
                 content: "Esta pantalla le permite revisar sus selecciones antes de emitir su voto",
@@ -287,7 +290,8 @@ const spanishTranslation: TranslationType = {
                     "Esta pantalla muestra la lista de papeletas a las que puede acceder. Pueden estar abiertas, programadas o cerradas. Solo puede votar en las que están abiertas",
                 ok: "OK",
             },
-            noResults: "No hay papeletas disponibles actualmente",
+            noResults: "No hay elecciones por ahora.",
+            resultsButton: "Ver resultados",
             demoDialog: {
                 title: "Cabina de votación de demostración",
                 content:
@@ -369,6 +373,8 @@ const spanishTranslation: TranslationType = {
             locateAgain: "Encuentra otra Papeleta",
             found: "Tu ID de Papeleta {{ballotId}} ha sido encontrada",
             notFound: "Tu ID de Papeleta {{ballotId}} no fue encontrada",
+            ambiguous:
+                "Más de una de tus papeletas coincide con {{ballotId}}. Usa el ID de papeleta completo.",
             contentDesc: "Este es el contenido de tu Papeleta: ",
             wrongFormatBallotId: "Formato incorrecto para el ID de la Papeleta",
             ballotIdNotFoundAtFilter:

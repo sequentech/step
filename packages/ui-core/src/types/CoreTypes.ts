@@ -49,6 +49,7 @@ export interface IVotingChannelsConfig {
     kiosk: boolean
     online: boolean
     early_voting: boolean
+    telephone: boolean
 }
 
 export interface IChannelButtonInfo {
@@ -70,6 +71,7 @@ export interface IElectionEventStatus {
     voting_status: EVotingStatus
     kiosk_voting_status: EVotingStatus
     early_voting_status: EVotingStatus
+    telephone_voting_status: EVotingStatus
 }
 
 export interface IElectionStatus {
@@ -77,9 +79,11 @@ export interface IElectionStatus {
     voting_status: EVotingStatus
     kiosk_voting_status: EVotingStatus
     early_voting_status: EVotingStatus
+    telephone_voting_status: EVotingStatus
     voting_period_dates: IPeriodDates
     kiosk_voting_period_dates: IPeriodDates
     early_voting_period_dates: IPeriodDates
+    telephone_voting_period_dates: IPeriodDates
 }
 
 export interface IElectionEventStatistics {
@@ -145,6 +149,11 @@ export interface ICandidate {
     presentation?: ICandidatePresentation
 }
 
+export enum EMultiContestEncodingMode {
+    LEGACY = "legacy",
+    EXPANDED_CAPACITY = "expanded-capacity",
+}
+
 export interface IBallotStyle {
     id: string
     tenant_id: string
@@ -159,6 +168,7 @@ export interface IBallotStyle {
     election_event_presentation?: IElectionEventPresentation
     election_presentation?: IElectionPresentation
     election_dates?: IElectionDates
+    multi_contest_encoding_mode?: EMultiContestEncodingMode
 }
 
 export interface IPublicKeyConfig {
@@ -268,6 +278,8 @@ export interface IExtensionErrorInternal {
 export interface IExtensionError {
     code?: string | null
     internal?: IExtensionErrorInternal | null
+    password_policy_rule?: string | null
+    password_policy_required_count?: number | null
 }
 
 export interface IGraphQLError {

@@ -32,6 +32,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {VotingStatusChannel} from "@/gql/graphql"
 import {IElectionPresentation, IElectionStatus, IChannelButtonInfo} from "@sequentech/ui-core"
 import {usePublishPermissions} from "./usePublishPermissions"
+import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
 
 const OMIT_FIELDS: string[] = []
 
@@ -51,6 +52,7 @@ type TPublishList = {
     kioskModeEnabled: IChannelButtonInfo
     onlineModeEnabled: IChannelButtonInfo
     earlyVotingEnabled: IChannelButtonInfo
+    telephoneVotingEnabled: IChannelButtonInfo
     changingStatus: boolean
     publishType: EPublishType.Election | EPublishType.Event
     onGenerate: () => void
@@ -69,6 +71,7 @@ export const PublishList: React.FC<TPublishList> = ({
     kioskModeEnabled,
     onlineModeEnabled,
     earlyVotingEnabled,
+    telephoneVotingEnabled,
     changingStatus,
     onGenerate = () => null,
     onChangeStatus = () => null,
@@ -158,6 +161,7 @@ export const PublishList: React.FC<TPublishList> = ({
                         kioskModeEnabled={kioskModeEnabled}
                         onlineModeEnabled={onlineModeEnabled}
                         earlyVotingEnabled={earlyVotingEnabled}
+                        telephoneVotingEnabled={telephoneVotingEnabled}
                         onGenerate={onGenerate}
                         onChangeStatus={onChangeStatus}
                         type={EPublishActionsType.List}
@@ -182,7 +186,11 @@ export const PublishList: React.FC<TPublishList> = ({
             >
                 <ResetFilters />
                 <HeaderTitle title={"publish.header.history"} subtitle="" />
-                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={false}>
+                <DatagridConfigurable
+                    header={ThreeStateDatagridHeader}
+                    omit={OMIT_FIELDS}
+                    bulkActionButtons={false}
+                >
                     <TextField source="id" />
                     <BooleanField source="is_generated" />
                     <TextField source="published_at" />

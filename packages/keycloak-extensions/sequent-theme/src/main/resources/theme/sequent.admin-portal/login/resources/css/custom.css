@@ -452,7 +452,7 @@ button#resend-otp-btn:hover {
 
 @media (max-width: 767px) {
     #kc-title {
-        display: none;
+        display: block;
     }
 }
 
@@ -668,4 +668,106 @@ button#resend-otp-btn:hover {
 #social-digital-certificates:hover {
     text-decoration: none;
     color: inherit;
+}
+
+/* Structured credentials progressively enhance the ordinary password input. */
+[data-structured-credential][data-structured-credential-enhanced="true"] {
+    align-items: center;
+    background: var(--pf-global--BackgroundColor--100);
+    border: 1px solid var(--pf-global--palette--black-500);
+    border-radius: 4px;
+    display: flex;
+    overflow: hidden;
+    position: relative;
+}
+
+[data-structured-credential][data-structured-credential-enhanced="true"]:focus-within {
+    border-color: var(--pf-global--primary-color--100);
+    box-shadow: 0 0 0 1px var(--pf-global--primary-color--100);
+}
+
+[data-structured-credential][data-structured-credential-enhanced="true"]
+    .structured-credential__input {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    box-sizing: border-box;
+    caret-color: transparent;
+    direction: ltr;
+    flex: 1 1 auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    height: 44px;
+    letter-spacing: 0.08em;
+    line-height: 24px;
+    min-width: 0;
+    padding-block: 10px;
+}
+
+[data-structured-credential][data-structured-credential-enhanced="true"]
+    .structured-credential__input:focus {
+    outline: 0;
+}
+
+[data-structured-credential][data-structured-credential-enhanced="true"]
+    [data-structured-credential-toggle] {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    display: inline-flex;
+    flex: 0 0 44px;
+    height: 44px;
+    justify-content: center;
+    margin-left: 0;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0;
+}
+
+[data-structured-credential][data-structured-credential-enhanced="true"]
+    [data-structured-credential-toggle]:focus-visible {
+    outline: 2px solid var(--pf-global--primary-color--100);
+    outline-offset: -4px;
+}
+
+[data-structured-credential][data-structured-credential-enhanced="true"]
+    [data-structured-credential-toggle]::after {
+    border: 0;
+}
+
+[data-structured-credential][data-structured-credential-invalid="true"] {
+    border-color: var(--pf-global--danger-color--100);
+}
+
+.structured-credential__hint {
+    margin-top: 6px;
+}
+
+[data-structured-credential-error][hidden] {
+    display: none;
+}
+
+.structured-credential__status {
+    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
+    height: 1px;
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
+    width: 1px;
+}
+
+@media (forced-colors: active) {
+    [data-structured-credential][data-structured-credential-enhanced="true"]:focus-within {
+        box-shadow: none;
+        outline: 2px solid Highlight;
+        outline-offset: 1px;
+    }
+
+    [data-structured-credential][data-structured-credential-enhanced="true"]
+        [data-structured-credential-toggle]:focus-visible {
+        outline-color: Highlight;
+    }
 }

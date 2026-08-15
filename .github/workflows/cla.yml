@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   CLA:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: "CLA Assistant"
         if: >
@@ -38,7 +38,7 @@ jobs:
           # Branch where CLA signatures will be stored
           branch: 'cla-signatures'
           # Allowlist for bots and automated accounts
-          allowlist: 'dependabot*,sequentech-bot,edulix,Findeton,xalsina-sequent,yuvalkom-M,BelSequent,ereslibre,oded-eid-sequentech,GuyZequent,Copilot,copilot*,copilot-swe-agent[bot],github-copilot,github-copilot[bot]'
+          allowlist: 'dependabot*,sequentech-bot,edulix,Findeton,xalsina-sequent,yuvalkom-M,BelSequent,ereslibre,oded-eid-sequentech,GuyZequent,Copilot,copilot*,copilot-swe-agent[bot],github-copilot,github-copilot[bot],ruescasd,eselimsen,vic3lord'
           
           # Customize the CLA message
           remote-organization-name: 'sequentech'

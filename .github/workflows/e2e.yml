@@ -18,7 +18,7 @@ on:
 
 jobs:
   e2e:
-    runs-on: gcp-selfhosted-ubuntu24
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
     - uses: cachix/install-nix-action@v26

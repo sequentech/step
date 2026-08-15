@@ -15,7 +15,7 @@ use tracing_tree::HierarchicalLayer;
 fn main() {
     let log_reload = init_log();
     let ctx = RistrettoCtx;
-    braid::test::dbg::dbg(ctx, log_reload).unwrap();
+    braid::native::test::dbg::dbg(ctx, log_reload).unwrap();
 }
 
 /// Initialize the tracing log, returning a handle that

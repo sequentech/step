@@ -83,6 +83,13 @@ module.exports = function (env, argv) {
             },
             extensions: [".js", ".jsx", ".ts", ".tsx"],
         },
+        ignoreWarnings: [
+            // Silence the wasm-bindgen-rayon dynamic importScripts warning
+            {
+                module: /workerHelpers\.no-bundler\.js/,
+                message: /Critical dependency: the request of a dependency is an expression/,
+            },
+        ],
         plugins: [
             new InterpolateHtmlPlugin({
                 PUBLIC_URL: "", // Provide replacements for variables
@@ -123,13 +130,27 @@ module.exports = function (env, argv) {
             }),
         ],
         devServer: {
-            static: {
-                directory: path.resolve(__dirname, "dist"),
-            },
+            static: [
+                {directory: path.resolve(__dirname, "dist")},
+                {
+                    directory: path.resolve(
+                        __dirname,
+                        "../../beyond/packages/ivr-emulator-wasm/web/wasm"
+                    ),
+                    publicPath: "/wasm",
+                },
+            ],
             compress: true, // Enable gzip compression
             port: 3002, // Run on port 3002
             open: true, // Automatically open the browser
             historyApiFallback: true,
+            headers: {
+                // Required together for SharedArrayBuffer/Atomics support,
+                // needed by braid-wasm's multi-threaded build.
+                "Cross-Origin-Opener-Policy": "same-origin",
+                "Cross-Origin-Embedder-Policy": "require-corp",
+                "Cross-Origin-Resource-Policy": "cross-origin",
+            },
         },
     }
 }

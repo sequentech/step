@@ -19,14 +19,49 @@ export interface ParamsSort {
     order: string
 }
 
+const UUID_REGEXP = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * `labels`/`annotations` are free-form jsonb columns. ra-data-hasura's default
+ * jsonb filter tries to JSON.parse the typed text and use `_contains`, which
+ * silently no-ops for plain text (see typeAwareKeyValueReducer in
+ * ra-data-hasura). Route these through a raw query that casts the column to
+ * text and does a substring search instead.
+ */
+function applyJsonbTextSearchFilter(filter: Record<string, unknown>, field: string): void {
+    const value = filter[field]
+    if (typeof value === "string" && value.length > 0) {
+        filter[field] = {
+            format: "hasura-raw-query",
+            value: {_cast: {String: {_ilike: `%${value}%`}}},
+        }
+    }
+}
+
+/**
+ * `uuid` columns reject non-uuid input at the Postgres level, so a partial
+ * value typed by the user (before finishing pasting a full id) would error
+ * out the whole list query. Only forward the filter once it's a full uuid.
+ */
+function applyUuidFilter(filter: Record<string, unknown>, field: string): void {
+    const value = filter[field]
+    if (typeof value !== "string" || value.length === 0) {
+        return
+    }
+    if (UUID_REGEXP.test(value)) {
+        filter[field] = {format: "hasura-raw-query", value: {_eq: value}}
+    } else {
+        delete filter[field]
+    }
+}
+
 export const customBuildQuery =
     (introspectionResults: any) => (raFetchType: any, resourceName: any, params: any) => {
         let sort: ParamsSort | undefined | null = params.sort
         if (isString(resourceName) && raFetchType === "GET_LIST") {
             if (
-                sort?.field &&
-                COLUMNS_MAP[resourceName] &&
-                !COLUMNS_MAP[resourceName].includes(sort.field)
+                !sort?.field ||
+                (COLUMNS_MAP[resourceName] && !COLUMNS_MAP[resourceName].includes(sort.field))
             ) {
                 params.sort = undefined
             }
@@ -106,6 +141,7 @@ export const customBuildQuery =
                     "election_id",
                     "report_type",
                     "template_alias",
+                    "encryption_policy",
                 ]
                 ret.variables.order_by = Object.fromEntries(
                     Object.entries(ret?.variables?.order_by || {}).filter(([key]) =>
@@ -366,6 +402,29 @@ export const customBuildQuery =
                     }
                 },
             }
+        } else if (resourceName === "sequent_backend_tally_sheet" && raFetchType === "GET_LIST") {
+            applyJsonbTextSearchFilter(params.filter, "labels")
+            applyJsonbTextSearchFilter(params.filter, "annotations")
+            applyUuidFilter(params.filter, "import_id")
+
+            if (params?.meta?.distinctBallotBoxes) {
+                // Show only one row per ballot box (area/contest/channel)
+                params.filter = {
+                    ...params.filter,
+                    distinct_on: ["area_id", "contest_id", "channel"],
+                }
+            }
+
+            let ret = buildQuery(introspectionResults)(raFetchType, resourceName, params)
+            if (params?.meta?.distinctBallotBoxes && ret?.variables?.order_by) {
+                ret.variables.order_by = [
+                    {area_id: "asc"},
+                    {contest_id: "asc"},
+                    {channel: "asc"},
+                    {version: "desc"},
+                ]
+            }
+            return ret
         }
         return buildQuery(introspectionResults)(raFetchType, resourceName, params)
     }

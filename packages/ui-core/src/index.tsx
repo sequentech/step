@@ -29,7 +29,12 @@ export {isNumber, isString, isArray, isNull, isUndefined} from "./utils/typechec
 export {downloadBlob, downloadUrl} from "./services/downloadBlob"
 export {shuffle, splitList, keyBy} from "./utils/array"
 export {normalizeWriteInText} from "./services/normalizeWriteInText"
-export {translate, translateFromPresentation} from "./services/translate"
+export {
+    isTranslatablePresentation,
+    translate,
+    translateFromPresentation,
+} from "./services/translate"
+export * from "./services/votingPortalDateTime"
 export * from "./types/ElectionEventPresentation"
 export * from "./services/percentFormatter"
 export * from "./services/cssClassNameFormatter"
@@ -37,5 +42,7 @@ export * from "./services/wasm"
 export * from "./services/sanitizeFilename"
 export * from "./types/AreaPresentation"
 export * from "./services/candidatePresentation"
+export * from "./services/categoryService"
 export * from "./utils/cookies"
 export * from "./constants/keycloak"
+export * from "./types/VotingChannel"

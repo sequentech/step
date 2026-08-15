@@ -6,7 +6,7 @@ use criterion::{
     criterion_group, criterion_main, BenchmarkId, Criterion, SamplingMode,
 };
 use rand::rngs::OsRng;
-use rand::RngCore;
+use rand::TryRngCore;
 
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
@@ -33,7 +33,7 @@ fn encrypt_ristretto(
 ) {
     let mut csprng = OsRng;
     let mut fill = [0u8; 30];
-    csprng.fill_bytes(&mut fill);
+    csprng.try_fill_bytes(&mut fill).unwrap();
     let plaintext = to_ristretto_plaintext_array(&fill.to_vec());
     encrypt(ctx, pk, plaintext, n);
 }

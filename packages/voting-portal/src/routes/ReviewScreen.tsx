@@ -382,6 +382,9 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     }
 
     const castBallotAction = async () => {
+        if (isCastingBallot.current) {
+            return
+        }
         const errorType = VotingPortalErrorType.UNABLE_TO_CAST_BALLOT
         isCastingBallot.current = true
         if (isDemo || globalSettings.DISABLE_AUTH) {
@@ -662,6 +665,9 @@ export const ReviewScreen: React.FC = () => {
 
     // Cast the ballot automatically after reauth with golden user
     const goldenUserCastBallotAction = async () => {
+        if (isCastingBallot.current) {
+            return
+        }
         isCastingBallot.current = true
         const errorType = VotingPortalErrorType.UNABLE_TO_CAST_BALLOT
         const ballotData = getBallotDataFromSessionStorage()
@@ -760,7 +766,16 @@ export const ReviewScreen: React.FC = () => {
     return (
         <PageLimit maxWidth="lg" className="review-screen screen">
             {auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW ? null : (
-                <BallotHash hash={ballotId || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />
+                <BallotHash
+                    hash={ballotId || ""}
+                    copyLabels={{
+                        copy: t("reviewScreen.copyBallotId"),
+                        copied: t("reviewScreen.ballotIdCopied"),
+                        error: t("reviewScreen.ballotIdCopyError"),
+                    }}
+                    helpButtonLabel={t("reviewScreen.ballotIdHelpDialog.title")}
+                    onHelpClick={() => setOpenBallotIdHelp(true)}
+                />
             )}
             <Dialog
                 handleClose={handleCloseDialogIdHelp}

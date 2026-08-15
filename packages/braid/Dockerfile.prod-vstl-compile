@@ -8,7 +8,7 @@ FROM braid-dependencies
 #TODO: Copy only necessary files
 WORKDIR /app
 COPY ./braid ./braid
-COPY ./b3 ./b3
+COPY ./b4 ./b4
 COPY ./electoral-log ./electoral-log
 COPY ./harvest ./harvest
 COPY ./strand ./strand
@@ -28,4 +28,4 @@ COPY ./.cargo ./.cargo
 # build projects
 
 WORKDIR /app/braid
-RUN cargo +nightly build --release --locked --frozen --offline
+RUN cargo build --release --locked --frozen --offline

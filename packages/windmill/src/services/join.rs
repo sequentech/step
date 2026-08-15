@@ -2,10 +2,102 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Result};
-use csv::ReaderBuilder;
+use anyhow::{anyhow, ensure, Result};
+use csv::{ReaderBuilder, StringRecord};
+use sequent_core::types::keycloak::{MAX_VOTE_WEIGHT, MIN_VOTE_WEIGHT};
+use sequent_core::types::participation::{ParticipationChannel, VotesByChannel};
 use std::{cmp::Ordering, fs::File};
 use tracing::{info, instrument};
+
+/// Where a voter's ballot multiplicity comes from, i.e. how many times the
+/// voter's ciphertext enters the mix batch. The payload is the index of the
+/// column carrying the value in the voters CSV.
+///
+/// The two variants are mutually exclusive by construction: delegated voting
+/// and voter-weighted voting cannot be enabled on the same election event, so
+/// the voters CSV carries at most one such column.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MultiplicitySource {
+    /// Column holds the number of voters who delegated to this voter.
+    /// Multiplicity is `1 + delegate_count`.
+    DelegateCount(usize),
+    /// Column holds the voter's own vote weight. Multiplicity is that weight.
+    VoteWeight(usize),
+}
+
+/// Reads `(multiplicity, census_count, cast_count)` for a voter row.
+///
+/// `multiplicity` is how many ciphertexts the voter contributes.
+/// `census_count` is how much the voter contributes to `eligible_voters`.
+/// `cast_count` is how much a matched ballot contributes to participation.
+/// Voter weights only affect `multiplicity`; census and election-level turnout
+/// remain voter headcounts. Delegated voting preserves its existing behavior,
+/// where a delegate's matched ballot represents the voter and all delegators.
+///
+/// A missing, empty or unparseable column is an error rather than a skipped
+/// voter: skipping would silently discard a cast ballot and under-count the
+/// census.
+fn read_multiplicity(
+    voter: &StringRecord,
+    source: Option<MultiplicitySource>,
+) -> Result<(u64, u64, u64)> {
+    let (index, is_weight) = match source {
+        None => return Ok((1, 1, 1)),
+        Some(MultiplicitySource::DelegateCount(index)) => (index, false),
+        Some(MultiplicitySource::VoteWeight(index)) => (index, true),
+    };
+
+    let raw = voter
+        .get(index)
+        .ok_or_else(|| anyhow!("Voter row is missing multiplicity column {index}: {voter:?}"))?;
+    let value: u64 = raw.trim().parse().map_err(|_| {
+        anyhow!("Invalid multiplicity {raw:?} in column {index} for voter row {voter:?}")
+    })?;
+
+    if is_weight {
+        ensure!(
+            (MIN_VOTE_WEIGHT..=MAX_VOTE_WEIGHT).contains(&value),
+            "Vote weight {value} is out of range, must be between \
+             {MIN_VOTE_WEIGHT} and {MAX_VOTE_WEIGHT}"
+        );
+        Ok((value, 1, 1))
+    } else {
+        let multiplicity = 1 + value;
+        Ok((multiplicity, 1, multiplicity))
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct MergeJoinResult {
+    /// `(ballot content, multiplicity)`. The content is stored once with its
+    /// multiplicity rather than repeated, so memory stays proportional to the
+    /// number of distinct ballots. Callers expand after parsing, where the
+    /// repeated value is a small ciphertext instead of the ballot payload.
+    pub ballot_contents: Vec<(String, u64)>,
+    pub eligible_voters: u64,
+    pub ballots_without_voter: u64,
+    pub casted_ballots: u64,
+    pub casted_ballots_by_channel: VotesByChannel,
+}
+
+fn count_ballot_channel(
+    counts: &mut VotesByChannel,
+    ballot: &StringRecord,
+    channel_index: Option<usize>,
+    count: u64,
+) -> Result<()> {
+    let Some(channel_index) = channel_index else {
+        return Ok(());
+    };
+    let channel = ballot
+        .get(channel_index)
+        .filter(|channel| !channel.is_empty())
+        .ok_or_else(|| anyhow!("Ballot channel column {channel_index} is missing or empty"))?;
+    *counts
+        .entry(ParticipationChannel::from(channel))
+        .or_default() += count;
+    Ok(())
+}
 
 #[instrument(skip_all, err)]
 pub fn merge_join_csv(
@@ -14,8 +106,9 @@ pub fn merge_join_csv(
     ballots_voter_id_index: usize,
     voters_id_index: usize,
     ballots_content_index: usize,
-    delegate_count_index: Option<usize>,
-) -> Result<(Vec<String>, u64, u64, u64)> {
+    ballots_channel_index: Option<usize>,
+    multiplicity_source: Option<MultiplicitySource>,
+) -> Result<MergeJoinResult> {
     info!("START merge_join_csv");
 
     // Initialize the result vector and counters
@@ -23,6 +116,7 @@ pub fn merge_join_csv(
     let mut ballots_without_voter: u64 = 0;
     let mut elegible_voters: u64 = 0;
     let mut casted_ballots: u64 = 0;
+    let mut casted_ballots_by_channel = VotesByChannel::new();
 
     // Assume the CSV files do not have headers.
     let mut ballots_reader = ReaderBuilder::new()
@@ -76,37 +170,20 @@ pub fn merge_join_csv(
             continue;
         }
 
-        // --- Delegate Count Logic ---
-        // This block runs only if the delegate feature is enabled.
-        // If parsing fails, we skip the voter record and continue the loop.
-        let delegate_count: usize = if let Some(index) = delegate_count_index {
-            let Some(delegate_count_str) = voter.get(index) else {
-                // Failed to get field, advance voter and continue loop
-                voters_record = voters_iterator.next();
-                continue;
-            };
-            if delegate_count_str.is_empty() {
-                // Empty field, advance voter and continue loop
-                voters_record = voters_iterator.next();
-                continue;
-            }
-            let Ok(count) = delegate_count_str.parse() else {
-                // Invalid number, advance voter and continue loop
-                voters_record = voters_iterator.next();
-                continue;
-            };
-            count
-        } else {
-            // Delegate feature is disabled, default to 0.
-            0
-        };
-        // --- End Delegate Count Logic ---
+        let (multiplicity, census_count, cast_count) =
+            read_multiplicity(voter, multiplicity_source)?;
 
         // Compare the join keys lexicographically.
         match ballot_voter_id.cmp(voter_id) {
             Ordering::Less => {
                 // If the ballot has no voter.
                 ballots_without_voter += 1;
+                count_ballot_channel(
+                    &mut casted_ballots_by_channel,
+                    ballot,
+                    ballots_channel_index,
+                    1,
+                )?;
                 // Advance ballots file.
                 ballots_record = ballots_iterator.next();
                 casted_ballots += 1;
@@ -114,7 +191,7 @@ pub fn merge_join_csv(
             Ordering::Greater => {
                 // Advance voters file.
                 voters_record = voters_iterator.next();
-                elegible_voters += 1;
+                elegible_voters += census_count;
             }
             Ordering::Equal => {
                 // Match found.
@@ -125,51 +202,96 @@ pub fn merge_join_csv(
                     )
                 })?;
 
-                // Add the voter's own ballot.
-                result.push(ballot_content.to_string());
+                // Store the ballot once with its multiplicity; it is expanded
+                // by the caller after parsing.
+                result.push((ballot_content.to_string(), multiplicity));
 
-                // Add delegates if any (if delegate_count was 0, this does nothing).
-                result.extend(std::iter::repeat(ballot_content.to_string()).take(delegate_count));
+                casted_ballots += cast_count;
+                count_ballot_channel(
+                    &mut casted_ballots_by_channel,
+                    ballot,
+                    ballots_channel_index,
+                    multiplicity,
+                )?;
 
                 // Advance both iterators.
                 ballots_record = ballots_iterator.next();
                 voters_record = voters_iterator.next();
 
-                // Count the voter's ballot (1) + all their delegated ballots.
-                casted_ballots += 1 + (delegate_count as u64);
-                elegible_voters += 1;
+                elegible_voters += census_count;
             }
         }
     }
 
-    // Count the rest of the voters
-    while voters_record.is_some() {
-        elegible_voters += 1;
+    // Count the rest of the voters. A record that will not parse still counts
+    // as one voter, exactly as it did before multiplicities existed, so this
+    // cannot move a census for an election that does not use them.
+    while let Some(voter_record) = voters_record {
+        let census_count = match &voter_record {
+            Ok(voter) => read_multiplicity(voter, multiplicity_source)?.1,
+            Err(_) => 1,
+        };
+        elegible_voters += census_count;
         voters_record = voters_iterator.next();
     }
 
     // Count the rest of the ballots
-    while ballots_record.is_some() {
+    while let Some(ballot_record) = ballots_record {
         casted_ballots += 1;
         ballots_without_voter += 1;
+        if ballots_channel_index.is_some() {
+            let ballot = ballot_record?;
+            count_ballot_channel(
+                &mut casted_ballots_by_channel,
+                &ballot,
+                ballots_channel_index,
+                1,
+            )?;
+        }
         ballots_record = ballots_iterator.next();
     }
 
-    info!("ballots_to_be_tallied: {}, elegible_voters: {}, ballots_without_voter: {}, casted_ballots: {}", result.len(), elegible_voters, ballots_without_voter, casted_ballots);
+    let ballots_to_be_tallied: u64 = result.iter().map(|(_, multiplicity)| multiplicity).sum();
+    if ballots_channel_index.is_some() {
+        let channel_total: u64 = casted_ballots_by_channel.values().sum();
+        let weighted_participation_total = ballots_to_be_tallied
+            .checked_add(ballots_without_voter)
+            .ok_or_else(|| anyhow!("Weighted participation total overflow"))?;
+        ensure!(
+            channel_total == weighted_participation_total,
+            "Ballot channel total {channel_total} does not match weighted participation total \
+             {weighted_participation_total}"
+        );
+    }
 
-    Ok((
-        result,
-        elegible_voters,
+    info!("ballots_to_be_tallied: {}, distinct_ballots: {}, elegible_voters: {}, ballots_without_voter: {}, casted_ballots: {}", ballots_to_be_tallied, result.len(), elegible_voters, ballots_without_voter, casted_ballots);
+
+    Ok(MergeJoinResult {
+        ballot_contents: result,
+        eligible_voters: elegible_voters,
         ballots_without_voter,
         casted_ballots,
-    ))
+        casted_ballots_by_channel,
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use sequent_core::ballot::VotingStatusChannel;
     use std::io::Write;
     use tempfile::NamedTempFile;
+
+    /// Expands `(content, multiplicity)` pairs into the flat vector the merge
+    /// used to return, so the pre-existing assertions still describe the
+    /// ballots that reach the mix batch.
+    fn expand(contents: Vec<(String, u64)>) -> Vec<String> {
+        contents
+            .into_iter()
+            .flat_map(|(content, multiplicity)| std::iter::repeat_n(content, multiplicity as usize))
+            .collect()
+    }
 
     /// Helper function to run tests for `merge_join_csv` (non-delegate mode).
     fn run_merge_join_test(
@@ -189,21 +311,21 @@ mod tests {
 
         // Assumes standard test indexes:
         // ballots_voter_id_index=0, voters_id_index=0, ballots_content_index=1
-        // Pass `None` for delegate_count_index to run in standard mode.
-        let (ballot_contents, elegible_voters, ballots_without_voter, casted_ballots) =
-            merge_join_csv(
-                &ballots_ro,
-                &users_ro,
-                0,    // ballots_voter_id_index
-                0,    // voters_id_index
-                1,    // ballots_content_index
-                None, // delegate_count_index
-            )?;
+        // Pass `None` for multiplicity_source to run in standard mode.
+        let result = merge_join_csv(
+            &ballots_ro,
+            &users_ro,
+            0,    // ballots_voter_id_index
+            0,    // voters_id_index
+            1,    // ballots_content_index
+            None, // ballots_channel_index
+            None, // multiplicity_source
+        )?;
         Ok((
-            ballot_contents,
-            elegible_voters,
-            ballots_without_voter,
-            casted_ballots,
+            expand(result.ballot_contents),
+            result.eligible_voters,
+            result.ballots_without_voter,
+            result.casted_ballots,
         ))
     }
 
@@ -467,22 +589,22 @@ mod tests {
         let voters_ro = voters_file.reopen()?;
 
         // Call the function under test
-        // Pass `Some(1)` for delegate_count_index to run in delegate mode.
-        let (ballot_contents, elegible_voters, ballots_without_voter, casted_ballots) =
-            merge_join_csv(
-                &ballots_ro,
-                &voters_ro,
-                /* ballots_voter_id_index   */ 0,
-                /* voters_id_index        */ 0,
-                /* ballots_content_index  */ 1,
-                /* delegate_count_index   */ Some(1),
-            )?;
+        // Pass a DelegateCount source to run in delegate mode.
+        let result = merge_join_csv(
+            &ballots_ro,
+            &voters_ro,
+            /* ballots_voter_id_index   */ 0,
+            /* voters_id_index        */ 0,
+            /* ballots_content_index  */ 1,
+            /* ballots_channel_index  */ None,
+            /* multiplicity_source    */ Some(MultiplicitySource::DelegateCount(1)),
+        )?;
 
         Ok((
-            ballot_contents,
-            elegible_voters,
-            ballots_without_voter,
-            casted_ballots,
+            expand(result.ballot_contents),
+            result.eligible_voters,
+            result.ballots_without_voter,
+            result.casted_ballots,
         ))
     }
 
@@ -592,10 +714,12 @@ mod tests {
     }
 
     /// ------------------------------------------------------------------
-    /// 3. Invalid delegate count
+    /// 3. Invalid multiplicity is fatal, never a skipped voter
     /// ------------------------------------------------------------------
+    /// Skipping the voter would drop their cast ballot from the tally and
+    /// under-count the census, both silently.
     #[test]
-    fn test_invalid_delegate_count() -> Result<()> {
+    fn test_invalid_delegate_count_is_an_error() {
         let ballots = "\
             user_A,content_A
             user_G,content_G";
@@ -604,22 +728,193 @@ mod tests {
             user_A,1
             user_G,not_a_number"; // invalid count
 
-        let (result, elegible_voters, ballots_without_voter, casted_ballots) =
-            run_merge_join_delegates_test(ballots, voters)?;
+        let error = run_merge_join_delegates_test(ballots, voters)
+            .expect_err("an unparseable multiplicity must fail the merge");
+        assert!(
+            error.to_string().contains("Invalid multiplicity"),
+            "unexpected error: {error}"
+        );
+    }
 
-        // user_A → matched, 1 + 1 = 2 copies
-        assert_eq!(result.len(), 2);
-        assert_eq!(result, vec!["content_A", "content_A"]);
+    /// ------------------------------------------------------------------
+    /// Voter-weighted voting
+    /// ------------------------------------------------------------------
 
-        // user_G's voter record is skipped due to invalid parse.
-        // This means user_G's *ballot* is not matched.
-        assert_eq!(ballots_without_voter, 1);
+    /// Runs the merge in voter-weighted mode. The voters file is
+    /// `voter_id,vote_weight`.
+    fn run_merge_join_weights_test(
+        ballots: &str,
+        voters: &str,
+        channel_index: Option<usize>,
+    ) -> Result<MergeJoinResult> {
+        let mut ballots_file = NamedTempFile::new()?;
+        write!(ballots_file, "{ballots}")?;
+        ballots_file.flush()?;
 
-        // Total casted ballots = 2 (A) + 1 (G) = 3
-        assert_eq!(casted_ballots, 3);
+        let mut voters_file = NamedTempFile::new()?;
+        write!(voters_file, "{voters}")?;
+        voters_file.flush()?;
 
-        // Only user_A is counted as an eligible voter. user_G was skipped.
-        assert_eq!(elegible_voters, 1);
+        merge_join_csv(
+            &ballots_file.reopen()?,
+            &voters_file.reopen()?,
+            0,
+            0,
+            1,
+            channel_index,
+            Some(MultiplicitySource::VoteWeight(1)),
+        )
+    }
+
+    /// A voter with weight `w` contributes `w` ballots to the tally, while
+    /// census and participation remain voter headcounts.
+    #[test]
+    fn test_vote_weight_only_multiplies_tallied_ballots() -> Result<()> {
+        let ballots = "user_A,content_A\nuser_B,content_B";
+        // user_C is eligible but did not vote.
+        let voters = "user_A,3\nuser_B,1\nuser_C,5";
+
+        let result = run_merge_join_weights_test(ballots, voters, None)?;
+
+        assert_eq!(
+            result.ballot_contents,
+            vec![("content_A".to_string(), 3), ("content_B".to_string(), 1)]
+        );
+        assert_eq!(result.casted_ballots, 2);
+        assert_eq!(result.eligible_voters, 3);
+        assert_eq!(result.ballots_without_voter, 0);
+        Ok(())
+    }
+
+    /// An absent weight column value can never reach here: the SQL COALESCEs it
+    /// to the default. If it somehow does, it must fail loudly.
+    #[test]
+    fn test_empty_vote_weight_is_an_error() {
+        let error = run_merge_join_weights_test("user_A,content_A", "user_A,", None)
+            .expect_err("an empty weight must fail the merge");
+        assert!(
+            error.to_string().contains("Invalid multiplicity"),
+            "unexpected error: {error}"
+        );
+    }
+
+    #[test]
+    fn test_out_of_range_vote_weights_are_errors() {
+        for weight in ["0", "-1", "1.5", "abc", "100001"] {
+            let voters = format!("user_A,{weight}");
+            let error = run_merge_join_weights_test("user_A,content_A", &voters, None)
+                .unwrap_err()
+                .to_string();
+            assert!(
+                error.contains("Invalid multiplicity") || error.contains("out of range"),
+                "vote weight {weight} must be rejected as a weight, got: {error}"
+            );
+        }
+    }
+
+    /// Defensive: the dump now emits a canonical number, so padding cannot
+    /// reach here from that path. It can from a hand-written voters file in a
+    /// test or tool, and failing on it would abort the tally after voting
+    /// closed, so parsing stays lenient about surrounding whitespace.
+    #[test]
+    fn test_padded_vote_weight_is_accepted() -> Result<()> {
+        let result = run_merge_join_weights_test("user_A,content_A", "user_A, 3 ", None)?;
+        assert_eq!(result.ballot_contents, vec![("content_A".to_string(), 3)]);
+        Ok(())
+    }
+
+    /// Channel totals stay in the same weighted units as the tally input so
+    /// downstream tally validation can compare like with like.
+    #[test]
+    fn test_vote_weight_channel_totals_remain_weighted() -> Result<()> {
+        let ballots = "user_A,content_A,ONLINE\nuser_B,content_B,TELEPHONE";
+        let voters = "user_A,11\nuser_B,2";
+
+        let result = run_merge_join_weights_test(ballots, voters, Some(2))?;
+
+        assert_eq!(result.casted_ballots, 2);
+        assert_eq!(
+            result
+                .casted_ballots_by_channel
+                .get(&VotingStatusChannel::ONLINE.into()),
+            Some(&11)
+        );
+        assert_eq!(
+            result
+                .casted_ballots_by_channel
+                .get(&VotingStatusChannel::TELEPHONE.into()),
+            Some(&2)
+        );
+        Ok(())
+    }
+
+    /// Weight 1 everywhere must be indistinguishable from the feature being off.
+    #[test]
+    fn test_unit_weights_match_unweighted_behaviour() -> Result<()> {
+        let ballots = "user_A,content_A\nuser_B,content_B";
+        let weighted = run_merge_join_weights_test(ballots, "user_A,1\nuser_B,1", None)?;
+        let (plain_contents, plain_eligible, plain_without, plain_casted) =
+            run_merge_join_test(ballots, "user_A\nuser_B")?;
+
+        assert_eq!(expand(weighted.ballot_contents), plain_contents);
+        assert_eq!(weighted.eligible_voters, plain_eligible);
+        assert_eq!(weighted.ballots_without_voter, plain_without);
+        assert_eq!(weighted.casted_ballots, plain_casted);
+        Ok(())
+    }
+
+    #[test]
+    fn test_counts_channels_for_matched_auditable_and_delegated_ballots() -> Result<()> {
+        let mut ballots_file = NamedTempFile::new()?;
+        write!(
+            ballots_file,
+            "user_A,content_A,ONLINE\nuser_B,content_B,TELEPHONE\nuser_Z,content_Z,KIOSK"
+        )?;
+        ballots_file.flush()?;
+
+        let mut voters_file = NamedTempFile::new()?;
+        write!(voters_file, "user_A,2\nuser_B,0")?;
+        voters_file.flush()?;
+
+        let result = merge_join_csv(
+            &ballots_file.reopen()?,
+            &voters_file.reopen()?,
+            0,
+            0,
+            1,
+            Some(2),
+            Some(MultiplicitySource::DelegateCount(1)),
+        )?;
+
+        assert_eq!(expand(result.ballot_contents.clone()).len(), 4);
+        assert_eq!(result.casted_ballots, 5);
+        assert_eq!(result.ballots_without_voter, 1);
+        assert_eq!(
+            result
+                .casted_ballots_by_channel
+                .get(&VotingStatusChannel::ONLINE.into()),
+            Some(&3)
+        );
+        assert_eq!(
+            result
+                .casted_ballots_by_channel
+                .get(&VotingStatusChannel::TELEPHONE.into()),
+            Some(&1)
+        );
+        assert_eq!(
+            result
+                .casted_ballots_by_channel
+                .get(&VotingStatusChannel::KIOSK.into()),
+            Some(&1)
+        );
+        assert_eq!(
+            result
+                .casted_ballots_by_channel
+                .values()
+                .copied()
+                .sum::<u64>(),
+            result.casted_ballots
+        );
 
         Ok(())
     }

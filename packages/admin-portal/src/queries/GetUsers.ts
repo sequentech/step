@@ -14,6 +14,7 @@ export const LIST_USERS = gql`
         $last_name: jsonb
         $limit: Int
         $offset: Int
+        $userIds: [String!]
         $showVotesInfo: Boolean
         $attributes: jsonb
         $enabled: Boolean
@@ -32,6 +33,7 @@ export const LIST_USERS = gql`
                 last_name: $last_name
                 limit: $limit
                 offset: $offset
+                user_ids: $userIds
                 show_votes_info: $showVotesInfo
                 attributes: $attributes
                 enabled: $enabled
@@ -85,21 +87,15 @@ export const formatUserAtributesToJsonb = (attributes: any) => {
     return null
 }
 
-const ATTRIBUTES = "attributes"
 export const formatUserSortToJsonb = (sort: Record<string, string>) => {
-    const newUserSortObject: Record<string, string> = {}
-    if (sort) {
-        Object.entries(sort).forEach(([key, value]) => {
-            let actuallValue = value
-            // if value is as attributes['field'] it shoulde be just field
-            if (value.includes(ATTRIBUTES)) {
-                actuallValue = value.substring(ATTRIBUTES.length + 2, value.length - 2)
-            }
-            newUserSortObject[`'${key}'`] = actuallValue
-        })
-        return newUserSortObject
+    const bracketAttribute = sort.field.match(/^attributes\[['"](.+)['"]\]$/)
+    const dotAttribute = sort.field.match(/^attributes\.(.+)$/)
+    const field = bracketAttribute?.[1] ?? dotAttribute?.[1] ?? sort.field
+
+    return {
+        "'field'": field,
+        "'order'": sort.order,
     }
-    return null
 }
 
 export const customBuildGetUsersVariables =
@@ -119,6 +115,7 @@ export const customBuildGetUsersVariables =
                 pagination?.page && pagination?.perPage
                     ? (pagination.page - 1) * pagination.perPage
                     : null,
+            userIds: filter.user_ids || null,
             showVotesInfo: filter.election_event_id ? true : false,
             attributes: filter.attributes ? formatUserAtributesToJsonb(filter.attributes) : null,
             enabled: filter.enabled ?? null,

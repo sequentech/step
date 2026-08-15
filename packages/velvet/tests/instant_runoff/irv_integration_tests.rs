@@ -538,6 +538,7 @@ fn test_run_with_random_ballots() {
         let decoded_vote = DecodedVoteContest {
             contest_id: contest.id.clone(),
             is_explicit_invalid: false,
+            is_decline_to_vote: false,
             invalid_errors: Vec::new(),
             invalid_alerts: Vec::new(),
             choices,
@@ -650,6 +651,7 @@ fn test_all_ballot_candidates_unselected() {
         let decoded_vote = DecodedVoteContest {
             contest_id: contest.id.clone(),
             is_explicit_invalid: false,
+            is_decline_to_vote: false,
             invalid_errors: Vec::new(),
             invalid_alerts: Vec::new(),
             choices,
@@ -752,6 +754,7 @@ fn test_tie_in_final_round() {
             DecodedVoteContest {
                 contest_id: contest.id.clone(),
                 is_explicit_invalid: false,
+                is_decline_to_vote: false,
                 invalid_errors: Vec::new(),
                 invalid_alerts: Vec::new(),
                 choices,
@@ -784,6 +787,7 @@ fn test_tie_in_final_round() {
             DecodedVoteContest {
                 contest_id: contest.id.clone(),
                 is_explicit_invalid: false,
+                is_decline_to_vote: false,
                 invalid_errors: Vec::new(),
                 invalid_alerts: Vec::new(),
                 choices,
@@ -815,6 +819,7 @@ fn test_tie_in_final_round() {
         DecodedVoteContest {
             contest_id: contest.id.clone(),
             is_explicit_invalid: false,
+            is_decline_to_vote: false,
             invalid_errors: Vec::new(),
             invalid_alerts: Vec::new(),
             choices,
@@ -845,6 +850,7 @@ fn test_tie_in_final_round() {
         DecodedVoteContest {
             contest_id: contest.id.clone(),
             is_explicit_invalid: false,
+            is_decline_to_vote: false,
             invalid_errors: Vec::new(),
             invalid_alerts: Vec::new(),
             choices,

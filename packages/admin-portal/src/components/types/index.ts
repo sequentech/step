@@ -12,5 +12,6 @@ export const UserActionTypes = {
     DELETE: "delete",
     PASSWORD: "password",
     MANUAL_VERIFICATION: "manual_verification",
+    VOTER_INFORMATION_LETTER: "voter_information_letter",
     LOGS: "logs",
 }

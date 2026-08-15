@@ -2,10 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {Sequent_Backend_Election_Event, Sequent_Backend_Tally_Session} from "@/gql/graphql"
 import {Box} from "@mui/material"
-import React, {useState} from "react"
-import {useRecordContext} from "react-admin"
+import React from "react"
 import {ListTally} from "../Tally/ListTally"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {TallyCeremony} from "../Tally/TallyCeremony"

@@ -29,13 +29,13 @@ borsh = { version = "1.5", features = ["derive"] }
 
 # wasm
 # Note: Using specific version of wasm-bindgen to match Nix version
-wasm-bindgen = {version = "=0.2.100", features = ['serde-serialize'], optional = true}
+wasm-bindgen = {version = "=0.2.104", features = ['serde-serialize'], optional = true}
 serde-wasm-bindgen = { version = "0.6", optional = true }
 web-sys = { version = "0.3", features = ['Performance', 'console'], optional = true}
 cfg-if = "1.0"
 # signatures
-ed25519-dalek = {version = "=2.1", features = ["serde"]}
-curve25519-dalek = { version = "=4.1", features = [] }
+ed25519-dalek = {version = "=3.0.0-pre.1", features = ["serde"]}
+curve25519-dalek = { version = "=5.0.0-pre.1", features = [] }
 # aws
 aws-config = { version = "1.6", features = ["behavior-version-latest"], optional = true }
 aws-sdk-sesv2 = { version = "1.70", optional = true }
@@ -59,7 +59,8 @@ base64 = "0.22"
 # rust to json schema
 schemars = { version = "0.8", features = ["chrono"]}
 # strand
-strand = { path="../strand", features = ["num_bigint"], optional = true }
+strand = { path="../strand", features = [], optional = true}
+
 num-bigint = { version = "0.4", features = ["rand"], optional = true }
 num-traits = "0.2"
 quick-error = "2.0"
@@ -80,6 +81,7 @@ phf = { version = "0.11", features = ["macros"], default-features = false }
 handlebars = { version = "6.1", optional = true }
 handlebars-chrono = { version = "0.2", features = [ "locale", "timezone" ], optional = true }
 num-format = { version = "0.4", optional = true }
+urlencoding = { version = "2.1", optional = true }
 headless_chrome = { version = "1.0", optional = true }
 reqwest = { version="0.12", features = ["blocking", "json", "rustls-tls"], optional = true, default-features = false }
 reqwest-retry = { version = "0.7", optional = true }
@@ -137,10 +139,10 @@ wasm = ["dep:wasm-bindgen", "areas", "dep:serde-wasm-bindgen"]
 signatures=["dep:tracing"]
 default = []
 areas = []
-reports = ["dep:handlebars", "dep:handlebars-chrono", "dep:headless_chrome", "dep:reqwest", "dep:tracing", "dep:tokio", "dep:num-format", "dep:aws-config", "dep:aws-sdk-sesv2", "dep:aws-sdk-sns", "dep:aws-sdk-s3", "dep:aws-smithy-types", "dep:sha256", "dep:ammonia"]
+reports = ["dep:handlebars", "dep:handlebars-chrono", "dep:headless_chrome", "dep:reqwest", "dep:tracing", "dep:tokio", "dep:num-format", "dep:urlencoding", "dep:aws-config", "dep:aws-sdk-sesv2", "dep:aws-sdk-sns", "dep:aws-sdk-s3", "dep:aws-smithy-types", "dep:sha256", "dep:ammonia"]
 reports_sync = []
-s3 = ["dep:reqwest"]
-keycloak = ["dep:openid", "dep:reqwest", "dep:reqwest-retry", "dep:reqwest-middleware", "dep:serde_urlencoded", "dep:rocket", "dep:keycloak", "dep:tracing", "dep:uuid", "dep:regex", "dep:jsonwebtoken", "dep:tokio-postgres", "dep:time"]
+s3 = ["dep:reqwest", "dep:aws-config", "dep:aws-sdk-sesv2", "dep:aws-sdk-sns", "dep:aws-sdk-s3", "dep:aws-smithy-types"]
+keycloak = ["jwt", "dep:openid", "dep:reqwest", "dep:reqwest-retry", "dep:reqwest-middleware", "dep:serde_urlencoded", "dep:rocket", "dep:keycloak", "dep:tracing", "dep:uuid", "dep:regex", "dep:jsonwebtoken", "dep:tokio-postgres", "dep:time"]
 log = ["dep:tracing", "dep:tracing-subscriber", "dep:tracing-tree", "dep:tracing-log"]
 probe = ["dep:tokio", "dep:warp"]
 # Lambda examples
@@ -151,6 +153,9 @@ plugins_wit = ["dep:wasmtime", "dep:wasmtime-wasi"]
 default_features = ["dep:strand", "dep:num-bigint", "dep:tempfile", "dep:ammonia"]
 
 sqlite = ["dep:tokio", "dep:rusqlite"]
+time = ["dep:time"]
+tracing = ["dep:tracing"]
+jwt = ["time", "tracing"]
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 ring = { version = "0.17", features = ["wasm32_unknown_unknown_js"] }

@@ -1,0 +1,129 @@
+table:
+    name: phone_blacklist
+    schema: sequent_backend
+insert_permissions:
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - created_at
+              - created_by
+              - election_event_id
+              - id
+              - phone_e164
+              - reason
+              - tenant_id
+              - updated_at
+      role: admin-user
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - phone_e164
+              - reason
+              - created_at
+              - created_by
+              - election_event_id
+              - id
+              - tenant_id
+              - updated_at
+      role: service-account
+select_permissions:
+    - comment: ""
+      permission:
+          columns:
+              - phone_e164
+              - reason
+              - created_at
+              - created_by
+              - election_event_id
+              - id
+              - tenant_id
+              - updated_at
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
+      role: admin-user
+    - comment: ""
+      permission:
+          columns:
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
+      role: phone-blacklist-update
+    - comment: ""
+      permission:
+          columns:
+              - election_event_id
+              - phone_e164
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
+      role: phone-blacklist-read
+    - comment: ""
+      permission:
+          columns:
+              - phone_e164
+              - reason
+              - created_at
+              - created_by
+              - election_event_id
+              - id
+              - tenant_id
+              - updated_at
+          filter: {}
+          allow_aggregations: true
+      role: service-account
+update_permissions:
+    - comment: ""
+      permission:
+          columns:
+              - reason
+              - updated_at
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          columns:
+              - reason
+              - updated_at
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: phone-blacklist-update
+    - comment: ""
+      permission:
+          columns:
+              - reason
+              - updated_at
+          filter: {}
+          check: {}
+      role: service-account
+delete_permissions:
+    - comment: ""
+      permission:
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          filter: {}
+      role: service-account

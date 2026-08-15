@@ -87,6 +87,9 @@ const dutchTranslation: TranslationType = {
             backButton: "Stembiljet bewerken",
             castBallotButton: "Stem uitbrengen",
             auditButton: "Controleer stembiljet",
+            copyBallotId: "Stembiljet-ID kopiëren",
+            ballotIdCopied: "Stembiljet-ID gekopieerd",
+            ballotIdCopyError: "Stembiljet-ID kon niet worden gekopieerd",
             reviewScreenHelpDialog: {
                 title: "Over het controlescherm",
                 content:
@@ -103,7 +106,7 @@ const dutchTranslation: TranslationType = {
             auditBallotHelpDialog: {
                 title: "Wilt u het stembiljet auditen?",
                 content:
-                    "<p>Let op: het auditen van uw stembiljet maakt het ongeldig, waardoor u het stemproces opnieuw moet starten. Het auditproces stelt u in staat te verifiëren dat uw stembiljet correct is gecodeerd, maar het omvat geavanceerde technische stappen. We raden aan alleen door te gaan als u zeker bent van uw technische vaardigheden. Als u gewoon uw stem wilt uitbrengen, klik dan op <u>Annuleren</u> om terug te gaan naar het controlescherm.</b></p>",
+                    "<p>Let op: het auditen van uw stembiljet maakt het ongeldig, waardoor u het stemproces opnieuw moet starten. Het auditproces stelt u in staat te verifiëren dat uw stembiljet correct is gecodeerd, maar het omvat geavanceerde technische stappen. We raden aan alleen door te gaan als u zeker bent van uw technische vaardigheden. Als u gewoon uw stem wilt uitbrengen, klik dan op <u>Annuleren</u> om terug te gaan naar het controlescherm.</p>",
                 ok: "Ja, ik wil mijn stembiljet verwerpen om het te auditen",
                 cancel: "Annuleren",
             },
@@ -286,7 +289,8 @@ const dutchTranslation: TranslationType = {
                     "Dit scherm toont de lijst met stembiljetten waarvoor u kunt stemmen. U kunt alleen toegang krijgen als de stemperiode open is.",
                 ok: "OK",
             },
-            noResults: "Geen stembiljetten beschikbaar.",
+            noResults: "Momenteel geen stembiljetten.",
+            resultsButton: "Resultaten bekijken",
             demoDialog: {
                 title: "Demo stemhokje",
                 content:
@@ -367,6 +371,8 @@ const dutchTranslation: TranslationType = {
             locateAgain: "Zoek een ander Stembiljet",
             found: "Uw stembiljet ID {{ballotId}} is gevonden",
             notFound: "Uw stembiljet ID {{ballotId}} is niet gevonden",
+            ambiguous:
+                "Meer dan één van uw stembiljetten komt overeen met {{ballotId}}. Gebruik de volledige stembiljet-ID.",
             contentDesc: "Dit is de inhoud van uw stembiljet: ",
             wrongFormatBallotId: "Verkeerd formaat voor Stembiljet ID",
             ballotIdNotFoundAtFilter:
