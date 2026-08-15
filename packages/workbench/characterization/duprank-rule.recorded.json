@@ -12,7 +12,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -35,7 +39,11 @@
         "soft": true,
         "tally": "ImplicitInvalid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [
           "errors.implicit.duplicatedPosition"
@@ -58,7 +66,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -81,9 +93,15 @@
         "soft": true,
         "tally": "ImplicitInvalid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.duplicatedPosition"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.duplicatedPosition"
+        ],
+        "review": [
+          "errors.implicit.duplicatedPosition"
+        ]
+      },
       "predicted": {
         "errors": [
           "errors.implicit.duplicatedPosition"
@@ -106,7 +124,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -129,9 +151,15 @@
         "soft": true,
         "tally": "ImplicitInvalid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.duplicatedPosition"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.duplicatedPosition"
+        ],
+        "review": [
+          "errors.implicit.duplicatedPosition"
+        ]
+      },
       "predicted": {
         "errors": [
           "errors.implicit.duplicatedPosition"
@@ -154,7 +182,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -177,9 +209,15 @@
         "soft": true,
         "tally": "ImplicitInvalid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.duplicatedPosition"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.duplicatedPosition"
+        ],
+        "review": [
+          "errors.implicit.duplicatedPosition"
+        ]
+      },
       "predicted": {
         "errors": [
           "errors.implicit.duplicatedPosition"
@@ -202,7 +240,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -225,7 +267,11 @@
         "soft": false,
         "tally": "ImplicitInvalid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [
           "errors.implicit.duplicatedPosition"
@@ -248,7 +294,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -271,9 +321,15 @@
         "soft": true,
         "tally": "ImplicitInvalid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.duplicatedPosition"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.duplicatedPosition"
+        ],
+        "review": [
+          "errors.implicit.duplicatedPosition"
+        ]
+      },
       "predicted": {
         "errors": [
           "errors.implicit.duplicatedPosition"
@@ -296,7 +352,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -319,9 +379,15 @@
         "soft": true,
         "tally": "ImplicitInvalid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.duplicatedPosition"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.duplicatedPosition"
+        ],
+        "review": [
+          "errors.implicit.duplicatedPosition"
+        ]
+      },
       "predicted": {
         "errors": [
           "errors.implicit.duplicatedPosition"
@@ -344,7 +410,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -367,9 +437,15 @@
         "soft": true,
         "tally": "ImplicitInvalid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.duplicatedPosition"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.duplicatedPosition"
+        ],
+        "review": [
+          "errors.implicit.duplicatedPosition"
+        ]
+      },
       "predicted": {
         "errors": [
           "errors.implicit.duplicatedPosition"

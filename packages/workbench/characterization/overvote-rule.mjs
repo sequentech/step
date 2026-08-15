@@ -28,7 +28,7 @@ import {
     loadMarkerFixture,
     extractErrors,
 } from "./harness.mjs"
-import {f, inlineVisible} from "./spec.mjs"
+import {f, inlineViews} from "./spec.mjs"
 import {RULE_SPECS} from "./rule-specs.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -100,11 +100,11 @@ const CELLS = RULE_SPECS["overvote-rule"]
 function predict(over, invalid, state) {
     const cell = {over_vote_policy: over, invalid_vote_policy: invalid, state}
     const r = f(CELLS.specConfig(cell), CELLS.voteState(cell))
-    return {errors: r.errors, alerts: r.alerts, hard: r.hard, soft: r.soft, tally: r.tally}
+    return {errors: r.emissions.errors, alerts: r.emissions.alerts, hard: r.gate.hard, soft: r.gate.soft, tally: r.tally}
 }
 
-function derivedInlineVisible(observed, over, invalid) {
-    return inlineVisible({
+function derivedInline(observed, over, invalid) {
+    return inlineViews({
         errors: observed.errors,
         alerts: observed.alerts,
         policies: {over, invalid},
@@ -132,7 +132,7 @@ for (const over of OVER_POLICIES) {
                 invalid_vote_policy: invalid,
                 state,
                 observed,
-                derived_inline_visible: derivedInlineVisible(observed, over, invalid),
+                derived_inline: derivedInline(observed, over, invalid),
                 predicted: p,
                 match,
             })

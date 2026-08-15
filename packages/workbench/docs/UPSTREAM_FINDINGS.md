@@ -110,6 +110,12 @@ selection change renders with the stale filter. Latent in production
 (policies are static per session); an exhaustive-deps lint would flag
 it.
 
+Related, same function: `isVotedState` is threaded into
+`filterErrorList` as a parameter but consulted only by a debug log —
+a dead parameter since `7b0a1c71e8` dropped its uses from the filter
+conditions while keeping it in the signature (verified 2026-08-15
+during the workbench spec transcription).
+
 **How found:** same investigation.
 
 ---

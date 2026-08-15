@@ -34,7 +34,7 @@ import {
     isSilentDiscount,
     extractErrors,
 } from "./harness.mjs"
-import {f, inlineVisible} from "./spec.mjs"
+import {f, inlineViews} from "./spec.mjs"
 import {RULE_SPECS} from "./rule-specs.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -98,11 +98,11 @@ const CELLS = RULE_SPECS["duprank-rule"]
 function predict(dup, invalid, state) {
     const cell = {duplicated_rank_policy: dup, invalid_vote_policy: invalid, state}
     const r = f(CELLS.specConfig(cell), CELLS.voteState(cell))
-    return {errors: r.errors, alerts: r.alerts, hard: r.hard, soft: r.soft, tally: r.tally}
+    return {errors: r.emissions.errors, alerts: r.emissions.alerts, hard: r.gate.hard, soft: r.gate.soft, tally: r.tally}
 }
 
-function derivedInlineVisible(observed, invalid) {
-    return inlineVisible({
+function derivedInline(observed, invalid) {
+    return inlineViews({
         errors: observed.errors,
         alerts: observed.alerts,
         policies: {invalid},
@@ -129,7 +129,7 @@ for (const dup of DUP_POLICIES) {
                 invalid_vote_policy: invalid,
                 state,
                 observed,
-                derived_inline_visible: derivedInlineVisible(observed, invalid),
+                derived_inline: derivedInline(observed, invalid),
                 predicted: p,
                 match,
             })

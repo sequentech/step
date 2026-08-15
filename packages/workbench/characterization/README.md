@@ -116,7 +116,10 @@ functional model in [`docs/VOTE_VALIDATION.md`](../docs/VOTE_VALIDATION.md):
   [`dom-validate.mjs`](dom-validate.mjs) drives every cell of every rule
   through the real booth via Playwright against the dev server on :5173,
   setting config through the **Policy-overrides panel** (the reviewer path)
-  and navigating reload-free. Inline visibility is observed through the
+  and navigating reload-free. Inline visibility is observed at **both
+  observation points** — the touched voting screen (a deterministic
+  tick-untick arms the touch per cell; the untouched view is a recorded
+  constant — empty) and the review screen — through the
   `data-warn-id` attribute every WarnBox carries (upstream #2832), which
   yields raw message keys — no i18n ambiguity. (The two `*.browser.mjs`
   runners predate it — per-rule, store-dispatch config, reload-per-cell —
@@ -153,7 +156,8 @@ rules** through the real booth reload-free — the five plurality rules
 (over-vote, min-vote, blank, under-vote, invalid) on the explicit-blank-
 invalid fixture, and the two preferential rules (duplicate-rank,
 preference-gaps) on the IRV fixture with ranked selection — observing inline
-visibility at the review screen and reachability (the input constraint), and
+visibility at the touched voting screen and at the review screen, and
+reachability (the input constraint), and
 emits the **complete** tables in [`dom-validate.md`](dom-validate.md) —
 **229/229 matching the spec** (see the e2e-cost note in
 [`../docs/VALIDATION_LOGIC_DISTILLATION.md`](../docs/VALIDATION_LOGIC_DISTILLATION.md)
@@ -435,7 +439,7 @@ all six are:
 |---|---|---|
 | Checkers | 1 (headless wasm) | blank, over-vote, under-vote, min-vote, duplicated-rank, preference-gaps, invalid rules done. One recording serves **both** bands: the tally decode runs the identical function, so layer 1 is also the tally-side checker characterization. |
 | Gates | 2 (headless wasm) | blank, over-vote, under-vote, min-vote, duplicated-rank, preference-gaps, invalid rules done |
-| Filter | 3 (browser, booth) | **done for all seven rules** — `dom-validate.mjs` observes inline visibility at the review screen across every cell of the five plurality rules (explicit-blank-invalid fixture) and the two preferential rules (IRV fixture, ranked selection): **229/229** |
+| Filter | 3 (browser, booth) | **done for all seven rules, at both observation points** — `dom-validate.mjs` observes inline visibility at the touched voting screen and at the review screen across every cell of the five plurality rules (explicit-blank-invalid fixture) and the two preferential rules (IRV fixture, ranked selection): **229/229**. The untouched voting view is a recorded constant (empty — `blank-rule.filter.md`) |
 | Input constraint | 3 (browser) — `spec.mjs`'s `reachability` | **done** — observed both **behaviourally** across every rule cell (the `reachable` column of `dom-validate.md`: the state forms or it does not) and **directly** for both prevention mechanisms: the over-vote `disable` policy (`no (disabled)`, from probing the (max+1)th control's `disabled` attribute) and blank-marker exclusivity (`no (cleared)`, the marker collapsing a co-selected regular) |
 | Marker exclusivity (prevention) | browser — *reachability*, not effects | first reachability recording exists (over-vote under DISABLE: the state does not form); all five S1/S2 violations (over-vote + four min-vote) are confirmed through the full booth→cast→decrypt→tally pipeline (`overvote-e2e-pipeline.mjs`, `minvote-e2e-pipeline.mjs`). Prevention is characterized by *attempting* to create each state through the UI and recording whether it forms. Both marker directions are now recorded in `dom-validate`: the invalid marker does **not** clear (the `marker_plus` state forms — reachable `yes` — also confirmed end-to-end by `invalid-latent-choices-e2e.mjs`), and the blank marker **does** clear (the `regular_then_marker` state collapses to {marker only} — reachable `no (cleared)`). Open: the decline booth flow. |
 | Tally classifier | headless (velvet-wasm `tally_decoded_ballots`) | **done**: per-cell `tally` column in all seven rule tables, plus the standalone 32-cell six-class decision table (`classifier-table.md`, 32/32 matching the documented precedence) |

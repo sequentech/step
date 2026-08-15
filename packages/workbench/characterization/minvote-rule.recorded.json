@@ -14,7 +14,11 @@
         "soft": false,
         "tally": "ImplicitInvalid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [
           "errors.implicit.selectedMin"
@@ -37,7 +41,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -58,7 +66,11 @@
         "soft": false,
         "tally": "ExplicitBlank"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -81,9 +93,15 @@
         "soft": true,
         "tally": "ImplicitInvalid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.selectedMin"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.selectedMin"
+        ],
+        "review": [
+          "errors.implicit.selectedMin"
+        ]
+      },
       "predicted": {
         "errors": [
           "errors.implicit.selectedMin"
@@ -106,7 +124,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -127,7 +149,11 @@
         "soft": false,
         "tally": "ExplicitBlank"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -150,9 +176,15 @@
         "soft": true,
         "tally": "ImplicitInvalid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.selectedMin"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.selectedMin"
+        ],
+        "review": [
+          "errors.implicit.selectedMin"
+        ]
+      },
       "predicted": {
         "errors": [
           "errors.implicit.selectedMin"
@@ -175,7 +207,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -196,7 +232,11 @@
         "soft": false,
         "tally": "ExplicitBlank"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -219,9 +259,15 @@
         "soft": true,
         "tally": "ImplicitInvalid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.selectedMin"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.selectedMin"
+        ],
+        "review": [
+          "errors.implicit.selectedMin"
+        ]
+      },
       "predicted": {
         "errors": [
           "errors.implicit.selectedMin"
@@ -244,7 +290,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -265,7 +315,11 @@
         "soft": false,
         "tally": "ExplicitBlank"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -288,7 +342,11 @@
         "soft": false,
         "tally": "ImplicitInvalid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [
           "errors.implicit.selectedMin"
@@ -313,7 +371,11 @@
         "soft": false,
         "tally": "ImplicitInvalid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [
           "errors.implicit.selectedMin"
@@ -338,7 +400,11 @@
         "soft": false,
         "tally": "ImplicitInvalid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [
           "errors.implicit.selectedMin"
@@ -363,9 +429,15 @@
         "soft": true,
         "tally": "ImplicitInvalid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.selectedMin"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.selectedMin"
+        ],
+        "review": [
+          "errors.implicit.selectedMin"
+        ]
+      },
       "predicted": {
         "errors": [
           "errors.implicit.selectedMin"
@@ -390,9 +462,15 @@
         "soft": true,
         "tally": "ImplicitInvalid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.selectedMin"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.selectedMin"
+        ],
+        "review": [
+          "errors.implicit.selectedMin"
+        ]
+      },
       "predicted": {
         "errors": [
           "errors.implicit.selectedMin"
@@ -417,9 +495,15 @@
         "soft": true,
         "tally": "ImplicitInvalid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.selectedMin"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.selectedMin"
+        ],
+        "review": [
+          "errors.implicit.selectedMin"
+        ]
+      },
       "predicted": {
         "errors": [
           "errors.implicit.selectedMin"
@@ -444,9 +528,15 @@
         "soft": true,
         "tally": "ImplicitInvalid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.selectedMin"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.selectedMin"
+        ],
+        "review": [
+          "errors.implicit.selectedMin"
+        ]
+      },
       "predicted": {
         "errors": [
           "errors.implicit.selectedMin"
@@ -471,9 +561,15 @@
         "soft": true,
         "tally": "ImplicitInvalid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.selectedMin"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.selectedMin"
+        ],
+        "review": [
+          "errors.implicit.selectedMin"
+        ]
+      },
       "predicted": {
         "errors": [
           "errors.implicit.selectedMin"
@@ -498,9 +594,15 @@
         "soft": true,
         "tally": "ImplicitInvalid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.selectedMin"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.selectedMin"
+        ],
+        "review": [
+          "errors.implicit.selectedMin"
+        ]
+      },
       "predicted": {
         "errors": [
           "errors.implicit.selectedMin"
@@ -525,9 +627,15 @@
         "soft": true,
         "tally": "ImplicitInvalid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.selectedMin"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.selectedMin"
+        ],
+        "review": [
+          "errors.implicit.selectedMin"
+        ]
+      },
       "predicted": {
         "errors": [
           "errors.implicit.selectedMin"
@@ -552,9 +660,15 @@
         "soft": true,
         "tally": "ImplicitInvalid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.selectedMin"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.selectedMin"
+        ],
+        "review": [
+          "errors.implicit.selectedMin"
+        ]
+      },
       "predicted": {
         "errors": [
           "errors.implicit.selectedMin"
@@ -579,9 +693,15 @@
         "soft": true,
         "tally": "ImplicitInvalid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.selectedMin"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.selectedMin"
+        ],
+        "review": [
+          "errors.implicit.selectedMin"
+        ]
+      },
       "predicted": {
         "errors": [
           "errors.implicit.selectedMin"

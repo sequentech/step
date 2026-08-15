@@ -13,7 +13,11 @@
         "tally": "ImplicitBlank",
         "decoded_flag": false
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -34,7 +38,11 @@
         "tally": "Valid",
         "decoded_flag": false
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -55,7 +63,11 @@
         "tally": "ExplicitInvalid",
         "decoded_flag": true
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -76,7 +88,11 @@
         "tally": "ExplicitInvalid",
         "decoded_flag": true
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -97,7 +113,11 @@
         "tally": "ExplicitInvalid",
         "decoded_flag": true
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -118,7 +138,11 @@
         "tally": "ImplicitBlank",
         "decoded_flag": false
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -139,7 +163,11 @@
         "tally": "Valid",
         "decoded_flag": false
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -160,7 +188,11 @@
         "tally": "ExplicitInvalid",
         "decoded_flag": true
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -181,7 +213,11 @@
         "tally": "ExplicitInvalid",
         "decoded_flag": true
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -202,7 +238,11 @@
         "tally": "ExplicitInvalid",
         "decoded_flag": true
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -223,7 +263,11 @@
         "tally": "ImplicitBlank",
         "decoded_flag": false
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -244,7 +288,11 @@
         "tally": "Valid",
         "decoded_flag": false
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -267,9 +315,15 @@
         "tally": "ExplicitInvalid",
         "decoded_flag": true
       },
-      "derived_inline_visible": [
-        "errors.explicit.alert"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.explicit.alert"
+        ],
+        "review": [
+          "errors.explicit.alert"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -294,9 +348,15 @@
         "tally": "ExplicitInvalid",
         "decoded_flag": true
       },
-      "derived_inline_visible": [
-        "errors.explicit.alert"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.explicit.alert"
+        ],
+        "review": [
+          "errors.explicit.alert"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -321,9 +381,15 @@
         "tally": "ExplicitInvalid",
         "decoded_flag": true
       },
-      "derived_inline_visible": [
-        "errors.explicit.alert"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.explicit.alert"
+        ],
+        "review": [
+          "errors.explicit.alert"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -346,7 +412,11 @@
         "tally": "ImplicitBlank",
         "decoded_flag": false
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -367,7 +437,11 @@
         "tally": "Valid",
         "decoded_flag": false
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -390,9 +464,15 @@
         "tally": "ExplicitInvalid",
         "decoded_flag": true
       },
-      "derived_inline_visible": [
-        "errors.explicit.notAllowed"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.explicit.notAllowed"
+        ],
+        "review": [
+          "errors.explicit.notAllowed"
+        ]
+      },
       "predicted": {
         "errors": [
           "errors.explicit.notAllowed"
@@ -417,9 +497,15 @@
         "tally": "ExplicitInvalid",
         "decoded_flag": true
       },
-      "derived_inline_visible": [
-        "errors.explicit.notAllowed"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.explicit.notAllowed"
+        ],
+        "review": [
+          "errors.explicit.notAllowed"
+        ]
+      },
       "predicted": {
         "errors": [
           "errors.explicit.notAllowed"
@@ -444,9 +530,15 @@
         "tally": "ExplicitInvalid",
         "decoded_flag": true
       },
-      "derived_inline_visible": [
-        "errors.explicit.notAllowed"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.explicit.notAllowed"
+        ],
+        "review": [
+          "errors.explicit.notAllowed"
+        ]
+      },
       "predicted": {
         "errors": [
           "errors.explicit.notAllowed"

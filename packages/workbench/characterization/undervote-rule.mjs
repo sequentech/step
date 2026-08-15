@@ -30,7 +30,7 @@ import {
     loadMarkerFixture,
     extractErrors,
 } from "./harness.mjs"
-import {f, inlineVisible} from "./spec.mjs"
+import {f, inlineViews} from "./spec.mjs"
 import {RULE_SPECS} from "./rule-specs.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -99,14 +99,18 @@ const CELLS = RULE_SPECS["undervote-rule"]
 function predict(under, invalid, state) {
     const cell = {under_vote_policy: under, invalid_vote_policy: invalid, state}
     const r = f(CELLS.specConfig(cell), CELLS.voteState(cell))
-    return {errors: r.errors, alerts: r.alerts, hard: r.hard, soft: r.soft, tally: r.tally}
+    return {errors: r.emissions.errors, alerts: r.emissions.alerts, hard: r.gate.hard, soft: r.gate.soft, tally: r.tally}
 }
 
-function derivedInlineVisible(observed) {
-    // under-vote produces only alerts; the filter's error-suppression does not
-    // touch alerts. WARN_ONLY_IN_REVIEW review-gating is a separate observation
-    // point (browser); this during-voting view shows the alert.
-    return inlineVisible({errors: observed.errors, alerts: observed.alerts})
+// Derived (convention 3: labelled, not an observation): the per-point views
+// need the policies — the voting view hides the underVote alert under
+// WARN_ONLY_IN_REVIEW; the review view shows it.
+function derivedInline(observed, under, invalid) {
+    return inlineViews({
+        errors: observed.errors,
+        alerts: observed.alerts,
+        policies: {under, invalid},
+    })
 }
 
 const rows = []
@@ -129,7 +133,7 @@ for (const under of UNDER_POLICIES) {
                 invalid_vote_policy: invalid,
                 state,
                 observed,
-                derived_inline_visible: derivedInlineVisible(observed),
+                derived_inline: derivedInline(observed, under, invalid),
                 predicted: p,
                 match,
             })

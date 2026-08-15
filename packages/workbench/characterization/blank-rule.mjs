@@ -30,7 +30,7 @@ import {
     loadMarkerFixture,
     extractErrors,
 } from "./harness.mjs"
-import {f, inlineVisible} from "./spec.mjs"
+import {f, inlineViews} from "./spec.mjs"
 import {RULE_SPECS} from "./rule-specs.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -103,18 +103,16 @@ const CELLS = RULE_SPECS["blank-rule"]
 function predict(blank, invalid, state) {
     const cell = {blank_vote_policy: blank, invalid_vote_policy: invalid, state}
     const r = f(CELLS.specConfig(cell), CELLS.voteState(cell))
-    return {errors: r.errors, alerts: r.alerts, hard: r.hard, soft: r.soft, tally: r.tally}
+    return {errors: r.emissions.errors, alerts: r.emissions.alerts, hard: r.gate.hard, soft: r.gate.soft, tally: r.tally}
 }
 
-// Derived (convention 3: labelled, not an observation): what the booth's
-// master filter leaves visible inline, from the recorded checker output +
-// the verified filterErrorList rules. Under invalid=allowed all errors are
-// suppressed except blankVote when blank=not-allowed (the documented
-// exception); alerts are shown (WARN_ONLY_IN_REVIEW review-gating is a
-// separate observation point, not modelled in this during-voting view).
-// The browser runner confirms the headline cells.
-function derivedInlineVisible(observed, blank, invalid) {
-    return inlineVisible({
+// Derived (convention 3: labelled, not an observation): what the booth
+// filter leaves rendered at each observation point, computed from the
+// RECORDED checker output + the transcribed filterErrorList rules
+// (spec.inlineViews). The DOM lane validates the voting and review views
+// per cell.
+function derivedInline(observed, blank, invalid) {
+    return inlineViews({
         errors: observed.errors,
         alerts: observed.alerts,
         policies: {blank, invalid},
@@ -143,7 +141,7 @@ for (const blank of BLANK_POLICIES) {
                 invalid_vote_policy: invalid,
                 state,
                 observed: {errors, alerts, ...gates, tally},
-                derived_inline_visible: derivedInlineVisible(
+                derived_inline: derivedInline(
                     {errors, alerts},
                     blank,
                     invalid

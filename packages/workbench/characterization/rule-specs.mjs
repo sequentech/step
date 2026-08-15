@@ -304,6 +304,19 @@ export async function observeBooth(page, {electionId, contestId, voterId, spec, 
     await enterBooth(page, voterId)
     await page.getByText(spec.landmark).first().waitFor({timeout: 15000})
     await clearSelections(page)
+    // Deterministic touch: the voting screen's inline surface stays empty
+    // until the contest is "touched" (`isTouched`, Question.tsx state, armed
+    // only by a selection appearing — the null-vote marker alone never arms
+    // it, and the Clear button clears without arming). Tick and untick the
+    // landmark candidate so every cell observes the TOUCHED voting surface;
+    // the untouched view is a recorded constant (empty —
+    // blank-rule.filter.md, untouched column). Ranked contests skip it:
+    // every preferential cell ranks at least one candidate, which arms the
+    // touch by itself.
+    if (!spec.ranks) {
+        await page.getByText(spec.landmark).first().click().catch(() => {})
+        await page.getByText(spec.landmark).first().click().catch(() => {})
+    }
     await spec.select(page, cell, spec)
 
     const formed = await selectionCount(page, electionId, contestId)

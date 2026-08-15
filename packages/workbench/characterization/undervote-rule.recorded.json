@@ -12,7 +12,11 @@
         "soft": false,
         "tally": "ImplicitBlank"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -33,7 +37,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -54,7 +62,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -75,7 +87,11 @@
         "soft": false,
         "tally": "ImplicitBlank"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -96,7 +112,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -117,7 +137,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -138,7 +162,11 @@
         "soft": false,
         "tally": "ImplicitBlank"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -159,7 +187,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -180,7 +212,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -201,7 +237,11 @@
         "soft": false,
         "tally": "ImplicitBlank"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -222,7 +262,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -243,7 +287,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -266,9 +314,15 @@
         "soft": false,
         "tally": "ImplicitBlank"
       },
-      "derived_inline_visible": [
-        "errors.implicit.underVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.underVote"
+        ],
+        "review": [
+          "errors.implicit.underVote"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -293,9 +347,15 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.underVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.underVote"
+        ],
+        "review": [
+          "errors.implicit.underVote"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -318,7 +378,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -341,9 +405,15 @@
         "soft": false,
         "tally": "ImplicitBlank"
       },
-      "derived_inline_visible": [
-        "errors.implicit.underVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.underVote"
+        ],
+        "review": [
+          "errors.implicit.underVote"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -368,9 +438,15 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.underVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.underVote"
+        ],
+        "review": [
+          "errors.implicit.underVote"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -393,7 +469,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -416,9 +496,15 @@
         "soft": false,
         "tally": "ImplicitBlank"
       },
-      "derived_inline_visible": [
-        "errors.implicit.underVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.underVote"
+        ],
+        "review": [
+          "errors.implicit.underVote"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -443,9 +529,15 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.underVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.underVote"
+        ],
+        "review": [
+          "errors.implicit.underVote"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -468,7 +560,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -491,9 +587,15 @@
         "soft": false,
         "tally": "ImplicitBlank"
       },
-      "derived_inline_visible": [
-        "errors.implicit.underVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.underVote"
+        ],
+        "review": [
+          "errors.implicit.underVote"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -518,9 +620,15 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.underVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.underVote"
+        ],
+        "review": [
+          "errors.implicit.underVote"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -543,7 +651,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -566,9 +678,13 @@
         "soft": false,
         "tally": "ImplicitBlank"
       },
-      "derived_inline_visible": [
-        "errors.implicit.underVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": [
+          "errors.implicit.underVote"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -593,9 +709,13 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.underVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": [
+          "errors.implicit.underVote"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -618,7 +738,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -641,9 +765,13 @@
         "soft": false,
         "tally": "ImplicitBlank"
       },
-      "derived_inline_visible": [
-        "errors.implicit.underVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": [
+          "errors.implicit.underVote"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -668,9 +796,13 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.underVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": [
+          "errors.implicit.underVote"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -693,7 +825,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -716,9 +852,13 @@
         "soft": false,
         "tally": "ImplicitBlank"
       },
-      "derived_inline_visible": [
-        "errors.implicit.underVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": [
+          "errors.implicit.underVote"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -743,9 +883,13 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.underVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": [
+          "errors.implicit.underVote"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -768,7 +912,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -791,9 +939,13 @@
         "soft": false,
         "tally": "ImplicitBlank"
       },
-      "derived_inline_visible": [
-        "errors.implicit.underVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": [
+          "errors.implicit.underVote"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -818,9 +970,13 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.underVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": [
+          "errors.implicit.underVote"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -843,7 +999,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -866,9 +1026,15 @@
         "soft": false,
         "tally": "ImplicitBlank"
       },
-      "derived_inline_visible": [
-        "errors.implicit.underVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.underVote"
+        ],
+        "review": [
+          "errors.implicit.underVote"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -893,9 +1059,15 @@
         "soft": true,
         "tally": "Valid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.underVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.underVote"
+        ],
+        "review": [
+          "errors.implicit.underVote"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -918,7 +1090,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -941,9 +1117,15 @@
         "soft": false,
         "tally": "ImplicitBlank"
       },
-      "derived_inline_visible": [
-        "errors.implicit.underVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.underVote"
+        ],
+        "review": [
+          "errors.implicit.underVote"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -968,9 +1150,15 @@
         "soft": true,
         "tally": "Valid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.underVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.underVote"
+        ],
+        "review": [
+          "errors.implicit.underVote"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -993,7 +1181,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -1016,9 +1208,15 @@
         "soft": false,
         "tally": "ImplicitBlank"
       },
-      "derived_inline_visible": [
-        "errors.implicit.underVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.underVote"
+        ],
+        "review": [
+          "errors.implicit.underVote"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -1043,9 +1241,15 @@
         "soft": true,
         "tally": "Valid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.underVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.underVote"
+        ],
+        "review": [
+          "errors.implicit.underVote"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -1068,7 +1272,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -1091,9 +1299,15 @@
         "soft": false,
         "tally": "ImplicitBlank"
       },
-      "derived_inline_visible": [
-        "errors.implicit.underVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.underVote"
+        ],
+        "review": [
+          "errors.implicit.underVote"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -1118,9 +1332,15 @@
         "soft": true,
         "tally": "Valid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.underVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.underVote"
+        ],
+        "review": [
+          "errors.implicit.underVote"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -1143,7 +1363,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],

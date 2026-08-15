@@ -13,7 +13,11 @@
         "soft": false,
         "tally": "ImplicitBlank"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -34,7 +38,11 @@
         "soft": false,
         "tally": "ExplicitInvalid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -55,7 +63,11 @@
         "soft": false,
         "tally": "ExplicitBlank"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -76,7 +88,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -97,7 +113,11 @@
         "soft": false,
         "tally": "ImplicitBlank"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -118,7 +138,11 @@
         "soft": false,
         "tally": "ExplicitInvalid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -139,7 +163,11 @@
         "soft": false,
         "tally": "ExplicitBlank"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -160,7 +188,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -181,7 +213,11 @@
         "soft": false,
         "tally": "ImplicitBlank"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -204,9 +240,15 @@
         "soft": true,
         "tally": "ExplicitInvalid"
       },
-      "derived_inline_visible": [
-        "errors.explicit.alert"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.explicit.alert"
+        ],
+        "review": [
+          "errors.explicit.alert"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -229,7 +271,11 @@
         "soft": false,
         "tally": "ExplicitBlank"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -250,7 +296,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -271,7 +321,11 @@
         "soft": false,
         "tally": "ImplicitBlank"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -294,9 +348,15 @@
         "soft": true,
         "tally": "ExplicitInvalid"
       },
-      "derived_inline_visible": [
-        "errors.explicit.notAllowed"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.explicit.notAllowed"
+        ],
+        "review": [
+          "errors.explicit.notAllowed"
+        ]
+      },
       "predicted": {
         "errors": [
           "errors.explicit.notAllowed"
@@ -319,7 +379,11 @@
         "soft": false,
         "tally": "ExplicitBlank"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -340,7 +404,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -363,9 +431,15 @@
         "soft": true,
         "tally": "ImplicitBlank"
       },
-      "derived_inline_visible": [
-        "errors.implicit.blankVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.blankVote"
+        ],
+        "review": [
+          "errors.implicit.blankVote"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -388,7 +462,11 @@
         "soft": false,
         "tally": "ExplicitInvalid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -409,7 +487,11 @@
         "soft": false,
         "tally": "ExplicitBlank"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -430,7 +512,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -453,9 +539,15 @@
         "soft": true,
         "tally": "ImplicitBlank"
       },
-      "derived_inline_visible": [
-        "errors.implicit.blankVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.blankVote"
+        ],
+        "review": [
+          "errors.implicit.blankVote"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -478,7 +570,11 @@
         "soft": false,
         "tally": "ExplicitInvalid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -499,7 +595,11 @@
         "soft": false,
         "tally": "ExplicitBlank"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -520,7 +620,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -543,9 +647,15 @@
         "soft": true,
         "tally": "ImplicitBlank"
       },
-      "derived_inline_visible": [
-        "errors.implicit.blankVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.blankVote"
+        ],
+        "review": [
+          "errors.implicit.blankVote"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -570,9 +680,15 @@
         "soft": true,
         "tally": "ExplicitInvalid"
       },
-      "derived_inline_visible": [
-        "errors.explicit.alert"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.explicit.alert"
+        ],
+        "review": [
+          "errors.explicit.alert"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -595,7 +711,11 @@
         "soft": false,
         "tally": "ExplicitBlank"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -616,7 +736,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -639,9 +763,15 @@
         "soft": true,
         "tally": "ImplicitBlank"
       },
-      "derived_inline_visible": [
-        "errors.implicit.blankVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.blankVote"
+        ],
+        "review": [
+          "errors.implicit.blankVote"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -666,9 +796,15 @@
         "soft": true,
         "tally": "ExplicitInvalid"
       },
-      "derived_inline_visible": [
-        "errors.explicit.notAllowed"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.explicit.notAllowed"
+        ],
+        "review": [
+          "errors.explicit.notAllowed"
+        ]
+      },
       "predicted": {
         "errors": [
           "errors.explicit.notAllowed"
@@ -691,7 +827,11 @@
         "soft": false,
         "tally": "ExplicitBlank"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -712,7 +852,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -735,9 +879,13 @@
         "soft": false,
         "tally": "ImplicitBlank"
       },
-      "derived_inline_visible": [
-        "errors.implicit.blankVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": [
+          "errors.implicit.blankVote"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -760,7 +908,11 @@
         "soft": false,
         "tally": "ExplicitInvalid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -781,7 +933,11 @@
         "soft": false,
         "tally": "ExplicitBlank"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -802,7 +958,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -825,9 +985,13 @@
         "soft": false,
         "tally": "ImplicitBlank"
       },
-      "derived_inline_visible": [
-        "errors.implicit.blankVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": [
+          "errors.implicit.blankVote"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -850,7 +1014,11 @@
         "soft": false,
         "tally": "ExplicitInvalid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -871,7 +1039,11 @@
         "soft": false,
         "tally": "ExplicitBlank"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -892,7 +1064,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -915,9 +1091,13 @@
         "soft": false,
         "tally": "ImplicitBlank"
       },
-      "derived_inline_visible": [
-        "errors.implicit.blankVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": [
+          "errors.implicit.blankVote"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -942,9 +1122,15 @@
         "soft": true,
         "tally": "ExplicitInvalid"
       },
-      "derived_inline_visible": [
-        "errors.explicit.alert"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.explicit.alert"
+        ],
+        "review": [
+          "errors.explicit.alert"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -967,7 +1153,11 @@
         "soft": false,
         "tally": "ExplicitBlank"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -988,7 +1178,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -1011,9 +1205,13 @@
         "soft": false,
         "tally": "ImplicitBlank"
       },
-      "derived_inline_visible": [
-        "errors.implicit.blankVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": [
+          "errors.implicit.blankVote"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -1038,9 +1236,15 @@
         "soft": true,
         "tally": "ExplicitInvalid"
       },
-      "derived_inline_visible": [
-        "errors.explicit.notAllowed"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.explicit.notAllowed"
+        ],
+        "review": [
+          "errors.explicit.notAllowed"
+        ]
+      },
       "predicted": {
         "errors": [
           "errors.explicit.notAllowed"
@@ -1063,7 +1267,11 @@
         "soft": false,
         "tally": "ExplicitBlank"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -1084,7 +1292,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -1107,9 +1319,15 @@
         "soft": false,
         "tally": "ImplicitInvalid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.blankVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.blankVote"
+        ],
+        "review": [
+          "errors.implicit.blankVote"
+        ]
+      },
       "predicted": {
         "errors": [
           "errors.implicit.blankVote"
@@ -1132,7 +1350,11 @@
         "soft": false,
         "tally": "ExplicitInvalid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -1153,7 +1375,11 @@
         "soft": false,
         "tally": "ExplicitBlank"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -1174,7 +1400,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -1197,9 +1427,15 @@
         "soft": true,
         "tally": "ImplicitInvalid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.blankVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.blankVote"
+        ],
+        "review": [
+          "errors.implicit.blankVote"
+        ]
+      },
       "predicted": {
         "errors": [
           "errors.implicit.blankVote"
@@ -1222,7 +1458,11 @@
         "soft": false,
         "tally": "ExplicitInvalid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -1243,7 +1483,11 @@
         "soft": false,
         "tally": "ExplicitBlank"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -1264,7 +1508,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -1287,9 +1535,15 @@
         "soft": true,
         "tally": "ImplicitInvalid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.blankVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.blankVote"
+        ],
+        "review": [
+          "errors.implicit.blankVote"
+        ]
+      },
       "predicted": {
         "errors": [
           "errors.implicit.blankVote"
@@ -1314,9 +1568,15 @@
         "soft": true,
         "tally": "ExplicitInvalid"
       },
-      "derived_inline_visible": [
-        "errors.explicit.alert"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.explicit.alert"
+        ],
+        "review": [
+          "errors.explicit.alert"
+        ]
+      },
       "predicted": {
         "errors": [],
         "alerts": [
@@ -1339,7 +1599,11 @@
         "soft": false,
         "tally": "ExplicitBlank"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -1360,7 +1624,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -1383,9 +1651,15 @@
         "soft": true,
         "tally": "ImplicitInvalid"
       },
-      "derived_inline_visible": [
-        "errors.implicit.blankVote"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.implicit.blankVote"
+        ],
+        "review": [
+          "errors.implicit.blankVote"
+        ]
+      },
       "predicted": {
         "errors": [
           "errors.implicit.blankVote"
@@ -1410,9 +1684,15 @@
         "soft": true,
         "tally": "ExplicitInvalid"
       },
-      "derived_inline_visible": [
-        "errors.explicit.notAllowed"
-      ],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [
+          "errors.explicit.notAllowed"
+        ],
+        "review": [
+          "errors.explicit.notAllowed"
+        ]
+      },
       "predicted": {
         "errors": [
           "errors.explicit.notAllowed"
@@ -1435,7 +1715,11 @@
         "soft": false,
         "tally": "ExplicitBlank"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],
@@ -1456,7 +1740,11 @@
         "soft": false,
         "tally": "Valid"
       },
-      "derived_inline_visible": [],
+      "derived_inline": {
+        "votingUntouched": [],
+        "voting": [],
+        "review": []
+      },
       "predicted": {
         "errors": [],
         "alerts": [],

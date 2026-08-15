@@ -6,6 +6,7 @@
       "state": "empty",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -23,6 +24,7 @@
       "state": "at_max",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -42,6 +44,7 @@
         "errors.implicit.selectedMax"
       ],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -59,6 +62,7 @@
       "state": "empty",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -76,6 +80,7 @@
       "state": "at_max",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -95,6 +100,7 @@
         "errors.implicit.selectedMax"
       ],
       "alerts": [],
+      "inlineVoting": "selectedMax",
       "inlineReview": "selectedMax",
       "hard": false,
       "soft": true,
@@ -112,6 +118,7 @@
       "state": "empty",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -129,6 +136,7 @@
       "state": "at_max",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -148,6 +156,7 @@
         "errors.implicit.selectedMax"
       ],
       "alerts": [],
+      "inlineVoting": "selectedMax",
       "inlineReview": "selectedMax",
       "hard": false,
       "soft": true,
@@ -165,6 +174,7 @@
       "state": "empty",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -182,6 +192,7 @@
       "state": "at_max",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -201,6 +212,7 @@
         "errors.implicit.selectedMax"
       ],
       "alerts": [],
+      "inlineVoting": "selectedMax",
       "inlineReview": "(blocked)",
       "hard": true,
       "soft": true,
@@ -218,6 +230,7 @@
       "state": "empty",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -235,6 +248,7 @@
       "state": "at_max",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -256,6 +270,7 @@
       "alerts": [
         "errors.implicit.selectedMax"
       ],
+      "inlineVoting": "selectedMax",
       "inlineReview": "selectedMax",
       "hard": false,
       "soft": false,
@@ -273,6 +288,7 @@
       "state": "empty",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -290,6 +306,7 @@
       "state": "at_max",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -311,6 +328,7 @@
       "alerts": [
         "errors.implicit.selectedMax"
       ],
+      "inlineVoting": "selectedMax",
       "inlineReview": "selectedMax",
       "hard": false,
       "soft": true,
@@ -328,6 +346,7 @@
       "state": "empty",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -345,6 +364,7 @@
       "state": "at_max",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -366,6 +386,7 @@
       "alerts": [
         "errors.implicit.selectedMax"
       ],
+      "inlineVoting": "selectedMax",
       "inlineReview": "selectedMax",
       "hard": false,
       "soft": true,
@@ -383,6 +404,7 @@
       "state": "empty",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -400,6 +422,7 @@
       "state": "at_max",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -421,6 +444,7 @@
       "alerts": [
         "errors.implicit.selectedMax"
       ],
+      "inlineVoting": "selectedMax",
       "inlineReview": "(blocked)",
       "hard": true,
       "soft": true,
@@ -438,6 +462,7 @@
       "state": "empty",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -455,6 +480,7 @@
       "state": "at_max",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -476,6 +502,7 @@
       "alerts": [
         "errors.implicit.selectedMax"
       ],
+      "inlineVoting": "selectedMax",
       "inlineReview": "selectedMax",
       "hard": false,
       "soft": true,
@@ -493,6 +520,7 @@
       "state": "empty",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -510,6 +538,7 @@
       "state": "at_max",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -531,6 +560,7 @@
       "alerts": [
         "errors.implicit.selectedMax"
       ],
+      "inlineVoting": "selectedMax",
       "inlineReview": "selectedMax",
       "hard": false,
       "soft": true,
@@ -548,6 +578,7 @@
       "state": "empty",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -565,6 +596,7 @@
       "state": "at_max",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -586,6 +618,7 @@
       "alerts": [
         "errors.implicit.selectedMax"
       ],
+      "inlineVoting": "selectedMax",
       "inlineReview": "selectedMax",
       "hard": false,
       "soft": true,
@@ -603,6 +636,7 @@
       "state": "empty",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -620,6 +654,7 @@
       "state": "at_max",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -641,6 +676,7 @@
       "alerts": [
         "errors.implicit.selectedMax"
       ],
+      "inlineVoting": "selectedMax",
       "inlineReview": "(blocked)",
       "hard": true,
       "soft": true,
@@ -658,6 +694,7 @@
       "state": "empty",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -675,6 +712,7 @@
       "state": "at_max",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -696,6 +734,7 @@
       "alerts": [
         "errors.implicit.selectedMax"
       ],
+      "inlineVoting": "selectedMax",
       "inlineReview": "(blocked)",
       "hard": true,
       "soft": false,
@@ -713,6 +752,7 @@
       "state": "empty",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -730,6 +770,7 @@
       "state": "at_max",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -751,6 +792,7 @@
       "alerts": [
         "errors.implicit.selectedMax"
       ],
+      "inlineVoting": "selectedMax",
       "inlineReview": "(blocked)",
       "hard": true,
       "soft": true,
@@ -768,6 +810,7 @@
       "state": "empty",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -785,6 +828,7 @@
       "state": "at_max",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -806,6 +850,7 @@
       "alerts": [
         "errors.implicit.selectedMax"
       ],
+      "inlineVoting": "selectedMax",
       "inlineReview": "(blocked)",
       "hard": true,
       "soft": true,
@@ -823,6 +868,7 @@
       "state": "empty",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -840,6 +886,7 @@
       "state": "at_max",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -861,6 +908,7 @@
       "alerts": [
         "errors.implicit.selectedMax"
       ],
+      "inlineVoting": "selectedMax",
       "inlineReview": "(blocked)",
       "hard": true,
       "soft": true,
@@ -878,6 +926,7 @@
       "state": "empty",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -897,6 +946,7 @@
       "alerts": [
         "errors.implicit.overVoteDisabled"
       ],
+      "inlineVoting": "overVoteDisabled",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -918,6 +968,7 @@
       "alerts": [
         "errors.implicit.selectedMax"
       ],
+      "inlineVoting": "overVoteDisabled",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -935,6 +986,7 @@
       "state": "empty",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -954,6 +1006,7 @@
       "alerts": [
         "errors.implicit.overVoteDisabled"
       ],
+      "inlineVoting": "overVoteDisabled",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -975,6 +1028,7 @@
       "alerts": [
         "errors.implicit.selectedMax"
       ],
+      "inlineVoting": "overVoteDisabled",
       "inlineReview": "—",
       "hard": false,
       "soft": true,
@@ -992,6 +1046,7 @@
       "state": "empty",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1011,6 +1066,7 @@
       "alerts": [
         "errors.implicit.overVoteDisabled"
       ],
+      "inlineVoting": "overVoteDisabled",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1032,6 +1088,7 @@
       "alerts": [
         "errors.implicit.selectedMax"
       ],
+      "inlineVoting": "overVoteDisabled",
       "inlineReview": "—",
       "hard": false,
       "soft": true,
@@ -1049,6 +1106,7 @@
       "state": "empty",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1068,6 +1126,7 @@
       "alerts": [
         "errors.implicit.overVoteDisabled"
       ],
+      "inlineVoting": "overVoteDisabled",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1089,6 +1148,7 @@
       "alerts": [
         "errors.implicit.selectedMax"
       ],
+      "inlineVoting": "overVoteDisabled",
       "inlineReview": "—",
       "hard": true,
       "soft": true,
@@ -1108,6 +1168,7 @@
         "errors.implicit.selectedMin"
       ],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1125,6 +1186,7 @@
       "state": "one",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1142,6 +1204,7 @@
       "state": "marker_only",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1161,6 +1224,7 @@
         "errors.implicit.selectedMin"
       ],
       "alerts": [],
+      "inlineVoting": "selectedMin",
       "inlineReview": "selectedMin",
       "hard": false,
       "soft": true,
@@ -1178,6 +1242,7 @@
       "state": "one",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1195,6 +1260,7 @@
       "state": "marker_only",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1214,6 +1280,7 @@
         "errors.implicit.selectedMin"
       ],
       "alerts": [],
+      "inlineVoting": "selectedMin",
       "inlineReview": "selectedMin",
       "hard": false,
       "soft": true,
@@ -1231,6 +1298,7 @@
       "state": "one",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1248,6 +1316,7 @@
       "state": "marker_only",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1267,6 +1336,7 @@
         "errors.implicit.selectedMin"
       ],
       "alerts": [],
+      "inlineVoting": "selectedMin",
       "inlineReview": "(blocked)",
       "hard": true,
       "soft": true,
@@ -1284,6 +1354,7 @@
       "state": "one",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1301,6 +1372,7 @@
       "state": "marker_only",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1320,6 +1392,7 @@
         "errors.implicit.selectedMin"
       ],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1339,6 +1412,7 @@
         "errors.implicit.selectedMin"
       ],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1358,6 +1432,7 @@
         "errors.implicit.selectedMin"
       ],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1377,6 +1452,7 @@
         "errors.implicit.selectedMin"
       ],
       "alerts": [],
+      "inlineVoting": "selectedMin",
       "inlineReview": "selectedMin",
       "hard": false,
       "soft": true,
@@ -1396,6 +1472,7 @@
         "errors.implicit.selectedMin"
       ],
       "alerts": [],
+      "inlineVoting": "selectedMin",
       "inlineReview": "selectedMin",
       "hard": false,
       "soft": true,
@@ -1415,6 +1492,7 @@
         "errors.implicit.selectedMin"
       ],
       "alerts": [],
+      "inlineVoting": "selectedMin",
       "inlineReview": "selectedMin",
       "hard": false,
       "soft": true,
@@ -1434,6 +1512,7 @@
         "errors.implicit.selectedMin"
       ],
       "alerts": [],
+      "inlineVoting": "selectedMin",
       "inlineReview": "selectedMin",
       "hard": false,
       "soft": true,
@@ -1453,6 +1532,7 @@
         "errors.implicit.selectedMin"
       ],
       "alerts": [],
+      "inlineVoting": "selectedMin",
       "inlineReview": "selectedMin",
       "hard": false,
       "soft": true,
@@ -1472,6 +1552,7 @@
         "errors.implicit.selectedMin"
       ],
       "alerts": [],
+      "inlineVoting": "selectedMin",
       "inlineReview": "selectedMin",
       "hard": false,
       "soft": true,
@@ -1491,6 +1572,7 @@
         "errors.implicit.selectedMin"
       ],
       "alerts": [],
+      "inlineVoting": "selectedMin",
       "inlineReview": "(blocked)",
       "hard": true,
       "soft": true,
@@ -1510,6 +1592,7 @@
         "errors.implicit.selectedMin"
       ],
       "alerts": [],
+      "inlineVoting": "selectedMin",
       "inlineReview": "(blocked)",
       "hard": true,
       "soft": true,
@@ -1529,6 +1612,7 @@
         "errors.implicit.selectedMin"
       ],
       "alerts": [],
+      "inlineVoting": "selectedMin",
       "inlineReview": "(blocked)",
       "hard": true,
       "soft": true,
@@ -1546,6 +1630,7 @@
       "state": "empty",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1563,6 +1648,7 @@
       "state": "marker_only",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1580,6 +1666,7 @@
       "state": "one_regular",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1597,6 +1684,7 @@
       "state": "empty",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1614,6 +1702,7 @@
       "state": "marker_only",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1631,6 +1720,7 @@
       "state": "one_regular",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1648,6 +1738,7 @@
       "state": "empty",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1665,6 +1756,7 @@
       "state": "marker_only",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1682,6 +1774,7 @@
       "state": "one_regular",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1699,6 +1792,7 @@
       "state": "empty",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1716,6 +1810,7 @@
       "state": "marker_only",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1733,6 +1828,7 @@
       "state": "one_regular",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1752,6 +1848,7 @@
       "alerts": [
         "errors.implicit.blankVote"
       ],
+      "inlineVoting": "blankVote",
       "inlineReview": "blankVote",
       "hard": false,
       "soft": true,
@@ -1769,6 +1866,7 @@
       "state": "marker_only",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1786,6 +1884,7 @@
       "state": "one_regular",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1805,6 +1904,7 @@
       "alerts": [
         "errors.implicit.blankVote"
       ],
+      "inlineVoting": "blankVote",
       "inlineReview": "blankVote",
       "hard": false,
       "soft": true,
@@ -1822,6 +1922,7 @@
       "state": "marker_only",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1839,6 +1940,7 @@
       "state": "one_regular",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1858,6 +1960,7 @@
       "alerts": [
         "errors.implicit.blankVote"
       ],
+      "inlineVoting": "blankVote",
       "inlineReview": "blankVote",
       "hard": false,
       "soft": true,
@@ -1875,6 +1978,7 @@
       "state": "marker_only",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1892,6 +1996,7 @@
       "state": "one_regular",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1911,6 +2016,7 @@
       "alerts": [
         "errors.implicit.blankVote"
       ],
+      "inlineVoting": "blankVote",
       "inlineReview": "blankVote",
       "hard": false,
       "soft": true,
@@ -1928,6 +2034,7 @@
       "state": "marker_only",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1945,6 +2052,7 @@
       "state": "one_regular",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1964,6 +2072,7 @@
       "alerts": [
         "errors.implicit.blankVote"
       ],
+      "inlineVoting": "—",
       "inlineReview": "blankVote",
       "hard": false,
       "soft": false,
@@ -1981,6 +2090,7 @@
       "state": "marker_only",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -1998,6 +2108,7 @@
       "state": "one_regular",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2017,6 +2128,7 @@
       "alerts": [
         "errors.implicit.blankVote"
       ],
+      "inlineVoting": "—",
       "inlineReview": "blankVote",
       "hard": false,
       "soft": false,
@@ -2034,6 +2146,7 @@
       "state": "marker_only",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2051,6 +2164,7 @@
       "state": "one_regular",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2070,6 +2184,7 @@
       "alerts": [
         "errors.implicit.blankVote"
       ],
+      "inlineVoting": "—",
       "inlineReview": "blankVote",
       "hard": false,
       "soft": false,
@@ -2087,6 +2202,7 @@
       "state": "marker_only",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2104,6 +2220,7 @@
       "state": "one_regular",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2123,6 +2240,7 @@
       "alerts": [
         "errors.implicit.blankVote"
       ],
+      "inlineVoting": "—",
       "inlineReview": "blankVote",
       "hard": false,
       "soft": false,
@@ -2140,6 +2258,7 @@
       "state": "marker_only",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2157,6 +2276,7 @@
       "state": "one_regular",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2176,6 +2296,7 @@
         "errors.implicit.blankVote"
       ],
       "alerts": [],
+      "inlineVoting": "blankVote",
       "inlineReview": "(blocked)",
       "hard": true,
       "soft": false,
@@ -2193,6 +2314,7 @@
       "state": "marker_only",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2210,6 +2332,7 @@
       "state": "one_regular",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2229,6 +2352,7 @@
         "errors.implicit.blankVote"
       ],
       "alerts": [],
+      "inlineVoting": "blankVote",
       "inlineReview": "(blocked)",
       "hard": true,
       "soft": true,
@@ -2246,6 +2370,7 @@
       "state": "marker_only",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2263,6 +2388,7 @@
       "state": "one_regular",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2282,6 +2408,7 @@
         "errors.implicit.blankVote"
       ],
       "alerts": [],
+      "inlineVoting": "blankVote",
       "inlineReview": "(blocked)",
       "hard": true,
       "soft": true,
@@ -2299,6 +2426,7 @@
       "state": "marker_only",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2316,6 +2444,7 @@
       "state": "one_regular",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2335,6 +2464,7 @@
         "errors.implicit.blankVote"
       ],
       "alerts": [],
+      "inlineVoting": "blankVote",
       "inlineReview": "(blocked)",
       "hard": true,
       "soft": true,
@@ -2352,6 +2482,7 @@
       "state": "marker_only",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2369,6 +2500,7 @@
       "state": "one_regular",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2386,6 +2518,7 @@
       "state": "regular_then_marker",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2403,6 +2536,7 @@
       "state": "empty",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2420,6 +2554,7 @@
       "state": "under",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2437,6 +2572,7 @@
       "state": "full",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2454,6 +2590,7 @@
       "state": "empty",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2471,6 +2608,7 @@
       "state": "under",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2488,6 +2626,7 @@
       "state": "full",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2505,6 +2644,7 @@
       "state": "empty",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2522,6 +2662,7 @@
       "state": "under",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2539,6 +2680,7 @@
       "state": "full",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2556,6 +2698,7 @@
       "state": "empty",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2573,6 +2716,7 @@
       "state": "under",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2590,6 +2734,7 @@
       "state": "full",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2609,6 +2754,7 @@
       "alerts": [
         "errors.implicit.underVote"
       ],
+      "inlineVoting": "underVote",
       "inlineReview": "underVote",
       "hard": false,
       "soft": false,
@@ -2628,6 +2774,7 @@
       "alerts": [
         "errors.implicit.underVote"
       ],
+      "inlineVoting": "underVote",
       "inlineReview": "underVote",
       "hard": false,
       "soft": false,
@@ -2645,6 +2792,7 @@
       "state": "full",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2664,6 +2812,7 @@
       "alerts": [
         "errors.implicit.underVote"
       ],
+      "inlineVoting": "underVote",
       "inlineReview": "underVote",
       "hard": false,
       "soft": false,
@@ -2683,6 +2832,7 @@
       "alerts": [
         "errors.implicit.underVote"
       ],
+      "inlineVoting": "underVote",
       "inlineReview": "underVote",
       "hard": false,
       "soft": false,
@@ -2700,6 +2850,7 @@
       "state": "full",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2719,6 +2870,7 @@
       "alerts": [
         "errors.implicit.underVote"
       ],
+      "inlineVoting": "underVote",
       "inlineReview": "underVote",
       "hard": false,
       "soft": false,
@@ -2738,6 +2890,7 @@
       "alerts": [
         "errors.implicit.underVote"
       ],
+      "inlineVoting": "underVote",
       "inlineReview": "underVote",
       "hard": false,
       "soft": false,
@@ -2755,6 +2908,7 @@
       "state": "full",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2774,6 +2928,7 @@
       "alerts": [
         "errors.implicit.underVote"
       ],
+      "inlineVoting": "underVote",
       "inlineReview": "underVote",
       "hard": false,
       "soft": false,
@@ -2793,6 +2948,7 @@
       "alerts": [
         "errors.implicit.underVote"
       ],
+      "inlineVoting": "underVote",
       "inlineReview": "underVote",
       "hard": false,
       "soft": false,
@@ -2810,6 +2966,7 @@
       "state": "full",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2829,6 +2986,7 @@
       "alerts": [
         "errors.implicit.underVote"
       ],
+      "inlineVoting": "—",
       "inlineReview": "underVote",
       "hard": false,
       "soft": false,
@@ -2848,6 +3006,7 @@
       "alerts": [
         "errors.implicit.underVote"
       ],
+      "inlineVoting": "—",
       "inlineReview": "underVote",
       "hard": false,
       "soft": false,
@@ -2865,6 +3024,7 @@
       "state": "full",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2884,6 +3044,7 @@
       "alerts": [
         "errors.implicit.underVote"
       ],
+      "inlineVoting": "—",
       "inlineReview": "underVote",
       "hard": false,
       "soft": false,
@@ -2903,6 +3064,7 @@
       "alerts": [
         "errors.implicit.underVote"
       ],
+      "inlineVoting": "—",
       "inlineReview": "underVote",
       "hard": false,
       "soft": false,
@@ -2920,6 +3082,7 @@
       "state": "full",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2939,6 +3102,7 @@
       "alerts": [
         "errors.implicit.underVote"
       ],
+      "inlineVoting": "—",
       "inlineReview": "underVote",
       "hard": false,
       "soft": false,
@@ -2958,6 +3122,7 @@
       "alerts": [
         "errors.implicit.underVote"
       ],
+      "inlineVoting": "—",
       "inlineReview": "underVote",
       "hard": false,
       "soft": false,
@@ -2975,6 +3140,7 @@
       "state": "full",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -2994,6 +3160,7 @@
       "alerts": [
         "errors.implicit.underVote"
       ],
+      "inlineVoting": "—",
       "inlineReview": "underVote",
       "hard": false,
       "soft": false,
@@ -3013,6 +3180,7 @@
       "alerts": [
         "errors.implicit.underVote"
       ],
+      "inlineVoting": "—",
       "inlineReview": "underVote",
       "hard": false,
       "soft": false,
@@ -3030,6 +3198,7 @@
       "state": "full",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -3049,6 +3218,7 @@
       "alerts": [
         "errors.implicit.underVote"
       ],
+      "inlineVoting": "underVote",
       "inlineReview": "underVote",
       "hard": false,
       "soft": false,
@@ -3068,6 +3238,7 @@
       "alerts": [
         "errors.implicit.underVote"
       ],
+      "inlineVoting": "underVote",
       "inlineReview": "underVote",
       "hard": false,
       "soft": true,
@@ -3085,6 +3256,7 @@
       "state": "full",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -3104,6 +3276,7 @@
       "alerts": [
         "errors.implicit.underVote"
       ],
+      "inlineVoting": "underVote",
       "inlineReview": "underVote",
       "hard": false,
       "soft": false,
@@ -3123,6 +3296,7 @@
       "alerts": [
         "errors.implicit.underVote"
       ],
+      "inlineVoting": "underVote",
       "inlineReview": "underVote",
       "hard": false,
       "soft": true,
@@ -3140,6 +3314,7 @@
       "state": "full",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -3159,6 +3334,7 @@
       "alerts": [
         "errors.implicit.underVote"
       ],
+      "inlineVoting": "underVote",
       "inlineReview": "underVote",
       "hard": false,
       "soft": false,
@@ -3178,6 +3354,7 @@
       "alerts": [
         "errors.implicit.underVote"
       ],
+      "inlineVoting": "underVote",
       "inlineReview": "underVote",
       "hard": false,
       "soft": true,
@@ -3195,6 +3372,7 @@
       "state": "full",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -3214,6 +3392,7 @@
       "alerts": [
         "errors.implicit.underVote"
       ],
+      "inlineVoting": "underVote",
       "inlineReview": "underVote",
       "hard": false,
       "soft": false,
@@ -3233,6 +3412,7 @@
       "alerts": [
         "errors.implicit.underVote"
       ],
+      "inlineVoting": "underVote",
       "inlineReview": "underVote",
       "hard": false,
       "soft": true,
@@ -3250,6 +3430,7 @@
       "state": "full",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -3267,6 +3448,7 @@
       "state": "none",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -3284,6 +3466,7 @@
       "state": "regular",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -3301,6 +3484,7 @@
       "state": "marker",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -3318,6 +3502,7 @@
       "state": "marker_plus",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -3335,6 +3520,7 @@
       "state": "none",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -3352,6 +3538,7 @@
       "state": "regular",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -3369,6 +3556,7 @@
       "state": "marker",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -3386,6 +3574,7 @@
       "state": "marker_plus",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -3403,6 +3592,7 @@
       "state": "none",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -3420,6 +3610,7 @@
       "state": "regular",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -3439,6 +3630,7 @@
       "alerts": [
         "errors.explicit.alert"
       ],
+      "inlineVoting": "alert",
       "inlineReview": "alert",
       "hard": false,
       "soft": true,
@@ -3458,6 +3650,7 @@
       "alerts": [
         "errors.explicit.alert"
       ],
+      "inlineVoting": "alert",
       "inlineReview": "alert",
       "hard": false,
       "soft": true,
@@ -3475,6 +3668,7 @@
       "state": "none",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -3492,6 +3686,7 @@
       "state": "regular",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -3511,6 +3706,7 @@
         "errors.explicit.notAllowed"
       ],
       "alerts": [],
+      "inlineVoting": "notAllowed",
       "inlineReview": "(blocked)",
       "hard": true,
       "soft": true,
@@ -3530,6 +3726,7 @@
         "errors.explicit.notAllowed"
       ],
       "alerts": [],
+      "inlineVoting": "notAllowed",
       "inlineReview": "(blocked)",
       "hard": true,
       "soft": true,
@@ -3547,6 +3744,7 @@
       "state": "valid_full",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -3566,6 +3764,7 @@
         "errors.implicit.duplicatedPosition"
       ],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": true,
@@ -3583,6 +3782,7 @@
       "state": "valid_full",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -3602,6 +3802,7 @@
         "errors.implicit.duplicatedPosition"
       ],
       "alerts": [],
+      "inlineVoting": "duplicatedPosition",
       "inlineReview": "duplicatedPosition",
       "hard": false,
       "soft": true,
@@ -3619,6 +3820,7 @@
       "state": "valid_full",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -3638,6 +3840,7 @@
         "errors.implicit.duplicatedPosition"
       ],
       "alerts": [],
+      "inlineVoting": "duplicatedPosition",
       "inlineReview": "duplicatedPosition",
       "hard": false,
       "soft": true,
@@ -3655,6 +3858,7 @@
       "state": "valid_full",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -3674,6 +3878,7 @@
         "errors.implicit.duplicatedPosition"
       ],
       "alerts": [],
+      "inlineVoting": "duplicatedPosition",
       "inlineReview": "(blocked)",
       "hard": true,
       "soft": true,
@@ -3691,6 +3896,7 @@
       "state": "valid_full",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -3710,6 +3916,7 @@
         "errors.implicit.duplicatedPosition"
       ],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "(blocked)",
       "hard": true,
       "soft": false,
@@ -3727,6 +3934,7 @@
       "state": "valid_full",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -3746,6 +3954,7 @@
         "errors.implicit.duplicatedPosition"
       ],
       "alerts": [],
+      "inlineVoting": "duplicatedPosition",
       "inlineReview": "(blocked)",
       "hard": true,
       "soft": true,
@@ -3763,6 +3972,7 @@
       "state": "valid_full",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -3782,6 +3992,7 @@
         "errors.implicit.duplicatedPosition"
       ],
       "alerts": [],
+      "inlineVoting": "duplicatedPosition",
       "inlineReview": "(blocked)",
       "hard": true,
       "soft": true,
@@ -3799,6 +4010,7 @@
       "state": "valid_full",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -3818,6 +4030,7 @@
         "errors.implicit.duplicatedPosition"
       ],
       "alerts": [],
+      "inlineVoting": "duplicatedPosition",
       "inlineReview": "(blocked)",
       "hard": true,
       "soft": true,
@@ -3835,6 +4048,7 @@
       "state": "valid_full",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -3854,6 +4068,7 @@
         "errors.implicit.preferenceOrderWithGaps"
       ],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": true,
@@ -3871,6 +4086,7 @@
       "state": "valid_full",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -3890,6 +4106,7 @@
         "errors.implicit.preferenceOrderWithGaps"
       ],
       "alerts": [],
+      "inlineVoting": "preferenceOrderWithGaps",
       "inlineReview": "preferenceOrderWithGaps",
       "hard": false,
       "soft": true,
@@ -3907,6 +4124,7 @@
       "state": "valid_full",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -3926,6 +4144,7 @@
         "errors.implicit.preferenceOrderWithGaps"
       ],
       "alerts": [],
+      "inlineVoting": "preferenceOrderWithGaps",
       "inlineReview": "preferenceOrderWithGaps",
       "hard": false,
       "soft": true,
@@ -3943,6 +4162,7 @@
       "state": "valid_full",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -3962,6 +4182,7 @@
         "errors.implicit.preferenceOrderWithGaps"
       ],
       "alerts": [],
+      "inlineVoting": "preferenceOrderWithGaps",
       "inlineReview": "(blocked)",
       "hard": true,
       "soft": true,
@@ -3979,6 +4200,7 @@
       "state": "valid_full",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -3998,6 +4220,7 @@
         "errors.implicit.preferenceOrderWithGaps"
       ],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "(blocked)",
       "hard": true,
       "soft": false,
@@ -4015,6 +4238,7 @@
       "state": "valid_full",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -4034,6 +4258,7 @@
         "errors.implicit.preferenceOrderWithGaps"
       ],
       "alerts": [],
+      "inlineVoting": "preferenceOrderWithGaps",
       "inlineReview": "(blocked)",
       "hard": true,
       "soft": true,
@@ -4051,6 +4276,7 @@
       "state": "valid_full",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -4070,6 +4296,7 @@
         "errors.implicit.preferenceOrderWithGaps"
       ],
       "alerts": [],
+      "inlineVoting": "preferenceOrderWithGaps",
       "inlineReview": "(blocked)",
       "hard": true,
       "soft": true,
@@ -4087,6 +4314,7 @@
       "state": "valid_full",
       "errors": [],
       "alerts": [],
+      "inlineVoting": "—",
       "inlineReview": "—",
       "hard": false,
       "soft": false,
@@ -4106,6 +4334,7 @@
         "errors.implicit.preferenceOrderWithGaps"
       ],
       "alerts": [],
+      "inlineVoting": "preferenceOrderWithGaps",
       "inlineReview": "(blocked)",
       "hard": true,
       "soft": true,

@@ -4,24 +4,26 @@
 
 // General DOM validator — the browser half of the two prediction-only lanes.
 //
-// The headless runners predict inline visibility (`spec.inlineVisible`) and
-// reachability (`spec.reachability`) but cannot observe them —
-// `filterErrorList`, the input disable and the marker clearing are
-// TypeScript/React. This validates those predictions against the REAL DOM,
-// reload-free (~675ms/cell), by:
+// The headless runners predict inline visibility (`spec.inlineViews` — the
+// touched voting screen AND the review screen) and reachability
+// (`spec.reachability`) but cannot observe them — `filterErrorList`, the
+// input disable and the marker clearing are TypeScript/React. This validates
+// those predictions against the REAL DOM, reload-free, by:
 //   - reading each rule's recorded JSON for the per-cell prediction
-//     (`derived_inline_visible`; the gates → expected dialog), and
+//     (`derived_inline.voting` / `.review`; the gates → expected dialog), and
 //   - driving the booth (panel config → cast state → observe) via
-//     `browser-harness.mjs`, then comparing.
+//     `browser-harness.mjs`, then comparing. Every cell observes the TOUCHED
+//     voting surface (observeBooth's deterministic tick-untick); the
+//     untouched view is a recorded constant (blank-rule.filter.md).
 //
 // It drives config through the PANEL (not dispatch) on purpose: a panel
 // regression would make the config miss the booth and the DOM diverge from
 // the prediction, so this doubles as the reviewer-path check REPRODUCE.md
 // relies on — across every cell, not just the headline ones.
 //
-// Comparison is over UNIQUE message keys: `derived_inline_visible` may carry a
-// message twice (the kept error + its alert copy), but the booth renders one
-// WarnBox per message, so the set is what "does the voter see it?" turns on.
+// Comparison is over UNIQUE message keys: the booth may render a message
+// as both an error box and an alert box, but the set of visible keys is
+// what "does the voter see it?" turns on.
 //
 // Requires the dev server on :5173. Covers all seven rules: the five plurality
 // rules (over-vote, min-vote, blank, under-vote, invalid) on the explicit-
@@ -200,16 +202,23 @@ for (const rule of RULES) {
         const domReachable = isReached(rule, obs, r)
         const reachableOk = domReachable === !constrained
 
-        // Inline is validated at the REVIEW surface (the model's surface; the
-        // untouched-clear does not apply there). Not comparable when the state
-        // is unreachable (a phantom state) or a blocking gate preempts review —
-        // there the constraint / the blocking dialog is the signal, validated
-        // by reachableOk / dialogOk.
+        // Inline is validated at BOTH observation points. The voting view is
+        // read before Next is clicked, so it is comparable whenever the state
+        // formed; the review view additionally requires that no blocking
+        // dialog preempts review (there the dialog is the signal, validated
+        // by dialogOk). Neither is comparable for an unreachable state — the
+        // observed views then belong to whatever state actually formed, and
+        // the constraint is the signal, validated by reachableOk.
+        const votingComparable = !constrained
+        const votingOk =
+            !votingComparable ||
+            JSON.stringify(uniq(obs.inlineAtVote ?? [])) ===
+                JSON.stringify(uniq(r.derived_inline.voting))
         const inlineComparable = !constrained && obs.dialog !== "blocking"
         const inlineOk =
             !inlineComparable ||
             JSON.stringify(uniq(obs.inlineAtReview ?? [])) ===
-                JSON.stringify(uniq(r.derived_inline_visible))
+                JSON.stringify(uniq(r.derived_inline.review))
         const dialogOk = constrained || obs.dialog === expectedDialog(r)
         // Direct DOM evidence for the constraint — a second signal beyond
         // behavioural non-reachability, specific to the mechanism: the disable
@@ -222,13 +231,15 @@ for (const rule of RULES) {
                 : constraintPred === "marker_cleared"
                   ? rule.clearedOk(obs)
                   : true
-        const ok = inlineOk && dialogOk && reachableOk && constraintDirectOk
+        const ok = votingOk && inlineOk && dialogOk && reachableOk && constraintDirectOk
 
         // Observation-derived silent-discount marker: discarded, reachable, and
-        // no signal on any surface (no dialog, nothing inline at review).
+        // no signal on any surface (no dialog, nothing inline at the touched
+        // voting screen or at review).
         const silent =
             r.observed.tally === "ImplicitInvalid" &&
             obs.dialog === "none" &&
+            (obs.inlineAtVote ?? []).length === 0 &&
             (obs.inlineAtReview ?? []).length === 0 &&
             domReachable
 
@@ -238,6 +249,7 @@ for (const rule of RULES) {
             state: r.state,
             errors: r.observed.errors,
             alerts: r.observed.alerts,
+            inlineVoting: short(obs.inlineAtVote),
             inlineReview: obs.dialog === "blocking" ? "(blocked)" : short(obs.inlineAtReview),
             hard: r.observed.hard,
             soft: r.observed.soft,
@@ -252,8 +264,10 @@ for (const rule of RULES) {
         if (!ok) {
             console.log(
                 `✗ ${rule.name} ${rule.label(r)}: ` +
+                    `inline@voting=${JSON.stringify(uniq(obs.inlineAtVote ?? []))} ` +
+                    `predV=${JSON.stringify(uniq(r.derived_inline.voting))} ` +
                     `inline@review=${JSON.stringify(uniq(obs.inlineAtReview ?? []))} ` +
-                    `pred=${JSON.stringify(uniq(r.derived_inline_visible))} ` +
+                    `predR=${JSON.stringify(uniq(r.derived_inline.review))} ` +
                     `dialog=${obs.dialog}/${expectedDialog(r)} reachable=${domReachable}/${!constrained} ` +
                     `constraint=${constraintPred} probe=${obs.constraintProbe} selected=${JSON.stringify(obs.selected)}`
             )
@@ -286,7 +300,7 @@ const reachCell = (x) =>
             : "**no**"
 const fmtRow = (x) =>
     `| ${x.silent ? "**⚠** " : ""}${x.config} | ${x.state} | ` +
-    `${short(x.errors)} | ${short(x.alerts)} | ${x.inlineReview} | ` +
+    `${short(x.errors)} | ${short(x.alerts)} | ${x.inlineVoting} | ${x.inlineReview} | ` +
     `${x.hard ? "**block**" : "—"} | ${x.soft ? "dialog" : "—"} | ` +
     `${reachCell(x)} | ${x.tally} | ${x.ok ? "✓" : "**✗**"} |`
 const md = [
@@ -303,18 +317,24 @@ const md = [
     "The **complete** view — every value is an OBSERVATION, and a **superset**",
     "of the partial rule table's columns. The WASM-observed columns are exactly",
     "the partial's (*errors*, *alerts*, *hard/soft gate*, *tally*); the complete",
-    "view ADDS the two browser-only surfaces the partial cannot show —",
-    "*inline (review)* (inline visibility at the decisive review screen, where",
-    "the untouched-clear does not apply) and *reachable* (the input constraint;",
-    "`no` = the state cannot be formed; `no (disabled)` = also confirmed by the",
-    "(max+1)th control carrying `disabled` in the DOM; `no (cleared)` = a marker",
-    "cleared a co-selected candidate, collapsing the state) — plus the",
-    "observation-derived **⚠**",
+    "view ADDS the browser-only surfaces the partial cannot show —",
+    "*inline (voting)* (inline visibility on the voting screen once the contest",
+    "is touched; every cell observes the touched surface via a deterministic",
+    "tick-untick, the untouched view being a recorded constant — empty; see",
+    "blank-rule.filter.md), *inline (review)* (inline visibility at the decisive",
+    "review screen, where the untouched-clear does not apply) and *reachable*",
+    "(the input constraint; `no` = the state cannot be formed; `no (disabled)` =",
+    "also confirmed by the (max+1)th control carrying `disabled` in the DOM;",
+    "`no (cleared)` = a marker cleared a co-selected candidate, collapsing the",
+    "state) — plus the observation-derived **⚠**",
     "(discarded ∧ reachable ∧ no signal on any surface). The single",
     "*matches spec?* column subsumes the partial's `pred?` and extends it to the",
     "browser surfaces (including the observed dialog vs the gates): ✗ = spec and",
     "DOM disagree. `(blocked)` inline means a blocking dialog preempts review —",
-    "the dialog is the signal there. Every column is common and defined here",
+    "the dialog is the signal there. For an unreachable state both inline",
+    "columns show what the state that ACTUALLY formed renders (the *reachable*",
+    "column qualifies it); they are compared against the spec only for",
+    "reachable cells. Every column is common and defined here",
     "except *config*, which packs each rule's own policy knobs into one cell —",
     "its meaning is noted under each rule heading below.",
     "",
@@ -326,8 +346,8 @@ for (const rule of RULES) {
         "",
         rule.configNote,
         "",
-        "| config | state | errors | alerts | inline (review) | hard gate | soft gate | reachable | tally | matches spec? |",
-        "|---|---|---|---|---|---|---|---|---|---|",
+        "| config | state | errors | alerts | inline (voting) | inline (review) | hard gate | soft gate | reachable | tally | matches spec? |",
+        "|---|---|---|---|---|---|---|---|---|---|---|",
         ...rc.map(fmtRow),
         ""
     )

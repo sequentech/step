@@ -24,7 +24,7 @@ candidate is driven through the real booth; it is a **confirmed** silent
 discount iff it is reachable and shows nothing inline at the **review**
 screen (the decisive last surface before cast) with no dialog. The tally
 half is headless (velvet is a Node WASM call, not a booth observation);
-the signal half is the browser. `derived_inline_visible` (the model) is
+the signal half is the browser. `derived_inline` (the model) is
 not consulted.
 
 **Result: 7 candidates → 5 confirmed** across 248 scanned (sources: blank-rule.recorded.json, overvote-rule.recorded.json, undervote-rule.recorded.json, minvote-rule.recorded.json, duprank-rule.recorded.json, prefgaps-rule.recorded.json, invalid-rule.recorded.json). 2 candidate(s) rejected (shown inline, or unreachable).

@@ -25,7 +25,7 @@
 //      and shows nothing inline at review with no dialog.
 //
 // The tally half stays headless (velvet is a Node WASM call, not a booth
-// observation); the signal half is the browser. No `derived_inline_visible`
+// observation); the signal half is the browser. No `derived_inline`
 // (the model) is consulted — the model is the spec, validated separately by
 // `dom-validate`, not the detector here.
 //
@@ -58,7 +58,7 @@ const SOURCES = [
 ]
 const NON_CONFIG = new Set([
     "observed",
-    "derived_inline_visible",
+    "derived_inline",
     "predicted",
     "match",
     "state",
@@ -171,7 +171,7 @@ const md = [
     "discount iff it is reachable and shows nothing inline at the **review**",
     "screen (the decisive last surface before cast) with no dialog. The tally",
     "half is headless (velvet is a Node WASM call, not a booth observation);",
-    "the signal half is the browser. `derived_inline_visible` (the model) is",
+    "the signal half is the browser. `derived_inline` (the model) is",
     "not consulted.",
     "",
     `**Result: ${candidates.length} candidates → ${confirmed.length} confirmed** ` +

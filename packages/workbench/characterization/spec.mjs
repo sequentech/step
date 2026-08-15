@@ -5,14 +5,14 @@
 // The shared vote-validation specification — the single executable statement
 // of the mapping
 //
-//     f(config, voteState, context) → effects
+//     f(config, voteState) → one value per surface
 //
-// (VALIDATION_LOGIC_DISTILLATION.md §3): given a contest's configuration and
-// a description of what the voter did, which checker messages exist, whether
-// the review-transition gates fire, what the voter sees inline, whether the
-// booth UI lets the state form at all, and how the tally classifies the
-// ballot. `context` names the observation point — the moment/screen at which
-// the inline surface is read (see `f`).
+// given a contest's configuration and a description of what the voter did:
+// which checker messages exist (the internal record), what is visible inline
+// at each observation point (the voting screen untouched/touched, the review
+// screen — the point indexes the inline OUTPUT; it is not an input to the
+// mapping), whether the review-transition gates fire, whether the booth UI
+// lets the state form at all, and how the tally classifies the ballot.
 //
 // Everything is here, as one transcription of the production rules rather
 // than partial copies: the checker EMISSIONS (`emissions` — which
@@ -32,7 +32,7 @@
 //     (`runChecker`, `runGates`, `tallyClass`) — the `pred?` column.
 //     Independent derivations (this JS vs that Rust); agreement is real
 //     information.
-//   - inlineVisible and reachability transcribe TypeScript/React that is
+//   - inlineViews and reachability transcribe TypeScript/React that is
 //     NOT callable headlessly (`filterErrorList`; the input disable; the
 //     blank-marker reducer clearing). They are PREDICTIONS ONLY in a Node
 //     runner — there is no independent Node oracle — and are validated
@@ -51,7 +51,9 @@
 //   - hardGate  → sequent-core `voting_screen.rs::check_voting_not_allowed_next_util`
 //   - softGate  → sequent-core `voting_screen.rs::check_voting_error_dialog_util`
 //   - classify  → velvet-core `extended_metrics.rs::classify_ballot`
-//   - inlineVisible → voting-portal `InvalidErrorsList.tsx::filterErrorList`
+//   - inlineViews → voting-portal `InvalidErrorsList.tsx::filterErrorList`
+//     (the alert-visibility rules, the untouched-clear, the dedup block —
+//     Defect 3's self-match included — and the master keep-list)
 //   - reachability → voting-portal `Question.tsx`/`Answer.tsx` (the DISABLE
 //     over-vote policy disables further inputs at max) and
 //     `ballotSelectionsSlice.ts::setBallotSelectionBlankVote` (selecting the
@@ -261,32 +263,72 @@ export function classify(f) {
     return "Valid"
 }
 
-/** Booth message filter — `filterErrorList`'s keep-list, at the **review**
- *  surface (the decisive last screen before cast, and the surface the DOM
- *  validators observe). Under `invalid = allowed` every error is hidden except
- *  the two keep-list carve-outs. Two observation-point rules are review-
- *  specific and modelled here: the untouched-clear (empty contests show
- *  nothing while untouched) is a *voting-only* behaviour and does NOT apply at
- *  review, so it is correctly absent; and `overVoteDisabled` (the "maximum
- *  reached" hint) is a voting-only hint that filterErrorList hides at review
- *  (`… && isReview`), so it is excluded here. (WARN_ONLY_IN_REVIEW alerts show
- *  at review; not exercised by the rules with a complete table yet.)
- *
- *  PREDICTION ONLY in a Node runner (see the module header): validate against
- *  the real DOM in a browser runner, never against a re-computation of this. */
-export function inlineVisible(f) {
+/** One observation point of the booth message filter — the WarnBox message
+ *  keys `filterErrorList` leaves rendered, transcribed step-by-step in the
+ *  production order (alert visibility → dedup → the master keep-list on
+ *  errors; errors render before alerts). Internal: callers use `inlineViews`.
+ */
+function renderedKeys(f, isReview) {
     const p = {...DEFAULTS, ...(f.policies ?? {})}
     const errors = f.errors ?? []
-    const alerts = f.alerts ?? []
+    // Alert visibility — the only point-dependent rules: WARN_ONLY_IN_REVIEW
+    // alerts are hidden during voting, and the `overVoteDisabled` "maximum
+    // reached" hint is hidden at review.
+    let alerts = (f.alerts ?? []).filter(
+        (m) =>
+            !(
+                (m === MSG.underVote &&
+                    !isReview &&
+                    p.under === "warn-only-in-review") ||
+                (m === MSG.blankVote &&
+                    !isReview &&
+                    p.blank === "warn-only-in-review") ||
+                (m === MSG.overVoteDisabled && isReview)
+            )
+    )
+    // Dedup — production's `containsError` searches the visibility-filtered
+    // alerts plus the RAW (pre-keep-list) errors. The selectedMax predicate
+    // matches the very alert under examination, so a selectedMax alert is
+    // always dropped (Defect 3 in UPSTREAM_FINDINGS.md — transcribed as-is).
+    const present = (m) => alerts.includes(m) || errors.includes(m)
+    alerts = alerts.filter(
+        (m) =>
+            !(
+                (m === MSG.underVote && present(MSG.blankVote)) ||
+                (m === MSG.selectedMax && present(MSG.selectedMax))
+            )
+    )
+    // The master keep-list: under `invalid = allowed` every error is hidden
+    // except the two carve-outs.
     const keptErrors = errors.filter((m) => {
         if (p.invalid !== "allowed") return true
         if (m === MSG.selectedMax && p.over !== "allowed") return true
         if (m === MSG.blankVote && p.blank === "not-allowed") return true
         return false
     })
-    // `overVoteDisabled` is a voting-only hint, hidden at review.
-    const shownAlerts = alerts.filter((m) => m !== MSG.overVoteDisabled)
-    return [...keptErrors, ...shownAlerts]
+    return [...keptErrors, ...alerts]
+}
+
+/** Booth message filter — `filterErrorList`, at every observation point.
+ *  The observation point is an index of this surface's OUTPUT, not an input
+ *  of the whole mapping: only the inline surface varies with when/where the
+ *  voter looks. Three points:
+ *    - votingUntouched — the voting screen before the contest has any
+ *      selection (`isTouched`, Question.tsx state, armed by
+ *      `choices.some(selected > -1)` — note the null-vote marker alone never
+ *      arms it): the untouched-clear empties both lists, so this view is
+ *      constantly empty.
+ *    - voting  — the voting screen once touched.
+ *    - review  — the review screen (touch is assumed there).
+ *
+ *  PREDICTION ONLY in a Node runner (see the module header): validate against
+ *  the real DOM in a browser runner, never against a re-computation of this. */
+export function inlineViews(f) {
+    return {
+        votingUntouched: [],
+        voting: renderedKeys(f, false),
+        review: renderedKeys(f, true),
+    }
 }
 
 /**
@@ -328,25 +370,30 @@ export function reachability(config, vs) {
 /**
  * The complete mapping — one call per characterization cell.
  *
- * `context.point` names the observation point of the `inline` component:
- * the screen at which the voter's inline warnings are read. Only "review"
- * (the last screen before cast) is modelled so far; the during-voting
- * surface (the touch gate, WARN_ONLY_IN_REVIEW hiding, the voting-time
- * `overVoteDisabled` hint) is an open gap tracked in
- * characterization/README.md's completeness table. Gates and the dialog are
- * transition-time by definition; emissions, tally and reachability do not
- * depend on the observation point.
+ * (config × voteState) determines everything; there is no observation-
+ * context input. The observation point exists only inside the OUTPUT, as
+ * the index of the `inline` component (`votingUntouched` / `voting` /
+ * `review`) — the one surface whose content varies with when and where the
+ * voter looks. The gate pair is consulted at a single fixed moment (the
+ * Next/review transition); the tally class is observed after casting,
+ * outside the booth's timeline (and never per-ballot by the voter — only
+ * through result aggregates); reachability is a property of interaction
+ * attempts, not an effect. An earlier revision took an
+ * `observation_context` argument — wrong shape: it quantified a per-surface
+ * index over the whole product.
  *
  * @param {Config} config
  * @param {VoteState} vs
- * @param {{point: "review"}} [context]
+ * @returns {{
+ *   emissions: {errors: string[], alerts: string[]},
+ *   inline: {votingUntouched: string[], voting: string[], review: string[]},
+ *   gate: {hard: boolean, soft: boolean},
+ *   dialog: "none" | "dismissible" | "blocking",
+ *   reachability: "yes" | "inputs_disabled" | "marker_cleared",
+ *   tally: string,
+ * }}
  */
-export function f(config, vs, context = {point: "review"}) {
-    if (context.point !== "review") {
-        throw new Error(
-            `observation point "${context.point}" is not modelled yet (only "review")`
-        )
-    }
+export function f(config, vs) {
     const em = emissions(config, vs)
     const facts = {
         errors: em.errors,
@@ -361,15 +408,15 @@ export function f(config, vs, context = {point: "review"}) {
     const hard = hardGate(facts)
     const soft = softGate(facts)
     return {
-        errors: em.errors,
-        alerts: em.alerts,
-        hard,
-        soft,
+        // The checker record — internal (never voter-perceived), exposed
+        // because it is independently checkable against the real WASM.
+        emissions: em,
+        inline: inlineViews(facts),
+        gate: {hard, soft},
         // What the voter meets on clicking Next: the hard gate's dialog has
         // no Continue button, the soft gate's is dismissible; hard wins when
         // both fire (`VotingScreen.tsx`, `encryptAndReview`).
         dialog: hard ? "blocking" : soft ? "dismissible" : "none",
-        inline: inlineVisible(facts),
         reachability: reachability(config, vs),
         tally: classify({
             decline: !!vs.decline,

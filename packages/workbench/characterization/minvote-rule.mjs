@@ -33,7 +33,7 @@ import {
     loadMarkerFixture,
     extractErrors,
 } from "./harness.mjs"
-import {f, inlineVisible} from "./spec.mjs"
+import {f, inlineViews} from "./spec.mjs"
 import {RULE_SPECS} from "./rule-specs.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -101,17 +101,17 @@ function makeEml(min, invalidPolicy) {
 // definitions (rule-specs.mjs: specConfig/voteState). Min-vote is a fixed
 // rule, not a policy: the spec's emissions push a `selectedMin` error
 // whenever the marker-inclusive count is below min_votes, and selectedMin is
-// not on the filter's keep-list, so inlineVisible suppresses it under
+// not on the filter's keep-list, so the filter suppresses it under
 // invalid=allowed.
 const CELLS = RULE_SPECS["minvote-rule"]
 function predict(min, invalid, state) {
     const cell = {min_votes: min, invalid_vote_policy: invalid, state}
     const r = f(CELLS.specConfig(cell), CELLS.voteState(cell))
-    return {errors: r.errors, alerts: r.alerts, hard: r.hard, soft: r.soft, tally: r.tally}
+    return {errors: r.emissions.errors, alerts: r.emissions.alerts, hard: r.gate.hard, soft: r.gate.soft, tally: r.tally}
 }
 
-function derivedInlineVisible(observed, invalid) {
-    return inlineVisible({
+function derivedInline(observed, invalid) {
+    return inlineViews({
         errors: observed.errors,
         alerts: observed.alerts,
         policies: {invalid},
@@ -138,7 +138,7 @@ for (const min of MIN_VALUES) {
                 invalid_vote_policy: invalid,
                 state,
                 observed,
-                derived_inline_visible: derivedInlineVisible(observed, invalid),
+                derived_inline: derivedInline(observed, invalid),
                 predicted: p,
                 match,
             })

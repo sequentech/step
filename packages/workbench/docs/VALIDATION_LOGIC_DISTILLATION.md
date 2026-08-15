@@ -27,12 +27,28 @@ selections but also on the **observation context** — *when and where we
 look*: the voting screen versus the review screen, and whether the
 voter has touched the contest yet.
 
-In those terms: every (voter-state × contest-configuration ×
-observation-context) tuple produces one **observable effect per
-surface**, drawn from the following set. The surfaces themselves are
-enumerated in "The surfaces, enumerated" below, and the per-surface
-refinement at the end of this section explains why "exactly one
-effect" holds per surface rather than per tuple.
+In those terms, the claim this document makes precise is one of
+**totality and determinism**: every (contest-configuration ×
+voter-state) pair determines exactly one value on every surface, drawn
+from the sets below. The observation context is **not** an input to
+the whole mapping — it indexes the *output* of exactly one surface:
+inline content varies with the screen and the touch state, while the
+gate pair is consulted at a single fixed moment (the Next/review
+transition), the tally class is observed after casting, outside the
+booth's timeline — and by a different observer: the voter never sees
+their own ballot's class, which reaches the world only through result
+aggregates — and reachability is a property of interaction attempts.
+The surfaces, their values and where each is observed are enumerated
+in "The surfaces, enumerated" below; the per-surface refinement at the
+end of this section types the casting product.
+
+(An earlier revision of this paragraph quantified "one observable
+effect per surface" over (voter-state × configuration ×
+observation-context) tuples — falsified as soon as the surfaces were
+enumerated: no booth-time observation point perceives a tally effect.
+The shape was then settled in the executable spec first —
+[`../characterization/spec.mjs`](../characterization/spec.mjs), `f` —
+and this section now reflects it.)
 
 **The set's closedness is a checkable claim, not an assumption.** It is
 closed relative to a **consumer census**: the enumeration of every read
@@ -100,7 +116,7 @@ named columns of the recorded tables:
 
 | surface | what the voter meets | value | spec.mjs | recorded in |
 |---|---|---|---|---|
-| **inline** | warning boxes under the contest (each carries a `data-warn-id`) | a set of message keys, possibly empty — 1a when non-empty | `inlineVisible` | *inline (review)* column, `dom-validate.md` |
+| **inline** | warning boxes under the contest (each carries a `data-warn-id`) | one set of message keys **per observation point** — `votingUntouched` (constantly empty: the untouched-clear), `voting`, `review`; 1a when non-empty | `inlineViews` | *inline (voting)* / *inline (review)* columns, `dom-validate.md`; the untouched constant in `blank-rule.filter.md` |
 | **gate** | the dialog that may open on clicking Next / entering review | two booleans (hard, soft); the voter meets their projection: none / dismissible (1b) / blocking (1c) | `hardGate` / `softGate` | *hard gate* / *soft gate* columns of every rule table; the observed dialog per cell in `dom-validate.recorded.json` |
 | **tally** | nothing directly — the cast ballot's class in the results | exactly one of the six classes (2a–2f) | `classify` | *tally* column of every rule table; `classifier-table.md` |
 | *(reachability)* | inputs that will not click (the DISABLE over-vote policy), a marker that clears co-selections | yes / inputs_disabled / marker_cleared — 1d names its perceivable face | `reachability` | *reachable* column, `dom-validate.md` |
@@ -111,14 +127,14 @@ condition — nothing on either casting surface, a reachable state, and
 tally = `ImplicitInvalid` — is exactly what the silent-discount
 property (§4.5) tests.
 
-**Key principle:** Effects are *atomic observables*. Timing and location are
-part of the *input space*, not the effect taxonomy. For example,
-`WARN_ONLY_IN_REVIEW` is not a distinct effect — it is the same effect (1a)
-mapped from a different observation point:
+**Key principle:** Effects are *atomic observables*. Timing and location
+are not part of the effect taxonomy — they index the inline surface's
+output. For example, `WARN_ONLY_IN_REVIEW` is not a distinct effect — it
+is the same effect (1a), present at one observation point of the inline
+surface and absent at another:
 
 ```
-(undervote, WARN_ONLY_IN_REVIEW, during_voting)   → 1e (silent)
-(undervote, WARN_ONLY_IN_REVIEW, on_review)        → 1a (inline message)
+inline(undervote, WARN_ONLY_IN_REVIEW) = {voting: —, review: underVote}
 ```
 
 **Refinement — casting effects are per-surface, not exclusive.** A single
@@ -206,12 +222,18 @@ rejects a contest with more than one explicit-blank marker, producing a
 | `has_rank_gaps` | {true, false} (preferential only) |
 | `has_encoding_error` | {true, false} — write-in corruption / capacity overflow; the hard gate's first condition fires on `EncodingError`, which no combination of the other dimensions can express |
 
-### Observation context
+### Observation context (indexes the inline surface's output only)
+
+These dimensions parameterize nothing but the inline surface: the gate
+pair is consulted at one fixed moment (the Next/review transition), and
+the tally is observed after casting. (An earlier revision listed
+`on_transition` as a third observation point — it is not one: nothing
+inline is read there; it is the moment the gates are consulted.)
 
 | Dimension | Domain |
 |-----------|--------|
-| `observation_point` | {during_voting, on_review, on_transition} |
-| `is_touched` | {true, false} |
+| `observation_point` | {during_voting, on_review} — the two screens the inline surface renders on |
+| `is_touched` | {true, false} — during_voting only; an untouched contest renders nothing (the untouched-clear) |
 
 ### Combinatorial size
 
@@ -247,13 +269,22 @@ Two pruning cautions:
 
 ## 3. The Mapping (specification)
 
-The system's behaviour is fully characterised by a pure function:
+The system's behaviour is fully characterised by a pure function
+returning one value per surface — the executable form is
+[`../characterization/spec.mjs`](../characterization/spec.mjs), `f`:
 
 ```
-f(config, vote_state, observation_context) → Effect
+f(config, vote_state) → ( emissions,                          the checker record
+                          inline: observation_point → Set<Message>,
+                          gate: (hard, soft),
+                          tally: BallotClass,
+                          reachability )
 ```
 
-Today this function is *implicitly* encoded across multiple code paths:
+The observation point appears inside the inline component of the
+output, not as an input to the mapping (§1, "The surfaces,
+enumerated"). Today this function is *implicitly* encoded across
+multiple production code paths:
 
 - `checker.rs` (9 checker functions producing errors/alerts — 8 decode-time
   plus the config-level `check_contest_configuration`)
@@ -408,6 +439,12 @@ see [`UPSTREAM_FINDINGS.md`](./UPSTREAM_FINDINGS.md) S1/S2 — but the fix
 
 ### 5.2 Sketch
 
+> **Superseded on shape:** this sketch predates the settled type — it
+> still passes an observation context into the mapping. The current
+> concrete form is `../characterization/spec.mjs`, `f` (§3): no context
+> input; the inline component of the output is point-indexed. Kept for
+> the classify half, which the 2026-08 merge shipped as sketched.
+
 ```rust
 /// The declarative specification. Returns the casting-time effect for a
 /// given input tuple.
@@ -492,7 +529,8 @@ This is not a rewrite proposal. The path is incremental:
 > seven rules through the real booth — panel-driven config, reload-free
 > (one snapshot load per rule, then client-side navigation; ~2 s/cell,
 > the full 229-cell grid in ~8 min) — observing inline visibility at the
-> review screen and reachability, with direct constraint evidence
+> touched voting screen and at the review screen, and reachability, with
+> direct constraint evidence
 > (`no (disabled)` from probing the (max+1)th control's `disabled`
 > attribute; `no (cleared)` from the blank marker clearing a co-selected
 > regular): **229/229 matching the spec**. The §4.5 query

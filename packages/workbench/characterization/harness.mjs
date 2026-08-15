@@ -101,11 +101,16 @@ export async function loadVelvetWasm() {
  */
 export function isSilentDiscount(cell) {
     const o = cell.observed
-    const inlineVisible = (cell.derived_inline_visible ?? []).length > 0
+    const d = cell.derived_inline ?? {}
+    // "No signal" must hold at every point of the inline surface the voter
+    // passes through — the touched voting screen and the review screen (the
+    // untouched view is constantly empty and adds nothing).
+    const inlineShown =
+        (d.voting ?? []).length > 0 || (d.review ?? []).length > 0
     const gate = o.hard || o.soft
     const constrained = o.constraint === "inputs_disabled"
     return (
-        o.tally === "ImplicitInvalid" && !inlineVisible && !gate && !constrained
+        o.tally === "ImplicitInvalid" && !inlineShown && !gate && !constrained
     )
 }
 
