@@ -555,6 +555,22 @@ This is not a rewrite proposal. The path is incremental:
 > decline cells are recorded headlessly, but no booth runner drives a
 > declined ballot.
 
+> **Status (2026-08-15): steps 3 and 4 are delivered.** Step 3's
+> artifact is the typed Rust crate
+> [`../validation-spec/`](../validation-spec/) —
+> `f(config, vote_state)` exactly as §3 types it, bug-compatible, with
+> the accidental complexity enumerated as a **quirk registry**
+> (`quirks()` in its `lib.rs`: seven named behaviours, each tied to its
+> UPSTREAM_FINDINGS.md suspect/defect and annotated at its code site;
+> toggling one is an adjudication decision, not a refactor). Step 4's
+> equivalence: `../characterization/rust-conformance.mjs` — Rust ≡ the
+> recorded wasm/DOM ground truth on all 280 recorded cells, and ≡
+> `spec.mjs` on 20 000 seeded-random cells (arbitrary bounds including
+> min > max, every policy combination — territory no fixture reaches).
+> Step 5 — replacing production's scattered implementations with an
+> interpreter of this artifact — remains adjudication-gated: the quirk
+> registry is its work list.
+
 1. **Enumerate the current mapping** — exercise every cell of the input
    space through the existing code and record the observed effects. Include
    the *prevention-guarded* cells (see the pruning caution in §2) and the

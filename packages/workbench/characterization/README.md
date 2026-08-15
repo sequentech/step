@@ -159,6 +159,17 @@ the prediction (`pred?` column / mismatch report). The `classifier-table`
 runner's `predict()` *is* `spec.classify`, so that table validates the
 shared classifier directly.
 
+The spec now exists twice, deliberately: `spec.mjs` (validated against
+the real WASM and DOM as above) and its typed Rust port,
+[`../validation-spec/`](../validation-spec/) — the
+VALIDATION_LOGIC_DISTILLATION.md §5.3 step-3 artifact. The Rust crate is
+bug-compatible, with every surprising behaviour carried as a **named
+quirk** (`quirks()` in its `lib.rs`, each tied to its
+UPSTREAM_FINDINGS.md suspect/defect — toggling one is an adjudication
+decision, not a refactor). Equivalence between the two specs, and
+against the recorded ground truth, is checked by `rust-conformance.mjs`
+(below).
+
 **Two validation lanes, unequal coverage.** `spec.mjs`'s emissions, gates
 and classifier transcribe Rust that IS compiled to wasm, so `pred?` checks
 them against the real wasm on every cell (independent derivations — this
@@ -205,6 +216,7 @@ gates, recorded tally) with a `pred?` column comparing them to `spec.mjs`:
 | `prefgaps-rule.mjs` | `prefgaps-rule.recorded.json` + `.md` |
 | `invalid-rule.mjs` | `invalid-rule.recorded.json` + `.md` |
 | `classifier-table.mjs` | `classifier-table.recorded.json` + `.md` |
+| `rust-conformance.mjs` | `rust-conformance.recorded.json` + `.md` — the typed Rust spec (`../validation-spec/`) vs the recorded ground truth (all 280 cells) and vs `spec.mjs` on 20 000 seeded-random cells. Needs `cargo` (builds `emit-grid` on first run), not the wasm pkgs |
 
 ### Browser lane (dev server on :5173)
 

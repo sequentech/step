@@ -25,6 +25,7 @@ members = [
     "plugins/*",
     "workbench/velvet-core",
     "workbench/velvet-wasm",
+    "workbench/validation-spec",
 ]
 
 [workspace.dependencies]

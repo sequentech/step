@@ -11045,6 +11045,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "validation-spec"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "validator"
 version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

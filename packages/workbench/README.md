@@ -182,6 +182,10 @@ workbench/
 │                        NOT workbench-only — `packages/velvet` depends
 │                        on it and re-exports it; see Known gaps.
 ├── velvet-wasm/         wasm-bindgen wrapper exposing velvet-core to JS
+├── validation-spec/     Typed Rust port of the validation spec — bug-
+│                        compatible, accidental complexity enumerated as a
+│                        quirk registry; equivalence-checked by
+│                        characterization/rust-conformance.mjs
 ├── docs/                Vote-validation deep dives (VOTE_VALIDATION.md,
 │                        VALIDATION_LOGIC_DISTILLATION.md, FIXTURE_VARIANCE.md);
 │                        findings (UPSTREAM_FINDINGS.md), reviewer
@@ -373,12 +377,16 @@ payoff:
    cell. Blocked on adding a `multi_ballot` encrypt/decrypt path (the
    decline bit does not exist in `raw_ballot`; see Known gaps above), so
    it is a feature lift, not a rule extension.
-3. **Distillation step 3** — `spec.mjs` is now validated against the
-   whole grid, so the next step in
+3. **Distillation steps 3–4 are delivered** — the typed Rust spec
+   ([validation-spec/](validation-spec/), bug-compatible, its accidental
+   complexity enumerated as a quirk registry) is equivalence-checked
+   against the recorded ground truth and against `spec.mjs`
+   (`characterization/rust-conformance.mjs`; see
    [docs/VALIDATION_LOGIC_DISTILLATION.md](docs/VALIDATION_LOGIC_DISTILLATION.md)
-   §5.3 is expressing the (post-adjudication) table declaratively — a
-   Rust match expression or a loadable data structure — then
-   property-testing it for equivalence against the live implementation.
+   §5.3). What remains is adjudication-gated: each quirk is one
+   consultation verdict away from being blessed into the spec or flipped
+   into a fix, and step 5 — a production interpreter of the artifact —
+   follows from those verdicts.
 
 Standing maintenance, as upstream moves:
 
