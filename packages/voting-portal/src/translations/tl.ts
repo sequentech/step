@@ -85,16 +85,11 @@ const tagalogTranslation: TranslationType = {
             descriptionNoAudit:
                 "I-click ang “<b>I-edit ang balota</b>” para baguhin ang mga napili, o “<b>I-submit ang balota</b>” para kumpirmahin.",
             backButton: "I-edit ang balota",
-<<<<<<< HEAD
-            castBallotButton: "I-submit ang balota",
-            auditButton: "Suriin ang balota",
-=======
             castBallotButton: "I-submit ang balota",
             auditButton: "Suriin ang balota",
             copyBallotId: "Kopyahin ang ballot ID",
             ballotIdCopied: "Nakopya ang ballot ID",
             ballotIdCopyError: "Hindi makopya ang ballot ID",
->>>>>>> d388a69c7e (✨ Voting Portal: Ballot Id Copy Button (#3060))
             reviewScreenHelpDialog: {
                 title: "Tungkol sa screen ng pagsusuri",
                 content:
