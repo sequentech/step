@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
+use crate::services::election::is_election_event_locked_down;
 use crate::services::tasks_execution::{update_complete_with_annotations, update_fail};
 use crate::services::users::{list_users, list_users_with_vote_info, ListUsersFilter};
 use crate::types::error::{Error, Result};
@@ -49,6 +50,8 @@ pub async fn delete_users(
     filter: Option<ListUsersFilter>,
     task_execution: Option<TasksExecution>,
 ) -> Result<()> {
+    ensure_election_event_not_locked(&task_execution).await?;
+
     let ids = match user_ids {
         Some(ids) => ids,
         None => {
@@ -71,6 +74,11 @@ pub async fn delete_users(
             }
         }
     };
+
+    // Resolving a large filtered set can take long enough for lockdown to
+    // change after the task starts. Recheck immediately before the first
+    // destructive operation.
+    ensure_election_event_not_locked(&task_execution).await?;
 
     let total = ids.len();
     info!("Deleting {total} voters from realm {realm}");
@@ -126,6 +134,35 @@ pub async fn delete_users(
         .await?;
     }
     Ok(())
+}
+
+async fn ensure_election_event_not_locked(task_execution: &Option<TasksExecution>) -> Result<()> {
+    let Some(task) = task_execution else {
+        return fail(
+            task_execution,
+            "Delete voters task is missing its task execution record".to_string(),
+        )
+        .await;
+    };
+    let Some(election_event_id) = task.election_event_id.as_deref() else {
+        return fail(
+            task_execution,
+            "Delete voters task is missing its election event id".to_string(),
+        )
+        .await;
+    };
+
+    match is_election_event_locked_down(&task.tenant_id, election_event_id).await {
+        Ok(false) => Ok(()),
+        Ok(true) => fail(task_execution, "Election event is locked down".to_string()).await,
+        Err(err) => {
+            fail(
+                task_execution,
+                format!("Failed to check election event lockdown: {err}"),
+            )
+            .await
+        }
+    }
 }
 
 /// Marks the task failed and returns the same message as the task error, so the

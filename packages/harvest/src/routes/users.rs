@@ -33,6 +33,7 @@ use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::cast_votes::get_users_with_vote_info;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
+use windmill::services::election::is_election_event_locked_down;
 use windmill::services::electoral_log::{
     post_voter_password_change, ElectoralLogAdminContext,
     VoterPasswordChangeSource,
@@ -63,6 +64,23 @@ pub struct DeleteUserBody {
     user_id: String,
 }
 
+async fn ensure_election_event_not_locked(
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<(), (Status, String)> {
+    match is_election_event_locked_down(tenant_id, election_event_id).await {
+        Ok(false) => Ok(()),
+        Ok(true) => Err((
+            Status::Forbidden,
+            "Election event is locked down".to_string(),
+        )),
+        Err(err) => Err((
+            Status::InternalServerError,
+            format!("Failed to check election event lockdown: {err}"),
+        )),
+    }
+}
+
 #[instrument(skip(claims))]
 #[post("/delete-user", format = "json", data = "<body>")]
 pub async fn delete_user(
@@ -71,7 +89,7 @@ pub async fn delete_user(
 ) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
     let required_perm: Permissions = if input.election_event_id.is_some() {
-        Permissions::VOTER_WRITE
+        Permissions::VOTER_DELETE
     } else {
         Permissions::USER_WRITE
     };
@@ -81,9 +99,13 @@ pub async fn delete_user(
         Some(input.tenant_id.clone()),
         vec![required_perm],
     )?;
-    let realm = match input.election_event_id {
+    if let Some(election_event_id) = input.election_event_id.as_deref() {
+        ensure_election_event_not_locked(&input.tenant_id, election_event_id)
+            .await?;
+    }
+    let realm = match input.election_event_id.as_ref() {
         Some(election_event_id) => {
-            get_event_realm(&input.tenant_id, &election_event_id)
+            get_event_realm(&input.tenant_id, election_event_id)
         }
         None => get_tenant_realm(&input.tenant_id),
     };
@@ -138,7 +160,7 @@ pub async fn delete_users(
 ) -> Result<Json<DeleteUsersOutput>, (Status, String)> {
     let input = body.into_inner();
     let required_perm: Permissions = if input.election_event_id.is_some() {
-        Permissions::VOTER_WRITE
+        Permissions::VOTER_DELETE
     } else {
         Permissions::USER_WRITE
     };
@@ -167,41 +189,68 @@ pub async fn delete_users(
             "select_all requires an election event".to_string(),
         ));
     }
+    if let Some(election_event_id) = input.election_event_id.as_deref() {
+        ensure_election_event_not_locked(&input.tenant_id, election_event_id)
+            .await?;
+    }
 
-    let realm = match input.election_event_id {
-        Some(ref election_event_id) => {
+    let realm = match input.election_event_id.as_ref() {
+        Some(election_event_id) => {
             get_event_realm(&input.tenant_id, election_event_id)
         }
         None => get_tenant_realm(&input.tenant_id),
     };
+
+    // Tenant users do not have an election event to own a task_execution row.
+    // Keep this path synchronous so Keycloak failures are returned to the
+    // caller instead of disappearing in an untracked worker task.
+    if input.election_event_id.is_none() {
+        let client = KeycloakAdminClient::new()
+            .await
+            .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+        let user_ids = input
+            .users_id
+            .as_ref()
+            .ok_or((Status::BadRequest, "No users selected".to_string()))?;
+        for id in user_ids {
+            client.delete_user(&realm, id).await.map_err(|e| {
+                (
+                    Status::InternalServerError,
+                    format!("Error deleting the user: {e:?}"),
+                )
+            })?;
+        }
+        return Ok(Json(DeleteUsersOutput {
+            ids: None,
+            error_msg: None,
+            task_execution: None,
+        }));
+    }
 
     let executer_name = claims
         .name
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
 
-    // Only voter deletion is surfaced as a tracked task; the tenant-level user
-    // list has no election event to hang a task_execution on.
-    let task_execution = match input.election_event_id {
-        Some(ref election_event_id) => Some(
-            post(
-                &claims.hasura_claims.tenant_id,
-                Some(election_event_id),
-                ETasksExecution::DELETE_VOTERS,
-                &executer_name,
+    let election_event_id = input
+        .election_event_id
+        .clone()
+        .expect("tenant users returned above");
+    let task_execution = Some(
+        post(
+            &input.tenant_id,
+            Some(&election_event_id),
+            ETasksExecution::DELETE_VOTERS,
+            &executer_name,
+        )
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Failed to insert task execution record: {error:?}"),
             )
-            .await
-            .map_err(|error| {
-                (
-                    Status::InternalServerError,
-                    format!(
-                        "Failed to insert task execution record: {error:?}"
-                    ),
-                )
-            })?,
-        ),
-        None => None,
-    };
+        })?,
+    );
 
     let filter = if select_all {
         Some(ListUsersFilter {
