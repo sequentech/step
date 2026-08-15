@@ -222,6 +222,7 @@ const catalanTranslation: TranslationType = {
                 logs: "Registres",
             },
             tasksExecution: {
+                VOTER_INFORMATION_LETTER: "Carta d'informació per al votant",
                 EXPORT_ELECTION_EVENT: "Exportar esdeveniment electoral",
                 CREATE_ELECTION_EVENT: "Crear Esdeveniment Electoral",
                 IMPORT_ELECTION_EVENT: "Importar esdeveniment electoral",
@@ -247,6 +248,19 @@ const catalanTranslation: TranslationType = {
                 EXPORT_TALLY_RESULTS_XLSX: "Exporta els resultats del recompte en format XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Exportar autoritats de certificació",
                 PUBLISH_RESULTS_WEBSITE: "Publicar el lloc web de resultats",
+            },
+            documentAccess: {
+                title: "Accés al document",
+                sensitivityNotice:
+                    "Informació sensible. Compartiu aquesta contrasenya només amb el destinatari previst.",
+                passwordLabel: "Contrasenya per obrir el PDF xifrat",
+                showPassword: "Mostra la contrasenya",
+                copyPassword: "Copia la contrasenya",
+                passwordCopied: "Contrasenya copiada",
+                passwordError: "No s'ha pogut recuperar la contrasenya del PDF",
+                copyError: "No s'ha pogut copiar la contrasenya",
+                guidance:
+                    "La contrasenya només es carrega després de triar Mostra la contrasenya. Després de carregar-la, aquí apareix un camp de només lectura amb l'opció de copiar.",
             },
             widget: {
                 taskTitle: "Tasca: {{title}}",
@@ -465,6 +479,11 @@ const catalanTranslation: TranslationType = {
                 realm_attributes_update_error: "Error updating Keycloak realm attributes",
                 realm_attributes_not_loaded:
                     "Keycloak realm attributes have not loaded, changes were not saved",
+                password_policy: "Password Policy",
+                password_policy_load_error: "Error loading Keycloak password policy",
+                password_policy_update_error: "Error updating Keycloak password policy",
+                password_policy_not_loaded:
+                    "Keycloak password policy has not loaded, changes were not saved",
             },
             customUrls: {
                 login: "Inici de sessió",
@@ -489,6 +508,37 @@ const catalanTranslation: TranslationType = {
                 },
             },
             field: {
+                passwordPolicy: {
+                    minimumLength: "Longitud mínima",
+                    maximumLength: "Longitud màxima",
+                    includeUppercase: "Incloure lletres majúscules",
+                    includeLowercase: "Incloure lletres minúscules",
+                    includeDigits: "Incloure dígits",
+                    includeSpecialCharacters: "Incloure caràcters especials",
+                    help: {
+                        minimumLength:
+                            "El nombre mínim de caràcters necessaris per a la contrasenya.",
+                        maximumLength:
+                            "El nombre màxim de caràcters permesos per a la contrasenya.",
+                        includeUppercase:
+                            "La contrasenya ha d'incloure almenys una lletra majúscula.",
+                        includeLowercase:
+                            "La contrasenya ha d'incloure almenys una lletra minúscula.",
+                        includeDigits: "La contrasenya ha d'incloure almenys un dígit.",
+                        includeSpecialCharacters:
+                            "La contrasenya ha d'incloure almenys un caràcter especial.",
+                    },
+                    notConfigured:
+                        "No hi ha cap política de contrasenyes configurada. En desar, s'aplicaran els valors predeterminats següents.",
+                    errors: {
+                        lengthRange:
+                            "Les longituds de la contrasenya han de ser nombres enters entre 1 i 256.",
+                        minimumExceedsMaximum:
+                            "La longitud mínima no pot superar la longitud màxima.",
+                        characterClassRequired:
+                            "Seleccioneu almenys una classe de caràcters per a la contrasenya.",
+                    },
+                },
                 name: "Nom",
                 alias: "Àlies",
                 description: "Descripció",
@@ -605,8 +655,13 @@ const catalanTranslation: TranslationType = {
                     policyLabel: "Política de Votació Ponderada",
                     options: {
                         "areas-weighted-voting": "Votació Ponderada per Àrees",
+                        "voters-weighted-voting": "Votació Ponderada per Votants",
                         "disabled-weighted-voting": "Votació Ponderada Desactivada",
                     },
+                    noDelegated:
+                        "La Votació Ponderada per Votants no es pot combinar amb el Vot Delegat",
+                    noDecodedBallots:
+                        "La Votació Ponderada per Votants no es pot combinar amb la inclusió de paperetes desxifrades als resultats",
                 },
                 delegatedVotingPolicy: {
                     policyLabel: "Política de Votació Delegada",
@@ -639,6 +694,7 @@ const catalanTranslation: TranslationType = {
                     config: "Configuració",
                     blacklist: "Llista de bloqueig",
                     prompts: "Locucions",
+                    emulator: "Emulador",
                 },
                 common: {
                     saveSuccess: "S'ha desat correctament",
@@ -673,6 +729,36 @@ const catalanTranslation: TranslationType = {
 
                     noFilterMatch: "Cap entrada no coincideix amb els filtres indicats",
                     phoneRequired: "El número de telèfon és obligatori",
+                },
+                emulator: {
+                    infoMsg:
+                        "Seleccioneu una àrea i les eleccions desitjades per provar la sessió IVR.",
+                    apiStatus: {
+                        unavailable: "El sistema de l'emulador no està disponible al vostre entorn",
+                        loading: "S'està carregant el sistema de l'emulador",
+                        error: "S'ha produït un error en carregar el sistema de l'emulador",
+                    },
+                    hints: {
+                        title: "Consells",
+                        publishRequired:
+                            "Qualsevol canvi fet a les eleccions, les conteses o els candidats s'ha de publicar primer perquè estigui disponible. A l'emulador només s'utilitzaran els estils de papereta publicats més recentment per a l'àrea corresponent.",
+                        eventChangesImmediate:
+                            "Els canvis fets a l'esdeveniment electoral, com ara la configuració IVR o les substitucions dels missatges, estan disponibles immediatament en reiniciar la sessió de l'emulador.",
+                        credentials:
+                            'L\'identificador de votant i el PIN vàlids són "123" i "123".',
+                    },
+                    sendDtmf: "Envia una entrada DTMF",
+                    sendTimeout: "Envia el temps d'espera",
+                    disconnected: "Desconnectat",
+                    startSession: "Inicia una sessió nova",
+                    endSession: "Finalitza la sessió",
+                    noStylesFound:
+                        "No s'ha trobat cap estil de papereta publicat que coincideixi amb les vostres seleccions",
+                    inputPlaceholder:
+                        "Introduïu la vostra entrada (màxim de dígits={{maxDigits}}, entrades vàlides={{validInputs}}, temps d'espera={{timeout}} s)",
+                    blacklistCaller: "Bloqueja la persona que truca",
+                    elections: "Eleccions",
+                    area: "Àrea",
                 },
             },
             stats: {
@@ -974,6 +1060,16 @@ const catalanTranslation: TranslationType = {
                 mobileNumber: "Mòbil",
             },
             editPassword: {
+                passwordPolicyViolation:
+                    "La contrasenya no compleix la Política de contrasenyes d'aquest esdeveniment electoral. Reviseu la política a Dades de l'esdeveniment electoral i introduïu una contrasenya vàlida.",
+                passwordPolicyRules: {
+                    minimumLength: "La longitud mínima de la contrasenya és {{count}}.",
+                    maximumLength: "La longitud màxima de la contrasenya és {{count}}.",
+                    uppercase: "Caràcters en majúscula necessaris: {{count}}.",
+                    lowercase: "Caràcters en minúscula necessaris: {{count}}.",
+                    digits: "Dígits necessaris: {{count}}.",
+                    specialCharacters: "Caràcters especials necessaris: {{count}}.",
+                },
                 label: "Canviar contrasenya",
                 temporatyLabel: "Temporal",
                 temporatyInfo:
@@ -1001,6 +1097,7 @@ const catalanTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Ha votat",
+                    "vote-weight": "Pes del vot",
                     "voted-channel": "Canal de vot",
                     "disable-comment": "Comentari de desactivació",
                     "username": "Nom d'Usuari",
@@ -1040,6 +1137,20 @@ const catalanTranslation: TranslationType = {
                 },
             },
             voters: {
+                voterInformationLetter: {
+                    label: "Carta d'informació per al votant",
+                    generate: "Genera",
+                    confirmation:
+                        "Voleu generar una Carta d'informació per a aquest votant? S'assignarà una contrasenya nova i s'inclourà en un PDF xifrat.",
+                    generationStarted: "S'ha iniciat la generació de la Carta d'informació",
+                    generationError: "No s'ha pogut generar la Carta d'informació",
+                    policyNotConfigured:
+                        "La Política de contrasenyes no està configurada. Configureu-la a Dades de l'esdeveniment electoral abans de generar una carta.",
+                    policyMinimumLengthMissing:
+                        "La Política de contrasenyes ha d'incloure una longitud mínima abans de generar una carta.",
+                    policyCharacterClassMissing:
+                        "La Política de contrasenyes ha d'incloure almenys una classe de caràcters abans de generar una carta.",
+                },
                 title: "Votants",
                 subtitle: "Veure i editar dades del votant",
                 review: {
@@ -1115,6 +1226,7 @@ const catalanTranslation: TranslationType = {
                 },
             },
             permissions: {
+                "voter-information-letter": "Genera una Carta d'informació per al votant",
                 "admin-user": "Administració",
                 "admin-dashboard-view": "Vista del Tauler d'Administració",
                 "application-export": "Exportació d'Aplicacions",
@@ -1171,6 +1283,7 @@ const catalanTranslation: TranslationType = {
                 "keys-read": "Llegir Claus",
                 "document-upload": "Pujar Documents",
                 "document-download": "Descarregar Documents",
+                "document-password-read": "Llegir contrasenyes de documents",
                 "tally-sheet-create": "Crear Acta de Recompte",
                 "tally-sheet-import-create": "Crear importació d'actes de recompte",
                 "tally-sheet-import-review": "Revisar importació d'actes de recompte",
@@ -2236,6 +2349,7 @@ const catalanTranslation: TranslationType = {
                 ko: "Cancel·lar",
                 error: "Error carregant les paperetes publicades",
                 error_publish: "Error publicant la papereta",
+                error_capacity: "Error en generar l'estil de papereta: {{message}}",
                 error_status: "Error canviant l'estat de la publicació",
                 error_preview: "S'ha produït un error en visualitzar la publicació",
                 diff: "Renderitzar tots els canvis podria fer que la pàgina no respongui. Esteu segur que voleu continuar?",

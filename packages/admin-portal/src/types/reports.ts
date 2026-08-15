@@ -20,6 +20,7 @@ export enum EReportType {
     ACTIVITY_LOGS = ETemplateType.ACTIVITY_LOGS,
     MANUAL_VERIFICATION = ETemplateType.MANUAL_VERIFICATION,
     PARTICIPATION_REPORT = ETemplateType.PARTICIPATION_REPORT,
+    CREDENTIALS = ETemplateType.CREDENTIALS,
 }
 
 export enum EReportElectionPolicy {
@@ -89,6 +90,12 @@ export const reportTypeConfig: {
         templateRequired: false,
         electionPolicy: EReportElectionPolicy.ELECTION_ALLOWED,
         associatedTemplateType: ETemplateType.PARTICIPATION_REPORT,
+    },
+    [EReportType.CREDENTIALS]: {
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_NOT_ALLOWED,
+        associatedTemplateType: ETemplateType.CREDENTIALS,
     },
     default: {
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],

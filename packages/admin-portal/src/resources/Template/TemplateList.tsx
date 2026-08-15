@@ -46,6 +46,7 @@ import {EIntegrityCheckError} from "@/types/templates"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {WidgetProps} from "@/components/Widget"
+import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
 
 const TemplateEmpty = styled(Box)`
     display: flex;
@@ -259,10 +260,10 @@ export const TemplateList: React.FC = () => {
                 }
                 empty={<Empty />}
             >
-                <DatagridConfigurable omit={OMIT_FIELDS}>
+                <DatagridConfigurable header={ThreeStateDatagridHeader} omit={OMIT_FIELDS}>
                     <TextField source="id" />
-                    <TextField source="template.alias" label="Alias" />
-                    <TextField source="template.name" label="Name" />
+                    <TextField source="template.alias" label="Alias" sortable={false} />
+                    <TextField source="template.name" label="Name" sortable={false} />
                     <TextField source="type" />
                     <WrapperField source="actions" label="Actions">
                         <ActionsColumn actions={actions} />

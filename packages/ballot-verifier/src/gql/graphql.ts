@@ -98,6 +98,8 @@ export type CastVotesByIp = {
 
 export type CastVotesPerDay = {
     __typename?: "CastVotesPerDay"
+    bucket: Scalars["String"]["output"]
+    channel: Scalars["String"]["output"]
     day: Scalars["date"]["output"]
     day_count: Scalars["Int"]["output"]
 }
@@ -240,6 +242,11 @@ export type DeleteUsersOutput = {
     ids?: Maybe<Scalars["String"]["output"]>
 }
 
+export type DocumentPasswordOutput = {
+    __typename?: "DocumentPasswordOutput"
+    password: Scalars["String"]["output"]
+}
+
 export enum EarlyVotingPolicy {
     AllowEarlyVoting = "allow_early_voting",
     NoEarlyVoting = "no_early_voting",
@@ -267,9 +274,11 @@ export type EditUsersInput = {
 }
 
 export type ElectionEventStatsInput = {
+    bucket_count?: InputMaybe<Scalars["Int"]["input"]>
     election_event_id: Scalars["uuid"]["input"]
     end_date: Scalars["String"]["input"]
     start_date: Scalars["String"]["input"]
+    time_resolution?: InputMaybe<Scalars["String"]["input"]>
     user_timezone: Scalars["String"]["input"]
 }
 
@@ -279,14 +288,17 @@ export type ElectionEventStatsOutput = {
     total_distinct_voters: Scalars["Int"]["output"]
     total_elections: Scalars["Int"]["output"]
     total_eligible_voters: Scalars["Int"]["output"]
+    voters_by_channel: Array<VotersByChannel>
     votes_per_day: Array<Maybe<CastVotesPerDay>>
 }
 
 export type ElectionStatsInput = {
+    bucket_count?: InputMaybe<Scalars["Int"]["input"]>
     election_event_id: Scalars["uuid"]["input"]
     election_id: Scalars["uuid"]["input"]
     end_date: Scalars["String"]["input"]
     start_date: Scalars["String"]["input"]
+    time_resolution?: InputMaybe<Scalars["String"]["input"]>
     user_timezone: Scalars["String"]["input"]
 }
 
@@ -294,6 +306,7 @@ export type ElectionStatsOutput = {
     __typename?: "ElectionStatsOutput"
     total_areas: Scalars["Int"]["output"]
     total_distinct_voters: Scalars["Int"]["output"]
+    voters_by_channel: Array<VotersByChannel>
     votes_per_day: Array<Maybe<CastVotesPerDay>>
 }
 
@@ -436,6 +449,12 @@ export type FetchResultsArtifactOutput = {
     urls: Array<Scalars["String"]["output"]>
 }
 
+export type GenerateBallotPublicationOutput = {
+    __typename?: "GenerateBallotPublicationOutput"
+    ballot_publication_id: Scalars["uuid"]["output"]
+    task_execution: Tasks_Execution_Type
+}
+
 export type GenerateGoogleMeetOutput = {
     __typename?: "GenerateGoogleMeetOutput"
     meet_link?: Maybe<Scalars["String"]["output"]>
@@ -491,6 +510,11 @@ export type GetPrivateKeyInput = {
 export type GetPrivateKeyOutput = {
     __typename?: "GetPrivateKeyOutput"
     private_key_base64: Scalars["String"]["output"]
+}
+
+export type GetRealmAttributesOutput = {
+    __typename?: "GetRealmAttributesOutput"
+    attributes: Scalars["jsonb"]["output"]
 }
 
 export type GetRolesInput = {
@@ -852,6 +876,17 @@ export type PublishResultsWebsiteOutput = {
     task_execution_id: Scalars["String"]["output"]
 }
 
+export type RealmPasswordPolicy = {
+    __typename?: "RealmPasswordPolicy"
+    configured: Scalars["Boolean"]["output"]
+    include_digits: Scalars["Boolean"]["output"]
+    include_lowercase: Scalars["Boolean"]["output"]
+    include_special_characters: Scalars["Boolean"]["output"]
+    include_uppercase: Scalars["Boolean"]["output"]
+    maximum_length: Scalars["Int"]["output"]
+    minimum_length: Scalars["Int"]["output"]
+}
+
 export type RefreshResultsPublicationIndexOutput = {
     __typename?: "RefreshResultsPublicationIndexOutput"
     election_event_id: Scalars["String"]["output"]
@@ -1074,6 +1109,11 @@ export type UpdateRealmAttributesOutput = {
     updated: Scalars["Boolean"]["output"]
 }
 
+export type UpdateRealmPasswordPolicyOutput = {
+    __typename?: "UpdateRealmPasswordPolicyOutput"
+    updated: Scalars["Boolean"]["output"]
+}
+
 export type UpsertAreaOutput = {
     __typename?: "UpsertAreaOutput"
     id: Scalars["String"]["output"]
@@ -1091,6 +1131,19 @@ export type UserProfileAttribute = {
     required?: Maybe<Scalars["jsonb"]["output"]>
     selector?: Maybe<Scalars["jsonb"]["output"]>
     validations?: Maybe<Scalars["jsonb"]["output"]>
+}
+
+export type VoterInformationLetterOutput = {
+    __typename?: "VoterInformationLetterOutput"
+    document_id: Scalars["String"]["output"]
+    pdf_password: Scalars["String"]["output"]
+    task_execution: Tasks_Execution_Type
+}
+
+export type VotersByChannel = {
+    __typename?: "VotersByChannel"
+    channel: Scalars["String"]["output"]
+    count: Scalars["Int"]["output"]
 }
 
 export type VotesInfo = {
@@ -1450,13 +1503,14 @@ export type Mutation_Root = {
     export_tenant_config?: Maybe<DocumentTaskOutput>
     export_tenant_users?: Maybe<ExportTenantUsersOutput>
     export_users?: Maybe<ExportUsersOutput>
-    generate_ballot_publication?: Maybe<PublishBallotOutput>
+    generate_ballot_publication?: Maybe<GenerateBallotPublicationOutput>
     /** generate Google Meet link for election events */
     generate_google_meet?: Maybe<GenerateGoogleMeetOutput>
     generate_preview_url?: Maybe<GeneratePreviewUrlOutput>
     generate_report?: Maybe<GenerateReportOutput>
     generate_template?: Maybe<GenerateTemplateOutput>
     generate_transmission_report?: Maybe<GenerateReportOutput>
+    generate_voter_information_letter: VoterInformationLetterOutput
     get_ballot_publication_changes?: Maybe<GetBallotPublicationChangesOutput>
     get_manual_verification_pdf?: Maybe<GetManualVerificationOutput>
     /** get private key */
@@ -1681,6 +1735,7 @@ export type Mutation_Root = {
     update_election_voting_status?: Maybe<UpdateElectionVotingStatusOutput>
     update_event_voting_status?: Maybe<UpdateEventVotingStatusOutput>
     update_realm_attributes?: Maybe<UpdateRealmAttributesOutput>
+    update_realm_password_policy: UpdateRealmPasswordPolicyOutput
     /** update data of the table: "sequent_backend.applications" */
     update_sequent_backend_applications?: Maybe<Sequent_Backend_Applications_Mutation_Response>
     /** update single row of the table: "sequent_backend.applications" */
@@ -2842,6 +2897,12 @@ export type Mutation_RootGenerate_Transmission_ReportArgs = {
 }
 
 /** mutation root */
+export type Mutation_RootGenerate_Voter_Information_LetterArgs = {
+    election_event_id: Scalars["String"]["input"]
+    voter_id: Scalars["String"]["input"]
+}
+
+/** mutation root */
 export type Mutation_RootGet_Ballot_Publication_ChangesArgs = {
     ballot_publication_id: Scalars["uuid"]["input"]
     election_event_id: Scalars["uuid"]["input"]
@@ -3629,6 +3690,17 @@ export type Mutation_RootUpdate_Event_Voting_StatusArgs = {
 export type Mutation_RootUpdate_Realm_AttributesArgs = {
     attributes: Scalars["jsonb"]["input"]
     election_event_id: Scalars["String"]["input"]
+}
+
+/** mutation root */
+export type Mutation_RootUpdate_Realm_Password_PolicyArgs = {
+    election_event_id: Scalars["String"]["input"]
+    include_digits: Scalars["Boolean"]["input"]
+    include_lowercase: Scalars["Boolean"]["input"]
+    include_special_characters: Scalars["Boolean"]["input"]
+    include_uppercase: Scalars["Boolean"]["input"]
+    maximum_length: Scalars["Int"]["input"]
+    minimum_length: Scalars["Int"]["input"]
 }
 
 /** mutation root */
@@ -4871,8 +4943,11 @@ export type Query_Root = {
     getElectionEventStats?: Maybe<ElectionEventStatsOutput>
     /** get election event stats */
     getElectionStats?: Maybe<ElectionStatsOutput>
+    get_document_password: DocumentPasswordOutput
     /** list permissions */
     get_permissions: GetPermissionsOutput
+    get_realm_attributes: GetRealmAttributesOutput
+    get_realm_password_policy: RealmPasswordPolicy
     get_roles: GetRolesOutput
     get_top_votes_by_ip?: Maybe<GetTopCastVotesByIpOutput>
     get_user_profile_attributes: Array<UserProfileAttribute>
@@ -5172,8 +5247,20 @@ export type Query_RootGetElectionStatsArgs = {
     object: ElectionStatsInput
 }
 
+export type Query_RootGet_Document_PasswordArgs = {
+    document_id: Scalars["String"]["input"]
+}
+
 export type Query_RootGet_PermissionsArgs = {
     body: GetPermissionsInput
+}
+
+export type Query_RootGet_Realm_AttributesArgs = {
+    election_event_id: Scalars["String"]["input"]
+}
+
+export type Query_RootGet_Realm_Password_PolicyArgs = {
+    election_event_id: Scalars["String"]["input"]
 }
 
 export type Query_RootGet_RolesArgs = {
@@ -18729,6 +18816,8 @@ export type Sequent_Backend_Tally_Session_Execution = {
     labels?: Maybe<Scalars["jsonb"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
     results_event_id?: Maybe<Scalars["uuid"]["output"]>
+    /** TallyRunReason: NORMAL | RECOUNT | TIE_BREAK_RERUN. NULL means NORMAL. */
+    run_reason?: Maybe<Scalars["String"]["output"]>
     session_ids?: Maybe<Array<Scalars["Int"]["output"]>>
     status?: Maybe<Scalars["jsonb"]["output"]>
     tally_session_id: Scalars["uuid"]["output"]
@@ -18812,6 +18901,7 @@ export type Sequent_Backend_Tally_Session_Execution_Bool_Exp = {
     labels?: InputMaybe<Jsonb_Comparison_Exp>
     last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>
     results_event_id?: InputMaybe<Uuid_Comparison_Exp>
+    run_reason?: InputMaybe<String_Comparison_Exp>
     session_ids?: InputMaybe<Int_Array_Comparison_Exp>
     status?: InputMaybe<Jsonb_Comparison_Exp>
     tally_session_id?: InputMaybe<Uuid_Comparison_Exp>
@@ -18864,6 +18954,8 @@ export type Sequent_Backend_Tally_Session_Execution_Insert_Input = {
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     results_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    /** TallyRunReason: NORMAL | RECOUNT | TIE_BREAK_RERUN. NULL means NORMAL. */
+    run_reason?: InputMaybe<Scalars["String"]["input"]>
     session_ids?: InputMaybe<Array<Scalars["Int"]["input"]>>
     status?: InputMaybe<Scalars["jsonb"]["input"]>
     tally_session_id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -18879,6 +18971,8 @@ export type Sequent_Backend_Tally_Session_Execution_Max_Fields = {
     id?: Maybe<Scalars["uuid"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
     results_event_id?: Maybe<Scalars["uuid"]["output"]>
+    /** TallyRunReason: NORMAL | RECOUNT | TIE_BREAK_RERUN. NULL means NORMAL. */
+    run_reason?: Maybe<Scalars["String"]["output"]>
     session_ids?: Maybe<Array<Scalars["Int"]["output"]>>
     tally_session_id?: Maybe<Scalars["uuid"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
@@ -18893,6 +18987,8 @@ export type Sequent_Backend_Tally_Session_Execution_Min_Fields = {
     id?: Maybe<Scalars["uuid"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
     results_event_id?: Maybe<Scalars["uuid"]["output"]>
+    /** TallyRunReason: NORMAL | RECOUNT | TIE_BREAK_RERUN. NULL means NORMAL. */
+    run_reason?: Maybe<Scalars["String"]["output"]>
     session_ids?: Maybe<Array<Scalars["Int"]["output"]>>
     tally_session_id?: Maybe<Scalars["uuid"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
@@ -18925,6 +19021,7 @@ export type Sequent_Backend_Tally_Session_Execution_Order_By = {
     labels?: InputMaybe<Order_By>
     last_updated_at?: InputMaybe<Order_By>
     results_event_id?: InputMaybe<Order_By>
+    run_reason?: InputMaybe<Order_By>
     session_ids?: InputMaybe<Order_By>
     status?: InputMaybe<Order_By>
     tally_session_id?: InputMaybe<Order_By>
@@ -18967,6 +19064,8 @@ export enum Sequent_Backend_Tally_Session_Execution_Select_Column {
     /** column name */
     ResultsEventId = "results_event_id",
     /** column name */
+    RunReason = "run_reason",
+    /** column name */
     SessionIds = "session_ids",
     /** column name */
     Status = "status",
@@ -18987,6 +19086,8 @@ export type Sequent_Backend_Tally_Session_Execution_Set_Input = {
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     results_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    /** TallyRunReason: NORMAL | RECOUNT | TIE_BREAK_RERUN. NULL means NORMAL. */
+    run_reason?: InputMaybe<Scalars["String"]["input"]>
     session_ids?: InputMaybe<Array<Scalars["Int"]["input"]>>
     status?: InputMaybe<Scalars["jsonb"]["input"]>
     tally_session_id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -19030,6 +19131,8 @@ export type Sequent_Backend_Tally_Session_Execution_Stream_Cursor_Value_Input = 
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     results_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    /** TallyRunReason: NORMAL | RECOUNT | TIE_BREAK_RERUN. NULL means NORMAL. */
+    run_reason?: InputMaybe<Scalars["String"]["input"]>
     session_ids?: InputMaybe<Array<Scalars["Int"]["input"]>>
     status?: InputMaybe<Scalars["jsonb"]["input"]>
     tally_session_id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -19062,6 +19165,8 @@ export enum Sequent_Backend_Tally_Session_Execution_Update_Column {
     LastUpdatedAt = "last_updated_at",
     /** column name */
     ResultsEventId = "results_event_id",
+    /** column name */
+    RunReason = "run_reason",
     /** column name */
     SessionIds = "session_ids",
     /** column name */

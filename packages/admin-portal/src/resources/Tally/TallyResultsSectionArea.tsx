@@ -223,15 +223,19 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
         const election = tallyData?.sequent_backend_election?.find(
             (election) => election.id === electionId
         )
-        return election?.presentation ? aliasRenderer(election.presentation) : undefined
-    }, [tallyData?.sequent_backend_election, electionId, aliasRenderer])
+        return election?.presentation
+            ? aliasRenderer(election.presentation, defaultElectionLang)
+            : undefined
+    }, [tallyData?.sequent_backend_election, electionId, aliasRenderer, defaultElectionLang])
 
     const contestName: string | undefined = useMemo(() => {
         const contest = tallyData?.sequent_backend_contest?.find(
             (contest) => contest.id === contestId
         )
-        return contest?.presentation ? aliasRenderer(contest.presentation) : undefined
-    }, [tallyData?.sequent_backend_contest, contestId, aliasRenderer])
+        return contest?.presentation
+            ? aliasRenderer(contest.presentation, defaultElectionLang)
+            : undefined
+    }, [tallyData?.sequent_backend_contest, contestId, aliasRenderer, defaultElectionLang])
 
     const areaName: string | undefined | null = useMemo(
         () => tallyData?.sequent_backend_area?.find((area) => area.id === areaId)?.name,

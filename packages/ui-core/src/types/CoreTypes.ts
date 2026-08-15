@@ -149,6 +149,11 @@ export interface ICandidate {
     presentation?: ICandidatePresentation
 }
 
+export enum EMultiContestEncodingMode {
+    LEGACY = "legacy",
+    EXPANDED_CAPACITY = "expanded-capacity",
+}
+
 export interface IBallotStyle {
     id: string
     tenant_id: string
@@ -163,6 +168,7 @@ export interface IBallotStyle {
     election_event_presentation?: IElectionEventPresentation
     election_presentation?: IElectionPresentation
     election_dates?: IElectionDates
+    multi_contest_encoding_mode?: EMultiContestEncodingMode
 }
 
 export interface IPublicKeyConfig {
@@ -272,6 +278,8 @@ export interface IExtensionErrorInternal {
 export interface IExtensionError {
     code?: string | null
     internal?: IExtensionErrorInternal | null
+    password_policy_rule?: string | null
+    password_policy_required_count?: number | null
 }
 
 export interface IGraphQLError {
