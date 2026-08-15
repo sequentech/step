@@ -84,6 +84,7 @@ import {ReconciliationWizard} from "@/resources/VoterListSync/ReconciliationWiza
 import EditPassword from "./EditPassword"
 import {styled} from "@mui/material/styles"
 import {DELETE_USERS} from "@/queries/DeleteUsers"
+import {buildUserFilterPayload} from "@/queries/GetUsers"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import SelectArea from "@/components/area/SelectArea"
@@ -169,11 +170,20 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [openManualVerificationModal, setOpenManualVerificationModal] = React.useState(false)
     const [openDeleteBulkModal, setOpenDeleteBulkModal] = React.useState(false)
+    const [deletingBulk, setDeletingBulk] = useState(false)
     const [openEditPassword, setOpenEditPassword] = React.useState(false)
     const [openVoterInformationLetter, setOpenVoterInformationLetter] = useState(false)
     const [voterInformationLetterPassword, setVoterInformationLetterPassword] = useState<string>()
     const [generatingVoterInformationLetter, setGeneratingVoterInformationLetter] = useState(false)
     const [selectedIds, setSelectedIds] = useState<Identifier[]>([])
+    const filterValuesRef = useRef<Record<string, any>>({})
+    // What the pending bulk delete will actually act on. `selectAll` means
+    // every voter matching the active filters, which only the server can
+    // enumerate -- the browser holds one page.
+    const [deleteScope, setDeleteScope] = useState<{
+        selectedCount: number
+        matchingCount: number
+    }>({selectedCount: 0, matchingCount: 0})
     const [deleteId, setDeleteId] = useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = useState<boolean>(false)
     const [openImportDrawer, setOpenImportDrawer] = useState<boolean>(false)
@@ -603,41 +613,80 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         return getActionsForUserType(userType)
     }, [electionEventId])
 
-    async function confirmDeleteBulkAction() {
-        const {errors} = await deleteUsers({
-            variables: {
-                tenantId: tenantId,
-                electionEventId: electionEventId,
-                usersId: selectedIds,
-            },
-        })
+    async function confirmDeleteBulkAction(selectAll: boolean) {
+        const scopeKey = electionEventId ? "voters" : "users"
+        setDeletingBulk(true)
+        // Voter deletion runs as a tracked task so a long run, or a partial
+        // failure part-way through, is visible instead of silently timing out.
+        const widget = electionEventId
+            ? addWidget(ETasksExecution.DELETE_VOTERS, undefined)
+            : undefined
 
-        if (errors) {
-            notify(
-                t(
-                    `usersAndRolesScreen.${
-                        electionEventId ? "voters" : "users"
-                    }.notifications.deleteError`
-                ),
-                {type: "error"}
-            )
-            return
+        const failed = () => {
+            if (widget) {
+                updateWidgetFail(widget.identifier)
+            }
+            notify(t(`usersAndRolesScreen.${scopeKey}.notifications.deleteError`), {
+                type: "error",
+            })
         }
 
-        notify(
-            t(
-                `usersAndRolesScreen.${
-                    electionEventId ? "voters" : "users"
-                }.notifications.multipleDeleteSuccess`
-            ),
-            {type: "success"}
-        )
+        try {
+            // Exactly the filters the list is showing, built by the list's own
+            // builder from the same merged filter object the dataProvider gets.
+            // Precedence matches ra-core's useListController, which spreads the
+            // permanent `filter` prop last; reversing it would resolve a
+            // different set than the one on screen.
+            const listFilters = selectAll
+                ? buildUserFilterPayload({
+                      ...filterValuesRef.current,
+                      ...myFilters,
+                      ...permanentFilters,
+                  })
+                : undefined
 
-        refresh()
+            const {data, errors} = await deleteUsers({
+                variables: {
+                    tenantId: tenantId,
+                    electionEventId: electionEventId,
+                    electionId: electionId,
+                    usersId: selectAll ? undefined : selectedIds,
+                    selectAll,
+                    ...(listFilters ?? {}),
+                },
+            })
+
+            if (errors || data?.delete_users?.error_msg) {
+                failed()
+                return
+            }
+
+            const taskId = data?.delete_users?.task_execution?.id
+            if (widget) {
+                taskId
+                    ? setWidgetTaskId(widget.identifier, taskId)
+                    : updateWidgetFail(widget.identifier)
+            }
+
+            notify(t(`usersAndRolesScreen.${scopeKey}.notifications.multipleDeleteSuccess`), {
+                type: "success",
+            })
+
+            refresh()
+        } catch (error) {
+            // useMutation has no onError here, so Apollo rethrows.
+            failed()
+        } finally {
+            setDeletingBulk(false)
+        }
     }
 
-    // @ts-ignore
-    function BulkActions(props) {
+    function BulkActions() {
+        const {total, filterValues, selectedIds: listSelectedIds} = useListContext()
+        // Kept in a ref so confirmDeleteBulkAction, which lives outside the
+        // List context, sends the filters that were active when the operator
+        // opened the dialog.
+        filterValuesRef.current = filterValues ?? {}
         return (
             <>
                 {canSendTemplates && (
@@ -645,7 +694,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         variant="actionbar"
                         key="send-notification"
                         onClick={() => {
-                            sendTemplateAction(props.selectedIds ?? [], AudienceSelection.SELECTED)
+                            sendTemplateAction(listSelectedIds ?? [], AudienceSelection.SELECTED)
                         }}
                     >
                         <ResourceListStyles.MailIcon />
@@ -657,7 +706,17 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     <Button
                         variant="actionbar"
                         onClick={() => {
-                            setSelectedIds(props.selectedIds)
+                            const ids: Identifier[] = listSelectedIds ?? []
+                            setSelectedIds(ids)
+                            // Both counts are offered to the operator; nothing
+                            // is inferred from the selection. The header
+                            // checkbox only ever selects the loaded page, so
+                            // guessing intent from it would silently escalate a
+                            // page-sized delete into an event-sized one.
+                            setDeleteScope({
+                                selectedCount: ids.length,
+                                matchingCount: total ?? ids.length,
+                            })
                             setOpenDeleteBulkModal(true)
                         }}
                     >
@@ -1473,18 +1532,57 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             <Dialog
                 variant="warning"
                 open={openDeleteBulkModal}
-                ok={String(t("common.label.delete"))}
+                ok={String(
+                    t(
+                        `usersAndRolesScreen.${
+                            electionEventId ? "voters" : "users"
+                        }.delete.okSelected`,
+                        {count: deleteScope.selectedCount}
+                    )
+                )}
                 cancel={String(t("common.label.cancel"))}
                 title={String(t("common.label.warning"))}
+                middleActions={
+                    electionEventId && deleteScope.matchingCount > deleteScope.selectedCount
+                        ? [
+                              <Button
+                                  key="delete-all-matching"
+                                  variant="warning"
+                                  disabled={deletingBulk}
+                                  onClick={() => {
+                                      if (deletingBulk) {
+                                          return
+                                      }
+                                      confirmDeleteBulkAction(true)
+                                      setOpenDeleteBulkModal(false)
+                                      unselectAll()
+                                  }}
+                              >
+                                  {t(
+                                      `usersAndRolesScreen.${
+                                          electionEventId ? "voters" : "users"
+                                      }.delete.okAllMatching`
+                                  )}
+                              </Button>,
+                          ]
+                        : []
+                }
                 handleClose={(result: boolean) => {
                     if (result) {
-                        confirmDeleteBulkAction()
+                        confirmDeleteBulkAction(false)
                     }
                     setOpenDeleteBulkModal(false)
                     unselectAll()
                 }}
             >
-                {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.delete.bulkBody`)}
+                {t(
+                    `usersAndRolesScreen.${electionEventId ? "voters" : "users"}.delete.${
+                        electionEventId && deleteScope.matchingCount > deleteScope.selectedCount
+                            ? "bulkBodyChoose"
+                            : "bulkBodySelected"
+                    }`,
+                    {count: deleteScope.selectedCount}
+                )}
             </Dialog>
 
             <Dialog
