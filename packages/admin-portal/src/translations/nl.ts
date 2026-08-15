@@ -654,8 +654,13 @@ const dutchTranslation: TranslationType = {
                     policyLabel: "Beleid voor Gewogen Stemmen",
                     options: {
                         "areas-weighted-voting": "Gewogen Stemmen per Gebied",
+                        "voters-weighted-voting": "Gewogen Stemmen per Kiezer",
                         "disabled-weighted-voting": "Gewogen Stemmen Uitgeschakeld",
                     },
+                    noDelegated:
+                        "Gewogen Stemmen per Kiezer kan niet worden gecombineerd met Gedelegeerd Stemmen",
+                    noDecodedBallots:
+                        "Gewogen Stemmen per Kiezer kan niet worden gecombineerd met het opnemen van ontsleutelde stembiljetten in de resultaten",
                 },
                 delegatedVotingPolicy: {
                     policyLabel: "Gedelegeerd stembeleid",
@@ -1089,6 +1094,7 @@ const dutchTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Gestemd",
+                    "vote-weight": "Stemgewicht",
                     "voted-channel": "Stemkanaal",
                     "disable-comment": "Deactiveringsopmerking",
                     "username": "Gebruikersnaam",
@@ -1802,6 +1808,7 @@ const dutchTranslation: TranslationType = {
                 "warn-invalid-implicit-and-explicit":
                     "Waarschuwen bij Impliciet en Expliciet Ongeldig",
                 "not-allowed": "Niet Toegestaan",
+                "allowed-with-exclusive-explicit": "Toegestaan met Exclusief Expliciet Ongeldig",
             },
             candidatesIconCheckboxPolicy: {
                 "label": "Vorm icoon selectievakje kandidaten",

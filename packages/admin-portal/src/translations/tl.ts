@@ -654,8 +654,13 @@ const tagalogTranslation: TranslationType = {
                     policyLabel: "Patakaran sa Timbang na Pagboto",
                     options: {
                         "areas-weighted-voting": "Timbang na Pagboto ayon sa mga Lugar",
+                        "voters-weighted-voting": "Timbang na Pagboto ayon sa mga Botante",
                         "disabled-weighted-voting": "Hindi Pinagana ang Timbang na Pagboto",
                     },
+                    noDelegated:
+                        "Ang Timbang na Pagboto ayon sa mga Botante ay hindi maaaring pagsamahin sa Delegadong Pagboto",
+                    noDecodedBallots:
+                        "Ang Timbang na Pagboto ayon sa mga Botante ay hindi maaaring pagsamahin sa pagsasama ng mga na-decode na balota sa mga resulta",
                 },
                 delegatedVotingPolicy: {
                     policyLabel: "Patakaran sa Delegadong Pagboto",
@@ -1090,6 +1095,7 @@ const tagalogTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Nakaboto",
+                    "vote-weight": "Bigat ng Boto",
                     "voted-channel": "Channel ng pagboto",
                     "disable-comment": "Komento sa pag-disable",
                     "username": "Username",
@@ -1805,6 +1811,8 @@ const tagalogTranslation: TranslationType = {
                 "warn-invalid-implicit-and-explicit":
                     "Magbigay ng Babala sa Di-wastong Implicit at Explicit",
                 "not-allowed": "Hindi Pinapayagan",
+                "allowed-with-exclusive-explicit":
+                    "Pinapayagan na may Eksklusibong Di-wastong Boto",
             },
             candidatesIconCheckboxPolicy: {
                 "label": "An porma kan icon kan kahon kan mga kandidato",

@@ -27,6 +27,7 @@ openssl_full = ["dep:openssl", "dep:rand_core"]
 fips_core = ["openssl_core"]
 fips_full = ["openssl_full"]
 rustcrypto_interop_test = []
+certs = ["dep:rcgen", "dep:x509-parser", "dep:rustls-pki-types"]
 
 [dependencies]
 
@@ -46,9 +47,9 @@ ecdsa = {version = "0.16", features = ["signing"] }
 p384 = "0.13"
 
 # certificates
-x509-parser = "0.18.0"
-rcgen = {version = "0.14", features = ["x509-parser"] }
-rustls-pki-types = "=1.13.0"
+x509-parser = { version = "0.18.0", optional = true }
+rcgen = { version = "0.14", features = ["x509-parser"], optional = true }
+rustls-pki-types = { version = "=1.13.0", optional = true }
 
 # symmetric
 chacha20poly1305 = "0.10"

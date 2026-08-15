@@ -41,11 +41,10 @@ jobs:
           cargo-build-path: packages/${{ matrix.service }}/target
           cargo-lock-path: packages/${{ matrix.service }}/Cargo.lock
 
-      - name: Install Chrome
+      - name: Verify Chrome
         run: |
-            sudo apt-get install -y wget
-            wget -O chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-            sudo apt-get install -y ./chrome.deb
+          command -v google-chrome-stable
+          google-chrome-stable --version
 
       - name: Run tests
         env:

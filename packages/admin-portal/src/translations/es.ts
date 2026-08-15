@@ -655,8 +655,13 @@ const spanishTranslation: TranslationType = {
                     policyLabel: "Política de Votación Ponderada",
                     options: {
                         "areas-weighted-voting": "Votación Ponderada por Áreas",
+                        "voters-weighted-voting": "Votación Ponderada por Votantes",
                         "disabled-weighted-voting": "Votación Ponderada Deshabilitada",
                     },
+                    noDelegated:
+                        "La Votación Ponderada por Votantes no puede combinarse con el Voto Delegado",
+                    noDecodedBallots:
+                        "La Votación Ponderada por Votantes no puede combinarse con la inclusión de papeletas descifradas en los resultados",
                 },
                 delegatedVotingPolicy: {
                     policyLabel: "Política de Votación Delegada",
@@ -1091,6 +1096,7 @@ const spanishTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Voted",
+                    "vote-weight": "Peso del voto",
                     "voted-channel": "Canal de voto",
                     "disable-comment": "Comentario de deshabilitación",
                     "username": "Nombre de Usuario",
@@ -1804,6 +1810,7 @@ const spanishTranslation: TranslationType = {
                 "warn": "Advertencia",
                 "warn-invalid-implicit-and-explicit": "Advertir Inválidos Implícitos y Explícitos",
                 "not-allowed": "No Permitido",
+                "allowed-with-exclusive-explicit": "Permitido con Voto Inválido Exclusivo",
             },
             candidatesIconCheckboxPolicy: {
                 "label": "Forma del icono de la casilla de verificación de los candidatos",
