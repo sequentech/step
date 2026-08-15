@@ -91,7 +91,8 @@ const EXPLICIT_OR_ENCODING = new Set([
  *  the rest resolve here. The clauses these govern are inert for a rule
  *  runner whose cells never satisfy them (wrong error identity, or
  *  selections/max out of range) — which is what makes composing the FULL
- *  behaviour neutral against each runner's isolated grid. */
+ *  behaviour neutral against each runner's isolated grid (the cells that
+ *  vary only its own rule's dimensions, others at these baselines). */
 export const DEFAULTS = {
     invalid: "allowed",
     blank: "allowed",

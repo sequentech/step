@@ -8,9 +8,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 Step 1 of the migration path in
 [`docs/VALIDATION_LOGIC_DISTILLATION.md`](../docs/VALIDATION_LOGIC_DISTILLATION.md)
-§5.3: enumerate cells of the validation input space through the **real
-implementation** and record the observed effects. Recorded tables are
-*characterizations* (what the code does). Surprising behaviours are
+§5.3: enumerate the validation input space through the **real
+implementation** and record the observed effects. Two words carry the
+whole suite, defined here once: a **cell** is one concrete
+(contest-configuration × vote-state) combination — e.g.
+`blank_vote_policy = warn` × `invalid_vote_policy = allowed` × an empty
+ballot; a rule's **grid** is the full cross-product of the dimensions
+its runner varies (blank-rule: 4 blank policies × 4 invalid policies ×
+4 vote states = 64 cells). Every recorded table has one row per cell.
+Recorded tables are *characterizations* (what the code does). Surprising behaviours are
 **suspects** — recorded precisely, escalated for consultation in
 [`../docs/UPSTREAM_FINDINGS.md`](../docs/UPSTREAM_FINDINGS.md), and
 adjudicated (blessed or filed as defects) only by the parties who hold

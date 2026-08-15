@@ -217,9 +217,9 @@ implicit-invalid
 (`characterization/{overvote,minvote}-e2e-pipeline.recorded.json`;
 re-runnable in one command via `characterization/reproduce-verify.mjs`).
 The booth-surface half (nothing inline at review, no dialog, reachable) is
-additionally observed across the whole grid in
-`characterization/dom-validate.md` (all seven rules, 229/229 matching the
-spec).
+additionally observed across every recorded (configuration ×
+vote-state) cell of all seven rules in
+`characterization/dom-validate.md` (229/229 matching the spec).
 
 **Provenance of the silence** (full evidence chain, per family:
 [INVALID_VOTE_POLICY_INTENT.md §5](INVALID_VOTE_POLICY_INTENT.md)):

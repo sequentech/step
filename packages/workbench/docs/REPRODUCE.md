@@ -253,7 +253,8 @@ confirmed.
 These runners set configuration via `window.__store.dispatch` and confirm the
 crypto path booth-to-tally. The complementary **reviewer path** — the same
 Policy-overrides panel a reviewer actually clicks — is exercised separately,
-across *every* cell of the validation grid, by
+across *every* recorded (configuration × vote-state) cell of all seven
+validation rules, by
 [../characterization/dom-validate.mjs](../characterization/dom-validate.mjs)
 (it configures through the panel on purpose), so it is no longer re-checked
 here.

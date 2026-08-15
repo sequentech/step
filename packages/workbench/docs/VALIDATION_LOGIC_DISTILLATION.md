@@ -527,8 +527,10 @@ This is not a rewrite proposal. The path is incremental:
 > whole mapping as one function `f(config, voteState, context)`: checker
 > emissions, both gates, the classifier, the message filter, and
 > reachability — the embryonic declarative table of step 3; each runner
-> supplies only its experiment grid, with the per-cell meaning defined
-> once in `rule-specs.mjs`).
+> supplies only its experiment grid — the cross-product of the
+> dimensions its rule varies, one cell per (configuration × vote-state)
+> combination — with the per-cell meaning defined once in
+> `rule-specs.mjs`).
 > The spec is validated in two lanes: the partial (headless) tables check
 > its gates/classifier against the real WASM on every cell (`pred?`), and
 > the **complete** tables (`dom-validate.mjs`) drive every cell of all

@@ -427,7 +427,8 @@ Investigation date: 2026-08-12. Behavioural claims cross-checked
 against the workbench's recorded characterization
 (`characterization/invalid-rule.md`, `no-silent-discount.md`; the
 booth-surface claims — inline visibility under `allowed`, marker
-reachability — are since observed across the whole grid in
+reachability — are since observed across every recorded
+(configuration × vote-state) cell of all seven rules in
 `characterization/dom-validate.md`, 229/229).
 
 Updated 2026-08-14: meta#8235 and PR #2018's full written record read
