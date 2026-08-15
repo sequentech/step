@@ -265,6 +265,12 @@ Two pruning cautions:
   never evaluates them) — that pruning is structural, not preventive, and
   is safe.
 
+Input dimensions declared in this section but exercised by no runner
+(`has_encoding_error`; configuration validity) are tracked as named
+scope decisions — each with a re-entry condition — in
+[`../characterization/README.md`](../characterization/README.md),
+"Scope boundaries".
+
 ---
 
 ## 3. The Mapping (specification)

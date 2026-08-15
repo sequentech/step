@@ -57,6 +57,24 @@ internals and tests:
 The census is part of the artifact set: re-run it when upstream merges
 land, and treat a new unmapped read site exactly like a failing test.
 
+### Scope boundaries (named decisions, 2026-08-15)
+
+The census above closes the OUTPUT side: every consumer of the
+validation state is mapped. This table closes the INPUT side —
+territory the harness deliberately does not exercise, named with a
+re-entry condition so each reads as a decision rather than an
+oversight. Review it alongside the census when upstream merges land.
+
+| boundary | decision | what would re-open it |
+|---|---|---|
+| **multi_ballot codec lane** — the multi-contest decode (six checkers, the ballot-level decline bit, the 30-byte capacity) | out of scope: the workbench encrypts per-contest only (`raw_ballot`), so no browser lane can reach it (README, Known gaps). The classifier's decline cells are characterized headlessly (`classifier-table.md`) | the `multi_ballot` encrypt/decrypt lift — the same lift as the decline booth flow (README "What's next"). First target when it opens: upstream's own single/multi divergence report at n = 0 (meta#8235 error 5: blank warn in one codec, undervote warn in the other) |
+| **encoding-error emissions** — write-in overflow (`writeInCharsExceeded`), `invalidMinVotes` / `invalidMaxVotes` | out of scope: no bundled fixture carries a write-in candidate (FIXTURE_VARIANCE.md §8) and every grid's bounds are sane. `spec.mjs` lists the keys only for hard-gate faithfulness (`EXPLICIT_OR_ENCODING`) | a write-in fixture, a malformed-bounds slice, or an adjudication question that turns on these cells |
+| **config-rejection outcomes** — `check_contest_configuration` refuses a contest with two explicit-blank (or two explicit-invalid) marker candidates, before any per-ballot rule runs | out of scope: a distinct outcome class ("config rejected"), headlessly reachable but on no grid | a cheap headless slice (construct the two-marker contest) whenever that class needs pinning |
+| **gate composition across contests / pages** | the spec and every grid are per-contest. Production's gates iterate all contests and fire if ANY matches (VOTE_VALIDATION.md, "Interaction with pagination") — plain OR-composition over the per-contest predicate the spec models; the composition itself is unvalidated | a multi-contest grid (e.g. on `mixed-3contests`) if the OR-composition is ever in doubt |
+| **message parameters** — the `message_map` interpolations (numSelected, min, max) | comparisons are over message KEYS only, at every layer | a finding that turns on a wrong parameter value rather than a wrong message |
+| **marker preconditions as fixture choice** — `has_explicit_blank/invalid_candidate` | not spec inputs: they gate which vote-states are REACHABLE (a marker state needs a marker candidate), not what the mapping says about a state that exists. Each grid picks a fixture carrying its rule's preconditions | a rule whose EFFECTS (not merely reachability) turn out to depend on marker presence |
+| **untouched voting view** | validated as a constant (empty) once — `blank-rule.filter.md`, untouched column — not per cell | any code path that renders inline content on an untouched contest |
+
 ## Conventions
 
 These exist to keep cognitive load minimal and the artifacts trustworthy;
