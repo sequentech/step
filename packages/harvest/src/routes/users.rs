@@ -48,9 +48,11 @@ use windmill::services::users::{
     count_keycloak_users, list_users, list_users_with_vote_info,
 };
 use windmill::services::users::{FilterOption, ListUsersFilter};
+use windmill::tasks::delete_users::{
+    self as delete_users_task, DeleteUsersOutput,
+};
 use windmill::tasks::edit_user::{EditUserOutput, EditUserTaskBody};
 use windmill::tasks::export_users::{self, ExportUsersOutput};
-use windmill::tasks::delete_users::{self as delete_users_task, DeleteUsersOutput};
 use windmill::tasks::import_users::{self, ImportUsersOutput};
 use windmill::types::tasks::ETasksExecution;
 
@@ -148,7 +150,8 @@ pub async fn delete_users(
     )?;
 
     let select_all = input.select_all.unwrap_or(false);
-    if !select_all && input.users_id.as_ref().map_or(true, |ids| ids.is_empty()) {
+    if !select_all && input.users_id.as_ref().map_or(true, |ids| ids.is_empty())
+    {
         return Err((
             Status::BadRequest,
             "No voters selected and select_all was not set".to_string(),
@@ -191,7 +194,9 @@ pub async fn delete_users(
             .map_err(|error| {
                 (
                     Status::InternalServerError,
-                    format!("Failed to insert task execution record: {error:?}"),
+                    format!(
+                        "Failed to insert task execution record: {error:?}"
+                    ),
                 )
             })?,
         ),

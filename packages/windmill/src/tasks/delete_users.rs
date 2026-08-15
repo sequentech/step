@@ -7,11 +7,11 @@ use crate::services::users::{list_users_ids, list_users_with_vote_info, ListUser
 use crate::types::error::{Error, Result};
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
-use std::collections::HashSet;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::hasura::core::TasksExecution;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use std::collections::HashSet;
 use tracing::{info, instrument};
 
 /// Page size when resolving a whole filtered set to ids. `list_users_ids`
@@ -96,7 +96,11 @@ pub async fn delete_users(
     }
 
     if !failures.is_empty() {
-        let shown: Vec<String> = failures.iter().take(MAX_REPORTED_FAILURES).cloned().collect();
+        let shown: Vec<String> = failures
+            .iter()
+            .take(MAX_REPORTED_FAILURES)
+            .cloned()
+            .collect();
         let omitted = failures.len().saturating_sub(MAX_REPORTED_FAILURES);
         let tail = if omitted > 0 {
             format!("\n...and {omitted} more")
@@ -192,8 +196,7 @@ async fn resolve_ids(filter: ListUsersFilter) -> Result<Vec<String>> {
                 (ids, examined)
             }
             None => {
-                let ids =
-                    list_users_ids(&hasura_transaction, &keycloak_transaction, page).await?;
+                let ids = list_users_ids(&hasura_transaction, &keycloak_transaction, page).await?;
                 let returned = ids.len() as i32;
                 (ids, returned)
             }
