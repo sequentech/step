@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-election_managers/reference/election-event/election_management_election_event_data" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">Data | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/election-event/election_management_election_event_data"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Data | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2941/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/election-event/election_management_election_event_data"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/election-event/election_management_election_event_data" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/election-event/election_management_election_event_data" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Data","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/election-event/election_management_election_event_data"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2941/assets/css/styles.b012d36e.css">
+<script src="/docusaurus/pr-preview/pr-2941/assets/js/runtime~main.a8583f69.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2941/assets/js/main.120229ee.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>!function(){var t=function(){try{return new URLSearchParams(window.location.search).get("docusaurus-theme")}catch(t){}}()||function(){try{return window.localStorage.getItem("theme")}catch(t){}}();document.documentElement.setAttribute("data-theme",t||"light"),document.documentElement.setAttribute("data-theme-choice",t||"light")}(),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><link rel="preload" as="image" href="/docusaurus/pr-preview/pr-2941/img/logo_negative.svg"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docusaurus/pr-preview/pr-2941/docs/system_introduction"><div class="navbar__logo"><img src="/docusaurus/pr-preview/pr-2941/img/logo_negative.svg" alt="Sequent Logo" class="themedComponent_mlkZ themedComponent--light_NVdE"><img src="/docusaurus/pr-preview/pr-2941/img/logo_negative.svg" alt="Sequent Logo" class="themedComponent_mlkZ themedComponent--dark_xIcU"></div><b class="navbar__title text--truncate"></b></a><a aria-current="page" class="navbar__item navbar__link navbar__link--active" href="/docusaurus/pr-preview/pr-2941/docs/system_introduction">Docs</a><a href="/docusaurus/pr-preview/pr-2941/graphql" class="navbar__item navbar__link" target="_blank">GraphQL API</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="https://github.com/sequentech" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">GitHub<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="toggle_vylO colorModeToggle_DEke"><button class="clean-btn toggleButton_gllP toggleButtonDisabled_aARS" type="button" disabled="" title="system mode" aria-label="Switch between dark and light mode (currently system mode)"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP lightToggleIcon_pyhR"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP darkToggleIcon_wfgR"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP systemToggleIcon_QzmC"><path fill="currentColor" d="m12 21c4.971 0 9-4.029 9-9s-4.029-9-9-9-9 4.029-9 9 4.029 9 9 9zm4.95-13.95c1.313 1.313 2.05 3.093 2.05 4.95s-0.738 3.637-2.05 4.95c-1.313 1.313-3.093 2.05-4.95 2.05v-14c1.857 0 3.637 0.737 4.95 2.05z"></path></svg></button></div><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><aside class="theme-doc-sidebar-container docSidebarContainer_YfHR"><div class="sidebarViewport_aRkj"><div class="sidebar_njMd"><nav aria-label="Docs sidebar" class="menu thin-scrollbar menu_SIkG"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist" href="/docusaurus/pr-preview/pr-2941/docs/system_introduction"><span title="System Introduction" class="categoryLinkLabel_W154">System Introduction</span></a><button aria-label="Expand sidebar category &#x27;System Introduction&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret menu__link--active" role="button" aria-expanded="true" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/election_management"><span title="Election Managers" class="categoryLinkLabel_W154">Election Managers</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/election_management"><span title="Election Management" class="linkLabel_WmDU">Election Management</span></a></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/tutorials/admin_portal_tutorials_system-navigation"><span title="Tutorials" class="categoryLinkLabel_W154">Tutorials</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret menu__link--active" role="button" aria-expanded="true" tabindex="0" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/election-event/election_management_election_event_dashboard"><span title="Reference" class="categoryLinkLabel_W154">Reference</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-3 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret menu__link--active" role="button" aria-expanded="true" tabindex="0" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/election-event/election_management_election_event_dashboard"><span title="Election Event" class="categoryLinkLabel_W154">Election Event</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-4 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/election-event/election_management_election_event_dashboard"><span title="Dashboard" class="linkLabel_WmDU">Dashboard</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-4 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/election-event/election_management_election_event_monitoring"><span title="Monitoring" class="linkLabel_WmDU">Monitoring</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-4 menu__list-item"><a class="menu__link menu__link--active" aria-current="page" tabindex="0" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/election-event/election_management_election_event_data"><span title="Data" class="linkLabel_WmDU">Data</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-4 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/election-event/election_management_election_event_localization"><span title="Localization" class="linkLabel_WmDU">Localization</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-4 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/election-event/election_management_election_event_voters"><span title="Voters" class="linkLabel_WmDU">Voters</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-4 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/election-event/election_management_election_event_areas"><span title="Areas" class="linkLabel_WmDU">Areas</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-4 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/election-event/election_management_election_event_keys"><span title="Keys" class="linkLabel_WmDU">Keys</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-4 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/election-event/08-03-election_management_election-event_tally-sheet-imports"><span title="Tally Sheet Imports" class="linkLabel_WmDU">Tally Sheet Imports</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-4 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/election-event/election_management_election_event_publish"><span title="Publish" class="linkLabel_WmDU">Publish</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-4 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/election-event/election_management_election_event_tasks"><span title="Tasks" class="linkLabel_WmDU">Tasks</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-4 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/election-event/election_management_election_event_logs"><span title="Logs" class="linkLabel_WmDU">Logs</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-4 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/election-event/election_management_election_event_scheduled_events"><span title="Scheduled Events" class="linkLabel_WmDU">Scheduled Events</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-4 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/election-event/election_management_election_event_approvals"><span title="Approvals" class="linkLabel_WmDU">Approvals</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-4 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/election-event/election_management_election_event_certificates"><span title="Certificates" class="linkLabel_WmDU">Certificates</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-4 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/election-event/election_management_election_event_tally"><span title="Tally Ceremony" class="linkLabel_WmDU">Tally Ceremony</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-4 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/election-event/election_management_election_event_transmission"><span title="Transmission" class="linkLabel_WmDU">Transmission</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-4 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/election-event/election_management_election_event_reports"><span title="Reports" class="linkLabel_WmDU">Reports</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-4 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/election-event/election_management_election_event_templates"><span title="Templates" class="linkLabel_WmDU">Templates</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-3 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/election/election_management_election_dashboard"><span title="Election" class="categoryLinkLabel_W154">Election</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-3 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/contest/election_management_contest_data"><span title="Contest" class="categoryLinkLabel_W154">Contest</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-3 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/candidate/election_management_candidate_data"><span title="Candidate" class="categoryLinkLabel_W154">Candidate</span></a></div></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/languages"><span title="Languages" class="linkLabel_WmDU">Languages</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/decline_to_vote"><span title="Decline to Vote" class="linkLabel_WmDU">Decline to Vote</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/ballot_errors_custom_css"><span title="Styling Ballot Errors and Warnings with Custom CSS" class="linkLabel_WmDU">Styling Ballot Errors and Warnings with Custom CSS</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/voting_portal_datetime_format"><span title="Voting Portal Date &amp; Time Format" class="linkLabel_WmDU">Voting Portal Date &amp; Time Format</span></a></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-3 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/user-manual/settings/settings_backup-restore"><span title="Tenant Configuration" class="categoryLinkLabel_W154">Tenant Configuration</span></a></div></li></ul></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/results_website"><span title="Results Website" class="linkLabel_WmDU">Results Website</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/pr-preview/pr-2941/docs/voters/tutorials/cast_your_vote"><span title="Voters" class="categoryLinkLabel_W154">Voters</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/pr-preview/pr-2941/docs/election_auditors/introduction/auditor_introduction"><span title="Election Auditors" class="categoryLinkLabel_W154">Election Auditors</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/pr-preview/pr-2941/docs/reference/reference"><span title="Reference" class="categoryLinkLabel_W154">Reference</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/pr-preview/pr-2941/docs/technology/threat-model"><span title="Technology" class="categoryLinkLabel_W154">Technology</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/pr-preview/pr-2941/docs/developers/contributing"><span title="Developers" class="categoryLinkLabel_W154">Developers</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/pr-preview/pr-2941/docs/integrations/idp_initiated_sso_integration_guide"><span title="Integrations" class="categoryLinkLabel_W154">Integrations</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/pr-preview/pr-2941/docs/releases/release-9.5/release-9.5.0"><span title="Releases" class="categoryLinkLabel_W154">Releases</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/pr-preview/pr-2941/docs/support/support"><span title="Support" class="categoryLinkLabel_W154">Support</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/pr-preview/pr-2941/docs/try_it_out/full-standalone-deployment"><span title="Try it out" class="categoryLinkLabel_W154">Try it out</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/pr-preview/pr-2941/docs/developers/Keycloak/smart_link_hmac_design_implementation"><span title="developers" class="categoryLinkLabel_W154">developers</span></a></div></li></ul></nav></div></div></aside><main class="docMainContainer_TBSr"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><nav class="theme-doc-breadcrumbs breadcrumbsContainer_Z_bl" aria-label="Breadcrumbs"><ul class="breadcrumbs"><li class="breadcrumbs__item"><a aria-label="Home page" class="breadcrumbs__link" href="/docusaurus/pr-preview/pr-2941/"><svg viewBox="0 0 24 24" class="breadcrumbHomeIcon_YNFT"><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill="currentColor"></path></svg></a></li><li class="breadcrumbs__item"><span class="breadcrumbs__link">Election Managers</span></li><li class="breadcrumbs__item"><span class="breadcrumbs__link">Reference</span></li><li class="breadcrumbs__item"><span class="breadcrumbs__link">Election Event</span></li><li class="breadcrumbs__item breadcrumbs__item--active"><span class="breadcrumbs__link">Data</span></li></ul></nav><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>Data</h1></header><p>The Data tab is similar across multiple entities in the system (Election Events, Elections, Contests, and Candidates). In this tab, you can configure the main values of each entity. Specifically for Election Events, all related data can be managed here.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="actions-buttons-in-the-election-event-data-tab">Actions buttons in the Election Event Data Tab<a href="#actions-buttons-in-the-election-event-data-tab" class="hash-link" aria-label="Direct link to Actions buttons in the Election Event Data Tab" title="Direct link to Actions buttons in the Election Event Data Tab" translate="no">​</a></h2>
+<ul>
+<li class=""><strong>Export</strong>: Export election event data.</li>
+<li class=""><strong>Import candidates</strong>: Import candidates for the election event.</li>
+<li class=""><strong>Google meet</strong>: Generate google meet link and create event in google calendar.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="sections-in-the-election-event-data-tab">Sections in the Election Event Data Tab<a href="#sections-in-the-election-event-data-tab" class="hash-link" aria-label="Direct link to Sections in the Election Event Data Tab" title="Direct link to Sections in the Election Event Data Tab" translate="no">​</a></h2>
+<p>Each section serves a specific purpose and provides a comprehensive breakdown of information:</p>
+<ul>
+<li class=""><strong>General</strong>: Includes basic details.</li>
+<li class=""><strong>Dates</strong>: Start and End dates of the election event.</li>
+<li class=""><strong>Language</strong>: Supported languages for this event.</li>
+<li class=""><strong>Ballot Design</strong>: Custom ballot features including design, logos, links, and more.</li>
+<li class=""><strong>Voting Channels Allowed</strong>: Applicable voting methods.</li>
+<li class=""><strong>Custom URLs Prefix</strong>: Define custom URLs for the Voting / Enrollment portals and SAML endpoint.</li>
+<li class=""><strong>Support Materials</strong>: Documents available in the Voting Portal for voters to review.</li>
+<li class=""><strong>Advanced Configurations</strong>: Enable system lockdown, Voting Portal session timeout, and forced logout.</li>
+</ul>
+<p>Detailed descriptions of each section are provided below.</p>
+<hr>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="general">General<a href="#general" class="hash-link" aria-label="Direct link to General" title="Direct link to General" translate="no">​</a></h2>
+<p>Set up basic details and configure multilingual names for your Election Event.</p>
+<ul>
+<li class=""><strong>Languages Tabs</strong>: Configure how your Election Event appears in different languages in the Voting Portal.</li>
+<li class=""><strong>Name</strong>: Enter the official name of your Election Event.</li>
+<li class=""><strong>Alias (optional)</strong>: Internal alias used only in the system&#x27;s side menu.</li>
+<li class=""><strong>Description (optional)</strong>: Provide a description for your Election Event.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="language">Language<a href="#language" class="hash-link" aria-label="Direct link to Language" title="Direct link to Language" translate="no">​</a></h2>
+<p>Manage language options for your Election Event. The selected languages will be available for elections within this event.</p>
+<ul>
+<li class="">Use radio buttons to select the languages available.</li>
+<li class="">Set the default language by selecting <strong>Default</strong> next to the appropriate language.</li>
+<li class=""><strong>Language Detection Policy</strong>:
+Affects the default language in the Voting Portal.<!-- -->
+<ul>
+<li class=""><strong>Browser Detect</strong>: The default language will be determined by the browser.</li>
+<li class=""><strong>Force Default</strong>: The default language will be the one selected as <strong>Default</strong>.</li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="ballot-design">Ballot Design<a href="#ballot-design" class="hash-link" aria-label="Direct link to Ballot Design" title="Direct link to Ballot Design" translate="no">​</a></h2>
+<p>Manage how the ballot appears in the Voting Portal.</p>
+<ul>
+<li class=""><strong>Disable Ballot Audit Support</strong>: Enable or disable the ability for voters to verify ballot encryption.</li>
+<li class=""><strong>Skip Election List Screen</strong>: Skip election selection in the portal.</li>
+<li class=""><strong>Show User Profile</strong>: Show user profile information in the Voting Portal.</li>
+<li class=""><strong>Show Cast Vote Logs Tab</strong>: Policy to enable the CastVote Immutable logs in the Ballot Locator.</li>
+<li class=""><strong>Logo URL (optional)</strong>: Provide a link to a logo to display.</li>
+<li class=""><strong>Redirect Finish URL (optional)</strong>: Redirect users to a URL after completing voting.</li>
+<li class=""><strong>Custom CSS</strong>: Apply custom styles to the ballot design. Ballot error and warning messages expose stable CSS classes that can be targeted here — see <a class="" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/ballot_errors_custom_css">Styling Ballot Errors and Warnings with Custom CSS</a>.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="voting-channels-allowed">Voting Channels Allowed<a href="#voting-channels-allowed" class="hash-link" aria-label="Direct link to Voting Channels Allowed" title="Direct link to Voting Channels Allowed" translate="no">​</a></h2>
+<p>Define the voting methods available for this Election Event.</p>
+<ul>
+<li class="">Use radio buttons to enable applicable voting channels.</li>
+<li class=""><strong>Online</strong>: Main remote voting channel. Starting/closing Online also governs Early Voting lifecycle (see below).</li>
+<li class=""><strong>Kiosk</strong>: In-person device-based voting. Its status is independent from the others.</li>
+<li class=""><strong>EARLY_VOTING</strong>: Enables an early voting period prior to the Online voting window for voters whose Areas have Early Voting enabled.<!-- -->
+<ul>
+<li class="">Appears only if allowed here; when started in Publish, only voters assigned to Areas with the Early Voting policy enabled can vote.</li>
+<li class="">Online channel governs Early Voting:<!-- -->
+<ul>
+<li class="">When Online is started or closed, Early Voting will automatically close if it was enabled.</li>
+<li class="">Early Voting cannot be started once Online voting has been started (and thereafter).</li>
+</ul>
+</li>
+<li class="">If a channel that is already started is later manually disallowed in this section, no immediate action is taken; action buttons remain disabled until the channel is allowed again.</li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="custom-urls-prefix">Custom URLs Prefix<a href="#custom-urls-prefix" class="hash-link" aria-label="Direct link to Custom URLs Prefix" title="Direct link to Custom URLs Prefix" translate="no">​</a></h2>
+<p>Create custom URL prefixes for the Voting and Enrollment portals, and SAML endpoint.</p>
+<ul>
+<li class="">Input the desired prefix for each endpoint.</li>
+</ul>
+<p><strong>Examples:</strong></p>
+<ul>
+<li class="">Input &quot;myelection&quot; into <strong>Login</strong>:<br>
+<!-- -->URL becomes <code>https://myelection.sequent.vote</code></li>
+<li class="">Input &quot;enrollment&quot; into <strong>Enrollment</strong>:<br>
+<!-- -->URL becomes <code>https://enrollment.sequent.vote</code></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="support-materials">Support Materials<a href="#support-materials" class="hash-link" aria-label="Direct link to Support Materials" title="Direct link to Support Materials" translate="no">​</a></h2>
+<p>Provide documents that voters can access in the Voting Portal.</p>
+<ul>
+<li class=""><strong>Support Materials Activated</strong>: Enable or disable additional support documents.</li>
+<li class=""><strong>Add</strong>: Attach documents with the following fields:<!-- -->
+<ul>
+<li class="">Title</li>
+<li class="">Subtitle</li>
+<li class=""><strong>Is Hidden</strong>: Controls visibility in the portal</li>
+<li class="">Drag and drop the file</li>
+<li class="">Save</li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="advanced-configuration">Advanced Configuration<a href="#advanced-configuration" class="hash-link" aria-label="Direct link to Advanced Configuration" title="Direct link to Advanced Configuration" translate="no">​</a></h2>
+<p>Configure advanced system behaviors for this Election Event.</p>
+<ul>
+<li class=""><strong>Contest Encryption Policy</strong>:<!-- -->
+<ul>
+<li class=""><strong>Single Contests</strong>: Encrypt contests individually.</li>
+<li class=""><strong>Multiple Contests</strong>: Encrypt multiple contests together to enable ballot-level audit.</li>
+</ul>
+</li>
+<li class=""><strong>Lockdown Status</strong>: When enabled, no changes can be made to this Election Event. This action is irreversible.</li>
+<li class=""><strong>Voting Portal Countdown Policy</strong>:<!-- -->
+<ul>
+<li class="">Define the session timeout duration in seconds.</li>
+<li class="">Configure the countdown warning and logout alert thresholds.</li>
+</ul>
+</li>
+<li class=""><strong>Keys/Tally Ceremonies Policy</strong>:<!-- -->
+<ul>
+<li class="">Allow for the automatic generation of keys and tallies, eliminating the need for trustees involvement.</li>
+</ul>
+</li>
+<li class=""><strong>Weighted Voting Policy</strong>:<!-- -->
+<ul>
+<li class="">
+<p><strong>Weighted Voting for Areas</strong>: Enable weighted voting for areas.</p>
+</li>
+<li class="">
+<p><strong>Weighted Voting for Voters</strong>: Give each voter their own weight, so that a
+voter with weight <code>w</code> contributes <code>w</code> votes. Add a <code>vote-weight</code> column to
+the imported voters csv holding a whole number between 1 and 100000. A voter
+with no column, or with a blank cell, votes with weight 1. Near spellings that
+differ only in case or in <code>_</code> and <code>.</code> — <code>vote_weight</code>, <code>voteWeight</code>,
+<code>vote.weight</code> — are rejected rather than imported, because they would be
+stored under a name the tally does not read. A column named simply <code>weight</code>
+is <strong>not</strong> rejected: it is the name of the unrelated area weight, so it
+imports as an ordinary attribute and every voter tallies at 1. The column is
+named after the <code>vote-weight</code> voter attribute it becomes, so an exported
+voters file can be edited and re-imported unchanged. Cannot be combined with
+Delegate Voting, and every contest in the election event must use the
+Plurality at Large counting algorithm — counting a ballot more than once
+has no defined meaning for the others, so the tally refuses to run. Approved
+tally sheets are refused for the same reason: a tally sheet reports a count
+of paper ballots and has nowhere to record a weight, so its votes would be
+added to the weighted totals at a weight of one each, which decides contests
+rather than merely under-counting them. Decoded ballots cannot
+be included in the published results either, for the reason in the warning
+below. Check both before ballots are published: neither the counting
+algorithm nor a published ballot can be changed once voting has begun.
+The weights of everyone who votes in one area of a contest
+must also add up to no more than 1000000, so a small number of voters on very
+large weights is rejected even though each weight is individually allowed.
+<strong>This is checked when the tally runs, which is after voting has closed.</strong> The
+import writes a warning to the server log when the weights in one file
+exceed it, but nothing surfaces that in the Admin Portal, and it counts only
+that file rather than everything already in the area. Two hundred and one voters each carrying
+5000 exceed it while every one of them imports cleanly. Plan around it before
+voting opens: the remedy afterwards is to rescale every weight, which changes
+the result. The limit does not come from the mix, which under this policy is
+at most one ciphertext per voter per batch however large the weights are; it
+comes from the tally expanding each batch&#x27;s votes by that batch&#x27;s multiplier
+afterwards.</p>
+<p>Turnout figures under this policy count voting power rather than voters: the
+eligible-voter census and the cast-ballot total are sums of weights, so they
+will not match a headcount shown elsewhere. Ballots with no matching voter
+are the exception — they have no voter and so no weight, and are counted one
+each, which mixes units into the cast-ballot total and into the auditable
+ballot percentage. The Total voters and Non-voters figures on the Tally
+screen are voting power under headcount labels.</p>
+<p>If any area still carries a Weight from a previous Weighted Voting for Areas
+configuration, the tally is refused until it is cleared, because the two
+weightings would multiply. <strong>Check this before publishing ballots.</strong>
+Selecting this policy hides the Weight column and field without clearing
+what they hold, so an area can keep a weight that nothing in the interface
+shows, and the refusal arrives only when the tally is created — after voting
+has closed, when the ballots can no longer be republished and there is no
+remedy left. Clearing it means switching back to Weighted Voting for
+Areas, which makes the Weight field visible again, clearing the Weight on
+each area, switching to Weighted Voting for Voters, and only then publishing
+the ballots.</p>
+<div class="theme-admonition theme-admonition-caution admonition_xJq3 alert alert--warning"><div class="admonitionHeading_Gvgb"><span class="admonitionIcon_Rf37"><svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8.893 1.5c-.183-.31-.52-.5-.887-.5s-.703.19-.886.5L.138 13.499a.98.98 0 0 0 0 1.001c.193.31.53.501.886.501h13.964c.367 0 .704-.19.877-.5a1.03 1.03 0 0 0 .01-1.002L8.893 1.5zm.133 11.497H6.987v-2.003h2.039v2.003zm0-3.004H6.987V5.987h2.039v4.006z"></path></svg></span>Set the weights before extracting ballots for a tally</div><div class="admonitionContent_BuS1"><p>Extracting the ballots for a tally writes them to the bulletin board, which
+is append-only. If a vote weight is changed after that, or a voter who had
+voted is disabled or removed, the board no longer matches and the tally
+refuses rather than publishing a total that counts some voters at their old
+weight and their new one at once. Putting back exactly what changed clears
+it. Nothing else does: the ballots already on the board will be mixed and
+published whatever the tally counts, so weights extracted wrongly cannot be
+corrected afterwards, and a voter whose account was deleted rather than
+disabled cannot be restored at all — that area can then never be tallied.</p><p>The refusal is not a guarantee that the weights used are the ones configured
+now. A weight raised so that it only adds batches the interrupted run had
+not yet written is applied as raised, because nothing already on the board
+contradicts it. Get the weights right before starting the tally rather than
+relying on this to catch a change.</p></div></div>
+<div class="theme-admonition theme-admonition-danger admonition_xJq3 alert alert--danger"><div class="admonitionHeading_Gvgb"><span class="admonitionIcon_Rf37"><svg viewBox="0 0 12 16"><path fill-rule="evenodd" d="M5.05.31c.81 2.17.41 3.38-.52 4.31C3.55 5.67 1.98 6.45.9 7.98c-1.45 2.05-1.7 6.53 3.53 7.7-2.2-1.16-2.67-4.52-.3-6.61-.61 2.03.53 3.33 1.94 2.86 1.39-.47 2.3.53 2.27 1.67-.02.78-.31 1.44-1.13 1.81 3.42-.59 4.78-3.42 4.78-5.56 0-2.84-2.53-3.22-1.25-5.61-1.52.13-2.03 1.13-1.89 2.75.09 1.08-1.02 1.8-1.86 1.33-.67-.41-.66-1.19-.06-1.78C8.18 5.31 8.68 2.45 5.05.32L5.03.3l.02.01z"></path></svg></span>Voter weights are public, and results are attributable</div><div class="admonitionContent_BuS1"><p>A voter&#x27;s weight is applied by splitting it into powers of two. A contest
+area is mixed as up to 17 batches, the batch at position <code>n</code> counting each
+ballot in it <code>2^n</code> times, and a voter&#x27;s ballot is placed in the batch for
+each power of two that adds up to their weight — weight 21 goes into the
+batches for 1, 4 and 16. No batch ever holds the same ballot twice, so
+nothing on the bulletin board repeats in a way that spells out a weight.</p><p>That is not enough to keep a weight private. The board is public so that the
+mix can be verified, the same ciphertext appears in every batch its weight
+selects, and each ciphertext is linkable to the voter who cast it, so adding
+up the batches a ballot appears in recovers that voter&#x27;s weight exactly.
+<strong>A voter&#x27;s weight is therefore public, and it is public who holds it.</strong> This
+is the flip side of a property some bodies want: published weights can be
+audited against the board.</p><p>The published per-candidate totals are sums over the weights of the voters
+who chose each candidate. Where weights differ from one another, that sum
+frequently identifies exactly who voted for whom — with distinct weights
+such as 1, 2, 4, 8 it always does. Turning off decoded ballots in the results
+does not prevent this; the totals alone are enough. Write-in answers are
+worse again, since an uncommon write-in appears with exactly the weight of
+the voter who wrote it.</p><p>A batch holding very few ballots publishes those voters&#x27; choices when it is
+decrypted, because a mix of one hides nothing. Which batches are small
+depends on how the weights are spread, not on how large they are: 999 voters
+on weight 2 and one on weight 3 leave the batch for 1 holding a single
+ballot. Extracting the ballots logs a warning naming any batch below five.
+It does not refuse, since by then voting has closed and there is no remedy
+left.</p><p>That warning is a floor, not a guarantee. A voter is exposed whenever the
+batches single them out at all — two batches whose voters differ by one
+person expose that person however large both batches are — and nothing
+detects that. Check the spread of weights before opening voting.</p><p>Do not use this policy where ballot secrecy is required. It suits bodies
+that already publish how each member voted, such as some shareholder or
+delegate votes. Where secrecy matters and voters fall into a small number of
+weight classes, Weighted Voting for Areas gives weighting without this
+disclosure, because every voter in an area shares one weight.</p></div></div>
+<div class="theme-admonition theme-admonition-caution admonition_xJq3 alert alert--warning"><div class="admonitionHeading_Gvgb"><span class="admonitionIcon_Rf37"><svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8.893 1.5c-.183-.31-.52-.5-.887-.5s-.703.19-.886.5L.138 13.499a.98.98 0 0 0 0 1.001c.193.31.53.501.886.501h13.964c.367 0 .704-.19.877-.5a1.03 1.03 0 0 0 .01-1.002L8.893 1.5zm.133 11.497H6.987v-2.003h2.039v2.003zm0-3.004H6.987V5.987h2.039v4.006z"></path></svg></span>caution</div><div class="admonitionContent_BuS1"><p>The <code>vote-weight</code> attribute must be declared in the election event realm&#x27;s
+Keycloak user profile before use. Until it is, the weight column is missing
+from the voters export, the field does not appear when editing a voter, and
+editing a voter through the Admin Portal clears any weight that voter had.
+Importing weights and tallying them work regardless. Realm user profiles are
+not managed from this application, so declaring the attribute is an
+administrator step on the realm configuration.</p></div></div>
+</li>
+<li class="">
+<p><strong>Disabled Weighted Voting</strong>: Disable weighted voting.</p>
+</li>
+</ul>
+</li>
+<li class=""><strong>Delegate Voting Policy</strong>:<!-- -->
+<ul>
+<li class="">Allows for voters to delegate their vote to another voter. An additional column needs to be included in the voters imported csv with the name <code>delegate-vote-to</code> with the username of the voter to delgate the vote to.</li>
+</ul>
+</li>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/02-election_managers/02-reference/02-election-event/03-election_management_election-event_data.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/election-event/election_management_election_event_monitoring"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Monitoring</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-2941/docs/election_managers/reference/election-event/election_management_election_event_localization"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Localization</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#actions-buttons-in-the-election-event-data-tab" class="table-of-contents__link toc-highlight">Actions buttons in the Election Event Data Tab</a></li><li><a href="#sections-in-the-election-event-data-tab" class="table-of-contents__link toc-highlight">Sections in the Election Event Data Tab</a></li><li><a href="#general" class="table-of-contents__link toc-highlight">General</a></li><li><a href="#language" class="table-of-contents__link toc-highlight">Language</a></li><li><a href="#ballot-design" class="table-of-contents__link toc-highlight">Ballot Design</a></li><li><a href="#voting-channels-allowed" class="table-of-contents__link toc-highlight">Voting Channels Allowed</a></li><li><a href="#custom-urls-prefix" class="table-of-contents__link toc-highlight">Custom URLs Prefix</a></li><li><a href="#support-materials" class="table-of-contents__link toc-highlight">Support Materials</a></li><li><a href="#advanced-configuration" class="table-of-contents__link toc-highlight">Advanced Configuration</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
+</body>
+</html>
