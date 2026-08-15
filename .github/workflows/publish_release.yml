@@ -36,7 +36,7 @@ jobs:
   trigger-beyond-release:
     needs: [build-and-push]
     if: ${{ always() && needs.build-and-push.result == 'success' }}
-    runs-on: gcp-selfhosted-ubuntu24 #gcp
+    runs-on: ubuntu-24.04
     steps:
     - name: Trigger Beyond Release Workflow
       uses: the-actions-org/workflow-dispatch@v4 # https://github.com/the-actions-org/workflow-dispatch
@@ -51,7 +51,7 @@ jobs:
   trigger-deployer:
     needs: [build-and-push, trigger-beyond-release]
     if: ${{ always() && needs.build-and-push.result == 'success' }}
-    runs-on: gcp-selfhosted-ubuntu24 #gcp
+    runs-on: ubuntu-24.04
     steps:
     - name: Trigger Deployer Workflow
       uses: the-actions-org/workflow-dispatch@v4 # https://github.com/the-actions-org/workflow-dispatch
@@ -66,7 +66,7 @@ jobs:
     if: failure()
     # Here define the depenency jobs
     needs: [build-and-push]
-    runs-on: gcp-selfhosted-ubuntu24 #gcp
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -82,7 +82,7 @@ jobs:
 
   slack-report:
     needs: [build-and-push, trigger-deployer, cleanup]
-    runs-on: gcp-selfhosted-ubuntu24 #gcp
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     if: always()
     steps:

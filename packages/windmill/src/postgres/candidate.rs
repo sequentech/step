@@ -1,20 +1,45 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::import::import_election_event::ImportElectionEventSchema;
 use crate::services::sql_utils::escape_sql_literal;
 use anyhow::{anyhow, Context, Result};
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Transaction;
 use futures::pin_mut;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::Candidate;
 use std::path::Path;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
+use tokio_postgres::binary_copy::BinaryCopyInWriter;
 use tokio_postgres::row::Row;
-use tokio_stream::StreamExt; // Added for streaming
-use tracing::{event, instrument, Level};
+use tokio_postgres::types::{ToSql, Type};
+use tokio_stream::StreamExt;
+use tracing::instrument;
 use uuid::Uuid;
+
+/// Candidate column for insert operation
+const CANDIDATE_COPY_COLUMNS: &str = "id, tenant_id, election_event_id, contest_id,
+created_at, last_updated_at, labels, annotations, name, description, type,
+presentation, is_public, alias, image_document_id";
+
+/// Candidate columns types for insert operation (same order as the columns)
+const CANDIDATE_COPY_TYPES: &[Type] = &[
+    Type::UUID,
+    Type::UUID,
+    Type::UUID,
+    Type::UUID,
+    Type::TIMESTAMPTZ,
+    Type::TIMESTAMPTZ,
+    Type::JSONB,
+    Type::JSONB,
+    Type::VARCHAR,
+    Type::TEXT,
+    Type::VARCHAR,
+    Type::JSONB,
+    Type::BOOL,
+    Type::TEXT,
+    Type::TEXT,
+];
 
 pub struct CandidateWrapper(pub Candidate);
 
@@ -51,45 +76,62 @@ pub async fn insert_candidates(
     election_event_id: &str,
     candidates: &Vec<Candidate>,
 ) -> Result<()> {
+    if candidates.is_empty() {
+        return Ok(());
+    }
+
+    let tenant_uuid = parse_uuid_v4(tenant_id)?;
+    let election_event_uuid = parse_uuid_v4(election_event_id)?;
+    let now = chrono::Utc::now();
+
+    let copy_sql =
+        format!("COPY sequent_backend.candidate ({CANDIDATE_COPY_COLUMNS}) FROM STDIN BINARY");
+
+    let sink = hasura_transaction
+        .copy_in(&copy_sql)
+        .await
+        .with_context(|| format!("Error preparing candidate COPY IN: {copy_sql}"))?;
+    let writer = BinaryCopyInWriter::new(sink, CANDIDATE_COPY_TYPES);
+    pin_mut!(writer);
+
     for candidate in candidates {
         candidate.validate()?;
 
-        let statement = hasura_transaction
-        .prepare(
-            r#"
-                INSERT INTO sequent_backend.candidate
-                (id, tenant_id, election_event_id, contest_id, created_at, last_updated_at, labels, annotations, name, description, type, presentation, is_public, alias, image_document_id)
-                VALUES
-                ($1, $2, $3, $4, NOW(), NOW(), $5, $6, $7, $8, $9, $10, $11, $12, $13);
-            "#,
-        )
-        .await?;
+        let id = parse_uuid_v4(&candidate.id)?;
+        let contest_id = candidate
+            .contest_id
+            .as_ref()
+            .and_then(|contest_id| parse_uuid_v4(contest_id).ok());
 
-        let rows: Vec<Row> = hasura_transaction
-            .query(
-                &statement,
-                &[
-                    &parse_uuid_v4(&candidate.id)?,
-                    &parse_uuid_v4(tenant_id)?,
-                    &parse_uuid_v4(election_event_id)?,
-                    &candidate
-                        .contest_id
-                        .as_ref()
-                        .and_then(|id| parse_uuid_v4(&id).ok()),
-                    &candidate.labels,
-                    &candidate.annotations,
-                    &candidate.name,
-                    &candidate.description,
-                    &candidate.r#type,
-                    &candidate.presentation,
-                    &candidate.is_public,
-                    &candidate.alias,
-                    &candidate.image_document_id,
-                ],
-            )
+        let row: [&(dyn ToSql + Sync); 15] = [
+            &id,
+            &tenant_uuid,
+            &election_event_uuid,
+            &contest_id,
+            &now,
+            &now,
+            &candidate.labels,
+            &candidate.annotations,
+            &candidate.name,
+            &candidate.description,
+            &candidate.r#type,
+            &candidate.presentation,
+            &candidate.is_public,
+            &candidate.alias,
+            &candidate.image_document_id,
+        ];
+
+        writer
+            .as_mut()
+            .write(&row)
             .await
-            .map_err(|err| anyhow!("Error running the document query: {err}"))?;
+            .map_err(|err| anyhow!("Error writing candidate COPY row: {err}"))?;
     }
+
+    writer
+        .finish()
+        .await
+        .context("Error finishing candidate COPY IN transaction")?;
 
     Ok(())
 }

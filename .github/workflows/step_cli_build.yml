@@ -13,7 +13,7 @@ on:
 
 jobs:
   build-cli:
-    runs-on: gcp-selfhosted-ubuntu24
+    runs-on: ubuntu-24.04
     env:
       CARGO_TARGET_DIR: rust-local-target
       RUSTFLAGS: "-C target-feature=-crt-static -lgcc_eh -lm"
@@ -30,7 +30,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.90.0
+          toolchain: 1.96.0
           components: rustfmt
           targets: x86_64-unknown-linux-musl
 

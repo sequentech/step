@@ -513,8 +513,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
     const handleAttrChange =
         (attrName: string) => async (e: React.ChangeEvent<HTMLInputElement>) => {
-            const {name, value} = e.target
-            debouncedHandleChange(name, value)
+            const {value} = e.target
+            debouncedHandleChange(attrName, value)
         }
 
     const debouncedHandleChange = useCallback(
