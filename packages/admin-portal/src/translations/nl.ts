@@ -1808,6 +1808,7 @@ const dutchTranslation: TranslationType = {
                 "warn-invalid-implicit-and-explicit":
                     "Waarschuwen bij Impliciet en Expliciet Ongeldig",
                 "not-allowed": "Niet Toegestaan",
+                "allowed-with-exclusive-explicit": "Toegestaan met Exclusief Expliciet Ongeldig",
             },
             candidatesIconCheckboxPolicy: {
                 "label": "Vorm icoon selectievakje kandidaten",

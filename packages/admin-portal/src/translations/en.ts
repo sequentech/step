@@ -1790,6 +1790,7 @@ const englishTranslation = {
                 "warn": "Warn",
                 "warn-invalid-implicit-and-explicit": "Warn Invalid Implicit And Explicit",
                 "not-allowed": "Not Allowed",
+                "allowed-with-exclusive-explicit": "Allowed With Exclusive Explicit",
             },
             candidatesIconCheckboxPolicy: {
                 "label": "Candidates checkbox icon shape",

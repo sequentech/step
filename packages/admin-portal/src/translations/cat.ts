@@ -1820,6 +1820,7 @@ const catalanTranslation: TranslationType = {
                 "warn": "Advertència",
                 "warn-invalid-implicit-and-explicit": "Advertir Invàlids Implícits i Explícits",
                 "not-allowed": "No Permesa",
+                "allowed-with-exclusive-explicit": "Permesa amb Vot Invàlid Exclusiu",
             },
             candidatesIconCheckboxPolicy: {
                 "label": "Forma de la icona de la casella de verificació dels candidats",

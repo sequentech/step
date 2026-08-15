@@ -1802,6 +1802,7 @@ const basqueTranslation: TranslationType = {
                 "warn-invalid-implicit-and-explicit":
                     "Abisatu Baliogabeko Inplizitu eta Esplizitua",
                 "not-allowed": "Ez Baimenduta",
+                "allowed-with-exclusive-explicit": "Baimenduta, Esplizitua Esklusiboa",
             },
             candidatesIconCheckboxPolicy: {
                 "label": "Hautagaien kontrol-laukiaren ikono forma",
