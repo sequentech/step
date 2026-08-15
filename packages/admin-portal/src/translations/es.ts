@@ -1822,6 +1822,7 @@ const spanishTranslation: TranslationType = {
                 "warn": "Advertencia",
                 "warn-invalid-implicit-and-explicit": "Advertir Inválidos Implícitos y Explícitos",
                 "not-allowed": "No Permitido",
+                "allowed-with-exclusive-explicit": "Permitido con Voto Inválido Exclusivo",
             },
             candidatesIconCheckboxPolicy: {
                 "label": "Forma del icono de la casilla de verificación de los candidatos",
