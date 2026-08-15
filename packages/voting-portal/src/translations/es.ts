@@ -90,7 +90,7 @@ const spanishTranslation: TranslationType = {
                 content:
                     "<p>Está a punto de copiar el Localizador del Voto, pero <b>su voto aún no se ha emitido</b>. Si intenta buscar el Localizador del Voto, no lo encontrará.</p><p>La razón por la que mostramos el Localizador del Voto en este momento es para que pueda auditar la corrección del voto cifrado antes de emitirlo. Si esa es la razón por la que desea copiar el Localizador del Voto, proceda a copiarlo y luego audite su voto.</p>",
                 ok: "Acepto que mi voto NO ha sido emitido",
-                cancel: "Cancelq4",
+                cancel: "Cancelar",
             },
             auditBallotHelpDialog: {
                 title: "¿Realmente quieres Auditar tu papeleta?",

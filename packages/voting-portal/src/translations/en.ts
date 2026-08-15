@@ -37,7 +37,7 @@ const englishTranslation = {
             ballotHelpDialog: {
                 title: "Information: Ballot screen",
                 content:
-                    "This screen shows the contest you are elegible to vote. You can make your section by activate the checkbox on the Candidate/Answer right. To reset your selections, click “<b>Clear selection</b>” button, to move to next step, click “<b>Next</b>” button below.",
+                    "This screen shows the contests you are eligible to vote in. You can make your selection by activating the checkbox to the right of the Candidate/Answer. To reset your selections, click the “<b>Clear selection</b>” button; to move to the next step, click the “<b>Next</b>” button below.",
                 ok: "OK",
             },
             nonVotedDialog: {
@@ -96,7 +96,7 @@ const englishTranslation = {
             auditBallotHelpDialog: {
                 title: "Do you want to audit the ballot?",
                 content:
-                    "<p>Please note that auditing your ballot will void it, requiring you to restart the voting process. The audit process lets you verify that your ballot is correctly encoded, but it involves advanced technical steps. We recommend proceeding only if you are confident in your technical skills. If you just want to cast your ballot, click <u>Cancel</u> to go back to the review ballot screen.</b></p>",
+                    "<p>Please note that auditing your ballot will void it, requiring you to restart the voting process. The audit process lets you verify that your ballot is correctly encoded, but it involves advanced technical steps. We recommend proceeding only if you are confident in your technical skills. If you just want to cast your ballot, click <u>Cancel</u> to go back to the review ballot screen.</p>",
                 ok: "Yes, I want to DISCARD my ballot to audit it",
                 cancel: "Cancel",
             },
@@ -267,11 +267,11 @@ const englishTranslation = {
         },
         electionSelectionScreen: {
             title: "Ballot list",
-            description: "Select the Ballot you want to vote",
+            description: "Select the ballot you want to vote on",
             chooserHelpDialog: {
                 title: "Information: Ballot List",
                 content:
-                    "Welcome to the Voting Booth, this screen shows the list of Ballots you can cast a ballot. Ballots displayed in this list can be open to voting, scheduled, or closed. You will be able to access the ballot only if the voting period is open.",
+                    "Welcome to the Voting Booth. This screen shows the ballots you can vote on. Ballots displayed in this list can be open to voting, scheduled, or closed. You will be able to access the ballot only if the voting period is open.",
                 ok: "OK",
             },
             noResults: "No ballots for now.",
@@ -341,7 +341,7 @@ const englishTranslation = {
             titleHelpDialog: {
                 title: "Information: Ballot Locator screen",
                 content:
-                    "This screen allows the voter to find their vote by using the Ballot ID to retrieve it. This procedure enables checking that their ballot was correctly cast and that the recorded ballot coincides with the encrypted ballot they sent.",
+                    "This screen allows you to find your vote by using the Ballot ID to retrieve it. This procedure enables you to check that your ballot was correctly cast and that the recorded ballot matches the encrypted ballot you sent.",
                 ok: "OK",
             },
             tabs: {

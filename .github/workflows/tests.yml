@@ -12,7 +12,7 @@ on:
 jobs:
   run-tests:
     name: Run Rust tests
-    runs-on: gcp-selfhosted-ubuntu24
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         include:
@@ -36,7 +36,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.90.0
+          toolchain: 1.96.0
           components: rustfmt
           targets: x86_64-unknown-linux-musl
 
@@ -83,7 +83,7 @@ jobs:
     name: Notify on failure
     needs: run-tests
     if: failure()
-    runs-on: gcp-selfhosted-ubuntu24
+    runs-on: ubuntu-24.04
     steps:
       - name: Slack notification
         uses: slackapi/slack-github-action@v1.24.0
