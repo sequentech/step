@@ -1049,6 +1049,9 @@ pub async fn list_users(
         }
     };
 
+    // The count query below has no ORDER BY clause, so it must not receive the
+    // optional dynamic-attribute sort parameter used by the listing query.
+    let count_params_len = params.len();
     let mut sort_params: Vec<Option<String>> = vec![];
     let (sort_clause, field_param) =
         get_sort_clause_and_field_param(filter.sort, next_param_number);
@@ -1159,7 +1162,7 @@ pub async fn list_users(
         .prepare(count_statement_str.as_str())
         .await?;
     let count_row: Row = keycloak_transaction
-        .query_one(&count_statement, &params)
+        .query_one(&count_statement, &params[..count_params_len])
         .await
         .map_err(|err| anyhow!("{}", err))?;
 
