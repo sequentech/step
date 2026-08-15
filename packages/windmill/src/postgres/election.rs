@@ -4,14 +4,51 @@
 use crate::services::import::import_election_event::ImportElectionEventSchema;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
+use futures::pin_mut;
 use sequent_core::ballot::ElectionPresentation;
 use sequent_core::ballot::ElectionStatus;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::{Election, VotingChannels};
 use serde_json::Value;
+use tokio_postgres::binary_copy::BinaryCopyInWriter;
 use tokio_postgres::row::Row;
+use tokio_postgres::types::{ToSql, Type};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
+
+/// Election column for insert operation
+const ELECTION_COPY_COLUMNS: &str = "id, tenant_id, election_event_id, created_at, last_updated_at,
+labels, annotations, name, description, presentation, status, eml, num_allowed_revotes, is_consolidated_ballot_encoding,
+spoil_ballot_option, voting_channels, is_kiosk, image_document_id, statistics, receipts, permission_label,
+keys_ceremony_id, initialization_report_generated, alias";
+
+/// Election columns types for insert operation (same order as the columns)
+const ELECTION_COPY_TYPES: &[Type] = &[
+    Type::UUID,
+    Type::UUID,
+    Type::UUID,
+    Type::TIMESTAMPTZ,
+    Type::TIMESTAMPTZ,
+    Type::JSONB,
+    Type::JSONB,
+    Type::VARCHAR,
+    Type::TEXT,
+    Type::JSONB,
+    Type::JSONB,
+    Type::TEXT,
+    Type::INT4,
+    Type::BOOL,
+    Type::BOOL,
+    Type::JSONB,
+    Type::BOOL,
+    Type::TEXT,
+    Type::JSONB,
+    Type::JSONB,
+    Type::TEXT,
+    Type::UUID,
+    Type::BOOL,
+    Type::TEXT,
+];
 
 pub struct ElectionWrapper(pub Election);
 
@@ -463,108 +500,72 @@ pub async fn insert_elections(
     hasura_transaction: &Transaction<'_>,
     data: &ImportElectionEventSchema,
 ) -> Result<()> {
+    if data.elections.is_empty() {
+        return Ok(());
+    }
+
+    let now = chrono::Utc::now();
+    let copy_sql =
+        format!("COPY sequent_backend.election ({ELECTION_COPY_COLUMNS}) FROM STDIN BINARY");
+
+    let sink = hasura_transaction
+        .copy_in(&copy_sql)
+        .await
+        .with_context(|| format!("Error preparing election COPY IN: {copy_sql}"))?;
+    let writer = BinaryCopyInWriter::new(sink, ELECTION_COPY_TYPES);
+    pin_mut!(writer);
+
     for election in &data.elections {
         election.validate()?;
-        let keys_ceremony_id_uuid_opt = election
+
+        let id = parse_uuid_v4(&election.id)?;
+        let tenant_id = parse_uuid_v4(&election.tenant_id)?;
+        let election_event_id = parse_uuid_v4(&election.election_event_id)?;
+        let keys_ceremony_id = election
             .keys_ceremony_id
-            .clone()
-            .map(|val| parse_uuid_v4(&val))
+            .as_ref()
+            .map(|val| parse_uuid_v4(val))
             .transpose()?;
+        let num_allowed_revotes = election.num_allowed_revotes.map(|val| val as i32);
 
-        let statement = hasura_transaction
-            .prepare(
-                r#"
-                INSERT INTO sequent_backend.election
-                (
-                    id,
-                    tenant_id,
-                    election_event_id,
-                    created_at,
-                    last_updated_at,
-                    labels,
-                    annotations,
-                    name,
-                    description,
-                    presentation,
-                    status,
-                    eml,
-                    num_allowed_revotes,
-                    is_consolidated_ballot_encoding,
-                    spoil_ballot_option,
-                    alias,
-                    voting_channels,
-                    is_kiosk,
-                    image_document_id,
-                    statistics,
-                    receipts,
-                    permission_label,
-                    keys_ceremony_id,
-                    initialization_report_generated
-                )
-                VALUES
-                (
-                    $1,
-                    $2,
-                    $3,
-                    NOW(),
-                    NOW(),
-                    $4,
-                    $5,
-                    $6,
-                    $7,
-                    $8,
-                    $9,
-                    $10,
-                    $11,
-                    $12,
-                    $13,
-                    $14,
-                    $15,
-                    $16,
-                    $17,
-                    $18,
-                    $19,
-                    $20,
-                    $21,
-                    $22
-                );
-            "#,
-            )
-            .await?;
+        let row: [&(dyn ToSql + Sync); 24] = [
+            &id,
+            &tenant_id,
+            &election_event_id,
+            &now,
+            &now,
+            &election.labels,
+            &election.annotations,
+            &election.name,
+            &election.description,
+            &election.presentation,
+            &election.status,
+            &election.eml,
+            &num_allowed_revotes,
+            &election.is_consolidated_ballot_encoding,
+            &election.spoil_ballot_option,
+            &election.voting_channels,
+            &election.is_kiosk,
+            &election.image_document_id,
+            &election.statistics,
+            &election.receipts,
+            &election.permission_label,
+            &keys_ceremony_id,
+            &election.initialization_report_generated,
+            &election.alias,
+        ];
 
-        let _rows: Vec<Row> = hasura_transaction
-            .query(
-                &statement,
-                &[
-                    &parse_uuid_v4(&election.id)?,
-                    &parse_uuid_v4(&election.tenant_id)?,
-                    &parse_uuid_v4(&election.election_event_id)?,
-                    &election.labels,
-                    &election.annotations,
-                    &election.name,
-                    &election.description,
-                    &election.presentation,
-                    &election.status,
-                    &election.eml,
-                    &election
-                        .num_allowed_revotes
-                        .and_then(|val| Some(val as i32)),
-                    &election.is_consolidated_ballot_encoding,
-                    &election.spoil_ballot_option,
-                    &election.alias,
-                    &election.voting_channels,
-                    &election.is_kiosk,
-                    &election.image_document_id,
-                    &election.statistics,
-                    &election.receipts,
-                    &election.permission_label,
-                    &keys_ceremony_id_uuid_opt,
-                    &election.initialization_report_generated,
-                ],
-            )
+        writer
+            .as_mut()
+            .write(&row)
             .await
-            .map_err(|err| anyhow!("Error running the document query: {err}"))?;
+            .map_err(|err| anyhow!("Error writing election COPY row: {err}"))?;
     }
+
+    writer
+        .finish()
+        .await
+        .context("Error finishing election COPY IN transaction")?;
 
     Ok(())
 }

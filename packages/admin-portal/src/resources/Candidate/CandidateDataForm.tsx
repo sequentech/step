@@ -300,7 +300,8 @@ export const CandidateDataForm: React.FC<{
         }
     }
 
-    const removeImage = () => {
+    const removeImage = (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+        e.stopPropagation()
         try {
             setEnabledDeleteImage(false)
             let presentation = removeUrlFromPresentation(record)
@@ -353,7 +354,7 @@ export const CandidateDataForm: React.FC<{
     }
 
     const DeleteImage: React.FC = () => (
-        <StyledIconButton onClick={removeImage} disabled={!enabledDeleteImage}>
+        <StyledIconButton onClick={(e) => removeImage(e)} disabled={!enabledDeleteImage}>
             {!enabledDeleteImage ? (
                 <CircularProgress size="18px" style={{marginRight: "6px"}} />
             ) : null}

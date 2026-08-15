@@ -130,7 +130,7 @@ reuse lint                           # Every file must have SPDX headers
 - **Pinned crate**: `wasm-bindgen` 0.2.104 — do not change
 - **Forked crate**: `celery` uses a custom fork (Findeton/rusty-celery)
 - **Hasura changes must go through** `hasura console` (not the web UI directly) for migrations to be tracked
-- **Rust toolchain**: 1.90.0 stable, WASM targets: `wasm32-unknown-unknown`
+- **Rust toolchain**: 1.96.0 stable, WASM targets: `wasm32-unknown-unknown`
 - **Node.js**: 20.x, package manager: Yarn (workspaces)
 - **Java**: JDK 17 for Keycloak extensions
 

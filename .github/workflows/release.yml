@@ -35,11 +35,7 @@ permissions:
 
 jobs:
   create-release-branch:
-    runs-on:
-      - env=infra-euw1
-      - runs-on=${{ github.run_id }}
-      - runner=2cpu-linux-x64
-      - image=ubuntu24-full-x64
+    runs-on: ubuntu-24.04
     outputs:
       NEW_RELEASE_BRANCH: ${{ steps.CreateReleaseBranch.outputs.NEW_RELEASE_BRANCH }}
       DEPLOYER_BRANCH: ${{ steps.CreateReleaseBranch.outputs.DEPLOYER_BRANCH }}
@@ -117,11 +113,7 @@ jobs:
         fi
 
   release:
-    runs-on:
-      - env=infra-euw1
-      - runs-on=${{ github.run_id }}
-      - runner=2cpu-linux-x64
-      - image=ubuntu24-full-x64
+    runs-on: ubuntu-24.04
     needs: create-release-branch
     outputs:
       VERSION: ${{ steps.Release.outputs.VERSION }}
@@ -277,11 +269,7 @@ jobs:
   trigger-beyond-release:
     needs: [release]
     if: ${{ always() && needs.release.result == 'success' }}
-    runs-on:
-      - env=infra-euw1
-      - runs-on=${{ github.run_id }}
-      - runner=2cpu-linux-x64
-      - image=ubuntu24-full-x64
+    runs-on: ubuntu-24.04
     steps:
     - name: Trigger Beyond Release Workflow
       uses: the-actions-org/workflow-dispatch@v4 # https://github.com/the-actions-org/workflow-dispatch
@@ -296,11 +284,7 @@ jobs:
   trigger-deployer:
     needs: [release, create-release-branch, trigger-beyond-release]
     if: ${{ always() && needs.release.result == 'success' && needs.create-release-branch.result == 'success' }}
-    runs-on:
-      - env=infra-euw1
-      - runs-on=${{ github.run_id }}
-      - runner=2cpu-linux-x64
-      - image=ubuntu24-full-x64
+    runs-on: ubuntu-24.04
     steps:
     - name: Trigger Deployer Workflow
       uses: the-actions-org/workflow-dispatch@v4 # https://github.com/the-actions-org/workflow-dispatch
@@ -315,11 +299,7 @@ jobs:
     if: failure()
     # Here define the depenency jobs
     needs: [release]
-    runs-on:
-      - env=infra-euw1
-      - runs-on=${{ github.run_id }}
-      - runner=2cpu-linux-x64
-      - image=ubuntu24-full-x64
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -335,11 +315,7 @@ jobs:
 
   slack-report:
     needs: [release, trigger-deployer, cleanup]
-    runs-on:
-      - env=infra-euw1
-      - runs-on=${{ github.run_id }}
-      - runner=2cpu-linux-x64
-      - image=ubuntu24-full-x64
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     if: always()
     steps:

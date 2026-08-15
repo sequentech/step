@@ -6,8 +6,7 @@
 # for the devcontainer prebuilds. However, each package has its own Dockerfile,
 # for example packages/windmill/Dockerfile, packages/harvest/Dockerfile, etc.
 
-
-FROM rustlang/rust:nightly-bookworm-slim
+FROM rust:1.96.0-slim-bookworm
 
 WORKDIR /app
 
