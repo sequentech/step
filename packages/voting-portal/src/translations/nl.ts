@@ -85,8 +85,16 @@ const dutchTranslation: TranslationType = {
             descriptionNoAudit:
                 "Klik op “<b>Stembiljet bewerken</b>” voor wijzigingen, of “<b>Stem uitbrengen</b>” om te bevestigen.",
             backButton: "Stembiljet bewerken",
+<<<<<<< HEAD
             castBallotButton: "Stem uitbrengen",
             auditButton: "Controleer stembiljet",
+=======
+            castBallotButton: "Stem uitbrengen",
+            auditButton: "Controleer stembiljet",
+            copyBallotId: "Stembiljet-ID kopiëren",
+            ballotIdCopied: "Stembiljet-ID gekopieerd",
+            ballotIdCopyError: "Stembiljet-ID kon niet worden gekopieerd",
+>>>>>>> d388a69c7e (✨ Voting Portal: Ballot Id Copy Button (#3060))
             reviewScreenHelpDialog: {
                 title: "Over het controlescherm",
                 content:
