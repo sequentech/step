@@ -87,6 +87,9 @@ const frenchTranslation: TranslationType = {
             backButton: "Modifier votre vote",
             castBallotButton: "Envoyer votre vote",
             auditButton: "Auditer le bulletin",
+            copyBallotId: "Copier l’identifiant du bulletin",
+            ballotIdCopied: "Identifiant du bulletin copié",
+            ballotIdCopyError: "Impossible de copier l’identifiant du bulletin",
             reviewScreenHelpDialog: {
                 title: "Information : Écran de révision",
                 content: "Cet écran vous permet de réviser vos sélections avant de voter.",

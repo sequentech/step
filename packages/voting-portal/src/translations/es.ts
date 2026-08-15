@@ -87,6 +87,9 @@ const spanishTranslation: TranslationType = {
             backButton: "Editar tu voto",
             castBallotButton: "Enviar tu voto",
             auditButton: "Auditar papeleta",
+            copyBallotId: "Copiar el ID de la papeleta",
+            ballotIdCopied: "ID de la papeleta copiado",
+            ballotIdCopyError: "No se pudo copiar el ID de la papeleta",
             reviewScreenHelpDialog: {
                 title: "Información: Pantalla de revisión",
                 content:
