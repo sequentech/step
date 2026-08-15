@@ -681,9 +681,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         }
     }
 
-    // @ts-ignore
-    function BulkActions(props) {
-        const {total, filterValues} = useListContext()
+    function BulkActions() {
+        const {total, filterValues, selectedIds: listSelectedIds} = useListContext()
         // Kept in a ref so confirmDeleteBulkAction, which lives outside the
         // List context, sends the filters that were active when the operator
         // opened the dialog.
@@ -695,7 +694,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         variant="actionbar"
                         key="send-notification"
                         onClick={() => {
-                            sendTemplateAction(props.selectedIds ?? [], AudienceSelection.SELECTED)
+                            sendTemplateAction(listSelectedIds ?? [], AudienceSelection.SELECTED)
                         }}
                     >
                         <ResourceListStyles.MailIcon />
@@ -707,7 +706,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     <Button
                         variant="actionbar"
                         onClick={() => {
-                            const ids: Identifier[] = props.selectedIds ?? []
+                            const ids: Identifier[] = listSelectedIds ?? []
                             setSelectedIds(ids)
                             // Both counts are offered to the operator; nothing
                             // is inferred from the selection. The header

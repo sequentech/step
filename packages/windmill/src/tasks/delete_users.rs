@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::tasks_execution::{update_complete_with_annotations, update_fail};
-use crate::services::users::{list_users_ids, list_users_with_vote_info, ListUsersFilter};
+use crate::services::users::{list_users, list_users_with_vote_info, ListUsersFilter};
 use crate::types::error::{Error, Result};
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
@@ -14,7 +14,7 @@ use serde_json::json;
 use std::collections::HashSet;
 use tracing::{info, instrument};
 
-/// Page size when resolving a whole filtered set to ids. `list_users_ids`
+/// Page size when resolving a whole filtered set to ids. `list_users`
 /// clamps the limit to `low_sql_limit`, so the loop below must not assume it
 /// gets the page size it asked for.
 const RESOLVE_PAGE_SIZE: i32 = 1000;
@@ -144,9 +144,9 @@ async fn fail(task_execution: &Option<TasksExecution>, message: String) -> Resul
 /// limit to `low_sql_limit`.
 ///
 /// `has_voted` is deliberately routed through `list_users_with_vote_info`:
-/// `list_users_ids` does not implement it, and the voters list applies it in
+/// `list_users` does not implement it, and the voters list applies it in
 /// application code over the vote info rather than in SQL. Resolving through
-/// `list_users_ids` alone would ignore the filter and select every voter in the
+/// `list_users` alone would ignore the filter and select every voter in the
 /// event, which for a delete is the difference between "the 300 who have not
 /// voted" and "everybody".
 #[instrument(skip(filter), err)]
@@ -196,8 +196,13 @@ async fn resolve_ids(filter: ListUsersFilter) -> Result<Vec<String>> {
                 (ids, examined)
             }
             None => {
-                let ids = list_users_ids(&hasura_transaction, &keycloak_transaction, page).await?;
-                let returned = ids.len() as i32;
+                let (users, _) =
+                    list_users(&hasura_transaction, &keycloak_transaction, page).await?;
+                let returned = users.len() as i32;
+                let ids = users
+                    .into_iter()
+                    .filter_map(|user| user.id)
+                    .collect::<Vec<String>>();
                 (ids, returned)
             }
         };
