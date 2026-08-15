@@ -654,8 +654,13 @@ const tagalogTranslation: TranslationType = {
                     policyLabel: "Patakaran sa Timbang na Pagboto",
                     options: {
                         "areas-weighted-voting": "Timbang na Pagboto ayon sa mga Lugar",
+                        "voters-weighted-voting": "Timbang na Pagboto ayon sa mga Botante",
                         "disabled-weighted-voting": "Hindi Pinagana ang Timbang na Pagboto",
                     },
+                    noDelegated:
+                        "Ang Timbang na Pagboto ayon sa mga Botante ay hindi maaaring pagsamahin sa Delegadong Pagboto",
+                    noDecodedBallots:
+                        "Ang Timbang na Pagboto ayon sa mga Botante ay hindi maaaring pagsamahin sa pagsasama ng mga na-decode na balota sa mga resulta",
                 },
                 delegatedVotingPolicy: {
                     policyLabel: "Patakaran sa Delegadong Pagboto",
@@ -688,6 +693,7 @@ const tagalogTranslation: TranslationType = {
                     config: "Configuration",
                     blacklist: "Listahan ng pag-block",
                     prompts: "Mga voice prompt",
+                    emulator: "Emulator",
                 },
                 common: {
                     saveSuccess: "Matagumpay na na-save",
@@ -722,6 +728,35 @@ const tagalogTranslation: TranslationType = {
 
                     noFilterMatch: "Walang entry na tumutugma sa ibinigay na mga filter",
                     phoneRequired: "Kinakailangan ang numero ng telepono",
+                },
+                emulator: {
+                    infoMsg:
+                        "Pumili ng lugar at ng mga nais na halalan upang subukan ang IVR session.",
+                    apiStatus: {
+                        unavailable: "Hindi available ang emulator system sa iyong environment",
+                        loading: "Nilo-load ang emulator system",
+                        error: "Nagkaroon ng error sa pag-load ng emulator system",
+                    },
+                    hints: {
+                        title: "Mga pahiwatig",
+                        publishRequired:
+                            "Ang anumang pagbabagong ginawa sa mga halalan, mga contest, o mga kandidato ay dapat munang i-publish para maging available. Tanging ang pinakabagong na-publish na mga ballot style para sa tumutugmang lugar ang gagamitin sa emulator.",
+                        eventChangesImmediate:
+                            "Ang mga pagbabagong ginawa sa election event, gaya ng IVR configuration o mga pagbabago sa prompt, ay available kaagad kapag ni-restart ang emulator session.",
+                        credentials: 'Ang valid na voter ID at PIN ay "123" at "123".',
+                    },
+                    sendDtmf: "Magpadala ng DTMF input",
+                    sendTimeout: "Magpadala ng timeout",
+                    disconnected: "Nadiskonekta",
+                    startSession: "Magsimula ng bagong session",
+                    endSession: "Tapusin ang session",
+                    noStylesFound:
+                        "Walang nakitang na-publish na mga ballot style na tumutugma sa iyong mga pinili",
+                    inputPlaceholder:
+                        "Ilagay ang iyong input (max na digit={{maxDigits}}, mga valid na input={{validInputs}}, timeout={{timeout}} s)",
+                    blacklistCaller: "I-block ang tumatawag",
+                    elections: "Mga halalan",
+                    area: "Lugar",
                 },
             },
             stats: {
@@ -1060,6 +1095,7 @@ const tagalogTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Nakaboto",
+                    "vote-weight": "Bigat ng Boto",
                     "voted-channel": "Channel ng pagboto",
                     "disable-comment": "Komento sa pag-disable",
                     "username": "Username",

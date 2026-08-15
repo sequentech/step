@@ -58,6 +58,7 @@ import {
     REVIEW_TALLY_SHEET_IMPORT,
 } from "@/queries/TallySheetImport"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
+import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {
@@ -1005,6 +1006,7 @@ const TallySheetImportsDatagrid: React.FC<{
 
     return (
         <DatagridConfigurable
+            header={ThreeStateDatagridHeader}
             omit={OMIT_FIELDS}
             bulkActionButtons={false}
             sx={{
@@ -1067,6 +1069,7 @@ const TallySheetImportsDatagrid: React.FC<{
             />
             <FunctionField
                 source="summary.imported_ballot_box_count"
+                sortable={false}
                 label={String(t("tallySheetImport.summary.imported"))}
                 render={(record: TallySheetImportRecord) =>
                     (record.summary ?? emptySummary).imported_ballot_box_count
@@ -1074,6 +1077,7 @@ const TallySheetImportsDatagrid: React.FC<{
             />
             <FunctionField
                 source="summary.changed_ballot_box_count"
+                sortable={false}
                 label={String(t("tallySheetImport.summary.changed"))}
                 render={(record: TallySheetImportRecord) =>
                     (record.summary ?? emptySummary).changed_ballot_box_count
@@ -1081,6 +1085,7 @@ const TallySheetImportsDatagrid: React.FC<{
             />
             <FunctionField
                 source="summary.new_ballot_box_count"
+                sortable={false}
                 label={String(t("tallySheetImport.summary.new"))}
                 render={(record: TallySheetImportRecord) =>
                     (record.summary ?? emptySummary).new_ballot_box_count
@@ -1088,6 +1093,7 @@ const TallySheetImportsDatagrid: React.FC<{
             />
             <FunctionField
                 source="summary.unchanged_ballot_box_count"
+                sortable={false}
                 label={String(t("tallySheetImport.summary.unchanged"))}
                 render={(record: TallySheetImportRecord) =>
                     (record.summary ?? emptySummary).unchanged_ballot_box_count

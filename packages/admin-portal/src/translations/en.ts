@@ -650,7 +650,12 @@ const englishTranslation = {
                     options: {
                         "areas-weighted-voting": "Weighted Voting for Areas",
                         "disabled-weighted-voting": "Disabled Weighted Voting",
+                        "voters-weighted-voting": "Weighted Voting for Voters",
                     },
+                    noDelegated:
+                        "Weighted Voting for Voters cannot be combined with Delegated Voting",
+                    noDecodedBallots:
+                        "Weighted Voting for Voters cannot be combined with including decoded ballots in the results",
                 },
                 delegatedVotingPolicy: {
                     policyLabel: "Delegated Voting Policy",
@@ -683,6 +688,7 @@ const englishTranslation = {
                     config: "Configuration",
                     blacklist: "Blocklist",
                     prompts: "Prompts",
+                    emulator: "Emulator",
                 },
                 common: {
                     saveSuccess: "Saved successfully",
@@ -716,6 +722,33 @@ const englishTranslation = {
                         "Configure the blocklist for the IVR. Calls from these numbers will be disconnected automatically by the system.",
                     noFilterMatch: "No entries match the given filters",
                     phoneRequired: "Phone number is required",
+                },
+                emulator: {
+                    infoMsg: "Select an area and desired elections to experience the IVR session.",
+                    apiStatus: {
+                        unavailable: "The emulator system is not available in your environment",
+                        loading: "Loading the emulator system",
+                        error: "Error loading the emulator system",
+                    },
+                    hints: {
+                        title: "Hints",
+                        publishRequired:
+                            "Any changes made to elections, contests or candidates must be published first to be available. Only the latest published ballot styles for the matching area will be used in the emulator.",
+                        eventChangesImmediate:
+                            "Changes made to the election event, such as IVR configuration or prompt overrides, are available immediately upon emulator session restart.",
+                        credentials: 'The valid voter id and pin are "123" and "123".',
+                    },
+                    sendDtmf: "Send DTMF input",
+                    sendTimeout: "Send timeout",
+                    disconnected: "Disconnected",
+                    startSession: "Start new session",
+                    endSession: "End the session",
+                    noStylesFound: "No published ballot styles found matching your selections",
+                    inputPlaceholder:
+                        "Enter your input (max digits={{maxDigits}}, valid inputs={{validInputs}}, timeout={{timeout}}s)",
+                    blacklistCaller: "Blocklist the caller",
+                    elections: "Elections",
+                    area: "Area",
                 },
             },
             stats: {
@@ -1052,6 +1085,7 @@ const englishTranslation = {
                 },
                 fields: {
                     "has_voted": "Voted",
+                    "vote-weight": "Vote Weight",
                     "voted-channel": "Voted Channel",
                     "disable-comment": "Disable Comment",
                     "username": "Username",

@@ -654,8 +654,13 @@ const galegoTranslation: TranslationType = {
                     policyLabel: "Política de Votación Ponderada",
                     options: {
                         "areas-weighted-voting": "Votación Ponderada por Áreas",
+                        "voters-weighted-voting": "Votación Ponderada por Votantes",
                         "disabled-weighted-voting": "Votación Ponderada Desactivada",
                     },
+                    noDelegated:
+                        "A Votación Ponderada por Votantes non pode combinarse co Voto Delegado",
+                    noDecodedBallots:
+                        "A Votación Ponderada por Votantes non pode combinarse coa inclusión de papeletas descifradas nos resultados",
                 },
                 delegatedVotingPolicy: {
                     policyLabel: "Política de Voto Delegado",
@@ -688,6 +693,7 @@ const galegoTranslation: TranslationType = {
                     config: "Configuración",
                     blacklist: "Lista de bloqueo",
                     prompts: "Locucións",
+                    emulator: "Emulador",
                 },
                 common: {
                     saveSuccess: "Gardado correctamente",
@@ -722,6 +728,36 @@ const galegoTranslation: TranslationType = {
 
                     noFilterMatch: "Ningunha entrada coincide cos filtros indicados",
                     phoneRequired: "O número de teléfono é obrigatorio",
+                },
+                emulator: {
+                    infoMsg:
+                        "Seleccione unha área e as eleccións desexadas para probar a sesión IVR.",
+                    apiStatus: {
+                        unavailable: "O sistema do emulador non está dispoñible na súa contorna",
+                        loading: "Cargando o sistema do emulador",
+                        error: "Erro ao cargar o sistema do emulador",
+                    },
+                    hints: {
+                        title: "Suxestións",
+                        publishRequired:
+                            "Calquera cambio realizado nas eleccións, nas contendas ou nos candidatos debe publicarse primeiro para que estea dispoñible. No emulador só se utilizarán os estilos de papeleta publicados máis recentemente para a área correspondente.",
+                        eventChangesImmediate:
+                            "Os cambios realizados no evento electoral, como a configuración IVR ou as modificacións das mensaxes, están dispoñibles inmediatamente ao reiniciar a sesión do emulador.",
+                        credentials:
+                            'O identificador de votante e o PIN válidos son "123" e "123".',
+                    },
+                    sendDtmf: "Enviar entrada DTMF",
+                    sendTimeout: "Enviar tempo de espera",
+                    disconnected: "Desconectado",
+                    startSession: "Iniciar unha nova sesión",
+                    endSession: "Finalizar a sesión",
+                    noStylesFound:
+                        "Non se atoparon estilos de papeleta publicados que coincidan coas súas seleccións",
+                    inputPlaceholder:
+                        "Introduza a súa entrada (máximo de díxitos={{maxDigits}}, entradas válidas={{validInputs}}, tempo de espera={{timeout}} s)",
+                    blacklistCaller: "Bloquear a persoa que chama",
+                    elections: "Eleccións",
+                    area: "Área",
                 },
             },
             stats: {
@@ -1059,6 +1095,7 @@ const galegoTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Votou",
+                    "vote-weight": "Peso do voto",
                     "voted-channel": "Canle de voto",
                     "disable-comment": "Comentario de desactivación",
                     "username": "Nome de Usuario",

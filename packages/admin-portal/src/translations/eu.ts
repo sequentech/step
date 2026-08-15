@@ -651,8 +651,13 @@ const basqueTranslation: TranslationType = {
                     policyLabel: "Bozketa Ponderatuaren Politika",
                     options: {
                         "areas-weighted-voting": "Eremuen araberako Bozketa Ponderatua",
+                        "voters-weighted-voting": "Bozkatzaileen araberako Bozketa Ponderatua",
                         "disabled-weighted-voting": "Bozketa Ponderatua Desgaituta",
                     },
+                    noDelegated:
+                        "Bozkatzaileen araberako Bozketa Ponderatua ezin da Boto Delegatuarekin konbinatu",
+                    noDecodedBallots:
+                        "Bozkatzaileen araberako Bozketa Ponderatua ezin da emaitzetan deszifratutako botoak sartzearekin konbinatu",
                 },
                 delegatedVotingPolicy: {
                     policyLabel: "Botoa Eskualdatzeko Politika",
@@ -685,6 +690,7 @@ const basqueTranslation: TranslationType = {
                     config: "Konfigurazioa",
                     blacklist: "Blokeatze-zerrenda",
                     prompts: "Ahots-mezuak",
+                    emulator: "Emuladorea",
                 },
                 common: {
                     saveSuccess: "Behar bezala gorde da",
@@ -719,6 +725,35 @@ const basqueTranslation: TranslationType = {
 
                     noFilterMatch: "Ez dago emandako iragazkiekin bat datorren sarrerarik",
                     phoneRequired: "Telefono-zenbakia nahitaezkoa da",
+                },
+                emulator: {
+                    infoMsg:
+                        "Hautatu eremu bat eta nahi dituzun hauteskundeak IVR saioa probatzeko.",
+                    apiStatus: {
+                        unavailable: "Emuladore-sistema ez dago erabilgarri zure ingurunean",
+                        loading: "Emuladore-sistema kargatzen",
+                        error: "Errorea emuladore-sistema kargatzean",
+                    },
+                    hints: {
+                        title: "Aholkuak",
+                        publishRequired:
+                            "Hauteskundeetan, lehiaketetan edo hautagaietan egindako edozein aldaketa lehenik argitaratu behar da erabilgarri egon dadin. Dagokion eremurako azkenik argitaratutako boto-paper estiloak soilik erabiliko dira emuladorean.",
+                        eventChangesImmediate:
+                            "Hauteskunde-ekitaldian egindako aldaketak, hala nola IVR konfigurazioa edo mezuen gainidazketak, berehala egongo dira erabilgarri emuladorearen saioa berrabiaraztean.",
+                        credentials: 'Baliozko hautesle-IDa eta PINa "123" eta "123" dira.',
+                    },
+                    sendDtmf: "Bidali DTMF sarrera",
+                    sendTimeout: "Bidali denbora-muga",
+                    disconnected: "Deskonektatuta",
+                    startSession: "Hasi saio berria",
+                    endSession: "Amaitu saioa",
+                    noStylesFound:
+                        "Ez da aurkitu zure hautapenekin bat datorren argitaratutako boto-paper estilorik",
+                    inputPlaceholder:
+                        "Idatzi sarrera (gehienezko digitu kopurua={{maxDigits}}, baliozko sarrerak={{validInputs}}, denbora-muga={{timeout}} s)",
+                    blacklistCaller: "Blokeatu deitzailea",
+                    elections: "Hauteskundeak",
+                    area: "Eremua",
                 },
             },
             stats: {
@@ -1057,6 +1092,7 @@ const basqueTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Bozkatu du",
+                    "vote-weight": "Botoaren pisua",
                     "voted-channel": "Boto-kanala",
                     "disable-comment": "Desgaitzeko iruzkina",
                     "username": "Erabiltzaile izena",

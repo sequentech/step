@@ -22,11 +22,13 @@ Set these Keycloak realm attributes on the election event realm:
 | --- | --- | --- |
 | `credential-input-policy` | `standard` or `structured` | `standard` |
 | `credential-input-pattern` | A structured digit pattern such as `dddd-dddd-dddd-dddd` | `dddd-dddd-dddd-dddd` |
+| `credential-input-placeholder` | The character shown for each unassigned digit, such as `#` | `d` |
 
 In the current pattern grammar, each `d` represents one required ASCII digit
 and a hyphen separates editable groups. A pattern may contain 1–8 groups, each
 group may contain 1–12 `d` tokens, and the combined credential length may not
 exceed 64 digits. Other characters and future-reserved operators are rejected.
+The placeholder must be one visible non-digit character other than `-` or `*`.
 
 The application validates these values when realm attributes are saved. If
 malformed configuration reaches Keycloak through another route, the theme
@@ -39,7 +41,8 @@ event. For example:
 ```json
 {
   "credential-input-policy": "structured",
-  "credential-input-pattern": "dddd-dddd-dddd-dddd"
+  "credential-input-pattern": "dddd-dddd-dddd-dddd",
+  "credential-input-placeholder": "#"
 }
 ```
 
@@ -57,9 +60,10 @@ intentionally no compatibility alias.
 ## Input behavior
 
 The pattern renders as one textbox with the visibility button inside its outer
-border. Empty positions display `d`. Entered positions display `*`, except for
-the most recently entered digit, which remains visible for one second. The
-visibility button reveals or hides every entered digit.
+border. Empty positions display the configured placeholder (`d` by default).
+Entered positions display `*`, except for the most recently entered digit,
+which remains visible for one second. The visibility button reveals or hides
+every entered digit.
 
 Left and Right select the previous or next group, while Home and End select the
 first or last group. Typing after selecting a group replaces it, and completing
@@ -164,6 +168,6 @@ Realm localization overrides take precedence over theme defaults.
 3. Configure a PIN-compatible realm password policy.
 4. If using registration-as-login, confirm the deferred authenticator uses
    `form-mode=LOGIN` and `password-required=true`.
-5. Enable the two realm attributes and test keyboard navigation, leading
+5. Enable the realm attributes and test keyboard navigation, leading
    zeroes, paste, timed masking, show/hide, generic failures, and lockout before
    opening voting.

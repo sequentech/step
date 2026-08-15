@@ -655,8 +655,13 @@ const spanishTranslation: TranslationType = {
                     policyLabel: "Política de Votación Ponderada",
                     options: {
                         "areas-weighted-voting": "Votación Ponderada por Áreas",
+                        "voters-weighted-voting": "Votación Ponderada por Votantes",
                         "disabled-weighted-voting": "Votación Ponderada Deshabilitada",
                     },
+                    noDelegated:
+                        "La Votación Ponderada por Votantes no puede combinarse con el Voto Delegado",
+                    noDecodedBallots:
+                        "La Votación Ponderada por Votantes no puede combinarse con la inclusión de papeletas descifradas en los resultados",
                 },
                 delegatedVotingPolicy: {
                     policyLabel: "Política de Votación Delegada",
@@ -689,6 +694,7 @@ const spanishTranslation: TranslationType = {
                     config: "Configuración",
                     blacklist: "Lista de bloqueo",
                     prompts: "Locuciones",
+                    emulator: "Emulador",
                 },
                 common: {
                     saveSuccess: "Guardado correctamente",
@@ -723,6 +729,36 @@ const spanishTranslation: TranslationType = {
 
                     noFilterMatch: "Ninguna entrada coincide con los filtros indicados",
                     phoneRequired: "El número de teléfono es obligatorio",
+                },
+                emulator: {
+                    infoMsg:
+                        "Seleccione un área y las elecciones deseadas para probar la sesión de IVR.",
+                    apiStatus: {
+                        unavailable: "El sistema del emulador no está disponible en su entorno",
+                        loading: "Cargando el sistema del emulador",
+                        error: "Error al cargar el sistema del emulador",
+                    },
+                    hints: {
+                        title: "Sugerencias",
+                        publishRequired:
+                            "Cualquier cambio realizado en las elecciones, contiendas o candidatos debe publicarse primero para que esté disponible. En el emulador solo se utilizarán los estilos de boleta publicados más recientemente para el área correspondiente.",
+                        eventChangesImmediate:
+                            "Los cambios realizados en el evento electoral, como la configuración de IVR o las modificaciones de los mensajes, están disponibles inmediatamente al reiniciar la sesión del emulador.",
+                        credentials:
+                            'El identificador de votante y el PIN válidos son "123" y "123".',
+                    },
+                    sendDtmf: "Enviar entrada DTMF",
+                    sendTimeout: "Enviar tiempo de espera",
+                    disconnected: "Desconectado",
+                    startSession: "Iniciar nueva sesión",
+                    endSession: "Finalizar la sesión",
+                    noStylesFound:
+                        "No se encontraron estilos de boleta publicados que coincidan con sus selecciones",
+                    inputPlaceholder:
+                        "Introduzca su entrada (máximo de dígitos={{maxDigits}}, entradas válidas={{validInputs}}, tiempo de espera={{timeout}} s)",
+                    blacklistCaller: "Bloquear a la persona que llama",
+                    elections: "Elecciones",
+                    area: "Área",
                 },
             },
             stats: {
@@ -1060,6 +1096,7 @@ const spanishTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Voted",
+                    "vote-weight": "Peso del voto",
                     "voted-channel": "Canal de voto",
                     "disable-comment": "Comentario de deshabilitación",
                     "username": "Nombre de Usuario",

@@ -654,8 +654,13 @@ const dutchTranslation: TranslationType = {
                     policyLabel: "Beleid voor Gewogen Stemmen",
                     options: {
                         "areas-weighted-voting": "Gewogen Stemmen per Gebied",
+                        "voters-weighted-voting": "Gewogen Stemmen per Kiezer",
                         "disabled-weighted-voting": "Gewogen Stemmen Uitgeschakeld",
                     },
+                    noDelegated:
+                        "Gewogen Stemmen per Kiezer kan niet worden gecombineerd met Gedelegeerd Stemmen",
+                    noDecodedBallots:
+                        "Gewogen Stemmen per Kiezer kan niet worden gecombineerd met het opnemen van ontsleutelde stembiljetten in de resultaten",
                 },
                 delegatedVotingPolicy: {
                     policyLabel: "Gedelegeerd stembeleid",
@@ -688,6 +693,7 @@ const dutchTranslation: TranslationType = {
                     config: "Configuratie",
                     blacklist: "Blokkeerlijst",
                     prompts: "Spraakprompts",
+                    emulator: "Emulator",
                 },
                 common: {
                     saveSuccess: "Succesvol opgeslagen",
@@ -722,6 +728,35 @@ const dutchTranslation: TranslationType = {
 
                     noFilterMatch: "Geen vermeldingen komen overeen met de opgegeven filters",
                     phoneRequired: "Telefoonnummer is verplicht",
+                },
+                emulator: {
+                    infoMsg:
+                        "Selecteer een gebied en de gewenste verkiezingen om de IVR-sessie te doorlopen.",
+                    apiStatus: {
+                        unavailable: "Het emulatorsysteem is niet beschikbaar in uw omgeving",
+                        loading: "Het emulatorsysteem wordt geladen",
+                        error: "Fout bij het laden van het emulatorsysteem",
+                    },
+                    hints: {
+                        title: "Tips",
+                        publishRequired:
+                            "Wijzigingen aan verkiezingen, verkiezingsonderdelen of kandidaten moeten eerst worden gepubliceerd voordat ze beschikbaar zijn. Alleen de meest recent gepubliceerde stembiljetstijlen voor het overeenkomstige gebied worden in de emulator gebruikt.",
+                        eventChangesImmediate:
+                            "Wijzigingen aan het verkiezingsevenement, zoals de IVR-configuratie of aangepaste prompts, zijn direct beschikbaar nadat de emulatorsessie opnieuw is gestart.",
+                        credentials: 'De geldige kiezer-ID en pincode zijn "123" en "123".',
+                    },
+                    sendDtmf: "DTMF-invoer verzenden",
+                    sendTimeout: "Time-out verzenden",
+                    disconnected: "Verbinding verbroken",
+                    startSession: "Nieuwe sessie starten",
+                    endSession: "Sessie beëindigen",
+                    noStylesFound:
+                        "Geen gepubliceerde stembiljetstijlen gevonden die overeenkomen met uw selecties",
+                    inputPlaceholder:
+                        "Voer uw invoer in (maximaal aantal cijfers={{maxDigits}}, geldige invoer={{validInputs}}, time-out={{timeout}} sec.)",
+                    blacklistCaller: "Beller blokkeren",
+                    elections: "Verkiezingen",
+                    area: "Gebied",
                 },
             },
             stats: {
@@ -1059,6 +1094,7 @@ const dutchTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Gestemd",
+                    "vote-weight": "Stemgewicht",
                     "voted-channel": "Stemkanaal",
                     "disable-comment": "Deactiveringsopmerking",
                     "username": "Gebruikersnaam",

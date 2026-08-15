@@ -655,8 +655,13 @@ const catalanTranslation: TranslationType = {
                     policyLabel: "Política de Votació Ponderada",
                     options: {
                         "areas-weighted-voting": "Votació Ponderada per Àrees",
+                        "voters-weighted-voting": "Votació Ponderada per Votants",
                         "disabled-weighted-voting": "Votació Ponderada Desactivada",
                     },
+                    noDelegated:
+                        "La Votació Ponderada per Votants no es pot combinar amb el Vot Delegat",
+                    noDecodedBallots:
+                        "La Votació Ponderada per Votants no es pot combinar amb la inclusió de paperetes desxifrades als resultats",
                 },
                 delegatedVotingPolicy: {
                     policyLabel: "Política de Votació Delegada",
@@ -689,6 +694,7 @@ const catalanTranslation: TranslationType = {
                     config: "Configuració",
                     blacklist: "Llista de bloqueig",
                     prompts: "Locucions",
+                    emulator: "Emulador",
                 },
                 common: {
                     saveSuccess: "S'ha desat correctament",
@@ -723,6 +729,36 @@ const catalanTranslation: TranslationType = {
 
                     noFilterMatch: "Cap entrada no coincideix amb els filtres indicats",
                     phoneRequired: "El número de telèfon és obligatori",
+                },
+                emulator: {
+                    infoMsg:
+                        "Seleccioneu una àrea i les eleccions desitjades per provar la sessió IVR.",
+                    apiStatus: {
+                        unavailable: "El sistema de l'emulador no està disponible al vostre entorn",
+                        loading: "S'està carregant el sistema de l'emulador",
+                        error: "S'ha produït un error en carregar el sistema de l'emulador",
+                    },
+                    hints: {
+                        title: "Consells",
+                        publishRequired:
+                            "Qualsevol canvi fet a les eleccions, les conteses o els candidats s'ha de publicar primer perquè estigui disponible. A l'emulador només s'utilitzaran els estils de papereta publicats més recentment per a l'àrea corresponent.",
+                        eventChangesImmediate:
+                            "Els canvis fets a l'esdeveniment electoral, com ara la configuració IVR o les substitucions dels missatges, estan disponibles immediatament en reiniciar la sessió de l'emulador.",
+                        credentials:
+                            'L\'identificador de votant i el PIN vàlids són "123" i "123".',
+                    },
+                    sendDtmf: "Envia una entrada DTMF",
+                    sendTimeout: "Envia el temps d'espera",
+                    disconnected: "Desconnectat",
+                    startSession: "Inicia una sessió nova",
+                    endSession: "Finalitza la sessió",
+                    noStylesFound:
+                        "No s'ha trobat cap estil de papereta publicat que coincideixi amb les vostres seleccions",
+                    inputPlaceholder:
+                        "Introduïu la vostra entrada (màxim de dígits={{maxDigits}}, entrades vàlides={{validInputs}}, temps d'espera={{timeout}} s)",
+                    blacklistCaller: "Bloqueja la persona que truca",
+                    elections: "Eleccions",
+                    area: "Àrea",
                 },
             },
             stats: {
@@ -1061,6 +1097,7 @@ const catalanTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Ha votat",
+                    "vote-weight": "Pes del vot",
                     "voted-channel": "Canal de vot",
                     "disable-comment": "Comentari de desactivació",
                     "username": "Nom d'Usuari",

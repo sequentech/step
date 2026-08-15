@@ -34,7 +34,7 @@ const englishTranslation = {
             ballotHelpDialog: {
                 title: "About this screen",
                 content:
-                    "This screen shows the contest you are eligible to vote in. You can make your selection by activating the checkbox next to the candidate or answer. To reset your selections, click the “<b>Clear choices</b>” button. To move to the next step, click the “<b>Next</b>” button below.",
+                    "This screen shows the contests you are eligible to vote in. You can make your selection by activating the checkbox to the right of the Candidate/Answer. To reset your selections, click the “<b>Clear selection</b>” button; to move to the next step, click the “<b>Next</b>” button below.",
                 ok: "OK",
             },
             nonVotedDialog: {
@@ -85,6 +85,9 @@ const englishTranslation = {
             backButton: "Edit ballot",
             castBallotButton: "Cast ballot",
             auditButton: "Audit ballot",
+            copyBallotId: "Copy ballot ID",
+            ballotIdCopied: "Ballot ID copied",
+            ballotIdCopyError: "Could not copy ballot ID",
             reviewScreenHelpDialog: {
                 title: "About the review screen",
                 content: "This screen lets you review your selections before casting your ballot",
@@ -275,7 +278,7 @@ const englishTranslation = {
             chooserHelpDialog: {
                 title: "About the Ballot list",
                 content:
-                    "This screen lists the ballots you can access. Some may be open, scheduled, or closed. You can only vote on ballots that are open",
+                    "Welcome to the Voting Booth. This screen shows the ballots you can vote on. Ballots displayed in this list can be open to voting, scheduled, or closed. You will be able to access the ballot only if the voting period is open.",
                 ok: "OK",
             },
             noResults: "No ballots for now.",
@@ -378,7 +381,7 @@ const englishTranslation = {
             titleHelpDialog: {
                 title: "About the Ballot Finder Screen",
                 content:
-                    "The Ballot Finder screen lets you enter your Ballot ID to locate your vote and confirm it was recorded correctly.",
+                    "This screen allows you to find your vote by using the Ballot ID to retrieve it. This procedure enables you to check that your ballot was correctly cast and that the recorded ballot matches the encrypted ballot you sent.",
                 ok: "OK",
             },
             tabs: {
