@@ -87,6 +87,9 @@ const basqueTranslation: TranslationType = {
             backButton: "Editatu bozketa",
             castBallotButton: "Eman bozketa",
             auditButton: "Egiaztatu bozketa",
+            copyBallotId: "Kopiatu bozketa IDa",
+            ballotIdCopied: "Bozketa IDa kopiatu da",
+            ballotIdCopyError: "Ezin izan da bozketa IDa kopiatu",
             reviewScreenHelpDialog: {
                 title: "Berrikuspena pantailari buruz",
                 content:
