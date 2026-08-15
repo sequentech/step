@@ -29,9 +29,10 @@ voter has touched the contest yet.
 
 In those terms: every (voter-state × contest-configuration ×
 observation-context) tuple produces one **observable effect per
-surface**, drawn from the following set — see the per-surface
-refinement at the end of this section for why "exactly one effect"
-holds per surface rather than per tuple.
+surface**, drawn from the following set. The surfaces themselves are
+enumerated in "The surfaces, enumerated" below, and the per-surface
+refinement at the end of this section explains why "exactly one
+effect" holds per surface rather than per tuple.
 
 **The set's closedness is a checkable claim, not an assumption.** It is
 closed relative to a **consumer census**: the enumeration of every read
@@ -85,6 +86,30 @@ are distinct observables (blanks are valid but contribute to no candidate),
 and the blank/declined distinction is precisely a disagreement about the
 valid total. (The six-class taxonomy dates from the 2026-08 merge —
 explicit blanks #2842, decline-to-vote #2687.)
+
+### The surfaces, enumerated
+
+Three **effect surfaces** carry the effects above — each holds exactly
+one value per input tuple — and a fourth place the voter can perceive,
+**reachability**, is deliberately not an effect (it is a domain
+property: it decides which vote-states the booth UI can *form*, not
+what happens to a state that exists — see the refinement below). Each
+maps to one function of the executable spec
+([`../characterization/spec.mjs`](../characterization/spec.mjs)) and to
+named columns of the recorded tables:
+
+| surface | what the voter meets | value | spec.mjs | recorded in |
+|---|---|---|---|---|
+| **inline** | warning boxes under the contest (each carries a `data-warn-id`) | a set of message keys, possibly empty — 1a when non-empty | `inlineVisible` | *inline (review)* column, `dom-validate.md` |
+| **gate** | the dialog that may open on clicking Next / entering review | two booleans (hard, soft); the voter meets their projection: none / dismissible (1b) / blocking (1c) | `hardGate` / `softGate` | *hard gate* / *soft gate* columns of every rule table; the observed dialog per cell in `dom-validate.recorded.json` |
+| **tally** | nothing directly — the cast ballot's class in the results | exactly one of the six classes (2a–2f) | `classify` | *tally* column of every rule table; `classifier-table.md` |
+| *(reachability)* | inputs that will not click (the DISABLE over-vote policy), a marker that clears co-selections | yes / inputs_disabled / marker_cleared — 1d names its perceivable face | `reachability` | *reachable* column, `dom-validate.md` |
+
+"Silent" (1e) is likewise not a surface value of its own: it is the
+empty value on **inline** and **gate** simultaneously. That derived
+condition — nothing on either casting surface, a reachable state, and
+tally = `ImplicitInvalid` — is exactly what the silent-discount
+property (§4.5) tests.
 
 **Key principle:** Effects are *atomic observables*. Timing and location are
 part of the *input space*, not the effect taxonomy. For example,
