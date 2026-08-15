@@ -69,8 +69,11 @@ export interface BallotHashProps {
     copyLabels?: BallotHashCopyLabels
 }
 
-type CopyBallotHashStatus = "copied" | "error"
-type CopyState = "idle" | CopyBallotHashStatus
+export enum CopyBallotHashStatus {
+    Idle = "idle",
+    Copied = "copied",
+    Error = "error",
+}
 
 const COPY_ICON = {
     idle: faCopy,
@@ -83,14 +86,14 @@ export const copyBallotHash = async (
     clipboard: Pick<Clipboard, "writeText"> | undefined
 ): Promise<CopyBallotHashStatus> => {
     if (!clipboard) {
-        return "error"
+        return CopyBallotHashStatus.Error
     }
 
     try {
         await clipboard.writeText(hash)
-        return "copied"
+        return CopyBallotHashStatus.Copied
     } catch {
-        return "error"
+        return CopyBallotHashStatus.Error
     }
 }
 
@@ -101,16 +104,16 @@ const BallotHash: React.FC<BallotHashProps> = ({
     copyLabels,
 }) => {
     const {t} = useTranslation()
-    const [copyStatus, setCopyStatus] = useState<CopyState>("idle")
+    const [copyStatus, setCopyStatus] = useState(CopyBallotHashStatus.Idle)
 
-    useEffect(() => setCopyStatus("idle"), [hash])
+    useEffect(() => setCopyStatus(CopyBallotHashStatus.Idle), [hash])
 
     useEffect(() => {
-        if (copyStatus === "idle") {
+        if (copyStatus === CopyBallotHashStatus.Idle) {
             return
         }
 
-        const resetTimeout = window.setTimeout(() => setCopyStatus("idle"), 2000)
+        const resetTimeout = window.setTimeout(() => setCopyStatus(CopyBallotHashStatus.Idle), 2000)
         return () => window.clearTimeout(resetTimeout)
     }, [copyStatus])
 
@@ -118,7 +121,8 @@ const BallotHash: React.FC<BallotHashProps> = ({
         setCopyStatus(await copyBallotHash(hash, navigator.clipboard))
     }
 
-    const copyStatusLabel = copyLabels?.[copyStatus === "idle" ? "copy" : copyStatus]
+    const copyStatusLabel =
+        copyLabels?.[copyStatus === CopyBallotHashStatus.Idle ? "copy" : copyStatus]
 
     return (
         <HashContainer className="hash-container">
@@ -159,7 +163,7 @@ const BallotHash: React.FC<BallotHashProps> = ({
                 />
             </HashActions>
             <CopyStatus role="status" aria-live="polite" aria-atomic="true">
-                {copyStatus === "idle" ? "" : copyStatusLabel}
+                {copyStatus === CopyBallotHashStatus.Idle ? "" : copyStatusLabel}
             </CopyStatus>
         </HashContainer>
     )
