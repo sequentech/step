@@ -570,7 +570,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             setExporting(true)
 
             if (electionEventId) {
-                currWidget = addWidget(ETasksExecution.EXPORT_VOTERS, undefined)
+                currWidget = addWidget(ETasksExecution.EXPORT_VOTERS, true)
                 const {data: exportUsersData, errors} = await exportUsers({
                     variables: {tenantId, electionEventId, electionId},
                 })
