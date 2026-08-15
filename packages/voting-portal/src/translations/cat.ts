@@ -87,6 +87,9 @@ const catalanTranslation: TranslationType = {
             backButton: "Edita el teu vot",
             castBallotButton: "Envia el teu vot",
             auditButton: "Auditar papereta",
+            copyBallotId: "Copia l'ID de la papereta",
+            ballotIdCopied: "ID de la papereta copiat",
+            ballotIdCopyError: "No s'ha pogut copiar l'ID de la papereta",
             reviewScreenHelpDialog: {
                 title: "Informació: Pantalla de revisió",
                 content:

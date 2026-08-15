@@ -87,6 +87,9 @@ const tagalogTranslation: TranslationType = {
             backButton: "I-edit ang balota",
             castBallotButton: "I-submit ang iyong balota",
             auditButton: "I-audit ang balota",
+            copyBallotId: "Kopyahin ang ballot ID",
+            ballotIdCopied: "Nakopya ang ballot ID",
+            ballotIdCopyError: "Hindi makopya ang ballot ID",
             reviewScreenHelpDialog: {
                 title: "Impormasyon: Screen ng Pagsusuri",
                 content:
