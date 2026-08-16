@@ -3,14 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
-import {
-    EditBase,
-    Identifier,
-    RaRecord,
-    useNotify,
-    useRecordContext,
-    useUpdate,
-} from "react-admin"
+import {EditBase, Identifier, RaRecord, useNotify, useRecordContext, useUpdate} from "react-admin"
 import {ElectionDataForm} from "./ElectionDataForm"
 import {Sequent_Backend_Election_Extended} from "./ElectionDataForm"
 import {ITemplateMethod, IRECEIPTS} from "@/types/templates"
