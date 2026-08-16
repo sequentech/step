@@ -25,13 +25,10 @@ import {ConfirmationLayout} from "./ConfirmationLayout"
 
 jest.mock("../components/QRCode/QRCode", () => ({
     __esModule: true,
-    default: ({value}: {value: string}) => (
-        <div data-testid="stub-qr" data-value={value} />
-    ),
+    default: ({value}: {value: string}) => <div data-testid="stub-qr" data-value={value} />,
 }))
 
-const render = (ui: React.ReactElement) =>
-    mount(<ThemeProvider theme={theme}>{ui}</ThemeProvider>)
+const render = (ui: React.ReactElement) => mount(<ThemeProvider theme={theme}>{ui}</ThemeProvider>)
 
 const props = {title: "Your ballot is in", ballotId: "abc123"}
 
@@ -59,12 +56,7 @@ describe("the confirmation screen's arrangement", () => {
     })
 
     it("links to the tracker when there is one, in a new tab", () => {
-        render(
-            <ConfirmationLayout
-                {...props}
-                ballotIdHref="https://verify.example/abc123"
-            />
-        )
+        render(<ConfirmationLayout {...props} ballotIdHref="https://verify.example/abc123" />)
 
         const [wide] = screen.getAllByRole("link")
         expect(wide).toHaveAttribute("href", "https://verify.example/abc123")
@@ -80,9 +72,7 @@ describe("the confirmation screen's arrangement", () => {
     })
 
     it("encodes exactly what it was handed", () => {
-        render(
-            <ConfirmationLayout {...props} qrValue="https://verify.example/abc" />
-        )
+        render(<ConfirmationLayout {...props} qrValue="https://verify.example/abc" />)
 
         expect(screen.getByTestId("stub-qr")).toHaveAttribute(
             "data-value",
@@ -120,8 +110,6 @@ describe("the confirmation screen's arrangement", () => {
             />
         )
 
-        expect(helped.container.querySelectorAll("button").length).toBe(
-            before + 2
-        )
+        expect(helped.container.querySelectorAll("button").length).toBe(before + 2)
     })
 })

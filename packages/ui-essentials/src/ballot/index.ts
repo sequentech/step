@@ -25,11 +25,34 @@ export type {IQuestionProps} from "./Question"
 // The review screen's arrangement, so a preview shows that screen rather than a
 // drawing of it. The portal renders the same component; see `ReviewLayout`.
 export {SupportMaterialsLayout, SupportMaterialCard} from "./SupportMaterialsLayout"
-export type {ISupportMaterialsLayoutProps, ISupportMaterialCardProps} from "./SupportMaterialsLayout"
+export type {
+    ISupportMaterialsLayoutProps,
+    ISupportMaterialCardProps,
+} from "./SupportMaterialsLayout"
 export {ConfirmationLayout} from "./ConfirmationLayout"
 export type {IConfirmationLayoutProps} from "./ConfirmationLayout"
 export {ReviewLayout} from "./ReviewLayout"
 export type {IReviewLayoutProps} from "./ReviewLayout"
+// The telephone call, which is a ballot too — one a voter is read rather than
+// shown. Same argument as the three layouts above: the Election Architect lets
+// somebody design a call flow, and the only honest preview of one is the emulator
+// the Admin Portal already runs.
+export {IvrCall, IvrPromptLine} from "./IvrCall"
+export type {
+    IIvrCallProps,
+    IvrAction,
+    IvrCallDriver,
+    IvrCallStatus,
+    IvrExpectedInput,
+    IvrPrompt,
+} from "./IvrCall"
+export {forgetIvrEmulator, IvrEmulatorError, loadIvrEmulator} from "./ivrEmulator"
+export type {
+    ImportModule,
+    IvrEmulatorApi,
+    IvrEmulatorConfig,
+    IvrEmulatorFailure,
+} from "./ivrEmulator"
 export {Answer} from "./Answer"
 export {AnswersList} from "./AnswersList"
 export {InvalidErrorsList} from "./InvalidErrorsList"

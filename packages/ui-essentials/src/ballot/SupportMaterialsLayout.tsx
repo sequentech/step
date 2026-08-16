@@ -198,10 +198,7 @@ export const SupportMaterialsLayout: React.FC<ISupportMaterialsLayoutProps> = ({
                     <Box>{title}</Box>
                 </Heading>
                 {subtitle === undefined ? null : (
-                    <Typography
-                        variant="body1"
-                        sx={{color: theme.palette.customGrey.contrastText}}
-                    >
+                    <Typography variant="body1" sx={{color: theme.palette.customGrey.contrastText}}>
                         {subtitle}
                     </Typography>
                 )}

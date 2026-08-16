@@ -142,12 +142,7 @@ export const ConfirmationLayout: React.FC<IConfirmationLayoutProps> = ({
 }) => (
     <PageLimit maxWidth="lg" className="confirmation-screen screen">
         {steps === undefined ? null : <Box marginTop="24px">{steps}</Box>}
-        <StyledTitle
-            variant="h4"
-            fontSize="24px"
-            fontWeight="bold"
-            sx={{marginTop: "40px"}}
-        >
+        <StyledTitle variant="h4" fontSize="24px" fontWeight="bold" sx={{marginTop: "40px"}}>
             <Box>{title}</Box>
             {onTitleHelp === undefined ? null : (
                 <IconButton

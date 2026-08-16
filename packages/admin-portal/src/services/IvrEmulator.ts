@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import type {WasmConfig} from "./generated/ivr_emulator_wasm"
-type IvrWasmModule = typeof import("./generated/ivr_emulator_wasm")
+import {loadIvrEmulator as load} from "@sequentech/ui-essentials"
+import type {IvrEmulatorApi} from "@sequentech/ui-essentials"
 
-export type IvrEmulatorApi = Pick<IvrWasmModule, "IvrEmulatorDriver">
+export {IvrEmulatorError} from "@sequentech/ui-essentials"
+export type {IvrEmulatorApi} from "@sequentech/ui-essentials"
 
 export type {
     IvrEmulatorDriver,
@@ -12,95 +13,24 @@ export type {
     PromptInfo,
     EmulatorConfig,
 } from "./generated/ivr_emulator_wasm"
-let initPromise: Promise<IvrEmulatorApi> | null = null
 
-export class IvrEmulatorError extends Error {
-    constructor(
-        readonly operation: "fetch" | "load" | "init",
-        readonly msg: string,
-        options?: ErrorOptions
-    ) {
-        super(`Ivr emulator "${operation}" failed: ${msg}`, options)
+/**
+ * Bring in the generated shim, without the bundler following it.
+ *
+ * The fetch-and-init itself is in `@sequentech/ui-essentials`, shared with the
+ * Election Architect, which offers a call preview over the plan on screen. This one
+ * line cannot go with it: the comments are instructions to *whichever bundler
+ * compiles this file*, and a comment in a library is compiled away long before an
+ * application's bundler sees the import. So the library takes the import as a
+ * parameter and each host supplies its own line, with the comments its own bundler
+ * reads.
+ */
+const importShim = (href: string): Promise<unknown> =>
+    import(
+        /* @vite-ignore */
+        /* webpackIgnore: true */
+        href
+    )
 
-        this.name = new.target.name
-        Object.setPrototypeOf(this, new.target.prototype)
-    }
-}
-
-const resolveUrls = (baseUrl: string) => {
-    const base = new URL(baseUrl, document.baseURI)
-    base.search = ""
-    base.hash = ""
-
-    const jsUrl = new URL(base)
-    jsUrl.pathname += ".js"
-
-    const wasmUrl = new URL(base)
-    wasmUrl.pathname += "_bg.wasm"
-
-    return {jsUrl, wasmUrl}
-}
-
-const fetchWasm = async (url: string | URL): Promise<Response> => {
-    let response: Response
-    try {
-        response = await fetch(url)
-    } catch (cause) {
-        throw new IvrEmulatorError("fetch", `failed to fetch the wasm binary from "${url}"`, {
-            cause,
-        })
-    }
-
-    if (!response.ok) {
-        throw new IvrEmulatorError("fetch", `response for "${url}" was "${response.status}"`)
-    }
-
-    return response
-}
-
-const fetchShim = async (url: URL): Promise<IvrWasmModule> => {
-    try {
-        return (await import(
-            /* @vite-ignore */
-            /* webpackIgnore: true */
-            url.href
-        )) as IvrWasmModule
-    } catch (cause) {
-        throw new IvrEmulatorError("fetch", `import of js shim failed from ${url}`, {cause})
-    }
-}
-
-const fetchAndLoad = async (baseUrl: string): Promise<IvrEmulatorApi> => {
-    const {jsUrl, wasmUrl} = resolveUrls(baseUrl)
-    const [ivrModule, wasmResponse] = await Promise.all([fetchShim(jsUrl), fetchWasm(wasmUrl)])
-
-    try {
-        // Let wasm bindgen init itself
-        await ivrModule.default({module_or_path: wasmResponse})
-    } catch (cause) {
-        throw new IvrEmulatorError("load", `failed to load the wasm from "${wasmUrl}"`, {cause})
-    }
-    try {
-        let config: WasmConfig = {
-            logging: localStorage.getItem("sq.ivr-emulator.logging") ?? undefined,
-        }
-        ivrModule.init(config)
-    } catch (cause) {
-        throw new IvrEmulatorError("init", `init call failed`, {cause})
-    }
-    return ivrModule
-}
-
-export const loadIvrEmulator = (baseUrl: string): Promise<IvrEmulatorApi> | null => {
-    if (!initPromise) {
-        initPromise ??= fetchAndLoad(baseUrl).catch((e: any) => {
-            // Allow retry
-            initPromise = null
-
-            console.error("Failed to init the emulator", e)
-            throw e
-        })
-    }
-
-    return initPromise
-}
+export const loadIvrEmulator = (baseUrl: string): Promise<IvrEmulatorApi> =>
+    load(baseUrl, importShim)

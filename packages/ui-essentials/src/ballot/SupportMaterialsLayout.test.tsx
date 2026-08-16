@@ -20,8 +20,7 @@ import React from "react"
 import theme from "../services/theme"
 import {SupportMaterialCard, SupportMaterialsLayout} from "./SupportMaterialsLayout"
 
-const render = (ui: React.ReactElement) =>
-    mount(<ThemeProvider theme={theme}>{ui}</ThemeProvider>)
+const render = (ui: React.ReactElement) => mount(<ThemeProvider theme={theme}>{ui}</ThemeProvider>)
 
 describe("a document in the support materials list", () => {
     it("picks its icon from the kind, by substring", () => {
@@ -39,9 +38,7 @@ describe("a document in the support materials list", () => {
 
         for (const [kind, icon] of kinds) {
             const drawn = render(<SupportMaterialCard title="Rules" kind={kind} />)
-            expect(
-                drawn.container.querySelector(`[data-testid="${icon}"]`)
-            ).not.toBeNull()
+            expect(drawn.container.querySelector(`[data-testid="${icon}"]`)).not.toBeNull()
             drawn.unmount()
         }
     })
