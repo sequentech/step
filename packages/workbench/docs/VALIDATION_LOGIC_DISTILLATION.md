@@ -250,6 +250,46 @@ inline is read there; it is the moment the gates are consulted.)
 | `observation_point` | {during_voting, on_review} — the two screens inline warnings render on |
 | `is_touched` | {true, false} — during_voting only; an untouched contest renders nothing (the untouched-clear) |
 
+### The seven rules — the decomposition, made explicit
+
+The checker side of the mapping decomposes into seven per-condition
+validation **rules**. Concretely, one rule is one checker function in
+sequent-core's `ballot_codec/checker.rs` plus everything downstream keyed
+to its message and policy — its gate clauses, its keep-list carve-out,
+its alert-visibility rule — and the characterization runs one runner and
+one grid per rule. The table lists them in production's decode call
+order (`raw_ballot.rs`); each row states everything the rule reads, so
+the decomposition claim ("each rule reads at most three dimensions") is
+checkable row by row. Throughout, `n` is the marker-inclusive selection
+count (`selections_with_markers` = regulars + blank marker + invalid
+flag).
+
+| rule | checker (`checker.rs`) | own knob | reads (vote state) | emits | rule-specific downstream | grid |
+|---|---|---|---|---|---|---|
+| **invalid** | `check_invalid_vote_policy` | `invalid_vote_policy` | the `is_explicit_invalid` flag | error `explicitNotAllowed` (not-allowed); alert `explicitAlert` (warn-invalid-implicit-and-explicit) | soft gate fires on the flag under warn-invalid-implicit-and-explicit; the error's Explicit type trips the hard gate's fast path. **The same knob also acts globally** — the master filter's mute and the generic gate conditions read it for *every* rule (the cross-rule interaction below) | `invalid-rule.mjs`: 4 policies × 5 states = 20 |
+| **over-vote** | `check_over_vote_policy` | `over_vote_policy` | `n` vs `max_votes` | error `selectedMax` (n > max, unconditional); alert `selectedMax` (n > max ∧ over ≠ allowed); alert `overVoteDisabled` (n = max under DISABLE) | hard gate (n > max ∧ NOT_ALLOWED_WITH_MSG_AND_ALERT); soft gate (n > max ∧ ALLOWED_WITH_MSG_AND_ALERT); keep-list carve-out (`selectedMax` survives the mute iff over ≠ allowed); `overVoteDisabled` hidden at review; DISABLE → reachability `inputs_disabled` | `overvote-rule.mjs`: 5 policies × 4 invalid × 3 states = 60 |
+| **min-vote** | `check_min_vote_policy` | the `min_votes` bound (no policy) | `n` vs `min_votes` | error `selectedMin` (n < min, unconditional) | **nothing of its own** — no gate clause, no carve-out, no alert. With `invalid = allowed` muting the generic signals, this row's emptiness *is* the S1 min-vote family | `minvote-rule.mjs`: min ∈ {1, 2} × 4 invalid × 3 states = 24 |
+| **under-vote** | `check_under_vote_policy` | `under_vote_policy` | `n` vs `min_votes` / `max_votes` | alert `underVote` (min ≤ n < max ∧ under ≠ allowed; the zone includes n = 0 — S4's checker half) | soft gate re-derives the zone with an extra n > 0 guard (S4's gate half); WARN_ONLY_IN_REVIEW hides the alert during voting | `undervote-rule.mjs`: 4 policies × 4 invalid × 3 states = 48 |
+| **blank** | `check_blank_vote_policy` | `blank_vote_policy` | `n` = 0; skipped when the invalid flag is set (a cross-rule read) | error `blankVote` (not-allowed) *or* alert `blankVote` (warn / warn-only-in-review), at n = 0 ∧ ¬flag | hard gate (n = 0 ∧ not-allowed) and soft gate (n = 0 ∧ warn) re-derive emptiness; keep-list carve-out (`blankVote` survives iff not-allowed); WARN_ONLY_IN_REVIEW hides during voting | `blank-rule.mjs`: 4 policies × 4 invalid × 4 states = 64 |
+| **preference-gaps** | `check_preference_gaps_policy` | `preference_gaps_policy` | the ranking skips a rank (preferential only) | error `preferenceOrderWithGaps` (unconditional on a gap) | the policy decides only *which* gate reacts (dismissible vs blocking) — both variants gate, so the rule cannot be configured silent (§4.5, condition 2) | `prefgaps-rule.mjs`: 2 policies × 4 invalid × 2 states = 16 |
+| **duplicated-rank** | `check_duplicated_rank_policy` | `duplicated_rank_policy` | two candidates share a rank (preferential only) | error `duplicatedPosition` (unconditional on a duplicate) | same shape as preference-gaps: both variants gate | `duprank-rule.mjs`: 2 policies × 4 invalid × 2 states = 16 |
+
+The seven grids sum to the 248 recorded cells. Every grid crosses the
+rule's own knob with `invalid_vote_policy` because of that knob's global
+role (the mute and the generic gate conditions) — that is a property of
+the shared machinery, not of the rules, which is why it is enumerated in
+every grid rather than counted as a per-rule dimension.
+
+What is deliberately **not** a rule: the master filter and the gates'
+generic conditions (shared machinery consuming every rule's output); the
+tally classifier (its own 32-cell decision table,
+`../characterization/classifier-table.md`); the booth reducers' marker
+exclusivity (reachability's `marker_cleared` — reducer behaviour, no
+checker); and the eighth decode-time checker,
+`check_max_min_votes_policy`, which validates the *configuration's*
+bounds rather than a vote (its emissions are encoding errors — a named
+scope boundary, `../characterization/README.md`).
+
 ### Combinatorial size
 
 The naive worst-case product is large and not the useful number — the
@@ -257,23 +297,17 @@ config side alone is 4·5·4·4·2·2·2·2·2·2 = 20,480 combinations before t
 vote-state and context factors.
 
 The useful observation is that the mapping **decomposes** into the seven
-per-condition validation **rules** — invalid, over-vote, min-vote,
-under-vote, blank, preference-gaps, duplicated-rank; concretely, one rule
-is one checker function in sequent-core's `ballot_codec/checker.rs`
-(`check_over_vote_policy`, …) plus everything downstream keyed to its
-message and policy, and the characterization runs one runner and one grid
-per rule. Each rule reads at most three dimensions (its own policy knob —
-min-vote's is the `min_votes` bound, having no policy — one or two
-vote-state fields, and, for its inline visibility, the observation
-point), so the table factors into per-rule slices of a few dozen cells
-each, plus the classifier's six-class decision table over (decline,
+rules above: per the "reads" columns of that table, each rule reads at
+most three dimensions (its own knob, one or two vote-state comparisons,
+and — for its inline visibility only — the observation point), so the
+table factors into the per-rule grids listed there (a few dozen cells
+each) plus the classifier's six-class decision table over (decline,
 invalid, blank-marker, emptiness). Exhaustive enumeration is tractable
 *per rule*; the full cross-product never needs to be materialised.
 Cross-rule interactions that do exist (the blank checker's dependence on
-`is_explicit_invalid`, the master filter's dependence on three policies at
-once — which is why every rule's grid crosses its own knob with
-`invalid_vote_policy` — and the mix rule) are exactly the cells worth
-enumerating jointly, and there are few of them.
+`is_explicit_invalid`, the master filter's dependence on three policies
+at once, the mix rule) are exactly the cells worth enumerating jointly,
+and there are few of them.
 
 Two pruning cautions:
 
