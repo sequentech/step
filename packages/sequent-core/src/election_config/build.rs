@@ -71,6 +71,15 @@ pub const IVR_CONFIG_COLUMN: &str = "annotations.ivr:config";
 pub const IVR_PROMPTS_COLUMN: &str = "annotations.ivr:prompts";
 pub const IVR_PHONE_COLUMN: &str = "annotations.ivr:phone-number";
 
+/// What a caller hears in place of an entity's description.
+///
+/// One column on each of the four sheets that carry a description, holding
+/// `{lang: {prompt}}` as a JSON string — the shape `parseIvrEntityAnnotations`
+/// reads. Per entity rather than per language, because the platform keeps it as
+/// one annotation and splitting it into language columns would mean reassembling
+/// it here from an unknown set of them.
+pub const IVR_I18N_COLUMN: &str = "annotations.ivr:i18n";
+
 pub fn control_columns(sheet_key: &str) -> &'static [&'static str] {
     match sheet_key {
         // `presentation.logo_file` names a file for the builder to find; it is not a
@@ -88,9 +97,11 @@ pub fn control_columns(sheet_key: &str) -> &'static [&'static str] {
             IVR_CONFIG_COLUMN,
             IVR_PROMPTS_COLUMN,
             IVR_PHONE_COLUMN,
+            IVR_I18N_COLUMN,
         ],
-        SHEET_CONTESTS => &["election.external_id"],
-        SHEET_CANDIDATES => &["contest.external_id"],
+        SHEET_ELECTIONS => &[IVR_I18N_COLUMN],
+        SHEET_CONTESTS => &["election.external_id", IVR_I18N_COLUMN],
+        SHEET_CANDIDATES => &["contest.external_id", IVR_I18N_COLUMN],
         SHEET_AREAS => &["parent.external_id"],
         SHEET_AREA_CONTESTS => &["area.external_id", "contest.external_id"],
         SHEET_SCHEDULED_EVENTS => &[
@@ -852,6 +863,38 @@ impl<'a> Builder<'a> {
             .collect()
     }
 
+    /// Put the entity's spoken prompt on it, if the row carries one.
+    ///
+    /// Shared by the four builders rather than written out in each, and it is a
+    /// string for the same reason the event's three are: the platform's
+    /// annotations are `string: string`, and `parseIvrEntityAnnotations` logs
+    /// "Unexpected type of ivr entity annotation" for anything else. `Row` has
+    /// already coerced a bracketed cell into an object, so whatever it became is
+    /// serialised back.
+    fn apply_ivr_prompt(&self, row: &Row, entity: &mut Map<String, Value>) {
+        let Some(value) = row.get(IVR_I18N_COLUMN) else {
+            return;
+        };
+        let text = match value {
+            Value::Null => return,
+            Value::String(raw) => raw.trim().to_string(),
+            other => match serde_json::to_string(other) {
+                Ok(text) => text,
+                Err(_) => return,
+            },
+        };
+        if text.is_empty() || text == "{}" {
+            return;
+        }
+
+        let mut annotations = match entity.get("annotations") {
+            Some(Value::Object(existing)) => existing.clone(),
+            _ => Map::new(),
+        };
+        annotations.insert("ivr:i18n".to_string(), Value::String(text));
+        entity.insert("annotations".to_string(), Value::Object(annotations));
+    }
+
     /// Parameters nothing acts on, to be carried in the event's annotations.
     ///
     /// Recorded rather than dropped: a row someone put in the spreadsheet meant
@@ -1007,7 +1050,8 @@ impl<'a> Builder<'a> {
             "created_at": self.created_at,
         });
         let row = self.event_row.clone();
-        let event = self.render("election_event", Some(&row), context);
+        let mut event = self.render("election_event", Some(&row), context);
+        self.apply_ivr_prompt(&row, &mut event);
 
         let event_id = self.event_id.clone();
         let tenant_id = self.tenant_id.clone();
@@ -1133,7 +1177,8 @@ impl<'a> Builder<'a> {
                 "election_event_id": self.event_id,
                 "created_at": self.created_at,
             });
-            let election = self.render("election", Some(row), context);
+            let mut election = self.render("election", Some(row), context);
+            self.apply_ivr_prompt(row, &mut election);
 
             let event_id = self.event_id.clone();
             let tenant_id = self.tenant_id.clone();
@@ -1194,7 +1239,8 @@ impl<'a> Builder<'a> {
                 "election_id": election_id,
                 "created_at": self.created_at,
             });
-            let contest = self.render("contest", Some(row), context);
+            let mut contest = self.render("contest", Some(row), context);
+            self.apply_ivr_prompt(row, &mut contest);
 
             let event_id = self.event_id.clone();
             let tenant_id = self.tenant_id.clone();
@@ -1314,7 +1360,8 @@ impl<'a> Builder<'a> {
                 "contest_id": contest_id,
                 "created_at": self.created_at,
             });
-            let candidate = self.render("candidate", Some(row), context);
+            let mut candidate = self.render("candidate", Some(row), context);
+            self.apply_ivr_prompt(row, &mut candidate);
 
             let event_id = self.event_id.clone();
             let tenant_id = self.tenant_id.clone();

@@ -395,6 +395,19 @@ pub struct Blueprint {
     #[serde(default)]
     pub description: Translated,
 
+    /// What a caller hears in place of the description, per language.
+    ///
+    /// Written straight through, spoken by a text-to-speech voice rather than
+    /// read, so it is a separate text and not a rendering of the one above:
+    /// markup, parentheses and "see overleaf" all read badly aloud, and a name
+    /// spelled for the eye is often not the name a caller would recognise.
+    ///
+    /// Travels as the entity's `ivr:i18n` annotation, `{lang: {prompt}}`, which
+    /// is the shape `parseIvrEntityAnnotations` reads. Empty means the caller
+    /// hears whatever the IVR already says for that entity.
+    #[serde(default)]
+    pub ivr_prompt: Translated,
+
     /// BCP 47 or ISO 639-2/T codes, in the order the picker should show them.
     #[serde(default)]
     pub languages: Vec<String>,
@@ -928,6 +941,19 @@ pub struct PlannedElection {
     #[serde(default)]
     pub description: Translated,
 
+    /// What a caller hears in place of the description, per language.
+    ///
+    /// Written straight through, spoken by a text-to-speech voice rather than
+    /// read, so it is a separate text and not a rendering of the one above:
+    /// markup, parentheses and "see overleaf" all read badly aloud, and a name
+    /// spelled for the eye is often not the name a caller would recognise.
+    ///
+    /// Travels as the entity's `ivr:i18n` annotation, `{lang: {prompt}}`, which
+    /// is the shape `parseIvrEntityAnnotations` reads. Empty means the caller
+    /// hears whatever the IVR already says for that entity.
+    #[serde(default)]
+    pub ivr_prompt: Translated,
+
     /// How many times a voter may change a vote they have already cast.
     ///
     /// One means cast once and that is final; two means one change. The platform
@@ -1018,6 +1044,7 @@ impl Default for PlannedElection {
             external_id: String::new(),
             name: Translated::default(),
             description: Translated::default(),
+            ivr_prompt: Translated::default(),
             num_allowed_revotes: 1,
             spoil_ballot_option: false,
             grace_period_policy: no_grace_period(),
@@ -1044,6 +1071,19 @@ pub struct PlannedContest {
     /// same words in front of every voter whatever language they read.
     #[serde(default, deserialize_with = "translated_or_plain")]
     pub description: Translated,
+
+    /// What a caller hears in place of the description, per language.
+    ///
+    /// Written straight through, spoken by a text-to-speech voice rather than
+    /// read, so it is a separate text and not a rendering of the one above:
+    /// markup, parentheses and "see overleaf" all read badly aloud, and a name
+    /// spelled for the eye is often not the name a caller would recognise.
+    ///
+    /// Travels as the entity's `ivr:i18n` annotation, `{lang: {prompt}}`, which
+    /// is the shape `parseIvrEntityAnnotations` reads. Empty means the caller
+    /// hears whatever the IVR already says for that entity.
+    #[serde(default)]
+    pub ivr_prompt: Translated,
 
     /// How many candidates a voter may choose.
     #[serde(default = "one")]
@@ -1161,6 +1201,19 @@ pub struct PlannedCandidate {
     /// A line about the candidate, shown under their name. Translatable.
     #[serde(default)]
     pub description: Translated,
+
+    /// What a caller hears in place of the description, per language.
+    ///
+    /// Written straight through, spoken by a text-to-speech voice rather than
+    /// read, so it is a separate text and not a rendering of the one above:
+    /// markup, parentheses and "see overleaf" all read badly aloud, and a name
+    /// spelled for the eye is often not the name a caller would recognise.
+    ///
+    /// Travels as the entity's `ivr:i18n` annotation, `{lang: {prompt}}`, which
+    /// is the shape `parseIvrEntityAnnotations` reads. Empty means the caller
+    /// hears whatever the IVR already says for that entity.
+    #[serde(default)]
+    pub ivr_prompt: Translated,
     /// A "none of the above" option rather than a person.
     #[serde(default)]
     pub explicit_blank: bool,
@@ -2505,6 +2558,26 @@ fn sheet_of(
 }
 
 /// `presentation.i18n.<lang>.<field>` columns, one per language.
+/// A spoken prompt as the entity annotation carries it.
+///
+/// `{lang: {"prompt": text}}`, serialised to a string, or nothing when no
+/// language has one — an empty annotation on every entity would be a new key for
+/// the Admin Portal to parse and a diff on every rebuild.
+fn ivr_prompt_cell(prompt: &Translated) -> Option<Cell> {
+    let said: serde_json::Map<String, serde_json::Value> = prompt
+        .by_language
+        .iter()
+        .filter(|(_, text)| !text.trim().is_empty())
+        .map(|(language, text)| {
+            (language.clone(), serde_json::json!({"prompt": text.trim()}))
+        })
+        .collect();
+    if said.is_empty() {
+        return None;
+    }
+    serde_json::to_string(&said).ok().map(Cell::text)
+}
+
 fn i18n_columns(
     prefix: &str,
     field: &str,
@@ -2674,6 +2747,12 @@ fn event_sheet(
         }
     }
 
+    // What a caller hears in place of the event's own description.
+    if let Some(cell) = ivr_prompt_cell(&plan.ivr_prompt) {
+        columns.push("annotations.ivr:i18n".to_string());
+        row.push(cell);
+    }
+
     // The file, if there is one, wins over a typed link. Named rather than embedded,
     // the way the Materials sheet names its documents: a cell cannot hold bytes, so
     // the sheet says `logo.png` and the file travels beside the workbook. `build.rs`
@@ -2806,6 +2885,15 @@ fn elections_sheet(
     // same method below so the two cannot drift apart.
     let channels = plan.voting_channels.columns_for_sheet();
     columns.extend(channels.iter().map(|(column, _)| (*column).to_string()));
+    // Only when somebody has written one. A blank column on every sheet of every
+    // bundle is a diff on every rebuild and one more thing to explain.
+    let spoken = plan
+        .elections
+        .iter()
+        .any(|election| ivr_prompt_cell(&election.ivr_prompt).is_some());
+    if spoken {
+        columns.push("annotations.ivr:i18n".to_string());
+    }
 
     let rows = plan
         .elections
@@ -2829,6 +2917,12 @@ fn elections_sheet(
             row.push(Cell::text(election.start_screen_title_policy.clone()));
             row.push(Cell::text(election.contests_order.clone()));
             row.extend(channels.iter().map(|(_, cell)| cell.clone()));
+            if spoken {
+                row.push(
+                    ivr_prompt_cell(&election.ivr_prompt)
+                        .unwrap_or(Cell::Blank),
+                );
+            }
             row
         })
         .collect();
@@ -2857,6 +2951,15 @@ fn contests_sheet(
     columns.extend(i18n_columns("presentation", "description", languages));
     columns.extend(behaviour.iter().map(|(column, _)| (*column).to_string()));
     columns.extend(i18n_columns("presentation", "name", languages));
+    let spoken = plan.elections.iter().any(|election| {
+        election
+            .contests
+            .iter()
+            .any(|contest| ivr_prompt_cell(&contest.ivr_prompt).is_some())
+    });
+    if spoken {
+        columns.push("annotations.ivr:i18n".to_string());
+    }
 
     let mut rows = Vec::new();
     for election in &plan.elections {
@@ -2878,6 +2981,11 @@ fn contests_sheet(
                     .map(|(_, cell)| cell),
             );
             row.extend(i18n_values(&contest.name, languages));
+            if spoken {
+                row.push(
+                    ivr_prompt_cell(&contest.ivr_prompt).unwrap_or(Cell::Blank),
+                );
+            }
             rows.push(row);
         }
     }
@@ -2910,7 +3018,20 @@ fn candidates_sheet(
     ];
     columns.extend(i18n_columns("presentation", "name", languages));
     columns.extend(i18n_columns("presentation", "description", languages));
+    let spoken = plan.elections.iter().any(|election| {
+        election.contests.iter().any(|contest| {
+            contest.candidates.iter().any(|candidate| {
+                ivr_prompt_cell(&candidate.ivr_prompt).is_some()
+            })
+        })
+    });
     columns.push("description".to_string());
+    // After `description`, because the row pushes it after `english_of` — a
+    // column list and a row that disagree about order do not fail, they put
+    // every value one field to the left.
+    if spoken {
+        columns.push("annotations.ivr:i18n".to_string());
+    }
 
     // `None` only when the event has no `external_id`, which `check_identity`
     // reports before this runs. An image on such a plan simply gets no identifier.
@@ -2939,6 +3060,12 @@ fn candidates_sheet(
                 row.extend(i18n_values(&candidate.name, languages));
                 row.extend(i18n_values(&candidate.description, languages));
                 row.push(english_of(&candidate.description));
+                if spoken {
+                    row.push(
+                        ivr_prompt_cell(&candidate.ivr_prompt)
+                            .unwrap_or(Cell::Blank),
+                    );
+                }
                 rows.push(row);
             }
 
@@ -2987,6 +3114,11 @@ fn candidates_sheet(
                     // wrong value into the wrong field.
                     row.extend(i18n_values(&Translated::default(), languages));
                     row.push(Cell::Blank);
+                    // And the spoken prompt, for the same reason: a write-in
+                    // slot has none, and the column still has to line up.
+                    if spoken {
+                        row.push(Cell::Blank);
+                    }
                     rows.push(row);
                 }
             }

@@ -540,6 +540,7 @@ fn every_blueprint_field_is_accounted_for() {
         "show_cast_vote_logs",
         "voting_channels",
         "ivr",
+        "ivr_prompt",
         "logo_url",
         "skip_election_list",
         "show_user_profile",
@@ -761,4 +762,52 @@ fn a_plan_with_no_telephone_writes_no_ivr_columns() {
             .any(|header| header.starts_with("annotations.ivr")),
         "a web-only plan wrote {headers:?}"
     );
+}
+
+#[test]
+fn a_spoken_prompt_survives_the_workbook_on_every_entity_that_has_one() {
+    // Four entities carry a description and so four carry a prompt beside it.
+    // Written as one `ivr:i18n` annotation each, which is the shape
+    // `parseIvrEntityAnnotations` reads — and read back into the flat
+    // `Translated` the wizard edits.
+    let mut plan = sound();
+    plan.ivr_prompt = Translated::new("Welcome to the union election");
+    plan.elections[0].ivr_prompt = Translated::new("Officer elections");
+    plan.elections[0].contests[0].ivr_prompt = Translated::new("For President");
+    plan.elections[0].contests[0].candidates[0].ivr_prompt =
+        Translated::new("Press one for Alice");
+
+    let back = read(&plan);
+
+    assert_eq!(back.ivr_prompt, plan.ivr_prompt);
+    assert_eq!(back.elections[0].ivr_prompt, plan.elections[0].ivr_prompt);
+    assert_eq!(
+        back.elections[0].contests[0].ivr_prompt,
+        plan.elections[0].contests[0].ivr_prompt
+    );
+    assert_eq!(
+        back.elections[0].contests[0].candidates[0].ivr_prompt,
+        plan.elections[0].contests[0].candidates[0].ivr_prompt
+    );
+}
+
+#[test]
+fn a_plan_nobody_wrote_a_prompt_on_carries_no_prompt_column() {
+    // The column appears only when somebody has written one. A blank column on
+    // four sheets of every bundle is a diff on every rebuild and four more
+    // things for whoever reads a delivery to wonder about.
+    let workbook = to_workbook(&sound()).expect("the plan writes");
+    for sheet in ["electionevent", "elections", "contests", "candidates"] {
+        let headers: Vec<String> = workbook
+            .rows(sheet)
+            .first()
+            .map(|row| row.cells.iter().map(|(h, _)| h.clone()).collect())
+            .unwrap_or_default();
+        assert!(
+            !headers
+                .iter()
+                .any(|header| header == "annotations.ivr:i18n"),
+            "{sheet} wrote a prompt column: {headers:?}"
+        );
+    }
 }
