@@ -766,7 +766,16 @@ export const ReviewScreen: React.FC = () => {
     return (
         <PageLimit maxWidth="lg" className="review-screen screen">
             {auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW ? null : (
-                <BallotHash hash={ballotId || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />
+                <BallotHash
+                    hash={ballotId || ""}
+                    copyLabels={{
+                        copy: t("reviewScreen.copyBallotId"),
+                        copied: t("reviewScreen.ballotIdCopied"),
+                        error: t("reviewScreen.ballotIdCopyError"),
+                    }}
+                    helpButtonLabel={t("reviewScreen.ballotIdHelpDialog.title")}
+                    onHelpClick={() => setOpenBallotIdHelp(true)}
+                />
             )}
             <Dialog
                 handleClose={handleCloseDialogIdHelp}

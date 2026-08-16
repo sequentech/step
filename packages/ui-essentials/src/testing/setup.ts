@@ -65,3 +65,35 @@ if (typeof window.ResizeObserver !== "function") {
         disconnect(): void {}
     } as unknown as typeof ResizeObserver
 }
+
+// Node has had `structuredClone` as a global since 17, but jsdom does not
+// install it on its own `window`, so a test that clones a fixture works under
+// `testEnvironment: "node"` and throws `structuredClone is not defined` under
+// jsdom. Moving the voting portal to jsdom — so its ballot components could be
+// mounted at all — is what surfaced it, in a slice test that arrived from main
+// at the same time.
+//
+// Node's own implementation, borrowed rather than reimplemented: a hand-rolled
+// deep clone would differ from the real one on exactly the values a fixture is
+// least likely to contain and most awkward to debug.
+if (typeof globalThis.structuredClone !== "function") {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const {serialize, deserialize} = require("node:v8")
+    globalThis.structuredClone = ((value: unknown) =>
+        deserialize(serialize(value))) as typeof structuredClone
+}
+
+// `react-dom/server` reaches for `MessageChannel` as it loads — React's
+// scheduler uses it to yield between units of work — and this jsdom does not
+// provide one. The failure is a *collection* error, so a suite that imports
+// `renderToStaticMarkup` never runs at all and jest reports "0 failed" beside
+// it: five of this package's six suites were dark that way, which is not a
+// state to start restructuring the voting path from.
+//
+// Node's own, from `worker_threads`. Its ports are `EventTarget`s and support
+// `onmessage`, which is the whole of what the scheduler asks for.
+if (typeof globalThis.MessageChannel !== "function") {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    globalThis.MessageChannel = require("node:worker_threads")
+        .MessageChannel as typeof MessageChannel
+}

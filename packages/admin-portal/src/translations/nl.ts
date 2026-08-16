@@ -277,6 +277,7 @@ const dutchTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "Sjablonen Exporteren",
                 IMPORT_TEMPLATES: "Sjablonen Importeren",
                 DELETE_ELECTION_EVENT: "Verkiezingsevenement Verwijderen",
+                DELETE_VOTERS: "Delete Voters",
                 PREPARE_PUBLICATION_PREVIEW: "De publicatievoorbeeldweergave voorbereiden",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporteer de telresultaten in XLSX-indeling",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Certificaatautoriteiten exporteren",
@@ -1125,6 +1126,11 @@ const dutchTranslation: TranslationType = {
                 delete: {
                     body: "Weet u zeker dat u deze gebruiker wilt verwijderen?",
                     bulkBody: "Weet u zeker dat u de geselecteerde gebruikers wilt verwijderen?",
+                    bulkBodySelected: "Delete the {{count}} selected users? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} users are selected. You can instead delete every user matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Fout bij exporteren gebruikers",
@@ -1184,6 +1190,12 @@ const dutchTranslation: TranslationType = {
                 delete: {
                     body: "Weet u zeker dat u deze kiezer wilt verwijderen?",
                     bulkBody: "Weet u zeker dat u de geselecteerde kiezers wilt verwijderen?",
+                    bulkBodySelected:
+                        "Delete the {{count}} selected voters? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} voters are selected. You can instead delete every voter matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Fout bij exporteren kiezers",
@@ -1808,6 +1820,7 @@ const dutchTranslation: TranslationType = {
                 "warn-invalid-implicit-and-explicit":
                     "Waarschuwen bij Impliciet en Expliciet Ongeldig",
                 "not-allowed": "Niet Toegestaan",
+                "allowed-with-exclusive-explicit": "Toegestaan met Exclusief Expliciet Ongeldig",
             },
             candidatesIconCheckboxPolicy: {
                 "label": "Vorm icoon selectievakje kandidaten",
