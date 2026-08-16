@@ -193,7 +193,7 @@ there is nothing to discount), (ii) its own policy has a fully
 nothing via the filter's keep-list, and fires no rule-specific dialog
 ("does not gate" is too weak: over-vote `allowed-with-msg` does not
 gate yet signals inline, and is recorded as a non-violation), and
-(iii) `invalid_vote_policy = allowed` removes both generic surfaces —
+(iii) `invalid_vote_policy = allowed` removes both generic signals —
 the generic dialog gate and inline-error visibility (the filter's
 mute). Over-vote (error emitted unconditionally; `allowed` is its only
 signal-free variant) and min-vote (error unconditional; no policy of
@@ -216,7 +216,7 @@ real workbench pipeline — booth encrypt → cast → decrypt → decode → ta
 implicit-invalid
 (`characterization/{overvote,minvote}-e2e-pipeline.recorded.json`;
 re-runnable in one command via `characterization/reproduce-verify.mjs`).
-The booth-surface half (nothing inline at review, no dialog, reachable) is
+The booth-signal half (nothing inline at review, no dialog, reachable) is
 additionally observed across every recorded (configuration ×
 vote-state) cell of all seven rules in
 `characterization/dom-validate.md` (229/229 matching the spec).

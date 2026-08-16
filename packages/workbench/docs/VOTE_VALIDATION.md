@@ -114,8 +114,8 @@ Three properties of this shape explain most of the system's surprises:
    re-reads three policies itself. One condition therefore has up to three
    independently-computed answers (record exists / voter sees it / voter is
    blocked), and the answers can disagree by design or by bug. This is why
-   effects are per-surface — `(inline, gate, constraint)` — rather than one
-   value per state.
+   effects are recorded per category — `(inline, dialog, reachability)` —
+   rather than as one value per state.
 2. **The two consumer paths meet at exactly one point**: each rendered
    `<InvalidErrorsList>` writes its decoded contest into a record via
    `setDecodedContests`, and the gates read that record. The gates never
@@ -488,7 +488,7 @@ In `check_voting_error_dialog_util` (soft warn):
 
 **Checker**: [`check_invalid_vote_policy`](../../sequent-core/src/ballot_codec/checker.rs#L331)
 
-**UI surface**: [`InvalidErrorsList.tsx`](../../voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx)
+**UI layer**: [`InvalidErrorsList.tsx`](../../voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx)
 reads the policy to filter errors from all checkers before rendering.
 
 ---

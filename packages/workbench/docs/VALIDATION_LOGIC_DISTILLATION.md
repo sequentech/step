@@ -17,41 +17,33 @@ focuses on the *specification* layer rather than the *implementation* layer.
 
 ## 1. Observable Effects Taxonomy
 
-The system responds to a voter's selections through exactly three
-**surfaces** — concrete places where a response to a formed selection
-state can be perceived: the inline warning box under a contest, the
-dialog that may open on clicking Next, and (after casting) the tally's
-classification of the ballot. A fourth perceivable behaviour — inputs
-that refuse to form a state in the first place (a greyed checkbox, a
-marker that clears a co-selection) — is deliberately *not* a surface;
-it is modelled as **reachability**, a property of the input domain
-("The surfaces, enumerated" below defines the distinction). What
-appears on each surface depends not only on the configuration and the
-selections but also on the **observation context** — *when and where we
-look*: the voting screen versus the review screen, and whether the
-voter has touched the contest yet.
+The system responds to a voter's selections with a small set of
+**effects** — observable behaviours: an inline warning under the
+contest, a dialog on clicking Next, inputs that refuse to form a
+selection state at all, and (after casting) the tally's classification
+of the ballot. This document groups them into four **effect
+categories** — inline, dialog, reachability, tally — and the claim it
+makes precise is one of **totality and determinism**: every
+(contest-configuration × vote-state) cell determines exactly one value
+in every category, drawn from the sets below. A category does not care
+whether the cell's state was actually formed in a booth or arrived as a
+decoded or hand-built record — the mapping associates cells with
+effects, nothing more.
 
-In those terms, the claim this document makes precise is one of
-**totality and determinism**: every (contest-configuration ×
-voter-state) pair determines exactly one value on every surface, drawn
-from the sets below. The observation context is **not** an input to
-the whole mapping — it indexes the *output* of exactly one surface:
-inline content varies with the screen and the touch state, while the
-gate pair is consulted at a single fixed moment (the Next/review
-transition), the tally class is observed after casting, outside the
-booth's timeline — and by a different observer: the voter never sees
-their own ballot's class, which reaches the world only through result
-aggregates — and reachability, being a domain property, is perceived
-only through attempts, never as a display of the cell it prevents.
-The surfaces, their values and where each is observed are enumerated
-in "The surfaces, enumerated" below; the per-surface refinement at the
-end of this section types the casting product.
+One category's value depends on the **observation context** — *when and
+where we look*: inline content differs between the voting screen and
+the review screen, and an untouched contest shows nothing. The context
+is not an input to the mapping; it indexes the inline *value* (one set
+of message keys per observation point). The other categories carry no
+such index: the dialog appears at one fixed moment (the Next/review
+transition), reachability is settled by the interaction attempt, and
+the tally class is assigned once at count.
 
-(An earlier revision of this paragraph quantified "one observable
-effect per surface" over (voter-state × configuration ×
-observation-context) tuples — falsified as soon as the surfaces were
-enumerated: no booth-time observation point perceives a tally effect.
-The shape was then settled in the executable spec first —
+(An earlier revision of this section quantified "one observable effect"
+over (voter-state × configuration × observation-context) tuples —
+falsified as soon as the effects were enumerated: no booth-time
+observation point perceives a tally effect. The shape was then settled
+in the executable spec first —
 [`../characterization/spec.mjs`](../characterization/spec.mjs), `f` —
 and this section now reflects it.)
 
@@ -59,7 +51,7 @@ and this section now reflects it.)
 closed relative to a **consumer census**: the enumeration of every read
 site of the validation state (`invalid_errors` / `invalid_alerts`, the
 policy fields, the marker and decline flags) in the codebase, each mapped
-to an effect surface here, an explicit out-of-scope entry, or a named gap.
+to an effect category here, an explicit out-of-scope entry, or a named gap.
 No amount of input-cell enumeration can establish this — a channel the
 harness doesn't record stays invisible at every cell. The census lives in
 [`../characterization/README.md`](../characterization/README.md); its
@@ -108,126 +100,103 @@ and the blank/declined distinction is precisely a disagreement about the
 valid total. (The six-class taxonomy dates from the 2026-08 merge —
 explicit blanks #2842, decline-to-vote #2687.)
 
-### The surfaces, enumerated
+### The effect categories
 
-Three **effect surfaces** carry the effects above — each holds exactly
-one value per input tuple. The table also lists **reachability**, which
-is *not* a surface but a **domain property** — a statement about the
-mapping's *input domain* rather than a component of its output: it says
-whether a (configuration × vote-state) cell can be brought into
-existence through the booth UI at all, not what the system displays in
-that cell. It shares a surface's type-shape (total, one value per
-cell), which is why the spec reports it per cell alongside the
-effects — but it answers "can this state form?", not "what happens in
-this state?", and the two arguments that lean on it need exactly the
-domain framing: the §2 pruning caution (`f` stays total over
-unreachable cells — hand-built or decoded records still run the
-checkers) and the §4.5 silent-discount property (which quantifies over
-*reachable* cells). Note prevention has no perceivable place of its
-own: its visible faces arrive through the ordinary surfaces of
-*neighbouring* cells — the "maximum reached" hint is the at-max cell's
-inline value; the marker-clear is perceived as landing in the collapsed
-cell — or as the failed attempt itself. Each row maps to one function
-of the executable spec
+Each category maps to one function of the executable spec
 ([`../characterization/spec.mjs`](../characterization/spec.mjs)) and to
 named columns of the recorded tables:
 
-| component | what the voter meets | value | spec.mjs | recorded in |
+| effect category | what it is | value | spec.mjs | recorded in |
 |---|---|---|---|---|
-| **inline** | warning boxes under the contest (each carries a `data-warn-id`) | one set of message keys **per observation point** — `votingUntouched` (constantly empty: the untouched-clear), `voting`, `review`; 1a when non-empty | `inlineViews` | *inline (voting)* / *inline (review)* columns, `dom-validate.md`; the untouched constant in `blank-rule.filter.md` |
-| **gate** | the dialog that may open on clicking Next / entering review | two booleans (hard, soft); the voter meets their projection: none / dismissible (1b) / blocking (1c) | `hardGate` / `softGate` | *hard gate* / *soft gate* columns of every rule table; the observed dialog per cell in `dom-validate.recorded.json` |
-| **tally** | nothing directly — the cast ballot's class in the results | exactly one of the six classes (2a–2f) | `classify` | *tally* column of every rule table; `classifier-table.md` |
-| *(reachability — domain property, not a surface)* | nothing in the prevented cell itself — its faces are perceived in neighbouring cells (the at-max `overVoteDisabled` hint, a greyed control) or as the failed attempt (the marker-clear collapse) | yes / inputs_disabled / marker_cleared — 1d names the disable mechanism's perceivable face | `reachability` | *reachable* column, `dom-validate.md` |
+| **inline** | the warning boxes rendered under the contest (each carries a `data-warn-id`) | one set of message keys **per observation point** — `votingUntouched` (constantly empty: the untouched-clear), `voting`, `review`; 1a when non-empty | `inlineViews` | *inline (voting)* / *inline (review)* columns, `dom-validate.md`; the untouched constant in `blank-rule.filter.md` |
+| **dialog** | the dialog that may open on clicking Next / entering review | none / dismissible (1b) / blocking (1c) — a projection of the gate pair (see the intermediates note below): hard → blocking, else soft → dismissible, else none | `f().dialog` | the observed dialog per cell in `dom-validate.recorded.json` |
+| **reachability** | whether the booth UI will form the cell's vote state at all — a greyed control (1d), a marker that clears a co-selection. Effects of unformable cells are still real: decoded or hand-built records run the checkers (the §2 pruning caution), which is why the mapping stays total | yes / inputs_disabled / marker_cleared | `reachability` | *reachable* column, `dom-validate.md` |
+| **tally** | the cast ballot's class in the results (it reaches the world through aggregates) | exactly one of the six classes (2a–2f) | `classify` | *tally* column of every rule table; `classifier-table.md` |
 
-"Silent" (1e) is likewise not a surface value of its own: it is the
-empty value on **inline** and **gate** simultaneously. That derived
-condition — nothing on either casting surface, a reachable state, and
-tally = `ImplicitInvalid` — is exactly what the silent-discount
+"Silent" (1e) is not a category of its own: it is the empty value on
+**inline** and **dialog** together — nothing rendered at either casting
+point, no dialog. That derived condition, on a reachable cell whose
+tally is `ImplicitInvalid`, is exactly what the silent-discount
 property (§4.5) tests.
 
-**Correspondence with the executable spec's output.** `f` returns six
-components (the `Effects` struct in
-[`../validation-spec/`](../validation-spec/), same fields in
-`spec.mjs`), and the table above accounts for four of them — `inline`,
-`gate`, `tally` (the three surface values) and `reachability` (the
-domain property). The other two are companions of a surface, not
-surfaces:
+**Checkable intermediates — the validation apparatus, not the spec.**
+The executable spec's output (the `Effects` struct in
+[`../validation-spec/`](../validation-spec/), same fields in `spec.mjs`)
+carries two more components that are *not* effects — nothing in the
+system exposes them directly; they are intermediate data the effects
+are computed from, and they ride in the output so the validation suite
+can pin the internal stages against the real WASM per cell rather than
+only the end effects:
 
-- `emissions` — the **checker record** (`invalid_errors` /
-  `invalid_alerts` as checker.rs produces them): the shared upstream
-  record all three surfaces consume — `inlineViews` renders a filtered
-  view of it, both gates read its errors, the classifier reads whether
-  any error exists. The voter never perceives it directly; it is in the
-  output only because it is independently checkable against the real
-  WASM (the `errors`/`alerts` columns of every rule table).
-- `dialog` — not a fourth surface but the **gate surface's voter-facing
-  projection** (`hard → blocking, else soft → dismissible, else none`;
-  the "what the voter meets" cell of the gate row above). It is carried
-  alongside the pair because it is what the browser lane can compare
-  against the real DOM — the pair itself is observable only headlessly
-  (the two WASM functions), and it is strictly finer than the
-  projection: both-gates-fire and hard-only project to the same
-  blocking dialog.
+- `emissions` — the checker record (`invalid_errors` / `invalid_alerts`
+  as checker.rs produces them): consumed by inline (a filtered view of
+  it), the gates (its errors), and the tally (whether any error
+  exists); checked per cell as the *errors* / *alerts* columns of
+  every rule table.
+- `gate` — the pair (hard, soft) of review-transition gate functions.
+  Production evaluates two independent functions and both can fire at
+  once (the `not-allowed` rows of
+  `../characterization/invalid-rule.md`); the observable effect is the
+  dialog they project to — both-fire and hard-alone are
+  indistinguishable in the booth. The pair is checked per cell as the
+  *hard gate* / *soft gate* columns of every rule table.
 
-So: six fields = three surface values + the gate's projection + the
-checker record + the reachability domain property. Every field has
-exactly one of these four roles; no surface lacks a field.
+So: six output fields = four effect categories + two checkable
+intermediates.
 
 **Key principle:** Effects are *atomic observables*. Timing and location
-are not part of the effect taxonomy — they index the inline surface's
-output. For example, `WARN_ONLY_IN_REVIEW` is not a distinct effect — it
-is the same effect (1a), present at one observation point of the inline
-surface and absent at another:
+are not part of the effect taxonomy — they index the inline category's
+value. For example, `WARN_ONLY_IN_REVIEW` is not a distinct effect — it
+is the same effect (1a), present at one observation point and absent at
+another:
 
 ```
 inline(undervote, WARN_ONLY_IN_REVIEW) = {voting: —, review: underVote}
 ```
 
-**Refinement — casting effects are per-surface, not exclusive.** A single
-input tuple can legitimately produce an inline message (1a) *and* a dialog
-(1b/1c) simultaneously — e.g. an overvote under
-`NOT_ALLOWED_WITH_MSG_AND_ALERT` shows inline text during voting and a
-hard dialog on transition. "Exactly one effect" holds only per surface.
-The casting codomain is therefore a product:
+**Refinement — categories are independent, not exclusive.** A single
+cell can legitimately produce an inline message (1a) *and* a dialog
+(1b/1c) — e.g. an overvote under `NOT_ALLOWED_WITH_MSG_AND_ALERT` shows
+inline text during voting and a blocking dialog on transition. "Exactly
+one value" holds per category, and the casting-time part of the mapping
+is therefore a product:
 
 ```
-CastingEffect = (inline: Set<Message>,
-                 gates: (hard: bool, soft: bool))   // dialog = a projection
+CastingEffect = (inline: observation_point → Set<Message>,
+                 dialog: none | dismissible | blocking)
 ```
 
 Two amendments to an earlier version of this type, both forced by what
 the characterization verified (`../characterization/spec.mjs` is the
 executable form):
 
-- **The gate surface is two independent booleans, not one three-valued
-  outcome.** Production evaluates two separate functions
-  (`check_voting_not_allowed_next_util` and
+- **The dialog is a projection of two independent booleans, not a
+  primitive three-valued outcome.** Production evaluates two separate
+  functions (`check_voting_not_allowed_next_util` and
   `check_voting_error_dialog_util`), and both can be true at once
   (recorded: the `not-allowed` rows of
-  `../characterization/invalid-rule.md` trip both). The dialog the voter
-  actually meets is a projection — `hard ? blocking : soft ? dismissible
-  : none` — and that projection is what `dom-validate.mjs` checks
-  against the real DOM. Typing the surface as a single
-  `{none | dismissible | blocking}` value would erase the
-  both-gates-fire fact.
-- **The input constraint (1d) is no longer part of the effect product.**
+  `../characterization/invalid-rule.md` trip both). The effect the cell
+  is associated with is the projection — `hard ? blocking : soft ?
+  dismissible : none` — which is what `dom-validate.mjs` checks against
+  the real DOM; the pair itself rides along as a checkable intermediate
+  (the note above).
+- **The input constraint (1d) is not part of the casting product.**
   Prevention prunes which states the booth UI can *produce*; it does not
   change the mapping over states that exist anyway — hand-built or
   decoded records still run through the checkers as defense-in-depth
-  (the §2 pruning caution). It is therefore modelled as a separate total
-  function over the same inputs:
+  (the §2 pruning caution). It is the reachability category — its own
+  total function over the same inputs:
 
   ```
   reachability(config, vote_state) → yes | inputs_disabled | marker_cleared
   ```
 
   with two prevention mechanisms: the DISABLE over-vote policy disabling
-  further inputs at max (`inputs_disabled`), and the blank marker
-  clearing co-selected regulars (`marker_cleared` — observed as
-  `no (cleared)` in `../characterization/dom-validate.md`; the invalid
-  marker deliberately does not clear — finding S5). Effect 1d in the
-  table above names the voter-perceived face of the first mechanism; the
-  second is imperceptible until tried.
+  further inputs at max (`inputs_disabled` — 1d names what the voter
+  sees of it), and the blank marker clearing co-selected regulars
+  (`marker_cleared` — observed as `no (cleared)` in
+  `../characterization/dom-validate.md`; the invalid marker deliberately
+  does not clear — finding S5, imperceptible until tried).
 
 The tally codomain *is* single-valued: exactly one class per ballot.
 
@@ -268,17 +237,17 @@ rejects a contest with more than one explicit-blank marker, producing a
 | `has_rank_gaps` | {true, false} (preferential only) |
 | `has_encoding_error` | {true, false} — write-in corruption / capacity overflow; the hard gate's first condition fires on `EncodingError`, which no combination of the other dimensions can express |
 
-### Observation context (indexes the inline surface's output only)
+### Observation context (indexes the inline value only)
 
-These dimensions parameterize nothing but the inline surface: the gate
-pair is consulted at one fixed moment (the Next/review transition), and
+These dimensions parameterize nothing but the inline effect category:
+the dialog appears at one fixed moment (the Next/review transition), and
 the tally is observed after casting. (An earlier revision listed
 `on_transition` as a third observation point — it is not one: nothing
 inline is read there; it is the moment the gates are consulted.)
 
 | Dimension | Domain |
 |-----------|--------|
-| `observation_point` | {during_voting, on_review} — the two screens the inline surface renders on |
+| `observation_point` | {during_voting, on_review} — the two screens inline warnings render on |
 | `is_touched` | {true, false} — during_voting only; an untouched contest renders nothing (the untouched-clear) |
 
 ### Combinatorial size
@@ -322,24 +291,22 @@ scope decisions — each with a re-entry condition — in
 ## 3. The Mapping (specification)
 
 The system's behaviour is fully characterised by a pure function
-returning one value per surface — the executable form is
+returning one value per effect category — the executable form is
 [`../characterization/spec.mjs`](../characterization/spec.mjs), `f`:
 
 ```
-f(config, vote_state) → ( emissions,      // the checker record (not a surface —
-                                          //   the record the surfaces consume)
-                          inline: observation_point → Set<Message>,  // surface
-                          gate: (hard, soft),                        // surface
-                          dialog,          // the gate's voter-facing projection
-                          reachability,    // domain property, not an effect
-                          tally: BallotClass )                       // surface
+f(config, vote_state) → ( emissions,      // checkable intermediate (checker record)
+                          inline: observation_point → Set<Message>,  // effect
+                          gate: (hard, soft),   // checkable intermediate (dialog's inputs)
+                          dialog,                                    // effect
+                          reachability,                              // effect
+                          tally: BallotClass )                       // effect
 ```
 
-Six components in the struct's field order — three surface values plus
-the gate's projection, the checker record, and the reachability domain
-property (§1, "The surfaces, enumerated", states each role). The
-observation point appears inside the inline component of the output,
-not as an input to the mapping. Today this function is *implicitly* encoded across
+Six components in the struct's field order — the four effect categories
+plus the two checkable intermediates (§1, "The effect categories",
+states each role). The observation point appears inside the inline
+component of the output, not as an input to the mapping. Today this function is *implicitly* encoded across
 multiple production code paths:
 
 - `checker.rs` (9 checker functions producing errors/alerts — 8 decode-time
@@ -445,13 +412,13 @@ configuration where **all three** hold:
    (min-vote is a fixed `n < min_votes` check) is signal-free by
    default; **and**
 3. `invalid_vote_policy = allowed`, which switches off both generic
-   surfaces: the generic dialog gate and generic error-visibility (the
+   signals: the generic dialog gate and generic error-visibility (the
    master filter hides every `invalid_error` not on its two-entry
    keep-list — `selectedMax` iff `over_vote_policy ≠ allowed`,
    `blankVote` iff `blank_vote_policy = not-allowed`).
 
 When all three hold, an error the checker produces internally reaches the
-tally (via `is_invalid()`) with no booth surface showing or blocking it.
+tally (via `is_invalid()`) with nothing inline, no dialog, and no block.
 The over-vote and min-vote families are exactly the rules that meet all
 three.
 
@@ -576,7 +543,7 @@ This is not a rewrite proposal. The path is incremental:
 > ([`../characterization/spec.mjs`](../characterization/spec.mjs) — the
 > whole mapping as one function `f(config, voteState)`: checker
 > emissions, both gates, the classifier, the message filter (all three
-> observation points of the inline surface), and
+> observation points of the inline effect), and
 > reachability — the embryonic declarative table of step 3; each runner
 > supplies only its experiment grid — the cross-product of the
 > dimensions its rule varies, one cell per (configuration × vote-state)

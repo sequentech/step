@@ -162,7 +162,7 @@ with `invalid_vote_policy = allowed` — is false:
 
 Null voting is available under three of the four values. The only
 capability `allowed` adds over `warn` is silence about **implicit**
-invalidity — which is exactly the silent-discount surface (S1).
+invalidity — which is exactly where the silent discounts live (S1).
 
 ## 5. What `allowed` uniquely does — and since when
 
@@ -426,7 +426,7 @@ becomes expressible at all.
 Investigation date: 2026-08-12. Behavioural claims cross-checked
 against the workbench's recorded characterization
 (`characterization/invalid-rule.md`, `no-silent-discount.md`; the
-booth-surface claims — inline visibility under `allowed`, marker
+booth-behaviour claims — inline visibility under `allowed`, marker
 reachability — are since observed across every recorded
 (configuration × vote-state) cell of all seven rules in
 `characterization/dom-validate.md`, 229/229).

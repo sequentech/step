@@ -88,8 +88,8 @@ they were adopted after an early hand-written summary table diverged from
 its source within minutes of being written.
 
 1. **Every table ships its legend.** The experiment (what act is repeated
-   across rows), the meaning of every column (what moment / surface is
-   observed), and the meaning of cell values (what a key or a dash denotes)
+   across rows), the meaning of every column (what moment / effect category
+   is observed), and the meaning of cell values (what a key or a dash denotes)
    are stated immediately above the table. A reader must never need the
    generating script or a conversation to decode a cell.
 2. **Tables are generated, never hand-written.** Human-readable tables are
@@ -97,7 +97,7 @@ its source within minutes of being written.
    runner. Retyping a table creates a second source of truth that will
    drift.
 3. **Observations are pure per layer.** A layer-3 cell records only what is
-   visible at that surface. "The alert exists but is hidden" is a *derived*
+   visibly rendered there. "The alert exists but is hidden" is a *derived*
    fact — the join of layer 1 (emitted) with layer 3 (not visible) — and
    belongs in a cross-layer view labelled as such, never in a raw
    observation cell.
@@ -106,7 +106,7 @@ its source within minutes of being written.
    *specification* is [`spec.mjs`](spec.mjs) — the whole mapping as one
    function `f(config, voteState)`: checker emissions, both
    gates, the classifier, the message filter (all three observation
-   points of the inline surface), and reachability — with the
+   points of the inline effect), and reachability — with the
    per-cell meaning of each rule's grid defined once in
    [`rule-specs.mjs`](rule-specs.mjs); tables are *views* for humans;
    **suspects** live in `../docs/UPSTREAM_FINDINGS.md` until consultation
@@ -448,7 +448,7 @@ The sharpest is `min=2/marker_only`: the voter selects the **Blank vote (explici
 marker — a deliberate blank — and it is silently discarded
 `ImplicitInvalid` (the marker counts as 1 < 2). The end-to-end
 crypto-chaining check is complete for the whole finding; the whole-grid
-booth-surface check is `dom-validate.mjs` (all seven rules, 229/229).
+booth check is `dom-validate.mjs` (all seven rules, 229/229).
 
 **A faithfulness rule this exercise taught** (an earlier revision of the
 e2e check got it wrong and reported "Valid"): the tally classifies
@@ -470,8 +470,8 @@ tally. See VOTE_VALIDATION.md "Selection counting and marker candidates".
 
 The functional model in VOTE_VALIDATION.md has **six roles**; the harness
 layers observe them unevenly, and full behaviour — the distillation's
-`f(config, vote_state) → one value per surface` — is only characterized
-when all six are:
+`f(config, vote_state) → one value per effect category` — is only
+characterized when all six are:
 
 | Role | Harness layer | Status |
 |---|---|---|
@@ -484,7 +484,7 @@ when all six are:
 
 Two consequences worth stating plainly. First, a per-rule recording like
 blank-rule is a *slice* of `f`, by design — the mapping decomposes per
-rule and per surface, and coverage is the union of slices, not any single
+rule and per effect category, and coverage is the union of slices, not any single
 run. Second, prevention does not produce effects; it prunes the *input
 space* — so its characterization output is a reachability table
 (state × config → forms / does-not-form), which is also exactly the data
