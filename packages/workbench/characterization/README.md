@@ -225,6 +225,7 @@ gates, recorded tally) with a `pred?` column comparing them to `spec.mjs`:
 | `invalid-rule.mjs` | `invalid-rule.recorded.json` + `.md` |
 | `classifier-table.mjs` | `classifier-table.recorded.json` + `.md` |
 | `rust-conformance.mjs` | `rust-conformance.recorded.json` + `.md` — the typed Rust spec (`../validation-spec/`) vs the recorded ground truth (all 280 cells) and vs `spec.mjs` on 20 000 seeded-random cells. Needs `cargo` (builds `emit-grid` on first run), not the wasm pkgs |
+| `effect-dependencies.mjs` | `effect-dependencies.md` + `.recorded.json` — the effect-first decomposition: per effect component, its support, its conditional-independence restrictions, and one executable witness per dependence, computed exhaustively on the Rust spec over the full modelled domain (~29M evaluations); representable witnesses re-run through the real WASM, the rest labelled. Needs `cargo` **and** the wasm pkg; ~2 min |
 
 ### Browser lane (dev server on :5173)
 

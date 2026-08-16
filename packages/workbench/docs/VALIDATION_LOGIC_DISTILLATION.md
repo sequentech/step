@@ -322,6 +322,18 @@ Cross-rule interactions that do exist (the blank checker's dependence on
 at once, the mix rule) are exactly the cells worth enumerating jointly,
 and there are few of them.
 
+The effect-first counterpart of this decomposition — for every effect
+*component*, which inputs it depends on, which it provably never reads,
+and under what conditions each dependence is live (the
+conditional-independence view) — is generated, not asserted:
+[`../characterization/effect-dependencies.md`](../characterization/effect-dependencies.md)
+computes it exhaustively on the executable spec over the full modelled
+domain and re-runs each dependence's witness cells through the real WASM
+where the fixtures can represent them, labelling the rest. The rule
+decomposition above is the *encoding-side* view (production's units, the
+transcription-fidelity units); the dependency analysis is the
+*behaviour-side* view — coverage questions belong to the latter.
+
 Two pruning cautions:
 
 - **Do not prune "unreachable" cells.** `num_selected > max` under

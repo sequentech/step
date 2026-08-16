@@ -16,3 +16,7 @@ serde_json = { workspace = true }
 [[bin]]
 name = "emit-grid"
 path = "src/bin/emit_grid.rs"
+
+[[bin]]
+name = "analyze-deps"
+path = "src/bin/analyze_deps.rs"
