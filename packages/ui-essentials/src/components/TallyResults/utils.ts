@@ -5,11 +5,28 @@
 import {formatPercentOne} from "@sequentech/ui-core"
 import {defaultResultsAndParticipationLabels} from "./types"
 import type {
+    CandidateReference,
     CandidateResultRow,
     NumericValue,
     ResultsAndParticipationLabelOverrides,
     ResultsAndParticipationLabels,
 } from "./types"
+
+export const orderCandidateReferences = (
+    references: CandidateReference[],
+    candidates: CandidateResultRow[]
+): CandidateReference[] => {
+    const referenceById = new Map(references.map((reference) => [reference.id, reference]))
+    const orderedReferences = candidates
+        .map((candidate) => referenceById.get(candidate.id))
+        .filter((reference): reference is CandidateReference => !!reference)
+    const orderedIds = new Set(orderedReferences.map((reference) => reference.id))
+
+    return [
+        ...orderedReferences,
+        ...references.filter((reference) => !orderedIds.has(reference.id)),
+    ]
+}
 
 export const mergeLabels = (
     labels?: ResultsAndParticipationLabelOverrides

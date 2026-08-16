@@ -22,13 +22,7 @@ import type {
     ResultsAndParticipationLabelOverrides,
     ResultsAndParticipationLabels,
 } from "./types"
-import {
-    mergeLabels,
-    percentOrDash,
-    sortCandidateResults,
-    toFiniteNumber,
-    valueOrDash,
-} from "./utils"
+import {mergeLabels, percentOrDash, toFiniteNumber, valueOrDash} from "./utils"
 
 interface CandidateResultsChartProps {
     results: CandidateResultRow[]
@@ -181,16 +175,12 @@ export const CandidateResults: React.FC<CandidateResultsProps> = ({
     labels,
 }) => {
     const mergedLabels = useMemo(() => mergeLabels(labels), [labels])
-    const orderedCandidates = useMemo(
-        () => [...candidates].sort(sortCandidateResults),
+    const hasCandidateChartData = useMemo(
+        () => candidates.some((candidate) => (toFiniteNumber(candidate.castVotes) ?? 0) > 0),
         [candidates]
     )
-    const hasCandidateChartData = useMemo(
-        () => orderedCandidates.some((candidate) => (toFiniteNumber(candidate.castVotes) ?? 0) > 0),
-        [orderedCandidates]
-    )
     const columns = useCandidateResultColumns(mergedLabels)
-    const gridHeight = Math.min(Math.max(orderedCandidates.length * 52 + 116, 260), 680)
+    const gridHeight = Math.min(Math.max(candidates.length * 52 + 116, 260), 680)
 
     return (
         <Box
@@ -206,7 +196,7 @@ export const CandidateResults: React.FC<CandidateResultsProps> = ({
                 {mergedLabels.candidateResults}
             </Typography>
 
-            {orderedCandidates.length ? (
+            {candidates.length ? (
                 <Box
                     className="seq-tally-results-candidate-results__content"
                     sx={{
@@ -230,7 +220,7 @@ export const CandidateResults: React.FC<CandidateResultsProps> = ({
                             }}
                         >
                             <CandidateResultsChart
-                                results={orderedCandidates}
+                                results={candidates}
                                 chartName={chartName}
                                 labels={mergedLabels}
                             />
@@ -250,7 +240,7 @@ export const CandidateResults: React.FC<CandidateResultsProps> = ({
                         <DataGrid
                             className="seq-tally-results-candidate-results__grid"
                             sx={{mt: 0}}
-                            rows={orderedCandidates}
+                            rows={candidates}
                             columns={columns}
                             getRowId={(row) => row.id}
                             getRowClassName={({id}) =>

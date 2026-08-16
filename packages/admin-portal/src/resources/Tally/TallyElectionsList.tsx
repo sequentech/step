@@ -2,14 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useMemo, useState} from "react"
-import {useGetOne, useGetList} from "react-admin"
 import {Sequent_Backend_Election, Sequent_Backend_Tally_Session} from "../../gql/graphql"
-import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import Checkbox from "@mui/material/Checkbox"
 import {useTranslation} from "react-i18next"
-import {useTenantStore} from "@/providers/TenantContextProvider"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {
+    IElectionEventPresentation,
+    parseEntityPresentation,
+    sortByPresentationOrder,
+} from "@sequentech/ui-core"
 
 type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
     rowId: number
@@ -24,10 +26,18 @@ interface TallyElectionsListProps {
     update: (elections: Array<string>) => void
     keysCeremonyId: string | null
     tallySession?: Sequent_Backend_Tally_Session
+    electionEventPresentation?: unknown
 }
 
 export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => {
-    const {disabled, elections, update, keysCeremonyId, tallySession: tallyData} = props
+    const {
+        disabled,
+        elections,
+        update,
+        keysCeremonyId,
+        tallySession: tallyData,
+        electionEventPresentation,
+    } = props
 
     const {t, i18n} = useTranslation()
     const aliasRenderer = useAliasRenderer()
@@ -41,22 +51,14 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
         return elections?.filter((election) => election.keys_ceremony_id === keysCeremonyId)
     }, [elections, keysCeremonyId, tallyData])
 
-    const sortedfilteredElections = useMemo(() => {
-        // Ensure filteredElections and its nested properties exist
-        const items = electionsData
-        if (!items) return []
-
-        // Create a shallow copy and sort it
-        return [...items].sort((a, b) => {
-            if (!a?.name || !b?.name) return 0
-            return a.name.localeCompare(b.name)
-        })
-        // Dependency array: re-run only when the original items array changes
-    }, [electionsData])
+    const electionsOrder =
+        parseEntityPresentation<IElectionEventPresentation>(
+            electionEventPresentation
+        )?.elections_order
 
     useEffect(() => {
         if (filteredElections) {
-            const temp: Array<Sequent_Backend_Election_Extended> = filteredElections
+            const mappedElections: Array<Sequent_Backend_Election_Extended> = filteredElections
                 .map((election, index) => {
                     const electionName = aliasRenderer(election.presentation)
                     return {
@@ -70,9 +72,13 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
                 .filter((election) =>
                     tallyData ? (tallyData.election_ids || []).includes(election.id) : true
                 )
-            setElectionsData(temp)
+            const orderedElections = sortByPresentationOrder(mappedElections, electionsOrder, {
+                getLabel: (election) => election.name,
+                getPresentation: (election) => election.presentation,
+            }).map((election, index) => ({...election, rowId: index}))
+            setElectionsData(orderedElections)
         }
-    }, [filteredElections])
+    }, [aliasRenderer, electionsOrder, filteredElections, tallyData])
 
     useEffect(() => {
         if (electionsData) {
@@ -123,7 +129,7 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
 
     return (
         <DataGrid
-            rows={sortedfilteredElections}
+            rows={electionsData}
             sx={{width: "100%"}}
             columns={columns}
             initialState={{
