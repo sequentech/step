@@ -524,8 +524,9 @@ This is not a rewrite proposal. The path is incremental:
 > min-vote, duplicated-rank, preference-gaps, invalid), the tally
 > classifier's own decision table, and the single-sourced spec
 > ([`../characterization/spec.mjs`](../characterization/spec.mjs) — the
-> whole mapping as one function `f(config, voteState, context)`: checker
-> emissions, both gates, the classifier, the message filter, and
+> whole mapping as one function `f(config, voteState)`: checker
+> emissions, both gates, the classifier, the message filter (all three
+> observation points of the inline surface), and
 > reachability — the embryonic declarative table of step 3; each runner
 > supplies only its experiment grid — the cross-product of the
 > dimensions its rule varies, one cell per (configuration × vote-state)

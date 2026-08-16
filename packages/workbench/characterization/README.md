@@ -104,8 +104,9 @@ its source within minutes of being written.
 4. **Roles of the artifacts.** The recorded JSON is the *characterization*
    (evidence, and after adjudication the regression oracle); the embryonic
    *specification* is [`spec.mjs`](spec.mjs) — the whole mapping as one
-   function `f(config, voteState, context)`: checker emissions, both
-   gates, the classifier, the message filter, and reachability — with the
+   function `f(config, voteState)`: checker emissions, both
+   gates, the classifier, the message filter (all three observation
+   points of the inline surface), and reachability — with the
    per-cell meaning of each rule's grid defined once in
    [`rule-specs.mjs`](rule-specs.mjs); tables are *views* for humans;
    **suspects** live in `../docs/UPSTREAM_FINDINGS.md` until consultation
@@ -152,11 +153,12 @@ functional model in [`docs/VOTE_VALIDATION.md`](../docs/VOTE_VALIDATION.md):
 
 Every prediction comes from [`spec.mjs`](spec.mjs) — the single shared
 transcription of the production rules, exposed as one function
-`f(config, voteState, context)` covering the checker emissions (which
+`f(config, voteState)` covering the checker emissions (which
 errors/alerts the checker produces per config × vote state), the two
 gates, the tally classifier, the booth message filter (inline visibility
-at the review screen), and reachability (whether the booth UI lets a
-state form at all). A rule runner's `predict()` is a thin call into `f`,
+at all three observation points — untouched voting, touched voting,
+review — indexed in the output, not taken as an input), and reachability
+(whether the booth UI lets a state form at all). A rule runner's `predict()` is a thin call into `f`,
 fed from the rule's cell definitions in [`rule-specs.mjs`](rule-specs.mjs)
 (`specConfig` / `voteState` — what each recorded row means in spec
 terms); the runner itself contributes only its experiment grid and the
@@ -179,7 +181,7 @@ against the recorded ground truth, is checked by `rust-conformance.mjs`
 **Two validation lanes, unequal coverage.** `spec.mjs`'s emissions, gates
 and classifier transcribe Rust that IS compiled to wasm, so `pred?` checks
 them against the real wasm on every cell (independent derivations — this
-JS vs that Rust — so agreement is real information). Its `inlineVisible` /
+JS vs that Rust — so agreement is real information). Its `inlineViews` /
 `reachability` transcribe TypeScript that is NOT callable headlessly
 (`filterErrorList`; the input disable; the blank-marker clearing), so
 they are **predictions only** in a Node runner,
@@ -468,8 +470,8 @@ tally. See VOTE_VALIDATION.md "Selection counting and marker candidates".
 
 The functional model in VOTE_VALIDATION.md has **six roles**; the harness
 layers observe them unevenly, and full behaviour — the distillation's
-`f(config, vote_state, context) → effects` — is only characterized when
-all six are:
+`f(config, vote_state) → one value per surface` — is only characterized
+when all six are:
 
 | Role | Harness layer | Status |
 |---|---|---|
