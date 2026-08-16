@@ -260,7 +260,14 @@ its alert-visibility rule — and the characterization runs one runner and
 one grid per rule. The table lists them in production's decode call
 order (`raw_ballot.rs`); each row states everything the rule reads, so
 the decomposition claim ("each rule reads at most three dimensions") is
-checkable row by row. Throughout, `n` is the marker-inclusive selection
+checkable row by row. The *rule-specific downstream* column collects the
+rule's fingerprints inside the shared machinery — every clause of the
+gates, the filter, and reachability keyed to this rule's policy or
+message (mostly by *re-deriving* the rule's condition independently, the
+drift-prone pattern S4 exemplifies; the generic any-error conditions are
+excluded — they belong to the shared machinery, below). An empty cell
+there is itself information: nothing rescues that rule's signal once the
+generic mute applies. Throughout, `n` is the marker-inclusive selection
 count (`selections_with_markers` = regulars + blank marker + invalid
 flag).
 
