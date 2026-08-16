@@ -7,7 +7,12 @@ import Typography from "@mui/material/Typography"
 import {styled} from "@mui/material/styles"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import React from "react"
-import type {BallotSelection, IBallotStyle, IContest} from "@sequentech/ui-core"
+// `IBallotStyle` from `./types`, not from `ui-core`: there are two of that name
+// and `Question` takes this one — the ui-core shape carries `ballot_eml` and the
+// timestamps, which a ballot does not need to draw itself.
+import type {BallotSelection, IContest} from "@sequentech/ui-core"
+
+import type {IBallotStyle} from "./types"
 
 import BallotHash from "../components/BallotHash/BallotHash"
 import IconButton from "../components/IconButton/IconButton"
