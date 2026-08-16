@@ -24,6 +24,8 @@ export {Question} from "./Question"
 export type {IQuestionProps} from "./Question"
 // The review screen's arrangement, so a preview shows that screen rather than a
 // drawing of it. The portal renders the same component; see `ReviewLayout`.
+export {ConfirmationLayout} from "./ConfirmationLayout"
+export type {IConfirmationLayoutProps} from "./ConfirmationLayout"
 export {ReviewLayout} from "./ReviewLayout"
 export type {IReviewLayoutProps} from "./ReviewLayout"
 export {Answer} from "./Answer"
