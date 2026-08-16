@@ -264,7 +264,7 @@ const md = [
     `| 1 — recorded ground truth (7 rule grids + classifier table) | ${lane1} | ${ok ? "all equal" : "DISAGREEMENTS — see rust-conformance.recorded.json"} |`,
     `| 2 — random sweep vs spec.mjs (seed ${SEED}) | ${lane2} | ${ok ? "all equal" : "DISAGREEMENTS — see rust-conformance.recorded.json"} |`,
     "",
-    `**${ok ? `${total} cells, Rust ≡ recorded ≡ spec.mjs on every compared surface.` : `${failures.length} disagreement(s) — the Rust spec does NOT match; see rust-conformance.recorded.json.`}**`,
+    `**${ok ? `${total} cells, Rust ≡ recorded ≡ spec.mjs on every compared component.` : `${failures.length} disagreement(s) — the Rust spec does NOT match; see rust-conformance.recorded.json.`}**`,
     "",
 ].join("\n")
 writeFileSync(path.join(here, "rust-conformance.md"), md)

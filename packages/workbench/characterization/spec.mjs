@@ -5,7 +5,7 @@
 // The shared vote-validation specification — the single executable statement
 // of the mapping
 //
-//     f(config, voteState) → one value per surface
+//     f(config, voteState) → one value per effect category
 //
 // given a contest's configuration and a description of what the voter did:
 // which checker messages exist (the internal record), what is visible inline
@@ -311,8 +311,8 @@ function renderedKeys(f, isReview) {
 }
 
 /** Booth message filter — `filterErrorList`, at every observation point.
- *  The observation point is an index of this surface's OUTPUT, not an input
- *  of the whole mapping: only the inline surface varies with when/where the
+ *  The observation point is an index of this category's OUTPUT, not an input
+ *  of the whole mapping: only the inline value varies with when/where the
  *  voter looks. Three points:
  *    - votingUntouched — the voting screen before the contest has any
  *      selection (`isTouched`, Question.tsx state, armed by
@@ -347,8 +347,8 @@ export function inlineViews(f) {
  * Prevention prunes which states the booth can produce; it does not change
  * the mapping over states that exist anyway (hand-built or decoded records
  * still flow through the checkers — defense-in-depth), which is why `f`
- * stays total and reachability is reported alongside the effects rather
- * than folded into them.
+ * stays total: an effect category does not care whether the cell's state
+ * was formed in a booth or arrived as a decoded record.
  *
  * PREDICTION ONLY in a Node runner (see the module header).
  * @param {Config} config
@@ -371,23 +371,24 @@ export function reachability(config, vs) {
 /**
  * The complete mapping — one call per characterization cell.
  *
- * Of the six output components, three are the effect surfaces (`inline`,
- * `gate`, `tally` — VALIDATION_LOGIC_DISTILLATION.md §1, "The surfaces,
- * enumerated"); the others are their companions: `emissions` is the checker
- * record the surfaces consume (never voter-perceived; WASM-checkable),
- * `dialog` is the gate surface's voter-facing projection, and
- * `reachability` is a domain property, not an effect.
+ * Of the six output components, four are the effect categories (`inline`,
+ * `dialog`, `reachability`, `tally` — VALIDATION_LOGIC_DISTILLATION.md §1,
+ * "The effect categories"); the other two are checkable intermediates, the
+ * validation apparatus rather than the spec: `emissions` is the checker
+ * record the effects are computed from (never directly observable;
+ * WASM-checkable), and `gate` is the pair the dialog is projected from
+ * (both can fire; only the projection is observable in the booth).
  *
  * (config × voteState) determines everything; there is no observation-
  * context input. The observation point exists only inside the OUTPUT, as
  * the index of the `inline` component (`votingUntouched` / `voting` /
- * `review`) — the one surface whose content varies with when and where the
+ * `review`) — the one category whose content varies with when and where the
  * voter looks. The gate pair is consulted at a single fixed moment (the
  * Next/review transition); the tally class is observed after casting,
  * outside the booth's timeline (and never per-ballot by the voter — only
  * through result aggregates); reachability is a property of interaction
  * attempts, not an effect. An earlier revision took an
- * `observation_context` argument — wrong shape: it quantified a per-surface
+ * `observation_context` argument — wrong shape: it quantified a per-category
  * index over the whole product.
  *
  * @param {Config} config

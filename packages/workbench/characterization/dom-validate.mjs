@@ -13,7 +13,7 @@
 //     (`derived_inline.voting` / `.review`; the gates → expected dialog), and
 //   - driving the booth (panel config → cast state → observe) via
 //     `browser-harness.mjs`, then comparing. Every cell observes the TOUCHED
-//     voting surface (observeBooth's deterministic tick-untick); the
+//     voting screen (observeBooth's deterministic tick-untick); the
 //     untouched view is a recorded constant (blank-rule.filter.md).
 //
 // It drives config through the PANEL (not dispatch) on purpose: a panel
@@ -234,7 +234,7 @@ for (const rule of RULES) {
         const ok = votingOk && inlineOk && dialogOk && reachableOk && constraintDirectOk
 
         // Observation-derived silent-discount marker: discarded, reachable, and
-        // no signal on any surface (no dialog, nothing inline at the touched
+        // no signal at either casting point (no dialog, nothing inline at the touched
         // voting screen or at review).
         const silent =
             r.observed.tally === "ImplicitInvalid" &&
@@ -317,9 +317,9 @@ const md = [
     "The **complete** view — every value is an OBSERVATION, and a **superset**",
     "of the partial rule table's columns. The WASM-observed columns are exactly",
     "the partial's (*errors*, *alerts*, *hard/soft gate*, *tally*); the complete",
-    "view ADDS the browser-only surfaces the partial cannot show —",
+    "view ADDS the browser-only observations the partial cannot show —",
     "*inline (voting)* (inline visibility on the voting screen once the contest",
-    "is touched; every cell observes the touched surface via a deterministic",
+    "is touched; every cell observes the touched voting screen via a deterministic",
     "tick-untick, the untouched view being a recorded constant — empty; see",
     "blank-rule.filter.md), *inline (review)* (inline visibility at the decisive",
     "review screen, where the untouched-clear does not apply) and *reachable*",
@@ -327,9 +327,9 @@ const md = [
     "also confirmed by the (max+1)th control carrying `disabled` in the DOM;",
     "`no (cleared)` = a marker cleared a co-selected candidate, collapsing the",
     "state) — plus the observation-derived **⚠**",
-    "(discarded ∧ reachable ∧ no signal on any surface). The single",
+    "(discarded ∧ reachable ∧ no signal at either casting point). The single",
     "*matches spec?* column subsumes the partial's `pred?` and extends it to the",
-    "browser surfaces (including the observed dialog vs the gates): ✗ = spec and",
+    "browser observations (including the observed dialog vs the gates): ✗ = spec and",
     "DOM disagree. `(blocked)` inline means a blocking dialog preempts review —",
     "the dialog is the signal there. For an unreachable state both inline",
     "columns show what the state that ACTUALLY formed renders (the *reachable*",

@@ -290,12 +290,12 @@ export async function contestAndVoter(page, electionId, {flag, counting}) {
 
 /**
  * Drive one cell through the booth reload-free (panel config → form state →
- * Next) and observe every surface:
+ * Next) and observe every effect:
  *   - `formed`         — selection count (reachability: did the state form?)
  *   - `inlineAtVote`   — inline warnings on the voting screen
  *   - `dialog`         — the Next-dialog kind ("none"|"dismissible"|"blocking")
  *   - `inlineAtReview` — inline warnings on the REVIEW screen, the decisive
- *     last surface before cast (the untouched-clear does not apply there);
+ *     last screen before cast (the untouched-clear does not apply there);
  *     null when a gate blocks the path to review.
  * Does NOT cast. Returns to the inspector, ready for the next cell.
  */
@@ -304,11 +304,11 @@ export async function observeBooth(page, {electionId, contestId, voterId, spec, 
     await enterBooth(page, voterId)
     await page.getByText(spec.landmark).first().waitFor({timeout: 15000})
     await clearSelections(page)
-    // Deterministic touch: the voting screen's inline surface stays empty
+    // Deterministic touch: the voting screen's inline warnings stay empty
     // until the contest is "touched" (`isTouched`, Question.tsx state, armed
     // only by a selection appearing — the null-vote marker alone never arms
     // it, and the Clear button clears without arming). Tick and untick the
-    // landmark candidate so every cell observes the TOUCHED voting surface;
+    // landmark candidate so every cell observes the TOUCHED voting screen;
     // the untouched view is a recorded constant (empty —
     // blank-rule.filter.md, untouched column). Ranked contests skip it:
     // every preferential cell ranks at least one candidate, which arms the

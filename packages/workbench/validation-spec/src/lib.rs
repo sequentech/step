@@ -9,22 +9,23 @@
 //!
 //! ```text
 //! f(config, vote_state)
-//!     = ( emissions,      the checker record (not a surface — the record
-//!                         the surfaces consume; WASM-checkable)
-//!         inline: observation point → keys,   surface {votingUntouched, voting, review}
-//!         gate: (hard, soft),                 surface (the mechanism pair)
-//!         dialog,          the gate's voter-facing projection
-//!         reachability,    domain property, not an effect
-//!         tally: BallotClass )                surface
+//!     = ( emissions,      checkable intermediate (the checker record)
+//!         inline: observation point → keys,   effect {votingUntouched, voting, review}
+//!         gate: (hard, soft),                 checkable intermediate (dialog's inputs)
+//!         dialog,                             effect — projection of gate
+//!         reachability,                       effect
+//!         tally: BallotClass )                effect
 //! ```
 //!
-//! Three of the six components are the effect surfaces
-//! (VALIDATION_LOGIC_DISTILLATION.md §1, "The surfaces, enumerated"); the
-//! others are a surface's projection, the upstream record, and a domain
-//! property — the §1 correspondence note states each role.
+//! Four of the six components are the effect categories
+//! (VALIDATION_LOGIC_DISTILLATION.md §1, "The effect categories"); the
+//! other two are checkable intermediates — the validation apparatus, not
+//! the spec: nothing in the system exposes them directly, and they ride in
+//! the output so the conformance harness can pin the internal stages
+//! against the real WASM per cell, not only the end effects.
 //!
 //! There is no observation-context input: the observation point indexes
-//! the OUTPUT of the one surface it parameterizes (inline).
+//! the OUTPUT of the one category it parameterizes (inline).
 //!
 //! This crate is a **characterization artifact**, not production code: it
 //! transcribes the production rules bug-compatibly, with every surprising
@@ -322,10 +323,10 @@ pub fn emissions(config: &Config, vs: &VoteState) -> Emissions {
 // Gates
 // ---------------------------------------------------------------------------
 
-/// Both review-transition gates. The surface's value is the PAIR — the two
-/// production functions are independent and can both fire (recorded:
-/// invalid-rule.md, not-allowed rows). The dialog the voter meets is a
-/// projection (see [`Effects::dialog`]).
+/// Both review-transition gates — a checkable intermediate, not an effect:
+/// the two production functions are independent and can both fire
+/// (recorded: invalid-rule.md, not-allowed rows), but only their projection
+/// — the dialog (see [`Effects::dialog`]) — is observable in the booth.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Gate {
     pub hard: bool,
@@ -433,10 +434,10 @@ pub fn classify(
 }
 
 // ---------------------------------------------------------------------------
-// Inline surface (the booth message filter, per observation point)
+// Inline effect (the booth message filter, per observation point)
 // ---------------------------------------------------------------------------
 
-/// The inline surface's value: one set of rendered message keys per
+/// The inline effect's value: one set of rendered message keys per
 /// observation point. The point indexes this OUTPUT — it is not an input
 /// to the mapping.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -515,9 +516,11 @@ pub fn inline_views(p: &Policies, errors: &[String], alerts: &[String]) -> Inlin
 // Reachability
 // ---------------------------------------------------------------------------
 
-/// Can the booth UI form this state at all? Not an effect — a domain
-/// property; `f` stays total over states that exist anyway (hand-built or
-/// decoded records still run through the checkers as defense-in-depth).
+/// Whether the booth UI will form this cell's vote state at all — an
+/// effect category in its own right. Effects of unformable cells are
+/// still real: `f` stays total over states that exist anyway (hand-built
+/// or decoded records still run through the checkers as
+/// defense-in-depth).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Reachability {
     #[serde(rename = "yes")]
@@ -564,13 +567,13 @@ pub enum Dialog {
 }
 
 /// The mapping's full output (field names match spec.mjs `f`'s output, so
-/// the conformance harness compares structures directly). Three fields are
-/// the effect surfaces — `inline`, `gate`, `tally` — holding one value
-/// each; the rest are their companions: `emissions` is the checker record
-/// the surfaces consume (never voter-perceived; WASM-checkable), `dialog`
-/// is the gate surface's voter-facing projection, and `reachability` is a
-/// domain property, not an effect
-/// (VALIDATION_LOGIC_DISTILLATION.md §1, the correspondence note).
+/// the conformance harness compares structures directly). Four fields are
+/// the effect categories — `inline`, `dialog`, `reachability`, `tally` —
+/// holding one value each; the other two are checkable intermediates
+/// (the validation apparatus, not the spec): `emissions` is the checker
+/// record the effects are computed from (never directly observable;
+/// WASM-checkable), and `gate` is the pair the dialog is projected from
+/// (VALIDATION_LOGIC_DISTILLATION.md §1, "The effect categories").
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Effects {
     pub emissions: Emissions,
@@ -814,7 +817,7 @@ mod tests {
     }
 
     /// invalid-rule.md, `not-allowed × marker` — both gates fire at once:
-    /// the gate surface is a pair, not a three-valued outcome.
+    /// the gate intermediate is a pair, not a three-valued outcome.
     #[test]
     fn both_gates_fire_under_not_allowed() {
         let p = Policies {

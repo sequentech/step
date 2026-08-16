@@ -6,7 +6,7 @@
 // docs/VALIDATION_LOGIC_DISTILLATION.md §5.3 step 1).
 //
 // Loads the sequent-core wasm package in Node — no browser, no dev server —
-// and exposes the three Rust surfaces a characterization cell needs:
+// and exposes the three Rust entry points a characterization cell needs:
 //
 //   - runChecker(decodedContest, ballotEml): the encode→decode round-trip
 //     (`test_contest_reencoding_js`), i.e. exactly what the booth runs per
@@ -15,7 +15,7 @@
 //   - runGates(contests, decodedRecord): both submission gates
 //     (`check_voting_not_allowed_next` / `check_voting_error_dialog`).
 //
-// The third surface (the TypeScript filter layer) cannot run headlessly —
+// The TypeScript filter layer cannot run headlessly —
 // `filterErrorList` is component-internal — and is characterized separately
 // in the browser (blank-rule.browser.mjs).
 
@@ -97,12 +97,12 @@ export async function loadVelvetWasm() {
  *
  * Derived, not observed (convention 3): it joins the checker/filter/gate
  * observables with the tally class. True = the voter gets no booth signal
- * on any surface, yet the tally discards the ballot as ImplicitInvalid.
+ * at any casting point, yet the tally discards the ballot as ImplicitInvalid.
  */
 export function isSilentDiscount(cell) {
     const o = cell.observed
     const d = cell.derived_inline ?? {}
-    // "No signal" must hold at every point of the inline surface the voter
+    // "No signal" must hold at every observation point of the inline effect the voter
     // passes through — the touched voting screen and the review screen (the
     // untouched view is constantly empty and adds nothing).
     const inlineShown =

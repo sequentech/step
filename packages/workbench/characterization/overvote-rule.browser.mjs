@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 // Over-vote rule, layer 3 (booth): the two things the headless runner
-// cannot see — the INPUT CONSTRAINT surface (does the UI disable the
+// cannot see — the INPUT CONSTRAINT (does the UI disable the
 // second checkbox at max?) and REACHABILITY (can the over-vote state even
 // be formed through the UI?) — plus inline visibility and the dialog.
 //
@@ -119,7 +119,7 @@ for (const over of OVER_POLICIES) {
     await ada.click().catch(() => {})
     await page.waitForTimeout(500)
 
-    // Is the Bruno control disabled after reaching max? (the constraint surface)
+    // Is the Bruno control disabled after reaching max? (the constraint probe)
     const brunoDisabled = await page
         .evaluate(() => {
             const label = Array.from(document.querySelectorAll("label")).find((l) =>

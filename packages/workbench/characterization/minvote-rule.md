@@ -19,7 +19,7 @@ min_votes — the marker-inclusive count).
 the checker emissions (*errors* / *alerts*), the review-transition gates,
 and the recorded *tally* — and `pred?` asks whether the shared spec
 (`spec.mjs`) matches all of them. Inline visibility and the input
-constraint are browser-only surfaces (`filterErrorList`; the input
+constraint are browser-only observations (`filterErrorList`; the input
 disable), not observable headlessly, so they — and the silent-discount
 marker (⚠) that depends on them — live in the DOM-validated *complete*
 table (`dom-validate.mjs`), not here. (Min-vote is silent-discount-prone:

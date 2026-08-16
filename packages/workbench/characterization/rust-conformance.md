@@ -28,4 +28,4 @@ combinations). A disagreement on either lane fails the run.
 | 1 — recorded ground truth (7 rule grids + classifier table) | 280 | all equal |
 | 2 — random sweep vs spec.mjs (seed 20260815) | 20000 | all equal |
 
-**20280 cells, Rust ≡ recorded ≡ spec.mjs on every compared surface.**
+**20280 cells, Rust ≡ recorded ≡ spec.mjs on every compared component.**

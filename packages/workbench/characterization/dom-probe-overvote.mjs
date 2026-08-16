@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 // Reload-free DOM probe — timing spike + first DOM validator for the two
-// spec-modeled surfaces (inline visibility via `filterErrorList`; the input
+// spec-modeled browser-only behaviours (inline visibility via `filterErrorList`; the input
 // constraint / reachability). Built on the shared `browser-harness.mjs`.
 //
 // The point (from the e2e-cost assessment): the older `*.browser.mjs` runners
