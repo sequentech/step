@@ -265,9 +265,15 @@ rule's fingerprints inside the shared machinery — every clause of the
 gates, the filter, and reachability keyed to this rule's policy or
 message (mostly by *re-deriving* the rule's condition independently, the
 drift-prone pattern S4 exemplifies; the generic any-error conditions are
-excluded — they belong to the shared machinery, below). An empty cell
-there is itself information: nothing rescues that rule's signal once the
-generic mute applies. Throughout, `n` is the marker-inclusive selection
+excluded — they belong to the shared machinery, below). Do not confuse
+this column with what the runners *observe*: every rule's cells are
+recorded on every effect category — the uniform columns of all seven
+tables — and a rule with no gate clause of its own still shows gate
+entries in its table, produced by the generic machinery (min-vote's
+gates vary only with `invalid_vote_policy`, never with its own knob).
+This column names which effects the rule produces through clauses of its
+own; an empty cell is itself information: nothing rescues that rule's
+signal once the generic mute applies. Throughout, `n` is the marker-inclusive selection
 count (`selections_with_markers` = regulars + blank marker + invalid
 flag).
 
