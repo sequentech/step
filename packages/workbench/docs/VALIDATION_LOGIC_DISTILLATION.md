@@ -256,16 +256,24 @@ The naive worst-case product is large and not the useful number — the
 config side alone is 4·5·4·4·2·2·2·2·2·2 = 20,480 combinations before the
 vote-state and context factors.
 
-The useful observation is that the mapping **decomposes**: each rule reads
-at most three dimensions (its own policy, one or two vote-state fields, and
-the observation point), so the table factors into per-rule slices of a few
-dozen cells each, plus the classifier's six-class decision table over
-(decline, invalid, blank-marker, emptiness). Exhaustive enumeration is
-tractable *per rule*; the full cross-product never needs to be materialised.
+The useful observation is that the mapping **decomposes** into the seven
+per-condition validation **rules** — invalid, over-vote, min-vote,
+under-vote, blank, preference-gaps, duplicated-rank; concretely, one rule
+is one checker function in sequent-core's `ballot_codec/checker.rs`
+(`check_over_vote_policy`, …) plus everything downstream keyed to its
+message and policy, and the characterization runs one runner and one grid
+per rule. Each rule reads at most three dimensions (its own policy knob —
+min-vote's is the `min_votes` bound, having no policy — one or two
+vote-state fields, and, for its inline visibility, the observation
+point), so the table factors into per-rule slices of a few dozen cells
+each, plus the classifier's six-class decision table over (decline,
+invalid, blank-marker, emptiness). Exhaustive enumeration is tractable
+*per rule*; the full cross-product never needs to be materialised.
 Cross-rule interactions that do exist (the blank checker's dependence on
 `is_explicit_invalid`, the master filter's dependence on three policies at
-once, the mix rule) are exactly the cells worth enumerating jointly — and
-there are few of them.
+once — which is why every rule's grid crosses its own knob with
+`invalid_vote_policy` — and the mix rule) are exactly the cells worth
+enumerating jointly, and there are few of them.
 
 Two pruning cautions:
 
