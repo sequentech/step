@@ -8,13 +8,20 @@
 //! type system can now enforce (§1/§3 of that document):
 //!
 //! ```text
-//! f(config, vote_state) → one value per surface
-//!     = ( emissions,                          the checker record
-//!         inline: observation point → keys,   {votingUntouched, voting, review}
-//!         gate: (hard, soft),                 dialog = a projection
-//!         tally: BallotClass,
-//!         reachability )
+//! f(config, vote_state)
+//!     = ( emissions,      the checker record (not a surface — the record
+//!                         the surfaces consume; WASM-checkable)
+//!         inline: observation point → keys,   surface {votingUntouched, voting, review}
+//!         gate: (hard, soft),                 surface (the mechanism pair)
+//!         dialog,          the gate's voter-facing projection
+//!         reachability,    domain property, not an effect
+//!         tally: BallotClass )                surface
 //! ```
+//!
+//! Three of the six components are the effect surfaces
+//! (VALIDATION_LOGIC_DISTILLATION.md §1, "The surfaces, enumerated"); the
+//! others are a surface's projection, the upstream record, and a domain
+//! property — the §1 correspondence note states each role.
 //!
 //! There is no observation-context input: the observation point indexes
 //! the OUTPUT of the one surface it parameterizes (inline).
@@ -556,8 +563,14 @@ pub enum Dialog {
     Blocking,
 }
 
-/// One value per surface (field names match spec.mjs `f`'s output, so the
-/// conformance harness compares structures directly).
+/// The mapping's full output (field names match spec.mjs `f`'s output, so
+/// the conformance harness compares structures directly). Three fields are
+/// the effect surfaces — `inline`, `gate`, `tally` — holding one value
+/// each; the rest are their companions: `emissions` is the checker record
+/// the surfaces consume (never voter-perceived; WASM-checkable), `dialog`
+/// is the gate surface's voter-facing projection, and `reachability` is a
+/// domain property, not an effect
+/// (VALIDATION_LOGIC_DISTILLATION.md §1, the correspondence note).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Effects {
     pub emissions: Emissions,

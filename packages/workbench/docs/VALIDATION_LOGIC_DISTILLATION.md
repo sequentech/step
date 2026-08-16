@@ -127,6 +127,34 @@ condition — nothing on either casting surface, a reachable state, and
 tally = `ImplicitInvalid` — is exactly what the silent-discount
 property (§4.5) tests.
 
+**Correspondence with the executable spec's output.** `f` returns six
+components (the `Effects` struct in
+[`../validation-spec/`](../validation-spec/), same fields in
+`spec.mjs`), and the table above accounts for four of them — `inline`,
+`gate`, `tally` (the three surface values) and `reachability` (the
+domain property). The other two are companions of a surface, not
+surfaces:
+
+- `emissions` — the **checker record** (`invalid_errors` /
+  `invalid_alerts` as checker.rs produces them): the shared upstream
+  record all three surfaces consume — `inlineViews` renders a filtered
+  view of it, both gates read its errors, the classifier reads whether
+  any error exists. The voter never perceives it directly; it is in the
+  output only because it is independently checkable against the real
+  WASM (the `errors`/`alerts` columns of every rule table).
+- `dialog` — not a fourth surface but the **gate surface's voter-facing
+  projection** (`hard → blocking, else soft → dismissible, else none`;
+  the "what the voter meets" cell of the gate row above). It is carried
+  alongside the pair because it is what the browser lane can compare
+  against the real DOM — the pair itself is observable only headlessly
+  (the two WASM functions), and it is strictly finer than the
+  projection: both-gates-fire and hard-only project to the same
+  blocking dialog.
+
+So: six fields = three surface values + the gate's projection + the
+checker record + the reachability domain property. Every field has
+exactly one of these four roles; no surface lacks a field.
+
 **Key principle:** Effects are *atomic observables*. Timing and location
 are not part of the effect taxonomy — they index the inline surface's
 output. For example, `WARN_ONLY_IN_REVIEW` is not a distinct effect — it
@@ -280,16 +308,20 @@ returning one value per surface — the executable form is
 [`../characterization/spec.mjs`](../characterization/spec.mjs), `f`:
 
 ```
-f(config, vote_state) → ( emissions,                          the checker record
-                          inline: observation_point → Set<Message>,
-                          gate: (hard, soft),
-                          tally: BallotClass,
-                          reachability )
+f(config, vote_state) → ( emissions,      // the checker record (not a surface —
+                                          //   the record the surfaces consume)
+                          inline: observation_point → Set<Message>,  // surface
+                          gate: (hard, soft),                        // surface
+                          dialog,          // the gate's voter-facing projection
+                          reachability,    // domain property, not an effect
+                          tally: BallotClass )                       // surface
 ```
 
-The observation point appears inside the inline component of the
-output, not as an input to the mapping (§1, "The surfaces,
-enumerated"). Today this function is *implicitly* encoded across
+Six components in the struct's field order — three surface values plus
+the gate's projection, the checker record, and the reachability domain
+property (§1, "The surfaces, enumerated", states each role). The
+observation point appears inside the inline component of the output,
+not as an input to the mapping. Today this function is *implicitly* encoded across
 multiple production code paths:
 
 - `checker.rs` (9 checker functions producing errors/alerts — 8 decode-time

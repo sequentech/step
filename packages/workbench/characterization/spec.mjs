@@ -371,6 +371,13 @@ export function reachability(config, vs) {
 /**
  * The complete mapping — one call per characterization cell.
  *
+ * Of the six output components, three are the effect surfaces (`inline`,
+ * `gate`, `tally` — VALIDATION_LOGIC_DISTILLATION.md §1, "The surfaces,
+ * enumerated"); the others are their companions: `emissions` is the checker
+ * record the surfaces consume (never voter-perceived; WASM-checkable),
+ * `dialog` is the gate surface's voter-facing projection, and
+ * `reachability` is a domain property, not an effect.
+ *
  * (config × voteState) determines everything; there is no observation-
  * context input. The observation point exists only inside the OUTPUT, as
  * the index of the `inline` component (`votingUntouched` / `voting` /
