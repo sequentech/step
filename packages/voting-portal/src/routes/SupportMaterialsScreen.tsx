@@ -2,12 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {Box, Button, Typography} from "@mui/material"
+import {Button} from "@mui/material"
 import React, {useContext, useEffect, useState} from "react"
 import {useTranslation} from "react-i18next"
-import {PageLimit, theme} from "@sequentech/ui-essentials"
+import {SupportMaterialsLayout} from "@sequentech/ui-essentials"
 import {stringToHtml, translate, translateFromPresentation} from "@sequentech/ui-core"
-import {styled} from "@mui/material/styles"
 import {TenantEventType} from ".."
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {useLocation, useNavigate, useParams} from "react-router-dom"
@@ -24,25 +23,6 @@ import {SettingsContext} from "../providers/SettingsContextProvider"
 import {useQuery} from "@apollo/client/react"
 import {GET_DOCUMENT} from "../queries/GetDocument"
 import {setDocument} from "../store/documents/documentsSlice"
-
-const StyledTitle = styled(Typography)`
-    margin-top: 25.5px;
-    display: flex;
-    flex-direction: row;
-    gap: 16px;
-    font-size: 24px;
-    font-weight: 500;
-    line-height: 27px;
-    margin-top: 20px;
-    margin-bottom: 16px;
-`
-
-const ElectionContainer = styled(Box)`
-    display: flex;
-    flex-direction: column;
-    gap: 30px;
-    margin-bottom: 30px;
-`
 
 interface ElectionWrapperProps {
     material: Sequent_Backend_Support_Material
@@ -115,58 +95,48 @@ const SupportMaterialsScreen: React.FC = () => {
     }
 
     return (
-        <PageLimit maxWidth="lg">
-            <Box marginTop="48px">
-                <Stepper selected={0} />
-            </Box>
-            <Box
-                sx={{
-                    display: "flex",
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    minHeight: "100px",
-                }}
-            >
-                <Box>
-                    <StyledTitle variant="h1">
-                        <Box>
-                            {materialsTitles &&
-                                (translateFromPresentation(
-                                    materialsTitles,
-                                    "materialsTitle",
-                                    i18n.language,
-                                    {defaultLanguageCode}
-                                ) ??
-                                    "-")}
-                        </Box>
-                    </StyledTitle>
-                    <Typography variant="body1" sx={{color: theme.palette.customGrey.contrastText}}>
-                        {stringToHtml(
-                            materialsTitles
-                                ? (translateFromPresentation(
-                                      materialsTitles,
-                                      "materialsSubtitle",
-                                      i18n.language,
-                                      {defaultLanguageCode}
-                                  ) ?? "-")
-                                : ""
-                        )}
-                    </Typography>
-                </Box>
-                <Button startIcon={<ChevronLeftIcon />} onClick={handleNavigateMaterials}>
+        // The arrangement is `SupportMaterialsLayout`, in `ui-essentials`, so the
+        // Election Architect's preview shows this tab rather than a drawing of
+        // it. The Back control stays here because only this screen knows where
+        // back is.
+        <SupportMaterialsLayout
+            steps={<Stepper selected={0} />}
+            title={
+                materialsTitles
+                    ? (translateFromPresentation(
+                          materialsTitles,
+                          "materialsTitle",
+                          i18n.language,
+                          {defaultLanguageCode}
+                      ) ?? "-")
+                    : ""
+            }
+            subtitle={stringToHtml(
+                materialsTitles
+                    ? (translateFromPresentation(
+                          materialsTitles,
+                          "materialsSubtitle",
+                          i18n.language,
+                          {defaultLanguageCode}
+                      ) ?? "-")
+                    : ""
+            )}
+            back={
+                <Button
+                    startIcon={<ChevronLeftIcon />}
+                    onClick={handleNavigateMaterials}
+                >
                     {t("materials.common.back")}
                 </Button>
-            </Box>
-            <ElectionContainer>
-                {materialsList?.map((material: ISupportMaterial) => (
-                    <ElectionWrapper
-                        material={material as Sequent_Backend_Support_Material}
-                        key={material.id}
-                    />
-                ))}
-            </ElectionContainer>
-        </PageLimit>
+            }
+        >
+            {materialsList?.map((material: ISupportMaterial) => (
+                <ElectionWrapper
+                    material={material as Sequent_Backend_Support_Material}
+                    key={material.id}
+                />
+            ))}
+        </SupportMaterialsLayout>
     )
 }
 
