@@ -17,11 +17,15 @@ focuses on the *specification* layer rather than the *implementation* layer.
 
 ## 1. Observable Effects Taxonomy
 
-The system responds to a voter's selections through a small set of
-**surfaces** — concrete places where a response can be perceived: the
-inline warning box under a contest, the dialog that may open on clicking
-Next, the enabled/disabled state of the selection inputs themselves,
-and (after casting) the tally's classification of the ballot. What
+The system responds to a voter's selections through exactly three
+**surfaces** — concrete places where a response to a formed selection
+state can be perceived: the inline warning box under a contest, the
+dialog that may open on clicking Next, and (after casting) the tally's
+classification of the ballot. A fourth perceivable behaviour — inputs
+that refuse to form a state in the first place (a greyed checkbox, a
+marker that clears a co-selection) — is deliberately *not* a surface;
+it is modelled as **reachability**, a property of the input domain
+("The surfaces, enumerated" below defines the distinction). What
 appears on each surface depends not only on the configuration and the
 selections but also on the **observation context** — *when and where we
 look*: the voting screen versus the review screen, and whether the
@@ -37,7 +41,8 @@ gate pair is consulted at a single fixed moment (the Next/review
 transition), the tally class is observed after casting, outside the
 booth's timeline — and by a different observer: the voter never sees
 their own ballot's class, which reaches the world only through result
-aggregates — and reachability is a property of interaction attempts.
+aggregates — and reachability, being a domain property, is perceived
+only through attempts, never as a display of the cell it prevents.
 The surfaces, their values and where each is observed are enumerated
 in "The surfaces, enumerated" below; the per-surface refinement at the
 end of this section types the casting product.
@@ -106,20 +111,33 @@ explicit blanks #2842, decline-to-vote #2687.)
 ### The surfaces, enumerated
 
 Three **effect surfaces** carry the effects above — each holds exactly
-one value per input tuple — and a fourth place the voter can perceive,
-**reachability**, is deliberately not an effect (it is a domain
-property: it decides which vote-states the booth UI can *form*, not
-what happens to a state that exists — see the refinement below). Each
-maps to one function of the executable spec
+one value per input tuple. The table also lists **reachability**, which
+is *not* a surface but a **domain property** — a statement about the
+mapping's *input domain* rather than a component of its output: it says
+whether a (configuration × vote-state) cell can be brought into
+existence through the booth UI at all, not what the system displays in
+that cell. It shares a surface's type-shape (total, one value per
+cell), which is why the spec reports it per cell alongside the
+effects — but it answers "can this state form?", not "what happens in
+this state?", and the two arguments that lean on it need exactly the
+domain framing: the §2 pruning caution (`f` stays total over
+unreachable cells — hand-built or decoded records still run the
+checkers) and the §4.5 silent-discount property (which quantifies over
+*reachable* cells). Note prevention has no perceivable place of its
+own: its visible faces arrive through the ordinary surfaces of
+*neighbouring* cells — the "maximum reached" hint is the at-max cell's
+inline value; the marker-clear is perceived as landing in the collapsed
+cell — or as the failed attempt itself. Each row maps to one function
+of the executable spec
 ([`../characterization/spec.mjs`](../characterization/spec.mjs)) and to
 named columns of the recorded tables:
 
-| surface | what the voter meets | value | spec.mjs | recorded in |
+| component | what the voter meets | value | spec.mjs | recorded in |
 |---|---|---|---|---|
 | **inline** | warning boxes under the contest (each carries a `data-warn-id`) | one set of message keys **per observation point** — `votingUntouched` (constantly empty: the untouched-clear), `voting`, `review`; 1a when non-empty | `inlineViews` | *inline (voting)* / *inline (review)* columns, `dom-validate.md`; the untouched constant in `blank-rule.filter.md` |
 | **gate** | the dialog that may open on clicking Next / entering review | two booleans (hard, soft); the voter meets their projection: none / dismissible (1b) / blocking (1c) | `hardGate` / `softGate` | *hard gate* / *soft gate* columns of every rule table; the observed dialog per cell in `dom-validate.recorded.json` |
 | **tally** | nothing directly — the cast ballot's class in the results | exactly one of the six classes (2a–2f) | `classify` | *tally* column of every rule table; `classifier-table.md` |
-| *(reachability)* | inputs that will not click (the DISABLE over-vote policy), a marker that clears co-selections | yes / inputs_disabled / marker_cleared — 1d names its perceivable face | `reachability` | *reachable* column, `dom-validate.md` |
+| *(reachability — domain property, not a surface)* | nothing in the prevented cell itself — its faces are perceived in neighbouring cells (the at-max `overVoteDisabled` hint, a greyed control) or as the failed attempt (the marker-clear collapse) | yes / inputs_disabled / marker_cleared — 1d names the disable mechanism's perceivable face | `reachability` | *reachable* column, `dom-validate.md` |
 
 "Silent" (1e) is likewise not a surface value of its own: it is the
 empty value on **inline** and **gate** simultaneously. That derived
