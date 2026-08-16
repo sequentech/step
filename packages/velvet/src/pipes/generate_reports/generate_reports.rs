@@ -222,6 +222,10 @@ impl GenerateReports {
                                 .then_with(|| a.candidate.name.cmp(&b.candidate.name))
                         });
                     }
+                    sort_process_result_candidate_references(
+                        contest_result.process_results.as_mut(),
+                        &candidate_result,
+                    );
                     contest_result_opt = Some(contest_result);
                 }
                 let participation_by_channel = contest_result_opt
@@ -1545,6 +1549,32 @@ fn sort_report_sections(
     });
 }
 
+fn sort_process_result_candidate_references(
+    process_results: Option<&mut serde_json::Value>,
+    candidates: &[CandidateResultForReport],
+) {
+    let Some(name_references) = process_results
+        .and_then(serde_json::Value::as_object_mut)
+        .and_then(|results| results.get_mut("name_references"))
+        .and_then(serde_json::Value::as_array_mut)
+    else {
+        return;
+    };
+    let candidate_order = candidates
+        .iter()
+        .enumerate()
+        .map(|(index, result)| (result.candidate.id.as_str(), index))
+        .collect::<HashMap<_, _>>();
+
+    name_references.sort_by_key(|reference| {
+        reference
+            .get("id")
+            .and_then(serde_json::Value::as_str)
+            .and_then(|id| candidate_order.get(id).copied())
+            .unwrap_or(usize::MAX)
+    });
+}
+
 #[instrument(skip_all)]
 fn sort_candidates(candidates: &mut Vec<CandidateResult>, order_field: CandidatesOrder) {
     match order_field {
@@ -1756,6 +1786,111 @@ mod participation_by_channel_tests {
             report_candidates_order_policy(&contest),
             Some(CandidatesOrderPolicy::SortByWinningPosition)
         ));
+    }
+
+    #[test]
+    fn preferential_report_references_follow_candidate_order_and_retain_unknowns() {
+        let candidate_result = ["candidate-z", "candidate-a"]
+            .into_iter()
+            .map(|id| CandidateResultForReport {
+                candidate: Candidate {
+                    id: id.to_string(),
+                    ..Default::default()
+                },
+                total_count: 0,
+                percentage_votes: 0.0,
+                winning_position: None,
+            })
+            .collect::<Vec<_>>();
+        let mut process_results = serde_json::json!({
+            "name_references": [
+                { "id": "candidate-a", "name": "A" },
+                { "id": "process-only-1", "name": "One" },
+                { "id": "candidate-z", "name": "Z" },
+                { "id": "process-only-2", "name": "Two" }
+            ],
+            "rounds": []
+        });
+
+        sort_process_result_candidate_references(Some(&mut process_results), &candidate_result);
+
+        assert_eq!(
+            process_results["name_references"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter_map(|reference| reference["id"].as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "candidate-z",
+                "candidate-a",
+                "process-only-1",
+                "process-only-2"
+            ]
+        );
+    }
+
+    #[test]
+    fn built_in_preferential_report_uses_ordered_name_references() {
+        let variables = serde_json::json!({
+            "reports": [{
+                "contest": {
+                    "counting_algorithm": "instant-runoff"
+                },
+                "contest_result": {
+                    "process_results": {
+                        "round_count": 1,
+                        "max_rounds": 2,
+                        "name_references": [
+                            { "id": "candidate-z", "name": "Z ordered candidate" },
+                            { "id": "candidate-a", "name": "A ordered candidate" },
+                            { "id": "candidate-missing", "name": "Missing ordered candidate" }
+                        ],
+                        "rounds": [{
+                            "active_candidates_count": 2,
+                            "active_ballots_count": 2,
+                            "exhausted_ballots_count": 0,
+                            "candidates_wins": {
+                                "candidate-a": {
+                                    "wins": 1,
+                                    "transference": 0,
+                                    "percentage": 50.0
+                                },
+                                "candidate-z": {
+                                    "wins": 7,
+                                    "transference": 3,
+                                    "percentage": 87.5
+                                }
+                            }
+                        }]
+                    }
+                },
+                "candidate_result": []
+            }]
+        });
+        let serde_json::Value::Object(variables) = variables else {
+            panic!("report variables must be an object");
+        };
+
+        let rendered = reports::render_template_text(
+            include_str!("../../resources/report_content.hbs"),
+            variables,
+        )
+        .unwrap();
+
+        let candidate_z = rendered.find("Z ordered candidate").unwrap();
+        let candidate_a = rendered.find("A ordered candidate").unwrap();
+        let candidate_missing = rendered.find("Missing ordered candidate").unwrap();
+        assert!(candidate_z < candidate_a && candidate_a < candidate_missing);
+
+        let candidate_z_row = rendered[candidate_z..].split("</tr>").next().unwrap();
+        assert!(candidate_z_row.contains("<td>7</td>"));
+        assert!(candidate_z_row.contains("<td>3</td>"));
+        assert!(candidate_z_row.contains("<td>87.50%</td>"));
+        assert!(!candidate_z_row.contains("<td>n/a</td>"));
+
+        let missing_row = rendered[candidate_missing..].split("</tr>").next().unwrap();
+        assert_eq!(missing_row.matches("<td>n/a</td>").count(), 3);
     }
 
     #[test]

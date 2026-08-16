@@ -3,41 +3,63 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
-import {EditBase, Identifier, RaRecord, useRecordContext, useUpdate} from "react-admin"
+import {
+    EditBase,
+    Identifier,
+    RaRecord,
+    useNotify,
+    useRecordContext,
+    useUpdate,
+} from "react-admin"
 import {ElectionDataForm} from "./ElectionDataForm"
 import {Sequent_Backend_Election_Extended} from "./ElectionDataForm"
 import {ITemplateMethod, IRECEIPTS} from "@/types/templates"
-import {Sequent_Backend_Contest, Sequent_Backend_Election} from "@/gql/graphql"
+import {Sequent_Backend_Election} from "@/gql/graphql"
 import {ContestsOrder, IContestPresentation, IElectionPresentation} from "@sequentech/ui-core"
 import {serializeIvrEntityAnnotations} from "@/utils/ivr"
 
 export const EditElectionData: React.FC = () => {
     const [update] = useUpdate()
+    const notify = useNotify()
     const record = useRecordContext<Sequent_Backend_Election>()
 
-    function updateContestsOrder(data: Sequent_Backend_Election_Extended) {
-        data.contestsOrder?.map((contest: Sequent_Backend_Contest, index: number) => {
-            let electionPresentation = data.presentation as IElectionPresentation | undefined
-            if (electionPresentation?.contests_order === ContestsOrder.CUSTOM) {
-                let contestPresentation = (contest.presentation ?? {}) as IContestPresentation
-                return update("sequent_backend_contest", {
-                    id: contest.id,
-                    data: {
-                        presentation: {
-                            ...contestPresentation,
-                            sort_order: index,
+    async function updateContestsOrder(data: Sequent_Backend_Election_Extended) {
+        const electionPresentation = data.presentation as IElectionPresentation | undefined
+        if (electionPresentation?.contests_order === ContestsOrder.CUSTOM) {
+            const contests = data.contestsOrder ?? []
+            for (let index = 0; index < contests.length; index++) {
+                const contest = contests[index]
+                const contestPresentation = (contest.presentation ?? {}) as IContestPresentation
+                if (contestPresentation.sort_order !== index) {
+                    await update(
+                        "sequent_backend_contest",
+                        {
+                            id: contest.id,
+                            data: {
+                                presentation: {
+                                    ...contestPresentation,
+                                    sort_order: index,
+                                },
+                            },
+                            previousData: contest,
                         },
-                    },
-                    previousData: contest,
-                })
+                        {returnPromise: true}
+                    )
+                }
             }
-            return null
-        })
+        }
     }
 
-    const transform = (data: Sequent_Backend_Election_Extended): RaRecord<Identifier> => {
+    const transform = async (
+        data: Sequent_Backend_Election_Extended
+    ): Promise<RaRecord<Identifier>> => {
         // update contests
-        updateContestsOrder(data)
+        try {
+            await updateContestsOrder(data)
+        } catch (error) {
+            notify(error instanceof Error ? error.message : String(error), {type: "error"})
+            throw error
+        }
 
         delete data.contestsOrder
 

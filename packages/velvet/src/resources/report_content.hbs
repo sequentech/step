@@ -244,12 +244,18 @@ SPDX-License-Identifier: AGPL-3.0-only
                     <th>Transference</th>
                     <th>Percentage</th>
                   </tr>
-                  {{#each round.candidates_wins}}
+                  {{#each report.contest_result.process_results.name_references as |candidate|}}
                     <tr>
-                      <td>{{ this.name }}</td>
-                      <td>{{ format_u64 this.wins }}</td>
-                      <td>{{ this.transference }}</td>
-                      <td>{{ format_percentage this.percentage }}%</td>
+                      <td>{{ candidate.name }}</td>
+                      {{#with (lookup round.candidates_wins candidate.id) as |candidate_result|}}
+                        <td>{{ format_u64 candidate_result.wins }}</td>
+                        <td>{{ candidate_result.transference }}</td>
+                        <td>{{ format_percentage candidate_result.percentage }}%</td>
+                      {{else}}
+                        <td>n/a</td>
+                        <td>n/a</td>
+                        <td>n/a</td>
+                      {{/with}}
                     </tr>
                   {{/each}}
                 </table>
