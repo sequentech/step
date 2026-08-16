@@ -323,6 +323,16 @@ fn names_a_control(text: &str) -> bool {
         "messages.invitation-to-vote"
             | "messages.get-out-the-vote"
             | "elections.exchange"
+            // Two ballot options that are *candidates* in the plan. A contest
+            // offers "none of these" by carrying a candidate flagged
+            // `explicit_blank`, and "I reject this ballot" by one flagged
+            // `explicit_invalid` — so the honest field path would be
+            // `elections[].contests[].candidates[].explicit_blank`, and a profile
+            // fixing that would be saying something about every candidate rather
+            // than about whether the option is offered. The switch on the screen
+            // is one decision per contest; these name that decision.
+            | "elections.contests.blank_vote"
+            | "elections.contests.decline_to_vote"
     )
 }
 

@@ -842,6 +842,11 @@ fn a_card_of_controls_can_be_switched_off() {
         "messages.invitation-to-vote",
         "messages.get-out-the-vote",
         "elections.exchange",
+        // Two ballot options a contest offers by *carrying a candidate*: the
+        // plan says `explicit_blank` on one of them, and the switch on the
+        // screen is one decision per contest rather than one per candidate.
+        "elections.contests.blank_vote",
+        "elections.contests.decline_to_vote",
     ] {
         let document = ClientProfile {
             id: "acme".to_string(),
@@ -860,13 +865,23 @@ fn a_card_of_controls_can_be_switched_off() {
 /// And a typo is still a typo, which is the whole reason the refusal exists.
 #[test]
 fn a_path_naming_nothing_is_still_refused() {
-    let document = ClientProfile {
-        id: "acme".to_string(),
-        hidden: vec!["messages.invitation-to-vot".to_string()],
-        ..Default::default()
-    };
-    assert!(
-        Profile::read(&document).is_err(),
-        "one letter short of a control path is a typo, not a card"
-    );
+    for typo in [
+        "messages.invitation-to-vot",
+        // The two ballot options are the likeliest to be mistyped, because the
+        // screen calls them *Blank Vote* and *Decline to Vote* and the plan
+        // calls the flags `explicit_blank` and `explicit_invalid`. Neither
+        // spelling is the path, and guessing either must fail loudly.
+        "elections.contests.explicit_blank",
+        "elections.contests.decline",
+    ] {
+        let document = ClientProfile {
+            id: "acme".to_string(),
+            hidden: vec![typo.to_string()],
+            ..Default::default()
+        };
+        assert!(
+            Profile::read(&document).is_err(),
+            "'{typo}' names no control and no field, so it is a typo"
+        );
+    }
 }
