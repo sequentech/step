@@ -62,13 +62,33 @@ pub const DEFAULT_VERSION: &str = "v10.0.0";
 /// These are not dotted paths into the entity and must not be merged into it —
 /// `election.external_id` is how a contest names its election, not a field called
 /// `external_id` on an object called `election`.
+/// Where the telephone channel's configuration sits on the event sheet.
+///
+/// Annotation keys rather than schema paths, and `.` is the only separator
+/// `split_path` knows — so the colon travels through untouched and these land as
+/// `annotations["ivr:config"]`, which is the key the Admin Portal reads.
+pub const IVR_CONFIG_COLUMN: &str = "annotations.ivr:config";
+pub const IVR_PROMPTS_COLUMN: &str = "annotations.ivr:prompts";
+pub const IVR_PHONE_COLUMN: &str = "annotations.ivr:phone-number";
+
 pub fn control_columns(sheet_key: &str) -> &'static [&'static str] {
     match sheet_key {
         // `presentation.logo_file` names a file for the builder to find; it is not a
         // field of `ElectionEventPresentation` and would be carried into the JSON as
         // one by the deep merge below. `build_election_event` reads it off the row
         // and writes `presentation.logo_url` instead.
-        SHEET_ELECTION_EVENT => &["presentation.logo_file"],
+        // The three IVR annotations are read off the row and written as JSON
+        // *strings*, which the generic path cannot do: `coerce_scalar` parses
+        // bracketed text into an object, and the platform's annotations are
+        // `string: string` — `IvrConfig.tsx` calls `JSON.parse` on what it
+        // finds and `parseIvrEntityAnnotations` logs an error for anything
+        // else. See `build_election_event`.
+        SHEET_ELECTION_EVENT => &[
+            "presentation.logo_file",
+            IVR_CONFIG_COLUMN,
+            IVR_PROMPTS_COLUMN,
+            IVR_PHONE_COLUMN,
+        ],
         SHEET_CONTESTS => &["election.external_id"],
         SHEET_CANDIDATES => &["contest.external_id"],
         SHEET_AREAS => &["parent.external_id"],
@@ -1013,6 +1033,53 @@ impl<'a> Builder<'a> {
             {
                 self.report.push(problem);
             }
+        }
+
+        // The telephone channel's configuration, as the platform keeps it.
+        //
+        // Read off the row rather than merged in with everything else, because
+        // each of these is a JSON *string* and the generic path would parse the
+        // bracketed text into an object. An object reaches the Admin Portal as
+        // the wrong type and is silently ignored — `IvrConfig.tsx` checks
+        // `typeof === "string"` and falls back to `{}` — so the tab would come
+        // up empty with nothing anywhere saying why.
+        let ivr: Vec<(&str, String)> =
+            [IVR_CONFIG_COLUMN, IVR_PROMPTS_COLUMN, IVR_PHONE_COLUMN]
+                .iter()
+                .filter_map(|column| {
+                    // Whatever the cell coerced to, back to a compact JSON string.
+                    //
+                    // `Row` holds values that have already been through
+                    // `coerce_scalar`, and bracketed text is parsed there — so the flow
+                    // arrives as an object and `text()` returns nothing for it. Being a
+                    // control column keeps it out of the *merge*; it does not un-parse
+                    // it. Re-serialising also means a hand-written workbook may put
+                    // either a JSON object or a quoted string in the cell and both
+                    // reach the platform as the string it wants.
+                    let value = self.event_row.get(column)?;
+                    let text = match value {
+                        Value::Null => return None,
+                        Value::String(text) => text.trim().to_string(),
+                        other => serde_json::to_string(other).ok()?,
+                    };
+                    if text.is_empty() {
+                        return None;
+                    }
+                    // The key is what follows `annotations.`, colon and all.
+                    let key = column.strip_prefix("annotations.")?;
+                    Some((key, text))
+                })
+                .collect();
+
+        if !ivr.is_empty() {
+            let mut annotations = match event.get("annotations") {
+                Some(Value::Object(existing)) => existing.clone(),
+                _ => Map::new(),
+            };
+            for (key, text) in ivr {
+                annotations.insert(key.to_string(), Value::String(text));
+            }
+            event.insert("annotations".to_string(), Value::Object(annotations));
         }
 
         let carried = self.uninterpreted_parameters();

@@ -539,6 +539,7 @@ fn every_blueprint_field_is_accounted_for() {
         "elections_order",
         "show_cast_vote_logs",
         "voting_channels",
+        "ivr",
         "logo_url",
         "skip_election_list",
         "show_user_profile",
@@ -676,4 +677,88 @@ fn an_area_name_matching_nothing_survives_to_be_reported() {
         with_voters(&[&["username", "area_name"], &["ada", "North Local 4"]]);
 
     assert_eq!(plan.voters[0].area_external_id, "North Local 4");
+}
+
+#[test]
+fn the_telephone_configuration_survives_the_workbook() {
+    // The workbook is the janitor's own format and the shape a delivery is
+    // handed over in, so "it reaches the event" is only half the claim. This is
+    // the other half: plan → xlsx → plan, with nothing lost on the way.
+    let mut plan = sound();
+    plan.voting_channels.telephone = true;
+    plan.ivr = Some(PlannedIvr {
+        phone_number: "+18005550100".to_string(),
+        flow: vec![
+            IvrPhase {
+                phase: "language_select".to_string(),
+                ..Default::default()
+            },
+            IvrPhase {
+                phase: "announcement".to_string(),
+                name: "welcome".to_string(),
+                prompt_key: "greeting".to_string(),
+                accept_key: "1".to_string(),
+                ..Default::default()
+            },
+            IvrPhase {
+                phase: "ballot_loop".to_string(),
+                receipt_format: "phonetic_hex_4".to_string(),
+                ..Default::default()
+            },
+        ],
+        prompts: [(
+            "en".to_string(),
+            [("greeting".to_string(), "Welcome".to_string())]
+                .into_iter()
+                .collect(),
+        )]
+        .into_iter()
+        .collect(),
+    });
+
+    assert_eq!(read(&plan).ivr, plan.ivr);
+}
+
+#[test]
+fn a_workbook_may_write_the_ivr_flow_as_a_real_json_object() {
+    // What somebody editing the spreadsheet by hand would do first. `Row` runs
+    // every cell through `coerce_scalar`, so bracketed text arrives as an object
+    // rather than a string — the reader takes either, because refusing the
+    // natural spelling would be a rule nobody could guess.
+    let mut plan = sound();
+    plan.ivr = Some(PlannedIvr {
+        flow: vec![IvrPhase {
+            phase: "goodbye".to_string(),
+            ..Default::default()
+        }],
+        ..Default::default()
+    });
+
+    let back = read(&plan);
+    let ivr = back.ivr.expect("the flow came back");
+    assert_eq!(ivr.flow.len(), 1);
+    assert_eq!(ivr.flow[0].phase, "goodbye");
+}
+
+#[test]
+fn a_plan_with_no_telephone_writes_no_ivr_columns() {
+    // A web-only plan should produce the workbook it always did. Three empty
+    // columns on every sheet would show up in every diff and be three more
+    // things for somebody reading a delivery to wonder about.
+    let workbook = to_workbook(&sound()).expect("the plan writes");
+    let headers: Vec<String> = workbook
+        .rows(crate::election_config::sheet::SHEET_ELECTION_EVENT)
+        .first()
+        .expect("an event row")
+        .cells
+        .iter()
+        .map(|(header, _)| header.clone())
+        .collect();
+
+    assert!(
+        !headers
+            .iter()
+            .any(|header| header.starts_with("annotations.ivr")),
+        "a web-only plan wrote {headers:?}"
+    );
 }

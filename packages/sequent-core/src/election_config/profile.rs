@@ -686,6 +686,30 @@ fn shape_of_a_plan() -> Value {
     // the wizard offers it. A profile downloaded from the client profile builder
     // with that setting touched could not be loaded at all.
     plan.auth_preset = Some(String::new());
+    // **The sixth.** `ivr` is an `Option` that serialises as `null`, which has no
+    // keys to walk into, and its `flow` and `prompts` are empty collections — so a
+    // shape built from defaults would make `ivr.phone_number` and every path under
+    // the flow look like a typo, and a profile naming any of them would be refused
+    // with `'ivr' names nothing a plan has`. Filled in whole, one entry deep, for
+    // the same reason `schedule`'s moments and `messages`' first row are.
+    plan.ivr = Some(super::architect::PlannedIvr {
+        phone_number: "+15550100".to_string(),
+        flow: vec![super::architect::IvrPhase {
+            phase: "announcement".to_string(),
+            name: "welcome".to_string(),
+            prompt_key: "greeting".to_string(),
+            accept_key: "2".to_string(),
+            receipt_format: "phonetic_hex_4".to_string(),
+        }],
+        prompts: [(
+            "en".to_string(),
+            [("greeting".to_string(), "Some words".to_string())]
+                .into_iter()
+                .collect(),
+        )]
+        .into_iter()
+        .collect(),
+    });
     // **The fifth**, and the pattern is now unmistakable: `keycloak_messages` is a map
     // carrying `skip_serializing_if`, so a shape built from defaults has no such key
     // and every profile touching *Sign-in page wording* was refused outright —

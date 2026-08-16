@@ -527,13 +527,36 @@ fn check_voting_channels(
     }
 
     if on("telephone") {
-        report.push(Problem::warning(
-            Code::InvalidValue,
-            "election_event.voting_channels.telephone",
-            "telephone voting is configured on the event's IVR tab after \
-             import; none of it is in this bundle"
-                .to_string(),
-        ));
+        // Only when the bundle carries none of it. That warning was
+        // unconditional and is now sometimes false: a plan with an `ivr` section
+        // writes the flow, the prompts and the number into the event's
+        // annotations, so telling somebody to go and configure it by hand would
+        // send them to undo what they had just described.
+        let configured = bundle
+            .election_event
+            .annotations
+            .as_ref()
+            .and_then(|value| value.as_object())
+            .is_some_and(|annotations| {
+                ["ivr:config", "ivr:prompts", "ivr:phone-number"]
+                    .iter()
+                    .any(|key| {
+                        annotations
+                            .get(*key)
+                            .and_then(serde_json::Value::as_str)
+                            .is_some_and(|text| !text.trim().is_empty())
+                    })
+            });
+
+        if !configured {
+            report.push(Problem::warning(
+                Code::InvalidValue,
+                "election_event.voting_channels.telephone",
+                "telephone voting is configured on the event's IVR tab after \
+                 import; none of it is in this bundle"
+                    .to_string(),
+            ));
+        }
     }
 
     // -- the election's own copy of the same block -------------------------

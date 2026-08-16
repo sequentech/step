@@ -370,6 +370,22 @@ pub struct Blueprint {
     #[serde(default)]
     pub voting_channels: VotingChannelSet,
 
+    /// How the telephone channel behaves, when there is one.
+    ///
+    /// [`VotingChannelSet::telephone`] only reveals the Admin Portal's IVR tab;
+    /// everything a telephone election actually needs was typed in by hand there
+    /// afterwards, which is a delivery step no plan described and no rebuild
+    /// reproduced. This carries it.
+    ///
+    /// **It travels as annotations on the event**, which is where the platform
+    /// keeps it: `ivr:config`, `ivr:prompts` and `ivr:phone-number`, each a JSON
+    /// string. The IVR design document describes the flow as living in
+    /// `presentation.ivr.flow` — that is the *published* shape the Lambda reads
+    /// from S3, and `IvrConfig.tsx` writes the annotation. Writing the former
+    /// would have produced a bundle nothing loads.
+    #[serde(default)]
+    pub ivr: Option<PlannedIvr>,
+
     /// What the whole event is, for voters.
     ///
     /// Translatable, like the name: the platform keeps it at
@@ -1175,6 +1191,62 @@ pub struct PlannedCandidate {
 /// [`CandidateImage`]: it is derived from `external_id` by
 /// [`material_document_id`], so it is stable across rebuilds and cannot drift out
 /// of step with the archive entry.
+/// One step of the telephone call, as the flow engine reads it.
+///
+/// The IVR Lambda is a configurable pipeline rather than a fixed state machine:
+/// which phases run, in what order, and with what settings is entirely this
+/// array. The phase names it has engines for are `announcement`,
+/// `language_select`, `blacklist_check`, `auth`, `eligibility_check`,
+/// `ballot_loop` and `goodbye`; anything else is a phase nothing can execute, so
+/// [`Blueprint::validate`] refuses it rather than letting a call reach a step the
+/// Lambda will not recognise on election day.
+///
+/// The extras are per phase and all optional, because most phases take none.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct IvrPhase {
+    /// Which engine runs this step.
+    pub phase: String,
+
+    /// Distinguishes two steps of the same phase — `welcome` from `declaration`.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub name: String,
+
+    /// Which prompt this step plays, keyed into [`PlannedIvr::prompts`].
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub prompt_key: String,
+
+    /// The key a caller must press to go on. Absent means the step auto-advances.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub accept_key: String,
+
+    /// How the ballot locator is read back — `phonetic_hex_4` and the like.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub receipt_format: String,
+}
+
+/// Everything a telephone election needs that a web one does not.
+///
+/// Written to the event as three annotations rather than to `presentation`: see
+/// [`Blueprint::ivr`] for why that distinction was worth checking.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct PlannedIvr {
+    /// The number a voter calls. Carried opaquely; the routing file maps it.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub phone_number: String,
+
+    /// The call, step by step.
+    #[serde(default)]
+    pub flow: Vec<IvrPhase>,
+
+    /// What each prompt says, per language: `{lang: {prompt_key: text}}`.
+    ///
+    /// The keys are the `prompt_key`s the flow names, which is what makes the
+    /// flow and the prompts one form rather than two — the Admin Portal derives
+    /// exactly this set in `collectRequiredPromptKeys`.
+    #[serde(default)]
+    pub prompts: BTreeMap<String, BTreeMap<String, String>>,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct PlannedMaterial {
     /// Names the material within this plan, and seeds its document identifier.
@@ -2563,6 +2635,43 @@ fn event_sheet(
     for (column, cell) in plan.voting_channels.columns_for_sheet() {
         columns.push(column.to_string());
         row.push(cell);
+    }
+
+    // The telephone channel's own configuration, as annotations.
+    //
+    // Three columns rather than a sheet, because `Row::overrides` turns a dotted
+    // column into nested JSON and `split_path` splits on `.` alone — so
+    // `annotations.ivr:config` lands as `{"annotations": {"ivr:config": …}}`,
+    // which is exactly the shape the Admin Portal writes and reads. The colon is
+    // not a separator, which is the only reason this fits the existing mechanism
+    // instead of needing a new one.
+    //
+    // Each value is a JSON *string*, not an object: the platform's annotations
+    // are `string: string`, and `IvrConfig.tsx` `JSON.parse`s what it finds. The
+    // generic path would parse the bracketed text into an object and the Portal
+    // would ignore it silently, so all three are `control_columns` on this sheet
+    // and `build_election_event` reads them off the row as raw text.
+    if let Some(ivr) = plan.ivr.as_ref() {
+        if !ivr.phone_number.is_empty() {
+            columns.push("annotations.ivr:phone-number".to_string());
+            row.push(Cell::text(ivr.phone_number.clone()));
+        }
+        if !ivr.flow.is_empty() {
+            columns.push("annotations.ivr:config".to_string());
+            row.push(Cell::text(
+                serde_json::to_string(&serde_json::json!({
+                    "flow": ivr.flow
+                }))
+                .unwrap_or_else(|_| "{}".to_string()),
+            ));
+        }
+        if !ivr.prompts.is_empty() {
+            columns.push("annotations.ivr:prompts".to_string());
+            row.push(Cell::text(
+                serde_json::to_string(&ivr.prompts)
+                    .unwrap_or_else(|_| "{}".to_string()),
+            ));
+        }
     }
 
     // The file, if there is one, wins over a typed link. Named rather than embedded,

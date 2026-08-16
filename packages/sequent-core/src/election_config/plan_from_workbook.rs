@@ -42,10 +42,10 @@ use std::collections::BTreeMap;
 use serde_json::Value;
 
 use crate::election_config::architect::{
-    Blueprint, Contact, MessageKind, MessageSchedule, Milestone, PlannedArea,
-    PlannedCandidate, PlannedContest, PlannedElection, PlannedMaterial,
-    PlannedMessage, PlannedVoter, Translated, Trustee, VotingChannelSet,
-    BLUEPRINT_VERSION,
+    Blueprint, Contact, IvrPhase, MessageKind, MessageSchedule, Milestone,
+    PlannedArea, PlannedCandidate, PlannedContest, PlannedElection, PlannedIvr,
+    PlannedMaterial, PlannedMessage, PlannedVoter, Translated, Trustee,
+    VotingChannelSet, BLUEPRINT_VERSION,
 };
 use crate::election_config::paths::cell_text;
 use crate::election_config::problem::{Code, Problem, Report};
@@ -307,6 +307,54 @@ fn read_event(workbook: &Workbook, plan: &mut Blueprint, report: &mut Report) {
     plan.materials_title = translated(row, "presentation", "materialsTitle");
     plan.materials_subtitle =
         translated(row, "presentation", "materialsSubtitle");
+    plan.ivr = read_ivr(row);
+}
+
+/// The telephone channel's configuration, back out of the event sheet.
+///
+/// The three columns hold what the platform's annotations hold: JSON strings.
+/// `Row` has already run each cell through `coerce_scalar`, so the bracketed ones
+/// arrive as objects — the same thing that caught the writer out — and this reads
+/// either form. A hand-written workbook may therefore put a real JSON object in
+/// the cell, which is what somebody editing a spreadsheet would do first.
+///
+/// A part that will not parse is dropped rather than refusing the workbook, for
+/// the reason `ivr_from_annotations` gives at more length: a broken flow should
+/// leave the rest openable.
+fn read_ivr(row: &Row) -> Option<PlannedIvr> {
+    let phone_number = text(row, super::build::IVR_PHONE_COLUMN);
+
+    let parsed = |column: &str| -> Option<Value> {
+        match row.get(column)? {
+            Value::Null => None,
+            Value::String(raw) => serde_json::from_str(raw.trim()).ok(),
+            other => Some(other.clone()),
+        }
+    };
+
+    let flow = parsed(super::build::IVR_CONFIG_COLUMN)
+        .and_then(|config| config.get("flow").cloned())
+        .and_then(|flow| serde_json::from_value::<Vec<IvrPhase>>(flow).ok())
+        .unwrap_or_default();
+
+    let prompts = parsed(super::build::IVR_PROMPTS_COLUMN)
+        .and_then(|value| {
+            serde_json::from_value::<
+                BTreeMap<String, BTreeMap<String, String>>,
+            >(value)
+            .ok()
+        })
+        .unwrap_or_default();
+
+    if phone_number.is_empty() && flow.is_empty() && prompts.is_empty() {
+        return None;
+    }
+
+    Some(PlannedIvr {
+        phone_number,
+        flow,
+        prompts,
+    })
 }
 
 fn read_areas(workbook: &Workbook, report: &mut Report) -> Vec<PlannedArea> {

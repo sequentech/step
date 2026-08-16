@@ -4371,3 +4371,222 @@ fn the_login_stylesheet_is_escaped_and_wording_is_not() {
         "Sign in, {0} of {1}"
     );
 }
+
+#[test]
+fn the_telephone_channel_carries_its_configuration_into_the_event() {
+    // The IVR tab used to be the whole of it: `voting_channels.telephone`
+    // revealed a screen and everything a telephone election needs was typed in
+    // there afterwards, by hand, once per delivery, reproduced by nothing.
+    let mut plan = sound();
+    plan.voting_channels.telephone = true;
+    plan.ivr = Some(PlannedIvr {
+        phone_number: "+18005550100".to_string(),
+        flow: vec![
+            IvrPhase {
+                phase: "language_select".to_string(),
+                ..Default::default()
+            },
+            IvrPhase {
+                phase: "announcement".to_string(),
+                name: "welcome".to_string(),
+                prompt_key: "greeting".to_string(),
+                ..Default::default()
+            },
+            IvrPhase {
+                phase: "ballot_loop".to_string(),
+                receipt_format: "phonetic_hex_4".to_string(),
+                ..Default::default()
+            },
+        ],
+        prompts: [(
+            "en".to_string(),
+            [(
+                "greeting".to_string(),
+                "Welcome to the election".to_string(),
+            )]
+            .into_iter()
+            .collect(),
+        )]
+        .into_iter()
+        .collect(),
+    });
+
+    let bundle = compiled(&plan);
+    let annotations = &bundle.export["election_event"]["annotations"];
+
+    // **Strings, not objects.** The platform's annotations are `string: string`
+    // and the Admin Portal calls `JSON.parse` on what it finds; an object would
+    // be silently ignored — `IvrConfig.tsx` checks `typeof === "string"` and
+    // falls back to `{}` — so the tab would come up empty with nothing saying
+    // why. This is the assertion that would have caught writing them the
+    // obvious way.
+    assert!(
+        annotations["ivr:phone-number"].is_string(),
+        "the phone number reached the event as {:?}",
+        annotations["ivr:phone-number"]
+    );
+    assert!(
+        annotations["ivr:config"].is_string(),
+        "the flow reached the event as {:?}",
+        annotations["ivr:config"]
+    );
+    assert!(
+        annotations["ivr:prompts"].is_string(),
+        "the prompts reached the event as {:?}",
+        annotations["ivr:prompts"]
+    );
+
+    assert_eq!(
+        annotations["ivr:phone-number"],
+        serde_json::json!("+18005550100")
+    );
+
+    // And the string parses back to what was authored, in the shape
+    // `collectRequiredPromptKeys` walks: `config.flow[].prompt_key`.
+    let config: serde_json::Value =
+        serde_json::from_str(annotations["ivr:config"].as_str().unwrap())
+            .expect("the flow annotation is JSON");
+    let flow = config["flow"].as_array().expect("a flow array");
+    assert_eq!(flow.len(), 3);
+    assert_eq!(flow[1]["phase"], serde_json::json!("announcement"));
+    assert_eq!(flow[1]["prompt_key"], serde_json::json!("greeting"));
+    assert_eq!(
+        flow[2]["receipt_format"],
+        serde_json::json!("phonetic_hex_4")
+    );
+    // Absent extras are left out rather than written empty: a phase carrying
+    // `"accept_key": ""` would make the engine wait for a keypress that never
+    // comes.
+    assert!(flow[0].get("prompt_key").is_none());
+
+    let prompts: serde_json::Value =
+        serde_json::from_str(annotations["ivr:prompts"].as_str().unwrap())
+            .expect("the prompts annotation is JSON");
+    assert_eq!(
+        prompts["en"]["greeting"],
+        serde_json::json!("Welcome to the election")
+    );
+}
+
+#[test]
+fn an_event_with_no_telephone_gets_no_ivr_annotations() {
+    // A web-only event should compile to the bytes it always did. An empty
+    // `ivr:config` on every bundle would be a new key for the Admin Portal to
+    // parse and a new thing for a diff to show on every rebuild.
+    let bundle = compiled(&sound());
+
+    let annotations = &bundle.export["election_event"]["annotations"];
+    assert!(
+        annotations.get("ivr:config").is_none(),
+        "a web-only event carried {annotations:?}"
+    );
+    assert!(annotations.get("ivr:prompts").is_none());
+    assert!(annotations.get("ivr:phone-number").is_none());
+}
+
+#[test]
+fn the_telephone_configuration_survives_a_round_trip() {
+    // Plan → event → plan. The annotations are JSON strings, so reading them
+    // back is parsing rather than deserialising, and a round trip is the only
+    // thing that proves the two halves agree about the shape.
+    let mut plan = sound();
+    plan.voting_channels.telephone = true;
+    plan.ivr = Some(PlannedIvr {
+        phone_number: "+18005550100".to_string(),
+        flow: vec![
+            IvrPhase {
+                phase: "auth".to_string(),
+                ..Default::default()
+            },
+            IvrPhase {
+                phase: "announcement".to_string(),
+                name: "declaration".to_string(),
+                prompt_key: "declaration_text".to_string(),
+                accept_key: "2".to_string(),
+                ..Default::default()
+            },
+        ],
+        prompts: [
+            (
+                "en".to_string(),
+                [(
+                    "declaration_text".to_string(),
+                    "Press two to accept".to_string(),
+                )]
+                .into_iter()
+                .collect(),
+            ),
+            (
+                "es".to_string(),
+                [(
+                    "declaration_text".to_string(),
+                    "Pulse dos para aceptar".to_string(),
+                )]
+                .into_iter()
+                .collect(),
+            ),
+        ]
+        .into_iter()
+        .collect(),
+    });
+
+    let bundle = compiled(&plan);
+    let read = crate::election_config::plan_from_event::plan_from_event(
+        &bundle.export,
+    )
+    .expect("the document this crate just wrote is readable");
+
+    assert_eq!(read.plan.ivr, plan.ivr);
+}
+
+#[test]
+fn an_ivr_config_somebody_broke_by_hand_does_not_refuse_the_whole_event() {
+    // Somebody edits the annotation in the Admin Portal and leaves it invalid.
+    // Refusing the import would tell them nothing and take away the one screen
+    // that could show them what is wrong; the part that did not parse is simply
+    // missing, and the rest of the event opens.
+    let mut plan = sound();
+    plan.voting_channels.telephone = true;
+    plan.ivr = Some(PlannedIvr {
+        phone_number: "+18005550100".to_string(),
+        ..Default::default()
+    });
+
+    let mut bundle = compiled(&plan);
+    bundle.export["election_event"]["annotations"]["ivr:config"] =
+        serde_json::json!("{not json at all");
+
+    let read = crate::election_config::plan_from_event::plan_from_event(
+        &bundle.export,
+    )
+    .expect("an event with one broken annotation still reads");
+
+    let ivr = read.plan.ivr.expect("the rest of the IVR section survives");
+    assert_eq!(ivr.phone_number, "+18005550100");
+    assert!(ivr.flow.is_empty(), "the unparseable flow is dropped");
+}
+
+#[test]
+fn a_plan_that_configures_the_ivr_is_not_told_to_go_and_configure_it() {
+    // The warning was unconditional and is now sometimes false. Telling somebody
+    // whose plan carries the flow, the prompts and the number to go and set all
+    // three up by hand after import would send them to undo what they had just
+    // described — and, worse, would read as the bundle having dropped it.
+    let mut plan = sound();
+    plan.voting_channels.telephone = true;
+    plan.ivr = Some(PlannedIvr {
+        phone_number: "+18005550100".to_string(),
+        flow: vec![IvrPhase {
+            phase: "goodbye".to_string(),
+            ..Default::default()
+        }],
+        ..Default::default()
+    });
+
+    let report = validated(&plan);
+    assert!(!report.has_errors(), "{report}");
+    assert!(
+        !says(&report, "IVR tab"),
+        "a configured IVR was still told to configure itself: {report}"
+    );
+}
