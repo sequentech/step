@@ -13,15 +13,7 @@ import {
 import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box, CircularProgress} from "@mui/material"
-import {
-    PageLimit,
-    Icon,
-    IconButton,
-    theme,
-    BallotHash,
-    Dialog,
-    WarnBox,
-} from "@sequentech/ui-essentials"
+import {Icon, Dialog, ReviewLayout, WarnBox} from "@sequentech/ui-essentials"
 import {
     stringToHtml,
     IAuditableBallot,
@@ -37,16 +29,10 @@ import {
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
-import {
-    faCircleQuestion,
-    faAngleLeft,
-    faAngleRight,
-    faFire,
-} from "@fortawesome/free-solid-svg-icons"
+import {faAngleLeft, faAngleRight, faFire} from "@fortawesome/free-solid-svg-icons"
 import {useTranslation} from "react-i18next"
 import Button from "@mui/material/Button"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
-import {Question} from "@sequentech/ui-essentials"
 import {useMutation, useQuery} from "@apollo/client/react"
 import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
 import {GetElectionEventQuery, InsertCastVoteMutation, GetElectionsQuery} from "../gql/graphql"
@@ -85,13 +71,6 @@ import {isDeclineToVoteByElectionId} from "../store/extra/extraSlice"
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
     text-decoration: none;
-`
-
-const StyledTitle = styled(Typography)`
-    margin-top: 25.5px;
-    display: flex;
-    flex-direction: row;
-    gap: 16px;
 `
 
 const ActionsContainer = styled(Box)`
@@ -764,19 +743,53 @@ export const ReviewScreen: React.FC = () => {
     const contests = sortContestList(ballotStyle.ballot_eml.contests, contestsOrderType)
 
     return (
-        <PageLimit maxWidth="lg" className="review-screen screen">
-            {auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW ? null : (
-                <BallotHash
-                    hash={ballotId || ""}
-                    copyLabels={{
-                        copy: t("reviewScreen.copyBallotId"),
-                        copied: t("reviewScreen.ballotIdCopied"),
-                        error: t("reviewScreen.ballotIdCopyError"),
-                    }}
-                    helpButtonLabel={t("reviewScreen.ballotIdHelpDialog.title")}
-                    onHelpClick={() => setOpenBallotIdHelp(true)}
-                />
+        // The arrangement is `ReviewLayout`, in `ui-essentials`, so that the
+        // Election Architect's ballot preview shows this screen rather than a
+        // copy of it that drifts. What stays here is everything that needs the
+        // store, the mutation or this screen's own state: the dialogs, the
+        // breadcrumb that knows whether an election list counts as a step, and
+        // the actions that cast.
+        <ReviewLayout
+            ballotId={
+                auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW ? undefined : ballotId || ""
+            }
+            copyLabels={{
+                copy: t("reviewScreen.copyBallotId"),
+                copied: t("reviewScreen.ballotIdCopied"),
+                error: t("reviewScreen.ballotIdCopyError"),
+            }}
+            ballotIdHelpLabel={t("reviewScreen.ballotIdHelpDialog.title")}
+            onBallotIdHelp={() => setOpenBallotIdHelp(true)}
+            steps={<Stepper selected={2} />}
+            title={t("reviewScreen.title")}
+            onTitleHelp={() => setReviewScreenHelp(true)}
+            error={errorMsg || undefined}
+            description={stringToHtml(
+                auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW ||
+                    auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP
+                    ? t("reviewScreen.descriptionNoAudit")
+                    : t("reviewScreen.description")
             )}
+            ballotStyle={ballotStyle}
+            contests={contests}
+            errorSelectionState={errorSelectionState}
+            isDeclineToVote={isDeclineToVote}
+            actions={
+                isCastingBallot.current ? undefined : (
+                    <ActionButtons
+                        ballotStyle={ballotStyle}
+                        auditableBallot={auditableBallot}
+                        auditButtonCfg={auditButtonCfg}
+                        castVoteConfirmModal={castVoteConfirmModal}
+                        ballotId={ballotId ?? ""}
+                        setErrorMsg={setErrorMsg}
+                        isGoldenPolicy={isGoldenPolicy ?? false}
+                        isMultiContest={isMultiContest}
+                        isDeclineToVote={isDeclineToVote}
+                    />
+                )
+            }
+        >
             <Dialog
                 handleClose={handleCloseDialogIdHelp}
                 open={openBallotIdHelp}
@@ -804,62 +817,20 @@ export const ReviewScreen: React.FC = () => {
                     handleClose={handleCloseDialogAuditHelp}
                 />
             ) : null}
-            <Box marginTop="48px">
-                <Stepper selected={2} />
-            </Box>
-            <StyledTitle variant="h4" fontSize="24px" fontWeight="bold" sx={{margin: 0}}>
-                <Box>{t("reviewScreen.title")}</Box>
-                <IconButton
-                    icon={faCircleQuestion}
-                    sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
-                    fontSize="16px"
-                    onClick={() => setReviewScreenHelp(true)}
-                />
-                <Dialog
-                    handleClose={() => setReviewScreenHelp(false)}
-                    open={openReviewScreenHelp}
-                    title={t("reviewScreen.reviewScreenHelpDialog.title")}
-                    ok={t("reviewScreen.reviewScreenHelpDialog.ok")}
-                    variant="info"
-                >
-                    {stringToHtml(t("reviewScreen.reviewScreenHelpDialog.content"))}
-                </Dialog>
-            </StyledTitle>
-            {errorMsg && <WarnBox variant="error">{errorMsg}</WarnBox>}
-            <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                {stringToHtml(
-                    auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW ||
-                        auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP
-                        ? t("reviewScreen.descriptionNoAudit")
-                        : t("reviewScreen.description")
-                )}
-            </Typography>
-            {contests.map((question, index) => (
-                <Box key={question.id} className={`contest-${index}`}>
-                    <Question
-                        ballotStyle={ballotStyle}
-                        question={question}
-                        isReview={true}
-                        setDecodedContests={() => undefined}
-                        errorSelectionState={errorSelectionState}
-                        isDeclineToVote={isDeclineToVote}
-                    />
-                </Box>
-            ))}
-            {!isCastingBallot.current && (
-                <ActionButtons
-                    ballotStyle={ballotStyle}
-                    auditableBallot={auditableBallot}
-                    auditButtonCfg={auditButtonCfg}
-                    castVoteConfirmModal={castVoteConfirmModal}
-                    ballotId={ballotId ?? ""}
-                    setErrorMsg={setErrorMsg}
-                    isGoldenPolicy={isGoldenPolicy ?? false}
-                    isMultiContest={isMultiContest}
-                    isDeclineToVote={isDeclineToVote}
-                />
-            )}
-        </PageLimit>
+            {/* The title's own help dialog. It sat inside the heading before,
+                which made no difference to a reader — MUI renders a dialog into
+                a portal wherever it is declared — and made the heading harder to
+                lift out. */}
+            <Dialog
+                handleClose={() => setReviewScreenHelp(false)}
+                open={openReviewScreenHelp}
+                title={t("reviewScreen.reviewScreenHelpDialog.title")}
+                ok={t("reviewScreen.reviewScreenHelpDialog.ok")}
+                variant="info"
+            >
+                {stringToHtml(t("reviewScreen.reviewScreenHelpDialog.content"))}
+            </Dialog>
+        </ReviewLayout>
     )
 }
 

@@ -91,6 +91,8 @@ export type {
 // candidate row, kept honest by a parity checker, and could not draw a contest at
 // all — so a preview could differ from the ballot, which for an election is not a
 // cosmetic problem.
+export {ReviewLayout} from "./ballot/ReviewLayout"
+export type {IReviewLayoutProps} from "./ballot/ReviewLayout"
 export {Question} from "./ballot/Question"
 export type {IQuestionProps} from "./ballot/Question"
 export {Answer} from "./ballot/Answer"

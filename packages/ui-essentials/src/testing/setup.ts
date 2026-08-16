@@ -90,10 +90,39 @@ if (typeof globalThis.structuredClone !== "function") {
 // it: five of this package's six suites were dark that way, which is not a
 // state to start restructuring the voting path from.
 //
-// Node's own, from `worker_threads`. Its ports are `EventTarget`s and support
-// `onmessage`, which is the whole of what the scheduler asks for.
+// **Not Node's `worker_threads` channel**, which was the obvious answer and the
+// wrong one. Its ports are live libuv handles; React's scheduler opens a channel
+// as it loads and never closes it, so every suite ran green and then hung on
+// "Jest did not exit one second after the test run has completed". `unref()` on
+// both ports did not settle it either. Measured both ways: with that version a
+// passing suite never returned, without any polyfill it exited at once.
+//
+// So a shim, which is honest about what it is for. React needs exactly three
+// things — construct a channel, set `port1.onmessage`, `postMessage` to `port2`
+// — and a deferred callback satisfies all three while holding nothing open.
 if (typeof globalThis.MessageChannel !== "function") {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    globalThis.MessageChannel = require("node:worker_threads")
-        .MessageChannel as typeof MessageChannel
+    class ShimPort {
+        onmessage: ((event: {data: unknown}) => void) | null = null
+        other: ShimPort | null = null
+        postMessage(data: unknown): void {
+            const target = this.other
+            if (target !== null) {
+                setTimeout(() => target.onmessage?.({data}), 0)
+            }
+        }
+        addEventListener(): void {}
+        removeEventListener(): void {}
+        start(): void {}
+        close(): void {}
+    }
+    globalThis.MessageChannel = class {
+        port1: ShimPort
+        port2: ShimPort
+        constructor() {
+            this.port1 = new ShimPort()
+            this.port2 = new ShimPort()
+            this.port1.other = this.port2
+            this.port2.other = this.port1
+        }
+    } as unknown as typeof MessageChannel
 }
