@@ -242,6 +242,7 @@ Then, from `packages/workbench`:
 |---|---|---|
 | `dom-validate.mjs` | `dom-validate.md` + `.recorded.json` | the **complete** tables — `spec.mjs` vs the real DOM across every cell of all seven rules (inline visibility at review + reachability); 229/229, ~8 min |
 | `no-silent-discount.mjs` | `no-silent-discount.md` + `.report.json` | the no-silent-discount property query (headless pre-filter → browser confirm at review) |
+| `browser-witnesses.mjs` | `browser-witnesses.md` + `.recorded.json` | stage 2 of the dependency pipeline: every browser-pending dependence witness from `effect-dependencies.md` (inline-view and reachability components) driven through the real booth on a generic per-cell recipe, both cells compared against `spec.f`; unobservable witnesses labelled |
 | `reproduce-verify.mjs` | `reproduce-verify.recorded.json` | runs the three end-to-end runners below in sequence and aggregates one pass/fail |
 | `overvote-e2e-pipeline.mjs` | `overvote-e2e-pipeline.recorded.json` | S1 over-vote: booth → cast → decrypt → decode → tally in one continuous run |
 | `minvote-e2e-pipeline.mjs` | `minvote-e2e-pipeline.recorded.json` | S2 below-min (all four cells), same full pipeline |

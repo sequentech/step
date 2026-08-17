@@ -1,0 +1,2331 @@
+{
+  "checked": [
+    {
+      "component": "selectedMax ∈ inline.voting",
+      "varies": "regulars",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed-with-msg",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "false",
+          "production": "false"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed-with-msg",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "2",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "true",
+          "production": "true"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "selectedMin ∈ inline.voting",
+      "varies": "invalid_vote_policy",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "1",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "false",
+          "production": "false"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "warn",
+            "max_votes": "1",
+            "min_votes": "1",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "true",
+          "production": "true"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "selectedMin ∈ inline.voting",
+      "varies": "min_votes",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "warn",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "false",
+          "production": "false"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "warn",
+            "max_votes": "1",
+            "min_votes": "1",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "true",
+          "production": "true"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "selectedMin ∈ inline.voting",
+      "varies": "regulars",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "warn",
+            "max_votes": "1",
+            "min_votes": "1",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "true",
+          "production": "true"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "warn",
+            "max_votes": "1",
+            "min_votes": "1",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "1",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "false",
+          "production": "false"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "selectedMin ∈ inline.voting",
+      "varies": "blank_marker",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "warn",
+            "max_votes": "1",
+            "min_votes": "1",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "true",
+          "production": "true"
+        },
+        {
+          "cell": {
+            "blank_marker": "true",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "warn",
+            "max_votes": "1",
+            "min_votes": "1",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "false",
+          "production": "false"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "selectedMin ∈ inline.voting",
+      "varies": "explicit_invalid",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "warn",
+            "max_votes": "1",
+            "min_votes": "1",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "true",
+          "production": "true"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "true",
+            "invalid_vote_policy": "warn",
+            "max_votes": "1",
+            "min_votes": "1",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "false",
+          "production": "false"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "blankVote ∈ inline.voting",
+      "varies": "blank_vote_policy",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "false",
+          "production": "false"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "warn",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "true",
+          "production": "true"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "blankVote ∈ inline.voting",
+      "varies": "regulars",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "warn",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "true",
+          "production": "true"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "warn",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "1",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "false",
+          "production": "false"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "blankVote ∈ inline.voting",
+      "varies": "blank_marker",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "warn",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "true",
+          "production": "true"
+        },
+        {
+          "cell": {
+            "blank_marker": "true",
+            "blank_vote_policy": "warn",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "false",
+          "production": "false"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "blankVote ∈ inline.voting",
+      "varies": "explicit_invalid",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "warn",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "true",
+          "production": "true"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "warn",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "true",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "false",
+          "production": "false"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "underVote ∈ inline.voting",
+      "varies": "blank_vote_policy",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "warn"
+          },
+          "spec": "true",
+          "production": "true"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "warn",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "warn"
+          },
+          "spec": "false",
+          "production": "false"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "underVote ∈ inline.voting",
+      "varies": "under_vote_policy",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "false",
+          "production": "false"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "warn"
+          },
+          "spec": "true",
+          "production": "true"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "underVote ∈ inline.voting",
+      "varies": "min_votes",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "warn"
+          },
+          "spec": "true",
+          "production": "true"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "1",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "warn"
+          },
+          "spec": "false",
+          "production": "false"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "underVote ∈ inline.voting",
+      "varies": "max_votes",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "true",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "1",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "warn"
+          },
+          "spec": "false",
+          "production": "false"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "true",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "2",
+            "min_votes": "1",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "warn"
+          },
+          "spec": "true",
+          "production": "true"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "underVote ∈ inline.voting",
+      "varies": "regulars",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "warn"
+          },
+          "spec": "true",
+          "production": "true"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "1",
+            "under_vote_policy": "warn"
+          },
+          "spec": "false",
+          "production": "false"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "underVote ∈ inline.voting",
+      "varies": "blank_marker",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "warn"
+          },
+          "spec": "true",
+          "production": "true"
+        },
+        {
+          "cell": {
+            "blank_marker": "true",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "warn"
+          },
+          "spec": "false",
+          "production": "false"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "underVote ∈ inline.voting",
+      "varies": "explicit_invalid",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "warn"
+          },
+          "spec": "true",
+          "production": "true"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "true",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "warn"
+          },
+          "spec": "false",
+          "production": "false"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "overVoteDisabled ∈ inline.voting",
+      "varies": "over_vote_policy",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "true",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "false",
+          "production": "false"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "true",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "not-allowed-with-msg-and-disable",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "true",
+          "production": "true"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "overVoteDisabled ∈ inline.voting",
+      "varies": "max_votes",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "true",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "1",
+            "over_vote_policy": "not-allowed-with-msg-and-disable",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "true",
+          "production": "true"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "true",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "2",
+            "min_votes": "1",
+            "over_vote_policy": "not-allowed-with-msg-and-disable",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "false",
+          "production": "false"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "overVoteDisabled ∈ inline.voting",
+      "varies": "regulars",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "not-allowed-with-msg-and-disable",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "false",
+          "production": "false"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "not-allowed-with-msg-and-disable",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "1",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "true",
+          "production": "true"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "overVoteDisabled ∈ inline.voting",
+      "varies": "blank_marker",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "not-allowed-with-msg-and-disable",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "false",
+          "production": "false"
+        },
+        {
+          "cell": {
+            "blank_marker": "true",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "not-allowed-with-msg-and-disable",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "true",
+          "production": "true"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "overVoteDisabled ∈ inline.voting",
+      "varies": "explicit_invalid",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "not-allowed-with-msg-and-disable",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "false",
+          "production": "false"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "true",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "not-allowed-with-msg-and-disable",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "true",
+          "production": "true"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "notAllowed ∈ inline.voting",
+      "varies": "invalid_vote_policy",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "true",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "false",
+          "production": "false"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "true",
+            "invalid_vote_policy": "not-allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "true",
+          "production": "true"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "notAllowed ∈ inline.voting",
+      "varies": "explicit_invalid",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "not-allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "false",
+          "production": "false"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "true",
+            "invalid_vote_policy": "not-allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "true",
+          "production": "true"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "alert ∈ inline.voting",
+      "varies": "invalid_vote_policy",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "true",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "false",
+          "production": "false"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "true",
+            "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "true",
+          "production": "true"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "alert ∈ inline.voting",
+      "varies": "explicit_invalid",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "false",
+          "production": "false"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "true",
+            "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "true",
+          "production": "true"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "selectedMax ∈ inline.review",
+      "varies": "regulars",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed-with-msg",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "false",
+          "production": "false"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed-with-msg",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "2",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "true",
+          "production": "true"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "selectedMin ∈ inline.review",
+      "varies": "invalid_vote_policy",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "1",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "false",
+          "production": "false"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "warn",
+            "max_votes": "1",
+            "min_votes": "1",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "true",
+          "production": "true"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "selectedMin ∈ inline.review",
+      "varies": "min_votes",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "warn",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "false",
+          "production": "false"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "warn",
+            "max_votes": "1",
+            "min_votes": "1",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "true",
+          "production": "true"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "selectedMin ∈ inline.review",
+      "varies": "regulars",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "warn",
+            "max_votes": "1",
+            "min_votes": "1",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "true",
+          "production": "true"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "warn",
+            "max_votes": "1",
+            "min_votes": "1",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "1",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "false",
+          "production": "false"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "selectedMin ∈ inline.review",
+      "varies": "blank_marker",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "warn",
+            "max_votes": "1",
+            "min_votes": "1",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "true",
+          "production": "true"
+        },
+        {
+          "cell": {
+            "blank_marker": "true",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "warn",
+            "max_votes": "1",
+            "min_votes": "1",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "false",
+          "production": "false"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "selectedMin ∈ inline.review",
+      "varies": "explicit_invalid",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "warn",
+            "max_votes": "1",
+            "min_votes": "1",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "true",
+          "production": "true"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "true",
+            "invalid_vote_policy": "warn",
+            "max_votes": "1",
+            "min_votes": "1",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "false",
+          "production": "false"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "blankVote ∈ inline.review",
+      "varies": "blank_vote_policy",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "false",
+          "production": "false"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "warn",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "true",
+          "production": "true"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "blankVote ∈ inline.review",
+      "varies": "regulars",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "warn",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "true",
+          "production": "true"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "warn",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "1",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "false",
+          "production": "false"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "blankVote ∈ inline.review",
+      "varies": "blank_marker",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "warn",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "true",
+          "production": "true"
+        },
+        {
+          "cell": {
+            "blank_marker": "true",
+            "blank_vote_policy": "warn",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "false",
+          "production": "false"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "blankVote ∈ inline.review",
+      "varies": "explicit_invalid",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "warn",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "true",
+          "production": "true"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "warn",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "true",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "false",
+          "production": "false"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "underVote ∈ inline.review",
+      "varies": "blank_vote_policy",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "warn"
+          },
+          "spec": "true",
+          "production": "true"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "warn",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "warn"
+          },
+          "spec": "false",
+          "production": "false"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "underVote ∈ inline.review",
+      "varies": "under_vote_policy",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "false",
+          "production": "false"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "warn"
+          },
+          "spec": "true",
+          "production": "true"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "underVote ∈ inline.review",
+      "varies": "min_votes",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "warn"
+          },
+          "spec": "true",
+          "production": "true"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "1",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "warn"
+          },
+          "spec": "false",
+          "production": "false"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "underVote ∈ inline.review",
+      "varies": "max_votes",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "true",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "1",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "warn"
+          },
+          "spec": "false",
+          "production": "false"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "true",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "2",
+            "min_votes": "1",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "warn"
+          },
+          "spec": "true",
+          "production": "true"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "underVote ∈ inline.review",
+      "varies": "regulars",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "warn"
+          },
+          "spec": "true",
+          "production": "true"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "1",
+            "under_vote_policy": "warn"
+          },
+          "spec": "false",
+          "production": "false"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "underVote ∈ inline.review",
+      "varies": "blank_marker",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "warn"
+          },
+          "spec": "true",
+          "production": "true"
+        },
+        {
+          "cell": {
+            "blank_marker": "true",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "warn"
+          },
+          "spec": "false",
+          "production": "false"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "underVote ∈ inline.review",
+      "varies": "explicit_invalid",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "warn"
+          },
+          "spec": "true",
+          "production": "true"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "true",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "warn"
+          },
+          "spec": "false",
+          "production": "false"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "alert ∈ inline.review",
+      "varies": "invalid_vote_policy",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "true",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "false",
+          "production": "false"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "true",
+            "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "true",
+          "production": "true"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "alert ∈ inline.review",
+      "varies": "explicit_invalid",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "false",
+          "production": "false"
+        },
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "true",
+            "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "true",
+          "production": "true"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "reachability",
+      "varies": "regulars",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "true",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "yes",
+          "production": "yes"
+        },
+        {
+          "cell": {
+            "blank_marker": "true",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "1",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "marker_cleared",
+          "production": "marker_cleared"
+        }
+      ],
+      "ok": true
+    },
+    {
+      "component": "reachability",
+      "varies": "blank_marker",
+      "cells": [
+        {
+          "cell": {
+            "blank_marker": "false",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "1",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "yes",
+          "production": "yes"
+        },
+        {
+          "cell": {
+            "blank_marker": "true",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "false",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "1",
+            "under_vote_policy": "allowed"
+          },
+          "spec": "marker_cleared",
+          "production": "marker_cleared"
+        }
+      ],
+      "ok": true
+    }
+  ],
+  "deferred": [
+    {
+      "component": "selectedMax ∈ inline.voting",
+      "varies": "invalid_vote_policy",
+      "reason": "blank marker + invalid flag (no booth contest carries both)"
+    },
+    {
+      "component": "selectedMax ∈ inline.voting",
+      "varies": "over_vote_policy",
+      "reason": "blank marker + invalid flag (no booth contest carries both)"
+    },
+    {
+      "component": "selectedMax ∈ inline.voting",
+      "varies": "max_votes",
+      "reason": "blank marker + invalid flag (no booth contest carries both)"
+    },
+    {
+      "component": "selectedMax ∈ inline.voting",
+      "varies": "blank_marker",
+      "reason": "blank marker + invalid flag (no booth contest carries both)"
+    },
+    {
+      "component": "selectedMax ∈ inline.voting",
+      "varies": "explicit_invalid",
+      "reason": "blank marker + invalid flag (no booth contest carries both)"
+    },
+    {
+      "component": "duplicatedPosition ∈ inline.voting",
+      "varies": "invalid_vote_policy",
+      "reason": "preferential state (IRV recipe pending)"
+    },
+    {
+      "component": "duplicatedPosition ∈ inline.voting",
+      "varies": "duplicate_ranks",
+      "reason": "preferential state (IRV recipe pending)"
+    },
+    {
+      "component": "preferenceOrderWithGaps ∈ inline.voting",
+      "varies": "invalid_vote_policy",
+      "reason": "preferential state (IRV recipe pending)"
+    },
+    {
+      "component": "preferenceOrderWithGaps ∈ inline.voting",
+      "varies": "rank_gaps",
+      "reason": "preferential state (IRV recipe pending)"
+    },
+    {
+      "component": "selectedMax ∈ inline.review",
+      "varies": "invalid_vote_policy",
+      "reason": "blank marker + invalid flag (no booth contest carries both)"
+    },
+    {
+      "component": "selectedMax ∈ inline.review",
+      "varies": "over_vote_policy",
+      "reason": "blank marker + invalid flag (no booth contest carries both)"
+    },
+    {
+      "component": "selectedMax ∈ inline.review",
+      "varies": "max_votes",
+      "reason": "blank marker + invalid flag (no booth contest carries both)"
+    },
+    {
+      "component": "selectedMax ∈ inline.review",
+      "varies": "blank_marker",
+      "reason": "blank marker + invalid flag (no booth contest carries both)"
+    },
+    {
+      "component": "selectedMax ∈ inline.review",
+      "varies": "explicit_invalid",
+      "reason": "blank marker + invalid flag (no booth contest carries both)"
+    },
+    {
+      "component": "duplicatedPosition ∈ inline.review",
+      "varies": "invalid_vote_policy",
+      "reason": "preferential state (IRV recipe pending)"
+    },
+    {
+      "component": "duplicatedPosition ∈ inline.review",
+      "varies": "duplicate_ranks",
+      "reason": "preferential state (IRV recipe pending)"
+    },
+    {
+      "component": "preferenceOrderWithGaps ∈ inline.review",
+      "varies": "invalid_vote_policy",
+      "reason": "preferential state (IRV recipe pending)"
+    },
+    {
+      "component": "preferenceOrderWithGaps ∈ inline.review",
+      "varies": "rank_gaps",
+      "reason": "preferential state (IRV recipe pending)"
+    },
+    {
+      "component": "notAllowed ∈ inline.review",
+      "varies": "invalid_vote_policy",
+      "reason": "review blocked (hard gate; gates production-certified by headless-sweep)"
+    },
+    {
+      "component": "notAllowed ∈ inline.review",
+      "varies": "explicit_invalid",
+      "reason": "review blocked (hard gate; gates production-certified by headless-sweep)"
+    },
+    {
+      "component": "reachability",
+      "varies": "over_vote_policy",
+      "reason": "blank marker + invalid flag (no booth contest carries both)"
+    },
+    {
+      "component": "reachability",
+      "varies": "max_votes",
+      "reason": "blank marker + invalid flag (no booth contest carries both)"
+    },
+    {
+      "component": "reachability",
+      "varies": "explicit_invalid",
+      "reason": "blank marker + invalid flag (no booth contest carries both)"
+    }
+  ],
+  "disagreements": []
+}
