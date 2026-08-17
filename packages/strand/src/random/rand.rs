@@ -71,6 +71,50 @@ impl rand_core_06::RngCore for StrandRng {
     }
 }
 
+/// The same generator, seen through `rand_core` 0.10.
+///
+/// curve25519-dalek 5.0, ed25519-dalek 3.0 and the released RustCrypto crates
+/// take their randomness through that version's traits, while `rand` 0.9 above
+/// speaks 0.9 — two versions of one interface, and a type implementing one is
+/// not accepted where the other is asked for. `SigningKey::generate(&mut rng)`
+/// is where that first showed up.
+///
+/// So `StrandRng` speaks both, exactly as it already speaks 0.6 for num-bigint
+/// below. Every method delegates to the implementation above, which is `OsRng`:
+/// the point of this type is that strand has **one** source of randomness, and a
+/// second shim must not become a second source.
+///
+/// `Infallible`, because the delegates already resolve the fallibility of
+/// `OsRng` — `try_*` there ends in `.expect`, so nothing here can fail that
+/// would not already have panicked.
+impl rand_core_010::TryRng for StrandRng {
+    type Error = core::convert::Infallible;
+
+    #[inline(always)]
+    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
+        Ok(RngCore::next_u32(self))
+    }
+
+    #[inline(always)]
+    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
+        Ok(RngCore::next_u64(self))
+    }
+
+    #[inline(always)]
+    fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), Self::Error> {
+        RngCore::fill_bytes(self, dst);
+        Ok(())
+    }
+}
+
+/// The marker that says this is fit for keys.
+///
+/// `Rng` and `CryptoRng` both follow from the two impls here by blanket impl —
+/// `Rng` for any `TryRng<Error = Infallible>`, `CryptoRng` for any
+/// `TryCryptoRng` of the same. Writing either out by hand is a conflicting
+/// implementation, which is how this was found.
+impl rand_core_010::TryCryptoRng for StrandRng {}
+
 pub fn info() -> String {
     format!("{}, FIPS_ENABLED: FALSE", module_path!())
 }
