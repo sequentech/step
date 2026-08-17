@@ -10,7 +10,6 @@ import {
     CANDIDATE_CHART_COLORS,
     DATA_GRID_INITIAL_STATE,
     DATA_GRID_PAGE_SIZE_OPTIONS,
-    MAX_CANDIDATES_REPRESENTED,
     RESPONSIVE_PIE_OPTIONS,
     TALLY_RESULTS_PIE_HEIGHT,
     TALLY_RESULTS_PIE_PANEL_WIDTH,
@@ -22,7 +21,13 @@ import type {
     ResultsAndParticipationLabelOverrides,
     ResultsAndParticipationLabels,
 } from "./types"
-import {mergeLabels, percentOrDash, toFiniteNumber, valueOrDash} from "./utils"
+import {
+    buildCandidateChartData,
+    mergeLabels,
+    percentOrDash,
+    toFiniteNumber,
+    valueOrDash,
+} from "./utils"
 
 interface CandidateResultsChartProps {
     results: CandidateResultRow[]
@@ -34,27 +39,6 @@ interface CandidateResultsProps {
     candidates: CandidateResultRow[]
     chartName: string
     labels?: ResultsAndParticipationLabelOverrides
-}
-
-const buildCandidateChartData = (
-    results: CandidateResultRow[],
-    labels: ResultsAndParticipationLabels
-) => {
-    const representedResults = results
-        .map((candidate) => ({
-            label: candidate.name || "-",
-            value: toFiniteNumber(candidate.castVotes) ?? 0,
-        }))
-        .filter((item) => item.value > 0)
-        .sort((left, right) => right.value - left.value)
-
-    if (representedResults.length > MAX_CANDIDATES_REPRESENTED) {
-        const deletedItems = representedResults.splice(MAX_CANDIDATES_REPRESENTED)
-        const othersSum = deletedItems.reduce((sum, item) => sum + item.value, 0)
-        representedResults.push({label: labels.others, value: othersSum})
-    }
-
-    return representedResults
 }
 
 const winningPositionComparator = (left: NumericValue, right: NumericValue) => {

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {formatPercentOne} from "@sequentech/ui-core"
+import {MAX_CANDIDATES_REPRESENTED} from "./constants"
 import {defaultResultsAndParticipationLabels} from "./types"
 import type {
     CandidateReference,
@@ -53,6 +54,26 @@ export const toFiniteNumber = (value: NumericValue): number | null => {
     }
 
     return null
+}
+
+export const buildCandidateChartData = (
+    results: CandidateResultRow[],
+    labels: ResultsAndParticipationLabels
+) => {
+    const representedResults = results
+        .map((candidate) => ({
+            label: candidate.name || "-",
+            value: toFiniteNumber(candidate.castVotes) ?? 0,
+        }))
+        .filter((item) => item.value > 0)
+
+    if (representedResults.length > MAX_CANDIDATES_REPRESENTED) {
+        const deletedItems = representedResults.splice(MAX_CANDIDATES_REPRESENTED)
+        const othersSum = deletedItems.reduce((sum, item) => sum + item.value, 0)
+        representedResults.push({label: labels.others, value: othersSum})
+    }
+
+    return representedResults
 }
 
 export const valueOrDash = (value: NumericValue): string | number => toFiniteNumber(value) ?? "-"

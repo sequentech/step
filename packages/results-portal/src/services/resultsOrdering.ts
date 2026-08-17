@@ -109,8 +109,21 @@ export const orderElectionResultRows = <T extends ResultsRow>(
     locale: string
 ): T[] => {
     const order = electionEventPresentation(manifest, dataset)?.elections_order
+    const snapshotOrder = new Map(
+        unique([
+            ...manifest.election_ids,
+            ...manifest.contests.map((contest) => contest.election_id),
+        ]).map((id, index) => [id, index])
+    )
+    const snapshotPosition = (electionId: unknown): number =>
+        electionId === null || electionId === undefined
+            ? Number.MAX_SAFE_INTEGER
+            : (snapshotOrder.get(String(electionId)) ?? Number.MAX_SAFE_INTEGER)
+    const snapshotRows = [...rows].sort((left, right) => {
+        return snapshotPosition(left.election_id) - snapshotPosition(right.election_id)
+    })
 
-    return sortByPresentationOrder(rows, order, {
+    return sortByPresentationOrder(snapshotRows, order, {
         getLabel: (row) =>
             translatedLabel(findRow(dataset.election, row.election_id), locale, String(row.id)),
         getPresentation: (row) => findRow(dataset.election, row.election_id)?.presentation,

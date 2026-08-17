@@ -1439,10 +1439,9 @@ fn report_candidates_order_policy(contest: &Contest) -> Option<CandidatesOrderPo
 
 fn report_contest(report: &ReportDataComputed) -> Option<&Contest> {
     report
-        .contest_result
+        .contest
         .as_ref()
-        .map(|result| &result.contest)
-        .or(report.contest.as_ref())
+        .or_else(|| report.contest_result.as_ref().map(|result| &result.contest))
 }
 
 fn compare_text(left: &str, right: &str) -> Ordering {
@@ -1728,6 +1727,38 @@ mod participation_by_channel_tests {
     }
 
     #[test]
+    fn alphabetical_report_sections_use_the_full_contest_name() {
+        let mut contest_a = report_for_contest("contest-a", "Same", 1);
+        contest_a.contest.as_mut().unwrap().alias = None;
+        contest_a.contest.as_mut().unwrap().name = Some("Same / Zulu".to_string());
+        contest_a.contest_result.as_mut().unwrap().contest.alias = None;
+        contest_a.contest_result.as_mut().unwrap().contest.name = Some("Same".to_string());
+
+        let mut contest_z = report_for_contest("contest-z", "Same", 1);
+        contest_z.contest.as_mut().unwrap().alias = None;
+        contest_z.contest.as_mut().unwrap().name = Some("Same / Alpha".to_string());
+        contest_z.contest_result.as_mut().unwrap().contest.alias = None;
+        contest_z.contest_result.as_mut().unwrap().contest.name = Some("Same".to_string());
+
+        let mut reports = vec![contest_a, contest_z];
+        sort_report_sections(
+            &mut reports,
+            &ContestsOrder::Alphabetical,
+            &HashMap::new(),
+            true,
+        );
+
+        assert_eq!(
+            reports
+                .iter()
+                .filter_map(report_contest)
+                .map(|contest| contest.id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["contest-z", "contest-a"]
+        );
+    }
+
+    #[test]
     fn random_report_sections_preserve_the_input_snapshot() {
         let mut z_area = report_for_contest("contest-z", "Z contest", 1);
         z_area.area = Some(BasicArea {
@@ -1786,6 +1817,12 @@ mod participation_by_channel_tests {
             report_candidates_order_policy(&contest),
             Some(CandidatesOrderPolicy::SortByWinningPosition)
         ));
+
+        contest.annotations = Some(HashMap::from([(
+            CONTEST_REPORT_CONFIG.to_string(),
+            "{invalid".to_string(),
+        )]));
+        assert!(report_candidates_order_policy(&contest).is_none());
     }
 
     #[test]
@@ -1882,6 +1919,8 @@ mod participation_by_channel_tests {
         let candidate_a = rendered.find("A ordered candidate").unwrap();
         let candidate_missing = rendered.find("Missing ordered candidate").unwrap();
         assert!(candidate_z < candidate_a && candidate_a < candidate_missing);
+        assert!(rendered.contains("<th>Candidate</th>"));
+        assert!(!rendered.contains("<th>Candidate ID</th>"));
 
         let candidate_z_row = rendered[candidate_z..].split("</tr>").next().unwrap();
         assert!(candidate_z_row.contains("<td>7</td>"));

@@ -29,6 +29,7 @@ import {
     TALLY_RESULTS_PIE_HEIGHT,
     TALLY_RESULTS_PIE_PANEL_WIDTH,
 } from "@sequentech/ui-essentials"
+import {orderItemsByIds} from "./utils"
 
 interface TallyElectionsResultsProps {
     tenantId: string | null
@@ -178,13 +179,15 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
     const tallyData = useAtomValue(tallyQueryData)
     const aliasRenderer = useAliasRenderer()
 
-    const elections: Array<Sequent_Backend_Election> | undefined = useMemo(
-        () =>
-            tallyData?.sequent_backend_election
-                ?.filter((election) => electionIds?.includes(election.id))
-                ?.map((election): Sequent_Backend_Election => election as any),
-        [tallyData?.sequent_backend_election, electionIds]
-    )
+    const elections: Array<Sequent_Backend_Election> | undefined = useMemo(() => {
+        const availableElections = tallyData?.sequent_backend_election?.map(
+            (election): Sequent_Backend_Election => election as any
+        )
+
+        return availableElections
+            ? orderItemsByIds(availableElections, electionIds ?? [])
+            : undefined
+    }, [tallyData?.sequent_backend_election, electionIds])
 
     const results: Array<Sequent_Backend_Results_Election> | undefined = useMemo(
         () =>

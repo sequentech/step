@@ -4,7 +4,7 @@
 
 import {describe, expect, it} from "@jest/globals"
 import {ElectionsOrder} from "../types/ElectionEventPresentation"
-import {sortByPresentationOrder} from "./presentationOrder"
+import {parseEntityPresentation, sortByPresentationOrder} from "./presentationOrder"
 
 interface Item {
     id: string
@@ -50,6 +50,21 @@ describe("sortByPresentationOrder", () => {
         expect(
             sortByPresentationOrder(source, ElectionsOrder.CUSTOM, accessors).map((item) => item.id)
         ).toEqual(["b", "a"])
+    })
+
+    it("uses the canonical first position for a missing custom sort order", () => {
+        const source: Item[] = [
+            {id: "configured", name: "Configured", presentation: {sort_order: 1}},
+            {id: "missing", name: "Missing"},
+        ]
+
+        expect(
+            sortByPresentationOrder(source, ElectionsOrder.CUSTOM, accessors).map((item) => item.id)
+        ).toEqual(["missing", "configured"])
+    })
+
+    it("returns undefined for malformed serialized presentation metadata", () => {
+        expect(parseEntityPresentation("{invalid")).toBeUndefined()
     })
 
     it("preserves a published random snapshot", () => {

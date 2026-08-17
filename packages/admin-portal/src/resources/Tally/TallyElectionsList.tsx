@@ -12,6 +12,7 @@ import {
     parseEntityPresentation,
     sortByPresentationOrder,
 } from "@sequentech/ui-core"
+import {orderItemsByIds} from "./utils"
 
 type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
     rowId: number
@@ -58,8 +59,11 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
 
     useEffect(() => {
         if (filteredElections) {
-            const mappedElections: Array<Sequent_Backend_Election_Extended> = filteredElections
-                .map((election, index) => {
+            const selectedElections = tallyData
+                ? orderItemsByIds(filteredElections, tallyData.election_ids ?? [])
+                : filteredElections
+            const mappedElections: Array<Sequent_Backend_Election_Extended> = selectedElections.map(
+                (election, index) => {
                     const electionName = aliasRenderer(election.presentation)
                     return {
                         ...election,
@@ -68,10 +72,8 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
                         name: electionName,
                         active: true,
                     }
-                })
-                .filter((election) =>
-                    tallyData ? (tallyData.election_ids || []).includes(election.id) : true
-                )
+                }
+            )
             const orderedElections = sortByPresentationOrder(mappedElections, electionsOrder, {
                 getLabel: (election) => election.name,
                 getPresentation: (election) => election.presentation,

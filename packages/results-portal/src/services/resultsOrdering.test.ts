@@ -6,8 +6,20 @@ import {describe, expect, it, jest} from "@jest/globals"
 import {ResultsManifest, ResultsSqliteDataset} from "@/types/results"
 
 jest.mock("@sequentech/ui-core", () => ({
-    parseEntityPresentation: (value: unknown) =>
-        typeof value === "string" ? JSON.parse(value) : value,
+    parseEntityPresentation: (value: unknown) => {
+        let parsed = value
+        if (typeof value === "string") {
+            try {
+                parsed = JSON.parse(value)
+            } catch {
+                return undefined
+            }
+        }
+
+        return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
+            ? parsed
+            : undefined
+    },
     sortByPresentationOrder: (
         items: unknown[],
         order: string | undefined,
@@ -17,6 +29,9 @@ jest.mock("@sequentech/ui-core", () => ({
         }
     ) => {
         const sorted = [...items]
+        if (order === "random") {
+            return sorted
+        }
         if (order === "custom") {
             return sorted.sort(
                 (left, right) =>
@@ -147,6 +162,50 @@ describe("results ordering", () => {
 
         expect(
             orderElectionResultRows(rows, manifest, dataset, "en").map((row) => row.election_id)
+        ).toEqual(["election-z", "election-a"])
+    })
+
+    it("falls back safely when election-event presentation is malformed", () => {
+        const malformedDataset = {
+            ...dataset,
+            election_event: [{id: "event", presentation: "{invalid"}],
+        }
+        const reversedManifest = {
+            ...manifest,
+            election_ids: ["election-z", "election-a"],
+        }
+
+        expect(orderResultElectionIds(reversedManifest, malformedDataset, "en")).toEqual([
+            "election-a",
+            "election-z",
+        ])
+    })
+
+    it("preserves the published source order for random elections", () => {
+        const randomDataset = {
+            ...dataset,
+            election_event: [
+                {id: "event", presentation: JSON.stringify({elections_order: "random"})},
+            ],
+        }
+        const reversedManifest = {
+            ...manifest,
+            election_ids: ["election-z", "election-a"],
+        }
+
+        expect(orderResultElectionIds(reversedManifest, randomDataset, "en")).toEqual([
+            "election-z",
+            "election-a",
+        ])
+
+        const summaryRows = [
+            {id: "result-a", election_id: "election-a"},
+            {id: "result-z", election_id: "election-z"},
+        ]
+        expect(
+            orderElectionResultRows(summaryRows, reversedManifest, randomDataset, "en").map(
+                (row) => row.election_id
+            )
         ).toEqual(["election-z", "election-a"])
     })
 })
