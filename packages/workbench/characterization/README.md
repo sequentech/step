@@ -9,13 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 Step 1 of the migration path in
 [`docs/VALIDATION_LOGIC_DISTILLATION.md`](../docs/VALIDATION_LOGIC_DISTILLATION.md)
 §5.3: enumerate the validation input space through the **real
-implementation** and record the observed effects. Two words carry the
-whole suite, defined here once: a **cell** is one concrete
-(contest-configuration × vote-state) combination — e.g.
-`blank_vote_policy = warn` × `invalid_vote_policy = allowed` × an empty
-ballot; a rule's **grid** is the full cross-product of the dimensions
-its runner varies (blank-rule: 4 blank policies × 4 invalid policies ×
-4 vote states = 64 cells). Every recorded table has one row per cell.
+implementation** and record the observed effects.
 Recorded tables are *characterizations* (what the code does). Surprising behaviours are
 **suspects** — recorded precisely, escalated for consultation in
 [`../docs/UPSTREAM_FINDINGS.md`](../docs/UPSTREAM_FINDINGS.md), and
@@ -24,6 +18,43 @@ design authority. Disagreements between the recording, the docs and
 expectations are the product here, not noise; intuitions about them guide
 attention (the silent-discount families get their own report because we
 strongly suspect a defect) but never adjudicate.
+
+## Vocabulary
+
+Defined here once, because the rest of this document uses them freely.
+Each names a concrete piece of code or a recorded column.
+
+- **cell** — one concrete (contest-configuration × vote-state)
+  combination: `blank_vote_policy = warn` × `invalid_vote_policy =
+  allowed` × an empty ballot, say. Every recorded table has one row per
+  cell.
+- **rule** — one checker function in sequent-core's
+  `ballot_codec/checker.rs`, plus everything downstream keyed to its
+  message and policy: its gate clauses, its keep-list carve-out, its
+  alert-visibility rule. There are seven, and this suite runs one runner
+  and one grid per rule. (Not "one policy": min-vote's knob is the
+  `min_votes` bound and it has no policy at all.)
+  VALIDATION_LOGIC_DISTILLATION.md §2 enumerates the seven and explains
+  why this carving is a choice rather than a given.
+- **grid** — a rule's full cross-product of the dimensions its runner
+  varies (blank-rule: 4 blank policies × 4 invalid policies × 4 vote
+  states = 64 cells).
+- **effect category** — one of the four things the mapping yields for a
+  cell: the **inline** messages, the **dialog**, **reachability**
+  (whether the booth lets the vote state form at all — a greyed control,
+  a marker that clears a co-selection), and the **tally** class.
+- **checker emissions** and **gate pair** — the two *checkable
+  intermediates*: values computed on the way to those effects and checked
+  here without being effects themselves. Namely, the errors/alerts
+  `checker.rs` records, and the two submission gates (hard = blocking,
+  soft = dismissible dialog — the dialog effect is their projection). The
+  **inline filter** is the TypeScript that turns emissions into what
+  actually renders (`filterErrorList`, `InvalidErrorsList.tsx`).
+- **observation point** — where an inline effect is read: the untouched
+  voting screen, the touched voting screen, or the review screen.
+  Production factors this as two screens × the `isTouched` flag; the
+  untouched-review combination does not arise, so there are three. It
+  indexes the mapping's *output*, not its input.
 
 ## Intent: all behaviour, and what "all" requires
 
@@ -78,7 +109,7 @@ oversight. Review it alongside the census when upstream merges land.
 | **encoding-error emissions** — write-in overflow (`writeInCharsExceeded`), `invalidMinVotes` / `invalidMaxVotes` | out of scope: no bundled fixture carries a write-in candidate (FIXTURE_VARIANCE.md §8) and every grid's bounds are sane. `spec.mjs` lists the keys only for hard-gate faithfulness (`EXPLICIT_OR_ENCODING`) | a write-in fixture, a malformed-bounds slice, or an adjudication question that turns on these cells |
 | **config-rejection outcomes** — `check_contest_configuration` refuses a contest with two explicit-blank (or two explicit-invalid) marker candidates, before any per-ballot rule runs | out of scope: a distinct outcome class ("config rejected"), headlessly reachable but on no grid | a cheap headless slice (construct the two-marker contest) whenever that class needs pinning |
 | **gate composition across contests / pages** | the spec and every grid are per-contest. Production's gates iterate all contests and fire if ANY matches (VOTE_VALIDATION.md, "Interaction with pagination") — plain OR-composition over the per-contest predicate the spec models; the composition itself is unvalidated | a multi-contest grid (e.g. on `mixed-3contests`) if the OR-composition is ever in doubt |
-| **message parameters** — every checker warning is an `InvalidPlaintextError` carrying a `message` (the i18n key identifying the warning, e.g. `errors.implicit.selectedMax` — what the tables' *errors*/*alerts* cells show and what `data-warn-id` exposes in the DOM) and a `message_map` (the values interpolated into the translated text, e.g. numSelected/min/max — the booth renders `t(message, message_map)`, `InvalidErrorsList.tsx`) | comparisons are over the `message` keys only, at every layer; the interpolated `message_map` values are never checked | a finding that turns on a wrong interpolated value (say, the wrong maximum printed in an otherwise-correct warning) rather than a wrong message key |
+| **message parameters** — every checker warning is an `InvalidPlaintextError` carrying a `message` (the i18n key identifying the warning, e.g. `errors.implicit.selectedMax` — what the tables' *errors*/*alerts* cells show and what `data-warn-id` exposes in the DOM) and a `message_map` (the values interpolated into the translated text, e.g. numSelected/min/max — the booth renders `t(message, message_map)`, `InvalidErrorsList.tsx`) | comparisons are over the `message` keys only — in the checker record, at the gates, and in the rendered DOM alike; the interpolated `message_map` values are never checked | a finding that turns on a wrong interpolated value (say, the wrong maximum printed in an otherwise-correct warning) rather than a wrong message key |
 | **marker preconditions as fixture choice** — `has_explicit_blank/invalid_candidate` | not spec inputs: they gate which vote-states are REACHABLE (a marker state needs a marker candidate), not what the mapping says about a state that exists. Each grid picks a fixture carrying its rule's preconditions | a rule whose EFFECTS (not merely reachability) turn out to depend on marker presence |
 | **untouched voting view** — the voting screen before the voter's first selection in the contest (`isTouched`, Question.tsx state, armed when a selection appears). While untouched, `filterErrorList` unconditionally empties BOTH warning lists, so nothing renders inline even when the checker has already emitted warnings (e.g. `selectedMin` on a just-opened screen with `min_votes: 1`); the spec carries the view as the constant `votingUntouched: []` | validated as a constant, per cell: before arming the touch, `dom-validate.mjs` asserts the untouched view renders NOTHING on every one of its 229 cells — whatever the checker emitted — and fails the run otherwise | any code path that renders inline content on an untouched contest (a warning exempted from the clear, or the clear gaining a condition) — the constant would stop being one, and the view would need per-cell treatment like the other two |
 
@@ -105,12 +136,10 @@ its source within minutes of being written.
 4. **Roles of the artifacts.** The recorded JSON is the *characterization*
    (evidence, and after adjudication the regression oracle); the
    *specification* is [`spec.mjs`](spec.mjs) and its typed Rust port
-   ([below](#the-spec-exists-twice-and-only-one-carries-the-evidence))
-   — the whole mapping as one
-   function `f(config, voteState)`: checker emissions, both
-   gates, the classifier, the message filter (all three observation
-   points of the inline effect), and reachability — with the
-   per-cell meaning of each rule's grid defined once in
+   ([below](#the-spec-exists-twice-and-only-one-carries-the-evidence)) —
+   the whole mapping as one function `f(config, voteState)`, every
+   category and intermediate above — with the per-cell meaning of each
+   rule's grid defined once in
    [`rule-specs.mjs`](rule-specs.mjs); tables are *views* for humans;
    **suspects** live in `../docs/UPSTREAM_FINDINGS.md` until consultation
    adjudicates them. The spec is validated against the recording by
@@ -156,21 +185,19 @@ the functional model in
   [`dom-validate.mjs`](dom-validate.mjs) drives every cell of every rule
   through the real booth via Playwright against the dev server on :5173,
   setting config through the **Policy-overrides panel** (the reviewer path)
-  and navigating reload-free. Inline visibility is observed at **both
-  observation points** — the touched voting screen (a deterministic
-  tick-untick arms the touch per cell; the untouched view is a recorded
-  constant — empty) and the review screen — through the
+  and navigating reload-free. Inline visibility is observed at two of the
+  three observation points — the touched voting screen (a deterministic
+  tick-untick arms the touch per cell) and the review screen — through the
   `data-warn-id` attribute every WarnBox carries (upstream #2832), which
-  yields raw message keys — no i18n ambiguity.
+  yields raw message keys — no i18n ambiguity. The third, the untouched
+  view, is asserted empty on every cell instead of recorded.
 
 Every prediction comes from [`spec.mjs`](spec.mjs) — the single shared
 transcription of the production rules, exposed as one function
-`f(config, voteState)` covering the checker emissions (which
-errors/alerts the checker produces per config × vote state), the two
-gates, the tally classifier, the booth message filter (inline visibility
-at all three observation points — untouched voting, touched voting,
-review — indexed in the output, not taken as an input), and reachability
-(whether the booth UI lets a state form at all). A rule runner's `predict()` is a thin call into `f`,
+`f(config, voteState)` covering all four effect categories plus both
+checkable intermediates: emissions, gate pair, inline visibility at each
+observation point, reachability, and the tally class. A rule runner's
+`predict()` is a thin call into `f`,
 fed from the rule's cell definitions in [`rule-specs.mjs`](rule-specs.mjs)
 (`specConfig` / `voteState` — what each recorded row means in spec
 terms); the runner itself contributes only its experiment grid and the
@@ -200,7 +227,7 @@ that evidence *through* `spec.mjs`. So the chain reads **production ≡
 
 | link | how it is evidenced |
 |---|---|
-| production ≡ `spec.mjs` | **exhaustively** on the headless subdomain (138,240 cells) and **per cell** in the real booth (229 grid cells, plus 130,048 covered via 2,208 quotient classes) |
+| production ≡ `spec.mjs` | **exhaustively** on the headless subdomain (138,240 cells) and **per cell** in the real booth (229 grid cells, plus 130,048 more covered by 2,208 representative booth runs — the quotient argument below) |
 | `spec.mjs` ≡ Rust | **exactly** on the 280 recorded cells (where Rust also meets production directly), and by **sampling** elsewhere — 20,000 seeded-random cells |
 
 Pointing the validation runners at the Rust binary instead — `emit-grid`
@@ -234,12 +261,19 @@ Beyond the grids, the **dependency-validation pipeline** closes the
 coverage question the per-rule slices cannot answer (they validate only
 their own slice of the input space): `effect-dependencies.mjs` enumerates
 every dependence and independence claim the spec makes, with an
-executable witness per dependence; `headless-sweep.mjs` discharges the
+executable **witness** per dependence — a concrete pair of cells that
+differ in that one input and produce different values, which is what
+settles an existential claim; `headless-sweep.mjs` discharges the
 headless independence claims by exhaustion (production ≡ spec on all
-138,240 representable cells) and emits the quotient inventory;
+138,240 **representable** cells — those a bundled fixture can actually
+drive; `plurality-cell.mjs`'s `representable()` names the rest, with the
+reason each is out of reach) and emits the **quotient inventory** — the
+classes defined just below, with one representative cell each;
 `browser-witnesses.mjs` booth-confirms the browser-side dependence
 witnesses; `quotient-validate.mjs` discharges the browser-side
-independence claims by sufficiency (one booth run per reachable
+independence claims by **sufficiency** — the filter reads the inputs only
+through a computed summary, so cells sharing that summary must behave
+alike and one booth run settles the whole class (one run per reachable
 emissions × consulted-policies class — 130,048 cells covered via 2,208
 classes). Zero disagreements on every stage; everything unreachable is
 labelled with its unblocking condition.
