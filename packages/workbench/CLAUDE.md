@@ -97,6 +97,11 @@ purpose.
   wait-for-select against the outgoing page's identical panel, misrouting
   the first select onto the wrong contest — fixed inside `setPanelConfig`
   (it hops through the inspector), so don't re-introduce a direct wait.
+  Third face: inline warnings render from component-local decode state
+  that lags the last click, so reading `warnIds` immediately races it —
+  read at quiescence (two consecutive reads agreeing;
+  `characterization/booth-cell.mjs` `stableWarnIds`), never after a fixed
+  sleep, and never immediately.
 - **PowerShell tool sessions on this machine may lack `node` on PATH**;
   refresh with
   `$env:Path = [Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [Environment]::GetEnvironmentVariable("Path","User")`

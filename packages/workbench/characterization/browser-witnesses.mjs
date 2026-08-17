@@ -42,16 +42,8 @@ import {createRequire} from "node:module"
 import {readFileSync, writeFileSync} from "node:fs"
 import {fileURLToPath} from "node:url"
 import path from "node:path"
-import {
-    warnIds,
-    dialogKind,
-    setPanelConfig,
-    enterBooth,
-    clearSelections,
-    dismissDialog,
-    backToInspector,
-    loadSnapshot,
-} from "./browser-harness.mjs"
+import {loadSnapshot} from "./browser-harness.mjs"
+import {boothContext, observeCell, boothFormable, shortKey} from "./booth-cell.mjs"
 import {f as specF} from "./spec.mjs"
 
 const require = createRequire("C:/work/projects/step/packages/")
@@ -94,19 +86,14 @@ const parseCell = (cell) => ({
     },
 })
 
-const shortKey = (k) => k.split(".").pop()
-
 /** Why a witness cannot be booth-observed, or null if it can. */
 function boothDefer(component, cells) {
     for (const cell of cells) {
-        const {config, voteState: vs} = parseCell(cell)
-        if (vs.duplicateRanks || vs.rankGaps) return "preferential state (IRV recipe pending)"
-        if (vs.decline) return "decline (no booth route)"
-        if (vs.regulars > 2) return "regulars > 2 (no fixture)"
-        if (config.max === 0) return "max_votes = 0 (config-sanity scope boundary)"
-        if (vs.blankMarker && vs.explicitInvalid)
-            return "blank marker + invalid flag (no booth contest carries both)"
-        const spec = specF(config, vs)
+        const parsed = parseCell(cell)
+        const formable = boothFormable(parsed)
+        if (formable) return formable
+        if (parsed.config.max === 0) return "max_votes = 0 (config-sanity scope boundary)"
+        const spec = specF(parsed.config, parsed.voteState)
         if (component.includes("inline") && spec.reachability !== "yes")
             return "state prevented in the booth (inline unobservable there)"
         if (component.endsWith("inline.review") && spec.gate.hard)
@@ -116,125 +103,12 @@ function boothDefer(component, cells) {
 }
 
 // ---------------------------------------------------------------------------
-// Generic booth driver
+// Booth driver — shared with quotient-validate (booth-cell.mjs)
 // ---------------------------------------------------------------------------
 const browser = await chromium.launch({channel: "chrome", headless: true})
 const page = await browser.newPage()
 await loadSnapshot(page, base, SNAPSHOT)
-
-const CONTESTS = await page.evaluate((electionId) => {
-    const bs = window.__store.getState().ballotStyles[electionId]
-    const byFlag = (flag) =>
-        bs.ballot_eml.contests.find((x) => x.candidates.some((cd) => cd.presentation?.[flag]))
-    const raw = localStorage.getItem("workbench:state:v1")
-    return {
-        referendum: byFlag("is_explicit_blank").id,
-        council: byFlag("is_explicit_invalid").id,
-        voter: raw ? JSON.parse(raw)?.workbench?.voters?.[0]?.id ?? null : null,
-    }
-}, ELECTION)
-
-const RECIPES = {
-    referendum: {
-        contestId: CONTESTS.referendum,
-        landmark: /^Yes$/,
-        regulars: [/^Yes$/, /^No$/],
-        marker: "Blank vote (explicit blank)",
-    },
-    council: {
-        contestId: CONTESTS.council,
-        landmark: /^Ada$/,
-        regulars: [/^Ada$/, /^Bruno$/],
-        marker: "Null vote (explicit invalid)",
-    },
-}
-
-const clickText = (rx) => page.getByText(rx).first().click().catch(() => {})
-const clickExact = (s) => page.getByText(s, {exact: true}).first().click().catch(() => {})
-
-// Platform defaults + fixture bounds, for neutralizing the contest a cell
-// does NOT target: overrides accumulate per contest (the CLAUDE.md gotcha),
-// the review screen renders every contest, and warnIds reads the whole
-// page — a stale override on the other contest would pollute the
-// observation (it did: the first run's three "disagreements" were exactly
-// this artifact).
-const NEUTRAL = {
-    selects: {
-        "Invalid-vote policy": "allowed",
-        "Blank-vote policy": "allowed",
-        "Over-vote policy": "allowed-with-msg-and-alert",
-        "Under-vote policy": "allowed",
-    },
-}
-const FIXTURE_BOUNDS = {referendum: {min_votes: 0, max_votes: 2}, council: {min_votes: 0, max_votes: 1}}
-
-/** Drive one arbitrary plurality cell and observe inline (touched voting +
- *  review), the selection state, and the dialog. */
-async function observeCell({config, voteState: vs}) {
-    const recipe = vs.explicitInvalid ? RECIPES.council : RECIPES.referendum
-    const otherName = vs.explicitInvalid ? "referendum" : "council"
-    await setPanelConfig(page, RECIPES[otherName].contestId, {
-        ...NEUTRAL,
-        bounds: FIXTURE_BOUNDS[otherName],
-    })
-    // Back-to-back panel configs on different contests are safe: the
-    // navigation race this used to trip is fixed inside setPanelConfig
-    // (browser-harness.mjs).
-    await setPanelConfig(page, recipe.contestId, {
-        selects: {
-            "Invalid-vote policy": config.policies.invalid,
-            "Blank-vote policy": config.policies.blank,
-            "Over-vote policy": config.policies.over,
-            "Under-vote policy": config.policies.under,
-        },
-        bounds: {min_votes: config.min, max_votes: config.max},
-    })
-    await enterBooth(page, CONTESTS.voter)
-    await page.getByText(recipe.landmark).first().waitFor({timeout: 15000})
-    await clearSelections(page)
-    // Deterministic touch: tick-untick the landmark so the untouched-clear
-    // never masks the voting observation (rule-specs.mjs does the same).
-    await clickText(recipe.landmark)
-    await clickText(recipe.landmark)
-    // Form the state: regulars first, marker last (a marker-clear must be
-    // an observed collapse, not a race).
-    for (let i = 0; i < vs.regulars; i++) await clickText(recipe.regulars[i])
-    if (vs.blankMarker) await clickExact(RECIPES.referendum.marker)
-    if (vs.explicitInvalid) await clickExact(RECIPES.council.marker)
-
-    const sel = await page.evaluate(
-        ({electionId, contestId}) => {
-            const s = window.__store.getState().ballotSelections[electionId] ?? []
-            const c = s.find((x) => x.contest_id === contestId)
-            return {
-                formed: c ? c.choices.filter((ch) => ch.selected === 0).length : 0,
-                flag: !!(c && c.is_explicit_invalid),
-                selected: c ? c.choices.map((ch) => ch.selected) : [],
-            }
-        },
-        {electionId: ELECTION, contestId: recipe.contestId}
-    )
-    const inlineVoting = (await warnIds(page)).map(shortKey)
-
-    let dialog = "none"
-    let inlineReview = null
-    const next = page.getByRole("button", {name: /next|review/i}).first()
-    if (await next.count().catch(() => 0)) {
-        await next.click().catch(() => {})
-        dialog = await dialogKind(page)
-    }
-    if (dialog === "dismissible") {
-        await page.getByRole("button", {name: /continue/i}).first().click().catch(() => {})
-    }
-    if (dialog !== "blocking") {
-        await page.locator(".cast-ballot-button").first().waitFor({timeout: 8000}).catch(() => {})
-        inlineReview = (await warnIds(page)).map(shortKey)
-    } else {
-        await dismissDialog(page)
-    }
-    await backToInspector(page)
-    return {recipe, sel, inlineVoting, inlineReview, dialog}
-}
+const ctx = await boothContext(page, ELECTION)
 
 /** Project a booth observation onto a component value. */
 function observedValue(component, cell, obs) {
@@ -289,7 +163,7 @@ for (const comp of deps.components) {
         const row = {component: comp.component, varies: w.varies, cells: [], ok: true}
         for (const cell of [cellA, cellB]) {
             const inputs = parseCell(cell)
-            const obs = await observeCell(inputs)
+            const obs = await observeCell(page, ctx, inputs)
             const got = observedValue(comp.component, inputs, obs)
             const want = specValue(comp.component, inputs)
             row.cells.push({cell, spec: String(want), production: String(got)})
