@@ -48,14 +48,8 @@ import {execFileSync, execSync} from "node:child_process"
 import {existsSync, readFileSync, writeFileSync} from "node:fs"
 import {fileURLToPath} from "node:url"
 import path from "node:path"
-import {
-    loadWasm,
-    loadVelvetWasm,
-    runChecker,
-    runGates,
-    tallyClass,
-    extractErrors,
-} from "./harness.mjs"
+import {loadWasm, loadVelvetWasm} from "./harness.mjs"
+import {representable, observeHeadless, shortKey} from "./plurality-cell.mjs"
 import {f as specF} from "./spec.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -86,23 +80,6 @@ console.log(
 // ---------------------------------------------------------------------------
 await loadWasm()
 await loadVelvetWasm()
-const snap = JSON.parse(
-    readFileSync(
-        path.resolve(here, "../app/src/fixtures/snapshots/explicit-blank-invalid.json"),
-        "utf8"
-    )
-)
-const eml = Object.values(snap.state.ballotStyles)[0].ballot_eml
-// The Referendum contest carries a blank marker, accepts the explicit-invalid
-// flag without a marker candidate (recorded: blank-rule.md, explicit_invalid
-// state), and has two regular candidates — every plurality witness fits.
-const contest = eml.contests.find((c) =>
-    c.candidates.some((x) => x.presentation?.is_explicit_blank)
-)
-const markerId = contest.candidates.find((x) => x.presentation?.is_explicit_blank).id
-const regularIds = contest.candidates
-    .filter((x) => !x.presentation?.is_explicit_blank)
-    .map((x) => x.id)
 
 // A witness cell's dim values arrive as wire strings; parse to spec inputs.
 const parseCell = (cell) => ({
@@ -136,53 +113,11 @@ const HEADLESS = (name) =>
 const deferReason = (name, cells) => {
     if (!HEADLESS(name)) return "browser-pending (inline/reachability)"
     for (const cell of cells) {
-        const c = parseCell(cell)
-        if (c.voteState.duplicateRanks || c.voteState.rankGaps)
-            return "preferential state (IRV recipe pending)"
-        if (c.voteState.decline) return "decline (classifier-direct pending)"
-        if (c.voteState.regulars > regularIds.length)
-            return `regulars > ${regularIds.length} (no fixture)`
-        if (c.config.max === 0)
-            return "max_votes = 0 (config-sanity scope boundary)"
+        const reason = representable(parseCell(cell))
+        if (reason) return reason
     }
     return null
 }
-
-function makeEml(config) {
-    const clone = structuredClone(eml)
-    const c = clone.contests.find((x) => x.id === contest.id)
-    c.min_votes = config.min
-    c.max_votes = config.max
-    c.presentation = {
-        ...(c.presentation ?? {}),
-        invalid_vote_policy: config.policies.invalid,
-        blank_vote_policy: config.policies.blank,
-        over_vote_policy: config.policies.over,
-        under_vote_policy: config.policies.under,
-        duplicated_rank_policy: config.policies.dup,
-        preference_gaps_policy: config.policies.gap,
-    }
-    return clone
-}
-
-function makeSelection(vs) {
-    const picked = regularIds.slice(0, vs.regulars)
-    return {
-        contest_id: contest.id,
-        is_explicit_invalid: vs.explicitInvalid,
-        is_decline_to_vote: false,
-        invalid_errors: [],
-        invalid_alerts: [],
-        choices: contest.candidates.map((c) => ({
-            id: c.id,
-            selected:
-                picked.includes(c.id) || (vs.blankMarker && c.id === markerId) ? 0 : -1,
-            write_in_text: null,
-        })),
-    }
-}
-
-const short = (k) => k.split(".").pop()
 
 /** One production observation, projected onto a component name. */
 function productionValue(name, obs) {
@@ -198,28 +133,13 @@ function productionValue(name, obs) {
 /** The spec's value for the same component, from spec.f's output. */
 function specValue(name, cellInputs) {
     const e = specF(cellInputs.config, cellInputs.voteState)
-    if (name.endsWith("∈ errors")) return e.emissions.errors.map(short).includes(name.split(" ")[0])
-    if (name.endsWith("∈ alerts")) return e.emissions.alerts.map(short).includes(name.split(" ")[0])
+    if (name.endsWith("∈ errors")) return e.emissions.errors.map(shortKey).includes(name.split(" ")[0])
+    if (name.endsWith("∈ alerts")) return e.emissions.alerts.map(shortKey).includes(name.split(" ")[0])
     if (name === "gate.hard") return e.gate.hard
     if (name === "gate.soft") return e.gate.soft
     if (name === "dialog") return e.dialog
     if (name === "tally") return e.tally
     throw new Error(`not headless-checkable: ${name}`)
-}
-
-function observeProduction(cellInputs) {
-    const cellEml = makeEml(cellInputs.config)
-    const cellContest = cellEml.contests.find((x) => x.id === contest.id)
-    const decoded = runChecker(makeSelection(cellInputs.voteState), cellEml)
-    const {errors, alerts} = extractErrors(decoded)
-    const gates = runGates([cellContest], {[contest.id]: decoded})
-    return {
-        errors: errors.map(short),
-        alerts: alerts.map(short),
-        hard: gates.hard,
-        soft: gates.soft,
-        tally: tallyClass(cellContest, decoded),
-    }
 }
 
 const checked = []
@@ -237,7 +157,7 @@ for (const comp of analysis.components) {
         const row = {component: comp.component, varies: w.varies, cells: [cellA, cellB], ok: true}
         for (const cell of [cellA, cellB]) {
             const inputs = parseCell(cell)
-            const prod = productionValue(comp.component, observeProduction(inputs))
+            const prod = productionValue(comp.component, observeHeadless(inputs))
             const spec = specValue(comp.component, inputs)
             if (String(prod) !== String(spec)) {
                 row.ok = false
