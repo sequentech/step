@@ -304,15 +304,19 @@ export async function observeBooth(page, {electionId, contestId, voterId, spec, 
     await enterBooth(page, voterId)
     await page.getByText(spec.landmark).first().waitFor({timeout: 15000})
     await clearSelections(page)
+    // The untouched voting view, observed before arming the touch: the
+    // untouched-clear must render NOTHING regardless of what the checker
+    // emitted (`filterErrorList`'s unconditional early-exit; the spec's
+    // `votingUntouched: []` constant). Callers assert this is empty — the
+    // per-cell evidence for the constant, across every rule and config.
+    const inlineUntouched = await warnIds(page)
     // Deterministic touch: the voting screen's inline warnings stay empty
     // until the contest is "touched" (`isTouched`, Question.tsx state, armed
     // only by a selection appearing — the null-vote marker alone never arms
     // it, and the Clear button clears without arming). Tick and untick the
-    // landmark candidate so every cell observes the TOUCHED voting screen;
-    // the untouched view is a recorded constant (empty —
-    // blank-rule.filter.md, untouched column). Ranked contests skip it:
-    // every preferential cell ranks at least one candidate, which arms the
-    // touch by itself.
+    // landmark candidate so every cell observes the TOUCHED voting screen.
+    // Ranked contests skip it: every preferential cell ranks at least one
+    // candidate, which arms the touch by itself.
     if (!spec.ranks) {
         await page.getByText(spec.landmark).first().click().catch(() => {})
         await page.getByText(spec.landmark).first().click().catch(() => {})
@@ -361,7 +365,7 @@ export async function observeBooth(page, {electionId, contestId, voterId, spec, 
         await dismissDialog(page)
     }
     await backToInspector(page)
-    return {formed, selected, explicitInvalid, constraintProbe, inlineAtVote, dialog, inlineAtReview}
+    return {formed, selected, explicitInvalid, constraintProbe, inlineUntouched, inlineAtVote, dialog, inlineAtReview}
 }
 
 /** Did the intended cell state form? Default: the marker-inclusive selection

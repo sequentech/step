@@ -29,8 +29,7 @@ This is the **partial (headless) table** — those five columns are real
 WASM observations. Inline visibility, the input constraint, and the
 silent-discount marker (⚠) that depends on them are browser-only; they
 live in the DOM-validated *complete* table (`dom-validate.mjs`) and
-`no-silent-discount.md`. Layer-3 inline visibility is also recorded in
-`blank-rule.filter.md`.
+`no-silent-discount.md`.
 
 | blank_policy | invalid_policy | state | errors | alerts | hard gate | soft gate | tally | pred? |
 |---|---|---|---|---|---|---|---|---|

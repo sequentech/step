@@ -14,7 +14,8 @@
 //   - driving the booth (panel config → cast state → observe) via
 //     `browser-harness.mjs`, then comparing. Every cell observes the TOUCHED
 //     voting screen (observeBooth's deterministic tick-untick); the
-//     untouched view is a recorded constant (blank-rule.filter.md).
+//     untouched view is ASSERTED empty on every cell before arming (the
+//     untouched-clear constant — a run fails if anything renders there).
 //
 // It drives config through the PANEL (not dispatch) on purpose: a panel
 // regression would make the config miss the booth and the DOM diverge from
@@ -175,6 +176,7 @@ const short = (xs) =>
         : uniq(xs).map((m) => m.replace(/^errors\.\w+\./, "")).join("<br>")
 
 const results = []
+const untouchedViolations = []
 const t0 = performance.now()
 for (const rule of RULES) {
     // Reload per rule for a clean baseline (also switches fixture/snapshot for
@@ -191,6 +193,13 @@ for (const rule of RULES) {
     })
     for (const r of rule.rows) {
         const obs = await observeBooth(page, {electionId: election, contestId, voterId, spec: rule, cell: r})
+
+        // The untouched-clear constant: nothing may render before the touch
+        // is armed, whatever the checker emitted for this cell.
+        if ((obs.inlineUntouched ?? []).length > 0) {
+            untouchedViolations.push({rule: rule.name, cell: rule.label(r), shown: obs.inlineUntouched})
+            console.log(`✗ untouched view NOT empty: ${rule.name} ${rule.label(r)}: ${JSON.stringify(obs.inlineUntouched)}`)
+        }
 
         // The spec predicts a state cannot form by one of two prevention
         // mechanisms: an input disable ("inputs_disabled") or marker exclusivity
@@ -283,10 +292,11 @@ await browser.close()
 
 const totalMs = Math.round(performance.now() - t0)
 const passed = results.filter((x) => x.ok).length
-const allOk = passed === results.length
+const allOk = passed === results.length && untouchedViolations.length === 0
 console.log(
     `\n${passed}/${results.length} cells validated against the real DOM in ${totalMs}ms ` +
-        `(~${Math.round(totalMs / results.length)}ms/cell). all DOM-✓: ${allOk}`
+        `(~${Math.round(totalMs / results.length)}ms/cell). all DOM-✓: ${allOk} ` +
+        `(untouched-view violations: ${untouchedViolations.length})`
 )
 
 // --- complete tables (one per rule) -----------------------------------------
@@ -320,8 +330,9 @@ const md = [
     "view ADDS the browser-only observations the partial cannot show —",
     "*inline (voting)* (inline visibility on the voting screen once the contest",
     "is touched; every cell observes the touched voting screen via a deterministic",
-    "tick-untick, the untouched view being a recorded constant — empty; see",
-    "blank-rule.filter.md), *inline (review)* (inline visibility at the decisive",
+    "tick-untick; before arming, the untouched view is asserted EMPTY on",
+    "every cell — the untouched-clear constant, enforced here rather than",
+    "recorded), *inline (review)* (inline visibility at the decisive",
     "review screen, where the untouched-clear does not apply) and *reachable*",
     "(the input constraint; `no` = the state cannot be formed; `no (disabled)` =",
     "also confirmed by the (max+1)th control carrying `disabled` in the DOM;",

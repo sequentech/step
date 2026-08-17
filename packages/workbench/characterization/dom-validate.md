@@ -14,8 +14,9 @@ the partial's (*errors*, *alerts*, *hard/soft gate*, *tally*); the complete
 view ADDS the browser-only observations the partial cannot show —
 *inline (voting)* (inline visibility on the voting screen once the contest
 is touched; every cell observes the touched voting screen via a deterministic
-tick-untick, the untouched view being a recorded constant — empty; see
-blank-rule.filter.md), *inline (review)* (inline visibility at the decisive
+tick-untick; before arming, the untouched view is asserted EMPTY on
+every cell — the untouched-clear constant, enforced here rather than
+recorded), *inline (review)* (inline visibility at the decisive
 review screen, where the untouched-clear does not apply) and *reachable*
 (the input constraint; `no` = the state cannot be formed; `no (disabled)` =
 also confirmed by the (max+1)th control carrying `disabled` in the DOM;

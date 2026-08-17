@@ -39,14 +39,6 @@ such index: the dialog appears at one fixed moment (the Next/review
 transition), reachability is settled by the interaction attempt, and
 the tally class is assigned once at count.
 
-(An earlier revision of this section quantified "one observable effect"
-over (voter-state × configuration × observation-context) tuples —
-falsified as soon as the effects were enumerated: no booth-time
-observation point perceives a tally effect. The shape was then settled
-in the executable spec first —
-[`../characterization/spec.mjs`](../characterization/spec.mjs), `f` —
-and this section now reflects it.)
-
 **The set's closedness is a checkable claim, not an assumption.** It is
 closed relative to a **consumer census**: the enumeration of every read
 site of the validation state (`invalid_errors` / `invalid_alerts`, the
@@ -108,7 +100,7 @@ named columns of the recorded tables:
 
 | effect category | what it is | value | spec.mjs | recorded in |
 |---|---|---|---|---|
-| **inline** | the warning boxes rendered under the contest (each carries a `data-warn-id`) | one set of message keys **per observation point** — `votingUntouched` (constantly empty: the untouched-clear), `voting`, `review`; 1a when non-empty | `inlineViews` | *inline (voting)* / *inline (review)* columns, `dom-validate.md`; the untouched constant in `blank-rule.filter.md` |
+| **inline** | the warning boxes rendered under the contest (each carries a `data-warn-id`) | one set of message keys **per observation point** — `votingUntouched` (constantly empty: the untouched-clear), `voting`, `review`; 1a when non-empty | `inlineViews` | *inline (voting)* / *inline (review)* columns, `dom-validate.md`; the untouched constant asserted empty per cell by `dom-validate.mjs` |
 | **dialog** | the dialog that may open on clicking Next / entering review | none / dismissible (1b) / blocking (1c) — a projection of the gate pair (see the intermediates note below): hard → blocking, else soft → dismissible, else none | `f().dialog` | the observed dialog per cell in `dom-validate.recorded.json` |
 | **reachability** | whether the booth UI will form the cell's vote state at all — a greyed control (1d), a marker that clears a co-selection. Effects of unformable cells are still real: decoded or hand-built records run the checkers (the §2 pruning caution), which is why the mapping stays total | yes / inputs_disabled / marker_cleared | `reachability` | *reachable* column, `dom-validate.md` |
 | **tally** | the cast ballot's class in the results (it reaches the world through aggregates) | exactly one of the six classes (2a–2f) | `classify` | *tally* column of every rule table; `classifier-table.md` |
@@ -241,9 +233,9 @@ rejects a contest with more than one explicit-blank marker, producing a
 
 These dimensions parameterize nothing but the inline effect category:
 the dialog appears at one fixed moment (the Next/review transition), and
-the tally is observed after casting. (An earlier revision listed
-`on_transition` as a third observation point — it is not one: nothing
-inline is read there; it is the moment the gates are consulted.)
+the tally is observed after casting. (`on_transition` is not an
+observation point: nothing inline is read there — it is the moment the
+gates are consulted.)
 
 | Dimension | Domain |
 |-----------|--------|
@@ -527,169 +519,66 @@ see [`UPSTREAM_FINDINGS.md`](./UPSTREAM_FINDINGS.md) S1/S2 — but the fix
 4. **Testable in isolation** — the pure function `f` can be property-tested
    against the table without rendering any UI.
 
-### 5.2 Sketch
+### 5.2 The declarative artifact (realized)
 
-> **Superseded on shape:** this sketch predates the settled type — it
-> still passes an observation context into the mapping. The current
-> concrete form is `../characterization/spec.mjs`, `f` (§3): no context
-> input; the inline component of the output is point-indexed. Kept for
-> the classify half, which the 2026-08 merge shipped as sketched.
+What §5.1 asks for now exists, twice, checked against itself and against
+production (§5.3 status):
 
-```rust
-/// The declarative specification. Returns the casting-time effect for a
-/// given input tuple.
-fn casting_effect(
-    config: &ContestConfig,
-    vote: &VoteState,
-    ctx: &ObservationContext,
-) -> CastingEffect {
-    // Pattern-match on equivalence classes, not imperative if-chains.
-    match (vote.num_selected_class(config), ctx.point) {
-        (Zero, _) if config.blank_vote_policy == NotAllowed
-            => CastingEffect::NonDismissibleDialog,
-        (Zero, OnReview) if config.blank_vote_policy == WarnOnlyInReview
-            => CastingEffect::InlineMessage,
-        (Zero, DuringVoting) if config.blank_vote_policy == WarnOnlyInReview
-            => CastingEffect::Silent,
-        // ...
-    }
-}
+- **Casting half** — [`../validation-spec/`](../validation-spec/): the
+  typed pure `f(config, vote_state) → Effects` exactly as §3 types it
+  (and its JS twin, `../characterization/spec.mjs`). Bug-compatible; the
+  accidental complexity is enumerated as the quirk registry, each entry
+  an adjudication decision in waiting.
+- **Tally half** — production already ships it: `classify_ballot`
+  (velvet-core `extended_metrics.rs`) is a pure function over
+  (decline, invalid, blank-marker, emptiness), unit-tested upstream —
+  the demonstration of the end state the casting half should reach.
 
-/// Tally-time classification — depends only on config + vote_state.
-///
-/// THIS FUNCTION NOW EXISTS. The 2026-08 merge shipped it as
-/// `classify_ballot` in velvet-core/src/counting/extended_metrics.rs —
-/// a pure function over (decline, invalid, blank-marker, emptiness) with
-/// exactly the shape sketched here, unit-tested upstream. The tally half
-/// of this distillation is therefore already implemented; what remains is
-/// the casting half. Actual shape (abridged):
-fn classify_ballot(vote: &DecodedVoteContest, blank_ids: &HashSet<String>)
-    -> BallotClass
-{
-    if vote.is_decline_to_vote() {
-        if vote.is_blank() { Declined } else { ImplicitInvalid }
-    } else if vote.is_invalid() {
-        if vote.is_explicit_invalid { ExplicitInvalid } else { ImplicitInvalid }
-    } else {
-        match (has_explicit_blank, has_regular_selection) {
-            (true, true)  => ImplicitInvalid,   // mix rule
-            (true, false) => ExplicitBlank,
-            _ if vote.is_blank() => ImplicitBlank,
-            _ => Valid,
-        }
-    }
-}
-```
-
-The booth UI would become a thin renderer:
-
-```typescript
-// Pseudocode — the UI consults the specification, doesn't re-derive logic.
-const effect = wasmModule.casting_effect(contestConfig, voteState, {
-    point: isReview ? "on_review" : "during_voting"
-});
-
-switch (effect) {
-    case "inline_message": return <WarnBox messages={...} />;
-    case "dismissible_dialog": return <Dialog dismissible />;
-    case "non_dismissible_dialog": return <Dialog />;
-    case "input_constraint": /* already handled at render */ break;
-    case "silent": break;
-}
-```
+Step 5's end state is unchanged: the booth UI as a thin renderer that
+consults the specification instead of re-deriving logic
+(`switch (f(config, state).dialog) …`), each effect computed from its
+proven support (the signatures in `../characterization/effect-map.md`).
 
 ### 5.3 Migration path
 
 This is not a rewrite proposal. The path is incremental:
 
-> **Status (2026-08-13):** step 1 is complete for the seven rules —
-> [`../characterization/`](../characterization/README.md) holds the
-> harness, seven recorded rule tables (blank, over-vote, under-vote,
-> min-vote, duplicated-rank, preference-gaps, invalid), the tally
-> classifier's own decision table, and the single-sourced spec
-> ([`../characterization/spec.mjs`](../characterization/spec.mjs) — the
-> whole mapping as one function `f(config, voteState)`: checker
-> emissions, both gates, the classifier, the message filter (all three
-> observation points of the inline effect), and
-> reachability — the embryonic declarative table of step 3; each runner
-> supplies only its experiment grid — the cross-product of the
-> dimensions its rule varies, one cell per (configuration × vote-state)
-> combination — with the per-cell meaning defined once in
-> `rule-specs.mjs`).
-> The spec is validated in two lanes: the partial (headless) tables check
-> its gates/classifier against the real WASM on every cell (`pred?`), and
-> the **complete** tables (`dom-validate.mjs`) drive every cell of all
-> seven rules through the real booth — panel-driven config, reload-free
-> (one snapshot load per rule, then client-side navigation; ~2 s/cell,
-> the full 229-cell grid in ~8 min) — observing inline visibility at the
-> touched voting screen and at the review screen, and reachability, with
-> direct constraint evidence
-> (`no (disabled)` from probing the (max+1)th control's `disabled`
-> attribute; `no (cleared)` from the blank marker clearing a co-selected
-> regular): **229/229 matching the spec**. The §4.5 query
-> (`no-silent-discount`) is observation-based end to end: 248 recorded
-> cells → 7 candidates (`tally = ImplicitInvalid` ∧ no gate) → **5
-> browser-confirmed** silent discounts in two families — the over-vote
-> case §4.2 predicted, and a min-vote family the pass discovered
-> (`selectedMin` is suppressed under `invalid=allowed`, so a
-> below-minimum ballot is silently discarded). Both families require
-> `invalid_vote_policy = allowed`; every violating cell is confirmed
-> through one continuous booth → encrypt → cast → decrypt → decode →
-> tally run (`reproduce-verify.mjs` orchestrates the three e2e runners),
-> with click-by-click reviewer recipes in `REPRODUCE.md` and
-> policy-intent evidence in `INVALID_VOTE_POLICY_INTENT.md`. The one
-> open cell: the decline-to-vote **booth flow** — the classifier's
-> decline cells are recorded headlessly, but no booth runner drives a
-> declined ballot.
-
-> **Status (2026-08-15): steps 3 and 4 are delivered.** Step 3's
-> artifact is the typed Rust crate
-> [`../validation-spec/`](../validation-spec/) —
-> `f(config, vote_state)` exactly as §3 types it, bug-compatible, with
-> the accidental complexity enumerated as a **quirk registry**
-> (`quirks()` in its `lib.rs`: seven named behaviours, each tied to its
-> UPSTREAM_FINDINGS.md suspect/defect and annotated at its code site;
-> toggling one is an adjudication decision, not a refactor). Step 4's
-> equivalence: `../characterization/rust-conformance.mjs` — Rust ≡ the
-> recorded wasm/DOM ground truth on all 280 recorded cells, and ≡
-> `spec.mjs` on 20 000 seeded-random cells (arbitrary bounds including
-> min > max, every policy combination — territory no fixture reaches).
-> Step 5 — replacing production's scattered implementations with an
-> interpreter of this artifact — remains adjudication-gated: the quirk
-> registry is its work list.
-
-> **Status (2026-08-17): the spec's claim ledger is validated.** The
-> effect-first decomposition (§2 pointer) became a three-stage
-> validation pipeline, and its evidence column is complete — every claim
-> the spec makes is now production-validated or explicitly labelled:
+> **Status (2026-08-17).** Step 1 is complete, steps 3–4 are delivered,
+> and the spec's whole claim ledger is validated:
 >
-> - **Dependence claims** (existential; one witness cell-pair each):
->   115 of 155 production-confirmed with zero disagreements — 68
->   headlessly (`../characterization/effect-dependencies.md`), 47 in the
->   booth (`../characterization/browser-witnesses.md`). The 40 others
->   are labelled: 2 unobservable by construction, 25 already exhibited
->   by the recorded IRV grids / classifier table (witness-lane re-run
->   pending an IRV recipe), 13 awaiting a fixture whose contest carries
->   both markers.
-> - **Independence claims** (universal; discharged by coverage, not
->   witnesses): headless effects — exhaustively, production ≡ spec on
->   all 138,240 cells of the representable subdomain
->   (`../characterization/headless-sweep.md`, ~30 s); browser effects —
->   by sufficiency (`../characterization/quotient-validate.md`): the
->   booth's message filter reads the inputs only through
->   (checker record, four consulted policies, observation point) — a
->   source-verified interface fact with a stated re-entry condition —
->   so one booth run per reachable class covers every cell of the
->   class: 2,208 of 2,304 classes booth-validated, zero disagreements,
->   covering 130,048 cells; the 96 classes (8,192 cells) with no
->   booth-formable member are labelled, their headless effects
->   sweep-certified.
+> - **Artifacts.** Seven per-rule grids + the classifier's 32-cell
+>   decision table
+>   ([`../characterization/README.md`](../characterization/README.md),
+>   "Current coverage"); the executable spec twice over —
+>   `../characterization/spec.mjs` and the typed Rust crate
+>   [`../validation-spec/`](../validation-spec/) (bug-compatible; the
+>   quirk registry is the adjudication work list) — agreeing on 20,280
+>   cells (`rust-conformance.md`).
+> - **Validation.** Per-grid: `pred?` against the real WASM on every
+>   cell; the complete tables against the real booth (229/229,
+>   `dom-validate.md`). Beyond the grids, the dependency pipeline:
+>   dependence claims 115/155 production-confirmed, zero disagreements
+>   (the 40 others labelled — 2 unobservable by construction, 25
+>   exhibited by the IRV grids / classifier table, 13 awaiting a
+>   both-markers fixture); independence claims discharged by exhaustion
+>   headlessly (production ≡ spec on all 138,240 representable cells,
+>   `headless-sweep.md`) and by sufficiency in the booth (2,208 quotient
+>   classes covering 130,048 cells, `quotient-validate.md`, under the
+>   source-verified props-boundary license and its re-entry condition).
+> - **Findings.** no-silent-discount: 5 booth-confirmed silent discounts
+>   in two families, all requiring `invalid_vote_policy = allowed`, each
+>   confirmed through one continuous booth → encrypt → cast → decrypt →
+>   decode → tally run (`reproduce-verify.mjs`); recipes in
+>   `REPRODUCE.md`, escalation in `UPSTREAM_FINDINGS.md`, policy intent
+>   in `INVALID_VOTE_POLICY_INTENT.md`.
+> - **Open.** The decline booth flow (a `multi_ballot` feature lift);
+>   the labelled residues above; step 5 — a production interpreter —
+>   remains adjudication-gated.
 >
-> On the representable subdomain, a transcription hole of either
-> polarity — a wrong clause or a missing one — can no longer hide: the
-> per-rule grids' slice blindness is closed by coverage, not argument.
-> Outside it, the labels and scope boundaries say exactly what is not
-> covered and what would unlock it.
+> On the representable subdomain a transcription hole of either
+> polarity — a wrong clause or a missing one — cannot hide: coverage,
+> not argument. Outside it, the labels and scope boundaries say exactly
+> what is not covered and what would unlock it.
 
 1. **Enumerate the current mapping** — exercise every cell of the input
    space through the existing code and record the observed effects. Include
