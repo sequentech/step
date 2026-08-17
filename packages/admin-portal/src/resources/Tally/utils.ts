@@ -14,6 +14,23 @@ const safeExtract = <T>(maybeValue: T | null | undefined): T | undefined => {
     return maybeValue === null || maybeValue === undefined ? undefined : maybeValue
 }
 
+export const orderItemsByIds = <T extends {id: string}>(
+    items: readonly T[],
+    orderedIds: readonly string[]
+): T[] => {
+    const itemById = new Map(items.map((item) => [item.id, item]))
+    const seenIds = new Set<string>()
+
+    return orderedIds.reduce<T[]>((orderedItems, id) => {
+        if (seenIds.has(id)) return orderedItems
+        seenIds.add(id)
+
+        const item = itemById.get(id)
+        if (item) orderedItems.push(item)
+        return orderedItems
+    }, [])
+}
+
 const convertSequentCandidateToICandidate = (
     backendCandidate: Sequent_Backend_Candidate
 ): ICandidate => {

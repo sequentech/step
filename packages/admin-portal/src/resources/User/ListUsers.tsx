@@ -66,7 +66,14 @@ import {useMutation, useQuery} from "@apollo/client"
 import {ATTR_RESET_VALUE, IPermissions} from "@/types/keycloak"
 import {isDatafixElectionEvent} from "@/services/Datafix"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
-import {IRole, IUser, translate} from "@sequentech/ui-core"
+import {
+    EElectionEventWeightedVotingPolicy,
+    IElectionEventPresentation,
+    IRole,
+    IUser,
+    parseEntityPresentation,
+    translate,
+} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {FormStyles} from "@/components/styles/FormStyles"
@@ -106,6 +113,7 @@ import {getVoterInformationLetterPasswordPolicyError} from "./editPasswordError"
 export const AUTHORIZED_ELECTION_IDS = "authorized-election-ids"
 export const VOTED_CHANNEL = "voted-channel"
 export const DISABLE_COMMENT = "disable-comment"
+export const VOTE_WEIGHT = "vote-weight"
 
 const DataGridContainerStyle = styled(DatagridConfigurable, {
     shouldForwardProp: (prop) => prop !== "isOpenSideBar", // Prevent `isOpenSideBar` from being passed to the DOM
@@ -216,10 +224,25 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         }
     )
 
+    const visibleUserAttributes = useMemo(() => {
+        const attributes = userAttributes?.get_user_profile_attributes
+        if (!attributes || !electionEventId) {
+            return attributes
+        }
+
+        const weightedVotingPolicy = parseEntityPresentation<IElectionEventPresentation>(
+            electionEventRecord?.presentation
+        )?.weighted_voting_policy
+
+        return weightedVotingPolicy === EElectionEventWeightedVotingPolicy.VOTERS_WEIGHTED_VOTING
+            ? attributes
+            : attributes.filter((attribute) => attribute.name !== VOTE_WEIGHT)
+    }, [electionEventId, electionEventRecord?.presentation, userAttributes])
+
     const Filters = useMemo(() => {
         let filters: ReactElement[] = []
-        if (userAttributes?.get_user_profile_attributes) {
-            filters = userAttributes.get_user_profile_attributes.map((attr) => {
+        if (visibleUserAttributes) {
+            filters = visibleUserAttributes.map((attr) => {
                 //covert to valid source string (if attr name is for example sequent.read-only.otp-method)
                 const source = attr.name?.replaceAll(".", "%")
                 if (attr.annotations?.inputType === "html5-date") {
@@ -275,7 +298,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             }
         }
         return filters
-    }, [userAttributes?.get_user_profile_attributes, isDatafixEvent])
+    }, [visibleUserAttributes, isDatafixEvent])
 
     const [exportTenantUsers] = useMutation<ExportTenantUsersMutation>(EXPORT_TENANT_USERS, {
         context: {
@@ -1065,7 +1088,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         const attributesFields: UserProfileAttribute[] = []
         const omitFields = ["id", "email_verified", "email"]
 
-        userAttributes?.get_user_profile_attributes.forEach((attr) => {
+        visibleUserAttributes?.forEach((attr) => {
             if (attr.name && userBasicInfo.includes(attr.name)) {
                 basicInfoFields.push(attr)
             } else {
@@ -1074,7 +1097,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             }
         })
         return {basicInfoFields, attributesFields, omitFields}
-    }, [userAttributes?.get_user_profile_attributes])
+    }, [visibleUserAttributes])
 
     const renderFields = (fields: UserProfileAttribute[]) => {
         const allFields = fields.map((attr) => {
@@ -1208,11 +1231,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         }, [isFetching, filtersChanged])
 
         const hasAuthorizedElectionIdsAttributes = useMemo(
-            () =>
-                userAttributes?.get_user_profile_attributes.find(
-                    (attr) => attr.name === AUTHORIZED_ELECTION_IDS
-                ),
-            [userAttributes?.get_user_profile_attributes]
+            () => visibleUserAttributes?.find((attr) => attr.name === AUTHORIZED_ELECTION_IDS),
+            [visibleUserAttributes]
         )
 
         if (isLoading || (isFetching && filtersChanged)) {
@@ -1221,7 +1241,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
 
         return (
             <>
-                {userAttributes?.get_user_profile_attributes && (
+                {visibleUserAttributes && (
                     <DataGridContainerStyle
                         header={ThreeStateDatagridHeader}
                         preferenceKey={getPreferenceKey(location.pathname, "voters")}
@@ -1287,7 +1307,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                 }}
                             />
                         )}
-                        {electionEventId && showVoterListSync && (
+                        {electionEventId && showVoterListSync && isDatafixEvent && (
                             <FunctionField<IUser>
                                 source={`attributes['${DISABLE_COMMENT}']`}
                                 label={String(
@@ -1386,9 +1406,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                     electionEventId={electionEventId}
                                     close={handleClose}
                                     rolesList={rolesList || []}
-                                    userAttributes={
-                                        userAttributes?.get_user_profile_attributes || []
-                                    }
+                                    userAttributes={visibleUserAttributes || []}
                                 />
                             }
                             withComponent={canCreateVoters}
@@ -1427,7 +1445,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     electionId={electionId}
                     close={handleClose}
                     rolesList={rolesList || []}
-                    userAttributes={userAttributes?.get_user_profile_attributes || []}
+                    userAttributes={visibleUserAttributes || []}
                     record={userRecord}
                     onTaskLaunched={handleEditUserTask}
                 />
@@ -1445,7 +1463,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     electionEventId={electionEventId}
                     close={handleClose}
                     rolesList={rolesList || []}
-                    userAttributes={userAttributes?.get_user_profile_attributes || []}
+                    userAttributes={visibleUserAttributes || []}
                 />
             </ResourceListStyles.Drawer>
             <Dialog

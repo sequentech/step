@@ -12,11 +12,13 @@ import {
 import {useTranslation} from "react-i18next"
 import {Sequent_Backend_Candidate_Extended, RunoffStatus} from "./types"
 import {useAtomValue} from "jotai"
-import {sortCandidates} from "@/utils/candidateSort"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {
     EElectionEventWeightedVotingPolicy,
+    IContestPresentation,
     ICountingAlgorithm,
+    parseEntityPresentation,
+    sortByPresentationOrder,
     TallySheetVotingChannel,
     VotingStatusChannel,
 } from "@sequentech/ui-core"
@@ -56,6 +58,13 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
     const tallyData = useAtomValue(tallyQueryData)
     const aliasRenderer = useAliasRenderer()
     const defaultElectionLang = useDefaultElectionLang(electionId, electionEventId)
+    const contest = useMemo(
+        () =>
+            tallyData?.sequent_backend_contest?.find(
+                (candidateContest) => candidateContest.id === contestId
+            ),
+        [contestId, tallyData?.sequent_backend_contest]
+    )
 
     const candidates: Array<Sequent_Backend_Candidate> | undefined = useMemo(
         () =>
@@ -107,8 +116,15 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
     }, [results, candidates, aliasRenderer, defaultElectionLang])
 
     const orderedResultsData = useMemo(() => {
-        return [...resultsData].sort(sortCandidates)
-    }, [resultsData])
+        const candidatesOrder = parseEntityPresentation<IContestPresentation>(
+            contest?.presentation
+        )?.candidates_order
+
+        return sortByPresentationOrder(resultsData, candidatesOrder, {
+            getLabel: (candidate) => candidate.name,
+            getPresentation: (candidate) => candidate.presentation,
+        })
+    }, [contest?.presentation, resultsData])
 
     const weight = useMemo((): number | null => {
         return parseResultAnnotations(general?.[0]?.annotations)?.extended_metrics?.weight ?? null
@@ -227,11 +243,10 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
     }, [tallyData?.sequent_backend_election, electionId, aliasRenderer])
 
     const contestName: string | undefined = useMemo(() => {
-        const contest = tallyData?.sequent_backend_contest?.find(
-            (contest) => contest.id === contestId
-        )
-        return contest?.presentation ? aliasRenderer(contest.presentation) : undefined
-    }, [tallyData?.sequent_backend_contest, contestId, aliasRenderer])
+        return contest?.presentation
+            ? aliasRenderer(contest.presentation, defaultElectionLang)
+            : undefined
+    }, [contest?.presentation, aliasRenderer, defaultElectionLang])
 
     const areaName: string | undefined | null = useMemo(
         () => tallyData?.sequent_backend_area?.find((area) => area.id === areaId)?.name,
