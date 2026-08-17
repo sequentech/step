@@ -70,6 +70,21 @@ base64 = "0.22.1"
 rand = { package="rand", version = "=0.9" } # Fixed: 0.9 will break because uses getrandom v0.3.2 which requires config flag changes for wasm32-unknown-unknown targets
 rand_core = { version = "0.9", optional = true }
 getrandom = { version = "=0.3.4", features = ["wasm_js"] } # Enable wasm_js feature for WASM support
+# The same again for the 0.4 line, and it is not optional either.
+#
+# `rand_core 0.10` above — added for curve25519-dalek 5.0 and the released
+# RustCrypto stack — depends on getrandom **0.4**, which is a different crate as
+# far as cargo is concerned: the feature turned on for `0.3.4` says nothing about
+# it. Left alone it refuses to build for `wasm32-unknown-unknown` at all:
+#
+#     error: The wasm32/64-unknown-unknown are not supported by default; you may
+#     need to enable the "wasm_js" crate feature
+#
+# Depended on directly for the same reason the 0.3 line is: a feature belongs to
+# the whole dependency graph, so a crate that only appears transitively can only
+# be configured by naming it here. This is what took step's own WASM job red, and
+# the three `beyond` jobs that build the core from source with it.
+getrandom_04 = { package = "getrandom", version = "0.4", features = ["wasm_js"] }
 rand_chacha = "0.9"
 
 # WASM
