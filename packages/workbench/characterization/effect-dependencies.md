@@ -116,9 +116,10 @@ grids (`duprank-rule.md` / `prefgaps-rule.md` record the gate and tally
 sensitivity to the rank dimensions and their policies;
 `classifier-table.md` records the decline sensitivity) — the label
 means this witness lane has not re-run them itself, not that they are
-unvalidated. The *browser-pending* deferrals are genuinely outside
-every production lane so far: they are the dom-validate extension this
-artifact motivates.
+unvalidated. The *browser-pending* deferrals are handled by the
+stage-2 witness lane, `browser-witnesses.mjs` → `browser-witnesses.md`,
+which drives them through the real booth; the witnesses its recipes
+cannot reach stay labelled there.
 
 | component | confirmed | deferred (label: count) |
 |---|---|---|

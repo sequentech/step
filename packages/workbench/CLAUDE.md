@@ -88,6 +88,15 @@ purpose.
   `characterization/dom-validate.mjs`. Related: `page.goto` under Vite
   wipes the ephemeral overrides entirely (reviewer-path tools must
   navigate client-side; `characterization/browser-harness.mjs` header).
+  Two more faces of the same trap (found building
+  `characterization/browser-witnesses.mjs`): the review screen renders
+  EVERY contest and `warnIds` reads the whole page, so a runner touching
+  multiple contests must neutralize the non-target contest (defaults +
+  fixture bounds) each cell or its warnings pollute the observation; and
+  navigating contest-page → contest-page used to race `setPanelConfig`'s
+  wait-for-select against the outgoing page's identical panel, misrouting
+  the first select onto the wrong contest — fixed inside `setPanelConfig`
+  (it hops through the inspector), so don't re-introduce a direct wait.
 - **PowerShell tool sessions on this machine may lack `node` on PATH**;
   refresh with
   `$env:Path = [Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [Environment]::GetEnvironmentVariable("Path","User")`

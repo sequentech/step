@@ -17,7 +17,18 @@ against `spec.f` on both cells. A dependence claim is existential, so
 the pair settles it. Witnesses the booth cannot observe are labelled
 below, never dropped.
 
-**Result: 47 witnesses confirmed, 0 disagreement(s); 23 deferred:** blank marker + invalid flag (no booth contest carries both): 13; preferential state (IRV recipe pending): 8; review blocked (hard gate; gates production-certified by headless-sweep): 2.
+Reading the labels: *unobservable by construction* is a disposition,
+not a debt — review never renders under a hard gate, so the spec's
+inline.review value there is a counterfactual no booth can exhibit (the
+dialog is the signal; the gate itself is production-certified by
+`headless-sweep.md`). The *preferential state* deferrals are mostly
+already exhibited by `dom-validate.md`'s duplicate-rank and
+preference-gaps tables, which vary the same dimensions cell-by-cell —
+the label means this witness lane has not re-run them itself (IRV
+generic recipe pending). The *marker + flag* deferrals await a fixture
+whose contest carries both markers.
+
+**Result: 47 witnesses confirmed, 0 disagreement(s); 23 deferred:** blank marker + invalid flag (no booth contest carries both): 13; preferential state (IRV recipe pending): 8; unobservable by construction (hard gate precludes review; the dialog is the signal): 2.
 
 | component | varies | cells (spec = production) |
 |---|---|---|

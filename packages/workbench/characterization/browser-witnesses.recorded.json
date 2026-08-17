@@ -2304,12 +2304,12 @@
     {
       "component": "notAllowed ∈ inline.review",
       "varies": "invalid_vote_policy",
-      "reason": "review blocked (hard gate; gates production-certified by headless-sweep)"
+      "reason": "unobservable by construction (hard gate precludes review; the dialog is the signal)"
     },
     {
       "component": "notAllowed ∈ inline.review",
       "varies": "explicit_invalid",
-      "reason": "review blocked (hard gate; gates production-certified by headless-sweep)"
+      "reason": "unobservable by construction (hard gate precludes review; the dialog is the signal)"
     },
     {
       "component": "reachability",

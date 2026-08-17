@@ -94,6 +94,16 @@ export async function dispatchConfig(page, electionId, contestId, {presentation 
  *  `bounds` maps a bound key (e.g. "min_votes") to a value. Navigates to the
  *  contest page client-side. Ephemeral: requires reload-free navigation. */
 export async function setPanelConfig(page, contestId, {selects = {}, bounds = {}}) {
+    // Navigating contest-page → contest-page races the wait below against
+    // the OUTGOING page's identical panel, misrouting the first select onto
+    // the wrong contest (proven via __getPolicyOverrides dumps while
+    // building browser-witnesses.mjs). Hop through the inspector — it has
+    // no policy selects — so the wait can only match the target page.
+    const url = page.url()
+    if (url.includes("/wb/contest/") && !url.includes(contestId)) {
+        await clickLink(page, "/wb")
+        await page.waitForSelector('a[href^="/wb/contest/"]', {timeout: 15000}).catch(() => {})
+    }
     await clickLink(page, `/wb/contest/${contestId}`)
     const firstLabel = Object.keys(selects)[0]
     if (firstLabel) {

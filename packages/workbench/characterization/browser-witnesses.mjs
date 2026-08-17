@@ -110,7 +110,7 @@ function boothDefer(component, cells) {
         if (component.includes("inline") && spec.reachability !== "yes")
             return "state prevented in the booth (inline unobservable there)"
         if (component.endsWith("inline.review") && spec.gate.hard)
-            return "review blocked (hard gate; gates production-certified by headless-sweep)"
+            return "unobservable by construction (hard gate precludes review; the dialog is the signal)"
     }
     return null
 }
@@ -177,14 +177,9 @@ async function observeCell({config, voteState: vs}) {
         ...NEUTRAL,
         bounds: FIXTURE_BOUNDS[otherName],
     })
-    // Hop through the inspector between the two panel configs: navigating
-    // contest-page → contest-page races setPanelConfig's wait-for-select
-    // against the OUTGOING page's identical panel, misrouting the first
-    // select (found the hard way — the first run's remaining
-    // "disagreements" were overrides landing on the wrong contest). The
-    // inspector has no policy selects, so the next wait can only match the
-    // target page.
-    await backToInspector(page)
+    // Back-to-back panel configs on different contests are safe: the
+    // navigation race this used to trip is fixed inside setPanelConfig
+    // (browser-harness.mjs).
     await setPanelConfig(page, recipe.contestId, {
         selects: {
             "Invalid-vote policy": config.policies.invalid,
@@ -342,6 +337,17 @@ const md = [
     "against `spec.f` on both cells. A dependence claim is existential, so",
     "the pair settles it. Witnesses the booth cannot observe are labelled",
     "below, never dropped.",
+    "",
+    "Reading the labels: *unobservable by construction* is a disposition,",
+    "not a debt — review never renders under a hard gate, so the spec's",
+    "inline.review value there is a counterfactual no booth can exhibit (the",
+    "dialog is the signal; the gate itself is production-certified by",
+    "`headless-sweep.md`). The *preferential state* deferrals are mostly",
+    "already exhibited by `dom-validate.md`'s duplicate-rank and",
+    "preference-gaps tables, which vary the same dimensions cell-by-cell —",
+    "the label means this witness lane has not re-run them itself (IRV",
+    "generic recipe pending). The *marker + flag* deferrals await a fixture",
+    "whose contest carries both markers.",
     "",
     `**Result: ${checked.length} witnesses confirmed, ${disagreements.length} disagreement(s); ` +
         `${deferred.length} deferred:** ` +
