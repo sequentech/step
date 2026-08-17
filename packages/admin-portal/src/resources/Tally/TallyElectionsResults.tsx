@@ -2,14 +2,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useMemo, useState} from "react"
-import {useGetMany, useGetList} from "react-admin"
+import {useGetMany, useGetList, useRecordContext} from "react-admin"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {getDefaultElectionLang} from "@/hooks/useDefaultElectionLang"
 import Chart, {Props} from "react-apexcharts"
 import CardChart from "@/components/dashboard/charts/Charts"
 import {Box} from "@mui/material"
 
-import {Sequent_Backend_Election, Sequent_Backend_Results_Election} from "../../gql/graphql"
+import {
+    Sequent_Backend_Election,
+    Sequent_Backend_Election_Event,
+    Sequent_Backend_Results_Election,
+} from "../../gql/graphql"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import {useTranslation} from "react-i18next"
 import {NoItem} from "@/components/NoItem"
@@ -175,6 +179,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
     const [selectedElectionId, setSelectedElectionId] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const tallyData = useAtomValue(tallyQueryData)
+    const electionEventRecord = useRecordContext<Sequent_Backend_Election_Event>()
     const aliasRenderer = useAliasRenderer()
 
     const elections: Array<Sequent_Backend_Election> | undefined = useMemo(() => {
@@ -228,7 +233,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
     }
 
     const electionsOrder = parseEntityPresentation<IElectionEventPresentation>(
-        tallyData?.sequent_backend_election_event[0]?.presentation
+        electionEventRecord?.presentation
     )?.elections_order
 
     useEffect(() => {

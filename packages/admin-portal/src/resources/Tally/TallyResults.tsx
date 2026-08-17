@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {memo, useCallback, useMemo} from "react"
-import {Identifier, RaRecord} from "react-admin"
+import {Identifier, RaRecord, useRecordContext} from "react-admin"
 import {Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {useAtomValue} from "jotai"
@@ -26,6 +26,7 @@ import {
     Sequent_Backend_Area_Contest,
     Sequent_Backend_Contest,
     Sequent_Backend_Election,
+    Sequent_Backend_Election_Event,
     Sequent_Backend_Tally_Session,
     GetTallyDataQuery,
 } from "../../gql/graphql"
@@ -82,6 +83,7 @@ const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResults
 
         const {t, i18n} = useTranslation()
         const tallyData = useAtomValue(tallyQueryData)
+        const electionEventRecord = useRecordContext<Sequent_Backend_Election_Event>()
         const aliasRenderer = useAliasRenderer()
         const {canExportCeremony} = useKeysPermissions()
 
@@ -135,7 +137,7 @@ const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResults
         )
 
         const electionsOrder = parseEntityPresentation<IElectionEventPresentation>(
-            tallyData?.sequent_backend_election_event[0]?.presentation
+            electionEventRecord?.presentation
         )?.elections_order
 
         const elections = useMemo(
