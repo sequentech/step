@@ -195,9 +195,11 @@ workbench/
 │                        that generates them: seven headless rule runners +
 │                        shared spec (spec.mjs), the browser DOM-validation
 │                        lane (dom-validate.mjs), the no-silent-discount
-│                        query, and the e2e pipeline runners. Commands and
-│                        outputs: characterization/README.md
-│                        ("Running the analysis")
+│                        query, the e2e pipeline runners, and the
+│                        dependency-validation pipeline (effect-dependencies
+│                        → headless-sweep → browser-witnesses →
+│                        quotient-validate). Commands and outputs:
+│                        characterization/README.md ("Running the analysis")
 ├── WORKBENCH.md         Workbench-side design: inspector, snapshots,
 │                        overlay state, Diagnostics, authoring workflow
 ├── LIFTING.md           Procedure for embedding voting-portal source
@@ -377,16 +379,23 @@ payoff:
    cell. Blocked on adding a `multi_ballot` encrypt/decrypt path (the
    decline bit does not exist in `raw_ballot`; see Known gaps above), so
    it is a feature lift, not a rule extension.
-3. **Distillation steps 3–4 are delivered** — the typed Rust spec
+3. **Distillation steps 3–4 are delivered, and the spec's claim ledger
+   is validated** — the typed Rust spec
    ([validation-spec/](validation-spec/), bug-compatible, its accidental
    complexity enumerated as a quirk registry) is equivalence-checked
    against the recorded ground truth and against `spec.mjs`
-   (`characterization/rust-conformance.mjs`; see
+   (`characterization/rust-conformance.mjs`), and the dependency-driven
+   validation pipeline has since completed the evidence column: every
+   dependence and independence claim the spec makes is
+   production-validated (headlessly by exhaustion — 138,240 cells;
+   in the booth by witnesses and by sufficiency — 130,048 cells via
+   2,208 quotient classes; zero disagreements anywhere) or explicitly
+   labelled with its unblocking condition (see
    [docs/VALIDATION_LOGIC_DISTILLATION.md](docs/VALIDATION_LOGIC_DISTILLATION.md)
-   §5.3). What remains is adjudication-gated: each quirk is one
-   consultation verdict away from being blessed into the spec or flipped
-   into a fix, and step 5 — a production interpreter of the artifact —
-   follows from those verdicts.
+   §5.3, the 2026-08-17 status). What remains is adjudication-gated:
+   each quirk is one consultation verdict away from being blessed into
+   the spec or flipped into a fix, and step 5 — a production
+   interpreter of the artifact — follows from those verdicts.
 
 Standing maintenance, as upstream moves:
 

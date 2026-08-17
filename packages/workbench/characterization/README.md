@@ -200,6 +200,20 @@ emits the **complete** tables in [`dom-validate.md`](dom-validate.md) —
 [`../docs/VALIDATION_LOGIC_DISTILLATION.md`](../docs/VALIDATION_LOGIC_DISTILLATION.md)
 §5.3).
 
+Beyond the grids, the **dependency-validation pipeline** closes the
+coverage question the per-rule slices cannot answer (they validate only
+their own slice of the input space): `effect-dependencies.mjs` enumerates
+every dependence and independence claim the spec makes, with an
+executable witness per dependence; `headless-sweep.mjs` discharges the
+headless independence claims by exhaustion (production ≡ spec on all
+138,240 representable cells) and emits the quotient inventory;
+`browser-witnesses.mjs` booth-confirms the browser-side dependence
+witnesses; `quotient-validate.mjs` discharges the browser-side
+independence claims by sufficiency (one booth run per reachable
+emissions × consulted-policies class — 130,048 cells covered via 2,208
+classes). Zero disagreements on every stage; everything unreachable is
+labelled with its unblocking condition.
+
 ## Running the analysis
 
 All commands run from `packages/workbench`; each runner writes its artifacts
@@ -479,9 +493,9 @@ characterized when all six are:
 
 | Role | Harness layer | Status |
 |---|---|---|
-| Checkers | 1 (headless wasm) | blank, over-vote, under-vote, min-vote, duplicated-rank, preference-gaps, invalid rules done. One recording serves **both** bands: the tally decode runs the identical function, so layer 1 is also the tally-side checker characterization. |
-| Gates | 2 (headless wasm) | blank, over-vote, under-vote, min-vote, duplicated-rank, preference-gaps, invalid rules done |
-| Filter | 3 (browser, booth) | **done for all seven rules, at both observation points** — `dom-validate.mjs` observes inline visibility at the touched voting screen and at the review screen across every cell of the five plurality rules (explicit-blank-invalid fixture) and the two preferential rules (IRV fixture, ranked selection): **229/229**. The untouched voting view is a recorded constant (empty — `blank-rule.filter.md`) |
+| Checkers | 1 (headless wasm) | all seven rules' grids done, **and exhaustively swept**: production ≡ spec on every representable cell (`headless-sweep.md`, 138,240 cells). One recording serves **both** bands: the tally decode runs the identical function, so layer 1 is also the tally-side checker characterization. |
+| Gates | 2 (headless wasm) | all seven rules' grids done, **and exhaustively swept** (`headless-sweep.md`, both gates + the dialog projection on all 138,240 representable cells) |
+| Filter | 3 (browser, booth) | **done for all seven rules, at both observation points** — `dom-validate.mjs` observes inline visibility at the touched voting screen and at the review screen across every cell of the five plurality rules (explicit-blank-invalid fixture) and the two preferential rules (IRV fixture, ranked selection): **229/229**. Beyond the grids, the filter's independence claims are discharged by sufficiency (`quotient-validate.md`: 2,208 classes, 130,048 cells covered). The untouched voting view is a recorded constant (empty — `blank-rule.filter.md`) |
 | Input constraint | 3 (browser) — `spec.mjs`'s `reachability` | **done** — observed both **behaviourally** across every rule cell (the `reachable` column of `dom-validate.md`: the state forms or it does not) and **directly** for both prevention mechanisms: the over-vote `disable` policy (`no (disabled)`, from probing the (max+1)th control's `disabled` attribute) and blank-marker exclusivity (`no (cleared)`, the marker collapsing a co-selected regular) |
 | Marker exclusivity (prevention) | browser — *reachability*, not effects | first reachability recording exists (over-vote under DISABLE: the state does not form); all five S1/S2 violations (over-vote + four min-vote) are confirmed through the full booth→cast→decrypt→tally pipeline (`overvote-e2e-pipeline.mjs`, `minvote-e2e-pipeline.mjs`). Prevention is characterized by *attempting* to create each state through the UI and recording whether it forms. Both marker directions are now recorded in `dom-validate`: the invalid marker does **not** clear (the `marker_plus` state forms — reachable `yes` — also confirmed end-to-end by `invalid-latent-choices-e2e.mjs`), and the blank marker **does** clear (the `regular_then_marker` state collapses to {marker only} — reachable `no (cleared)`). Open: the decline booth flow. |
 | Tally classifier | headless (velvet-wasm `tally_decoded_ballots`) | **done**: per-cell `tally` column in all seven rule tables, plus the standalone 32-cell six-class decision table (`classifier-table.md`, 32/32 matching the documented precedence) |

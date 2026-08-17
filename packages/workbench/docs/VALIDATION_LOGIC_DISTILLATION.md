@@ -658,6 +658,39 @@ This is not a rewrite proposal. The path is incremental:
 > interpreter of this artifact — remains adjudication-gated: the quirk
 > registry is its work list.
 
+> **Status (2026-08-17): the spec's claim ledger is validated.** The
+> effect-first decomposition (§2 pointer) became a three-stage
+> validation pipeline, and its evidence column is complete — every claim
+> the spec makes is now production-validated or explicitly labelled:
+>
+> - **Dependence claims** (existential; one witness cell-pair each):
+>   115 of 155 production-confirmed with zero disagreements — 68
+>   headlessly (`../characterization/effect-dependencies.md`), 47 in the
+>   booth (`../characterization/browser-witnesses.md`). The 40 others
+>   are labelled: 2 unobservable by construction, 25 already exhibited
+>   by the recorded IRV grids / classifier table (witness-lane re-run
+>   pending an IRV recipe), 13 awaiting a fixture whose contest carries
+>   both markers.
+> - **Independence claims** (universal; discharged by coverage, not
+>   witnesses): headless effects — exhaustively, production ≡ spec on
+>   all 138,240 cells of the representable subdomain
+>   (`../characterization/headless-sweep.md`, ~30 s); browser effects —
+>   by sufficiency (`../characterization/quotient-validate.md`): the
+>   booth's message filter reads the inputs only through
+>   (checker record, four consulted policies, observation point) — a
+>   source-verified interface fact with a stated re-entry condition —
+>   so one booth run per reachable class covers every cell of the
+>   class: 2,208 of 2,304 classes booth-validated, zero disagreements,
+>   covering 130,048 cells; the 96 classes (8,192 cells) with no
+>   booth-formable member are labelled, their headless effects
+>   sweep-certified.
+>
+> On the representable subdomain, a transcription hole of either
+> polarity — a wrong clause or a missing one — can no longer hide: the
+> per-rule grids' slice blindness is closed by coverage, not argument.
+> Outside it, the labels and scope boundaries say exactly what is not
+> covered and what would unlock it.
+
 1. **Enumerate the current mapping** — exercise every cell of the input
    space through the existing code and record the observed effects. Include
    the *prevention-guarded* cells (see the pruning caution in §2) and the
