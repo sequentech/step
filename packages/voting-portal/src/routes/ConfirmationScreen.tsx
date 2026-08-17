@@ -378,18 +378,10 @@ const ConfirmationScreen: React.FC = () => {
             ballotIdOnPhone={t("ballotHash", {ballotId: ballotId.current})}
             ballotIdHref={isDemo ? undefined : ballotTrackerUrl}
             onBallotIdClick={handleBallotIdLinkClick}
-            onBallotIdHelp={() =>
-                isDemo ? setDemoBallotIdHelp(true) : setOpenBallotIdHelp(true)
-            }
+            onBallotIdHelp={() => (isDemo ? setDemoBallotIdHelp(true) : setOpenBallotIdHelp(true))}
             verifyTitle={t("confirmationScreen.verifyCastTitle")}
-            verifyDescription={stringToHtml(
-                t("confirmationScreen.verifyCastDescription")
-            )}
-            qrValue={
-                isDemo
-                    ? t("confirmationScreen.demoQRText")
-                    : (ballotTrackerUrl ?? "")
-            }
+            verifyDescription={stringToHtml(t("confirmationScreen.verifyCastDescription"))}
+            qrValue={isDemo ? t("confirmationScreen.demoQRText") : (ballotTrackerUrl ?? "")}
             actions={
                 <ActionButtons
                     ballotTrackerUrl={ballotTrackerUrl}

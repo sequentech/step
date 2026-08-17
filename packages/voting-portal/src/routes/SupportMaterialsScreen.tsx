@@ -103,12 +103,9 @@ const SupportMaterialsScreen: React.FC = () => {
             steps={<Stepper selected={0} />}
             title={
                 materialsTitles
-                    ? (translateFromPresentation(
-                          materialsTitles,
-                          "materialsTitle",
-                          i18n.language,
-                          {defaultLanguageCode}
-                      ) ?? "-")
+                    ? (translateFromPresentation(materialsTitles, "materialsTitle", i18n.language, {
+                          defaultLanguageCode,
+                      }) ?? "-")
                     : ""
             }
             subtitle={stringToHtml(
@@ -122,10 +119,7 @@ const SupportMaterialsScreen: React.FC = () => {
                     : ""
             )}
             back={
-                <Button
-                    startIcon={<ChevronLeftIcon />}
-                    onClick={handleNavigateMaterials}
-                >
+                <Button startIcon={<ChevronLeftIcon />} onClick={handleNavigateMaterials}>
                     {t("materials.common.back")}
                 </Button>
             }
