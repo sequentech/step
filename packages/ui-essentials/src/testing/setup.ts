@@ -77,7 +77,6 @@ if (typeof window.ResizeObserver !== "function") {
 // deep clone would differ from the real one on exactly the values a fixture is
 // least likely to contain and most awkward to debug.
 if (typeof globalThis.structuredClone !== "function") {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const {serialize, deserialize} = require("node:v8")
     globalThis.structuredClone = ((value: unknown) =>
         deserialize(serialize(value))) as typeof structuredClone
