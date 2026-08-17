@@ -5,9 +5,10 @@
 // Equivalence check for the Rust spec crate
 // (`packages/workbench/validation-spec` — VALIDATION_LOGIC_DISTILLATION.md
 // §5.3 steps 3–4): the typed Rust `f` must agree with what this suite has
-// already validated, on two lanes:
+// already validated, on two comparisons — deliberately named rather than
+// numbered, because they are NOT of equal evidential weight:
 //
-//   Lane 1 — GROUND TRUTH: every recorded characterization cell. The rule
+//   GROUND-TRUTH REPLAY: every recorded characterization cell. The rule
 //     tables' observed columns are real WASM observations and the derived
 //     inline views are DOM-validated (dom-validate.md), so Rust must
 //     reproduce, per cell: errors, alerts, both gates, tally (vs observed)
@@ -15,14 +16,17 @@
 //     recorded cell has match=true, i.e. observed ≡ predicted emissions;
 //     asserted here). The classifier's own 32-cell decision table probes
 //     Rust `classify` directly, synthetic error states included.
+//     This is the ONLY place the Rust spec meets production directly.
 //
-//   Lane 2 — RANDOM SWEEP vs spec.mjs: N seeded-random cells over the full
+//   RANDOM CROSS-CHECK vs spec.mjs: N seeded-random cells over the full
 //     policy cross-product × counts × flags, comparing the ENTIRE output
 //     structure (emissions, inline views, gate pair, dialog, reachability,
 //     tally) against the JS spec. This reaches far beyond the recorded
 //     grids (arbitrary bounds, min > max, flag combinations no fixture
-//     carries); the JS spec's own authority over the grids comes from the
-//     two validation lanes. The seed is fixed for reproducibility
+//     carries), but it compares spec to spec: outside the replayed cells
+//     the Rust port inherits its production evidence THROUGH spec.mjs,
+//     by sampling rather than exhaustively (characterization/README.md,
+//     "The spec exists twice"). The seed is fixed for reproducibility
 //     (override: --seed=N; cells: --n=N).
 //
 // Headless; needs cargo (builds `emit-grid` on first run). Writes
@@ -72,7 +76,7 @@ const rustEval = (cells) =>
     )
 
 // ---------------------------------------------------------------------------
-// Lane 1 — recorded ground truth
+// Ground-truth replay — the recorded cells
 // ---------------------------------------------------------------------------
 const RULES = [
     "blank-rule",
@@ -97,7 +101,7 @@ const canon = (v) =>
           : v
 const eq = (a, b) => JSON.stringify(canon(a)) === JSON.stringify(canon(b))
 const failures = []
-let lane1 = 0
+let replayCells = 0
 
 for (const rule of RULES) {
     const spec = RULE_SPECS[rule]
@@ -106,10 +110,10 @@ for (const rule of RULES) {
         rows.map((r) => ({kind: "f", config: spec.specConfig(r), voteState: spec.voteState(r)}))
     )
     rows.forEach((r, i) => {
-        lane1++
+        replayCells++
         const out = outs[i]
         if (!r.match)
-            failures.push({lane: 1, rule, cell: r, why: "recorded cell has match=false — derived-inline comparison unsound"})
+            failures.push({comparison: "ground-truth replay", rule, cell: r, why: "recorded cell has match=false — derived-inline comparison unsound"})
         const checks = [
             ["errors", eq(out.emissions.errors, r.observed.errors)],
             ["alerts", eq(out.emissions.alerts, r.observed.alerts)],
@@ -120,7 +124,7 @@ for (const rule of RULES) {
         ]
         const bad = checks.filter(([, ok]) => !ok).map(([k]) => k)
         if (bad.length)
-            failures.push({lane: 1, rule, state: r.state, bad, rust: out, recorded: {observed: r.observed, derived_inline: r.derived_inline}})
+            failures.push({comparison: "ground-truth replay", rule, state: r.state, bad, rust: out, recorded: {observed: r.observed, derived_inline: r.derived_inline}})
     })
 }
 
@@ -138,13 +142,13 @@ const classifierOuts = rustEval(
     }))
 )
 classifierRows.forEach((r, i) => {
-    lane1++
+    replayCells++
     if (classifierOuts[i].tally !== r.observed_class)
-        failures.push({lane: 1, rule: "classifier-table", cell: r, rust: classifierOuts[i].tally})
+        failures.push({comparison: "ground-truth replay", rule: "classifier-table", cell: r, rust: classifierOuts[i].tally})
 })
 
 // ---------------------------------------------------------------------------
-// Lane 2 — seeded random sweep vs spec.mjs
+// Random cross-check — seeded random cells vs spec.mjs
 // ---------------------------------------------------------------------------
 // Mulberry32 — small, deterministic; Math.random is banned by convention
 // (reproducibility), the seed is part of the recorded artifact.
@@ -192,9 +196,9 @@ const randomCell = () => ({
 })
 const randomCells = Array.from({length: N_RANDOM}, randomCell)
 const rustOuts = rustEval(randomCells)
-let lane2 = 0
+let crosscheckCells = 0
 for (let i = 0; i < randomCells.length; i++) {
-    lane2++
+    crosscheckCells++
     const {config, voteState} = randomCells[i]
     // spec.mjs resolves unset policies via DEFAULTS; here all six are set,
     // so the two resolve identically by construction.
@@ -209,17 +213,17 @@ for (let i = 0; i < randomCells.length; i++) {
         tally: js.tally,
     }
     if (!eq(rust, jsShape))
-        failures.push({lane: 2, i, cell: randomCells[i], rust, js: jsShape})
+        failures.push({comparison: "random cross-check", i, cell: randomCells[i], rust, js: jsShape})
 }
 
 // ---------------------------------------------------------------------------
 // Report
 // ---------------------------------------------------------------------------
-const total = lane1 + lane2
+const total = replayCells + crosscheckCells
 const ok = failures.length === 0
 console.log(
-    `lane 1 (recorded ground truth): ${lane1} cells; ` +
-        `lane 2 (random vs spec.mjs, seed ${SEED}): ${lane2} cells; ` +
+    `ground-truth replay (vs production observations): ${replayCells} cells; ` +
+        `random cross-check (vs spec.mjs, seed ${SEED}): ${crosscheckCells} cells; ` +
         `disagreements: ${failures.length}`
 )
 for (const fail of failures.slice(0, 10)) console.log(JSON.stringify(fail))
@@ -227,7 +231,7 @@ for (const fail of failures.slice(0, 10)) console.log(JSON.stringify(fail))
 writeFileSync(
     path.join(here, "rust-conformance.recorded.json"),
     JSON.stringify(
-        {seed: SEED, lane1_cells: lane1, lane2_cells: lane2, total, ok, failures},
+        {seed: SEED, replay_cells: replayCells, crosscheck_cells: crosscheckCells, total, ok, failures},
         null,
         2
     ) + "\n"
@@ -247,22 +251,30 @@ const md = [
     "**Experiment:** the typed Rust spec",
     "(`packages/workbench/validation-spec`, the §5.3 step-3 artifact) is",
     "evaluated cell-by-cell — a *cell* being one concrete",
-    "(contest-configuration × vote-state) combination — and compared on two",
-    "lanes. *Lane 1* replays every recorded characterization cell: the seven",
-    "rules' grids (each rule's full cross-product of varied policies × vote",
-    "states; Rust `f` vs the",
+    "(contest-configuration × vote-state) combination — and compared two",
+    "ways. The **ground-truth replay** re-runs every recorded",
+    "characterization cell: the seven rules' grids (each rule's full",
+    "cross-product of varied policies × vote states; Rust `f` vs the",
     "wasm-observed errors/alerts/gates/tally and the DOM-validated inline",
     "views) and the classifier's 32-cell decision table (Rust `classify` vs",
-    "the recorded class, synthetic error states included). *Lane 2* compares",
-    "the ENTIRE output structure against `spec.mjs` on seeded-random cells",
-    "over the full policy cross-product × counts 0–4 × flags — including",
-    "territory no fixture reaches (arbitrary bounds, min > max, flag",
-    "combinations). A disagreement on either lane fails the run.",
+    "the recorded class, synthetic error states included). The **random",
+    "cross-check** compares the ENTIRE output structure against `spec.mjs`",
+    "on seeded-random cells over the full policy cross-product × counts 0–4",
+    "× flags — including territory no fixture reaches (arbitrary bounds,",
+    "min > max, flag combinations). A disagreement in either fails the run.",
     "",
-    `| lane | cells | result |`,
-    `|---|---|---|`,
-    `| 1 — recorded ground truth (7 rule grids + classifier table) | ${lane1} | ${ok ? "all equal" : "DISAGREEMENTS — see rust-conformance.recorded.json"} |`,
-    `| 2 — random sweep vs spec.mjs (seed ${SEED}) | ${lane2} | ${ok ? "all equal" : "DISAGREEMENTS — see rust-conformance.recorded.json"} |`,
+    "The two are **not** equally strong evidence, which is why they are",
+    "named rather than numbered. The replay is the only place this Rust",
+    "spec meets *production* — real wasm observations and DOM-validated",
+    "views. The cross-check compares spec against spec, so outside the",
+    "replayed cells the Rust port inherits its production evidence through",
+    "`spec.mjs`, by sampling. (The full chain: `characterization/README.md`,",
+    "\"The spec exists twice\".)",
+    "",
+    `| comparison | compared against | cells | result |`,
+    `|---|---|---|---|`,
+    `| ground-truth replay (7 rule grids + classifier table) | production observations | ${replayCells} | ${ok ? "all equal" : "DISAGREEMENTS — see rust-conformance.recorded.json"} |`,
+    `| random cross-check (seed ${SEED}) | \`spec.mjs\` | ${crosscheckCells} | ${ok ? "all equal" : "DISAGREEMENTS — see rust-conformance.recorded.json"} |`,
     "",
     `**${ok ? `${total} cells, Rust ≡ recorded ≡ spec.mjs on every compared component.` : `${failures.length} disagreement(s) — the Rust spec does NOT match; see rust-conformance.recorded.json.`}**`,
     "",

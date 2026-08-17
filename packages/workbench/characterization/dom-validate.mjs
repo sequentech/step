@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// General DOM validator — the browser half of the two prediction-only lanes.
+// General DOM validator — the evidence for the spec's browser-only half.
 //
 // The headless runners predict inline visibility (`spec.inlineViews` — the
 // touched voting screen AND the review screen) and reachability

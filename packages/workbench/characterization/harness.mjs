@@ -40,12 +40,12 @@ export async function loadWasm() {
     return mod
 }
 
-/** Encode→decode round-trip through checker.rs (booth layer 1). */
+/** Encode→decode round-trip through checker.rs — the checker emissions. */
 export function runChecker(decodedContest, ballotEml) {
     return mod.test_contest_reencoding_js(decodedContest, ballotEml)
 }
 
-/** Submission gates over already-decoded contests (booth layer 2). */
+/** Submission gates over already-decoded contests — the gate pair. */
 export function runGates(contests, decodedRecord) {
     return {
         hard: mod.check_voting_not_allowed_next(contests, decodedRecord),

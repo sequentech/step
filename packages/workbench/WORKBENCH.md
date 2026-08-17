@@ -706,9 +706,11 @@ Full rationale and canaries: `LIFTING.md` §A7.
 The largest workbench-owned machinery is not a page but a test suite:
 `characterization/` records the vote-validation behaviour (checker →
 gates → filter → tally classifier) as generated tables — seven headless
-rule runners plus a browser DOM-validation lane that drives every cell
-through the real booth (`dom-validate.mjs`, using the Policy-overrides
-panel and reload-free client-side navigation). Its conventions, commands,
+rule runners, a browser validator that drives every cell through the real
+booth (`dom-validate.mjs`, using the Policy-overrides panel and
+reload-free client-side navigation), a dependency-validation pipeline,
+and the end-to-end crypto runners. The specification distilled from all
+of it lives alongside, in `validation-spec/`. Its conventions, commands,
 and outputs are documented in
 [characterization/README.md](characterization/README.md); the findings it
 surfaced live in [docs/UPSTREAM_FINDINGS.md](docs/UPSTREAM_FINDINGS.md)

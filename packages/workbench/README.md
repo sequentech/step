@@ -24,7 +24,7 @@ via WASM.
 - **Policy overrides** — per-contest runtime overrides for presentation
   policies and min/max vote bounds.
 - **Validation characterization** — recorded tables of the vote-validation
-  behaviour (seven rules, headless WASM + a browser DOM-validation lane),
+  behaviour (seven rules, headless WASM + a browser DOM-validation runner),
   the findings they surfaced, and reviewer reproduction recipes. See
   [characterization/README.md](characterization/README.md) and
   [docs/UPSTREAM_FINDINGS.md](docs/UPSTREAM_FINDINGS.md).
@@ -194,7 +194,7 @@ workbench/
 ├── characterization/    Recorded validation-behaviour tables + the harness
 │                        that generates them: seven headless rule runners +
 │                        shared spec (spec.mjs), the browser DOM-validation
-│                        lane (dom-validate.mjs), the no-silent-discount
+│                        runner (dom-validate.mjs), the no-silent-discount
 │                        query, the e2e pipeline runners, and the
 │                        dependency-validation pipeline (effect-dependencies
 │                        → headless-sweep → browser-witnesses →
@@ -355,12 +355,17 @@ excluding portal sources from the check.
 
 ## What's next
 
-Where the work stands (2026-08-13): the validation characterization is
+Where the work stands (2026-08-18): the validation characterization is
 complete — all seven rules recorded headlessly and DOM-validated against
 the real booth (229/229, [characterization/README.md](characterization/README.md)),
-the findings confirmed end-to-end and documented — with exactly one open
-cell (the decline-to-vote booth flow). The natural next moves, roughly by
-payoff:
+every dependence and independence claim the spec makes
+production-validated, and the findings confirmed end-to-end and
+documented. One booth flow remains unreachable (decline-to-vote), and the
+pipeline's coverage carries explicitly labelled residues — the unswept
+region (preferential states, decline, `max_votes = 0`), 96 quotient
+classes with no booth-formable member, 23 witnesses no bundled fixture
+can observe — each named with its unblocking condition in its own
+artifact. The natural next moves, roughly by payoff:
 
 1. **Consultation on the findings.** S1/S2 (silent discounting) and S5
    (null-vote choice preservation) are documented

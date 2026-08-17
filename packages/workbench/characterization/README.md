@@ -28,10 +28,11 @@ strongly suspect a defect) but never adjudicate.
 ## Intent: all behaviour, and what "all" requires
 
 The goal is to capture **the whole behaviour of the validation subsystem**,
-not a subset — with per-rule `predict()` specs that are complete within
-the decomposition (no global predict needed). That claim rests on two
-independent completeness arguments, and only the first is delivered by
-running more cells:
+not a subset. Every runner predicts from one shared spec — the single
+mapping `f(config, voteState)`; a rule's `predict()` is a thin call into
+it (see [Harness](#harness)). That claim rests on two independent
+completeness arguments, and only the first is delivered by running more
+cells:
 
 1. **Input completeness** — every rule × every cell, as the union of
    per-rule slices (tracked in "Current coverage" / "What complete coverage
@@ -52,9 +53,9 @@ internals and tests:
 
 | Consumer | Channel | Census verdict |
 |---|---|---|
-| `InvalidErrorsList.tsx`, `VotingScreen.tsx`, `ballotSelectionsSlice.ts` | booth inline messages, dialogs, persisted record | **covered** (layers 1–3) |
-| `voting_screen.rs` | gates | **covered** (layer 2) |
-| `normalize_vote.rs`, `character_map.rs`, codec internals | round-trip plumbing | **covered** implicitly by layer 1 (they run inside the recorded decode) |
+| `InvalidErrorsList.tsx`, `VotingScreen.tsx`, `ballotSelectionsSlice.ts` | booth inline messages, dialogs, persisted record | **covered** (checker emissions → gate pair → inline filter) |
+| `voting_screen.rs` | gates | **covered** (the gate pair) |
+| `normalize_vote.rs`, `character_map.rs`, codec internals | round-trip plumbing | **covered** implicitly by the checker emissions (they run inside the recorded decode) |
 | `velvet-core` counting (`classify_ballot`, plurality, IRV) | tally classes + aggregates | **covered** — per-cell `tally` column in every rule table + the standalone classifier decision table (`classifier-table.md`, 32/32) |
 | `PlaintextVoteContest.tsx` ← ballot-verifier `ConfirmationScreen` | the standalone ballot-verifier's display of a decoded ballot | **out of scope** (decision 2026-08-10) — the ballot-verifier is not part of the workbench replication; revisit if/when it is lifted. The more durable of the two exclusions. |
 | `wasm_plaintext.rs` | plaintext-interpretation WASM entry feeding the above | **out of scope** (same channel, same decision) |
@@ -73,7 +74,7 @@ oversight. Review it alongside the census when upstream merges land.
 
 | boundary | decision | what would re-open it |
 |---|---|---|
-| **multi_ballot codec lane** — the multi-contest decode (six checkers, the ballot-level decline bit, the 30-byte capacity) | out of scope: the workbench encrypts per-contest only (`raw_ballot`), so no browser lane can reach it (README, Known gaps). The classifier's decline cells are characterized headlessly (`classifier-table.md`) | the `multi_ballot` encrypt/decrypt lift — the same lift as the decline booth flow (README "What's next"). First target when it opens: upstream's own single/multi divergence report at n = 0 (meta#8235 error 5: blank warn in one codec, undervote warn in the other) |
+| **multi_ballot codec** — the multi-contest decode (six checkers, the ballot-level decline bit, the 30-byte capacity) | out of scope: the workbench encrypts per-contest only (`raw_ballot`), so no browser runner can reach it (README, Known gaps). The classifier's decline cells are characterized headlessly (`classifier-table.md`) | the `multi_ballot` encrypt/decrypt lift — the same lift as the decline booth flow (README "What's next"). First target when it opens: upstream's own single/multi divergence report at n = 0 (meta#8235 error 5: blank warn in one codec, undervote warn in the other) |
 | **encoding-error emissions** — write-in overflow (`writeInCharsExceeded`), `invalidMinVotes` / `invalidMaxVotes` | out of scope: no bundled fixture carries a write-in candidate (FIXTURE_VARIANCE.md §8) and every grid's bounds are sane. `spec.mjs` lists the keys only for hard-gate faithfulness (`EXPLICIT_OR_ENCODING`) | a write-in fixture, a malformed-bounds slice, or an adjudication question that turns on these cells |
 | **config-rejection outcomes** — `check_contest_configuration` refuses a contest with two explicit-blank (or two explicit-invalid) marker candidates, before any per-ballot rule runs | out of scope: a distinct outcome class ("config rejected"), headlessly reachable but on no grid | a cheap headless slice (construct the two-marker contest) whenever that class needs pinning |
 | **gate composition across contests / pages** | the spec and every grid are per-contest. Production's gates iterate all contests and fire if ANY matches (VOTE_VALIDATION.md, "Interaction with pagination") — plain OR-composition over the per-contest predicate the spec models; the composition itself is unvalidated | a multi-contest grid (e.g. on `mixed-3contests`) if the OR-composition is ever in doubt |
@@ -96,14 +97,16 @@ its source within minutes of being written.
    projections of the recorded JSON (or of the rule set), produced by the
    runner. Retyping a table creates a second source of truth that will
    drift.
-3. **Observations are pure per layer.** A layer-3 cell records only what is
-   visibly rendered there. "The alert exists but is hidden" is a *derived*
-   fact — the join of layer 1 (emitted) with layer 3 (not visible) — and
-   belongs in a cross-layer view labelled as such, never in a raw
-   observation cell.
+3. **Observations are pure per observation point.** An inline-visibility
+   cell records only what is visibly rendered there. "The alert exists but
+   is hidden" is a *derived* fact — the join of the checker emissions
+   (emitted) with the inline view (not visible) — and belongs in a
+   combined view labelled as such, never in a raw observation cell.
 4. **Roles of the artifacts.** The recorded JSON is the *characterization*
-   (evidence, and after adjudication the regression oracle); the embryonic
-   *specification* is [`spec.mjs`](spec.mjs) — the whole mapping as one
+   (evidence, and after adjudication the regression oracle); the
+   *specification* is [`spec.mjs`](spec.mjs) and its typed Rust port
+   ([below](#the-spec-exists-twice-and-only-one-carries-the-evidence))
+   — the whole mapping as one
    function `f(config, voteState)`: checker emissions, both
    gates, the classifier, the message filter (all three observation
    points of the inline effect), and reachability — with the
@@ -134,16 +137,22 @@ its source within minutes of being written.
 
 ## Harness
 
-One headless runner per rule plus one shared browser lane, matching the
-functional model in [`docs/VOTE_VALIDATION.md`](../docs/VOTE_VALIDATION.md):
+Four kinds of instrument: one headless runner per rule, one shared browser
+validator, the dependency pipeline, and the end-to-end crypto runners.
+The first two observe the mapping directly, and split where the production
+code does — Rust that Node can call, versus TypeScript that only a browser
+runs. (Which production *roles* this covers is the table in
+["What complete coverage means"](#what-complete-coverage-means), against
+the functional model in
+[`docs/VOTE_VALIDATION.md`](../docs/VOTE_VALIDATION.md).)
 
-- **Layers 1+2 (checker + gates), headless — per rule.** `harness.mjs`
+- **Checker emissions + gate pair, headless — per rule.** `harness.mjs`
   loads the sequent-core wasm package directly in Node — no browser, no dev
   server — and calls the same entry points the booth calls
   (`test_contest_reencoding_js`, `check_voting_not_allowed_next`,
   `check_voting_error_dialog`). Requires `packages/sequent-core/pkg/` (built
   by the workbench's `predev`, or `yarn build:sequent-core`).
-- **Layer 3 (filter, constraint, dialog wiring), browser — shared.**
+- **Inline filter, input constraint and dialog wiring, browser — shared.**
   [`dom-validate.mjs`](dom-validate.mjs) drives every cell of every rule
   through the real booth via Playwright against the dev server on :5173,
   setting config through the **Policy-overrides panel** (the reviewer path)
@@ -170,28 +179,46 @@ the prediction (`pred?` column / mismatch report). The `classifier-table`
 runner's `predict()` *is* `spec.classify`, so that table validates the
 shared classifier directly.
 
-The spec now exists twice, deliberately: `spec.mjs` (validated against
-the real WASM and DOM as above) and its typed Rust port,
-[`../validation-spec/`](../validation-spec/) — the
+### The spec exists twice, and only one carries the evidence
+
+The spec is written twice, deliberately: `spec.mjs` and its typed Rust
+port, [`../validation-spec/`](../validation-spec/) — the
 VALIDATION_LOGIC_DISTILLATION.md §5.3 step-3 artifact. The Rust crate is
 bug-compatible, with every surprising behaviour carried as a **named
 quirk** (`quirks()` in its `lib.rs`, each tied to its
 UPSTREAM_FINDINGS.md suspect/defect — toggling one is an adjudication
-decision, not a refactor). Equivalence between the two specs, and
-against the recorded ground truth, is checked by `rust-conformance.mjs`
-(below).
+decision, not a refactor).
 
-**Two validation lanes, unequal coverage.** `spec.mjs`'s emissions, gates
-and classifier transcribe Rust that IS compiled to wasm, so `pred?` checks
-them against the real wasm on every cell (independent derivations — this
-JS vs that Rust — so agreement is real information). Its `inlineViews` /
-`reachability` transcribe TypeScript that is NOT callable headlessly
-(`filterErrorList`; the input disable; the blank-marker clearing), so
-they are **predictions only** in a Node runner,
-validated against the real DOM only where a browser runner covers the cell,
-and never against a re-computation of themselves (that check would be
-tautological). That per-cell DOM-validation lane now exists:
-[`dom-validate.mjs`](dom-validate.mjs) drives every cell of **all seven
+The two are **not** symmetrically evidenced, and a reader should know
+which one the evidence is attached to. Every runner that compares against
+production — the seven rule grids, `dom-validate`, the sweep, and both
+browser stages of the dependency pipeline — targets `spec.mjs`. The Rust
+port is tied to production *directly* only on the 280 recorded cells
+(`rust-conformance`'s ground-truth replay); everywhere else it inherits
+that evidence *through* `spec.mjs`. So the chain reads **production ≡
+`spec.mjs` ≡ Rust**, and the two links are evidenced very differently:
+
+| link | how it is evidenced |
+|---|---|
+| production ≡ `spec.mjs` | **exhaustively** on the headless subdomain (138,240 cells) and **per cell** in the real booth (229 grid cells, plus 130,048 covered via 2,208 quotient classes) |
+| `spec.mjs` ≡ Rust | **exactly** on the 280 recorded cells (where Rust also meets production directly), and by **sampling** elsewhere — 20,000 seeded-random cells |
+
+Pointing the validation runners at the Rust binary instead — `emit-grid`
+already speaks the same JSON `f(config, voteState)` — is what would make
+the shipped artifact the directly-evidenced one, and retire `spec.mjs`.
+
+**What can validate each part of the spec.** The halves are unequally
+served, because production splits them. `spec.mjs`'s emissions, gates and
+classifier transcribe Rust that IS compiled to wasm, so they are
+**wasm-checkable**: `pred?` checks them against the real wasm on every
+cell (independent derivations — this JS vs that Rust — so agreement is
+real information). Its `inlineViews` / `reachability` transcribe
+TypeScript that is NOT callable headlessly (`filterErrorList`; the input
+disable; the blank-marker clearing), so they are **browser-only** —
+predictions in a Node runner, validated against the real DOM by a browser
+runner, and never against a re-computation of themselves (that check
+would be tautological). The per-cell DOM validator is
+[`dom-validate.mjs`](dom-validate.mjs), which drives every cell of **all seven
 rules** through the real booth reload-free — the five plurality rules
 (over-vote, min-vote, blank, under-vote, invalid) on the explicit-blank-
 invalid fixture, and the two preferential rules (duplicate-rank,
@@ -242,7 +269,7 @@ gates, recorded tally) with a `pred?` column comparing them to `spec.mjs`:
 | `invalid-rule.mjs` | `invalid-rule.recorded.json` + `.md` |
 | `classifier-table.mjs` | `classifier-table.recorded.json` + `.md` |
 | `effect-map.mjs` | `effect-map.md` — the human-facing projection of the validated dependency ledger: the mapping as a causal diagram (Mermaid; topology checked against the ledger on every run), the functional-cancellations table, and per-knob cards. Pure JSON → markdown; instant |
-| `rust-conformance.mjs` | `rust-conformance.recorded.json` + `.md` — the typed Rust spec (`../validation-spec/`) vs the recorded ground truth (all 280 cells) and vs `spec.mjs` on 20 000 seeded-random cells. Needs `cargo` (builds `emit-grid` on first run), not the wasm pkgs |
+| `rust-conformance.mjs` | `rust-conformance.recorded.json` + `.md` — the typed Rust spec (`../validation-spec/`) on its two comparisons: the **ground-truth replay** (all 280 recorded cells, the only place Rust meets production directly) and the **random cross-check** against `spec.mjs` (20 000 seeded cells). Needs `cargo` (builds `emit-grid` on first run), not the wasm pkgs |
 | `effect-dependencies.mjs` | `effect-dependencies.md` + `.recorded.json` — the effect-first decomposition: per effect component, its support, its conditional-independence restrictions, and one executable witness per dependence, computed exhaustively on the Rust spec over the full modelled domain (~29M evaluations); representable witnesses re-run through the real WASM, the rest labelled. Needs `cargo` **and** the wasm pkg; ~2 min |
 | `headless-sweep.mjs` | `headless-sweep.md` + `.recorded.json` — production (real WASM checker/gates/tally) vs `spec.f` on **every** cell of the representable headless subdomain (all six policies × sane bounds × plurality states; 138,240 cells, ~30 s): discharges the spec's headless *independence* claims by coverage, and emits the quotient inventory (reachable emissions × consulted-policies classes + representative cells) that the browser stage consumes |
 
@@ -258,7 +285,7 @@ Then, from `packages/workbench`:
 
 | command (`node characterization/…`) | produces | what it does |
 |---|---|---|
-| `dom-validate.mjs` | `dom-validate.md` + `.recorded.json` | the **complete** tables — `spec.mjs` vs the real DOM across every cell of all seven rules (inline visibility at review + reachability); 229/229, ~8 min |
+| `dom-validate.mjs` | `dom-validate.md` + `.recorded.json` | the **complete** tables — `spec.mjs` vs the real DOM across every cell of all seven rules: inline visibility at **both** observation points (touched voting screen and review), reachability, and the untouched view asserted empty per cell; 229/229, ~9 min |
 | `no-silent-discount.mjs` | `no-silent-discount.md` + `.report.json` | the no-silent-discount property query (headless pre-filter → browser confirm at review) |
 | `browser-witnesses.mjs` | `browser-witnesses.md` + `.recorded.json` | stage 2 of the dependency pipeline: every browser-pending dependence witness from `effect-dependencies.md` (inline-view and reachability components) driven through the real booth on a generic per-cell recipe, both cells compared against `spec.f`; unobservable witnesses labelled |
 | `quotient-validate.mjs` | `quotient-validate.md` + `.recorded.json` | stage 3 (final): the browser-side *independence* claims discharged by sufficiency — one booth-formable member per quotient class from `headless-sweep.md`, inline compared at both observation points; the license (the filter's props boundary) is source-verified and stated with its re-entry condition; classes with no formable member labelled. ~1 h |
@@ -333,35 +360,43 @@ tally. See VOTE_VALIDATION.md "Selection counting and marker candidates".
 
 ## What complete coverage means
 
-The functional model in VOTE_VALIDATION.md has **six roles**; the harness
-layers observe them unevenly, and full behaviour — the distillation's
-`f(config, vote_state) → one value per effect category` — is only
+The functional model in VOTE_VALIDATION.md has **six roles**; the
+instruments observe them unevenly, and full behaviour — the distillation's
+`f(config, voteState) → one value per effect category` — is only
 characterized when all six are:
 
-| Role | Harness layer | Status |
+| Role | Observed by | Status |
 |---|---|---|
-| Checkers | 1 (headless wasm) | all seven rules' grids done, **and exhaustively swept**: production ≡ spec on every representable cell (`headless-sweep.md`, 138,240 cells). One recording serves **both** bands: the tally decode runs the identical function, so layer 1 is also the tally-side checker characterization. |
-| Gates | 2 (headless wasm) | all seven rules' grids done, **and exhaustively swept** (`headless-sweep.md`, both gates + the dialog projection on all 138,240 representable cells) |
-| Filter | 3 (browser, booth) | **done for all seven rules, at both observation points** — `dom-validate.mjs` observes inline visibility at the touched voting screen and at the review screen across every cell of the five plurality rules (explicit-blank-invalid fixture) and the two preferential rules (IRV fixture, ranked selection): **229/229**. Beyond the grids, the filter's independence claims are discharged by sufficiency (`quotient-validate.md`: 2,208 classes, 130,048 cells covered). The untouched voting view is asserted empty on every cell |
-| Input constraint | 3 (browser) — `spec.mjs`'s `reachability` | **done** — observed both **behaviourally** across every rule cell (the `reachable` column of `dom-validate.md`: the state forms or it does not) and **directly** for both prevention mechanisms: the over-vote `disable` policy (`no (disabled)`, from probing the (max+1)th control's `disabled` attribute) and blank-marker exclusivity (`no (cleared)`, the marker collapsing a co-selected regular) |
-| Marker exclusivity (prevention) | browser — *reachability*, not effects | first reachability recording exists (over-vote under DISABLE: the state does not form); all five S1/S2 violations (over-vote + four min-vote) are confirmed through the full booth→cast→decrypt→tally pipeline (`overvote-e2e-pipeline.mjs`, `minvote-e2e-pipeline.mjs`). Prevention is characterized by *attempting* to create each state through the UI and recording whether it forms. Both marker directions are now recorded in `dom-validate`: the invalid marker does **not** clear (the `marker_plus` state forms — reachable `yes` — also confirmed end-to-end by `invalid-latent-choices-e2e.mjs`), and the blank marker **does** clear (the `regular_then_marker` state collapses to {marker only} — reachable `no (cleared)`). Open: the decline booth flow. |
+| Checkers | headless wasm — the emissions | all seven rules' grids done, **and exhaustively swept**: production ≡ spec on every representable cell (`headless-sweep.md`, 138,240 cells). One recording serves **both** bands: the tally decode runs the identical function, so this is also the tally-side checker characterization. |
+| Gates | headless wasm — the gate pair | all seven rules' grids done, **and exhaustively swept** (`headless-sweep.md`, both gates + the dialog projection on all 138,240 representable cells) |
+| Filter | browser, booth — the inline effect | **done for all seven rules, at both observation points** — `dom-validate.mjs` observes inline visibility at the touched voting screen and at the review screen across every cell of the five plurality rules (explicit-blank-invalid fixture) and the two preferential rules (IRV fixture, ranked selection): **229/229**. Beyond the grids, the filter's independence claims are discharged by sufficiency (`quotient-validate.md`: 2,208 classes, 130,048 cells covered). The untouched voting view is asserted empty on every cell |
+| Input constraint | browser — the reachability effect (`spec.mjs`'s `reachability`) | **done** — observed both **behaviourally** across every rule cell (the `reachable` column of `dom-validate.md`: the state forms or it does not) and **directly** for both prevention mechanisms: the over-vote `disable` policy (`no (disabled)`, from probing the (max+1)th control's `disabled` attribute) and blank-marker exclusivity (`no (cleared)`, the marker collapsing a co-selected regular) |
+| Marker exclusivity (prevention) | browser — the reachability effect, via a different mechanism | first reachability recording exists (over-vote under DISABLE: the state does not form); all five S1/S2 violations (over-vote + four min-vote) are confirmed through the full booth→cast→decrypt→tally pipeline (`overvote-e2e-pipeline.mjs`, `minvote-e2e-pipeline.mjs`). Prevention is characterized by *attempting* to create each state through the UI and recording whether it forms. Both marker directions are now recorded in `dom-validate`: the invalid marker does **not** clear (the `marker_plus` state forms — reachable `yes` — also confirmed end-to-end by `invalid-latent-choices-e2e.mjs`), and the blank marker **does** clear (the `regular_then_marker` state collapses to {marker only} — reachable `no (cleared)`). Open: the decline booth flow. |
 | Tally classifier | headless (velvet-wasm `tally_decoded_ballots`) | **done**: per-cell `tally` column in all seven rule tables, plus the standalone 32-cell six-class decision table (`classifier-table.md`, 32/32 matching the documented precedence) |
 
 Two consequences worth stating plainly. First, a per-rule recording like
 blank-rule is a *slice* of `f`, by design — the mapping decomposes per
-rule and per effect category, and coverage is the union of slices, not any single
-run. Second, prevention does not produce effects; it prunes the *input
-space* — so its characterization output is a reachability table
-(state × config → forms / does-not-form), which is also exactly the data
-needed to justify (or refuse) pruning cells from the other layers'
-enumerations.
+rule and per effect category, and coverage is the union of slices, not any
+single run. Second, the last two roles produce no *message*, but they are
+not outside the mapping: they are how production realizes the
+**reachability** effect category, which `f` returns like any other (`yes`
+/ `inputs_disabled` / `marker_cleared`). Their characterization output is
+therefore a reachability table (state × config → forms / does-not-form),
+which is also exactly the data needed to justify (or refuse) pruning
+cells from the other instruments' enumerations.
 
 ## Adding a rule
 
-1. **Spec.** Add the rule's checker emissions to `spec.mjs::emissions`
-   (transcribed from checker.rs, in decode order), and a `RULE_SPECS`
-   entry in `rule-specs.mjs` carrying the rule's cell definitions
-   (`specConfig` / `voteState` — what each cell means in spec terms).
+1. **Spec — in both copies.** Add the rule's checker emissions to
+   `spec.mjs::emissions` (transcribed from checker.rs, in decode order)
+   **and** to the matching function in
+   [`../validation-spec/src/lib.rs`](../validation-spec/src/lib.rs); any
+   surprising behaviour it carries gets a named entry in that crate's
+   `quirks()`. Skipping the Rust side is not deferrable: the new grid
+   joins `rust-conformance`'s ground-truth replay as soon as it is
+   recorded, and the run fails. Then add a `RULE_SPECS` entry in
+   `rule-specs.mjs` carrying the rule's cell definitions (`specConfig` /
+   `voteState` — what each cell means in spec terms).
 2. **Headless runner.** Copy `blank-rule.mjs`, swap the policy/state
    dimensions and the wire-level state construction, and pick or extend a
    bundled fixture whose contest carries the rule's preconditions (see

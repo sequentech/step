@@ -37,8 +37,8 @@
 // test of the pipeline.
 //
 // Headless; needs the sequent-core wasm pkg. Writes headless-sweep.md +
-// .recorded.json; exits nonzero on any disagreement. Takes ~30-60 min
-// (the wasm round-trip dominates); progress is printed per policy block.
+// .recorded.json; exits nonzero on any disagreement. Takes ~30 s;
+// progress is printed per policy block.
 //
 // Run:  node characterization/headless-sweep.mjs   (from packages/workbench)
 

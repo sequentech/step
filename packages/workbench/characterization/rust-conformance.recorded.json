@@ -1,7 +1,7 @@
 {
   "seed": 20260815,
-  "lane1_cells": 280,
-  "lane2_cells": 20000,
+  "replay_cells": 280,
+  "crosscheck_cells": 20000,
   "total": 20280,
   "ok": true,
   "failures": []
