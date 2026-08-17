@@ -1298,6 +1298,23 @@ pub struct PlannedIvr {
     /// exactly this set in `collectRequiredPromptKeys`.
     #[serde(default)]
     pub prompts: BTreeMap<String, BTreeMap<String, String>>,
+
+    /// How many times the call forgives each kind of mistake.
+    ///
+    /// A map rather than three named fields, and that is not laziness. A real
+    /// event carries `{"auth": 3, "timeout": 7, "invalid_input": 5}`, but the
+    /// list is the Lambda's and grows there; naming the three would silently
+    /// drop a fourth on the way through, which for a round-trip is worse than
+    /// not modelling it at all.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub retry_limits: BTreeMap<String, u32>,
+
+    /// A number to read out when a caller needs a person.
+    ///
+    /// Not [`Self::phone_number`], which is the number they rang. This is the
+    /// one the call offers when it cannot help — a help desk, usually.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub assistance_phone: String,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -2729,13 +2746,36 @@ fn event_sheet(
             columns.push("annotations.ivr:phone-number".to_string());
             row.push(Cell::text(ivr.phone_number.clone()));
         }
-        if !ivr.flow.is_empty() {
+        // `ivr:config` is the whole document, not just the flow: a real event
+        // carries retry limits and an assistance number beside it, and writing
+        // only the flow would drop them on every trip through a plan.
+        if !ivr.flow.is_empty()
+            || !ivr.retry_limits.is_empty()
+            || !ivr.assistance_phone.is_empty()
+        {
+            let mut config = serde_json::Map::new();
+            config.insert(
+                "flow".to_string(),
+                serde_json::to_value(&ivr.flow)
+                    .unwrap_or(serde_json::Value::Null),
+            );
+            if !ivr.retry_limits.is_empty() {
+                config.insert(
+                    "retry_limits".to_string(),
+                    serde_json::to_value(&ivr.retry_limits)
+                        .unwrap_or(serde_json::Value::Null),
+                );
+            }
+            if !ivr.assistance_phone.is_empty() {
+                config.insert(
+                    "assistance_phone".to_string(),
+                    serde_json::Value::String(ivr.assistance_phone.clone()),
+                );
+            }
             columns.push("annotations.ivr:config".to_string());
             row.push(Cell::text(
-                serde_json::to_string(&serde_json::json!({
-                    "flow": ivr.flow
-                }))
-                .unwrap_or_else(|_| "{}".to_string()),
+                serde_json::to_string(&serde_json::Value::Object(config))
+                    .unwrap_or_else(|_| "{}".to_string()),
             ));
         }
         if !ivr.prompts.is_empty() {

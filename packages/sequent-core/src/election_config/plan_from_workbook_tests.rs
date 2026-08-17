@@ -715,6 +715,8 @@ fn the_telephone_configuration_survives_the_workbook() {
         )]
         .into_iter()
         .collect(),
+        retry_limits: BTreeMap::new(),
+        assistance_phone: String::new(),
     });
 
     assert_eq!(read(&plan).ivr, plan.ivr);

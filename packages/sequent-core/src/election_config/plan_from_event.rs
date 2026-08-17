@@ -883,11 +883,31 @@ fn ivr_from_annotations(event: &Map<String, Value>) -> Option<PlannedIvr> {
 
     let phone_number = text("ivr:phone-number").unwrap_or_default().to_string();
 
-    let flow = text("ivr:config")
+    // Parsed once and read three ways: `ivr:config` is one document, and
+    // parsing it per field would drop the whole thing on a typo in any of them.
+    let config = text("ivr:config")
         .and_then(|raw| serde_json::from_str::<Value>(raw).ok())
-        .and_then(|config| config.get("flow").cloned())
+        .unwrap_or(Value::Null);
+
+    let flow = config
+        .get("flow")
+        .cloned()
         .and_then(|flow| serde_json::from_value::<Vec<IvrPhase>>(flow).ok())
         .unwrap_or_default();
+
+    let retry_limits = config
+        .get("retry_limits")
+        .cloned()
+        .and_then(|limits| {
+            serde_json::from_value::<BTreeMap<String, u32>>(limits).ok()
+        })
+        .unwrap_or_default();
+
+    let assistance_phone = config
+        .get("assistance_phone")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
 
     let prompts = text("ivr:prompts")
         .and_then(|raw| {
@@ -898,7 +918,12 @@ fn ivr_from_annotations(event: &Map<String, Value>) -> Option<PlannedIvr> {
         })
         .unwrap_or_default();
 
-    if phone_number.is_empty() && flow.is_empty() && prompts.is_empty() {
+    if phone_number.is_empty()
+        && flow.is_empty()
+        && prompts.is_empty()
+        && retry_limits.is_empty()
+        && assistance_phone.is_empty()
+    {
         return None;
     }
 
@@ -906,5 +931,7 @@ fn ivr_from_annotations(event: &Map<String, Value>) -> Option<PlannedIvr> {
         phone_number,
         flow,
         prompts,
+        retry_limits,
+        assistance_phone,
     })
 }

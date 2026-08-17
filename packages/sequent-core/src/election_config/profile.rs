@@ -709,6 +709,12 @@ fn shape_of_a_plan() -> Value {
         )]
         .into_iter()
         .collect(),
+        // **The seventh time.** Both carry `skip_serializing_if`, so a shape
+        // built from defaults would have neither key and every profile naming
+        // `ivr.retry_limits` or `ivr.assistance_phone` would be refused. Filled
+        // the moment they were added, rather than after somebody reported it.
+        retry_limits: [("auth".to_string(), 3u32)].into_iter().collect(),
+        assistance_phone: "+15550199".to_string(),
     });
     // **The fifth**, and the pattern is now unmistakable: `keycloak_messages` is a map
     // carrying `skip_serializing_if`, so a shape built from defaults has no such key

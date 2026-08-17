@@ -4418,6 +4418,8 @@ fn the_telephone_channel_carries_its_configuration_into_the_event() {
         )]
         .into_iter()
         .collect(),
+        retry_limits: BTreeMap::new(),
+        assistance_phone: String::new(),
     });
 
     let bundle = compiled(&plan);
@@ -4475,6 +4477,63 @@ fn the_telephone_channel_carries_its_configuration_into_the_event() {
         prompts["en"]["greeting"],
         serde_json::json!("Welcome to the election")
     );
+}
+
+/// A real event carries more in `ivr:config` than the flow.
+///
+/// The sample this was modelled on has `retry_limits` and `assistance_phone`
+/// beside it. Writing only the flow would drop both on every trip through a
+/// plan — the bundle would come back missing settings the event had, which is
+/// the quietest kind of wrong.
+#[test]
+fn the_config_annotation_carries_the_retries_and_the_help_line() {
+    let mut plan = sound();
+    plan.voting_channels.telephone = true;
+    plan.ivr = Some(PlannedIvr {
+        phone_number: "+18005550100".to_string(),
+        flow: vec![IvrPhase {
+            phase: "goodbye".to_string(),
+            ..Default::default()
+        }],
+        prompts: BTreeMap::new(),
+        retry_limits: [
+            ("auth".to_string(), 3u32),
+            ("timeout".to_string(), 7u32),
+            ("invalid_input".to_string(), 5u32),
+        ]
+        .into_iter()
+        .collect(),
+        assistance_phone: "1-800-555-0199".to_string(),
+    });
+
+    let bundle = compiled(&plan);
+    let annotations = &bundle.export["election_event"]["annotations"];
+    let config: serde_json::Value =
+        serde_json::from_str(annotations["ivr:config"].as_str().unwrap())
+            .expect("the config annotation is JSON");
+
+    assert_eq!(config["retry_limits"]["auth"], serde_json::json!(3));
+    assert_eq!(config["retry_limits"]["timeout"], serde_json::json!(7));
+    assert_eq!(
+        config["retry_limits"]["invalid_input"],
+        serde_json::json!(5)
+    );
+    assert_eq!(
+        config["assistance_phone"],
+        serde_json::json!("1-800-555-0199")
+    );
+
+    // And back, because a field that only travels one way is a field that goes
+    // missing the first time somebody reopens a bundle.
+    let read = crate::election_config::plan_from_event::plan_from_event(
+        &bundle.export,
+    )
+    .expect("the export reads back")
+    .plan
+    .ivr
+    .expect("the event configures an IVR");
+    assert_eq!(read.retry_limits.get("timeout"), Some(&7));
+    assert_eq!(read.assistance_phone, "1-800-555-0199");
 }
 
 #[test]
@@ -4537,6 +4596,8 @@ fn the_telephone_configuration_survives_a_round_trip() {
         ]
         .into_iter()
         .collect(),
+        retry_limits: BTreeMap::new(),
+        assistance_phone: String::new(),
     });
 
     let bundle = compiled(&plan);

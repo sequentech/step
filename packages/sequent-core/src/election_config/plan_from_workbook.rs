@@ -333,10 +333,29 @@ fn read_ivr(row: &Row) -> Option<PlannedIvr> {
         }
     };
 
-    let flow = parsed(super::build::IVR_CONFIG_COLUMN)
-        .and_then(|config| config.get("flow").cloned())
+    // One parse, three fields, for the reason `plan_from_event` gives: the cell
+    // is one document and reading it per field would drop all of it on a typo.
+    let config = parsed(super::build::IVR_CONFIG_COLUMN).unwrap_or(Value::Null);
+
+    let flow = config
+        .get("flow")
+        .cloned()
         .and_then(|flow| serde_json::from_value::<Vec<IvrPhase>>(flow).ok())
         .unwrap_or_default();
+
+    let retry_limits = config
+        .get("retry_limits")
+        .cloned()
+        .and_then(|limits| {
+            serde_json::from_value::<BTreeMap<String, u32>>(limits).ok()
+        })
+        .unwrap_or_default();
+
+    let assistance_phone = config
+        .get("assistance_phone")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
 
     let prompts = parsed(super::build::IVR_PROMPTS_COLUMN)
         .and_then(|value| {
@@ -347,7 +366,12 @@ fn read_ivr(row: &Row) -> Option<PlannedIvr> {
         })
         .unwrap_or_default();
 
-    if phone_number.is_empty() && flow.is_empty() && prompts.is_empty() {
+    if phone_number.is_empty()
+        && flow.is_empty()
+        && prompts.is_empty()
+        && retry_limits.is_empty()
+        && assistance_phone.is_empty()
+    {
         return None;
     }
 
@@ -355,6 +379,8 @@ fn read_ivr(row: &Row) -> Option<PlannedIvr> {
         phone_number,
         flow,
         prompts,
+        retry_limits,
+        assistance_phone,
     })
 }
 
