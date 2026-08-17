@@ -14,7 +14,14 @@ import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import {useTranslation} from "react-i18next"
 import {NoItem} from "@/components/NoItem"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {EDeclineToVotePolicy, formatPercentOne, isNumber} from "@sequentech/ui-core"
+import {
+    EDeclineToVotePolicy,
+    formatPercentOne,
+    IElectionEventPresentation,
+    isNumber,
+    parseEntityPresentation,
+    sortByPresentationOrder,
+} from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {
@@ -22,6 +29,7 @@ import {
     TALLY_RESULTS_PIE_HEIGHT,
     TALLY_RESULTS_PIE_PANEL_WIDTH,
 } from "@sequentech/ui-essentials"
+import {orderItemsByIds} from "./utils"
 
 interface TallyElectionsResultsProps {
     tenantId: string | null
@@ -171,13 +179,15 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
     const tallyData = useAtomValue(tallyQueryData)
     const aliasRenderer = useAliasRenderer()
 
-    const elections: Array<Sequent_Backend_Election> | undefined = useMemo(
-        () =>
-            tallyData?.sequent_backend_election
-                ?.filter((election) => electionIds?.includes(election.id))
-                ?.map((election): Sequent_Backend_Election => election as any),
-        [tallyData?.sequent_backend_election, electionIds]
-    )
+    const elections: Array<Sequent_Backend_Election> | undefined = useMemo(() => {
+        const availableElections = tallyData?.sequent_backend_election?.map(
+            (election): Sequent_Backend_Election => election as any
+        )
+
+        return availableElections
+            ? orderItemsByIds(availableElections, electionIds ?? [])
+            : undefined
+    }, [tallyData?.sequent_backend_election, electionIds])
 
     const results: Array<Sequent_Backend_Results_Election> | undefined = useMemo(
         () =>
@@ -219,10 +229,14 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
         }
     }
 
+    const electionsOrder = parseEntityPresentation<IElectionEventPresentation>(
+        tallyData?.sequent_backend_election_event[0]?.presentation
+    )?.elections_order
+
     useEffect(() => {
         setIsLoading(true)
         if (elections && results && elections.length > 0 && results.length > 0) {
-            const temp: Array<Sequent_Backend_Election_Extended> | undefined = elections?.map(
+            const mappedElections: Array<Sequent_Backend_Election_Extended> = elections.map(
                 (item, index): Sequent_Backend_Election_Extended => {
                     const result = results?.find((r) => r.election_id === item.id)
 
@@ -253,6 +267,11 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                     }
                 }
             )
+            const temp = sortByPresentationOrder(mappedElections, electionsOrder, {
+                getLabel: (election) =>
+                    aliasRenderer(election.presentation, defaultLangByElectionId.get(election.id)),
+                getPresentation: (election) => election.presentation,
+            }).map((election, index) => ({...election, rowId: index}))
 
             setResultsData(temp)
             // Set default selected election to the first one if none is selected
@@ -264,7 +283,17 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
         if (isTallyDataMatchCurrentResults && (!elections?.length || !results?.length)) {
             setIsLoading(false)
         }
-    }, [results, elections, selectedElectionId, isTallyDataMatchCurrentResults])
+    }, [
+        aliasRenderer,
+        defaultLangByElectionId,
+        elections,
+        electionsOrder,
+        isMultiContest,
+        isTallyDataMatchCurrentResults,
+        results,
+        selectedElectionId,
+        tallyData?.sequent_backend_results_contest,
+    ])
 
     const showTotalInvalidVotesColumn = useMemo(
         () => resultsData.some((row) => isNumber(row.total_declined_to_vote)),
