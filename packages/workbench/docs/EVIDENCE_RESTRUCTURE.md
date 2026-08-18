@@ -127,13 +127,27 @@ Each step ends green, with the suite runnable.
    sweep's recording** if Decision 2 says keep.
    *Check:* no dangling imports; docs swept for references.
 
-7. **Move `no-silent-discount` to the analysis layer.** Evaluate the
-   property over the spec's full domain instead of pre-filtering 248
-   recorded cells. This is a strengthening, not a port: today the
-   property is only as complete as the configurations the grids happen
-   to contain.
-   *Check:* the five known cells still found; anything **new** is a
-   finding, not a regression.
+7. **Move the findings to the analysis layer.** Findings stop being
+   things someone noticed and become **properties evaluated over the
+   certified spec**, with production never involved. The acceptance test
+   for the whole restructure: every finding we already hold must be
+   re-derivable this way.
+
+   - *no-silent-discount* — evaluate over the spec's full domain instead
+     of pre-filtering 248 recorded cells. A strengthening, not a port:
+     today the property is only as complete as the configurations the
+     grids happen to contain.
+     *Check:* the five known cells still found; anything **new** is a
+     finding, not a regression.
+   - *the gate/checker count divergence* (quirk
+     `S6_GATES_COUNT_FIRST_PREFERENCES_ONLY`, found by the step-1 sweep)
+     — express it as a property rather than a narrative: does the gates'
+     selection count ever differ from the checker's, and where it does,
+     what reaches the voter? Its two known consequences (a ranked ballot
+     hard-blocked as blank; a `WARN_AND_ALERT` under-vote alert with no
+     dialog) should fall out of that property, not be asserted alongside
+     it. Only then write it up as a suspect.
+     *Check:* the property finds both known consequences unaided.
 
 8. **Docs.** `characterization/README.md`'s Coverage section rewritten
    around the two layers (the three-mechanism preamble survives; the
