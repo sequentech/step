@@ -7,8 +7,8 @@ use rand::thread_rng;
 use rayon::prelude::*;
 use sequent_core::{
     ballot::{
-        BlankBallotsPolicy, Candidate, CandidatesOrder, ConsolidatedReportPolicy, Contest, ContestEncryptionPolicy,
-        ContestsOrder, DeclineToVotePolicy, StringifiedPeriodDates,
+        BlankBallotsPolicy, Candidate, CandidatesOrder, ConsolidatedReportPolicy, Contest,
+        ContestEncryptionPolicy, ContestsOrder, DeclineToVotePolicy, StringifiedPeriodDates,
     },
     serialization::deserialize_with_path::{deserialize_str, deserialize_value},
     services::{area_tree::TreeNodeArea, pdf, reports},
