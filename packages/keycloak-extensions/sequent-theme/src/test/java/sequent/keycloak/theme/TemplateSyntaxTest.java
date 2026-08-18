@@ -55,11 +55,14 @@ class TemplateSyntaxTest {
     String html = rendered.toString();
 
     assertTrue(html.contains("data-credential-pattern=\"dddd&quot; onfocus=&quot;alert(1)\""));
+    assertTrue(
+        html.contains("data-credential-input-placeholder=\"#&quot; onfocus=&quot;alert(4)\""));
     assertTrue(html.contains("&lt;img src=x onerror=alert(1)&gt;"));
     assertTrue(html.contains("data-paste-error=\"paste&quot; onfocus=&quot;alert(2)\""));
     assertTrue(html.contains("data-format-error=\"format&quot; onfocus=&quot;alert(3)\""));
     assertFalse(html.contains("<img src=x onerror=alert(1)>"));
     assertFalse(html.contains("data-credential-pattern=\"dddd\" onfocus="));
+    assertFalse(html.contains("data-credential-input-placeholder=\"#\" onfocus="));
   }
 
   @Test
@@ -82,6 +85,31 @@ class TemplateSyntaxTest {
     assertFalse(standardHtml.contains("data-structured-credential"));
     assertTrue(standardHtml.contains("src=\"/resources/js/passwordVisibility.js\""));
     assertFalse(standardHtml.contains("src=\"/resources/js/structured-credential.js\""));
+  }
+
+  @Test
+  void multiAttributeDateInputsHonorConfiguredMaxInBothPortals()
+      throws IOException, TemplateException {
+    for (String portal : List.of("sequent.admin-portal", "sequent.voting-portal")) {
+      Map<String, Object> defaultModel = baseModel("standard");
+      defaultModel.put("matchAttributes", List.of(Map.of("name", "dateOfBirth", "type", "date")));
+      String defaultHtml = renderLogin(portal, defaultModel);
+
+      assertTrue(defaultHtml.contains("max=\"9999-12-31\""));
+
+      Map<String, Object> configuredModel = baseModel("standard");
+      configuredModel.put(
+          "matchAttributes",
+          List.of(
+              Map.of(
+                  "name", "dateOfBirth",
+                  "type", "date",
+                  "max", "2020-01-01")));
+      String configuredHtml = renderLogin(portal, configuredModel);
+
+      assertTrue(configuredHtml.contains("max=\"2020-01-01\""));
+      assertFalse(configuredHtml.contains("max=\"9999-12-31\""));
+    }
   }
 
   @Test
@@ -123,11 +151,14 @@ class TemplateSyntaxTest {
     String html = rendered.toString();
 
     assertTrue(html.contains("data-credential-pattern=\"dddd&quot; onfocus=&quot;alert(1)\""));
+    assertTrue(
+        html.contains("data-credential-input-placeholder=\"#&quot; onfocus=&quot;alert(4)\""));
     assertTrue(html.contains("&lt;img src=x onerror=alert(1)&gt;"));
     assertTrue(html.contains("data-paste-error=\"paste&quot; onfocus=&quot;alert(2)\""));
     assertTrue(html.contains("data-format-error=\"format&quot; onfocus=&quot;alert(3)\""));
     assertTrue(html.contains("inputmode=\"numeric\""));
     assertFalse(html.contains("data-credential-pattern=\"dddd\" onfocus="));
+    assertFalse(html.contains("data-credential-input-placeholder=\"#\" onfocus="));
   }
 
   private static void assertParses(Path path) throws IOException {
@@ -147,6 +178,25 @@ class TemplateSyntaxTest {
             new TemplateLoader[] {
               new FileTemplateLoader(child.toFile()), new FileTemplateLoader(parent.toFile())
             }));
+    StringWriter rendered = new StringWriter();
+    configuration.getTemplate("login.ftl").process(model, rendered);
+    return rendered.toString();
+  }
+
+  private static String renderLogin(String portal, Map<String, Object> model)
+      throws IOException, TemplateException {
+    Path child = THEME_ROOT.resolve(portal + "/login");
+    Path parent = THEME_ROOT.resolve("sequent.admin-portal/login");
+    Configuration configuration = configuration();
+    if (child.equals(parent)) {
+      configuration.setTemplateLoader(new FileTemplateLoader(parent.toFile()));
+    } else {
+      configuration.setTemplateLoader(
+          new MultiTemplateLoader(
+              new TemplateLoader[] {
+                new FileTemplateLoader(child.toFile()), new FileTemplateLoader(parent.toFile())
+              }));
+    }
     StringWriter rendered = new StringWriter();
     configuration.getTemplate("login.ftl").process(model, rendered);
     return rendered.toString();
@@ -194,7 +244,9 @@ class TemplateSyntaxTest {
                             "credential-input-policy",
                             credentialInputPolicy,
                             "credential-input-pattern",
-                            "dddd\" onfocus=\"alert(1)")),
+                            "dddd\" onfocus=\"alert(1)",
+                            "credential-input-placeholder",
+                            "#\" onfocus=\"alert(4)")),
                     Map.entry("password", true),
                     Map.entry("registrationAllowed", false),
                     Map.entry("loginWithEmailAllowed", false),
