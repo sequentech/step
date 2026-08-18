@@ -133,6 +133,7 @@ mod tests {
                 explicit_invalid: Some(0),
             }),
             total_blank_votes: Some(1),
+            blank_ballots: None,
             census: Some(25),
             candidate_results,
         }

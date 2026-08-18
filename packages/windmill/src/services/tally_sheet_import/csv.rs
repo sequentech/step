@@ -207,6 +207,7 @@ pub fn parse_canonical_csv(
                 total_valid_votes: accumulator.total_valid_votes,
                 invalid_votes: Some(invalid_votes),
                 total_blank_votes: accumulator.total_blank_votes,
+                blank_ballots: None,
                 census: accumulator.census,
                 candidate_results: accumulator.candidate_results,
             },
