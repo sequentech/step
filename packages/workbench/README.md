@@ -409,16 +409,17 @@ which artifact ships, roughly by payoff:
    "unset" and "allowed" are not the same configuration at the booth.
    Whether that becomes a suspect is a joint call — adjudication is
    nobody's alone.
-2. **Re-derive S6 as a property.** The step-1 sweep surfaced a production
-   defect: the submission gates count only rank-0 selections
-   (`voting_screen.rs`) where the checker counts every ranked one
-   (`raw_ballot.rs`), so on a ranked ballot they disagree — a ballot with
-   no first preference is gated as *blank*, and a `WARN_AND_ALERT`
-   under-vote alert can fire with no dialog. The spec is bug-compatible
-   with it (quirk `S6_GATES_COUNT_FIRST_PREFERENCES_ONLY`); what remains
-   is to express it as a property over the certified spec so its
-   consequences fall out rather than being asserted, then file it as a
-   suspect. `no-silent-discount.mjs` is the worked example of that shape.
+2. **Consultation on S6** — the newest suspect, filed 2026-08-19. On a
+   ranked ballot the submission gates count only first preferences where
+   the checker counts every ranked selection, so the gates decide from a
+   number unrelated to the ballot. It does not miscount any vote; it
+   corrupts what the voter is told at casting time, in both directions —
+   a dialog on a ballot the checker is content with, and no dialog where
+   the policy promises one. Exhaustive over 276,480 certified cells,
+   confirmed in a real booth, with git provenance showing the count
+   predates preferential contests by fifteen months and was not revisited
+   when they arrived ([docs/UPSTREAM_FINDINGS.md](docs/UPSTREAM_FINDINGS.md)
+   S6; derived by `characterization/gate-count-agreement.mjs`).
 3. **The decline-to-vote booth flow** — the one open characterization
    cell. Blocked on adding a `multi_ballot` encrypt/decrypt path (the
    decline bit does not exist in `raw_ballot`; see Known gaps above), so

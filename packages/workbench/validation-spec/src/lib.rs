@@ -665,7 +665,7 @@ pub fn quirks() -> &'static [QuirkInfo] {
     &[
         QuirkInfo {
             id: "S6_GATES_COUNT_FIRST_PREFERENCES_ONLY",
-            finding: "S6 (surfaced by headless-sweep.md on ranked ballots)",
+            finding: "S6 (UPSTREAM_FINDINGS.md; derived by gate-count-agreement.md)",
             site: "gate_selections (both gates)",
             description: "the gates count only rank-0 selections                           (choice.selected == 0, voting_screen.rs) while the                           checker counts every ranked one (selected > -1,                           raw_ballot.rs); identical on plurality, divergent on                           ranked ballots, so a ranked ballot with no first                           preference is gated as BLANK and a WARN_AND_ALERT                           under-vote alert can fire with no dialog",
         },

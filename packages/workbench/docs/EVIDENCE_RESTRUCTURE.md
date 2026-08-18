@@ -10,12 +10,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 It describes moving the validation apparatus from *two specs and a
 transitive evidence chain* to *one spec and two layers*.
 
-**STATUS: landed 2026-08-18.** Steps 0–8 are done; the end state is
-described in `../characterization/README.md`, which is where it belongs.
-What remains from step 7 is re-deriving the S6 gate-count finding as a
-property (`no-silent-discount.mjs` is the worked example of that shape)
-and filing it as a suspect. **Delete this document once that lands** —
-it is a plan, not a record, and the commit history is the record.
+**STATUS: complete 2026-08-19.** Steps 0–8 are done, including step 7's
+acceptance test: both findings are now derived as properties over the
+certified spec (`no-silent-discount.md`, `gate-count-agreement.md`), and
+S6 is filed. **This document can be deleted** — it is a plan, not a
+record, and the commit history is the record. It is kept only until a
+reader has had a chance to see how the migration went.
 
 Two things the execution changed from the plan as written, worth keeping
 until deletion: step 6 turned out to REQUIRE step 7 (no-silent-discount

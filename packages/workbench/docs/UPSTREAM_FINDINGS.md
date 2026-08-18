@@ -122,7 +122,7 @@ during the workbench spec transcription).
 
 # Suspects — for consultation (adjudication pending)
 
-All five are recorded, reproducible behaviours (pointers below); the open
+All six are recorded, reproducible behaviours (pointers below); the open
 question in each case is *intent*, not *fact*.
 
 They are **not all the same kind of concern** — they sit on three distinct
@@ -132,7 +132,7 @@ axes, and conflating them muddles the consultation:
 |---|---|---|
 | **Silent discounting** | the voter is given no signal that their vote will not count | **S1** |
 | **Marker semantics** | what an explicit-blank / explicit-invalid marker *means* and does | **S3** (a blank is subject to the count rules), **S5** (invalid preserves choices) |
-| **Threshold consistency** | two mechanisms for one policy disagree on a boundary | **S4** |
+| **Checker/gate disagreement** | the two mechanisms behind one policy do not decide from the same thing | **S4** (they differ in the *predicate*, at one boundary), **S6** (they differ in the *operand* — the selection count — on every ranked ballot) |
 
 **S2 is not a fourth axis — it is the intersection of S1 and S3,**
 realized by the classifier's invalid-outranks-marker precedence (see
@@ -426,3 +426,109 @@ residue:** the privacy-adjacent facet — under the default the latent
 preference is still encrypted into the cast ballot, and #2949 does
 not address it. See
 [INVALID_VOTE_POLICY_INTENT.md §8](INVALID_VOTE_POLICY_INTENT.md).
+
+## S6. On a ranked ballot the submission gates count only first preferences
+
+**Observed** (`characterization/gate-count-agreement.md`; both sites read
+directly): one decoded ballot is counted two different ways.
+
+| site | counts | line |
+|---|---|---|
+| checker | `choice.selected > -1` — every ranked selection | [`raw_ballot.rs:386`](../../sequent-core/src/ballot_codec/raw_ballot.rs) |
+| both gates | `choice.selected == 0` | [`voting_screen.rs:59`](../../sequent-core/src/util/voting_screen.rs), `:188` |
+
+`selected` is overloaded by contest type: on a plurality ballot `0` means
+*chosen*, on a preferential ballot it is the **rank**. So the two
+predicates coincide on plurality — which is why this is invisible there —
+and diverge on a ranked ballot, where the gates are counting *first
+preferences*. A well-formed ranking has exactly one, so **the gates see 1
+selection however many candidates the voter ranked**, and every gate
+clause that consults the count (blank `n == 0`, over-vote `n > max`,
+under-vote `min ≤ n < max`) decides from a number unrelated to the ballot.
+
+**Not a counting defect.** The tally class is decided from the checker's
+emissions, which use the correct count; the gates feed nothing into the
+tally. No vote is miscounted. This corrupts *what the voter is told at
+casting time*, in both directions.
+
+**Scope** (exhaustive over the 276,480 cells `headless-sweep.md`
+certifies): the two counts disagree on 92,160 cells. On 85,960 another
+clause fires either way, so nothing reaches the voter. On **6,200** the
+dialog the voter meets differs from the one the ballot warrants:
+
+| consequence | cells |
+|---|---|
+| dialog kind changed: dismissible → blocking | 1,644 |
+| dialog kind changed: blocking → dismissible | 1,532 |
+| dialog with **nothing** rendered inline (should be no dialog) | 1,456 |
+| **missing** dialog the policy promises | 1,120 |
+| spurious dialog (should be none) | 448 |
+
+Malformed rankings (a duplicate or a gap) only ever see the dialog's
+*kind* change, because their error's policy raises a dialog either way.
+The **well-formed** rankings — the ordinary ranked ballot — are where a
+dialog appears on a ballot the checker is content with, or the promised
+dialog never fires.
+
+**The sharpest pair**, both confirmed in a real booth, and both under
+`under_vote_policy = WARN_AND_ALERT`, which promises the voter an inline
+warning *and* a dialog:
+
+- a voter ranks **all three** candidates (`min_votes ≤ 1`, `max 3`). The
+  checker is satisfied — no error, no alert, ballot `Valid` — yet the
+  gates place their count of 1 inside the under-vote zone and raise a
+  confirmation dialog. Nothing is rendered inline, so the dialog has no
+  accompanying text: an interruption with no explanation.
+- a voter ranks **two of three** with `min_votes = 2`. The checker counts
+  2, finds it inside the zone and emits `underVote`; the gates count 1,
+  decide `1 >= 2` is false, and raise nothing. The warning appears; the
+  confirmation step the policy specifies never happens.
+
+So under that policy a well-formed ranked ballot essentially never gets
+the behaviour the policy describes — it gets one half or the other,
+depending on how many candidates were ranked.
+
+**Reachability confirmed in the booth** (2026-08-18): a ranking with no
+first preference at all (`[-1, 1, 2]`) forms exactly as requested, so the
+count can genuinely reach 0 — which is what makes `blank_vote_policy =
+not-allowed` hard-block a ballot with two candidates ranked on it as
+"blank" (counterfactual-proven: with the gap policy held fixed, flipping
+only the blank policy flips the gate).
+
+**Provenance** (git archaeology, 2026-08-19 — history, not
+interpretation): the `selected == 0` count entered the gates on
+**2024-08-08** (#590, blank-vote policy) and **2024-08-25** (#628,
+over-vote policy), when every contest was plurality and the predicate was
+exactly "is selected". Instant-runoff support arrived **2025-11-30**
+(#2068), fifteen months later. The IRV invalid-vote policies arrived
+**2026-03-14** (#2414), and that commit *did* touch this file — 72
+insertions, 0 deletions — adding the `duplicated_rank_policy` and
+`preference_gaps_policy` clauses. Those two are the only clauses in the
+file that do not read the count; they match on error messages. So the
+ranked-ballot work opened these functions, added handling for the new
+errors, and did not revisit what the pre-existing count means when
+`selected` holds a rank.
+
+**Why suspect:** the divergence looks like an unrevisited assumption
+rather than a decision — no commit states an intent for the gates to
+count first preferences, and the behaviour it produces is not coherent
+under any reading of the policies (it both invents and suppresses
+dialogs, on the same policy, depending on ballot length).
+**Confidence:** high that the behaviour is unintended; the open question
+is which count the gates *should* use, which is a design answer we cannot
+give. **Consultation question:** should the submission gates count
+selections the way the checker does — every ranked candidate — so that
+`blank`, `over_vote` and `under_vote` policies mean the same thing on a
+ranked ballot as on a plurality one? And if some clause is meant to key on
+first preferences specifically, which, and why?
+
+**A caution for whoever fixes it.** Min-vote is the one count-based rule
+with **no gate clause at all** (`check_min_vote_policy` arrived
+2025-09-29 in `7b0a1c71e8` / #2018 — the same commit behind S1 — and
+checker-side only; the gates are organised by policy and min-vote has no
+policy). That absence is why min-vote signalling is *correct* on ranked
+ballots today. Giving the gates a min-vote clause while the count is
+wrong would import this defect into the one rule currently free of it.
+
+**Reproduce:** `node characterization/gate-count-agreement.mjs` derives
+the whole table from the certified spec, headlessly, in about a minute.
