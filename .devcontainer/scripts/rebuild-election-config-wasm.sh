@@ -29,13 +29,29 @@ rustc --version
 wasm-pack --version
 
 echo "==> Building ${PACKAGE_NAME} WASM..."
+# `--locked`, and it is load-bearing rather than tidiness.
+#
+# Without it cargo is free to re-resolve, and the set it chooses is not the one
+# `Cargo.lock` records: `curve25519-dalek 5.0.0` instead of the pinned
+# `5.0.0-pre.1`, which drags in `getrandom 0.4.3` beside the `0.3.4` this
+# repository pins with `wasm_js` on. 0.4 has no such feature enabled here, and it
+# refuses to compile for `wasm32-unknown-unknown` at all:
+#
+#     error: The wasm32/64-unknown-unknown are not supported by default; you may
+#     need to enable the "wasm_js" crate feature
+#
+# So the pins in `strand/Cargo.toml` — each one carrying a comment about exactly
+# this — only hold while the lockfile is honoured. This broke step's own WASM job
+# and the three `beyond` jobs that build the core from source, all at once, and
+# nothing in the error names the lockfile.
 wasm-pack build \
     --mode no-install \
     --out-name index \
     --out-dir "${OUT_DIR}" \
     --release \
     --target web \
-    --features=wasmtest,default_features,election_config_xlsx,election_config_templates,election_config_archive
+    --features=wasmtest,default_features,election_config_xlsx,election_config_templates,election_config_archive \
+    -- --locked
 
 echo "==> Renaming the package so it does not collide with sequent-core..."
 # node rather than sed: package.json is JSON, and a regex over it is how a build

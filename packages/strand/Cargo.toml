@@ -31,12 +31,18 @@ fips_full = ["openssl_full"]
 
 # Backends
 # See https://docs.rs/curve25519-dalek/latest/curve25519_dalek/#simd-backend to select simd backend
-curve25519-dalek = { version = "=5.0.0-pre.1", features = ["precomputed-tables", "digest"] } # Depends on digest 10.0 which is stuck at getrandom-0.2.15
+curve25519-dalek = { version = "5.0", features = ["precomputed-tables", "digest"] } # Depends on digest 10.0 which is stuck at getrandom-0.2.15
 num-bigint = { version = "0.4", features = ["rand"], optional = true }
 # num-bigint's RandBigInt trait requires rand 0.8's RngCore/CryptoRng (via rand_core 0.6),
 # incompatible with the rand 0.9 traits StrandRng otherwise implements. StrandRng implements
 # both trait generations, sourcing randomness from the same underlying OsRng.
 rand_core_06 = { package = "rand_core", version = "0.6", default-features = false, optional = true }
+# curve25519-dalek 5.0 and the released RustCrypto stack take their rng through
+# rand_core 0.10, while `rand` 0.9 above provides 0.9. Same shape as the 0.6 shim
+# beside it: `StrandRng` implements this version's traits too, delegating to the
+# same OsRng, so the whole crate keeps one source of randomness. Not optional —
+# dalek is not optional.
+rand_core_010 = { package = "rand_core", version = "0.10", default-features = false }
 num-traits = { version = "0.2", optional = true }
 num-integer = { version = "0.1", optional = true }
 num-modular = { version = "=0.5", features = ["num-bigint"], optional = true } # Pinned to avoid compile errors at the moment
@@ -44,16 +50,16 @@ malachite = { version = "0.6", default-features = false, features = ["naturals_a
 rug = { version = "~1.23", default-features = false, features = ["integer", "rand"], optional = true }
 
 # Signatures
-ed25519-dalek = { version = "=3.0.0-pre.1", features = ["rand_core", "pkcs8", "alloc"] }
+ed25519-dalek = { version = "3.0", features = ["rand_core", "pkcs8", "alloc"] }
 
 # symmetric
-chacha20poly1305 = "=0.11.0-rc.2"
+chacha20poly1305 = "0.11"
 hybrid-array = "0.4.5"
 
 # Hashing
-sha2 = "=0.11.0-rc.3"
+sha2 = "0.11"
 # Needed for extendable hashing function when deriving generators for ristretto
-sha3 = "=0.11.0-rc.3"
+sha3 = "0.11"
 
 # Serialization
 # borsh = "0.9.3"
@@ -64,6 +70,21 @@ base64 = "0.22.1"
 rand = { package="rand", version = "=0.9" } # Fixed: 0.9 will break because uses getrandom v0.3.2 which requires config flag changes for wasm32-unknown-unknown targets
 rand_core = { version = "0.9", optional = true }
 getrandom = { version = "=0.3.4", features = ["wasm_js"] } # Enable wasm_js feature for WASM support
+# The same again for the 0.4 line, and it is not optional either.
+#
+# `rand_core 0.10` above — added for curve25519-dalek 5.0 and the released
+# RustCrypto stack — depends on getrandom **0.4**, which is a different crate as
+# far as cargo is concerned: the feature turned on for `0.3.4` says nothing about
+# it. Left alone it refuses to build for `wasm32-unknown-unknown` at all:
+#
+#     error: The wasm32/64-unknown-unknown are not supported by default; you may
+#     need to enable the "wasm_js" crate feature
+#
+# Depended on directly for the same reason the 0.3 line is: a feature belongs to
+# the whole dependency graph, so a crate that only appears transitively can only
+# be configured by naming it here. This is what took step's own WASM job red, and
+# the three `beyond` jobs that build the core from source with it.
+getrandom_04 = { package = "getrandom", version = "0.4", features = ["wasm_js"] }
 rand_chacha = "0.9"
 
 # WASM
