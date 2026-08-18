@@ -122,6 +122,7 @@ pub fn generate_ballots(
                         contest_id: contest.id.clone(),
                         is_explicit_invalid: false,
                         is_decline_to_vote: false,
+                        is_blank_ballot: false,
                         invalid_errors: vec![],
                         invalid_alerts: vec![],
                         choices: vec![],
@@ -286,6 +287,7 @@ pub fn generate_mcballots(
                         contest_id: contest.id.clone(),
                         is_explicit_invalid: false,
                         is_decline_to_vote: false,
+                        is_blank_ballot: false,
                         invalid_errors: vec![],
                         invalid_alerts: vec![],
                         choices: vec![],
@@ -346,8 +348,12 @@ pub fn generate_mcballots(
                 .iter()
                 .map(ContestChoices::from_decoded_vote_contest)
                 .collect();
-            let ballot =
-                BallotChoices::new(false, contest_choices, CountingAlgType::PluralityAtLarge);
+            let ballot = BallotChoices::new(
+                false,
+                false,
+                contest_choices,
+                CountingAlgType::PluralityAtLarge,
+            );
 
             let ballot_style = generate_ballot_style(
                 &election.tenant_id,
@@ -419,6 +425,7 @@ mod tests {
             contest_id: contest.id.clone(),
             is_explicit_invalid: false,
             is_decline_to_vote: false,
+            is_blank_ballot: false,
             invalid_alerts: vec![],
             invalid_errors: vec![],
             choices: contest
@@ -875,6 +882,7 @@ mod tests {
                 contest_id: contest.id.clone(),
                 is_explicit_invalid: false,
                 is_decline_to_vote: false,
+                is_blank_ballot: false,
                 invalid_errors: vec![],
                 invalid_alerts: vec![],
                 choices: vec![],
@@ -978,6 +986,7 @@ mod tests {
                 contest_id: contest.id.clone(),
                 is_explicit_invalid: false,
                 is_decline_to_vote: false,
+                is_blank_ballot: false,
                 invalid_errors: vec![],
                 invalid_alerts: vec![],
                 choices: vec![],
@@ -1086,6 +1095,7 @@ mod tests {
                 contest_id: contest.id.clone(),
                 is_explicit_invalid: false,
                 is_decline_to_vote: false,
+                is_blank_ballot: false,
                 invalid_errors: vec![],
                 invalid_alerts: vec![],
                 choices: vec![],
@@ -1427,6 +1437,7 @@ mod tests {
                 contest_id: contest.id.clone(),
                 is_explicit_invalid: false,
                 is_decline_to_vote: false,
+                is_blank_ballot: false,
                 invalid_errors: vec![],
                 invalid_alerts: vec![],
                 choices: vec![],
@@ -1593,6 +1604,7 @@ mod tests {
                 contest_id: contest.id.clone(),
                 is_explicit_invalid: false,
                 is_decline_to_vote: false,
+                is_blank_ballot: false,
                 invalid_errors: vec![],
                 invalid_alerts: vec![],
                 choices: vec![],
@@ -1744,6 +1756,7 @@ mod tests {
                 contest_id: contest.id.clone(),
                 is_explicit_invalid: false,
                 is_decline_to_vote: false,
+                is_blank_ballot: false,
                 invalid_errors: vec![],
                 invalid_alerts: vec![],
                 choices: vec![],
@@ -1942,6 +1955,7 @@ mod tests {
                     contest_id: contest.id.clone(),
                     is_explicit_invalid: false,
                     is_decline_to_vote: false,
+                    is_blank_ballot: false,
                     invalid_errors: vec![],
                     invalid_alerts: vec![],
                     choices: choices,
