@@ -397,6 +397,8 @@ pub async fn save_results(
             annotations: None,
             total_voters_percent: Some(total_voters_percent.clamp(0.0, 1.0).try_into()?),
             documents: None,
+            blank_ballots: None,
+            blank_ballots_percent: None,
         });
 
         for contest in &election.reports {

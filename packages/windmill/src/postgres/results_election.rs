@@ -51,6 +51,11 @@ impl TryFrom<Row> for ResultsElectionWrapper {
                 .map(NotNan::new)
                 .transpose()?,
             documents,
+            // The results_election.blank_ballots(_percent) columns don't
+            // exist yet; populated by a later PR once the hasura migration
+            // lands.
+            blank_ballots: None,
+            blank_ballots_percent: None,
         }))
     }
 }

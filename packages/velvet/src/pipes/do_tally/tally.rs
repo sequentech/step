@@ -456,6 +456,7 @@ mod tests {
                     explicit_invalid: Some(0),
                 }),
                 total_blank_votes: Some(blank_votes),
+                blank_ballots: None,
                 census: Some(candidate_votes + blank_votes + 1),
                 candidate_results,
             }),
@@ -525,6 +526,7 @@ mod tests {
                 explicit_invalid: Some(0),
             }),
             total_blank_votes: Some(0),
+            blank_ballots: None,
             census: Some(2),
             candidate_results,
         });

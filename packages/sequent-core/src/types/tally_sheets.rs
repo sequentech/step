@@ -78,6 +78,11 @@ pub struct AreaContestResults {
     pub total_valid_votes: Option<u64>,
     pub invalid_votes: Option<InvalidVotes>,
     pub total_blank_votes: Option<u64>,
+    /// Ballots cast blank in every contest, in this area. A ballot-box
+    /// property, not a contest property: the same value is replicated
+    /// across every contest sheet of one (channel, area). `None` where a
+    /// tally-sheet ballot box did not supply it.
+    pub blank_ballots: Option<u64>,
     pub census: Option<u64>,
     pub candidate_results: HashMap<String, CandidateResults>,
 }
