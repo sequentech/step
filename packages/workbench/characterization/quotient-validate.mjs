@@ -53,7 +53,7 @@ import path from "node:path"
 import {performance} from "node:perf_hooks"
 import {loadSnapshot} from "./browser-harness.mjs"
 import {boothContext, observeCell, boothFormable, shortKey} from "./booth-cell.mjs"
-import {f as specF} from "./spec.mjs"
+import {specF} from "./rust-spec.mjs"
 
 const require = createRequire("C:/work/projects/step/packages/")
 const {chromium} = require("playwright")
@@ -83,22 +83,49 @@ const BOUNDS = []
 for (let min = 0; min <= 3; min++)
     for (let max = 1; max <= 3; max++) if (min <= max) BOUNDS.push([min, max])
 
-/** Find a booth-formable, booth-reachable member of a class, or null. */
-function formableMember(cls) {
-    const [errors, alerts, invalid, blank, over, under] = cls.key
-    const policies = {invalid, blank, over, under, dup: "allowed-warn-and-dialog", gap: "allowed-warn-and-dialog"}
-    for (const [min, max] of BOUNDS) {
+// Every class's candidate members, evaluated against the Rust spec in ONE
+// batch. `emit-grid` is a subprocess: the search below is 63 candidates per
+// class across thousands of classes, so evaluating per candidate would spawn
+// six figures of processes. Candidates keep their original iteration order,
+// so the member chosen is the same one the per-call search would have found.
+const candidates = []
+for (let ci = 0; ci < classes.length; ci++) {
+    const [, , invalid, blank, over, under] = classes[ci].key
+    const policies = {
+        invalid,
+        blank,
+        over,
+        under,
+        dup: "allowed-warn-and-dialog",
+        gap: "allowed-warn-and-dialog",
+    }
+    for (const [min, max] of BOUNDS)
         for (const state of FORMABLE_STATES) {
             const cell = {config: {min, max, policies}, voteState: {...state}}
             if (boothFormable(cell)) continue
-            const e = specF(cell.config, cell.voteState)
-            if (e.reachability !== "yes") continue
-            if (
-                eq(sortedUniq(e.emissions.errors.map(shortKey)), errors) &&
-                eq(sortedUniq(e.emissions.alerts.map(shortKey)), alerts)
-            ) {
-                return {cell, hard: e.gate.hard}
-            }
+            candidates.push({ci, cell})
+        }
+}
+const candidateSpecs = specF(candidates.map((c) => c.cell))
+const byClass = new Map()
+candidates.forEach((c, k) => {
+    if (!byClass.has(c.ci)) byClass.set(c.ci, [])
+    byClass.get(c.ci).push({cell: c.cell, e: candidateSpecs[k]})
+})
+console.log(
+    `pre-evaluated ${candidates.length} candidate members for ${classes.length} classes`
+)
+
+/** Find a booth-formable, booth-reachable member of a class, or null. */
+function formableMember(ci, cls) {
+    const [errors, alerts] = cls.key
+    for (const {cell, e} of byClass.get(ci) ?? []) {
+        if (e.reachability !== "yes") continue
+        if (
+            eq(sortedUniq(e.emissions.errors.map(shortKey)), errors) &&
+            eq(sortedUniq(e.emissions.alerts.map(shortKey)), alerts)
+        ) {
+            return {cell, hard: e.gate.hard}
         }
     }
     return null
@@ -110,27 +137,43 @@ await loadSnapshot(page, base, SNAPSHOT)
 const ctx = await boothContext(page, ELECTION)
 
 const checked = []
+const retried = []
 const deferred = []
 const disagreements = []
 let done = 0
 const t0 = performance.now()
-for (const cls of classes) {
+for (const [ci, cls] of classes.entries()) {
     done++
-    const member = formableMember(cls)
+    const member = formableMember(ci, cls)
     if (!member) {
         deferred.push({key: cls.key, cells: cls.cells, reason: "no booth-formable member (state prevented or unformable on this fixture)"})
         continue
     }
-    const obs = await observeCell(page, ctx, member.cell)
-    const gotVoting = sortedUniq(obs.inlineVoting)
-    const wantVoting = cls.spec_inline.voting
-    const votingOk = eq(gotVoting, wantVoting)
-    let reviewOk = true
+    // Observe, and RE-OBSERVE on mismatch before believing it. A real
+    // divergence stays divergent — that is the whole reason this is a retry
+    // and not a longer wait: the extra passes cost nothing when the run is
+    // healthy, and a genuine disagreement survives all of them. Without it a
+    // single transient read poisons a class permanently, which is exactly
+    // what happened on the 2026-08-18 run (4 classes recorded as
+    // disagreements; all 4 matched the spec on re-observation, 3 times each).
+    const ATTEMPTS = 3
+    let gotVoting
     let gotReview = null
-    if (!member.hard) {
-        gotReview = sortedUniq(obs.inlineReview ?? [])
-        reviewOk = eq(gotReview, cls.spec_inline.review)
+    let votingOk = false
+    let reviewOk = true
+    let attemptsUsed = 0
+    for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
+        attemptsUsed = attempt
+        const obs = await observeCell(page, ctx, member.cell)
+        gotVoting = sortedUniq(obs.inlineVoting)
+        votingOk = eq(gotVoting, cls.spec_inline.voting)
+        if (!member.hard) {
+            gotReview = sortedUniq(obs.inlineReview ?? [])
+            reviewOk = eq(gotReview, cls.spec_inline.review)
+        }
+        if (votingOk && reviewOk) break
     }
+    const wantVoting = cls.spec_inline.voting
     const row = {
         key: cls.key,
         cells: cls.cells,
@@ -138,6 +181,12 @@ for (const cls of classes) {
         voting: {want: wantVoting, got: gotVoting},
         review: member.hard ? "hard-gated (dialog is the signal)" : {want: cls.spec_inline.review, got: gotReview},
         ok: votingOk && reviewOk,
+    }
+    // Surface flakiness rather than hiding it: a class that only agreed on a
+    // later attempt is recorded as such.
+    if (attemptsUsed > 1 && row.ok) {
+        row.attempts = attemptsUsed
+        retried.push({key: cls.key, attempts: attemptsUsed})
     }
     checked.push(row)
     if (!row.ok) {
@@ -159,7 +208,8 @@ const deferredCells = deferred.reduce((n, r) => n + r.cells, 0)
 console.log(
     `\n${checked.length}/${classes.length} classes booth-validated ` +
         `(${disagreements.length} disagreements), covering ${coveredCells} cells by sufficiency; ` +
-        `${deferred.length} classes (${deferredCells} cells) deferred`
+        `${deferred.length} classes (${deferredCells} cells) deferred` +
+        (retried.length ? `; ${retried.length} needed re-observation` : "")
 )
 
 writeFileSync(
@@ -170,6 +220,7 @@ writeFileSync(
                 "filterErrorList reads only (record, invalid, blank, over, under, isReview, isTouched); " +
                 "isVotedState dead (Defect 4). Source-verified 2026-08-17. Re-verify on portal refresh.",
             classes_total: classes.length,
+            retried,
             checked,
             deferred,
             disagreements,

@@ -33,5 +33,5 @@ cells. **Re-entry condition:** any reference inside `filterErrorList`
 beyond its parameter list, or a new consulted policy, voids this
 artifact — re-verify the boundary on every portal refresh.
 
-**Result: 2208/2304 classes booth-validated, 0 disagreement(s) — covering 130,048 of the subdomain's cells by sufficiency. 96 classes (8192 cells) deferred: no booth-formable member (their states are prevention-collapsed, flag+marker, or otherwise unformable on this fixture; their headless effects are already sweep-certified, and their inline values remain spec-only until a fixture can form them).**
+**Result: 2208/6592 classes booth-validated, 0 disagreement(s) — covering 130,048 of the subdomain's cells by sufficiency. 4384 classes (118272 cells) deferred: no booth-formable member (their states are prevention-collapsed, flag+marker, or otherwise unformable on this fixture; their headless effects are already sweep-certified, and their inline values remain spec-only until a fixture can form them).**
 
