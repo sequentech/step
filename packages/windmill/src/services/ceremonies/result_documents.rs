@@ -990,6 +990,7 @@ mod tests {
             area: None,
             census: 0,
             total_votes: 0,
+            blank_ballots: None,
             reports: vec![report],
         }
     }
