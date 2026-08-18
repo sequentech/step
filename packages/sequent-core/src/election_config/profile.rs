@@ -221,6 +221,22 @@ pub struct ClientProfile {
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub only_our_presets: bool,
 
+    /// Start the ballot preview without the voting portal's chrome.
+    ///
+    /// The preview frames a screen in the portal's own header, breadcrumb
+    /// steps, footer and action row, which is what makes it answer *"is this
+    /// what a voter sees"*. It is also four blocks of furniture around the one
+    /// line somebody is checking when they are checking a candidate's name, so
+    /// it comes off — and which way it *starts* differs by how a client works.
+    ///
+    /// Here rather than in [`Self::defaults`], and the difference matters:
+    /// `defaults` seeds blueprint paths, and this is not one. Whether a preview
+    /// wears the chrome is a question about the wizard, not about the election,
+    /// so it travels the way [`Self::only_our_presets`] does — a field of its
+    /// own that the wizard reads and the bundle never sees.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub preview_slim: bool,
+
     /// How voters may prove who they are, and the Keycloak configuration behind
     /// each way.
     ///
@@ -288,6 +304,8 @@ pub struct Profile {
     /// The ballot-rule sets this client is offered, and whether ours go too.
     pub presets: Vec<NamedPreset>,
     pub only_our_presets: bool,
+    /// See [`ClientProfile::preview_slim`].
+    pub preview_slim: bool,
     defaults: Vec<(PlanPath, Value)>,
     locked: Vec<PlanPath>,
     hidden: Vec<PlanPath>,
@@ -492,6 +510,7 @@ impl Profile {
             warnings: report,
             presets: document.presets.clone(),
             only_our_presets: document.only_our_presets,
+            preview_slim: document.preview_slim,
             defaults,
             locked,
             hidden,

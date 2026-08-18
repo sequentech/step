@@ -829,6 +829,10 @@ pub fn read_profile_js(profile: JsValue) -> Result<JsValue, JsError> {
         presets: Vec<profile::NamedPreset>,
         /// Whether ours are offered alongside.
         only_our_presets: bool,
+        /// Whether the ballot preview starts without the portal's chrome. A
+        /// preference about the wizard rather than about the election, which is
+        /// why it travels here and not through `defaults`.
+        preview_slim: bool,
         warnings: Report,
     }
 
@@ -848,6 +852,7 @@ pub fn read_profile_js(profile: JsValue) -> Result<JsValue, JsError> {
                 .collect(),
             presets: read.presets.clone(),
             only_our_presets: read.only_our_presets,
+            preview_slim: read.preview_slim,
             locked: read
                 .locked_paths()
                 .into_iter()

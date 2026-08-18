@@ -615,6 +615,10 @@ fn a_profile_document_round_trips_through_json() {
     let document = ClientProfile {
         presets: Vec::new(),
         only_our_presets: false,
+        // `true`, not `false`: the field is `skip_serializing_if` off, so a `false`
+        // here would be omitted from the JSON and the round trip would prove nothing
+        // about it.
+        preview_slim: true,
         auth_presets: Vec::new(),
         id: "smart-td".to_string(),
         display_name: Some("SMART TD Locals".to_string()),
