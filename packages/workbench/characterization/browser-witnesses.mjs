@@ -44,7 +44,10 @@ import {fileURLToPath} from "node:url"
 import path from "node:path"
 import {loadSnapshot} from "./browser-harness.mjs"
 import {boothContext, observeCell, boothFormable, shortKey} from "./booth-cell.mjs"
-import {f as specF} from "./spec.mjs"
+// One-cell batches: this runner evaluates a couple of hundred cells in
+// total, so the per-call subprocess cost is irrelevant here.
+import {specF as specBatch} from "./rust-spec.mjs"
+const specF = (config, voteState) => specBatch([{config, voteState}])[0]
 
 const require = createRequire("C:/work/projects/step/packages/")
 const {chromium} = require("playwright")

@@ -34,7 +34,7 @@ import {writeFileSync} from "node:fs"
 import {fileURLToPath} from "node:url"
 import path from "node:path"
 import {loadWasm, loadVelvetWasm, tallyClass, loadMarkerFixture} from "./harness.mjs"
-import {classify} from "./spec.mjs"
+import {specClassify} from "./rust-spec.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
@@ -101,9 +101,25 @@ function makeDecoded(decline, flag, errors, selection) {
 //   6. otherwise → Valid
 // ---------------------------------------------------------------------------
 // This runner's prediction IS the shared classifier — the classifier table
-// validates spec.classify directly against velvet-wasm's real tally.
+// validates the Rust spec's `classify` directly against velvet-wasm's real
+// tally. One batched call up front, then a lookup per row.
+const predictions = new Map()
+const pkey = (decline, flag, errors, selection) =>
+    `${decline}|${flag}|${errors}|${selection}`
+{
+    const cells = []
+    for (const decline of [false, true])
+        for (const flag of [false, true])
+            for (const errors of [false, true])
+                for (const selection of ["none", "regular", "marker", "mixed"])
+                    cells.push({decline, flag, hasErrors: errors, selection})
+    const out = specClassify(cells)
+    cells.forEach((c, i) =>
+        predictions.set(pkey(c.decline, c.flag, c.hasErrors, c.selection), out[i])
+    )
+}
 function predict(decline, flag, errors, selection) {
-    return classify({decline, explicitInvalid: flag, hasErrors: errors, selection})
+    return predictions.get(pkey(decline, flag, errors, selection))
 }
 
 // ---------------------------------------------------------------------------
