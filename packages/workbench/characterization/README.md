@@ -354,18 +354,28 @@ preference:
    booth run settles every cell sharing that summary: **130,048** cells
    via **2,208** runs, on a license that is source-verified and carries a
    re-entry condition.
-3. **Per-cell grids and witnesses.** For what neither reaches: the
-   reviewer path cell by cell ([`dom-validate.md`](dom-validate.md)), the
-   preferential rules (outside the sweep's subdomain entirely), and the
-   existential dependence claims, each settled by one witness pair
-   ([`effect-dependencies.md`](effect-dependencies.md),
-   [`browser-witnesses.md`](browser-witnesses.md)).
+3. **Cell by cell.** For what neither reaches, three instruments:
+   [`dom-validate.md`](dom-validate.md) drives all **229** grid cells
+   through the real booth on the reviewer path; the two preferential
+   grids ([`duprank-rule.md`](duprank-rule.md),
+   [`prefgaps-rule.md`](prefgaps-rule.md)) carry the **8** rule-triggering
+   cells apiece that the sweep's plurality-only domain excludes; and
+   [`browser-witnesses.md`](browser-witnesses.md) settles each
+   existential dependence claim from
+   [`effect-dependencies.md`](effect-dependencies.md) with one cell pair.
 
-The third mechanism is why the seven per-rule runners remain. The sweep
-superseded their *coverage* role for the plurality rules, but they are
-still the per-rule human views, the regression grids, the only headless
-preferential coverage, and the inputs that `dom-validate`,
-`no-silent-discount` and `rust-conformance` replay.
+Where the seven per-rule runners sit in this is worth stating exactly,
+because **only two of them carry coverage**. Every cell of the five
+plurality grids falls inside the sweep's domain — all 216, verified,
+once unset policies resolve to their defaults the way `spec.mjs` resolves
+them — so those five contribute no coverage of their own. They earn their
+place in other ways: they are the ground truth `rust-conformance` replays
+(the Rust spec's only direct tie to production), the per-cell predictions
+`dom-validate` and `no-silent-discount` compare against, the per-rule
+human views, and the regression grids. Only `duprank-rule` and
+`prefgaps-rule` add coverage no other mechanism has, and only through
+their 8 rule-triggering cells each — their other 8 rows are ordinary
+plurality cells, swept like any other.
 
 The functional model in VOTE_VALIDATION.md has **six roles**, and full
 behaviour — `f(config, voteState) → one value per effect category` — is
