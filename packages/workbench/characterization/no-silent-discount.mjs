@@ -36,58 +36,11 @@ import {writeFileSync} from "node:fs"
 import {fileURLToPath} from "node:url"
 import path from "node:path"
 import {specF} from "./rust-spec.mjs"
-import {representable, rankedTriples} from "./cell.mjs"
+import {certifiedCells} from "./domain.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
-// The domain headless-sweep certifies, enumerated the same way.
-const INVALID = ["allowed", "warn", "warn-invalid-implicit-and-explicit", "not-allowed"]
-const BLANK = ["allowed", "warn", "warn-only-in-review", "not-allowed"]
-const OVER = [
-    "allowed",
-    "allowed-with-msg",
-    "allowed-with-msg-and-alert",
-    "not-allowed-with-msg-and-alert",
-    "not-allowed-with-msg-and-disable",
-]
-const UNDER = ["allowed", "warn", "warn-only-in-review", "warn-and-alert"]
-const RANKP = ["allowed-warn-and-dialog", "not-allowed-warn-and-dialog"]
-const BOUNDS = []
-for (let min = 0; min <= 3; min++)
-    for (let max = 1; max <= 3; max++) if (min <= max) BOUNDS.push([min, max])
-const STATES = []
-for (let regulars = 0; regulars <= 2; regulars++)
-    for (const blankMarker of [false, true])
-        for (const explicitInvalid of [false, true])
-            STATES.push({
-                regulars,
-                blankMarker,
-                explicitInvalid,
-                duplicateRanks: false,
-                rankGaps: false,
-                firstPreferences: regulars,
-            })
-for (const triple of rankedTriples())
-    for (const explicitInvalid of [false, true])
-        STATES.push({...triple, blankMarker: false, explicitInvalid})
-
-const cells = []
-for (const invalid of INVALID)
-    for (const blank of BLANK)
-        for (const over of OVER)
-            for (const under of UNDER)
-                for (const dup of RANKP)
-                    for (const gap of RANKP) {
-                        const policies = {invalid, blank, over, under, dup, gap}
-                        for (const [min, max] of BOUNDS)
-                            for (const state of STATES) {
-                                const cell = {
-                                    config: {min, max, policies},
-                                    voteState: {...state},
-                                }
-                                if (!representable(cell)) cells.push(cell)
-                            }
-                    }
+const cells = certifiedCells()
 
 console.log(`evaluating the property over ${cells.length} certified cells…`)
 const out = specF(cells)

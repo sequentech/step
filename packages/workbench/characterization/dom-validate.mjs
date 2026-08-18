@@ -39,7 +39,7 @@ import {fileURLToPath} from "node:url"
 import path from "node:path"
 import {loadSnapshot} from "./browser-harness.mjs"
 import {specF} from "./rust-spec.mjs"
-import {representable} from "./cell.mjs"
+import {inCertifiedDomain} from "./domain.mjs"
 import {RULE_SPECS, RULE_ROWS, contestAndVoter, observeBooth, isReached} from "./rule-specs.mjs"
 
 const require = createRequire("C:/work/projects/step/packages/")
@@ -214,15 +214,9 @@ const t0 = performance.now()
                 batch.push({config, voteState: effectsVs})
                 keys.push(predKey(rule.name, ri) + "@effects")
             }
-            const why = representable({config, voteState})
-            const inBounds =
-                config.min >= 0 && config.min <= 3 && config.max >= 1 && config.max <= 3
-            if (why || !inBounds)
-                outsideSweptDomain.push({
-                    rule: rule.name,
-                    cell: rule.label(r),
-                    reason: why ?? `bounds min=${config.min} max=${config.max} outside the sweep`,
-                })
+            const why = inCertifiedDomain({config, voteState})
+            if (why)
+                outsideSweptDomain.push({rule: rule.name, cell: rule.label(r), reason: why})
         }
     const outs = specF(batch)
     outs.forEach((o, i) => predictions.set(keys[i], o))

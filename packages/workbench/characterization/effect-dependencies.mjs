@@ -52,6 +52,7 @@ import {existsSync, readFileSync, writeFileSync} from "node:fs"
 import {fileURLToPath} from "node:url"
 import path from "node:path"
 import {representable, shortKey} from "./cell.mjs"
+import {inCertifiedDomain} from "./domain.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const packagesDir = path.resolve(here, "../..")
@@ -129,18 +130,6 @@ const deferReason = (name, cells) => {
     return null
 }
 
-/** Is this cell inside the domain `headless-sweep.mjs` enumerates? Mirrors
- *  that runner's BOUNDS and STATES; `representable()` carries the rest
- *  (fixture limits, the ranked triples, the codec's rank/max_votes rule). */
-function inSweptDomain(inputs) {
-    if (representable(inputs)) return false
-    const {config: c, voteState: vs} = inputs
-    if (!(c.min >= 0 && c.min <= 3 && c.max >= 1 && c.max <= 3 && c.min <= c.max))
-        return false
-    if (vs.duplicateRanks || vs.rankGaps) return !vs.blankMarker
-    return vs.regulars <= 2
-}
-
 const covered = []
 const deferred = []
 const outsideSweptDomain = []
@@ -153,7 +142,7 @@ for (const comp of analysis.components) {
             deferred.push({component: comp.component, varies: w.varies, reason})
             continue
         }
-        const outside = [cellA, cellB].filter((c) => !inSweptDomain(parseCell(c)))
+        const outside = [cellA, cellB].filter((c) => inCertifiedDomain(parseCell(c)))
         if (outside.length)
             outsideSweptDomain.push({component: comp.component, varies: w.varies, cells: outside})
         covered.push({component: comp.component, varies: w.varies, cells: [cellA, cellB]})

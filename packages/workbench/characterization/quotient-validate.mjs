@@ -54,6 +54,7 @@ import {performance} from "node:perf_hooks"
 import {loadSnapshot} from "./browser-harness.mjs"
 import {boothContext, observeCell, boothFormable, shortKey} from "./booth-cell.mjs"
 import {specF} from "./rust-spec.mjs"
+import {BOUNDS} from "./domain.mjs"
 
 const require = createRequire("C:/work/projects/step/packages/")
 const {chromium} = require("playwright")
@@ -79,9 +80,7 @@ for (let regulars = 0; regulars <= 2; regulars++) {
     FORMABLE_STATES.push({regulars, blankMarker: false, explicitInvalid: true})
 }
 FORMABLE_STATES.push({regulars: 0, blankMarker: true, explicitInvalid: false})
-const BOUNDS = []
-for (let min = 0; min <= 3; min++)
-    for (let max = 1; max <= 3; max++) if (min <= max) BOUNDS.push([min, max])
+
 
 // Every class's candidate members, evaluated against the Rust spec in ONE
 // batch. `emit-grid` is a subprocess: the search below is 63 candidates per

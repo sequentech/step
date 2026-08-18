@@ -53,47 +53,15 @@ import {fileURLToPath} from "node:url"
 import path from "node:path"
 import {performance} from "node:perf_hooks"
 import {loadWasm, loadVelvetWasm} from "./harness.mjs"
-import {representable, observeHeadless, shortKey, rankedTriples} from "./cell.mjs"
+import {observeHeadless, shortKey} from "./cell.mjs"
+import {POLICY_VALUES, DOMAIN_DESCRIPTION, certifiedCells} from "./domain.mjs"
 import {specF} from "./rust-spec.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
-const INVALID = ["allowed", "warn", "warn-invalid-implicit-and-explicit", "not-allowed"]
-const BLANK = ["allowed", "warn", "warn-only-in-review", "not-allowed"]
-const OVER = [
-    "allowed",
-    "allowed-with-msg",
-    "allowed-with-msg-and-alert",
-    "not-allowed-with-msg-and-alert",
-    "not-allowed-with-msg-and-disable",
-]
-const UNDER = ["allowed", "warn", "warn-only-in-review", "warn-and-alert"]
-const RANKP = ["allowed-warn-and-dialog", "not-allowed-warn-and-dialog"]
-const BOUNDS = []
-for (let min = 0; min <= 3; min++)
-    for (let max = 1; max <= 3; max++) if (min <= max) BOUNDS.push([min, max])
-const STATES = []
-// plurality states — the Referendum fixture's two regulars, the blank
-// marker, the explicit-invalid flag
-for (let regulars = 0; regulars <= 2; regulars++)
-    for (const blankMarker of [false, true])
-        for (const explicitInvalid of [false, true])
-            STATES.push({
-                regulars,
-                blankMarker,
-                explicitInvalid,
-                duplicateRanks: false,
-                rankGaps: false,
-                // every plurality selection sits at rank 0
-                firstPreferences: regulars,
-            })
-// preferential states — the IRV fixture. Its contest carries no marker
-// candidate, so blankMarker is false throughout; the reachable
-// (regulars, dup, gap) triples come from `cell.mjs`, which derives them by
-// the same rule production uses (`plaintext.rs::validate_preferencial_order`)
-for (const triple of rankedTriples())
-    for (const explicitInvalid of [false, true])
-        STATES.push({...triple, blankMarker: false, explicitInvalid})
+const {invalid: INVALID, blank: BLANK} = POLICY_VALUES
+
+const ALL = certifiedCells()
 
 await loadWasm()
 await loadVelvetWasm()
@@ -120,21 +88,9 @@ for (const invalid of INVALID) {
         // evaluating per cell would pay the process cost a quarter of a
         // million times; per (invalid, blank) block keeps the batch big and
         // the peak memory bounded.
-        const blockCells = []
-        for (const over of OVER)
-            for (const under of UNDER)
-                for (const dup of RANKP)
-                    for (const gap of RANKP) {
-                        const policies = {invalid, blank, over, under, dup, gap}
-                        for (const [min, max] of BOUNDS)
-                            for (const state of STATES) {
-                                const cell = {
-                                    config: {min, max, policies},
-                                    voteState: {...state},
-                                }
-                                if (!representable(cell)) blockCells.push(cell)
-                            }
-                    }
+        const blockCells = ALL.filter(
+            (c) => c.config.policies.invalid === invalid && c.config.policies.blank === blank
+        )
         const blockSpecs = specF(blockCells)
 
         for (let ci = 0; ci < blockCells.length; ci++) {
@@ -235,9 +191,9 @@ writeFileSync(
     JSON.stringify(
         {
             domain: {
-                policies: {INVALID, BLANK, OVER, UNDER, dup: RANKP, gap: RANKP},
-                bounds: "min 0..3 × max 1..3, min ≤ max",
-                states: "regulars 0..2 × blank marker × explicit-invalid flag; no decline, no preferential state",
+                policies: POLICY_VALUES,
+                bounds: DOMAIN_DESCRIPTION.bounds,
+                states: DOMAIN_DESCRIPTION.states,
                 cells,
             },
             disagreements,

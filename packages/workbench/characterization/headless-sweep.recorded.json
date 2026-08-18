@@ -1,26 +1,26 @@
 {
   "domain": {
     "policies": {
-      "INVALID": [
+      "invalid": [
         "allowed",
         "warn",
         "warn-invalid-implicit-and-explicit",
         "not-allowed"
       ],
-      "BLANK": [
+      "blank": [
         "allowed",
         "warn",
         "warn-only-in-review",
         "not-allowed"
       ],
-      "OVER": [
+      "over": [
         "allowed",
         "allowed-with-msg",
         "allowed-with-msg-and-alert",
         "not-allowed-with-msg-and-alert",
         "not-allowed-with-msg-and-disable"
       ],
-      "UNDER": [
+      "under": [
         "allowed",
         "warn",
         "warn-only-in-review",
@@ -35,8 +35,8 @@
         "not-allowed-warn-and-dialog"
       ]
     },
-    "bounds": "min 0..3 × max 1..3, min ≤ max",
-    "states": "regulars 0..2 × blank marker × explicit-invalid flag; no decline, no preferential state",
+    "bounds": "min 0..3 × max 1..3, min ≤ max (max = 0 is the config-sanity scope boundary)",
+    "states": "plurality: regulars 0..2 × blank marker × explicit-invalid flag, on the Referendum fixture. Preferential: every reachable (regulars, duplicate ranks, rank gaps) triple × explicit-invalid flag, on the IRV fixture, which carries no marker candidate. No decline (the single-contest decode hardcodes it false); no well-formed ranking (no fixture routes one).",
     "cells": 248320
   },
   "disagreements": [],
