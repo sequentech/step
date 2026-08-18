@@ -1,0 +1,113 @@
+{
+  "cells_evaluated": 248320,
+  "counts_disagree": 64000,
+  "voter_visible": 2232,
+  "absorbed": 61768,
+  "consequences": [
+    {
+      "kind": "dialog kind changed: blocking → dismissible",
+      "cells": 588
+    },
+    {
+      "kind": "dialog kind changed: dismissible → blocking",
+      "cells": 1644
+    }
+  ],
+  "examples": [
+    {
+      "kind": "dialog kind changed: blocking → dismissible",
+      "cell": {
+        "config": {
+          "min": 0,
+          "max": 2,
+          "policies": {
+            "invalid": "allowed",
+            "blank": "allowed",
+            "over": "not-allowed-with-msg-and-alert",
+            "under": "allowed",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 2,
+          "duplicateRanks": true,
+          "rankGaps": true,
+          "firstPreferences": 0,
+          "blankMarker": false,
+          "explicitInvalid": true
+        }
+      },
+      "actual": {
+        "dialog": "dismissible",
+        "inline": {
+          "review": [
+            "errors.implicit.selectedMax"
+          ],
+          "voting": [
+            "errors.implicit.selectedMax"
+          ],
+          "votingUntouched": []
+        }
+      },
+      "if_counts_agreed": {
+        "dialog": "blocking",
+        "inline": {
+          "review": [
+            "errors.implicit.selectedMax"
+          ],
+          "voting": [
+            "errors.implicit.selectedMax"
+          ],
+          "votingUntouched": []
+        }
+      }
+    },
+    {
+      "kind": "dialog kind changed: dismissible → blocking",
+      "cell": {
+        "config": {
+          "min": 0,
+          "max": 2,
+          "policies": {
+            "invalid": "allowed",
+            "blank": "not-allowed",
+            "over": "allowed",
+            "under": "allowed",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 1,
+          "duplicateRanks": false,
+          "rankGaps": true,
+          "firstPreferences": 0,
+          "blankMarker": false,
+          "explicitInvalid": false
+        }
+      },
+      "actual": {
+        "dialog": "blocking",
+        "inline": {
+          "review": [],
+          "voting": [],
+          "votingUntouched": []
+        }
+      },
+      "if_counts_agreed": {
+        "dialog": "dismissible",
+        "inline": {
+          "review": [],
+          "voting": [],
+          "votingUntouched": []
+        }
+      }
+    }
+  ],
+  "known_still_derived": true,
+  "domain_limit": {
+    "violating_cells_without_a_preferential_error": 0,
+    "note": "every ranked cell this suite can drive carries a duplicate or a gap, and both policy variants raise a dialog; so only the dialog KIND can change here. A dialog appearing from nothing needs a clean ranking, which no bundled fixture can drive."
+  }
+}

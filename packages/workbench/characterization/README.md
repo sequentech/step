@@ -328,6 +328,7 @@ These consume the certified spec. None of them observes production.
 | `effect-dependencies.mjs` | `effect-dependencies.md` + `.recorded.json` — the effect-first decomposition: per effect component, its support, its conditional-independence restrictions, and one executable witness per dependence, computed exhaustively over the full modelled domain (~29M evaluations). Each witness is checked for membership of the swept domain, so its production backing is inherited from the sweep rather than re-observed; anything outside is reported and fails the run. ~2 min |
 | `effect-map.mjs` | `effect-map.md` — the human projection of the dependency ledger: the mapping as a causal diagram (Mermaid; topology checked against the ledger on every run), the functional-cancellations table, and per-knob cards. Pure JSON → markdown; instant |
 | `no-silent-discount.mjs` | `no-silent-discount.md` + `.report.json` — the no-silent-discount property, evaluated over every cell the sweep certifies. Fails if a violation already escalated as S1/S2 stops being found |
+| `gate-count-agreement.mjs` | `gate-count-agreement.md` + `.report.json` — the gate/checker count-agreement property (quirk S6). For every cell where the two counts differ it evaluates the mapping twice — as production behaves, and with the gates handed the checker's count — so the consequence is the *difference* in what the voter meets, derived rather than asserted. Reports its own domain limit |
 
 ### Documentation
 
