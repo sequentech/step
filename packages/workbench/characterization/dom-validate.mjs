@@ -10,7 +10,7 @@
 // input disable and the marker clearing are TypeScript/React. This validates
 // those predictions against the REAL DOM, reload-free, by:
 //   - reading each rule's recorded JSON for the per-cell prediction
-//     (`derived_inline.voting` / `.review`; the gates → expected dialog), and
+//     (the Rust spec's inline views, dialog and reachability), and
 //   - driving the booth (panel config → cast state → observe) via
 //     `browser-harness.mjs`, then comparing. Every cell observes the TOUCHED
 //     voting screen (observeBooth's deterministic tick-untick); the
@@ -38,7 +38,8 @@ import {performance} from "node:perf_hooks"
 import {fileURLToPath} from "node:url"
 import path from "node:path"
 import {loadSnapshot} from "./browser-harness.mjs"
-import {reachability} from "./spec.mjs"
+import {specF} from "./rust-spec.mjs"
+import {representable} from "./cell.mjs"
 import {RULE_SPECS, contestAndVoter, observeBooth, isReached} from "./rule-specs.mjs"
 
 const require = createRequire("C:/work/projects/step/packages/")
@@ -64,8 +65,19 @@ const FIXTURES = {
 const rec = (f) => JSON.parse(readFileSync(path.join(here, f), "utf8")).rows
 const uniq = (xs) => [...new Set(xs)].sort()
 
-// Predicted dialog from the recorded gates: hard → blocking, soft → dismissible.
-const expectedDialog = (r) => (r.observed.hard ? "blocking" : r.observed.soft ? "dismissible" : "none")
+// Every prediction in this runner comes from the TYPED RUST SPEC
+// (`../validation-spec` via `emit-grid`) — inline views at both observation
+// points, the dialog, and reachability. Cells are evaluated in one batch
+// before the browser work starts and looked up by the runner as it goes.
+//
+// This compares the DOM against the artifact the project ships, rather than
+// against inline re-derived from each cell's own recorded emissions. The two
+// coincide wherever the sweep certifies production emissions ≡ spec
+// emissions, which is checked below (`outsideSweptDomain`) rather than
+// assumed.
+const predictions = new Map()
+const predKey = (ruleName, i) => `${ruleName}#${i}`
+const outsideSweptDomain = []
 
 // The browser-driving specs (contest, config, selection, landmark) come from
 // rule-specs.mjs — the single source shared with no-silent-discount. Here we
@@ -178,6 +190,43 @@ const short = (xs) =>
 const results = []
 const untouchedViolations = []
 const t0 = performance.now()
+// ---------------------------------------------------------------------------
+// Predict every cell up front, in one batch: `emit-grid` is a subprocess, so
+// one call for the whole suite rather than one per cell. The same pass checks
+// each cell against the swept headless domain — the sweep is what licenses
+// comparing the DOM against SPEC-derived inline rather than inline re-derived
+// from that cell's own observed emissions, so a cell outside it would be
+// relying on a licence the sweep never granted.
+// ---------------------------------------------------------------------------
+{
+    const batch = []
+    const keys = []
+    for (const rule of RULES)
+        for (const [ri, r] of rule.rows.entries()) {
+            const config = rule.specConfig(r)
+            const voteState = rule.voteState(r)
+            batch.push({config, voteState})
+            keys.push(predKey(rule.name, ri))
+            const why = representable({config, voteState})
+            const inBounds =
+                config.min >= 0 && config.min <= 3 && config.max >= 1 && config.max <= 3
+            if (why || !inBounds)
+                outsideSweptDomain.push({
+                    rule: rule.name,
+                    cell: rule.label(r),
+                    reason: why ?? `bounds min=${config.min} max=${config.max} outside the sweep`,
+                })
+        }
+    const outs = specF(batch)
+    outs.forEach((o, i) => predictions.set(keys[i], o))
+    console.log(
+        `predicted ${outs.length} cells from the Rust spec; ` +
+            `${outsideSweptDomain.length} outside the swept domain`
+    )
+    for (const c of outsideSweptDomain)
+        console.log(`  ! ${c.rule} ${c.cell}: ${c.reason}`)
+}
+
 for (const rule of RULES) {
     // Reload per rule for a clean baseline (also switches fixture/snapshot for
     // the preferential rules). Panel overrides are ephemeral and per-contest,
@@ -191,7 +240,7 @@ for (const rule of RULES) {
         flag: rule.contestFlag,
         counting: rule.contestCounting,
     })
-    for (const r of rule.rows) {
+    for (const [ri, r] of rule.rows.entries()) {
         const obs = await observeBooth(page, {electionId: election, contestId, voterId, spec: rule, cell: r})
 
         // The untouched-clear constant: nothing may render before the touch
@@ -205,7 +254,8 @@ for (const rule of RULES) {
         // mechanisms: an input disable ("inputs_disabled") or marker exclusivity
         // ("marker_cleared"). Either way the cell is `constrained`. Computed
         // uniformly from the same cell definitions the runners feed spec.f.
-        const reach = reachability(rule.specConfig(r), rule.voteState(r))
+        const pred = predictions.get(predKey(rule.name, ri))
+        const reach = pred.reachability
         const constraintPred = reach === "yes" ? null : reach
         const constrained = constraintPred !== null
         const domReachable = isReached(rule, obs, r)
@@ -222,13 +272,13 @@ for (const rule of RULES) {
         const votingOk =
             !votingComparable ||
             JSON.stringify(uniq(obs.inlineAtVote ?? [])) ===
-                JSON.stringify(uniq(r.derived_inline.voting))
+                JSON.stringify(uniq(pred.inline.voting))
         const inlineComparable = !constrained && obs.dialog !== "blocking"
         const inlineOk =
             !inlineComparable ||
             JSON.stringify(uniq(obs.inlineAtReview ?? [])) ===
-                JSON.stringify(uniq(r.derived_inline.review))
-        const dialogOk = constrained || obs.dialog === expectedDialog(r)
+                JSON.stringify(uniq(pred.inline.review))
+        const dialogOk = constrained || obs.dialog === pred.dialog
         // Direct DOM evidence for the constraint — a second signal beyond
         // behavioural non-reachability, specific to the mechanism: the disable
         // policy's (max+1)th control must carry `disabled` (obs.constraintProbe),
@@ -274,10 +324,10 @@ for (const rule of RULES) {
             console.log(
                 `✗ ${rule.name} ${rule.label(r)}: ` +
                     `inline@voting=${JSON.stringify(uniq(obs.inlineAtVote ?? []))} ` +
-                    `predV=${JSON.stringify(uniq(r.derived_inline.voting))} ` +
+                    `predV=${JSON.stringify(uniq(pred.inline.voting))} ` +
                     `inline@review=${JSON.stringify(uniq(obs.inlineAtReview ?? []))} ` +
-                    `predR=${JSON.stringify(uniq(r.derived_inline.review))} ` +
-                    `dialog=${obs.dialog}/${expectedDialog(r)} reachable=${domReachable}/${!constrained} ` +
+                    `predR=${JSON.stringify(uniq(pred.inline.review))} ` +
+                    `dialog=${obs.dialog}/${pred.dialog} reachable=${domReachable}/${!constrained} ` +
                     `constraint=${constraintPred} probe=${obs.constraintProbe} selected=${JSON.stringify(obs.selected)}`
             )
         }
