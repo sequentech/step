@@ -359,13 +359,26 @@ Where the work stands (2026-08-18): the validation characterization is
 complete — all seven rules recorded headlessly and DOM-validated against
 the real booth (229/229, [characterization/README.md](characterization/README.md)),
 every dependence and independence claim the spec makes
-production-validated, and the findings confirmed end-to-end and
-documented. One booth flow remains unreachable (decline-to-vote), and the
+production-validated (headlessly by exhaustion — 138,240 cells; in the
+booth by witnesses and by sufficiency — 130,048 cells via 2,208 quotient
+classes; zero disagreements anywhere), and the findings confirmed
+end-to-end and documented. Distillation steps 3–4 are delivered: the
+typed Rust spec ([validation-spec/](validation-spec/)) is
+bug-compatible, its accidental complexity enumerated as a quirk
+registry, and equivalence-checked by
+`characterization/rust-conformance.mjs`
+([docs/VALIDATION_LOGIC_DISTILLATION.md](docs/VALIDATION_LOGIC_DISTILLATION.md)
+§5.3, the 2026-08-17 status).
+
+One booth flow remains unreachable (decline-to-vote), and the
 pipeline's coverage carries explicitly labelled residues — the unswept
 region (preferential states, decline, `max_votes = 0`), 96 quotient
 classes with no booth-formable member, 23 witnesses no bundled fixture
 can observe — each named with its unblocking condition in its own
-artifact. The natural next moves, roughly by payoff:
+artifact. What would close those residues is suite-internal work, and it
+is collected in [characterization/README.md](characterization/README.md)
+("Open work"); what follows here is what needs a decision or changes
+which artifact ships, roughly by payoff:
 
 1. **Consultation on the findings.** S1/S2 (silent discounting) and S5
    (null-vote choice preservation) are documented
@@ -379,28 +392,32 @@ artifact. The natural next moves, roughly by payoff:
    repo cannot take by itself. meta#8235 has now been read (2026-08-14;
    evidence folded into that document's §5): it asks for *more* voter
    signal, never suppression — the residual intent questions go to the
-   fix's authors.
-2. **The decline-to-vote booth flow** — the one open characterization
+   fix's authors. **One candidate is not yet filed as a suspect**: an
+   unset `invalid_vote_policy` resolves to `allowed` in the Rust spec,
+   but the TypeScript filter reads the policy raw (`?? undefined`), so
+   "unset" and "allowed" are not the same configuration at the booth.
+   Whether that becomes a suspect is a joint call — adjudication is
+   nobody's alone.
+2. **Point the validation runners at the Rust spec.** Every runner that
+   compares against production currently targets `spec.mjs`; the
+   artifact this work exists to produce, `validation-spec/`, inherits
+   that evidence transitively — exactly on the 280 recorded cells, and
+   by sampling everywhere else (characterization/README.md, "The spec
+   exists twice, and only one carries the evidence"). `emit-grid`
+   already speaks the same JSON `f(config, voteState)`, so migrating the
+   runners onto it would make the shipped spec **directly and
+   exhaustively** evidenced, and retire `spec.mjs` (437 lines). Blocked
+   on nobody, and the one real deletion this codebase still has in it.
+   Cost: 13 runners change their spec call, cells get batched up front,
+   and `emit-grid` needs two small cell kinds (`inline`, `reachability`).
+3. **The decline-to-vote booth flow** — the one open characterization
    cell. Blocked on adding a `multi_ballot` encrypt/decrypt path (the
    decline bit does not exist in `raw_ballot`; see Known gaps above), so
    it is a feature lift, not a rule extension.
-3. **Distillation steps 3–4 are delivered, and the spec's claim ledger
-   is validated** — the typed Rust spec
-   ([validation-spec/](validation-spec/), bug-compatible, its accidental
-   complexity enumerated as a quirk registry) is equivalence-checked
-   against the recorded ground truth and against `spec.mjs`
-   (`characterization/rust-conformance.mjs`), and the dependency-driven
-   validation pipeline has since completed the evidence column: every
-   dependence and independence claim the spec makes is
-   production-validated (headlessly by exhaustion — 138,240 cells;
-   in the booth by witnesses and by sufficiency — 130,048 cells via
-   2,208 quotient classes; zero disagreements anywhere) or explicitly
-   labelled with its unblocking condition (see
-   [docs/VALIDATION_LOGIC_DISTILLATION.md](docs/VALIDATION_LOGIC_DISTILLATION.md)
-   §5.3, the 2026-08-17 status). What remains is adjudication-gated:
-   each quirk is one consultation verdict away from being blessed into
-   the spec or flipped into a fix, and step 5 — a production
-   interpreter of the artifact — follows from those verdicts.
+4. **Distillation step 5 — a production interpreter of the artifact.**
+   Adjudication-gated: each quirk in the registry is one consultation
+   verdict away from being blessed into the spec or flipped into a fix,
+   and the interpreter's shape follows from those verdicts.
 
 Standing maintenance, as upstream moves:
 
