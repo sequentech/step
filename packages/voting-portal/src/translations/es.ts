@@ -55,6 +55,13 @@ const spanishTranslation: TranslationType = {
                 continue: "Continuar",
                 cancel: "Cancelar",
             },
+            blankBallotDialog: {
+                title: "No ha seleccionado ningún candidato",
+                content:
+                    "No ha realizado ninguna selección. Su papeleta se emitirá como papeleta en blanco, lo cual es una elección válida y deliberada y se contabilizará como tal.",
+                continue: "Continuar",
+                cancel: "Cancelar",
+            },
         },
         startScreen: {
             startButton: "Empezar a votar",
@@ -114,6 +121,13 @@ const spanishTranslation: TranslationType = {
                 title: "¿Está seguro de que quiere emitir su voto?",
                 content: "Su voto no se podrá editar una vez confirmado.",
                 ok: "Sí, quiero EMITIR mi voto",
+                cancel: "Cancelar",
+            },
+            confirmCastBlankBallotDialog: {
+                title: "¿Está seguro de que desea emitir una papeleta en blanco?",
+                content:
+                    "No ha seleccionado ningún candidato. Una vez confirme, su papeleta se emitirá en blanco.",
+                ok: "Sí, quiero emitir mi papeleta en blanco",
                 cancel: "Cancelar",
             },
             error: {
@@ -209,11 +223,16 @@ const spanishTranslation: TranslationType = {
                     "Hubo un error interno al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
             },
             declineToVote: "Declinar votar",
+            blankBallot: "Papeleta en blanco",
         },
         confirmationScreen: {
             title: "Su voto ha sido emitido",
             description:
-                "El código de confirmación que aparece a continuación verifica que <b>su voto se ha emitido correctamente</b>. Puede utilizar este código para verificar que su voto ha sido contabilizado.",
+                "Su papeleta fue emitida correctamente. Use el código a continuación para verificar que fue contabilizada",
+            blankBallot: {
+                description:
+                    "Su papeleta se emitió en blanco, lo cual es una elección válida y deliberada.",
+            },
             ballotId: "Localizador del Voto",
             printButton: "Imprimir",
             finishButton: "Finalizar",
