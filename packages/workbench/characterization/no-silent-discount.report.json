@@ -1,163 +1,779 @@
 {
-  "property": "no-silent-discount",
-  "method": "observation-based (headless pre-filter + browser confirm at review)",
-  "scanned": 248,
-  "candidates": 7,
-  "confirmed_count": 5,
-  "byConfig": {
-    "over=allowed invalid=allowed": [
-      "over_max"
-    ],
-    "min_votes=1 invalid=allowed": [
-      "none"
-    ],
-    "min_votes=2 invalid=allowed": [
-      "none",
-      "one",
-      "marker_only"
-    ]
-  },
-  "confirmed": [
+  "cells_evaluated": 248320,
+  "violations": 2848,
+  "families": [
     {
-      "rule": "overvote-rule",
-      "cfg": "over=allowed invalid=allowed",
-      "state": "over_max",
-      "observed": {
-        "errors": [
-          "errors.implicit.selectedMax"
-        ],
-        "alerts": [],
-        "hard": false,
-        "soft": false,
-        "tally": "ImplicitInvalid"
-      },
-      "formed": 2,
-      "reachable": true,
-      "inlineAtReview": [],
-      "dialog": "none",
-      "confirmed": true
+      "driving_error": "selectedMax",
+      "cells": 128
     },
     {
-      "rule": "minvote-rule",
-      "cfg": "min_votes=1 invalid=allowed",
-      "state": "none",
-      "observed": {
-        "errors": [
-          "errors.implicit.selectedMin"
-        ],
-        "alerts": [],
-        "hard": false,
-        "soft": false,
-        "tally": "ImplicitInvalid"
-      },
-      "formed": 0,
-      "reachable": true,
-      "inlineAtReview": [],
-      "dialog": "none",
-      "confirmed": true
-    },
-    {
-      "rule": "minvote-rule",
-      "cfg": "min_votes=2 invalid=allowed",
-      "state": "none",
-      "observed": {
-        "errors": [
-          "errors.implicit.selectedMin"
-        ],
-        "alerts": [],
-        "hard": false,
-        "soft": false,
-        "tally": "ImplicitInvalid"
-      },
-      "formed": 0,
-      "reachable": true,
-      "inlineAtReview": [],
-      "dialog": "none",
-      "confirmed": true
-    },
-    {
-      "rule": "minvote-rule",
-      "cfg": "min_votes=2 invalid=allowed",
-      "state": "one",
-      "observed": {
-        "errors": [
-          "errors.implicit.selectedMin"
-        ],
-        "alerts": [],
-        "hard": false,
-        "soft": false,
-        "tally": "ImplicitInvalid"
-      },
-      "formed": 1,
-      "reachable": true,
-      "inlineAtReview": [],
-      "dialog": "none",
-      "confirmed": true
-    },
-    {
-      "rule": "minvote-rule",
-      "cfg": "min_votes=2 invalid=allowed",
-      "state": "marker_only",
-      "observed": {
-        "errors": [
-          "errors.implicit.selectedMin"
-        ],
-        "alerts": [],
-        "hard": false,
-        "soft": false,
-        "tally": "ImplicitInvalid"
-      },
-      "formed": 1,
-      "reachable": true,
-      "inlineAtReview": [],
-      "dialog": "none",
-      "confirmed": true
+      "driving_error": "selectedMin",
+      "cells": 2720
     }
   ],
-  "rejected": [
+  "configurations": [
     {
-      "rule": "overvote-rule",
-      "cfg": "over=allowed-with-msg invalid=allowed",
-      "state": "over_max",
-      "observed": {
-        "errors": [
-          "errors.implicit.selectedMax"
-        ],
-        "alerts": [
-          "errors.implicit.selectedMax"
-        ],
-        "hard": false,
-        "soft": false,
-        "tally": "ImplicitInvalid"
-      },
-      "formed": 2,
-      "reachable": true,
-      "inlineAtReview": [
-        "errors.implicit.selectedMax"
-      ],
-      "dialog": "none",
-      "confirmed": false
+      "configuration": "invalid=allowed over=allowed blank=allowed under=allowed",
+      "cells": 60
     },
     {
-      "rule": "overvote-rule",
-      "cfg": "over=not-allowed-with-msg-and-disable invalid=allowed",
-      "state": "over_max",
-      "observed": {
-        "errors": [
-          "errors.implicit.selectedMax"
-        ],
-        "alerts": [
-          "errors.implicit.selectedMax"
-        ],
-        "hard": false,
-        "soft": false,
-        "tally": "ImplicitInvalid"
+      "configuration": "invalid=allowed over=allowed blank=allowed under=warn",
+      "cells": 60
+    },
+    {
+      "configuration": "invalid=allowed over=allowed blank=allowed under=warn-only-in-review",
+      "cells": 60
+    },
+    {
+      "configuration": "invalid=allowed over=allowed blank=allowed under=warn-and-alert",
+      "cells": 60
+    },
+    {
+      "configuration": "invalid=allowed over=allowed-with-msg blank=allowed under=allowed",
+      "cells": 52
+    },
+    {
+      "configuration": "invalid=allowed over=allowed-with-msg blank=allowed under=warn",
+      "cells": 52
+    },
+    {
+      "configuration": "invalid=allowed over=allowed-with-msg blank=allowed under=warn-only-in-review",
+      "cells": 52
+    },
+    {
+      "configuration": "invalid=allowed over=allowed-with-msg blank=allowed under=warn-and-alert",
+      "cells": 52
+    },
+    {
+      "configuration": "invalid=allowed over=allowed-with-msg-and-alert blank=allowed under=allowed",
+      "cells": 52
+    },
+    {
+      "configuration": "invalid=allowed over=allowed-with-msg-and-alert blank=allowed under=warn",
+      "cells": 52
+    },
+    {
+      "configuration": "invalid=allowed over=allowed-with-msg-and-alert blank=allowed under=warn-only-in-review",
+      "cells": 52
+    },
+    {
+      "configuration": "invalid=allowed over=allowed-with-msg-and-alert blank=allowed under=warn-and-alert",
+      "cells": 52
+    },
+    {
+      "configuration": "invalid=allowed over=not-allowed-with-msg-and-alert blank=allowed under=allowed",
+      "cells": 52
+    },
+    {
+      "configuration": "invalid=allowed over=not-allowed-with-msg-and-alert blank=allowed under=warn",
+      "cells": 52
+    },
+    {
+      "configuration": "invalid=allowed over=not-allowed-with-msg-and-alert blank=allowed under=warn-only-in-review",
+      "cells": 52
+    },
+    {
+      "configuration": "invalid=allowed over=not-allowed-with-msg-and-alert blank=allowed under=warn-and-alert",
+      "cells": 52
+    },
+    {
+      "configuration": "invalid=allowed over=not-allowed-with-msg-and-disable blank=allowed under=allowed",
+      "cells": 52
+    },
+    {
+      "configuration": "invalid=allowed over=not-allowed-with-msg-and-disable blank=allowed under=warn",
+      "cells": 52
+    },
+    {
+      "configuration": "invalid=allowed over=not-allowed-with-msg-and-disable blank=allowed under=warn-only-in-review",
+      "cells": 52
+    },
+    {
+      "configuration": "invalid=allowed over=not-allowed-with-msg-and-disable blank=allowed under=warn-and-alert",
+      "cells": 52
+    },
+    {
+      "configuration": "invalid=allowed over=allowed blank=warn under=allowed",
+      "cells": 36
+    },
+    {
+      "configuration": "invalid=allowed over=allowed blank=warn under=warn",
+      "cells": 36
+    },
+    {
+      "configuration": "invalid=allowed over=allowed blank=warn under=warn-only-in-review",
+      "cells": 36
+    },
+    {
+      "configuration": "invalid=allowed over=allowed blank=warn under=warn-and-alert",
+      "cells": 36
+    },
+    {
+      "configuration": "invalid=allowed over=allowed-with-msg blank=warn under=allowed",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=allowed-with-msg blank=warn under=warn",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=allowed-with-msg blank=warn under=warn-only-in-review",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=allowed-with-msg blank=warn under=warn-and-alert",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=allowed-with-msg-and-alert blank=warn under=allowed",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=allowed-with-msg-and-alert blank=warn under=warn",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=allowed-with-msg-and-alert blank=warn under=warn-only-in-review",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=allowed-with-msg-and-alert blank=warn under=warn-and-alert",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=not-allowed-with-msg-and-alert blank=warn under=allowed",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=not-allowed-with-msg-and-alert blank=warn under=warn",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=not-allowed-with-msg-and-alert blank=warn under=warn-only-in-review",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=not-allowed-with-msg-and-alert blank=warn under=warn-and-alert",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=not-allowed-with-msg-and-disable blank=warn under=allowed",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=not-allowed-with-msg-and-disable blank=warn under=warn",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=not-allowed-with-msg-and-disable blank=warn under=warn-only-in-review",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=not-allowed-with-msg-and-disable blank=warn under=warn-and-alert",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=allowed blank=warn-only-in-review under=allowed",
+      "cells": 36
+    },
+    {
+      "configuration": "invalid=allowed over=allowed blank=warn-only-in-review under=warn",
+      "cells": 36
+    },
+    {
+      "configuration": "invalid=allowed over=allowed blank=warn-only-in-review under=warn-only-in-review",
+      "cells": 36
+    },
+    {
+      "configuration": "invalid=allowed over=allowed blank=warn-only-in-review under=warn-and-alert",
+      "cells": 36
+    },
+    {
+      "configuration": "invalid=allowed over=allowed-with-msg blank=warn-only-in-review under=allowed",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=allowed-with-msg blank=warn-only-in-review under=warn",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=allowed-with-msg blank=warn-only-in-review under=warn-only-in-review",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=allowed-with-msg blank=warn-only-in-review under=warn-and-alert",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=allowed-with-msg-and-alert blank=warn-only-in-review under=allowed",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=allowed-with-msg-and-alert blank=warn-only-in-review under=warn",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=allowed-with-msg-and-alert blank=warn-only-in-review under=warn-only-in-review",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=allowed-with-msg-and-alert blank=warn-only-in-review under=warn-and-alert",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=not-allowed-with-msg-and-alert blank=warn-only-in-review under=allowed",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=not-allowed-with-msg-and-alert blank=warn-only-in-review under=warn",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=not-allowed-with-msg-and-alert blank=warn-only-in-review under=warn-only-in-review",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=not-allowed-with-msg-and-alert blank=warn-only-in-review under=warn-and-alert",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=not-allowed-with-msg-and-disable blank=warn-only-in-review under=allowed",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=not-allowed-with-msg-and-disable blank=warn-only-in-review under=warn",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=not-allowed-with-msg-and-disable blank=warn-only-in-review under=warn-only-in-review",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=not-allowed-with-msg-and-disable blank=warn-only-in-review under=warn-and-alert",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=allowed blank=not-allowed under=allowed",
+      "cells": 36
+    },
+    {
+      "configuration": "invalid=allowed over=allowed blank=not-allowed under=warn",
+      "cells": 36
+    },
+    {
+      "configuration": "invalid=allowed over=allowed blank=not-allowed under=warn-only-in-review",
+      "cells": 36
+    },
+    {
+      "configuration": "invalid=allowed over=allowed blank=not-allowed under=warn-and-alert",
+      "cells": 36
+    },
+    {
+      "configuration": "invalid=allowed over=allowed-with-msg blank=not-allowed under=allowed",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=allowed-with-msg blank=not-allowed under=warn",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=allowed-with-msg blank=not-allowed under=warn-only-in-review",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=allowed-with-msg blank=not-allowed under=warn-and-alert",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=allowed-with-msg-and-alert blank=not-allowed under=allowed",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=allowed-with-msg-and-alert blank=not-allowed under=warn",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=allowed-with-msg-and-alert blank=not-allowed under=warn-only-in-review",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=allowed-with-msg-and-alert blank=not-allowed under=warn-and-alert",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=not-allowed-with-msg-and-alert blank=not-allowed under=allowed",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=not-allowed-with-msg-and-alert blank=not-allowed under=warn",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=not-allowed-with-msg-and-alert blank=not-allowed under=warn-only-in-review",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=not-allowed-with-msg-and-alert blank=not-allowed under=warn-and-alert",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=not-allowed-with-msg-and-disable blank=not-allowed under=allowed",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=not-allowed-with-msg-and-disable blank=not-allowed under=warn",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=not-allowed-with-msg-and-disable blank=not-allowed under=warn-only-in-review",
+      "cells": 28
+    },
+    {
+      "configuration": "invalid=allowed over=not-allowed-with-msg-and-disable blank=not-allowed under=warn-and-alert",
+      "cells": 28
+    }
+  ],
+  "known_still_found": true,
+  "examples": [
+    {
+      "config": {
+        "min": 0,
+        "max": 1,
+        "policies": {
+          "invalid": "allowed",
+          "blank": "allowed",
+          "over": "allowed",
+          "under": "allowed",
+          "dup": "allowed-warn-and-dialog",
+          "gap": "allowed-warn-and-dialog"
+        }
       },
-      "formed": 1,
-      "reachable": false,
-      "inlineAtReview": [],
-      "dialog": "none",
-      "confirmed": false
+      "voteState": {
+        "regulars": 2,
+        "blankMarker": false,
+        "explicitInvalid": false,
+        "duplicateRanks": false,
+        "rankGaps": false,
+        "firstPreferences": 2
+      }
+    },
+    {
+      "config": {
+        "min": 1,
+        "max": 1,
+        "policies": {
+          "invalid": "allowed",
+          "blank": "allowed",
+          "over": "allowed",
+          "under": "allowed",
+          "dup": "allowed-warn-and-dialog",
+          "gap": "allowed-warn-and-dialog"
+        }
+      },
+      "voteState": {
+        "regulars": 0,
+        "blankMarker": false,
+        "explicitInvalid": false,
+        "duplicateRanks": false,
+        "rankGaps": false,
+        "firstPreferences": 0
+      }
+    },
+    {
+      "config": {
+        "min": 1,
+        "max": 1,
+        "policies": {
+          "invalid": "allowed",
+          "blank": "allowed",
+          "over": "allowed",
+          "under": "allowed",
+          "dup": "allowed-warn-and-dialog",
+          "gap": "allowed-warn-and-dialog"
+        }
+      },
+      "voteState": {
+        "regulars": 2,
+        "blankMarker": false,
+        "explicitInvalid": false,
+        "duplicateRanks": false,
+        "rankGaps": false,
+        "firstPreferences": 2
+      }
+    },
+    {
+      "config": {
+        "min": 1,
+        "max": 2,
+        "policies": {
+          "invalid": "allowed",
+          "blank": "allowed",
+          "over": "allowed",
+          "under": "allowed",
+          "dup": "allowed-warn-and-dialog",
+          "gap": "allowed-warn-and-dialog"
+        }
+      },
+      "voteState": {
+        "regulars": 0,
+        "blankMarker": false,
+        "explicitInvalid": false,
+        "duplicateRanks": false,
+        "rankGaps": false,
+        "firstPreferences": 0
+      }
+    },
+    {
+      "config": {
+        "min": 1,
+        "max": 3,
+        "policies": {
+          "invalid": "allowed",
+          "blank": "allowed",
+          "over": "allowed",
+          "under": "allowed",
+          "dup": "allowed-warn-and-dialog",
+          "gap": "allowed-warn-and-dialog"
+        }
+      },
+      "voteState": {
+        "regulars": 0,
+        "blankMarker": false,
+        "explicitInvalid": false,
+        "duplicateRanks": false,
+        "rankGaps": false,
+        "firstPreferences": 0
+      }
+    },
+    {
+      "config": {
+        "min": 2,
+        "max": 2,
+        "policies": {
+          "invalid": "allowed",
+          "blank": "allowed",
+          "over": "allowed",
+          "under": "allowed",
+          "dup": "allowed-warn-and-dialog",
+          "gap": "allowed-warn-and-dialog"
+        }
+      },
+      "voteState": {
+        "regulars": 0,
+        "blankMarker": false,
+        "explicitInvalid": false,
+        "duplicateRanks": false,
+        "rankGaps": false,
+        "firstPreferences": 0
+      }
+    },
+    {
+      "config": {
+        "min": 2,
+        "max": 2,
+        "policies": {
+          "invalid": "allowed",
+          "blank": "allowed",
+          "over": "allowed",
+          "under": "allowed",
+          "dup": "allowed-warn-and-dialog",
+          "gap": "allowed-warn-and-dialog"
+        }
+      },
+      "voteState": {
+        "regulars": 0,
+        "blankMarker": true,
+        "explicitInvalid": false,
+        "duplicateRanks": false,
+        "rankGaps": false,
+        "firstPreferences": 0
+      }
+    },
+    {
+      "config": {
+        "min": 2,
+        "max": 2,
+        "policies": {
+          "invalid": "allowed",
+          "blank": "allowed",
+          "over": "allowed",
+          "under": "allowed",
+          "dup": "allowed-warn-and-dialog",
+          "gap": "allowed-warn-and-dialog"
+        }
+      },
+      "voteState": {
+        "regulars": 1,
+        "blankMarker": false,
+        "explicitInvalid": false,
+        "duplicateRanks": false,
+        "rankGaps": false,
+        "firstPreferences": 1
+      }
+    },
+    {
+      "config": {
+        "min": 2,
+        "max": 3,
+        "policies": {
+          "invalid": "allowed",
+          "blank": "allowed",
+          "over": "allowed",
+          "under": "allowed",
+          "dup": "allowed-warn-and-dialog",
+          "gap": "allowed-warn-and-dialog"
+        }
+      },
+      "voteState": {
+        "regulars": 0,
+        "blankMarker": false,
+        "explicitInvalid": false,
+        "duplicateRanks": false,
+        "rankGaps": false,
+        "firstPreferences": 0
+      }
+    },
+    {
+      "config": {
+        "min": 2,
+        "max": 3,
+        "policies": {
+          "invalid": "allowed",
+          "blank": "allowed",
+          "over": "allowed",
+          "under": "allowed",
+          "dup": "allowed-warn-and-dialog",
+          "gap": "allowed-warn-and-dialog"
+        }
+      },
+      "voteState": {
+        "regulars": 0,
+        "blankMarker": true,
+        "explicitInvalid": false,
+        "duplicateRanks": false,
+        "rankGaps": false,
+        "firstPreferences": 0
+      }
+    },
+    {
+      "config": {
+        "min": 2,
+        "max": 3,
+        "policies": {
+          "invalid": "allowed",
+          "blank": "allowed",
+          "over": "allowed",
+          "under": "allowed",
+          "dup": "allowed-warn-and-dialog",
+          "gap": "allowed-warn-and-dialog"
+        }
+      },
+      "voteState": {
+        "regulars": 1,
+        "blankMarker": false,
+        "explicitInvalid": false,
+        "duplicateRanks": false,
+        "rankGaps": false,
+        "firstPreferences": 1
+      }
+    },
+    {
+      "config": {
+        "min": 3,
+        "max": 3,
+        "policies": {
+          "invalid": "allowed",
+          "blank": "allowed",
+          "over": "allowed",
+          "under": "allowed",
+          "dup": "allowed-warn-and-dialog",
+          "gap": "allowed-warn-and-dialog"
+        }
+      },
+      "voteState": {
+        "regulars": 0,
+        "blankMarker": false,
+        "explicitInvalid": false,
+        "duplicateRanks": false,
+        "rankGaps": false,
+        "firstPreferences": 0
+      }
+    },
+    {
+      "config": {
+        "min": 3,
+        "max": 3,
+        "policies": {
+          "invalid": "allowed",
+          "blank": "allowed",
+          "over": "allowed",
+          "under": "allowed",
+          "dup": "allowed-warn-and-dialog",
+          "gap": "allowed-warn-and-dialog"
+        }
+      },
+      "voteState": {
+        "regulars": 0,
+        "blankMarker": true,
+        "explicitInvalid": false,
+        "duplicateRanks": false,
+        "rankGaps": false,
+        "firstPreferences": 0
+      }
+    },
+    {
+      "config": {
+        "min": 3,
+        "max": 3,
+        "policies": {
+          "invalid": "allowed",
+          "blank": "allowed",
+          "over": "allowed",
+          "under": "allowed",
+          "dup": "allowed-warn-and-dialog",
+          "gap": "allowed-warn-and-dialog"
+        }
+      },
+      "voteState": {
+        "regulars": 1,
+        "blankMarker": false,
+        "explicitInvalid": false,
+        "duplicateRanks": false,
+        "rankGaps": false,
+        "firstPreferences": 1
+      }
+    },
+    {
+      "config": {
+        "min": 3,
+        "max": 3,
+        "policies": {
+          "invalid": "allowed",
+          "blank": "allowed",
+          "over": "allowed",
+          "under": "allowed",
+          "dup": "allowed-warn-and-dialog",
+          "gap": "allowed-warn-and-dialog"
+        }
+      },
+      "voteState": {
+        "regulars": 2,
+        "blankMarker": false,
+        "explicitInvalid": false,
+        "duplicateRanks": false,
+        "rankGaps": false,
+        "firstPreferences": 2
+      }
+    },
+    {
+      "config": {
+        "min": 0,
+        "max": 1,
+        "policies": {
+          "invalid": "allowed",
+          "blank": "allowed",
+          "over": "allowed",
+          "under": "allowed",
+          "dup": "allowed-warn-and-dialog",
+          "gap": "not-allowed-warn-and-dialog"
+        }
+      },
+      "voteState": {
+        "regulars": 2,
+        "blankMarker": false,
+        "explicitInvalid": false,
+        "duplicateRanks": false,
+        "rankGaps": false,
+        "firstPreferences": 2
+      }
+    },
+    {
+      "config": {
+        "min": 1,
+        "max": 1,
+        "policies": {
+          "invalid": "allowed",
+          "blank": "allowed",
+          "over": "allowed",
+          "under": "allowed",
+          "dup": "allowed-warn-and-dialog",
+          "gap": "not-allowed-warn-and-dialog"
+        }
+      },
+      "voteState": {
+        "regulars": 0,
+        "blankMarker": false,
+        "explicitInvalid": false,
+        "duplicateRanks": false,
+        "rankGaps": false,
+        "firstPreferences": 0
+      }
+    },
+    {
+      "config": {
+        "min": 1,
+        "max": 1,
+        "policies": {
+          "invalid": "allowed",
+          "blank": "allowed",
+          "over": "allowed",
+          "under": "allowed",
+          "dup": "allowed-warn-and-dialog",
+          "gap": "not-allowed-warn-and-dialog"
+        }
+      },
+      "voteState": {
+        "regulars": 2,
+        "blankMarker": false,
+        "explicitInvalid": false,
+        "duplicateRanks": false,
+        "rankGaps": false,
+        "firstPreferences": 2
+      }
+    },
+    {
+      "config": {
+        "min": 1,
+        "max": 2,
+        "policies": {
+          "invalid": "allowed",
+          "blank": "allowed",
+          "over": "allowed",
+          "under": "allowed",
+          "dup": "allowed-warn-and-dialog",
+          "gap": "not-allowed-warn-and-dialog"
+        }
+      },
+      "voteState": {
+        "regulars": 0,
+        "blankMarker": false,
+        "explicitInvalid": false,
+        "duplicateRanks": false,
+        "rankGaps": false,
+        "firstPreferences": 0
+      }
+    },
+    {
+      "config": {
+        "min": 1,
+        "max": 3,
+        "policies": {
+          "invalid": "allowed",
+          "blank": "allowed",
+          "over": "allowed",
+          "under": "allowed",
+          "dup": "allowed-warn-and-dialog",
+          "gap": "not-allowed-warn-and-dialog"
+        }
+      },
+      "voteState": {
+        "regulars": 0,
+        "blankMarker": false,
+        "explicitInvalid": false,
+        "duplicateRanks": false,
+        "rankGaps": false,
+        "firstPreferences": 0
+      }
     }
   ]
 }

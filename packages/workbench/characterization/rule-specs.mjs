@@ -7,7 +7,7 @@
 //
 //   - what a cell MEANS to the specification — `specConfig(cell)` /
 //     `voteState(cell)` map a recorded row's fields (its policy knobs and its
-//     `state` label) onto spec.mjs's Config and VoteState, so the headless
+//     `state` label) onto the spec's Config and VoteState, so the headless
 //     runners and the browser tools feed `spec.f` from one definition;
 //   - how to REACH the cell in the real booth — panel `config`, the `select`
 //     clicks, the `landmark`, reachability checks — used by `dom-validate`
@@ -279,7 +279,7 @@ export const RULE_SPECS = {
         landmark: /^Apple$/,
         // Bounds are the instant-runoff-3cand contest's own (min_votes 0,
         // max_votes 3) — this rule's panel config does not override them.
-        // `regulars` = candidates at rank 1 (see spec.mjs VoteState).
+        // `regulars` = candidates at rank 1 (see the spec's VoteState).
         specConfig: (c) => ({
             min: 0,
             max: 3,

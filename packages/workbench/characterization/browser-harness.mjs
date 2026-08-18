@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 // Shared Playwright helpers for the workbench browser tools — the single
-// source (mirroring `spec.mjs` on the headless side) for the idioms the
+// source (mirroring the spec on the headless side) for the idioms the
 // `*-e2e-pipeline`, `reproduce-verify`, `dom-probe`, and the general
 // DOM-validation runners all use: observing booth signals, client-side
 // navigation, entering the booth, and the two ways to set contest config.
