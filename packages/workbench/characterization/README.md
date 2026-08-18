@@ -383,47 +383,6 @@ click-by-click recipes in [`../docs/REPRODUCE.md`](../docs/REPRODUCE.md);
 the admin-lint-shaped configuration table in
 [`no-silent-discount.md`](no-silent-discount.md).
 
-## Open work
-
-The suite's own backlog — changes to *these tools*. Decisions for other
-people (consultation on the findings, whether to migrate the runners onto
-the Rust spec) live in the root [README](../README.md)'s "What's next".
-
-Every residue below is already labelled in the artifact that carries it;
-this is the one place they are collected, ordered by how much each would
-unblock.
-
-- **A both-markers fixture.** Purely a *booth* gap: no bundled contest
-  gives a voter a route to both markers at once — the explicit-invalid
-  flag needs the Council contest's null-vote marker, the blank marker
-  needs Referendum — so cells needing both cannot be formed by clicking.
-  That defers 13 dependence witnesses
-  ([`browser-witnesses.md`](browser-witnesses.md)) and most of the 96
-  deferred quotient classes
-  ([`quotient-validate.md`](quotient-validate.md)). Headlessly the
-  combination is already covered: the sweep varies `blankMarker ×
-  explicitInvalid` together, since Referendum accepts the flag without
-  needing a marker candidate. The single widest unblock.
-- **A generic IRV booth recipe.** Preferential cells are driven only by
-  the two per-rule runners; the witness and quotient stages have no
-  generic way to rank candidates, so 8 witnesses defer. The same gap
-  keeps the region out of the sweep entirely
-  (`plurality-cell.mjs`'s `representable()` — "preferential state (IRV
-  recipe pending)").
-- **Witness preference.** `analyze_deps`'s `representability_score`
-  prefers cells the harness can drive, but does not penalize
-  marker + flag; teaching it to would shrink the zero-evidence witness
-  set with no new fixture — the cheapest item here.
-- **no-silent-discount as a spec property.** The query pre-filters
-  recorded cells, then confirms candidates in the booth. Now that the
-  spec is production-certified over the swept subdomain, the property
-  could be evaluated over its full domain instead, with the booth
-  reserved for confirming hits — turning a sampled query into an
-  exhaustive one.
-- **The decline booth flow** is *not* on this list: it is blocked on a
-  `multi_ballot` encrypt/decrypt path, which is a feature lift rather
-  than a suite change (root README, Known gaps).
-
 ## Marker-inclusive counting caveat
 
 The vote-state classes are defined over `num_selected_with_markers`: the
@@ -482,11 +441,45 @@ cells from the other instruments' enumerations.
    `dom-validate.mjs`. The rule's cells then join the DOM-validated
    complete table.
 
-Still open: the **decline-to-vote booth flow** — the classifier's decline
-cells are recorded headlessly (`classifier-table`), but no booth-side runner
-drives a declined ballot. (The blank-vs-invalid marker exclusivity asymmetry
-is now fully observed: the invalid marker does *not* clear — `dom-validate`'s
-invalid `marker_plus` cell forms {regular + null marker}, confirmed
-end-to-end by `invalid-latent-choices-e2e.mjs` — and the blank marker *does*
-— `dom-validate`'s blank `regular_then_marker` cell collapses to {marker
-only}, `no (cleared)`.)
+## Open work
+
+The suite's own backlog — changes to *these tools*. Decisions for other
+people (consultation on the findings, whether to migrate the runners onto
+the Rust spec) live in the root [README](../README.md)'s "What's next".
+
+Every residue below is already labelled in the artifact that carries it;
+this is the one place they are collected, ordered by how much each would
+unblock.
+
+- **A both-markers fixture.** Purely a *booth* gap: no bundled contest
+  gives a voter a route to both markers at once — the explicit-invalid
+  flag needs the Council contest's null-vote marker, the blank marker
+  needs Referendum — so cells needing both cannot be formed by clicking.
+  That defers 13 dependence witnesses
+  ([`browser-witnesses.md`](browser-witnesses.md)) and most of the 96
+  deferred quotient classes
+  ([`quotient-validate.md`](quotient-validate.md)). Headlessly the
+  combination is already covered: the sweep varies `blankMarker ×
+  explicitInvalid` together, since Referendum accepts the flag without
+  needing a marker candidate. The single widest unblock.
+- **A generic IRV booth recipe.** Preferential cells are driven only by
+  the two per-rule runners; the witness and quotient stages have no
+  generic way to rank candidates, so 8 witnesses defer. The same gap
+  keeps the region out of the sweep entirely
+  (`plurality-cell.mjs`'s `representable()` — "preferential state (IRV
+  recipe pending)").
+- **Witness preference.** `analyze_deps`'s `representability_score`
+  prefers cells the harness can drive, but does not penalize
+  marker + flag; teaching it to would shrink the zero-evidence witness
+  set with no new fixture — the cheapest item here.
+- **no-silent-discount as a spec property.** The query pre-filters
+  recorded cells, then confirms candidates in the booth. Now that the
+  spec is production-certified over the swept subdomain, the property
+  could be evaluated over its full domain instead, with the booth
+  reserved for confirming hits — turning a sampled query into an
+  exhaustive one.
+- **The decline-to-vote booth flow** — the classifier's decline cells are
+  recorded headlessly (`classifier-table.md`), but no booth-side runner
+  drives a declined ballot. Not a suite change: it is blocked on adding a
+  `multi_ballot` encrypt/decrypt path, so it is a feature lift (root
+  README, Known gaps).
