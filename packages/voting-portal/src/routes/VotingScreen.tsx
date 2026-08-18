@@ -5,6 +5,7 @@
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
+import {store} from "../store/store"
 import {Box} from "@mui/material"
 import {PageLimit, Icon, IconButton, theme, Dialog} from "@sequentech/ui-essentials"
 import {
@@ -405,15 +406,23 @@ const VotingScreen: React.FC = () => {
 
         dispatch(clearDeclinedToVoteForElection(ballotStyle.election_id))
 
+        // dispatch() updates the Redux store synchronously, but the
+        // `selectionState` bound in this closure was captured by
+        // useAppSelector on a prior render and won't reflect it - re-read
+        // the store directly, mirroring StartScreen.tsx's confirmDeclineToVote().
+        let selectionStateToEncrypt = selectionState
         if (isWholeBallotBlank()) {
             dispatch(setAllBallotSelectionsBlankBallot({ballotStyle}))
+            selectionStateToEncrypt =
+                selectBallotSelectionByElectionId(ballotStyle.election_id)(store.getState()) ??
+                selectionState
         }
 
         const isMultiContest =
             ballotStyle?.ballot_eml.election_event_presentation?.contest_encryption_policy ==
             EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
 
-        if (encryptAndStoreBallot(ballotStyle, selectionState, isMultiContest)) {
+        if (encryptAndStoreBallot(ballotStyle, selectionStateToEncrypt, isMultiContest)) {
             submit(null, {method: "post"})
         } else {
             submit({error: VotingPortalErrorType.UNABLE_TO_CAST_BALLOT}, {method: "post"})
