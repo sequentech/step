@@ -7,6 +7,7 @@ pub mod apply_reconciliation_patch;
 pub mod create_ballot_receipt;
 pub mod create_keys;
 pub mod delete_election_event;
+pub mod delete_users;
 pub mod edit_user;
 pub mod electoral_log;
 pub mod execute_tally_session;
