@@ -782,6 +782,26 @@ fn convert_party_grouped(
                 "total_blank_votes",
                 total_blank_votes,
             )?;
+            // Whole-ballot blanks, unlike every other figure here, are a
+            // property of the ballot box rather than of the contest: ES&S
+            // reports `blanksCast` per party, and a party maps to exactly
+            // one ballot style, so the same count is written onto every
+            // contest sheet of the party — which is exactly how
+            // `blank_ballots` is carried (see `validate_ballot_box_blank_ballots`).
+            //
+            // This is the one blank figure ES&S supplies directly. It needs
+            // no `/ max_votes` recovery because it counts ballots, not
+            // selection slots, and it is exact rather than the upper-bound
+            // approximation `total_blank_votes` is for a "vote for N"
+            // contest.
+            write_scalar_row(
+                &mut writer,
+                &selected_channel,
+                party_name,
+                &contest_external_id,
+                "blank_ballots",
+                party_whole_ballot_blanks,
+            )?;
             write_scalar_row(
                 &mut writer,
                 &selected_channel,
@@ -1591,6 +1611,85 @@ mod tests {
         assert_eq!(errors[0].code, "ess_blank_votes_below_precinct_minimum");
         assert_eq!(errors[0].contest_external_id, Some("contest-1".to_string()));
         assert_eq!(errors[0].area_name, Some("Area A".to_string()));
+    }
+
+    #[test]
+    fn carries_the_partys_whole_ballot_blank_count_onto_every_contest_sheet() {
+        // `blanksCast` is the one blank figure ES&S supplies as a ballot
+        // count rather than a selection-slot count: 2 of this party's 10
+        // ballots were left blank on the whole ballot. Because a party maps
+        // to exactly one ballot style, that count applies to the ballot box
+        // as a whole and is replicated onto every contest sheet of the
+        // party, which is how `blank_ballots` is carried.
+        //
+        // It is deliberately distinct from each contest's own
+        // `total_blank_votes` (4 and 3 here): a ballot blank in one contest
+        // may still carry a selection in another, so the per-contest counts
+        // only bound the whole-ballot count from above -- they cannot
+        // determine it. Here they leave the range 0..=3, so nothing but the
+        // file itself could supply the answer of 2.
+        let xml = br#"
+            <ElectionReport>
+                <JurisdictionMap>
+                    <Precinct id="p1" name="Precinct 1">
+                        <PrecinctReportingGroup reportingGroupId="0" ballotsCast="10" blanksCast="2" />
+                        <PrecinctReportingGroup reportingGroupId="1" ballotsCast="10" blanksCast="2" />
+                        <PrecinctParty partyId="1" ballotsCast="10" blanksCast="2">
+                            <PrecinctPartySplit refBStyleId="b1" ballotsCast="10" blanksCast="2" />
+                        </PrecinctParty>
+                    </Precinct>
+                </JurisdictionMap>
+                <PartyMap>
+                    <Party id="1" name="Area A" />
+                </PartyMap>
+                <Contest altId1="contest-1">
+                    <Candidate altId1="cand-1" type="NORMAL">
+                        <CandidatePrecinctVotes refPrecinctId="p1" votes="5">
+                            <CandidatePrecinctSplitVotes refBStyleId="b1" votes="5" />
+                        </CandidatePrecinctVotes>
+                    </Candidate>
+                    <Candidate altId1="ovr" type="OVERVOTES">
+                        <CandidatePrecinctVotes refPrecinctId="p1" votes="1">
+                            <CandidatePrecinctSplitVotes refBStyleId="b1" votes="1" />
+                        </CandidatePrecinctVotes>
+                    </Candidate>
+                    <Candidate altId1="und" type="UNDERVOTES">
+                        <CandidatePrecinctVotes refPrecinctId="p1" votes="4">
+                            <CandidatePrecinctSplitVotes refBStyleId="b1" votes="4" />
+                        </CandidatePrecinctVotes>
+                    </Candidate>
+                </Contest>
+                <Contest altId1="contest-2">
+                    <Candidate altId1="cand-2" type="NORMAL">
+                        <CandidatePrecinctVotes refPrecinctId="p1" votes="7">
+                            <CandidatePrecinctSplitVotes refBStyleId="b1" votes="7" />
+                        </CandidatePrecinctVotes>
+                    </Candidate>
+                    <Candidate altId1="und" type="UNDERVOTES">
+                        <CandidatePrecinctVotes refPrecinctId="p1" votes="3">
+                            <CandidatePrecinctSplitVotes refBStyleId="b1" votes="3" />
+                        </CandidatePrecinctVotes>
+                    </Candidate>
+                </Contest>
+            </ElectionReport>
+        "#;
+
+        let (csv, errors) = convert_for_test(
+            xml,
+            VotingChannel::PAPER,
+            &single_choice_config(&["contest-1", "contest-2"]),
+            &party_area_names(),
+        )
+        .unwrap();
+        let csv = String::from_utf8(csv).unwrap();
+
+        assert!(errors.is_empty());
+        // The same whole-ballot count on both contest sheets of the box.
+        assert!(csv.contains("PAPER,Area A,contest-1,blank_ballots,,2"));
+        assert!(csv.contains("PAPER,Area A,contest-2,blank_ballots,,2"));
+        // Each contest keeps its own, larger, per-contest blank count.
+        assert!(csv.contains("PAPER,Area A,contest-1,total_blank_votes,,4"));
+        assert!(csv.contains("PAPER,Area A,contest-2,total_blank_votes,,3"));
     }
 
     #[test]
