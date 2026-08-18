@@ -153,6 +153,7 @@ export const ElectionDataForm: React.FC = () => {
             tenant_id: record?.tenant_id,
             election_event_id: record?.election_event_id,
         },
+        pagination: {page: 1, perPage: 9999},
     })
 
     const {data: imageData, refetch: refetchImage} = useGetOne<Sequent_Backend_Document>(

@@ -9,15 +9,16 @@ import {
     Button,
     Datagrid,
     Identifier,
-    List,
+    ListContextProvider,
+    Pagination,
     SaveButton,
     SimpleForm,
     TextField,
     TextInput,
     WrapperField,
     useEditController,
+    useList,
     useNotify,
-    useRecordContext,
     useUpdate,
 } from "react-admin"
 import EditIcon from "@mui/icons-material/Edit"
@@ -39,6 +40,7 @@ import {useTranslation} from "react-i18next"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 import {Sequent_Backend_Tenant} from "@/gql/graphql"
 import {useTenantStore} from "@/providers/TenantContextProvider"
+import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
 
 const SettingsLocalization = () => {
     // const record = useRecordContext<Sequent_Backend_Tenant>()
@@ -88,12 +90,17 @@ const SettingsLocalization = () => {
         if (!isString(value) || !value) return
         setSelectedLanguage(value)
     }
-    const translationData = Object.entries(
-        (record?.settings as ITenantSettings | undefined)?.i18n?.[selectedLanguage] || {}
-    ).map(([key, value]) => ({
-        id: key,
-        value: value,
-    }))
+    const translationData = useMemo(
+        () =>
+            Object.entries(
+                (record?.settings as ITenantSettings | undefined)?.i18n?.[selectedLanguage] || {}
+            ).map(([key, value]) => ({
+                id: key,
+                value,
+            })),
+        [record?.settings, selectedLanguage]
+    )
+    const translationListContext = useList({data: translationData, perPage: 25})
 
     const editAction = (id: Identifier) => {
         setOpenEdit(true)
@@ -317,25 +324,24 @@ const SettingsLocalization = () => {
                         </Drawer>
                     </div>
                 </Box>
-                <List actions={false} sx={{flexGrow: 1, width: "100%"}}>
-                    <Datagrid
-                        data={translationData}
-                        total={translationData.length}
-                        bulkActionButtons={false}
-                    >
-                        <TextField
-                            source="id"
-                            label={String(t("electionEventScreen.localization.labels.key"))}
-                        />
-                        <TextField
-                            source="value"
-                            label={String(t("electionEventScreen.localization.labels.value"))}
-                        />
-                        <WrapperField label="Actions">
-                            <ActionsColumn actions={actions} />
-                        </WrapperField>
-                    </Datagrid>
-                </List>
+                <Box sx={{flexGrow: 1, width: "100%"}}>
+                    <ListContextProvider value={translationListContext}>
+                        <Datagrid header={ThreeStateDatagridHeader} bulkActionButtons={false}>
+                            <TextField
+                                source="id"
+                                label={String(t("electionEventScreen.localization.labels.key"))}
+                            />
+                            <TextField
+                                source="value"
+                                label={String(t("electionEventScreen.localization.labels.value"))}
+                            />
+                            <WrapperField label="Actions">
+                                <ActionsColumn actions={actions} />
+                            </WrapperField>
+                        </Datagrid>
+                        <Pagination />
+                    </ListContextProvider>
+                </Box>
             </SimpleForm>
 
             <Drawer

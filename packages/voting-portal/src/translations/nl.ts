@@ -94,6 +94,9 @@ const dutchTranslation: TranslationType = {
             backButton: "Stembiljet bewerken",
             castBallotButton: "Stem uitbrengen",
             auditButton: "Controleer stembiljet",
+            copyBallotId: "Stembiljet-ID kopiëren",
+            ballotIdCopied: "Stembiljet-ID gekopieerd",
+            ballotIdCopyError: "Stembiljet-ID kon niet worden gekopieerd",
             reviewScreenHelpDialog: {
                 title: "Over het controlescherm",
                 content:

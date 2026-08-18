@@ -95,6 +95,9 @@ const galegoTranslation: TranslationType = {
             backButton: "Editar papeleta",
             castBallotButton: "Emitir papeleta",
             auditButton: "Comproba a papeleta",
+            copyBallotId: "Copiar o ID da papeleta",
+            ballotIdCopied: "ID da papeleta copiado",
+            ballotIdCopyError: "Non se puido copiar o ID da papeleta",
             reviewScreenHelpDialog: {
                 title: "Sobre a pantalla de revisión",
                 content:

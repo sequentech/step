@@ -31,6 +31,61 @@ pub const VOTED_CHANNEL_INTERNET_VALUE: &str = "Internet";
 pub const ATTR_RESET_VALUE: &str = "NONE";
 
 pub const AREA_ID_ATTR_NAME: &str = "area-id";
+
+/// Per-voter vote weight, used when the election event weighted voting policy
+/// is `voters-weighted-voting`. A voter without this attribute votes with
+/// `DEFAULT_VOTE_WEIGHT`.
+pub const VOTE_WEIGHT_ATTR_NAME: &str = "vote-weight";
+pub const DEFAULT_VOTE_WEIGHT: u64 = 1;
+pub const MIN_VOTE_WEIGHT: u64 = 1;
+/// Upper bound for a single voter weight. Bounds the batches a voter's
+/// ciphertext appears in, via `VOTE_WEIGHT_BATCHES`; a voter adds at most one
+/// ciphertext to any one batch.
+pub const MAX_VOTE_WEIGHT: u64 = 100_000;
+/// Upper bound for the summed weight of one contest area. `MAX_VOTE_WEIGHT`
+/// alone bounds a single voter, not the total. This no longer bounds the mix
+/// batch, which is now at most one ciphertext per voter: it bounds the
+/// plaintexts the tally materialises after mixing, by repeating each batch's
+/// decrypted votes by that batch's multiplier. That expansion is one
+/// allocation, and an oversized request aborts the process rather than
+/// returning an error.
+pub const MAX_TOTAL_VOTE_WEIGHT: u64 = 1_000_000;
+
+/// Board batches reserved per contest area under `VOTERS_WEIGHTED_VOTING`: one
+/// per bit of `MAX_VOTE_WEIGHT`, since a voter's weight is applied by placing
+/// their ciphertext in the batch for each bit that weight sets. Derived from
+/// `MAX_VOTE_WEIGHT` so the two cannot drift apart.
+pub const VOTE_WEIGHT_BATCHES: u32 =
+    u64::BITS - MAX_VOTE_WEIGHT.leading_zeros();
+
+/// Below this many ballots, a weight batch is small enough that mixing it
+/// protects little: its plaintexts are published, so a batch holding one ballot
+/// publishes that voter's choice. Which batches are small depends on the spread
+/// of weights, not on the bit -- 999 voters at weight 2 and one at weight 3
+/// leave the *lowest* batch holding a single ballot. Warned about rather than
+/// refused, and it does not detect every way a voter can be isolated -- see the
+/// note on this policy in the election event documentation.
+pub const MIN_WEIGHT_BATCH_ANONYMITY: usize = 5;
+
+/// Bit `bit` of `weight` decides whether that voter's ciphertext goes into the
+/// batch whose multiplier is `2^bit`. Summing `2^bit` over the set bits
+/// reconstructs the weight exactly, which is what makes the tally correct.
+pub fn weight_has_bit(weight: u64, bit: u32) -> bool {
+    bit < VOTE_WEIGHT_BATCHES && (weight >> bit) & 1 == 1
+}
+
+/// The multiplier windmill applies to the batch for `bit` after mixing, by
+/// repeating that batch's plaintexts. Velvet never sees it: the expansion has
+/// already happened by the time the decoded ballots reach it.
+///
+/// `None` outside the batches a contest area owns, rather than a shifted-out
+/// `1`, which would silently count a batch at the wrong weight.
+pub fn weight_bit_multiplier(bit: u32) -> Option<u64> {
+    if bit >= VOTE_WEIGHT_BATCHES {
+        return None;
+    }
+    Some(1u64 << bit)
+}
 pub const DATE_OF_BIRTH: &str = "dateOfBirth";
 pub const AUTHORIZED_ELECTION_IDS_NAME: &str = "authorized-election-ids";
 pub const TENANT_ID_ATTR_NAME: &str = "tenant-id";
@@ -44,6 +99,8 @@ pub const REALM_ATTR_VOTER_CERTIFICATE_POLICY: &str =
 pub const REALM_ATTR_CREDENTIAL_INPUT_POLICY: &str = "credential-input-policy";
 pub const REALM_ATTR_CREDENTIAL_INPUT_PATTERN: &str =
     "credential-input-pattern";
+pub const REALM_ATTR_CREDENTIAL_INPUT_PLACEHOLDER: &str =
+    "credential-input-placeholder";
 pub const MAX_CREDENTIAL_PATTERN_GROUPS: usize = 8;
 pub const MAX_CREDENTIAL_PATTERN_GROUP_SIZE: usize = 12;
 pub const MAX_CREDENTIAL_PATTERN_TOTAL_SIZE: usize = 64;
