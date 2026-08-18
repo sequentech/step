@@ -161,6 +161,10 @@ export const ResultsSummary: React.FC<ResultsSummaryProps> = ({
     locale,
 }) => {
     const {t} = useTranslation()
+    const showBlankBallotsColumn = useMemo(
+        () => resultsElections.some((row) => isNumber(row.blank_ballots)),
+        [resultsElections]
+    )
 
     return (
         <Box className="seq-results-summary" component="section" sx={{mt: {xs: 3, md: 5}}}>
@@ -246,6 +250,14 @@ export const ResultsSummary: React.FC<ResultsSummaryProps> = ({
                                     >
                                         {t("resultsPortal.summary.totalVotesCounted")}
                                     </TableCell>
+                                    {showBlankBallotsColumn && (
+                                        <TableCell
+                                            className="seq-results-summary__blank-ballots-heading"
+                                            align="right"
+                                        >
+                                            {t("resultsPortal.summary.totalBlankBallots")}
+                                        </TableCell>
+                                    )}
                                     <TableCell
                                         className="seq-results-summary__participation-heading"
                                         align="right"
@@ -296,6 +308,14 @@ export const ResultsSummary: React.FC<ResultsSummaryProps> = ({
                                             >
                                                 {valueOrDash(result.total_voters)}
                                             </TableCell>
+                                            {showBlankBallotsColumn && (
+                                                <TableCell
+                                                    className="seq-results-summary__blank-ballots-cell"
+                                                    align="right"
+                                                >
+                                                    {valueOrDash(result.blank_ballots)}
+                                                </TableCell>
+                                            )}
                                             <TableCell
                                                 className="seq-results-summary__participation-cell"
                                                 align="right"
