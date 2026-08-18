@@ -33,14 +33,14 @@
 // RULES entry (+ a RULE_SPECS entry keyed by its recorded-JSON name).
 
 import {createRequire} from "node:module"
-import {readFileSync, writeFileSync} from "node:fs"
+import {writeFileSync} from "node:fs"
 import {performance} from "node:perf_hooks"
 import {fileURLToPath} from "node:url"
 import path from "node:path"
 import {loadSnapshot} from "./browser-harness.mjs"
 import {specF} from "./rust-spec.mjs"
 import {representable} from "./cell.mjs"
-import {RULE_SPECS, contestAndVoter, observeBooth, isReached} from "./rule-specs.mjs"
+import {RULE_SPECS, RULE_ROWS, contestAndVoter, observeBooth, isReached} from "./rule-specs.mjs"
 
 const require = createRequire("C:/work/projects/step/packages/")
 const {chromium} = require("playwright")
@@ -62,7 +62,6 @@ const FIXTURES = {
     },
 }
 
-const rec = (f) => JSON.parse(readFileSync(path.join(here, f), "utf8")).rows
 const uniq = (xs) => [...new Set(xs)].sort()
 
 // Every prediction in this runner comes from the TYPED RUST SPEC
@@ -87,14 +86,14 @@ const RULES = [
     {
         name: "over-vote",
         ...RULE_SPECS["overvote-rule"],
-        rows: rec("overvote-rule.recorded.json"),
+        rows: RULE_ROWS["overvote-rule"],
         label: (r) => `${r.over_vote_policy} × ${r.invalid_vote_policy} × ${r.state}`,
         configNote: "*config* = `over_vote_policy` × `invalid_vote_policy`.",
     },
     {
         name: "min-vote",
         ...RULE_SPECS["minvote-rule"],
-        rows: rec("minvote-rule.recorded.json"),
+        rows: RULE_ROWS["minvote-rule"],
         label: (r) => `min=${r.min_votes} × ${r.invalid_vote_policy} × ${r.state}`,
         configNote:
             "*config* = `min_votes` × `invalid_vote_policy` — min-vote is a fixed " +
@@ -104,7 +103,7 @@ const RULES = [
         name: "blank",
         ...RULE_SPECS["blank-rule"],
         rows: (() => {
-            const rows = rec("blank-rule.recorded.json").filter((r) => r.state !== "explicit_invalid")
+            const rows = RULE_ROWS["blank-rule"].filter((r) => r.state !== "explicit_invalid")
             // Browser-only marker-exclusivity cell (no headless analogue: the
             // clear is a reducer step the recording bypasses). Selecting a
             // regular THEN the blank marker must collapse to {marker only} — the
@@ -138,14 +137,14 @@ const RULES = [
     {
         name: "undervote",
         ...RULE_SPECS["undervote-rule"],
-        rows: rec("undervote-rule.recorded.json"),
+        rows: RULE_ROWS["undervote-rule"],
         label: (r) => `${r.under_vote_policy} × ${r.invalid_vote_policy} × ${r.state}`,
         configNote: "*config* = `under_vote_policy` × `invalid_vote_policy`.",
     },
     {
         name: "invalid",
         ...RULE_SPECS["invalid-rule"],
-        rows: rec("invalid-rule.recorded.json").filter((r) => r.state !== "flag_only"),
+        rows: RULE_ROWS["invalid-rule"].filter((r) => r.state !== "flag_only"),
         label: (r) => `${r.invalid_vote_policy} × ${r.state}`,
         configNote:
             "*config* = `invalid_vote_policy`. The `flag_only` state is " +
@@ -157,7 +156,7 @@ const RULES = [
         name: "duplicate-rank",
         ...RULE_SPECS["duprank-rule"],
         fixture: "irv",
-        rows: rec("duprank-rule.recorded.json"),
+        rows: RULE_ROWS["duprank-rule"],
         label: (r) => `${r.duplicated_rank_policy} × ${r.invalid_vote_policy} × ${r.state}`,
         configNote:
             "*config* = `duplicated_rank_policy` × `invalid_vote_policy` on the " +
@@ -169,7 +168,7 @@ const RULES = [
         name: "preference-gaps",
         ...RULE_SPECS["prefgaps-rule"],
         fixture: "irv",
-        rows: rec("prefgaps-rule.recorded.json"),
+        rows: RULE_ROWS["prefgaps-rule"],
         label: (r) => `${r.preference_gaps_policy} × ${r.invalid_vote_policy} × ${r.state}`,
         configNote:
             "*config* = `preference_gaps_policy` × `invalid_vote_policy` on the " +
@@ -207,6 +206,14 @@ const t0 = performance.now()
             const voteState = rule.voteState(r)
             batch.push({config, voteState})
             keys.push(predKey(rule.name, ri))
+            // A row whose requested state cannot form records the effects of
+            // the state that does (see `effectsVoteState`), so it needs a
+            // second prediction.
+            const effectsVs = rule.effectsVoteState?.(r)
+            if (effectsVs) {
+                batch.push({config, voteState: effectsVs})
+                keys.push(predKey(rule.name, ri) + "@effects")
+            }
             const why = representable({config, voteState})
             const inBounds =
                 config.min >= 0 && config.min <= 3 && config.max >= 1 && config.max <= 3
@@ -255,6 +262,9 @@ for (const rule of RULES) {
         // ("marker_cleared"). Either way the cell is `constrained`. Computed
         // uniformly from the same cell definitions the runners feed spec.f.
         const pred = predictions.get(predKey(rule.name, ri))
+        // Effect columns come from the state that forms; reachability from
+        // the state that was requested.
+        const eff = predictions.get(predKey(rule.name, ri) + "@effects") ?? pred
         const reach = pred.reachability
         const constraintPred = reach === "yes" ? null : reach
         const constrained = constraintPred !== null
@@ -296,7 +306,7 @@ for (const rule of RULES) {
         // no signal at either casting point (no dialog, nothing inline at the touched
         // voting screen or at review).
         const silent =
-            r.observed.tally === "ImplicitInvalid" &&
+            eff.tally === "ImplicitInvalid" &&
             obs.dialog === "none" &&
             (obs.inlineAtVote ?? []).length === 0 &&
             (obs.inlineAtReview ?? []).length === 0 &&
@@ -306,17 +316,17 @@ for (const rule of RULES) {
             rule: rule.name,
             config: rule.label(r).replace(` × ${r.state}`, ""),
             state: r.state,
-            errors: r.observed.errors,
-            alerts: r.observed.alerts,
+            errors: eff.emissions.errors,
+            alerts: eff.emissions.alerts,
             inlineVoting: short(obs.inlineAtVote),
             inlineReview: obs.dialog === "blocking" ? "(blocked)" : short(obs.inlineAtReview),
-            hard: r.observed.hard,
-            soft: r.observed.soft,
+            hard: eff.gate.hard,
+            soft: eff.gate.soft,
             reachable: domReachable,
             constraintKind: constraintPred,
             constraintProbe: obs.constraintProbe,
             dialog: obs.dialog,
-            tally: r.observed.tally,
+            tally: eff.tally,
             silent,
             ok,
         })

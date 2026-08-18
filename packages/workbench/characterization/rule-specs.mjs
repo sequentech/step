@@ -34,6 +34,72 @@ const clickText = (page, rx) => page.getByText(rx).first().click().catch(() => {
 const clickExact = (page, s) =>
     page.getByText(s, {exact: true}).first().click().catch(() => {})
 
+// ---------------------------------------------------------------------------
+// Grid rows — each rule's cross-product, owned here rather than recovered
+// from a recording. This is what lets the browser runners enumerate cells
+// without the per-rule recordings existing (EVIDENCE_RESTRUCTURE.md step 3b).
+// Iteration order matches what the rule runners produced, so recorded
+// artifacts keyed by row order stay comparable.
+// ---------------------------------------------------------------------------
+const INVALID_POLICIES = [
+    "allowed",
+    "warn",
+    "warn-invalid-implicit-and-explicit",
+    "not-allowed",
+]
+
+/** Cross-product helper: outer knob × invalid policy × vote state. */
+const grid = (knobName, knobValues, states) => {
+    const out = []
+    for (const knob of knobValues)
+        for (const invalid of INVALID_POLICIES)
+            for (const state of states)
+                out.push({[knobName]: knob, invalid_vote_policy: invalid, state})
+    return out
+}
+
+export const RULE_ROWS = {
+    "blank-rule": grid("blank_vote_policy", ["allowed", "warn", "warn-only-in-review", "not-allowed"], [
+        "empty",
+        "explicit_invalid",
+        "marker_only",
+        "one_regular",
+    ]),
+    "overvote-rule": grid(
+        "over_vote_policy",
+        [
+            "allowed",
+            "allowed-with-msg",
+            "allowed-with-msg-and-alert",
+            "not-allowed-with-msg-and-alert",
+            "not-allowed-with-msg-and-disable",
+        ],
+        ["empty", "at_max", "over_max"]
+    ),
+    "undervote-rule": grid(
+        "under_vote_policy",
+        ["allowed", "warn", "warn-only-in-review", "warn-and-alert"],
+        ["empty", "under", "full"]
+    ),
+    "minvote-rule": grid("min_votes", [1, 2], ["none", "one", "marker_only"]),
+    "duprank-rule": grid(
+        "duplicated_rank_policy",
+        ["allowed-warn-and-dialog", "not-allowed-warn-and-dialog"],
+        ["valid_full", "duplicate"]
+    ),
+    "prefgaps-rule": grid(
+        "preference_gaps_policy",
+        ["allowed-warn-and-dialog", "not-allowed-warn-and-dialog"],
+        ["valid_full", "gap"]
+    ),
+    "invalid-rule": INVALID_POLICIES.flatMap((invalid) =>
+        ["none", "regular", "flag_only", "marker", "marker_plus"].map((state) => ({
+            invalid_vote_policy: invalid,
+            state,
+        }))
+    ),
+}
+
 export const RULE_SPECS = {
     "overvote-rule": {
         contestFlag: "is_explicit_invalid", // Council seat (Ada / Bruno / null)
@@ -110,6 +176,13 @@ export const RULE_SPECS = {
                   : c.state === "regular_then_marker"
                     ? {regulars: 1, blankMarker: true} // the mixed state the marker clears
                     : {regulars: c.state === "one_regular" ? 1 : 0},
+        // `regular_then_marker` is cleared by the blank marker, so the state
+        // as REQUESTED never forms. Its effect columns therefore describe the
+        // state that DOES form — {marker only} — while `voteState` above keeps
+        // the requested state, which is what makes reachability report
+        // `marker_cleared`. Two different questions, two different states.
+        effectsVoteState: (c) =>
+            c.state === "regular_then_marker" ? {regulars: 0, blankMarker: true} : null,
         config: (c) => ({
             selects: {
                 "Blank-vote policy": c.blank_vote_policy,
