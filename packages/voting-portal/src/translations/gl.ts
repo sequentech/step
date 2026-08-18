@@ -56,6 +56,13 @@ const galegoTranslation: TranslationType = {
                 continue: "Continuar",
                 cancel: "Cancelar",
             },
+            blankBallotDialog: {
+                title: "Non seleccionou ningún candidato",
+                content:
+                    "Non fixo ningunha selección. A súa papeleta emitirase como papeleta en branco, o cal é unha elección válida e deliberada e contabilizarase como tal.",
+                continue: "Continuar",
+                cancel: "Cancelar",
+            },
         },
         startScreen: {
             startButton: "Comezar a votar",
@@ -115,6 +122,13 @@ const galegoTranslation: TranslationType = {
                 title: "Estás seguro de que queres emitir o teu voto?",
                 content: "Tras confirmar, o teu voto será emitido.",
                 ok: "Si, quero emitir o meu voto",
+                cancel: "Cancelar",
+            },
+            confirmCastBlankBallotDialog: {
+                title: "Está seguro de que quere emitir unha papeleta en branco?",
+                content:
+                    "Non seleccionou ningún candidato. Unha vez confirme, a súa papeleta emitirase en branco.",
+                ok: "Si, quero emitir a miña papeleta en branco",
                 cancel: "Cancelar",
             },
             error: {
@@ -207,11 +221,16 @@ const galegoTranslation: TranslationType = {
                     "Houbo un erro interno ao emitir o voto. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
             },
             declineToVote: "Absterse de votar",
+            blankBallot: "Papeleta en branco",
         },
         confirmationScreen: {
             title: "O teu voto foi emitido",
             description:
                 "O código de confirmación abaixo verifica que <b>o teu voto foi emitido correctamente</b>. Podes usar este código para verificar que a túa papeleta foi contada.",
+            blankBallot: {
+                description:
+                    "A súa papeleta emitiuse en branco, o cal é unha elección válida e deliberada.",
+            },
             ballotId: "ID da Papeleta",
             printButton: "Imprimir",
             finishButton: "Rematar",
