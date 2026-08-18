@@ -332,9 +332,9 @@ Then, from `packages/workbench`:
 Each of these browser runners exits nonzero on failure, so they compose in
 CI.
 
-`harness.mjs`, `spec.mjs`, `rule-specs.mjs`, `browser-harness.mjs`,
-`plurality-cell.mjs`, and `booth-cell.mjs` are shared modules (imported,
-not run).
+`harness.mjs`, `spec.mjs`, `rust-spec.mjs`, `rule-specs.mjs`,
+`browser-harness.mjs`, `plurality-cell.mjs`, and `booth-cell.mjs` are
+shared modules (imported, not run).
 
 ## Coverage
 

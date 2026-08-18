@@ -35,21 +35,14 @@
 //
 // Run:  node characterization/rust-conformance.mjs   (from packages/workbench)
 
-import {execFileSync, execSync} from "node:child_process"
-import {existsSync, readFileSync, writeFileSync} from "node:fs"
+import {readFileSync, writeFileSync} from "node:fs"
 import {fileURLToPath} from "node:url"
 import path from "node:path"
 import {f as jsF, DEFAULTS} from "./spec.mjs"
 import {RULE_SPECS} from "./rule-specs.mjs"
+import {specF, specClassify} from "./rust-spec.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
-const packagesDir = path.resolve(here, "../..")
-const exe = path.join(
-    packagesDir,
-    "target",
-    "release",
-    process.platform === "win32" ? "emit-grid.exe" : "emit-grid"
-)
 
 const arg = (name, dflt) => {
     const hit = process.argv.find((a) => a.startsWith(`--${name}=`))
@@ -57,23 +50,6 @@ const arg = (name, dflt) => {
 }
 const SEED = arg("seed", 20260815)
 const N_RANDOM = arg("n", 20000)
-
-// ---------------------------------------------------------------------------
-// Build the binary (cheap when fresh) and define the evaluator
-// ---------------------------------------------------------------------------
-execSync("cargo build --release -p validation-spec --quiet", {
-    cwd: packagesDir,
-    stdio: ["ignore", "inherit", "inherit"],
-})
-if (!existsSync(exe)) throw new Error(`emit-grid binary missing at ${exe}`)
-
-const rustEval = (cells) =>
-    JSON.parse(
-        execFileSync(exe, [], {
-            input: JSON.stringify(cells),
-            maxBuffer: 1 << 28,
-        }).toString()
-    )
 
 // ---------------------------------------------------------------------------
 // Ground-truth replay — the recorded cells
@@ -106,8 +82,8 @@ let replayCells = 0
 for (const rule of RULES) {
     const spec = RULE_SPECS[rule]
     const rows = rec(rule)
-    const outs = rustEval(
-        rows.map((r) => ({kind: "f", config: spec.specConfig(r), voteState: spec.voteState(r)}))
+    const outs = specF(
+        rows.map((r) => ({config: spec.specConfig(r), voteState: spec.voteState(r)}))
     )
     rows.forEach((r, i) => {
         replayCells++
@@ -132,9 +108,8 @@ for (const rule of RULES) {
 const classifierRows = JSON.parse(
     readFileSync(path.join(here, "classifier-table.recorded.json"), "utf8")
 ).rows
-const classifierOuts = rustEval(
+const classifierClasses = specClassify(
     classifierRows.map((r) => ({
-        kind: "classify",
         decline: r.is_decline_to_vote,
         flag: r.is_explicit_invalid,
         hasErrors: r.has_errors,
@@ -143,8 +118,8 @@ const classifierOuts = rustEval(
 )
 classifierRows.forEach((r, i) => {
     replayCells++
-    if (classifierOuts[i].tally !== r.observed_class)
-        failures.push({comparison: "ground-truth replay", rule: "classifier-table", cell: r, rust: classifierOuts[i].tally})
+    if (classifierClasses[i] !== r.observed_class)
+        failures.push({comparison: "ground-truth replay", rule: "classifier-table", cell: r, rust: classifierClasses[i]})
 })
 
 // ---------------------------------------------------------------------------
@@ -179,7 +154,6 @@ const DOMAINS = {
     gap: ["allowed-warn-and-dialog", "not-allowed-warn-and-dialog"],
 }
 const randomCell = () => ({
-    kind: "f",
     config: {
         min: Math.floor(rnd() * 5), // 0..4; min > max deliberately possible
         max: Math.floor(rnd() * 5),
@@ -195,7 +169,7 @@ const randomCell = () => ({
     },
 })
 const randomCells = Array.from({length: N_RANDOM}, randomCell)
-const rustOuts = rustEval(randomCells)
+const rustOuts = specF(randomCells)
 let crosscheckCells = 0
 for (let i = 0; i < randomCells.length; i++) {
     crosscheckCells++
