@@ -273,6 +273,7 @@ const englishTranslation = {
                 EXPORT_TEMPLATES: "Export Templates",
                 IMPORT_TEMPLATES: "Import Templates",
                 DELETE_ELECTION_EVENT: "Delete Election Event",
+                DELETE_VOTERS: "Delete Voters",
                 PREPARE_PUBLICATION_PREVIEW: "Prepare Publication Preview",
                 EXPORT_TALLY_RESULTS_XLSX: "Export Tally Results in XLSX format",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Export Certificate Authorities",
@@ -1023,6 +1024,13 @@ const englishTranslation = {
                     disabled: "Disabled",
                 },
             },
+            blankBallotsPolicy: {
+                label: "Blank Ballots Policy",
+                options: {
+                    enabled: "Enabled",
+                    disabled: "Disabled",
+                },
+            },
             votingScreenBackPolicy: {
                 label: "Voting Screen Back Button Policy",
                 options: {
@@ -1116,6 +1124,11 @@ const englishTranslation = {
                 delete: {
                     body: "Are you sure you want to delete this user?",
                     bulkBody: "Are you sure you want to delete the selected users?",
+                    bulkBodySelected: "Delete the {{count}} selected users? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} users are selected. You can instead delete every user matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Error exporting users",
@@ -1175,6 +1188,12 @@ const englishTranslation = {
                 delete: {
                     body: "Are you sure you want to delete this voter?",
                     bulkBody: "Are you sure you want to delete the selected voters?",
+                    bulkBodySelected:
+                        "Delete the {{count}} selected voters? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} voters are selected. You can instead delete every voter matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Error exporting voters",
@@ -1790,6 +1809,7 @@ const englishTranslation = {
                 "warn": "Warn",
                 "warn-invalid-implicit-and-explicit": "Warn Invalid Implicit And Explicit",
                 "not-allowed": "Not Allowed",
+                "allowed-with-exclusive-explicit": "Allowed With Exclusive Explicit",
             },
             candidatesIconCheckboxPolicy: {
                 "label": "Candidates checkbox icon shape",
@@ -2205,6 +2225,7 @@ const englishTranslation = {
                     round: "Round",
                 },
                 total_declined_to_vote: "Total Declined to Vote",
+                total_blank_ballots: "Total Blank Ballots",
                 participation_by_channel: "Participation by channel",
                 channel: "Channel",
                 channel_online: "Online",
@@ -2411,6 +2432,10 @@ const englishTranslation = {
                     "Total invalid votes ({{totalInvalid}}) must equal implicit invalid votes ({{implicitInvalid}}) plus explicit invalid votes ({{explicitInvalid}})",
                 totalVotesDoesNotMatch:
                     "Total votes ({{totalVotes}}) must equal total valid votes ({{totalValidVotes}}) plus total invalid votes ({{totalInvalid}})",
+                blankBallotsInconsistent:
+                    "Blank Ballots must have the same value on every contest sheet of this ballot box",
+                blankBallotsOutOfBounds:
+                    "Blank Ballots value is outside the range implied by this box's per-contest blank vote counts",
             },
             label: {
                 area: "Area",
@@ -2421,6 +2446,7 @@ const englishTranslation = {
                 explicit_invalid: "Explicitly Invalid Votes",
                 implicit_invalid: "Implicitly Invalid Votes",
                 total_blank_votes: "Blank Votes",
+                blank_ballots: "Blank Ballots",
                 census: "Census",
             },
             common: {

@@ -124,6 +124,7 @@ mod tests {
                 total_votes: Some(total_votes),
                 total_valid_votes: Some(total_valid_votes),
                 total_blank_votes: Some(total_blank_votes),
+                blank_ballots: None,
                 census: Some(total_votes),
                 invalid_votes: Some(InvalidVotes {
                     total_invalid: Some(0),

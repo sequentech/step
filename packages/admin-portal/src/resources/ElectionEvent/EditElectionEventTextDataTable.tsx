@@ -31,6 +31,7 @@ import {Sequent_Backend_Election_Event_Extended} from "./EditElectionEventDataFo
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import {
     Box,
+    Card,
     Drawer,
     FormControl,
     InputLabel,
@@ -43,6 +44,7 @@ import {
 import {useTranslation} from "react-i18next"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 import {useLocalizationPermissions} from "./useLocalizationPermissions"
+import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
 
 interface LocalizationListProps {
     selectedLanguage: string
@@ -68,19 +70,29 @@ const LocalizationList: React.FC<LocalizationListProps> = ({selectedLanguage, ac
 
     return (
         <ListContextProvider value={listContext}>
-            <Datagrid bulkActionButtons={false}>
-                <TextField
-                    source="id"
-                    label={String(t("electionEventScreen.localization.labels.key"))}
-                />
-                <TextField
-                    source="value"
-                    label={String(t("electionEventScreen.localization.labels.value"))}
-                />
-                <WrapperField label="Actions">
-                    <ActionsColumn actions={actions} />
-                </WrapperField>
-            </Datagrid>
+            <Card>
+                <Datagrid
+                    header={ThreeStateDatagridHeader}
+                    bulkActionButtons={false}
+                    sx={{
+                        "& .column-id": {minWidth: "150px"},
+                        "& .column-value": {width: "100%"},
+                        "& .column-actions": {minWidth: "100px", whiteSpace: "nowrap"},
+                    }}
+                >
+                    <TextField
+                        source="id"
+                        label={String(t("electionEventScreen.localization.labels.key"))}
+                    />
+                    <TextField
+                        source="value"
+                        label={String(t("electionEventScreen.localization.labels.value"))}
+                    />
+                    <WrapperField source="actions" label="Actions">
+                        <ActionsColumn actions={actions} />
+                    </WrapperField>
+                </Datagrid>
+            </Card>
             <TablePagination
                 component="div"
                 page={listContext.page - 1}

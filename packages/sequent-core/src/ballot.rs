@@ -885,6 +885,14 @@ pub enum InvalidVotePolicy {
     #[strum(serialize = "not-allowed")]
     #[serde(rename = "not-allowed")]
     NOT_ALLOWED,
+    // Same as ALLOWED, except the explicit-invalid marker becomes a
+    // mutually exclusive selection: picking it clears any other selected
+    // candidates (and vice versa), so it can't be bundled with them. See
+    // `ballotSelectionsSlice.ts` for the enforcement, which mirrors how
+    // blank vote is already exclusive against other selections.
+    #[strum(serialize = "allowed-with-exclusive-explicit")]
+    #[serde(rename = "allowed-with-exclusive-explicit")]
+    ALLOWED_WITH_EXCLUSIVE_EXPLICIT,
 }
 
 #[derive(
@@ -1447,6 +1455,13 @@ pub struct ElectionPresentation {
     pub voting_screen_back_policy: Option<VotingScreenBackPolicy>,
     #[borsh(skip)]
     pub css: Option<String>,
+    /// The policy to determine if a ballot blank in every contest is
+    /// recorded and reported as a blank ballot at the election level.
+    ///
+    /// Appended after all pre-existing fields (rather than grouped next to
+    /// decline_to_vote_policy) to preserve the Borsh binary layout of
+    /// already-serialized ElectionPresentation/BallotStyle payloads.
+    pub blank_ballots_policy: Option<BlankBallotsPolicy>,
 }
 
 impl hasura_core::Election {
@@ -1488,6 +1503,7 @@ impl Default for ElectionPresentation {
             decline_to_vote_policy: Some(DeclineToVotePolicy::default()),
             voting_screen_back_policy: Some(VotingScreenBackPolicy::default()),
             css: None,
+            blank_ballots_policy: Some(BlankBallotsPolicy::default()),
         }
     }
 }
@@ -2889,6 +2905,36 @@ pub enum DeclineToVotePolicy {
     #[strum(serialize = "enabled")]
     #[serde(rename = "enabled")]
     /// The user can decline to vote at the election level (for all contests).
+    ENABLED,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
+/// Used to determine if a ballot on which the voter left every contest
+/// blank can be recorded and reported as a blank ballot.
+pub enum BlankBallotsPolicy {
+    #[default]
+    #[strum(serialize = "disabled")]
+    #[serde(rename = "disabled")]
+    /// Ballots blank in every contest are not tracked as such.
+    DISABLED,
+    #[strum(serialize = "enabled")]
+    #[serde(rename = "enabled")]
+    /// Ballots blank in every contest are recorded and reported as blank
+    /// ballots, at the election level.
     ENABLED,
 }
 

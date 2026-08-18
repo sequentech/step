@@ -277,6 +277,7 @@ const tagalogTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "I-export ang mga Template",
                 IMPORT_TEMPLATES: "I-import ang mga Template",
                 DELETE_ELECTION_EVENT: "Tanggalin ang Kaganapan ng Halalan",
+                DELETE_VOTERS: "Delete Voters",
                 PREPARE_PUBLICATION_PREVIEW: "Ihanda ang paunang tingin ng publikasyon",
                 EXPORT_TALLY_RESULTS_XLSX:
                     "I-export ang mga resulta ng pagbibilang sa format na XLSX",
@@ -1032,6 +1033,13 @@ const tagalogTranslation: TranslationType = {
                     disabled: "Naka-disable",
                 },
             },
+            blankBallotsPolicy: {
+                label: "Patakaran sa mga blangkong balota",
+                options: {
+                    enabled: "Pinagana",
+                    disabled: "Naka-disable",
+                },
+            },
             votingScreenBackPolicy: {
                 label: "Patakaran sa pindutang Bumalik ng screen ng pagboto",
                 options: {
@@ -1127,6 +1135,11 @@ const tagalogTranslation: TranslationType = {
                 delete: {
                     body: "Sigurado ka bang gusto mong tanggalin ang tagagamit na ito?",
                     bulkBody: "Sigurado ka bang gusto mong tanggalin ang mga napiling tagagamit?",
+                    bulkBodySelected: "Delete the {{count}} selected users? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} users are selected. You can instead delete every user matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Error sa pag-export ng mga tagagamit",
@@ -1186,6 +1199,12 @@ const tagalogTranslation: TranslationType = {
                 delete: {
                     body: "Sigurado ka bang gusto mong tanggalin ang botante na ito?",
                     bulkBody: "Sigurado ka bang gusto mong tanggalin ang mga napiling botante?",
+                    bulkBodySelected:
+                        "Delete the {{count}} selected voters? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} voters are selected. You can instead delete every voter matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Error sa pag-export ng mga botante",
@@ -1811,6 +1830,8 @@ const tagalogTranslation: TranslationType = {
                 "warn-invalid-implicit-and-explicit":
                     "Magbigay ng Babala sa Di-wastong Implicit at Explicit",
                 "not-allowed": "Hindi Pinapayagan",
+                "allowed-with-exclusive-explicit":
+                    "Pinapayagan na may Eksklusibong Di-wastong Boto",
             },
             candidatesIconCheckboxPolicy: {
                 "label": "An porma kan icon kan kahon kan mga kandidato",
@@ -2230,6 +2251,7 @@ const tagalogTranslation: TranslationType = {
                     round: "Ikot",
                 },
                 total_declined_to_vote: "Kabuuang Tumangging Bumoto",
+                total_blank_ballots: "Kabuuang Blangkong Balota",
                 participation_by_channel: "Paglahok ayon sa channel",
                 channel: "Channel",
                 channel_online: "Online",
@@ -2440,6 +2462,10 @@ const tagalogTranslation: TranslationType = {
                     "Ang kabuuang bilang ng mga di-balidong boto ({{totalInvalid}}) ay dapat katumbas ng implicit na di-balidong boto ({{implicitInvalid}}) kasama ang explicit na di-balidong boto ({{explicitInvalid}})",
                 totalVotesDoesNotMatch:
                     "Ang kabuuang bilang ng boto ({{totalVotes}}) ay dapat katumbas ng kabuuang balidong boto ({{totalValidVotes}}) kasama ang kabuuang di-balidong boto ({{totalInvalid}})",
+                blankBallotsInconsistent:
+                    "Ang Blangkong Balota ay dapat magkaroon ng parehong halaga sa bawat sheet ng kontest sa kahong ito",
+                blankBallotsOutOfBounds:
+                    "Ang halaga ng Blangkong Balota ay wala sa hanay na ipinahihiwatig ng bilang ng blangkong boto bawat kontest sa kahong ito",
             },
             label: {
                 area: "Lugar",
@@ -2450,6 +2476,7 @@ const tagalogTranslation: TranslationType = {
                 explicit_invalid: "Tahasang Invalid na Boto",
                 implicit_invalid: "Implicit na Invalid na Boto",
                 total_blank_votes: "Blankong Boto",
+                blank_ballots: "Blangkong Balota",
                 census: "Senso",
             },
             common: {

@@ -276,6 +276,7 @@ const galegoTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "Exportar Plantillas",
                 IMPORT_TEMPLATES: "Importar Plantillas",
                 DELETE_ELECTION_EVENT: "Eliminar evento electoral",
+                DELETE_VOTERS: "Delete Voters",
                 PREPARE_PUBLICATION_PREVIEW: "Preparar a vista previa da publicación",
                 EXPORT_TALLY_RESULTS_XLSX: "Exportar os resultados do reconto en formato XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Exportar autoridades de certificación",
@@ -1032,6 +1033,13 @@ const galegoTranslation: TranslationType = {
                     disabled: "Desactivado",
                 },
             },
+            blankBallotsPolicy: {
+                label: "Política de papeletas en branco",
+                options: {
+                    enabled: "Activado",
+                    disabled: "Desactivado",
+                },
+            },
             votingScreenBackPolicy: {
                 label: "Política do botón Atrás da pantalla de votación",
                 options: {
@@ -1126,6 +1134,11 @@ const galegoTranslation: TranslationType = {
                 delete: {
                     body: "¿Estás seguro de que queres eliminar este usuario?",
                     bulkBody: "¿Estás seguro de que queres eliminar os usuarios seleccionados?",
+                    bulkBodySelected: "Delete the {{count}} selected users? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} users are selected. You can instead delete every user matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Erro ao exportar usuarios",
@@ -1185,6 +1198,12 @@ const galegoTranslation: TranslationType = {
                 delete: {
                     body: "¿Estás seguro de que queres eliminar este votante?",
                     bulkBody: "¿Estás seguro de que queres eliminar os votantes seleccionados?",
+                    bulkBodySelected:
+                        "Delete the {{count}} selected voters? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} voters are selected. You can instead delete every voter matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Erro ao exportar votantes",
@@ -1810,6 +1829,7 @@ const galegoTranslation: TranslationType = {
                 "warn": "Avisar",
                 "warn-invalid-implicit-and-explicit": "Avisar Votos Nulos Implícitos e Explícitos",
                 "not-allowed": "Non Permitido",
+                "allowed-with-exclusive-explicit": "Permitido con Voto Nulo Explícito Exclusivo",
             },
             candidatesIconCheckboxPolicy: {
                 "label": "Forma do Icono de Caixa de Selección dos Candidatos",
@@ -2227,6 +2247,7 @@ const galegoTranslation: TranslationType = {
                     round: "Rolda",
                 },
                 total_declined_to_vote: "Total de votos de renuncia",
+                total_blank_ballots: "Total de Papeletas en Branco",
                 participation_by_channel: "Participación por canle",
                 channel: "Canle",
                 channel_online: "En liña",
@@ -2435,6 +2456,10 @@ const galegoTranslation: TranslationType = {
                     "O total de votos non válidos ({{totalInvalid}}) debe ser igual aos votos non válidos implícitos ({{implicitInvalid}}) máis os votos non válidos explícitos ({{explicitInvalid}})",
                 totalVotesDoesNotMatch:
                     "O total de votos ({{totalVotes}}) debe ser igual ao total de votos válidos ({{totalValidVotes}}) máis o total de votos non válidos ({{totalInvalid}})",
+                blankBallotsInconsistent:
+                    "As Papeletas en Branco deben ter o mesmo valor en todas as follas de escrutinio desta urna",
+                blankBallotsOutOfBounds:
+                    "O valor de Papeletas en Branco está fóra do rango que implican os reconto de votos en branco por candidatura desta urna",
             },
             label: {
                 area: "Área",
@@ -2445,6 +2470,7 @@ const galegoTranslation: TranslationType = {
                 explicit_invalid: "Votos Nulos Explícitos",
                 implicit_invalid: "Votos Nulos Implícitos",
                 total_blank_votes: "Votos en Branco",
+                blank_ballots: "Papeletas en Branco",
                 census: "Censo",
             },
             common: {

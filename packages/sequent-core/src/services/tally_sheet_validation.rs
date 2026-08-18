@@ -168,6 +168,117 @@ fn error(
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BallotBoxBlankBallotsCheck {
+    pub errors: Vec<TallySheetValidationError>,
+    /// The value implied by the bounds when they pinch to exactly one
+    /// integer -- covers the common "some contest reports zero blanks, so
+    /// the ballot-box total must be zero too" case. `None` when the bounds
+    /// don't uniquely determine a value; the caller decides whether to
+    /// offer it as a suggestion or apply it automatically.
+    pub pre_filled_value: Option<u64>,
+}
+
+/// Validates (and where possible, pre-fills) a ballot box's `blank_ballots`
+/// value against the per-contest blank-vote counts of every contest sheet
+/// in the box.
+///
+/// `blank_ballots` is a ballot-box property replicated onto every contest
+/// sheet of the box (the same way `total_declined_to_vote` already is), so
+/// it must be:
+/// - the same across every sheet that supplies it (sheets that omit it are
+///   ignored for this check, since the field is optional per sheet);
+/// - within `max(0, Σbᵢ − (n−1)·T) ≤ v ≤ min(bᵢ)`, where `bᵢ` is contest
+///   `i`'s `total_blank_votes`, `n` is the number of contests in the box,
+///   and `T` is the box's total ballot count. The upper bound holds
+///   because a ballot blank everywhere is blank in the contest with the
+///   fewest blanks; the lower bound is an inclusion-exclusion count: at
+///   most `T - bᵢ` ballots are non-blank in contest `i`, so at most
+///   `Σ(T - bᵢ) = nT - Σbᵢ` ballots are non-blank in *some* contest, which
+///   leaves at least `T - (nT - Σbᵢ) = Σbᵢ - (n-1)T` ballots blank in all
+///   of them (floored at 0).
+///
+/// `T` should be uniform across a box's sheets by construction (every
+/// ballot in a box carries every one of the box's contests), but this
+/// function tolerates disagreement defensively by using the largest
+/// reported `total_votes`: a ballot counted in any one contest's turnout
+/// is definitely present in the box, so the maximum is the safest
+/// (most conservative) estimate of the box's true ballot count -- a
+/// smaller value would tighten the lower bound incorrectly and risk
+/// rejecting a genuinely valid entry.
+pub fn validate_ballot_box_blank_ballots(
+    contest_sheets: &[&AreaContestResults],
+) -> BallotBoxBlankBallotsCheck {
+    if contest_sheets.is_empty() {
+        return BallotBoxBlankBallotsCheck {
+            errors: Vec::new(),
+            pre_filled_value: None,
+        };
+    }
+
+    let mut errors = Vec::new();
+
+    let distinct_values: std::collections::BTreeSet<u64> = contest_sheets
+        .iter()
+        .filter_map(|sheet| sheet.blank_ballots)
+        .collect();
+    if distinct_values.len() > 1 {
+        errors.push(error(
+            "inconsistent_blank_ballots",
+            "Every contest sheet of a ballot box that supplies blank_ballots must carry the same value"
+                .to_string(),
+            "blank_ballots",
+            HashMap::new(),
+        ));
+    }
+    // Ambiguous when sheets disagree: don't guess which one is right.
+    let box_blank_ballots = (distinct_values.len() == 1)
+        .then(|| distinct_values.into_iter().next())
+        .flatten();
+
+    let contest_count = contest_sheets.len() as u64;
+    let blank_votes_per_contest: Vec<u64> = contest_sheets
+        .iter()
+        .map(|sheet| sheet.total_blank_votes.unwrap_or(0))
+        .collect();
+    let sum_blank_votes: u64 = blank_votes_per_contest.iter().sum();
+    let min_blank_votes =
+        blank_votes_per_contest.iter().copied().min().unwrap_or(0);
+    let total_ballots = contest_sheets
+        .iter()
+        .filter_map(|sheet| sheet.total_votes)
+        .max()
+        .unwrap_or(0);
+
+    let lower_bound = sum_blank_votes
+        .saturating_sub(contest_count.saturating_sub(1) * total_ballots);
+    let upper_bound = min_blank_votes;
+
+    if let Some(value) = box_blank_ballots {
+        if value < lower_bound || value > upper_bound {
+            errors.push(error(
+                "blank_ballots_out_of_bounds",
+                format!(
+                    "blank_ballots ({value}) must be between {lower_bound} and {upper_bound} given the box's per-contest blank vote counts"
+                ),
+                "blank_ballots",
+                HashMap::from([
+                    ("blankBallots".to_string(), value.to_string()),
+                    ("lowerBound".to_string(), lower_bound.to_string()),
+                    ("upperBound".to_string(), upper_bound.to_string()),
+                ]),
+            ));
+        }
+    }
+
+    let pre_filled_value = (lower_bound == upper_bound).then_some(lower_bound);
+
+    BallotBoxBlankBallotsCheck {
+        errors,
+        pre_filled_value,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
@@ -194,6 +305,7 @@ mod tests {
                 explicit_invalid: Some(2),
             }),
             total_blank_votes: Some(2),
+            blank_ballots: None,
             census: Some(20),
             candidate_results: HashMap::from([(
                 "candidate-1".to_string(),
@@ -223,6 +335,7 @@ mod tests {
                 explicit_invalid: Some(2),
             }),
             total_blank_votes: Some(2),
+            blank_ballots: None,
             census: Some(20),
             candidate_results: HashMap::from([(
                 "candidate-1".to_string(),
@@ -264,6 +377,7 @@ mod tests {
                 explicit_invalid: Some(2),
             }),
             total_blank_votes: Some(2),
+            blank_ballots: None,
             census: None,
             candidate_results: HashMap::from([(
                 "candidate-1".to_string(),
@@ -293,6 +407,7 @@ mod tests {
                 explicit_invalid: Some(0),
             }),
             total_blank_votes: Some(0),
+            blank_ballots: None,
             census: Some(20),
             candidate_results: HashMap::from([
                 (
@@ -331,6 +446,7 @@ mod tests {
                 explicit_invalid: Some(0),
             }),
             total_blank_votes: Some(0),
+            blank_ballots: None,
             census: Some(30),
             candidate_results: HashMap::from([
                 (
@@ -373,6 +489,7 @@ mod tests {
                 explicit_invalid: Some(0),
             }),
             total_blank_votes: Some(0),
+            blank_ballots: None,
             census: Some(20),
             candidate_results: HashMap::from([(
                 "candidate-1".to_string(),
@@ -406,6 +523,7 @@ mod tests {
                 explicit_invalid: Some(0),
             }),
             total_blank_votes: Some(0),
+            blank_ballots: None,
             census: Some(60),
             candidate_results: HashMap::from([(
                 "candidate-1".to_string(),
@@ -489,5 +607,168 @@ mod tests {
             ),
             2
         );
+    }
+
+    fn contest_sheet(
+        contest_id: &str,
+        total_votes: u64,
+        total_blank_votes: u64,
+        blank_ballots: Option<u64>,
+    ) -> AreaContestResults {
+        AreaContestResults {
+            area_id: "area-1".to_string(),
+            contest_id: contest_id.to_string(),
+            total_votes: Some(total_votes),
+            total_valid_votes: Some(total_votes),
+            invalid_votes: None,
+            total_blank_votes: Some(total_blank_votes),
+            blank_ballots,
+            census: None,
+            candidate_results: HashMap::new(),
+            annotations: None,
+        }
+    }
+
+    mod ballot_box_blank_ballots {
+        use super::contest_sheet;
+        use crate::services::tally_sheet_validation::validate_ballot_box_blank_ballots;
+
+        #[test]
+        fn pre_fills_zero_when_a_contest_has_zero_blanks() {
+            let sheets = [
+                contest_sheet("contest-1", 10, 0, None),
+                contest_sheet("contest-2", 10, 5, None),
+            ];
+            let refs: Vec<&_> = sheets.iter().collect();
+
+            let check = validate_ballot_box_blank_ballots(&refs);
+
+            assert!(check.errors.is_empty());
+            assert_eq!(check.pre_filled_value, Some(0));
+        }
+
+        #[test]
+        fn pre_fills_a_nonzero_value_when_bounds_pinch() {
+            // n=2, T=9, b=[9,9]: every ballot is blank in both contests,
+            // so the box-level value must be exactly 9.
+            let sheets = [
+                contest_sheet("contest-1", 9, 9, None),
+                contest_sheet("contest-2", 9, 9, None),
+            ];
+            let refs: Vec<&_> = sheets.iter().collect();
+
+            let check = validate_ballot_box_blank_ballots(&refs);
+
+            assert!(check.errors.is_empty());
+            assert_eq!(check.pre_filled_value, Some(9));
+        }
+
+        #[test]
+        fn does_not_pre_fill_when_bounds_leave_a_range() {
+            let sheets = [
+                contest_sheet("contest-1", 10, 3, Some(2)),
+                contest_sheet("contest-2", 10, 5, Some(2)),
+            ];
+            let refs: Vec<&_> = sheets.iter().collect();
+
+            let check = validate_ballot_box_blank_ballots(&refs);
+
+            assert!(check.errors.is_empty());
+            assert_eq!(check.pre_filled_value, None);
+        }
+
+        #[test]
+        fn accepts_a_value_within_bounds() {
+            let sheets = [
+                contest_sheet("contest-1", 10, 8, Some(7)),
+                contest_sheet("contest-2", 10, 9, Some(7)),
+                contest_sheet("contest-3", 10, 9, Some(7)),
+            ];
+            let refs: Vec<&_> = sheets.iter().collect();
+
+            let check = validate_ballot_box_blank_ballots(&refs);
+
+            assert!(check.errors.is_empty());
+        }
+
+        #[test]
+        fn rejects_a_value_above_the_upper_bound() {
+            let sheets = [
+                contest_sheet("contest-1", 10, 3, Some(4)),
+                contest_sheet("contest-2", 10, 5, Some(4)),
+            ];
+            let refs: Vec<&_> = sheets.iter().collect();
+
+            let check = validate_ballot_box_blank_ballots(&refs);
+
+            let codes: Vec<_> =
+                check.errors.iter().map(|e| e.code.as_str()).collect();
+            assert_eq!(codes, vec!["blank_ballots_out_of_bounds"]);
+        }
+
+        #[test]
+        fn rejects_a_value_below_the_lower_bound() {
+            // n=2, T=10, b=[9,9]: lower bound is max(0, 18-10)=8.
+            let sheets = [
+                contest_sheet("contest-1", 10, 9, Some(5)),
+                contest_sheet("contest-2", 10, 9, Some(5)),
+            ];
+            let refs: Vec<&_> = sheets.iter().collect();
+
+            let check = validate_ballot_box_blank_ballots(&refs);
+
+            let codes: Vec<_> =
+                check.errors.iter().map(|e| e.code.as_str()).collect();
+            assert_eq!(codes, vec!["blank_ballots_out_of_bounds"]);
+        }
+
+        #[test]
+        fn rejects_sheets_that_disagree_on_the_value() {
+            let sheets = [
+                contest_sheet("contest-1", 10, 3, Some(2)),
+                contest_sheet("contest-2", 10, 5, Some(3)),
+            ];
+            let refs: Vec<&_> = sheets.iter().collect();
+
+            let check = validate_ballot_box_blank_ballots(&refs);
+
+            let codes: Vec<_> =
+                check.errors.iter().map(|e| e.code.as_str()).collect();
+            assert_eq!(codes, vec!["inconsistent_blank_ballots"]);
+        }
+
+        #[test]
+        fn stays_unavailable_when_no_sheet_supplies_a_value() {
+            let sheets = [
+                contest_sheet("contest-1", 10, 3, None),
+                contest_sheet("contest-2", 10, 5, None),
+            ];
+            let refs: Vec<&_> = sheets.iter().collect();
+
+            let check = validate_ballot_box_blank_ballots(&refs);
+
+            assert!(check.errors.is_empty());
+        }
+
+        #[test]
+        fn ignores_sheets_that_omit_the_value_when_checking_agreement() {
+            let sheets = [
+                contest_sheet("contest-1", 10, 3, Some(2)),
+                contest_sheet("contest-2", 10, 5, None),
+            ];
+            let refs: Vec<&_> = sheets.iter().collect();
+
+            let check = validate_ballot_box_blank_ballots(&refs);
+
+            assert!(check.errors.is_empty());
+        }
+
+        #[test]
+        fn returns_nothing_for_an_empty_box() {
+            let check = validate_ballot_box_blank_ballots(&[]);
+
+            assert!(check.errors.is_empty());
+            assert_eq!(check.pre_filled_value, None);
+        }
     }
 }
