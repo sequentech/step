@@ -190,7 +190,9 @@ workbench/
 │                        VALIDATION_LOGIC_DISTILLATION.md, FIXTURE_VARIANCE.md);
 │                        findings (UPSTREAM_FINDINGS.md), reviewer
 │                        reproduction recipes (REPRODUCE.md), policy-intent
-│                        evidence (INVALID_VOTE_POLICY_INTENT.md)
+│                        evidence (INVALID_VOTE_POLICY_INTENT.md). Plus one
+│                        temporary file: EVIDENCE_RESTRUCTURE.md, a migration
+│                        plan to be deleted when it lands
 ├── characterization/    Recorded validation-behaviour tables + the harness
 │                        that generates them: seven headless rule runners +
 │                        shared spec (spec.mjs), the browser DOM-validation
@@ -398,18 +400,22 @@ which artifact ships, roughly by payoff:
    "unset" and "allowed" are not the same configuration at the booth.
    Whether that becomes a suspect is a joint call — adjudication is
    nobody's alone.
-2. **Point the validation runners at the Rust spec.** Every runner that
-   compares against production currently targets `spec.mjs`; the
-   artifact this work exists to produce, `validation-spec/`, inherits
-   that evidence transitively — exactly on the 280 recorded cells, and
-   by sampling everywhere else (characterization/README.md, "The spec
-   exists twice, and only one carries the evidence"). `emit-grid`
-   already speaks the same JSON `f(config, voteState)`, so migrating the
-   runners onto it would make the shipped spec **directly and
-   exhaustively** evidenced, and retire `spec.mjs` (437 lines). Blocked
-   on nobody, and the one real deletion this codebase still has in it.
-   Cost: 13 runners change their spec call, cells get batched up front,
-   and `emit-grid` needs two small cell kinds (`inline`, `reachability`).
+2. **The evidence restructure** — plan written, not started:
+   [docs/EVIDENCE_RESTRUCTURE.md](docs/EVIDENCE_RESTRUCTURE.md). Every
+   runner that compares against production currently targets `spec.mjs`,
+   so the artifact this work exists to produce, `validation-spec/`,
+   inherits that evidence transitively — exactly on the 280 recorded
+   cells, by sampling everywhere else. Pointing the runners at
+   `emit-grid` instead makes the shipped spec **directly and
+   exhaustively** evidenced, and splits the apparatus into two layers:
+   an **evidence layer** that establishes `production ≡ Rust spec`, and
+   an **analysis layer** that consumes the certified spec and never
+   touches production. Nine files go (`spec.mjs`, `rust-conformance`,
+   the seven per-rule runners in their validation role), six are
+   re-pointed. Blocked on nobody. The motive is not a defect — the suite
+   is green — but that the evidence story currently needs more moving
+   parts than anyone can hold, which has already produced errors in the
+   written record that only source-reading caught.
 3. **The decline-to-vote booth flow** — the one open characterization
    cell. Blocked on adding a `multi_ballot` encrypt/decrypt path (the
    decline bit does not exist in `raw_ballot`; see Known gaps above), so
