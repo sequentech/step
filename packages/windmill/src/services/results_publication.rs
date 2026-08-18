@@ -311,6 +311,8 @@ const RESULTS_ELECTION_PUBLIC_COLUMNS: &[&str] = &[
     "total_voters",
     "labels",
     "total_voters_percent",
+    "blank_ballots",
+    "blank_ballots_percent",
 ];
 const RESULTS_ELECTION_AREA_PUBLIC_COLUMNS: &[&str] = &[
     "id",
@@ -319,6 +321,8 @@ const RESULTS_ELECTION_AREA_PUBLIC_COLUMNS: &[&str] = &[
     "area_id",
     "results_event_id",
     "name",
+    "blank_ballots",
+    "blank_ballots_percent",
 ];
 const RESULTS_CONTEST_PUBLIC_COLUMNS: &[&str] = &[
     "id",
