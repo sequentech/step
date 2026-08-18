@@ -80,6 +80,14 @@ export interface IConfirmationLayoutProps {
     title: string
     onTitleHelp?: () => void
     description?: React.ReactNode
+    /**
+     * A second paragraph under the description, when there is something to add.
+     *
+     * The portal says here that a ballot was cast blank. Its own slot rather than
+     * more `description`, because that one is wrapped in a `Typography` and a
+     * paragraph inside a paragraph is not markup a browser will keep.
+     */
+    note?: React.ReactNode
 
     /** What the identifier is called — *Ballot ID*, in the portal's wording. */
     ballotIdLabel?: string
@@ -128,6 +136,7 @@ export const ConfirmationLayout: React.FC<IConfirmationLayoutProps> = ({
     title,
     onTitleHelp,
     description,
+    note,
     ballotIdLabel,
     ballotId,
     ballotIdOnPhone,
@@ -160,6 +169,11 @@ export const ConfirmationLayout: React.FC<IConfirmationLayoutProps> = ({
         {description === undefined ? null : (
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                 {description}
+            </Typography>
+        )}
+        {note === undefined ? null : (
+            <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+                {note}
             </Typography>
         )}
         <BallotIdContainer>

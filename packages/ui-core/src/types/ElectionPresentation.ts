@@ -71,6 +71,7 @@ export interface IElectionPresentation {
     security_confirmation_policy?: ESecurityConfirmationPolicy
     consolidated_report_policy: EConsolidatedReportPolicy
     decline_to_vote_policy?: EDeclineToVotePolicy
+    blank_ballots_policy?: EBlankBallotsPolicy
     voting_screen_back_policy?: IVotingScreenBackPolicy
     // more missing
 }
@@ -92,6 +93,11 @@ export enum EInitializeReportPolicy {
 }
 
 export enum EDeclineToVotePolicy {
+    ENABLED = "enabled",
+    DISABLED = "disabled",
+}
+
+export enum EBlankBallotsPolicy {
     ENABLED = "enabled",
     DISABLED = "disabled",
 }
