@@ -74,6 +74,7 @@ const basqueTranslation: TranslationType = {
                 totalVotesCounted: "Zenbatutako botoak guztira",
                 validVotes: "Baliozko botoak",
                 participation: "Parte-hartzea",
+                totalBlankBallots: "Boto-txartel zuriak guztira",
             },
             resultsAndParticipation: {
                 participationSummary: "Parte-hartzearen laburpena",

@@ -1036,6 +1036,13 @@ const frenchTranslation: TranslationType = {
                     disabled: "Désactivé",
                 },
             },
+            blankBallotsPolicy: {
+                label: "Politique des bulletins blancs",
+                options: {
+                    enabled: "Activé",
+                    disabled: "Désactivé",
+                },
+            },
             votingScreenBackPolicy: {
                 label: "Politique du bouton Retour de l’écran de vote",
                 options: {
@@ -2254,6 +2261,7 @@ const frenchTranslation: TranslationType = {
                     round: "Tour",
                 },
                 total_declined_to_vote: "Total des refus de vote",
+                total_blank_ballots: "Total des Bulletins Blancs",
                 participation_by_channel: "Participation par canal",
                 channel: "Canal",
                 channel_online: "En ligne",
@@ -2457,6 +2465,10 @@ const frenchTranslation: TranslationType = {
                 totalValidDoesNotMatch:
                     "Le total des votes valides ne correspond pas à la somme des votes des candidats plus les votes blancs",
                 censusTooSmall: "Le recensement doit être supérieur ou égal au total des votes",
+                blankBallotsInconsistent:
+                    "Les Bulletins Blancs doivent avoir la même valeur sur toutes les feuilles de dépouillement de cette urne",
+                blankBallotsOutOfBounds:
+                    "La valeur des Bulletins Blancs est en dehors de la plage impliquée par les décomptes de votes blancs par candidature de cette urne",
             },
             label: {
                 area: "Zone",
@@ -2467,6 +2479,7 @@ const frenchTranslation: TranslationType = {
                 explicit_invalid: "Votes Explícitement Inválidos",
                 implicit_invalid: "Votes Implicitement Inválidos",
                 total_blank_votes: "Votes en Blanc Totales",
+                blank_ballots: "Bulletins Blancs",
                 census: "Recensement",
             },
             common: {

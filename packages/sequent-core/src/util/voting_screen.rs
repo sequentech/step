@@ -486,6 +486,7 @@ pub fn get_decoded_contest_plurality(contest: &Contest) -> DecodedVoteContest {
         contest_id: contest.id.clone(),
         is_explicit_invalid: true,
         is_decline_to_vote: false,
+        is_blank_ballot: false,
         invalid_alerts: vec![InvalidPlaintextError {
             error_type: InvalidPlaintextErrorType::Explicit,
             candidate_id: None,

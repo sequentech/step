@@ -1269,6 +1269,17 @@ pub fn get_default_decline_to_vote_policy_js() -> Result<JsValue, JsValue> {
     })
 }
 
+#[wasm_bindgen]
+/// Returns the default blank ballots policy
+pub fn get_default_blank_ballots_policy_js() -> Result<JsValue, JsValue> {
+    let policy: BlankBallotsPolicy = BlankBallotsPolicy::default();
+    serde_wasm_bindgen::to_value(&policy).map_err(|err| {
+        JsValue::from_str(&format!(
+            "Error serializing default blank ballots policy: {err}"
+        ))
+    })
+}
+
 #[wasm_bindgen(typescript_custom_section)]
 const IVOTING_SCREEN_BACK_POLICY: &'static str = r#"
 type IVotingScreenBackPolicy = "election-selection-screen" | "start-screen";

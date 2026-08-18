@@ -145,23 +145,17 @@ fn recreate_encrypt_candidate<C: Ctx>(
     })
 }
 
-pub fn encode_to_plaintext_decoded_multi_contest(
-    decoded_contests: &Vec<DecodedVoteContest>,
+/// Derives and validates the ballot-level `is_explicit_invalid`/
+/// `is_blank_ballot` flags from a ballot's decoded contests: every contest
+/// must agree with the flag, the flag must be enabled by the ballot style,
+/// and blank content must actually be blank. Shared by
+/// [`encode_to_plaintext_decoded_multi_contest`] and
+/// [`encrypt_decoded_multi_contest`], which otherwise only differ in how
+/// they consume the resulting [`BallotChoices`].
+fn validate_ballot_level_flags(
+    decoded_contests: &[DecodedVoteContest],
     config: &BallotStyle,
-) -> Result<([u8; 30], BallotChoices), BallotError> {
-    if config.contests.len() != decoded_contests.len() {
-        return Err(BallotError::ConsistencyCheck(format!(
-            "Invalid number of decoded contests {} != {}",
-            config.contests.len(),
-            decoded_contests.len()
-        )));
-    }
-
-    let contest_choices: Vec<_> = decoded_contests
-        .iter()
-        .map(ContestChoices::from_decoded_vote_contest)
-        .collect();
-
+) -> Result<(bool, bool), BallotError> {
     // is_explicit_invalid is true if any of the contests is a decline to vote contest
     let is_explicit_invalid = decoded_contests
         .iter()
@@ -188,9 +182,74 @@ pub fn encode_to_plaintext_decoded_multi_contest(
         }
     }
 
+    // is_blank_ballot is true if any of the contests is marked as a blank
+    // ballot contest; every contest must agree, and the flag must agree
+    // with the actual content.
+    let is_blank_ballot =
+        decoded_contests.iter().any(|choice| choice.is_blank_ballot);
+
+    if is_blank_ballot && !config.blank_ballots_enabled() {
+        return Err(BallotError::ConsistencyCheck(
+            "Blank ballots is not enabled for this election".to_string(),
+        ));
+    }
+
+    if is_blank_ballot && is_explicit_invalid {
+        return Err(BallotError::ConsistencyCheck(
+            "A ballot cannot be both declined and blank".to_string(),
+        ));
+    }
+
+    if is_blank_ballot {
+        let number_of_contests_blank_ballot = decoded_contests
+            .iter()
+            .filter(|choice| choice.is_blank_ballot)
+            .count();
+
+        if number_of_contests_blank_ballot != decoded_contests.len() {
+            return Err(BallotError::ConsistencyCheck(format!(
+                "Invalid number of contests marked blank ballot {} != {}",
+                number_of_contests_blank_ballot,
+                decoded_contests.len()
+            )));
+        }
+
+        // Unlike decline, "blank" has content-derived meaning: reject a
+        // flag that disagrees with what was actually selected.
+        if decoded_contests.iter().any(|choice| !choice.is_blank()) {
+            return Err(BallotError::ConsistencyCheck(
+                "Blank ballot flag disagrees with contest content".to_string(),
+            ));
+        }
+    }
+
+    Ok((is_explicit_invalid, is_blank_ballot))
+}
+
+pub fn encode_to_plaintext_decoded_multi_contest(
+    decoded_contests: &Vec<DecodedVoteContest>,
+    config: &BallotStyle,
+) -> Result<([u8; 30], BallotChoices), BallotError> {
+    if config.contests.len() != decoded_contests.len() {
+        return Err(BallotError::ConsistencyCheck(format!(
+            "Invalid number of decoded contests {} != {}",
+            config.contests.len(),
+            decoded_contests.len()
+        )));
+    }
+
+    let contest_choices: Vec<_> = decoded_contests
+        .iter()
+        .map(ContestChoices::from_decoded_vote_contest)
+        .collect();
+
+    let (is_explicit_invalid, is_blank_ballot) =
+        validate_ballot_level_flags(decoded_contests, config)?;
+
     let counting_algorithm = config.get_counting_algorithm()?;
     let ballot_choices = BallotChoices::new(
         is_explicit_invalid,
+        is_blank_ballot,
         contest_choices,
         counting_algorithm,
     );
@@ -224,35 +283,13 @@ pub fn encrypt_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
         .map(ContestChoices::from_decoded_vote_contest)
         .collect();
 
-    // is_explicit_invalid is true if any of the contests is a decline to vote contest
-    let is_explicit_invalid = decoded_contests
-        .iter()
-        .any(|choice| choice.is_decline_to_vote);
-
-    if is_explicit_invalid && !config.decline_to_vote_enabled() {
-        return Err(BallotError::ConsistencyCheck(
-            "Decline to vote is not enabled for this election".to_string(),
-        ));
-    }
-
-    if is_explicit_invalid {
-        let number_of_contests_decline_to_vote = decoded_contests
-            .iter()
-            .filter(|choice| choice.is_decline_to_vote)
-            .count();
-
-        if number_of_contests_decline_to_vote != decoded_contests.len() {
-            return Err(BallotError::ConsistencyCheck(format!(
-                "Invalid number of contests with decline to vote {} != {}",
-                number_of_contests_decline_to_vote,
-                decoded_contests.len()
-            )));
-        }
-    }
+    let (is_explicit_invalid, is_blank_ballot) =
+        validate_ballot_level_flags(decoded_contests, config)?;
 
     let counting_algorithm = config.get_counting_algorithm()?;
     let ballot = BallotChoices::new(
         is_explicit_invalid,
+        is_blank_ballot,
         contest_choices,
         counting_algorithm,
     );

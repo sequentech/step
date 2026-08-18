@@ -74,6 +74,7 @@ const frenchTranslation: TranslationType = {
                 totalVotesCounted: "Total des votes comptés",
                 validVotes: "Votes valides",
                 participation: "Participation",
+                totalBlankBallots: "Total des bulletins blancs",
             },
             resultsAndParticipation: {
                 participationSummary: "Résumé de participation",

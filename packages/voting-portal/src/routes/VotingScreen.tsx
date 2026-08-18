@@ -5,16 +5,19 @@
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
+import {store} from "../store/store"
 import {Box} from "@mui/material"
 import {PageLimit, Icon, IconButton, theme, Dialog} from "@sequentech/ui-essentials"
 import {
     check_voting_error_dialog_bool,
     check_voting_not_allowed_next_bool,
+    checkIsBlank,
     stringToHtml,
     isUndefined,
     translateFromPresentation,
     IContest,
     EElectionEventContestEncryptionPolicy,
+    EBlankBallotsPolicy,
     BallotSelection,
     getDefaultVotingScreenBackPolicy,
 } from "@sequentech/ui-core"
@@ -34,6 +37,7 @@ import {
 import {
     selectBallotSelectionByElectionId,
     resetBallotSelection,
+    setAllBallotSelectionsBlankBallot,
 } from "../store/ballotSelections/ballotSelectionsSlice"
 import {clearDeclinedToVoteForElection, clearIsVoted, setIsVoted} from "../store/extra/extraSlice"
 import {TenantEventType} from ".."
@@ -355,6 +359,30 @@ const VotingScreen: React.FC = () => {
         return check_voting_error_dialog_bool(ballotStyle?.ballot_eml.contests, decodedContests)
     }
 
+    // whole-ballot blank ballots are only meaningful for MULTIPLE_CONTESTS
+    // elections, and only when the admin has opted into the policy - this is
+    // distinct from each contest's own (pre-existing) blank_vote_policy
+    const isBlankBallotsPolicyEnabled = (): boolean => {
+        const isMultiContest =
+            ballotStyle?.ballot_eml.election_event_presentation?.contest_encryption_policy ==
+            EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
+        return (
+            election?.presentation?.blank_ballots_policy === EBlankBallotsPolicy.ENABLED &&
+            isMultiContest
+        )
+    }
+
+    const isWholeBallotBlank = (): boolean => {
+        const contests = ballotStyle?.ballot_eml.contests ?? []
+        if (contests.length === 0 || !isBlankBallotsPolicyEnabled()) {
+            return false
+        }
+        return contests.every((contest) => {
+            const decoded = decodedContests[contest.id]
+            return Boolean(decoded && checkIsBlank(decoded))
+        })
+    }
+
     const encryptAndReview = () => {
         if (isUndefined(selectionState) || !ballotStyle) {
             return
@@ -378,11 +406,23 @@ const VotingScreen: React.FC = () => {
 
         dispatch(clearDeclinedToVoteForElection(ballotStyle.election_id))
 
+        // dispatch() updates the Redux store synchronously, but the
+        // `selectionState` bound in this closure was captured by
+        // useAppSelector on a prior render and won't reflect it - re-read
+        // the store directly, mirroring StartScreen.tsx's confirmDeclineToVote().
+        let selectionStateToEncrypt = selectionState
+        if (isWholeBallotBlank()) {
+            dispatch(setAllBallotSelectionsBlankBallot({ballotStyle}))
+            selectionStateToEncrypt =
+                selectBallotSelectionByElectionId(ballotStyle.election_id)(store.getState()) ??
+                selectionState
+        }
+
         const isMultiContest =
             ballotStyle?.ballot_eml.election_event_presentation?.contest_encryption_policy ==
             EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
 
-        if (encryptAndStoreBallot(ballotStyle, selectionState, isMultiContest)) {
+        if (encryptAndStoreBallot(ballotStyle, selectionStateToEncrypt, isMultiContest)) {
             submit(null, {method: "post"})
         } else {
             submit({error: VotingPortalErrorType.UNABLE_TO_CAST_BALLOT}, {method: "post"})
@@ -522,17 +562,23 @@ const VotingScreen: React.FC = () => {
                     title={t(
                         hasInvalidErrors
                             ? "votingScreen.nonVotedDialog.title"
-                            : "votingScreen.warningDialog.title"
+                            : isWholeBallotBlank()
+                              ? "votingScreen.blankBallotDialog.title"
+                              : "votingScreen.warningDialog.title"
                     )}
                     ok={t(
                         hasInvalidErrors
                             ? "votingScreen.nonVotedDialog.continue"
-                            : "votingScreen.warningDialog.continue"
+                            : isWholeBallotBlank()
+                              ? "votingScreen.blankBallotDialog.continue"
+                              : "votingScreen.warningDialog.continue"
                     )}
                     cancel={t(
                         hasInvalidErrors
                             ? "votingScreen.nonVotedDialog.cancel"
-                            : "votingScreen.warningDialog.cancel"
+                            : isWholeBallotBlank()
+                              ? "votingScreen.blankBallotDialog.cancel"
+                              : "votingScreen.warningDialog.cancel"
                     )}
                     variant="action"
                 >
@@ -540,7 +586,9 @@ const VotingScreen: React.FC = () => {
                         t(
                             hasInvalidErrors
                                 ? "votingScreen.nonVotedDialog.content"
-                                : "votingScreen.warningDialog.content"
+                                : isWholeBallotBlank()
+                                  ? "votingScreen.blankBallotDialog.content"
+                                  : "votingScreen.warningDialog.content"
                         )
                     )}
                 </Dialog>

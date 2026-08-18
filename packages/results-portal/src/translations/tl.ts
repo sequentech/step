@@ -74,6 +74,7 @@ const tagalogTranslation: TranslationType = {
                 totalVotesCounted: "Kabuuang botong nabilang",
                 validVotes: "Mga wastong boto",
                 participation: "Partisipasyon",
+                totalBlankBallots: "Kabuuang blangkong balota",
             },
             resultsAndParticipation: {
                 participationSummary: "Buod ng Partisipasyon",

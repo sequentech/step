@@ -2,15 +2,19 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::config::generate_reports::PipeConfigGenerateReports;
+use crate::config::Config;
 use crate::fixtures::ballot_styles::generate_ballot_style;
 use crate::fixtures::TestFixture;
 use crate::pipes::pipe_inputs::BALLOTS_FILE;
+use crate::pipes::pipe_name::PipeName;
 use anyhow::{Error, Result};
 use sequent_core::ballot::*;
 use sequent_core::ballot_codec::multi_ballot::{BallotChoices, ContestChoices};
 use sequent_core::ballot_codec::BigUIntCodec;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::types::ceremonies::CountingAlgType;
+use sequent_core::types::hasura::core::TallySessionConfiguration;
 use sequent_core::util::voting_screen::{
     check_voting_error_dialog_util, check_voting_not_allowed_next_util, get_contest_plurality,
     get_decoded_contest_plurality,
@@ -122,6 +126,7 @@ pub fn generate_ballots(
                         contest_id: contest.id.clone(),
                         is_explicit_invalid: false,
                         is_decline_to_vote: false,
+                        is_blank_ballot: false,
                         invalid_errors: vec![],
                         invalid_alerts: vec![],
                         choices: vec![],
@@ -181,16 +186,79 @@ pub fn generate_mcballots(
     area_num: u32,
     ballots_num: u32,
 ) -> Result<()> {
+    generate_mcballots_with_blank(
+        fixture,
+        election_num,
+        contest_num,
+        area_num,
+        ballots_num,
+        false,
+    )
+}
+
+/// Ballot indices generated fully blank in every contest by
+/// `generate_mcballots_with_blank`'s inner loop below, when
+/// `enable_blank_ballots` is set.
+const BLANK_BALLOT_INDICES: [u32; 3] = [10, 11, 12];
+
+#[instrument(skip_all)]
+pub fn generate_mcballots_with_blank(
+    fixture: &TestFixture,
+    election_num: u32,
+    contest_num: u32,
+    area_num: u32,
+    ballots_num: u32,
+    enable_blank_ballots: bool,
+) -> Result<()> {
     assert!(
         !(ballots_num > 0 && ballots_num < 20),
         "ballots_num should be at least 20"
     );
+
+    if enable_blank_ballots {
+        // The "generate-reports" pipe only surfaces ballot-level policies
+        // like blank ballots when it believes the election encrypts whole
+        // ballots together; wire that into the fixture's shared pipe
+        // config, mirroring how a real tally session configuration does.
+        let config_str = fs::read_to_string(&fixture.config_path)?;
+        let mut config: Config = serde_json::from_str(&config_str)?;
+        for stage in config.stages.stages_def.values_mut() {
+            for pipe_config in &mut stage.pipeline {
+                if pipe_config.pipe == PipeName::GenerateReports {
+                    let gen_reports_config = PipeConfigGenerateReports {
+                        tally_session_configuration: Some(TallySessionConfiguration {
+                            contest_encryption_policy: Some(
+                                ContestEncryptionPolicy::MULTIPLE_CONTESTS,
+                            ),
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    };
+                    pipe_config.config = Some(serde_json::to_value(gen_reports_config)?);
+                }
+            }
+        }
+        fs::write(&fixture.config_path, serde_json::to_string(&config)?)?;
+    }
 
     let election_event_id = Uuid::new_v4();
 
     (0..election_num).try_for_each(|_| {
         let areas: Vec<Uuid> = (0..area_num).map(|_| Uuid::new_v4()).collect();
         let mut election = fixture.create_election_config(&election_event_id, areas)?;
+
+        if enable_blank_ballots {
+            election.presentation = Some(ElectionPresentation {
+                blank_ballots_policy: Some(BlankBallotsPolicy::ENABLED),
+                ..Default::default()
+            });
+            let config_path = fixture
+                .input_dir_configs
+                .join(format!("election__{}", election.id))
+                .join("election-config.json");
+            fs::write(&config_path, serde_json::to_string(&election)?)?;
+        }
+
         election.ballot_styles.clear();
 
         let mut dvcs_by_area: HashMap<(String, u32), Vec<DecodedVoteContest>> = HashMap::new();
@@ -286,6 +354,7 @@ pub fn generate_mcballots(
                         contest_id: contest.id.clone(),
                         is_explicit_invalid: false,
                         is_decline_to_vote: false,
+                        is_blank_ballot: false,
                         invalid_errors: vec![],
                         invalid_alerts: vec![],
                         choices: vec![],
@@ -342,20 +411,31 @@ pub fn generate_mcballots(
 
         let mut ballots = vec![];
         for (key, choices) in dvcs_by_area {
+            let is_blank_ballot = enable_blank_ballots && BLANK_BALLOT_INDICES.contains(&key.1);
             let contest_choices = choices
                 .iter()
                 .map(ContestChoices::from_decoded_vote_contest)
                 .collect();
-            let ballot =
-                BallotChoices::new(false, contest_choices, CountingAlgType::PluralityAtLarge);
+            let ballot = BallotChoices::new(
+                false,
+                is_blank_ballot,
+                contest_choices,
+                CountingAlgType::PluralityAtLarge,
+            );
 
-            let ballot_style = generate_ballot_style(
+            let mut ballot_style = generate_ballot_style(
                 &election.tenant_id,
                 &election.election_event_id,
                 &election.id,
                 &Uuid::from_str(&key.0).unwrap(),
                 contests.clone(),
             );
+            if enable_blank_ballots {
+                ballot_style.election_presentation = Some(ElectionPresentation {
+                    blank_ballots_policy: Some(BlankBallotsPolicy::ENABLED),
+                    ..Default::default()
+                });
+            }
 
             let bigint = ballot.encode_to_bigint(&ballot_style).unwrap();
 
@@ -419,6 +499,7 @@ mod tests {
             contest_id: contest.id.clone(),
             is_explicit_invalid: false,
             is_decline_to_vote: false,
+            is_blank_ballot: false,
             invalid_alerts: vec![],
             invalid_errors: vec![],
             choices: contest
@@ -633,6 +714,72 @@ mod tests {
 
         // Generate database
         state.exec_next()?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_blank_ballots_are_counted_across_the_full_pipeline() -> Result<()> {
+        let election_num = 1;
+        let contest_num = 2;
+        let area_num = 1;
+        let ballot_num = 20;
+
+        let fixture = TestFixture::new_mc()?;
+
+        generate_mcballots_with_blank(
+            &fixture,
+            election_num,
+            contest_num,
+            area_num,
+            ballot_num,
+            true,
+        )?;
+
+        let cli = CliRun {
+            stage: "main".to_string(),
+            pipe_id: "decode-ballots".to_string(),
+            config: fixture.config_path.clone(),
+            input_dir: fixture.root_dir.join("tests").join("input-dir"),
+            output_dir: fixture.root_dir.join("tests").join("output-dir"),
+        };
+
+        let config = cli.validate()?;
+        let mut state = State::new(&cli, &config)?;
+
+        state.exec_next()?; // DecodeBallots
+        state.exec_next()?; // DecodeMCBallots
+        state.exec_next()?; // BallotImages
+        state.exec_next()?; // MultiBallotReceipts
+        state.exec_next()?; // DoTally
+        state.exec_next()?; // MarkWinners
+        state.exec_next()?; // GenerateReports
+        state.exec_next()?; // GenerateDatabase
+
+        let mut entries = fs::read_dir(&fixture.input_dir_ballots)?;
+        let election_entry = entries.next().unwrap()?;
+
+        let mut path = cli.output_dir.clone();
+        path.push("velvet-generate-reports");
+        path.push(election_entry.file_name());
+        path.push("report.json");
+
+        let f = fs::File::open(&path)?;
+        let reports: TemplateData = serde_json::from_reader(f)?;
+
+        let summary = reports
+            .reports
+            .iter()
+            .find(|r| r.election_results.is_some())
+            .expect("summary election report should be present");
+        let election_results = summary.election_results.clone().unwrap();
+
+        // 3 of the 20 ballots generated per (contest, area) are fully blank
+        // (indices 10, 11, 12 in generate_mcballots_with_blank); this is a
+        // whole-ballot count, established once per election regardless of
+        // contest_num, not multiplied by the number of contests.
+        assert_eq!(election_results.total_blank_ballots, Some(3));
+        assert!(election_results.percentage_total_blank_ballots.is_some());
 
         Ok(())
     }
@@ -875,6 +1022,7 @@ mod tests {
                 contest_id: contest.id.clone(),
                 is_explicit_invalid: false,
                 is_decline_to_vote: false,
+                is_blank_ballot: false,
                 invalid_errors: vec![],
                 invalid_alerts: vec![],
                 choices: vec![],
@@ -978,6 +1126,7 @@ mod tests {
                 contest_id: contest.id.clone(),
                 is_explicit_invalid: false,
                 is_decline_to_vote: false,
+                is_blank_ballot: false,
                 invalid_errors: vec![],
                 invalid_alerts: vec![],
                 choices: vec![],
@@ -1086,6 +1235,7 @@ mod tests {
                 contest_id: contest.id.clone(),
                 is_explicit_invalid: false,
                 is_decline_to_vote: false,
+                is_blank_ballot: false,
                 invalid_errors: vec![],
                 invalid_alerts: vec![],
                 choices: vec![],
@@ -1427,6 +1577,7 @@ mod tests {
                 contest_id: contest.id.clone(),
                 is_explicit_invalid: false,
                 is_decline_to_vote: false,
+                is_blank_ballot: false,
                 invalid_errors: vec![],
                 invalid_alerts: vec![],
                 choices: vec![],
@@ -1593,6 +1744,7 @@ mod tests {
                 contest_id: contest.id.clone(),
                 is_explicit_invalid: false,
                 is_decline_to_vote: false,
+                is_blank_ballot: false,
                 invalid_errors: vec![],
                 invalid_alerts: vec![],
                 choices: vec![],
@@ -1744,6 +1896,7 @@ mod tests {
                 contest_id: contest.id.clone(),
                 is_explicit_invalid: false,
                 is_decline_to_vote: false,
+                is_blank_ballot: false,
                 invalid_errors: vec![],
                 invalid_alerts: vec![],
                 choices: vec![],
@@ -1942,6 +2095,7 @@ mod tests {
                     contest_id: contest.id.clone(),
                     is_explicit_invalid: false,
                     is_decline_to_vote: false,
+                    is_blank_ballot: false,
                     invalid_errors: vec![],
                     invalid_alerts: vec![],
                     choices: choices,

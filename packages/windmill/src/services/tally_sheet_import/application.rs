@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
@@ -22,7 +22,7 @@ use uuid::Uuid;
 
 use crate::postgres::{
     area::get_area_by_name,
-    area_contest::area_contest_exists,
+    area_contest::{area_contest_exists, get_contests_by_area_id},
     candidate::get_candidates_by_contest_id,
     contest::get_contest_by_external_id,
     tally_sheet::{
@@ -41,11 +41,11 @@ use crate::postgres::{
 };
 
 use super::{
-    csv::parse_canonical_csv,
+    csv::{parse_canonical_csv, BallotBoxGroupKey, BallotBoxImportKey},
     diff::{classify_change, render_ballot_box_csv},
     errors::TallySheetImportError,
     hash::{hash_area_contest_results, hash_bytes},
-    validation::validate_import_content,
+    validation::{validate_ballot_box_content, validate_import_content},
 };
 
 const DISPLAY_NAME_FALLBACK_LANG: &str = "en";
@@ -93,9 +93,18 @@ pub async fn preview_tally_sheet_import(
     let (parsed_imports, parse_errors) = parse_canonical_csv(canonical_csv_bytes);
     let mut validation_errors = conversion_validation_errors;
     validation_errors.extend(parse_errors);
-    let mut items = Vec::new();
     let mut resolution_cache = BallotBoxResolutionCache::default();
     let mut baseline_cache: HashMap<BallotBoxKey, Option<TallySheet>> = HashMap::new();
+
+    // Pass 1: resolve every sheet against the DB (area/contest/candidate
+    // lookups), same per-sheet logic as before. Sheets that fail to
+    // resolve, or whose channel doesn't match, are dropped with a
+    // validation error and never reach pass 2/3.
+    struct ResolvedSheet {
+        key: BallotBoxImportKey,
+        resolved: ResolvedBallotBoxImport,
+    }
+    let mut resolved_sheets: Vec<ResolvedSheet> = Vec::new();
 
     for parsed_import in parsed_imports {
         if parsed_import.key.channel != selected_channel {
@@ -147,11 +156,92 @@ pub async fn preview_tally_sheet_import(
             &resolved.content,
         ));
 
+        resolved_sheets.push(ResolvedSheet {
+            key: parsed_import.key,
+            resolved,
+        });
+    }
+
+    // Pass 2: group resolved sheets by ballot box (channel + area) and
+    // validate/pre-fill blank_ballots across every contest of the box --
+    // not just the contests present in this CSV batch. A box's contests
+    // absent from the batch are filled in from their latest approved
+    // tally sheet, since blank_ballots is a ballot-level property that
+    // must agree across the whole box, not just the sheets being
+    // imported right now.
+    let mut sheets_by_box: HashMap<BallotBoxGroupKey, Vec<usize>> = HashMap::new();
+    for (index, sheet) in resolved_sheets.iter().enumerate() {
+        sheets_by_box
+            .entry(BallotBoxGroupKey {
+                channel: sheet.key.channel.clone(),
+                area_name: sheet.key.area_name.clone(),
+            })
+            .or_default()
+            .push(index);
+    }
+
+    for (group_key, indices) in &sheets_by_box {
+        let first = &resolved_sheets[indices[0]].resolved;
+        let area_id = first.area.id.clone();
+        let election_id = first.contest.election_id.clone();
+        let present_contest_ids: HashSet<&str> = indices
+            .iter()
+            .map(|&index| resolved_sheets[index].resolved.contest.id.as_str())
+            .collect();
+
+        let mut sibling_contents: Vec<AreaContestResults> = Vec::new();
+        for contest_id in
+            get_contests_by_area_id(transaction, tenant_id, election_event_id, &area_id).await?
+        {
+            if present_contest_ids.contains(contest_id.as_str()) {
+                continue;
+            }
+            if let Some(sibling) = get_latest_approved_tally_sheet(
+                transaction,
+                tenant_id,
+                election_event_id,
+                &election_id,
+                &area_id,
+                &contest_id,
+                &group_key.channel,
+            )
+            .await?
+            {
+                if let Some(content) = sibling.content {
+                    sibling_contents.push(content);
+                }
+            }
+        }
+
+        let mut box_sheets: Vec<&AreaContestResults> = indices
+            .iter()
+            .map(|&index| &resolved_sheets[index].resolved.content)
+            .collect();
+        box_sheets.extend(sibling_contents.iter());
+
+        let check =
+            validate_ballot_box_content(&group_key.channel, &group_key.area_name, &box_sheets);
+        validation_errors.extend(check.errors);
+
+        if let Some(pre_filled_value) = check.pre_filled_blank_ballots {
+            for &index in indices {
+                let content = &mut resolved_sheets[index].resolved.content;
+                if content.blank_ballots.is_none() {
+                    content.blank_ballots = Some(pre_filled_value);
+                }
+            }
+        }
+    }
+
+    // Pass 3: baseline lookup, diff, and emit -- unchanged per-sheet logic,
+    // now reading pre-filled blank_ballots values where pass 2 applied one.
+    let mut items = Vec::with_capacity(resolved_sheets.len());
+    for ResolvedSheet { key, resolved } in resolved_sheets {
         let ballot_box_key = BallotBoxKey {
             election_id: resolved.contest.election_id.clone(),
             area_id: resolved.area.id.clone(),
             contest_id: resolved.contest.id.clone(),
-            channel: parsed_import.key.channel.to_string(),
+            channel: key.channel.to_string(),
         };
         let baseline = if let Some(cached_baseline) = baseline_cache.get(&ballot_box_key) {
             cached_baseline.clone()
@@ -163,7 +253,7 @@ pub async fn preview_tally_sheet_import(
                 &resolved.contest.election_id,
                 &resolved.area.id,
                 &resolved.contest.id,
-                &parsed_import.key.channel,
+                &key.channel,
             )
             .await?;
             baseline_cache.insert(ballot_box_key, latest.clone());
@@ -186,9 +276,9 @@ pub async fn preview_tally_sheet_import(
         let change_type = classify_change(previous.as_ref(), &resolved.content)?;
 
         items.push(TallySheetImportPreviewItem {
-            channel: parsed_import.key.channel.clone(),
+            channel: key.channel.clone(),
             area_id: resolved.area.id,
-            area_name: parsed_import.key.area_name,
+            area_name: key.area_name,
             contest_id: resolved.contest.id,
             contest_name: presentation_display_name(&resolved.contest.presentation)
                 .or(resolved.contest.description)

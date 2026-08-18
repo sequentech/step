@@ -76,6 +76,7 @@ const catalanTranslation: TranslationType = {
             points: "({{points}} Punts)",
             contestNotFound: "Pregunta no trobada: {{contestId}}",
             declineToVote: "Vot no emès",
+            blankBallot: "Papereta en blanc",
         },
         "errors": {
             encoding: {

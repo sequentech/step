@@ -72,6 +72,7 @@ const englishTranslation = {
             points: "({{points}} Points)",
             contestNotFound: "Contest not found: {{contestId}}",
             declineToVote: "Declined to vote",
+            blankBallot: "Blank ballot",
         },
         footer: {
             poweredBy: "Powered by <1></1>",

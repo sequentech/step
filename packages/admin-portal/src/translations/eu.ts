@@ -1030,6 +1030,13 @@ const basqueTranslation: TranslationType = {
                     disabled: "Desgaituta",
                 },
             },
+            blankBallotsPolicy: {
+                label: "Boto-txartel zurien politika",
+                options: {
+                    enabled: "Gaituta",
+                    disabled: "Desgaituta",
+                },
+            },
             votingScreenBackPolicy: {
                 label: "Bozketa-pantailako atzera botoiaren politika",
                 options: {
@@ -2233,6 +2240,7 @@ const basqueTranslation: TranslationType = {
                     round: "Txanda",
                 },
                 total_declined_to_vote: "Bozkatzeari uko egindakoen guztira",
+                total_blank_ballots: "Boto-txartel Zuriak Guztira",
                 participation_by_channel: "Parte-hartzea kanalaren arabera",
                 channel: "Kanala",
                 channel_online: "Linean",
@@ -2433,6 +2441,10 @@ const basqueTranslation: TranslationType = {
                     "Baliozko botoen guztizko kopurua ez dator bat hautagaien botoen eta boto zurien baturarekin",
                 censusTooSmall:
                     "Erroldak boto guztien kopurua baino handiagoa edo berdina izan behar du",
+                blankBallotsInconsistent:
+                    "Boto-txartel Zuriak balio berdina izan behar du ontzi honetako hautagaitza-orri guztietan",
+                blankBallotsOutOfBounds:
+                    "Boto-txartel Zuriak balioa ontzi honen hautagaitzako boto zurien kontaketek ezartzen duten tartetik kanpo dago",
             },
             label: {
                 area: "Eremua",
@@ -2443,6 +2455,7 @@ const basqueTranslation: TranslationType = {
                 explicit_invalid: "Esplizituki Baliogabeko Botoak",
                 implicit_invalid: "Inplizituki Baliogabeko Botoak",
                 total_blank_votes: "Boto Zuriak",
+                blank_ballots: "Boto-txartel Zuriak",
                 census: "Zentso",
             },
             common: {

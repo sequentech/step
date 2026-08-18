@@ -43,6 +43,11 @@ pub struct DecodedVoteContest {
     /// Whether the Voter has declined to vote (can be true only for multi-contest ballots with decline to vote policy enabled).
     /// and will be the same for all contests in the ballot.
     pub is_decline_to_vote: bool,
+    /// Whether every contest on the ballot was left blank (can be true only
+    /// for multi-contest ballots with the blank ballots policy enabled),
+    /// and will be the same for all contests in the ballot.
+    #[serde(default)]
+    pub is_blank_ballot: bool,
     pub invalid_errors: Vec<InvalidPlaintextError>,
     pub invalid_alerts: Vec<InvalidPlaintextError>,
     pub choices: Vec<DecodedVoteChoice>,
@@ -208,6 +213,7 @@ pub fn map_decoded_ballot_choices_to_decoded_contests(
             contest_id: contest_id,
             is_explicit_invalid: found_ballot_choices.is_explicit_invalid,
             is_decline_to_vote: decoded_ballot_choices.is_explicit_invalid,
+            is_blank_ballot: decoded_ballot_choices.is_blank_ballot,
             invalid_errors: found_ballot_choices.invalid_errors.clone(),
             invalid_alerts: found_ballot_choices.invalid_alerts.clone(),
             choices,

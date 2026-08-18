@@ -1033,6 +1033,13 @@ const galegoTranslation: TranslationType = {
                     disabled: "Desactivado",
                 },
             },
+            blankBallotsPolicy: {
+                label: "Política de papeletas en branco",
+                options: {
+                    enabled: "Activado",
+                    disabled: "Desactivado",
+                },
+            },
             votingScreenBackPolicy: {
                 label: "Política do botón Atrás da pantalla de votación",
                 options: {
@@ -2240,6 +2247,7 @@ const galegoTranslation: TranslationType = {
                     round: "Rolda",
                 },
                 total_declined_to_vote: "Total de votos de renuncia",
+                total_blank_ballots: "Total de Papeletas en Branco",
                 participation_by_channel: "Participación por canle",
                 channel: "Canle",
                 channel_online: "En liña",
@@ -2443,6 +2451,10 @@ const galegoTranslation: TranslationType = {
                 totalValidDoesNotMatch:
                     "O total de votos válidos non coincide coa suma dos votos dos candidatos máis os votos en branco",
                 censusTooSmall: "O censo debe ser maior ou igual ao total de votos",
+                blankBallotsInconsistent:
+                    "As Papeletas en Branco deben ter o mesmo valor en todas as follas de escrutinio desta urna",
+                blankBallotsOutOfBounds:
+                    "O valor de Papeletas en Branco está fóra do rango que implican os reconto de votos en branco por candidatura desta urna",
             },
             label: {
                 area: "Área",
@@ -2453,6 +2465,7 @@ const galegoTranslation: TranslationType = {
                 explicit_invalid: "Votos Nulos Explícitos",
                 implicit_invalid: "Votos Nulos Implícitos",
                 total_blank_votes: "Votos en Branco",
+                blank_ballots: "Papeletas en Branco",
                 census: "Censo",
             },
             common: {

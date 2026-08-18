@@ -75,6 +75,7 @@ const galegoTranslation: TranslationType = {
             points: "({{points}} Puntos)",
             contestNotFound: "Concurso non atopado: {{contestId}}",
             declineToVote: "Decidiu non votar",
+            blankBallot: "Papeleta en branco",
         },
         footer: {
             poweredBy: "Impulsado por <1></1>",

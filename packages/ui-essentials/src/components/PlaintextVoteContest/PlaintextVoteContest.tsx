@@ -235,6 +235,8 @@ export interface PlaintextVoteContestProps {
     pointsLabel: (points: number) => string
     isDeclineToVotePolicyEnabled: boolean
     declineToVoteLabel?: string
+    isBlankBallotsPolicyEnabled?: boolean
+    blankBallotLabel?: string
 }
 
 export const PlaintextVoteContest: React.FC<PlaintextVoteContestProps> = ({
@@ -246,6 +248,8 @@ export const PlaintextVoteContest: React.FC<PlaintextVoteContestProps> = ({
     pointsLabel,
     isDeclineToVotePolicyEnabled,
     declineToVoteLabel,
+    isBlankBallotsPolicyEnabled,
+    blankBallotLabel,
 }) => {
     const {t, i18n} = useTranslation()
 
@@ -266,6 +270,11 @@ export const PlaintextVoteContest: React.FC<PlaintextVoteContestProps> = ({
 
     const isBallotDeclineToVote =
         isDeclineToVotePolicyEnabled && questionPlaintext.is_decline_to_vote
+
+    const isWholeBallotBlank = Boolean(
+        isBlankBallotsPolicyEnabled && questionPlaintext.is_blank_ballot
+    )
+
     const {noCategoryCandidates, categoriesMap} = categorizeCandidates(question)
     const sortedCategoryEntries = sortCategoryEntries(
         categoriesMap,
@@ -291,10 +300,12 @@ export const PlaintextVoteContest: React.FC<PlaintextVoteContestProps> = ({
             <Typography variant="body2" fontWeight={"bold"}>
                 {translate(question, "name", i18n.language) || ""}
             </Typography>
-            {isBlank || isBallotDeclineToVote ? (
+            {isWholeBallotBlank ? (
+                <BlankAnswer title={blankBallotLabel} />
+            ) : isBlank || isBallotDeclineToVote ? (
                 <BlankAnswer title={isBallotDeclineToVote ? declineToVoteLabel : undefined} />
             ) : null}
-            {!isBallotDeclineToVote && (
+            {!isBallotDeclineToVote && !isWholeBallotBlank && (
                 <>
                     {questionPlaintext.invalid_errors.map((error, index) => (
                         <WarnBox

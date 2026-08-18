@@ -360,6 +360,7 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
         candidate_result: candidate_results,
         extended_metrics: Some(ExtendedMetricsContest {
             votes_by_channel,
+            total_blank_ballots: content.blank_ballots.unwrap_or(0),
             total_weight: total_valid_marks,
             ..Default::default()
         }),
@@ -456,6 +457,7 @@ mod tests {
                     explicit_invalid: Some(0),
                 }),
                 total_blank_votes: Some(blank_votes),
+                blank_ballots: None,
                 census: Some(candidate_votes + blank_votes + 1),
                 candidate_results,
             }),
@@ -525,6 +527,7 @@ mod tests {
                 explicit_invalid: Some(0),
             }),
             total_blank_votes: Some(0),
+            blank_ballots: None,
             census: Some(2),
             candidate_results,
         });
@@ -568,6 +571,22 @@ mod tests {
     }
 
     #[test]
+    fn process_tally_sheet_reads_blank_ballots_into_extended_metrics() {
+        let mut sheet = tally_sheet(4, 2);
+        sheet.content.as_mut().unwrap().blank_ballots = Some(3);
+
+        let result = process_tally_sheet(&sheet, &contest()).expect("tally sheet should process");
+
+        assert_eq!(
+            result
+                .extended_metrics
+                .as_ref()
+                .map(|metrics| metrics.total_blank_ballots),
+            Some(3)
+        );
+    }
+
+    #[test]
     fn process_tally_sheet_uses_total_marks_for_multi_selection_percentages() {
         let result =
             process_tally_sheet(&multi_selection_tally_sheet(), &multi_selection_contest())
@@ -581,6 +600,23 @@ mod tests {
                 .expect("extended metrics should exist")
                 .total_weight,
             3
+        );
+    }
+
+    #[test]
+    fn process_tally_sheet_defaults_blank_ballots_to_zero_when_unavailable() {
+        // blank_ballots: None means "unavailable", not "zero" -- but a
+        // single sheet's contribution to the aggregate must still be a
+        // plain count, matching every other ExtendedMetricsContest field.
+        let result = process_tally_sheet(&tally_sheet(4, 2), &contest())
+            .expect("tally sheet should process");
+
+        assert_eq!(
+            result
+                .extended_metrics
+                .as_ref()
+                .map(|metrics| metrics.total_blank_ballots),
+            Some(0)
         );
     }
 

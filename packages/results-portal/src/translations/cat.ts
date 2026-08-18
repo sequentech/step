@@ -74,6 +74,7 @@ const catalanTranslation: TranslationType = {
                 totalVotesCounted: "Total de vots comptats",
                 validVotes: "Vots vàlids",
                 participation: "Participació",
+                totalBlankBallots: "Total de paperetes en blanc",
             },
             resultsAndParticipation: {
                 participationSummary: "Resum de participació",

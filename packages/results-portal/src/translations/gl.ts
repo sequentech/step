@@ -74,6 +74,7 @@ const galegoTranslation: TranslationType = {
                 totalVotesCounted: "Total de votos contados",
                 validVotes: "Votos válidos",
                 participation: "Participación",
+                totalBlankBallots: "Total de papeletas en branco",
             },
             resultsAndParticipation: {
                 participationSummary: "Resumo de participación",
