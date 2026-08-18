@@ -137,6 +137,23 @@ export function selectionsWithMarkers(vs) {
     return (vs.regulars ?? 0) + (vs.blankMarker ? 1 : 0) + (vs.explicitInvalid ? 1 : 0)
 }
 
+/** The count the GATES use — deliberately different from the checker's.
+ *
+ *  QUIRK S6_GATES_COUNT_FIRST_PREFERENCES_ONLY. Both gates count
+ *  `choice.selected == 0` (`voting_screen.rs`), where the checker counts
+ *  `choice.selected > -1` (`raw_ballot.rs`). On a plurality contest every
+ *  selection sits at rank 0 and the two agree, which is why this stayed
+ *  invisible. On a ranked ballot they diverge: a voter ranking three
+ *  candidates is 3 to the checker and 1 to the gates.
+ *
+ *  `firstPreferences` is the number of selections at rank 0; it defaults to
+ *  `regulars`, which is exactly right for plurality states and keeps every
+ *  previously-swept cell unchanged. */
+export function gateSelections(vs) {
+    const atRankZero = vs.firstPreferences ?? vs.regulars ?? 0
+    return atRankZero + (vs.blankMarker ? 1 : 0) + (vs.explicitInvalid ? 1 : 0)
+}
+
 /** The ballot-shape class the tally classifier reads. `marker`/`mixed`
  *  concern the explicit-BLANK marker only (`classify_ballot` collects
  *  explicit-blank candidate ids; the invalid marker is represented by the
@@ -199,7 +216,9 @@ export function emissions(config, vs) {
  * @property {string[]} errors            checker `invalid_errors` message keys
  * @property {string[]} alerts            checker `invalid_alerts` message keys
  * @property {boolean}  explicitInvalid   the `is_explicit_invalid` flag
- * @property {number}   selections        `selections_with_markers`
+ * @property {number}   selections        `selections_with_markers` (checker)
+ * @property {number}   [gateSelections]  the gates' own count (quirk S6);
+ *                                        falls back to `selections`
  * @property {number}   min               contest `min_votes`
  * @property {number}   max               contest `max_votes`
  * @property {"none"|"regular"|"marker"|"mixed"} selection  ballot shape (classify)
@@ -211,7 +230,7 @@ export function emissions(config, vs) {
 export function hardGate(f) {
     const p = {...DEFAULTS, ...(f.policies ?? {})}
     const errors = f.errors ?? []
-    const selections = f.selections ?? 0
+    const selections = f.gateSelections ?? f.selections ?? 0
     const max = f.max ?? 1
     return (
         errors.some((m) => EXPLICIT_OR_ENCODING.has(m)) ||
@@ -230,7 +249,7 @@ export function hardGate(f) {
 export function softGate(f) {
     const p = {...DEFAULTS, ...(f.policies ?? {})}
     const errors = f.errors ?? []
-    const selections = f.selections ?? 0
+    const selections = f.gateSelections ?? f.selections ?? 0
     const min = f.min ?? 0
     const max = f.max ?? 1
     return (
@@ -409,6 +428,9 @@ export function f(config, vs) {
         alerts: em.alerts,
         explicitInvalid: !!vs.explicitInvalid,
         selections: selectionsWithMarkers(vs),
+        // The gates read a DIFFERENT count than the checker — see
+        // `gateSelections` (quirk S6).
+        gateSelections: gateSelections(vs),
         min: config.min ?? 0,
         max: config.max ?? 1,
         selection: selectionClass(vs),

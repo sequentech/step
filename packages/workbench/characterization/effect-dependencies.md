@@ -126,8 +126,8 @@ cannot reach stay labelled there.
 | selectedMax ∈ errors | 4/4 | — |
 | selectedMin ∈ errors | 4/4 | — |
 | blankVote ∈ errors | 4/4 | — |
-| duplicatedPosition ∈ errors | 0/1 | preferential state (IRV recipe pending): 1 |
-| preferenceOrderWithGaps ∈ errors | 0/1 | preferential state (IRV recipe pending): 1 |
+| duplicatedPosition ∈ errors | 0/1 | unreachable ranked state (regulars=0, dup=true, gap=false): 1 |
+| preferenceOrderWithGaps ∈ errors | 0/1 | unreachable ranked state (regulars=0, dup=false, gap=true): 1 |
 | notAllowed ∈ errors | 2/2 | — |
 | selectedMax ∈ alerts | 5/5 | — |
 | blankVote ∈ alerts | 4/4 | — |
@@ -151,9 +151,9 @@ cannot reach stay labelled there.
 | preferenceOrderWithGaps ∈ inline.review | 0/2 | browser-pending (inline/reachability): 2 |
 | notAllowed ∈ inline.review | 0/2 | browser-pending (inline/reachability): 2 |
 | alert ∈ inline.review | 0/2 | browser-pending (inline/reachability): 2 |
-| gate.hard | 8/12 | preferential state (IRV recipe pending): 4 |
-| gate.soft | 9/13 | preferential state (IRV recipe pending): 4 |
-| dialog | 9/13 | preferential state (IRV recipe pending): 4 |
+| gate.hard | 8/12 | unreachable ranked state (regulars=0, dup=true, gap=false): 2; unreachable ranked state (regulars=0, dup=false, gap=true): 2 |
+| gate.soft | 9/13 | unreachable ranked state (regulars=0, dup=true, gap=false): 2; unreachable ranked state (regulars=0, dup=false, gap=true): 2 |
+| dialog | 9/13 | unreachable ranked state (regulars=0, dup=true, gap=false): 2; unreachable ranked state (regulars=0, dup=false, gap=true): 2 |
 | reachability | 0/5 | browser-pending (inline/reachability): 5 |
-| tally | 6/9 | decline (classifier-direct pending): 1; preferential state (IRV recipe pending): 2 |
+| tally | 6/9 | decline (classifier-direct pending): 1; unreachable ranked state (regulars=0, dup=true, gap=false): 1; unreachable ranked state (regulars=0, dup=false, gap=true): 1 |
 

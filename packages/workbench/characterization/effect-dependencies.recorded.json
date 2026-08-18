@@ -9510,12 +9510,12 @@
       {
         "component": "duplicatedPosition ∈ errors",
         "varies": "duplicate_ranks",
-        "reason": "preferential state (IRV recipe pending)"
+        "reason": "unreachable ranked state (regulars=0, dup=true, gap=false)"
       },
       {
         "component": "preferenceOrderWithGaps ∈ errors",
         "varies": "rank_gaps",
-        "reason": "preferential state (IRV recipe pending)"
+        "reason": "unreachable ranked state (regulars=0, dup=false, gap=true)"
       },
       {
         "component": "selectedMax ∈ inline.voting",
@@ -9845,62 +9845,62 @@
       {
         "component": "gate.hard",
         "varies": "duplicated_rank_policy",
-        "reason": "preferential state (IRV recipe pending)"
+        "reason": "unreachable ranked state (regulars=0, dup=true, gap=false)"
       },
       {
         "component": "gate.hard",
         "varies": "preference_gaps_policy",
-        "reason": "preferential state (IRV recipe pending)"
+        "reason": "unreachable ranked state (regulars=0, dup=false, gap=true)"
       },
       {
         "component": "gate.hard",
         "varies": "duplicate_ranks",
-        "reason": "preferential state (IRV recipe pending)"
+        "reason": "unreachable ranked state (regulars=0, dup=true, gap=false)"
       },
       {
         "component": "gate.hard",
         "varies": "rank_gaps",
-        "reason": "preferential state (IRV recipe pending)"
+        "reason": "unreachable ranked state (regulars=0, dup=false, gap=true)"
       },
       {
         "component": "gate.soft",
         "varies": "duplicated_rank_policy",
-        "reason": "preferential state (IRV recipe pending)"
+        "reason": "unreachable ranked state (regulars=0, dup=true, gap=false)"
       },
       {
         "component": "gate.soft",
         "varies": "preference_gaps_policy",
-        "reason": "preferential state (IRV recipe pending)"
+        "reason": "unreachable ranked state (regulars=0, dup=false, gap=true)"
       },
       {
         "component": "gate.soft",
         "varies": "duplicate_ranks",
-        "reason": "preferential state (IRV recipe pending)"
+        "reason": "unreachable ranked state (regulars=0, dup=true, gap=false)"
       },
       {
         "component": "gate.soft",
         "varies": "rank_gaps",
-        "reason": "preferential state (IRV recipe pending)"
+        "reason": "unreachable ranked state (regulars=0, dup=false, gap=true)"
       },
       {
         "component": "dialog",
         "varies": "duplicated_rank_policy",
-        "reason": "preferential state (IRV recipe pending)"
+        "reason": "unreachable ranked state (regulars=0, dup=true, gap=false)"
       },
       {
         "component": "dialog",
         "varies": "preference_gaps_policy",
-        "reason": "preferential state (IRV recipe pending)"
+        "reason": "unreachable ranked state (regulars=0, dup=false, gap=true)"
       },
       {
         "component": "dialog",
         "varies": "duplicate_ranks",
-        "reason": "preferential state (IRV recipe pending)"
+        "reason": "unreachable ranked state (regulars=0, dup=true, gap=false)"
       },
       {
         "component": "dialog",
         "varies": "rank_gaps",
-        "reason": "preferential state (IRV recipe pending)"
+        "reason": "unreachable ranked state (regulars=0, dup=false, gap=true)"
       },
       {
         "component": "reachability",
@@ -9935,12 +9935,12 @@
       {
         "component": "tally",
         "varies": "duplicate_ranks",
-        "reason": "preferential state (IRV recipe pending)"
+        "reason": "unreachable ranked state (regulars=0, dup=true, gap=false)"
       },
       {
         "component": "tally",
         "varies": "rank_gaps",
-        "reason": "preferential state (IRV recipe pending)"
+        "reason": "unreachable ranked state (regulars=0, dup=false, gap=true)"
       }
     ],
     "disagreements": []

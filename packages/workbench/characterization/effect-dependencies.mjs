@@ -49,7 +49,7 @@ import {existsSync, readFileSync, writeFileSync} from "node:fs"
 import {fileURLToPath} from "node:url"
 import path from "node:path"
 import {loadWasm, loadVelvetWasm} from "./harness.mjs"
-import {representable, observeHeadless, shortKey} from "./plurality-cell.mjs"
+import {representable, observeHeadless, shortKey} from "./cell.mjs"
 import {f as specF} from "./spec.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))

@@ -17,8 +17,13 @@
 //                                  (max = 0 stays out: the config-sanity
 //                                  scope boundary)
 //   plurality vote states         regulars 0..2 × blank marker × invalid
-//                                  flag; no decline (single-contest decode
-//                                  hardcodes false), no preferential state
+//                                  flag, on the Referendum fixture
+//   preferential vote states      every reachable (regulars, duplicate
+//                                  ranks, rank gaps) triple × invalid flag,
+//                                  on the IRV fixture (no marker candidate,
+//                                  so no blank marker there)
+//                                  No decline: the single-contest decode
+//                                  hardcodes it false
 //
 // After a clean run, every headless effect claim the spec makes on this
 // subdomain — dependence AND independence — is production-verified by
@@ -37,7 +42,7 @@
 // test of the pipeline.
 //
 // Headless; needs the sequent-core wasm pkg. Writes headless-sweep.md +
-// .recorded.json; exits nonzero on any disagreement. Takes ~30 s;
+// .recorded.json; exits nonzero on any disagreement. Takes ~1 min;
 // progress is printed per policy block.
 //
 // Run:  node characterization/headless-sweep.mjs   (from packages/workbench)
@@ -47,7 +52,7 @@ import {fileURLToPath} from "node:url"
 import path from "node:path"
 import {performance} from "node:perf_hooks"
 import {loadWasm, loadVelvetWasm} from "./harness.mjs"
-import {representable, observeHeadless, shortKey} from "./plurality-cell.mjs"
+import {representable, observeHeadless, shortKey, rankedTriples} from "./cell.mjs"
 import {f as specF} from "./spec.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -67,10 +72,27 @@ const BOUNDS = []
 for (let min = 0; min <= 3; min++)
     for (let max = 1; max <= 3; max++) if (min <= max) BOUNDS.push([min, max])
 const STATES = []
+// plurality states — the Referendum fixture's two regulars, the blank
+// marker, the explicit-invalid flag
 for (let regulars = 0; regulars <= 2; regulars++)
     for (const blankMarker of [false, true])
         for (const explicitInvalid of [false, true])
-            STATES.push({regulars, blankMarker, explicitInvalid})
+            STATES.push({
+                regulars,
+                blankMarker,
+                explicitInvalid,
+                duplicateRanks: false,
+                rankGaps: false,
+                // every plurality selection sits at rank 0
+                firstPreferences: regulars,
+            })
+// preferential states — the IRV fixture. Its contest carries no marker
+// candidate, so blankMarker is false throughout; the reachable
+// (regulars, dup, gap) triples come from `cell.mjs`, which derives them by
+// the same rule production uses (`plaintext.rs::validate_preferencial_order`)
+for (const triple of rankedTriples())
+    for (const explicitInvalid of [false, true])
+        STATES.push({...triple, blankMarker: false, explicitInvalid})
 
 await loadWasm()
 await loadVelvetWasm()

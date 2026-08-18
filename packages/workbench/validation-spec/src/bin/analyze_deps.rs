@@ -128,6 +128,12 @@ fn build(idx: &[usize; N_DIMS]) -> (Config, VoteState) {
             decline: idx[11] == 1,
             duplicate_ranks: idx[12] == 1,
             rank_gaps: idx[13] == 1,
+            // Not a dimension of this analysis: leaving it None makes the
+            // gates read `regulars`, i.e. the plurality behaviour, exactly
+            // as before quirk S6 existed. Adding first-preference counts as
+            // a 15th dimension is analysis-layer work in its own right —
+            // it would widen the ledger, not establish fidelity.
+            first_preferences: None,
         },
     )
 }

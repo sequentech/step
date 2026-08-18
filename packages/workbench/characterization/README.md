@@ -267,7 +267,7 @@ differ in that one input and produce different values, which is what
 settles an existential claim; `headless-sweep.mjs` discharges the
 headless independence claims by exhaustion (production ≡ spec on all
 138,240 **representable** cells — those a bundled fixture can actually
-drive; `plurality-cell.mjs`'s `representable()` names the rest, with the
+drive; `cell.mjs`'s `representable()` names the rest, with the
 reason each is out of reach) and emits the **quotient inventory** — the
 classes defined just below, with one representative cell each;
 `browser-witnesses.mjs` booth-confirms the browser-side dependence
@@ -333,7 +333,7 @@ Each of these browser runners exits nonzero on failure, so they compose in
 CI.
 
 `harness.mjs`, `spec.mjs`, `rust-spec.mjs`, `rule-specs.mjs`,
-`browser-harness.mjs`, `plurality-cell.mjs`, and `booth-cell.mjs` are
+`browser-harness.mjs`, `cell.mjs`, and `booth-cell.mjs` are
 shared modules (imported, not run).
 
 ## Coverage
@@ -471,12 +471,11 @@ unblock.
   combination is already covered: the sweep varies `blankMarker ×
   explicitInvalid` together, since Referendum accepts the flag without
   needing a marker candidate. The single widest unblock.
-- **A generic IRV booth recipe.** Preferential cells are driven only by
-  the two per-rule runners; the witness and quotient stages have no
-  generic way to rank candidates, so 8 witnesses defer. The same gap
-  keeps the region out of the sweep entirely
-  (`plurality-cell.mjs`'s `representable()` — "preferential state (IRV
-  recipe pending)").
+- **A generic IRV booth recipe.** The headless half of this is closed:
+  `cell.mjs` routes ranked cells to the IRV fixture and the sweep now
+  covers them. What remains is the booth — the witness and quotient
+  stages have no generic way to rank candidates by clicking, so 8
+  witnesses defer.
 - **Witness preference.** `analyze_deps`'s `representability_score`
   prefers cells the harness can drive, but does not penalize
   marker + flag; teaching it to would shrink the zero-evidence witness

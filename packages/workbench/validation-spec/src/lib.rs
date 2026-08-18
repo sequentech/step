@@ -197,6 +197,15 @@ pub struct VoteState {
     pub duplicate_ranks: bool,
     /// The ranking skips a rank (preferential only).
     pub rank_gaps: bool,
+    /// How many selections sit at rank 0 (first preference).
+    ///
+    /// Defaults to `regulars` when absent, which is exactly right for a
+    /// plurality contest — every selection there is at rank 0. It exists
+    /// because the GATES count only rank-0 selections while the checker
+    /// counts all of them; see [`gate_selections`] and
+    /// QUIRK(S6_GATES_COUNT_FIRST_PREFERENCES_ONLY).
+    #[serde(default)]
+    pub first_preferences: Option<u32>,
 }
 
 // ---------------------------------------------------------------------------
@@ -214,6 +223,21 @@ pub struct VoteState {
 /// domain half of S2.
 pub fn selections_with_markers(vs: &VoteState) -> u32 {
     vs.regulars + u32::from(vs.blank_marker) + u32::from(vs.explicit_invalid)
+}
+
+/// The count the GATES use — deliberately different from the checker's.
+///
+/// QUIRK(S6_GATES_COUNT_FIRST_PREFERENCES_ONLY): both gates count
+/// `choice.selected == 0` (`voting_screen.rs`), where the checker counts
+/// `choice.selected > -1` (`raw_ballot.rs`). On a plurality contest every
+/// selection sits at rank 0 and the two agree, which is why this stayed
+/// invisible until the sweep reached ranked ballots. On a ranked ballot they
+/// diverge: a voter ranking three candidates is 3 to the checker and 1 to
+/// the gates.
+pub fn gate_selections(vs: &VoteState) -> u32 {
+    vs.first_preferences.unwrap_or(vs.regulars)
+        + u32::from(vs.blank_marker)
+        + u32::from(vs.explicit_invalid)
 }
 
 /// The ballot-shape class the tally classifier reads. `Marker`/`Mixed`
@@ -338,7 +362,8 @@ pub struct Gate {
 /// fixed.
 pub fn hard_gate(config: &Config, vs: &VoteState, em: &Emissions) -> bool {
     let p = &config.policies;
-    let n = selections_with_markers(vs);
+    // QUIRK(S6_GATES_COUNT_FIRST_PREFERENCES_ONLY): NOT the checker's count.
+    let n = gate_selections(vs);
     em.errors
         .iter()
         .any(|m| EXPLICIT_OR_ENCODING.contains(&m.as_str()))
@@ -355,7 +380,8 @@ pub fn hard_gate(config: &Config, vs: &VoteState, em: &Emissions) -> bool {
 /// dismissible dialog: the voter is warned but may continue.
 pub fn soft_gate(config: &Config, vs: &VoteState, em: &Emissions) -> bool {
     let p = &config.policies;
-    let n = selections_with_markers(vs);
+    // QUIRK(S6_GATES_COUNT_FIRST_PREFERENCES_ONLY): NOT the checker's count.
+    let n = gate_selections(vs);
     (!em.errors.is_empty() && p.invalid != InvalidVotePolicy::Allowed)
         || (p.invalid == InvalidVotePolicy::WarnInvalidImplicitAndExplicit
             && vs.explicit_invalid)
@@ -637,6 +663,12 @@ pub struct QuirkInfo {
 
 pub fn quirks() -> &'static [QuirkInfo] {
     &[
+        QuirkInfo {
+            id: "S6_GATES_COUNT_FIRST_PREFERENCES_ONLY",
+            finding: "S6 (surfaced by headless-sweep.md on ranked ballots)",
+            site: "gate_selections (both gates)",
+            description: "the gates count only rank-0 selections                           (choice.selected == 0, voting_screen.rs) while the                           checker counts every ranked one (selected > -1,                           raw_ballot.rs); identical on plurality, divergent on                           ranked ballots, so a ranked ballot with no first                           preference is gated as BLANK and a WARN_AND_ALERT                           under-vote alert can fire with no dialog",
+        },
         QuirkInfo {
             id: "S1_ALLOWED_MUTES_IMPLICIT_ERRORS",
             finding: "S1 (and INVALID_VOTE_POLICY_INTENT.md §5)",
