@@ -219,7 +219,7 @@ const md = [
     "`headless-sweep.md`). The *preferential state* deferrals are mostly",
     "already exhibited by `dom-validate.md`'s duplicate-rank and",
     "preference-gaps tables, which vary the same dimensions cell-by-cell —",
-    "the label means this witness lane has not re-run them itself (IRV",
+    "the label means this runner has not re-run them itself (IRV",
     "generic recipe pending). The *marker + flag* deferrals await a fixture",
     "whose contest carries both markers.",
     "",
