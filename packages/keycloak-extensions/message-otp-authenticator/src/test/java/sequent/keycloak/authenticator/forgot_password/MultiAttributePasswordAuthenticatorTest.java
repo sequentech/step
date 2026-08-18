@@ -1084,6 +1084,19 @@ class MultiAttributePasswordAuthenticatorTest {
   }
 
   @Test
+  void buildAttributeFields_inputTypeMaxAnnotation_isForwardedToTemplate() {
+    mockUserProfileAttributes(
+        new UPAttribute(
+            "dateOfBirth", Map.of("inputType", "html5-date", "inputTypeMax", "2020-01-01")));
+
+    List<Map<String, String>> fields =
+        authenticator.buildAttributeFields(session, List.of("dateOfBirth"));
+
+    assertEquals(
+        List.of(Map.of("name", "dateOfBirth", "type", "date", "max", "2020-01-01")), fields);
+  }
+
+  @Test
   void buildAttributeFields_nonHtml5InputType_fallsBackToText() {
     mockUserProfileAttributes(new UPAttribute("country", Map.of("inputType", "select")));
 

@@ -277,6 +277,7 @@ const basqueTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "Txantiloiak Esportatu",
                 IMPORT_TEMPLATES: "Txantiloiak Inportatu",
                 DELETE_ELECTION_EVENT: "Ezabatu Hauteskunde Gertaera",
+                DELETE_VOTERS: "Delete Voters",
                 PREPARE_PUBLICATION_PREVIEW: "Argitalpenaren aurrebista prestatu",
                 EXPORT_TALLY_RESULTS_XLSX: "Esportatu zenbaketa-emaitzak XLSX formatuan",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Ziurtagiri-agintaritzak esportatu",
@@ -651,8 +652,13 @@ const basqueTranslation: TranslationType = {
                     policyLabel: "Bozketa Ponderatuaren Politika",
                     options: {
                         "areas-weighted-voting": "Eremuen araberako Bozketa Ponderatua",
+                        "voters-weighted-voting": "Bozkatzaileen araberako Bozketa Ponderatua",
                         "disabled-weighted-voting": "Bozketa Ponderatua Desgaituta",
                     },
+                    noDelegated:
+                        "Bozkatzaileen araberako Bozketa Ponderatua ezin da Boto Delegatuarekin konbinatu",
+                    noDecodedBallots:
+                        "Bozkatzaileen araberako Bozketa Ponderatua ezin da emaitzetan deszifratutako botoak sartzearekin konbinatu",
                 },
                 delegatedVotingPolicy: {
                     policyLabel: "Botoa Eskualdatzeko Politika",
@@ -1024,6 +1030,13 @@ const basqueTranslation: TranslationType = {
                     disabled: "Desgaituta",
                 },
             },
+            blankBallotsPolicy: {
+                label: "Boto-txartel zurien politika",
+                options: {
+                    enabled: "Gaituta",
+                    disabled: "Desgaituta",
+                },
+            },
             votingScreenBackPolicy: {
                 label: "Bozketa-pantailako atzera botoiaren politika",
                 options: {
@@ -1087,6 +1100,7 @@ const basqueTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Bozkatu du",
+                    "vote-weight": "Botoaren pisua",
                     "voted-channel": "Boto-kanala",
                     "disable-comment": "Desgaitzeko iruzkina",
                     "username": "Erabiltzaile izena",
@@ -1115,6 +1129,11 @@ const basqueTranslation: TranslationType = {
                 delete: {
                     body: "Ziur zaude erabiltzaile hau ezabatu nahi duzula?",
                     bulkBody: "Ziur zaude hautatutako erabiltzaileak ezabatu nahi dituzula?",
+                    bulkBodySelected: "Delete the {{count}} selected users? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} users are selected. You can instead delete every user matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Errorea erabiltzaileak esportatzerakoan",
@@ -1174,6 +1193,12 @@ const basqueTranslation: TranslationType = {
                 delete: {
                     body: "Ziur zaude bozkatzaile hau ezabatu nahi duzula?",
                     bulkBody: "Ziur zaude hautatutako bozkatzaileak ezabatu nahi dituzula?",
+                    bulkBodySelected:
+                        "Delete the {{count}} selected voters? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} voters are selected. You can instead delete every voter matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Errorea bozkatzaileak esportatzerakoan",
@@ -2215,6 +2240,7 @@ const basqueTranslation: TranslationType = {
                     round: "Txanda",
                 },
                 total_declined_to_vote: "Bozkatzeari uko egindakoen guztira",
+                total_blank_ballots: "Boto-txartel Zuriak Guztira",
                 participation_by_channel: "Parte-hartzea kanalaren arabera",
                 channel: "Kanala",
                 channel_online: "Linean",
@@ -2415,6 +2441,10 @@ const basqueTranslation: TranslationType = {
                     "Baliozko botoen guztizko kopurua ez dator bat hautagaien botoen eta boto zurien baturarekin",
                 censusTooSmall:
                     "Erroldak boto guztien kopurua baino handiagoa edo berdina izan behar du",
+                blankBallotsInconsistent:
+                    "Boto-txartel Zuriak balio berdina izan behar du ontzi honetako hautagaitza-orri guztietan",
+                blankBallotsOutOfBounds:
+                    "Boto-txartel Zuriak balioa ontzi honen hautagaitzako boto zurien kontaketek ezartzen duten tartetik kanpo dago",
             },
             label: {
                 area: "Eremua",
@@ -2425,6 +2455,7 @@ const basqueTranslation: TranslationType = {
                 explicit_invalid: "Esplizituki Baliogabeko Botoak",
                 implicit_invalid: "Inplizituki Baliogabeko Botoak",
                 total_blank_votes: "Boto Zuriak",
+                blank_ballots: "Boto-txartel Zuriak",
                 census: "Zentso",
             },
             common: {

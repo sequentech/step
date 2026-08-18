@@ -6,9 +6,10 @@ use crate::services::keycloak::{get_event_realm, KeycloakAdminClient};
 use crate::types::keycloak::{
     CredentialInputPolicy, MAX_CREDENTIAL_PATTERN_GROUPS,
     MAX_CREDENTIAL_PATTERN_GROUP_SIZE, MAX_CREDENTIAL_PATTERN_TOTAL_SIZE,
-    REALM_ATTR_CREDENTIAL_INPUT_PATTERN, REALM_ATTR_CREDENTIAL_INPUT_POLICY,
-    REALM_ATTR_SMARTLINK_CLOCK_SKEW_SECS, REALM_ATTR_SMARTLINK_ENABLED,
-    REALM_ATTR_SMARTLINK_REQUIRED_ATTRIBUTES,
+    REALM_ATTR_CREDENTIAL_INPUT_PATTERN,
+    REALM_ATTR_CREDENTIAL_INPUT_PLACEHOLDER,
+    REALM_ATTR_CREDENTIAL_INPUT_POLICY, REALM_ATTR_SMARTLINK_CLOCK_SKEW_SECS,
+    REALM_ATTR_SMARTLINK_ENABLED, REALM_ATTR_SMARTLINK_REQUIRED_ATTRIBUTES,
     REALM_ATTR_SMARTLINK_SHARED_SECRET, REALM_ATTR_SMARTLINK_TIMEOUT_SECS,
     REALM_ATTR_VOTER_CERTIFICATE_POLICY, SMARTLINK_REQUIRED_ATTRIBUTES_MAX_LEN,
     SMARTLINK_SHARED_SECRET_MAX_LEN,
@@ -155,6 +156,13 @@ fn validate_realm_attribute_value(key: &str, value: &str) -> Result<()> {
                 );
             }
         }
+        REALM_ATTR_CREDENTIAL_INPUT_PLACEHOLDER => {
+            if !is_valid_credential_input_placeholder(value) {
+                bail!(
+                    "Realm attribute {key} must be one visible non-digit character other than '-' or '*'"
+                );
+            }
+        }
         REALM_ATTR_SMARTLINK_ENABLED => {
             if bool::from_str(value).is_err() {
                 bail!("Realm attribute {key} must be 'true' or 'false'");
@@ -216,6 +224,19 @@ fn is_valid_credential_input_pattern(value: &str) -> bool {
     true
 }
 
+fn is_valid_credential_input_placeholder(value: &str) -> bool {
+    let mut characters = value.chars();
+    let Some(character) = characters.next() else {
+        return false;
+    };
+
+    characters.next().is_none()
+        && !character.is_control()
+        && !character.is_whitespace()
+        && !character.is_ascii_digit()
+        && !matches!(character, '-' | '*')
+}
+
 pub fn redacted_attributes(
     attributes: &HashMap<String, String>,
 ) -> HashMap<String, String> {
@@ -260,6 +281,7 @@ mod tests {
             ("acr.loa.map", "{}"),
             ("credential-input-policy", "structured"),
             ("credential-input-pattern", "dddd-dddd-dddd-dddd"),
+            ("credential-input-placeholder", "#"),
             ("smart-link-enabled", "true"),
             ("smart-link-timeout-secs", "90"),
             ("smart-link-clock-skew-secs", "5"),
@@ -281,9 +303,21 @@ mod tests {
                 validate_realm_attributes(&attributes(&[
                     ("credential-input-policy", policy),
                     ("credential-input-pattern", pattern),
+                    ("credential-input-placeholder", "#"),
                 ]))
                 .is_ok(),
                 "expected policy={policy:?}, pattern={pattern:?} to be accepted"
+            );
+        }
+
+        for placeholder in ["d", "#", "_", "•"] {
+            assert!(
+                validate_realm_attributes(&attributes(&[(
+                    "credential-input-placeholder",
+                    placeholder,
+                )]))
+                .is_ok(),
+                "expected credential-input-placeholder={placeholder:?} to be accepted"
             );
         }
     }
@@ -325,6 +359,21 @@ mod tests {
                 )]))
                 .is_err(),
                 "expected credential-input-pattern={value:?} to be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn validate_realm_attributes_rejects_invalid_credential_input_placeholder()
+    {
+        for value in ["##", "1", "-", "*", " ", "\n"] {
+            assert!(
+                validate_realm_attributes(&attributes(&[(
+                    "credential-input-placeholder",
+                    value,
+                )]))
+                .is_err(),
+                "expected credential-input-placeholder={value:?} to be rejected"
             );
         }
     }

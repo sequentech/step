@@ -31,6 +31,15 @@ struct CanonicalAreaContestResults<'a> {
     total_valid_votes: Option<u64>,
     invalid_votes: &'a Option<sequent_core::types::tally_sheets::InvalidVotes>,
     total_blank_votes: Option<u64>,
+    // Unlike every other field here, `blank_ballots` is a new addition to a
+    // struct whose hashes are already persisted in production
+    // (`tally_sheet.baseline_content_hash`) for real approved sheets, none
+    // of which have a value for it. Omitting the key entirely when it's
+    // `None` keeps those existing hashes stable -- serializing it as an
+    // explicit `null` would change every one of them and make the next
+    // import diff report every ballot box as CHANGED.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    blank_ballots: Option<u64>,
     census: Option<u64>,
     candidate_results: BTreeMap<&'a str, CanonicalCandidateResults>,
 }
@@ -62,6 +71,7 @@ impl<'a> From<&'a AreaContestResults> for CanonicalAreaContestResults<'a> {
             total_valid_votes: content.total_valid_votes,
             invalid_votes: &content.invalid_votes,
             total_blank_votes: content.total_blank_votes,
+            blank_ballots: content.blank_ballots,
             census: content.census,
             candidate_results,
         }
@@ -119,6 +129,60 @@ mod tests {
         );
     }
 
+    #[test]
+    fn blank_ballots_none_hashes_identically_to_before_the_field_existed() {
+        // Pins backward compatibility for every sheet approved before this
+        // field existed: their content deserializes with blank_ballots:
+        // None, and must still hash exactly as it did when the field
+        // didn't exist at all, or the next import diff would report every
+        // one of them as CHANGED.
+        #[derive(Serialize)]
+        struct PreExistingFieldShape<'a> {
+            area_id: &'a str,
+            contest_id: &'a str,
+            total_votes: Option<u64>,
+            total_valid_votes: Option<u64>,
+            invalid_votes: &'a Option<InvalidVotes>,
+            total_blank_votes: Option<u64>,
+            census: Option<u64>,
+            candidate_results: BTreeMap<&'a str, CanonicalCandidateResults>,
+        }
+
+        let content = area_contest_results(HashMap::new());
+        assert_eq!(content.blank_ballots, None);
+
+        let old_shape = PreExistingFieldShape {
+            area_id: &content.area_id,
+            contest_id: &content.contest_id,
+            total_votes: content.total_votes,
+            total_valid_votes: content.total_valid_votes,
+            invalid_votes: &content.invalid_votes,
+            total_blank_votes: content.total_blank_votes,
+            census: content.census,
+            candidate_results: BTreeMap::new(),
+        };
+        let expected_hash = hash_bytes(&serde_json::to_vec(&old_shape).unwrap());
+
+        assert_eq!(hash_area_contest_results(&content).unwrap(), expected_hash);
+    }
+
+    #[test]
+    fn hash_changes_when_blank_ballots_differs() {
+        let mut with_three = area_contest_results(HashMap::new());
+        with_three.blank_ballots = Some(3);
+        let mut with_five = area_contest_results(HashMap::new());
+        with_five.blank_ballots = Some(5);
+
+        assert_ne!(
+            hash_area_contest_results(&with_three).unwrap(),
+            hash_area_contest_results(&with_five).unwrap()
+        );
+        assert_ne!(
+            hash_area_contest_results(&with_three).unwrap(),
+            hash_area_contest_results(&area_contest_results(HashMap::new())).unwrap()
+        );
+    }
+
     fn area_contest_results(
         candidate_results: HashMap<String, CandidateResults>,
     ) -> AreaContestResults {
@@ -133,6 +197,7 @@ mod tests {
                 explicit_invalid: Some(0),
             }),
             total_blank_votes: Some(1),
+            blank_ballots: None,
             census: Some(25),
             candidate_results,
         }

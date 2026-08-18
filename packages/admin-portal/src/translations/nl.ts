@@ -277,6 +277,7 @@ const dutchTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "Sjablonen Exporteren",
                 IMPORT_TEMPLATES: "Sjablonen Importeren",
                 DELETE_ELECTION_EVENT: "Verkiezingsevenement Verwijderen",
+                DELETE_VOTERS: "Delete Voters",
                 PREPARE_PUBLICATION_PREVIEW: "De publicatievoorbeeldweergave voorbereiden",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporteer de telresultaten in XLSX-indeling",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Certificaatautoriteiten exporteren",
@@ -654,8 +655,13 @@ const dutchTranslation: TranslationType = {
                     policyLabel: "Beleid voor Gewogen Stemmen",
                     options: {
                         "areas-weighted-voting": "Gewogen Stemmen per Gebied",
+                        "voters-weighted-voting": "Gewogen Stemmen per Kiezer",
                         "disabled-weighted-voting": "Gewogen Stemmen Uitgeschakeld",
                     },
+                    noDelegated:
+                        "Gewogen Stemmen per Kiezer kan niet worden gecombineerd met Gedelegeerd Stemmen",
+                    noDecodedBallots:
+                        "Gewogen Stemmen per Kiezer kan niet worden gecombineerd met het opnemen van ontsleutelde stembiljetten in de resultaten",
                 },
                 delegatedVotingPolicy: {
                     policyLabel: "Gedelegeerd stembeleid",
@@ -1025,6 +1031,13 @@ const dutchTranslation: TranslationType = {
                     disabled: "Uitgeschakeld",
                 },
             },
+            blankBallotsPolicy: {
+                label: "Beleid voor blanco stembiljetten",
+                options: {
+                    enabled: "Ingeschakeld",
+                    disabled: "Uitgeschakeld",
+                },
+            },
             votingScreenBackPolicy: {
                 label: "Beleid voor de terugknop van het stemscherm",
                 options: {
@@ -1089,6 +1102,7 @@ const dutchTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Gestemd",
+                    "vote-weight": "Stemgewicht",
                     "voted-channel": "Stemkanaal",
                     "disable-comment": "Deactiveringsopmerking",
                     "username": "Gebruikersnaam",
@@ -1119,6 +1133,11 @@ const dutchTranslation: TranslationType = {
                 delete: {
                     body: "Weet u zeker dat u deze gebruiker wilt verwijderen?",
                     bulkBody: "Weet u zeker dat u de geselecteerde gebruikers wilt verwijderen?",
+                    bulkBodySelected: "Delete the {{count}} selected users? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} users are selected. You can instead delete every user matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Fout bij exporteren gebruikers",
@@ -1178,6 +1197,12 @@ const dutchTranslation: TranslationType = {
                 delete: {
                     body: "Weet u zeker dat u deze kiezer wilt verwijderen?",
                     bulkBody: "Weet u zeker dat u de geselecteerde kiezers wilt verwijderen?",
+                    bulkBodySelected:
+                        "Delete the {{count}} selected voters? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} voters are selected. You can instead delete every voter matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Fout bij exporteren kiezers",
@@ -2218,6 +2243,7 @@ const dutchTranslation: TranslationType = {
                     round: "Ronde",
                 },
                 total_declined_to_vote: "Totaal aantal weigeringen om te stemmen",
+                total_blank_ballots: "Totaal Aantal Blanco Stembiljetten",
                 participation_by_channel: "Deelname per kanaal",
                 channel: "Kanaal",
                 channel_online: "Online",
@@ -2422,6 +2448,10 @@ const dutchTranslation: TranslationType = {
                     "Het totaal aantal geldige stemmen komt niet overeen met de som van de stemmen voor kandidaten plus blanco stemmen",
                 censusTooSmall:
                     "De census moet groter dan of gelijk zijn aan het totaal aantal stemmen",
+                blankBallotsInconsistent:
+                    "Blanco Stembiljetten moet dezelfde waarde hebben op elk telformulier van deze stembus",
+                blankBallotsOutOfBounds:
+                    "De waarde van Blanco Stembiljetten valt buiten het bereik dat wordt geïmpliceerd door de blanco-stemtellingen per race van deze stembus",
             },
             label: {
                 area: "Gebied",
@@ -2432,6 +2462,7 @@ const dutchTranslation: TranslationType = {
                 explicit_invalid: "Expliciet Ongeldige Stemmen",
                 implicit_invalid: "Impliciet Ongeldige Stemmen",
                 total_blank_votes: "Blanco Stemmen",
+                blank_ballots: "Blanco Stembiljetten",
                 census: "Kieserslijst",
             },
             common: {

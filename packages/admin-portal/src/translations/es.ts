@@ -276,6 +276,7 @@ const spanishTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "Exportar Plantillas",
                 IMPORT_TEMPLATES: "Importar Plantillas",
                 DELETE_ELECTION_EVENT: "Eliminar evento electoral",
+                DELETE_VOTERS: "Delete Voters",
                 PREPARE_PUBLICATION_PREVIEW: "Preparar la vista previa de la publicación",
                 EXPORT_TALLY_RESULTS_XLSX: "Exportar los resultados del escrutinio en formato XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Exportar autoridades de certificación",
@@ -655,8 +656,13 @@ const spanishTranslation: TranslationType = {
                     policyLabel: "Política de Votación Ponderada",
                     options: {
                         "areas-weighted-voting": "Votación Ponderada por Áreas",
+                        "voters-weighted-voting": "Votación Ponderada por Votantes",
                         "disabled-weighted-voting": "Votación Ponderada Deshabilitada",
                     },
+                    noDelegated:
+                        "La Votación Ponderada por Votantes no puede combinarse con el Voto Delegado",
+                    noDecodedBallots:
+                        "La Votación Ponderada por Votantes no puede combinarse con la inclusión de papeletas descifradas en los resultados",
                 },
                 delegatedVotingPolicy: {
                     policyLabel: "Política de Votación Delegada",
@@ -1028,6 +1034,13 @@ const spanishTranslation: TranslationType = {
                     disabled: "Deshabilitado",
                 },
             },
+            blankBallotsPolicy: {
+                label: "Política de papeletas en blanco",
+                options: {
+                    enabled: "Habilitado",
+                    disabled: "Deshabilitado",
+                },
+            },
             votingScreenBackPolicy: {
                 label: "Política del botón Atrás de la pantalla de votación",
                 options: {
@@ -1091,6 +1104,7 @@ const spanishTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Voted",
+                    "vote-weight": "Peso del voto",
                     "voted-channel": "Canal de voto",
                     "disable-comment": "Comentario de deshabilitación",
                     "username": "Nombre de Usuario",
@@ -1121,6 +1135,11 @@ const spanishTranslation: TranslationType = {
                 delete: {
                     body: "¿Estás seguro que quieres borrar este usuario?",
                     bulkBody: "¿Estás seguro que quieres borrar los usuarios seleccionados?",
+                    bulkBodySelected: "Delete the {{count}} selected users? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} users are selected. You can instead delete every user matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Error al exportar usuarios",
@@ -1180,6 +1199,12 @@ const spanishTranslation: TranslationType = {
                 delete: {
                     body: "¿Estás seguro que quieres borrar este votante?",
                     bulkBody: "¿Estás seguro que quieres borrar los votantes seleccionados?",
+                    bulkBodySelected:
+                        "Delete the {{count}} selected voters? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} voters are selected. You can instead delete every voter matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Error al exportar votantes",
@@ -2224,6 +2249,7 @@ const spanishTranslation: TranslationType = {
                     round: "Ronda",
                 },
                 total_declined_to_vote: "Total de votos de renuncia",
+                total_blank_ballots: "Total de Papeletas en Blanco",
                 participation_by_channel: "Participación por canal",
                 channel: "Canal",
                 channel_online: "En línea",
@@ -2427,6 +2453,10 @@ const spanishTranslation: TranslationType = {
                 totalValidDoesNotMatch:
                     "El total de votos válidos no coincide con la suma de los votos de los candidatos más los votos en blanco",
                 censusTooSmall: "El censo debe ser mayor o igual al total de votos",
+                blankBallotsInconsistent:
+                    "Las Papeletas en Blanco deben tener el mismo valor en todas las hojas de escrutinio de esta urna",
+                blankBallotsOutOfBounds:
+                    "El valor de Papeletas en Blanco está fuera del rango que implican los recuentos de votos en blanco por contienda de esta urna",
             },
             label: {
                 area: "Area",
@@ -2437,6 +2467,7 @@ const spanishTranslation: TranslationType = {
                 explicit_invalid: "Votos Explícitamente Inválidos",
                 implicit_invalid: "Votos Implícitamente Inválidos",
                 total_blank_votes: "Votos en Blanco Totales",
+                blank_ballots: "Papeletas en Blanco",
                 census: "Censo",
             },
             common: {
