@@ -65,7 +65,16 @@ export interface IStartLayoutProps {
     /** Its description, already translated and already HTML if it is HTML. */
     description?: React.ReactNode
     wording?: IStartWording
-    /** The stepper, the action row — whatever the caller frames this with. */
+    /**
+     * The breadcrumb, framed here 48px under the header — as `ReviewLayout`,
+     * `ConfirmationLayout` and `ElectionListLayout` frame theirs.
+     *
+     * It used to arrive through `above` with the portal's route doing the framing,
+     * which left that one measurement written down in every caller. The wizard's
+     * preview had it as 16px, outside the screen entirely.
+     */
+    steps?: React.ReactNode
+    /** Anything else above the title, framed by the caller. */
     above?: React.ReactNode
     below?: React.ReactNode
 }
@@ -97,10 +106,12 @@ export const StartLayout = ({
     title,
     description,
     wording = START_WORDING_EN,
+    steps,
     above,
     below,
 }: IStartLayoutProps): React.JSX.Element => (
     <PageLimit maxWidth="lg" className="start-screen screen">
+        {steps === undefined ? null : <Box marginTop="48px">{steps}</Box>}
         {above}
         <StyledTitle variant="h3" fontWeight="bold">
             <span>{title}</span>

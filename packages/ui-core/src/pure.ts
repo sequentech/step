@@ -69,6 +69,13 @@ export type {IContestPresentation} from "./types/ContestPresentation"
 export {EElectionEventContestEncryptionPolicy} from "./types/ElectionEventPresentation"
 export type {IElectionEventPresentation} from "./types/ElectionEventPresentation"
 
+// One more enum, from `CoreTypes` below. The header's countdown reads it, and
+// `Header` is in the ballot bundle, so leaving it out made every ballot build warn
+// that `EVotingPortalCountdownPolicy` was not found — and left the header comparing a
+// policy against `undefined.something` if a voter's session ever did expire.
+// `CoreTypes` imports nothing compiled, so this is inside the rule above.
+export {EVotingPortalCountdownPolicy} from "./types/CoreTypes"
+
 // The documents themselves. Types only — erased, so they cost nothing at runtime.
 export type {
     IBallotStyle,

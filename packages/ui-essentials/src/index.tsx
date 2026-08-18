@@ -100,6 +100,19 @@ export {ConfirmationLayout} from "./ballot/ConfirmationLayout"
 export type {IConfirmationLayoutProps} from "./ballot/ConfirmationLayout"
 export {ReviewLayout} from "./ballot/ReviewLayout"
 export type {IReviewLayoutProps} from "./ballot/ReviewLayout"
+// The voter's breadcrumb. The portal's `Stepper` is a shim over this that answers
+// `withElectionList` from its store; the wizard's Ballot Preview draws it directly.
+export {BallotSteps} from "./ballot/BallotSteps"
+export type {IBallotStepsProps} from "./ballot/BallotSteps"
+// The ballot list screen, which the portal's `ElectionSelectionScreen` renders and
+// the wizard's preview draws.
+export {ElectionListLayout, ELECTION_LIST_WORDING_EN} from "./ballot/ElectionListLayout"
+export type {IElectionListLayoutProps, IElectionListWording} from "./ballot/ElectionListLayout"
+// The ballot screen itself, and the row of buttons under it.
+export {BallotScreenLayout} from "./ballot/BallotScreenLayout"
+export type {IBallotScreenLayoutProps} from "./ballot/BallotScreenLayout"
+export {BallotActions, BALLOT_ACTIONS_WORDING_EN} from "./ballot/BallotActions"
+export type {IBallotActionsProps, IBallotActionsWording} from "./ballot/BallotActions"
 // The Admin Portal's emulator, less the part that reads its own database. Two
 // consumers for the same reason as above: the portal tries a call against a
 // published event, the wizard against the plan on screen.
