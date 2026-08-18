@@ -65,3 +65,63 @@ if (typeof window.ResizeObserver !== "function") {
         disconnect(): void {}
     } as unknown as typeof ResizeObserver
 }
+
+// Node has had `structuredClone` as a global since 17, but jsdom does not
+// install it on its own `window`, so a test that clones a fixture works under
+// `testEnvironment: "node"` and throws `structuredClone is not defined` under
+// jsdom. Moving the voting portal to jsdom — so its ballot components could be
+// mounted at all — is what surfaced it, in a slice test that arrived from main
+// at the same time.
+//
+// Node's own implementation, borrowed rather than reimplemented: a hand-rolled
+// deep clone would differ from the real one on exactly the values a fixture is
+// least likely to contain and most awkward to debug.
+if (typeof globalThis.structuredClone !== "function") {
+    const {serialize, deserialize} = require("node:v8")
+    globalThis.structuredClone = ((value: unknown) =>
+        deserialize(serialize(value))) as typeof structuredClone
+}
+
+// `react-dom/server` reaches for `MessageChannel` as it loads — React's
+// scheduler uses it to yield between units of work — and this jsdom does not
+// provide one. The failure is a *collection* error, so a suite that imports
+// `renderToStaticMarkup` never runs at all and jest reports "0 failed" beside
+// it: five of this package's six suites were dark that way, which is not a
+// state to start restructuring the voting path from.
+//
+// **Not Node's `worker_threads` channel**, which was the obvious answer and the
+// wrong one. Its ports are live libuv handles; React's scheduler opens a channel
+// as it loads and never closes it, so every suite ran green and then hung on
+// "Jest did not exit one second after the test run has completed". `unref()` on
+// both ports did not settle it either. Measured both ways: with that version a
+// passing suite never returned, without any polyfill it exited at once.
+//
+// So a shim, which is honest about what it is for. React needs exactly three
+// things — construct a channel, set `port1.onmessage`, `postMessage` to `port2`
+// — and a deferred callback satisfies all three while holding nothing open.
+if (typeof globalThis.MessageChannel !== "function") {
+    class ShimPort {
+        onmessage: ((event: {data: unknown}) => void) | null = null
+        other: ShimPort | null = null
+        postMessage(data: unknown): void {
+            const target = this.other
+            if (target !== null) {
+                setTimeout(() => target.onmessage?.({data}), 0)
+            }
+        }
+        addEventListener(): void {}
+        removeEventListener(): void {}
+        start(): void {}
+        close(): void {}
+    }
+    globalThis.MessageChannel = class {
+        port1: ShimPort
+        port2: ShimPort
+        constructor() {
+            this.port1 = new ShimPort()
+            this.port2 = new ShimPort()
+            this.port1.other = this.port2
+            this.port2.other = this.port1
+        }
+    } as unknown as typeof MessageChannel
+}

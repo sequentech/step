@@ -427,3 +427,47 @@ fn no_setting_is_carried_on_screen_and_dropped_on_the_way_out() {
         "Policies has a field with no column"
     );
 }
+
+/// The counting rules a `TallyPatch` carries, by name.
+///
+/// The Election Architect's *Contest Ballot Rules* card names four of these in
+/// its client-profile entry — every one except `min_votes`, which the Ballot
+/// screen draws in the contest's own row as *Minimum Choices* and which the
+/// card therefore must not switch off. That list is written out in
+/// `beyond/packages/election-architect/src/profile/sections.ts` as
+/// `CONTEST_TALLY_RULES`, and nothing over there can see this struct.
+///
+/// So a sixth rule added here fails this test, which is where somebody is told
+/// the card would silently stop covering it.
+#[test]
+fn tally_patch_carries_exactly_the_rules_the_architect_lists() {
+    let patch = TallyPatch {
+        voting_type: Some("plurality-at-large".to_string()),
+        counting_algorithm: Some("plurality-at-large".to_string()),
+        min_votes: Some(1),
+        is_encrypted: Some(true),
+        tie_breaking_policy: Some("random".to_string()),
+    };
+    // Every field set, so `skip_serializing_if` hides none of them.
+    let value = serde_json::to_value(&patch).expect("a patch serializes");
+    let mut names: Vec<&str> = value
+        .as_object()
+        .expect("a struct")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    names.sort_unstable();
+
+    assert_eq!(
+        names,
+        vec![
+            "counting_algorithm",
+            "is_encrypted",
+            "min_votes",
+            "tie_breaking_policy",
+            "voting_type",
+        ],
+        "TallyPatch changed: update CONTEST_TALLY_RULES in sections.ts, and \
+         decide whether the new rule belongs on the Contest Ballot Rules card"
+    );
+}

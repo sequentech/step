@@ -22,6 +22,39 @@
 
 export {Question} from "./Question"
 export type {IQuestionProps} from "./Question"
+// The review screen's arrangement, so a preview shows that screen rather than a
+// drawing of it. The portal renders the same component; see `ReviewLayout`.
+export {SupportMaterialsLayout, SupportMaterialCard} from "./SupportMaterialsLayout"
+export type {
+    ISupportMaterialsLayoutProps,
+    ISupportMaterialCardProps,
+} from "./SupportMaterialsLayout"
+export {ConfirmationLayout} from "./ConfirmationLayout"
+export type {IConfirmationLayoutProps} from "./ConfirmationLayout"
+export {StartLayout, START_WORDING_EN} from "./StartLayout"
+export type {IStartLayoutProps, IStartWording} from "./StartLayout"
+export {ReviewLayout} from "./ReviewLayout"
+export type {IReviewLayoutProps} from "./ReviewLayout"
+// The telephone call, which is a ballot too — one a voter is read rather than
+// shown. Same argument as the three layouts above: the Election Architect lets
+// somebody design a call flow, and the only honest preview of one is the emulator
+// the Admin Portal already runs.
+export {IvrCall, IvrPromptLine} from "./IvrCall"
+export type {
+    IIvrCallProps,
+    IvrAction,
+    IvrCallDriver,
+    IvrCallStatus,
+    IvrExpectedInput,
+    IvrPrompt,
+} from "./IvrCall"
+export {forgetIvrEmulator, IvrEmulatorError, loadIvrEmulator} from "./ivrEmulator"
+export type {
+    ImportModule,
+    IvrEmulatorApi,
+    IvrEmulatorConfig,
+    IvrEmulatorFailure,
+} from "./ivrEmulator"
 export {Answer} from "./Answer"
 export {AnswersList} from "./AnswersList"
 export {InvalidErrorsList} from "./InvalidErrorsList"
@@ -38,6 +71,27 @@ export * from "./presentation"
 // The row itself and its neighbours, which a preview needs directly: a ballot list
 // screen draws `Candidate` without a `Question` around it.
 export {default as Candidate} from "../components/Candidate/Candidate"
+
+/*
+ * The chrome a voter sees around the ballot: the header, the stepper and the footer.
+ *
+ * Exported here so the wizard's Ballot Preview can draw the portal's own frame rather
+ * than a drawing of it. All three were already shared components in `ui-essentials`
+ * rather than portal-local — the portal's `Stepper` is a 26-line shim that reads one
+ * flag out of redux and hands the rest to `BreadCrumbSteps` — so this is an export and
+ * not a lift. Nothing about them is redux-aware: `Header` takes its version, hash,
+ * user and language list as props, and `Footer` takes none at all.
+ *
+ * A preview passes sample values for the version and the hash, and has to say so on
+ * screen: those describe a deployment, and before an election is deployed there is no
+ * true value for either.
+ */
+export {default as Header} from "../components/Header/Header"
+export type {HeaderProps, IExpiryCountdown} from "../components/Header/Header"
+export {default as Footer} from "../components/Footer/Footer"
+export {default as BreadCrumbSteps} from "../components/BreadCrumbSteps/BreadCrumbSteps"
+export {BreadCrumbStepsVariant} from "../components/BreadCrumbSteps/BreadCrumbSteps"
+
 export {default as BlankAnswer} from "../components/BlankAnswer/BlankAnswer"
 export {default as CandidatesList} from "../components/CandidatesList/CandidatesList"
 export {default as WarnBox} from "../components/WarnBox/WarnBox"

@@ -221,6 +221,22 @@ pub struct ClientProfile {
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub only_our_presets: bool,
 
+    /// Start the ballot preview without the voting portal's chrome.
+    ///
+    /// The preview frames a screen in the portal's own header, breadcrumb
+    /// steps, footer and action row, which is what makes it answer *"is this
+    /// what a voter sees"*. It is also four blocks of furniture around the one
+    /// line somebody is checking when they are checking a candidate's name, so
+    /// it comes off — and which way it *starts* differs by how a client works.
+    ///
+    /// Here rather than in [`Self::defaults`], and the difference matters:
+    /// `defaults` seeds blueprint paths, and this is not one. Whether a preview
+    /// wears the chrome is a question about the wizard, not about the election,
+    /// so it travels the way [`Self::only_our_presets`] does — a field of its
+    /// own that the wizard reads and the bundle never sees.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub preview_slim: bool,
+
     /// How voters may prove who they are, and the Keycloak configuration behind
     /// each way.
     ///
@@ -288,10 +304,54 @@ pub struct Profile {
     /// The ballot-rule sets this client is offered, and whether ours go too.
     pub presets: Vec<NamedPreset>,
     pub only_our_presets: bool,
+    /// See [`ClientProfile::preview_slim`].
+    pub preview_slim: bool,
     defaults: Vec<(PlanPath, Value)>,
     locked: Vec<PlanPath>,
     hidden: Vec<PlanPath>,
     required: Vec<PlanPath>,
+}
+
+/**
+ * Paths that name a **control** rather than a field of a plan.
+ *
+ * Almost everything a profile hides is a plan field, and a path naming nothing is a
+ * typo that configures nothing silently — which is what `read` refuses, and rightly.
+ *
+ * A few of the wizard's cards are not groups of fields, though. *The message telling a
+ * voter their ballot is ready* is one message out of a list, named by its kind rather
+ * than by an index nobody can predict. *Import & Export* on the Ballot screen is three
+ * file widgets over a ballot that is already nameable — switching it off means "type it
+ * in by hand", not "have no ballot". Neither has a plan field of its own, and inventing
+ * one would put a setting in the delivery that no election uses.
+ *
+ * So they are named here, exactly, and the list is short on purpose: an entry is a
+ * promise that some screen honours it, and a wildcard here would turn every typo back
+ * into silence.
+ *
+ * **This was already broken.** The builder has written `messages.invitation-to-vote`
+ * since those cards existed, and `read` refused it — so switching off a messaging card
+ * produced a profile the wizard would not start on, reported as a build that "cannot
+ * start" with a path in the message. Found by asking the vendored core what it accepts,
+ * one path at a time, rather than by reading either side.
+ */
+fn names_a_control(text: &str) -> bool {
+    matches!(
+        text,
+        "messages.invitation-to-vote"
+            | "messages.get-out-the-vote"
+            | "elections.exchange"
+            // Two ballot options that are *candidates* in the plan. A contest
+            // offers "none of these" by carrying a candidate flagged
+            // `explicit_blank`, and "I reject this ballot" by one flagged
+            // `explicit_invalid` — so the honest field path would be
+            // `elections[].contests[].candidates[].explicit_blank`, and a profile
+            // fixing that would be saying something about every candidate rather
+            // than about whether the option is offered. The switch on the screen
+            // is one decision per contest; these name that decision.
+            | "elections.contests.blank_vote"
+            | "elections.contests.decline_to_vote"
+    )
 }
 
 impl Profile {
@@ -310,7 +370,9 @@ impl Profile {
             for (index, text) in paths.iter().enumerate() {
                 match PlanPath::parse(text) {
                     Ok(path) => {
-                        if !reaches_anything(&path, &shape) {
+                        if !reaches_anything(&path, &shape)
+                            && !names_a_control(text)
+                        {
                             report.push(Problem::error(
                                 Code::DanglingReference,
                                 format!("{field}[{index}]"),
@@ -448,6 +510,7 @@ impl Profile {
             warnings: report,
             presets: document.presets.clone(),
             only_our_presets: document.only_our_presets,
+            preview_slim: document.preview_slim,
             defaults,
             locked,
             hidden,
@@ -566,12 +629,26 @@ pub fn check_required(
 /// Null, empty text, an empty list and an empty object all do. Zero and `false`
 /// do not — they are answers, and a threshold of 0 being treated as unset is how
 /// a default quietly overwrites a deliberate choice.
+/// Whether the plan says nothing here, so a starting value may be written.
+///
+/// **An object of empty values is empty**, and getting that wrong made every
+/// starting value for a translated field disappear. A new plan's name is
+/// `{"en": ""}` rather than `{}` — the wizard draws a box per language, so the
+/// map has a key the moment a language exists — and a shallow
+/// `object.is_empty()` reads that as an answer somebody gave. The profile's
+/// value was then skipped, and a delivery engineer who had fixed "SMART
+/// Elections" as the name opened the client's link to an empty box above an
+/// error asking for a name.
+///
+/// Recursive rather than special-cased for `Translated`: the same shape occurs
+/// wherever a map is drawn per language, and a rule that knows about one field
+/// would be wrong for the next one.
 fn is_unset(value: &Value) -> bool {
     match value {
         Value::Null => true,
         Value::String(text) => text.trim().is_empty(),
-        Value::Array(list) => list.is_empty(),
-        Value::Object(object) => object.is_empty(),
+        Value::Array(list) => list.iter().all(is_unset),
+        Value::Object(object) => object.values().all(is_unset),
         _ => false,
     }
 }
@@ -599,6 +676,16 @@ fn shape_of_a_plan() -> Value {
     // key and `hidden: ["messages"]` — which is how the Voter Messaging screen
     // is dropped — read as a typo. Same trap as `Overrides` and `shared` below.
     plan.messages.push(Default::default());
+    // `css` and `i18n` carry `skip_serializing_if` too, so an empty plan has
+    // neither key and a profile naming either is refused as a typo. Third time
+    // this trap has been hit — `Overrides`, then `messages`, now these — and it
+    // always looks the same from outside: a wizard that will not start for one
+    // client, over a field that plainly exists.
+    plan.css = "/* */".to_string();
+    plan.i18n
+        .entry("en".to_string())
+        .or_default()
+        .insert("a.key".to_string(), "Some words".to_string());
     plan.trustees.push(Default::default());
     plan.areas.push(Default::default());
     plan.schedule.milestones.push(Default::default());
@@ -611,6 +698,63 @@ fn shape_of_a_plan() -> Value {
     plan.schedule.voting_opens = moment.clone();
     plan.schedule.voting_closes = moment.clone();
     plan.schedule.tally_ceremony = moment;
+    // The same trap once more. `auth_preset` is an `Option` that skips
+    // serialising while empty, so a shape built from defaults has no such key
+    // and every profile naming *How voters sign in* was refused —
+    // `'auth_preset' names nothing a plan has` — even though the plan has it and
+    // the wizard offers it. A profile downloaded from the client profile builder
+    // with that setting touched could not be loaded at all.
+    plan.auth_preset = Some(String::new());
+    // **The sixth.** `ivr` is an `Option` that serialises as `null`, which has no
+    // keys to walk into, and its `flow` and `prompts` are empty collections — so a
+    // shape built from defaults would make `ivr.phone_number` and every path under
+    // the flow look like a typo, and a profile naming any of them would be refused
+    // with `'ivr' names nothing a plan has`. Filled in whole, one entry deep, for
+    // the same reason `schedule`'s moments and `messages`' first row are.
+    plan.ivr = Some(super::architect::PlannedIvr {
+        phone_number: "+15550100".to_string(),
+        flow: vec![super::architect::IvrPhase {
+            phase: "announcement".to_string(),
+            name: "welcome".to_string(),
+            prompt_key: "greeting".to_string(),
+            accept_key: "2".to_string(),
+            receipt_format: "phonetic_hex_4".to_string(),
+        }],
+        prompts: [(
+            "en".to_string(),
+            [("greeting".to_string(), "Some words".to_string())]
+                .into_iter()
+                .collect(),
+        )]
+        .into_iter()
+        .collect(),
+        // **The seventh time.** Both carry `skip_serializing_if`, so a shape
+        // built from defaults would have neither key and every profile naming
+        // `ivr.retry_limits` or `ivr.assistance_phone` would be refused. Filled
+        // the moment they were added, rather than after somebody reported it.
+        retry_limits: [("auth".to_string(), 3u32)].into_iter().collect(),
+        assistance_phone: "+15550199".to_string(),
+    });
+    // **The fifth**, and the pattern is now unmistakable: `keycloak_messages` is a map
+    // carrying `skip_serializing_if`, so a shape built from defaults has no such key
+    // and every profile touching *Sign-in page wording* was refused outright —
+    // including one downloaded from the client profile builder with that row hidden,
+    // which is how this was reported. `i18n` is the same trap and is filled in above,
+    // next to `css`; it was filled twice for a while, once here and once there, and
+    // the second insertion silently replaced the first because both write `en`.
+    //
+    // Compensating field by field is what has happened four times before this, and it
+    // will keep happening: any `Option` or `skip_serializing_if` added to `Blueprint`
+    // is invisible here until somebody fills it in. What is new is that it now fails
+    // in CI rather than at a client's screen — `check-core-contract.mjs` in `beyond`
+    // builds a profile naming *every* path its catalogue offers and asks this function
+    // to accept it, so the catalogue and the shape cannot drift again without a red
+    // job. The catalogue is where "paths the product offers" actually lives, which is
+    // why the check belongs there rather than as a list retyped here.
+    plan.keycloak_messages.insert(
+        String::from("en"),
+        BTreeMap::from([(String::from("key"), String::new())]),
+    );
 
     // Filled rather than defaulted, because `Overrides` and `Option<Overrides>`
     // both carry `skip_serializing_if`. Left empty they vanish from the shape,

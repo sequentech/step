@@ -155,6 +155,54 @@ fn the_paths_the_docs_advertise_are_accepted() {
     }
 }
 
+/// Every scalar the wizard lets a profile fix, whether or not a default plan
+/// serialises it.
+///
+/// `auth_preset` is an `Option` that skips serialising while empty, so the shape
+/// a path is checked against had no such key and *How voters sign in* — a setting
+/// the client profile builder offers, and one somebody would obviously hide —
+/// was refused with `'auth_preset' names nothing a plan has`. A profile
+/// downloaded from the builder with that row touched could not be loaded at all,
+/// and the message sent whoever met it looking for a typo they had not made.
+///
+/// The others are here because they are the same shape of field and the mistake
+/// is not specific to one of them: any `Option` or `skip_serializing_if` added to
+/// `Blueprint` is invisible to `shape_of_a_plan` until somebody fills it in.
+///
+/// **This list is not the guard.** It is six fields somebody remembered, and it grew
+/// by two only because a client met the sixth. The guard is in `beyond`:
+/// `check-core-contract.mjs` builds a profile naming *every* path the client profile
+/// builder's catalogue offers and asks this crate to accept it, so the catalogue and
+/// the shape cannot drift without a red job. That check runs where the catalogue
+/// lives, which is why it is not a list retyped here.
+#[test]
+fn a_profile_may_fix_a_field_an_empty_plan_leaves_out() {
+    for path in [
+        "auth_preset",
+        "logo_url",
+        "schedule.key_ceremony",
+        "schedule.tally_ceremony",
+        // The fifth and sixth, reported from the wizard: both are maps with
+        // `skip_serializing_if`, so a profile hiding *Wording overrides* or *Sign-in
+        // page wording* — two rows the builder offers side by side — was refused
+        // with `'i18n' names nothing a plan has`, and reloading did not help because
+        // the document was the thing being refused.
+        "i18n",
+        "keycloak_messages",
+    ] {
+        let document = ClientProfile {
+            id: "acme".to_string(),
+            defaults: defaults(&[(path, Value::from("x"))]),
+            hidden: vec![path.to_string()],
+            ..Default::default()
+        };
+        assert!(
+            Profile::read(&document).is_ok(),
+            "'{path}' is a setting the wizard offers and must be usable"
+        );
+    }
+}
+
 #[test]
 fn a_path_reaching_into_a_contest_is_accepted() {
     profile_of(ClientProfile {
@@ -567,6 +615,10 @@ fn a_profile_document_round_trips_through_json() {
     let document = ClientProfile {
         presets: Vec::new(),
         only_our_presets: false,
+        // `true`, not `false`: the field is `skip_serializing_if` off, so a `false`
+        // here would be omitted from the JSON and the round trip would prove nothing
+        // about it.
+        preview_slim: true,
         auth_presets: Vec::new(),
         id: "smart-td".to_string(),
         display_name: Some("SMART TD Locals".to_string()),
@@ -704,4 +756,136 @@ fn a_preset_needs_a_name() {
     };
 
     assert!(Profile::read(&document).is_err());
+}
+
+/// A profile may name any field the plan has, including the skipped-when-empty
+/// ones.
+///
+/// Third time this trap has been hit — `Overrides`, then `messages`, now `css`
+/// and `i18n`. `shape_of_a_plan` is built from `Blueprint::default()`, and a
+/// field with `skip_serializing_if` is simply absent from it, so a profile
+/// naming one is refused as a typo. From outside it looks like a wizard that
+/// will not start for one client, over a field that plainly exists.
+#[test]
+fn a_profile_may_name_a_field_that_is_skipped_when_empty() {
+    for path in ["css", "i18n", "messages"] {
+        let document = ClientProfile {
+            id: "acme".to_string(),
+            hidden: vec![path.to_string()],
+            ..Default::default()
+        };
+        assert!(
+            Profile::read(&document).is_ok(),
+            "'{path}' is a real field and a profile must be able to name it"
+        );
+    }
+}
+
+/// A starting value reaches a translated field whose map is drawn but blank.
+///
+/// The reported bug. A new plan's `name` is `{"en": ""}` — the wizard draws a
+/// box per language, so the key exists before anybody types — and a shallow
+/// emptiness check read that as an answer already given, so the profile's value
+/// was skipped and the client saw an empty box above an error asking for a name.
+#[test]
+fn a_starting_value_fills_a_translated_field_that_is_only_apparently_set() {
+    let profile = profile_of(ClientProfile {
+        id: "acme".to_string(),
+        defaults: defaults(&[(
+            "name",
+            serde_json::json!({"en": "SMART Elections"}),
+        )]),
+        ..Default::default()
+    });
+    let plan = Blueprint {
+        name: Translated::new(""),
+        ..Default::default()
+    };
+
+    let seeded = apply_profile(&plan, &profile).expect("applies");
+    assert_eq!(
+        seeded.name.by_language.get("en").map(String::as_str),
+        Some("SMART Elections")
+    );
+}
+
+/// And still does not overwrite a real answer.
+#[test]
+fn a_starting_value_leaves_a_name_somebody_typed_alone() {
+    let profile = profile_of(ClientProfile {
+        id: "acme".to_string(),
+        defaults: defaults(&[(
+            "name",
+            serde_json::json!({"en": "SMART Elections"}),
+        )]),
+        ..Default::default()
+    });
+    let plan = Blueprint {
+        name: Translated::new("Their own name"),
+        ..Default::default()
+    };
+
+    let seeded = apply_profile(&plan, &profile).expect("applies");
+    assert_eq!(
+        seeded.name.by_language.get("en").map(String::as_str),
+        Some("Their own name")
+    );
+}
+
+/// A card that is a group of controls rather than a group of fields.
+///
+/// **This was a live bug, not a new feature.** The builder has written
+/// `messages.invitation-to-vote` into `hidden` since those two cards existed — it is how
+/// somebody switches off *The message telling a voter their ballot is ready* — and
+/// `read` refused it, because a message is one of a list and that is not a path any plan
+/// has. So switching a messaging card off produced a profile the wizard would not start
+/// on. Found by asking the vendored core what it accepts, one path at a time.
+#[test]
+fn a_card_of_controls_can_be_switched_off() {
+    for path in [
+        "messages.invitation-to-vote",
+        "messages.get-out-the-vote",
+        "elections.exchange",
+        // Two ballot options a contest offers by *carrying a candidate*: the
+        // plan says `explicit_blank` on one of them, and the switch on the
+        // screen is one decision per contest rather than one per candidate.
+        "elections.contests.blank_vote",
+        "elections.contests.decline_to_vote",
+    ] {
+        let document = ClientProfile {
+            id: "acme".to_string(),
+            hidden: vec![path.to_string()],
+            ..Default::default()
+        };
+        let read = Profile::read(&document);
+        assert!(
+            read.is_ok(),
+            "a profile hiding the card '{path}' should be readable: {:?}",
+            read.err()
+        );
+    }
+}
+
+/// And a typo is still a typo, which is the whole reason the refusal exists.
+#[test]
+fn a_path_naming_nothing_is_still_refused() {
+    for typo in [
+        "messages.invitation-to-vot",
+        // The two ballot options are the likeliest to be mistyped, because the
+        // screen calls them *Blank Vote* and *Decline to Vote* and the plan
+        // calls the flags `explicit_blank` and `explicit_invalid`. Neither
+        // spelling is the path, and guessing either must fail loudly.
+        "elections.contests.explicit_blank",
+        "elections.contests.decline",
+    ] {
+        let document = ClientProfile {
+            id: "acme".to_string(),
+            hidden: vec![typo.to_string()],
+            ..Default::default()
+        };
+        assert!(
+            Profile::read(&document).is_err(),
+            "'{typo}' names no control and no field, so it is a typo"
+        );
+    }
 }

@@ -86,6 +86,7 @@ fn sound() -> Blueprint {
                 external_id: "president".to_string(),
                 name: Translated::new("President"),
                 description: Translated::new("Elects the president"),
+                ivr_prompt: Translated::default(),
                 max_votes: 1,
                 winners: 1,
                 allow_writeins: false,
@@ -95,8 +96,10 @@ fn sound() -> Blueprint {
                         external_id: "alice".to_string(),
                         name: Translated::new("Alice"),
                         description: Translated::default(),
+                        ivr_prompt: Translated::default(),
                         explicit_blank: false,
                         explicit_invalid: false,
+                        disabled: false,
 
                         image: None,
                     },
@@ -104,8 +107,10 @@ fn sound() -> Blueprint {
                         external_id: "bob".to_string(),
                         name: Translated::new("Bob"),
                         description: Translated::default(),
+                        ivr_prompt: Translated::default(),
                         explicit_blank: false,
                         explicit_invalid: false,
+                        disabled: false,
 
                         image: None,
                     },
@@ -601,8 +606,10 @@ fn a_multi_winner_contest_elects_what_the_plan_says() {
         external_id: "carol".to_string(),
         name: Translated::new("Carol"),
         description: Translated::default(),
+        ivr_prompt: Translated::default(),
         explicit_blank: false,
         explicit_invalid: false,
+        disabled: false,
 
         image: None,
     });
@@ -627,8 +634,10 @@ fn a_blank_option_is_marked_as_one_rather_than_becoming_a_candidate() {
             external_id: "none-of-the-above".to_string(),
             name: Translated::new("None of the above"),
             description: Translated::default(),
+            ivr_prompt: Translated::default(),
             explicit_blank: true,
             explicit_invalid: false,
+            disabled: false,
 
             image: None,
         });
@@ -642,6 +651,47 @@ fn a_blank_option_is_marked_as_one_rather_than_becoming_a_candidate() {
     assert_eq!(
         blank["presentation"]["is_explicit_blank"],
         serde_json::json!(true)
+    );
+}
+
+/// A candidate who stood down is delivered as one, rather than as a candidate.
+///
+/// The wizard has drawn this checkbox for a while. `PlannedCandidate` had no field
+/// for it and no `#[serde(flatten)]` catch-all, so every tick was accepted on
+/// screen, dropped here, absent from the delivery, and gone on reopen — the worst
+/// shape a setting can have, because nothing anywhere said it had not worked.
+#[test]
+fn a_candidate_who_stood_down_is_delivered_as_disabled() {
+    let mut plan = sound();
+    plan.elections[0].contests[0]
+        .candidates
+        .push(PlannedCandidate {
+            external_id: "stood-down".to_string(),
+            name: Translated::new("Dana"),
+            description: Translated::default(),
+            ivr_prompt: Translated::default(),
+            explicit_blank: false,
+            explicit_invalid: false,
+            disabled: true,
+            image: None,
+        });
+
+    let bundle = compiled(&plan);
+    let candidates = bundle.export["candidates"].as_array().unwrap();
+    let dana = candidates
+        .iter()
+        .find(|c| c["external_id"] == serde_json::json!("stood-down"))
+        .expect("the candidate who stood down");
+    assert_eq!(dana["presentation"]["is_disabled"], serde_json::json!(true));
+    // And the ones still standing are not, which is what makes the assertion above
+    // about this candidate rather than about the column's default.
+    let alice = candidates
+        .iter()
+        .find(|c| c["external_id"] == serde_json::json!("alice"))
+        .expect("a candidate still standing");
+    assert_eq!(
+        alice["presentation"]["is_disabled"],
+        serde_json::json!(false)
     );
 }
 
@@ -1266,8 +1316,10 @@ fn blank_and_invalid_options_do_not_count_as_candidates() {
         external_id: "blank".to_string(),
         name: Translated::new("None of the above"),
         description: Translated::default(),
+        ivr_prompt: Translated::default(),
         explicit_blank: true,
         explicit_invalid: false,
+        disabled: false,
 
         image: None,
     });
@@ -1432,6 +1484,7 @@ fn districted() -> Blueprint {
         external_id: "local-officer".to_string(),
         name: Translated::new("Local Officer"),
         description: Translated::default(),
+        ivr_prompt: Translated::default(),
         max_votes: 1,
         winners: 1,
         allow_writeins: false,
@@ -1440,8 +1493,10 @@ fn districted() -> Blueprint {
             external_id: "carol".to_string(),
             name: Translated::new("Carol"),
             description: Translated::default(),
+            ivr_prompt: Translated::default(),
             explicit_blank: false,
             explicit_invalid: false,
+            disabled: false,
 
             image: None,
         }],
@@ -3846,6 +3901,13 @@ fn opinionated() -> Blueprint {
             Some("cumulative".to_string());
         contest.overrides.tally.min_votes = Some(1);
         contest.overrides.layout.columns = Some(2);
+        // Somebody who stood down after the ballot was approved. Here rather than in
+        // a fixture of its own because this is the plan the round trip already walks
+        // for everything unusual, and a flag is exactly the kind of field an import
+        // loses without anybody noticing.
+        if let Some(candidate) = contest.candidates.first_mut() {
+            candidate.disabled = true;
+        }
     }
     plan
 }
@@ -3917,6 +3979,24 @@ fn reads_back(plan: &Blueprint) {
             {
                 assert_eq!(now_who.external_id, was_who.external_id);
                 reads(&was_who.name, &now_who.name);
+                // The flags, which nothing compared until a candidate's `disabled`
+                // needed proving. All three, not just the new one: they travel the
+                // same way, and a round trip that checks one of three is a round
+                // trip that will lose the other two quietly.
+                assert_eq!(
+                    (
+                        now_who.explicit_blank,
+                        now_who.explicit_invalid,
+                        now_who.disabled,
+                    ),
+                    (
+                        was_who.explicit_blank,
+                        was_who.explicit_invalid,
+                        was_who.disabled,
+                    ),
+                    "the flags of candidate {}",
+                    was_who.external_id
+                );
             }
             // The rules a contest ends up with, which is the field an import
             // getting this wrong would change silently.
@@ -4118,5 +4198,465 @@ fn saying_nothing_about_wording_writes_an_empty_cell() {
     assert!(
         written.is_none() || written == Some(""),
         "expected an empty cell, got {written:?}"
+    );
+}
+
+/// The sign-in page's wording reaches the realm, by the road the CSS already took.
+///
+/// Keycloak is a Java application that never sees the event's presentation, so
+/// `Blueprint::i18n` — which the Voting Portal and the ballot verifier read —
+/// cannot reach it. These become
+/// `keycloak_event_realm.localizationTexts.<locale>.<key>` parameters, a prefix
+/// `PARAMETER_PREFIXES` already carries into the realm patch, which is why the
+/// realm builder did not have to change.
+#[test]
+fn the_sign_in_pages_wording_is_written_as_realm_parameters() {
+    let mut plan = sound();
+    plan.keycloak_messages = BTreeMap::from([
+        (
+            "en".to_string(),
+            BTreeMap::from([(
+                "doLogIn".to_string(),
+                "Sign in to vote".to_string(),
+            )]),
+        ),
+        (
+            "es".to_string(),
+            BTreeMap::from([(
+                "doLogIn".to_string(),
+                "Entra para votar".to_string(),
+            )]),
+        ),
+    ]);
+
+    let workbook = to_workbook(&plan).expect("the plan compiles to rows");
+    let said: Vec<(String, String)> = workbook
+        .rows(sheet::SHEET_PARAMETERS)
+        .iter()
+        .filter_map(|row| {
+            Some((row.text("key")?.to_string(), row.text("value")?.to_string()))
+        })
+        .collect();
+
+    assert!(
+        said.contains(&(
+            "keycloak_event_realm.localizationTexts.en.doLogIn".to_string(),
+            "Sign in to vote".to_string()
+        )),
+        "{said:?}"
+    );
+    assert!(
+        said.contains(&(
+            "keycloak_event_realm.localizationTexts.es.doLogIn".to_string(),
+            "Entra para votar".to_string()
+        )),
+        "{said:?}"
+    );
+}
+
+/// A translation keeps its placeholders, unlike the stylesheet beside it.
+///
+/// `login_css_patch` escapes MessageFormat's braces because a stylesheet is full of
+/// them. A *translation* may legitimately carry `{0}`, and escaping it would put the
+/// literal characters on the sign-in page where the voter's name belongs.
+#[test]
+fn a_translation_is_not_message_format_escaped() {
+    let mut plan = sound();
+    plan.keycloak_messages = BTreeMap::from([(
+        "en".to_string(),
+        BTreeMap::from([("hello".to_string(), "Welcome, {0}".to_string())]),
+    )]);
+
+    let workbook = to_workbook(&plan).expect("the plan compiles to rows");
+    let value = workbook.rows(sheet::SHEET_PARAMETERS)[0]
+        .text("value")
+        .map(str::to_string);
+    assert_eq!(value, Some("Welcome, {0}".to_string()));
+}
+
+/// A plan that says nothing about the sign-in page emits no sheet at all.
+///
+/// `parameters` is one of the sheets a plan carries through from the workbook it was
+/// opened from, and `Workbook::new` refuses a duplicate key. Emitting an empty one
+/// would make every plan that came from a janitor's workbook a refusal, and would
+/// change what a rebuild of an untouched workbook produces.
+#[test]
+fn no_sign_in_wording_means_no_parameters_sheet() {
+    let workbook = to_workbook(&sound()).expect("the plan compiles to rows");
+    assert!(
+        workbook.sheet(sheet::SHEET_PARAMETERS).is_none(),
+        "a plan with no sign-in wording should not invent a Parameters sheet"
+    );
+}
+
+/// Wording is appended to the workbook's own parameters, not put beside them.
+///
+/// The case that would otherwise be a refusal: a plan opened from a real workbook
+/// carries that workbook's `parameters` sheet in `platform`, and somebody then adds
+/// a translation. One sheet comes out, holding both.
+#[test]
+fn wording_is_appended_to_a_carried_parameters_sheet() {
+    let mut plan = sound();
+    plan.platform = vec![sheet::Sheet::from_grid(
+        "Parameters",
+        &[
+            vec![
+                Cell::text("key".to_string()),
+                Cell::text("value".to_string()),
+            ],
+            vec![
+                Cell::text("tenant_id".to_string()),
+                Cell::text("acme".to_string()),
+            ],
+        ],
+    )
+    .expect("a two-column sheet")];
+    plan.keycloak_messages = BTreeMap::from([(
+        "en".to_string(),
+        BTreeMap::from([("doLogIn".to_string(), "Sign in".to_string())]),
+    )]);
+
+    let workbook = to_workbook(&plan).expect("the plan compiles to rows");
+    let keys: Vec<String> = workbook
+        .rows(sheet::SHEET_PARAMETERS)
+        .iter()
+        .filter_map(|row| row.text("key").map(str::to_string))
+        .collect();
+
+    assert_eq!(
+        keys,
+        vec![
+            "tenant_id".to_string(),
+            "keycloak_event_realm.localizationTexts.en.doLogIn".to_string(),
+        ],
+        "the workbook's own parameter comes first, and the wording after it"
+    );
+}
+
+// -- the login page's stylesheet -------------------------------------------
+
+/// A stylesheet reaching Keycloak is MessageFormat-escaped; wording is not.
+///
+/// Keycloak resolves every `localizationTexts` value through
+/// `java.text.MessageFormat`, where `{` opens a placeholder. Raw CSS is mostly
+/// braces, so an unescaped stylesheet arrives mangled — and the failure is only
+/// visible on a real login page, which is the worst place to find it.
+///
+/// Per-key rather than per-channel, because escaping every message would break
+/// a translation legitimately carrying `{0}`.
+#[test]
+fn the_login_stylesheet_is_escaped_and_wording_is_not() {
+    let mut plan = sound();
+    plan.keycloak_messages.insert(
+        "en".to_string(),
+        [
+            (
+                "loginCustomCss".to_string(),
+                ".login { color: red; }".to_string(),
+            ),
+            ("doLogIn".to_string(), "Sign in, {0} of {1}".to_string()),
+        ]
+        .into_iter()
+        .collect(),
+    );
+
+    let workbook = to_workbook(&plan).expect("the plan compiles to rows");
+    let row = workbook.rows(sheet::SHEET_PARAMETERS);
+    let value = |name: &str| {
+        row.iter()
+            .find(|each| each.text("key") == Some(name))
+            .and_then(|each| each.text("value"))
+            .unwrap_or_default()
+            .to_string()
+    };
+
+    assert_eq!(
+        value("keycloak_event_realm.localizationTexts.en.loginCustomCss"),
+        ".login '{' color: red; '}'"
+    );
+    // Untouched: a placeholder in a sentence is a placeholder.
+    assert_eq!(
+        value("keycloak_event_realm.localizationTexts.en.doLogIn"),
+        "Sign in, {0} of {1}"
+    );
+}
+
+#[test]
+fn the_telephone_channel_carries_its_configuration_into_the_event() {
+    // The IVR tab used to be the whole of it: `voting_channels.telephone`
+    // revealed a screen and everything a telephone election needs was typed in
+    // there afterwards, by hand, once per delivery, reproduced by nothing.
+    let mut plan = sound();
+    plan.voting_channels.telephone = true;
+    plan.ivr = Some(PlannedIvr {
+        phone_number: "+18005550100".to_string(),
+        flow: vec![
+            IvrPhase {
+                phase: "language_select".to_string(),
+                ..Default::default()
+            },
+            IvrPhase {
+                phase: "announcement".to_string(),
+                name: "welcome".to_string(),
+                prompt_key: "greeting".to_string(),
+                ..Default::default()
+            },
+            IvrPhase {
+                phase: "ballot_loop".to_string(),
+                receipt_format: "phonetic_hex_4".to_string(),
+                ..Default::default()
+            },
+        ],
+        prompts: [(
+            "en".to_string(),
+            [(
+                "greeting".to_string(),
+                "Welcome to the election".to_string(),
+            )]
+            .into_iter()
+            .collect(),
+        )]
+        .into_iter()
+        .collect(),
+        retry_limits: BTreeMap::new(),
+        assistance_phone: String::new(),
+    });
+
+    let bundle = compiled(&plan);
+    let annotations = &bundle.export["election_event"]["annotations"];
+
+    // **Strings, not objects.** The platform's annotations are `string: string`
+    // and the Admin Portal calls `JSON.parse` on what it finds; an object would
+    // be silently ignored — `IvrConfig.tsx` checks `typeof === "string"` and
+    // falls back to `{}` — so the tab would come up empty with nothing saying
+    // why. This is the assertion that would have caught writing them the
+    // obvious way.
+    assert!(
+        annotations["ivr:phone-number"].is_string(),
+        "the phone number reached the event as {:?}",
+        annotations["ivr:phone-number"]
+    );
+    assert!(
+        annotations["ivr:config"].is_string(),
+        "the flow reached the event as {:?}",
+        annotations["ivr:config"]
+    );
+    assert!(
+        annotations["ivr:prompts"].is_string(),
+        "the prompts reached the event as {:?}",
+        annotations["ivr:prompts"]
+    );
+
+    assert_eq!(
+        annotations["ivr:phone-number"],
+        serde_json::json!("+18005550100")
+    );
+
+    // And the string parses back to what was authored, in the shape
+    // `collectRequiredPromptKeys` walks: `config.flow[].prompt_key`.
+    let config: serde_json::Value =
+        serde_json::from_str(annotations["ivr:config"].as_str().unwrap())
+            .expect("the flow annotation is JSON");
+    let flow = config["flow"].as_array().expect("a flow array");
+    assert_eq!(flow.len(), 3);
+    assert_eq!(flow[1]["phase"], serde_json::json!("announcement"));
+    assert_eq!(flow[1]["prompt_key"], serde_json::json!("greeting"));
+    assert_eq!(
+        flow[2]["receipt_format"],
+        serde_json::json!("phonetic_hex_4")
+    );
+    // Absent extras are left out rather than written empty: a phase carrying
+    // `"accept_key": ""` would make the engine wait for a keypress that never
+    // comes.
+    assert!(flow[0].get("prompt_key").is_none());
+
+    let prompts: serde_json::Value =
+        serde_json::from_str(annotations["ivr:prompts"].as_str().unwrap())
+            .expect("the prompts annotation is JSON");
+    assert_eq!(
+        prompts["en"]["greeting"],
+        serde_json::json!("Welcome to the election")
+    );
+}
+
+/// A real event carries more in `ivr:config` than the flow.
+///
+/// The sample this was modelled on has `retry_limits` and `assistance_phone`
+/// beside it. Writing only the flow would drop both on every trip through a
+/// plan — the bundle would come back missing settings the event had, which is
+/// the quietest kind of wrong.
+#[test]
+fn the_config_annotation_carries_the_retries_and_the_help_line() {
+    let mut plan = sound();
+    plan.voting_channels.telephone = true;
+    plan.ivr = Some(PlannedIvr {
+        phone_number: "+18005550100".to_string(),
+        flow: vec![IvrPhase {
+            phase: "goodbye".to_string(),
+            ..Default::default()
+        }],
+        prompts: BTreeMap::new(),
+        retry_limits: [
+            ("auth".to_string(), 3u32),
+            ("timeout".to_string(), 7u32),
+            ("invalid_input".to_string(), 5u32),
+        ]
+        .into_iter()
+        .collect(),
+        assistance_phone: "1-800-555-0199".to_string(),
+    });
+
+    let bundle = compiled(&plan);
+    let annotations = &bundle.export["election_event"]["annotations"];
+    let config: serde_json::Value =
+        serde_json::from_str(annotations["ivr:config"].as_str().unwrap())
+            .expect("the config annotation is JSON");
+
+    assert_eq!(config["retry_limits"]["auth"], serde_json::json!(3));
+    assert_eq!(config["retry_limits"]["timeout"], serde_json::json!(7));
+    assert_eq!(
+        config["retry_limits"]["invalid_input"],
+        serde_json::json!(5)
+    );
+    assert_eq!(
+        config["assistance_phone"],
+        serde_json::json!("1-800-555-0199")
+    );
+
+    // And back, because a field that only travels one way is a field that goes
+    // missing the first time somebody reopens a bundle.
+    let read = crate::election_config::plan_from_event::plan_from_event(
+        &bundle.export,
+    )
+    .expect("the export reads back")
+    .plan
+    .ivr
+    .expect("the event configures an IVR");
+    assert_eq!(read.retry_limits.get("timeout"), Some(&7));
+    assert_eq!(read.assistance_phone, "1-800-555-0199");
+}
+
+#[test]
+fn an_event_with_no_telephone_gets_no_ivr_annotations() {
+    // A web-only event should compile to the bytes it always did. An empty
+    // `ivr:config` on every bundle would be a new key for the Admin Portal to
+    // parse and a new thing for a diff to show on every rebuild.
+    let bundle = compiled(&sound());
+
+    let annotations = &bundle.export["election_event"]["annotations"];
+    assert!(
+        annotations.get("ivr:config").is_none(),
+        "a web-only event carried {annotations:?}"
+    );
+    assert!(annotations.get("ivr:prompts").is_none());
+    assert!(annotations.get("ivr:phone-number").is_none());
+}
+
+#[test]
+fn the_telephone_configuration_survives_a_round_trip() {
+    // Plan → event → plan. The annotations are JSON strings, so reading them
+    // back is parsing rather than deserialising, and a round trip is the only
+    // thing that proves the two halves agree about the shape.
+    let mut plan = sound();
+    plan.voting_channels.telephone = true;
+    plan.ivr = Some(PlannedIvr {
+        phone_number: "+18005550100".to_string(),
+        flow: vec![
+            IvrPhase {
+                phase: "auth".to_string(),
+                ..Default::default()
+            },
+            IvrPhase {
+                phase: "announcement".to_string(),
+                name: "declaration".to_string(),
+                prompt_key: "declaration_text".to_string(),
+                accept_key: "2".to_string(),
+                ..Default::default()
+            },
+        ],
+        prompts: [
+            (
+                "en".to_string(),
+                [(
+                    "declaration_text".to_string(),
+                    "Press two to accept".to_string(),
+                )]
+                .into_iter()
+                .collect(),
+            ),
+            (
+                "es".to_string(),
+                [(
+                    "declaration_text".to_string(),
+                    "Pulse dos para aceptar".to_string(),
+                )]
+                .into_iter()
+                .collect(),
+            ),
+        ]
+        .into_iter()
+        .collect(),
+        retry_limits: BTreeMap::new(),
+        assistance_phone: String::new(),
+    });
+
+    let bundle = compiled(&plan);
+    let read = crate::election_config::plan_from_event::plan_from_event(
+        &bundle.export,
+    )
+    .expect("the document this crate just wrote is readable");
+
+    assert_eq!(read.plan.ivr, plan.ivr);
+}
+
+#[test]
+fn an_ivr_config_somebody_broke_by_hand_does_not_refuse_the_whole_event() {
+    // Somebody edits the annotation in the Admin Portal and leaves it invalid.
+    // Refusing the import would tell them nothing and take away the one screen
+    // that could show them what is wrong; the part that did not parse is simply
+    // missing, and the rest of the event opens.
+    let mut plan = sound();
+    plan.voting_channels.telephone = true;
+    plan.ivr = Some(PlannedIvr {
+        phone_number: "+18005550100".to_string(),
+        ..Default::default()
+    });
+
+    let mut bundle = compiled(&plan);
+    bundle.export["election_event"]["annotations"]["ivr:config"] =
+        serde_json::json!("{not json at all");
+
+    let read = crate::election_config::plan_from_event::plan_from_event(
+        &bundle.export,
+    )
+    .expect("an event with one broken annotation still reads");
+
+    let ivr = read.plan.ivr.expect("the rest of the IVR section survives");
+    assert_eq!(ivr.phone_number, "+18005550100");
+    assert!(ivr.flow.is_empty(), "the unparseable flow is dropped");
+}
+
+#[test]
+fn a_plan_that_configures_the_ivr_is_not_told_to_go_and_configure_it() {
+    // The warning was unconditional and is now sometimes false. Telling somebody
+    // whose plan carries the flow, the prompts and the number to go and set all
+    // three up by hand after import would send them to undo what they had just
+    // described — and, worse, would read as the bundle having dropped it.
+    let mut plan = sound();
+    plan.voting_channels.telephone = true;
+    plan.ivr = Some(PlannedIvr {
+        phone_number: "+18005550100".to_string(),
+        flow: vec![IvrPhase {
+            phase: "goodbye".to_string(),
+            ..Default::default()
+        }],
+        ..Default::default()
+    });
+
+    let report = validated(&plan);
+    assert!(!report.has_errors(), "{report}");
+    assert!(
+        !says(&report, "IVR tab"),
+        "a configured IVR was still told to configure itself: {report}"
     );
 }

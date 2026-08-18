@@ -30,8 +30,8 @@ use std::collections::BTreeMap;
 use serde_json::{Map, Value};
 
 use super::architect::{
-    Blueprint, PlannedArea, PlannedCandidate, PlannedContest, PlannedElection,
-    Translated, BLUEPRINT_VERSION,
+    Blueprint, IvrPhase, PlannedArea, PlannedCandidate, PlannedContest,
+    PlannedElection, PlannedIvr, Translated, BLUEPRINT_VERSION,
 };
 use super::plan_from_workbook::ReadPlan;
 use super::policy::{Behaviour, Overrides};
@@ -110,6 +110,15 @@ pub fn plan_from_event(document: &Value) -> Result<ReadPlan, Report> {
             .and_then(Value::as_object)
             .and_then(|materials| materials.get("activated"))
             .and_then(Value::as_bool),
+        // The telephone channel's configuration, back out of the annotations.
+        //
+        // Each is a JSON string, so each is parsed rather than deserialised in
+        // place. A malformed one becomes `None` for that part instead of failing
+        // the whole import: an event whose IVR config somebody hand-edited into
+        // invalid JSON should still open in the wizard, with the part that did
+        // not parse plainly missing, rather than refuse to load at all.
+        ivr: ivr_from_annotations(event),
+
         // Parsed through the enum rather than kept as a string, so a value the
         // platform stopped offering is the event's own default here instead of a
         // word that reaches a ballot.
@@ -492,6 +501,7 @@ fn candidates_of(
                 description: description_of(row, &presentation),
                 explicit_blank: flag(&presentation, "is_explicit_blank"),
                 explicit_invalid: flag(&presentation, "is_explicit_invalid"),
+                disabled: flag(&presentation, "is_disabled"),
                 // The photograph is deliberately absent here. `image_document_id`
                 // on the row names a file that travels *beside* the JSON, as an
                 // `export_S3_files/` member of the archive — so only the archive
@@ -846,5 +856,82 @@ fn found(
         }
         let at = name.find(&marker)?;
         Some((name[at + marker.len()..].to_string(), bytes.clone()))
+    })
+}
+
+/// The telephone channel's configuration, read back out of the event.
+///
+/// The three annotations the platform keeps it in are JSON *strings*, so each is
+/// parsed rather than deserialised in place. A part that will not parse is
+/// dropped rather than failing the import: somebody who hand-edited the IVR
+/// config into invalid JSON should still be able to open the event in the wizard
+/// and see what is missing, which is the opposite of what refusing the whole file
+/// would tell them.
+///
+/// `None` when the event carries none of the three, so a web-only event read back
+/// is byte-identical to one that never had an IVR section.
+fn ivr_from_annotations(event: &Map<String, Value>) -> Option<PlannedIvr> {
+    let annotations = event.get("annotations").and_then(Value::as_object)?;
+
+    let text = |key: &str| {
+        annotations
+            .get(key)
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|found| !found.is_empty())
+    };
+
+    let phone_number = text("ivr:phone-number").unwrap_or_default().to_string();
+
+    // Parsed once and read three ways: `ivr:config` is one document, and
+    // parsing it per field would drop the whole thing on a typo in any of them.
+    let config = text("ivr:config")
+        .and_then(|raw| serde_json::from_str::<Value>(raw).ok())
+        .unwrap_or(Value::Null);
+
+    let flow = config
+        .get("flow")
+        .cloned()
+        .and_then(|flow| serde_json::from_value::<Vec<IvrPhase>>(flow).ok())
+        .unwrap_or_default();
+
+    let retry_limits = config
+        .get("retry_limits")
+        .cloned()
+        .and_then(|limits| {
+            serde_json::from_value::<BTreeMap<String, u32>>(limits).ok()
+        })
+        .unwrap_or_default();
+
+    let assistance_phone = config
+        .get("assistance_phone")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+
+    let prompts = text("ivr:prompts")
+        .and_then(|raw| {
+            serde_json::from_str::<BTreeMap<String, BTreeMap<String, String>>>(
+                raw,
+            )
+            .ok()
+        })
+        .unwrap_or_default();
+
+    if phone_number.is_empty()
+        && flow.is_empty()
+        && prompts.is_empty()
+        && retry_limits.is_empty()
+        && assistance_phone.is_empty()
+    {
+        return None;
+    }
+
+    Some(PlannedIvr {
+        phone_number,
+        flow,
+        prompts,
+        retry_limits,
+        assistance_phone,
     })
 }

@@ -539,6 +539,8 @@ fn every_blueprint_field_is_accounted_for() {
         "elections_order",
         "show_cast_vote_logs",
         "voting_channels",
+        "ivr",
+        "ivr_prompt",
         "logo_url",
         "skip_election_list",
         "show_user_profile",
@@ -676,4 +678,138 @@ fn an_area_name_matching_nothing_survives_to_be_reported() {
         with_voters(&[&["username", "area_name"], &["ada", "North Local 4"]]);
 
     assert_eq!(plan.voters[0].area_external_id, "North Local 4");
+}
+
+#[test]
+fn the_telephone_configuration_survives_the_workbook() {
+    // The workbook is the janitor's own format and the shape a delivery is
+    // handed over in, so "it reaches the event" is only half the claim. This is
+    // the other half: plan → xlsx → plan, with nothing lost on the way.
+    let mut plan = sound();
+    plan.voting_channels.telephone = true;
+    plan.ivr = Some(PlannedIvr {
+        phone_number: "+18005550100".to_string(),
+        flow: vec![
+            IvrPhase {
+                phase: "language_select".to_string(),
+                ..Default::default()
+            },
+            IvrPhase {
+                phase: "announcement".to_string(),
+                name: "welcome".to_string(),
+                prompt_key: "greeting".to_string(),
+                accept_key: "1".to_string(),
+                ..Default::default()
+            },
+            IvrPhase {
+                phase: "ballot_loop".to_string(),
+                receipt_format: "phonetic_hex_4".to_string(),
+                ..Default::default()
+            },
+        ],
+        prompts: [(
+            "en".to_string(),
+            [("greeting".to_string(), "Welcome".to_string())]
+                .into_iter()
+                .collect(),
+        )]
+        .into_iter()
+        .collect(),
+        retry_limits: BTreeMap::new(),
+        assistance_phone: String::new(),
+    });
+
+    assert_eq!(read(&plan).ivr, plan.ivr);
+}
+
+#[test]
+fn a_workbook_may_write_the_ivr_flow_as_a_real_json_object() {
+    // What somebody editing the spreadsheet by hand would do first. `Row` runs
+    // every cell through `coerce_scalar`, so bracketed text arrives as an object
+    // rather than a string — the reader takes either, because refusing the
+    // natural spelling would be a rule nobody could guess.
+    let mut plan = sound();
+    plan.ivr = Some(PlannedIvr {
+        flow: vec![IvrPhase {
+            phase: "goodbye".to_string(),
+            ..Default::default()
+        }],
+        ..Default::default()
+    });
+
+    let back = read(&plan);
+    let ivr = back.ivr.expect("the flow came back");
+    assert_eq!(ivr.flow.len(), 1);
+    assert_eq!(ivr.flow[0].phase, "goodbye");
+}
+
+#[test]
+fn a_plan_with_no_telephone_writes_no_ivr_columns() {
+    // A web-only plan should produce the workbook it always did. Three empty
+    // columns on every sheet would show up in every diff and be three more
+    // things for somebody reading a delivery to wonder about.
+    let workbook = to_workbook(&sound()).expect("the plan writes");
+    let headers: Vec<String> = workbook
+        .rows(crate::election_config::sheet::SHEET_ELECTION_EVENT)
+        .first()
+        .expect("an event row")
+        .cells
+        .iter()
+        .map(|(header, _)| header.clone())
+        .collect();
+
+    assert!(
+        !headers
+            .iter()
+            .any(|header| header.starts_with("annotations.ivr")),
+        "a web-only plan wrote {headers:?}"
+    );
+}
+
+#[test]
+fn a_spoken_prompt_survives_the_workbook_on_every_entity_that_has_one() {
+    // Four entities carry a description and so four carry a prompt beside it.
+    // Written as one `ivr:i18n` annotation each, which is the shape
+    // `parseIvrEntityAnnotations` reads — and read back into the flat
+    // `Translated` the wizard edits.
+    let mut plan = sound();
+    plan.ivr_prompt = Translated::new("Welcome to the union election");
+    plan.elections[0].ivr_prompt = Translated::new("Officer elections");
+    plan.elections[0].contests[0].ivr_prompt = Translated::new("For President");
+    plan.elections[0].contests[0].candidates[0].ivr_prompt =
+        Translated::new("Press one for Alice");
+
+    let back = read(&plan);
+
+    assert_eq!(back.ivr_prompt, plan.ivr_prompt);
+    assert_eq!(back.elections[0].ivr_prompt, plan.elections[0].ivr_prompt);
+    assert_eq!(
+        back.elections[0].contests[0].ivr_prompt,
+        plan.elections[0].contests[0].ivr_prompt
+    );
+    assert_eq!(
+        back.elections[0].contests[0].candidates[0].ivr_prompt,
+        plan.elections[0].contests[0].candidates[0].ivr_prompt
+    );
+}
+
+#[test]
+fn a_plan_nobody_wrote_a_prompt_on_carries_no_prompt_column() {
+    // The column appears only when somebody has written one. A blank column on
+    // four sheets of every bundle is a diff on every rebuild and four more
+    // things for whoever reads a delivery to wonder about.
+    let workbook = to_workbook(&sound()).expect("the plan writes");
+    for sheet in ["electionevent", "elections", "contests", "candidates"] {
+        let headers: Vec<String> = workbook
+            .rows(sheet)
+            .first()
+            .map(|row| row.cells.iter().map(|(h, _)| h.clone()).collect())
+            .unwrap_or_default();
+        assert!(
+            !headers
+                .iter()
+                .any(|header| header == "annotations.ivr:i18n"),
+            "{sheet} wrote a prompt column: {headers:?}"
+        );
+    }
 }

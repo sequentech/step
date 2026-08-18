@@ -42,10 +42,10 @@ use std::collections::BTreeMap;
 use serde_json::Value;
 
 use crate::election_config::architect::{
-    Blueprint, Contact, MessageKind, MessageSchedule, Milestone, PlannedArea,
-    PlannedCandidate, PlannedContest, PlannedElection, PlannedMaterial,
-    PlannedMessage, PlannedVoter, Translated, Trustee, VotingChannelSet,
-    BLUEPRINT_VERSION,
+    Blueprint, Contact, IvrPhase, MessageKind, MessageSchedule, Milestone,
+    PlannedArea, PlannedCandidate, PlannedContest, PlannedElection, PlannedIvr,
+    PlannedMaterial, PlannedMessage, PlannedVoter, Translated, Trustee,
+    VotingChannelSet, BLUEPRINT_VERSION,
 };
 use crate::election_config::paths::cell_text;
 use crate::election_config::problem::{Code, Problem, Report};
@@ -307,6 +307,81 @@ fn read_event(workbook: &Workbook, plan: &mut Blueprint, report: &mut Report) {
     plan.materials_title = translated(row, "presentation", "materialsTitle");
     plan.materials_subtitle =
         translated(row, "presentation", "materialsSubtitle");
+    plan.ivr = read_ivr(row);
+    plan.ivr_prompt = ivr_prompt_of(row);
+}
+
+/// The telephone channel's configuration, back out of the event sheet.
+///
+/// The three columns hold what the platform's annotations hold: JSON strings.
+/// `Row` has already run each cell through `coerce_scalar`, so the bracketed ones
+/// arrive as objects — the same thing that caught the writer out — and this reads
+/// either form. A hand-written workbook may therefore put a real JSON object in
+/// the cell, which is what somebody editing a spreadsheet would do first.
+///
+/// A part that will not parse is dropped rather than refusing the workbook, for
+/// the reason `ivr_from_annotations` gives at more length: a broken flow should
+/// leave the rest openable.
+fn read_ivr(row: &Row) -> Option<PlannedIvr> {
+    let phone_number = text(row, super::build::IVR_PHONE_COLUMN);
+
+    let parsed = |column: &str| -> Option<Value> {
+        match row.get(column)? {
+            Value::Null => None,
+            Value::String(raw) => serde_json::from_str(raw.trim()).ok(),
+            other => Some(other.clone()),
+        }
+    };
+
+    // One parse, three fields, for the reason `plan_from_event` gives: the cell
+    // is one document and reading it per field would drop all of it on a typo.
+    let config = parsed(super::build::IVR_CONFIG_COLUMN).unwrap_or(Value::Null);
+
+    let flow = config
+        .get("flow")
+        .cloned()
+        .and_then(|flow| serde_json::from_value::<Vec<IvrPhase>>(flow).ok())
+        .unwrap_or_default();
+
+    let retry_limits = config
+        .get("retry_limits")
+        .cloned()
+        .and_then(|limits| {
+            serde_json::from_value::<BTreeMap<String, u32>>(limits).ok()
+        })
+        .unwrap_or_default();
+
+    let assistance_phone = config
+        .get("assistance_phone")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+
+    let prompts = parsed(super::build::IVR_PROMPTS_COLUMN)
+        .and_then(|value| {
+            serde_json::from_value::<
+                BTreeMap<String, BTreeMap<String, String>>,
+            >(value)
+            .ok()
+        })
+        .unwrap_or_default();
+
+    if phone_number.is_empty()
+        && flow.is_empty()
+        && prompts.is_empty()
+        && retry_limits.is_empty()
+        && assistance_phone.is_empty()
+    {
+        return None;
+    }
+
+    Some(PlannedIvr {
+        phone_number,
+        flow,
+        prompts,
+        retry_limits,
+        assistance_phone,
+    })
 }
 
 fn read_areas(workbook: &Workbook, report: &mut Report) -> Vec<PlannedArea> {
@@ -378,6 +453,7 @@ fn read_elections(
             external_id,
             name: translated(row, "presentation", "name"),
             description: translated(row, "presentation", "description"),
+            ivr_prompt: ivr_prompt_of(row),
             num_allowed_revotes: whole(row, "num_allowed_revotes").unwrap_or(1),
             spoil_ballot_option: flag(row, "spoil_ballot_option")
                 .unwrap_or(false),
@@ -436,6 +512,7 @@ fn read_contests(
             external_id: external_id.clone(),
             name: translated(row, "presentation", "name"),
             description: translated(row, "presentation", "description"),
+            ivr_prompt: ivr_prompt_of(row),
             max_votes: whole(row, "max_votes").unwrap_or(1),
             winners: whole(row, "winning_candidates_num").unwrap_or(1),
             allow_writeins: flag(row, "presentation.allow_writeins")
@@ -496,9 +573,12 @@ fn read_candidates(
                 external_id,
                 name: translated(row, "presentation", "name"),
                 description: translated(row, "presentation", "description"),
+                ivr_prompt: ivr_prompt_of(row),
                 explicit_blank: flag(row, "presentation.is_explicit_blank")
                     .unwrap_or(false),
                 explicit_invalid: flag(row, "presentation.is_explicit_invalid")
+                    .unwrap_or(false),
+                disabled: flag(row, "presentation.is_disabled")
                     .unwrap_or(false),
                 // Bytes never travel in a cell. The identifier the writer put
                 // here is the platform's, derived from the candidate, so there is
@@ -919,3 +999,41 @@ fn carried(workbook: &Workbook) -> Vec<Sheet> {
 #[cfg(test)]
 #[path = "plan_from_workbook_tests.rs"]
 mod plan_from_workbook_tests;
+
+/// An entity's spoken prompt, back out of its `ivr:i18n` column.
+///
+/// `{lang: {prompt}}` in the annotation, a plain `Translated` in the plan: the
+/// wizard edits one text per language, and the nesting exists only because the
+/// platform's annotation carries other per-entity IVR keys beside `prompt`.
+///
+/// Reads either a JSON string or an object, because `Row` has already coerced a
+/// bracketed cell into the latter and a hand-written workbook would spell it that
+/// way too.
+fn ivr_prompt_of(row: &Row) -> Translated {
+    let Some(value) = row.get(super::build::IVR_I18N_COLUMN) else {
+        return Translated::default();
+    };
+    let parsed: Value = match value {
+        Value::String(raw) => match serde_json::from_str(raw.trim()) {
+            Ok(parsed) => parsed,
+            Err(_) => return Translated::default(),
+        },
+        other => other.clone(),
+    };
+    let Some(languages) = parsed.as_object() else {
+        return Translated::default();
+    };
+
+    Translated {
+        by_language: languages
+            .iter()
+            .filter_map(|(language, keys)| {
+                let said = keys.get("prompt")?.as_str()?.trim();
+                if said.is_empty() {
+                    return None;
+                }
+                Some((language.clone(), said.to_string()))
+            })
+            .collect(),
+    }
+}

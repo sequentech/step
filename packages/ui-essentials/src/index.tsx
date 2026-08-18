@@ -91,6 +91,34 @@ export type {
 // candidate row, kept honest by a parity checker, and could not draw a contest at
 // all — so a preview could differ from the ballot, which for an election is not a
 // cosmetic problem.
+export {SupportMaterialsLayout, SupportMaterialCard} from "./ballot/SupportMaterialsLayout"
+export type {
+    ISupportMaterialsLayoutProps,
+    ISupportMaterialCardProps,
+} from "./ballot/SupportMaterialsLayout"
+export {ConfirmationLayout} from "./ballot/ConfirmationLayout"
+export type {IConfirmationLayoutProps} from "./ballot/ConfirmationLayout"
+export {ReviewLayout} from "./ballot/ReviewLayout"
+export type {IReviewLayoutProps} from "./ballot/ReviewLayout"
+// The Admin Portal's emulator, less the part that reads its own database. Two
+// consumers for the same reason as above: the portal tries a call against a
+// published event, the wizard against the plan on screen.
+export {IvrCall, IvrPromptLine} from "./ballot/IvrCall"
+export type {
+    IIvrCallProps,
+    IvrAction,
+    IvrCallDriver,
+    IvrCallStatus,
+    IvrExpectedInput,
+    IvrPrompt,
+} from "./ballot/IvrCall"
+export {forgetIvrEmulator, IvrEmulatorError, loadIvrEmulator} from "./ballot/ivrEmulator"
+export type {
+    ImportModule,
+    IvrEmulatorApi,
+    IvrEmulatorConfig,
+    IvrEmulatorFailure,
+} from "./ballot/ivrEmulator"
 export {Question} from "./ballot/Question"
 export type {IQuestionProps} from "./ballot/Question"
 export {Answer} from "./ballot/Answer"

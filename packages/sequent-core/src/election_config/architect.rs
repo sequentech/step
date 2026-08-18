@@ -53,7 +53,7 @@ use crate::election_config::problem::{Code, Problem, Report, Severity};
 use crate::election_config::profile::{apply_profile, check_required, Profile};
 use crate::election_config::render::TemplateSet;
 use crate::election_config::schema::ImportElectionEventSchema;
-use crate::election_config::sheet::{Sheet, Workbook};
+use crate::election_config::sheet::{Row, Sheet, Workbook, SHEET_PARAMETERS};
 use crate::election_config::time::{self, Timestamp};
 use crate::election_config::validate::{ALLOW_EARLY_VOTING, NO_EARLY_VOTING};
 use crate::types::ceremonies::CeremoniesPolicy;
@@ -370,6 +370,22 @@ pub struct Blueprint {
     #[serde(default)]
     pub voting_channels: VotingChannelSet,
 
+    /// How the telephone channel behaves, when there is one.
+    ///
+    /// [`VotingChannelSet::telephone`] only reveals the Admin Portal's IVR tab;
+    /// everything a telephone election actually needs was typed in by hand there
+    /// afterwards, which is a delivery step no plan described and no rebuild
+    /// reproduced. This carries it.
+    ///
+    /// **It travels as annotations on the event**, which is where the platform
+    /// keeps it: `ivr:config`, `ivr:prompts` and `ivr:phone-number`, each a JSON
+    /// string. The IVR design document describes the flow as living in
+    /// `presentation.ivr.flow` — that is the *published* shape the Lambda reads
+    /// from S3, and `IvrConfig.tsx` writes the annotation. Writing the former
+    /// would have produced a bundle nothing loads.
+    #[serde(default)]
+    pub ivr: Option<PlannedIvr>,
+
     /// What the whole event is, for voters.
     ///
     /// Translatable, like the name: the platform keeps it at
@@ -378,6 +394,19 @@ pub struct Blueprint {
     /// read. Both are written.
     #[serde(default)]
     pub description: Translated,
+
+    /// What a caller hears in place of the description, per language.
+    ///
+    /// Written straight through, spoken by a text-to-speech voice rather than
+    /// read, so it is a separate text and not a rendering of the one above:
+    /// markup, parentheses and "see overleaf" all read badly aloud, and a name
+    /// spelled for the eye is often not the name a caller would recognise.
+    ///
+    /// Travels as the entity's `ivr:i18n` annotation, `{lang: {prompt}}`, which
+    /// is the shape `parseIvrEntityAnnotations` reads. Empty means the caller
+    /// hears whatever the IVR already says for that entity.
+    #[serde(default)]
+    pub ivr_prompt: Translated,
 
     /// BCP 47 or ISO 639-2/T codes, in the order the picker should show them.
     #[serde(default)]
@@ -566,6 +595,31 @@ pub struct Blueprint {
     /// Admin Portal's own editor writes, and the two have to be the same file.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub i18n: BTreeMap<String, BTreeMap<String, String>>,
+
+    /// Wording overrides for the **sign-in page**, per language.
+    ///
+    /// Same shape as [`Blueprint::i18n`] and a different destination, because they
+    /// are different programs. `i18n` reaches everything that reads the event's
+    /// presentation — the Voting Portal, and the ballot verifier with it — through
+    /// `overwriteTranslations`. The sign-in page is Keycloak: a Java application
+    /// that never sees the event's presentation and looks its wording up in the
+    /// realm's own `localizationTexts`.
+    ///
+    /// So these are emitted as `keycloak_event_realm.localizationTexts.<locale>.<key>`
+    /// parameters, which is the road `login_custom_css` already travels
+    /// (`branding::login_css_patch`) and the prefix `PARAMETER_PREFIXES` already
+    /// carries into the realm patch. Nothing in the realm builder had to change:
+    /// the patch merges by path, so a plan's wording lands beside whatever a base
+    /// export brought rather than replacing the object it lives in.
+    ///
+    /// **Not MessageFormat-escaped**, unlike the CSS beside it. `login_css_patch`
+    /// escapes because a stylesheet is full of braces and Keycloak reads a message
+    /// as a MessageFormat pattern; a *translation* may legitimately carry `{0}`,
+    /// and escaping it would put the literal characters on the page where the
+    /// voter's name should be. A brace that is not a well-formed placeholder is
+    /// worth a warning rather than a silent rewrite — see `check_keycloak_messages`.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub keycloak_messages: BTreeMap<String, BTreeMap<String, String>>,
 
     /// Anything the wizard has no field for. Carried, not interpreted.
     #[serde(default)]
@@ -887,6 +941,19 @@ pub struct PlannedElection {
     #[serde(default)]
     pub description: Translated,
 
+    /// What a caller hears in place of the description, per language.
+    ///
+    /// Written straight through, spoken by a text-to-speech voice rather than
+    /// read, so it is a separate text and not a rendering of the one above:
+    /// markup, parentheses and "see overleaf" all read badly aloud, and a name
+    /// spelled for the eye is often not the name a caller would recognise.
+    ///
+    /// Travels as the entity's `ivr:i18n` annotation, `{lang: {prompt}}`, which
+    /// is the shape `parseIvrEntityAnnotations` reads. Empty means the caller
+    /// hears whatever the IVR already says for that entity.
+    #[serde(default)]
+    pub ivr_prompt: Translated,
+
     /// How many times a voter may change a vote they have already cast.
     ///
     /// One means cast once and that is final; two means one change. The platform
@@ -977,6 +1044,7 @@ impl Default for PlannedElection {
             external_id: String::new(),
             name: Translated::default(),
             description: Translated::default(),
+            ivr_prompt: Translated::default(),
             num_allowed_revotes: 1,
             spoil_ballot_option: false,
             grace_period_policy: no_grace_period(),
@@ -1003,6 +1071,19 @@ pub struct PlannedContest {
     /// same words in front of every voter whatever language they read.
     #[serde(default, deserialize_with = "translated_or_plain")]
     pub description: Translated,
+
+    /// What a caller hears in place of the description, per language.
+    ///
+    /// Written straight through, spoken by a text-to-speech voice rather than
+    /// read, so it is a separate text and not a rendering of the one above:
+    /// markup, parentheses and "see overleaf" all read badly aloud, and a name
+    /// spelled for the eye is often not the name a caller would recognise.
+    ///
+    /// Travels as the entity's `ivr:i18n` annotation, `{lang: {prompt}}`, which
+    /// is the shape `parseIvrEntityAnnotations` reads. Empty means the caller
+    /// hears whatever the IVR already says for that entity.
+    #[serde(default)]
+    pub ivr_prompt: Translated,
 
     /// How many candidates a voter may choose.
     #[serde(default = "one")]
@@ -1120,12 +1201,37 @@ pub struct PlannedCandidate {
     /// A line about the candidate, shown under their name. Translatable.
     #[serde(default)]
     pub description: Translated,
+
+    /// What a caller hears in place of the description, per language.
+    ///
+    /// Written straight through, spoken by a text-to-speech voice rather than
+    /// read, so it is a separate text and not a rendering of the one above:
+    /// markup, parentheses and "see overleaf" all read badly aloud, and a name
+    /// spelled for the eye is often not the name a caller would recognise.
+    ///
+    /// Travels as the entity's `ivr:i18n` annotation, `{lang: {prompt}}`, which
+    /// is the shape `parseIvrEntityAnnotations` reads. Empty means the caller
+    /// hears whatever the IVR already says for that entity.
+    #[serde(default)]
+    pub ivr_prompt: Translated,
     /// A "none of the above" option rather than a person.
     #[serde(default)]
     pub explicit_blank: bool,
     /// A "spoil my ballot" option rather than a person.
     #[serde(default)]
     pub explicit_invalid: bool,
+    /// On the ballot, drawn but not selectable — `presentation.is_disabled`.
+    ///
+    /// A candidate who stood down after the ballot was approved. The platform's own
+    /// concept, not one invented here: `CandidatePresentation::is_disabled` carries
+    /// it, `Candidate::is_disabled()` reads it, the voting portal draws such a
+    /// candidate at half opacity and `categoryService` leaves them out of a
+    /// category's list. The wizard has offered the checkbox for a while under the
+    /// name *Withdrawn*, and this struct had no field for it and no catch-all — so
+    /// every tick was accepted on screen, dropped by the core, absent from the
+    /// delivery, and gone when the event was reopened.
+    #[serde(default)]
+    pub disabled: bool,
 
     /// A photograph, shown beside the name on the ballot.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1138,6 +1244,79 @@ pub struct PlannedCandidate {
 /// [`CandidateImage`]: it is derived from `external_id` by
 /// [`material_document_id`], so it is stable across rebuilds and cannot drift out
 /// of step with the archive entry.
+/// One step of the telephone call, as the flow engine reads it.
+///
+/// The IVR Lambda is a configurable pipeline rather than a fixed state machine:
+/// which phases run, in what order, and with what settings is entirely this
+/// array. The phase names it has engines for are `announcement`,
+/// `language_select`, `blacklist_check`, `auth`, `eligibility_check`,
+/// `ballot_loop` and `goodbye`; anything else is a phase nothing can execute, so
+/// [`Blueprint::validate`] refuses it rather than letting a call reach a step the
+/// Lambda will not recognise on election day.
+///
+/// The extras are per phase and all optional, because most phases take none.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct IvrPhase {
+    /// Which engine runs this step.
+    pub phase: String,
+
+    /// Distinguishes two steps of the same phase — `welcome` from `declaration`.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub name: String,
+
+    /// Which prompt this step plays, keyed into [`PlannedIvr::prompts`].
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub prompt_key: String,
+
+    /// The key a caller must press to go on. Absent means the step auto-advances.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub accept_key: String,
+
+    /// How the ballot locator is read back — `phonetic_hex_4` and the like.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub receipt_format: String,
+}
+
+/// Everything a telephone election needs that a web one does not.
+///
+/// Written to the event as three annotations rather than to `presentation`: see
+/// [`Blueprint::ivr`] for why that distinction was worth checking.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct PlannedIvr {
+    /// The number a voter calls. Carried opaquely; the routing file maps it.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub phone_number: String,
+
+    /// The call, step by step.
+    #[serde(default)]
+    pub flow: Vec<IvrPhase>,
+
+    /// What each prompt says, per language: `{lang: {prompt_key: text}}`.
+    ///
+    /// The keys are the `prompt_key`s the flow names, which is what makes the
+    /// flow and the prompts one form rather than two — the Admin Portal derives
+    /// exactly this set in `collectRequiredPromptKeys`.
+    #[serde(default)]
+    pub prompts: BTreeMap<String, BTreeMap<String, String>>,
+
+    /// How many times the call forgives each kind of mistake.
+    ///
+    /// A map rather than three named fields, and that is not laziness. A real
+    /// event carries `{"auth": 3, "timeout": 7, "invalid_input": 5}`, but the
+    /// list is the Lambda's and grows there; naming the three would silently
+    /// drop a fourth on the way through, which for a round-trip is worse than
+    /// not modelling it at all.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub retry_limits: BTreeMap<String, u32>,
+
+    /// A number to read out when a caller needs a person.
+    ///
+    /// Not [`Self::phone_number`], which is the number they rang. This is the
+    /// one the call offers when it cannot help — a help desk, usually.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub assistance_phone: String,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct PlannedMaterial {
     /// Names the material within this plan, and seeds its document identifier.
@@ -2304,12 +2483,35 @@ pub fn to_workbook(plan: &Blueprint) -> Result<Workbook, Problem> {
         }
     }
 
+    // The sign-in page's wording, which is a *parameter* rather than a sheet of
+    // its own — see `parameters_sheet`. Emitted before the carried sheets and
+    // excluded from them below, because a plan opened from a workbook already has
+    // that sheet and `Workbook::new` refuses a duplicate key.
+    let parameters = match parameters_sheet(plan) {
+        Some(Ok(sheet)) => Some(sheet),
+        Some(Err(why)) => return Err(why),
+        None => None,
+    };
+    let replaced = parameters.is_some();
+    if let Some(sheet) = parameters {
+        sheets.push(sheet);
+    }
+
     // Last, and untouched. These are the sheets the wizard has no screens for,
     // carried through so `build` can do to them exactly what it does to a
     // janitor's own file. `Workbook::new` refuses a duplicate key, so a plan that
     // somehow carried a second ElectionEvent is a refusal rather than a silent
     // choice between two.
-    sheets.extend(plan.platform.iter().cloned());
+    //
+    // `parameters` is the one exception, and only when there is wording to add:
+    // the copy pushed above *is* the carried sheet with rows appended, so passing
+    // the original through as well would be that refusal.
+    sheets.extend(
+        plan.platform
+            .iter()
+            .filter(|sheet| !(replaced && sheet.key == SHEET_PARAMETERS))
+            .cloned(),
+    );
 
     Workbook::new(sheets)
 }
@@ -2373,6 +2575,26 @@ fn sheet_of(
 }
 
 /// `presentation.i18n.<lang>.<field>` columns, one per language.
+/// A spoken prompt as the entity annotation carries it.
+///
+/// `{lang: {"prompt": text}}`, serialised to a string, or nothing when no
+/// language has one — an empty annotation on every entity would be a new key for
+/// the Admin Portal to parse and a diff on every rebuild.
+fn ivr_prompt_cell(prompt: &Translated) -> Option<Cell> {
+    let said: serde_json::Map<String, serde_json::Value> = prompt
+        .by_language
+        .iter()
+        .filter(|(_, text)| !text.trim().is_empty())
+        .map(|(language, text)| {
+            (language.clone(), serde_json::json!({"prompt": text.trim()}))
+        })
+        .collect();
+    if said.is_empty() {
+        return None;
+    }
+    serde_json::to_string(&said).ok().map(Cell::text)
+}
+
 fn i18n_columns(
     prefix: &str,
     field: &str,
@@ -2502,6 +2724,72 @@ fn event_sheet(
 
     for (column, cell) in plan.voting_channels.columns_for_sheet() {
         columns.push(column.to_string());
+        row.push(cell);
+    }
+
+    // The telephone channel's own configuration, as annotations.
+    //
+    // Three columns rather than a sheet, because `Row::overrides` turns a dotted
+    // column into nested JSON and `split_path` splits on `.` alone — so
+    // `annotations.ivr:config` lands as `{"annotations": {"ivr:config": …}}`,
+    // which is exactly the shape the Admin Portal writes and reads. The colon is
+    // not a separator, which is the only reason this fits the existing mechanism
+    // instead of needing a new one.
+    //
+    // Each value is a JSON *string*, not an object: the platform's annotations
+    // are `string: string`, and `IvrConfig.tsx` `JSON.parse`s what it finds. The
+    // generic path would parse the bracketed text into an object and the Portal
+    // would ignore it silently, so all three are `control_columns` on this sheet
+    // and `build_election_event` reads them off the row as raw text.
+    if let Some(ivr) = plan.ivr.as_ref() {
+        if !ivr.phone_number.is_empty() {
+            columns.push("annotations.ivr:phone-number".to_string());
+            row.push(Cell::text(ivr.phone_number.clone()));
+        }
+        // `ivr:config` is the whole document, not just the flow: a real event
+        // carries retry limits and an assistance number beside it, and writing
+        // only the flow would drop them on every trip through a plan.
+        if !ivr.flow.is_empty()
+            || !ivr.retry_limits.is_empty()
+            || !ivr.assistance_phone.is_empty()
+        {
+            let mut config = serde_json::Map::new();
+            config.insert(
+                "flow".to_string(),
+                serde_json::to_value(&ivr.flow)
+                    .unwrap_or(serde_json::Value::Null),
+            );
+            if !ivr.retry_limits.is_empty() {
+                config.insert(
+                    "retry_limits".to_string(),
+                    serde_json::to_value(&ivr.retry_limits)
+                        .unwrap_or(serde_json::Value::Null),
+                );
+            }
+            if !ivr.assistance_phone.is_empty() {
+                config.insert(
+                    "assistance_phone".to_string(),
+                    serde_json::Value::String(ivr.assistance_phone.clone()),
+                );
+            }
+            columns.push("annotations.ivr:config".to_string());
+            row.push(Cell::text(
+                serde_json::to_string(&serde_json::Value::Object(config))
+                    .unwrap_or_else(|_| "{}".to_string()),
+            ));
+        }
+        if !ivr.prompts.is_empty() {
+            columns.push("annotations.ivr:prompts".to_string());
+            row.push(Cell::text(
+                serde_json::to_string(&ivr.prompts)
+                    .unwrap_or_else(|_| "{}".to_string()),
+            ));
+        }
+    }
+
+    // What a caller hears in place of the event's own description.
+    if let Some(cell) = ivr_prompt_cell(&plan.ivr_prompt) {
+        columns.push("annotations.ivr:i18n".to_string());
         row.push(cell);
     }
 
@@ -2637,6 +2925,15 @@ fn elections_sheet(
     // same method below so the two cannot drift apart.
     let channels = plan.voting_channels.columns_for_sheet();
     columns.extend(channels.iter().map(|(column, _)| (*column).to_string()));
+    // Only when somebody has written one. A blank column on every sheet of every
+    // bundle is a diff on every rebuild and one more thing to explain.
+    let spoken = plan
+        .elections
+        .iter()
+        .any(|election| ivr_prompt_cell(&election.ivr_prompt).is_some());
+    if spoken {
+        columns.push("annotations.ivr:i18n".to_string());
+    }
 
     let rows = plan
         .elections
@@ -2660,6 +2957,12 @@ fn elections_sheet(
             row.push(Cell::text(election.start_screen_title_policy.clone()));
             row.push(Cell::text(election.contests_order.clone()));
             row.extend(channels.iter().map(|(_, cell)| cell.clone()));
+            if spoken {
+                row.push(
+                    ivr_prompt_cell(&election.ivr_prompt)
+                        .unwrap_or(Cell::Blank),
+                );
+            }
             row
         })
         .collect();
@@ -2688,6 +2991,15 @@ fn contests_sheet(
     columns.extend(i18n_columns("presentation", "description", languages));
     columns.extend(behaviour.iter().map(|(column, _)| (*column).to_string()));
     columns.extend(i18n_columns("presentation", "name", languages));
+    let spoken = plan.elections.iter().any(|election| {
+        election
+            .contests
+            .iter()
+            .any(|contest| ivr_prompt_cell(&contest.ivr_prompt).is_some())
+    });
+    if spoken {
+        columns.push("annotations.ivr:i18n".to_string());
+    }
 
     let mut rows = Vec::new();
     for election in &plan.elections {
@@ -2709,6 +3021,11 @@ fn contests_sheet(
                     .map(|(_, cell)| cell),
             );
             row.extend(i18n_values(&contest.name, languages));
+            if spoken {
+                row.push(
+                    ivr_prompt_cell(&contest.ivr_prompt).unwrap_or(Cell::Blank),
+                );
+            }
             rows.push(row);
         }
     }
@@ -2726,6 +3043,11 @@ fn candidates_sheet(
         "presentation.sort_order".to_string(),
         "presentation.is_explicit_blank".to_string(),
         "presentation.is_explicit_invalid".to_string(),
+        // Drawn but not selectable. The `candidate.hbs` template already defaults it
+        // to `false`, which is what makes this a column rather than a format change:
+        // the platform's shape has carried `is_disabled` all along and the sheet was
+        // simply never asked to fill it in.
+        "presentation.is_disabled".to_string(),
         "presentation.is_write_in".to_string(),
         // The photograph's half that lives in the JSON. Its `presentation.urls`
         // twin is composed by the builder rather than written here, because the url
@@ -2736,7 +3058,20 @@ fn candidates_sheet(
     ];
     columns.extend(i18n_columns("presentation", "name", languages));
     columns.extend(i18n_columns("presentation", "description", languages));
+    let spoken = plan.elections.iter().any(|election| {
+        election.contests.iter().any(|contest| {
+            contest.candidates.iter().any(|candidate| {
+                ivr_prompt_cell(&candidate.ivr_prompt).is_some()
+            })
+        })
+    });
     columns.push("description".to_string());
+    // After `description`, because the row pushes it after `english_of` — a
+    // column list and a row that disagree about order do not fail, they put
+    // every value one field to the left.
+    if spoken {
+        columns.push("annotations.ivr:i18n".to_string());
+    }
 
     // `None` only when the event has no `external_id`, which `check_identity`
     // reports before this runs. An image on such a plan simply gets no identifier.
@@ -2752,6 +3087,7 @@ fn candidates_sheet(
                     Cell::Int(order as i64),
                     Cell::Bool(candidate.explicit_blank),
                     Cell::Bool(candidate.explicit_invalid),
+                    Cell::Bool(candidate.disabled),
                     Cell::Bool(false),
                     match (&candidate.image, ids.as_ref()) {
                         (Some(_), Some(ids)) => Cell::text(image_document_id(
@@ -2764,6 +3100,12 @@ fn candidates_sheet(
                 row.extend(i18n_values(&candidate.name, languages));
                 row.extend(i18n_values(&candidate.description, languages));
                 row.push(english_of(&candidate.description));
+                if spoken {
+                    row.push(
+                        ivr_prompt_cell(&candidate.ivr_prompt)
+                            .unwrap_or(Cell::Blank),
+                    );
+                }
                 rows.push(row);
             }
 
@@ -2787,6 +3129,9 @@ fn candidates_sheet(
                         Cell::Int((start as i64) + slot),
                         Cell::Bool(false),
                         Cell::Bool(false),
+                        // Never disabled: a slot nobody can write in is a slot that
+                        // should not have been asked for.
+                        Cell::Bool(false),
                         Cell::Bool(true),
                         // A write-in slot is a blank line, not a person, so it has
                         // no photograph. The cell is still written: the sheet guard
@@ -2809,6 +3154,11 @@ fn candidates_sheet(
                     // wrong value into the wrong field.
                     row.extend(i18n_values(&Translated::default(), languages));
                     row.push(Cell::Blank);
+                    // And the spoken prompt, for the same reason: a write-in
+                    // slot has none, and the column still has to line up.
+                    if spoken {
+                        row.push(Cell::Blank);
+                    }
                     rows.push(row);
                 }
             }
@@ -3096,6 +3446,139 @@ fn messages_sheet(
         .collect();
 
     Some(sheet_of("Messages", columns, rows))
+}
+
+/// The sign-in page's wording, as realm parameters.
+///
+/// `keycloak_event_realm.localizationTexts.<locale>.<key>`, one row each, which is
+/// a prefix `PARAMETER_PREFIXES` already carries into the realm patch — so this
+/// emitter is the whole of the feature on the build side and `build_realm.rs` did
+/// not change.
+///
+/// Returns nothing when the plan says nothing, and that matters more than it looks:
+/// `parameters` is one of the sheets a plan carries through from a workbook it was
+/// opened from, and `Workbook::new` refuses a duplicate key. A plan with no
+/// sign-in wording therefore emits no sheet at all, so opening a janitor's workbook
+/// and rebuilding it is byte-for-byte what it was before this existed. Where the
+/// plan *does* have wording and *did* come from such a workbook, the rows are
+/// merged into that sheet by {@link merge_parameters} rather than added beside it.
+fn keycloak_message_rows(plan: &Blueprint) -> Vec<(String, String)> {
+    let mut rows = Vec::new();
+    for (locale, messages) in &plan.keycloak_messages {
+        if locale.trim().is_empty() {
+            continue;
+        }
+        for (key, text) in messages {
+            if key.trim().is_empty() {
+                continue;
+            }
+            // A stylesheet is escaped; a sentence is not.
+            //
+            // Keycloak resolves every `localizationTexts` value through
+            // `java.text.MessageFormat`, where `{` opens a placeholder and `'`
+            // quotes. That is harmless for wording — and fatal for CSS, which
+            // is mostly braces. `login_css_patch` already escapes on the
+            // workbook path; doing it here keeps the two paths agreeing about
+            // one key rather than about one entry point.
+            //
+            // Only this key. Escaping every message would break a translation
+            // that legitimately carries `{0}`, which is the whole reason the
+            // rule is per-key rather than per-channel.
+            let value = if key.trim() == super::branding::LOGIN_CUSTOM_CSS_KEY {
+                super::branding::escape_message_format(
+                    super::branding::unwrap_quoted(text),
+                )
+            } else {
+                text.clone()
+            };
+            rows.push((
+                format!(
+                    "keycloak_event_realm.localizationTexts.{}.{}",
+                    locale.trim(),
+                    key.trim()
+                ),
+                value,
+            ));
+        }
+    }
+    rows
+}
+
+/// The parameters sheet the plan carries, with the sign-in wording added to it.
+///
+/// Two shapes to reconcile: a plan opened from a workbook brings that workbook's
+/// own `parameters` sheet through `platform`, and a plan authored in the wizard has
+/// none. Either way the result is exactly one parameters sheet, because two would
+/// be refused — and refusing a plan somebody assembled by opening a real workbook
+/// and adding a translation would be the worst possible time to find that out.
+///
+/// The carried sheet's own columns are kept. Its rows are `key`/`value`/`type`, so
+/// the added rows are laid out to match by position, and a sheet whose columns are
+/// in another order is left alone with the wording appended by header name.
+fn parameters_sheet(plan: &Blueprint) -> Option<Result<Sheet, Problem>> {
+    let rows = keycloak_message_rows(plan);
+    if rows.is_empty() {
+        return None;
+    }
+
+    // The sheet a plan opened from a workbook brought with it, if any.
+    let carried = plan
+        .platform
+        .iter()
+        .find(|sheet| sheet.key == SHEET_PARAMETERS);
+
+    let Some(carried) = carried else {
+        return Some(sheet_of(
+            "Parameters",
+            vec!["key".to_string(), "value".to_string()],
+            rows.into_iter()
+                .map(|(key, value)| vec![Cell::text(key), Cell::text(value)])
+                .collect(),
+        ));
+    };
+
+    // Appended to what the workbook already said, keyed by the headers that sheet
+    // uses. `Row.cells` holds only non-blank cells, keyed by raw header, so there
+    // is nothing to pad and no column order to guess at.
+    let mut merged = carried.clone();
+    let key_header = merged
+        .headers
+        .iter()
+        .find(|header| header.as_str() == "key")
+        .cloned();
+    let value_header = merged
+        .headers
+        .iter()
+        .find(|header| header.as_str() == "value")
+        .cloned();
+    let (Some(key_header), Some(value_header)) = (key_header, value_header)
+    else {
+        // A `parameters` sheet with no `key` column is not one the builder reads
+        // either, and quietly dropping the wording is the failure this file spends
+        // most of its comments arguing against.
+        return Some(Err(Problem::error(
+            Code::MissingField,
+            "keycloak_messages",
+            "the workbook this plan came from has a Parameters sheet without \
+             `key` and `value` columns, so the sign-in page's wording has \
+             nowhere to go. Remove that sheet or give it those columns.",
+        )));
+    };
+
+    let mut number =
+        merged.rows.iter().map(|row| row.number).max().unwrap_or(1);
+    for (key, value) in rows {
+        number += 1;
+        merged.rows.push(Row {
+            sheet: merged.name.clone(),
+            number,
+            cells: vec![
+                (key_header.clone(), serde_json::Value::String(key)),
+                (value_header.clone(), serde_json::Value::String(value)),
+            ],
+        });
+    }
+    Some(Ok(merged))
 }
 
 fn notes_sheet(plan: &Blueprint) -> Option<Result<Sheet, Problem>> {

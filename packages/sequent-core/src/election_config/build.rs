@@ -62,15 +62,46 @@ pub const DEFAULT_VERSION: &str = "v10.0.0";
 /// These are not dotted paths into the entity and must not be merged into it —
 /// `election.external_id` is how a contest names its election, not a field called
 /// `external_id` on an object called `election`.
+/// Where the telephone channel's configuration sits on the event sheet.
+///
+/// Annotation keys rather than schema paths, and `.` is the only separator
+/// `split_path` knows — so the colon travels through untouched and these land as
+/// `annotations["ivr:config"]`, which is the key the Admin Portal reads.
+pub const IVR_CONFIG_COLUMN: &str = "annotations.ivr:config";
+pub const IVR_PROMPTS_COLUMN: &str = "annotations.ivr:prompts";
+pub const IVR_PHONE_COLUMN: &str = "annotations.ivr:phone-number";
+
+/// What a caller hears in place of an entity's description.
+///
+/// One column on each of the four sheets that carry a description, holding
+/// `{lang: {prompt}}` as a JSON string — the shape `parseIvrEntityAnnotations`
+/// reads. Per entity rather than per language, because the platform keeps it as
+/// one annotation and splitting it into language columns would mean reassembling
+/// it here from an unknown set of them.
+pub const IVR_I18N_COLUMN: &str = "annotations.ivr:i18n";
+
 pub fn control_columns(sheet_key: &str) -> &'static [&'static str] {
     match sheet_key {
         // `presentation.logo_file` names a file for the builder to find; it is not a
         // field of `ElectionEventPresentation` and would be carried into the JSON as
         // one by the deep merge below. `build_election_event` reads it off the row
         // and writes `presentation.logo_url` instead.
-        SHEET_ELECTION_EVENT => &["presentation.logo_file"],
-        SHEET_CONTESTS => &["election.external_id"],
-        SHEET_CANDIDATES => &["contest.external_id"],
+        // The three IVR annotations are read off the row and written as JSON
+        // *strings*, which the generic path cannot do: `coerce_scalar` parses
+        // bracketed text into an object, and the platform's annotations are
+        // `string: string` — `IvrConfig.tsx` calls `JSON.parse` on what it
+        // finds and `parseIvrEntityAnnotations` logs an error for anything
+        // else. See `build_election_event`.
+        SHEET_ELECTION_EVENT => &[
+            "presentation.logo_file",
+            IVR_CONFIG_COLUMN,
+            IVR_PROMPTS_COLUMN,
+            IVR_PHONE_COLUMN,
+            IVR_I18N_COLUMN,
+        ],
+        SHEET_ELECTIONS => &[IVR_I18N_COLUMN],
+        SHEET_CONTESTS => &["election.external_id", IVR_I18N_COLUMN],
+        SHEET_CANDIDATES => &["contest.external_id", IVR_I18N_COLUMN],
         SHEET_AREAS => &["parent.external_id"],
         SHEET_AREA_CONTESTS => &["area.external_id", "contest.external_id"],
         SHEET_SCHEDULED_EVENTS => &[
@@ -832,6 +863,38 @@ impl<'a> Builder<'a> {
             .collect()
     }
 
+    /// Put the entity's spoken prompt on it, if the row carries one.
+    ///
+    /// Shared by the four builders rather than written out in each, and it is a
+    /// string for the same reason the event's three are: the platform's
+    /// annotations are `string: string`, and `parseIvrEntityAnnotations` logs
+    /// "Unexpected type of ivr entity annotation" for anything else. `Row` has
+    /// already coerced a bracketed cell into an object, so whatever it became is
+    /// serialised back.
+    fn apply_ivr_prompt(&self, row: &Row, entity: &mut Map<String, Value>) {
+        let Some(value) = row.get(IVR_I18N_COLUMN) else {
+            return;
+        };
+        let text = match value {
+            Value::Null => return,
+            Value::String(raw) => raw.trim().to_string(),
+            other => match serde_json::to_string(other) {
+                Ok(text) => text,
+                Err(_) => return,
+            },
+        };
+        if text.is_empty() || text == "{}" {
+            return;
+        }
+
+        let mut annotations = match entity.get("annotations") {
+            Some(Value::Object(existing)) => existing.clone(),
+            _ => Map::new(),
+        };
+        annotations.insert("ivr:i18n".to_string(), Value::String(text));
+        entity.insert("annotations".to_string(), Value::Object(annotations));
+    }
+
     /// Parameters nothing acts on, to be carried in the event's annotations.
     ///
     /// Recorded rather than dropped: a row someone put in the spreadsheet meant
@@ -987,7 +1050,8 @@ impl<'a> Builder<'a> {
             "created_at": self.created_at,
         });
         let row = self.event_row.clone();
-        let event = self.render("election_event", Some(&row), context);
+        let mut event = self.render("election_event", Some(&row), context);
+        self.apply_ivr_prompt(&row, &mut event);
 
         let event_id = self.event_id.clone();
         let tenant_id = self.tenant_id.clone();
@@ -1013,6 +1077,53 @@ impl<'a> Builder<'a> {
             {
                 self.report.push(problem);
             }
+        }
+
+        // The telephone channel's configuration, as the platform keeps it.
+        //
+        // Read off the row rather than merged in with everything else, because
+        // each of these is a JSON *string* and the generic path would parse the
+        // bracketed text into an object. An object reaches the Admin Portal as
+        // the wrong type and is silently ignored — `IvrConfig.tsx` checks
+        // `typeof === "string"` and falls back to `{}` — so the tab would come
+        // up empty with nothing anywhere saying why.
+        let ivr: Vec<(&str, String)> =
+            [IVR_CONFIG_COLUMN, IVR_PROMPTS_COLUMN, IVR_PHONE_COLUMN]
+                .iter()
+                .filter_map(|column| {
+                    // Whatever the cell coerced to, back to a compact JSON string.
+                    //
+                    // `Row` holds values that have already been through
+                    // `coerce_scalar`, and bracketed text is parsed there — so the flow
+                    // arrives as an object and `text()` returns nothing for it. Being a
+                    // control column keeps it out of the *merge*; it does not un-parse
+                    // it. Re-serialising also means a hand-written workbook may put
+                    // either a JSON object or a quoted string in the cell and both
+                    // reach the platform as the string it wants.
+                    let value = self.event_row.get(column)?;
+                    let text = match value {
+                        Value::Null => return None,
+                        Value::String(text) => text.trim().to_string(),
+                        other => serde_json::to_string(other).ok()?,
+                    };
+                    if text.is_empty() {
+                        return None;
+                    }
+                    // The key is what follows `annotations.`, colon and all.
+                    let key = column.strip_prefix("annotations.")?;
+                    Some((key, text))
+                })
+                .collect();
+
+        if !ivr.is_empty() {
+            let mut annotations = match event.get("annotations") {
+                Some(Value::Object(existing)) => existing.clone(),
+                _ => Map::new(),
+            };
+            for (key, text) in ivr {
+                annotations.insert(key.to_string(), Value::String(text));
+            }
+            event.insert("annotations".to_string(), Value::Object(annotations));
         }
 
         let carried = self.uninterpreted_parameters();
@@ -1066,7 +1177,8 @@ impl<'a> Builder<'a> {
                 "election_event_id": self.event_id,
                 "created_at": self.created_at,
             });
-            let election = self.render("election", Some(row), context);
+            let mut election = self.render("election", Some(row), context);
+            self.apply_ivr_prompt(row, &mut election);
 
             let event_id = self.event_id.clone();
             let tenant_id = self.tenant_id.clone();
@@ -1127,7 +1239,8 @@ impl<'a> Builder<'a> {
                 "election_id": election_id,
                 "created_at": self.created_at,
             });
-            let contest = self.render("contest", Some(row), context);
+            let mut contest = self.render("contest", Some(row), context);
+            self.apply_ivr_prompt(row, &mut contest);
 
             let event_id = self.event_id.clone();
             let tenant_id = self.tenant_id.clone();
@@ -1247,7 +1360,8 @@ impl<'a> Builder<'a> {
                 "contest_id": contest_id,
                 "created_at": self.created_at,
             });
-            let candidate = self.render("candidate", Some(row), context);
+            let mut candidate = self.render("candidate", Some(row), context);
+            self.apply_ivr_prompt(row, &mut candidate);
 
             let event_id = self.event_id.clone();
             let tenant_id = self.tenant_id.clone();

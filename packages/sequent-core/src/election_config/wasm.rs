@@ -757,6 +757,58 @@ pub fn open_configuration(
 /// Rust decides which *paths*, because that is a statement about the plan.
 /// Which screens that empties is a question about screens, and belongs to
 /// whoever draws them.
+/// A plan with the profile's own values already in it.
+///
+/// The wizard could not do this, and the hole was visible: a delivery engineer
+/// fixes "SMART Elections" as the event name, opens the client's link, and the
+/// field is empty. The value was real — `apply_profile` runs inside
+/// `compile_plan`, so the *built* archive had it — but nothing put it on the
+/// screen, so the client saw a blank box above an error telling them to fill it
+/// in.
+///
+/// Exposed rather than reimplemented in TypeScript. The rules are not obvious —
+/// a **fixed** path (locked or hidden) is written unconditionally, while any
+/// other default is written only where the plan says nothing, so seeding cannot
+/// overwrite an answer somebody already gave — and a second copy of that in
+/// another language is a second opinion about what a profile means.
+#[cfg(feature = "election_config_archive")]
+#[wasm_bindgen(js_name = applyProfile)]
+pub fn apply_profile_js(
+    plan: JsValue,
+    profile: JsValue,
+) -> Result<JsValue, JsError> {
+    let plan: architect::Blueprint = serde_wasm_bindgen::from_value(plan)
+        .map_err(|error| JsError::new(&format!("bad plan: {error}")))?;
+    let document: profile::ClientProfile =
+        serde_wasm_bindgen::from_value(profile)
+            .map_err(|error| JsError::new(&format!("bad profile: {error}")))?;
+    let read = profile::Profile::read(&document).map_err(|report| {
+        JsError::new(&format!(
+            "this profile cannot be read: {}",
+            report
+                .problems
+                .first()
+                .map(|problem| problem.message.clone())
+                .unwrap_or_default()
+        ))
+    })?;
+    let seeded = profile::apply_profile(&plan, &read).map_err(|report| {
+        JsError::new(&format!(
+            "this profile cannot be applied: {}",
+            report
+                .problems
+                .first()
+                .map(|problem| problem.message.clone())
+                .unwrap_or_default()
+        ))
+    })?;
+    // `Serializer::json_compatible`, like every other export here: the default
+    // renders a map as a `Map`, and a front end reads properties.
+    seeded
+        .serialize(&serde_wasm_bindgen::Serializer::json_compatible())
+        .map_err(|error| JsError::new(&format!("cannot hand back: {error}")))
+}
+
 #[cfg(feature = "election_config_archive")]
 #[wasm_bindgen(js_name = readProfile)]
 pub fn read_profile_js(profile: JsValue) -> Result<JsValue, JsError> {
@@ -777,6 +829,10 @@ pub fn read_profile_js(profile: JsValue) -> Result<JsValue, JsError> {
         presets: Vec<profile::NamedPreset>,
         /// Whether ours are offered alongside.
         only_our_presets: bool,
+        /// Whether the ballot preview starts without the portal's chrome. A
+        /// preference about the wizard rather than about the election, which is
+        /// why it travels here and not through `defaults`.
+        preview_slim: bool,
         warnings: Report,
     }
 
@@ -796,6 +852,7 @@ pub fn read_profile_js(profile: JsValue) -> Result<JsValue, JsError> {
                 .collect(),
             presets: read.presets.clone(),
             only_our_presets: read.only_our_presets,
+            preview_slim: read.preview_slim,
             locked: read
                 .locked_paths()
                 .into_iter()
