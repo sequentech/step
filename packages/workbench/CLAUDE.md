@@ -37,7 +37,8 @@ purpose.
   code may be named freely.
 - **Generated tables are views, never sources.** Do not hand-edit
   `characterization/*.md` tables or `*.recorded.json` — change the runner
-  and regenerate. A display-only runner change must leave the recorded
+  and regenerate. (The seven per-rule tables are rendered by
+  `rule-tables.mjs`; they are documentation, not evidence.) A display-only runner change must leave the recorded
   JSONs byte-identical; check that after regenerating (an unchanged
   `git status` on the JSON is the proof the change was display-only).
 - **Narrative meets the table standard.** Prose claims in findings and

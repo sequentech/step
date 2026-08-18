@@ -8,9 +8,20 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 **Role of this document.** A one-off migration plan, agreed 2026-08-18.
 It describes moving the validation apparatus from *two specs and a
-transitive evidence chain* to *one spec and two layers*. **Delete it once
-the migration lands** — the end state belongs in
-`../characterization/README.md`, not here.
+transitive evidence chain* to *one spec and two layers*.
+
+**STATUS: landed 2026-08-18.** Steps 0–8 are done; the end state is
+described in `../characterization/README.md`, which is where it belongs.
+What remains from step 7 is re-deriving the S6 gate-count finding as a
+property (`no-silent-discount.mjs` is the worked example of that shape)
+and filing it as a suspect. **Delete this document once that lands** —
+it is a plan, not a record, and the commit history is the record.
+
+Two things the execution changed from the plan as written, worth keeping
+until deletion: step 6 turned out to REQUIRE step 7 (no-silent-discount
+read the recordings, so the deletions could not land before it was
+converted), and `emit-grid` needed no new cell kinds at all — `Effects`
+already carried `inline` and `reachability`.
 
 **Why.** Not to fix a defect: the current apparatus is green everywhere.
 The goal is that the evidence story fit in one person's head. Today it

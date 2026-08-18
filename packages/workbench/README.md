@@ -24,8 +24,10 @@ via WASM.
 - **Policy overrides** — per-contest runtime overrides for presentation
   policies and min/max vote bounds.
 - **Validation characterization** — recorded tables of the vote-validation
-  behaviour (seven rules, headless WASM + a browser DOM-validation runner),
-  the findings they surfaced, and reviewer reproduction recipes. See
+  behaviour: an exhaustive headless sweep and a browser DOM-validation
+  runner checking production against one executable spec, the analyses
+  built on it, the findings they surfaced, and reviewer reproduction
+  recipes. See
   [characterization/README.md](characterization/README.md) and
   [docs/UPSTREAM_FINDINGS.md](docs/UPSTREAM_FINDINGS.md).
 
@@ -182,10 +184,10 @@ workbench/
 │                        NOT workbench-only — `packages/velvet` depends
 │                        on it and re-exports it; see Known gaps.
 ├── velvet-wasm/         wasm-bindgen wrapper exposing velvet-core to JS
-├── validation-spec/     Typed Rust port of the validation spec — bug-
-│                        compatible, accidental complexity enumerated as a
-│                        quirk registry; equivalence-checked by
-│                        characterization/rust-conformance.mjs
+├── validation-spec/     THE executable spec — one typed Rust crate, bug-
+│                        compatible, its accidental complexity enumerated as
+│                        a quirk registry. Production is checked against it
+│                        exhaustively by characterization/headless-sweep.mjs
 ├── docs/                Vote-validation deep dives (VOTE_VALIDATION.md,
 │                        VALIDATION_LOGIC_DISTILLATION.md, FIXTURE_VARIANCE.md);
 │                        findings (UPSTREAM_FINDINGS.md), reviewer
@@ -193,14 +195,16 @@ workbench/
 │                        evidence (INVALID_VOTE_POLICY_INTENT.md). Plus one
 │                        temporary file: EVIDENCE_RESTRUCTURE.md, a migration
 │                        plan to be deleted when it lands
-├── characterization/    Recorded validation-behaviour tables + the harness
-│                        that generates them: seven headless rule runners +
-│                        shared spec (spec.mjs), the browser DOM-validation
-│                        runner (dom-validate.mjs), the no-silent-discount
-│                        query, the e2e pipeline runners, and the
-│                        dependency-validation pipeline (effect-dependencies
-│                        → headless-sweep → browser-witnesses →
-│                        quotient-validate). Commands and outputs:
+├── characterization/    The validation apparatus, in two layers. EVIDENCE
+│                        (production ≡ the spec): headless-sweep.mjs,
+│                        dom-validate.mjs, quotient-validate.mjs,
+│                        browser-witnesses.mjs, classifier-table.mjs, and the
+│                        e2e pipeline runners. ANALYSIS (over the certified
+│                        spec, never touching production):
+│                        effect-dependencies.mjs, effect-map.mjs,
+│                        no-silent-discount.mjs. Plus rule-tables.mjs, which
+│                        renders the per-rule tables as documentation.
+│                        Commands and outputs:
 │                        characterization/README.md ("Running the analysis")
 ├── WORKBENCH.md         Workbench-side design: inspector, snapshots,
 │                        overlay state, Diagnostics, authoring workflow
@@ -361,23 +365,28 @@ Where the work stands (2026-08-18): the validation characterization is
 complete — all seven rules recorded headlessly and DOM-validated against
 the real booth (229/229, [characterization/README.md](characterization/README.md)),
 every dependence and independence claim the spec makes
-production-validated (headlessly by exhaustion — 138,240 cells; in the
+production-validated (headlessly by exhaustion — 248,320 cells; in the
 booth by witnesses and by sufficiency — 130,048 cells via 2,208 quotient
 classes; zero disagreements anywhere), and the findings confirmed
-end-to-end and documented. Distillation steps 3–4 are delivered: the
-typed Rust spec ([validation-spec/](validation-spec/)) is
-bug-compatible, its accidental complexity enumerated as a quirk
-registry, and equivalence-checked by
-`characterization/rust-conformance.mjs`
-([docs/VALIDATION_LOGIC_DISTILLATION.md](docs/VALIDATION_LOGIC_DISTILLATION.md)
-§5.3, the 2026-08-17 status).
+end-to-end and documented.
+
+**The evidence restructure has landed.** There is now ONE executable
+spec — the typed Rust crate [validation-spec/](validation-spec/),
+bug-compatible with its accidental complexity enumerated as a quirk
+registry — and every runner that compares against production targets it
+directly. The apparatus divides into an **evidence layer** (production ≡
+the spec) and an **analysis layer** (consuming the certified spec,
+never touching production), with the per-rule tables as documentation
+rendered from the spec. `spec.mjs`, `rust-conformance` and the seven
+per-rule runners are gone
+([docs/EVIDENCE_RESTRUCTURE.md](docs/EVIDENCE_RESTRUCTURE.md)).
 
 One booth flow remains unreachable (decline-to-vote), and the
 pipeline's coverage carries explicitly labelled residues — the unswept
-region (preferential states, decline, `max_votes = 0`), 96 quotient
-classes with no booth-formable member, 23 witnesses no bundled fixture
-can observe — each named with its unblocking condition in its own
-artifact. What would close those residues is suite-internal work, and it
+region (decline, `max_votes = 0`), 4,384 quotient classes with no
+booth-formable member — mostly preferential, awaiting a generic IRV booth
+recipe — and 23 witnesses no bundled fixture can observe; each named with
+its unblocking condition in its own artifact. What would close those residues is suite-internal work, and it
 is collected in [characterization/README.md](characterization/README.md)
 ("Open work"); what follows here is what needs a decision or changes
 which artifact ships, roughly by payoff:
@@ -400,22 +409,16 @@ which artifact ships, roughly by payoff:
    "unset" and "allowed" are not the same configuration at the booth.
    Whether that becomes a suspect is a joint call — adjudication is
    nobody's alone.
-2. **The evidence restructure** — plan written, not started:
-   [docs/EVIDENCE_RESTRUCTURE.md](docs/EVIDENCE_RESTRUCTURE.md). Every
-   runner that compares against production currently targets `spec.mjs`,
-   so the artifact this work exists to produce, `validation-spec/`,
-   inherits that evidence transitively — exactly on the 280 recorded
-   cells, by sampling everywhere else. Pointing the runners at
-   `emit-grid` instead makes the shipped spec **directly and
-   exhaustively** evidenced, and splits the apparatus into two layers:
-   an **evidence layer** that establishes `production ≡ Rust spec`, and
-   an **analysis layer** that consumes the certified spec and never
-   touches production. Nine files go (`spec.mjs`, `rust-conformance`,
-   the seven per-rule runners in their validation role), six are
-   re-pointed. Blocked on nobody. The motive is not a defect — the suite
-   is green — but that the evidence story currently needs more moving
-   parts than anyone can hold, which has already produced errors in the
-   written record that only source-reading caught.
+2. **Re-derive S6 as a property.** The step-1 sweep surfaced a production
+   defect: the submission gates count only rank-0 selections
+   (`voting_screen.rs`) where the checker counts every ranked one
+   (`raw_ballot.rs`), so on a ranked ballot they disagree — a ballot with
+   no first preference is gated as *blank*, and a `WARN_AND_ALERT`
+   under-vote alert can fire with no dialog. The spec is bug-compatible
+   with it (quirk `S6_GATES_COUNT_FIRST_PREFERENCES_ONLY`); what remains
+   is to express it as a property over the certified spec so its
+   consequences fall out rather than being asserted, then file it as a
+   suspect. `no-silent-discount.mjs` is the worked example of that shape.
 3. **The decline-to-vote booth flow** — the one open characterization
    cell. Blocked on adding a `multi_ballot` encrypt/decrypt path (the
    decline bit does not exist in `raw_ballot`; see Known gaps above), so

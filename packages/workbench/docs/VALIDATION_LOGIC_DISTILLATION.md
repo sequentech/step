@@ -95,10 +95,10 @@ explicit blanks #2842, decline-to-vote #2687.)
 ### The effect categories
 
 Each category maps to one function of the executable spec
-([`../characterization/spec.mjs`](../characterization/spec.mjs)) and to
+([`../validation-spec/`](../validation-spec/)) and to
 named columns of the recorded tables:
 
-| effect category | what it is | value | spec.mjs | recorded in |
+| effect category | what it is | value | spec field | recorded in |
 |---|---|---|---|---|
 | **inline** | the warning boxes rendered under the contest (each carries a `data-warn-id`) | one set of message keys **per observation point** — `votingUntouched` (constantly empty: the untouched-clear), `voting`, `review`; 1a when non-empty | `inlineViews` | *inline (voting)* / *inline (review)* columns, `dom-validate.md`; the untouched constant asserted empty per cell by `dom-validate.mjs` |
 | **dialog** | the dialog that may open on clicking Next / entering review | none / dismissible (1b) / blocking (1c) — a projection of the gate pair (see the intermediates note below): hard → blocking, else soft → dismissible, else none | `f().dialog` | the observed dialog per cell in `dom-validate.recorded.json` |
@@ -113,7 +113,7 @@ property (§4.5) tests.
 
 **Checkable intermediates — the validation apparatus, not the spec.**
 The executable spec's output (the `Effects` struct in
-[`../validation-spec/`](../validation-spec/), same fields in `spec.mjs`)
+[`../validation-spec/`](../validation-spec/))
 carries two more components that are *not* effects — nothing in the
 system exposes them directly; they are intermediate data the effects
 are computed from, and they ride in the output so the validation suite
@@ -159,7 +159,7 @@ CastingEffect = (inline: observation_point → Set<Message>,
 ```
 
 Two amendments to an earlier version of this type, both forced by what
-the characterization verified (`../characterization/spec.mjs` is the
+the characterization verified (`../validation-spec/` is the
 executable form):
 
 - **The dialog is a projection of two independent booleans, not a
@@ -351,7 +351,7 @@ scope decisions — each with a re-entry condition — in
 
 The system's behaviour is fully characterised by a pure function
 returning one value per effect category — the executable form is
-[`../characterization/spec.mjs`](../characterization/spec.mjs), `f`:
+[`../validation-spec/`](../validation-spec/), `f`:
 
 ```
 f(config, vote_state) → ( emissions,      // checkable intermediate (checker record)
@@ -526,7 +526,7 @@ production (§5.3 status):
 
 - **Casting half** — [`../validation-spec/`](../validation-spec/): the
   typed pure `f(config, vote_state) → Effects` exactly as §3 types it
-  (and its JS twin, `../characterization/spec.mjs`). Bug-compatible; the
+  Bug-compatible; the
   accidental complexity is enumerated as the quirk registry, each entry
   an adjudication decision in waiting.
 - **Tally half** — production already ships it: `classify_ballot`
@@ -543,37 +543,50 @@ proven support (the signatures in `../characterization/effect-map.md`).
 
 This is not a rewrite proposal. The path is incremental:
 
-> **Status (2026-08-17).** Step 1 is complete, steps 3–4 are delivered,
-> and the spec's whole claim ledger is validated:
+> **Status (2026-08-18).** Step 1 is complete, steps 3–4 are delivered,
+> the spec's claim ledger is validated, and the apparatus has been
+> restructured so the evidence attaches to the shipped artifact:
 >
-> - **Artifacts.** Seven per-rule grids + the classifier's 32-cell
->   decision table
->   ([`../characterization/README.md`](../characterization/README.md),
->   "Coverage"); the executable spec twice over —
->   `../characterization/spec.mjs` and the typed Rust crate
->   [`../validation-spec/`](../validation-spec/) (bug-compatible; the
->   quirk registry is the adjudication work list) — agreeing on 20,280
->   cells (`rust-conformance.md`).
-> - **Validation.** Per-grid: `pred?` against the real WASM on every
->   cell; the complete tables against the real booth (229/229,
->   `dom-validate.md`). Beyond the grids, the dependency pipeline:
->   dependence claims 115/155 production-confirmed, zero disagreements
->   (the 40 others labelled — 2 unobservable by construction, 25
->   exhibited by the IRV grids / classifier table, 13 awaiting a
->   both-markers fixture); independence claims discharged by exhaustion
->   headlessly (production ≡ spec on all 138,240 representable cells,
->   `headless-sweep.md`) and by sufficiency in the booth (2,208 quotient
->   classes covering 130,048 cells, `quotient-validate.md`, under the
->   source-verified props-boundary license and its re-entry condition).
-> - **Findings.** no-silent-discount: 5 booth-confirmed silent discounts
->   in two families, all requiring `invalid_vote_policy = allowed`, each
+> - **Artifacts.** ONE executable spec — the typed Rust crate
+>   [`../validation-spec/`](../validation-spec/), bug-compatible, its
+>   quirk registry the adjudication work list. The JS transcription that
+>   used to carry the evidence is gone; every runner that compares
+>   against production now targets the crate directly, so the chain is
+>   one link, not two (`EVIDENCE_RESTRUCTURE.md`). Per-rule tables
+>   survive as documentation rendered from the spec.
+> - **Validation (the evidence layer).** Production ≡ the spec
+>   **exhaustively** on the representable headless domain — 248,320
+>   cells, plurality and preferential, zero disagreements
+>   (`headless-sweep.md`); per cell in the real booth (229/229,
+>   `dom-validate.md`); by sufficiency for the browser-side independence
+>   claims (2,208 quotient classes covering 130,048 cells,
+>   `quotient-validate.md`, under the source-verified props-boundary
+>   license and its re-entry condition); and by witness for the
+>   browser-side dependence claims (`browser-witnesses.md`).
+> - **Analysis (over the certified spec, never touching production).**
+>   The dependency ledger and its effect map; the no-silent-discount
+>   property. Witness production-backing is now *inherited* from the
+>   sweep by a checked containment argument rather than re-observed.
+> - **Findings.** no-silent-discount, evaluated over all 248,320
+>   certified cells: 2,848 silent-discount cells in exactly the two known
+>   families (`selectedMin`, `selectedMax`) — no new families — and all
+>   80 permitting configurations require `invalid_vote_policy = allowed`,
+>   now exhaustively rather than by argument. Five representatives are
 >   confirmed through one continuous booth → encrypt → cast → decrypt →
 >   decode → tally run (`reproduce-verify.mjs`); recipes in
 >   `REPRODUCE.md`, escalation in `UPSTREAM_FINDINGS.md`, policy intent
 >   in `INVALID_VOTE_POLICY_INTENT.md`.
-> - **Open.** The decline booth flow (a `multi_ballot` feature lift);
->   the labelled residues above; step 5 — a production interpreter —
->   remains adjudication-gated.
+> - **New this round.** The widened sweep surfaced a production defect the
+>   plurality-only domain could not see: the submission gates count only
+>   rank-0 selections where the checker counts every ranked one, so on a
+>   ranked ballot they disagree (quirk
+>   `S6_GATES_COUNT_FIRST_PREFERENCES_ONLY`). The spec is bug-compatible
+>   with it; re-deriving it as a property, and filing it as a suspect,
+>   is open.
+> - **Open.** The decline booth flow (a `multi_ballot` feature lift); a
+>   generic IRV booth recipe (the headless half is closed); a
+>   both-markers fixture; step 5 — a production interpreter — remains
+>   adjudication-gated.
 >
 > On the representable subdomain a transcription hole of either
 > polarity — a wrong clause or a missing one — cannot hide: coverage,
