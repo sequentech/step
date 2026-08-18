@@ -9,7 +9,7 @@ use crate::postgres::election::{export_elections, get_election_by_id};
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
 use crate::postgres::tally_session::{
-    get_tally_session_by_id, insert_tally_session,
+    get_tally_session_by_id, insert_tally_session, lock_tally_session_for_update,
     set_tally_session_completed as set_tally_session_completed_in_db, update_tally_session_status,
 };
 use crate::postgres::tally_session_contest::{
@@ -21,16 +21,15 @@ use crate::postgres::tally_session_execution::{
 use crate::postgres::tally_sheet::get_approved_tally_sheets_by_event;
 use crate::services::ceremonies::keys_ceremony::find_trustee_private_key;
 use crate::services::ceremonies::serialize_logs::{
-    append_tally_trustee_log, generate_tally_initial_log,
+    append_tally_recount_log, append_tally_trustee_log, generate_tally_initial_log,
 };
-use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_status;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::protocol_manager::get_event_board;
 use anyhow::{anyhow, Context, Result};
 use b4::messages::newtypes::BatchNumber;
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Transaction;
 use futures::try_join;
 use sequent_core::ballot::{
     AllowTallyStatus, BallotStyle as SequentBallotStyle, ContestEncryptionPolicy,
@@ -572,6 +571,7 @@ pub async fn create_tally_ceremony(
         None,
         None,
         None,
+        TallyRunReason::NORMAL,
     )
     .await?;
 
@@ -857,6 +857,7 @@ pub async fn set_private_key(
         None,
         None,
         None,
+        TallyRunReason::NORMAL,
     )
     .await?;
 
@@ -990,37 +991,111 @@ pub async fn set_tally_session_completed(
     Ok(())
 }
 
-/// Resets a tally session back to a completed `SUCCESS` state after a recount
-/// (manual or automatic) failed to enqueue its celery task, so the session
-/// isn't left stuck `IN_PROGRESS`.
-pub async fn reset_tally_session_status_after_failed_recount_task(
+/// Marks a completed tally session as `IN_PROGRESS` for a recount (manual or
+/// automatic): inserts a fresh `tally_session_execution` row with
+/// `elections_status` reset to `WAITING`/0% and a "recount launched" log
+/// entry appended, then flips the session status. Without this, the tally
+/// session details keep showing the previous completed run (status, progress,
+/// results) until the celery task produces its own first update, which can
+/// be a long time (or never, if it bails out early).
+///
+/// Returns `false` if the session is no longer completed and eligible, or has
+/// no `tally_session_execution` row at all.
+/// `insert_tally_session` and the first `insert_tally_session_execution`
+/// always land in the same transaction (see `create_tally_ceremony` below),
+/// so a session created here can't reach `SUCCESS`/completed without one;
+/// a session whose status disagrees with its execution history never
+/// actually ran, and so has nothing to recount.
+///
+#[instrument(skip(hasura_transaction), err)]
+pub async fn begin_tally_session_recount(
+    hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     tally_session_id: &str,
-    task_error: &str,
-) -> Result<()> {
-    let mut reset_db_client: DbClient = get_hasura_pool().await.get().await.with_context(|| {
-        format!(
-            "failed to send recount task ({task_error}) and failed to get hasura db pool for reset"
-        )
-    })?;
-    let reset_transaction = reset_db_client.transaction().await.with_context(|| {
-        format!("failed to send recount task ({task_error}) and failed to start reset transaction")
-    })?;
-    update_tally_session_status(
-        &reset_transaction,
+    election_ids: &[String],
+) -> Result<bool> {
+    // Serialize the state transition with post-tally finalization. The task
+    // itself has a different, long-lived lock; this short row lock protects
+    // only writers that can change which execution is considered latest.
+    lock_tally_session_for_update(
+        hasura_transaction,
         tenant_id,
         election_event_id,
         tally_session_id,
-        TallyExecutionStatus::SUCCESS,
-        true,
     )
-    .await
-    .with_context(|| {
-        format!("failed to send recount task ({task_error}) and failed to reset tally status")
-    })?;
-    reset_transaction.commit().await.with_context(|| {
-        format!("failed to send recount task ({task_error}) and failed to commit reset")
-    })?;
-    Ok(())
+    .await?;
+
+    // Callers inspect the session before opening this transition, but another
+    // recount can complete that read and acquire the lock first. Re-check only
+    // after the lock is held so a stale caller cannot append a second marker.
+    let tally_session = get_tally_session_by_id(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+    )
+    .await?;
+    if tally_session.execution_status.as_deref()
+        != Some(TallyExecutionStatus::SUCCESS.to_string().as_str())
+        || !tally_session.is_execution_completed
+    {
+        return Ok(false);
+    }
+
+    let Some(last_execution) = get_last_tally_session_execution(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+    )
+    .await?
+    else {
+        return Ok(false);
+    };
+
+    let original_status = get_tally_ceremony_status(last_execution.status.clone())?;
+
+    let mut recount_status = original_status.clone();
+    let election_ids_vec = election_ids.to_vec();
+    recount_status.logs = append_tally_recount_log(&recount_status.logs, &election_ids_vec);
+    recount_status.elections_status = election_ids_vec
+        .iter()
+        .map(|election_id| TallyElection {
+            election_id: election_id.clone(),
+            status: TallyElectionStatus::WAITING,
+            progress: 0.0,
+        })
+        .collect();
+
+    insert_tally_session_execution(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        last_execution.current_message_id,
+        tally_session_id,
+        Some(recount_status),
+        None,
+        None,
+        None,
+        // The durable record that a recount was asked for. The celery message
+        // this function's callers send afterwards is only a nudge: if it is
+        // lost -- expired while no worker was consuming, or dropped because a
+        // concurrent run held the lock -- the next process_board tick reads
+        // this row and performs the recount anyway.
+        TallyRunReason::RECOUNT,
+    )
+    .await?;
+
+    update_tally_session_status(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+        TallyExecutionStatus::IN_PROGRESS,
+        false,
+    )
+    .await?;
+
+    Ok(true)
 }

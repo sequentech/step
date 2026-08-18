@@ -14,7 +14,7 @@ use keycloak::KeycloakError;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::keycloak::{KeycloakAdminClient, PubKeycloakAdmin};
 use sequent_core::types::keycloak::*;
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 use std::cmp::min;
 use std::env;
@@ -471,7 +471,7 @@ pub enum SqlBooleanOperator {
     None,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, EnumString, Display)]
+#[derive(Debug, Clone, PartialEq, Eq, EnumString, Display, Serialize)]
 pub enum FilterOption {
     /// Those elements that contain the string are returned.
     IsLike(String),
@@ -636,7 +636,7 @@ impl<'de> Deserialize<'de> for FilterOption {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Default)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, Serialize, Deserialize)]
 pub struct ListUsersFilter {
     pub tenant_id: String,
     pub election_event_id: Option<String>,
@@ -1049,6 +1049,9 @@ pub async fn list_users(
         }
     };
 
+    // The count query below has no ORDER BY clause, so it must not receive the
+    // optional dynamic-attribute sort parameter used by the listing query.
+    let count_params_len = params.len();
     let mut sort_params: Vec<Option<String>> = vec![];
     let (sort_clause, field_param) =
         get_sort_clause_and_field_param(filter.sort, next_param_number);
@@ -1159,7 +1162,7 @@ pub async fn list_users(
         .prepare(count_statement_str.as_str())
         .await?;
     let count_row: Row = keycloak_transaction
-        .query_one(&count_statement, &params)
+        .query_one(&count_statement, &params[..count_params_len])
         .await
         .map_err(|err| anyhow!("{}", err))?;
 
