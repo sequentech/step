@@ -7,7 +7,8 @@
 // decomposition; plan settled with the operator 2026-08-17).
 //
 // Runs PRODUCTION (the real WASM checker → gates → tally, exactly what the
-// rule runners record) against `spec.f` on EVERY cell of the representable
+// rule runners record) against the TYPED RUST SPEC (`../validation-spec`,
+// via `emit-grid`) on EVERY cell of the representable
 // headless subdomain:
 //
 //   all 6 policies × all values   (incl. dup/gap — their claimed inertness
@@ -53,7 +54,7 @@ import path from "node:path"
 import {performance} from "node:perf_hooks"
 import {loadWasm, loadVelvetWasm} from "./harness.mjs"
 import {representable, observeHeadless, shortKey, rankedTriples} from "./cell.mjs"
-import {f as specF} from "./spec.mjs"
+import {specF} from "./rust-spec.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
@@ -114,89 +115,103 @@ const t0 = performance.now()
 
 for (const invalid of INVALID) {
     for (const blank of BLANK) {
-        for (const over of OVER) {
-            for (const under of UNDER) {
-                for (const dup of RANKP) {
+        // Collect this block's representable cells first, then evaluate the
+        // spec for all of them in ONE call. `emit-grid` is a subprocess, so
+        // evaluating per cell would pay the process cost a quarter of a
+        // million times; per (invalid, blank) block keeps the batch big and
+        // the peak memory bounded.
+        const blockCells = []
+        for (const over of OVER)
+            for (const under of UNDER)
+                for (const dup of RANKP)
                     for (const gap of RANKP) {
                         const policies = {invalid, blank, over, under, dup, gap}
-                        for (const [min, max] of BOUNDS) {
+                        for (const [min, max] of BOUNDS)
                             for (const state of STATES) {
                                 const cell = {
                                     config: {min, max, policies},
                                     voteState: {...state},
                                 }
-                                if (representable(cell)) continue
-                                cells++
-                                const prod = observeHeadless(cell)
-                                const spec = specF(cell.config, cell.voteState)
-                                const specDialog = spec.gate.hard
-                                    ? "blocking"
-                                    : spec.gate.soft
-                                      ? "dismissible"
-                                      : "none"
-                                const prodDialog = prod.hard
-                                    ? "blocking"
-                                    : prod.soft
-                                      ? "dismissible"
-                                      : "none"
-                                const bad =
-                                    !eq(sortedUniq(prod.errors), sortedUniq(spec.emissions.errors.map(shortKey))) ||
-                                    !eq(sortedUniq(prod.alerts), sortedUniq(spec.emissions.alerts.map(shortKey))) ||
-                                    prod.hard !== spec.gate.hard ||
-                                    prod.soft !== spec.gate.soft ||
-                                    prodDialog !== specDialog ||
-                                    prod.tally !== spec.tally
-                                if (bad) {
-                                    disagreements.push({cell, production: prod, spec: {
-                                        errors: spec.emissions.errors.map(shortKey),
-                                        alerts: spec.emissions.alerts.map(shortKey),
-                                        hard: spec.gate.hard,
-                                        soft: spec.gate.soft,
-                                        tally: spec.tally,
-                                    }})
-                                }
-                                // Quotient class: keyed by the PRODUCTION-observed
-                                // checker record + the policies the filter consults.
-                                // The spec's inline views are recorded per class; a
-                                // conflict would break the spec-side factorization
-                                // (structurally impossible while renderedKeys reads
-                                // only these inputs — kept as a cheap safety net).
-                                const key = JSON.stringify([
-                                    sortedUniq(prod.errors),
-                                    sortedUniq(prod.alerts),
-                                    invalid,
-                                    blank,
-                                    over,
-                                    under,
-                                ])
-                                const specInline = {
-                                    voting: sortedUniq(spec.inline.voting.map(shortKey)),
-                                    review: sortedUniq(spec.inline.review.map(shortKey)),
-                                }
-                                const existing = classes.get(key)
-                                if (!existing) {
-                                    classes.set(key, {representative: cell, spec_inline: specInline, cells: 1})
-                                } else {
-                                    existing.cells++
-                                    if (!eq(existing.spec_inline, specInline)) {
-                                        disagreements.push({
-                                            factorization_conflict: key,
-                                            cell,
-                                            spec_inline: specInline,
-                                            class_inline: existing.spec_inline,
-                                        })
-                                    }
-                                }
+                                if (!representable(cell)) blockCells.push(cell)
                             }
-                        }
                     }
+        const blockSpecs = specF(blockCells)
+
+        for (let ci = 0; ci < blockCells.length; ci++) {
+            const cell = blockCells[ci]
+            const {over, under} = cell.config.policies
+            cells++
+            const prod = observeHeadless(cell)
+            const spec = blockSpecs[ci]
+            const specDialog = spec.gate.hard
+                ? "blocking"
+                : spec.gate.soft
+                  ? "dismissible"
+                  : "none"
+            const prodDialog = prod.hard
+                ? "blocking"
+                : prod.soft
+                  ? "dismissible"
+                  : "none"
+            const specErrors = spec.emissions.errors.map(shortKey)
+            const specAlerts = spec.emissions.alerts.map(shortKey)
+            const bad =
+                !eq(sortedUniq(prod.errors), sortedUniq(specErrors)) ||
+                !eq(sortedUniq(prod.alerts), sortedUniq(specAlerts)) ||
+                prod.hard !== spec.gate.hard ||
+                prod.soft !== spec.gate.soft ||
+                prodDialog !== specDialog ||
+                prod.tally !== spec.tally
+            if (bad) {
+                disagreements.push({
+                    cell,
+                    production: prod,
+                    spec: {
+                        errors: specErrors,
+                        alerts: specAlerts,
+                        hard: spec.gate.hard,
+                        soft: spec.gate.soft,
+                        tally: spec.tally,
+                    },
+                })
+            }
+            // Quotient class: keyed by the PRODUCTION-observed checker
+            // record + the policies the filter consults. The spec's inline
+            // views are recorded per class; a conflict would break the
+            // spec-side factorization (structurally impossible while
+            // renderedKeys reads only these inputs — a cheap safety net).
+            const key = JSON.stringify([
+                sortedUniq(prod.errors),
+                sortedUniq(prod.alerts),
+                invalid,
+                blank,
+                over,
+                under,
+            ])
+            const specInline = {
+                voting: sortedUniq(spec.inline.voting.map(shortKey)),
+                review: sortedUniq(spec.inline.review.map(shortKey)),
+            }
+            const existing = classes.get(key)
+            if (!existing) {
+                classes.set(key, {representative: cell, spec_inline: specInline, cells: 1})
+            } else {
+                existing.cells++
+                if (!eq(existing.spec_inline, specInline)) {
+                    disagreements.push({
+                        factorization_conflict: key,
+                        cell,
+                        spec_inline: specInline,
+                        class_inline: existing.spec_inline,
+                    })
                 }
             }
         }
         process.stdout.write(
             `  swept invalid=${invalid} blank=${blank} — ${cells} cells, ` +
                 `${disagreements.length} disagreements, ${classes.size} classes, ` +
-                `${Math.round((performance.now() - t0) / 1000)}s\n`
+                `${Math.round((performance.now() - t0) / 1000)}s
+`
         )
     }
 }
@@ -250,7 +265,8 @@ const md = [
     "**Experiment.** Every cell — one concrete (contest-configuration ×",
     "vote-state) combination — of the representable headless subdomain is",
     "driven through the REAL WASM (checker → gates → tally, the same entry",
-    "points the rule runners record) and compared against `spec.f` on every",
+    "points the rule runners record) and compared against the typed Rust",
+    "spec (`../validation-spec`) on every",
     "headless effect: checker errors and alerts (as key sets), both gates,",
     "the dialog projection, and the tally class. The subdomain: all values",
     "of all six policies (dup/gap included — their inertness on plurality",
