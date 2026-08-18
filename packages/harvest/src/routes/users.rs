@@ -33,6 +33,7 @@ use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::cast_votes::get_users_with_vote_info;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
+use windmill::services::election::is_election_event_locked_down;
 use windmill::services::electoral_log::{
     post_voter_password_change, ElectoralLogAdminContext,
     VoterPasswordChangeSource,
@@ -48,6 +49,9 @@ use windmill::services::users::{
     count_keycloak_users, list_users, list_users_with_vote_info,
 };
 use windmill::services::users::{FilterOption, ListUsersFilter};
+use windmill::tasks::delete_users::{
+    self as delete_users_task, DeleteUsersOutput,
+};
 use windmill::tasks::edit_user::{EditUserOutput, EditUserTaskBody};
 use windmill::tasks::export_users::{self, ExportUsersOutput};
 use windmill::tasks::import_users::{self, ImportUsersOutput};
@@ -60,6 +64,23 @@ pub struct DeleteUserBody {
     user_id: String,
 }
 
+async fn ensure_election_event_not_locked(
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<(), (Status, String)> {
+    match is_election_event_locked_down(tenant_id, election_event_id).await {
+        Ok(false) => Ok(()),
+        Ok(true) => Err((
+            Status::Forbidden,
+            "Election event is locked down".to_string(),
+        )),
+        Err(err) => Err((
+            Status::InternalServerError,
+            format!("Failed to check election event lockdown: {err}"),
+        )),
+    }
+}
+
 #[instrument(skip(claims))]
 #[post("/delete-user", format = "json", data = "<body>")]
 pub async fn delete_user(
@@ -68,7 +89,7 @@ pub async fn delete_user(
 ) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
     let required_perm: Permissions = if input.election_event_id.is_some() {
-        Permissions::VOTER_WRITE
+        Permissions::VOTER_DELETE
     } else {
         Permissions::USER_WRITE
     };
@@ -78,9 +99,13 @@ pub async fn delete_user(
         Some(input.tenant_id.clone()),
         vec![required_perm],
     )?;
-    let realm = match input.election_event_id {
+    if let Some(election_event_id) = input.election_event_id.as_deref() {
+        ensure_election_event_not_locked(&input.tenant_id, election_event_id)
+            .await?;
+    }
+    let realm = match input.election_event_id.as_ref() {
         Some(election_event_id) => {
-            get_event_realm(&input.tenant_id, &election_event_id)
+            get_event_realm(&input.tenant_id, election_event_id)
         }
         None => get_tenant_realm(&input.tenant_id),
     };
@@ -106,7 +131,25 @@ pub async fn delete_user(
 pub struct DeleteUsersBody {
     tenant_id: String,
     election_event_id: Option<String>,
-    users_id: Vec<String>,
+    election_id: Option<String>,
+    /// The explicit selection. Absent when `select_all` is set.
+    users_id: Option<Vec<String>>,
+    /// Delete every voter matching the filters below rather than an explicit
+    /// list. The browser only knows the page it has loaded, so "select all" has
+    /// to be resolved server side.
+    select_all: Option<bool>,
+    /// The same filter set `get-users` accepts. It has to be the same set: any
+    /// filter the list applies but the delete does not would resolve to MORE
+    /// voters than the operator can see.
+    first_name: Option<FilterOption>,
+    last_name: Option<FilterOption>,
+    username: Option<FilterOption>,
+    email: Option<FilterOption>,
+    attributes: Option<HashMap<String, String>>,
+    has_voted: Option<bool>,
+    enabled: Option<bool>,
+    email_verified: Option<bool>,
+    authorized_to_election_alias: Option<String>,
 }
 
 #[instrument(skip(claims))]
@@ -114,10 +157,10 @@ pub struct DeleteUsersBody {
 pub async fn delete_users(
     claims: jwt::JwtClaims,
     body: Json<DeleteUsersBody>,
-) -> Result<Json<OptionalId>, (Status, String)> {
+) -> Result<Json<DeleteUsersOutput>, (Status, String)> {
     let input = body.into_inner();
     let required_perm: Permissions = if input.election_event_id.is_some() {
-        Permissions::VOTER_WRITE
+        Permissions::VOTER_DELETE
     } else {
         Permissions::USER_WRITE
     };
@@ -127,23 +170,146 @@ pub async fn delete_users(
         Some(input.tenant_id.clone()),
         vec![required_perm],
     )?;
-    let realm = match input.election_event_id {
+
+    let select_all = input.select_all.unwrap_or(false);
+    if !select_all && input.users_id.as_ref().map_or(true, |ids| ids.is_empty())
+    {
+        return Err((
+            Status::BadRequest,
+            "No voters selected and select_all was not set".to_string(),
+        ));
+    }
+    // Without an election event there is nothing to scope the filters to, so
+    // select_all would resolve every non-service account in the tenant realm --
+    // every admin, including the caller -- and there is no task_execution row
+    // to audit it either. The tenant user list deletes by explicit selection.
+    if select_all && input.election_event_id.is_none() {
+        return Err((
+            Status::BadRequest,
+            "select_all requires an election event".to_string(),
+        ));
+    }
+    if let Some(election_event_id) = input.election_event_id.as_deref() {
+        ensure_election_event_not_locked(&input.tenant_id, election_event_id)
+            .await?;
+    }
+
+    let realm = match input.election_event_id.as_ref() {
         Some(election_event_id) => {
-            get_event_realm(&input.tenant_id, &election_event_id)
+            get_event_realm(&input.tenant_id, election_event_id)
         }
         None => get_tenant_realm(&input.tenant_id),
     };
-    let client = KeycloakAdminClient::new()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    for id in input.users_id {
-        client
-            .delete_user(&realm, &id)
+    // Tenant users do not have an election event to own a task_execution row.
+    // Keep this path synchronous so Keycloak failures are returned to the
+    // caller instead of disappearing in an untracked worker task.
+    if input.election_event_id.is_none() {
+        let client = KeycloakAdminClient::new()
             .await
-            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+            .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+        let user_ids = input
+            .users_id
+            .as_ref()
+            .ok_or((Status::BadRequest, "No users selected".to_string()))?;
+        for id in user_ids {
+            client.delete_user(&realm, id).await.map_err(|e| {
+                (
+                    Status::InternalServerError,
+                    format!("Error deleting the user: {e:?}"),
+                )
+            })?;
+        }
+        return Ok(Json(DeleteUsersOutput {
+            ids: None,
+            error_msg: None,
+            task_execution: None,
+        }));
     }
-    Ok(Json(Default::default()))
+
+    let executer_name = claims
+        .name
+        .clone()
+        .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
+
+    let election_event_id = input
+        .election_event_id
+        .clone()
+        .expect("tenant users returned above");
+    let task_execution = Some(
+        post(
+            &input.tenant_id,
+            Some(&election_event_id),
+            ETasksExecution::DELETE_VOTERS,
+            &executer_name,
+        )
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Failed to insert task execution record: {error:?}"),
+            )
+        })?,
+    );
+
+    let filter = if select_all {
+        Some(ListUsersFilter {
+            tenant_id: input.tenant_id.clone(),
+            election_event_id: input.election_event_id.clone(),
+            election_id: input.election_id.clone(),
+            area_id: None,
+            realm: realm.clone(),
+            search: None,
+            first_name: input.first_name,
+            last_name: input.last_name,
+            username: input.username,
+            email: input.email,
+            limit: None,
+            offset: None,
+            user_ids: None,
+            attributes: input.attributes,
+            enabled: input.enabled,
+            email_verified: input.email_verified,
+            sort: None,
+            has_voted: input.has_voted,
+            authorized_to_election_alias: input.authorized_to_election_alias,
+        })
+    } else {
+        None
+    };
+
+    let celery_app = get_celery_app().await;
+    if let Err(err) = celery_app
+        .send_task(delete_users_task::delete_users::new(
+            realm,
+            if select_all { None } else { input.users_id },
+            filter,
+            task_execution.clone(),
+        ))
+        .await
+    {
+        // Otherwise the row sits IN_PROGRESS forever with nothing to run it.
+        if let Some(task_execution) = &task_execution {
+            let _ = update_fail(
+                task_execution,
+                &format!("Failed to enqueue the Delete Voters task: {err}"),
+            )
+            .await;
+        }
+        return Ok(Json(DeleteUsersOutput {
+            ids: None,
+            error_msg: Some(format!("Error sending Delete Voters task: {err}")),
+            task_execution,
+        }));
+    }
+
+    info!("Sent DELETE_VOTERS task");
+
+    Ok(Json(DeleteUsersOutput {
+        ids: None,
+        error_msg: None,
+        task_execution,
+    }))
 }
 
 #[derive(Deserialize, Debug)]

@@ -92,6 +92,9 @@ const englishTranslation = {
             backButton: "Edit ballot",
             castBallotButton: "Cast ballot",
             auditButton: "Audit ballot",
+            copyBallotId: "Copy ballot ID",
+            ballotIdCopied: "Ballot ID copied",
+            ballotIdCopyError: "Could not copy ballot ID",
             reviewScreenHelpDialog: {
                 title: "About the review screen",
                 content: "This screen lets you review your selections before casting your ballot",

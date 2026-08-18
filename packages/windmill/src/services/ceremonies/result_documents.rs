@@ -835,7 +835,7 @@ pub async fn save_result_documents(
                         })
                     })
             });
-            let area_blank_ballots_count = area_blank_ballots.map(|(count, _)| count as i64);
+            let area_blank_ballots_count = area_blank_ballots.map(|(count, _)| count as i32);
             // Percentage over total votes cast, not census: a blank ballot
             // is a valid cast ballot, matching results.rs/generate_db.rs.
             let area_blank_ballots_percent = area_blank_ballots
@@ -911,7 +911,7 @@ async fn save_area_documents(
     area: BasicArea,
     tally_type_enum: TallyType,
     sqlite_transaction_opt: Option<&SqliteTransaction<'_>>,
-    blank_ballots: Option<i64>,
+    blank_ballots: Option<i32>,
     blank_ballots_percent: Option<f64>,
 ) -> Result<ResultDocuments> {
     let documents = generic_save_documents(
@@ -947,7 +947,7 @@ async fn save_area_documents(
             &area.id,
             &area.name,
             &documents,
-            blank_ballots,
+            blank_ballots.map(|v| v as i64),
             blank_ballots_percent
                 .map(ordered_float::NotNan::new)
                 .transpose()?,

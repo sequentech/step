@@ -130,8 +130,8 @@ pub fn check_voting_not_allowed_next_util(
     voting_not_allowed
 }
 
-// if returns true, when the user click next, there will be a dialog that
-// prompts the user to confirm before going to the next screen
+/// if returns true, when the user click next, there will be a dialog that
+/// prompts the user to confirm before going to the next screen
 pub fn check_voting_error_dialog_util(
     contests: Vec<Contest>,
     decoded_contests: HashMap<String, DecodedVoteContest>,
@@ -212,9 +212,14 @@ pub fn check_voting_error_dialog_util(
                 );
 
             // Show Alert dialog if:
-            // - there are invalid error and it's not allowed
+            // - there are invalid error and it's not allowed. ALLOWED_WITH_EXCLUSIVE_EXPLICIT
+            //   behaves like ALLOWED here: it only changes how the explicit-invalid
+            //   marker interacts with other selections, not whether unrelated
+            //   invalid_errors trigger this dialog.
             (!invalid_errors.is_empty()
-                && invalid_vote_policy != InvalidVotePolicy::ALLOWED)
+                && invalid_vote_policy != InvalidVotePolicy::ALLOWED
+                && invalid_vote_policy
+                    != InvalidVotePolicy::ALLOWED_WITH_EXCLUSIVE_EXPLICIT)
             // - invalid vote policy is WARN_INVALID_IMPLICIT_AND_EXPLICIT and
             //   there's an explicit invalid ballot
                 || (invalid_vote_policy
