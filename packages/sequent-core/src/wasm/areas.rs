@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::area_tree::*;
-use crate::services::tally_sheet_validation::validate_area_contest_results;
+use crate::services::tally_sheet_validation::{
+    validate_area_contest_results, validate_ballot_box_blank_ballots,
+};
 use crate::types::hasura::core::AreaContest;
 use crate::types::tally_sheets::AreaContestResults;
 use crate::wasm::wasm::IntoResult;
@@ -84,6 +86,29 @@ pub fn validate_area_contest_results_js(
     let errors = validate_area_contest_results(&content);
     let serializer = Serializer::json_compatible();
     errors
+        .serialize(&serializer)
+        .map_err(|err| format!("{:?}", err))
+        .into_json()
+}
+
+#[allow(clippy::all)]
+#[wasm_bindgen]
+pub fn validate_ballot_box_blank_ballots_js(
+    contest_sheets_json: JsValue,
+) -> Result<JsValue, JsValue> {
+    let contest_sheets: Vec<AreaContestResults> =
+        serde_wasm_bindgen::from_value(contest_sheets_json).map_err(|err| {
+            format!(
+            "Error reading javascript contest sheets for ballot box blank ballots validation: {}",
+            err
+        )
+        })?;
+
+    let contest_sheet_refs: Vec<&AreaContestResults> =
+        contest_sheets.iter().collect();
+    let check = validate_ballot_box_blank_ballots(&contest_sheet_refs);
+    let serializer = Serializer::json_compatible();
+    check
         .serialize(&serializer)
         .map_err(|err| format!("{:?}", err))
         .into_json()

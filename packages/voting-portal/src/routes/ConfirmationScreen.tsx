@@ -28,7 +28,10 @@ import {faPrint, faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-ic
 import {useLocation, useNavigate, useParams} from "react-router-dom"
 import Link from "@mui/material/Link"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
-import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
+import {
+    selectAuditableBallot,
+    selectIsBlankBallot,
+} from "../store/auditableBallots/auditableBallotsSlice"
 import {canVoteSomeElection, CastVoteStatus} from "../store/castVotes/castVotesSlice"
 import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
 import {IElectionExtended} from "../store/elections/electionsSlice"
@@ -334,6 +337,7 @@ const ConfirmationScreen: React.FC = () => {
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {electionId} = useParams<{electionId?: string}>()
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
+    const isBlankBallot = useAppSelector(selectIsBlankBallot(String(electionId)))
     const confirmationScreenData = useAppSelector(selectConfirmationScreenData(String(electionId)))
     const {t} = useTranslation()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
@@ -438,6 +442,11 @@ const ConfirmationScreen: React.FC = () => {
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                 {stringToHtml(t("confirmationScreen.description"))}
             </Typography>
+            {isBlankBallot ? (
+                <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+                    {stringToHtml(t("confirmationScreen.blankBallot.description"))}
+                </Typography>
+            ) : null}
             <BallotIdContainer>
                 <Typography
                     variant="h5"

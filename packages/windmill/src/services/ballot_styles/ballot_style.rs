@@ -169,6 +169,7 @@ pub async fn create_ballot_style_postgres(
             let max_bytes = BallotChoices::maximum_size_bytes(
                 &election_dto.contests,
                 election_dto.decline_to_vote_enabled(),
+                election_dto.blank_ballots_enabled(),
                 election_dto.multi_contest_encoding_mode.unwrap_or_default(),
             )?;
 

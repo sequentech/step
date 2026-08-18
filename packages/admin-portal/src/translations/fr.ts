@@ -277,6 +277,7 @@ const frenchTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "Exporter les Modèles",
                 IMPORT_TEMPLATES: "Importer les Modèles",
                 DELETE_ELECTION_EVENT: "Supprimer l'événement électoral",
+                DELETE_VOTERS: "Delete Voters",
                 PREPARE_PUBLICATION_PREVIEW: "Préparer l'aperçu de la publication",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporter les résultats du dépouillement au format XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Exporter les autorités de certification",
@@ -1035,6 +1036,13 @@ const frenchTranslation: TranslationType = {
                     disabled: "Désactivé",
                 },
             },
+            blankBallotsPolicy: {
+                label: "Politique des bulletins blancs",
+                options: {
+                    enabled: "Activé",
+                    disabled: "Désactivé",
+                },
+            },
             votingScreenBackPolicy: {
                 label: "Politique du bouton Retour de l’écran de vote",
                 options: {
@@ -1129,6 +1137,11 @@ const frenchTranslation: TranslationType = {
                 delete: {
                     body: "Êtes-vous sûr de vouloir supprimer cet utilisateur ?",
                     bulkBody: "Êtes-vous sûr de vouloir supprimer les utilisateurs sélectionnés ?",
+                    bulkBodySelected: "Delete the {{count}} selected users? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} users are selected. You can instead delete every user matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Erreur lors de l'exportation des utilisateurs",
@@ -1188,6 +1201,12 @@ const frenchTranslation: TranslationType = {
                 delete: {
                     body: "Êtes-vous sûr de vouloir supprimer cet électeur ?",
                     bulkBody: "Êtes-vous sûr de vouloir supprimer les électeurs sélectionnés ?",
+                    bulkBodySelected:
+                        "Delete the {{count}} selected voters? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} voters are selected. You can instead delete every voter matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Erreur lors de l'exportation des électeurs",
@@ -1818,6 +1837,7 @@ const frenchTranslation: TranslationType = {
                 "warn": "Avertissement",
                 "warn-invalid-implicit-and-explicit": "Avertir Inválidos Implicites et Explicites",
                 "not-allowed": "Non Permis",
+                "allowed-with-exclusive-explicit": "Permis avec Vote Invalide Explicite Exclusif",
             },
             candidatesIconCheckboxPolicy: {
                 "label": "Forme d’icône de case à cocher pour les candidats",
@@ -2241,6 +2261,7 @@ const frenchTranslation: TranslationType = {
                     round: "Tour",
                 },
                 total_declined_to_vote: "Total des refus de vote",
+                total_blank_ballots: "Total des Bulletins Blancs",
                 participation_by_channel: "Participation par canal",
                 channel: "Canal",
                 channel_online: "En ligne",
@@ -2444,6 +2465,10 @@ const frenchTranslation: TranslationType = {
                 totalValidDoesNotMatch:
                     "Le total des votes valides ne correspond pas à la somme des votes des candidats plus les votes blancs",
                 censusTooSmall: "Le recensement doit être supérieur ou égal au total des votes",
+                blankBallotsInconsistent:
+                    "Les Bulletins Blancs doivent avoir la même valeur sur toutes les feuilles de dépouillement de cette urne",
+                blankBallotsOutOfBounds:
+                    "La valeur des Bulletins Blancs est en dehors de la plage impliquée par les décomptes de votes blancs par candidature de cette urne",
             },
             label: {
                 area: "Zone",
@@ -2454,6 +2479,7 @@ const frenchTranslation: TranslationType = {
                 explicit_invalid: "Votes Explícitement Inválidos",
                 implicit_invalid: "Votes Implicitement Inválidos",
                 total_blank_votes: "Votes en Blanc Totales",
+                blank_ballots: "Bulletins Blancs",
                 census: "Recensement",
             },
             common: {
