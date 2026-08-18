@@ -51,11 +51,14 @@ impl TryFrom<Row> for ResultsElectionWrapper {
                 .map(NotNan::new)
                 .transpose()?,
             documents,
-            // The results_election.blank_ballots(_percent) columns don't
-            // exist yet; populated by a later PR once the hasura migration
-            // lands.
-            blank_ballots: None,
-            blank_ballots_percent: None,
+            blank_ballots: item
+                .try_get::<_, Option<i32>>("blank_ballots")?
+                .map(|v| v as i64),
+            blank_ballots_percent: item
+                .try_get::<&str, Option<Decimal>>("blank_ballots_percent")?
+                .map(|d| d.to_f64().map(NotNan::new).transpose())
+                .transpose()?
+                .flatten(),
         }))
     }
 }
@@ -150,6 +153,8 @@ pub async fn insert_results_elections(
         pub elegible_census: Option<i64>,
         pub total_voters: Option<i64>,
         pub total_voters_percent: Option<f64>,
+        pub blank_ballots: Option<i64>,
+        pub blank_ballots_percent: Option<f64>,
     }
 
     let tenant_uuid = parse_uuid_v4(tenant_id)?;
@@ -168,6 +173,8 @@ pub async fn insert_results_elections(
                 elegible_census: election.elegible_census,
                 total_voters: election.total_voters,
                 total_voters_percent: election.total_voters_percent.clone().map(|n| n.into()),
+                blank_ballots: election.blank_ballots,
+                blank_ballots_percent: election.blank_ballots_percent.map(|n| n.into()),
             })
         })
         .collect::<Result<Vec<InsertResultsElection>>>()?;
@@ -184,14 +191,16 @@ pub async fn insert_results_elections(
                 name TEXT,
                 elegible_census BIGINT,
                 total_voters BIGINT,
-                total_voters_percent FLOAT8
+                total_voters_percent FLOAT8,
+                blank_ballots BIGINT,
+                blank_ballots_percent FLOAT8
             )
         )
         INSERT INTO sequent_backend.results_election (
-            tenant_id, election_event_id, results_event_id, election_id, name, elegible_census, total_voters, total_voters_percent
+            tenant_id, election_event_id, results_event_id, election_id, name, elegible_census, total_voters, total_voters_percent, blank_ballots, blank_ballots_percent
         )
         SELECT
-            tenant_id, election_event_id, results_event_id, election_id, name, elegible_census, total_voters, total_voters_percent
+            tenant_id, election_event_id, results_event_id, election_id, name, elegible_census, total_voters, total_voters_percent, blank_ballots, blank_ballots_percent
         FROM data
         RETURNING *;";
 
@@ -371,6 +380,8 @@ struct InsertableResultsElection {
     elegible_census: Option<i64>,
     total_voters: Option<i64>,
     total_voters_percent: Option<f64>,
+    blank_ballots: Option<i64>,
+    blank_ballots_percent: Option<f64>,
     created_at: Option<DateTime<Local>>,
     last_updated_at: Option<DateTime<Local>>,
     labels: Option<Value>,
@@ -402,6 +413,8 @@ pub async fn insert_many_results_elections(
                 elegible_census: r.elegible_census,
                 total_voters: r.total_voters,
                 total_voters_percent: r.total_voters_percent.map(|n| n.into_inner()),
+                blank_ballots: r.blank_ballots,
+                blank_ballots_percent: r.blank_ballots_percent.map(|n| n.into_inner()),
                 created_at: r.created_at,
                 last_updated_at: r.last_updated_at,
                 labels: r.labels.clone(),
@@ -425,6 +438,8 @@ pub async fn insert_many_results_elections(
                 elegible_census BIGINT,
                 total_voters BIGINT,
                 total_voters_percent FLOAT8,
+                blank_ballots BIGINT,
+                blank_ballots_percent FLOAT8,
                 created_at TIMESTAMPTZ,
                 last_updated_at TIMESTAMPTZ,
                 labels JSONB,
@@ -435,13 +450,15 @@ pub async fn insert_many_results_elections(
         INSERT INTO sequent_backend.results_election (
             id, tenant_id, election_event_id, election_id,
             results_event_id, name, elegible_census, total_voters,
-            total_voters_percent, created_at, last_updated_at,
+            total_voters_percent, blank_ballots, blank_ballots_percent,
+            created_at, last_updated_at,
             labels, annotations, documents
         )
         SELECT
             id, tenant_id, election_event_id, election_id,
             results_event_id, name, elegible_census, total_voters,
-            total_voters_percent, created_at, last_updated_at,
+            total_voters_percent, blank_ballots, blank_ballots_percent,
+            created_at, last_updated_at,
             labels, annotations, documents
         FROM data
         RETURNING *;
