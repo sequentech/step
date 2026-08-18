@@ -2459,8 +2459,15 @@ const catalanTranslation: TranslationType = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "El total de vots vàlids no coincideix amb la suma dels vots dels candidats més els vots en blanc",
-                censusTooSmall: "El cens ha de ser major o igual al total de vots",
+                    "Els vots de candidats ({{candidateVotesSum}}) han d'estar entre {{lowerBound}} i {{upperBound}} segons les regles de votació d'aquesta contesa ({{nonBlankValidVotes}} vots vàlids no en blanc × fins a {{maxMarks}} marques per papereta)",
+                censusTooSmall:
+                    "El total de vots ({{totalVotes}}) no pot ser major que el cens ({{census}})",
+                totalInvalidDoesNotMatch:
+                    "El total de vots invàlids ({{totalInvalid}}) ha de ser igual als vots invàlids implícits ({{implicitInvalid}}) més els vots invàlids explícits ({{explicitInvalid}})",
+                totalVotesDoesNotMatch:
+                    "El total de vots ({{totalVotes}}) ha de ser igual al total de vots vàlids ({{totalValidVotes}}) més el total de vots invàlids ({{totalInvalid}})",
+                unknownCountingAlgorithm:
+                    "L'algorisme de recompte d'aquesta contesa ({{countingAlgorithm}}) no es reconeix, de manera que no es pot determinar el nombre permès de vots de candidats. Reviseu la configuració de la contesa.",
                 blankBallotsInconsistent:
                     "Les Paperetes en Blanc han de tenir el mateix valor a tots els fulls de contesa d'aquesta urna",
                 blankBallotsOutOfBounds:

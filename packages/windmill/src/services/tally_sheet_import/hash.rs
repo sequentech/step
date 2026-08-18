@@ -200,6 +200,7 @@ mod tests {
             blank_ballots: None,
             census: Some(25),
             candidate_results,
+            annotations: None,
         }
     }
 }
