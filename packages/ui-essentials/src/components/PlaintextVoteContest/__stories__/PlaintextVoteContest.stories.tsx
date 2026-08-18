@@ -410,3 +410,27 @@ export const DeclineToVote: Story = {
     ),
     parameters: commonParameters,
 }
+
+export const BlankBallot: Story = {
+    render: () => (
+        <PlaintextVoteContest
+            question={makeContest()}
+            questionPlaintext={makePlaintext({
+                is_blank_ballot: true,
+                choices: [
+                    {id: "1", selected: -1},
+                    {id: "2", selected: -1},
+                    {id: "3", selected: -1},
+                ],
+            })}
+            publicBucketUrl=""
+            contestNotFoundLabel="Contest not found"
+            markedInvalidLabel="Ballot explicitly marked invalid"
+            pointsLabel={() => ""}
+            isDeclineToVotePolicyEnabled={false}
+            isBlankBallotsPolicyEnabled={true}
+            blankBallotLabel="Blank ballot"
+        />
+    ),
+    parameters: commonParameters,
+}
