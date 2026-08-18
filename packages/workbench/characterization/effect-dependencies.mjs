@@ -52,7 +52,6 @@ import {existsSync, readFileSync, writeFileSync} from "node:fs"
 import {fileURLToPath} from "node:url"
 import path from "node:path"
 import {representable, shortKey} from "./cell.mjs"
-import {f as specF} from "./spec.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const packagesDir = path.resolve(here, "../..")
