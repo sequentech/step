@@ -549,7 +549,7 @@ This is not a rewrite proposal. The path is incremental:
 > - **Artifacts.** Seven per-rule grids + the classifier's 32-cell
 >   decision table
 >   ([`../characterization/README.md`](../characterization/README.md),
->   "Current coverage"); the executable spec twice over —
+>   "Coverage"); the executable spec twice over —
 >   `../characterization/spec.mjs` and the typed Rust crate
 >   [`../validation-spec/`](../validation-spec/) (bug-compatible; the
 >   quirk registry is the adjudication work list) — agreeing on 20,280

@@ -65,9 +65,11 @@ it (see [Harness](#harness)). That claim rests on two independent
 completeness arguments, and only the first is delivered by running more
 cells:
 
-1. **Input completeness** — every rule × every cell, as the union of
-   per-rule slices (tracked in "Current coverage" / "What complete coverage
-   means" below).
+1. **Input completeness** — every cell of the input domain reached by
+   some mechanism: exhaustively where production can be driven headlessly,
+   by equivalence class where only the booth will do, cell by cell for the
+   rest (see [Coverage](#coverage) below, which names which mechanism
+   carries which role).
 2. **Codomain closure** — the set of *observables the harness records*
    must cover every channel through which validation state reaches the
    world. Recording only dialogs and messages would be silently
@@ -171,8 +173,7 @@ validator, the dependency pipeline, and the end-to-end crypto runners.
 The first two observe the mapping directly, and split where the production
 code does — Rust that Node can call, versus TypeScript that only a browser
 runs. (Which production *roles* this covers is the table in
-["What complete coverage means"](#what-complete-coverage-means), against
-the functional model in
+[Coverage](#coverage), against the functional model in
 [`docs/VOTE_VALIDATION.md`](../docs/VOTE_VALIDATION.md).)
 
 - **Checker emissions + gate pair, headless — per rule.** `harness.mjs`
@@ -335,41 +336,66 @@ CI.
 `plurality-cell.mjs`, and `booth-cell.mjs` are shared modules (imported,
 not run).
 
-## Current coverage
+## Coverage
 
-The validation evidence, by instrument — zero disagreements everywhere;
-details, labels and residues live in each artifact's own legend:
+Coverage does not come from one mechanism. **Three** carry it, and which
+one applies is decided by what production makes reachable, not by
+preference:
 
-- **Per-rule grids** — the seven headless recordings (248 cells; the
-  partial tables) plus the classifier's 32-cell decision table
-  (`classifier-table.md`, the only production evidence for decline). The
-  grids' *coverage* role for plurality rules is superseded by the sweep
-  below; they remain the per-rule human views, the regression grids, and
-  the inputs that `dom-validate`, `no-silent-discount` and
-  `rust-conformance` replay. The IRV pair is the only headless
-  preferential coverage.
-- **Complete tables** — [`dom-validate.md`](dom-validate.md): every grid
-  cell through the real booth via the reviewer path — inline at the
-  touched voting screen (the untouched view asserted empty per cell) and
-  at review, reachability with direct evidence for both prevention
-  mechanisms: **229/229**.
-- **The dependency pipeline** —
-  [`effect-dependencies.md`](effect-dependencies.md) (every dependence
-  and independence claim, one executable witness per dependence),
-  [`headless-sweep.md`](headless-sweep.md) (production ≡ spec
-  exhaustively on all 138,240 representable cells, plus the quotient
-  inventory), [`browser-witnesses.md`](browser-witnesses.md) (47
-  dependences booth-confirmed),
-  [`quotient-validate.md`](quotient-validate.md) (browser independence
-  discharged by sufficiency — 2,208 classes covering 130,048 cells; the
-  props-boundary license stated with its re-entry condition).
-  [`rust-conformance.md`](rust-conformance.md): the two spec
-  transcriptions agree on 20,280 cells.
-  [`effect-map.md`](effect-map.md): the human projection — the causal
-  diagram, the functional-cancellations table, the per-knob cards.
-- **End-to-end crypto chain** — the three `*-e2e` pipelines orchestrated
-  by `reproduce-verify.mjs`: the five silent-discount cells and S5
-  confirmed booth → encrypt → cast → decrypt → decode → tally.
+1. **Exhaustion.** [`headless-sweep.mjs`](headless-sweep.mjs) enumerates
+   the input domain directly — all six policies × sane bounds ×
+   plurality vote states — and compares production against the spec on
+   every one of its **138,240** cells. It is rule-agnostic: nothing in it
+   knows what a rule is.
+2. **Sufficiency.** Where the booth is far too slow to enumerate,
+   [`quotient-validate.mjs`](quotient-validate.mjs) covers by equivalence
+   class instead. The inline filter reads its inputs only through
+   (emissions, the four consulted policies, observation point), so one
+   booth run settles every cell sharing that summary: **130,048** cells
+   via **2,208** runs, on a license that is source-verified and carries a
+   re-entry condition.
+3. **Per-cell grids and witnesses.** For what neither reaches: the
+   reviewer path cell by cell ([`dom-validate.md`](dom-validate.md)), the
+   preferential rules (outside the sweep's subdomain entirely), and the
+   existential dependence claims, each settled by one witness pair
+   ([`effect-dependencies.md`](effect-dependencies.md),
+   [`browser-witnesses.md`](browser-witnesses.md)).
+
+The third mechanism is why the seven per-rule runners remain. The sweep
+superseded their *coverage* role for the plurality rules, but they are
+still the per-rule human views, the regression grids, the only headless
+preferential coverage, and the inputs that `dom-validate`,
+`no-silent-discount` and `rust-conformance` replay.
+
+The functional model in VOTE_VALIDATION.md has **six roles**, and full
+behaviour — `f(config, voteState) → one value per effect category` — is
+characterized only when all six are. Zero disagreements anywhere; each
+artifact's own legend carries its labels and residues.
+
+| Role | Covered by | Status |
+|---|---|---|
+| Checkers | exhaustion, plus the grids | production ≡ spec on every swept cell (`headless-sweep.md`, 138,240); the seven grids record the same per rule (248 cells). One recording serves **both** bands: the tally decode runs the identical function, so this is also the tally-side checker characterization |
+| Gates | exhaustion | both gates **and** the dialog projection on all 138,240 swept cells (`headless-sweep.md`) |
+| Filter | per-cell, then sufficiency | `dom-validate.md`: every grid cell through the real booth via the reviewer path, inline observed at both observation points, the untouched view asserted empty per cell — **229/229**. Beyond the grids, the independence claims are discharged by sufficiency (`quotient-validate.md`, 2,208 classes / 130,048 cells) |
+| Input constraint | per-cell | the `reachable` column of `dom-validate.md` across every rule cell (the state forms or it does not), **plus** direct evidence for both prevention mechanisms: the over-vote `disable` policy (`no (disabled)`, from probing the (max+1)th control's `disabled` attribute) and blank-marker exclusivity (`no (cleared)`, the marker collapsing a co-selected regular) |
+| Marker exclusivity (prevention) | per-cell, plus the crypto chain | characterized by *attempting* each state through the UI and recording whether it forms. Both directions recorded in `dom-validate`: the invalid marker does **not** clear (`marker_plus` forms — reachable `yes`, confirmed end-to-end by `invalid-latent-choices-e2e.mjs`), the blank marker **does** (`regular_then_marker` collapses to {marker only} — `no (cleared)`). Open: the decline booth flow |
+| Tally classifier | the grids, plus a direct decision table | per-cell `tally` column in all seven rule tables, plus the standalone 32-cell six-class table (`classifier-table.md`, 32/32 matching the documented precedence — and the only production evidence for decline) |
+
+Prevention produces no *message*, but it is not outside the mapping: the
+last two roles are how production realizes the **reachability** effect
+category, which `f` returns like any other (`yes` / `inputs_disabled` /
+`marker_cleared`). Their output is therefore a reachability table
+(state × config → forms / does-not-form) — which is also exactly the data
+needed to justify, or refuse, pruning cells from the other enumerations.
+
+Three artifacts sit outside this table because they are not role
+coverage: [`rust-conformance.md`](rust-conformance.md) (the two spec
+transcriptions against each other and against recorded ground truth,
+20,280 cells), [`effect-map.md`](effect-map.md) (the human projection —
+causal diagram, functional-cancellations table, per-knob cards), and the
+three `*-e2e` pipelines orchestrated by `reproduce-verify.mjs`, which
+confirm the *findings* — the five silent-discount cells and S5 — booth →
+encrypt → cast → decrypt → decode → tally.
 
 ### no-silent-discount — the standing property report
 
@@ -390,33 +416,6 @@ The vote-state classes are defined over `num_selected_with_markers`: the
 **1**, so it is *not* blank at the booth — verified in the recording (no
 blank checker output, no gate) — while classifying as `ExplicitBlank` at
 tally. See VOTE_VALIDATION.md "Selection counting and marker candidates".
-
-## What complete coverage means
-
-The functional model in VOTE_VALIDATION.md has **six roles**; the
-instruments observe them unevenly, and full behaviour — the distillation's
-`f(config, voteState) → one value per effect category` — is only
-characterized when all six are:
-
-| Role | Observed by | Status |
-|---|---|---|
-| Checkers | headless wasm — the emissions | all seven rules' grids done, **and exhaustively swept**: production ≡ spec on every representable cell (`headless-sweep.md`, 138,240 cells). One recording serves **both** bands: the tally decode runs the identical function, so this is also the tally-side checker characterization. |
-| Gates | headless wasm — the gate pair | all seven rules' grids done, **and exhaustively swept** (`headless-sweep.md`, both gates + the dialog projection on all 138,240 representable cells) |
-| Filter | browser, booth — the inline effect | **done for all seven rules, at both observation points** — `dom-validate.mjs` observes inline visibility at the touched voting screen and at the review screen across every cell of the five plurality rules (explicit-blank-invalid fixture) and the two preferential rules (IRV fixture, ranked selection): **229/229**. Beyond the grids, the filter's independence claims are discharged by sufficiency (`quotient-validate.md`: 2,208 classes, 130,048 cells covered). The untouched voting view is asserted empty on every cell |
-| Input constraint | browser — the reachability effect (`spec.mjs`'s `reachability`) | **done** — observed both **behaviourally** across every rule cell (the `reachable` column of `dom-validate.md`: the state forms or it does not) and **directly** for both prevention mechanisms: the over-vote `disable` policy (`no (disabled)`, from probing the (max+1)th control's `disabled` attribute) and blank-marker exclusivity (`no (cleared)`, the marker collapsing a co-selected regular) |
-| Marker exclusivity (prevention) | browser — the reachability effect, via a different mechanism | first reachability recording exists (over-vote under DISABLE: the state does not form); all five S1/S2 violations (over-vote + four min-vote) are confirmed through the full booth→cast→decrypt→tally pipeline (`overvote-e2e-pipeline.mjs`, `minvote-e2e-pipeline.mjs`). Prevention is characterized by *attempting* to create each state through the UI and recording whether it forms. Both marker directions are now recorded in `dom-validate`: the invalid marker does **not** clear (the `marker_plus` state forms — reachable `yes` — also confirmed end-to-end by `invalid-latent-choices-e2e.mjs`), and the blank marker **does** clear (the `regular_then_marker` state collapses to {marker only} — reachable `no (cleared)`). Open: the decline booth flow. |
-| Tally classifier | headless (velvet-wasm `tally_decoded_ballots`) | **done**: per-cell `tally` column in all seven rule tables, plus the standalone 32-cell six-class decision table (`classifier-table.md`, 32/32 matching the documented precedence) |
-
-Two consequences worth stating plainly. First, a per-rule recording like
-blank-rule is a *slice* of `f`, by design — the mapping decomposes per
-rule and per effect category, and coverage is the union of slices, not any
-single run. Second, the last two roles produce no *message*, but they are
-not outside the mapping: they are how production realizes the
-**reachability** effect category, which `f` returns like any other (`yes`
-/ `inputs_disabled` / `marker_cleared`). Their characterization output is
-therefore a reachability table (state × config → forms / does-not-form),
-which is also exactly the data needed to justify (or refuse) pruning
-cells from the other instruments' enumerations.
 
 ## Adding a rule
 
