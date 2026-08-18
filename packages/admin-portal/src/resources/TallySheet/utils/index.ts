@@ -26,6 +26,7 @@ export const VALIDATION_ERROR_CODES = {
     TOTAL_VOTES_EXCEEDS_CENSUS: "total_votes_exceeds_census",
     INVALID_TOTAL_INVALID: "invalid_total_invalid",
     INVALID_TOTAL_VOTES: "invalid_total_votes",
+    UNKNOWN_COUNTING_ALGORITHM: "unknown_counting_algorithm",
 } as const
 
 // Maps a shared tally sheet validation error's `code` (from
@@ -39,6 +40,8 @@ const VALIDATION_ERROR_TRANSLATION_KEYS: Record<string, string> = {
     [VALIDATION_ERROR_CODES.INVALID_TOTAL_INVALID]:
         "tallysheet.inputError.totalInvalidDoesNotMatch",
     [VALIDATION_ERROR_CODES.INVALID_TOTAL_VOTES]: "tallysheet.inputError.totalVotesDoesNotMatch",
+    [VALIDATION_ERROR_CODES.UNKNOWN_COUNTING_ALGORITHM]:
+        "tallysheet.inputError.unknownCountingAlgorithm",
 }
 
 // `t` is typed loosely (matching react-i18next's `useTranslation().t`)

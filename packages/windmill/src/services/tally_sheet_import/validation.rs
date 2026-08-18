@@ -5,10 +5,9 @@
 use std::collections::HashMap;
 
 use sequent_core::services::tally_sheet_validation::{
-    effective_max_marks_per_ballot_typed, validate_area_contest_results,
-    validate_ballot_box_blank_ballots,
+    resolve_max_marks_per_ballot, validate_area_contest_results, validate_ballot_box_blank_ballots,
+    TallySheetValidationError,
 };
-use sequent_core::types::ceremonies::CountingAlgType;
 use sequent_core::types::hasura::core::Contest;
 use sequent_core::types::tally_sheet_import::TallySheetImportValidationError;
 use sequent_core::types::tally_sheets::{AreaContestResults, VotingChannel};
@@ -18,23 +17,22 @@ use tracing::instrument;
 /// ballot can legitimately contribute for the given contest, from its
 /// `max_votes`, `counting_algorithm`, and (for cumulative contests) the
 /// per-candidate checkbox budget stored in `presentation`.
+///
+/// Returns the contest's own configuration error when `counting_algorithm`
+/// holds a value this version does not recognise, so the misconfiguration
+/// is reported rather than silently resolved to the default.
 #[instrument(skip_all)]
-pub fn contest_max_marks_per_ballot(contest: &Contest) -> Option<u64> {
+pub fn contest_max_marks_per_ballot(contest: &Contest) -> Result<u64, TallySheetValidationError> {
     let cumulative_number_of_checkboxes = contest
         .presentation
         .as_ref()
         .and_then(|value| value.get("cumulative_number_of_checkboxes"))
         .and_then(|value| value.as_u64());
-    let counting_algorithm = contest
-        .counting_algorithm
-        .as_deref()
-        .and_then(|value| value.parse::<CountingAlgType>().ok())
-        .unwrap_or_default();
-    Some(effective_max_marks_per_ballot_typed(
+    resolve_max_marks_per_ballot(
         contest.max_votes,
-        counting_algorithm,
+        contest.counting_algorithm.as_deref(),
         cumulative_number_of_checkboxes,
-    ))
+    )
 }
 
 #[instrument(skip_all)]
@@ -43,9 +41,18 @@ pub fn validate_import_content(
     area_name: &str,
     contest_external_id: &str,
     content: &AreaContestResults,
-    max_marks_per_ballot: Option<u64>,
+    contest: &Contest,
 ) -> Vec<TallySheetImportValidationError> {
-    validate_area_contest_results(content, max_marks_per_ballot)
+    // A contest whose counting algorithm cannot be resolved yields only that
+    // error: running the bound checks against a guessed bound would bury it
+    // under misleading arithmetic failures.
+    let shared_errors = match contest_max_marks_per_ballot(contest) {
+        Ok(max_marks_per_ballot) => {
+            validate_area_contest_results(content, Some(max_marks_per_ballot))
+        }
+        Err(error) => vec![error],
+    };
+    shared_errors
         .into_iter()
         .map(|shared_error| {
             error(
@@ -168,13 +175,13 @@ mod tests {
     #[test]
     fn max_marks_is_one_for_single_choice_contest() {
         let contest = contest(Some(1), Some("plurality-at-large"), None);
-        assert_eq!(contest_max_marks_per_ballot(&contest), Some(1));
+        assert_eq!(contest_max_marks_per_ballot(&contest), Ok(1));
     }
 
     #[test]
     fn max_marks_is_max_votes_for_vote_for_n_contest() {
         let contest = contest(Some(4), Some("plurality-at-large"), None);
-        assert_eq!(contest_max_marks_per_ballot(&contest), Some(4));
+        assert_eq!(contest_max_marks_per_ballot(&contest), Ok(4));
     }
 
     #[test]
@@ -184,7 +191,7 @@ mod tests {
             Some("cumulative"),
             Some(json!({"cumulative_number_of_checkboxes": 5})),
         );
-        assert_eq!(contest_max_marks_per_ballot(&contest), Some(15));
+        assert_eq!(contest_max_marks_per_ballot(&contest), Ok(15));
     }
 
     #[test]
@@ -194,7 +201,7 @@ mod tests {
             Some("plurality-at-large"),
             Some(json!({"cumulative_number_of_checkboxes": 5})),
         );
-        assert_eq!(contest_max_marks_per_ballot(&contest), Some(3));
+        assert_eq!(contest_max_marks_per_ballot(&contest), Ok(3));
     }
 
     #[test]
@@ -208,7 +215,7 @@ mod tests {
             Some(json!({"cumulative_number_of_checkboxes": 0})),
         ] {
             let contest = contest(Some(3), Some("cumulative"), presentation);
-            assert_eq!(contest_max_marks_per_ballot(&contest), Some(3));
+            assert_eq!(contest_max_marks_per_ballot(&contest), Ok(3));
         }
     }
 
@@ -216,14 +223,92 @@ mod tests {
     fn max_marks_defaults_to_one_when_max_votes_absent_or_non_positive() {
         for max_votes in [None, Some(0), Some(-2)] {
             let contest = contest(max_votes, Some("plurality-at-large"), None);
-            assert_eq!(contest_max_marks_per_ballot(&contest), Some(1));
+            assert_eq!(contest_max_marks_per_ballot(&contest), Ok(1));
         }
     }
 
     #[test]
     fn max_marks_defaults_to_one_when_counting_algorithm_absent() {
         let contest = contest(None, None, None);
-        assert_eq!(contest_max_marks_per_ballot(&contest), Some(1));
+        assert_eq!(contest_max_marks_per_ballot(&contest), Ok(1));
+    }
+
+    #[test]
+    fn reports_an_unrecognised_counting_algorithm_instead_of_defaulting() {
+        // Silently reading this as plurality-at-large would drop the
+        // cumulative multiplier and tighten the bound, rejecting sheets that
+        // are actually valid — so it is surfaced rather than guessed.
+        let contest = contest(
+            Some(3),
+            Some("single-transferable-vote"),
+            Some(json!({"cumulative_number_of_checkboxes": 5})),
+        );
+
+        let error = contest_max_marks_per_ballot(&contest)
+            .expect_err("an unrecognised algorithm must not resolve");
+
+        assert_eq!(error.code, "unknown_counting_algorithm");
+        assert_eq!(error.field, "counting_algorithm");
+        assert_eq!(
+            error.params.get("countingAlgorithm").map(String::as_str),
+            Some("single-transferable-vote")
+        );
+    }
+
+    #[test]
+    fn resolves_a_counting_algorithm_whose_case_differs_from_the_canonical_form() {
+        // The column is free text, so a differently-cased value must still
+        // resolve rather than falling through to the default and losing the
+        // cumulative multiplier.
+        let contest = contest(
+            Some(3),
+            Some("Cumulative"),
+            Some(json!({"cumulative_number_of_checkboxes": 5})),
+        );
+
+        assert_eq!(contest_max_marks_per_ballot(&contest), Ok(15));
+    }
+
+    #[test]
+    fn an_unrecognised_counting_algorithm_is_the_only_reported_error() {
+        // The bound checks are skipped rather than run against a guessed
+        // bound, which would bury the real problem under arithmetic errors.
+        let content = AreaContestResults {
+            area_id: "area-1".to_string(),
+            contest_id: "contest-1".to_string(),
+            total_votes: Some(10),
+            total_valid_votes: Some(10),
+            invalid_votes: Some(InvalidVotes {
+                total_invalid: Some(0),
+                implicit_invalid: Some(0),
+                explicit_invalid: Some(0),
+            }),
+            total_blank_votes: Some(0),
+            blank_ballots: None,
+            census: Some(20),
+            candidate_results: HashMap::from([(
+                "candidate-1".to_string(),
+                CandidateResults {
+                    candidate_id: "candidate-1".to_string(),
+                    total_votes: Some(999),
+                },
+            )]),
+            annotations: None,
+        };
+
+        let errors = validate_import_content(
+            &VotingChannel::PAPER,
+            "Precinct 1",
+            "contest-1",
+            &content,
+            &contest(Some(3), Some("single-transferable-vote"), None),
+        );
+
+        let codes = errors
+            .iter()
+            .map(|error| error.code.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(codes, vec!["unknown_counting_algorithm"]);
     }
 
     #[test]
@@ -256,7 +341,7 @@ mod tests {
             "Precinct 1",
             "contest-1",
             &content,
-            None,
+            &contest(None, None, None),
         );
 
         assert!(errors.is_empty());
@@ -292,7 +377,7 @@ mod tests {
             "Precinct 1",
             "contest-1",
             &content,
-            None,
+            &contest(None, None, None),
         );
         let codes = errors
             .into_iter()
@@ -349,7 +434,7 @@ mod tests {
             "Precinct 1",
             "contest-1",
             &content,
-            Some(2),
+            &contest(Some(2), Some("plurality-at-large"), None),
         );
 
         assert!(errors.is_empty());
@@ -394,7 +479,7 @@ mod tests {
             "Precinct 1",
             "contest-1",
             &content,
-            Some(2),
+            &contest(Some(2), Some("plurality-at-large"), None),
         );
         let codes = errors
             .into_iter()

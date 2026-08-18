@@ -2432,6 +2432,8 @@ const englishTranslation = {
                     "Total invalid votes ({{totalInvalid}}) must equal implicit invalid votes ({{implicitInvalid}}) plus explicit invalid votes ({{explicitInvalid}})",
                 totalVotesDoesNotMatch:
                     "Total votes ({{totalVotes}}) must equal total valid votes ({{totalValidVotes}}) plus total invalid votes ({{totalInvalid}})",
+                unknownCountingAlgorithm:
+                    "This contest's counting algorithm ({{countingAlgorithm}}) is not recognised, so the allowed number of candidate votes cannot be determined. Check the contest configuration.",
                 blankBallotsInconsistent:
                     "Blank Ballots must have the same value on every contest sheet of this ballot box",
                 blankBallotsOutOfBounds:

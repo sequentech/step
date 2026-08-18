@@ -2445,6 +2445,8 @@ const basqueTranslation: TranslationType = {
                     "Boto baliogabeen guztizkoak ({{totalInvalid}}) boto baliogabe inplizituen ({{implicitInvalid}}) eta boto baliogabe esplizituen ({{explicitInvalid}}) baturaren berdina izan behar du",
                 totalVotesDoesNotMatch:
                     "Boto guztizkoak ({{totalVotes}}) boto baliodun guztizkoen ({{totalValidVotes}}) eta boto baliogabe guztizkoen ({{totalInvalid}}) baturaren berdina izan behar du",
+                unknownCountingAlgorithm:
+                    "Lehiaketa honen zenbaketa-algoritmoa ({{countingAlgorithm}}) ez da ezaguna, beraz ezin da zehaztu hautagaien botoen baimendutako kopurua. Egiaztatu lehiaketaren konfigurazioa.",
                 blankBallotsInconsistent:
                     "Boto-txartel Zuriak balio berdina izan behar du ontzi honetako hautagaitza-orri guztietan",
                 blankBallotsOutOfBounds:

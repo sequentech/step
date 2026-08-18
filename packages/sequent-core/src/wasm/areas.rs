@@ -4,10 +4,9 @@
 
 use crate::services::area_tree::*;
 use crate::services::tally_sheet_validation::{
-    effective_max_marks_per_ballot_typed, validate_area_contest_results,
+    resolve_max_marks_per_ballot, validate_area_contest_results,
     validate_ballot_box_blank_ballots,
 };
-use crate::types::ceremonies::CountingAlgType;
 use crate::types::hasura::core::AreaContest;
 use crate::types::tally_sheets::AreaContestResults;
 use crate::wasm::wasm::IntoResult;
@@ -101,19 +100,22 @@ pub fn validate_area_contest_results_js(
             )
         })?;
 
-    let counting_algorithm = bounds
-        .counting_algorithm
-        .as_deref()
-        .and_then(|value| value.parse::<CountingAlgType>().ok())
-        .unwrap_or_default();
-    let max_marks_per_ballot = effective_max_marks_per_ballot_typed(
+    // An unrecognised counting algorithm is reported as a validation error
+    // like any other, rather than thrown: the manual entry form renders the
+    // returned list, so throwing here would break the form instead of
+    // telling the operator what is wrong with the contest configuration.
+    // The bound checks are skipped in that case rather than run against a
+    // guessed bound, which would pile misleading errors on top.
+    let errors = match resolve_max_marks_per_ballot(
         bounds.max_votes,
-        counting_algorithm,
+        bounds.counting_algorithm.as_deref(),
         bounds.cumulative_number_of_checkboxes,
-    );
-
-    let errors =
-        validate_area_contest_results(&content, Some(max_marks_per_ballot));
+    ) {
+        Ok(max_marks_per_ballot) => {
+            validate_area_contest_results(&content, Some(max_marks_per_ballot))
+        }
+        Err(error) => vec![error],
+    };
     let serializer = Serializer::json_compatible();
     errors
         .serialize(&serializer)

@@ -126,10 +126,15 @@ pub async fn create_new_tally_sheet(
         ));
     };
 
-    let validation_errors = validate_area_contest_results(
-        &input.content,
-        contest_max_marks_per_ballot(&contest),
-    );
+    // Mirrors the import path: an unresolvable counting algorithm is
+    // reported on its own rather than validated against a guessed bound.
+    let validation_errors = match contest_max_marks_per_ballot(&contest) {
+        Ok(max_marks_per_ballot) => validate_area_contest_results(
+            &input.content,
+            Some(max_marks_per_ballot),
+        ),
+        Err(error) => vec![error],
+    };
     if !validation_errors.is_empty() {
         let messages = validation_errors
             .into_iter()

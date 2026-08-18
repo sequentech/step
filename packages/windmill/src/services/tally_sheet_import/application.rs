@@ -45,9 +45,7 @@ use super::{
     diff::{classify_change, render_ballot_box_csv},
     errors::TallySheetImportError,
     hash::{hash_area_contest_results, hash_bytes},
-    validation::{
-        contest_max_marks_per_ballot, validate_ballot_box_content, validate_import_content,
-    },
+    validation::{validate_ballot_box_content, validate_import_content},
 };
 
 const DISPLAY_NAME_FALLBACK_LANG: &str = "en";
@@ -164,7 +162,7 @@ pub async fn preview_tally_sheet_import(
             &parsed_import.key.area_name,
             &parsed_import.key.contest_external_id,
             &resolved.content,
-            contest_max_marks_per_ballot(&resolved.contest),
+            &resolved.contest,
         ));
 
         resolved_sheets.push(ResolvedSheet {

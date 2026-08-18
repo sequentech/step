@@ -38,6 +38,47 @@ pub fn effective_max_marks_per_ballot_typed(
     )
 }
 
+/// Error code reported when a contest's stored `counting_algorithm` is
+/// present but not a value this build recognises.
+pub const UNKNOWN_COUNTING_ALGORITHM: &str = "unknown_counting_algorithm";
+
+/// Resolves the mark bound for a contest from its stored
+/// `counting_algorithm` string.
+///
+/// An absent algorithm is the documented single-choice default. A value that
+/// is present but unrecognised is a configuration error, not a default:
+/// reading it as plurality-at-large would silently drop the cumulative
+/// multiplier, tightening the upper bound and rejecting tally sheets that
+/// are in fact valid. It is reported so the misconfiguration surfaces
+/// instead of the bound being guessed.
+pub fn resolve_max_marks_per_ballot(
+    max_votes: Option<i64>,
+    counting_algorithm: Option<&str>,
+    cumulative_number_of_checkboxes: Option<u64>,
+) -> Result<u64, TallySheetValidationError> {
+    let algorithm = match counting_algorithm {
+        None => CountingAlgType::default(),
+        Some(value) => value.parse::<CountingAlgType>().map_err(|_| {
+            error(
+                UNKNOWN_COUNTING_ALGORITHM,
+                format!(
+                    "counting_algorithm ({value}) is not a counting algorithm this version recognises"
+                ),
+                "counting_algorithm",
+                HashMap::from([(
+                    "countingAlgorithm".to_string(),
+                    value.to_string(),
+                )]),
+            )
+        })?,
+    };
+    Ok(effective_max_marks_per_ballot_typed(
+        max_votes,
+        algorithm,
+        cumulative_number_of_checkboxes,
+    ))
+}
+
 fn max_marks_per_ballot(
     max_votes: Option<i64>,
     is_cumulative: bool,
