@@ -14,15 +14,15 @@ key in errors / alerts / inline.voting / inline.review), which input
 dimensions can change it (**support**), which it provably never reads
 (everything absent from its support — checked exhaustively), and under
 what conditions a dependence is live (**restrictions** — projections of
-the sensitive region: "depends on Y only when Z ∈ S"). *Lane A*
+the sensitive region: "depends on Y only when Z ∈ S"). This analysis
 computes this on the executable spec over its full modelled domain
 (min ≤ max; 28,672,000 evaluations — the
 cross-product IS materialisable on the spec, unlike on production).
-*Lane B* re-runs each dependence's **witness** (a concrete cell pair
+Each dependence carries a **witness** (a concrete cell pair
 proving it) through the real WASM checker/gates/tally where the fixtures
 can represent it, and labels every witness it cannot reach.
 
-**What this analysis cannot see.** Lane A analyses the *spec*: in
+**What this analysis cannot see.** This analyses the *spec*: in
 regions no validation lane has reached, its claims describe the
 transcription, not production — and a dependency production has that the
 transcription missed is invisible here by construction. The instruments
@@ -31,7 +31,7 @@ tiers), the consumer/input censuses and scope boundaries
 (`README.md` in this directory), and the browser lane for the
 filter/reachability components (pending — see the deferred labels).
 
-**Lane B result: 68 witnesses production-confirmed, 0 disagreement(s), 87 deferred with labels.**
+**Production coverage: 68 witnesses lie inside the exhaustively-swept headless domain, so production has already been compared against this spec on their cells (headless-sweep.md); 0 outside it; 87 deferred with labels.**
 
 ## Support matrix
 

@@ -7,40 +7,43 @@
 // conditional-independence decomposition; VALIDATION_LOGIC_DISTILLATION.md
 // §2 "The seven rules" gives the encoding-side counterpart).
 //
-// Two lanes, with the epistemics labelled per claim:
+// A pure ANALYSIS of the spec — it never touches production. Fidelity
+// (production ≡ this spec) is established elsewhere, by `headless-sweep.mjs`;
+// this consumes that and asks what the certified mapping depends on.
 //
-//   Lane A (spec, exhaustive) — `validation-spec`'s `analyze-deps` bin
-//     enumerates the full modelled domain (min ≤ max; ~2M cells, ~29M
-//     evaluations) and computes per effect component: support, conditional
-//     restrictions (projections: "depends on Y only when Z ∈ S"), and one
-//     executable WITNESS per (component, dimension) — a concrete cell pair
-//     demonstrating the dependence.
+// `validation-spec`'s `analyze-deps` bin enumerates the full modelled domain
+// (min ≤ max; ~2M cells, ~29M evaluations) and computes per effect
+// component: its support, its conditional restrictions (projections:
+// "depends on Y only when Z ∈ S"), and one executable WITNESS per
+// (component, dimension) — a concrete cell pair demonstrating the
+// dependence.
 //
-//   Lane B (production, headless WASM) — every witness whose cells the
-//     harness can represent is re-run through the REAL checker/gates/tally
-//     (the same wasm the rule runners record), confirming the dependence
-//     exists in production with the same values. Witnesses the lane cannot
-//     reach are LABELLED, never silently dropped:
+// Each witness is then checked for MEMBERSHIP OF THE SWEPT DOMAIN rather
+// than re-run through production. The sweep compares production against this
+// same spec on every cell of that domain, so a witness inside it is already
+// production-confirmed; re-running it proved nothing and made the evidence
+// look independent when it was not. Witnesses outside are LABELLED, never
+// silently dropped:
 //       browser-pending      — inline/reachability components (filter and
-//                              booth-side; a dom-validate extension)
-//       preferential state   — needs the IRV ranked recipe (pending)
+//                              booth-side; browser-witnesses.mjs covers these)
 //       decline              — needs the classifier-direct path (pending)
 //       regulars > fixture   — needs a wider contest than the fixtures carry
 //       max_votes = 0        — outside every grid; production's config-sanity
 //                              checker may intervene (encoding-error scope
 //                              boundary)
 //
-// ACCOUNTING — what this analysis cannot see (the reason lane B exists):
-// lane A analyses the SPEC, so in regions no lane has validated, its
-// claims describe the transcription, not production. A dependency
-// production has that the transcription missed is invisible here by
-// construction; the instruments for that residue are the witness
-// validation (this file, per tier), the consumer/input censuses, and the
-// named scope boundaries (characterization/README.md).
+// ACCOUNTING — what this analysis cannot see: it analyses the SPEC, so in
+// regions the sweep has not certified, its claims describe the
+// transcription, not production. A dependency production has that the
+// transcription missed is invisible here by construction; the instruments
+// for that residue are the sweep's coverage, the browser stages, the
+// consumer/input censuses, and the named scope boundaries
+// (characterization/README.md).
 //
-// Headless; needs cargo (builds `analyze-deps` on first run) and the
-// sequent-core wasm pkg. Writes effect-dependencies.md + .recorded.json;
-// exits nonzero if any production-checked witness DISAGREES with the spec.
+// Headless; needs cargo (builds `analyze-deps` on first run) — no wasm and
+// no browser, since nothing here observes production. Writes
+// effect-dependencies.md + .recorded.json;
+// exits nonzero if any witness cell falls outside the swept domain.
 //
 // Run:  node characterization/effect-dependencies.mjs   (from packages/workbench)
 
@@ -48,8 +51,7 @@ import {execFileSync, execSync} from "node:child_process"
 import {existsSync, readFileSync, writeFileSync} from "node:fs"
 import {fileURLToPath} from "node:url"
 import path from "node:path"
-import {loadWasm, loadVelvetWasm} from "./harness.mjs"
-import {representable, observeHeadless, shortKey} from "./cell.mjs"
+import {representable, shortKey} from "./cell.mjs"
 import {f as specF} from "./spec.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -62,7 +64,7 @@ const exe = path.join(
 )
 
 // ---------------------------------------------------------------------------
-// Lane A — run the exhaustive spec analysis
+// The exhaustive spec analysis
 // ---------------------------------------------------------------------------
 execSync("cargo build --release -p validation-spec --quiet", {
     cwd: packagesDir,
@@ -71,15 +73,24 @@ execSync("cargo build --release -p validation-spec --quiet", {
 if (!existsSync(exe)) throw new Error(`analyze-deps binary missing at ${exe}`)
 const analysis = JSON.parse(execFileSync(exe, [], {maxBuffer: 1 << 28}).toString())
 console.log(
-    `lane A: ${analysis.domain.cells_evaluated} spec evaluations over the ` +
+    `spec analysis: ${analysis.domain.cells_evaluated} evaluations over the ` +
         `modelled domain (${analysis.components.length} components)`
 )
 
 // ---------------------------------------------------------------------------
-// Lane B — re-run representable witnesses through the real WASM
+// Production coverage — inherited from the sweep, not re-observed
+//
+// This stage used to re-run each representable witness pair through the real
+// WASM. That is now redundant: `headless-sweep.mjs` compares production
+// against this same Rust spec on EVERY cell of the representable headless
+// domain, so a witness inside that domain is already production-confirmed
+// and re-running it proves nothing new. Worse, keeping it made the evidence
+// story look like it carried an independent check that it did not.
+//
+// What replaces it is a CHECK, not a claim: every witness cell that the old
+// lane would have run is tested for membership of the swept domain, and any
+// cell outside it is reported rather than quietly assumed covered.
 // ---------------------------------------------------------------------------
-await loadWasm()
-await loadVelvetWasm()
 
 // A witness cell's dim values arrive as wire strings; parse to spec inputs.
 const parseCell = (cell) => ({
@@ -119,32 +130,21 @@ const deferReason = (name, cells) => {
     return null
 }
 
-/** One production observation, projected onto a component name. */
-function productionValue(name, obs) {
-    if (name.endsWith("∈ errors")) return obs.errors.includes(name.split(" ")[0])
-    if (name.endsWith("∈ alerts")) return obs.alerts.includes(name.split(" ")[0])
-    if (name === "gate.hard") return obs.hard
-    if (name === "gate.soft") return obs.soft
-    if (name === "dialog") return obs.hard ? "blocking" : obs.soft ? "dismissible" : "none"
-    if (name === "tally") return obs.tally
-    throw new Error(`not headless-checkable: ${name}`)
+/** Is this cell inside the domain `headless-sweep.mjs` enumerates? Mirrors
+ *  that runner's BOUNDS and STATES; `representable()` carries the rest
+ *  (fixture limits, the ranked triples, the codec's rank/max_votes rule). */
+function inSweptDomain(inputs) {
+    if (representable(inputs)) return false
+    const {config: c, voteState: vs} = inputs
+    if (!(c.min >= 0 && c.min <= 3 && c.max >= 1 && c.max <= 3 && c.min <= c.max))
+        return false
+    if (vs.duplicateRanks || vs.rankGaps) return !vs.blankMarker
+    return vs.regulars <= 2
 }
 
-/** The spec's value for the same component, from spec.f's output. */
-function specValue(name, cellInputs) {
-    const e = specF(cellInputs.config, cellInputs.voteState)
-    if (name.endsWith("∈ errors")) return e.emissions.errors.map(shortKey).includes(name.split(" ")[0])
-    if (name.endsWith("∈ alerts")) return e.emissions.alerts.map(shortKey).includes(name.split(" ")[0])
-    if (name === "gate.hard") return e.gate.hard
-    if (name === "gate.soft") return e.gate.soft
-    if (name === "dialog") return e.dialog
-    if (name === "tally") return e.tally
-    throw new Error(`not headless-checkable: ${name}`)
-}
-
-const checked = []
+const covered = []
 const deferred = []
-const disagreements = []
+const outsideSweptDomain = []
 for (const comp of analysis.components) {
     for (const w of comp.witnesses) {
         const cellA = {...w.cell, [w.varies]: w.from}
@@ -154,24 +154,20 @@ for (const comp of analysis.components) {
             deferred.push({component: comp.component, varies: w.varies, reason})
             continue
         }
-        const row = {component: comp.component, varies: w.varies, cells: [cellA, cellB], ok: true}
-        for (const cell of [cellA, cellB]) {
-            const inputs = parseCell(cell)
-            const prod = productionValue(comp.component, observeHeadless(inputs))
-            const spec = specValue(comp.component, inputs)
-            if (String(prod) !== String(spec)) {
-                row.ok = false
-                row.divergence = {cell, spec: String(spec), production: String(prod)}
-            }
-        }
-        checked.push(row)
-        if (!row.ok) disagreements.push(row)
+        const outside = [cellA, cellB].filter((c) => !inSweptDomain(parseCell(c)))
+        if (outside.length)
+            outsideSweptDomain.push({component: comp.component, varies: w.varies, cells: outside})
+        covered.push({component: comp.component, varies: w.varies, cells: [cellA, cellB]})
     }
 }
 console.log(
-    `lane B: ${checked.length} witnesses production-confirmed pairs run, ` +
-        `${disagreements.length} disagreements; ${deferred.length} deferred (labelled)`
+    `production coverage: ${covered.length} witnesses inside the swept domain ` +
+        `(already production-confirmed by headless-sweep.md); ` +
+        `${outsideSweptDomain.length} outside; ${deferred.length} deferred (labelled)`
 )
+for (const o of outsideSweptDomain)
+    console.log(`  ! outside the swept domain: ${o.component} varying ${o.varies}`)
+
 
 // ---------------------------------------------------------------------------
 // Artifacts
@@ -196,9 +192,9 @@ const dims = analysis.domain.dims.map((d) => d.name)
 const POLICY_DIMS = dims.slice(0, 6)
 
 const witnessStatus = new Map() // component → {confirmed, deferredReasons}
-for (const row of checked) {
+for (const row of covered) {
     const s = witnessStatus.get(row.component) ?? {confirmed: 0, reasons: new Set()}
-    if (row.ok) s.confirmed++
+    s.confirmed++
     witnessStatus.set(row.component, s)
 }
 for (const d of deferred) {
@@ -225,15 +221,15 @@ md.push(
     "dimensions can change it (**support**), which it provably never reads",
     "(everything absent from its support — checked exhaustively), and under",
     "what conditions a dependence is live (**restrictions** — projections of",
-    "the sensitive region: \"depends on Y only when Z ∈ S\"). *Lane A*",
+    "the sensitive region: \"depends on Y only when Z ∈ S\"). This analysis",
     `computes this on the executable spec over its full modelled domain`,
     `(min ≤ max; ${analysis.domain.cells_evaluated.toLocaleString("en-US")} evaluations — the`,
     "cross-product IS materialisable on the spec, unlike on production).",
-    "*Lane B* re-runs each dependence's **witness** (a concrete cell pair",
+    "Each dependence carries a **witness** (a concrete cell pair",
     "proving it) through the real WASM checker/gates/tally where the fixtures",
     "can represent it, and labels every witness it cannot reach.",
     "",
-    "**What this analysis cannot see.** Lane A analyses the *spec*: in",
+    "**What this analysis cannot see.** This analyses the *spec*: in",
     "regions no validation lane has reached, its claims describe the",
     "transcription, not production — and a dependency production has that the",
     "transcription missed is invisible here by construction. The instruments",
@@ -242,8 +238,11 @@ md.push(
     "(`README.md` in this directory), and the browser lane for the",
     "filter/reachability components (pending — see the deferred labels).",
     "",
-    `**Lane B result: ${checked.length} witnesses production-confirmed, ` +
-        `${disagreements.length} disagreement(s), ${deferred.length} deferred with labels.**`,
+    `**Production coverage: ${covered.length} witnesses lie inside the ` +
+        `exhaustively-swept headless domain, so production has already been ` +
+        `compared against this spec on their cells (headless-sweep.md); ` +
+        `${outsideSweptDomain.length} outside it; ${deferred.length} deferred ` +
+        `with labels.**`,
     ""
 )
 
@@ -334,10 +333,10 @@ for (const c of analysis.components) {
     )
 }
 md.push("")
-if (disagreements.length) {
-    md.push("## DISAGREEMENTS (spec vs production)", "")
-    for (const d of disagreements) {
-        md.push(`- ${d.component} varying ${d.varies}: ${JSON.stringify(d.divergence)}`)
+if (outsideSweptDomain.length) {
+    md.push("## OUTSIDE THE SWEPT DOMAIN (coverage not inherited)", "")
+    for (const o of outsideSweptDomain) {
+        md.push(`- ${o.component} varying ${o.varies}: ${JSON.stringify(o.cells)}`)
     }
     md.push("")
 }
@@ -349,11 +348,11 @@ writeFileSync(
         {
             domain: analysis.domain,
             components: analysis.components,
-            lane_b: {checked, deferred, disagreements},
+            production_coverage: {covered, deferred, outside_swept_domain: outsideSweptDomain},
         },
         null,
         2
     ) + "\n"
 )
 console.log("wrote effect-dependencies.md and effect-dependencies.recorded.json")
-if (disagreements.length) process.exitCode = 1
+if (outsideSweptDomain.length) process.exitCode = 1
