@@ -15,6 +15,7 @@ import {useTranslation} from "react-i18next"
 import {NoItem} from "@/components/NoItem"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {
+    EBlankBallotsPolicy,
     EDeclineToVotePolicy,
     formatPercentOne,
     IElectionEventPresentation,
@@ -47,6 +48,7 @@ type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
     total_voters: number | "-"
     total_voters_percent: number | "-"
     total_declined_to_vote?: number | "-"
+    blank_ballots?: number | "-"
 }
 
 interface GeneralInformationChartsProps {
@@ -252,6 +254,9 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                     const isDeclineToVote =
                         electionPresentation?.decline_to_vote_policy ===
                             EDeclineToVotePolicy.ENABLED && isMultiContest
+                    const isBlankBallots =
+                        electionPresentation?.blank_ballots_policy ===
+                            EBlankBallotsPolicy.ENABLED && isMultiContest
 
                     return {
                         ...item,
@@ -264,6 +269,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                         ...(isDeclineToVote
                             ? {total_declined_to_vote: total_declined_to_vote ?? "-"}
                             : {}),
+                        ...(isBlankBallots ? {blank_ballots: result?.blank_ballots ?? "-"} : {}),
                     }
                 }
             )
@@ -297,6 +303,11 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
 
     const showTotalInvalidVotesColumn = useMemo(
         () => resultsData.some((row) => isNumber(row.total_declined_to_vote)),
+        [resultsData]
+    )
+
+    const showBlankBallotsColumn = useMemo(
+        () => resultsData.some((row) => isNumber(row.blank_ballots)),
         [resultsData]
     )
 
@@ -339,6 +350,18 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                       } satisfies GridColDef,
                   ]
                 : []),
+            ...(showBlankBallotsColumn
+                ? [
+                      {
+                          field: "blank_ballots",
+                          headerName: t("tally.table.total_blank_ballots"),
+                          flex: 1.5,
+                          editable: false,
+                          renderCell: (props: GridRenderCellParams<any, number>) =>
+                              props["value"] ?? "-",
+                      } satisfies GridColDef,
+                  ]
+                : []),
             {
                 field: "total_voters_percent",
                 headerName: t("tally.table.total_votes_percent"),
@@ -348,7 +371,14 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                     isNumber(props["value"]) ? formatPercentOne(props["value"]) : "-",
             },
         ],
-        [aliasRenderer, defaultLangByElectionId, i18n.language, showTotalInvalidVotesColumn, t]
+        [
+            aliasRenderer,
+            defaultLangByElectionId,
+            i18n.language,
+            showTotalInvalidVotesColumn,
+            showBlankBallotsColumn,
+            t,
+        ]
     )
 
     return (

@@ -25,7 +25,10 @@ import {styled} from "@mui/material/styles"
 import {faPrint} from "@fortawesome/free-solid-svg-icons"
 import {useLocation, useNavigate, useParams} from "react-router-dom"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
-import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
+import {
+    selectAuditableBallot,
+    selectIsBlankBallot,
+} from "../store/auditableBallots/auditableBallotsSlice"
 import {canVoteSomeElection, CastVoteStatus} from "../store/castVotes/castVotesSlice"
 import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
 import {IElectionExtended} from "../store/elections/electionsSlice"
@@ -286,6 +289,7 @@ const ConfirmationScreen: React.FC = () => {
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {electionId} = useParams<{electionId?: string}>()
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
+    const isBlankBallot = useAppSelector(selectIsBlankBallot(String(electionId)))
     const confirmationScreenData = useAppSelector(selectConfirmationScreenData(String(electionId)))
     const {t} = useTranslation()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
@@ -373,6 +377,11 @@ const ConfirmationScreen: React.FC = () => {
             title={t("confirmationScreen.title")}
             onTitleHelp={() => setOpenConfirmationHelp(true)}
             description={stringToHtml(t("confirmationScreen.description"))}
+            note={
+                isBlankBallot
+                    ? stringToHtml(t("confirmationScreen.blankBallot.description"))
+                    : undefined
+            }
             ballotIdLabel={t("confirmationScreen.ballotId")}
             ballotId={ballotId.current ?? ""}
             ballotIdOnPhone={t("ballotHash", {ballotId: ballotId.current})}

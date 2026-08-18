@@ -62,6 +62,14 @@ export interface IReviewLayoutProps {
     contests: IContest[]
     errorSelectionState: BallotSelection
     isDeclineToVote?: boolean
+    /**
+     * The voter left the whole ballot empty under a policy that allows it.
+     *
+     * Beside {@link isDeclineToVote} because it is the same kind of fact — one
+     * about the ballot rather than about a contest — and `Question` reads both to
+     * label a contest that carries no choice.
+     */
+    isBlankBallot?: boolean
 
     /** What sits under the contests: cast, go back, audit. */
     actions?: React.ReactNode
@@ -109,6 +117,7 @@ export const ReviewLayout: React.FC<IReviewLayoutProps> = ({
     contests,
     errorSelectionState,
     isDeclineToVote,
+    isBlankBallot,
     actions,
     children,
 }) => (
@@ -153,6 +162,7 @@ export const ReviewLayout: React.FC<IReviewLayoutProps> = ({
                     setDecodedContests={() => undefined}
                     errorSelectionState={errorSelectionState}
                     isDeclineToVote={isDeclineToVote}
+                    isBlankBallot={isBlankBallot}
                 />
             </Box>
         ))}

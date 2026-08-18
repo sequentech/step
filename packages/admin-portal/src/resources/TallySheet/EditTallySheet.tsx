@@ -30,7 +30,7 @@ import {
     Typography,
 } from "@mui/material"
 import TextField from "@mui/material/TextField"
-import {IAreaContestResults, ICandidateResults, IInvalidVotes} from "@/types/TallySheets"
+import {EStatus, IAreaContestResults, ICandidateResults, IInvalidVotes} from "@/types/TallySheets"
 import {sortFunction} from "./utils"
 import {
     EEnableCheckableLists,
@@ -39,7 +39,7 @@ import {
     TallySheetVotingChannel,
     isTallySheetVotingChannel,
 } from "@sequentech/ui-core"
-import {validate_area_contest_results_js} from "sequent-core"
+import {validate_area_contest_results_js, validate_ballot_box_blank_ballots_js} from "sequent-core"
 import {filterCandidateByCheckableLists} from "@/services/CandidatesFilter"
 import {uniq} from "lodash"
 import {createTree, getContestMatches} from "@/services/AreaService"
@@ -88,8 +88,21 @@ interface SharedValidationError {
     field: string
 }
 
+interface IBallotBoxBlankBallotsCheck {
+    errors: SharedValidationError[]
+    pre_filled_value?: number
+}
+
 const validateAreaContestResults = (content: IAreaContestResults): SharedValidationError[] =>
     validate_area_contest_results_js(normalizeAreaContestResults(content))
+
+// `blank_ballots` is a ballot-box property replicated onto every contest sheet of the
+// box (like total_declined_to_vote), so it must be cross-checked against every other
+// contest sheet of the same (channel, area) box, not just validated in isolation.
+const validateBallotBoxBlankBallots = (
+    contestSheets: IAreaContestResults[]
+): IBallotBoxBlankBallotsCheck =>
+    validate_ballot_box_blank_ballots_js(contestSheets.map(normalizeAreaContestResults))
 
 const numbersRegExp = /^[0-9]+$/
 
@@ -118,6 +131,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
             total_valid_votes: tallySheet?.content?.total_valid_votes || 0,
             invalid_votes: tallySheet?.content?.invalid_votes || {},
             total_blank_votes: tallySheet?.content?.total_blank_votes || 0,
+            blank_ballots: tallySheet?.content?.blank_ballots,
             census: tallySheet?.content?.census,
             candidate_results: tallySheet?.content?.candidate_results || {},
         })
@@ -130,6 +144,9 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     const [totalValidError, setTotalValidError] = useState<boolean>(false)
     const [censusError, setCensusError] = useState<boolean>(false)
     const [sharedValidationMessages, setSharedValidationMessages] = useState<string[]>([])
+    const [blankBallotsInconsistentError, setBlankBallotsInconsistentError] =
+        useState<boolean>(false)
+    const [blankBallotsOutOfBoundsError, setBlankBallotsOutOfBoundsError] = useState<boolean>(false)
     const {data: areaContests} = useGetList<Sequent_Backend_Area_Contest>(
         "sequent_backend_area_contest",
         {
@@ -210,6 +227,43 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         },
         {enabled: !!choosenContest || !!tallySheet?.contest_id}
     )
+
+    // Latest approved sheets of every other contest in the same (channel, area) ballot
+    // box, so blank_ballots can be cross-checked for consistency and bounds the same
+    // way the CSV import pipeline already does (windmill's preview_tally_sheet_import).
+    const {data: siblingTallySheets} = useGetList<Sequent_Backend_Tally_Sheet>(
+        "sequent_backend_tally_sheet",
+        {
+            filter: {
+                tenant_id: election.tenant_id,
+                election_event_id: election.election_event_id,
+                election_id: election.id,
+                area_id: results.area_id,
+                channel: {format: "hasura-raw-query", value: {_eq: channel}},
+                status: {format: "hasura-raw-query", value: {_eq: EStatus.APPROVED}},
+                deleted_at: {format: "hasura-raw-query", value: {_is_null: true}},
+            },
+            sort: {field: "version", order: "DESC"},
+            pagination: {perPage: 10000, page: 1},
+        },
+        {enabled: !!results.area_id && !!channel}
+    )
+
+    const siblingBoxSheets = useMemo(() => {
+        const latestByContest = new Map<string, IAreaContestResults>()
+        for (const sheet of siblingTallySheets ?? []) {
+            if (sheet.contest_id === results.contest_id || !sheet.content) {
+                continue
+            }
+            if (!latestByContest.has(sheet.contest_id)) {
+                latestByContest.set(
+                    sheet.contest_id,
+                    normalizeAreaContestResults({...sheet.content} as IAreaContestResults)
+                )
+            }
+        }
+        return Array.from(latestByContest.values())
+    }, [siblingTallySheets, results.contest_id])
 
     const checkableLists = useMemo(() => {
         let presentation = choosenContest?.presentation as IContestPresentation | undefined
@@ -380,11 +434,13 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
             }
         }
 
-        const sharedValidationErrors = validateAreaContestResults({
+        const currentSheetForValidation: IAreaContestResults = {
             ...newResults,
             invalid_votes: normalizedInvalids,
             candidate_results: candidateResultsForValidation,
-        })
+        }
+
+        const sharedValidationErrors = validateAreaContestResults(currentSheetForValidation)
 
         const codes = new Set(sharedValidationErrors.map((error) => error.code))
         setTotalValidError(codes.has("invalid_total_valid_votes"))
@@ -398,10 +454,35 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                 )
                 .map((error) => error.message)
         )
+
+        const boxCheck: IBallotBoxBlankBallotsCheck =
+            newResults.area_id && newResults.contest_id
+                ? validateBallotBoxBlankBallots([currentSheetForValidation, ...siblingBoxSheets])
+                : {errors: []}
+        const boxCodes = new Set(boxCheck.errors.map((error) => error.code))
+        setBlankBallotsInconsistentError(boxCodes.has("inconsistent_blank_ballots"))
+        setBlankBallotsOutOfBoundsError(boxCodes.has("blank_ballots_out_of_bounds"))
+
+        // Mirrors windmill's CSV import: only offer the bounds-implied value when the
+        // operator hasn't supplied one, never overwrite an existing entry.
+        let finalResults = newResults
+        if (
+            typeof boxCheck.pre_filled_value === "number" &&
+            typeof newResults.blank_ballots !== "number"
+        ) {
+            finalResults = {...newResults, blank_ballots: boxCheck.pre_filled_value}
+        }
+
+        // Box-check errors are a warning, not a hard block: siblingBoxSheets only sees
+        // already-APPROVED sheets, so correcting a wrong approved value one contest at a
+        // time necessarily disagrees with the not-yet-corrected siblings until every
+        // contest of the box has been fixed and approved. Blocking here would make that
+        // correction impossible one sheet at a time. Only this sheet's own internal
+        // arithmetic (sharedValidationErrors) blocks submission.
         setIsButtonDisabled(sharedValidationErrors.length > 0)
 
-        if (JSON.stringify(newResults) !== JSON.stringify(results)) {
-            setResults(newResults)
+        if (JSON.stringify(finalResults) !== JSON.stringify(results)) {
+            setResults(finalResults)
         }
     }
 
@@ -412,6 +493,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         results.total_valid_votes,
         invalids?.total_invalid,
         invalids,
+        siblingBoxSheets,
     ])
 
     const handleChange = (
@@ -770,6 +852,27 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                     size="small"
                     required
                 />
+                <>
+                    <TextField
+                        label={String(t("tallysheet.label.blank_ballots"))}
+                        name="blank_ballots"
+                        value={
+                            typeof results.blank_ballots === "number" ? results.blank_ballots : ""
+                        }
+                        onChange={handleNumberChange}
+                        size="small"
+                    />
+                    {blankBallotsInconsistentError && (
+                        <StyledError>
+                            {t("tallysheet.inputError.blankBallotsInconsistent")}
+                        </StyledError>
+                    )}
+                    {blankBallotsOutOfBoundsError && (
+                        <StyledError>
+                            {t("tallysheet.inputError.blankBallotsOutOfBounds")}
+                        </StyledError>
+                    )}
+                </>
                 <>
                     <TextField
                         label={String(t("tallysheet.label.census"))}

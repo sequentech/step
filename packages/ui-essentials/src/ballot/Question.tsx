@@ -119,6 +119,7 @@ export interface IQuestionProps {
     setDecodedContests: (input: IDecodedVoteContest) => void
     errorSelectionState: BallotSelection
     isDeclineToVote?: boolean
+    isBlankBallot?: boolean
 }
 
 export const Question: React.FC<IQuestionProps> = ({
@@ -129,6 +130,7 @@ export const Question: React.FC<IQuestionProps> = ({
     setDecodedContests,
     errorSelectionState,
     isDeclineToVote,
+    isBlankBallot,
 }) => {
     // THIS IS A CONTEST COMPONENT
     const {i18n, t} = useTranslation()
@@ -323,6 +325,10 @@ export const Question: React.FC<IQuestionProps> = ({
             {isDeclineToVote ? (
                 <InvalidBlankWrapper className="candidates-review-decline" columnCount={1}>
                     <BlankAnswer title={t("reviewScreen.declineToVote")} />
+                </InvalidBlankWrapper>
+            ) : isBlankBallot ? (
+                <InvalidBlankWrapper className="candidates-review-blank-ballot" columnCount={1}>
+                    <BlankAnswer title={t("reviewScreen.blankBallot")} />
                 </InvalidBlankWrapper>
             ) : (
                 <>
