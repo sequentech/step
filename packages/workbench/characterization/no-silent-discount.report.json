@@ -1,6 +1,6 @@
 {
-  "cells_evaluated": 248320,
-  "violations": 2848,
+  "cells_evaluated": 276480,
+  "violations": 3168,
   "families": [
     {
       "driving_error": "selectedMax",
@@ -8,329 +8,329 @@
     },
     {
       "driving_error": "selectedMin",
-      "cells": 2720
+      "cells": 3040
     }
   ],
   "configurations": [
     {
       "configuration": "invalid=allowed over=allowed blank=allowed under=allowed",
-      "cells": 60
+      "cells": 64
     },
     {
       "configuration": "invalid=allowed over=allowed blank=allowed under=warn",
-      "cells": 60
+      "cells": 64
     },
     {
       "configuration": "invalid=allowed over=allowed blank=allowed under=warn-only-in-review",
-      "cells": 60
+      "cells": 64
     },
     {
       "configuration": "invalid=allowed over=allowed blank=allowed under=warn-and-alert",
-      "cells": 60
+      "cells": 64
     },
     {
       "configuration": "invalid=allowed over=allowed-with-msg blank=allowed under=allowed",
-      "cells": 52
+      "cells": 56
     },
     {
       "configuration": "invalid=allowed over=allowed-with-msg blank=allowed under=warn",
-      "cells": 52
+      "cells": 56
     },
     {
       "configuration": "invalid=allowed over=allowed-with-msg blank=allowed under=warn-only-in-review",
-      "cells": 52
+      "cells": 56
     },
     {
       "configuration": "invalid=allowed over=allowed-with-msg blank=allowed under=warn-and-alert",
-      "cells": 52
+      "cells": 56
     },
     {
       "configuration": "invalid=allowed over=allowed-with-msg-and-alert blank=allowed under=allowed",
-      "cells": 52
+      "cells": 56
     },
     {
       "configuration": "invalid=allowed over=allowed-with-msg-and-alert blank=allowed under=warn",
-      "cells": 52
+      "cells": 56
     },
     {
       "configuration": "invalid=allowed over=allowed-with-msg-and-alert blank=allowed under=warn-only-in-review",
-      "cells": 52
+      "cells": 56
     },
     {
       "configuration": "invalid=allowed over=allowed-with-msg-and-alert blank=allowed under=warn-and-alert",
-      "cells": 52
+      "cells": 56
     },
     {
       "configuration": "invalid=allowed over=not-allowed-with-msg-and-alert blank=allowed under=allowed",
-      "cells": 52
+      "cells": 56
     },
     {
       "configuration": "invalid=allowed over=not-allowed-with-msg-and-alert blank=allowed under=warn",
-      "cells": 52
+      "cells": 56
     },
     {
       "configuration": "invalid=allowed over=not-allowed-with-msg-and-alert blank=allowed under=warn-only-in-review",
-      "cells": 52
+      "cells": 56
     },
     {
       "configuration": "invalid=allowed over=not-allowed-with-msg-and-alert blank=allowed under=warn-and-alert",
-      "cells": 52
+      "cells": 56
     },
     {
       "configuration": "invalid=allowed over=not-allowed-with-msg-and-disable blank=allowed under=allowed",
-      "cells": 52
+      "cells": 56
     },
     {
       "configuration": "invalid=allowed over=not-allowed-with-msg-and-disable blank=allowed under=warn",
-      "cells": 52
+      "cells": 56
     },
     {
       "configuration": "invalid=allowed over=not-allowed-with-msg-and-disable blank=allowed under=warn-only-in-review",
-      "cells": 52
+      "cells": 56
     },
     {
       "configuration": "invalid=allowed over=not-allowed-with-msg-and-disable blank=allowed under=warn-and-alert",
-      "cells": 52
+      "cells": 56
     },
     {
       "configuration": "invalid=allowed over=allowed blank=warn under=allowed",
-      "cells": 36
+      "cells": 40
     },
     {
       "configuration": "invalid=allowed over=allowed blank=warn under=warn",
-      "cells": 36
+      "cells": 40
     },
     {
       "configuration": "invalid=allowed over=allowed blank=warn under=warn-only-in-review",
-      "cells": 36
+      "cells": 40
     },
     {
       "configuration": "invalid=allowed over=allowed blank=warn under=warn-and-alert",
-      "cells": 36
+      "cells": 40
     },
     {
       "configuration": "invalid=allowed over=allowed-with-msg blank=warn under=allowed",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=allowed-with-msg blank=warn under=warn",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=allowed-with-msg blank=warn under=warn-only-in-review",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=allowed-with-msg blank=warn under=warn-and-alert",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=allowed-with-msg-and-alert blank=warn under=allowed",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=allowed-with-msg-and-alert blank=warn under=warn",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=allowed-with-msg-and-alert blank=warn under=warn-only-in-review",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=allowed-with-msg-and-alert blank=warn under=warn-and-alert",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=not-allowed-with-msg-and-alert blank=warn under=allowed",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=not-allowed-with-msg-and-alert blank=warn under=warn",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=not-allowed-with-msg-and-alert blank=warn under=warn-only-in-review",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=not-allowed-with-msg-and-alert blank=warn under=warn-and-alert",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=not-allowed-with-msg-and-disable blank=warn under=allowed",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=not-allowed-with-msg-and-disable blank=warn under=warn",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=not-allowed-with-msg-and-disable blank=warn under=warn-only-in-review",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=not-allowed-with-msg-and-disable blank=warn under=warn-and-alert",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=allowed blank=warn-only-in-review under=allowed",
-      "cells": 36
+      "cells": 40
     },
     {
       "configuration": "invalid=allowed over=allowed blank=warn-only-in-review under=warn",
-      "cells": 36
+      "cells": 40
     },
     {
       "configuration": "invalid=allowed over=allowed blank=warn-only-in-review under=warn-only-in-review",
-      "cells": 36
+      "cells": 40
     },
     {
       "configuration": "invalid=allowed over=allowed blank=warn-only-in-review under=warn-and-alert",
-      "cells": 36
+      "cells": 40
     },
     {
       "configuration": "invalid=allowed over=allowed-with-msg blank=warn-only-in-review under=allowed",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=allowed-with-msg blank=warn-only-in-review under=warn",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=allowed-with-msg blank=warn-only-in-review under=warn-only-in-review",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=allowed-with-msg blank=warn-only-in-review under=warn-and-alert",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=allowed-with-msg-and-alert blank=warn-only-in-review under=allowed",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=allowed-with-msg-and-alert blank=warn-only-in-review under=warn",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=allowed-with-msg-and-alert blank=warn-only-in-review under=warn-only-in-review",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=allowed-with-msg-and-alert blank=warn-only-in-review under=warn-and-alert",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=not-allowed-with-msg-and-alert blank=warn-only-in-review under=allowed",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=not-allowed-with-msg-and-alert blank=warn-only-in-review under=warn",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=not-allowed-with-msg-and-alert blank=warn-only-in-review under=warn-only-in-review",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=not-allowed-with-msg-and-alert blank=warn-only-in-review under=warn-and-alert",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=not-allowed-with-msg-and-disable blank=warn-only-in-review under=allowed",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=not-allowed-with-msg-and-disable blank=warn-only-in-review under=warn",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=not-allowed-with-msg-and-disable blank=warn-only-in-review under=warn-only-in-review",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=not-allowed-with-msg-and-disable blank=warn-only-in-review under=warn-and-alert",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=allowed blank=not-allowed under=allowed",
-      "cells": 36
+      "cells": 40
     },
     {
       "configuration": "invalid=allowed over=allowed blank=not-allowed under=warn",
-      "cells": 36
+      "cells": 40
     },
     {
       "configuration": "invalid=allowed over=allowed blank=not-allowed under=warn-only-in-review",
-      "cells": 36
+      "cells": 40
     },
     {
       "configuration": "invalid=allowed over=allowed blank=not-allowed under=warn-and-alert",
-      "cells": 36
+      "cells": 40
     },
     {
       "configuration": "invalid=allowed over=allowed-with-msg blank=not-allowed under=allowed",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=allowed-with-msg blank=not-allowed under=warn",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=allowed-with-msg blank=not-allowed under=warn-only-in-review",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=allowed-with-msg blank=not-allowed under=warn-and-alert",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=allowed-with-msg-and-alert blank=not-allowed under=allowed",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=allowed-with-msg-and-alert blank=not-allowed under=warn",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=allowed-with-msg-and-alert blank=not-allowed under=warn-only-in-review",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=allowed-with-msg-and-alert blank=not-allowed under=warn-and-alert",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=not-allowed-with-msg-and-alert blank=not-allowed under=allowed",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=not-allowed-with-msg-and-alert blank=not-allowed under=warn",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=not-allowed-with-msg-and-alert blank=not-allowed under=warn-only-in-review",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=not-allowed-with-msg-and-alert blank=not-allowed under=warn-and-alert",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=not-allowed-with-msg-and-disable blank=not-allowed under=allowed",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=not-allowed-with-msg-and-disable blank=not-allowed under=warn",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=not-allowed-with-msg-and-disable blank=not-allowed under=warn-only-in-review",
-      "cells": 28
+      "cells": 32
     },
     {
       "configuration": "invalid=allowed over=not-allowed-with-msg-and-disable blank=not-allowed under=warn-and-alert",
-      "cells": 28
+      "cells": 32
     }
   ],
   "known_still_found": true,
@@ -667,6 +667,28 @@
     },
     {
       "config": {
+        "min": 3,
+        "max": 3,
+        "policies": {
+          "invalid": "allowed",
+          "blank": "allowed",
+          "over": "allowed",
+          "under": "allowed",
+          "dup": "allowed-warn-and-dialog",
+          "gap": "allowed-warn-and-dialog"
+        }
+      },
+      "voteState": {
+        "regulars": 2,
+        "duplicateRanks": false,
+        "rankGaps": false,
+        "firstPreferences": 1,
+        "blankMarker": false,
+        "explicitInvalid": false
+      }
+    },
+    {
+      "config": {
         "min": 0,
         "max": 1,
         "policies": {
@@ -735,28 +757,6 @@
       "config": {
         "min": 1,
         "max": 2,
-        "policies": {
-          "invalid": "allowed",
-          "blank": "allowed",
-          "over": "allowed",
-          "under": "allowed",
-          "dup": "allowed-warn-and-dialog",
-          "gap": "not-allowed-warn-and-dialog"
-        }
-      },
-      "voteState": {
-        "regulars": 0,
-        "blankMarker": false,
-        "explicitInvalid": false,
-        "duplicateRanks": false,
-        "rankGaps": false,
-        "firstPreferences": 0
-      }
-    },
-    {
-      "config": {
-        "min": 1,
-        "max": 3,
         "policies": {
           "invalid": "allowed",
           "blank": "allowed",

@@ -59,8 +59,21 @@ const prefEml = emlOf(load("instant-runoff-3cand"))
 const prefContest = prefEml.contests[0]
 const prefIds = prefContest.candidates.map((c) => c.id)
 
-/** Is this cell's vote state preferential? Decides the fixture. */
-const isPreferential = (vs) => Boolean(vs.duplicateRanks || vs.rankGaps)
+/** Is this cell's vote state preferential? Decides the fixture.
+ *
+ *  Malformed rankings announce themselves through `duplicateRanks` /
+ *  `rankGaps`. A WELL-FORMED ranking has neither, and is recognised instead
+ *  by its first-preference count: ranking three candidates leaves one at
+ *  rank 0, so `firstPreferences < regulars`. A plurality ballot puts every
+ *  selection at rank 0, so the two are equal there — which is exactly why a
+ *  single selection (`regulars = 1`) is indistinguishable between the two
+ *  contest types, and stays on the plurality fixture. */
+const isPreferential = (vs) =>
+    Boolean(
+        vs.duplicateRanks ||
+            vs.rankGaps ||
+            (vs.firstPreferences !== undefined && vs.firstPreferences !== vs.regulars)
+    )
 
 // ---------------------------------------------------------------------------
 // Ranked-state realization
@@ -123,6 +136,21 @@ const RANKED = new Map()
  *  derived from the enumeration above, not hand-listed, so callers cannot
  *  drift from what the fixture can actually express. */
 export function rankedTriples() {
+    return rankedTripleList().filter((t) => t.duplicateRanks || t.rankGaps)
+}
+
+/** The reachable WELL-FORMED ranked states — a complete ranking with no
+ *  duplicate and no gap. Only `regulars >= 2` qualifies: one candidate
+ *  ranked first is the same vote state as one candidate selected on a
+ *  plurality ballot, and the spec has no notion of contest type to tell
+ *  them apart. */
+export function wellFormedRankedTriples() {
+    return rankedTripleList().filter(
+        (t) => !t.duplicateRanks && !t.rankGaps && t.regulars >= 2
+    )
+}
+
+function rankedTripleList() {
     return [...RANKED.keys()]
         .map((k) => {
             const [regulars, dup, gap] = k.split("|")
@@ -138,7 +166,6 @@ export function rankedTriples() {
                 firstPreferences: ranks.filter((r) => r === 0).length,
             }
         })
-        .filter((t) => t.duplicateRanks || t.rankGaps)
 }
 
 /** Can this (config, voteState) cell be driven through a bundled fixture?
@@ -155,6 +182,13 @@ export function representable({config, voteState}) {
             return `unreachable ranked state (regulars=${voteState.regulars}, dup=${voteState.duplicateRanks}, gap=${voteState.rankGaps})`
         if (r.maxRank >= config.max)
             return `ranked state needs max_votes > ${r.maxRank} (codec round trip)`
+        // A (regulars, dup, gap) triple does not always fix the
+        // first-preference count — {0,2} and {1,2} are both (2, no-dup, gap)
+        // but differ at rank 0 — so refuse a request the representative
+        // cannot honour rather than quietly answering a different question.
+        const repFirst = r.ranks.filter((x) => x === 0).length
+        if (voteState.firstPreferences !== undefined && voteState.firstPreferences !== repFirst)
+            return `firstPreferences=${voteState.firstPreferences} unrepresentable for this ranked state (its representative has ${repFirst})`
         return null
     }
     if (voteState.regulars > regularIds.length)

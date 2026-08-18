@@ -96,43 +96,40 @@ console.log(
 for (const [kind, n] of [...consequences.entries()].sort((a, b) => b[1] - a[1]))
     console.log(`  ${String(n).padStart(5)}  ${kind}`)
 
-// THE DOMAIN'S OWN LIMIT, derived rather than argued. Every ranked state the
-// sweep can drive carries a duplicate or a gap — `cell.mjs` routes a cell to
-// the IRV fixture only when one of those is set — and BOTH variants of the
-// dup and gap policies raise a dialog. So on this domain a dialog fires
-// whatever the count is, and only its KIND can change. The cells where a
-// dialog could appear from nothing, or vanish, are the CLEAN rankings, which
-// no bundled fixture can drive (`representable()` rejects regulars > 2: the
-// plurality contest has two candidates and the routing never sends a
-// gap-free, duplicate-free cell to the IRV one).
-//
-// That is why the spurious-dialog-on-a-complete-ballot case has to be shown
-// by direct probe and booth run: it is real, but it lies OUTSIDE everything
-// this suite certifies. The property must not be read as covering it.
+// WHAT SHAPE OF BALLOT PRODUCES WHICH CONSEQUENCE, derived rather than
+// argued. A malformed ranking always carries a duplicate or a gap error, and
+// both variants of those policies raise a dialog — so on those cells a dialog
+// fires whatever the count is, and only its KIND can change. It is the
+// WELL-FORMED rankings, carrying no such error, where a dialog can appear
+// from nothing or vanish entirely. Those were unreachable until the certified
+// domain learned to route them (`cell.mjs`, `domain.mjs`); before that this
+// property could only ever derive the kind-changes, and the sharper
+// consequences had to be shown by ad-hoc probe.
 const PREF_ERRORS = ["duplicatedPosition", "preferenceOrderWithGaps"]
-const withoutPrefError = violating.filter(
+const wellFormed = violating.filter(
     (_, i) =>
         !actual[i].emissions.errors.some((m) => PREF_ERRORS.includes(m.split(".").pop()))
 ).length
 
-// ACCEPTANCE — the consequences this domain can express must keep falling out
-// of the property. If one stops appearing the derivation has lost its subject
-// and the run fails.
+// ACCEPTANCE — every consequence shape must keep falling out of the property.
+// The last two were impossible to derive before the domain was extended; if
+// they stop appearing, the domain has silently narrowed again.
 const KNOWN = [
     "dialog kind changed: dismissible → blocking",
     "dialog kind changed: blocking → dismissible",
+    "dialog with NOTHING rendered inline (should be no dialog)",
+    "MISSING dialog the policy promises",
 ]
 const missing = KNOWN.filter((k) => !consequences.has(k))
 for (const m of missing) console.log(`\n! KNOWN consequence no longer derived: ${m}`)
 console.log(
-    `\ndomain limit: ${withoutPrefError} of the ${violating.length} violating cells carry ` +
-        `neither a duplicate nor a gap error.`
+    `\nby ballot shape: ${violating.length - wellFormed} violating cells are malformed ` +
+        `rankings (a duplicate or a gap), ${wellFormed} are well-formed.`
 )
 console.log(
-    "  Every ranked cell this suite can drive has one, and both dup/gap policy variants\n" +
-        "  raise a dialog — so a dialog fires whatever the count is, and only its KIND can\n" +
-        "  change here. A dialog appearing from nothing needs a CLEAN ranking, which no\n" +
-        "  bundled fixture can drive. That case is real but lies outside this domain."
+    "  Malformed rankings always carry an error whose policy raises a dialog either\n" +
+        "  way, so only the dialog KIND can change there. The well-formed ones are where\n" +
+        "  a dialog appears from nothing or goes missing — the ordinary ranked ballot."
 )
 
 const fmtCell = (c) =>
@@ -193,24 +190,26 @@ const md = [
         "```",
         "",
     ]),
-    "## What this domain cannot show",
+    "## Which ballots produce which consequence",
     "",
-    `Of the ${violating.length} violating cells, **${withoutPrefError}** carry neither a`,
-    "duplicate nor a gap error. That is not a coincidence: `cell.mjs` routes a",
-    "cell to the IRV fixture only when one of those is set, and both variants of",
-    "the dup and gap policies raise a dialog. So on this domain a dialog fires",
-    "whatever the count is, and only its **kind** can change.",
+    `Of the ${violating.length} violating cells, ${violating.length - wellFormed} are **malformed**`,
+    "rankings (carrying a duplicate or a gap) and",
+    `**${wellFormed}** are **well-formed**.`,
     "",
-    "The sharper consequence — a dialog appearing on a ballot the checker is",
-    "entirely happy with, with nothing rendered to explain it — needs a CLEAN",
-    "ranking (every candidate ranked, no duplicate, no gap). No bundled fixture",
-    "can drive one: the plurality contest carries two candidates, and the",
-    "routing never sends a gap-free, duplicate-free cell to the IRV contest. It",
-    "is demonstrated by direct probe and confirmed in the booth, but it lies",
-    "**outside** the domain this property covers, and this file should not be",
-    "read as evidence for it.",
+    "That split explains the table above. A malformed ranking always carries an",
+    "error whose policy raises a dialog either way, so on those cells only the",
+    "dialog's *kind* can change. The well-formed rankings — the ordinary ranked",
+    "ballot — are where a dialog appears on a ballot the checker is content",
+    "with, or the dialog a policy promises never fires.",
     "",
-    "The mechanism is quirk `S6_GATES_COUNT_FIRST_PREFERENCES_ONLY`: the gates",
+    "**What is still outside this analysis.** It decides what the spec says,",
+    "over cells where `headless-sweep.md` has compared production against that",
+    "spec. It does not observe a booth: whether these dialogs and messages",
+    "render as predicted on a ranked ballot is checked per cell for the seven",
+    "rule grids (`dom-validate.md`) but is spec-only for the wider ranked",
+    "region, pending a generic IRV booth recipe (`README.md`, Open work).",
+    "",
+    "The mechanism is quirk `S6_GATES_COUNT_FIRST_PREFERENCES_ONLY`: the gates",    "The mechanism is quirk `S6_GATES_COUNT_FIRST_PREFERENCES_ONLY`: the gates",
     "count `choice.selected == 0` (`voting_screen.rs`) where the checker counts",
     "`choice.selected > -1` (`raw_ballot.rs`). On a plurality ballot every",
     "selection sits at rank 0 and the two agree, which is why this is invisible",
@@ -235,13 +234,13 @@ writeFileSync(
                 if_counts_agreed: {dialog: ex.repaired.dialog, inline: ex.repaired.inline},
             })),
             known_still_derived: missing.length === 0,
-            domain_limit: {
-                violating_cells_without_a_preferential_error: withoutPrefError,
+            by_ballot_shape: {
+                malformed_rankings: violating.length - wellFormed,
+                well_formed_rankings: wellFormed,
                 note:
-                    "every ranked cell this suite can drive carries a duplicate or a gap, " +
-                    "and both policy variants raise a dialog; so only the dialog KIND can " +
-                    "change here. A dialog appearing from nothing needs a clean ranking, " +
-                    "which no bundled fixture can drive.",
+                    "malformed rankings always carry an error whose policy raises a dialog " +
+                    "either way, so only the dialog kind can change there; the well-formed " +
+                    "ones are where a dialog appears from nothing or goes missing.",
             },
         },
         null,

@@ -14,7 +14,7 @@ if they disagree, the gates are responding to a ballot the voter did not
 cast.
 
 **How it is decided.** Both counts are fields of the specification, so
-this is an ANALYSIS over the 248320 cells `headless-sweep.md`
+this is an ANALYSIS over the 276480 cells `headless-sweep.md`
 certifies. Nothing here observes production.
 
 **What the consequence column means.** A disagreement in counting is not
@@ -23,15 +23,42 @@ production behaves, and with the gates handed the checker's count — and
 the difference is what a voter would actually meet. Cells where another
 clause fires either way are reported as absorbed, not as harms.
 
-**Result: the counts disagree on 64000 cells; 2232 of those
-change what the voter meets, 61768 are absorbed.**
+**Result: the counts disagree on 92160 cells; 6200 of those
+change what the voter meets, 85960 are absorbed.**
 
 | consequence | cells |
 |---|---|
 | dialog kind changed: dismissible → blocking | 1644 |
-| dialog kind changed: blocking → dismissible | 588 |
+| dialog kind changed: blocking → dismissible | 1532 |
+| dialog with NOTHING rendered inline (should be no dialog) | 1456 |
+| MISSING dialog the policy promises | 1120 |
+| spurious dialog (should be none) | 448 |
 
 ## One example of each
+
+**dialog with NOTHING rendered inline (should be no dialog)**
+
+```
+min=0 max=2 regulars=2 firstPreferences=1 dup=false gap=false | invalid=allowed blank=allowed over=allowed under=warn-and-alert dup=allowed-warn-and-dialog gap=allowed-warn-and-dialog
+  as production behaves : dialog=dismissible inline@voting=[] inline@review=[]
+  if the counts agreed  : dialog=none inline@voting=[]
+```
+
+**MISSING dialog the policy promises**
+
+```
+min=2 max=3 regulars=2 firstPreferences=1 dup=false gap=false | invalid=allowed blank=allowed over=allowed under=warn-and-alert dup=allowed-warn-and-dialog gap=allowed-warn-and-dialog
+  as production behaves : dialog=none inline@voting=["errors.implicit.underVote"] inline@review=["errors.implicit.underVote"]
+  if the counts agreed  : dialog=dismissible inline@voting=["errors.implicit.underVote"]
+```
+
+**spurious dialog (should be none)**
+
+```
+min=0 max=3 regulars=3 firstPreferences=1 dup=false gap=false | invalid=allowed blank=allowed over=allowed-with-msg under=warn-and-alert dup=allowed-warn-and-dialog gap=allowed-warn-and-dialog
+  as production behaves : dialog=dismissible inline@voting=["errors.implicit.selectedMax"] inline@review=["errors.implicit.selectedMax"]
+  if the counts agreed  : dialog=none inline@voting=["errors.implicit.selectedMax"]
+```
 
 **dialog kind changed: blocking → dismissible**
 
@@ -49,23 +76,26 @@ min=0 max=2 regulars=1 firstPreferences=0 dup=false gap=true | invalid=allowed b
   if the counts agreed  : dialog=dismissible inline@voting=[]
 ```
 
-## What this domain cannot show
+## Which ballots produce which consequence
 
-Of the 64000 violating cells, **0** carry neither a
-duplicate nor a gap error. That is not a coincidence: `cell.mjs` routes a
-cell to the IRV fixture only when one of those is set, and both variants of
-the dup and gap policies raise a dialog. So on this domain a dialog fires
-whatever the count is, and only its **kind** can change.
+Of the 92160 violating cells, 64000 are **malformed**
+rankings (carrying a duplicate or a gap) and
+**28160** are **well-formed**.
 
-The sharper consequence — a dialog appearing on a ballot the checker is
-entirely happy with, with nothing rendered to explain it — needs a CLEAN
-ranking (every candidate ranked, no duplicate, no gap). No bundled fixture
-can drive one: the plurality contest carries two candidates, and the
-routing never sends a gap-free, duplicate-free cell to the IRV contest. It
-is demonstrated by direct probe and confirmed in the booth, but it lies
-**outside** the domain this property covers, and this file should not be
-read as evidence for it.
+That split explains the table above. A malformed ranking always carries an
+error whose policy raises a dialog either way, so on those cells only the
+dialog's *kind* can change. The well-formed rankings — the ordinary ranked
+ballot — are where a dialog appears on a ballot the checker is content
+with, or the dialog a policy promises never fires.
 
+**What is still outside this analysis.** It decides what the spec says,
+over cells where `headless-sweep.md` has compared production against that
+spec. It does not observe a booth: whether these dialogs and messages
+render as predicted on a ranked ballot is checked per cell for the seven
+rule grids (`dom-validate.md`) but is spec-only for the wider ranked
+region, pending a generic IRV booth recipe (`README.md`, Open work).
+
+The mechanism is quirk `S6_GATES_COUNT_FIRST_PREFERENCES_ONLY`: the gates
 The mechanism is quirk `S6_GATES_COUNT_FIRST_PREFERENCES_ONLY`: the gates
 count `choice.selected == 0` (`voting_screen.rs`) where the checker counts
 `choice.selected > -1` (`raw_ballot.rs`). On a plurality ballot every

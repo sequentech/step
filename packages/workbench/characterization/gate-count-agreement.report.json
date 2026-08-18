@@ -1,12 +1,24 @@
 {
-  "cells_evaluated": 248320,
-  "counts_disagree": 64000,
-  "voter_visible": 2232,
-  "absorbed": 61768,
+  "cells_evaluated": 276480,
+  "counts_disagree": 92160,
+  "voter_visible": 6200,
+  "absorbed": 85960,
   "consequences": [
     {
+      "kind": "dialog with NOTHING rendered inline (should be no dialog)",
+      "cells": 1456
+    },
+    {
+      "kind": "MISSING dialog the policy promises",
+      "cells": 1120
+    },
+    {
+      "kind": "spurious dialog (should be none)",
+      "cells": 448
+    },
+    {
       "kind": "dialog kind changed: blocking → dismissible",
-      "cells": 588
+      "cells": 1532
     },
     {
       "kind": "dialog kind changed: dismissible → blocking",
@@ -14,6 +26,145 @@
     }
   ],
   "examples": [
+    {
+      "kind": "dialog with NOTHING rendered inline (should be no dialog)",
+      "cell": {
+        "config": {
+          "min": 0,
+          "max": 2,
+          "policies": {
+            "invalid": "allowed",
+            "blank": "allowed",
+            "over": "allowed",
+            "under": "warn-and-alert",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 2,
+          "duplicateRanks": false,
+          "rankGaps": false,
+          "firstPreferences": 1,
+          "blankMarker": false,
+          "explicitInvalid": false
+        }
+      },
+      "actual": {
+        "dialog": "dismissible",
+        "inline": {
+          "review": [],
+          "voting": [],
+          "votingUntouched": []
+        }
+      },
+      "if_counts_agreed": {
+        "dialog": "none",
+        "inline": {
+          "review": [],
+          "voting": [],
+          "votingUntouched": []
+        }
+      }
+    },
+    {
+      "kind": "MISSING dialog the policy promises",
+      "cell": {
+        "config": {
+          "min": 2,
+          "max": 3,
+          "policies": {
+            "invalid": "allowed",
+            "blank": "allowed",
+            "over": "allowed",
+            "under": "warn-and-alert",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 2,
+          "duplicateRanks": false,
+          "rankGaps": false,
+          "firstPreferences": 1,
+          "blankMarker": false,
+          "explicitInvalid": false
+        }
+      },
+      "actual": {
+        "dialog": "none",
+        "inline": {
+          "review": [
+            "errors.implicit.underVote"
+          ],
+          "voting": [
+            "errors.implicit.underVote"
+          ],
+          "votingUntouched": []
+        }
+      },
+      "if_counts_agreed": {
+        "dialog": "dismissible",
+        "inline": {
+          "review": [
+            "errors.implicit.underVote"
+          ],
+          "voting": [
+            "errors.implicit.underVote"
+          ],
+          "votingUntouched": []
+        }
+      }
+    },
+    {
+      "kind": "spurious dialog (should be none)",
+      "cell": {
+        "config": {
+          "min": 0,
+          "max": 3,
+          "policies": {
+            "invalid": "allowed",
+            "blank": "allowed",
+            "over": "allowed-with-msg",
+            "under": "warn-and-alert",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 3,
+          "duplicateRanks": false,
+          "rankGaps": false,
+          "firstPreferences": 1,
+          "blankMarker": false,
+          "explicitInvalid": true
+        }
+      },
+      "actual": {
+        "dialog": "dismissible",
+        "inline": {
+          "review": [
+            "errors.implicit.selectedMax"
+          ],
+          "voting": [
+            "errors.implicit.selectedMax"
+          ],
+          "votingUntouched": []
+        }
+      },
+      "if_counts_agreed": {
+        "dialog": "none",
+        "inline": {
+          "review": [
+            "errors.implicit.selectedMax"
+          ],
+          "voting": [
+            "errors.implicit.selectedMax"
+          ],
+          "votingUntouched": []
+        }
+      }
+    },
     {
       "kind": "dialog kind changed: blocking → dismissible",
       "cell": {
@@ -106,8 +257,9 @@
     }
   ],
   "known_still_derived": true,
-  "domain_limit": {
-    "violating_cells_without_a_preferential_error": 0,
-    "note": "every ranked cell this suite can drive carries a duplicate or a gap, and both policy variants raise a dialog; so only the dialog KIND can change here. A dialog appearing from nothing needs a clean ranking, which no bundled fixture can drive."
+  "by_ballot_shape": {
+    "malformed_rankings": 64000,
+    "well_formed_rankings": 28160,
+    "note": "malformed rankings always carry an error whose policy raises a dialog either way, so only the dialog kind can change there; the well-formed ones are where a dialog appears from nothing or goes missing."
   }
 }

@@ -21,7 +21,7 @@
 // same lists `certifiedCells` draws from, and both defer to `cell.mjs` for
 // what a bundled fixture can actually drive.
 
-import {representable, rankedTriples} from "./cell.mjs"
+import {representable, rankedTriples, wellFormedRankedTriples} from "./cell.mjs"
 
 export const POLICY_VALUES = {
     invalid: ["allowed", "warn", "warn-invalid-implicit-and-explicit", "not-allowed"],
@@ -62,6 +62,13 @@ for (let regulars = 0; regulars <= 2; regulars++)
                 firstPreferences: regulars, // every plurality selection is at rank 0
             })
 for (const triple of rankedTriples())
+    for (const explicitInvalid of [false, true])
+        STATES.push({...triple, blankMarker: false, explicitInvalid})
+// Well-formed rankings — the ORDINARY ranked ballot, and the region the
+// gate/checker count divergence hits hardest. They were unreachable until
+// `cell.mjs` learned to recognise a ranked ballot by its first-preference
+// count rather than only by a duplicate or a gap.
+for (const triple of wellFormedRankedTriples())
     for (const explicitInvalid of [false, true])
         STATES.push({...triple, blankMarker: false, explicitInvalid})
 
@@ -130,6 +137,7 @@ export const DOMAIN_DESCRIPTION = {
         "plurality: regulars 0..2 × blank marker × explicit-invalid flag, on the " +
         "Referendum fixture. Preferential: every reachable (regulars, duplicate " +
         "ranks, rank gaps) triple × explicit-invalid flag, on the IRV fixture, " +
-        "which carries no marker candidate. No decline (the single-contest " +
-        "decode hardcodes it false); no well-formed ranking (no fixture routes one).",
+        "which carries no marker candidate — both malformed rankings (duplicate " +
+        "or gap) and well-formed ones (regulars 2..3, one first preference). " +
+        "No decline: the single-contest decode hardcodes it false.",
 }

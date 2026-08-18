@@ -285,10 +285,14 @@ export const RULE_SPECS = {
             max: 3,
             policies: {dup: c.duplicated_rank_policy, invalid: c.invalid_vote_policy},
         }),
+        // The ballots this rule forms: valid_full ranks all three (leaving one
+        // first preference); duplicate puts two candidates at rank 1.
+        // `firstPreferences` is what the GATES count (quirk S6), so it is
+        // stated rather than left to default to the selection count.
         voteState: (c) =>
             c.state === "duplicate"
-                ? {regulars: 2, duplicateRanks: true}
-                : {regulars: 1},
+                ? {regulars: 2, duplicateRanks: true, firstPreferences: 2}
+                : {regulars: 3, firstPreferences: 1},
         // ranked selection (`selected` = rank; -1 unranked). valid_full = a
         // well-ordered 0,1,2; duplicate = two candidates sharing rank 0.
         ranks: (c) => (c.state === "valid_full" ? [0, 1, 2] : [0, 0, -1]),
@@ -313,8 +317,11 @@ export const RULE_SPECS = {
             max: 3,
             policies: {gap: c.preference_gaps_policy, invalid: c.invalid_vote_policy},
         }),
+        // valid_full ranks all three; gap ranks two, at positions 1 and 3.
         voteState: (c) =>
-            c.state === "gap" ? {regulars: 1, rankGaps: true} : {regulars: 1},
+            c.state === "gap"
+                ? {regulars: 2, rankGaps: true, firstPreferences: 1}
+                : {regulars: 3, firstPreferences: 1},
         // valid_full = 0,1,2; gap = ranks 0 then 2, skipping rank 1.
         ranks: (c) => (c.state === "valid_full" ? [0, 1, 2] : [0, 2, -1]),
         config: (c) => ({
