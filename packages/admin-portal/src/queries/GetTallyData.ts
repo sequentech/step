@@ -11,6 +11,11 @@ export const GET_TALLY_DATA = gql`
         $contestIds: [uuid!]!
         $electionIds: [uuid!]!
     ) {
+        sequent_backend_election_event(
+            where: {id: {_eq: $electionEventId}, tenant_id: {_eq: $tenantId}}
+        ) {
+            presentation
+        }
         sequent_backend_area(
             where: {election_event_id: {_eq: $electionEventId}, tenant_id: {_eq: $tenantId}}
         ) {
