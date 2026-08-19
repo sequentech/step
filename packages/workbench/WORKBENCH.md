@@ -710,8 +710,10 @@ which lives alongside it in `validation-spec/`. It divides into an
 EVIDENCE layer that establishes production ≡ that spec — an exhaustive
 headless sweep, plus browser runners that drive every cell through the
 real booth (`dom-validate.mjs`, using the Policy-overrides panel and
-reload-free client-side navigation) — and an ANALYSIS layer that consumes
-the certified spec without touching production. Its conventions, commands,
+reload-free client-side navigation) — an ANALYSIS layer that consumes the
+certified spec without touching production, and which is where findings
+are derived, and a DOCUMENTATION generator that renders the spec's per-rule
+tables for a reader. Its conventions, commands,
 and outputs are documented in
 [characterization/README.md](characterization/README.md); the findings it
 surfaced live in [docs/UPSTREAM_FINDINGS.md](docs/UPSTREAM_FINDINGS.md)

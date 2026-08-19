@@ -29,6 +29,11 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 const deps = JSON.parse(
     readFileSync(path.join(here, "effect-dependencies.recorded.json"), "utf8")
 )
+// The swept cell count is read from the sweep's own recording rather than
+// restated, so this cannot drift when the domain widens.
+const sweptCells = JSON.parse(
+    readFileSync(path.join(here, "headless-sweep.recorded.json"), "utf8")
+).domain.cells.toLocaleString("en-US")
 
 // ---------------------------------------------------------------------------
 // Aggregation: ledger dimensions → diagram input nodes; ledger components →
@@ -182,7 +187,7 @@ md.push(
     "",
     "Evidence behind every arrow: the pipeline of",
     "[`effect-dependencies.md`](effect-dependencies.md) (witnesses),",
-    "[`headless-sweep.md`](headless-sweep.md) (exhaustive, 138,240 cells),",
+    `[\`headless-sweep.md\`](headless-sweep.md) (exhaustive, ${sweptCells} cells),`,
     "[`browser-witnesses.md`](browser-witnesses.md) and",
     "[`quotient-validate.md`](quotient-validate.md) (booth) — zero",
     "disagreements; residual labels live in those artifacts.",

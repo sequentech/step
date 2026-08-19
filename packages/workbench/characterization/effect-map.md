@@ -23,7 +23,7 @@ every run), and paths that carry no real dependence are listed below as
 
 Evidence behind every arrow: the pipeline of
 [`effect-dependencies.md`](effect-dependencies.md) (witnesses),
-[`headless-sweep.md`](headless-sweep.md) (exhaustive, 138,240 cells),
+[`headless-sweep.md`](headless-sweep.md) (exhaustive, 276,480 cells),
 [`browser-witnesses.md`](browser-witnesses.md) and
 [`quotient-validate.md`](quotient-validate.md) (booth) — zero
 disagreements; residual labels live in those artifacts.

@@ -555,11 +555,11 @@ This is not a rewrite proposal. The path is incremental:
 >   one link, not two (`EVIDENCE_RESTRUCTURE.md`). Per-rule tables
 >   survive as documentation rendered from the spec.
 > - **Validation (the evidence layer).** Production ≡ the spec
->   **exhaustively** on the representable headless domain — 248,320
+>   **exhaustively** on the representable headless domain — 276,480
 >   cells, plurality and preferential, zero disagreements
 >   (`headless-sweep.md`); per cell in the real booth (229/229,
 >   `dom-validate.md`); by sufficiency for the browser-side independence
->   claims (2,208 quotient classes covering 130,048 cells,
+>   claims (2,208 quotient classes covering 156,416 cells,
 >   `quotient-validate.md`, under the source-verified props-boundary
 >   license and its re-entry condition); and by witness for the
 >   browser-side dependence claims (`browser-witnesses.md`).
@@ -567,26 +567,33 @@ This is not a rewrite proposal. The path is incremental:
 >   The dependency ledger and its effect map; the no-silent-discount
 >   property. Witness production-backing is now *inherited* from the
 >   sweep by a checked containment argument rather than re-observed.
-> - **Findings.** no-silent-discount, evaluated over all 248,320
->   certified cells: 2,848 silent-discount cells in exactly the two known
->   families (`selectedMin`, `selectedMax`) — no new families — and all
->   80 permitting configurations require `invalid_vote_policy = allowed`,
+> - **Findings, now derived rather than noticed.** Each is a property the
+>   analysis layer evaluates over the whole certified domain, with an
+>   acceptance test so the derivation cannot lose it.
+>   *no-silent-discount*: 3,168 cells in exactly the two known families
+>   (`selectedMin`, `selectedMax`) — no new families — and all 80
+>   permitting configurations require `invalid_vote_policy = allowed`,
 >   now exhaustively rather than by argument. Five representatives are
->   confirmed through one continuous booth → encrypt → cast → decrypt →
->   decode → tally run (`reproduce-verify.mjs`); recipes in
->   `REPRODUCE.md`, escalation in `UPSTREAM_FINDINGS.md`, policy intent
->   in `INVALID_VOTE_POLICY_INTENT.md`.
-> - **New this round.** The widened sweep surfaced a production defect the
->   plurality-only domain could not see: the submission gates count only
->   rank-0 selections where the checker counts every ranked one, so on a
->   ranked ballot they disagree (quirk
+>   confirmed booth → encrypt → cast → decrypt → decode → tally
+>   (`reproduce-verify.mjs`). *gate/checker count agreement*: 6,200 cells
+>   where the dialog the voter meets differs from the one the ballot
+>   warrants, in five shapes — filed as S6. Recipes in `REPRODUCE.md`,
+>   escalation in `UPSTREAM_FINDINGS.md`, policy intent in
+>   `INVALID_VOTE_POLICY_INTENT.md`.
+> - **New this round.** Widening the sweep to ranked ballots surfaced a
+>   production defect the plurality-only domain could not see: the
+>   submission gates count only first preferences where the checker counts
+>   every ranked selection (quirk
 >   `S6_GATES_COUNT_FIRST_PREFERENCES_ONLY`). The spec is bug-compatible
->   with it; re-deriving it as a property, and filing it as a suspect,
->   is open.
+>   with it, the behaviour is derived as a property, and it is filed as
+>   S6. Extending the domain again to WELL-FORMED rankings — the ordinary
+>   ranked ballot — is what let the property derive its two sharpest
+>   consequences instead of leaving them to ad-hoc probes.
 > - **Open.** The decline booth flow (a `multi_ballot` feature lift); a
->   generic IRV booth recipe (the headless half is closed); a
+>   generic IRV booth recipe — the headless half is closed, but the booth
+>   half leaves 4,288 quotient classes' inline behaviour spec-only; a
 >   both-markers fixture; step 5 — a production interpreter — remains
->   adjudication-gated.
+>   adjudication-gated, and is the next milestone's main objective.
 >
 > On the representable subdomain a transcription hole of either
 > polarity — a wrong clause or a missing one — cannot hide: coverage,

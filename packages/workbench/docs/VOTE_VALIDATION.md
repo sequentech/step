@@ -375,6 +375,23 @@ The submission gates compute their own marker-inclusive count
 double-counting a marker that is already present in the decoded choices —
 see "Submission Gating Detail" below.
 
+**The gates and the checker do not count the same thing** (finding **S6**,
+[UPSTREAM_FINDINGS.md](UPSTREAM_FINDINGS.md)). The checker counts
+`choice.selected > -1` — every selection. Both gates count
+`choice.selected == 0`. On a plurality contest those are the same
+predicate, because every selection sits at rank 0. On a **preferential**
+contest `selected` holds the *rank*, so the gates are counting **first
+preferences**: a well-formed ranking has exactly one, and the gates
+therefore see 1 selection however many candidates the voter ranked.
+
+Every gate clause that consults the count — blank (`n == 0`), over-vote
+(`n > max`), under-vote (`min ≤ n < max`) — is affected on ranked ballots.
+The tally is **not**: it reads the checker's emissions, so no vote is
+miscounted; what diverges is the dialog the voter meets. Min-vote is
+unaffected for a structural reason worth knowing — it has no gate clause
+at all, reaching the gates only through the generic "any error" clauses,
+which read the error list rather than any count.
+
 ---
 
 ## Vote Validation Policies (6 policies)

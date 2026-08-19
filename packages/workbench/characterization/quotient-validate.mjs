@@ -23,8 +23,9 @@
 // portal refresh (LIFTING.md runbook) before trusting this artifact.
 //
 // Spec-side, the same factorization was checked extensionally: the
-// headless sweep asserted inline is constant within every class across all
-// 138,240 cells (headless-sweep.md).
+// headless sweep asserted inline is constant within every class across
+// every cell it certifies (headless-sweep.md; the count is read from that
+// recording rather than restated here, so it cannot go stale).
 //
 // Method: for each of the quotient classes emitted by headless-sweep, find
 // a BOOTH-FORMABLE member (the sweep's stored representative was chosen
@@ -68,6 +69,7 @@ const sweep = JSON.parse(
     readFileSync(path.join(here, "headless-sweep.recorded.json"), "utf8")
 )
 const classes = sweep.quotient.classes
+const sweptCells = sweep.domain.cells.toLocaleString("en-US")
 
 const sortedUniq = (xs) => [...new Set(xs)].sort()
 const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b)
@@ -260,8 +262,8 @@ const md = [
     "its parameters — the record, the four policies (read raw from",
     "`question.presentation`), `isReview`, `isTouched`, and the dead",
     "`isVotedState` (Defect 4). No store reads, no globals. Spec-side, the",
-    "same factorization was checked extensionally over all 138,240 swept",
-    "cells. **Re-entry condition:** any reference inside `filterErrorList`",
+    `same factorization was checked extensionally over all ${sweptCells}`,
+    "swept cells. **Re-entry condition:** any reference inside `filterErrorList`",
     "beyond its parameter list, or a new consulted policy, voids this",
     "artifact — re-verify the boundary on every portal refresh.",
     "",

@@ -28,10 +28,10 @@ renders; hard-gated classes' review is the dialog, certified headlessly.
 its parameters — the record, the four policies (read raw from
 `question.presentation`), `isReview`, `isTouched`, and the dead
 `isVotedState` (Defect 4). No store reads, no globals. Spec-side, the
-same factorization was checked extensionally over all 138,240 swept
-cells. **Re-entry condition:** any reference inside `filterErrorList`
+same factorization was checked extensionally over all 276,480
+swept cells. **Re-entry condition:** any reference inside `filterErrorList`
 beyond its parameter list, or a new consulted policy, voids this
 artifact — re-verify the boundary on every portal refresh.
 
-**Result: 2208/6592 classes booth-validated, 0 disagreement(s) — covering 130,048 of the subdomain's cells by sufficiency. 4384 classes (118272 cells) deferred: no booth-formable member (their states are prevention-collapsed, flag+marker, or otherwise unformable on this fixture; their headless effects are already sweep-certified, and their inline values remain spec-only until a fixture can form them).**
+**Result: 2208/6592 classes booth-validated, 0 disagreement(s) — covering 156,416 of the subdomain's cells by sufficiency. 4384 classes (120064 cells) deferred: no booth-formable member (their states are prevention-collapsed, flag+marker, or otherwise unformable on this fixture; their headless effects are already sweep-certified, and their inline values remain spec-only until a fixture can form them).**
 

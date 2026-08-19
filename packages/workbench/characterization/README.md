@@ -206,35 +206,42 @@ every surprising behaviour carried as a named **quirk** (`quirks()` in its
 `lib.rs`, each tied to its UPSTREAM_FINDINGS.md suspect — toggling one is an
 adjudication decision, not a refactor).
 
-### Two layers: evidence, then analysis
+### Three kinds of tool: evidence, analysis, documentation
 
-The suite divides by what a tool is *for*, and the division is the reason
-its story fits in one head.
+Every file here is exactly one of three things, and confusing them is how
+an apparatus starts claiming more than it knows. The discriminator is
+mechanical — **does it touch production, and what does its failure mean?**
 
-**The evidence layer** establishes one claim: **production ≡ the spec**.
-Everything in it touches real production code — the sweep headlessly,
-`dom-validate` / `quotient-validate` / `browser-witnesses` in a real
-browser, `classifier-table` on the tally classifier. It says nothing about
-whether the behaviour is *good*.
+| kind | touches production? | a failing run means | files |
+|---|---|---|---|
+| **evidence** | yes — real WASM or a real browser | production and the spec disagree: **fidelity is broken** | `headless-sweep`, `classifier-table`, `dom-validate`, `quotient-validate`, `browser-witnesses`, the three `*-e2e-pipeline`s + `reproduce-verify` |
+| **analysis** | **no** — it consumes the certified spec | a finding it used to derive has stopped appearing: **the derivation is broken**, not production | `effect-dependencies`, `effect-map`, `no-silent-discount`, `gate-count-agreement` |
+| **documentation** | no | nothing — it cannot fail | `rule-tables` |
 
-**The analysis layer** consumes the certified spec and never touches
-production at all. `effect-dependencies` asks what each effect depends on;
-`effect-map` renders that for humans; `no-silent-discount` evaluates a
-property over the spec's certified domain. A finding is something derived
-here, not something noticed somewhere.
+**The evidence layer** establishes exactly one claim: **production ≡ the
+spec**. It says nothing about whether the behaviour is good, and it cannot:
+every runner in it is a comparison, and a comparison has no opinion.
 
-**Documentation** is a third thing again: the seven per-rule tables
-(`rule-tables.mjs`) render the certified spec for a reader. They cannot
-fail and they are not evidence.
+**The analysis layer** is where findings come from. A finding is something
+*derived* from the certified spec, not something noticed — which is why
+`no-silent-discount` and `gate-count-agreement` are properties with
+acceptance tests rather than reports. Neither runs a browser or loads the
+wasm; if one ever needs to, it has stopped being analysis.
 
-The spec used to be written **twice** — a JS transcription that carried all
-the production evidence, and the Rust port, which inherited it
-transitively. That is gone: the runners target the Rust crate directly, so
-the artifact this project produces is the one the evidence is attached to,
-and the chain is one link rather than two. What the JS spec bought — two
-independent transcriptions agreeing — was corroboration between specs, never
-production evidence, and it was traded deliberately for evidence that
-attaches where it matters (`../docs/EVIDENCE_RESTRUCTURE.md`).
+**Documentation** renders the spec for a reader. The seven per-rule tables
+are projections of it, produced by one generator. They carry no `pred?`
+column because there is nothing to compare — the comparison is the sweep's
+job, and duplicating it here would make the story look like it had seven
+independent checks that it does not.
+
+*The historical note:* the spec used to be written **twice** — a JS
+transcription carrying all the production evidence, and the Rust port
+inheriting it transitively. That is gone; the runners target the Rust crate
+directly, so the artifact this project produces is the one the evidence
+attaches to, and the chain is one link rather than two. What the JS spec
+bought — two independent transcriptions agreeing — was corroboration
+between specs, never production evidence, and it was traded deliberately
+(`../docs/EVIDENCE_RESTRUCTURE.md`).
 
 **What can validate each part of the spec.** The halves are unequally
 served, because production splits them. The spec's emissions, gates and
@@ -265,7 +272,7 @@ executable **witness** per dependence — a concrete pair of cells that
 differ in that one input and produce different values, which is what
 settles an existential claim; `headless-sweep.mjs` discharges the
 headless independence claims by exhaustion (production ≡ spec on all
-248,320 **representable** cells — those a bundled fixture can actually
+276,480 **representable** cells — those a bundled fixture can actually
 drive; `cell.mjs`'s `representable()` names the rest, with the
 reason each is out of reach) and emits the **quotient inventory** — the
 classes defined just below, with one representative cell each;
@@ -274,7 +281,7 @@ witnesses; `quotient-validate.mjs` discharges the browser-side
 independence claims by **sufficiency** — the filter reads the inputs only
 through a computed summary, so cells sharing that summary must behave
 alike and one booth run settles the whole class (one run per reachable
-emissions × consulted-policies class — 130,048 cells covered via 2,208
+emissions × consulted-policies class — 156,416 cells covered via 2,208
 classes). Zero disagreements on every stage; everything unreachable is
 labelled with its unblocking condition.
 
@@ -293,7 +300,7 @@ against the spec.
 
 | command (`node characterization/…`) | produces |
 |---|---|
-| `headless-sweep.mjs` | `headless-sweep.md` + `.recorded.json` — production (real WASM checker/gates/tally) vs the Rust spec on **every** cell of the representable headless domain: all six policies × sane bounds × plurality states × the reachable preferential states; **248,320 cells, ~1 min**. This is the exhaustive fidelity check, and it emits the quotient inventory the browser stage consumes |
+| `headless-sweep.mjs` | `headless-sweep.md` + `.recorded.json` — production (real WASM checker/gates/tally) vs the Rust spec on **every** cell of the representable headless domain: all six policies × sane bounds × plurality states × the reachable preferential states; **276,480 cells, ~1 min**. This is the exhaustive fidelity check, and it emits the quotient inventory the browser stage consumes |
 | `classifier-table.mjs` | `classifier-table.recorded.json` + `.md` — velvet-wasm's real tally vs the spec's `classify` on the classifier's own 32-cell cross-product, including the decline inputs the decode cannot reach |
 
 ### Evidence — browser (dev server on :5173)
@@ -307,7 +314,7 @@ corepack yarn workspace "@sequentech/workbench-app" dev
 | command (`node characterization/…`) | produces | what it does |
 |---|---|---|
 | `dom-validate.mjs` | `dom-validate.md` + `.recorded.json` | the **complete** tables — the Rust spec's predictions vs the real DOM across every cell of all seven rules: inline visibility at **both** observation points (touched voting screen and review), reachability, and the untouched view asserted empty per cell; 229/229, ~9 min |
-| `quotient-validate.mjs` | `quotient-validate.md` + `.recorded.json` | the browser-side *independence* claims discharged by sufficiency — one booth-formable member per quotient class from `headless-sweep.md`, inline compared at both observation points, re-observed up to 3× on mismatch; the license (the filter's props boundary) is source-verified and stated with its re-entry condition; classes with no formable member labelled. ~1 h |
+| `quotient-validate.mjs` | `quotient-validate.md` + `.recorded.json` | the browser-side *independence* claims discharged by sufficiency — one booth-formable member per quotient class from `headless-sweep.md`, inline compared at both observation points, re-observed up to 3× on mismatch (the 2026-08-19 run needed it on 8 classes, which would otherwise have been recorded as disagreements); the license (the filter's props boundary) is source-verified and stated with its re-entry condition; classes with no formable member labelled. ~1 h |
 | `browser-witnesses.mjs` | `browser-witnesses.md` + `.recorded.json` | every browser-pending dependence witness from `effect-dependencies.md` (inline-view and reachability components) driven through the real booth on a generic per-cell recipe, both cells compared against the spec; unobservable witnesses labelled |
 
 ### Evidence — the findings' end-to-end chain (dev server)
@@ -350,31 +357,30 @@ one applies is decided by what production makes reachable, not by
 preference:
 
 1. **Exhaustion.** [`headless-sweep.mjs`](headless-sweep.mjs) enumerates
-   the input domain directly — all six policies × sane bounds ×
-   plurality vote states — and compares production against the spec on
-   every one of its **248,320** cells. It is rule-agnostic: nothing in it
-   knows what a rule is.
+   the input domain directly — all six policies × sane bounds × every
+   vote state a bundled fixture can drive, plurality and preferential
+   (malformed rankings and well-formed ones alike) — and compares
+   production against the spec on every one of its **276,480** cells. It
+   is rule-agnostic: nothing in it knows what a rule is.
 2. **Sufficiency.** Where the booth is far too slow to enumerate,
    [`quotient-validate.mjs`](quotient-validate.mjs) covers by equivalence
    class instead. The inline filter reads its inputs only through
    (emissions, the four consulted policies, observation point), so one
-   booth run settles every cell sharing that summary: **130,048** cells
+   booth run settles every cell sharing that summary: **156,416** cells
    via **2,208** runs, on a license that is source-verified and carries a
    re-entry condition.
-3. **Cell by cell.** For what neither reaches, three instruments:
-   [`dom-validate.md`](dom-validate.md) drives all **229** grid cells
-   through the real booth on the reviewer path; the two preferential
-   grids ([`duprank-rule.md`](duprank-rule.md),
-   [`prefgaps-rule.md`](prefgaps-rule.md)) carry the **8** rule-triggering
-   cells apiece that the sweep's plurality-only domain excludes; and
-   [`browser-witnesses.md`](browser-witnesses.md) settles each
+3. **Cell by cell.** For what neither reaches — chiefly the booth-side
+   effects on specific cells: [`dom-validate.md`](dom-validate.md) drives
+   all **229** grid cells through the real booth on the reviewer path,
+   and [`browser-witnesses.md`](browser-witnesses.md) settles each
    existential dependence claim from
    [`effect-dependencies.md`](effect-dependencies.md) with one cell pair.
 
 The seven per-rule **tables** carry no coverage at all, and no longer
 pretend to. All 248 of their cells fall inside the sweep's domain
-(verified), so the sweep observes production on every one of them; the
-tables are a rendering of the spec for a reader, not a separate check
+(verified per cell by `dom-validate`, which reports any that are not), so
+the sweep observes production on every one of them; the tables are a
+rendering of the spec for a reader, not a separate check
 (`rule-tables.mjs`).
 
 The functional model in VOTE_VALIDATION.md has **six roles**, and full
@@ -384,9 +390,9 @@ artifact's own legend carries its labels and residues.
 
 | Role | Covered by | Status |
 |---|---|---|
-| Checkers | exhaustion | production ≡ spec on every swept cell (`headless-sweep.md`, **248,320**, plurality and preferential). One sweep serves **both** bands: the tally decode runs the identical function, so this is also the tally-side checker characterization |
-| Gates | exhaustion | both gates **and** the dialog projection on all 248,320 swept cells (`headless-sweep.md`) |
-| Filter | per-cell, then sufficiency | `dom-validate.md`: every grid cell through the real booth via the reviewer path, inline observed at both observation points, the untouched view asserted empty per cell — **229/229**. Beyond the grids, the independence claims are discharged by sufficiency (`quotient-validate.md`, 2,208 classes / 130,048 cells) |
+| Checkers | exhaustion | production ≡ spec on every swept cell (`headless-sweep.md`, **276,480**, plurality and preferential). One sweep serves **both** bands: the tally decode runs the identical function, so this is also the tally-side checker characterization |
+| Gates | exhaustion | both gates **and** the dialog projection on all 276,480 swept cells (`headless-sweep.md`) |
+| Filter | per-cell, then sufficiency | `dom-validate.md`: every grid cell through the real booth via the reviewer path, inline observed at both observation points, the untouched view asserted empty per cell — **229/229**. Beyond the grids, the independence claims are discharged by sufficiency (`quotient-validate.md`, 2,208 classes / 156,416 cells) |
 | Input constraint | per-cell | the `reachable` column of `dom-validate.md` across every rule cell (the state forms or it does not), **plus** direct evidence for both prevention mechanisms: the over-vote `disable` policy (`no (disabled)`, from probing the (max+1)th control's `disabled` attribute) and blank-marker exclusivity (`no (cleared)`, the marker collapsing a co-selected regular) |
 | Marker exclusivity (prevention) | per-cell, plus the crypto chain | characterized by *attempting* each state through the UI and recording whether it forms. Both directions recorded in `dom-validate`: the invalid marker does **not** clear (`marker_plus` forms — reachable `yes`, confirmed end-to-end by `invalid-latent-choices-e2e.mjs`), the blank marker **does** (`regular_then_marker` collapses to {marker only} — `no (cleared)`). Open: the decline booth flow |
 | Tally classifier | exhaustion, plus a direct decision table | the `tally` column on every swept cell, plus the standalone 32-cell six-class table (`classifier-table.md`, 32/32 matching the documented precedence — and the only production evidence for decline) |
@@ -407,17 +413,31 @@ three `*-e2e` pipelines orchestrated by `reproduce-verify.mjs`, which
 confirm the *findings* — the five silent-discount cells and S5 — booth →
 encrypt → cast → decrypt → decode → tally.
 
-### no-silent-discount — the standing property report
+### The findings, as properties
 
-`no-silent-discount.mjs`, observation-based end to end: 248 recorded
-cells → 7 candidates (`tally = ImplicitInvalid` ∧ no gate, both real WASM
-observations) → **5 booth-confirmed silent discounts** in two families
-(over-vote `allowed × allowed`; min-vote under `invalid = allowed`), all
-requiring `invalid_vote_policy = allowed`. Escalated as S1/S2 in
-[`../docs/UPSTREAM_FINDINGS.md`](../docs/UPSTREAM_FINDINGS.md);
-click-by-click recipes in [`../docs/REPRODUCE.md`](../docs/REPRODUCE.md);
-the admin-lint-shaped configuration table in
-[`no-silent-discount.md`](no-silent-discount.md).
+Two findings are derived from the certified spec rather than noticed. Each
+is a property the analysis layer evaluates over the whole certified domain,
+and each runner FAILS if a violation it already found stops appearing — so
+the derivation cannot quietly lose the finding it exists to produce.
+
+- **no-silent-discount** ([`no-silent-discount.md`](no-silent-discount.md))
+  — no reachable cell should show the voter nothing at any casting point
+  and then have the tally class it `ImplicitInvalid`. **3,168 cells in
+  exactly two families** (`selectedMin`, `selectedMax`), and all 80
+  permitting configurations require `invalid_vote_policy = allowed` —
+  exhaustively, where that was previously an argument over 248 recorded
+  cells. Escalated as S1/S2.
+- **gate/checker count agreement**
+  ([`gate-count-agreement.md`](gate-count-agreement.md)) — the count the
+  gates decide from should equal the checker's. It does not on ranked
+  ballots: **6,200 cells where the dialog the voter meets differs from the
+  one the ballot warrants**, in five shapes. Escalated as S6.
+
+Both are escalated in
+[`../docs/UPSTREAM_FINDINGS.md`](../docs/UPSTREAM_FINDINGS.md), with
+click-by-click recipes for the S1/S2/S5 cases in
+[`../docs/REPRODUCE.md`](../docs/REPRODUCE.md) and end-to-end crypto
+confirmation by the `*-e2e` runners.
 
 ## Marker-inclusive counting caveat
 
@@ -455,8 +475,8 @@ tally. See VOTE_VALIDATION.md "Selection counting and marker candidates".
 ## Open work
 
 The suite's own backlog — changes to *these tools*. Decisions for other
-people (consultation on the findings, whether to migrate the runners onto
-the Rust spec) live in the root [README](../README.md)'s "What's next".
+people (consultation on the findings; the rationalized implementation)
+live in the root [README](../README.md)'s "What's next".
 
 Every residue below is already labelled in the artifact that carries it;
 this is the one place they are collected, ordered by how much each would
@@ -474,21 +494,21 @@ unblock.
   combination is already covered: the sweep varies `blankMarker ×
   explicitInvalid` together, since Referendum accepts the flag without
   needing a marker candidate. The single widest unblock.
-- **A generic IRV booth recipe.** The headless half of this is closed:
-  `cell.mjs` routes ranked cells to the IRV fixture and the sweep now
-  covers them. What remains is the booth — the witness and quotient
-  stages have no generic way to rank candidates by clicking, so 8
-  witnesses defer.
+- **A generic IRV booth recipe.** The headless half is closed —
+  `cell.mjs` routes ranked cells to the IRV fixture and the sweep covers
+  them, malformed and well-formed alike. What remains is the booth: the
+  witness and quotient stages have no generic way to rank by clicking, so
+  8 witnesses defer and **4,288 quotient classes** stay unformable. Those
+  classes' emissions, gates, dialog and tally are already
+  production-certified by the sweep; what is spec-only is how
+  `filterErrorList` renders the two ranked message keys
+  (`duplicatedPosition`, `preferenceOrderWithGaps`) across the full
+  policy cross-product — `dom-validate` observes them in a slice today.
+  Honest cost: roughly doubles `quotient-validate`'s runtime.
 - **Witness preference.** `analyze_deps`'s `representability_score`
   prefers cells the harness can drive, but does not penalize
   marker + flag; teaching it to would shrink the zero-evidence witness
   set with no new fixture — the cheapest item here.
-- **no-silent-discount as a spec property.** The query pre-filters
-  recorded cells, then confirms candidates in the booth. Now that the
-  spec is production-certified over the swept subdomain, the property
-  could be evaluated over its full domain instead, with the booth
-  reserved for confirming hits — turning a sampled query into an
-  exhaustive one.
 - **The decline-to-vote booth flow** — the classifier's decline cells are
   recorded headlessly (`classifier-table.md`), but no booth-side runner
   drives a declined ballot. Not a suite change: it is blocked on adding a

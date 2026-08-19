@@ -195,15 +195,23 @@ workbench/
 │                        evidence (INVALID_VOTE_POLICY_INTENT.md). Plus one
 │                        temporary file: EVIDENCE_RESTRUCTURE.md, a migration
 │                        plan to be deleted when it lands
-├── characterization/    The validation apparatus, in two layers. EVIDENCE
-│                        (production ≡ the spec): headless-sweep.mjs,
+├── characterization/    The validation apparatus. Every file is exactly one
+│                        of three kinds, told apart by whether it touches
+│                        production and what a failure means.
+│                        EVIDENCE (production ≡ the spec; a failure means
+│                        fidelity is broken): headless-sweep.mjs,
 │                        dom-validate.mjs, quotient-validate.mjs,
-│                        browser-witnesses.mjs, classifier-table.mjs, and the
-│                        e2e pipeline runners. ANALYSIS (over the certified
-│                        spec, never touching production):
-│                        effect-dependencies.mjs, effect-map.mjs,
-│                        no-silent-discount.mjs. Plus rule-tables.mjs, which
-│                        renders the per-rule tables as documentation.
+│                        browser-witnesses.mjs, classifier-table.mjs, the
+│                        e2e pipeline runners.
+│                        ANALYSIS (consumes the certified spec, never touches
+│                        production; a failure means a finding stopped being
+│                        derived): effect-dependencies.mjs, effect-map.mjs,
+│                        no-silent-discount.mjs, gate-count-agreement.mjs.
+│                        DOCUMENTATION (cannot fail): rule-tables.mjs, which
+│                        renders the seven per-rule tables from the spec.
+│                        Shared: domain.mjs (the certified domain, defined
+│                        once), cell.mjs, rust-spec.mjs, rule-specs.mjs,
+│                        harness.mjs, browser-harness.mjs, booth-cell.mjs.
 │                        Commands and outputs:
 │                        characterization/README.md ("Running the analysis")
 ├── WORKBENCH.md         Workbench-side design: inspector, snapshots,
@@ -361,14 +369,17 @@ excluding portal sources from the check.
 
 ## What's next
 
-Where the work stands (2026-08-18): the validation characterization is
-complete — all seven rules recorded headlessly and DOM-validated against
-the real booth (229/229, [characterization/README.md](characterization/README.md)),
-every dependence and independence claim the spec makes
-production-validated (headlessly by exhaustion — 248,320 cells; in the
-booth by witnesses and by sufficiency — 130,048 cells via 2,208 quotient
-classes; zero disagreements anywhere), and the findings confirmed
-end-to-end and documented.
+Where the work stands (2026-08-19): the validation characterization is
+complete. Production is compared against one executable spec
+**exhaustively** on the headless domain — 276,480 cells, plurality and
+preferential, zero disagreements — and **per cell** in the real booth
+(229/229), with the browser-side independence claims discharged by
+sufficiency (156,416 cells via 2,208 quotient classes)
+([characterization/README.md](characterization/README.md)). The findings
+are no longer things somebody noticed: each is a **property derived from
+the certified spec**, with an acceptance test so the derivation cannot
+lose it, and the serious ones are additionally confirmed booth-to-tally
+through real crypto.
 
 **The evidence restructure has landed.** There is now ONE executable
 spec — the typed Rust crate [validation-spec/](validation-spec/),
@@ -424,10 +435,18 @@ which artifact ships, roughly by payoff:
    cell. Blocked on adding a `multi_ballot` encrypt/decrypt path (the
    decline bit does not exist in `raw_ballot`; see Known gaps above), so
    it is a feature lift, not a rule extension.
-4. **Distillation step 5 — a production interpreter of the artifact.**
-   Adjudication-gated: each quirk in the registry is one consultation
-   verdict away from being blessed into the spec or flipped into a fix,
-   and the interpreter's shape follows from those verdicts.
+4. **Distillation step 5 — an alternative, rationalized implementation.**
+   The long-term objective this whole investigation exists to serve, and
+   the next milestone's main task. The groundwork is in place: one
+   executable spec with exhaustive production evidence, its accidental
+   complexity enumerated as a named quirk registry, and a dependency
+   ledger saying what each effect actually depends on. What remains is
+   partly adjudication-gated — each quirk is one consultation verdict
+   away from being blessed into the spec or flipped into a fix, and an
+   implementation cannot rationalize what has not been adjudicated — but
+   the shape of the target is now describable without waiting: a thin
+   renderer over a total mapping, with the six-place duplication of the
+   validation rules (checker, both gates, filter, classifier) collapsed.
 
 Standing maintenance, as upstream moves:
 
@@ -444,6 +463,9 @@ Standing maintenance, as upstream moves:
   LIFTING.md's refresh runbook ends with this step.
 - **Fix `yarn build`** (three known causes above) if a static production
   build is ever needed rather than the dev server.
+- **Delete `docs/EVIDENCE_RESTRUCTURE.md`** — the migration it plans has
+  landed and is marked complete in the document itself. It is a plan, not
+  a record; the commit history is the record.
 
 ## License
 

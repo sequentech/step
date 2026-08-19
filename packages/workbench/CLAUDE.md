@@ -57,6 +57,23 @@ purpose.
 - **The `// FIXME` lines in UPSTREAM_FINDINGS.md are faithful quotes of
   production source** — they are the *subject* of a finding. Do not
   "fix", reword, or remove them.
+- **Three kinds of tool, and never blur them.** Every file in
+  `characterization/` is exactly one of: **evidence** (touches real
+  production; a failure means fidelity is broken), **analysis** (consumes
+  the certified spec, never touches production; a failure means a finding
+  stopped being derived), or **documentation** (cannot fail). The test is
+  mechanical — if it doesn't touch production, it is not evidence. So an
+  analysis runner must never load the wasm or open a browser, and a
+  documentation generator must never grow a comparison column: duplicating
+  the sweep's check there makes the story look like it has independent
+  checks it does not have. See characterization/README.md, "Three kinds of
+  tool".
+- **The certified domain is defined once**, in
+  `characterization/domain.mjs` — the enumeration and the membership
+  predicate together, the predicate derived from the enumeration's own
+  lists. It was previously written six times and one copy silently
+  disagreed, so a runner claimed certification over cells the sweep never
+  visited. Never re-enumerate it locally; import it.
 - **Adjudication is nobody's alone.** Surprising behaviour is recorded as
   a *suspect* and escalated for consultation; neither the agent nor the
   operator blesses or dismisses one unilaterally (the three-state model —
@@ -107,6 +124,18 @@ purpose.
   refresh with
   `$env:Path = [Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [Environment]::GetEnvironmentVariable("Path","User")`
   or use the Bash tool.
+- **A shell pipeline hides a runner's exit code.** `node x.mjs | tail`
+  reports *tail's* status, so a failing runner looks green. Redirect to a
+  file and check `$?` when the exit code matters (it cost a false "the
+  runner failed to fail" diagnosis once).
+- **`git add -A` stages from the repo root regardless of cwd**, which here
+  sweeps in the untracked `packages/vscode_target/` build tree and times
+  out, leaving a stale `.git/index.lock`. Stage explicit paths.
+- **The byte-identical oracle.** When a change is meant to be
+  behaviour-preserving, regenerate and require the recorded artifacts to
+  come back byte-identical; that is the check, not a green run. It has
+  caught what green runs could not — a single field on one row, during the
+  step-3b refactor, on a cell whose columns are not compared.
 - **Harmless commit noise:** every commit here prints CRLF conversion
   warnings and a "too many unreachable loose objects" gc warning; neither
   indicates a problem.
