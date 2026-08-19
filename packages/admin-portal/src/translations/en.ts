@@ -2425,8 +2425,15 @@ const englishTranslation = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "Total valid votes does not match the sum of the candidate votes plus blank votes",
-                censusTooSmall: "Census must be greater or equal than the total votes",
+                    "Candidate votes ({{candidateVotesSum}}) must be between {{lowerBound}} and {{upperBound}} for this contest's voting rules ({{nonBlankValidVotes}} valid non-blank votes × up to {{maxMarks}} marks per ballot)",
+                censusTooSmall:
+                    "Total votes ({{totalVotes}}) must not be greater than census ({{census}})",
+                totalInvalidDoesNotMatch:
+                    "Total invalid votes ({{totalInvalid}}) must equal implicit invalid votes ({{implicitInvalid}}) plus explicit invalid votes ({{explicitInvalid}})",
+                totalVotesDoesNotMatch:
+                    "Total votes ({{totalVotes}}) must equal total valid votes ({{totalValidVotes}}) plus total invalid votes ({{totalInvalid}})",
+                unknownCountingAlgorithm:
+                    "This contest's counting algorithm ({{countingAlgorithm}}) is not recognised, so the allowed number of candidate votes cannot be determined. Check the contest configuration.",
                 blankBallotsInconsistent:
                     "Blank Ballots must have the same value on every contest sheet of this ballot box",
                 blankBallotsOutOfBounds:

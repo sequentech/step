@@ -4,7 +4,8 @@
 
 use crate::services::area_tree::*;
 use crate::services::tally_sheet_validation::{
-    validate_area_contest_results, validate_ballot_box_blank_ballots,
+    resolve_max_marks_per_ballot, validate_area_contest_results,
+    validate_ballot_box_blank_ballots,
 };
 use crate::types::hasura::core::AreaContest;
 use crate::types::tally_sheets::AreaContestResults;
@@ -12,7 +13,7 @@ use crate::wasm::wasm::IntoResult;
 use std::collections::HashSet;
 use wasm_bindgen::prelude::*;
 extern crate console_error_panic_hook;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_wasm_bindgen;
 use serde_wasm_bindgen::Serializer;
 use std::panic;
@@ -70,10 +71,19 @@ pub fn get_contest_matches_js(
         .into_json()
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "snake_case")]
+struct ContestMarkBoundsInput {
+    max_votes: Option<i64>,
+    counting_algorithm: Option<String>,
+    cumulative_number_of_checkboxes: Option<u64>,
+}
+
 #[allow(clippy::all)]
 #[wasm_bindgen]
 pub fn validate_area_contest_results_js(
     content_json: JsValue,
+    contest_bounds_json: JsValue,
 ) -> Result<JsValue, JsValue> {
     let content: AreaContestResults =
         serde_wasm_bindgen::from_value(content_json).map_err(|err| {
@@ -82,8 +92,30 @@ pub fn validate_area_contest_results_js(
             err
         )
         })?;
+    let bounds: ContestMarkBoundsInput =
+        serde_wasm_bindgen::from_value(contest_bounds_json).map_err(|err| {
+            format!(
+                "Error reading javascript contest bounds for validation: {}",
+                err
+            )
+        })?;
 
-    let errors = validate_area_contest_results(&content);
+    // An unrecognised counting algorithm is reported as a validation error
+    // like any other, rather than thrown: the manual entry form renders the
+    // returned list, so throwing here would break the form instead of
+    // telling the operator what is wrong with the contest configuration.
+    // The bound checks are skipped in that case rather than run against a
+    // guessed bound, which would pile misleading errors on top.
+    let errors = match resolve_max_marks_per_ballot(
+        bounds.max_votes,
+        bounds.counting_algorithm.as_deref(),
+        bounds.cumulative_number_of_checkboxes,
+    ) {
+        Ok(max_marks_per_ballot) => {
+            validate_area_contest_results(&content, Some(max_marks_per_ballot))
+        }
+        Err(error) => vec![error],
+    };
     let serializer = Serializer::json_compatible();
     errors
         .serialize(&serializer)

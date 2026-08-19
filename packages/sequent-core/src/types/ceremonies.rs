@@ -375,6 +375,10 @@ pub struct TallyResolution {
     Clone,
     Copy,
 )]
+// Stored as free text on the Hasura `contest.counting_algorithm` column, so
+// parsing tolerates case that differs from the canonical form rather than
+// silently falling through to the default.
+#[strum(ascii_case_insensitive)]
 pub enum CountingAlgType {
     #[strum(serialize = "plurality-at-large")]
     #[serde(rename = "plurality-at-large")]
@@ -423,6 +427,13 @@ impl CountingAlgType {
                 | CountingAlgType::Desborda2
                 | CountingAlgType::Desborda3
         )
+    }
+
+    /// Returns true if a voter may give multiple points to the same
+    /// candidate, so per-candidate marks must be bounded by a checkbox
+    /// budget instead of a single mark per ballot.
+    pub fn is_cumulative(&self) -> bool {
+        matches!(self, CountingAlgType::Cumulative)
     }
 
     pub fn get_default_tally_operation_for_contest(&self) -> TallyOperation {

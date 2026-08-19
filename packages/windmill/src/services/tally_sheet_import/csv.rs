@@ -11,6 +11,7 @@ use sequent_core::types::tally_sheets::{
     AreaContestResults, CandidateResults, InvalidVotes, VotingChannel,
 };
 use serde::Deserialize;
+use serde_json::Value;
 use tracing::instrument;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -76,6 +77,12 @@ enum CanonicalField {
 impl FromStr for CanonicalField {
     type Err = ();
 
+    /// The canonical set is closed: every `field` value must be one of the
+    /// above. Unrecognised names are rejected rather than carried through as
+    /// free-form extra data, so that a mistyped canonical field name is
+    /// reported instead of silently dropping the scalar it was meant to set
+    /// — which would surface later as a confusing "missing required field",
+    /// or leave the ballot box carrying a stale value.
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value {
             "candidate_votes" => Ok(Self::CandidateVotes),
@@ -248,6 +255,7 @@ pub fn parse_canonical_csv(
                 blank_ballots: accumulator.blank_ballots,
                 census: accumulator.census,
                 candidate_results: accumulator.candidate_results,
+                annotations: None,
             },
         });
     }
@@ -416,6 +424,7 @@ fn error_for_row(
         contest_external_id,
         candidate_external_id,
         field,
+        params: HashMap::new(),
     }
 }
 
@@ -500,6 +509,46 @@ mod tests {
                 Some("total_blank_votes".to_string()),
                 Some("census".to_string()),
             ]
+        );
+    }
+
+    #[test]
+    fn reports_a_typod_field_name_rather_than_ignoring_the_row() {
+        // `total_vots` is a near-miss of `total_votes`. Reporting it keeps
+        // the row from being silently dropped, which would otherwise
+        // surface later as a confusing "missing required field".
+        let csv = b"channel,area_name,contest_external_id,field,candidate_external_id,value\
+\nPAPER,Area A,contest-1,total_vots,,17\n";
+
+        let (_imports, errors) = parse_canonical_csv(csv);
+
+        let invalid_field_errors = errors
+            .iter()
+            .filter(|error| error.code == "invalid_field")
+            .collect::<Vec<_>>();
+        assert_eq!(invalid_field_errors.len(), 1);
+        assert_eq!(
+            invalid_field_errors[0].field,
+            Some("total_vots".to_string())
+        );
+    }
+
+    #[test]
+    fn rejects_a_field_name_outside_the_canonical_set() {
+        // Unlike the typo case above, this name isn't a near-miss of any
+        // canonical field: the set is closed, so it is reported rather than
+        // carried through as extra data.
+        let csv = b"channel,area_name,contest_external_id,field,candidate_external_id,value\
+\nPAPER,Area A,contest-1,extra_counts,,4\n";
+
+        let (_imports, errors) = parse_canonical_csv(csv);
+
+        assert_eq!(
+            errors
+                .iter()
+                .filter(|error| error.code == "invalid_field")
+                .count(),
+            1
         );
     }
 
