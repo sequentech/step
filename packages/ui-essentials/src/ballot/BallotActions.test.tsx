@@ -60,7 +60,6 @@ describe("the buttons under a ballot", () => {
         expect(screen.queryByText("Clear choices")).toBeNull()
     })
 
-
     it("draws Clear twice, one per breakpoint", () => {
         // Not a duplicate to tidy: on a phone Clear is full-width above the row, and
         // on a wide screen it sits between Back and Next. Both are in the tree and CSS

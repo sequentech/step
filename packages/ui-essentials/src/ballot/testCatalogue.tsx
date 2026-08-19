@@ -102,10 +102,7 @@ export const OTHER_WORDS = {
 } as const
 
 /** An i18next instance carrying whichever catalogue a test wants. */
-export const catalogue = (
-    words: Record<string, unknown> = PORTAL_WORDS,
-    language = "en"
-): I18n => {
+export const catalogue = (words: Record<string, unknown> = PORTAL_WORDS, language = "en"): I18n => {
     const instance = i18next.createInstance()
     void instance.init({
         lng: language,

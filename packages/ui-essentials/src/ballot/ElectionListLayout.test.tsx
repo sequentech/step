@@ -29,9 +29,7 @@ const render = inAHost
 const WORDS = PORTAL_WORDS.electionSelectionScreen
 
 /** The layout as the portal calls it, less the parts each test varies. */
-const asThePortalCallsIt = (
-    props: Partial<React.ComponentProps<typeof ElectionListLayout>> = {}
-) =>
+const asThePortalCallsIt = (props: Partial<React.ComponentProps<typeof ElectionListLayout>> = {}) =>
     render(
         <ElectionListLayout steps={<div data-testid="the-breadcrumb" />} {...props}>
             <div data-testid="an-election" />

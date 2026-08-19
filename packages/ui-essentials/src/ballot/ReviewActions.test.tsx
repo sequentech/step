@@ -67,9 +67,7 @@ describe("the buttons under a review", () => {
         render(<ReviewActions casting onCast={() => undefined} />)
 
         expect(document.querySelector(".MuiCircularProgress-root")).not.toBeNull()
-        expect(
-            screen.getByText(WORDS.castBallotButton).closest("button")
-        ).toBeDisabled()
+        expect(screen.getByText(WORDS.castBallotButton).closest("button")).toBeDisabled()
     })
 
     it("navigates Back through whatever the host gave it", () => {
@@ -94,9 +92,7 @@ describe("the buttons under a review", () => {
         // A preview's position. Better than a live-looking button that does nothing.
         render(<ReviewActions />)
 
-        expect(
-            screen.getByText(WORDS.castBallotButton).closest("button")
-        ).toBeDisabled()
+        expect(screen.getByText(WORDS.castBallotButton).closest("button")).toBeDisabled()
     })
 
     it("says what the catalogue says, in whatever language it says it", () => {

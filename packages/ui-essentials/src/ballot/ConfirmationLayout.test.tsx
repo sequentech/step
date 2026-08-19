@@ -141,14 +141,10 @@ describe("where this screen's words come from", () => {
         // A flag, not the sentence: the sentence belongs in the catalogue with the rest of
         // the screen.
         const plain = render(<ConfirmationLayout {...props} />)
-        expect(
-            plain.queryByText("confirmationScreen.blankBallot.description")
-        ).toBeNull()
+        expect(plain.queryByText("confirmationScreen.blankBallot.description")).toBeNull()
         plain.unmount()
 
         render(<ConfirmationLayout {...props} isBlankBallot />)
-        expect(
-            screen.getByText("confirmationScreen.blankBallot.description")
-        ).toBeInTheDocument()
+        expect(screen.getByText("confirmationScreen.blankBallot.description")).toBeInTheDocument()
     })
 })
