@@ -618,18 +618,12 @@ export const ReviewScreen: React.FC = () => {
         }
     }
 
-    function handleCloseDialogIdHelp(val: boolean) {
+    // Dismiss only. Auditing is reached from AuditButton, which confirms through
+    // AuditBallotHelpDialog first; this dialog used to navigate there too, which
+    // is the duplicate audit trigger reported in META-12776. Matches how
+    // AuditScreen renders the same dialog.
+    function handleCloseDialogIdHelp() {
         setOpenBallotIdHelp(false)
-
-        if (val) {
-            if (ballotStyle && tenantId && eventId) {
-                navigate(
-                    `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/audit`
-                )
-            } else {
-                navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
-            }
-        }
     }
 
     const getBallotDataFromSessionStorage = () => {
@@ -826,7 +820,10 @@ export const ReviewScreen: React.FC = () => {
                         ? [
                               <AuditButton
                                   key={"audit-button"}
-                                  onClick={() => setAuditBallotHelp(true)}
+                                  onClick={() => {
+                                      setOpenBallotIdHelp(false)
+                                      setAuditBallotHelp(true)
+                                  }}
                               />,
                           ]
                         : []

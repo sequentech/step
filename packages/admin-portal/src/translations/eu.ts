@@ -2438,9 +2438,15 @@ const basqueTranslation: TranslationType = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "Baliozko botoen guztizko kopurua ez dator bat hautagaien botoen eta boto zurien baturarekin",
+                    "Hautagaien botoek ({{candidateVotesSum}}) {{lowerBound}} eta {{upperBound}} artean egon behar dute lehiaketa honen bozketa-arauen arabera ({{nonBlankValidVotes}} baliozko boto ez-zuri × gehienez {{maxMarks}} marka boto-txartel bakoitzeko)",
                 censusTooSmall:
-                    "Erroldak boto guztien kopurua baino handiagoa edo berdina izan behar du",
+                    "Boto guztien kopurua ({{totalVotes}}) ezin da erroldakoa ({{census}}) baino handiagoa izan",
+                totalInvalidDoesNotMatch:
+                    "Boto baliogabeen guztizkoak ({{totalInvalid}}) boto baliogabe inplizituen ({{implicitInvalid}}) eta boto baliogabe esplizituen ({{explicitInvalid}}) baturaren berdina izan behar du",
+                totalVotesDoesNotMatch:
+                    "Boto guztizkoak ({{totalVotes}}) boto baliodun guztizkoen ({{totalValidVotes}}) eta boto baliogabe guztizkoen ({{totalInvalid}}) baturaren berdina izan behar du",
+                unknownCountingAlgorithm:
+                    "Lehiaketa honen zenbaketa-algoritmoa ({{countingAlgorithm}}) ez da ezaguna, beraz ezin da zehaztu hautagaien botoen baimendutako kopurua. Egiaztatu lehiaketaren konfigurazioa.",
                 blankBallotsInconsistent:
                     "Boto-txartel Zuriak balio berdina izan behar du ontzi honetako hautagaitza-orri guztietan",
                 blankBallotsOutOfBounds:

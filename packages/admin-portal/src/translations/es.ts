@@ -2451,8 +2451,15 @@ const spanishTranslation: TranslationType = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "El total de votos válidos no coincide con la suma de los votos de los candidatos más los votos en blanco",
-                censusTooSmall: "El censo debe ser mayor o igual al total de votos",
+                    "Los votos de candidatos ({{candidateVotesSum}}) deben estar entre {{lowerBound}} y {{upperBound}} según las reglas de votación de esta contienda ({{nonBlankValidVotes}} votos válidos no en blanco × hasta {{maxMarks}} marcas por papeleta)",
+                censusTooSmall:
+                    "El total de votos ({{totalVotes}}) no puede ser mayor que el censo ({{census}})",
+                totalInvalidDoesNotMatch:
+                    "El total de votos inválidos ({{totalInvalid}}) debe ser igual a los votos inválidos implícitos ({{implicitInvalid}}) más los votos inválidos explícitos ({{explicitInvalid}})",
+                totalVotesDoesNotMatch:
+                    "El total de votos ({{totalVotes}}) debe ser igual al total de votos válidos ({{totalValidVotes}}) más el total de votos inválidos ({{totalInvalid}})",
+                unknownCountingAlgorithm:
+                    "El algoritmo de recuento de esta contienda ({{countingAlgorithm}}) no se reconoce, por lo que no se puede determinar el número permitido de votos de candidatos. Revise la configuración de la contienda.",
                 blankBallotsInconsistent:
                     "Las Papeletas en Blanco deben tener el mismo valor en todas las hojas de escrutinio de esta urna",
                 blankBallotsOutOfBounds:

@@ -2449,8 +2449,15 @@ const galegoTranslation: TranslationType = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "O total de votos válidos non coincide coa suma dos votos dos candidatos máis os votos en branco",
-                censusTooSmall: "O censo debe ser maior ou igual ao total de votos",
+                    "Os votos de candidatos ({{candidateVotesSum}}) deben estar entre {{lowerBound}} e {{upperBound}} segundo as regras de votación desta contenda ({{nonBlankValidVotes}} votos válidos non en branco × ata {{maxMarks}} marcas por papeleta)",
+                censusTooSmall:
+                    "O total de votos ({{totalVotes}}) non pode ser maior que o censo ({{census}})",
+                totalInvalidDoesNotMatch:
+                    "O total de votos non válidos ({{totalInvalid}}) debe ser igual aos votos non válidos implícitos ({{implicitInvalid}}) máis os votos non válidos explícitos ({{explicitInvalid}})",
+                totalVotesDoesNotMatch:
+                    "O total de votos ({{totalVotes}}) debe ser igual ao total de votos válidos ({{totalValidVotes}}) máis o total de votos non válidos ({{totalInvalid}})",
+                unknownCountingAlgorithm:
+                    "O algoritmo de reconto desta contenda ({{countingAlgorithm}}) non se recoñece, polo que non se pode determinar o número permitido de votos de candidatos. Revise a configuración da contenda.",
                 blankBallotsInconsistent:
                     "As Papeletas en Branco deben ter o mesmo valor en todas as follas de escrutinio desta urna",
                 blankBallotsOutOfBounds:
