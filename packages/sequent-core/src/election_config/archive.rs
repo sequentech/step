@@ -172,6 +172,10 @@ fn auxiliary(bundle: &Bundle) -> Vec<Artifact> {
             "templates/templates.json",
             &Value::Array(manifest),
         ));
+        written.push(Artifact::text(
+            format!("export_templates-{}.csv", bundle.tenant_id),
+            templates_csv(&bundle.templates),
+        ));
     }
 
     if !bundle.admin_realm_patch.is_empty() {
@@ -189,6 +193,72 @@ fn auxiliary(bundle: &Bundle) -> Vec<Artifact> {
     }
 
     written
+}
+
+/// The templates sheet, written back out.
+///
+/// **The same columns [`build_templates`](super::build_tables) reads**, in the same
+/// order, so a file written here can be handed straight back to the janitor or to
+/// the Admin Portal's own importer — which is the whole claim being made by putting
+/// it in [`ADMIN_PORTAL_MEMBER`]. Nothing here invents a format: the column names
+/// are the ones the reader looks up by, and a round trip is asserted rather than
+/// assumed.
+///
+/// The `.hbs` files and `templates.json` beside it are **not** replaced. That pair
+/// is what the Portal loads today; this is the sheet the wizard authors, and the
+/// two are different views of one thing rather than a migration from one to the
+/// other. Dropping the pair would be a guess about a loader in another repository.
+fn templates_csv(templates: &[CommunicationTemplate]) -> String {
+    let columns = [
+        "alias",
+        "name",
+        "type",
+        "communication_method",
+        "template.document",
+        "template.selected_methods",
+    ];
+    let rows: Vec<Vec<String>> = templates
+        .iter()
+        .map(|template| {
+            vec![
+                template.alias.clone(),
+                template.name.clone(),
+                template.template_type.clone().unwrap_or_default(),
+                template.communication_method.clone().unwrap_or_default(),
+                template.document.clone(),
+                template
+                    .selected_methods
+                    .as_ref()
+                    .map(|value| match value {
+                        // A string column: the reader takes whatever is in the
+                        // cell, and a JSON string quoted again would arrive with
+                        // its quotes.
+                        Value::String(text) => text.clone(),
+                        other => other.to_string(),
+                    })
+                    .unwrap_or_default(),
+            ]
+        })
+        .collect();
+    plain_csv(&columns, &rows)
+}
+
+/// Whether an auxiliary member is something the **Admin Portal imports**.
+///
+/// The split [`delivery`] nests on, and it is a split by *who acts on the file*
+/// rather than by what is in it. Administrators, roles and templates are loaded
+/// into the Portal through its own settings import. The two Keycloak realm patches
+/// are applied to a realm by hand, by somebody with realm access, and are not an
+/// import of anything — so they stay loose in the delivery where they are visible.
+///
+/// Written as one predicate rather than as a flag on [`Artifact`] because the names
+/// are minted a few lines above and the two must not drift; `every_admin_portal_file_is_claimed`
+/// asserts they have not.
+fn admin_portal_member(name: &str) -> bool {
+    name == "admin_users.csv"
+        || name.starts_with("export_permissions-")
+        || name.starts_with("export_templates-")
+        || name.starts_with("templates/")
 }
 
 fn template_entry(template: &CommunicationTemplate, file_name: &str) -> Value {
@@ -666,6 +736,238 @@ mod tests {
             assert_eq!(got, expected.bytes, "{}", expected.name);
         }
     }
+
+    /// A bundle carrying everything the Admin Portal takes.
+    fn portal_bundle() -> Bundle {
+        bundle(vec![
+            (
+                "AdminUsers",
+                vec![
+                    vec![
+                        text("username"),
+                        text("email"),
+                        text("configured_password"),
+                    ],
+                    vec![
+                        text("returning-officer"),
+                        text("dana@example.org"),
+                        text("hunter2"),
+                    ],
+                ],
+            ),
+            (
+                "Permissions",
+                vec![
+                    vec![text("permission"), text("observer")],
+                    vec![text("election-event-read"), text("TRUE")],
+                ],
+            ),
+            (
+                "Templates",
+                vec![
+                    vec![
+                        text("alias"),
+                        text("name"),
+                        text("type"),
+                        text("communication_method"),
+                        text("template.document"),
+                    ],
+                    vec![
+                        text("vote-receipt"),
+                        text("Vote Receipt"),
+                        text("VOTE_RECEIPT"),
+                        text("EMAIL"),
+                        text("<p>Thank you, {{name}}.</p>"),
+                    ],
+                ],
+            ),
+        ])
+    }
+
+    #[test]
+    fn every_admin_portal_file_is_claimed_and_no_realm_patch_is() {
+        // **The guard on the split.** `admin_portal_member` matches by name, and
+        // the names are minted thirty lines above it — so the one way this goes
+        // wrong is a file renamed on one side only, which would silently move it
+        // out of the nested zip and back into the loose pile. Asserted as a
+        // partition of a bundle that carries all four rather than as a list of
+        // strings retyped here.
+        let source = portal_bundle();
+        let tenant = source.tenant_id.clone();
+        let layout = layout(&source);
+        let (portal, loose): (Vec<&str>, Vec<&str>) = names(&layout.auxiliary)
+            .into_iter()
+            .partition(|name| admin_portal_member(name));
+
+        let mut portal = portal;
+        portal.sort_unstable();
+        assert_eq!(
+            portal,
+            [
+                "admin_users.csv",
+                // Named after the tenant, which is derived rather than typed —
+                // hence read off the bundle here instead of pinned.
+                format!("export_permissions-{tenant}.csv").as_str(),
+                format!("export_templates-{tenant}.csv").as_str(),
+                "templates/templates.json",
+                "templates/vote-receipt.hbs",
+            ]
+        );
+        // Applied by hand against a realm, not imported into anything.
+        assert_eq!(loose, ["keycloak_event_realm_patch.json"]);
+    }
+
+    #[test]
+    fn the_templates_csv_is_the_sheet_it_was_read_from() {
+        // **The claim the CSV makes**, and the only way to check it: read the file
+        // back through the reader that produced the templates in the first place.
+        // A column renamed on either side stops round-tripping here rather than in
+        // somebody's Admin Portal.
+        let built = portal_bundle();
+        let layout = layout(&built);
+        let wanted = format!("export_templates-{}.csv", built.tenant_id);
+        let csv = layout
+            .auxiliary
+            .iter()
+            .find(|a| a.name == wanted)
+            .expect("the templates CSV");
+        let text_out = String::from_utf8(csv.bytes.clone()).unwrap();
+
+        // Header first, so a reordering is a failure here and not a mystery later.
+        assert!(
+            text_out.starts_with(
+                "alias,name,type,communication_method,template.document,template.selected_methods\n"
+            ),
+            "{text_out}"
+        );
+
+        // And back in, through the reader, over a sheet whose **headers are the
+        // ones this file just wrote**. That is the half worth testing: the values
+        // are carried by `plain_csv`, which quotes a field holding a comma or a
+        // newline and is tested where it lives, while the column *names* are the
+        // keys `build_templates` looks up and the one thing that can silently
+        // drift between the two sides.
+        let source = &built.templates[0];
+        let header = text_out.lines().next().unwrap().to_string();
+        let columns: Vec<Cell> = header.split(',').map(text).collect();
+        let grid = vec![
+            columns,
+            vec![
+                text(&source.alias),
+                text(&source.name),
+                text(source.template_type.as_deref().unwrap_or_default()),
+                text(
+                    source.communication_method.as_deref().unwrap_or_default(),
+                ),
+                text(&source.document),
+                text(""),
+            ],
+        ];
+
+        let again = bundle(vec![("Templates", grid)]);
+        assert_eq!(again.templates.len(), 1);
+        assert_eq!(again.templates[0].alias, source.alias);
+        assert_eq!(again.templates[0].name, source.name);
+        assert_eq!(again.templates[0].document, source.document);
+        assert_eq!(again.templates[0].template_type, source.template_type);
+        assert_eq!(
+            again.templates[0].communication_method,
+            source.communication_method
+        );
+    }
+
+    /// What is actually inside a delivery zip, by name and by nesting depth.
+    #[cfg(feature = "election_config_archive")]
+    fn delivered(bundle: &Bundle) -> (Vec<String>, Vec<String>, Vec<String>) {
+        use std::io::Read;
+
+        let read = |bytes: &[u8]| -> Vec<String> {
+            let mut archive =
+                ::zip::ZipArchive::new(std::io::Cursor::new(bytes.to_vec()))
+                    .unwrap();
+            let mut found: Vec<String> = (0..archive.len())
+                .map(|at| archive.by_index(at).unwrap().name().to_string())
+                .collect();
+            found.sort();
+            found
+        };
+        let inner = |bytes: &[u8], name: &str| -> Vec<u8> {
+            let mut archive =
+                ::zip::ZipArchive::new(std::io::Cursor::new(bytes.to_vec()))
+                    .unwrap();
+            let mut got = Vec::new();
+            archive
+                .by_name(name)
+                .unwrap()
+                .read_to_end(&mut got)
+                .unwrap();
+            got
+        };
+
+        let outer = delivery(&layout(bundle)).unwrap().bytes;
+        let top = read(&outer);
+        let event = read(&inner(&outer, IMPORTABLE_MEMBER));
+        let portal = if top.iter().any(|name| name == ADMIN_PORTAL_MEMBER) {
+            read(&inner(&outer, ADMIN_PORTAL_MEMBER))
+        } else {
+            Vec::new()
+        };
+        (top, event, portal)
+    }
+
+    #[test]
+    #[cfg(feature = "election_config_archive")]
+    fn the_delivery_nests_the_portal_settings_and_keeps_them_out_of_the_import()
+    {
+        /// **The invariant this module is arranged around, at the depth that
+        /// matters now.** It was asserted of the flat layout — administrators
+        /// beside the zip, never inside it — and nesting them adds a second place
+        /// to get it wrong: a file in the wrong nested zip is one an election-event
+        /// import would create administrator accounts from.
+        let (top, event, portal) = delivered(&portal_bundle());
+
+        assert!(top.contains(&ADMIN_PORTAL_MEMBER.to_string()), "{top:?}");
+        assert!(
+            portal.contains(&"admin_users.csv".to_string()),
+            "{portal:?}"
+        );
+        // Not in the election-event import, at any depth.
+        assert!(
+            !event.iter().any(|name| name.contains("admin_users")),
+            "{event:?}"
+        );
+        assert!(
+            !top.iter().any(|name| name == "admin_users.csv"),
+            "it is inside the settings zip, not loose beside it: {top:?}"
+        );
+        // Applied by hand rather than imported, so still where it can be seen.
+        assert!(
+            top.contains(&"keycloak_event_realm_patch.json".to_string()),
+            "{top:?}"
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "election_config_archive")]
+    fn a_delivery_with_no_portal_settings_carries_no_settings_zip() {
+        // An empty zip is a question — "was something meant to be in here?" — and
+        // a missing one is not.
+        let (top, _, portal) = delivered(&bundle(vec![]));
+
+        assert!(!top.contains(&ADMIN_PORTAL_MEMBER.to_string()), "{top:?}");
+        assert!(portal.is_empty());
+        assert!(top.contains(&IMPORTABLE_MEMBER.to_string()), "{top:?}");
+    }
+
+    #[test]
+    fn an_event_with_no_portal_settings_gains_no_templates_csv() {
+        // The empty case, because an empty file is a question somebody has to
+        // answer — "is this meant to be blank?" — and a missing one is not.
+        let layout = layout(&bundle(vec![]));
+        assert!(names(&layout.auxiliary)
+            .iter()
+            .all(|name| !name.starts_with("export_templates-")));
+    }
 }
 
 /// The name of the importable zip *inside* the delivery zip.
@@ -674,6 +976,20 @@ mod tests {
 /// these before finds what they expect, and so the two tools' output is one format
 /// rather than two.
 pub const IMPORTABLE_MEMBER: &str = "official_election_setup.zip";
+
+/// The other nested zip: everything the **Admin Portal** imports.
+///
+/// Named for the importer that takes it, like [`IMPORTABLE_MEMBER`] is, because
+/// that is the only question somebody opening a delivery is asking. Written only
+/// when the source describes administrators, roles or templates — an event with
+/// none of those has no Portal settings and gains no empty zip.
+///
+/// **Not importable as an election event, and that is the point.** The Admin
+/// Portal's election-event importer takes [`IMPORTABLE_MEMBER`]; this one goes to
+/// the settings import instead. Keeping them as two named zips is what stops
+/// `admin_users.csv` — which carries clear-text passwords when the source does —
+/// from ever being one file away from an election-event import.
+pub const ADMIN_PORTAL_MEMBER: &str = "admin_portal_settings.zip";
 
 /// The reopenable plan inside a delivery, named once so `delivery` and
 /// `plan_in_delivery` cannot disagree about it.
@@ -709,12 +1025,38 @@ pub fn delivery(
 ) -> Result<Artifact, crate::election_config::Problem> {
     let importable = zip(&layout.importable)?;
 
-    let mut members = Vec::with_capacity(layout.auxiliary.len() + 1);
+    let mut members = Vec::with_capacity(layout.auxiliary.len() + 2);
     members.push(Artifact {
         name: IMPORTABLE_MEMBER.to_string(),
         bytes: importable,
     });
-    members.extend(layout.auxiliary.iter().cloned());
+
+    // The Admin Portal's own settings, nested for the same reason the event
+    // configuration is: **one thing to hand to each importer.** Administrators,
+    // roles and templates are loaded through the Portal's settings import, and
+    // loose beside the event zip they were four files somebody had to know
+    // belonged together — including the one carrying passwords.
+    //
+    // A second nested zip rather than more members of the first: putting them in
+    // the importable zip would mean importing an election event could create
+    // administrator accounts, which is the invariant this whole module is arranged
+    // around and is asserted a few tests below.
+    let (portal, loose): (Vec<Artifact>, Vec<Artifact>) = layout
+        .auxiliary
+        .iter()
+        .cloned()
+        .partition(|artifact| admin_portal_member(&artifact.name));
+
+    if !portal.is_empty() {
+        members.push(Artifact {
+            name: ADMIN_PORTAL_MEMBER.to_string(),
+            bytes: zip(&portal)?,
+        });
+    }
+
+    // What is left is applied rather than imported — the two realm patches — and
+    // stays where somebody opening the delivery can see it.
+    members.extend(loose);
 
     Ok(Artifact {
         name: layout.archive_name.clone(),
