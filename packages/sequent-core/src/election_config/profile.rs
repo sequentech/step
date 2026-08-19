@@ -351,6 +351,21 @@ fn names_a_control(text: &str) -> bool {
             // is one decision per contest; these name that decision.
             | "elections.contests.blank_vote"
             | "elections.contests.decline_to_vote"
+            // The four Admin Portal tables on the Organization screen. `platform`
+            // is a *list of workbook sheets*, carried rather than interpreted, so
+            // there is no `platform.adminusers` in the shape of a plan and never
+            // will be — the honest field path would be `platform[3].rows[7].cells`,
+            // which is a statement about a cell of a spreadsheet rather than about
+            // whether a client is asked for administrators at all. These name the
+            // card.
+            //
+            // Refused in `defaults` like the rest, and that is the point: a
+            // starting value here would be applied to a path the core cannot
+            // resolve. What a profile can say about them is *shown* or *not shown*.
+            | "platform.adminusers"
+            | "platform.permissions"
+            | "platform.templates"
+            | "platform.parameters"
     )
 }
 
