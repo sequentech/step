@@ -17,9 +17,8 @@ import {
     useMediaQuery,
 } from "@mui/material"
 import {ChevronLeft, ChevronRight} from "@mui/icons-material"
-import {RunoffStatus, ECandidateStatus} from "./types"
+import {RunoffStatus, Sequent_Backend_Candidate_Extended} from "./types"
 import {useTranslation} from "react-i18next"
-import {Sequent_Backend_Candidate_Extended} from "./types"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useDefaultElectionLang} from "@/hooks/useDefaultElectionLang"
 
@@ -56,7 +55,7 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
     }, [processResults, VISIBLE_ROUNDS])
 
     const handleNavigate = (direction: "left" | "right") => {
-        const totalRounds = rounds.length
+        const totalRounds = processResults.rounds.length
 
         if (direction === "right" && representedRounds.end < totalRounds - 1) {
             setRepresentedRounds({
@@ -72,7 +71,7 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
     }
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
-        const totalRounds = rounds.length
+        const totalRounds = processResults.rounds.length
 
         if (e.key === "ArrowLeft" && representedRounds.start > 0) {
             handleNavigate("left")
