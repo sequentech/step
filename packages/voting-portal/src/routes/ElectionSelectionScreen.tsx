@@ -610,7 +610,6 @@ const ElectionSelectionScreen: React.FC = () => {
     return (
         <ElectionListLayout
             steps={<Stepper selected={0} />}
-            title={t("electionSelectionScreen.title")}
             titleAdornment={
                 <>
                     <IconButton
@@ -630,7 +629,6 @@ const ElectionSelectionScreen: React.FC = () => {
                     </Dialog>
                 </>
             }
-            description={stringToHtml(t("electionSelectionScreen.description"))}
             alert={warningMsg ? <Alert severity="warning">{warningMsg}</Alert> : undefined}
             actions={
                 <>

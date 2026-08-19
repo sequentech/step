@@ -19,24 +19,21 @@
  * keys in the wizard.
  */
 
-import {ThemeProvider} from "@mui/material/styles"
-import {render as mount, screen} from "@testing-library/react"
+import {screen} from "@testing-library/react"
 import React from "react"
 
 import {ElectionListLayout} from "./ElectionListLayout"
-import {theme} from "../services/theme"
+import {catalogue, inAHost, OTHER_WORDS, PORTAL_WORDS} from "./testCatalogue"
 
-const render = (ui: React.ReactElement) => mount(<ThemeProvider theme={theme}>{ui}</ThemeProvider>)
+const render = inAHost
+const WORDS = PORTAL_WORDS.electionSelectionScreen
 
 /** The layout as the portal calls it, less the parts each test varies. */
-const asThePortalCallsIt = (props: Partial<React.ComponentProps<typeof ElectionListLayout>> = {}) =>
+const asThePortalCallsIt = (
+    props: Partial<React.ComponentProps<typeof ElectionListLayout>> = {}
+) =>
     render(
-        <ElectionListLayout
-            steps={<div data-testid="the-breadcrumb" />}
-            title="Ballot list"
-            description="Select the ballot you want to vote"
-            {...props}
-        >
+        <ElectionListLayout steps={<div data-testid="the-breadcrumb" />} {...props}>
             <div data-testid="an-election" />
         </ElectionListLayout>
     )
@@ -45,8 +42,8 @@ describe("the screen that asks which ballot to vote", () => {
     it("shows the heading, the description and the elections", () => {
         asThePortalCallsIt()
 
-        expect(screen.getByText("Ballot list")).toBeInTheDocument()
-        expect(screen.getByText("Select the ballot you want to vote")).toBeInTheDocument()
+        expect(screen.getByText(WORDS.title)).toBeInTheDocument()
+        expect(screen.getByText(WORDS.description)).toBeInTheDocument()
         expect(screen.getByTestId("an-election")).toBeInTheDocument()
     })
 
@@ -87,7 +84,7 @@ describe("the screen that asks which ballot to vote", () => {
 
         expect(screen.queryByTestId("the-breadcrumb")).toBeNull()
         // ...and the heading is still there, i.e. nothing else depended on it.
-        expect(screen.getByText("Ballot list")).toBeInTheDocument()
+        expect(screen.getByText(WORDS.title)).toBeInTheDocument()
     })
 
     it("keeps the actions container even when there are no actions", () => {
@@ -109,25 +106,37 @@ describe("the screen that asks which ballot to vote", () => {
         asThePortalCallsIt({titleAdornment: <button type="button">Help</button>})
 
         const heading = document.querySelector(".election-selection-heading h1")
-        expect(heading?.textContent).toEqual("Ballot listHelp")
+        expect(heading?.textContent).toEqual(`${WORDS.title}Help`)
     })
 
     it("shows a warning instead of the description rather than as well as it", () => {
         asThePortalCallsIt({alert: <div role="alert">This election has closed</div>})
 
         expect(screen.getByRole("alert")).toBeInTheDocument()
-        expect(screen.queryByText("Select the ballot you want to vote")).toBeNull()
+        expect(screen.queryByText(WORDS.description)).toBeNull()
     })
 
-    it("invents no wording of its own", () => {
+    it("takes its two strings from the catalogue and adds nothing", () => {
         render(
-            <ElectionListLayout title="A" description="B">
+            <ElectionListLayout>
                 <div />
             </ElectionListLayout>
         )
 
-        // Everything on screen came from a prop. A raw `electionSelectionScreen.*`
-        // key here would mean this layout had started translating for itself.
-        expect(document.body.textContent).toEqual("AB")
+        // `electionSelectionScreen.title` and `.description`, and nothing else: no
+        // English of its own, which is what `EA-F2-053` removed from this file.
+        expect(document.body.textContent).toEqual(`${WORDS.title}${WORDS.description}`)
+    })
+
+    it("follows the catalogue into another language", () => {
+        render(
+            <ElectionListLayout>
+                <div />
+            </ElectionListLayout>,
+            catalogue(OTHER_WORDS, "es")
+        )
+
+        expect(screen.getByText("Qué papeleta")).toBeInTheDocument()
+        expect(screen.queryByText(WORDS.title)).toBeNull()
     })
 })

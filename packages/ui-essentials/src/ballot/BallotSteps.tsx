@@ -3,31 +3,24 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
-import {useTranslation} from "react-i18next"
-
 import BreadCrumbSteps from "../components/BreadCrumbSteps/BreadCrumbSteps"
 
 /**
- * The four steps a voter walks, in the portal's own words.
+ * The four steps a voter walks, by the keys the portal has always used.
  *
- * The keys are the portal's (`src/translations/en.ts`), so a deployment that has
- * translated them keeps its wording. The second argument to each `t` is the English
- * the portal ships, which is what a host without those keys gets: the Election
- * Architect's Ballot Preview draws this stepper and has its own catalogue, and a
- * preview showing `breadcrumbSteps.ballot` where a voter sees "Ballot" would be
- * worse than a preview showing English.
+ * Keys and not text: `BreadCrumbSteps` translates each label it is handed, which is how
+ * the portal's `Stepper` passed these before this component existed, and it is why the
+ * strings stay in `voting-portal/src/translations/<lng>.ts` where clients override them.
+ *
+ * There was an English copy of these four words here, added on the theory that a host
+ * without `breadcrumbSteps.*` would draw raw keys. Every host has them — the wizard
+ * vendors the portal's catalogue and hands it to the preview — so the copy bought nothing
+ * and cost the Spanish. `EA-F2-053`.
  */
-interface StepLabel {
-    /** The portal's catalogue key. */
-    key: string
-    /** What a host without that key shows instead. */
-    english: string
-}
-
-const LIST: StepLabel = {key: "breadcrumbSteps.electionList", english: "Ballots"}
-const BALLOT: StepLabel = {key: "breadcrumbSteps.ballot", english: "Ballot"}
-const REVIEW: StepLabel = {key: "breadcrumbSteps.review", english: "Review"}
-const CONFIRMATION: StepLabel = {key: "breadcrumbSteps.confirmation", english: "Confirm"}
+const LIST = "breadcrumbSteps.electionList"
+const BALLOT = "breadcrumbSteps.ballot"
+const REVIEW = "breadcrumbSteps.review"
+const CONFIRMATION = "breadcrumbSteps.confirmation"
 
 export interface IBallotStepsProps {
     /**
@@ -65,17 +58,9 @@ export const BallotSteps = ({
     withElectionList = true,
     warning,
 }: IBallotStepsProps): React.JSX.Element => {
-    const {t} = useTranslation()
-
-    const order: Array<StepLabel> = withElectionList
+    const labels = withElectionList
         ? [LIST, BALLOT, REVIEW, CONFIRMATION]
         : [BALLOT, REVIEW, CONFIRMATION]
-
-    // `BreadCrumbSteps` translates what it is handed, which is why the portal passes
-    // it bare keys. Resolving them here instead is what lets the fallbacks above
-    // exist; `t` on already-English text returns that text, so this stays a no-op
-    // for it.
-    const labels = order.map(({key, english}) => t(key, {defaultValue: english}))
 
     return (
         <BreadCrumbSteps

@@ -7,6 +7,8 @@ import {Box} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import React from "react"
 
+import {useTranslation} from "react-i18next"
+
 import Icon from "../components/Icon/Icon"
 import {ActionsContainer, StyledButton} from "../components/ConfirmationActions/ConfirmationActions"
 
@@ -38,32 +40,7 @@ const BackFrame = styled(Box)<{
     }
 `
 
-export interface IBallotActionsWording {
-    /** `votingScreen.backButton` — "Back". */
-    back: string
-    /** `votingScreen.clearButton` — "Clear choices". */
-    clear: string
-    /** `votingScreen.reviewButton` — "Next". */
-    next: string
-}
-
-/**
- * The portal's English, for a host with no catalogue of its own for this row.
- *
- * Same purpose as `START_WORDING_EN`: the keys live in *voting-portal*, so a shared
- * component that translated for itself would draw raw keys anywhere else. A caller
- * with translations passes them; one without gets the words a voter really sees, which
- * is what a preview needs.
- */
-export const BALLOT_ACTIONS_WORDING_EN: IBallotActionsWording = {
-    back: "Back",
-    clear: "Clear choices",
-    next: "Next",
-}
-
 export interface IBallotActionsProps {
-    /** The three labels. */
-    wording?: IBallotActionsWording
     /**
      * What to render the Back control as, when it navigates by link. The portal
      * passes its router's `Link` and the `to` below; a preview passes neither and
@@ -97,13 +74,16 @@ export interface IBallotActionsProps {
  * draws this row rather than one invented for it — which is how the preview came to
  * show a "Back" with no chevron and no Clear button at all.
  *
+ * Its three words are `votingScreen.*`, read here rather than handed in: this file
+ * carried them in English for a while and the wizard read the copy, so a Spanish preview
+ * said "Clear choices". `EA-F2-053`.
+ *
  * There are *two* Clear buttons, as in the portal: one above the row that only a
  * narrow screen shows, one inside it that only a wide screen shows. That is not a
  * mistake to tidy up — on a phone Clear is full-width above Back and Next rather than
  * squeezed between them.
  */
 export const BallotActions = ({
-    wording = BALLOT_ACTIONS_WORDING_EN,
     backComponent,
     backTo,
     onBack,
@@ -111,54 +91,70 @@ export const BallotActions = ({
     onNext,
     disableNext,
     inert,
-}: IBallotActionsProps): React.JSX.Element => (
-    <>
-        <StyledButton
-            sx={{
-                display: {sm: "none"},
-                width: "100%",
-            }}
-            variant="secondary"
-            disabled={inert}
-            onClick={onClear}
-        >
-            <Box>{wording.clear}</Box>
-        </StyledButton>
+}: IBallotActionsProps): React.JSX.Element => {
+    const {t} = useTranslation()
 
-        <ActionsContainer sx={{marginBottom: "20px", marginTop: "10px"}}>
-            <BackFrame
-                component={backComponent ?? "div"}
-                to={backComponent === undefined ? undefined : backTo}
-                sx={{width: {xs: "100%", sm: "200px"}}}
-                onClick={onBack}
-            >
-                <StyledButton sx={{width: {xs: "100%", sm: "200px"}}} disabled={inert}>
-                    <Icon icon={faAngleLeft} size="sm" />
-                    <Box>{wording.back}</Box>
-                </StyledButton>
-            </BackFrame>
+    /*
+     * `votingScreen.*`, the portal's own keys, translated here.
+     *
+     * These three had an English copy in this file — `BALLOT_ACTIONS_WORDING_EN` — and
+     * the wizard's preview read that instead of the catalogue, so a Spanish preview said
+     * "Clear choices". The strings live in `voting-portal/src/translations/<lng>.ts`,
+     * where they always have and where clients override them.
+     */
+    const back = t("votingScreen.backButton")
+    const clear = t("votingScreen.clearButton")
+    const next = t("votingScreen.reviewButton")
 
+    return (
+        <>
             <StyledButton
                 sx={{
-                    display: {xs: "none", sm: "block"},
-                    width: {xs: "100%", sm: "200px"},
+                    display: {sm: "none"},
+                    width: "100%",
                 }}
                 variant="secondary"
                 disabled={inert}
                 onClick={onClear}
             >
-                <Box>{wording.clear}</Box>
+                <Box>{clear}</Box>
             </StyledButton>
 
-            <StyledButton
-                className="next-button"
-                sx={{width: {xs: "100%", sm: "200px"}}}
-                onClick={onNext}
-                disabled={inert === true || disableNext === true}
-            >
-                <Box>{wording.next}</Box>
-                <Icon icon={faAngleRight} size="sm" />
-            </StyledButton>
-        </ActionsContainer>
-    </>
-)
+            <ActionsContainer sx={{marginBottom: "20px", marginTop: "10px"}}>
+                <BackFrame
+                    component={backComponent ?? "div"}
+                    to={backComponent === undefined ? undefined : backTo}
+                    sx={{width: {xs: "100%", sm: "200px"}}}
+                    onClick={onBack}
+                >
+                    <StyledButton sx={{width: {xs: "100%", sm: "200px"}}} disabled={inert}>
+                        <Icon icon={faAngleLeft} size="sm" />
+                        <Box>{back}</Box>
+                    </StyledButton>
+                </BackFrame>
+
+                <StyledButton
+                    sx={{
+                        display: {xs: "none", sm: "block"},
+                        width: {xs: "100%", sm: "200px"},
+                    }}
+                    variant="secondary"
+                    disabled={inert}
+                    onClick={onClear}
+                >
+                    <Box>{clear}</Box>
+                </StyledButton>
+
+                <StyledButton
+                    className="next-button"
+                    sx={{width: {xs: "100%", sm: "200px"}}}
+                    onClick={onNext}
+                    disabled={inert === true || disableNext === true}
+                >
+                    <Box>{next}</Box>
+                    <Icon icon={faAngleRight} size="sm" />
+                </StyledButton>
+            </ActionsContainer>
+        </>
+    )
+}

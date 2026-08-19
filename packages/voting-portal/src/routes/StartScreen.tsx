@@ -272,14 +272,6 @@ const StartScreen: React.FC = () => {
             /* The portal's own catalogue, passed in: the layout lives in
                `ui-essentials` and these keys do not, so it takes them rather than
                looking them up. See the note on `IStartWording`. */
-            wording={{
-                instructionsTitle: t("startScreen.instructionsTitle"),
-                instructionsDescription: t("startScreen.instructionsDescription"),
-                steps: [1, 2, 3].map((at) => ({
-                    title: t(`startScreen.step${at}Title`),
-                    description: t(`startScreen.step${at}Description`),
-                })),
-            }}
             steps={<Stepper selected={1} />}
             below={
                 <ActionButtons

@@ -15,34 +15,51 @@
  * button, because the portal navigates with a router link and a preview has no router.
  */
 
-import {ThemeProvider} from "@mui/material/styles"
-import {render as mount, screen} from "@testing-library/react"
+import {screen} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import React from "react"
 
-import {BallotActions, BALLOT_ACTIONS_WORDING_EN} from "./BallotActions"
-import {theme} from "../services/theme"
+import {BallotActions} from "./BallotActions"
+import {catalogue, inAHost, OTHER_WORDS, PORTAL_WORDS} from "./testCatalogue"
 
-const render = (ui: React.ReactElement) => mount(<ThemeProvider theme={theme}>{ui}</ThemeProvider>)
+const render = inAHost
+const WORDS = PORTAL_WORDS.votingScreen
 
 describe("the buttons under a ballot", () => {
-    it("offers Back, Clear and Next, in the portal's words", () => {
+    it("says what the catalogue says, on the portal's own keys", () => {
+        // `votingScreen.backButton`, `.clearButton`, `.reviewButton` — the paths clients
+        // override, translated by this component rather than copied into it. The words
+        // asserted are the test catalogue's, so this can only pass through i18n.
         render(<BallotActions />)
 
-        expect(screen.getByText(BALLOT_ACTIONS_WORDING_EN.back)).toBeInTheDocument()
-        expect(screen.getByText(BALLOT_ACTIONS_WORDING_EN.next)).toBeInTheDocument()
-        // "Clear choices", not "Clear selection": the button's word is `clearButton`,
-        // and the help dialog is what says "selection".
-        expect(BALLOT_ACTIONS_WORDING_EN.clear).toEqual("Clear choices")
+        expect(screen.getByText(WORDS.backButton)).toBeInTheDocument()
+        expect(screen.getByText(WORDS.reviewButton)).toBeInTheDocument()
+        expect(screen.getAllByText(WORDS.clearButton)).toHaveLength(2)
     })
 
-    it("takes translated words when the host has them", () => {
-        render(<BallotActions wording={{back: "Atrás", clear: "Borrar", next: "Siguiente"}} />)
+    it("follows the catalogue into another language", () => {
+        // The defect `EA-F2-053` was reported for. This file used to hold an English
+        // copy of these three and the wizard's preview read the copy — so a Spanish
+        // preview of a Spanish election said "Clear choices".
+        render(<BallotActions />, catalogue(OTHER_WORDS, "es"))
 
         expect(screen.getByText("Atrás")).toBeInTheDocument()
         expect(screen.getByText("Siguiente")).toBeInTheDocument()
         expect(screen.getAllByText("Borrar")).toHaveLength(2)
+        expect(screen.queryByText("Back")).toBeNull()
     })
+
+    it("invents no English of its own", () => {
+        // A host with no catalogue draws the keys. That is the honest failure — it says
+        // *supply the catalogue* — where a hard-coded English word would quietly show
+        // the platform's wording to a client who had translated it.
+        render(<BallotActions />, catalogue({}, "en"))
+
+        expect(screen.getByText("votingScreen.backButton")).toBeInTheDocument()
+        expect(screen.queryByText("Back")).toBeNull()
+        expect(screen.queryByText("Clear choices")).toBeNull()
+    })
+
 
     it("draws Clear twice, one per breakpoint", () => {
         // Not a duplicate to tidy: on a phone Clear is full-width above the row, and
@@ -50,7 +67,7 @@ describe("the buttons under a ballot", () => {
         // picks.
         render(<BallotActions />)
 
-        expect(screen.getAllByText("Clear choices")).toHaveLength(2)
+        expect(screen.getAllByText(WORDS.clearButton)).toHaveLength(2)
     })
 
     it("puts a chevron on each of Back and Next", () => {
@@ -73,7 +90,7 @@ describe("the buttons under a ballot", () => {
         render(<BallotActions />)
 
         expect(document.querySelector("a")).toBeNull()
-        expect(screen.getByText("Back")).toBeInTheDocument()
+        expect(screen.getByText(WORDS.backButton)).toBeInTheDocument()
     })
 
     it("does not put a stray `to` attribute on that plain element", () => {
@@ -90,9 +107,9 @@ describe("the buttons under a ballot", () => {
         const next = jest.fn()
         render(<BallotActions onBack={back} onClear={clear} onNext={next} />)
 
-        await userEvent.click(screen.getByText("Back"))
-        await userEvent.click(screen.getAllByText("Clear choices")[0])
-        await userEvent.click(screen.getByText("Next"))
+        await userEvent.click(screen.getByText(WORDS.backButton))
+        await userEvent.click(screen.getAllByText(WORDS.clearButton)[0])
+        await userEvent.click(screen.getByText(WORDS.reviewButton))
 
         expect(back).toHaveBeenCalled()
         expect(clear).toHaveBeenCalled()
@@ -103,7 +120,7 @@ describe("the buttons under a ballot", () => {
         const clear = jest.fn()
         render(<BallotActions onClear={clear} />)
 
-        for (const button of screen.getAllByText("Clear choices")) {
+        for (const button of screen.getAllByText(WORDS.clearButton)) {
             await userEvent.click(button)
         }
 
@@ -113,9 +130,9 @@ describe("the buttons under a ballot", () => {
     it("refuses Next while a contest is over-voted, and nothing else", () => {
         render(<BallotActions disableNext />)
 
-        expect(screen.getByText("Next").closest("button")).toBeDisabled()
-        expect(screen.getByText("Back").closest("button")).not.toBeDisabled()
-        expect(screen.getAllByText("Clear choices")[0].closest("button")).not.toBeDisabled()
+        expect(screen.getByText(WORDS.reviewButton).closest("button")).toBeDisabled()
+        expect(screen.getByText(WORDS.backButton).closest("button")).not.toBeDisabled()
+        expect(screen.getAllByText(WORDS.clearButton)[0].closest("button")).not.toBeDisabled()
     })
 
     it("draws every button dead in a preview", () => {

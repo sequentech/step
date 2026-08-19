@@ -31,8 +31,8 @@ export type {
 } from "./SupportMaterialsLayout"
 export {ConfirmationLayout} from "./ConfirmationLayout"
 export type {IConfirmationLayoutProps} from "./ConfirmationLayout"
-export {StartLayout, START_WORDING_EN} from "./StartLayout"
-export type {IStartLayoutProps, IStartWording} from "./StartLayout"
+export {StartLayout} from "./StartLayout"
+export type {IStartLayoutProps} from "./StartLayout"
 export {ReviewLayout} from "./ReviewLayout"
 export type {IReviewLayoutProps} from "./ReviewLayout"
 // The telephone call, which is a ballot too — one a voter is read rather than
@@ -99,15 +99,15 @@ export {BallotSteps} from "./BallotSteps"
 export type {IBallotStepsProps} from "./BallotSteps"
 // The ballot list screen's own arrangement, class names included — see
 // `ElectionListLayout` for why the tree and not just the components is the contract.
-export {ElectionListLayout, ELECTION_LIST_WORDING_EN} from "./ElectionListLayout"
-export type {IElectionListLayoutProps, IElectionListWording} from "./ElectionListLayout"
+export {ElectionListLayout} from "./ElectionListLayout"
+export type {IElectionListLayoutProps} from "./ElectionListLayout"
 // The ballot screen: the tree the contests sit in, and the row of buttons under them.
 // Both were the portal's `VotingScreen`; `BallotActions` is why the preview's Back has
 // a chevron and a Clear button beside it.
 export {BallotScreenLayout} from "./BallotScreenLayout"
 export type {IBallotScreenLayoutProps} from "./BallotScreenLayout"
-export {BallotActions, BALLOT_ACTIONS_WORDING_EN} from "./BallotActions"
-export type {IBallotActionsProps, IBallotActionsWording} from "./BallotActions"
+export {BallotActions} from "./BallotActions"
+export type {IBallotActionsProps} from "./BallotActions"
 
 export {default as BlankAnswer} from "../components/BlankAnswer/BlankAnswer"
 export {default as CandidatesList} from "../components/CandidatesList/CandidatesList"

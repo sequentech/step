@@ -5,6 +5,9 @@
 import {Box, Typography, styled} from "@mui/material"
 import React from "react"
 
+import {stringToHtml} from "@sequentech/ui-core"
+import {useTranslation} from "react-i18next"
+
 import PageLimit from "../components/PageLimit/PageLimit"
 import {theme} from "../services/theme"
 
@@ -74,26 +77,6 @@ const PageActions = styled(Box)`
     }
 `
 
-export interface IElectionListWording {
-    /** `electionSelectionScreen.title`. */
-    title: string
-    /** `electionSelectionScreen.description`. */
-    description: string
-}
-
-/**
- * The portal's English for this screen, for a host with no catalogue of its own.
- *
- * Same purpose as `START_WORDING_EN` and `BALLOT_ACTIONS_WORDING_EN`: the keys live in
- * *voting-portal*, and a preview drawing raw `electionSelectionScreen.title` would be
- * plainly broken. The wording stays a prop — this is only what a caller without
- * translations can pass to it.
- */
-export const ELECTION_LIST_WORDING_EN: IElectionListWording = {
-    title: "Ballot list",
-    description: "Select the ballot you want to vote on",
-}
-
 export interface IElectionListLayoutProps {
     /**
      * The breadcrumb, built by whoever knows how many steps there are.
@@ -102,15 +85,11 @@ export interface IElectionListLayoutProps {
      * portal puts it, and a preview that framed it itself got that wrong.
      */
     steps?: React.ReactNode
-    /** The screen's heading — `electionSelectionScreen.title` in the portal. */
-    title: React.ReactNode
     /**
      * Beside the heading, inside it. The portal puts a help button and its dialog
      * here; a preview puts nothing.
      */
     titleAdornment?: React.ReactNode
-    /** Under the heading — `electionSelectionScreen.description` in the portal. */
-    description?: React.ReactNode
     /**
      * Shown *instead of* the description. The portal replaces the description with a
      * warning when an election is misconfigured or closed, rather than stacking both.
@@ -140,31 +119,39 @@ export interface IElectionListLayoutProps {
  */
 export const ElectionListLayout = ({
     steps,
-    title,
     titleAdornment,
-    description,
     alert,
     actions,
     children,
-}: IElectionListLayoutProps): React.JSX.Element => (
-    <PageLimit maxWidth="lg" className="election-selection-screen screen">
-        {steps === undefined ? null : <Box marginTop="48px">{steps}</Box>}
+}: IElectionListLayoutProps): React.JSX.Element => {
+    const {t} = useTranslation()
 
-        <TitleSection className="title-section">
-            <Box sx={{flex: 1, minWidth: 0}} className="election-selection-heading">
-                <StyledTitle variant="h1">
-                    <Box>{title}</Box>
-                    {titleAdornment}
-                </StyledTitle>
-                {alert ?? (
-                    <Typography variant="body1" sx={{color: theme.palette.customGrey.contrastText}}>
-                        {description}
-                    </Typography>
-                )}
-            </Box>
-            <PageActions className="election-event-actions">{actions}</PageActions>
-        </TitleSection>
+    return (
+        <PageLimit maxWidth="lg" className="election-selection-screen screen">
+            {steps === undefined ? null : <Box marginTop="48px">{steps}</Box>}
 
-        <ElectionContainer className="elections-list">{children}</ElectionContainer>
-    </PageLimit>
-)
+            <TitleSection className="title-section">
+                <Box sx={{flex: 1, minWidth: 0}} className="election-selection-heading">
+                    <StyledTitle variant="h1">
+                        {/* `electionSelectionScreen.title`, translated here rather than
+                        copied: this file carried an English pair for a while and the
+                        wizard's preview read it instead of the catalogue. */}
+                        <Box>{t("electionSelectionScreen.title")}</Box>
+                        {titleAdornment}
+                    </StyledTitle>
+                    {alert ?? (
+                        <Typography
+                            variant="body1"
+                            sx={{color: theme.palette.customGrey.contrastText}}
+                        >
+                            {stringToHtml(t("electionSelectionScreen.description"))}
+                        </Typography>
+                    )}
+                </Box>
+                <PageActions className="election-event-actions">{actions}</PageActions>
+            </TitleSection>
+
+            <ElectionContainer className="elections-list">{children}</ElectionContainer>
+        </PageLimit>
+    )
+}

@@ -105,11 +105,6 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
 
     return (
         <BallotActions
-            wording={{
-                back: t("votingScreen.backButton"),
-                clear: t("votingScreen.clearButton"),
-                next: t("votingScreen.reviewButton"),
-            }}
             backComponent={RouterLink}
             backTo={pageIndex && pageIndex > 0 ? {search: location.search} : exitLink}
             onBack={() => handlePrev()}

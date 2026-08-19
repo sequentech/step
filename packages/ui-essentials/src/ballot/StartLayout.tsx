@@ -7,64 +7,30 @@ import Typography from "@mui/material/Typography"
 import {styled} from "@mui/material/styles"
 import React from "react"
 
+import {useTranslation} from "react-i18next"
+
 import PageLimit from "../components/PageLimit/PageLimit"
 import {theme} from "../services/theme"
 
 /**
- * The wording this screen reads, handed in rather than looked up.
+ * The screen's own arrangement. Its words come from `startScreen.*`, read here.
  *
- * **No `t()` in this file, and that is the point.** These strings are
- * `startScreen.*`, which live in *voting-portal*'s catalogue and not in
- * `ui-essentials` — so a layout that translated for itself would render raw
- * `startScreen.instructionsTitle` everywhere it was used outside the portal. That is
- * not a hypothetical: the wizard's preview drew raw `selectElection.*` keys for
- * exactly this reason, and the fix was to stop guessing where a string lives.
+ * **This file used to hold those eight strings in English**, on the argument that they
+ * live in *voting-portal*'s catalogue, so a layout translating for itself would draw raw
+ * keys anywhere else. The argument was wrong twice over: every host of this component
+ * carries that catalogue — the Election Architect vendors it and hands it to the preview
+ * through `PreviewLocale` — and the copy meant the wizard showed English to a client
+ * previewing in Spanish, from strings that had *drifted* from the portal's own
+ * ("Instructions" where the portal says "How to vote").
  *
- * The portal passes its own `t(…)` values, so nothing about its behaviour changes and
- * its six locales keep the keys they already have. The preview passes what the client
- * configured, falling back to {@link START_WORDING_EN}.
+ * So: `t()` on the paths clients override, and the strings stay in
+ * `voting-portal/src/translations/<lng>.ts` where they have always been. `EA-F2-053`.
  */
-export interface IStartWording {
-    instructionsTitle: string
-    instructionsDescription: string
-    steps: Array<{title: string; description: string}>
-}
-
-/**
- * The English the platform ships, for a caller with nothing configured.
- *
- * Here rather than in the preview, so the two do not drift: this is the same wording
- * the portal's `en` catalogue carries, and a client reviewing their event should see
- * what a voter sees before any override.
- */
-export const START_WORDING_EN: IStartWording = {
-    instructionsTitle: "Instructions",
-    instructionsDescription: "Please follow these steps to cast your ballot:",
-    steps: [
-        {
-            title: "1. Select your options",
-            description:
-                "Choose your preferred candidates and answer the Ballot questions one by one as they appear. You can edit your ballot until you are ready to proceed.",
-        },
-        {
-            title: "2. Review your ballot",
-            description:
-                "Once you are satisfied with your selections, we will encrypt your ballot and show you a final review of your choices. You will also receive a unique tracker ID for your ballot.",
-        },
-        {
-            title: "3. Cast your ballot",
-            description:
-                "Cast your ballot: Finally, you can cast your ballot so it is properly registered. Alternatively, you can opt to audit and confirm that your ballot was correctly captured and encrypted.",
-        },
-    ],
-}
-
 export interface IStartLayoutProps {
     /** The election's name, already translated by whoever owns the presentation. */
     title: string
     /** Its description, already translated and already HTML if it is HTML. */
     description?: React.ReactNode
-    wording?: IStartWording
     /**
      * The breadcrumb, framed here 48px under the header — as `ReviewLayout`,
      * `ConfirmationLayout` and `ElectionListLayout` frame theirs.
@@ -105,46 +71,56 @@ const StyledTitle = styled(Typography)`
 export const StartLayout = ({
     title,
     description,
-    wording = START_WORDING_EN,
     steps,
     above,
     below,
-}: IStartLayoutProps): React.JSX.Element => (
-    <PageLimit maxWidth="lg" className="start-screen screen">
-        {steps === undefined ? null : <Box marginTop="48px">{steps}</Box>}
-        {above}
-        <StyledTitle variant="h3" fontWeight="bold">
-            <span>{title}</span>
-        </StyledTitle>
-        {description === undefined ? null : (
-            <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                {description}
-            </Typography>
-        )}
-        <Typography variant="h5">{wording.instructionsTitle}</Typography>
-        <Typography variant="body2">{wording.instructionsDescription}</Typography>
-        <Box
-            sx={{
-                display: "flex",
-                flexDirection: {xs: "column", md: "row"},
-                gap: {sm: 0, md: "15px"},
-            }}
-        >
-            {wording.steps.map((step) => (
-                <Box
-                    key={step.title}
-                    sx={{width: {xs: "100%", md: "33.33333333%"}}}
-                >
-                    <Typography
-                        variant="h5"
-                        sx={{color: theme.palette.brandColor}}
-                    >
-                        {step.title}
-                    </Typography>
-                    <Typography variant="body2">{step.description}</Typography>
-                </Box>
-            ))}
-        </Box>
-        {below}
-    </PageLimit>
-)
+}: IStartLayoutProps): React.JSX.Element => {
+    const {t} = useTranslation()
+
+    /*
+     * `startScreen.*`, translated here.
+     *
+     * This file carried the eight strings as `START_WORDING_EN`, and the wizard's
+     * preview read them instead of the catalogue — so a Spanish preview of a Spanish
+     * election showed English instructions. They live in
+     * `voting-portal/src/translations/<lng>.ts`, on the same paths as ever.
+     */
+    const instructions = [1, 2, 3].map((at) => ({
+        title: t(`startScreen.step${at}Title`),
+        description: t(`startScreen.step${at}Description`),
+    }))
+
+    return (
+        <PageLimit maxWidth="lg" className="start-screen screen">
+            {steps === undefined ? null : <Box marginTop="48px">{steps}</Box>}
+            {above}
+            <StyledTitle variant="h3" fontWeight="bold">
+                <span>{title}</span>
+            </StyledTitle>
+            {description === undefined ? null : (
+                <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+                    {description}
+                </Typography>
+            )}
+            <Typography variant="h5">{t("startScreen.instructionsTitle")}</Typography>
+            <Typography variant="body2">{t("startScreen.instructionsDescription")}</Typography>
+            <Box
+                sx={{
+                    display: "flex",
+                    flexDirection: {xs: "column", md: "row"},
+                    gap: {sm: 0, md: "15px"},
+                }}
+            >
+                {instructions.map((step) => (
+                    <Box key={step.title} sx={{width: {xs: "100%", md: "33.33333333%"}}}>
+                        <Typography variant="h5" sx={{color: theme.palette.brandColor}}>
+                            {step.title}
+                        </Typography>
+                        <Typography variant="body2">{step.description}</Typography>
+                    </Box>
+                ))}
+            </Box>
+            {below}
+        </PageLimit>
+    )
+}

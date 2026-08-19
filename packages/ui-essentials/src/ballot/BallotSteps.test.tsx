@@ -126,10 +126,18 @@ describe("the voter's breadcrumb", () => {
         expect(current()).toEqual("Ballot")
     })
 
-    it("shows the portal's English in a host with no catalogue for it", () => {
+    it("invents no English in a host with no catalogue", () => {
+        // The keys, which say *supply the catalogue*. A hard-coded English word here
+        // would show the platform's own label to a client who had translated it, and
+        // it is what `EA-F2-053` took out.
         show(<BallotSteps selected={0} />, withoutCatalogue())
 
-        expect(steps()).toEqual(["Ballots", "Ballot", "Review", "Confirm"])
+        expect(steps()).toEqual([
+            "breadcrumbSteps.electionList",
+            "breadcrumbSteps.ballot",
+            "breadcrumbSteps.review",
+            "breadcrumbSteps.confirmation",
+        ])
     })
 
     it("prefers a translation over that English when the host has one", () => {
