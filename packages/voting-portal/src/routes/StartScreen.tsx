@@ -260,12 +260,9 @@ const StartScreen: React.FC = () => {
             description={
                 titleObject.description
                     ? stringToHtml(
-                          translateFromPresentation(
-                              titleObject,
-                              "description",
-                              i18n.language,
-                              {defaultLanguageCode}
-                          ) ?? "-"
+                          translateFromPresentation(titleObject, "description", i18n.language, {
+                              defaultLanguageCode,
+                          }) ?? "-"
                       )
                     : undefined
             }
@@ -289,7 +286,6 @@ const StartScreen: React.FC = () => {
                 />
             }
         >
-
             <Dialog
                 variant="warning"
                 open={showDemoDialog}

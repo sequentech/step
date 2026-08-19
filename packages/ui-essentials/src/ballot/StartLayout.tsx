@@ -131,14 +131,8 @@ export const StartLayout = ({
             }}
         >
             {wording.steps.map((step) => (
-                <Box
-                    key={step.title}
-                    sx={{width: {xs: "100%", md: "33.33333333%"}}}
-                >
-                    <Typography
-                        variant="h5"
-                        sx={{color: theme.palette.brandColor}}
-                    >
+                <Box key={step.title} sx={{width: {xs: "100%", md: "33.33333333%"}}}>
+                    <Typography variant="h5" sx={{color: theme.palette.brandColor}}>
                         {step.title}
                     </Typography>
                     <Typography variant="body2">{step.description}</Typography>
