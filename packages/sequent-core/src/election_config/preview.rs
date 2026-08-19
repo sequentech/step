@@ -50,6 +50,9 @@ use crate::types::hasura::core::{
 };
 use crate::types::scheduled_event::{prepare_scheduled_dates, ScheduledEvent};
 
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine;
+
 use super::build::{Bundle, JsonTable};
 use super::emit::{JsonField, SCHEDULED_EVENT_COLUMNS};
 use super::ids::IdFactory;
@@ -103,7 +106,10 @@ pub struct PublicationPreview {
     /// uploaded support material, and the field exists because the portal reads
     /// it.
     pub support_materials: Value,
-    /// Uploaded files — logos, candidate photographs. Empty for the same reason.
+    /// Uploaded files. Always empty, but not for the same reason: a plan *does*
+    /// carry logos and candidate photographs. They reach the preview as `data:`
+    /// urls substituted by [`inline_images`], because a document row describes a
+    /// file in a bucket and nothing has uploaded one yet.
     pub documents: Value,
 }
 
@@ -268,23 +274,124 @@ pub struct PreviewArea {
 ///
 /// Errors are [`Report`] problems rather than an `anyhow` chain, because they are
 /// shown next to the plan's other problems and have to name a field.
+
+/// The bundle's own image bytes, keyed by the url the bundle points at them with.
+///
+/// A built bundle names a candidate's photograph as `tenant-…/document-…/file`,
+/// which is *bucket-relative*: the Voting Portal prefixes `PUBLIC_BUCKET_URL` and
+/// the file is there because the importer uploaded it. A preview has been through
+/// neither step, so the browser resolves that path against whatever is serving the
+/// wizard and gets a 404 and a broken picture — a candidate with a photograph
+/// previewed as a candidate without one, which is the opposite of what a preview is
+/// for.
+///
+/// The bytes are already in hand: `images` is what the archive's `images/` branch
+/// will be built from. So the preview points at those instead, inline, and shows
+/// the photograph the plan actually carries.
+///
+/// Only the preview. Nothing here touches [`Bundle::export`], so the bundle that
+/// ships still carries bucket paths and imports exactly as before.
+fn inline_images(bundle: &Bundle) -> HashMap<String, String> {
+    bundle
+        .images
+        .iter()
+        .map(|image| {
+            // The extension, because a `data:` url carries its own type and the
+            // bytes do not say what they are. The fallback is bare `image`, which
+            // is what the wizard's own candidate photograph field uses: not a
+            // registered type, and accepted by every browser through sniffing,
+            // which beats guessing `image/png` at a `.jfif`.
+            let mime = match image
+                .file_name
+                .rsplit_once('.')
+                .map(|(_, ext)| ext.to_ascii_lowercase())
+                .as_deref()
+            {
+                Some("png") => "image/png",
+                Some("jpg" | "jpeg") => "image/jpeg",
+                Some("gif") => "image/gif",
+                Some("webp") => "image/webp",
+                Some("svg") => "image/svg+xml",
+                Some("avif") => "image/avif",
+                _ => "image",
+            };
+            (
+                image.public_path(&bundle.tenant_id),
+                format!("data:{mime};base64,{}", STANDARD.encode(&image.bytes)),
+            )
+        })
+        .collect()
+}
+
 pub fn preview_publication(
     bundle: &Bundle,
     options: &PreviewOptions,
 ) -> Result<PublicationPreview, Report> {
     let mut report = Report::default();
 
+    // Before the schema is read: a built bundle points at a candidate's photograph
+    // in the public bucket, which is right for the ballot a voter opens after
+    // import and resolves to nothing in a preview. Substituted on the copy that is
+    // about to be deserialized, so the platform's own ballot-style builder carries
+    // the inline image through verbatim and nothing below this line has to know a
+    // preview resolves images differently.
+    //
+    // `bundle.export` itself is untouched: the shipped document keeps its bucket
+    // paths and imports exactly as before.
+    let mut document = bundle.export.clone();
+    let inline = inline_images(bundle);
+    if !inline.is_empty() {
+        if let Some(candidates) =
+            document.get_mut("candidates").and_then(Value::as_array_mut)
+        {
+            for candidate in candidates.iter_mut() {
+                let urls = candidate
+                    .get_mut("presentation")
+                    .and_then(|presentation| presentation.get_mut("urls"))
+                    .and_then(Value::as_array_mut);
+                for entry in urls.into_iter().flatten() {
+                    if entry.get("is_image").and_then(Value::as_bool)
+                        != Some(true)
+                    {
+                        continue;
+                    }
+                    let replacement = entry
+                        .get("url")
+                        .and_then(Value::as_str)
+                        .and_then(|url| inline.get(url))
+                        .cloned();
+                    if let Some(data) = replacement {
+                        entry["url"] = Value::String(data);
+                    }
+                }
+            }
+        }
+        // The event logo travels as a plain string rather than in a `urls` list,
+        // and it is a file in the same bucket, so it breaks the same way.
+        let logo = document
+            .get("election_event")
+            .and_then(|event| event.get("presentation"))
+            .and_then(|presentation| presentation.get("logo_url"))
+            .and_then(Value::as_str)
+            .and_then(|url| inline.get(url))
+            .cloned();
+        if let Some(data) = logo {
+            document["election_event"]["presentation"]["logo_url"] =
+                Value::String(data);
+        }
+    }
+
     let schema: ImportElectionEventSchema =
-        match serde_json::from_value(bundle.export.clone()) {
+        match serde_json::from_value(document) {
             Ok(schema) => schema,
             Err(error) => {
                 report.push(Problem::error(
                     Code::InvalidValue,
                     "bundle",
                     format!(
-                        "the built bundle does not match the import schema, so \
-                         there is nothing to preview: {error}"
-                    ),
+                    "the built bundle does not match the import schema, so \
+                     there is nothing to preview: {error}"
+                ),
                 ));
                 return Err(report);
             }

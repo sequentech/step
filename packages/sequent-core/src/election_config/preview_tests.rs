@@ -8,9 +8,9 @@ use super::*;
 use crate::types::ceremonies::CeremoniesPolicy;
 
 use crate::election_config::architect::{
-    to_workbook, Blueprint, Contact, PlannedArea, PlannedCandidate,
-    PlannedContest, PlannedElection, Schedule, Translated, Trustee,
-    VotingChannelSet, BLUEPRINT_VERSION,
+    plan_images, to_workbook, Blueprint, CandidateImage, Contact, PlannedArea,
+    PlannedCandidate, PlannedContest, PlannedElection, Schedule, Translated,
+    Trustee, VotingChannelSet, BLUEPRINT_VERSION,
 };
 use crate::election_config::policy::{
     Behaviour, Overrides, PolicyPatch, TallyPatch,
@@ -580,4 +580,57 @@ fn the_elections_come_back_named_from_their_presentation() {
     // One entry per election, not one per ballot style: an election with ballots
     // in four areas is still one choice in the picker.
     assert_eq!(preview.elections(&schema).len(), 2);
+}
+
+#[test]
+fn a_candidates_photograph_previews_from_the_plans_own_bytes() {
+    // The bundle names a photograph at `tenant-…/document-…/face.png`, which is
+    // relative to `PUBLIC_BUCKET_URL` and correct for a ballot a voter opens after
+    // import. A preview has imported nothing and has no bucket, so that path
+    // resolves against whatever serves the wizard and 404s — the reviewer sees a
+    // broken picture where a photograph is configured, which is the one thing a
+    // preview must not misreport. The bytes are in the plan, so the preview uses
+    // them.
+    let mut plan = sound();
+    plan.elections[0].contests[0].candidates[0].image = Some(CandidateImage {
+        file_name: "face.png".to_string(),
+        // A one-pixel PNG: enough to be encoded and compared, and no byte of it is
+        // load-bearing.
+        bytes: vec![0x89, b'P', b'N', b'G', 1, 2, 3],
+    });
+
+    let workbook = to_workbook(&plan).expect("the plan compiles to rows");
+    let bundle = build(
+        &workbook,
+        &TemplateSet::builtin().unwrap(),
+        &BuildOptions {
+            images: plan_images(&plan),
+            ..BuildOptions::default()
+        },
+    )
+    .expect("a sound plan builds");
+
+    // The bundle that ships is untouched: the file is uploaded and the url points
+    // into the bucket, exactly as before.
+    let shipped = bundle.export["candidates"][0]["presentation"]["urls"][0]
+        ["url"]
+        .as_str()
+        .expect("the built candidate keeps a bucket path");
+    assert!(
+        shipped.starts_with("tenant-"),
+        "the shipped bundle should still carry a bucket path, got {shipped}"
+    );
+
+    let preview = preview_publication(&bundle, &PreviewOptions::default())
+        .expect("a sound plan previews");
+
+    let styles = serde_json::to_string(&preview.ballot_styles).unwrap();
+    assert!(
+        styles.contains("data:image/png;base64,iVBORwECAw=="),
+        "the preview should carry the photograph inline, got:\n{styles}"
+    );
+    assert!(
+        !styles.contains("face.png"),
+        "no bucket path should survive in the preview:\n{styles}"
+    );
 }
