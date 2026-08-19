@@ -2463,8 +2463,15 @@ const frenchTranslation: TranslationType = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "Le total des votes valides ne correspond pas à la somme des votes des candidats plus les votes blancs",
-                censusTooSmall: "Le recensement doit être supérieur ou égal au total des votes",
+                    "Les votes des candidats ({{candidateVotesSum}}) doivent être compris entre {{lowerBound}} et {{upperBound}} selon les règles de vote de ce scrutin ({{nonBlankValidVotes}} votes valides non blancs × jusqu'à {{maxMarks}} marques par bulletin)",
+                censusTooSmall:
+                    "Le total des votes ({{totalVotes}}) ne doit pas être supérieur au recensement ({{census}})",
+                totalInvalidDoesNotMatch:
+                    "Le total des votes invalides ({{totalInvalid}}) doit être égal aux votes invalides implicites ({{implicitInvalid}}) plus les votes invalides explicites ({{explicitInvalid}})",
+                totalVotesDoesNotMatch:
+                    "Le total des votes ({{totalVotes}}) doit être égal au total des votes valides ({{totalValidVotes}}) plus le total des votes invalides ({{totalInvalid}})",
+                unknownCountingAlgorithm:
+                    "L'algorithme de dépouillement de ce scrutin ({{countingAlgorithm}}) n'est pas reconnu, le nombre autorisé de votes de candidats ne peut donc pas être déterminé. Vérifiez la configuration du scrutin.",
                 blankBallotsInconsistent:
                     "Les Bulletins Blancs doivent avoir la même valeur sur toutes les feuilles de dépouillement de cette urne",
                 blankBallotsOutOfBounds:
