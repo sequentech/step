@@ -2445,11 +2445,17 @@ const dutchTranslation: TranslationType = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "Het totaal aantal geldige stemmen komt niet overeen met de som van de stemmen voor kandidaten plus blanco stemmen",
+                    "Kandidaatstemmen ({{candidateVotesSum}}) moeten tussen {{lowerBound}} en {{upperBound}} liggen volgens de stemregels van deze verkiezing ({{nonBlankValidVotes}} geldige niet-blanco stemmen × maximaal {{maxMarks}} markeringen per stembiljet)",
                 censusTooSmall:
-                    "De census moet groter dan of gelijk zijn aan het totaal aantal stemmen",
+                    "Het totaal aantal stemmen ({{totalVotes}}) mag niet groter zijn dan de census ({{census}})",
+                totalInvalidDoesNotMatch:
+                    "Het totaal aantal ongeldige stemmen ({{totalInvalid}}) moet gelijk zijn aan impliciet ongeldige stemmen ({{implicitInvalid}}) plus expliciet ongeldige stemmen ({{explicitInvalid}})",
+                totalVotesDoesNotMatch:
+                    "Het totaal aantal stemmen ({{totalVotes}}) moet gelijk zijn aan het totaal aantal geldige stemmen ({{totalValidVotes}}) plus het totaal aantal ongeldige stemmen ({{totalInvalid}})",
+                unknownCountingAlgorithm:
+                    "Het telalgoritme van deze verkiezing ({{countingAlgorithm}}) wordt niet herkend, waardoor het toegestane aantal kandidaatstemmen niet kan worden bepaald. Controleer de configuratie van de verkiezing.",
                 blankBallotsInconsistent:
-                    "Blanco Stembiljetten moet dezelfde waarde hebben op elk telformulier van deze stembus",
+                    "Blanco Stembiljetten moeten dezelfde waarde hebben op elk telformulier van deze stembus",
                 blankBallotsOutOfBounds:
                     "De waarde van Blanco Stembiljetten valt buiten het bereik dat wordt geïmpliceerd door de blanco-stemtellingen per race van deze stembus",
             },

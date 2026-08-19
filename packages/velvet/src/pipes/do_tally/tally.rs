@@ -460,6 +460,7 @@ mod tests {
                 blank_ballots: None,
                 census: Some(candidate_votes + blank_votes + 1),
                 candidate_results,
+                annotations: None,
             }),
             channel: None,
             deleted_at: None,
@@ -530,6 +531,7 @@ mod tests {
             blank_ballots: None,
             census: Some(2),
             candidate_results,
+            annotations: None,
         });
         sheet
     }

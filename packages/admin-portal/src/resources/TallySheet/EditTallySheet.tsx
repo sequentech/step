@@ -31,7 +31,12 @@ import {
 } from "@mui/material"
 import TextField from "@mui/material/TextField"
 import {EStatus, IAreaContestResults, ICandidateResults, IInvalidVotes} from "@/types/TallySheets"
-import {sortFunction} from "./utils"
+import {
+    ISharedValidationError,
+    sortFunction,
+    translateSharedValidationError,
+    VALIDATION_ERROR_CODES,
+} from "./utils"
 import {
     EEnableCheckableLists,
     ICandidatePresentation,
@@ -82,19 +87,22 @@ interface IContest {
     label?: Maybe<string> | undefined
 }
 
-interface SharedValidationError {
-    code: string
-    message: string
-    field: string
+interface IContestMarkBounds {
+    max_votes?: Maybe<number>
+    counting_algorithm?: Maybe<string>
+    cumulative_number_of_checkboxes?: number
 }
 
 interface IBallotBoxBlankBallotsCheck {
-    errors: SharedValidationError[]
+    errors: ISharedValidationError[]
     pre_filled_value?: number
 }
 
-const validateAreaContestResults = (content: IAreaContestResults): SharedValidationError[] =>
-    validate_area_contest_results_js(normalizeAreaContestResults(content))
+const validateAreaContestResults = (
+    content: IAreaContestResults,
+    contestBounds: IContestMarkBounds
+): ISharedValidationError[] =>
+    validate_area_contest_results_js(normalizeAreaContestResults(content), contestBounds)
 
 // `blank_ballots` is a ballot-box property replicated onto every contest sheet of the
 // box (like total_declined_to_vote), so it must be cross-checked against every other
@@ -120,6 +128,9 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     const {t, i18n} = useTranslation()
     const aliasRenderer = useAliasRenderer()
 
+    const translateValidationError = (error: ISharedValidationError): string =>
+        translateSharedValidationError(t, error)
+
     const [areasList, setAreasList] = useState<IArea[]>([])
     const [contestList, setContestList] = useState<IContest[]>([])
     const [channel, setChannel] = React.useState<TallySheetVotingChannel | null>(null)
@@ -141,9 +152,9 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     const [areaNameFilter, setAreaNameFilter] = useState<string | null>(null)
     const [contestNameFilter, setContestNameFilter] = useState<string | null>(null)
     const [areaIds, setAreaIds] = useState<Array<string>>([])
-    const [totalValidError, setTotalValidError] = useState<boolean>(false)
-    const [censusError, setCensusError] = useState<boolean>(false)
-    const [sharedValidationMessages, setSharedValidationMessages] = useState<string[]>([])
+    const [sharedValidationErrors, setSharedValidationErrors] = useState<ISharedValidationError[]>(
+        []
+    )
     const [blankBallotsInconsistentError, setBlankBallotsInconsistentError] =
         useState<boolean>(false)
     const [blankBallotsOutOfBoundsError, setBlankBallotsOutOfBoundsError] = useState<boolean>(false)
@@ -440,20 +451,14 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
             candidate_results: candidateResultsForValidation,
         }
 
-        const sharedValidationErrors = validateAreaContestResults(currentSheetForValidation)
+        const contestPresentation = choosenContest?.presentation as IContestPresentation | undefined
+        const sharedValidationErrors = validateAreaContestResults(currentSheetForValidation, {
+            max_votes: choosenContest?.max_votes,
+            counting_algorithm: choosenContest?.counting_algorithm,
+            cumulative_number_of_checkboxes: contestPresentation?.cumulative_number_of_checkboxes,
+        })
 
-        const codes = new Set(sharedValidationErrors.map((error) => error.code))
-        setTotalValidError(codes.has("invalid_total_valid_votes"))
-        setCensusError(codes.has("total_votes_exceeds_census"))
-        setSharedValidationMessages(
-            sharedValidationErrors
-                .filter(
-                    (error) =>
-                        error.code !== "invalid_total_valid_votes" &&
-                        error.code !== "total_votes_exceeds_census"
-                )
-                .map((error) => error.message)
-        )
+        setSharedValidationErrors(sharedValidationErrors)
 
         const boxCheck: IBallotBoxBlankBallotsCheck =
             newResults.area_id && newResults.contest_id
@@ -493,6 +498,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         results.total_valid_votes,
         invalids?.total_invalid,
         invalids,
+        choosenContest,
         siblingBoxSheets,
     ])
 
@@ -676,6 +682,18 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         }
     }, [choosenContest])
 
+    const totalValidVotesError = sharedValidationErrors.find(
+        (error) => error.code === VALIDATION_ERROR_CODES.INVALID_TOTAL_VALID_VOTES
+    )
+    const censusExceededError = sharedValidationErrors.find(
+        (error) => error.code === VALIDATION_ERROR_CODES.TOTAL_VOTES_EXCEEDS_CENSUS
+    )
+    const otherValidationErrors = sharedValidationErrors.filter(
+        (error) =>
+            error.code !== VALIDATION_ERROR_CODES.INVALID_TOTAL_VALID_VOTES &&
+            error.code !== VALIDATION_ERROR_CODES.TOTAL_VOTES_EXCEEDS_CENSUS
+    )
+
     return (
         <SimpleForm toolbar={false} onSubmit={onSubmit}>
             <>
@@ -784,13 +802,13 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                         size="small"
                         required
                     />
-                    {totalValidError && (
-                        <StyledError>
-                            {t("tallysheet.inputError.totalValidDoesNotMatch")}
-                        </StyledError>
+                    {totalValidVotesError && (
+                        <StyledError>{translateValidationError(totalValidVotesError)}</StyledError>
                     )}
-                    {sharedValidationMessages.map((message) => (
-                        <StyledError key={message}>{message}</StyledError>
+                    {otherValidationErrors.map((error) => (
+                        <StyledError key={error.code + (error.field ?? "")}>
+                            {translateValidationError(error)}
+                        </StyledError>
                     ))}
                 </>
                 <Box
@@ -882,8 +900,8 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                         size="small"
                         required
                     />
-                    {censusError && (
-                        <StyledError>{t("tallysheet.inputError.censusTooSmall")}</StyledError>
+                    {censusExceededError && (
+                        <StyledError>{translateValidationError(censusExceededError)}</StyledError>
                     )}
                 </>
                 <PageHeaderStyles.Wrapper>
