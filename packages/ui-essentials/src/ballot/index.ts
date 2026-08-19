@@ -91,6 +91,23 @@ export type {HeaderProps, IExpiryCountdown} from "../components/Header/Header"
 export {default as Footer} from "../components/Footer/Footer"
 export {default as BreadCrumbSteps} from "../components/BreadCrumbSteps/BreadCrumbSteps"
 export {BreadCrumbStepsVariant} from "../components/BreadCrumbSteps/BreadCrumbSteps"
+// The ballot's own breadcrumb: the portal's four steps, its wording, and what both
+// become when an event has one election and no list to choose from. `BreadCrumbSteps`
+// above is the general component; this is the one a voter meets, and the one the
+// portal's `Stepper` is now a redux shim over.
+export {BallotSteps} from "./BallotSteps"
+export type {IBallotStepsProps} from "./BallotSteps"
+// The ballot list screen's own arrangement, class names included — see
+// `ElectionListLayout` for why the tree and not just the components is the contract.
+export {ElectionListLayout, ELECTION_LIST_WORDING_EN} from "./ElectionListLayout"
+export type {IElectionListLayoutProps, IElectionListWording} from "./ElectionListLayout"
+// The ballot screen: the tree the contests sit in, and the row of buttons under them.
+// Both were the portal's `VotingScreen`; `BallotActions` is why the preview's Back has
+// a chevron and a Clear button beside it.
+export {BallotScreenLayout} from "./BallotScreenLayout"
+export type {IBallotScreenLayoutProps} from "./BallotScreenLayout"
+export {BallotActions, BALLOT_ACTIONS_WORDING_EN} from "./BallotActions"
+export type {IBallotActionsProps, IBallotActionsWording} from "./BallotActions"
 
 export {default as BlankAnswer} from "../components/BlankAnswer/BlankAnswer"
 export {default as CandidatesList} from "../components/CandidatesList/CandidatesList"

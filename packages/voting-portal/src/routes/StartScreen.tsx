@@ -280,11 +280,7 @@ const StartScreen: React.FC = () => {
                     description: t(`startScreen.step${at}Description`),
                 })),
             }}
-            above={
-                <Box marginTop="48px">
-                    <Stepper selected={1} />
-                </Box>
-            }
+            steps={<Stepper selected={1} />}
             below={
                 <ActionButtons
                     election={election}

@@ -25,8 +25,7 @@ import React from "react"
 import theme from "../services/theme"
 import {StartLayout, START_WORDING_EN} from "./StartLayout"
 
-const render = (ui: React.ReactElement) =>
-    mount(<ThemeProvider theme={theme}>{ui}</ThemeProvider>)
+const render = (ui: React.ReactElement) => mount(<ThemeProvider theme={theme}>{ui}</ThemeProvider>)
 
 describe("the start screen's arrangement", () => {
     it("draws the title, the instructions and three steps", () => {
@@ -45,9 +44,7 @@ describe("the start screen's arrangement", () => {
         // place is a gap somebody reads as a rendering fault.
         expect(container.textContent).not.toContain("undefined")
 
-        render(
-            <StartLayout title="Otra" description={<span>What this is about</span>} />
-        )
+        render(<StartLayout title="Otra" description={<span>What this is about</span>} />)
         expect(screen.getByText("What this is about")).toBeInTheDocument()
     })
 
@@ -63,9 +60,7 @@ describe("the start screen's arrangement", () => {
         )
 
         expect(screen.getByTestId("the-stepper")).toBeInTheDocument()
-        expect(
-            screen.getByRole("button", {name: "Start Voting"})
-        ).toBeInTheDocument()
+        expect(screen.getByRole("button", {name: "Start Voting"})).toBeInTheDocument()
     })
 
     it("says only what it is handed, so it cannot draw a raw key", () => {
@@ -87,5 +82,36 @@ describe("the start screen's arrangement", () => {
         // itself would print `startScreen.instructionsTitle`.
         expect(screen.queryByText("Instructions")).not.toBeInTheDocument()
         expect(document.body.textContent).not.toContain("startScreen.")
+    })
+
+    it("frames the breadcrumb 48px under the header, as its sibling layouts do", () => {
+        // The portal's route used to do this framing itself, through `above`, which
+        // left the one measurement written down in every caller — and the wizard's
+        // preview wrote it down as 16px, outside the screen.
+        render(<StartLayout title="Claustro 2026" steps={<div data-testid="crumbs" />} />)
+
+        expect(screen.getByTestId("crumbs").parentElement).toHaveStyle({marginTop: "48px"})
+    })
+
+    it("still takes anything else above the title, unframed", () => {
+        render(<StartLayout title="Claustro 2026" above={<div data-testid="something-else" />} />)
+
+        expect(screen.getByTestId("something-else")).toBeInTheDocument()
+    })
+
+    it("puts the breadcrumb before whatever else is above the title", () => {
+        render(
+            <StartLayout
+                title="Claustro 2026"
+                steps={<div data-testid="crumbs" />}
+                above={<div data-testid="something-else" />}
+            />
+        )
+
+        expect(
+            screen
+                .getByTestId("crumbs")
+                .compareDocumentPosition(screen.getByTestId("something-else"))
+        ).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
     })
 })
