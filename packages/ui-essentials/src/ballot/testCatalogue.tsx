@@ -42,6 +42,15 @@ export const PORTAL_WORDS = {
         clearButton: "Start again",
         reviewButton: "Carry on",
     },
+    reviewScreen: {
+        backButton: "Change it",
+        auditButton: "Check the machine",
+        castBallotButton: "Send it",
+    },
+    confirmationScreen: {
+        printButton: "On paper",
+        finishButton: "All done",
+    },
     startScreen: {
         instructionsTitle: "How this works",
         instructionsDescription: "Three steps, in order:",
@@ -74,6 +83,15 @@ export const OTHER_WORDS = {
     electionSelectionScreen: {
         title: "Qué papeleta",
         description: "Elige una",
+    },
+    reviewScreen: {
+        backButton: "Editar la papeleta",
+        auditButton: "Auditar",
+        castBallotButton: "Emitir la papeleta",
+    },
+    confirmationScreen: {
+        printButton: "Imprimir",
+        finishButton: "Terminar",
     },
     breadcrumbSteps: {
         electionList: "Votaciones",

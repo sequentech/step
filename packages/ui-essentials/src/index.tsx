@@ -38,7 +38,7 @@ export {default as BlankAnswer} from "./components/BlankAnswer/BlankAnswer"
 export {default as CustomAutocompleteArrayInput} from "./components/CustomAutocompleteArrayInput/CustomAutocompleteArrayInput"
 export {default as Loader} from "./components/Loader/Loader"
 export {default as ExpandableText} from "./components/ExpandableText/ExpandableText"
-export {ActionsContainer, StyledButton} from "./components/ConfirmationActions/ConfirmationActions"
+export {ActionsContainer, StyledButton} from "./components/ActionsRow/ActionsRow"
 export {PlaintextVoteContest} from "./components/PlaintextVoteContest/PlaintextVoteContest"
 export type {PlaintextVoteContestProps} from "./components/PlaintextVoteContest/PlaintextVoteContest"
 export {
@@ -112,6 +112,13 @@ export type {IElectionListLayoutProps} from "./ballot/ElectionListLayout"
 export {BallotScreenLayout} from "./ballot/BallotScreenLayout"
 export type {IBallotScreenLayoutProps} from "./ballot/BallotScreenLayout"
 export {BallotActions} from "./ballot/BallotActions"
+// The rows under the review and confirmation screens, lifted the same way: the portal's
+// `ReviewScreen` and `ConfirmationScreen` drew them inline, so a preview could only
+// approximate them — and did, with plain buttons and no icons.
+export {ReviewActions} from "./ballot/ReviewActions"
+export type {IReviewActionsProps} from "./ballot/ReviewActions"
+export {ConfirmationActions} from "./ballot/ConfirmationActions"
+export type {IConfirmationActionsProps} from "./ballot/ConfirmationActions"
 export type {IBallotActionsProps} from "./ballot/BallotActions"
 // The Admin Portal's emulator, less the part that reads its own database. Two
 // consumers for the same reason as above: the portal tries a call against a

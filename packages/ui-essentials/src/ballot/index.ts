@@ -107,6 +107,13 @@ export type {IElectionListLayoutProps} from "./ElectionListLayout"
 export {BallotScreenLayout} from "./BallotScreenLayout"
 export type {IBallotScreenLayoutProps} from "./BallotScreenLayout"
 export {BallotActions} from "./BallotActions"
+// The rows under the review and confirmation screens, lifted the same way: the portal's
+// `ReviewScreen` and `ConfirmationScreen` drew them inline, so a preview could only
+// approximate them — and did, with plain buttons and no icons.
+export {ReviewActions} from "./ReviewActions"
+export type {IReviewActionsProps} from "./ReviewActions"
+export {ConfirmationActions} from "./ConfirmationActions"
+export type {IConfirmationActionsProps} from "./ConfirmationActions"
 export type {IBallotActionsProps} from "./BallotActions"
 
 export {default as BlankAnswer} from "../components/BlankAnswer/BlankAnswer"

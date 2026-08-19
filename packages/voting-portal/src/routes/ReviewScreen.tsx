@@ -13,7 +13,7 @@ import {
 import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box, CircularProgress} from "@mui/material"
-import {Icon, Dialog, ReviewLayout, WarnBox} from "@sequentech/ui-essentials"
+import {Dialog, Icon, ReviewActions, ReviewLayout, WarnBox} from "@sequentech/ui-essentials"
 import {
     stringToHtml,
     IAuditableBallot,
@@ -73,15 +73,6 @@ const StyledLink = styled(RouterLink)`
     text-decoration: none;
 `
 
-const ActionsContainer = styled(Box)`
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    gap: 2px;
-`
-
 const StyledButton = styled(Button)`
     display: flex;
     padding: 5px;
@@ -92,16 +83,6 @@ const StyledButton = styled(Button)`
         text-overflow: ellipsis;
         padding: 5px;
     }
-`
-
-const StyledIcon = styled(Icon)`
-    min-width: 14px;
-    padding: 5px;
-`
-
-const StyledCircularProgress = styled(CircularProgress)`
-    width: 14px !important;
-    height: 14px !important;
 `
 
 interface AuditButtonProps {
@@ -150,35 +131,15 @@ const AuditBallotHelpDialog: React.FC<AuditBallotHelpDialogProps> = ({
     )
 }
 
-interface LoadingOrCastButtonProps {
-    onClick: () => void
-    className?: string
-    isCastingBallot: boolean
-}
-
-const LoadingOrCastButton: React.FC<LoadingOrCastButtonProps> = ({
-    onClick,
-    isCastingBallot,
-    className,
-}) => {
-    const {t} = useTranslation()
-
-    return (
-        <StyledButton
-            className={className}
-            sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
-            disabled={isCastingBallot}
-            onClick={onClick}
-        >
-            <Box>{t("reviewScreen.castBallotButton")}</Box>
-            {isCastingBallot ? (
-                <StyledCircularProgress color="inherit" />
-            ) : (
-                <StyledIcon icon={faAngleRight} size="sm" />
-            )}
-        </StyledButton>
-    )
-}
+/*
+ * `LoadingOrCastButton` was here, and the whole row with it.
+ *
+ * Both are `ReviewActions` in `ui-essentials` now — the spinner, the chevron, the flame on
+ * *Audit ballot* and its warning colour — so the Election Architect's preview shows this
+ * row instead of three plain buttons of its own. `AuditButton` below stays: the
+ * ballot-identifier help dialog puts one inside itself when the audit policy says
+ * `SHOW_IN_HELP`, which is not part of the row.
+ */
 
 const useAddFakeCastVote = (tenantId: string | undefined, eventId: string | undefined) => {
     const dispatch = useAppDispatch()
@@ -441,34 +402,27 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
         ? `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/start${location.search}`
         : `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/vote${location.search}`
     return (
-        <Box sx={{marginBottom: "10px", marginTop: "10px"}}>
+        <>
             {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW ? (
                 <AuditBallotHelpDialog
                     auditBallotHelp={auditBallotHelp}
                     handleClose={handleClose}
                 />
             ) : null}
-            <ActionsContainer className="actions-container">
-                <StyledLink
-                    to={backNavigateTo}
-                    sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
-                >
-                    <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
-                        <Icon icon={faAngleLeft} size="sm" />
-                        <Box>{t("reviewScreen.backButton")}</Box>
-                    </StyledButton>
-                </StyledLink>
-                {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW ? (
-                    <AuditButton onClick={() => setAuditBallotHelp(true)} />
-                ) : null}
-                <LoadingOrCastButton
-                    className="cast-ballot-button"
-                    isCastingBallot={isCastingBallot.current}
-                    onClick={() =>
-                        castVoteConfirmModal ? setConfirmCastVoteModal(true) : castBallotAction()
-                    }
-                />
-            </ActionsContainer>
+            {/* The row itself is `ReviewActions` in `ui-essentials`, so the Election
+                Architect's preview draws these three buttons rather than three of its
+                own. What stays here is everything that acts: the mutation, the audit
+                policy and the dialogs. */}
+            <ReviewActions
+                withAudit={auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW}
+                casting={isCastingBallot.current}
+                backComponent={RouterLink}
+                backTo={backNavigateTo}
+                onAudit={() => setAuditBallotHelp(true)}
+                onCast={() =>
+                    castVoteConfirmModal ? setConfirmCastVoteModal(true) : castBallotAction()
+                }
+            />
             <Dialog
                 handleClose={handleCloseCastVoteDialog}
                 open={isConfirmCastVoteModal}
@@ -497,7 +451,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                     )
                 )}
             </Dialog>
-        </Box>
+        </>
     )
 }
 

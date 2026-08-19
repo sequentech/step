@@ -10,7 +10,7 @@ import React from "react"
 import {useTranslation} from "react-i18next"
 
 import Icon from "../components/Icon/Icon"
-import {ActionsContainer, StyledButton} from "../components/ConfirmationActions/ConfirmationActions"
+import {ActionsContainer, StyledButton} from "../components/ActionsRow/ActionsRow"
 
 /**
  * What frames the Back control.

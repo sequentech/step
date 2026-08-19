@@ -9,8 +9,7 @@ import {
     theme,
     ConfirmationLayout,
     Dialog,
-    ActionsContainer,
-    StyledButton,
+    ConfirmationActions,
 } from "@sequentech/ui-essentials"
 import {
     stringToHtml,
@@ -57,15 +56,12 @@ import {
 import {GET_CAST_VOTES} from "../queries/GetCastVotes"
 import {GET_DOCUMENT} from "../queries/GetDocument"
 
-const StyledCircularProgress = styled(CircularProgress)`
-    width: 14px !important;
-    height: 14px !important;
-`
-
-const StyledIcon = styled(Icon)`
-    min-width: 14px;
-    padding: 5px;
-`
+/*
+ * The spinner and the printer were here, with the row they belonged to.
+ *
+ * Both are `ConfirmationActions` in `ui-essentials` now, so the Election Architect's
+ * preview draws this screen's buttons rather than two plain ones of its own.
+ */
 
 interface ActionButtonsProps {
     electionId?: string
@@ -240,28 +236,15 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
 
     return (
         <>
-            <ActionsContainer>
-                <StyledButton
-                    onClick={printBallotReceiptReport}
-                    disabled={isHitPrint}
-                    variant="secondary"
-                    sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
-                >
-                    {isHitPrint ? (
-                        <StyledCircularProgress color="inherit" />
-                    ) : (
-                        <StyledIcon icon={faPrint} size="sm" />
-                    )}
-                    <Box>{t("confirmationScreen.printButton")}</Box>
-                </StyledButton>
-                <StyledButton
-                    className="finish-button"
-                    onClick={onClickFinishButton}
-                    sx={{width: {xs: "100%", sm: "200px"}}}
-                >
-                    <Box>{t("confirmationScreen.finishButton")}</Box>
-                </StyledButton>
-            </ActionsContainer>
+            {/* `ConfirmationActions` in `ui-essentials`: the secondary Print with its
+                printer, and Finish. Here so the Election Architect's preview draws this
+                row rather than two plain buttons — what Print *does* stays with this
+                route, since it renders a receipt from a cast vote. */}
+            <ConfirmationActions
+                printing={isHitPrint}
+                onPrint={printBallotReceiptReport}
+                onFinish={onClickFinishButton}
+            />
 
             <Dialog
                 handleClose={() => setOpenPrintDemoModal(false)}
