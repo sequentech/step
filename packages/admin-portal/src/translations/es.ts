@@ -496,6 +496,7 @@ const spanishTranslation: TranslationType = {
                 notify: {
                     success: "Localización actualizada con éxito",
                     error: "La actualización de la localización ha fallado",
+                    duplicateKey: "Ya existe una sustitución con esta clave y ámbito del portal.",
                     invalidDateTimeFormat:
                         "Formato de fecha/hora no válido. Usa los tokens yyyy, MM, dd, HH, mm, ss (p. ej. dd/MM/yyyy HH:mm).",
                 },
@@ -505,7 +506,16 @@ const spanishTranslation: TranslationType = {
                 },
                 labels: {
                     key: "Clave",
+                    scope: "Ámbito del portal",
                     value: "Valor",
+                },
+                scopes: {
+                    legacy: "Heredado ({{portal}})",
+                    global: "Global",
+                    votingPortal: "Portal de votación",
+                    ballotVerifier: "Verificador de papeletas",
+                    resultsPortal: "Portal de resultados",
+                    adminPortal: "Portal de administración",
                 },
             },
             field: {

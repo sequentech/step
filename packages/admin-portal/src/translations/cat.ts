@@ -496,6 +496,8 @@ const catalanTranslation: TranslationType = {
                 notify: {
                     success: "La localització s'ha actualitzat correctament",
                     error: "La actualització de la localització ha fallat",
+                    duplicateKey:
+                        "Ja existeix una substitució amb aquesta clau i àmbit del portal.",
                     invalidDateTimeFormat:
                         "Format de data/hora no vàlid. Utilitza els tokens yyyy, MM, dd, HH, mm, ss (p. ex. dd/MM/yyyy HH:mm).",
                 },
@@ -505,7 +507,16 @@ const catalanTranslation: TranslationType = {
                 },
                 labels: {
                     key: "Clau",
+                    scope: "Àmbit del portal",
                     value: "Valor",
+                },
+                scopes: {
+                    legacy: "Anterior ({{portal}})",
+                    global: "Global",
+                    votingPortal: "Portal de votació",
+                    ballotVerifier: "Verificador de paperetes",
+                    resultsPortal: "Portal de resultats",
+                    adminPortal: "Portal d'administració",
                 },
             },
             field: {

@@ -497,6 +497,7 @@ const basqueTranslation: TranslationType = {
                 notify: {
                     success: "Lokalizazioa arrakastaz eguneratua",
                     error: "Lokalizazio eguneraketa huts egin du",
+                    duplicateKey: "Giltza eta atari-esparru hori dituen ordezkapen bat badago.",
                     invalidDateTimeFormat:
                         "Data/orduaren formatu baliogabea. Erabili yyyy, MM, dd, HH, mm, ss tokenak (adib. dd/MM/yyyy HH:mm).",
                 },
@@ -506,7 +507,16 @@ const basqueTranslation: TranslationType = {
                 },
                 labels: {
                     key: "Giltza",
+                    scope: "Atariaren esparrua",
                     value: "Balioa",
+                },
+                scopes: {
+                    legacy: "Legatua ({{portal}})",
+                    global: "Globala",
+                    votingPortal: "Bozketa-ataria",
+                    ballotVerifier: "Boto-paperen egiaztatzailea",
+                    resultsPortal: "Emaitzen ataria",
+                    adminPortal: "Administrazio-ataria",
                 },
             },
             field: {

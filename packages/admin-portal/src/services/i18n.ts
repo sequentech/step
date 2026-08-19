@@ -1,7 +1,12 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {initializeLanguages, isString, overwriteTranslations} from "@sequentech/ui-core"
+import {
+    ETranslationScope,
+    initializeLanguages,
+    isString,
+    overwriteTranslations,
+} from "@sequentech/ui-core"
 import englishTranslation from "../translations/en"
 import spanishTranslation from "../translations/es"
 import catalanTranslation from "../translations/cat"
@@ -36,7 +41,13 @@ export const triggerOverrideTranslations = (i18n: I18N) => {
         nl: dutchTranslation,
         eu: basqueTranslation,
     })
-    overwriteTranslations({i18n} as any, true)
+    overwriteTranslations(
+        {i18n},
+        {
+            scope: ETranslationScope.ADMIN_PORTAL,
+            legacyScope: ETranslationScope.ADMIN_PORTAL,
+        }
+    )
 }
 
 export const getAllLangs = (): Array<string> => ["en", "es", "cat", "fr", "tl", "gl", "nl", "eu"]
