@@ -16,6 +16,9 @@ import type {IBallotStyle} from "./types"
 
 import BallotHash from "../components/BallotHash/BallotHash"
 import IconButton from "../components/IconButton/IconButton"
+import {stringToHtml} from "@sequentech/ui-core"
+import {useTranslation} from "react-i18next"
+
 import PageLimit from "../components/PageLimit/PageLimit"
 import WarnBox from "../components/WarnBox/WarnBox"
 import {theme} from "../services/theme"
@@ -36,8 +39,6 @@ export interface IReviewLayoutProps {
      */
     ballotId?: string
     /** Named as `BallotHash` names it, since that is where they end up. */
-    copyLabels?: {copy: string; copied: string; error: string}
-    ballotIdHelpLabel?: string
     onBallotIdHelp?: () => void
 
     /**
@@ -49,14 +50,21 @@ export interface IReviewLayoutProps {
      */
     steps?: React.ReactNode
 
-    title: string
     onTitleHelp?: () => void
 
     /** A failure to show above the contests — casting refused, usually. */
     error?: React.ReactNode
 
     /** Already-resolved copy: the caller decides which of its variants applies. */
-    description?: React.ReactNode
+    /**
+     * Whether this event offers *Audit ballot*.
+     *
+     * Not wording: it chooses between `reviewScreen.description` and
+     * `.descriptionNoAudit`, because one of them mentions a button the other event does
+     * not have. The portal reads `EVotingPortalAuditButtonCfg` and a preview reads the
+     * plan, and that is a policy neither this layout nor a translator should decide.
+     */
+    withAudit?: boolean
 
     ballotStyle: IBallotStyle
     contests: IContest[]
@@ -105,14 +113,11 @@ export interface IReviewLayoutProps {
  */
 export const ReviewLayout: React.FC<IReviewLayoutProps> = ({
     ballotId,
-    copyLabels,
-    ballotIdHelpLabel,
     onBallotIdHelp,
     steps,
-    title,
     onTitleHelp,
     error,
-    description,
+    withAudit = false,
     ballotStyle,
     contests,
     errorSelectionState,
@@ -120,52 +125,72 @@ export const ReviewLayout: React.FC<IReviewLayoutProps> = ({
     isBlankBallot,
     actions,
     children,
-}) => (
-    <PageLimit maxWidth="lg" className="review-screen screen">
-        {ballotId === undefined ? null : (
-            <BallotHash
-                hash={ballotId}
-                copyLabels={copyLabels}
-                helpButtonLabel={ballotIdHelpLabel}
-                onHelpClick={onBallotIdHelp}
-            />
-        )}
-        {children}
-        {steps === undefined ? null : <Box marginTop="48px">{steps}</Box>}
-        <StyledTitle variant="h4" fontSize="24px" fontWeight="bold" sx={{margin: 0}}>
-            <Box>{title}</Box>
-            {onTitleHelp === undefined ? null : (
-                <IconButton
-                    icon={faCircleQuestion}
-                    sx={{
-                        fontSize: "unset",
-                        lineHeight: "unset",
-                        paddingBottom: "2px",
+}) => {
+    const {t} = useTranslation()
+
+    /*
+     * `reviewScreen.*`, translated here.
+     *
+     * The heading and the description arrived as props until `EA-F3-015`, which meant
+     * whoever called this decided what the screen said — and the Election Architect's
+     * preview called it with wording of its own, so a client who overrode
+     * `reviewScreen.title` saw their words in the portal and "Review your ballot" in the
+     * picture that is supposed to be the portal. Every string on this screen is
+     * `voting-portal/src/translations/<lng>.ts`, on the paths clients override.
+     */
+    const description = withAudit
+        ? t("reviewScreen.description")
+        : t("reviewScreen.descriptionNoAudit")
+
+    return (
+        <PageLimit maxWidth="lg" className="review-screen screen">
+            {ballotId === undefined ? null : (
+                <BallotHash
+                    hash={ballotId}
+                    copyLabels={{
+                        copy: t("reviewScreen.copyBallotId"),
+                        copied: t("reviewScreen.ballotIdCopied"),
+                        error: t("reviewScreen.ballotIdCopyError"),
                     }}
-                    fontSize="16px"
-                    onClick={onTitleHelp}
+                    helpButtonLabel={t("reviewScreen.ballotIdHelpDialog.title")}
+                    onHelpClick={onBallotIdHelp}
                 />
             )}
-        </StyledTitle>
-        {error ? <WarnBox variant="error">{error}</WarnBox> : null}
-        {description === undefined ? null : (
+            {children}
+            {steps === undefined ? null : <Box marginTop="48px">{steps}</Box>}
+            <StyledTitle variant="h4" fontSize="24px" fontWeight="bold" sx={{margin: 0}}>
+                <Box>{t("reviewScreen.title")}</Box>
+                {onTitleHelp === undefined ? null : (
+                    <IconButton
+                        icon={faCircleQuestion}
+                        sx={{
+                            fontSize: "unset",
+                            lineHeight: "unset",
+                            paddingBottom: "2px",
+                        }}
+                        fontSize="16px"
+                        onClick={onTitleHelp}
+                    />
+                )}
+            </StyledTitle>
+            {error ? <WarnBox variant="error">{error}</WarnBox> : null}
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                {description}
+                {stringToHtml(description)}
             </Typography>
-        )}
-        {contests.map((question, index) => (
-            <Box key={question.id} className={`contest-${index}`}>
-                <Question
-                    ballotStyle={ballotStyle}
-                    question={question}
-                    isReview={true}
-                    setDecodedContests={() => undefined}
-                    errorSelectionState={errorSelectionState}
-                    isDeclineToVote={isDeclineToVote}
-                    isBlankBallot={isBlankBallot}
-                />
-            </Box>
-        ))}
-        {actions}
-    </PageLimit>
-)
+            {contests.map((question, index) => (
+                <Box key={question.id} className={`contest-${index}`}>
+                    <Question
+                        ballotStyle={ballotStyle}
+                        question={question}
+                        isReview={true}
+                        setDecodedContests={() => undefined}
+                        errorSelectionState={errorSelectionState}
+                        isDeclineToVote={isDeclineToVote}
+                        isBlankBallot={isBlankBallot}
+                    />
+                </Box>
+            ))}
+            {actions}
+        </PageLimit>
+    )
+}

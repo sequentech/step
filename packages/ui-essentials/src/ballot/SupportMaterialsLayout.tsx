@@ -14,6 +14,8 @@ import Typography from "@mui/material/Typography"
 import {styled} from "@mui/material/styles"
 import React from "react"
 
+import {useTranslation} from "react-i18next"
+
 import PageLimit from "../components/PageLimit/PageLimit"
 import {theme} from "../services/theme"
 
@@ -84,6 +86,7 @@ const Heading = styled(Typography)`
 `
 
 export interface ISupportMaterialCardProps {
+    /** The document's own name. */
     title: string
     subtitle?: string
     /**
@@ -159,7 +162,15 @@ export const SupportMaterialCard: React.FC<ISupportMaterialCardProps> = ({
 
 export interface ISupportMaterialsLayoutProps {
     steps?: React.ReactNode
-    title: string
+    /**
+     * The event's own heading for this tab, per language.
+     *
+     * Data rather than wording: it comes from the event's presentation, and the portal
+     * passes `"-"` where an event has none. Omitted entirely — which is what a preview of
+     * an event that has not named the tab does — the portal's own
+     * `materials.common.label` is used, rather than a copy of that word in the caller.
+     */
+    title?: string
     subtitle?: React.ReactNode
     /** The Back control, which knows where back is and so belongs to the host. */
     back?: React.ReactNode
@@ -181,30 +192,37 @@ export const SupportMaterialsLayout: React.FC<ISupportMaterialsLayoutProps> = ({
     subtitle,
     back,
     children,
-}) => (
-    <PageLimit maxWidth="lg">
-        {steps === undefined ? null : <Box marginTop="48px">{steps}</Box>}
-        <Box
-            sx={{
-                display: "flex",
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-                minHeight: "100px",
-            }}
-        >
-            <Box>
-                <Heading variant="h1">
-                    <Box>{title}</Box>
-                </Heading>
-                {subtitle === undefined ? null : (
-                    <Typography variant="body1" sx={{color: theme.palette.customGrey.contrastText}}>
-                        {subtitle}
-                    </Typography>
-                )}
+}) => {
+    const {t} = useTranslation()
+
+    return (
+        <PageLimit maxWidth="lg">
+            {steps === undefined ? null : <Box marginTop="48px">{steps}</Box>}
+            <Box
+                sx={{
+                    display: "flex",
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    minHeight: "100px",
+                }}
+            >
+                <Box>
+                    <Heading variant="h1">
+                        <Box>{title ?? t("materials.common.label")}</Box>
+                    </Heading>
+                    {subtitle === undefined ? null : (
+                        <Typography
+                            variant="body1"
+                            sx={{color: theme.palette.customGrey.contrastText}}
+                        >
+                            {subtitle}
+                        </Typography>
+                    )}
+                </Box>
+                {back}
             </Box>
-            {back}
-        </Box>
-        <MaterialsList>{children}</MaterialsList>
-    </PageLimit>
-)
+            <MaterialsList>{children}</MaterialsList>
+        </PageLimit>
+    )
+}

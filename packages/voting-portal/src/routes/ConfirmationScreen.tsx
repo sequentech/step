@@ -357,22 +357,13 @@ const ConfirmationScreen: React.FC = () => {
         // screen's own state: the breadcrumb, the dialogs, and the actions.
         <ConfirmationLayout
             steps={<Stepper selected={3} />}
-            title={t("confirmationScreen.title")}
             onTitleHelp={() => setOpenConfirmationHelp(true)}
-            description={stringToHtml(t("confirmationScreen.description"))}
-            note={
-                isBlankBallot
-                    ? stringToHtml(t("confirmationScreen.blankBallot.description"))
-                    : undefined
-            }
-            ballotIdLabel={t("confirmationScreen.ballotId")}
+            isBlankBallot={isBlankBallot}
             ballotId={ballotId.current ?? ""}
             ballotIdOnPhone={t("ballotHash", {ballotId: ballotId.current})}
             ballotIdHref={isDemo ? undefined : ballotTrackerUrl}
             onBallotIdClick={handleBallotIdLinkClick}
             onBallotIdHelp={() => (isDemo ? setDemoBallotIdHelp(true) : setOpenBallotIdHelp(true))}
-            verifyTitle={t("confirmationScreen.verifyCastTitle")}
-            verifyDescription={stringToHtml(t("confirmationScreen.verifyCastDescription"))}
             qrValue={isDemo ? t("confirmationScreen.demoQRText") : (ballotTrackerUrl ?? "")}
             actions={
                 <ActionButtons

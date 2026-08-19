@@ -30,7 +30,7 @@ jest.mock("../components/QRCode/QRCode", () => ({
 
 const render = (ui: React.ReactElement) => mount(<ThemeProvider theme={theme}>{ui}</ThemeProvider>)
 
-const props = {title: "Your ballot is in", ballotId: "abc123"}
+const props = {ballotId: "abc123"}
 
 describe("the confirmation screen's arrangement", () => {
     it("shows the identifier twice, once for each width", () => {
@@ -111,5 +111,44 @@ describe("the confirmation screen's arrangement", () => {
         )
 
         expect(helped.container.querySelectorAll("button").length).toBe(before + 2)
+    })
+})
+
+describe("where this screen's words come from", () => {
+    /*
+     * `confirmationScreen.*`, and not props. Five of this screen's strings — its heading,
+     * its description, the identifier's label and the two lines over the QR — arrived from
+     * the caller until `EA-F3-015`, so a client's override reached the portal and not the
+     * preview. `t` is mocked in this file to return the key, so a key on screen is the
+     * string having gone through i18n.
+     */
+
+    it("asks the catalogue for every one of them", () => {
+        render(<ConfirmationLayout {...props} qrValue="https://verify.example/abc" />)
+
+        for (const key of [
+            "confirmationScreen.title",
+            "confirmationScreen.description",
+            "confirmationScreen.ballotId",
+            "confirmationScreen.verifyCastTitle",
+            "confirmationScreen.verifyCastDescription",
+        ]) {
+            expect(screen.getByText(key)).toBeInTheDocument()
+        }
+    })
+
+    it("says a ballot was cast blank only when it was", () => {
+        // A flag, not the sentence: the sentence belongs in the catalogue with the rest of
+        // the screen.
+        const plain = render(<ConfirmationLayout {...props} />)
+        expect(
+            plain.queryByText("confirmationScreen.blankBallot.description")
+        ).toBeNull()
+        plain.unmount()
+
+        render(<ConfirmationLayout {...props} isBlankBallot />)
+        expect(
+            screen.getByText("confirmationScreen.blankBallot.description")
+        ).toBeInTheDocument()
     })
 })

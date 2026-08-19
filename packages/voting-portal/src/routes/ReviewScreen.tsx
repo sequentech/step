@@ -725,23 +725,17 @@ export const ReviewScreen: React.FC = () => {
             ballotId={
                 auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW ? undefined : ballotId || ""
             }
-            copyLabels={{
-                copy: t("reviewScreen.copyBallotId"),
-                copied: t("reviewScreen.ballotIdCopied"),
-                error: t("reviewScreen.ballotIdCopyError"),
-            }}
-            ballotIdHelpLabel={t("reviewScreen.ballotIdHelpDialog.title")}
             onBallotIdHelp={() => setOpenBallotIdHelp(true)}
             steps={<Stepper selected={2} />}
-            title={t("reviewScreen.title")}
             onTitleHelp={() => setReviewScreenHelp(true)}
             error={errorMsg || undefined}
-            description={stringToHtml(
-                auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW ||
-                    auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP
-                    ? t("reviewScreen.descriptionNoAudit")
-                    : t("reviewScreen.description")
-            )}
+            // The layout says `reviewScreen.*` for itself now. What it cannot know is
+            // whether this event offers *Audit ballot*, which is what chooses between the
+            // two descriptions — one of them mentions a button the other event lacks.
+            withAudit={
+                auditButtonCfg !== EVotingPortalAuditButtonCfg.NOT_SHOW &&
+                auditButtonCfg !== EVotingPortalAuditButtonCfg.SHOW_IN_HELP
+            }
             ballotStyle={ballotStyle}
             contests={contests}
             errorSelectionState={errorSelectionState}

@@ -59,7 +59,6 @@ const props = {
     ballotStyle: {} as never,
     contests: [aContest("first"), aContest("second")],
     errorSelectionState: {} as never,
-    title: "Review your ballot",
 }
 
 beforeEach(() => {
@@ -146,5 +145,48 @@ describe("the review screen's arrangement", () => {
 
         expect(screen.queryByTestId("steps")).toBeNull()
         expect(screen.queryByTestId("actions")).toBeNull()
+    })
+})
+
+describe("where this screen's words come from", () => {
+    /*
+     * `reviewScreen.*`, and not a prop. The heading and the description arrived from the
+     * caller until `EA-F3-015`, which meant the caller decided what the screen said — and
+     * the Election Architect's preview called it with wording of its own. A client who
+     * overrode `reviewScreen.title` therefore saw their words in the portal and *"Review
+     * your ballot"* in the picture that is supposed to be the portal.
+     *
+     * `t` is mocked in this file to return the key, so asserting a key here is asserting
+     * that the string went through i18n at all. That an *override* reaches it is asserted
+     * over the whole preview in beyond, per screen.
+     */
+
+    it("asks the catalogue for its heading", () => {
+        render(<ReviewLayout {...props} />)
+
+        expect(screen.getByText("reviewScreen.title")).toBeInTheDocument()
+    })
+
+    it("says the description that mentions Audit when this event has it", () => {
+        render(<ReviewLayout {...props} withAudit />)
+
+        expect(screen.getByText("reviewScreen.description")).toBeInTheDocument()
+        expect(screen.queryByText("reviewScreen.descriptionNoAudit")).toBeNull()
+    })
+
+    it("says the other one when it does not", () => {
+        // One of the two mentions a button this event does not have, which is why the
+        // choice is a flag rather than a translator's problem.
+        render(<ReviewLayout {...props} />)
+
+        expect(screen.getByText("reviewScreen.descriptionNoAudit")).toBeInTheDocument()
+    })
+
+    it("labels the identifier's own controls from the catalogue", () => {
+        render(<ReviewLayout {...props} ballotId="ballot-42" />)
+
+        // `BallotHash` is handed `reviewScreen.copyBallotId` and its two siblings; the
+        // help label is the dialog's title, as the portal passes it.
+        expect(document.body.textContent).toContain("reviewScreen.")
     })
 })

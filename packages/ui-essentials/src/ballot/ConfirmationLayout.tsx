@@ -9,6 +9,9 @@ import {faCheck, faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import React from "react"
 
 import IconButton from "../components/IconButton/IconButton"
+import {stringToHtml} from "@sequentech/ui-core"
+import {useTranslation} from "react-i18next"
+
 import PageLimit from "../components/PageLimit/PageLimit"
 import QRCode from "../components/QRCode/QRCode"
 import {theme} from "../services/theme"
@@ -77,9 +80,7 @@ export interface IConfirmationLayoutProps {
     /** The breadcrumb, built by whoever knows how many steps there are. */
     steps?: React.ReactNode
 
-    title: string
     onTitleHelp?: () => void
-    description?: React.ReactNode
     /**
      * A second paragraph under the description, when there is something to add.
      *
@@ -87,10 +88,15 @@ export interface IConfirmationLayoutProps {
      * more `description`, because that one is wrapped in a `Typography` and a
      * paragraph inside a paragraph is not markup a browser will keep.
      */
-    note?: React.ReactNode
+    /**
+     * Whether the ballot was cast blank, which the screen says out loud.
+     *
+     * A flag rather than the sentence: the sentence is
+     * `confirmationScreen.blankBallot.description`, which belongs in the catalogue with
+     * everything else on this screen. `EA-F3-015`.
+     */
+    isBlankBallot?: boolean
 
-    /** What the identifier is called — *Ballot ID*, in the portal's wording. */
-    ballotIdLabel?: string
     /**
      * The identifier itself, as the wide layout shows it.
      *
@@ -104,8 +110,6 @@ export interface IConfirmationLayoutProps {
     onBallotIdClick?: React.MouseEventHandler
     onBallotIdHelp?: () => void
 
-    verifyTitle?: string
-    verifyDescription?: React.ReactNode
     /** What the QR encodes. Omit to leave the block out entirely. */
     qrValue?: string
 
@@ -133,121 +137,120 @@ export interface IConfirmationLayoutProps {
  */
 export const ConfirmationLayout: React.FC<IConfirmationLayoutProps> = ({
     steps,
-    title,
     onTitleHelp,
-    description,
-    note,
-    ballotIdLabel,
+    isBlankBallot = false,
     ballotId,
     ballotIdOnPhone,
     ballotIdHref,
     onBallotIdClick,
     onBallotIdHelp,
-    verifyTitle,
-    verifyDescription,
     qrValue,
     actions,
     children,
-}) => (
-    <PageLimit maxWidth="lg" className="confirmation-screen screen">
-        {steps === undefined ? null : <Box marginTop="24px">{steps}</Box>}
-        <StyledTitle variant="h4" fontSize="24px" fontWeight="bold" sx={{marginTop: "40px"}}>
-            <Box>{title}</Box>
-            {onTitleHelp === undefined ? null : (
-                <IconButton
-                    icon={faCircleQuestion}
-                    sx={{
-                        fontSize: "unset",
-                        lineHeight: "unset",
-                        paddingBottom: "2px",
-                    }}
-                    fontSize="16px"
-                    onClick={onTitleHelp}
-                />
-            )}
-        </StyledTitle>
-        {description === undefined ? null : (
-            <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                {description}
-            </Typography>
-        )}
-        {note === undefined ? null : (
-            <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                {note}
-            </Typography>
-        )}
-        <BallotIdContainer>
-            {ballotIdLabel === undefined ? null : (
-                <Typography
-                    variant="h5"
-                    fontSize="18px"
-                    fontWeight="bold"
-                    sx={{display: {xs: "none", sm: "block"}}}
-                >
-                    {ballotIdLabel}
-                </Typography>
-            )}
-            <BallotIdBorder>
-                <IconButton
-                    icon={faCheck}
-                    sx={{
-                        fontSize: "unset",
-                        lineHeight: "unset",
-                        paddingBottom: "2px",
-                    }}
-                    fontSize="14px"
-                    color={theme.palette.customGrey.contrastText}
-                />
-                <BallotIdLink
-                    href={ballotIdHref}
-                    target={ballotIdHref === undefined ? undefined : "_blank"}
-                    sx={{display: {xs: "none", sm: "block"}}}
-                    onClick={onBallotIdClick}
-                >
-                    {ballotId}
-                </BallotIdLink>
-                <BallotIdLink
-                    href={ballotIdHref}
-                    target={ballotIdHref === undefined ? undefined : "_blank"}
-                    sx={{display: {xs: "block", sm: "none"}}}
-                    onClick={onBallotIdClick}
-                >
-                    {ballotIdOnPhone ?? ballotId}
-                </BallotIdLink>
-                {onBallotIdHelp === undefined ? null : (
+}) => {
+    const {t} = useTranslation()
+
+    return (
+        <PageLimit maxWidth="lg" className="confirmation-screen screen">
+            {steps === undefined ? null : <Box marginTop="24px">{steps}</Box>}
+            <StyledTitle variant="h4" fontSize="24px" fontWeight="bold" sx={{marginTop: "40px"}}>
+                <Box>{t("confirmationScreen.title")}</Box>
+                {onTitleHelp === undefined ? null : (
                     <IconButton
                         icon={faCircleQuestion}
                         sx={{
                             fontSize: "unset",
                             lineHeight: "unset",
-                            marginLeft: "16px",
+                            paddingBottom: "2px",
                         }}
-                        fontSize="18px"
-                        onClick={onBallotIdHelp}
+                        fontSize="16px"
+                        onClick={onTitleHelp}
                     />
                 )}
-                {children}
-            </BallotIdBorder>
-        </BallotIdContainer>
-        {verifyTitle === undefined ? null : (
-            <Typography variant="h5" fontSize="18px" fontWeight="bold">
-                {verifyTitle}
-            </Typography>
-        )}
-        {verifyDescription === undefined ? null : (
-            <Typography
-                variant="body2"
-                sx={{color: theme.palette.customGrey.main}}
-                id="qr-code-description"
-            >
-                {verifyDescription}
-            </Typography>
-        )}
-        {qrValue === undefined ? null : (
-            <QRContainer className="qr-container">
-                <QRCode ariaLabelledby="qr-code-description" value={qrValue} />
-            </QRContainer>
-        )}
-        {actions}
-    </PageLimit>
-)
+            </StyledTitle>
+            {
+                <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+                    {stringToHtml(t("confirmationScreen.description"))}
+                </Typography>
+            }
+            {!isBlankBallot ? null : (
+                <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+                    {stringToHtml(t("confirmationScreen.blankBallot.description"))}
+                </Typography>
+            )}
+            <BallotIdContainer>
+                {
+                    <Typography
+                        variant="h5"
+                        fontSize="18px"
+                        fontWeight="bold"
+                        sx={{display: {xs: "none", sm: "block"}}}
+                    >
+                        {t("confirmationScreen.ballotId")}
+                    </Typography>
+                }
+                <BallotIdBorder>
+                    <IconButton
+                        icon={faCheck}
+                        sx={{
+                            fontSize: "unset",
+                            lineHeight: "unset",
+                            paddingBottom: "2px",
+                        }}
+                        fontSize="14px"
+                        color={theme.palette.customGrey.contrastText}
+                    />
+                    <BallotIdLink
+                        href={ballotIdHref}
+                        target={ballotIdHref === undefined ? undefined : "_blank"}
+                        sx={{display: {xs: "none", sm: "block"}}}
+                        onClick={onBallotIdClick}
+                    >
+                        {ballotId}
+                    </BallotIdLink>
+                    <BallotIdLink
+                        href={ballotIdHref}
+                        target={ballotIdHref === undefined ? undefined : "_blank"}
+                        sx={{display: {xs: "block", sm: "none"}}}
+                        onClick={onBallotIdClick}
+                    >
+                        {ballotIdOnPhone ?? ballotId}
+                    </BallotIdLink>
+                    {onBallotIdHelp === undefined ? null : (
+                        <IconButton
+                            icon={faCircleQuestion}
+                            sx={{
+                                fontSize: "unset",
+                                lineHeight: "unset",
+                                marginLeft: "16px",
+                            }}
+                            fontSize="18px"
+                            onClick={onBallotIdHelp}
+                        />
+                    )}
+                    {children}
+                </BallotIdBorder>
+            </BallotIdContainer>
+            {
+                <Typography variant="h5" fontSize="18px" fontWeight="bold">
+                    {t("confirmationScreen.verifyCastTitle")}
+                </Typography>
+            }
+            {
+                <Typography
+                    variant="body2"
+                    sx={{color: theme.palette.customGrey.main}}
+                    id="qr-code-description"
+                >
+                    {stringToHtml(t("confirmationScreen.verifyCastDescription"))}
+                </Typography>
+            }
+            {qrValue === undefined ? null : (
+                <QRContainer className="qr-container">
+                    <QRCode ariaLabelledby="qr-code-description" value={qrValue} />
+                </QRContainer>
+            )}
+            {actions}
+        </PageLimit>
+    )
+}
