@@ -771,3 +771,13 @@ button#resend-otp-btn:hover {
         outline-color: Highlight;
     }
 }
+
+/* The matchAttributes fields on the login page render through user-profile-commons.ftl, which
+   wraps each label and input in a grid column carrying horizontal padding. login.ftl's own
+   username and password blocks have no such wrapper, so the two sets of fields would otherwise
+   disagree on indent and width. register.ftl is unaffected: every field there is wrapped, so it
+   is already internally consistent. */
+#kc-form-login .form-group > .col-xs-12 {
+    padding-left: 0;
+    padding-right: 0;
+}
