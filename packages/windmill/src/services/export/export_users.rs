@@ -25,7 +25,7 @@ use tracing::{event, info, instrument, Level};
 static SAFE_CHARS_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"[^a-zA-Z0-9._-]").expect("Failed to build safe chars regex"));
 
-pub const USER_FIELDS: [&str; 8] = [
+pub const USER_FIELDS: [&str; 9] = [
     "id",
     "email",
     "first_name",
@@ -34,6 +34,7 @@ pub const USER_FIELDS: [&str; 8] = [
     "enabled",
     "email_verified",
     "area-id",
+    "area_name",
 ];
 
 #[derive(Deserialize, Debug, Clone, Serialize)]
@@ -327,4 +328,42 @@ pub async fn export_users_file(
     }
 
     Ok(temp_path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn profile_attribute(name: &str) -> UserProfileAttribute {
+        UserProfileAttribute {
+            annotations: None,
+            display_name: None,
+            group: None,
+            multivalued: None,
+            name: Some(name.to_string()),
+            required: None,
+            validations: None,
+            permissions: None,
+            selector: None,
+        }
+    }
+
+    #[test]
+    fn area_name_profile_attribute_does_not_duplicate_reserved_header() {
+        let attributes = vec![
+            profile_attribute("area_name"),
+            profile_attribute("custom_attribute"),
+        ];
+
+        let headers = get_headers(&None, &attributes);
+
+        assert_eq!(
+            headers
+                .iter()
+                .filter(|header| header.as_str() == "area_name")
+                .count(),
+            1
+        );
+        assert!(headers.contains(&"custom_attribute".to_string()));
+    }
 }

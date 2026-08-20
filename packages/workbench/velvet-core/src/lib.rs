@@ -16,5 +16,5 @@ pub mod decode;
 pub mod result;
 
 pub use result::{
-    CandidateResult, ContestResult, ExtendedMetricsContest, ExtendedMetricsElection, InvalidVotes,
+    CandidateResult, ContestResult, ExtendedMetricsContest, InvalidVotes,
 };

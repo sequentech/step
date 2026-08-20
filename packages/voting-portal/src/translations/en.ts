@@ -53,6 +53,13 @@ const englishTranslation = {
                 continue: "Continue",
                 cancel: "Cancel",
             },
+            blankBallotDialog: {
+                title: "You have not selected any candidates",
+                content:
+                    "You have not made any selections. Your ballot will be cast as a blank ballot, which is a valid, deliberate choice and will be counted as such.",
+                continue: "Continue",
+                cancel: "Cancel",
+            },
         },
         startScreen: {
             startButton: "Start Voting",
@@ -85,6 +92,9 @@ const englishTranslation = {
             backButton: "Edit ballot",
             castBallotButton: "Cast ballot",
             auditButton: "Audit ballot",
+            copyBallotId: "Copy ballot ID",
+            ballotIdCopied: "Ballot ID copied",
+            ballotIdCopyError: "Could not copy ballot ID",
             reviewScreenHelpDialog: {
                 title: "About the review screen",
                 content: "This screen lets you review your selections before casting your ballot",
@@ -108,6 +118,13 @@ const englishTranslation = {
                 title: "Are you sure you want to cast your vote?",
                 content: "After you confirm, your vote will be cast.",
                 ok: "Yes, I want to cast my vote",
+                cancel: "Cancel",
+            },
+            confirmCastBlankBallotDialog: {
+                title: "Are you sure you want to cast a blank ballot?",
+                content:
+                    "You have not selected any candidates. After you confirm, your ballot will be cast as blank.",
+                ok: "Yes, cast my blank ballot",
                 cancel: "Cancel",
             },
             error: {
@@ -196,11 +213,15 @@ const englishTranslation = {
                     "There was an internal error while casting the vote. Please try again later or contact support for assistance.",
             },
             declineToVote: "Decline to vote",
+            blankBallot: "Blank ballot",
         },
         confirmationScreen: {
             title: "Your vote has been cast",
             description:
                 "Your ballot was cast successfully. Use the code below to verify that it was counted",
+            blankBallot: {
+                description: "Your ballot was cast blank, which is a valid, deliberate choice.",
+            },
             ballotId: "Ballot ID",
             printButton: "Print",
             finishButton: "Finish",

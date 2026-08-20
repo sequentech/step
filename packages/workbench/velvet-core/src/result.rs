@@ -123,6 +123,9 @@ pub struct ExtendedMetricsContest {
     pub weight: Weight, // Used to store the actual weight used to tally an specific area.
     pub total_weight: u64, // Used to calculate the right percentage_votes in aggregate
     pub total_declined_to_vote: u64, // Total number of ballots that declined to vote
+    // Total number of ballots left blank in every contest (a distinct,
+    // valid electoral outcome from an ordinary blank vote in this contest).
+    pub total_blank_ballots: u64,
     #[serde(default, skip_serializing_if = "VotesByChannel::is_empty")]
     pub votes_by_channel: VotesByChannel,
 }
@@ -138,18 +141,12 @@ impl ExtendedMetricsContest {
         result.total_ballots += other.total_ballots;
         result.total_weight += other.total_weight;
         result.total_declined_to_vote += other.total_declined_to_vote;
+        result.total_blank_ballots += other.total_blank_ballots;
         for (channel, count) in &other.votes_by_channel {
             *result.votes_by_channel.entry(channel.clone()).or_default() += count;
         }
         result
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct ExtendedMetricsElection {
-    // Number of valid ballots processed by the ACM without any
-    // single mark on all contests.
-    pub abstentions: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

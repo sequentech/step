@@ -70,3 +70,57 @@ pub fn get_area_weight(ballot_styles: &Vec<BallotStyle>, area_id: &Uuid) -> Weig
 }
 
 
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use uuid::Uuid;
+
+    fn ballot_style_with(area_id: &Uuid, weight: Option<u64>) -> BallotStyle {
+        BallotStyle {
+            id: Uuid::new_v4().to_string(),
+            tenant_id: Uuid::new_v4().to_string(),
+            election_event_id: Uuid::new_v4().to_string(),
+            election_id: Uuid::new_v4().to_string(),
+            num_allowed_revotes: None,
+            description: None,
+            public_key: None,
+            area_id: area_id.to_string(),
+            area_presentation: None,
+            contests: vec![],
+            election_event_annotations: Default::default(),
+            election_annotations: Default::default(),
+            election_event_presentation: None,
+            election_presentation: None,
+            election_dates: None,
+            area_annotations: weight.map(|weight| {
+                serde_json::from_value(serde_json::json!({ "weight": weight }))
+                    .expect("area annotations parse")
+            }),
+            multi_contest_encoding_mode: None,
+        }
+    }
+
+    /// An area weight is applied whenever the published ballot style carries
+    /// one, with no reference to the weighted voting policy. That is why
+    /// `create_tally_ceremony` refuses to start a voters-weighted tally while
+    /// any published ballot style still carries a weight: nothing downstream
+    /// would stop the two being applied on top of each other.
+    #[test]
+    fn area_weight_is_applied_whenever_the_ballot_style_carries_one() {
+        let area_id = Uuid::new_v4();
+        let ballot_styles = vec![ballot_style_with(&area_id, Some(5))];
+        assert_eq!(*get_area_weight(&ballot_styles, &area_id), Some(5));
+    }
+
+    /// An area with no ballot style, and one whose ballot style carries no
+    /// annotations, both fall back to the neutral weight rather than zero.
+    #[test]
+    fn area_weight_falls_back_to_the_neutral_weight() {
+        let area_id = Uuid::new_v4();
+        assert_eq!(*get_area_weight(&vec![], &area_id), Some(1));
+
+        let ballot_styles = vec![ballot_style_with(&area_id, None)];
+        assert_eq!(*get_area_weight(&ballot_styles, &area_id), Some(1));
+    }
+}

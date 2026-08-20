@@ -11,6 +11,7 @@ import {buildAreaElectionSummaries} from "@/services/areaSummaries"
 import {ResultsSummary} from "./ResultsSummary"
 import {ResultsSelectorTabs} from "./ResultsSelectorTabs"
 import {entityClassName} from "@/services/cssClassNames"
+import {orderElectionResultRows} from "@/services/resultsOrdering"
 
 interface ResultsPageContentProps {
     manifest: ResultsManifest
@@ -29,10 +30,18 @@ export const ResultsPageContent: React.FC<ResultsPageContentProps> = ({
     const locale = i18n.resolvedLanguage ?? i18n.language ?? manifest.default_locale ?? "en"
     const title = manifestTitle(manifest.title, locale, t("resultsPortal.pageTitle"))
     const areaElectionSummaries = useMemo(() => buildAreaElectionSummaries(dataset), [dataset])
-    const summaryResults =
-        manifest.visibility_scope === "area_based"
-            ? areaElectionSummaries
-            : dataset.results_election
+    const summaryResults = useMemo(
+        () =>
+            orderElectionResultRows(
+                manifest.visibility_scope === "area_based"
+                    ? areaElectionSummaries
+                    : dataset.results_election,
+                manifest,
+                dataset,
+                locale
+            ),
+        [areaElectionSummaries, dataset, locale, manifest]
+    )
     const pageClassName = [
         "seq-results-page",
         entityClassName("event", manifest.election_event_id),

@@ -77,6 +77,11 @@ pub struct ResultsElection {
     pub annotations: Option<Value>,
     pub total_voters_percent: Option<NotNan<f64>>,
     pub documents: Option<ResultDocuments>,
+    /// Ballots cast blank in every contest, at election level. `None` when
+    /// unavailable (e.g. a tally-sheet ballot box didn't supply a count),
+    /// distinct from a determined zero.
+    pub blank_ballots: Option<i64>,
+    pub blank_ballots_percent: Option<NotNan<f64>>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -91,6 +96,11 @@ pub struct ResultsElectionArea {
     pub last_updated_at: Option<DateTime<Local>>,
     pub documents: Option<ResultDocuments>,
     pub name: Option<String>,
+    /// Ballots cast blank in every contest, in this area. `None` when
+    /// unavailable (e.g. a tally-sheet ballot box didn't supply a count),
+    /// distinct from a determined zero.
+    pub blank_ballots: Option<i64>,
+    pub blank_ballots_percent: Option<NotNan<f64>>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]

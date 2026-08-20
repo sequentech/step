@@ -678,10 +678,11 @@ impl Pipe for DoTally {
 // Tally result types live in `velvet-core` so they can be shared with WASM
 // consumers (the workbench). Re-exported here to preserve the existing
 // `crate::pipes::do_tally::{ContestResult, CandidateResult, InvalidVotes,
-// ExtendedMetricsContest, ExtendedMetricsElection}` import paths inside
-// velvet.
+// ExtendedMetricsContest}` import paths inside velvet. (`total_blank_ballots`
+// forward-ported from main #2989; `ExtendedMetricsElection` removed there as
+// dead — both now reflected in velvet-core's `result.rs`.)
 pub use velvet_core::result::{
-    CandidateResult, ContestResult, ExtendedMetricsContest, ExtendedMetricsElection, InvalidVotes,
+    CandidateResult, ContestResult, ExtendedMetricsContest, InvalidVotes,
 };
 
 // `HasId` is velvet-internal so the impls remain here.
@@ -741,6 +742,22 @@ mod tests {
                 .get(&TallySheetVotingChannel::PAPER.into()),
             Some(&4)
         );
+    }
+
+    #[test]
+    fn extended_metrics_aggregate_sums_blank_ballots_across_areas() {
+        let left = ExtendedMetricsContest {
+            total_blank_ballots: 2,
+            ..Default::default()
+        };
+        let right = ExtendedMetricsContest {
+            total_blank_ballots: 3,
+            ..Default::default()
+        };
+
+        let aggregate = left.aggregate(&right);
+
+        assert_eq!(aggregate.total_blank_ballots, 5);
     }
 
     #[test]

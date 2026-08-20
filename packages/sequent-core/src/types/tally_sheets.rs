@@ -4,6 +4,7 @@
 #![allow(non_camel_case_types)]
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::str::FromStr;
 use strum_macros::{AsRefStr, Display, EnumString};
@@ -78,6 +79,15 @@ pub struct AreaContestResults {
     pub total_valid_votes: Option<u64>,
     pub invalid_votes: Option<InvalidVotes>,
     pub total_blank_votes: Option<u64>,
+    /// Ballots cast blank in every contest, in this area. A ballot-box
+    /// property, not a contest property: the same value is replicated
+    /// across every contest sheet of one (channel, area). `None` where a
+    /// tally-sheet ballot box did not supply it.
+    pub blank_ballots: Option<u64>,
     pub census: Option<u64>,
     pub candidate_results: HashMap<String, CandidateResults>,
+    /// Free-form extra data from the source tally system that doesn't have
+    /// a dedicated field
+    #[serde(default)]
+    pub annotations: Option<Value>,
 }
