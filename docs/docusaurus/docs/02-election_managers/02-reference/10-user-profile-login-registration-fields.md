@@ -158,12 +158,37 @@ On radio-button and checkbox attributes:
 |---|---|
 | `default` | Initial value. Registration only; ignored on the attribute-based login form. |
 | `confirm` | Renders a second input for the same attribute. The value is the confirmation field's label. |
-| `html-attribute:<name>` | Sets an arbitrary HTML attribute, e.g. `html-attribute:autocomplete` = `off`. Applies to text and HTML5 inputs only — dropdowns, radio buttons, checkboxes and text areas ignore it. On the attribute-based login page it overrides the theme's own `autocomplete`. |
+| `html-attribute:<name>` | Sets an arbitrary HTML attribute, e.g. `html-attribute:autocomplete` = `bday`. Applies to text and HTML5 inputs only — dropdowns, radio buttons, checkboxes and text areas ignore it. On the attribute-based login page it overrides the theme's own `autocomplete` — see [Autofill and the login page](#autofill-and-the-login-page). |
 | `hidden` = `true` | The attribute is not rendered on the registration page. It is still stored and still usable for matching. |
 
 The **Deferred Registration User Creation** form action's **Hidden Profile Attributes** setting
 hides a comma-separated list of attributes from the registration form and ignores them if User
 Profile marks them required.
+
+---
+
+## Autofill and the login page
+
+The attribute-based login page sets `autocomplete="off"` on its match fields, so a shared device
+does not offer the previous voter's values.
+
+That default suppresses autofill for every field, including ones a browser could fill correctly.
+Where an attribute maps to a standard autofill purpose, declare it so the browser can fill it and
+assistive technology can identify it:
+
+| Attribute holds | Annotation to set |
+|---|---|
+| A date of birth | `html-attribute:autocomplete` = `bday` |
+| A phone number | `html-attribute:autocomplete` = `tel` |
+| An email address | `html-attribute:autocomplete` = `email` |
+| A given or family name | `html-attribute:autocomplete` = `given-name` / `family-name` |
+
+The annotation overrides the page's `autocomplete="off"` for that field only. Attributes with no
+standard purpose — a national ID or a member number — have no token and keep the default.
+
+This is a deployment decision. WCAG 2.1 success criterion 1.3.5 (Identify Input Purpose, AA)
+expects the token wherever one exists, so a remote election should declare them. A kiosk or
+shared-device deployment may prefer the default everywhere and accept that gap.
 
 ---
 

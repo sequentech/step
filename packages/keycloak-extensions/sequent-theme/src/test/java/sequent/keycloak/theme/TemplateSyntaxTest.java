@@ -461,6 +461,24 @@ class TemplateSyntaxTest {
   }
 
   @Test
+  void localeSelectorIconsAreMarkedDecorative() throws IOException {
+    // Two data-URI icons sit inside a button that already carries its own visible label. The
+    // aria-hidden inside the encoded SVG applies to the image's own document, not to the img
+    // element in the page, so it has to be declared on the element too.
+    String template =
+        Files.readString(THEME_ROOT.resolve("sequent.admin-portal/login/template.ftl"));
+    Matcher images = Pattern.compile("<img\\b[^>]*>").matcher(template);
+    int count = 0;
+    while (images.find()) {
+      String tag = images.group();
+      count++;
+      assertTrue(tag.contains("alt=\"\""), "img without empty alt: " + tag.substring(0, 60));
+      assertTrue(tag.contains("aria-hidden=\"true\""), "img without aria-hidden");
+    }
+    assertTrue(count > 0, "expected the locale selector icons");
+  }
+
+  @Test
   void multiAttributeLoginRendersConfiguredHelperText() throws IOException, TemplateException {
     Map<String, Object> model = baseModel("standard");
     model.put("matchAttributes", List.of("dateOfBirth"));
