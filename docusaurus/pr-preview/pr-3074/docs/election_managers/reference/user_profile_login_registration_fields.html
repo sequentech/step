@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Configuring Login and Registration Fields | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3074/docs/election_managers/reference/user_profile_login_registration_fields"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Configuring Login and Registration Fields | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3074/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3074/docs/election_managers/reference/user_profile_login_registration_fields"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3074/docs/election_managers/reference/user_profile_login_registration_fields" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3074/docs/election_managers/reference/user_profile_login_registration_fields" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Configuring Login and Registration Fields","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3074/docs/election_managers/reference/user_profile_login_registration_fields"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3074/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/pr-preview/pr-3074/assets/js/runtime~main.12500b45.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3074/assets/js/runtime~main.445a4b25.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3074/assets/js/main.a6799b65.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -44,7 +44,14 @@ below.</p>
 <p>An attribute listed in <strong>User attributes to match</strong> that does <strong>not</strong> exist in the realm&#x27;s User
 Profile still works for matching, but it can only render as a plain text field with its raw
 attribute name as the label. Declare it in User Profile to get a proper label, a proper input
-type, and translations.</p>
+type, and translations. It also stays mandatory to match regardless of the required setting
+described under <a href="#required-fields" class="">Required fields</a>.</p>
+</blockquote>
+<blockquote>
+<p>⚠️ <strong>Match attributes must hold a single value.</strong> Matching compares one submitted value per
+attribute, so a <code>multiselect</code> or <code>multiselect-checkboxes</code> attribute used in <strong>User attributes to
+match</strong> would have everything after its first selected value silently ignored. Use the scalar
+input types for attributes you match on; the multi-value types are for the registration form.</p>
 </blockquote>
 <hr>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="choosing-the-input-type">Choosing the input type<a href="#choosing-the-input-type" class="hash-link" aria-label="Direct link to Choosing the input type" title="Direct link to Choosing the input type" translate="no">​</a></h2>
@@ -114,11 +121,13 @@ field:</p>
 <table><thead><tr><th>Annotation</th><th>Effect</th></tr></thead><tbody><tr><td><code>disableAttribute</code></td><td>Ticking the option makes the named field read-only (and clears it); unticking restores it</td></tr><tr><td><code>disableElement</code></td><td>Ticking the option disables the named field entirely</td></tr></tbody></table>
 <hr>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="other-field-annotations">Other field annotations<a href="#other-field-annotations" class="hash-link" aria-label="Direct link to Other field annotations" title="Direct link to Other field annotations" translate="no">​</a></h2>
-<table><thead><tr><th>Annotation</th><th>Effect</th></tr></thead><tbody><tr><td><code>default</code></td><td>A value the field starts out with when the form is first opened</td></tr><tr><td><code>confirm</code></td><td>Renders a <strong>second</strong> input for the same attribute, so the voter has to type it twice. The annotation&#x27;s value is the label (or translation key) for the confirmation field.</td></tr><tr><td><code>html-attribute:&lt;name&gt;</code></td><td>Puts an arbitrary HTML attribute on the input, e.g. <code>html-attribute:autocomplete</code> = <code>off</code></td></tr></tbody></table>
+<table><thead><tr><th>Annotation</th><th>Effect</th></tr></thead><tbody><tr><td><code>default</code></td><td>A value the field starts out with when the form is first opened. <strong>Registration only</strong> — the attribute-based login form ignores it, since prefilling a value the voter is being asked to match would defeat the match.</td></tr><tr><td><code>confirm</code></td><td>Renders a <strong>second</strong> input for the same attribute, so the voter has to type it twice. The annotation&#x27;s value is the label (or translation key) for the confirmation field.</td></tr><tr><td><code>html-attribute:&lt;name&gt;</code></td><td>Puts an arbitrary HTML attribute on the input, e.g. <code>html-attribute:autocomplete</code> = <code>off</code></td></tr></tbody></table>
 <hr>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="the-password-or-pin-field">The password or PIN field<a href="#the-password-or-pin-field" class="hash-link" aria-label="Direct link to The password or PIN field" title="Direct link to The password or PIN field" translate="no">​</a></h2>
-<p>The password field is not a User Profile attribute — it is added by the registration form itself.
-Four annotations, set on the attribute the password box appears <em>underneath</em>, control it:</p>
+<p>The password field is not a User Profile attribute. Both pages add it themselves: the login page
+renders it directly, and the registration form places it relative to a profile field. The four
+annotations below apply to the <strong>registration</strong> form, where the password box is positioned
+underneath a chosen attribute:</p>
 <table><thead><tr><th>Annotation</th><th>Effect</th></tr></thead><tbody><tr><td><code>showPasswordAfterThis</code></td><td>Where the password box goes. It defaults to right after <code>username</code> (or after <code>email</code> when the realm uses email as username). Set it to <code>false</code> on that attribute to suppress it there, or to <code>true</code> on a different attribute to move it there.</td></tr><tr><td><code>passwordHelperTextBefore</code></td><td>Text above the password box</td></tr><tr><td><code>passwordHelperTextAfter</code></td><td>Text below the password box</td></tr><tr><td><code>passwordStrengthBar</code></td><td>Shows a live password-strength meter under the box. Registration only — it is never shown when the form is in login mode.</td></tr></tbody></table>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="structured-pin-input">Structured PIN input<a href="#structured-pin-input" class="hash-link" aria-label="Direct link to Structured PIN input" title="Direct link to Structured PIN input" translate="no">​</a></h3>
 <p>The password box can be presented as a <strong>structured PIN</strong> — a row of fixed-length digit groups
