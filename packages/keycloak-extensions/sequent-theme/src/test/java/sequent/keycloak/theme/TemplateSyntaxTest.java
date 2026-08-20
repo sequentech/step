@@ -368,6 +368,99 @@ class TemplateSyntaxTest {
   }
 
   @Test
+  void credentialFieldRendersFirstOnLoginWhenConfigured() throws IOException, TemplateException {
+    for (String portal : List.of("sequent.admin-portal", "sequent.voting-portal")) {
+      Map<String, Object> model = credentialFirstModel();
+      model.put("matchAttributes", List.of("dateOfBirth", "nationalId"));
+      model.put(
+          "profile",
+          profileWithAttributes(
+              mockAttribute("dateOfBirth", "${dateOfBirth}", Map.of("inputType", "html5-date")),
+              mockAttribute("nationalId", "${nationalId}", Map.of())));
+      String html = renderLogin(portal, model);
+
+      assertTrue(html.indexOf("id=\"password\"") < html.indexOf("id=\"dateOfBirth\""));
+      assertTrue(html.indexOf("id=\"dateOfBirth\"") < html.indexOf("id=\"nationalId\""));
+      // exactly one credential field, and focus moved onto it
+      assertEquals(1, html.split("id=\"password\"", -1).length - 1);
+      assertEquals(1, html.split("autofocus", -1).length - 1);
+      assertTrue(inputTagFor(html, "password").contains("autofocus"));
+    }
+  }
+
+  @Test
+  void credentialFieldStaysLastOnLoginByDefault() throws IOException, TemplateException {
+    Map<String, Object> model = baseModel("standard");
+    model.put("matchAttributes", List.of("dateOfBirth"));
+    model.put(
+        "profile",
+        profileWithAttributes(
+            mockAttribute("dateOfBirth", "${dateOfBirth}", Map.of("inputType", "html5-date"))));
+    String html = renderVotingPortalLogin(model);
+
+    assertTrue(html.indexOf("id=\"dateOfBirth\"") < html.indexOf("id=\"password\""));
+    assertTrue(inputTagFor(html, "dateOfBirth").contains("autofocus"));
+  }
+
+  @Test
+  void credentialFieldRendersFirstOnRegistrationWhenConfigured()
+      throws IOException, TemplateException {
+    Map<String, Object> model = credentialFirstModel();
+    model.put("formMode", "LOGIN");
+    model.put("passwordRequired", true);
+    model.put(
+        "profile",
+        Map.of(
+            "attributes",
+            List.of(
+                mockAttribute("username", "${username}", Map.of()),
+                mockAttribute("dateOfBirth", "${dateOfBirth}", Map.of("inputType", "html5-date"))),
+            "html5DataAnnotations",
+            Map.of()));
+    String html = renderRegister(model);
+
+    assertTrue(html.indexOf("id=\"password\"") < html.indexOf("id=\"username\""));
+    assertEquals(1, html.split("id=\"password\"", -1).length - 1);
+  }
+
+  @Test
+  void showPasswordAfterThisOverridesCredentialFirst() throws IOException, TemplateException {
+    // The annotation always wins, so realms configured before the setting existed are unaffected.
+    Map<String, Object> model = credentialFirstModel();
+    model.put("formMode", "LOGIN");
+    model.put("passwordRequired", true);
+    model.put(
+        "profile",
+        Map.of(
+            "attributes",
+            List.of(
+                mockAttribute("username", "${username}", Map.of("showPasswordAfterThis", "false")),
+                mockAttribute(
+                    "dateOfBirth",
+                    "${dateOfBirth}",
+                    Map.of("inputType", "html5-date", "showPasswordAfterThis", "true"))),
+            "html5DataAnnotations",
+            Map.of()));
+    String html = renderRegister(model);
+
+    // The annotation places it after dateOfBirth, not first, even though the realm asks for FIRST.
+    assertTrue(html.indexOf("id=\"dateOfBirth\"") < html.indexOf("id=\"password\""));
+    assertTrue(html.indexOf("id=\"username\"") < html.indexOf("id=\"password\""));
+    assertEquals(1, html.split("id=\"password\"", -1).length - 1);
+  }
+
+  /** baseModel with the realm opted in to a credential-first layout. */
+  private static Map<String, Object> credentialFirstModel() {
+    Map<String, Object> model = baseModel("standard");
+    Map<String, Object> realm = new HashMap<>((Map<String, Object>) model.get("realm"));
+    Map<String, Object> attributes = new HashMap<>((Map<String, Object>) realm.get("attributes"));
+    attributes.put("credential-field-position", "FIRST");
+    realm.put("attributes", attributes);
+    model.put("realm", realm);
+    return model;
+  }
+
+  @Test
   void multiAttributeLoginRendersConfiguredHelperText() throws IOException, TemplateException {
     Map<String, Object> model = baseModel("standard");
     model.put("matchAttributes", List.of("dateOfBirth"));

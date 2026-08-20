@@ -230,9 +230,24 @@ attribute:
 
 | Annotation | Effect |
 |---|---|
-| `showPasswordAfterThis` | Position of the password box. Defaults to after `username` (or `email` when used as username). Set `false` on that attribute to suppress it, or `true` on another attribute to move it. |
+| `showPasswordAfterThis` | Position of the password box. Defaults to after `username` (or `email` when used as username). Set `false` on that attribute to suppress it, or `true` on another attribute to move it. Always wins over `credential-field-position`. |
 | `passwordHelperTextBefore` / `passwordHelperTextAfter` | Text above / below the password box |
 | `passwordStrengthBar` | Password-strength meter. Registration only. |
+
+### Putting the credential first
+
+By default the password or PIN box sits after the identity fields. Set the realm attribute
+`credential-field-position` to `FIRST` to put it above them, with the page's initial focus on it —
+useful where a PIN from a voter letter is the primary thing being entered.
+
+| `credential-field-position` | Effect |
+|---|---|
+| `LAST` (default) | Credential after the fields, focus on the first field |
+| `FIRST` | Credential before the fields, focus on the credential |
+
+It applies to the attribute-based login page and to the registration form, not to the ordinary
+username and password login page. On the registration form an attribute declaring
+`showPasswordAfterThis` keeps its placement and this setting is ignored.
 
 ### Structured PIN input
 
@@ -260,6 +275,7 @@ For the pattern grammar and limits, see
 |---|---|---|
 | [Attribute-based login](../01-tutorials/101-admin_portal_tutorials_multi-attribute-password-login.md) | **Multi-Attribute + Password Form** authenticator | Replaces the username field with User Profile attribute fields |
 | [Structured PIN](../../07-developers/06-keycloak/structured_pin_login.md) | `credential-input-*` realm attributes | Password box becomes fixed-length digit groups |
+| Credential position | Realm attribute `credential-field-position` | Renders the credential above the match fields and focuses it |
 | Locked username | Realm attribute `loginHintUsernamePolicy` = `READ_ONLY` | Username is prefilled and read-only |
 | [Digital certificate login](../../07-developers/06-keycloak/x509_client_cert_architecture.md) | Realm attribute `voter-certificate-policy` = `enabled` | Shows the **digital-certificates** provider button; hidden while `disabled` |
 | Other identity providers | Keycloak **Identity providers** | Each enabled provider adds a button below the form |

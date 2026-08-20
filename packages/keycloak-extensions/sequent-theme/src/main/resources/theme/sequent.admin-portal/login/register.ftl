@@ -15,6 +15,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 <#import "social-providers.ftl" as socialProviders>
 <#assign loginMode = formMode?? && formMode == 'LOGIN'>
 <#assign passwordRequired = passwordRequired!false>
+<#--  An attribute that explicitly declares showPasswordAfterThis keeps its placement: that
+      annotation always wins over credential-field-position, so realms configured before the
+      setting existed render exactly as they did.  -->
+<#assign explicitPasswordAnchor = profile.attributes?filter(a -> (a.annotations.showPasswordAfterThis!'false') == 'true')?has_content>
+<#assign credentialFirst = passwordRequired
+    && (realm.attributes['credential-field-position']!'LAST') == 'FIRST'
+    && !explicitPasswordAnchor>
 <#assign structuredCredentialLogin = loginMode && passwordRequired && (realm.attributes['credential-input-policy']!'standard') == 'structured'>
 <#assign credentialFieldError = messagesPerField.existsError('username','password')>
 <#assign structuredCredentialHasError = structuredCredentialLogin && credentialFieldError>
@@ -28,10 +35,12 @@ SPDX-License-Identifier: AGPL-3.0-only
     <#elseif section = "form">
         <form id="kc-register-form" class="${properties.kcFormClass!}" action="${url.registrationAction}" method="post">
 
+            <#assign credentialEmitted = false>
             <@userProfileCommons.userProfileFormFields; callback, attribute>
-                <#if callback = "afterField">
+                <#if callback = "afterField" || (callback = "beforeField" && credentialFirst && !credentialEmitted)>
                     <#-- render password fields just under the username or email (if used as username) -->
-                    <#if passwordRequired && (attribute.name == 'username' || (attribute.name == 'email' && realm.registrationEmailAsUsername)) && (attribute.annotations.showPasswordAfterThis!'true') != 'false' || (attribute.annotations.showPasswordAfterThis!'false') == 'true'>
+                    <#if callback = "beforeField" || (!credentialFirst && passwordRequired && (attribute.name == 'username' || (attribute.name == 'email' && realm.registrationEmailAsUsername)) && (attribute.annotations.showPasswordAfterThis!'true') != 'false') || (attribute.annotations.showPasswordAfterThis!'false') == 'true'>
+                        <#assign credentialEmitted = true>
                             <div class="${properties.kcFormGroupClass!}">
                                 <div class="${properties.kcLabelWrapperClass!}">
                                     <label id="structured-credential-label" for="password" class="${properties.kcLabelClass!}"><#if structuredCredentialLogin>${msg("structuredCredentialLabel")}<#else>${msg("password")}</#if></label> *

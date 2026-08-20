@@ -12,7 +12,38 @@ SPDX-License-Identifier: AGPL-3.0-only
 <#--  An attribute with no User Profile declaration stays mandatory in the authenticator
       (see MultiAttributePasswordAuthenticator#optionalAttributes), so it counts as required
       here too - the form must never show a field as optional that matching demands.  -->
+<#assign credentialFirst = (realm.attributes['credential-field-position']!'LAST') == 'FIRST'
+    && matchAttributes?? && matchAttributes?has_content>
 <#assign matchAttributesHaveRequired = honorUserProfileRequired?? && matchAttributes?? && matchAttributes?filter(name -> !profile.attributesByName[name]?? || profile.attributesByName[name].required)?has_content>
+<#--  The credential block is invoked in one of two positions, chosen by the realm's
+      credential-field-position attribute. Kept as a local macro rather than a shared one: the two
+      portals' credential markup differs, and only the voting portal supports the structured PIN.  -->
+<#macro credentialField autofocus=false>
+                    <div class="${properties.kcFormGroupClass!}">
+                        <label for="password" class="${properties.kcLabelClass!}">${msg("password")}</label>
+
+                        <div class="${properties.kcInputGroup!}">
+                            <input id="password"<#if autofocus> autofocus</#if> class="${properties.kcInputClass!}" name="password" type="password"
+                                    autocomplete="off"
+                                   aria-invalid="<#if messagesPerField.existsError('username','password')>true</#if>"
+                            />
+                            <button class="${properties.kcFormPasswordVisibilityButtonClass!}" type="button" aria-label="${msg("showPassword")}"
+                                    aria-controls="password" data-password-toggle
+                                    data-icon-show="${properties.kcFormPasswordVisibilityIconShow!}" data-icon-hide="${properties.kcFormPasswordVisibilityIconHide!}"
+                                    data-label-show="${msg('showPassword')}" data-label-hide="${msg('hidePassword')}">
+                                <i class="${properties.kcFormPasswordVisibilityIconShow!}" aria-hidden="true"></i>
+                            </button>
+                        </div>
+
+                        <#if usernameHidden?? && messagesPerField.existsError('username','password')>
+                            <span id="input-error" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
+                                    ${kcSanitize(messagesPerField.getFirstError('username','password'))?no_esc}
+                            </span>
+                        </#if>
+
+                    </div>
+</#macro>
+
 <@layout.registrationLayout displayMessage=!messagesPerField.existsError('username','password') displayInfo=realm.password && realm.registrationAllowed && !registrationDisabled?? displayRequiredFields=matchAttributesHaveRequired displaySocialProviders=social.providers?has_content; section>
     <#if section = "header">
         ${msg("loginAccountTitle")}
@@ -26,18 +57,19 @@ SPDX-License-Identifier: AGPL-3.0-only
                             <@telInputWidget.assets/>
                             <@selectFilterWidget.assets/>
 
+                            <#if credentialFirst><@credentialField autofocus=true/></#if>
                             <#list matchAttributes as name>
                                 <#if profile.attributesByName[name]??>
                                     <#assign matchAttribute = profile.attributesByName[name]>
                                     <#assign matchAttributeRequired = honorUserProfileRequired?? && matchAttribute.required>
-                                    <@userProfileCommons.inputFieldWithLabel attribute=matchAttribute name=name values=matchAttribute.values required=matchAttributeRequired requiredMarker=matchAttributeRequired autofocus=(name?index == 0) autocomplete="off"/>
+                                    <@userProfileCommons.inputFieldWithLabel attribute=matchAttribute name=name values=matchAttribute.values required=matchAttributeRequired requiredMarker=matchAttributeRequired autofocus=(!credentialFirst && name?index == 0) autocomplete="off"/>
                                 <#else>
                                     <#-- Not declared in the realm's User Profile - still usable for matching, rendered as a plain text field -->
                                     <div class="${properties.kcFormGroupClass!}">
                                         <label for="${name}" class="${properties.kcLabelClass!}">${msg(name)}</label><#if honorUserProfileRequired??> *</#if>
                                         <input id="${name}" class="${properties.kcInputClass!}" name="${name}" type="text" autocomplete="off"
                                                <#if honorUserProfileRequired??>required</#if>
-                                               <#if name?index == 0>autofocus</#if>
+                                               <#if !credentialFirst && name?index == 0>autofocus</#if>
                                                aria-invalid="<#if messagesPerField.existsError('username','password')>true</#if>"
                                         />
                                     </div>
@@ -77,29 +109,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                         </#if>
                     </#if>
 
-                    <div class="${properties.kcFormGroupClass!}">
-                        <label for="password" class="${properties.kcLabelClass!}">${msg("password")}</label>
-
-                        <div class="${properties.kcInputGroup!}">
-                            <input id="password" class="${properties.kcInputClass!}" name="password" type="password"
-                                    autocomplete="off"
-                                   aria-invalid="<#if messagesPerField.existsError('username','password')>true</#if>"
-                            />
-                            <button class="${properties.kcFormPasswordVisibilityButtonClass!}" type="button" aria-label="${msg("showPassword")}"
-                                    aria-controls="password" data-password-toggle
-                                    data-icon-show="${properties.kcFormPasswordVisibilityIconShow!}" data-icon-hide="${properties.kcFormPasswordVisibilityIconHide!}"
-                                    data-label-show="${msg('showPassword')}" data-label-hide="${msg('hidePassword')}">
-                                <i class="${properties.kcFormPasswordVisibilityIconShow!}" aria-hidden="true"></i>
-                            </button>
-                        </div>
-
-                        <#if usernameHidden?? && messagesPerField.existsError('username','password')>
-                            <span id="input-error" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
-                                    ${kcSanitize(messagesPerField.getFirstError('username','password'))?no_esc}
-                            </span>
-                        </#if>
-
-                    </div>
+                    <#if !credentialFirst><@credentialField/></#if>
 
                     <div class="${properties.kcFormGroupClass!} ${properties.kcFormSettingClass!}">
                         <div id="kc-form-options">

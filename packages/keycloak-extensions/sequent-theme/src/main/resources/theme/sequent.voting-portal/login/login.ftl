@@ -10,12 +10,60 @@ SPDX-License-Identifier: AGPL-3.0-only
 <#import "select-filter-widget.ftl" as selectFilterWidget>
 <#import "social-providers.ftl" as socialProviders>
 <#assign structuredCredential = (realm.attributes['credential-input-policy']!'standard') == 'structured'>
+<#assign credentialFirst = (realm.attributes['credential-field-position']!'LAST') == 'FIRST'
+    && matchAttributes?? && matchAttributes?has_content>
 <#assign credentialFieldError = messagesPerField.existsError('username','password')>
 <#assign structuredCredentialHasError = structuredCredential && credentialFieldError>
 <#--  An attribute with no User Profile declaration stays mandatory in the authenticator
       (see MultiAttributePasswordAuthenticator#optionalAttributes), so it counts as required
       here too - the form must never show a field as optional that matching demands.  -->
 <#assign matchAttributesHaveRequired = honorUserProfileRequired?? && matchAttributes?? && matchAttributes?filter(name -> !profile.attributesByName[name]?? || profile.attributesByName[name].required)?has_content>
+<#--  The credential block is invoked in one of two positions, chosen by the realm's
+      credential-field-position attribute. Kept as a local macro rather than a shared one: the two
+      portals' credential markup differs, and only this one supports the structured PIN.  -->
+<#macro credentialField autofocus=false>
+                    <div class="${properties.kcFormGroupClass!}">
+                        <label id="structured-credential-label" for="password" class="${properties.kcLabelClass!}"><#if structuredCredential>${msg("structuredCredentialLabel")}<#else>${msg("password")}</#if></label>
+
+                        <div class="${properties.kcInputGroup!}"<#if structuredCredential>
+                             data-structured-credential
+                             data-credential-pattern="${realm.attributes['credential-input-pattern']!'dddd-dddd-dddd-dddd'}"
+                             data-credential-input-placeholder="${realm.attributes['credential-input-placeholder']!'d'}"
+                             data-group-status="${msg('structuredCredentialGroupStatus')}"
+                             data-paste-error="${msg('structuredCredentialPasteError')}"
+                             data-format-error="${msg('structuredCredentialFormatError')}"
+                             data-label-id="structured-credential-label"
+                             data-hint-id="structured-credential-hint"
+                             data-error-id="structured-credential-error"</#if>>
+                            <input id="password"<#if autofocus> autofocus</#if> class="${properties.kcInputClass!}" name="password" type="password"
+                                   autocomplete="<#if structuredCredential>current-password<#else>off</#if>"
+                                   <#if structuredCredential>inputmode="numeric"</#if>
+                                   <#if structuredCredential>aria-describedby="structured-credential-hint structured-credential-error"</#if>
+                                   <#if structuredCredentialHasError || credentialFieldError>aria-invalid="true"</#if>
+                            />
+                            <button class="${properties.kcFormPasswordVisibilityButtonClass!}" type="button" aria-label="<#if structuredCredential>${msg('showStructuredCredential')}<#else>${msg('showPassword')}</#if>"
+                                    aria-controls="password" <#if structuredCredential>data-structured-credential-toggle<#else>data-password-toggle</#if>
+                                    data-icon-show="${properties.kcFormPasswordVisibilityIconShow!}" data-icon-hide="${properties.kcFormPasswordVisibilityIconHide!}"
+                                    data-label-show="<#if structuredCredential>${msg('showStructuredCredential')}<#else>${msg('showPassword')}</#if>"
+                                    data-label-hide="<#if structuredCredential>${msg('hideStructuredCredential')}<#else>${msg('hidePassword')}</#if>">
+                                <i class="${properties.kcFormPasswordVisibilityIconShow!}" aria-hidden="true"></i>
+                            </button>
+                        </div>
+
+                        <#if structuredCredential>
+                            <div id="structured-credential-hint" class="structured-credential__hint">${msg("structuredCredentialHint")}</div>
+                            <span id="structured-credential-error" data-structured-credential-error class="${properties.kcInputErrorMessageClass!}" role="alert"<#if !structuredCredentialHasError> hidden</#if>>
+                                ${msg("structuredCredentialError")}
+                            </span>
+                        <#elseif usernameHidden?? && credentialFieldError>
+                            <span id="input-error" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
+                                    ${kcSanitize(messagesPerField.getFirstError('username','password'))?no_esc}
+                            </span>
+                        </#if>
+
+                    </div>
+</#macro>
+
 <@layout.registrationLayout displayMessage=!credentialFieldError displayInfo=realm.password && realm.registrationAllowed && !registrationDisabled?? displayRequiredFields=matchAttributesHaveRequired displaySocialProviders=social.providers?has_content; section>
     <#if section = "header">
         ${msg("loginAccountTitle")}
@@ -36,18 +84,19 @@ SPDX-License-Identifier: AGPL-3.0-only
                             <@telInputWidget.assets/>
                             <@selectFilterWidget.assets/>
 
+                            <#if credentialFirst><@credentialField autofocus=true/></#if>
                             <#list matchAttributes as name>
                                 <#if profile.attributesByName[name]??>
                                     <#assign matchAttribute = profile.attributesByName[name]>
                                     <#assign matchAttributeRequired = honorUserProfileRequired?? && matchAttribute.required>
-                                    <@userProfileCommons.inputFieldWithLabel attribute=matchAttribute name=name values=matchAttribute.values required=matchAttributeRequired requiredMarker=matchAttributeRequired autofocus=(name?index == 0) autocomplete="off"/>
+                                    <@userProfileCommons.inputFieldWithLabel attribute=matchAttribute name=name values=matchAttribute.values required=matchAttributeRequired requiredMarker=matchAttributeRequired autofocus=(!credentialFirst && name?index == 0) autocomplete="off"/>
                                 <#else>
                                     <#-- Not declared in the realm's User Profile - still usable for matching, rendered as a plain text field -->
                                     <div class="${properties.kcFormGroupClass!}">
                                         <label for="${name}" class="${properties.kcLabelClass!}">${msg(name)}</label><#if honorUserProfileRequired??> *</#if>
                                         <input id="${name}" class="${properties.kcInputClass!}" name="${name}" type="text" autocomplete="off"
                                                <#if honorUserProfileRequired??>required</#if>
-                                               <#if name?index == 0>autofocus</#if>
+                                               <#if !credentialFirst && name?index == 0>autofocus</#if>
                                                <#if credentialFieldError>aria-invalid="true"</#if>
                                         />
                                     </div>
@@ -89,46 +138,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                         </#if>
                     </#if>
 
-                    <div class="${properties.kcFormGroupClass!}">
-                        <label id="structured-credential-label" for="password" class="${properties.kcLabelClass!}"><#if structuredCredential>${msg("structuredCredentialLabel")}<#else>${msg("password")}</#if></label>
-
-                        <div class="${properties.kcInputGroup!}"<#if structuredCredential>
-                             data-structured-credential
-                             data-credential-pattern="${realm.attributes['credential-input-pattern']!'dddd-dddd-dddd-dddd'}"
-                             data-credential-input-placeholder="${realm.attributes['credential-input-placeholder']!'d'}"
-                             data-group-status="${msg('structuredCredentialGroupStatus')}"
-                             data-paste-error="${msg('structuredCredentialPasteError')}"
-                             data-format-error="${msg('structuredCredentialFormatError')}"
-                             data-label-id="structured-credential-label"
-                             data-hint-id="structured-credential-hint"
-                             data-error-id="structured-credential-error"</#if>>
-                            <input id="password" class="${properties.kcInputClass!}" name="password" type="password"
-                                   autocomplete="<#if structuredCredential>current-password<#else>off</#if>"
-                                   <#if structuredCredential>inputmode="numeric"</#if>
-                                   <#if structuredCredential>aria-describedby="structured-credential-hint structured-credential-error"</#if>
-                                   <#if structuredCredentialHasError || credentialFieldError>aria-invalid="true"</#if>
-                            />
-                            <button class="${properties.kcFormPasswordVisibilityButtonClass!}" type="button" aria-label="<#if structuredCredential>${msg('showStructuredCredential')}<#else>${msg('showPassword')}</#if>"
-                                    aria-controls="password" <#if structuredCredential>data-structured-credential-toggle<#else>data-password-toggle</#if>
-                                    data-icon-show="${properties.kcFormPasswordVisibilityIconShow!}" data-icon-hide="${properties.kcFormPasswordVisibilityIconHide!}"
-                                    data-label-show="<#if structuredCredential>${msg('showStructuredCredential')}<#else>${msg('showPassword')}</#if>"
-                                    data-label-hide="<#if structuredCredential>${msg('hideStructuredCredential')}<#else>${msg('hidePassword')}</#if>">
-                                <i class="${properties.kcFormPasswordVisibilityIconShow!}" aria-hidden="true"></i>
-                            </button>
-                        </div>
-
-                        <#if structuredCredential>
-                            <div id="structured-credential-hint" class="structured-credential__hint">${msg("structuredCredentialHint")}</div>
-                            <span id="structured-credential-error" data-structured-credential-error class="${properties.kcInputErrorMessageClass!}" role="alert"<#if !structuredCredentialHasError> hidden</#if>>
-                                ${msg("structuredCredentialError")}
-                            </span>
-                        <#elseif usernameHidden?? && credentialFieldError>
-                            <span id="input-error" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
-                                    ${kcSanitize(messagesPerField.getFirstError('username','password'))?no_esc}
-                            </span>
-                        </#if>
-
-                    </div>
+                    <#if !credentialFirst><@credentialField/></#if>
 
                     <div class="${properties.kcFormGroupClass!} ${properties.kcFormSettingClass!}">
                         <div id="kc-form-options">
