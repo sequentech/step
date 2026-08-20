@@ -40,14 +40,18 @@ SPDX-License-Identifier: AGPL-3.0-only
                     },
                     hiddenInput: () => ({ phone: id, country: "country_code" }),
                     geoIpLookup: function(success, failure) {
-                        const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                        <#--  A timezone with no entry in the map, or a map that failed to load,
+                              must fall through to failure() rather than throw - otherwise the
+                              widget is left without an initial country.  -->
+                        try {
+                            const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                            let timezoneCountrycodeData = typeof data !== 'undefined' ? JSON.parse(data) : {};
+                            let countryCode = timezoneCountrycodeData[userTimeZone]?.toString();
 
-                        let timezoneCountrycodeData = JSON.parse(data);
-                        let countryCode = timezoneCountrycodeData[userTimeZone].toString();
-
-                        if (countryCode) {
-                            return success(countryCode);
-                        }
+                            if (countryCode) {
+                                return success(countryCode);
+                            }
+                        } catch (e) {}
                         return failure();
                     },
                 });

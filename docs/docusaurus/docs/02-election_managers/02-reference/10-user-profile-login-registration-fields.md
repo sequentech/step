@@ -63,7 +63,13 @@ below.
 > An attribute listed in **User attributes to match** that does **not** exist in the realm's User
 > Profile still works for matching, but it can only render as a plain text field with its raw
 > attribute name as the label. Declare it in User Profile to get a proper label, a proper input
-> type, and translations.
+> type, and translations. It also stays mandatory to match regardless of the required setting
+> described under [Required fields](#required-fields).
+
+> ⚠️ **Match attributes must hold a single value.** Matching compares one submitted value per
+> attribute, so a `multiselect` or `multiselect-checkboxes` attribute used in **User attributes to
+> match** would have everything after its first selected value silently ignored. Use the scalar
+> input types for attributes you match on; the multi-value types are for the registration form.
 
 ---
 
@@ -199,7 +205,7 @@ field:
 
 | Annotation | Effect |
 |---|---|
-| `default` | A value the field starts out with when the form is first opened |
+| `default` | A value the field starts out with when the form is first opened. **Registration only** — the attribute-based login form ignores it, since prefilling a value the voter is being asked to match would defeat the match. |
 | `confirm` | Renders a **second** input for the same attribute, so the voter has to type it twice. The annotation's value is the label (or translation key) for the confirmation field. |
 | `html-attribute:<name>` | Puts an arbitrary HTML attribute on the input, e.g. `html-attribute:autocomplete` = `off` |
 
@@ -207,8 +213,10 @@ field:
 
 ## The password or PIN field
 
-The password field is not a User Profile attribute — it is added by the registration form itself.
-Four annotations, set on the attribute the password box appears *underneath*, control it:
+The password field is not a User Profile attribute. Both pages add it themselves: the login page
+renders it directly, and the registration form places it relative to a profile field. The four
+annotations below apply to the **registration** form, where the password box is positioned
+underneath a chosen attribute:
 
 | Annotation | Effect |
 |---|---|

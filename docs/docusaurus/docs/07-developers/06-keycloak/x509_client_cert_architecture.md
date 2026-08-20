@@ -211,7 +211,7 @@ three places and must stay in sync:
 - **Theme template** — `social-providers.ftl` (shared by `register.ftl` and both
   portals' `login.ftl`) filters the IDP out of the social-providers list when
   `voter-certificate-policy` is not `enabled`:
-  ```
+  ```text
   p.alias != 'digital-certificates'
   ```
 - **Rust constant** — `sequent_core::types::keycloak::CERTIFICATES_IDP_ALIAS`

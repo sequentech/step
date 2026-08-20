@@ -12,7 +12,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 <#assign structuredCredential = (realm.attributes['credential-input-policy']!'standard') == 'structured'>
 <#assign credentialFieldError = messagesPerField.existsError('username','password')>
 <#assign structuredCredentialHasError = structuredCredential && credentialFieldError>
-<#assign matchAttributesHaveRequired = honorUserProfileRequired?? && matchAttributes?? && matchAttributes?filter(name -> profile.attributesByName[name]?? && profile.attributesByName[name].required)?has_content>
+<#--  An attribute with no User Profile declaration stays mandatory in the authenticator
+      (see MultiAttributePasswordAuthenticator#optionalAttributes), so it counts as required
+      here too - the form must never show a field as optional that matching demands.  -->
+<#assign matchAttributesHaveRequired = honorUserProfileRequired?? && matchAttributes?? && matchAttributes?filter(name -> !profile.attributesByName[name]?? || profile.attributesByName[name].required)?has_content>
 <@layout.registrationLayout displayMessage=!credentialFieldError displayInfo=realm.password && realm.registrationAllowed && !registrationDisabled?? displayRequiredFields=matchAttributesHaveRequired displaySocialProviders=social.providers?has_content; section>
     <#if section = "header">
         ${msg("loginAccountTitle")}
@@ -41,8 +44,9 @@ SPDX-License-Identifier: AGPL-3.0-only
                                 <#else>
                                     <#-- Not declared in the realm's User Profile - still usable for matching, rendered as a plain text field -->
                                     <div class="${properties.kcFormGroupClass!}">
-                                        <label for="${name}" class="${properties.kcLabelClass!}">${msg(name)}</label>
+                                        <label for="${name}" class="${properties.kcLabelClass!}">${msg(name)}</label><#if honorUserProfileRequired??> *</#if>
                                         <input tabindex="${name?index + 1}" id="${name}" class="${properties.kcInputClass!}" name="${name}" type="text" autocomplete="off"
+                                               <#if honorUserProfileRequired??>required</#if>
                                                <#if name?index == 0>autofocus</#if>
                                                <#if credentialFieldError>aria-invalid="true"</#if>
                                         />

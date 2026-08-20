@@ -223,11 +223,13 @@ class TemplateSyntaxTest {
     model.put("matchAttributes", List.of("mobile"));
     model.put(
         "profile",
-        profileWithAttributes(mockAttribute("mobile", "${mobile}", Map.of("inputType", "html5-tel"))));
+        profileWithAttributes(
+            mockAttribute("mobile", "${mobile}", Map.of("inputType", "html5-tel"))));
     String html = renderVotingPortalLogin(model);
 
     assertTrue(html.contains("type=\"tel\""));
-    assertTrue(html.indexOf("querySelectorAll(\"input[type='tel']\")") < html.indexOf("type=\"tel\""));
+    assertTrue(
+        html.indexOf("querySelectorAll(\"input[type='tel']\")") < html.indexOf("type=\"tel\""));
     assertTrue(html.contains("addEventListener('DOMContentLoaded'"));
   }
 
@@ -243,13 +245,31 @@ class TemplateSyntaxTest {
         "profile",
         Map.of(
             "attributes",
-            List.of(mockAttribute("dateOfBirth", "${dateOfBirth}", Map.of("inputType", "html5-date"))),
+            List.of(
+                mockAttribute("dateOfBirth", "${dateOfBirth}", Map.of("inputType", "html5-date"))),
             "html5DataAnnotations",
             Map.of()));
     String html = renderRegister(model);
 
     assertFalse(html.contains("autofocus"));
     assertFalse(html.contains("tabindex"));
+  }
+
+  @Test
+  void multiAttributeLoginMarksUndeclaredAttributeRequiredWhenEnabled()
+      throws IOException, TemplateException {
+    // The authenticator keeps an attribute with no User Profile declaration mandatory, so the
+    // fallback field must not present itself as optional.
+    Map<String, Object> model = baseModel("standard");
+    model.put("matchAttributes", List.of("nationalId"));
+    model.put("honorUserProfileRequired", true);
+    model.put("profile", profileWithAttributes());
+    String html = renderVotingPortalLogin(model);
+    String normalized = html.replaceAll("\\s+", " ");
+
+    assertTrue(normalized.contains("</label> *"));
+    assertTrue(normalized.contains("required"));
+    assertTrue(html.contains("requiredFields"));
   }
 
   @Test
@@ -274,7 +294,8 @@ class TemplateSyntaxTest {
                 + " ID</div>"));
     assertTrue(
         html.contains(
-            "id=\"form-help-text-after-dateOfBirth\" aria-live=\"polite\">Format: DD/MM/YYYY</div>"));
+            "id=\"form-help-text-after-dateOfBirth\" aria-live=\"polite\">Format:"
+                + " DD/MM/YYYY</div>"));
   }
 
   @Test
