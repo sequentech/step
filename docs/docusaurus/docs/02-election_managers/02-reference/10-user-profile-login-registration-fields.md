@@ -21,6 +21,9 @@ attribute-based login — there is no second place to configure it.
 This page is the reference for the annotations the Sequent theme supports. For the step-by-step of
 creating an attribute in the first place, see
 [Adding User Attributes to Keycloak](../01-tutorials/99-admin_portal_tutorials_add-user-attributes-to-keycloak.md).
+Features that change these pages in ways User Profile does not control — structured PINs, identity
+provider buttons, terms acceptance, language handling — are surveyed under
+[Other features that change these pages](#other-features-that-change-these-pages).
 
 ---
 
@@ -192,6 +195,51 @@ field:
 
 ---
 
+## Other field annotations
+
+| Annotation | Effect |
+|---|---|
+| `default` | A value the field starts out with when the form is first opened |
+| `confirm` | Renders a **second** input for the same attribute, so the voter has to type it twice. The annotation's value is the label (or translation key) for the confirmation field. |
+| `html-attribute:<name>` | Puts an arbitrary HTML attribute on the input, e.g. `html-attribute:autocomplete` = `off` |
+
+---
+
+## The password or PIN field
+
+The password field is not a User Profile attribute — it is added by the registration form itself.
+Four annotations, set on the attribute the password box appears *underneath*, control it:
+
+| Annotation | Effect |
+|---|---|
+| `showPasswordAfterThis` | Where the password box goes. It defaults to right after `username` (or after `email` when the realm uses email as username). Set it to `false` on that attribute to suppress it there, or to `true` on a different attribute to move it there. |
+| `passwordHelperTextBefore` | Text above the password box |
+| `passwordHelperTextAfter` | Text below the password box |
+| `passwordStrengthBar` | Shows a live password-strength meter under the box. Registration only — it is never shown when the form is in login mode. |
+
+### Structured PIN input
+
+The password box can be presented as a **structured PIN** — a row of fixed-length digit groups
+(e.g. `dddd-dddd-dddd-dddd`) instead of one free-text field, with numeric keyboards on mobile,
+group-by-group navigation, and paste handling.
+
+This is presentation only: it is still the voter's ordinary Keycloak password, stored and verified
+the same way. It is configured with **realm attributes**, not User Profile annotations, and applies
+to the login page and to the registration form in login mode alike:
+
+| Realm attribute | Values | Default |
+|---|---|---|
+| `credential-input-policy` | `standard` or `structured` | `standard` |
+| `credential-input-pattern` | A digit pattern such as `dddd-dddd-dddd-dddd` | `dddd-dddd-dddd-dddd` |
+| `credential-input-placeholder` | The character shown for each empty digit, e.g. `#` | `d` |
+
+Set them in the election event's **Keycloak realm attributes** editor. Removing
+`credential-input-policy`, or setting it to `standard`, restores the ordinary password field. For
+the pattern grammar, its limits, and the full input behavior, see
+[Structured PIN login](../../07-developers/06-keycloak/structured_pin_login.md).
+
+---
+
 ## Phone number fields
 
 An attribute with `inputType` = `html5-tel` renders as an international phone-number widget: a
@@ -281,6 +329,52 @@ cannot see or check.
 
 ---
 
+## Other features that change these pages
+
+User Profile attributes decide what the *fields* look like. Several other features change the
+pages around them — what else appears, or whether the standard form is shown at all. They are
+listed here so you know where to look when a page does not match the User Profile configuration.
+
+### Changes to the login page
+
+| Feature | Configured with | Effect on the page |
+|---|---|---|
+| [Attribute-based login](../01-tutorials/101-admin_portal_tutorials_multi-attribute-password-login.md) | **Multi-Attribute + Password Form** authenticator | Replaces the username field with the configured User Profile attribute fields |
+| [Structured PIN](../../07-developers/06-keycloak/structured_pin_login.md) | Realm attributes `credential-input-policy`, `credential-input-pattern`, `credential-input-placeholder` | Turns the password box into fixed-length digit groups |
+| Locked username from a login link | Realm attribute `loginHintUsernamePolicy` = `READ_ONLY` | Prefills the username field and makes it read-only. Applies to the username field only — profile fields use the `loginHintPrefillPolicy` annotation instead (see [Prefilled values](#prefilled-values-from-a-login-link)) |
+| [Digital certificate login](../../07-developers/06-keycloak/x509_client_cert_architecture.md) | Realm attribute `voter-certificate-policy` = `enabled` | Shows the **digital-certificates** identity provider button. While the attribute is `disabled` (the default) that button is hidden even if the identity provider exists |
+| Other identity providers | Keycloak **Identity providers** | Each enabled provider adds a button below the form. All non-certificate providers are always shown |
+| [OID4VP (digital wallet)](../../07-developers/06-keycloak/oid4vp_testing_guide.md) | OID4VP identity provider | Uses its own page (QR code / wallet handoff) instead of the standard login form |
+| [IdP-initiated SSO](../../07-developers/06-keycloak/idp_initiated_sso_design_implementation.md) | SAML/OIDC identity provider | The voter arrives already authenticated; the login page is skipped |
+| Remember me | Realm setting **Remember me** | Adds the "Remember me" checkbox |
+| Forgot password | Realm setting **Forgot password** | Adds the reset-password link |
+| Registration link | Realm setting **User registration** | Adds "No account? Register" under the form |
+| Login with email | Realm settings **Login with email** / **Email as username** | Changes the username field's label between *Username*, *Username or email*, and *Email* |
+| reCAPTCHA | Keycloak reCAPTCHA authenticator | Adds an invisible reCAPTCHA check on submit |
+
+### Changes to the registration page
+
+| Feature | Configured with | Effect on the page |
+|---|---|---|
+| Login mode | **Deferred Registration User Creation** form action, **Form Mode** = `LOGIN` | Turns the registration form into a login form: title, submit button, no password confirmation, no strength bar, no "back to login" link |
+| Password field on/off | Same form action, **Password Required** | Whether a password box is rendered at all |
+| Hidden attributes | Same form action, **Hidden Profile Attributes** | Removes the listed attributes from the form and ignores them if User Profile marks them required |
+| Login-link prefilling | Same form action, **Prefill Parameters Policy** + the `loginHintPrefillPolicy` annotation | See [Prefilled values](#prefilled-values-from-a-login-link) |
+| [Structured PIN](../../07-developers/06-keycloak/structured_pin_login.md) | The realm attributes above | Applies here too, but only when the form is in login mode with a password field |
+| Terms and conditions | Keycloak **Terms and Conditions** required action | Adds the acceptance checkbox above the submit button |
+| reCAPTCHA | Keycloak reCAPTCHA authenticator | Adds a reCAPTCHA widget above the submit button |
+| Identity providers | Keycloak **Identity providers** | Provider buttons are shown in login mode only, under the same `voter-certificate-policy` rule as the login page |
+
+### Changes to both pages
+
+| Feature | Configured with | Effect on the page |
+|---|---|---|
+| [Languages](./06-Languages.md) | Realm attributes `language_detection_policy` and `forced_language_code`, plus the realm's enabled locales | Which language the page opens in, and whether the language selector is offered |
+| Labels and messages | **Realm settings** → **Localization** → **Realm overrides** | The text of any label or message, per language |
+| Branding | Election event theme settings | Logo, colors and layout of the surrounding page |
+
+---
+
 ## Quick reference
 
 | Goal | Setting |
@@ -295,4 +389,7 @@ cannot see or check.
 | Narrow a dropdown by another one | `filterSelectAttribute` = *id of the dependent field* |
 | Field stored but never shown at registration | `hidden` = `true` |
 | Field locked to a value from a login link | `loginHintPrefillPolicy` = `READ_ONLY` |
+| Ask for the same value twice | `confirm` = the confirmation field's label |
+| Password strength meter at registration | `passwordStrengthBar` on the attribute above the password box |
+| PIN-style password box | Realm attribute `credential-input-policy` = `structured` |
 | Optional field on attribute login | User Profile **Required field** off + **Honor User Profile required attributes** on |
