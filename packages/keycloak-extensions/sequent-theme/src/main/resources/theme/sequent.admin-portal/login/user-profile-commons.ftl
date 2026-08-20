@@ -8,6 +8,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <#import "field-helper-text.ftl" as fieldHelperText>
 
+<#--  inputTagSelects appends to these for disableAttribute/disableElement annotations. They live
+      at namespace level so any caller works - login.ftl renders single fields through
+      inputFieldWithLabel without going through userProfileFormFields.  -->
+<#assign readonlyElements = []>
+<#assign disabledElements = []>
+
 <#--  True when the attribute was prefilled from a login hint annotated as READ_ONLY,
       in which case the voter must not be able to change the submitted value.  -->
 <#function isLoginHintReadOnly attributeName>
@@ -74,60 +80,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<#nested "afterField" attribute>
 	</#list>
 
-	<script>
-		// Disable field function. Turns inputs into read only. Add a disableAttribute annotation to a select or multiselect user profile attribute.
-		function readOnlyElementById(e, idToSetReadOnly) {
-			e = e || window.event;
-			var target = e.target || e.srcElement;
-
-			setAllReadOnly(idToSetReadOnly, target.checked);
-		}
-
-		// Disable field function using disabled. Add a disableElement annotation to a select or multiselect user profile attribute.
-		function disableElementById(e, idToDisable) {
-			e = e || window.event;
-			var target = e.target || e.srcElement;
-
-			setAllDisabled(idToDisable, target.checked);
-		}
-
-		function setReadOnly(id, value) {
-			let element = document.getElementById(id);
-
-			if (element) {
-				element.readOnly = !value;
-				element.required = value;
-				if (!value) {
-					element.value = '';
-				}
-			}
-		}
-
-		function setAllReadOnly(id, value) {
-			setReadOnly(id, value);
-            // In case of using hidden inputs for int-tel input
-			setReadOnly(id + "-input", value);
-			// In case of having confirm inputs
-			setReadOnly(id + "-confirm", value);
-		}
-
-		function setAllDisabled(id, checked) {
-			let element = document.getElementById(id);
-
-			if (element) {
-				element.disabled = !checked;
-			}
-		}
-	document.addEventListener('DOMContentLoaded', function() {
-		<#list readonlyElements as element>
-			setAllReadOnly("${element.id}", ${element.checked});
-		</#list>
-		<#list disabledElements as element>
-			setAllDisabled("${element.id}", ${element.checked});
-		</#list>
-	}, false);
-
-	</script>
+	<@fieldToggleHandlers/>
 
 	<#list profile.html5DataAnnotations?keys as key>
 		<script type="module" src="${url.resourcesPath}/js/${key}.js"></script>
@@ -200,8 +153,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 		aria-invalid="<#if messagesPerField.existsError('${name}')>true</#if>"
 		<#if required>required</#if>
 		<#if autofocus>autofocus</#if>
-		<#if tabindex?has_content>tabindex="${tabindex}"</#if>
-		<#if autocomplete?has_content>autocomplete="${autocomplete}"</#if>
+		<#-- Skipped when the attribute declares the same html-attribute annotation: a duplicate
+		     attribute is dropped by the HTML parser, so the theme default would silently win
+		     over the realm's explicit configuration. -->
+		<#if tabindex?has_content && !attribute.annotations['html-attribute:tabindex']??>tabindex="${tabindex}"</#if>
+		<#if autocomplete?has_content && !attribute.annotations['html-attribute:autocomplete']??>autocomplete="${autocomplete}"</#if>
 		<#if attribute.readOnly>disabled</#if>
 		<#-- readonly rather than disabled so the locked value is still submitted -->
 		<#if isLoginHintReadOnly(attribute.name)>readonly</#if>
@@ -364,4 +320,64 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</#if>
 	</#if>
 	</#compress>
+</#macro>
+
+<#--  Handlers for the disableAttribute / disableElement annotations, plus the initial state
+      for the controls that carry them. Emitted by userProfileFormFields and by login.ftl's
+      matchAttributes loop, which does not go through it.  -->
+<#macro fieldToggleHandlers>
+	<script>
+		// Disable field function. Turns inputs into read only. Add a disableAttribute annotation to a select or multiselect user profile attribute.
+		function readOnlyElementById(e, idToSetReadOnly) {
+			e = e || window.event;
+			var target = e.target || e.srcElement;
+
+			setAllReadOnly(idToSetReadOnly, target.checked);
+		}
+
+		// Disable field function using disabled. Add a disableElement annotation to a select or multiselect user profile attribute.
+		function disableElementById(e, idToDisable) {
+			e = e || window.event;
+			var target = e.target || e.srcElement;
+
+			setAllDisabled(idToDisable, target.checked);
+		}
+
+		function setReadOnly(id, value) {
+			let element = document.getElementById(id);
+
+			if (element) {
+				element.readOnly = !value;
+				element.required = value;
+				if (!value) {
+					element.value = '';
+				}
+			}
+		}
+
+		function setAllReadOnly(id, value) {
+			setReadOnly(id, value);
+            // In case of using hidden inputs for int-tel input
+			setReadOnly(id + "-input", value);
+			// In case of having confirm inputs
+			setReadOnly(id + "-confirm", value);
+		}
+
+		function setAllDisabled(id, checked) {
+			let element = document.getElementById(id);
+
+			if (element) {
+				element.disabled = !checked;
+			}
+		}
+	document.addEventListener('DOMContentLoaded', function() {
+		<#list readonlyElements as element>
+			setAllReadOnly("${element.id}", ${element.checked});
+		</#list>
+		<#list disabledElements as element>
+			setAllDisabled("${element.id}", ${element.checked});
+		</#list>
+	}, false);
+
+	</script>
 </#macro>

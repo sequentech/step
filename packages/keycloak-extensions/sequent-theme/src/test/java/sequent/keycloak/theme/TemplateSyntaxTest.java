@@ -25,6 +25,8 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 
 class TemplateSyntaxTest {
@@ -275,6 +277,74 @@ class TemplateSyntaxTest {
   }
 
   @Test
+  void multiAttributeLoginLetsHtmlAttributeAnnotationOverrideTheThemeDefault()
+      throws IOException, TemplateException {
+    // A duplicate attribute is dropped by the HTML parser, so emitting both would make the theme
+    // default silently beat the realm's explicit configuration.
+    Map<String, Object> model = baseModel("standard");
+    model.put("matchAttributes", List.of("dateOfBirth"));
+    model.put(
+        "profile",
+        profileWithAttributes(
+            mockAttribute(
+                "dateOfBirth",
+                "${dateOfBirth}",
+                Map.of(
+                    "inputType", "html5-date",
+                    "html-attribute:tabindex", "7",
+                    "html-attribute:autocomplete", "bday"))));
+    String tag = inputTagFor(renderVotingPortalLogin(model), "dateOfBirth");
+
+    assertTrue(tag.contains("tabindex=7"));
+    assertTrue(tag.contains("autocomplete=bday"));
+    assertFalse(tag.contains("tabindex=\"1\""));
+    assertFalse(tag.contains("autocomplete=\"off\""));
+  }
+
+  /** The single rendered {@code <input>} tag carrying {@code id="<name>"}, whitespace collapsed. */
+  private static String inputTagFor(String html, String name) {
+    Matcher matcher =
+        Pattern.compile("<input[^>]*id=\"" + Pattern.quote(name) + "\"[^>]*>").matcher(html);
+    assertTrue(matcher.find(), "no input rendered for " + name);
+    return matcher.group().replaceAll("\\s+", " ");
+  }
+
+  @Test
+  void multiAttributeLoginLoadsProfileWidgetModules() throws IOException, TemplateException {
+    // register.ftl emits these from userProfileFormFields, which login.ftl does not go through.
+    Map<String, Object> model = baseModel("standard");
+    model.put("matchAttributes", List.of("dateOfBirth"));
+    Map<String, Object> profile =
+        new HashMap<>(
+            profileWithAttributes(
+                mockAttribute("dateOfBirth", "${dateOfBirth}", Map.of("inputType", "html5-date"))));
+    profile.put("html5DataAnnotations", Map.of("myWidget", "x"));
+    model.put("profile", profile);
+    String html = renderVotingPortalLogin(model);
+
+    assertTrue(html.contains("/js/myWidget.js"));
+  }
+
+  @Test
+  void multiAttributeLoginRendersControlsCarryingToggleAnnotations()
+      throws IOException, TemplateException {
+    // disableAttribute appends to a namespace-level list; rendering used to fail outright here.
+    Map<String, Object> model = baseModel("standard");
+    model.put("matchAttributes", List.of("consent"));
+    model.put(
+        "profile",
+        profileWithAttributes(
+            mockAttributeWithOptions(
+                "consent",
+                Map.of("inputType", "select-radiobuttons", "disableAttribute", "other"),
+                List.of("yes", "no"))));
+    String html = renderVotingPortalLogin(model);
+
+    assertTrue(html.contains("readOnlyElementById"));
+    assertTrue(html.contains("function readOnlyElementById"));
+  }
+
+  @Test
   void multiAttributeLoginRendersConfiguredHelperText() throws IOException, TemplateException {
     Map<String, Object> model = baseModel("standard");
     model.put("matchAttributes", List.of("dateOfBirth"));
@@ -519,6 +589,15 @@ class TemplateSyntaxTest {
     attribute.put("values", List.of());
     attribute.put("annotations", annotations);
     attribute.put("html5DataAnnotations", Map.of());
+    attribute.put("validators", Map.of());
+    return attribute;
+  }
+
+  /** Mimics an attribute whose options come from an {@code options} validator. */
+  private static Map<String, Object> mockAttributeWithOptions(
+      String name, Map<String, Object> annotations, List<String> options) {
+    Map<String, Object> attribute = mockAttribute(name, "${" + name + "}", annotations);
+    attribute.put("validators", Map.of("options", Map.of("options", options)));
     return attribute;
   }
 

@@ -54,6 +54,16 @@ SPDX-License-Identifier: AGPL-3.0-only
                                 </#if>
                             </#list>
 
+                            <#--  Parity with register.ftl: the annotation handlers and the
+                                  per-profile widget modules are emitted by userProfileFormFields
+                                  there, which this loop does not go through.  -->
+                            <@userProfileCommons.fieldToggleHandlers/>
+                            <#if profile.html5DataAnnotations??>
+                                <#list profile.html5DataAnnotations?keys as key>
+                                    <script type="module" src="${url.resourcesPath}/js/${key}.js"></script>
+                                </#list>
+                            </#if>
+
                             <#if credentialFieldError && !structuredCredential>
                                 <span id="input-error" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
                                         ${kcSanitize(messagesPerField.getFirstError('username','password'))?no_esc}
