@@ -139,7 +139,10 @@ SPDX-License-Identifier: AGPL-3.0-only
       used (attribute.required, unconditionally) so its rendering is unaffected. login.ftl passes
       both explicitly, gated by honorUserProfileRequired, so the asterisk and the real enforcement
       never disagree there - see login.ftl's matchAttributes loop.  -->
-<#macro inputFieldWithLabel attribute name values required=false requiredMarker=attribute.required>
+<#--  autofocus / tabindex / autocomplete are opt-in and default to off, so register.ftl's
+      rendering is unchanged. login.ftl passes them for its matchAttributes fields, which are the
+      first thing on the page and must not be autofilled from a previous voter's session.  -->
+<#macro inputFieldWithLabel attribute name values required=false requiredMarker=attribute.required autofocus=false tabindex="" autocomplete="">
 	<div class="${properties.kcFormGroupClass!}">
 		<div class="${properties.kcLabelWrapperClass!}">
 			<label for="${name}" class="${properties.kcLabelClass!}">
@@ -155,7 +158,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<#if attribute.annotations.inputHelperTextBefore??>
 				<@fieldHelperText.helperTextBefore id=name text=attribute.annotations.inputHelperTextBefore/>
 			</#if>
-			<@inputFieldByType attribute=attribute name=name values=values required=required/>
+			<@inputFieldByType attribute=attribute name=name values=values required=required autofocus=autofocus tabindex=tabindex autocomplete=autocomplete/>
 			<#if messagesPerField.existsError('${name}')>
 				<span id="input-error-${name}" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
 					${kcSanitize(messagesPerField.get('${name}'))?no_esc}
@@ -168,7 +171,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 </#macro>
 
-<#macro inputFieldByType attribute name values required=false>
+<#macro inputFieldByType attribute name values required=false autofocus=false tabindex="" autocomplete="">
 	<#switch attribute.annotations.inputType!''>
 	<#case 'textarea'>
 		<@textareaTag attribute=attribute name=name values=values/>
@@ -184,18 +187,21 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<#default>
 		<#if attribute.multivalued && values?has_content>
 			<#list values as value>
-				<@inputTag attribute=attribute name=name value=value!'' required=required/>
+				<@inputTag attribute=attribute name=name value=value!'' required=required autofocus=(autofocus && value?index == 0) tabindex=tabindex autocomplete=autocomplete/>
 			</#list>
 		<#else>
-			<@inputTag attribute=attribute name=name value=attribute.value!'' required=required/>
+			<@inputTag attribute=attribute name=name value=attribute.value!'' required=required autofocus=autofocus tabindex=tabindex autocomplete=autocomplete/>
 		</#if>
 	</#switch>
 </#macro>
 
-<#macro inputTag attribute name value required=false>
+<#macro inputTag attribute name value required=false autofocus=false tabindex="" autocomplete="">
 	<input type="<@inputTagType attribute=attribute/>" id="${name}" name="${name}" value="${(value!'')}" class="${properties.kcInputClass!}"
 		aria-invalid="<#if messagesPerField.existsError('${name}')>true</#if>"
 		<#if required>required</#if>
+		<#if autofocus>autofocus</#if>
+		<#if tabindex?has_content>tabindex="${tabindex}"</#if>
+		<#if autocomplete?has_content>autocomplete="${autocomplete}"</#if>
 		<#if attribute.readOnly>disabled</#if>
 		<#-- readonly rather than disabled so the locked value is still submitted -->
 		<#if isLoginHintReadOnly(attribute.name)>readonly</#if>

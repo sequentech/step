@@ -4,6 +4,7 @@
 
 package sequent.keycloak.theme;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -172,6 +173,83 @@ class TemplateSyntaxTest {
       assertTrue(configuredHtml.contains("max=\"2020-01-01\""));
       assertFalse(configuredHtml.contains("max=\"9999-12-31\""));
     }
+  }
+
+  @Test
+  void multiAttributeLoginKeepsFocusTabOrderAndAutocompleteOff()
+      throws IOException, TemplateException {
+    // Regression: these three came from login.ftl's own input tag before the matchAttributes loop
+    // was moved onto user-profile-commons.ftl's shared macros. autocomplete="off" in particular
+    // keeps a shared device from suggesting the previous voter's values.
+    for (String portal : List.of("sequent.admin-portal", "sequent.voting-portal")) {
+      Map<String, Object> model = baseModel("standard");
+      model.put("matchAttributes", List.of("dateOfBirth", "nationalId"));
+      model.put(
+          "profile",
+          profileWithAttributes(
+              mockAttribute("dateOfBirth", "${dateOfBirth}", Map.of("inputType", "html5-date")),
+              mockAttribute("nationalId", "${nationalId}", Map.of())));
+      String html = renderLogin(portal, model);
+      String normalized = html.replaceAll("\\s+", " ");
+
+      assertTrue(normalized.contains("id=\"dateOfBirth\""));
+      assertTrue(normalized.contains("autofocus"));
+      assertTrue(normalized.contains("tabindex=\"1\""));
+      assertTrue(normalized.contains("tabindex=\"2\""));
+      assertTrue(normalized.contains("autocomplete=\"off\""));
+    }
+  }
+
+  @Test
+  void multiAttributeLoginOnlyAutofocusesTheFirstField() throws IOException, TemplateException {
+    Map<String, Object> model = baseModel("standard");
+    model.put("matchAttributes", List.of("dateOfBirth", "nationalId"));
+    model.put(
+        "profile",
+        profileWithAttributes(
+            mockAttribute("dateOfBirth", "${dateOfBirth}", Map.of("inputType", "html5-date")),
+            mockAttribute("nationalId", "${nationalId}", Map.of())));
+    String html = renderVotingPortalLogin(model);
+
+    assertEquals(1, html.split("autofocus", -1).length - 1);
+  }
+
+  @Test
+  void telInputWidgetInitialisesAfterTheFieldsItUpgrades() throws IOException, TemplateException {
+    // login.ftl emits the widget assets above its matchAttributes loop, so a synchronous
+    // querySelectorAll would run before the tel inputs exist and silently upgrade nothing -
+    // leaving the raw local number to be submitted instead of the normalised international one.
+    Map<String, Object> model = baseModel("standard");
+    model.put("matchAttributes", List.of("mobile"));
+    model.put(
+        "profile",
+        profileWithAttributes(mockAttribute("mobile", "${mobile}", Map.of("inputType", "html5-tel"))));
+    String html = renderVotingPortalLogin(model);
+
+    assertTrue(html.contains("type=\"tel\""));
+    assertTrue(html.indexOf("querySelectorAll(\"input[type='tel']\")") < html.indexOf("type=\"tel\""));
+    assertTrue(html.contains("addEventListener('DOMContentLoaded'"));
+  }
+
+  @Test
+  void registerTemplateDoesNotGainFocusOrTabOrderFromTheSharedMacros()
+      throws IOException, TemplateException {
+    // The autofocus/tabindex/autocomplete macro parameters are opt-in; register.ftl must keep
+    // rendering exactly as it did before login.ftl started sharing these macros.
+    Map<String, Object> model = baseModel("standard");
+    model.put("formMode", "REGISTRATION");
+    model.put("passwordRequired", true);
+    model.put(
+        "profile",
+        Map.of(
+            "attributes",
+            List.of(mockAttribute("dateOfBirth", "${dateOfBirth}", Map.of("inputType", "html5-date"))),
+            "html5DataAnnotations",
+            Map.of()));
+    String html = renderRegister(model);
+
+    assertFalse(html.contains("autofocus"));
+    assertFalse(html.contains("tabindex"));
   }
 
   @Test
@@ -352,6 +430,20 @@ class TemplateSyntaxTest {
             }));
     StringWriter rendered = new StringWriter();
     configuration.getTemplate("login.ftl").process(model, rendered);
+    return rendered.toString();
+  }
+
+  private static String renderRegister(Map<String, Object> model)
+      throws IOException, TemplateException {
+    Path parent = THEME_ROOT.resolve("sequent.admin-portal/login");
+    StringTemplateLoader baseThemeStubs = new StringTemplateLoader();
+    baseThemeStubs.putTemplate("register-commons.ftl", "<#macro termsAcceptance></#macro>");
+    Configuration configuration = configuration();
+    configuration.setTemplateLoader(
+        new MultiTemplateLoader(
+            new TemplateLoader[] {new FileTemplateLoader(parent.toFile()), baseThemeStubs}));
+    StringWriter rendered = new StringWriter();
+    configuration.getTemplate("register.ftl").process(model, rendered);
     return rendered.toString();
   }
 

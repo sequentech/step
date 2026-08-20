@@ -19,34 +19,38 @@ SPDX-License-Identifier: AGPL-3.0-only
     <script type="text/javascript" src="${url.resourcesPath}/js/timezone-countrycode-data.js"></script>
 
     <script>
-        // Get all inputs that use type tel
-        const listTelInputs = document.querySelectorAll("input[type='tel']");
-        listTelInputs.forEach(function (input) {
-            // Change id and name to use the correctly formatted phone number in the form
-            let id = input.id;
-            input.id = id + "-input";
-            input.name = id + "-input";
+        <#--  Deferred so the widget also upgrades tel inputs rendered after this block:
+              register.ftl emits its assets below the form, login.ftl above its field loop.  -->
+        document.addEventListener('DOMContentLoaded', function () {
+            // Get all inputs that use type tel
+            const listTelInputs = document.querySelectorAll("input[type='tel']");
+            listTelInputs.forEach(function (input) {
+                // Change id and name to use the correctly formatted phone number in the form
+                let id = input.id;
+                input.id = id + "-input";
+                input.name = id + "-input";
 
-            // Use intel-tel-input
-            window.intlTelInput(input, {
-                utilsScript: "${url.resourcesPath}/intl-tel-input-23.3.2/js/utils.js",
-                initialCountry: "auto",
-                separateDialCode: true,
-                customPlaceholder: function(selectedCountryPlaceholder, selectedCountryData) {
-                    return selectedCountryPlaceholder.replace(/\d/g, '0');
-                },
-                hiddenInput: () => ({ phone: id, country: "country_code" }),
-                geoIpLookup: function(success, failure) {
-                    const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                // Use intel-tel-input
+                window.intlTelInput(input, {
+                    utilsScript: "${url.resourcesPath}/intl-tel-input-23.3.2/js/utils.js",
+                    initialCountry: "auto",
+                    separateDialCode: true,
+                    customPlaceholder: function(selectedCountryPlaceholder, selectedCountryData) {
+                        return selectedCountryPlaceholder.replace(/\d/g, '0');
+                    },
+                    hiddenInput: () => ({ phone: id, country: "country_code" }),
+                    geoIpLookup: function(success, failure) {
+                        const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-                    let timezoneCountrycodeData = JSON.parse(data);
-                    let countryCode = timezoneCountrycodeData[userTimeZone].toString();
+                        let timezoneCountrycodeData = JSON.parse(data);
+                        let countryCode = timezoneCountrycodeData[userTimeZone].toString();
 
-                    if (countryCode) {
-                        return success(countryCode);
-                    }
-                    return failure();
-                },
+                        if (countryCode) {
+                            return success(countryCode);
+                        }
+                        return failure();
+                    },
+                });
             });
         });
     </script>

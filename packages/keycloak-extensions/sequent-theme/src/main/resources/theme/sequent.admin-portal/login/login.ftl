@@ -27,12 +27,13 @@ SPDX-License-Identifier: AGPL-3.0-only
                                 <#if profile.attributesByName[name]??>
                                     <#assign matchAttribute = profile.attributesByName[name]>
                                     <#assign matchAttributeRequired = honorUserProfileRequired?? && matchAttribute.required>
-                                    <@userProfileCommons.inputFieldWithLabel attribute=matchAttribute name=name values=matchAttribute.values required=matchAttributeRequired requiredMarker=matchAttributeRequired/>
+                                    <@userProfileCommons.inputFieldWithLabel attribute=matchAttribute name=name values=matchAttribute.values required=matchAttributeRequired requiredMarker=matchAttributeRequired autofocus=(name?index == 0) tabindex="${name?index + 1}" autocomplete="off"/>
                                 <#else>
                                     <#-- Not declared in the realm's User Profile - still usable for matching, rendered as a plain text field -->
                                     <div class="${properties.kcFormGroupClass!}">
                                         <label for="${name}" class="${properties.kcLabelClass!}">${msg(name)}</label>
-                                        <input id="${name}" class="${properties.kcInputClass!}" name="${name}" type="text" autocomplete="off"
+                                        <input tabindex="${name?index + 1}" id="${name}" class="${properties.kcInputClass!}" name="${name}" type="text" autocomplete="off"
+                                               <#if name?index == 0>autofocus</#if>
                                                aria-invalid="<#if messagesPerField.existsError('username','password')>true</#if>"
                                         />
                                     </div>
