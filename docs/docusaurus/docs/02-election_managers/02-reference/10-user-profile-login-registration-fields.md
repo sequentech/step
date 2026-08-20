@@ -65,7 +65,7 @@ below.
 > attribute name as the label. Declare it in User Profile to get a proper label, a proper input
 > type, and translations. It also stays mandatory to match regardless of the required setting
 > described under [Required fields](#required-fields).
-
+>
 > ⚠️ **Match attributes must hold a single value.** Matching compares one submitted value per
 > attribute, so a `multiselect` or `multiselect-checkboxes` attribute used in **User attributes to
 > match** would have everything after its first selected value silently ignored. Use the scalar

@@ -174,11 +174,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 <#macro inputFieldByType attribute name values required=false autofocus=false tabindex="" autocomplete="">
 	<#switch attribute.annotations.inputType!''>
 	<#case 'textarea'>
-		<@textareaTag attribute=attribute name=name values=values required=required autofocus=autofocus tabindex=tabindex/>
+		<@textareaTag attribute=attribute name=name values=values required=required autofocus=autofocus tabindex=tabindex autocomplete=autocomplete/>
 		<#break>
 	<#case 'select'>
 	<#case 'multiselect'>
-		<@selectTag attribute=attribute name=name values=values required=required autofocus=autofocus tabindex=tabindex/>
+		<@selectTag attribute=attribute name=name values=values required=required autofocus=autofocus tabindex=tabindex autocomplete=autocomplete/>
 		<#break>
 	<#case 'select-radiobuttons'>
 	<#case 'multiselect-checkboxes'>
@@ -250,12 +250,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</#compress>
 </#macro>
 
-<#macro textareaTag attribute name values required=false autofocus=false tabindex="">
+<#macro textareaTag attribute name values required=false autofocus=false tabindex="" autocomplete="">
 	<textarea id="${name}" name="${name}" class="${properties.kcInputClass!}"
 		aria-invalid="<#if messagesPerField.existsError('${name}')>true</#if>"
 		<#if required>required</#if>
 		<#if autofocus>autofocus</#if>
 		<#if tabindex?has_content>tabindex="${tabindex}"</#if>
+		<#if autocomplete?has_content>autocomplete="${autocomplete}"</#if>
 		<#if attribute.readOnly>disabled</#if>
 		<#if isLoginHintReadOnly(attribute.name)>readonly</#if>
 		<#if attribute.annotations.inputTypeCols??>cols="${attribute.annotations.inputTypeCols}"</#if>
@@ -267,12 +268,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 <#--  Radio and checkbox groups deliberately do not take these: marking every control in a group
       required would demand all of them, and autofocusing each one is meaningless. See
       inputFieldByType.  -->
-<#macro selectTag attribute name values required=false autofocus=false tabindex="">
+<#macro selectTag attribute name values required=false autofocus=false tabindex="" autocomplete="">
 	<select id="${name}" name="${name}" class="${properties.kcInputClass!}"
 		aria-invalid="<#if messagesPerField.existsError('${name}')>true</#if>"
 		<#if required>required</#if>
 		<#if autofocus>autofocus</#if>
 		<#if tabindex?has_content>tabindex="${tabindex}"</#if>
+		<#if autocomplete?has_content>autocomplete="${autocomplete}"</#if>
 		<#if attribute.readOnly || isLoginHintReadOnly(attribute.name)>disabled</#if>
 		<#if attribute.annotations.inputType=='multiselect'>multiple</#if>
 		<#if attribute.annotations.inputTypeSize??>size="${attribute.annotations.inputTypeSize}"</#if>

@@ -253,6 +253,7 @@ class TemplateSyntaxTest {
 
     assertFalse(html.contains("autofocus"));
     assertFalse(html.contains("tabindex"));
+    assertFalse(html.contains("autocomplete=\"off\""));
   }
 
   @Test
@@ -267,8 +268,9 @@ class TemplateSyntaxTest {
     String html = renderVotingPortalLogin(model);
     String normalized = html.replaceAll("\\s+", " ");
 
+    // Anchored to the input itself: a bare "required" would also match the requiredFields notice.
+    assertTrue(normalized.contains("autocomplete=\"off\" required"));
     assertTrue(normalized.contains("</label> *"));
-    assertTrue(normalized.contains("required"));
     assertTrue(html.contains("requiredFields"));
   }
 
