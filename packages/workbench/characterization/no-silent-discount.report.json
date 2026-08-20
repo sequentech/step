@@ -1,14 +1,14 @@
 {
-  "cells_evaluated": 276480,
-  "violations": 3168,
+  "cells_evaluated": 345600,
+  "violations": 6336,
   "families": [
     {
       "driving_error": "selectedMax",
-      "cells": 128
+      "cells": 256
     },
     {
       "driving_error": "selectedMin",
-      "cells": 3040
+      "cells": 6080
     }
   ],
   "configurations": [
@@ -330,6 +330,326 @@
     },
     {
       "configuration": "invalid=allowed over=not-allowed-with-msg-and-disable blank=not-allowed under=warn-and-alert",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed blank=allowed under=allowed",
+      "cells": 64
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed blank=allowed under=warn",
+      "cells": 64
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed blank=allowed under=warn-only-in-review",
+      "cells": 64
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed blank=allowed under=warn-and-alert",
+      "cells": 64
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed-with-msg blank=allowed under=allowed",
+      "cells": 56
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed-with-msg blank=allowed under=warn",
+      "cells": 56
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed-with-msg blank=allowed under=warn-only-in-review",
+      "cells": 56
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed-with-msg blank=allowed under=warn-and-alert",
+      "cells": 56
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed-with-msg-and-alert blank=allowed under=allowed",
+      "cells": 56
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed-with-msg-and-alert blank=allowed under=warn",
+      "cells": 56
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed-with-msg-and-alert blank=allowed under=warn-only-in-review",
+      "cells": 56
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed-with-msg-and-alert blank=allowed under=warn-and-alert",
+      "cells": 56
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-alert blank=allowed under=allowed",
+      "cells": 56
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-alert blank=allowed under=warn",
+      "cells": 56
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-alert blank=allowed under=warn-only-in-review",
+      "cells": 56
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-alert blank=allowed under=warn-and-alert",
+      "cells": 56
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-disable blank=allowed under=allowed",
+      "cells": 56
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-disable blank=allowed under=warn",
+      "cells": 56
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-disable blank=allowed under=warn-only-in-review",
+      "cells": 56
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-disable blank=allowed under=warn-and-alert",
+      "cells": 56
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed blank=warn under=allowed",
+      "cells": 40
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed blank=warn under=warn",
+      "cells": 40
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed blank=warn under=warn-only-in-review",
+      "cells": 40
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed blank=warn under=warn-and-alert",
+      "cells": 40
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed-with-msg blank=warn under=allowed",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed-with-msg blank=warn under=warn",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed-with-msg blank=warn under=warn-only-in-review",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed-with-msg blank=warn under=warn-and-alert",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed-with-msg-and-alert blank=warn under=allowed",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed-with-msg-and-alert blank=warn under=warn",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed-with-msg-and-alert blank=warn under=warn-only-in-review",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed-with-msg-and-alert blank=warn under=warn-and-alert",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-alert blank=warn under=allowed",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-alert blank=warn under=warn",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-alert blank=warn under=warn-only-in-review",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-alert blank=warn under=warn-and-alert",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-disable blank=warn under=allowed",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-disable blank=warn under=warn",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-disable blank=warn under=warn-only-in-review",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-disable blank=warn under=warn-and-alert",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed blank=warn-only-in-review under=allowed",
+      "cells": 40
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed blank=warn-only-in-review under=warn",
+      "cells": 40
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed blank=warn-only-in-review under=warn-only-in-review",
+      "cells": 40
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed blank=warn-only-in-review under=warn-and-alert",
+      "cells": 40
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed-with-msg blank=warn-only-in-review under=allowed",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed-with-msg blank=warn-only-in-review under=warn",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed-with-msg blank=warn-only-in-review under=warn-only-in-review",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed-with-msg blank=warn-only-in-review under=warn-and-alert",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed-with-msg-and-alert blank=warn-only-in-review under=allowed",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed-with-msg-and-alert blank=warn-only-in-review under=warn",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed-with-msg-and-alert blank=warn-only-in-review under=warn-only-in-review",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed-with-msg-and-alert blank=warn-only-in-review under=warn-and-alert",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-alert blank=warn-only-in-review under=allowed",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-alert blank=warn-only-in-review under=warn",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-alert blank=warn-only-in-review under=warn-only-in-review",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-alert blank=warn-only-in-review under=warn-and-alert",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-disable blank=warn-only-in-review under=allowed",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-disable blank=warn-only-in-review under=warn",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-disable blank=warn-only-in-review under=warn-only-in-review",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-disable blank=warn-only-in-review under=warn-and-alert",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed blank=not-allowed under=allowed",
+      "cells": 40
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed blank=not-allowed under=warn",
+      "cells": 40
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed blank=not-allowed under=warn-only-in-review",
+      "cells": 40
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed blank=not-allowed under=warn-and-alert",
+      "cells": 40
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed-with-msg blank=not-allowed under=allowed",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed-with-msg blank=not-allowed under=warn",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed-with-msg blank=not-allowed under=warn-only-in-review",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed-with-msg blank=not-allowed under=warn-and-alert",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed-with-msg-and-alert blank=not-allowed under=allowed",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed-with-msg-and-alert blank=not-allowed under=warn",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed-with-msg-and-alert blank=not-allowed under=warn-only-in-review",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=allowed-with-msg-and-alert blank=not-allowed under=warn-and-alert",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-alert blank=not-allowed under=allowed",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-alert blank=not-allowed under=warn",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-alert blank=not-allowed under=warn-only-in-review",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-alert blank=not-allowed under=warn-and-alert",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-disable blank=not-allowed under=allowed",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-disable blank=not-allowed under=warn",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-disable blank=not-allowed under=warn-only-in-review",
+      "cells": 32
+    },
+    {
+      "configuration": "invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-disable blank=not-allowed under=warn-and-alert",
       "cells": 32
     }
   ],

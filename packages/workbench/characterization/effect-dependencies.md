@@ -16,7 +16,7 @@ dimensions can change it (**support**), which it provably never reads
 what conditions a dependence is live (**restrictions** — projections of
 the sensitive region: "depends on Y only when Z ∈ S"). This analysis
 computes this on the executable spec over its full modelled domain
-(min ≤ max; 28,672,000 evaluations — the
+(min ≤ max; 35,840,000 evaluations — the
 cross-product IS materialisable on the spec, unlike on production).
 Each dependence carries a **witness** (a concrete cell pair
 proving it) through the real WASM checker/gates/tally where the fixtures
@@ -31,7 +31,7 @@ tiers), the consumer/input censuses and scope boundaries
 (`README.md` in this directory), and the browser lane for the
 filter/reachability components (pending — see the deferred labels).
 
-**Production coverage: 68 witnesses lie inside the exhaustively-swept headless domain, so production has already been compared against this spec on their cells (headless-sweep.md); 0 outside it; 87 deferred with labels.**
+**Production coverage: 68 witnesses lie inside the exhaustively-swept headless domain, so production has already been compared against this spec on their cells (headless-sweep.md); 0 outside it; 88 deferred with labels.**
 
 ## Support matrix
 
@@ -73,34 +73,34 @@ dimensions of VALIDATION_LOGIC_DISTILLATION.md: *inv* = `invalid_vote_policy`, *
 | gate.hard | ✓ | ✓ | ✓ | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | ✓ | ✓ |
 | gate.soft | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | ✓ | ✓ |
 | dialog | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | ✓ | ✓ |
-| reachability | — | — | ✓ | — | — | — | — | ✓ | ✓ | ✓ | ✓ | — | — | — |
+| reachability | ✓ | — | ✓ | — | — | — | — | ✓ | ✓ | ✓ | ✓ | — | — | — |
 | tally | — | ✓ | — | — | — | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 Constant over the whole domain: `underVote ∈ errors`, `overVoteDisabled ∈ errors`, `alert ∈ errors`, `selectedMin ∈ alerts`, `duplicatedPosition ∈ alerts`, `preferenceOrderWithGaps ∈ alerts`, `notAllowed ∈ alerts`, `overVoteDisabled ∈ inline.review`.
 
 ## Conditional independence — policy × policy restrictions
 
-The config-side conditional statements (the full set of 317 restrictions, including vote-state conditions, is in the recorded JSON). Read each
+The config-side conditional statements (the full set of 316 restrictions, including vote-state conditions, is in the recorded JSON). Read each
 row as: *the component depends on that dimension only when the
 condition holds* (a projection — necessary, not sufficient).
 
 | component | depends on | only when |
 |---|---|---|
 | selectedMax ∈ inline.voting | `invalid_vote_policy` | `over_vote_policy` ∈ {allowed} |
-| selectedMax ∈ inline.voting | `over_vote_policy` | `invalid_vote_policy` ∈ {allowed} |
+| selectedMax ∈ inline.voting | `over_vote_policy` | `invalid_vote_policy` ∈ {allowed, allowed-with-exclusive-explicit} |
 | underVote ∈ inline.voting | `blank_vote_policy` | `under_vote_policy` ∈ {warn, warn-and-alert} |
 | selectedMax ∈ inline.review | `invalid_vote_policy` | `over_vote_policy` ∈ {allowed} |
-| selectedMax ∈ inline.review | `over_vote_policy` | `invalid_vote_policy` ∈ {allowed} |
+| selectedMax ∈ inline.review | `over_vote_policy` | `invalid_vote_policy` ∈ {allowed, allowed-with-exclusive-explicit} |
 | underVote ∈ inline.review | `blank_vote_policy` | `under_vote_policy` ∈ {warn, warn-only-in-review, warn-and-alert} |
-| gate.hard | `over_vote_policy` | `invalid_vote_policy` ∈ {allowed, warn, warn-invalid-implicit-and-explicit} |
-| gate.hard | `duplicated_rank_policy` | `invalid_vote_policy` ∈ {allowed, warn, warn-invalid-implicit-and-explicit} |
-| gate.hard | `preference_gaps_policy` | `invalid_vote_policy` ∈ {allowed, warn, warn-invalid-implicit-and-explicit} |
-| gate.soft | `over_vote_policy` | `invalid_vote_policy` ∈ {allowed} |
-| gate.soft | `duplicated_rank_policy` | `invalid_vote_policy` ∈ {allowed} |
-| gate.soft | `preference_gaps_policy` | `invalid_vote_policy` ∈ {allowed} |
-| dialog | `over_vote_policy` | `invalid_vote_policy` ∈ {allowed, warn, warn-invalid-implicit-and-explicit} |
-| dialog | `duplicated_rank_policy` | `invalid_vote_policy` ∈ {allowed, warn, warn-invalid-implicit-and-explicit} |
-| dialog | `preference_gaps_policy` | `invalid_vote_policy` ∈ {allowed, warn, warn-invalid-implicit-and-explicit} |
+| gate.hard | `over_vote_policy` | `invalid_vote_policy` ∈ {allowed, warn, warn-invalid-implicit-and-explicit, allowed-with-exclusive-explicit} |
+| gate.hard | `duplicated_rank_policy` | `invalid_vote_policy` ∈ {allowed, warn, warn-invalid-implicit-and-explicit, allowed-with-exclusive-explicit} |
+| gate.hard | `preference_gaps_policy` | `invalid_vote_policy` ∈ {allowed, warn, warn-invalid-implicit-and-explicit, allowed-with-exclusive-explicit} |
+| gate.soft | `over_vote_policy` | `invalid_vote_policy` ∈ {allowed, allowed-with-exclusive-explicit} |
+| gate.soft | `duplicated_rank_policy` | `invalid_vote_policy` ∈ {allowed, allowed-with-exclusive-explicit} |
+| gate.soft | `preference_gaps_policy` | `invalid_vote_policy` ∈ {allowed, allowed-with-exclusive-explicit} |
+| dialog | `over_vote_policy` | `invalid_vote_policy` ∈ {allowed, warn, warn-invalid-implicit-and-explicit, allowed-with-exclusive-explicit} |
+| dialog | `duplicated_rank_policy` | `invalid_vote_policy` ∈ {allowed, warn, warn-invalid-implicit-and-explicit, allowed-with-exclusive-explicit} |
+| dialog | `preference_gaps_policy` | `invalid_vote_policy` ∈ {allowed, warn, warn-invalid-implicit-and-explicit, allowed-with-exclusive-explicit} |
 
 ## Witness evidence
 
@@ -154,6 +154,6 @@ cannot reach stay labelled there.
 | gate.hard | 8/12 | unreachable ranked state (regulars=0, dup=true, gap=false): 2; unreachable ranked state (regulars=0, dup=false, gap=true): 2 |
 | gate.soft | 9/13 | unreachable ranked state (regulars=0, dup=true, gap=false): 2; unreachable ranked state (regulars=0, dup=false, gap=true): 2 |
 | dialog | 9/13 | unreachable ranked state (regulars=0, dup=true, gap=false): 2; unreachable ranked state (regulars=0, dup=false, gap=true): 2 |
-| reachability | 0/5 | browser-pending (inline/reachability): 5 |
+| reachability | 0/6 | browser-pending (inline/reachability): 6 |
 | tally | 6/9 | decline (classifier-direct pending): 1; unreachable ranked state (regulars=0, dup=true, gap=false): 1; unreachable ranked state (regulars=0, dup=false, gap=true): 1 |
 

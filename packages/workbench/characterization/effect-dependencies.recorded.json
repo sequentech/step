@@ -1,6 +1,6 @@
 {
   "domain": {
-    "cells_evaluated": 28672000,
+    "cells_evaluated": 35840000,
     "constraint": "min_votes <= max_votes",
     "dims": [
       {
@@ -9,7 +9,8 @@
           "allowed",
           "warn",
           "warn-invalid-implicit-and-explicit",
-          "not-allowed"
+          "not-allowed",
+          "allowed-with-exclusive-explicit"
         ]
       },
       {
@@ -1867,7 +1868,8 @@
         {
           "depends_on": "over_vote_policy",
           "in": [
-            "allowed"
+            "allowed",
+            "allowed-with-exclusive-explicit"
           ],
           "only_when": "invalid_vote_policy"
         },
@@ -3447,7 +3449,8 @@
         {
           "depends_on": "over_vote_policy",
           "in": [
-            "allowed"
+            "allowed",
+            "allowed-with-exclusive-explicit"
           ],
           "only_when": "invalid_vote_policy"
         },
@@ -4852,7 +4855,8 @@
           "in": [
             "allowed",
             "warn",
-            "warn-invalid-implicit-and-explicit"
+            "warn-invalid-implicit-and-explicit",
+            "allowed-with-exclusive-explicit"
           ],
           "only_when": "invalid_vote_policy"
         },
@@ -4861,7 +4865,8 @@
           "in": [
             "allowed",
             "warn",
-            "warn-invalid-implicit-and-explicit"
+            "warn-invalid-implicit-and-explicit",
+            "allowed-with-exclusive-explicit"
           ],
           "only_when": "invalid_vote_policy"
         },
@@ -4877,7 +4882,8 @@
           "in": [
             "allowed",
             "warn",
-            "warn-invalid-implicit-and-explicit"
+            "warn-invalid-implicit-and-explicit",
+            "allowed-with-exclusive-explicit"
           ],
           "only_when": "invalid_vote_policy"
         },
@@ -5295,7 +5301,8 @@
         {
           "depends_on": "over_vote_policy",
           "in": [
-            "allowed"
+            "allowed",
+            "allowed-with-exclusive-explicit"
           ],
           "only_when": "invalid_vote_policy"
         },
@@ -5328,7 +5335,8 @@
         {
           "depends_on": "duplicated_rank_policy",
           "in": [
-            "allowed"
+            "allowed",
+            "allowed-with-exclusive-explicit"
           ],
           "only_when": "invalid_vote_policy"
         },
@@ -5342,7 +5350,8 @@
         {
           "depends_on": "preference_gaps_policy",
           "in": [
-            "allowed"
+            "allowed",
+            "allowed-with-exclusive-explicit"
           ],
           "only_when": "invalid_vote_policy"
         },
@@ -5758,7 +5767,8 @@
           "in": [
             "allowed",
             "warn",
-            "warn-invalid-implicit-and-explicit"
+            "warn-invalid-implicit-and-explicit",
+            "allowed-with-exclusive-explicit"
           ],
           "only_when": "invalid_vote_policy"
         },
@@ -5807,7 +5817,8 @@
           "in": [
             "allowed",
             "warn",
-            "warn-invalid-implicit-and-explicit"
+            "warn-invalid-implicit-and-explicit",
+            "allowed-with-exclusive-explicit"
           ],
           "only_when": "invalid_vote_policy"
         },
@@ -5823,7 +5834,8 @@
           "in": [
             "allowed",
             "warn",
-            "warn-invalid-implicit-and-explicit"
+            "warn-invalid-implicit-and-explicit",
+            "allowed-with-exclusive-explicit"
           ],
           "only_when": "invalid_vote_policy"
         },
@@ -6228,6 +6240,13 @@
       "constant": false,
       "restrictions": [
         {
+          "depends_on": "invalid_vote_policy",
+          "in": [
+            "true"
+          ],
+          "only_when": "explicit_invalid"
+        },
+        {
           "depends_on": "max_votes",
           "in": [
             "not-allowed-with-msg-and-disable"
@@ -6252,26 +6271,10 @@
             "3"
           ],
           "only_when": "regulars"
-        },
-        {
-          "depends_on": "explicit_invalid",
-          "in": [
-            "not-allowed-with-msg-and-disable"
-          ],
-          "only_when": "over_vote_policy"
-        },
-        {
-          "depends_on": "explicit_invalid",
-          "in": [
-            "0",
-            "1",
-            "2",
-            "3"
-          ],
-          "only_when": "regulars"
         }
       ],
       "support": [
+        "invalid_vote_policy",
         "over_vote_policy",
         "max_votes",
         "regulars",
@@ -6279,6 +6282,29 @@
         "explicit_invalid"
       ],
       "witnesses": [
+        {
+          "cell": {
+            "blank_marker": "true",
+            "blank_vote_policy": "allowed",
+            "decline": "false",
+            "duplicate_ranks": "false",
+            "duplicated_rank_policy": "allowed-warn-and-dialog",
+            "explicit_invalid": "true",
+            "invalid_vote_policy": "allowed",
+            "max_votes": "1",
+            "min_votes": "0",
+            "over_vote_policy": "allowed",
+            "preference_gaps_policy": "allowed-warn-and-dialog",
+            "rank_gaps": "false",
+            "regulars": "0",
+            "under_vote_policy": "allowed"
+          },
+          "from": "allowed",
+          "to": "allowed-with-exclusive-explicit",
+          "value_from": "yes",
+          "value_to": "marker_cleared",
+          "varies": "invalid_vote_policy"
+        },
         {
           "cell": {
             "blank_marker": "true",
@@ -9833,6 +9859,11 @@
         "component": "dialog",
         "varies": "rank_gaps",
         "reason": "unreachable ranked state (regulars=0, dup=false, gap=true)"
+      },
+      {
+        "component": "reachability",
+        "varies": "invalid_vote_policy",
+        "reason": "browser-pending (inline/reachability)"
       },
       {
         "component": "reachability",

@@ -32,7 +32,7 @@ every cell was compared. Outside the subdomain (preferential states,
 decline, max = 0, browser-only effects) the labels of
 `effect-dependencies.md` continue to apply.
 
-**Result: 276,480 cells, 0 disagreement(s).**
+**Result: 345,600 cells, 0 disagreement(s).**
 
 ## Quotient inventory (the browser stage's input)
 
@@ -45,9 +45,9 @@ source read at the browser stage. Under it, the inline behaviour of
 every cell of this subdomain is covered by one booth run per
 **reachable class** of (emissions × consulted policies):
 
-**6592 reachable classes** (each with a representative cell and
+**7848 reachable classes** (each with a representative cell and
 the spec's predicted inline views, in `headless-sweep.recorded.json`) —
-versus 276,480 cells: the browser cost collapse the
+versus 345,600 cells: the browser cost collapse the
 quotient buys. Driving each representative through the real booth and
 comparing inline at both observation points is stage 3 of the pipeline;
 the spec-side factorization (inline constant within each class) was

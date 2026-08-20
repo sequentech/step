@@ -89,6 +89,15 @@ pub enum InvalidVotePolicy {
     WarnInvalidImplicitAndExplicit,
     #[serde(rename = "not-allowed")]
     NotAllowed,
+    // Same as Allowed for every effect the checker, gates and filter
+    // produce — it emits nothing, gates like Allowed, and mutes like
+    // Allowed. Its ONLY difference is reachability: the explicit-invalid
+    // marker becomes mutually exclusive with other selections (the reducer
+    // clears one when the other is chosen), so `{regular + invalid flag}`
+    // cannot form. Added on main by #2941; it is the opt-in resolution to
+    // the S5 marker asymmetry.
+    #[serde(rename = "allowed-with-exclusive-explicit")]
+    AllowedWithExclusiveExplicit,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -382,7 +391,9 @@ pub fn soft_gate(config: &Config, vs: &VoteState, em: &Emissions) -> bool {
     let p = &config.policies;
     // QUIRK(S6_GATES_COUNT_FIRST_PREFERENCES_ONLY): NOT the checker's count.
     let n = gate_selections(vs);
-    (!em.errors.is_empty() && p.invalid != InvalidVotePolicy::Allowed)
+    (!em.errors.is_empty()
+        && p.invalid != InvalidVotePolicy::Allowed
+        && p.invalid != InvalidVotePolicy::AllowedWithExclusiveExplicit)
         || (p.invalid == InvalidVotePolicy::WarnInvalidImplicitAndExplicit
             && vs.explicit_invalid)
         || (p.blank == BlankVotePolicy::Warn && n == 0)
@@ -516,7 +527,9 @@ fn rendered_keys(
     // 7b0a1c71e8) composes with the gates' `invalid != allowed` conditions
     // into the silent-discount cells — UPSTREAM_FINDINGS.md S1.
     let kept_errors = errors.iter().filter(|m| {
-        if p.invalid != InvalidVotePolicy::Allowed {
+        if p.invalid != InvalidVotePolicy::Allowed
+            && p.invalid != InvalidVotePolicy::AllowedWithExclusiveExplicit
+        {
             return true;
         }
         (m.as_str() == SELECTED_MAX && p.over != OverVotePolicy::Allowed)
@@ -573,6 +586,17 @@ pub fn reachability(config: &Config, vs: &VoteState) -> Reachability {
         return Reachability::InputsDisabled;
     }
     if vs.blank_marker && vs.regulars > 0 {
+        return Reachability::MarkerCleared;
+    }
+    // Under AllowedWithExclusiveExplicit the invalid marker is mutually
+    // exclusive with other selections (ballotSelectionsSlice.ts): marking
+    // invalid clears candidates and the blank marker, and selecting either
+    // clears the flag. So a state carrying the flag AND another selection
+    // cannot form — the mirror of the blank-marker clear above.
+    if config.policies.invalid == InvalidVotePolicy::AllowedWithExclusiveExplicit
+        && vs.explicit_invalid
+        && (vs.regulars > 0 || vs.blank_marker)
+    {
         return Reachability::MarkerCleared;
     }
     Reachability::Yes

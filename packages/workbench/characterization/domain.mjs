@@ -24,7 +24,13 @@
 import {representable, rankedTriples, wellFormedRankedTriples} from "./cell.mjs"
 
 export const POLICY_VALUES = {
-    invalid: ["allowed", "warn", "warn-invalid-implicit-and-explicit", "not-allowed"],
+    invalid: [
+        "allowed",
+        "warn",
+        "warn-invalid-implicit-and-explicit",
+        "not-allowed",
+        "allowed-with-exclusive-explicit",
+    ],
     blank: ["allowed", "warn", "warn-only-in-review", "not-allowed"],
     over: [
         "allowed",

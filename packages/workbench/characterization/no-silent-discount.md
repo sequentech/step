@@ -16,18 +16,18 @@ total.
 
 **How it is decided.** Every conjunct is a field of the specification's
 output, so this is an ANALYSIS: it evaluates `f` over the whole domain
-`headless-sweep.md` certifies (276480 cells), where production has
+`headless-sweep.md` certifies (345600 cells), where production has
 been compared against this same spec on every cell. Nothing here
 observes production. The five cells escalated as S1/S2 are separately
 confirmed booth-to-tally through real crypto by the `*-e2e-pipeline`
 runners.
 
-**Result: 3168 silent-discount cells, in 2 families.**
+**Result: 6336 silent-discount cells, in 2 families.**
 
 | driving error | cells |
 |---|---|
-| `selectedMin` | 3040 |
-| `selectedMax` | 128 |
+| `selectedMin` | 6080 |
+| `selectedMax` | 256 |
 
 ## Configurations that permit it
 
@@ -40,6 +40,10 @@ for which some reachable vote state is silently discounted.
 | invalid=allowed over=allowed blank=allowed under=warn | 64 |
 | invalid=allowed over=allowed blank=allowed under=warn-only-in-review | 64 |
 | invalid=allowed over=allowed blank=allowed under=warn-and-alert | 64 |
+| invalid=allowed-with-exclusive-explicit over=allowed blank=allowed under=allowed | 64 |
+| invalid=allowed-with-exclusive-explicit over=allowed blank=allowed under=warn | 64 |
+| invalid=allowed-with-exclusive-explicit over=allowed blank=allowed under=warn-only-in-review | 64 |
+| invalid=allowed-with-exclusive-explicit over=allowed blank=allowed under=warn-and-alert | 64 |
 | invalid=allowed over=allowed-with-msg blank=allowed under=allowed | 56 |
 | invalid=allowed over=allowed-with-msg blank=allowed under=warn | 56 |
 | invalid=allowed over=allowed-with-msg blank=allowed under=warn-only-in-review | 56 |
@@ -56,6 +60,22 @@ for which some reachable vote state is silently discounted.
 | invalid=allowed over=not-allowed-with-msg-and-disable blank=allowed under=warn | 56 |
 | invalid=allowed over=not-allowed-with-msg-and-disable blank=allowed under=warn-only-in-review | 56 |
 | invalid=allowed over=not-allowed-with-msg-and-disable blank=allowed under=warn-and-alert | 56 |
+| invalid=allowed-with-exclusive-explicit over=allowed-with-msg blank=allowed under=allowed | 56 |
+| invalid=allowed-with-exclusive-explicit over=allowed-with-msg blank=allowed under=warn | 56 |
+| invalid=allowed-with-exclusive-explicit over=allowed-with-msg blank=allowed under=warn-only-in-review | 56 |
+| invalid=allowed-with-exclusive-explicit over=allowed-with-msg blank=allowed under=warn-and-alert | 56 |
+| invalid=allowed-with-exclusive-explicit over=allowed-with-msg-and-alert blank=allowed under=allowed | 56 |
+| invalid=allowed-with-exclusive-explicit over=allowed-with-msg-and-alert blank=allowed under=warn | 56 |
+| invalid=allowed-with-exclusive-explicit over=allowed-with-msg-and-alert blank=allowed under=warn-only-in-review | 56 |
+| invalid=allowed-with-exclusive-explicit over=allowed-with-msg-and-alert blank=allowed under=warn-and-alert | 56 |
+| invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-alert blank=allowed under=allowed | 56 |
+| invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-alert blank=allowed under=warn | 56 |
+| invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-alert blank=allowed under=warn-only-in-review | 56 |
+| invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-alert blank=allowed under=warn-and-alert | 56 |
+| invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-disable blank=allowed under=allowed | 56 |
+| invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-disable blank=allowed under=warn | 56 |
+| invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-disable blank=allowed under=warn-only-in-review | 56 |
+| invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-disable blank=allowed under=warn-and-alert | 56 |
 | invalid=allowed over=allowed blank=warn under=allowed | 40 |
 | invalid=allowed over=allowed blank=warn under=warn | 40 |
 | invalid=allowed over=allowed blank=warn under=warn-only-in-review | 40 |
@@ -68,6 +88,18 @@ for which some reachable vote state is silently discounted.
 | invalid=allowed over=allowed blank=not-allowed under=warn | 40 |
 | invalid=allowed over=allowed blank=not-allowed under=warn-only-in-review | 40 |
 | invalid=allowed over=allowed blank=not-allowed under=warn-and-alert | 40 |
+| invalid=allowed-with-exclusive-explicit over=allowed blank=warn under=allowed | 40 |
+| invalid=allowed-with-exclusive-explicit over=allowed blank=warn under=warn | 40 |
+| invalid=allowed-with-exclusive-explicit over=allowed blank=warn under=warn-only-in-review | 40 |
+| invalid=allowed-with-exclusive-explicit over=allowed blank=warn under=warn-and-alert | 40 |
+| invalid=allowed-with-exclusive-explicit over=allowed blank=warn-only-in-review under=allowed | 40 |
+| invalid=allowed-with-exclusive-explicit over=allowed blank=warn-only-in-review under=warn | 40 |
+| invalid=allowed-with-exclusive-explicit over=allowed blank=warn-only-in-review under=warn-only-in-review | 40 |
+| invalid=allowed-with-exclusive-explicit over=allowed blank=warn-only-in-review under=warn-and-alert | 40 |
+| invalid=allowed-with-exclusive-explicit over=allowed blank=not-allowed under=allowed | 40 |
+| invalid=allowed-with-exclusive-explicit over=allowed blank=not-allowed under=warn | 40 |
+| invalid=allowed-with-exclusive-explicit over=allowed blank=not-allowed under=warn-only-in-review | 40 |
+| invalid=allowed-with-exclusive-explicit over=allowed blank=not-allowed under=warn-and-alert | 40 |
 | invalid=allowed over=allowed-with-msg blank=warn under=allowed | 32 |
 | invalid=allowed over=allowed-with-msg blank=warn under=warn | 32 |
 | invalid=allowed over=allowed-with-msg blank=warn under=warn-only-in-review | 32 |
@@ -116,3 +148,51 @@ for which some reachable vote state is silently discounted.
 | invalid=allowed over=not-allowed-with-msg-and-disable blank=not-allowed under=warn | 32 |
 | invalid=allowed over=not-allowed-with-msg-and-disable blank=not-allowed under=warn-only-in-review | 32 |
 | invalid=allowed over=not-allowed-with-msg-and-disable blank=not-allowed under=warn-and-alert | 32 |
+| invalid=allowed-with-exclusive-explicit over=allowed-with-msg blank=warn under=allowed | 32 |
+| invalid=allowed-with-exclusive-explicit over=allowed-with-msg blank=warn under=warn | 32 |
+| invalid=allowed-with-exclusive-explicit over=allowed-with-msg blank=warn under=warn-only-in-review | 32 |
+| invalid=allowed-with-exclusive-explicit over=allowed-with-msg blank=warn under=warn-and-alert | 32 |
+| invalid=allowed-with-exclusive-explicit over=allowed-with-msg-and-alert blank=warn under=allowed | 32 |
+| invalid=allowed-with-exclusive-explicit over=allowed-with-msg-and-alert blank=warn under=warn | 32 |
+| invalid=allowed-with-exclusive-explicit over=allowed-with-msg-and-alert blank=warn under=warn-only-in-review | 32 |
+| invalid=allowed-with-exclusive-explicit over=allowed-with-msg-and-alert blank=warn under=warn-and-alert | 32 |
+| invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-alert blank=warn under=allowed | 32 |
+| invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-alert blank=warn under=warn | 32 |
+| invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-alert blank=warn under=warn-only-in-review | 32 |
+| invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-alert blank=warn under=warn-and-alert | 32 |
+| invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-disable blank=warn under=allowed | 32 |
+| invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-disable blank=warn under=warn | 32 |
+| invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-disable blank=warn under=warn-only-in-review | 32 |
+| invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-disable blank=warn under=warn-and-alert | 32 |
+| invalid=allowed-with-exclusive-explicit over=allowed-with-msg blank=warn-only-in-review under=allowed | 32 |
+| invalid=allowed-with-exclusive-explicit over=allowed-with-msg blank=warn-only-in-review under=warn | 32 |
+| invalid=allowed-with-exclusive-explicit over=allowed-with-msg blank=warn-only-in-review under=warn-only-in-review | 32 |
+| invalid=allowed-with-exclusive-explicit over=allowed-with-msg blank=warn-only-in-review under=warn-and-alert | 32 |
+| invalid=allowed-with-exclusive-explicit over=allowed-with-msg-and-alert blank=warn-only-in-review under=allowed | 32 |
+| invalid=allowed-with-exclusive-explicit over=allowed-with-msg-and-alert blank=warn-only-in-review under=warn | 32 |
+| invalid=allowed-with-exclusive-explicit over=allowed-with-msg-and-alert blank=warn-only-in-review under=warn-only-in-review | 32 |
+| invalid=allowed-with-exclusive-explicit over=allowed-with-msg-and-alert blank=warn-only-in-review under=warn-and-alert | 32 |
+| invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-alert blank=warn-only-in-review under=allowed | 32 |
+| invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-alert blank=warn-only-in-review under=warn | 32 |
+| invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-alert blank=warn-only-in-review under=warn-only-in-review | 32 |
+| invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-alert blank=warn-only-in-review under=warn-and-alert | 32 |
+| invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-disable blank=warn-only-in-review under=allowed | 32 |
+| invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-disable blank=warn-only-in-review under=warn | 32 |
+| invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-disable blank=warn-only-in-review under=warn-only-in-review | 32 |
+| invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-disable blank=warn-only-in-review under=warn-and-alert | 32 |
+| invalid=allowed-with-exclusive-explicit over=allowed-with-msg blank=not-allowed under=allowed | 32 |
+| invalid=allowed-with-exclusive-explicit over=allowed-with-msg blank=not-allowed under=warn | 32 |
+| invalid=allowed-with-exclusive-explicit over=allowed-with-msg blank=not-allowed under=warn-only-in-review | 32 |
+| invalid=allowed-with-exclusive-explicit over=allowed-with-msg blank=not-allowed under=warn-and-alert | 32 |
+| invalid=allowed-with-exclusive-explicit over=allowed-with-msg-and-alert blank=not-allowed under=allowed | 32 |
+| invalid=allowed-with-exclusive-explicit over=allowed-with-msg-and-alert blank=not-allowed under=warn | 32 |
+| invalid=allowed-with-exclusive-explicit over=allowed-with-msg-and-alert blank=not-allowed under=warn-only-in-review | 32 |
+| invalid=allowed-with-exclusive-explicit over=allowed-with-msg-and-alert blank=not-allowed under=warn-and-alert | 32 |
+| invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-alert blank=not-allowed under=allowed | 32 |
+| invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-alert blank=not-allowed under=warn | 32 |
+| invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-alert blank=not-allowed under=warn-only-in-review | 32 |
+| invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-alert blank=not-allowed under=warn-and-alert | 32 |
+| invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-disable blank=not-allowed under=allowed | 32 |
+| invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-disable blank=not-allowed under=warn | 32 |
+| invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-disable blank=not-allowed under=warn-only-in-review | 32 |
+| invalid=allowed-with-exclusive-explicit over=not-allowed-with-msg-and-disable blank=not-allowed under=warn-and-alert | 32 |

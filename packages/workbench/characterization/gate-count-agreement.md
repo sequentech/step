@@ -14,7 +14,7 @@ if they disagree, the gates are responding to a ballot the voter did not
 cast.
 
 **How it is decided.** Both counts are fields of the specification, so
-this is an ANALYSIS over the 276480 cells `headless-sweep.md`
+this is an ANALYSIS over the 345600 cells `headless-sweep.md`
 certifies. Nothing here observes production.
 
 **What the consequence column means.** A disagreement in counting is not
@@ -23,16 +23,16 @@ production behaves, and with the gates handed the checker's count — and
 the difference is what a voter would actually meet. Cells where another
 clause fires either way are reported as absorbed, not as harms.
 
-**Result: the counts disagree on 92160 cells; 6200 of those
-change what the voter meets, 85960 are absorbed.**
+**Result: the counts disagree on 115200 cells; 8576 of those
+change what the voter meets, 106624 are absorbed.**
 
 | consequence | cells |
 |---|---|
-| dialog kind changed: dismissible → blocking | 1644 |
-| dialog kind changed: blocking → dismissible | 1532 |
-| dialog with NOTHING rendered inline (should be no dialog) | 1456 |
-| MISSING dialog the policy promises | 1120 |
-| spurious dialog (should be none) | 448 |
+| dialog kind changed: dismissible → blocking | 2192 |
+| MISSING dialog the policy promises | 2000 |
+| dialog with NOTHING rendered inline (should be no dialog) | 1952 |
+| dialog kind changed: blocking → dismissible | 1776 |
+| spurious dialog (should be none) | 656 |
 
 ## One example of each
 
@@ -78,9 +78,9 @@ min=0 max=2 regulars=1 firstPreferences=0 dup=false gap=true | invalid=allowed b
 
 ## Which ballots produce which consequence
 
-Of the 92160 violating cells, 64000 are **malformed**
+Of the 115200 violating cells, 80000 are **malformed**
 rankings (carrying a duplicate or a gap) and
-**28160** are **well-formed**.
+**35200** are **well-formed**.
 
 That split explains the table above. A malformed ranking always carries an
 error whose policy raises a dialog either way, so on those cells only the

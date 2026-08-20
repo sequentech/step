@@ -32,11 +32,12 @@
 use std::io::Write;
 use validation_spec::*;
 
-const INVALID: [InvalidVotePolicy; 4] = [
+const INVALID: [InvalidVotePolicy; 5] = [
     InvalidVotePolicy::Allowed,
     InvalidVotePolicy::Warn,
     InvalidVotePolicy::WarnInvalidImplicitAndExplicit,
     InvalidVotePolicy::NotAllowed,
+    InvalidVotePolicy::AllowedWithExclusiveExplicit,
 ];
 const BLANK: [BlankVotePolicy; 4] = [
     BlankVotePolicy::Allowed,
@@ -77,7 +78,7 @@ const KEYS: [&str; 9] = [
 
 /// Input dimensions, in a fixed order shared with the JSON output.
 const DIMS: [(&str, usize); 14] = [
-    ("invalid_vote_policy", 4),
+    ("invalid_vote_policy", 5),
     ("blank_vote_policy", 4),
     ("over_vote_policy", 5),
     ("under_vote_policy", 4),

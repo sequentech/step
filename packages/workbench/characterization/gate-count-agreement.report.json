@@ -1,28 +1,28 @@
 {
-  "cells_evaluated": 276480,
-  "counts_disagree": 92160,
-  "voter_visible": 6200,
-  "absorbed": 85960,
+  "cells_evaluated": 345600,
+  "counts_disagree": 115200,
+  "voter_visible": 8576,
+  "absorbed": 106624,
   "consequences": [
     {
       "kind": "dialog with NOTHING rendered inline (should be no dialog)",
-      "cells": 1456
+      "cells": 1952
     },
     {
       "kind": "MISSING dialog the policy promises",
-      "cells": 1120
+      "cells": 2000
     },
     {
       "kind": "spurious dialog (should be none)",
-      "cells": 448
+      "cells": 656
     },
     {
       "kind": "dialog kind changed: blocking → dismissible",
-      "cells": 1532
+      "cells": 1776
     },
     {
       "kind": "dialog kind changed: dismissible → blocking",
-      "cells": 1644
+      "cells": 2192
     }
   ],
   "examples": [
@@ -258,8 +258,8 @@
   ],
   "known_still_derived": true,
   "by_ballot_shape": {
-    "malformed_rankings": 64000,
-    "well_formed_rankings": 28160,
+    "malformed_rankings": 80000,
+    "well_formed_rankings": 35200,
     "note": "malformed rankings always carry an error whose policy raises a dialog either way, so only the dialog kind can change there; the well-formed ones are where a dialog appears from nothing or goes missing."
   }
 }
