@@ -362,6 +362,13 @@ fn names_a_control(text: &str) -> bool {
             // Refused in `defaults` like the rest, and that is the point: a
             // starting value here would be applied to a path the core cannot
             // resolve. What a profile can say about them is *shown* or *not shown*.
+            // The schedule's **time zone**, which is written onto all four moments
+            // rather than stored once — `Timestamp` carries its own zone, so the
+            // field-shaped path would be `schedule.voting_opens.zone` and three
+            // more, and hiding *the time zone* is one decision rather than four.
+            // The screen already asks whether it is hidden; until now the builder
+            // had no switch to say so, because the row was marked unprofilable.
+            | "schedule.zone"
             | "platform.adminusers"
             | "platform.permissions"
             | "platform.templates"
@@ -805,7 +812,19 @@ fn shape_of_a_plan() -> Value {
         overrides: filled.clone(),
         ..Default::default()
     };
-    contest.candidates.push(Default::default());
+    let mut standing = super::architect::PlannedCandidate::default();
+    // **The fourth time this file has met the same trap.** `image` is an
+    // `Option`, so a default candidate has none, so the serialised shape has no
+    // such key, so `elections[].contests[].candidates[].image` reads as a typo —
+    // and a profile hiding the photograph is refused with a message naming a path
+    // that plainly exists. `Overrides`, `messages`, and `css`/`i18n` were the
+    // first three; every one of them looked from outside like a wizard that will
+    // not start for one client.
+    standing.image = Some(super::architect::CandidateImage {
+        file_name: "a.png".to_string(),
+        bytes: Vec::new(),
+    });
+    contest.candidates.push(standing);
 
     let mut election = super::architect::PlannedElection {
         shared: Some(filled),

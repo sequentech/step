@@ -889,3 +889,94 @@ fn a_path_naming_nothing_is_still_refused() {
         );
     }
 }
+
+/// Paths a profile plainly ought to be able to name, asked of the real shape.
+///
+/// **The trap this file keeps meeting**, written down as a test rather than as a
+/// fourth comment. `shape_of_a_plan` is a hand-filled `Blueprint`, and any field
+/// that is `Option` or `skip_serializing_if` is absent from it unless somebody
+/// remembered to fill it in — at which point a profile naming that field is
+/// refused as a typo, and the report says the path "names nothing a plan has"
+/// about a path that plainly exists. `Overrides`, `messages`, `css`/`i18n` and now
+/// `candidates[].image` have all been that bug, and each one looked from outside
+/// like a wizard that will not start for one client.
+#[test]
+fn a_profile_can_name_every_optional_corner_of_a_plan() {
+    for path in [
+        "elections[].contests[].candidates[].image",
+        "elections[].contests[].candidates[].disabled",
+        "logo",
+        "css",
+        "i18n",
+        "messages",
+        "elections[].contests[].overrides.tally.min_votes",
+    ] {
+        let document = ClientProfile {
+            id: "a-client".to_string(),
+            hidden: vec![path.to_string()],
+            ..Default::default()
+        };
+        let read = Profile::read(&document);
+        assert!(
+            read.is_ok(),
+            "a profile hiding {path} was refused: {:?}",
+            read.err()
+        );
+    }
+}
+
+/// The time zone is a control, and what a profile may say about one.
+///
+/// It is written onto all four moments rather than stored once — `Timestamp`
+/// carries its own zone — so there is no single `schedule.zone` in a plan and
+/// there never will be. Hiding *the time zone* is one decision, not four, and the
+/// Election Schedule screen has always asked whether it is hidden; what was
+/// missing was any way for a profile to say so.
+///
+/// **Hidden yes, fixed no**, and the asymmetry is the interesting half. `locked`
+/// with no default is an error on purpose — a client shown a value they cannot
+/// change has to be shown *some* value — and a control cannot carry a default,
+/// because there is no path for one to be written to. So this mechanism can take
+/// the zone off a client's screen and cannot pin it to Madrid. Pinning it needs a
+/// field on `ClientProfile` that the wizard reads, the way `preview_slim` is read,
+/// and that is not this.
+#[test]
+fn the_time_zone_is_a_control_a_profile_may_hide() {
+    let hidden = ClientProfile {
+        id: "a-client".to_string(),
+        hidden: vec!["schedule.zone".to_string()],
+        ..Default::default()
+    };
+    assert!(
+        Profile::read(&hidden).is_ok(),
+        "a profile hiding the time zone was refused"
+    );
+
+    // Refused in `defaults`, like every other control: a value would have nowhere
+    // to be written.
+    let valued = ClientProfile {
+        id: "a-client".to_string(),
+        defaults: [(
+            "schedule.zone".to_string(),
+            serde_json::json!("Europe/Madrid"),
+        )]
+        .into_iter()
+        .collect(),
+        ..Default::default()
+    };
+    assert!(
+        Profile::read(&valued).is_err(),
+        "a default for a control was accepted"
+    );
+
+    // And therefore refused when locked, which needs one.
+    let locked = ClientProfile {
+        id: "a-client".to_string(),
+        locked: vec!["schedule.zone".to_string()],
+        ..Default::default()
+    };
+    assert!(
+        Profile::read(&locked).is_err(),
+        "a control was locked with no value to lock it to"
+    );
+}
