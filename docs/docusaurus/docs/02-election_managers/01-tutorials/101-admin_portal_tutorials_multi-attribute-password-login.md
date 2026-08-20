@@ -38,8 +38,8 @@ second identifying attribute is available.
   [Adding User Attributes to Keycloak](./99-admin_portal_tutorials_add-user-attributes-to-keycloak.md).
   If an attribute is configured there with **Input type** `html5-date` (e.g. a date of birth
   field), the login form automatically renders it as a native date picker too, matching what
-  voters already see at registration. Every other User Profile annotation applies the same way -
-  see
+  voters already see at registration. Most other User Profile annotations apply the same way; the
+  page-specific exceptions are listed in
   [Configuring Login and Registration Fields](../02-reference/10-user-profile-login-registration-fields.md).
 - **Date-valued attributes must be stored as `YYYY-MM-DD`** (e.g. `1990-01-05` for January 5,
   1990) - the same format the browser's native date picker always submits, so no reformatting is

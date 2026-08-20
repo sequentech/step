@@ -339,8 +339,12 @@ class TemplateSyntaxTest {
                 Map.of("inputType", "select-radiobuttons", "disableAttribute", "other"),
                 List.of("yes", "no"))));
     String html = renderVotingPortalLogin(model);
+    String normalized = html.replaceAll("\\s+", " ");
 
-    assertTrue(html.contains("readOnlyElementById"));
+    // The handler definition alone proves nothing - fieldToggleHandlers always emits it. Assert
+    // the binding inputTagSelects generates on the option, and the initial state it registers.
+    assertTrue(normalized.contains("onclick=\"readOnlyElementById(event, 'yes')\""));
+    assertTrue(normalized.contains("setAllReadOnly(\"yes\", false)"));
     assertTrue(html.contains("function readOnlyElementById"));
   }
 
