@@ -38,7 +38,9 @@ second identifying attribute is available.
   [Adding User Attributes to Keycloak](./99-admin_portal_tutorials_add-user-attributes-to-keycloak.md).
   If an attribute is configured there with **Input type** `html5-date` (e.g. a date of birth
   field), the login form automatically renders it as a native date picker too, matching what
-  voters already see at registration.
+  voters already see at registration. The same is true of every other User Profile annotation -
+  helper text, placeholders, dropdown options, phone-number widgets - see
+  [Configuring Login and Registration Fields](../02-reference/10-user-profile-login-registration-fields.md).
 - **Date-valued attributes must be stored as `YYYY-MM-DD`** (e.g. `1990-01-05` for January 5,
   1990) - the same format the browser's native date picker always submits, so no reformatting is
   needed on the browser path.
@@ -71,11 +73,15 @@ second identifying attribute is available.
    - **Max failures per attribute-value combination** (default `10`)
    - **Failure window (seconds)** (default `60`)
    - **Max user-store rows per attribute lookup** (default `5000`)
-5. Leave **Multiple-candidate match policy** at its default, `REJECT_AMBIGUOUS`, unless you have
+5. Leave **Honor User Profile required attributes** off unless you want individual attributes to
+   be optional to match - see
+   [Required fields](../02-reference/10-user-profile-login-registration-fields.md#required-fields).
+   Off (the default) means every attribute listed above is mandatory.
+6. Leave **Multiple-candidate match policy** at its default, `REJECT_AMBIGUOUS`, unless you have
    read and understood [Multiple-Candidate Match Policy](#multiple-candidate-match-policy) below -
    the alternative, `FIRST_MATCH`, is only safe when password uniqueness across every possible
    candidate is guaranteed.
-6. Click **Save**.
+7. Click **Save**.
 
 ---
 
