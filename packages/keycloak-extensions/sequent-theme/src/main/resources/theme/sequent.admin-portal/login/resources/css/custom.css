@@ -781,3 +781,11 @@ button#resend-otp-btn:hover {
     padding-left: 0;
     padding-right: 0;
 }
+
+/* Those same wrappers are floated grid columns. register.ftl's form carries kcFormClass
+   (form-horizontal), whose .form-group has a clearfix; login.ftl's form tag has no class, so each
+   .form-group collapsed to zero height and its 15px margin never produced the intended rhythm.
+   flow-root makes the group contain its floats without depending on the form class. */
+#kc-form-login .form-group {
+    display: flow-root;
+}
