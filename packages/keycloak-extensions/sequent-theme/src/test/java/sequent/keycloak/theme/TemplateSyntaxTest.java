@@ -178,11 +178,10 @@ class TemplateSyntaxTest {
   }
 
   @Test
-  void multiAttributeLoginKeepsFocusTabOrderAndAutocompleteOff()
-      throws IOException, TemplateException {
-    // Regression: these three came from login.ftl's own input tag before the matchAttributes loop
-    // was moved onto user-profile-commons.ftl's shared macros. autocomplete="off" in particular
-    // keeps a shared device from suggesting the previous voter's values.
+  void multiAttributeLoginKeepsFocusAndAutocompleteOff() throws IOException, TemplateException {
+    // autofocus and autocomplete="off" came from login.ftl's own input tag before the
+    // matchAttributes loop moved onto the shared macros. autocomplete="off" keeps a shared device
+    // from suggesting the previous voter's values.
     for (String portal : List.of("sequent.admin-portal", "sequent.voting-portal")) {
       Map<String, Object> model = baseModel("standard");
       model.put("matchAttributes", List.of("dateOfBirth", "nationalId"));
@@ -196,9 +195,30 @@ class TemplateSyntaxTest {
 
       assertTrue(normalized.contains("id=\"dateOfBirth\""));
       assertTrue(normalized.contains("autofocus"));
-      assertTrue(normalized.contains("tabindex=\"1\""));
-      assertTrue(normalized.contains("tabindex=\"2\""));
       assertTrue(normalized.contains("autocomplete=\"off\""));
+    }
+  }
+
+  @Test
+  void multiAttributeLoginEmitsNoTabindexAndRendersInMatchOrder()
+      throws IOException, TemplateException {
+    // These controls are natively focusable and rendered in the order they should be tabbed, so
+    // source order alone gives the correct sequence. A positive tabindex would lift them out of
+    // the document's natural order - ahead of the header's locale link, and ahead of the
+    // credential field - which is the failure mode WCAG 2.4.3 describes.
+    for (String portal : List.of("sequent.admin-portal", "sequent.voting-portal")) {
+      Map<String, Object> model = baseModel("standard");
+      model.put("matchAttributes", List.of("dateOfBirth", "nationalId"));
+      model.put(
+          "profile",
+          profileWithAttributes(
+              mockAttribute("dateOfBirth", "${dateOfBirth}", Map.of("inputType", "html5-date")),
+              mockAttribute("nationalId", "${nationalId}", Map.of())));
+      String html = renderLogin(portal, model);
+
+      assertFalse(html.contains("tabindex"));
+      assertTrue(html.indexOf("id=\"dateOfBirth\"") < html.indexOf("id=\"nationalId\""));
+      assertTrue(html.indexOf("id=\"nationalId\"") < html.indexOf("id=\"password\""));
     }
   }
 
@@ -297,7 +317,6 @@ class TemplateSyntaxTest {
 
     assertTrue(tag.contains("tabindex=7"));
     assertTrue(tag.contains("autocomplete=bday"));
-    assertFalse(tag.contains("tabindex=\"1\""));
     assertFalse(tag.contains("autocomplete=\"off\""));
   }
 

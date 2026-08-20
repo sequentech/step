@@ -92,10 +92,13 @@ SPDX-License-Identifier: AGPL-3.0-only
       used (attribute.required, unconditionally) so its rendering is unaffected. login.ftl passes
       both explicitly, gated by honorUserProfileRequired, so the asterisk and the real enforcement
       never disagree there - see login.ftl's matchAttributes loop.  -->
-<#--  autofocus / tabindex / autocomplete are opt-in and default to off, so register.ftl's
-      rendering is unchanged. login.ftl passes them for its matchAttributes fields, which are the
-      first thing on the page and must not be autofilled from a previous voter's session.  -->
-<#macro inputFieldWithLabel attribute name values required=false requiredMarker=attribute.required autofocus=false tabindex="" autocomplete="">
+<#--  autofocus / autocomplete are opt-in and default to off, so register.ftl's rendering is
+      unchanged. login.ftl passes them for its matchAttributes fields, which are the first thing on
+      the page and must not be autofilled from a previous voter's session. No tabindex: these
+      controls are natively focusable and rendered in the order they should be tabbed, so source
+      order already gives the correct sequence - a positive tabindex would only lift them out of
+      the document's natural order.  -->
+<#macro inputFieldWithLabel attribute name values required=false requiredMarker=attribute.required autofocus=false autocomplete="">
 	<div class="${properties.kcFormGroupClass!}">
 		<div class="${properties.kcLabelWrapperClass!}">
 			<label for="${name}" class="${properties.kcLabelClass!}">
@@ -111,7 +114,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<#if attribute.annotations.inputHelperTextBefore??>
 				<@fieldHelperText.helperTextBefore id=name text=attribute.annotations.inputHelperTextBefore/>
 			</#if>
-			<@inputFieldByType attribute=attribute name=name values=values required=required autofocus=autofocus tabindex=tabindex autocomplete=autocomplete/>
+			<@inputFieldByType attribute=attribute name=name values=values required=required autofocus=autofocus autocomplete=autocomplete/>
 			<#if messagesPerField.existsError('${name}')>
 				<span id="input-error-${name}" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
 					${kcSanitize(messagesPerField.get('${name}'))?no_esc}
@@ -124,14 +127,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 </#macro>
 
-<#macro inputFieldByType attribute name values required=false autofocus=false tabindex="" autocomplete="">
+<#macro inputFieldByType attribute name values required=false autofocus=false autocomplete="">
 	<#switch attribute.annotations.inputType!''>
 	<#case 'textarea'>
-		<@textareaTag attribute=attribute name=name values=values required=required autofocus=autofocus tabindex=tabindex autocomplete=autocomplete/>
+		<@textareaTag attribute=attribute name=name values=values required=required autofocus=autofocus autocomplete=autocomplete/>
 		<#break>
 	<#case 'select'>
 	<#case 'multiselect'>
-		<@selectTag attribute=attribute name=name values=values required=required autofocus=autofocus tabindex=tabindex autocomplete=autocomplete/>
+		<@selectTag attribute=attribute name=name values=values required=required autofocus=autofocus autocomplete=autocomplete/>
 		<#break>
 	<#case 'select-radiobuttons'>
 	<#case 'multiselect-checkboxes'>
@@ -140,15 +143,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<#default>
 		<#if attribute.multivalued && values?has_content>
 			<#list values as value>
-				<@inputTag attribute=attribute name=name value=value!'' required=required autofocus=(autofocus && value?index == 0) tabindex=tabindex autocomplete=autocomplete/>
+				<@inputTag attribute=attribute name=name value=value!'' required=required autofocus=(autofocus && value?index == 0) autocomplete=autocomplete/>
 			</#list>
 		<#else>
-			<@inputTag attribute=attribute name=name value=attribute.value!'' required=required autofocus=autofocus tabindex=tabindex autocomplete=autocomplete/>
+			<@inputTag attribute=attribute name=name value=attribute.value!'' required=required autofocus=autofocus autocomplete=autocomplete/>
 		</#if>
 	</#switch>
 </#macro>
 
-<#macro inputTag attribute name value required=false autofocus=false tabindex="" autocomplete="">
+<#macro inputTag attribute name value required=false autofocus=false autocomplete="">
 	<input type="<@inputTagType attribute=attribute/>" id="${name}" name="${name}" value="${(value!'')}" class="${properties.kcInputClass!}"
 		aria-invalid="<#if messagesPerField.existsError('${name}')>true</#if>"
 		<#if required>required</#if>
@@ -156,7 +159,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<#-- Skipped when the attribute declares the same html-attribute annotation: a duplicate
 		     attribute is dropped by the HTML parser, so the theme default would silently win
 		     over the realm's explicit configuration. -->
-		<#if tabindex?has_content && !attribute.annotations['html-attribute:tabindex']??>tabindex="${tabindex}"</#if>
 		<#if autocomplete?has_content && !attribute.annotations['html-attribute:autocomplete']??>autocomplete="${autocomplete}"</#if>
 		<#if attribute.readOnly>disabled</#if>
 		<#-- readonly rather than disabled so the locked value is still submitted -->
@@ -206,12 +208,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</#compress>
 </#macro>
 
-<#macro textareaTag attribute name values required=false autofocus=false tabindex="" autocomplete="">
+<#macro textareaTag attribute name values required=false autofocus=false autocomplete="">
 	<textarea id="${name}" name="${name}" class="${properties.kcInputClass!}"
 		aria-invalid="<#if messagesPerField.existsError('${name}')>true</#if>"
 		<#if required>required</#if>
 		<#if autofocus>autofocus</#if>
-		<#if tabindex?has_content>tabindex="${tabindex}"</#if>
 		<#if autocomplete?has_content>autocomplete="${autocomplete}"</#if>
 		<#if attribute.readOnly>disabled</#if>
 		<#if isLoginHintReadOnly(attribute.name)>readonly</#if>
@@ -224,12 +225,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 <#--  Radio and checkbox groups deliberately do not take these: marking every control in a group
       required would demand all of them, and autofocusing each one is meaningless. See
       inputFieldByType.  -->
-<#macro selectTag attribute name values required=false autofocus=false tabindex="" autocomplete="">
+<#macro selectTag attribute name values required=false autofocus=false autocomplete="">
 	<select id="${name}" name="${name}" class="${properties.kcInputClass!}"
 		aria-invalid="<#if messagesPerField.existsError('${name}')>true</#if>"
 		<#if required>required</#if>
 		<#if autofocus>autofocus</#if>
-		<#if tabindex?has_content>tabindex="${tabindex}"</#if>
 		<#if autocomplete?has_content>autocomplete="${autocomplete}"</#if>
 		<#if attribute.readOnly || isLoginHintReadOnly(attribute.name)>disabled</#if>
 		<#if attribute.annotations.inputType=='multiselect'>multiple</#if>
