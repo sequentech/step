@@ -145,6 +145,16 @@ fn an_event_with_no_elections_is_rejected() {
     assert!(error_codes(&bundle).contains(&Code::MissingField));
 }
 
+#[test]
+fn an_event_with_no_areas_is_rejected() {
+    // The sibling of the test above, and it was missing. Every voter belongs to an
+    // area, so a bundle with none imports an event nobody can be enrolled in.
+    let mut bundle = sound();
+    bundle.areas.clear();
+    bundle.area_contests.clear();
+    assert!(error_codes(&bundle).contains(&Code::MissingField));
+}
+
 // -- references -------------------------------------------------------------
 
 #[test]
