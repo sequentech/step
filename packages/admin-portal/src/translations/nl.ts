@@ -1190,9 +1190,15 @@ const dutchTranslation: TranslationType = {
                 askCreate: "Wilt u er een aanmaken?",
                 errors: {
                     editError: "Fout bij bewerken kiezer",
+                    editErrorReason: "Fout bij bewerken kiezer: {{reason}}",
                     editSuccess: "Kiezer bewerkt",
                     createError: "Fout bij aanmaken kiezer",
+                    createErrorReason: "Fout bij aanmaken kiezer: {{reason}}",
                     createSuccess: "Kiezer aangemaakt",
+                    createPasswordError:
+                        "Kiezer aangemaakt, maar het wachtwoord kon niet worden ingesteld",
+                    createPasswordErrorReason:
+                        "Kiezer aangemaakt, maar het wachtwoord kon niet worden ingesteld: {{reason}}",
                 },
                 delete: {
                     body: "Weet u zeker dat u deze kiezer wilt verwijderen?",

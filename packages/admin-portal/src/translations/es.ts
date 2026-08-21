@@ -1192,9 +1192,14 @@ const spanishTranslation: TranslationType = {
                 },
                 errors: {
                     editError: "Error editando votante",
+                    editErrorReason: "Error editando votante: {{reason}}",
                     editSuccess: "Votante editado",
                     createError: "Error creando votante",
+                    createErrorReason: "Error creando votante: {{reason}}",
                     createSuccess: "Votante creado",
+                    createPasswordError: "Votante creado, pero no se pudo establecer su contraseña",
+                    createPasswordErrorReason:
+                        "Votante creado, pero no se pudo establecer su contraseña: {{reason}}",
                 },
                 delete: {
                     body: "¿Estás seguro que quieres borrar este votante?",

@@ -1193,9 +1193,15 @@ const catalanTranslation: TranslationType = {
                 },
                 errors: {
                     editError: "Error editant votant",
+                    editErrorReason: "Error editant votant: {{reason}}",
                     editSuccess: "Votant editat",
                     createError: "Error creant votant",
+                    createErrorReason: "Error creant votant: {{reason}}",
                     createSuccess: "Votant creat",
+                    createPasswordError:
+                        "Votant creat, però no s'ha pogut establir la seva contrasenya",
+                    createPasswordErrorReason:
+                        "Votant creat, però no s'ha pogut establir la seva contrasenya: {{reason}}",
                 },
                 delete: {
                     body: "Estàs segur que vols esborrar aquest votant?",

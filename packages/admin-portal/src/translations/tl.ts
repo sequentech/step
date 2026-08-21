@@ -1192,9 +1192,15 @@ const tagalogTranslation: TranslationType = {
                 askCreate: "Gusto mo bang lumikha ng isa?",
                 errors: {
                     editError: "Error sa pag-edit ng botante",
+                    editErrorReason: "Error sa pag-edit ng botante: {{reason}}",
                     editSuccess: "Nai-edit ang botante",
                     createError: "Error sa paglikha ng botante",
+                    createErrorReason: "Error sa paglikha ng botante: {{reason}}",
                     createSuccess: "Nalikha ang botante",
+                    createPasswordError:
+                        "Nalikha ang botante, ngunit hindi maitakda ang password nito",
+                    createPasswordErrorReason:
+                        "Nalikha ang botante, ngunit hindi maitakda ang password nito: {{reason}}",
                 },
                 delete: {
                     body: "Sigurado ka bang gusto mong tanggalin ang botante na ito?",

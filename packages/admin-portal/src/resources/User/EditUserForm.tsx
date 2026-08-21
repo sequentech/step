@@ -48,8 +48,11 @@ import {FormStyles} from "@/components/styles/FormStyles"
 import {CREATE_USER} from "@/queries/CreateUser"
 import {
     formatUserAtributes,
-    getAttributeLabel,
+    getAttributeMaxLength,
+    getInputOptionLabels,
+    getSelectOptionLabel,
     getTranslationLabel,
+    resolveOptionLabel,
     userBasicInfo,
 } from "@/services/UserService"
 import PhoneInput from "@/components/PhoneInput"
@@ -62,7 +65,7 @@ import IconTooltip from "@/components/IconTooltip"
 import {faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 import {useUsersPermissions} from "./useUsersPermissions"
 import {CustomAutocompleteArrayInput, ReviewChangesTable} from "@sequentech/ui-essentials"
-import {useCustomNotify} from "@/hooks/useCustomNotify"
+import {getSaveUserErrorMessage} from "./saveUserError"
 import {VOTED_CHANNEL} from "./ListUsers"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {computeRoleDiff, computeUserDiff, UserBaseline} from "@/services/UserEditReviewChanges"
@@ -91,6 +94,7 @@ const getAttributeStringValue = (value: string | string[] | null | undefined): s
 interface AttributeTextInputProps {
     disabled: boolean
     label: string
+    maxLength?: number
     onCommit: (value: string) => void
     required: boolean
     value: string | string[] | null | undefined
@@ -104,6 +108,7 @@ interface AttributeTextInputProps {
 const AttributeTextInput: React.FC<AttributeTextInputProps> = ({
     disabled,
     label,
+    maxLength,
     onCommit,
     required,
     value,
@@ -125,6 +130,7 @@ const AttributeTextInput: React.FC<AttributeTextInputProps> = ({
             disabled={disabled}
             required={required}
             fullWidth
+            slotProps={{htmlInput: {maxLength}}}
             InputLabelProps={type === "date" ? {shrink: true} : undefined}
         />
     )
@@ -275,6 +281,12 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         })) || []
     )
     const [errorText, setErrorText] = useState("")
+    const [saveError, setSaveError] = useState("")
+    const [saving, setSaving] = useState(false)
+    // Guarded through a ref as well as state: two clicks dispatched before
+    // React commits the first would both read the same stale state.
+    const savingRef = useRef(false)
+    const closedRef = useRef(false)
 
     const [step, setStep] = useState<"edit" | "review">("edit")
     const baselineRef = useRef<UserBaseline>({
@@ -319,7 +331,14 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     ])
 
     useEffect(() => {
+        if (!id) {
+            return
+        }
         setStep("edit")
+        setSaveError("")
+        savingRef.current = false
+        closedRef.current = false
+        setSaving(false)
     }, [id])
 
     useEffect(() => {
@@ -440,9 +459,67 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         )
     }, [])
 
+    const beginSave = (): boolean => {
+        if (savingRef.current) {
+            return false
+        }
+        savingRef.current = true
+        setSaving(true)
+        setSaveError("")
+
+        return true
+    }
+
+    const endSave = () => {
+        // A form that has asked to close is still mounted and clickable for as
+        // long as the drawer animates out, so it stays latched rather than
+        // re-arming its buttons for that window. The latch does not outlive the
+        // drawer: it is a temporary one, so closing it unmounts this form and
+        // the next one starts from fresh refs.
+        if (closedRef.current) {
+            return
+        }
+        savingRef.current = false
+        setSaving(false)
+    }
+
+    // Latched only once the caller has taken over, so a form with nothing to
+    // close, or whose caller throws, re-arms instead of going quietly dead.
+    const closeForm = () => {
+        if (!close) {
+            return
+        }
+        close()
+        closedRef.current = true
+    }
+
+    // The extracted reason is capped, so the raw rejection is logged for whoever
+    // has to diagnose it. messageArgs carries the already translated message
+    // through react-admin's polyglot provider, which would otherwise look it up
+    // as a key and find nothing.
+    const reportSaveError = (error: unknown, messageKey: string, reasonKey: string): string => {
+        console.error("Error saving voter:", error)
+        const message = getSaveUserErrorMessage(error, messageKey, reasonKey, t)
+        notify(message, {type: "error", messageArgs: {_: message}})
+
+        return message
+    }
+
     const onSubmitCreateUser = async () => {
+        if (!beginSave()) {
+            return
+        }
         try {
-            let {errors, data} = await createUser({
+            await createUserAndPassword()
+        } finally {
+            endSave()
+        }
+    }
+
+    const createUserAndPassword = async () => {
+        let createdUserId: string | null | undefined
+        try {
+            const {data} = await createUser({
                 variables: {
                     tenantId,
                     electionEventId,
@@ -463,31 +540,42 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     userRolesIds: selectedRolesOnCreate,
                 },
             })
-            //update user password after creating user
-            //@ts-ignore because data returns create_user property but not recognized
-            close?.()
-            if (errors) {
-                notify(t("usersAndRolesScreen.voters.errors.createError"), {type: "error"})
-                console.log(`Error creating user: ${errors}`)
-            } else {
-                if ((user?.password?.length ?? 0) > 0 && data?.create_user.id) {
-                    await handleUpdateUserPassword(data?.create_user.id)
-                }
-                notify(t("usersAndRolesScreen.voters.errors.createSuccess"), {type: "success"})
-                refresh()
-            }
+            createdUserId = data?.create_user?.id
         } catch (error) {
-            close?.()
-            notify(t("usersAndRolesScreen.voters.errors.createError"), {type: "error"})
-            console.log(`Error creating user: ${error}`)
+            setSaveError(
+                reportSaveError(
+                    error,
+                    "usersAndRolesScreen.voters.errors.createError",
+                    "usersAndRolesScreen.voters.errors.createErrorReason"
+                )
+            )
+            return
         }
+
+        // The voter exists from here on, so the form closes whatever happens
+        // next: submitting it again would only try to create the voter twice.
+        try {
+            if ((user?.password?.length ?? 0) > 0 && createdUserId) {
+                await handleUpdateUserPassword(createdUserId)
+            }
+            notify(t("usersAndRolesScreen.voters.errors.createSuccess"), {type: "success"})
+        } catch (error) {
+            reportSaveError(
+                error,
+                "usersAndRolesScreen.voters.errors.createPasswordError",
+                "usersAndRolesScreen.voters.errors.createPasswordErrorReason"
+            )
+        }
+        refresh()
+        closeForm()
     }
 
     const onSubmit = async () => {
         if (createMode) {
-            onSubmitCreateUser()
+            await onSubmitCreateUser()
             return
         }
+        setSaveError("")
         const diff = computeUserDiff(
             baselineRef.current,
             {user, phoneInputs, selectedActedTrustee},
@@ -550,8 +638,19 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     }
 
     const handleConfirmChanges = async () => {
+        if (!beginSave()) {
+            return
+        }
         try {
             const result = await handleEditUser()
+
+            // Datafix edits run as a task: surface it as soon as the edit is
+            // accepted, so ListUsers can still track an edit that is already
+            // running if a later step fails.
+            const taskExecutionId = result?.data?.edit_user?.task_execution?.id
+            if (taskExecutionId) {
+                onTaskLaunched?.(taskExecutionId)
+            }
 
             const baselineRoleIds = baselineRoleIdsRef.current
             const rolesToRemove = baselineRoleIds.filter(
@@ -579,30 +678,39 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 })
             }
 
+            // Only moved once everything landed, so a retry after a failure
+            // re-applies the whole set. Keycloak joins and leaves a group
+            // idempotently, so re-applying what already landed is harmless.
             baselineRoleIdsRef.current = selectedRoleIds
             if (authContext.userId === user?.id) {
                 authContext.updateTokenAndPermissionLabels()
             }
-            // Datafix edits run as a task: surface it so ListUsers can show
-            // the progress widget, and let the widget report the outcome
-            // instead of a premature success toast. Non-Datafix edits return
-            // no task and are done synchronously here.
-            const taskExecutionId = result?.data?.edit_user?.task_execution?.id
-            if (taskExecutionId) {
-                onTaskLaunched?.(taskExecutionId)
-            } else {
+            // A launched task reports its own outcome in the widget, so a
+            // premature success toast would contradict it.
+            if (!taskExecutionId) {
                 notify(t("usersAndRolesScreen.voters.errors.editSuccess"), {type: "success"})
             }
             refresh()
-            close?.()
+            closeForm()
         } catch (error) {
-            notify(t("usersAndRolesScreen.voters.errors.editError"), {type: "error"})
-            close?.()
+            // Whatever landed before the failure is already committed, so the
+            // list behind the drawer has to catch up either way.
+            refresh()
+            setSaveError(
+                reportSaveError(
+                    error,
+                    "usersAndRolesScreen.voters.errors.editError",
+                    "usersAndRolesScreen.voters.errors.editErrorReason"
+                )
+            )
+        } finally {
+            endSave()
         }
     }
 
     const handleBackToEdit = () => {
         setStep("edit")
+        setSaveError("")
     }
 
     const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -731,25 +839,27 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     : user && user[attr.name as keyof IUser]
                 const displayName = attr.display_name ?? ""
                 const isRequired = isFieldRequired(attr)
+                const optionLabels = getInputOptionLabels(attr)
                 if (attr.annotations?.inputType === "select") {
+                    const configuredOptions = attr.validations?.options?.options
+                    const selectOptions: string[] = Array.isArray(configuredOptions)
+                        ? [...configuredOptions].sort()
+                        : ["-"]
                     return (
                         <Grid key={index} container spacing={2}>
                             <Grid size={12}>
                                 <FormControl fullWidth>
                                     <Autocomplete
-                                        defaultValue={value || null}
-                                        value={value || null}
+                                        value={getAttributeStringValue(value) || null}
                                         onChange={(event, newValue) => {
                                             const fieldName = attr.name || ""
                                             const selectedValue = newValue || ""
                                             handleSelectChange(fieldName)(selectedValue)
                                         }}
-                                        options={
-                                            attr.validations.options?.options
-                                                ? [...attr.validations.options.options].sort()
-                                                : ["-"]
+                                        options={selectOptions}
+                                        getOptionLabel={(option) =>
+                                            getSelectOptionLabel(optionLabels, option, t)
                                         }
-                                        getOptionLabel={(option) => t(option) || String(option)}
                                         renderInput={(params) => (
                                             <TextField
                                                 {...params} // Spread all params provided by Autocomplete
@@ -792,15 +902,13 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             </Grid>
                         </Grid>
                     )
-                } else if (
-                    attr.annotations?.inputType === "multiselect-checkboxes" &&
-                    attr.annotations?.inputOptionLabels
-                ) {
-                    const choices = Object.entries(attr.annotations?.inputOptionLabels)?.map(
-                        ([key, value]) => {
-                            return {id: key, name: getAttributeLabel(value as string)}
-                        }
-                    )
+                } else if (attr.annotations?.inputType === "multiselect-checkboxes") {
+                    const choices = Object.entries(optionLabels ?? {}).map(([key, value]) => {
+                        return {id: key, name: resolveOptionLabel(value, t)}
+                    })
+                    if (choices.length === 0) {
+                        return
+                    }
                     return (
                         <FormControl key={index} component="fieldset">
                             <FormLabel component="legend" style={{margin: 0}}>
@@ -940,6 +1048,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             <AttributeTextInput
                                 key={index}
                                 label={getTranslationLabel(attr.name, attr.display_name, t)}
+                                maxLength={getAttributeMaxLength(attr)}
                                 value={value}
                                 onCommit={(newValue) => {
                                     const attrName = attr.name as string
@@ -971,6 +1080,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 onChange={handleChange}
                                 source={attr.name}
                                 required={isFieldRequired(attr)}
+                                slotProps={{htmlInput: {maxLength: getAttributeMaxLength(attr)}}}
                                 disabled={
                                     (attr.name === "username" && !createMode) ||
                                     !(
@@ -1010,6 +1120,12 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         ))
     }, [userAttributes, user, permissionLabels, choices, electionsList])
 
+    const saveErrorAlert = saveError ? (
+        <WizardStyles.ErrorMessage variant="body2" role="alert" className="edit-voter-save-error">
+            {saveError}
+        </WizardStyles.ErrorMessage>
+    ) : null
+
     if (!user && !createMode) {
         return null
     }
@@ -1048,7 +1164,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     return (
         <PageHeaderStyles.Wrapper>
             <SimpleForm
-                toolbar={step === "edit" ? <SaveButton alwaysEnable={!errorText} /> : false}
+                toolbar={
+                    step === "edit" ? <SaveButton alwaysEnable={!errorText && !saving} /> : false
+                }
                 record={user}
                 onSubmit={onSubmit}
                 sanitizeEmptyValues
@@ -1189,6 +1307,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             }
                         />
                     ) : null}
+                    {step === "edit" && saveErrorAlert}
                 </Box>
                 {!createMode && step === "review" && (
                     <Box sx={{width: "100%"}}>
@@ -1205,11 +1324,13 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             rows={reviewRows}
                             headingRef={reviewHeadingRef}
                         />
+                        {saveErrorAlert}
                         <WizardStyles.FooterContainer>
                             <WizardStyles.StyledFooter>
                                 <WizardStyles.BackButton
                                     type="button"
                                     onClick={handleBackToEdit}
+                                    disabled={saving}
                                     className="edit-voter-review-edit-button"
                                 >
                                     {t("common.label.edit")}
@@ -1217,6 +1338,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 <WizardStyles.NextButton
                                     type="button"
                                     onClick={handleConfirmChanges}
+                                    disabled={saving}
                                     className="edit-voter-review-confirm-button"
                                 >
                                     {t(`usersAndRolesScreen.${reviewI18nContext}.review.confirm`)}

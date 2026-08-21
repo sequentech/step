@@ -1194,9 +1194,15 @@ const frenchTranslation: TranslationType = {
                 },
                 errors: {
                     editError: "Erreur lors de l'édition de l'électeur",
+                    editErrorReason: "Erreur lors de l'édition de l'électeur : {{reason}}",
                     editSuccess: "Électeur édité",
                     createError: "Erreur lors de la création de l'électeur",
+                    createErrorReason: "Erreur lors de la création de l'électeur : {{reason}}",
                     createSuccess: "Électeur créé",
+                    createPasswordError:
+                        "Électeur créé, mais son mot de passe n'a pas pu être défini",
+                    createPasswordErrorReason:
+                        "Électeur créé, mais son mot de passe n'a pas pu être défini : {{reason}}",
                 },
                 delete: {
                     body: "Êtes-vous sûr de vouloir supprimer cet électeur ?",

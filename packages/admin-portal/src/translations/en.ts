@@ -1181,9 +1181,14 @@ const englishTranslation = {
                 askCreate: "Do you want to create one?",
                 errors: {
                     editError: "Error editing voter",
+                    editErrorReason: "Error editing voter: {{reason}}",
                     editSuccess: "Voter edited",
                     createError: "Error creating voter",
+                    createErrorReason: "Error creating voter: {{reason}}",
                     createSuccess: "Voter created",
+                    createPasswordError: "Voter created, but their password could not be set",
+                    createPasswordErrorReason:
+                        "Voter created, but their password could not be set: {{reason}}",
                 },
                 delete: {
                     body: "Are you sure you want to delete this voter?",

@@ -32,6 +32,16 @@ To enable sex selection:
 
 1. In **Annotations** > **Add annotation**, set Key: `Input type`, Value: `select`
 2. **Add Validator** > **Validator type**: `options` and add the desired options (e.g., M, F)
+3. Optionally describe each option, so that whoever edits a voter does not have to interpret the
+   stored values. In **Annotations** > **Add annotation**, set Key: `inputOptionLabels` and a JSON
+   value mapping each option to its description, such as `{"M": "Male", "F": "Female"}`. A
+   description written as `${sex_male}` is resolved through the Admin Portal's own localization
+   overrides (see below) and falls back to a readable form of the key when there is no override.
+   The `inputOptionLabelsI18nPrefix` annotation is honoured on the voter-facing login forms only;
+   the Admin Portal ignores it, because it reads a different set of translations.
+
+The dropdown in the Admin Portal shows the stored option followed by its description, for example
+`M - Male`, so the value written to the voter stays visible.
 
 ### Birth Date
 
@@ -44,6 +54,27 @@ To show a date input field:
 
 1. In **Annotations** > **Add annotation**, set Key: `Input type`, Value: `multiselect-checkboxes`
 2. **TODO:** Implementation pending
+
+## Limiting the Number of Characters
+
+An attribute can be capped in two ways, and Keycloak treats them differently:
+
+- **Add Validator** > **Validator type**: `length`, setting the maximum number of characters. This
+  is the rule the server enforces when the form is submitted.
+- In **Annotations** > **Add annotation**, Key: `inputTypeMaxlength` and the maximum as its value.
+  This stops the voter typing past the limit in the enrollment and login forms, but is not enforced
+  on submit.
+
+Setting both, to the same value, is recommended. The Admin Portal honours either, and where an
+attribute carries both it follows the `length` validator, since capping an admin at a lower typing
+hint would leave a stored value that already exceeds it impossible to repair. Its text fields stop
+accepting characters once the maximum is reached, when creating and when editing a voter.
+
+Fields whose value comes from a fixed list — selects, checkboxes, areas, elections and permission
+labels — are unaffected, and so is the phone number field: it displays a formatted national number while it
+stores the full international one, so a character count of what is typed would not match what the
+`length` validator measures. A `length` validator on a phone attribute is still enforced on
+submit.
 
 ## Localization Overrides
 

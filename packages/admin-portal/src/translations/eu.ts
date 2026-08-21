@@ -1186,9 +1186,15 @@ const basqueTranslation: TranslationType = {
                 askCreate: "Bat sortu nahi duzu?",
                 errors: {
                     editError: "Errorea bozkatzailea editatzerakoan",
+                    editErrorReason: "Errorea bozkatzailea editatzerakoan: {{reason}}",
                     editSuccess: "Bozkatzailea editatua",
                     createError: "Errorea bozkatzailea sortzerakoan",
+                    createErrorReason: "Errorea bozkatzailea sortzerakoan: {{reason}}",
                     createSuccess: "Bozkatzailea sortua",
+                    createPasswordError:
+                        "Bozkatzailea sortua, baina ezin izan da bere pasahitza ezarri",
+                    createPasswordErrorReason:
+                        "Bozkatzailea sortua, baina ezin izan da bere pasahitza ezarri: {{reason}}",
                 },
                 delete: {
                     body: "Ziur zaude bozkatzaile hau ezabatu nahi duzula?",

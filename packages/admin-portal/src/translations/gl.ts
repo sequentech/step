@@ -1191,9 +1191,15 @@ const galegoTranslation: TranslationType = {
                 askCreate: "¿Queres crear un?",
                 errors: {
                     editError: "Erro ao editar o votante",
+                    editErrorReason: "Erro ao editar o votante: {{reason}}",
                     editSuccess: "Votante editado",
                     createError: "Erro ao crear o votante",
+                    createErrorReason: "Erro ao crear o votante: {{reason}}",
                     createSuccess: "Votante creado",
+                    createPasswordError:
+                        "Votante creado, pero non se puido establecer o seu contrasinal",
+                    createPasswordErrorReason:
+                        "Votante creado, pero non se puido establecer o seu contrasinal: {{reason}}",
                 },
                 delete: {
                     body: "¿Estás seguro de que queres eliminar este votante?",
