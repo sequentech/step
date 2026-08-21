@@ -18,29 +18,32 @@
 //! cleanly and fail silently, so they are checked here.
 
 use std::collections::{HashMap, HashSet};
+use std::str::FromStr;
+
+use strum::VariantNames;
 
 use super::problem::{Code, Problem, Report};
 use super::schema::ImportElectionEventSchema;
+use crate::types::ceremonies::CountingAlgType;
 
-/// `CountingAlgType` in `crate::types::ceremonies`, by its serde rename.
-pub const COUNTING_ALGORITHMS: &[&str] = &[
-    "plurality-at-large",
-    "instant-runoff",
-    "borda-nauru",
-    "borda",
-    "borda-mas-madrid",
-    "pairwise-beta",
-    "desborda3",
-    "desborda2",
-    "desborda",
-    "cumulative",
-];
+/// Every value `CountingAlgType` accepts, taken from the enum itself.
+///
+/// **Not written out here.** It was — ten strings, copied from the enum's serde
+/// renames — and a list written twice is a list that drifts: the way it fails is a
+/// bundle this accepts and the importer does not, or an algorithm the platform
+/// gained and this went on rejecting.
+pub const COUNTING_ALGORITHMS: &[&str] = CountingAlgType::VARIANTS;
 
 /// The algorithms `CountingAlgType::is_preferential` returns true for.
 ///
 /// The split is load-bearing rather than cosmetic: ballot encoding follows the
 /// algorithm, so a preferential contest counted by plurality imports cleanly and
 /// then reads the rankings a voter entered as unordered selections.
+///
+/// Still spelled out, because a `&'static [&'static str]` is what the browser is
+/// handed and `is_preferential` cannot be called in a const. `the_preferential_list_
+/// matches_the_enum` fails the moment the two disagree, which is the drift this
+/// would otherwise invite.
 pub const PREFERENTIAL_ALGORITHMS: &[&str] = &[
     "instant-runoff",
     "borda",
@@ -52,9 +55,15 @@ pub const PREFERENTIAL_ALGORITHMS: &[&str] = &[
     "desborda3",
 ];
 
+/// A contest whose ballot carries an order.
+pub const PREFERENTIAL: &str = "preferential";
+
+/// A contest whose ballot carries a set of marks.
+pub const NON_PREFERENTIAL: &str = "non-preferential";
+
 /// `IVotingType` in the Admin Portal. Rust carries `voting_type` as a free-form
 /// `String`, so the portal's enum is the only authority on what it may hold.
-pub const VOTING_TYPES: &[&str] = &["preferential", "non-preferential"];
+pub const VOTING_TYPES: &[&str] = &[PREFERENTIAL, NON_PREFERENTIAL];
 
 /// Check a bundle and report everything wrong with it.
 ///
@@ -242,20 +251,34 @@ fn check_contests(bundle: &ImportElectionEventSchema, report: &mut Report) {
         let max_votes = contest.max_votes;
         let winners = contest.winning_candidates_num;
 
+        // Present, and not below zero. **Only the relations were checked**, and every
+        // one of them is a comparison — `min > max`, `winners > available` — so a
+        // contest asking for -1 winners satisfied all of them and imported. The
+        // platform's column is a signed integer and takes it; what it means is
+        // nothing, and the count reaches ballot encoding and the tally.
         for (field, value) in [
             ("min_votes", min_votes),
             ("max_votes", max_votes),
             ("winning_candidates_num", winners),
         ] {
-            if value.is_none() {
-                report.push(
+            match value {
+                None => report.push(
                     Problem::error(
                         Code::MissingField,
                         path(field),
                         format!("a contest needs {field}"),
                     )
                     .about(about),
-                );
+                ),
+                Some(number) if number < 0 => report.push(
+                    Problem::error(
+                        Code::InvalidValue,
+                        path(field),
+                        format!("{field} is {number}, and a count cannot be negative"),
+                    )
+                    .about(about),
+                ),
+                Some(_) => {}
             }
         }
 
@@ -293,10 +316,17 @@ fn check_contests(bundle: &ImportElectionEventSchema, report: &mut Report) {
 
         let algorithm = contest.counting_algorithm.as_deref();
         match algorithm {
+            // Matched exactly, then parsed. `CountingAlgType::from_str` is
+            // `ascii_case_insensitive`, so parsing *first* would accept `Borda` —
+            // which Rust reads correctly and `ICountingAlgorithm` in `ui-core`, which
+            // compares the string, does not. So: the enum says which values exist,
+            // and this says they have to be spelled the way the platform spells them.
             Some(value) if COUNTING_ALGORITHMS.contains(&value) => {
-                let preferential = PREFERENTIAL_ALGORITHMS.contains(&value);
+                let preferential = CountingAlgType::from_str(value)
+                    .map(|algorithm| algorithm.is_preferential())
+                    .unwrap_or(false);
                 match voting_type {
-                    Some("preferential") if !preferential => report.push(
+                    Some(PREFERENTIAL) if !preferential => report.push(
                         Problem::error(
                             Code::TallyMismatch,
                             path("counting_algorithm"),
@@ -307,7 +337,7 @@ fn check_contests(bundle: &ImportElectionEventSchema, report: &mut Report) {
                         )
                         .about(about),
                     ),
-                    Some("non-preferential") if preferential => report.push(
+                    Some(NON_PREFERENTIAL) if preferential => report.push(
                         Problem::error(
                             Code::TallyMismatch,
                             path("counting_algorithm"),
@@ -523,31 +553,42 @@ fn check_permission_labels(
     // so an entity carrying a label is invisible to every administrator who does
     // not hold it — including whoever runs the import. The bundle cannot know who
     // holds what, so this is a warning naming the label rather than a refusal.
-    let mut labels: Vec<String> = Vec::new();
+    // Per collection, because `Problem::path` is where the thing *is*: a front end
+    // turns it into a wizard step or a spreadsheet cell. One warning pointing at
+    // `elections[]` for a label that only a report carries sends somebody to a screen
+    // where there is nothing to change.
+    let mut from_elections: Vec<String> = Vec::new();
+    let mut from_reports: Vec<String> = Vec::new();
 
     for election in &bundle.elections {
         if let Some(label) = election.permission_label.as_deref() {
             if !label.trim().is_empty()
-                && !labels.iter().any(|seen| seen == label)
+                && !from_elections.iter().any(|seen| seen == label)
             {
-                labels.push(label.to_string());
+                from_elections.push(label.to_string());
             }
         }
     }
     for report_definition in &bundle.reports {
         for label in report_definition.permission_label.iter().flatten() {
             if !label.trim().is_empty()
-                && !labels.iter().any(|seen| seen == label)
+                && !from_reports.iter().any(|seen| seen == label)
             {
-                labels.push(label.clone());
+                from_reports.push(label.clone());
             }
         }
     }
 
-    if !labels.is_empty() {
+    for (path, labels) in [
+        ("elections[].permission_label", &from_elections),
+        ("reports[].permission_label", &from_reports),
+    ] {
+        if labels.is_empty() {
+            continue;
+        }
         report.push(Problem::warning(
             Code::PermissionLabel,
-            "elections[].permission_label",
+            path,
             format!(
                 "permission labels in use: {}. Anything carrying a label is hidden \
                  from every administrator without it, so whoever imports this needs \
