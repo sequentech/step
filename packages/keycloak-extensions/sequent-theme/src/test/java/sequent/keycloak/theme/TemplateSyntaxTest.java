@@ -682,8 +682,10 @@ class TemplateSyntaxTest {
 
     assertFalse(html.contains("requiredFields"));
     assertFalse(normalized.contains("</label> *"));
-    // still enforced, just not annotated
-    assertTrue(normalized.contains("required"));
+    // Still enforced, just not annotated. Anchored per input: a bare "required" would also match
+    // the credential field, which is always required.
+    assertTrue(inputTagFor(html, "dateOfBirth").contains("required"));
+    assertTrue(inputTagFor(html, "nationalId").contains("required"));
   }
 
   @Test
@@ -760,6 +762,65 @@ class TemplateSyntaxTest {
     try (Reader reader = Files.newBufferedReader(path)) {
       new Template(path.getFileName().toString(), reader, configuration);
     }
+  }
+
+  @Test
+  void socialProvidersRenderAsOneList() throws IOException, TemplateException {
+    // The grid layout applies to the list, so a list per provider would leave every grid holding a
+    // single item.
+    List<Map<String, Object>> providers =
+        List.of("google", "github", "gitlab", "openid").stream()
+            .map(
+                alias ->
+                    (Map<String, Object>)
+                        Map.<String, Object>of(
+                            "alias",
+                            alias,
+                            "loginUrl",
+                            "/broker/" + alias,
+                            "iconClasses",
+                            "",
+                            "displayName",
+                            alias))
+            .toList();
+    Map<String, Object> model = baseModel("standard");
+    model.put("social", Map.of("providers", providers));
+
+    String html = renderVotingPortalLogin(model);
+
+    assertEquals(4, html.split("<li>", -1).length - 1);
+    assertEquals(1, html.split("<ul", -1).length - 1);
+  }
+
+  @Test
+  void secondPasswordAnchorDoesNotDuplicateTheCredential() throws IOException, TemplateException {
+    // Two attributes claiming the anchor is a misconfiguration; rendering both would put duplicate
+    // password ids and names on the page.
+    Map<String, Object> model = baseModel("standard");
+    model.put("formMode", "REGISTRATION");
+    model.put("passwordRequired", true);
+    model.put(
+        "profile",
+        Map.of(
+            "attributes",
+            List.of(
+                mockAttribute("username", "${username}", Map.of("showPasswordAfterThis", "false")),
+                mockAttribute(
+                    "dateOfBirth",
+                    "${dateOfBirth}",
+                    Map.of("inputType", "html5-date", "showPasswordAfterThis", "true")),
+                mockAttribute(
+                    "nationalId", "${nationalId}", Map.of("showPasswordAfterThis", "true"))),
+            "html5DataAnnotations",
+            Map.of()));
+
+    String html = renderRegister(model);
+
+    assertEquals(1, html.split("id=\"password\"", -1).length - 1);
+    assertEquals(1, html.split("id=\"password-confirm\"", -1).length - 1);
+    // The first anchor in profile order wins.
+    assertTrue(html.indexOf("id=\"dateOfBirth\"") < html.indexOf("id=\"password\""));
+    assertTrue(html.indexOf("id=\"password\"") < html.indexOf("id=\"nationalId\""));
   }
 
   private static String renderVotingPortalLogin(Map<String, Object> model)

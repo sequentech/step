@@ -39,7 +39,7 @@ SPDX-License-Identifier: AGPL-3.0-only
             <@userProfileCommons.userProfileFormFields; callback, attribute>
                 <#if callback = "afterField" || (callback = "beforeField" && credentialFirst && !credentialEmitted)>
                     <#-- render password fields just under the username or email (if used as username) -->
-                    <#if callback = "beforeField" || (!credentialFirst && passwordRequired && (attribute.name == 'username' || (attribute.name == 'email' && realm.registrationEmailAsUsername)) && (attribute.annotations.showPasswordAfterThis!'true') != 'false') || (attribute.annotations.showPasswordAfterThis!'false') == 'true'>
+                    <#if !credentialEmitted && (callback = "beforeField" || (!credentialFirst && passwordRequired && (attribute.name == 'username' || (attribute.name == 'email' && realm.registrationEmailAsUsername)) && (attribute.annotations.showPasswordAfterThis!'true') != 'false') || (attribute.annotations.showPasswordAfterThis!'false') == 'true')>
                         <#assign credentialEmitted = true>
                             <div class="${properties.kcFormGroupClass!}">
                                 <div class="${properties.kcLabelWrapperClass!}">

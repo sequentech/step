@@ -14,8 +14,8 @@ SPDX-License-Identifier: AGPL-3.0-only
         <hr/>
         <h4 style="text-align: center;">${msg("identity-provider-login-label")}</h4>
         <div id="kc-social-providers" class="${properties.kcFormSocialAccountSectionClass!}">
-            <#list visibleProviders as p>
-                <ul class="${properties.kcFormSocialAccountListClass!} <#if visibleProviders?size gt 3>${properties.kcFormSocialAccountListGridClass!}</#if>">
+            <ul class="${properties.kcFormSocialAccountListClass!} <#if visibleProviders?size gt 3>${properties.kcFormSocialAccountListGridClass!}</#if>">
+                <#list visibleProviders as p>
                     <li>
                         <a id="social-${p.alias}" class="${properties.kcFormSocialAccountListButtonClass!} <#if visibleProviders?size gt 3>${properties.kcFormSocialAccountGridItem!}</#if>"
                                 type="button" href="${p.loginUrl}">
@@ -27,8 +27,8 @@ SPDX-License-Identifier: AGPL-3.0-only
                             </#if>
                         </a>
                     </li>
-                </ul>
-            </#list>
+                </#list>
+            </ul>
         </div>
     </#if>
 </#macro>
