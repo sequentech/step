@@ -48,6 +48,13 @@ const INVALID_POLICIES = [
     "not-allowed",
 ]
 
+// The invalid-rule additionally exercises `allowed-with-exclusive-explicit`
+// (main #2941). It behaves like `allowed` for every emitted effect, so it
+// adds observable information only here — where the invalid marker's
+// mutual-exclusivity (it clears co-selections) is the reachability effect
+// under test. The other rules keep the four shared values.
+const INVALID_RULE_POLICIES = [...INVALID_POLICIES, "allowed-with-exclusive-explicit"]
+
 /** Cross-product helper: outer knob × invalid policy × vote state. */
 const grid = (knobName, knobValues, states) => {
     const out = []
@@ -92,7 +99,7 @@ export const RULE_ROWS = {
         ["allowed-warn-and-dialog", "not-allowed-warn-and-dialog"],
         ["valid_full", "gap"]
     ),
-    "invalid-rule": INVALID_POLICIES.flatMap((invalid) =>
+    "invalid-rule": INVALID_RULE_POLICIES.flatMap((invalid) =>
         ["none", "regular", "flag_only", "marker", "marker_plus"].map((state) => ({
             invalid_vote_policy: invalid,
             state,
@@ -273,6 +280,11 @@ export const RULE_SPECS = {
         reached: (obs, c) =>
             obs.formed === (c.state === "regular" || c.state === "marker_plus" ? 1 : 0) &&
             obs.explicitInvalid === (c.state === "marker" || c.state === "marker_plus"),
+        // Direct evidence for the exclusivity clear (only reached by
+        // marker_plus under allowed-with-exclusive-explicit): selecting the
+        // regular cleared the flag, so exactly the regular remains and the
+        // flag is gone — the mirror of blank-rule's marker-survives check.
+        clearedOk: (obs) => obs.formed === 1 && obs.explicitInvalid === false,
     },
     "duprank-rule": {
         contestCounting: "instant-runoff", // IRV Favourite fruit (Apple/Banana/Cherry)

@@ -76,6 +76,10 @@ const POLICY_META: ReadonlyArray<PolicyMeta<ContestPolicyKey>> = [
                 label: "warn-invalid-implicit-and-explicit",
             },
             {value: EInvalidVotePolicy.NOT_ALLOWED, label: "not-allowed"},
+            {
+                value: EInvalidVotePolicy.ALLOWED_WITH_EXCLUSIVE_EXPLICIT,
+                label: "allowed-with-exclusive-explicit",
+            },
         ],
     },
     {

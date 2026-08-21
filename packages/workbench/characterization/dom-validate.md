@@ -264,6 +264,10 @@ its meaning is noted under each rule heading below.
 | not-allowed | regular | — | — | — | — | — | — | yes | Valid | ✓ |
 | not-allowed | marker | notAllowed | — | notAllowed | (blocked) | **block** | dialog | yes | ExplicitInvalid | ✓ |
 | not-allowed | marker_plus | notAllowed | — | notAllowed | (blocked) | **block** | dialog | yes | ExplicitInvalid | ✓ |
+| allowed-with-exclusive-explicit | none | — | — | — | — | — | — | yes | ImplicitBlank | ✓ |
+| allowed-with-exclusive-explicit | regular | — | — | — | — | — | — | yes | Valid | ✓ |
+| allowed-with-exclusive-explicit | marker | — | — | — | — | — | — | yes | ExplicitInvalid | ✓ |
+| allowed-with-exclusive-explicit | marker_plus | — | — | — | — | — | — | **no** (cleared) | ExplicitInvalid | ✓ |
 
 ## duplicate-rank
 

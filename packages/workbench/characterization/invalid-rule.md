@@ -54,3 +54,8 @@ dialog); *tally* is the per-ballot class the classifier assigns.
 | not-allowed | flag_only | notAllowed | — | **block** | dialog | ExplicitInvalid |
 | not-allowed | marker | notAllowed | — | **block** | dialog | ExplicitInvalid |
 | not-allowed | marker_plus | notAllowed | — | **block** | dialog | ExplicitInvalid |
+| allowed-with-exclusive-explicit | none | — | — | — | — | ImplicitBlank |
+| allowed-with-exclusive-explicit | regular | — | — | — | — | Valid |
+| allowed-with-exclusive-explicit | flag_only | — | — | — | — | ExplicitInvalid |
+| allowed-with-exclusive-explicit | marker | — | — | — | — | ExplicitInvalid |
+| allowed-with-exclusive-explicit | marker_plus | — | — | — | — | ExplicitInvalid |
