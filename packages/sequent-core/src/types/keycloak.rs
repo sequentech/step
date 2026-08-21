@@ -103,6 +103,7 @@ pub const REALM_ATTR_CREDENTIAL_INPUT_PLACEHOLDER: &str =
     "credential-input-placeholder";
 pub const REALM_ATTR_CREDENTIAL_FIELD_POSITION: &str =
     "credential-field-position";
+pub const REALM_ATTR_LOGIN_VALIDATION_POLICY: &str = "login-validation-policy";
 pub const MAX_CREDENTIAL_PATTERN_GROUPS: usize = 8;
 pub const MAX_CREDENTIAL_PATTERN_GROUP_SIZE: usize = 12;
 pub const MAX_CREDENTIAL_PATTERN_TOTAL_SIZE: usize = 64;
@@ -154,6 +155,31 @@ pub enum CredentialFieldPosition {
     #[strum(serialize = "FIRST")]
     #[serde(rename = "FIRST")]
     FIRST,
+}
+
+/// Who judges field formats on the attribute-based login page: the browser's
+/// own constraint validation, or the authenticator alone.
+#[allow(non_camel_case_types)]
+#[derive(
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum LoginValidationPolicy {
+    #[default]
+    #[strum(serialize = "BROWSER")]
+    #[serde(rename = "BROWSER")]
+    BROWSER,
+    #[strum(serialize = "SERVER_ONLY")]
+    #[serde(rename = "SERVER_ONLY")]
+    SERVER_ONLY,
 }
 
 /// Default client ID used by the IVR for system-level interactions.

@@ -4,13 +4,14 @@
 use crate::ballot::VoterCertificatePolicy;
 use crate::services::keycloak::{get_event_realm, KeycloakAdminClient};
 use crate::types::keycloak::{
-    CredentialFieldPosition, CredentialInputPolicy,
+    CredentialFieldPosition, CredentialInputPolicy, LoginValidationPolicy,
     MAX_CREDENTIAL_PATTERN_GROUPS, MAX_CREDENTIAL_PATTERN_GROUP_SIZE,
     MAX_CREDENTIAL_PATTERN_TOTAL_SIZE, REALM_ATTR_CREDENTIAL_FIELD_POSITION,
     REALM_ATTR_CREDENTIAL_INPUT_PATTERN,
     REALM_ATTR_CREDENTIAL_INPUT_PLACEHOLDER,
-    REALM_ATTR_CREDENTIAL_INPUT_POLICY, REALM_ATTR_SMARTLINK_CLOCK_SKEW_SECS,
-    REALM_ATTR_SMARTLINK_ENABLED, REALM_ATTR_SMARTLINK_REQUIRED_ATTRIBUTES,
+    REALM_ATTR_CREDENTIAL_INPUT_POLICY, REALM_ATTR_LOGIN_VALIDATION_POLICY,
+    REALM_ATTR_SMARTLINK_CLOCK_SKEW_SECS, REALM_ATTR_SMARTLINK_ENABLED,
+    REALM_ATTR_SMARTLINK_REQUIRED_ATTRIBUTES,
     REALM_ATTR_SMARTLINK_SHARED_SECRET, REALM_ATTR_SMARTLINK_TIMEOUT_SECS,
     REALM_ATTR_VOTER_CERTIFICATE_POLICY, SMARTLINK_REQUIRED_ATTRIBUTES_MAX_LEN,
     SMARTLINK_SHARED_SECRET_MAX_LEN,
@@ -155,6 +156,11 @@ fn validate_realm_attribute_value(key: &str, value: &str) -> Result<()> {
                 bail!(
                     "Realm attribute {key} must contain 1 to {MAX_CREDENTIAL_PATTERN_GROUPS} dash-separated groups of 1 to {MAX_CREDENTIAL_PATTERN_GROUP_SIZE} 'd' digit tokens, with no more than {MAX_CREDENTIAL_PATTERN_TOTAL_SIZE} digits in total"
                 );
+            }
+        }
+        REALM_ATTR_LOGIN_VALIDATION_POLICY => {
+            if LoginValidationPolicy::from_str(value).is_err() {
+                bail!("Invalid value {value:?} for realm attribute {key}");
             }
         }
         REALM_ATTR_CREDENTIAL_FIELD_POSITION => {
@@ -325,6 +331,31 @@ mod tests {
                 )]))
                 .is_ok(),
                 "expected credential-input-placeholder={placeholder:?} to be accepted"
+            );
+        }
+    }
+
+    #[test]
+    fn validate_realm_attributes_validates_login_validation_policy() {
+        for value in ["BROWSER", "SERVER_ONLY"] {
+            assert!(
+                validate_realm_attributes(&attributes(&[(
+                    "login-validation-policy",
+                    value,
+                )]))
+                .is_ok(),
+                "expected login-validation-policy={value:?} to be accepted"
+            );
+        }
+
+        for value in ["browser", "server_only", "SERVER-ONLY", "true", "NONE"] {
+            assert!(
+                validate_realm_attributes(&attributes(&[(
+                    "login-validation-policy",
+                    value,
+                )]))
+                .is_err(),
+                "expected login-validation-policy={value:?} to be rejected"
             );
         }
     }

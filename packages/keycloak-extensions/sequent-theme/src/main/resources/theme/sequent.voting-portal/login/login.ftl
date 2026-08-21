@@ -10,6 +10,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 <#import "select-filter-widget.ftl" as selectFilterWidget>
 <#import "social-providers.ftl" as socialProviders>
 <#assign structuredCredential = (realm.attributes['credential-input-policy']!'standard') == 'structured'>
+<#--  SERVER_ONLY adds novalidate, so the browser stops adjudicating field formats and the
+      authenticator is the only judge of a login attempt. The constraint attributes stay in the
+      DOM: required still maps to aria-required, maxlength still caps typing, and max still bounds
+      the date picker - novalidate suppresses only the interactive pass on submit.  -->
+<#assign loginValidationServerOnly = (realm.attributes['login-validation-policy']!'BROWSER') == 'SERVER_ONLY'>
 <#assign credentialFirst = (realm.attributes['credential-field-position']!'LAST') == 'FIRST'
     && matchAttributes?? && matchAttributes?has_content>
 <#assign credentialFieldError = messagesPerField.existsError('username','password')>
@@ -80,7 +85,7 @@ SPDX-License-Identifier: AGPL-3.0-only
         <div id="kc-form">
           <div id="kc-form-wrapper">
             <#if realm.password>
-                <form id="kc-form-login" <#if !structuredCredential>onsubmit="login.disabled = true; return true;"</#if> action="${url.loginAction}" method="post">
+                <form id="kc-form-login" <#if !structuredCredential>onsubmit="login.disabled = true; return true;"</#if><#if loginValidationServerOnly> novalidate</#if> action="${url.loginAction}" method="post">
                     <#if !usernameHidden??>
                         <#if matchAttributes?? && matchAttributes?has_content>
                             <@telInputWidget.assets/>

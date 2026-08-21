@@ -520,6 +520,60 @@ class TemplateSyntaxTest {
   }
 
   @Test
+  void loginFormDefersValidationToTheAuthenticatorWhenConfigured()
+      throws IOException, TemplateException {
+    for (String portal : List.of("sequent.admin-portal", "sequent.voting-portal")) {
+      Map<String, Object> browser = baseModel("standard");
+      browser.put("matchAttributes", List.of("dateOfBirth"));
+      browser.put(
+          "profile",
+          profileWithAttributes(
+              mockAttribute("dateOfBirth", "${dateOfBirth}", Map.of("inputType", "html5-date"))));
+      assertFalse(renderLogin(portal, browser).contains("novalidate"));
+
+      Map<String, Object> serverOnly = realmWith("login-validation-policy", "SERVER_ONLY");
+      serverOnly.put("matchAttributes", List.of("dateOfBirth"));
+      serverOnly.put(
+          "profile",
+          profileWithAttributes(
+              mockAttribute("dateOfBirth", "${dateOfBirth}", Map.of("inputType", "html5-date"))));
+      String html = renderLogin(portal, serverOnly);
+
+      assertTrue(html.contains("novalidate"));
+      // the constraint attributes stay: novalidate suppresses the interactive pass, nothing else
+      assertTrue(html.contains("max=\"9999-12-31\""));
+    }
+  }
+
+  @Test
+  void registrationKeepsBrowserValidation() throws IOException, TemplateException {
+    Map<String, Object> model = realmWith("login-validation-policy", "SERVER_ONLY");
+    model.put("formMode", "LOGIN");
+    model.put("passwordRequired", true);
+    model.put(
+        "profile",
+        Map.of(
+            "attributes",
+            List.of(
+                mockAttribute("dateOfBirth", "${dateOfBirth}", Map.of("inputType", "html5-date"))),
+            "html5DataAnnotations",
+            Map.of()));
+
+    assertFalse(renderRegister(model).contains("novalidate"));
+  }
+
+  /** baseModel with one extra realm attribute set. */
+  private static Map<String, Object> realmWith(String key, String value) {
+    Map<String, Object> model = baseModel("standard");
+    Map<String, Object> realm = new HashMap<>((Map<String, Object>) model.get("realm"));
+    Map<String, Object> attributes = new HashMap<>((Map<String, Object>) realm.get("attributes"));
+    attributes.put(key, value);
+    realm.put("attributes", attributes);
+    model.put("realm", realm);
+    return model;
+  }
+
+  @Test
   void multiAttributeLoginRendersConfiguredHelperText() throws IOException, TemplateException {
     Map<String, Object> model = baseModel("standard");
     model.put("matchAttributes", List.of("dateOfBirth"));

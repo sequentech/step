@@ -59,17 +59,17 @@ plain text field labelled with its raw attribute name, and is always mandatory t
 
 Set the `inputType` annotation (**Input type** in the console).
 
-| `inputType` | Renders as |
-|---|---|
-| *(not set)* or `text` | Plain text input |
-| `textarea` | Multi-line text box |
-| `select` | Dropdown with an empty first option |
-| `multiselect` | Multiple-selection list |
-| `select-radiobuttons` | One radio button per option |
-| `multiselect-checkboxes` | One checkbox per option |
-| `html5-date` | Native date picker |
-| `html5-tel` | Phone-number widget with country selector |
-| `html5-email`, `html5-number`, `html5-url`, … | The corresponding native HTML5 input |
+| `inputType` | Renders as | Where it applies |
+|---|---|---|
+| *(not set)* or `text` | Plain text input | Both |
+| `textarea` | Multi-line text box | Both |
+| `select` | Dropdown with an empty first option | Both |
+| `multiselect` | Multiple-selection list | Registration only |
+| `select-radiobuttons` | One radio button per option | Both |
+| `multiselect-checkboxes` | One checkbox per option | Registration only |
+| `html5-date` | Native date picker | Both |
+| `html5-tel` | Phone-number widget with country selector | Both |
+| `html5-email`, `html5-number`, `html5-url`, … | The corresponding native HTML5 input | Both |
 
 Any `html5-` prefixed value becomes that HTML5 input type.
 
@@ -91,10 +91,10 @@ Define translation keys under **Realm settings** → **Localization** → **Real
 
 ## Helper text
 
-| Annotation | Effect |
-|---|---|
-| `inputHelperTextBefore` | Text above the input, under the label |
-| `inputHelperTextAfter` | Text below the input |
+| Annotation | Effect | Where it applies |
+|---|---|---|
+| `inputHelperTextBefore` | Text above the input, under the label | Both |
+| `inputHelperTextAfter` | Text below the input | Both |
 
 Both accept literal text or a translation key, and both render on the registration page and the
 attribute-based login page.
@@ -103,15 +103,15 @@ attribute-based login page.
 
 ## Text and number settings
 
-| Annotation | Effect |
-|---|---|
-| `inputTypePlaceholder` | Placeholder text |
-| `inputTypePattern` | Regular expression enforced by the browser |
-| `inputTypeSize` | Visible width in characters |
-| `inputTypeMinlength` / `inputTypeMaxlength` | Minimum / maximum characters |
-| `inputTypeMin` / `inputTypeMax` | Minimum / maximum value or date |
-| `inputTypeStep` | Step increment for numeric and date inputs |
-| `inputTypeCols` / `inputTypeRows` | Text area dimensions |
+| Annotation | Effect | Where it applies |
+|---|---|---|
+| `inputTypePlaceholder` | Placeholder text | Both |
+| `inputTypePattern` | Regular expression enforced by the browser | Both |
+| `inputTypeSize` | Visible width in characters | Both |
+| `inputTypeMinlength` / `inputTypeMaxlength` | Minimum / maximum characters | Both |
+| `inputTypeMin` / `inputTypeMax` | Minimum / maximum value or date | Both |
+| `inputTypeStep` | Step increment for numeric and date inputs | Both |
+| `inputTypeCols` / `inputTypeRows` | Text area dimensions | Both |
 
 Date inputs are capped at `9999-12-31` unless `inputTypeMax` sets another maximum. Browser-side
 settings are a usability aid; use **Validations** for rules that must be enforced.
@@ -128,11 +128,11 @@ a validator:
 
 The option value is what gets stored. To display something else:
 
-| Annotation | Effect |
-|---|---|
-| `inputOptionLabels` | Map of option value → label, e.g. `{"M": "Male", "F": "Female"}`. Values may be translation keys. |
-| `inputOptionLabelsI18nPrefix` | Each option is translated as `prefix.optionValue` (e.g. `sex.M`) |
-| `inputOptionsFromValidation` | Take options from a different named validator |
+| Annotation | Effect | Where it applies |
+|---|---|---|
+| `inputOptionLabels` | Map of option value → label, e.g. `{"M": "Male", "F": "Female"}`. Values may be translation keys. | Both |
+| `inputOptionLabelsI18nPrefix` | Each option is translated as `prefix.optionValue` (e.g. `sex.M`) | Both |
+| `inputOptionsFromValidation` | Take options from a different named validator | Both |
 
 ### Dependent dropdowns
 
@@ -145,21 +145,21 @@ municipalities `08001`, `08002`).
 
 On radio-button and checkbox attributes:
 
-| Annotation | Effect |
-|---|---|
-| `disableAttribute` | Ticking the option makes the named field read-only and clears it |
-| `disableElement` | Ticking the option disables the named field |
+| Annotation | Effect | Where it applies |
+|---|---|---|
+| `disableAttribute` | Ticking the option makes the named field read-only and clears it | Both |
+| `disableElement` | Ticking the option disables the named field | Both |
 
 ---
 
 ## Other annotations
 
-| Annotation | Effect |
-|---|---|
-| `default` | Initial value. Registration only; ignored on the attribute-based login form. |
-| `confirm` | Renders a second input for the same attribute. The value is the confirmation field's label. |
-| `html-attribute:<name>` | Sets an arbitrary HTML attribute, e.g. `html-attribute:autocomplete` = `bday`. Applies to text and HTML5 inputs only — dropdowns, radio buttons, checkboxes and text areas ignore it. On the attribute-based login page it overrides the theme's own `autocomplete` — see [Autofill and the login page](#autofill-and-the-login-page). |
-| `hidden` = `true` | The attribute is not rendered on the registration page. It is still stored and still usable for matching. |
+| Annotation | Effect | Where it applies |
+|---|---|---|
+| `default` | Initial value. Registration only; ignored on the attribute-based login form. | Registration only |
+| `confirm` | Renders a second input for the same attribute. The value is the confirmation field's label. | Registration only |
+| `html-attribute:<name>` | Sets an arbitrary HTML attribute, e.g. `html-attribute:autocomplete` = `bday`. Applies to text and HTML5 inputs only — dropdowns, radio buttons, checkboxes and text areas ignore it. On the attribute-based login page it overrides the theme's own `autocomplete` — see [Autofill and the login page](#autofill-and-the-login-page). | Both |
+| `hidden` = `true` | The attribute is not rendered on the registration page. It is still stored and still usable for matching. | Registration only |
 
 The **Deferred Registration User Creation** form action's **Hidden Profile Attributes** setting
 hides a comma-separated list of attributes from the registration form and ignores them if User
@@ -232,11 +232,11 @@ action's **Prefill Parameters Policy** is the master switch:
 
 Per attribute, the `loginHintPrefillPolicy` annotation:
 
-| Value | Effect |
-|---|---|
-| *(not set)* or `EDITABLE` | Prefilled, and the voter may change it |
-| `READ_ONLY` | Prefilled and locked; a changed value is rejected |
-| `IGNORE` | Never prefilled |
+| Value | Effect | Where it applies |
+|---|---|---|
+| *(not set)* or `EDITABLE` | Prefilled, and the voter may change it | Registration only |
+| `READ_ONLY` | Prefilled and locked; a changed value is rejected | Registration only |
+| `IGNORE` | Never prefilled | Registration only |
 
 A locked value is still submitted, including for dropdowns, radio buttons and checkboxes.
 Password fields, attributes annotated `hidden`, and attributes rendered invisible or uneditable by
@@ -247,17 +247,54 @@ On the login page the username field is governed instead by the realm attribute
 
 ---
 
+## Validation
+
+Annotations and validators are separate mechanisms and are enforced in different places.
+
+| Declared as | What it does | Register form | Login form |
+|---|---|---|---|
+| Annotation (`inputTypePattern`, `inputTypeMaxlength`, `inputTypeMin`/`Max`) | Rendered as an HTML attribute, checked by the browser before submitting | Applies | Applies |
+| Validator (`length`, `pattern`, `email`, `options`, …) | Checked on the server after submitting | Applies, with a message beside the field | **Ignored** |
+
+The attribute-based login page never runs User Profile validators: it matches the submitted values
+against voter records and answers with a single generic message. A validator declared on a match
+attribute has no effect there — it neither constrains the input nor rejects it.
+
+Only the annotation limits typing. A `length` validator with `max: 9` lets a voter type any number
+of characters and rejects the value afterwards; `inputTypeMaxlength` = `9` stops the input at nine.
+To limit typing *and* enforce the limit, declare both.
+
+The `options` validator is the exception: both forms read it to build the choices for `select`,
+radio and checkbox fields, so it is load-bearing for rendering on both.
+
+### Who reports invalid formats on the login page
+
+| `login-validation-policy` | Effect |
+|---|---|
+| `BROWSER` (default) | The browser checks the constraint attributes and blocks submission, showing its own message beside the offending field |
+| `SERVER_ONLY` | The form carries `novalidate`; submission always reaches the authenticator, which answers with the generic message |
+
+Browser messages come from the browser's language, not the realm's, and only one field is reported
+at a time. `SERVER_ONLY` removes them. The constraint attributes stay in place either way:
+`required` is still announced by assistive technology, `inputTypeMaxlength` still caps typing, and
+`inputTypeMin`/`Max` still bound the date picker.
+
+The structured PIN validates its own format in either mode, in the page's language, beside the
+field.
+
+---
+
 ## The password and PIN field
 
 The password field is not a User Profile attribute; both pages add it themselves. These
 annotations apply to the registration form, where the password box sits underneath a chosen
 attribute:
 
-| Annotation | Effect |
-|---|---|
-| `showPasswordAfterThis` | Position of the password box. Defaults to after `username` (or `email` when used as username). Set `false` on that attribute to suppress it, or `true` on another attribute to move it. Always wins over `credential-field-position`. |
-| `passwordHelperTextBefore` / `passwordHelperTextAfter` | Text above / below the password box |
-| `passwordStrengthBar` | Password-strength meter. Registration only. |
+| Annotation | Effect | Where it applies |
+|---|---|---|
+| `showPasswordAfterThis` | Position of the password box. Defaults to after `username` (or `email` when used as username). Set `false` on that attribute to suppress it, or `true` on another attribute to move it. Always wins over `credential-field-position`. | Registration only |
+| `passwordHelperTextBefore` / `passwordHelperTextAfter` | Text above / below the password box | Registration only |
+| `passwordStrengthBar` | Password-strength meter. Registration only. | Registration only |
 
 ### Putting the credential first
 
@@ -301,6 +338,7 @@ For the pattern grammar and limits, see
 | [Attribute-based login](../01-tutorials/101-admin_portal_tutorials_multi-attribute-password-login.md) | **Multi-Attribute + Password Form** authenticator | Replaces the username field with User Profile attribute fields |
 | [Structured PIN](../../07-developers/06-keycloak/structured_pin_login.md) | `credential-input-*` realm attributes | Password box becomes fixed-length digit groups |
 | Credential position | Realm attribute `credential-field-position` | Renders the credential above the match fields and focuses it |
+| Format checking | Realm attribute `login-validation-policy` | `SERVER_ONLY` stops the browser reporting invalid formats and leaves the validation to the authenticator |
 | Locked username | Realm attribute `loginHintUsernamePolicy` = `READ_ONLY` | Username is prefilled and read-only |
 | [Digital certificate login](../../07-developers/06-keycloak/x509_client_cert_architecture.md) | Realm attribute `voter-certificate-policy` = `enabled` | Shows the **digital-certificates** provider button; hidden while `disabled` |
 | Other identity providers | Keycloak **Identity providers** | Each enabled provider adds a button below the form |
