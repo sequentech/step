@@ -505,10 +505,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         closedRef.current = true
     }
 
-    // The extracted reason is capped, so the raw rejection is logged for whoever
-    // has to diagnose it. messageArgs carries the already translated message
-    // through react-admin's polyglot provider, which would otherwise look it up
-    // as a key and find nothing.
     // Stated under the field so the bound is known before it is broken, and
     // measured on blur so nothing the admin types is ever altered for them.
     const lengthHint = (attr: UserProfileAttribute): string | undefined => {
@@ -579,6 +575,10 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         return getTranslationLabel(field, attribute?.display_name, t)
     }
 
+    // The extracted reason is capped, so the raw rejection is logged for whoever
+    // has to diagnose it. messageArgs carries the already translated message
+    // through react-admin's polyglot provider, which would otherwise look it up
+    // as a key and find nothing.
     const reportSaveError = (error: unknown, messageKey: string, reasonKey: string): string => {
         console.error("Error saving voter:", error)
         const message = getSaveUserErrorMessage(error, messageKey, reasonKey, t, resolveFieldLabel)
@@ -653,6 +653,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     }
 
     const onSubmit = async () => {
+        // Reachable past the disabled button by submitting the form itself.
         if (Object.keys(lengthErrors).length > 0) {
             return
         }
@@ -1225,6 +1226,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         ))
     }, [userAttributes, user, permissionLabels, choices, electionsList, lengthErrors])
 
+    const hasFieldErrors = Object.keys(lengthErrors).length > 0
+
     const saveErrorAlert = saveError ? (
         <WizardStyles.ErrorMessage variant="body2" role="alert" className="edit-voter-save-error">
             {saveError}
@@ -1272,9 +1275,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 toolbar={
                     step === "edit" ? (
                         <SaveButton
-                            alwaysEnable={
-                                !errorText && !saving && Object.keys(lengthErrors).length === 0
-                            }
+                            alwaysEnable={!errorText && !saving && !hasFieldErrors}
+                            disabled={saving || hasFieldErrors}
                         />
                     ) : (
                         false
