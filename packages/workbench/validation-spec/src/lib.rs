@@ -59,6 +59,9 @@ pub const PREFERENCE_ORDER_WITH_GAPS: &str = "errors.implicit.preferenceOrderWit
 pub const EXPLICIT_NOT_ALLOWED: &str = "errors.explicit.notAllowed";
 pub const EXPLICIT_ALERT: &str = "errors.explicit.alert";
 
+mod queries;
+pub use queries::{BallotValidator, ContestValidator, ObservationPoint, VoteValidator};
+
 /// Messages whose `error_type` is Explicit or EncodingError — the hard
 /// gate's fast path fires on any of them. The encoding/configuration keys
 /// are listed for gate faithfulness only; no grid exercises them
@@ -639,18 +642,21 @@ pub struct Effects {
 /// The mapping. (config × vote_state) determines everything; the
 /// observation point exists only inside the output (see [`InlineViews`]).
 pub fn f(config: &Config, vs: &VoteState) -> Effects {
-    let em = emissions(config, vs);
-    let hard = hard_gate(config, vs, &em);
-    let soft = soft_gate(config, vs, &em);
-    let inline = inline_views(&config.policies, &em.errors, &em.alerts);
-    let tally = classify(
-        vs.decline,
-        vs.explicit_invalid,
-        !em.errors.is_empty(),
-        selection_class(vs),
-    );
+    // `f` is now a convenience that composes the query-provider: it feeds the
+    // same `vs` as the intention (stage 0, reachability) AND the formed shape
+    // (stage 1, the ballot-queries) — the conflation a predictor can make and
+    // production cannot. Routing `f` through the provider means the whole
+    // headless sweep validates the provider (byte-identically).
+    let cv = ContestValidator::from_config(*config);
+    let vv = cv.for_vote_state(*vs);
+    let hard = vv.hard_gate();
+    let soft = vv.soft_gate();
     Effects {
-        inline,
+        inline: InlineViews {
+            voting_untouched: vv.inline(ObservationPoint::UntouchedVoting),
+            voting: vv.inline(ObservationPoint::Voting),
+            review: vv.inline(ObservationPoint::Review),
+        },
         gate: Gate { hard, soft },
         dialog: if hard {
             Dialog::Blocking
@@ -659,9 +665,9 @@ pub fn f(config: &Config, vs: &VoteState) -> Effects {
         } else {
             Dialog::None
         },
-        reachability: reachability(config, vs),
-        tally,
-        emissions: em,
+        reachability: cv.reachability(vs),
+        tally: vv.tally(),
+        emissions: vv.emissions().clone(),
     }
 }
 
