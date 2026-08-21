@@ -28,7 +28,7 @@ the label means this runner has not re-run them itself (IRV
 generic recipe pending). The *marker + flag* deferrals await a fixture
 whose contest carries both markers.
 
-**Result: 47 witnesses confirmed, 0 disagreement(s); 23 deferred:** blank marker + invalid flag (no booth contest carries both): 13; preferential state (IRV recipe pending): 8; unobservable by construction (hard gate precludes review; the dialog is the signal): 2.
+**Result: 47 witnesses confirmed, 0 disagreement(s); 24 deferred:** blank marker + invalid flag (no booth contest carries both): 14; preferential state (IRV recipe pending): 8; unobservable by construction (hard gate precludes review; the dialog is the signal): 2.
 
 | component | varies | cells (spec = production) |
 |---|---|---|

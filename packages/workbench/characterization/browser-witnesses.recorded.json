@@ -2313,6 +2313,11 @@
     },
     {
       "component": "reachability",
+      "varies": "invalid_vote_policy",
+      "reason": "blank marker + invalid flag (no booth contest carries both)"
+    },
+    {
+      "component": "reachability",
       "varies": "over_vote_policy",
       "reason": "blank marker + invalid flag (no booth contest carries both)"
     },
