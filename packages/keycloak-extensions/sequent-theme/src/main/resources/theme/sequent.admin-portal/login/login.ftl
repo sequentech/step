@@ -9,18 +9,20 @@ SPDX-License-Identifier: AGPL-3.0-only
 <#import "tel-input-widget.ftl" as telInputWidget>
 <#import "select-filter-widget.ftl" as selectFilterWidget>
 <#import "social-providers.ftl" as socialProviders>
-<#--  An attribute with no User Profile declaration stays mandatory in the authenticator
-      (see MultiAttributePasswordAuthenticator#optionalAttributes), so it counts as required
-      here too - the form must never show a field as optional that matching demands.  -->
 <#assign credentialFirst = (realm.attributes['credential-field-position']!'LAST') == 'FIRST'
     && matchAttributes?? && matchAttributes?has_content>
-<#assign matchAttributesHaveRequired = honorUserProfileRequired?? && matchAttributes?? && matchAttributes?filter(name -> !profile.attributesByName[name]?? || profile.attributesByName[name].required)?has_content>
+<#--  Required markers only earn their place when some field is optional: the credential is
+      always mandatory, so marking everything would tell the voter nothing. An attribute with no
+      User Profile declaration stays mandatory in the authenticator (see
+      MultiAttributePasswordAuthenticator#optionalAttributes), so it is never the optional one.  -->
+<#assign showRequiredMarkers = honorUserProfileRequired?? && matchAttributes??
+    && matchAttributes?filter(name -> profile.attributesByName[name]?? && !profile.attributesByName[name].required)?has_content>
 <#--  The credential block is invoked in one of two positions, chosen by the realm's
       credential-field-position attribute. Kept as a local macro rather than a shared one: the two
       portals' credential markup differs, and only the voting portal supports the structured PIN.  -->
 <#macro credentialField autofocus=false>
                     <div class="${properties.kcFormGroupClass!}">
-                        <label for="password" class="${properties.kcLabelClass!}">${msg("password")}</label>
+                        <label for="password" class="${properties.kcLabelClass!}">${msg("password")}</label><#if showRequiredMarkers> *</#if>
 
                         <div class="${properties.kcInputGroup!}">
                             <input id="password"<#if autofocus> autofocus</#if> class="${properties.kcInputClass!}" name="password" type="password"
@@ -44,7 +46,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                     </div>
 </#macro>
 
-<@layout.registrationLayout displayMessage=!messagesPerField.existsError('username','password') displayInfo=realm.password && realm.registrationAllowed && !registrationDisabled?? displayRequiredFields=matchAttributesHaveRequired displaySocialProviders=social.providers?has_content; section>
+<@layout.registrationLayout displayMessage=!messagesPerField.existsError('username','password') displayInfo=realm.password && realm.registrationAllowed && !registrationDisabled?? displayRequiredFields=showRequiredMarkers displaySocialProviders=social.providers?has_content; section>
     <#if section = "header">
         ${msg("loginAccountTitle")}
     <#elseif section = "form">
@@ -62,11 +64,11 @@ SPDX-License-Identifier: AGPL-3.0-only
                                 <#if profile.attributesByName[name]??>
                                     <#assign matchAttribute = profile.attributesByName[name]>
                                     <#assign matchAttributeRequired = honorUserProfileRequired?? && matchAttribute.required>
-                                    <@userProfileCommons.inputFieldWithLabel attribute=matchAttribute name=name values=matchAttribute.values required=matchAttributeRequired requiredMarker=matchAttributeRequired autofocus=(!credentialFirst && name?index == 0) autocomplete="off"/>
+                                    <@userProfileCommons.inputFieldWithLabel attribute=matchAttribute name=name values=matchAttribute.values required=matchAttributeRequired requiredMarker=(matchAttributeRequired && showRequiredMarkers) autofocus=(!credentialFirst && name?index == 0) autocomplete="off"/>
                                 <#else>
                                     <#-- Not declared in the realm's User Profile - still usable for matching, rendered as a plain text field -->
                                     <div class="${properties.kcFormGroupClass!}">
-                                        <label for="${name}" class="${properties.kcLabelClass!}">${msg(name)}</label><#if honorUserProfileRequired??> *</#if>
+                                        <label for="${name}" class="${properties.kcLabelClass!}">${msg(name)}</label><#if showRequiredMarkers> *</#if>
                                         <input id="${name}" class="${properties.kcInputClass!}" name="${name}" type="text" autocomplete="off"
                                                <#if honorUserProfileRequired??>required</#if>
                                                <#if !credentialFirst && name?index == 0>autofocus</#if>

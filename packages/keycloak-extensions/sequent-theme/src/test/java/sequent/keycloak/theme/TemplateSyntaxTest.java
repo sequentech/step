@@ -284,9 +284,13 @@ class TemplateSyntaxTest {
     // The authenticator keeps an attribute with no User Profile declaration mandatory, so the
     // fallback field must not present itself as optional.
     Map<String, Object> model = baseModel("standard");
-    model.put("matchAttributes", List.of("nationalId"));
+    model.put("matchAttributes", List.of("nationalId", "dateOfBirth"));
     model.put("honorUserProfileRequired", true);
-    model.put("profile", profileWithAttributes());
+    model.put(
+        "profile",
+        profileWithAttributes(
+            mockAttribute(
+                "dateOfBirth", "${dateOfBirth}", Map.of("inputType", "html5-date"), false)));
     String html = renderVotingPortalLogin(model);
     String normalized = html.replaceAll("\\s+", " ");
 
@@ -479,6 +483,43 @@ class TemplateSyntaxTest {
   }
 
   @Test
+  void credentialIsMarkedRequiredWheneverTheRequiredNoticeIsShown()
+      throws IOException, TemplateException {
+    // The notice promises that required fields carry an asterisk, and the credential is always
+    // mandatory - marking the match fields but not it left the page contradicting its own legend.
+    for (String portal : List.of("sequent.admin-portal", "sequent.voting-portal")) {
+      Map<String, Object> model = baseModel("standard");
+      model.put("matchAttributes", List.of("dateOfBirth", "nationalId"));
+      model.put("honorUserProfileRequired", true);
+      model.put(
+          "profile",
+          profileWithAttributes(
+              mockAttribute(
+                  "dateOfBirth", "${dateOfBirth}", Map.of("inputType", "html5-date"), true),
+              mockAttribute("nationalId", "${nationalId}", Map.of(), false)));
+      String normalized = renderLogin(portal, model).replaceAll("\\s+", " ");
+
+      assertTrue(normalized.contains("requiredFields"));
+      // one asterisk for the match field, one for the credential
+      assertEquals(2, normalized.split("</label> \\*", -1).length - 1);
+    }
+  }
+
+  @Test
+  void credentialCarriesNoRequiredMarkerWithoutTheNotice() throws IOException, TemplateException {
+    Map<String, Object> model = baseModel("standard");
+    model.put("matchAttributes", List.of("dateOfBirth"));
+    model.put(
+        "profile",
+        profileWithAttributes(
+            mockAttribute("dateOfBirth", "${dateOfBirth}", Map.of("inputType", "html5-date"))));
+    String normalized = renderVotingPortalLogin(model).replaceAll("\\s+", " ");
+
+    assertFalse(normalized.contains("requiredFields"));
+    assertFalse(normalized.contains("</label> *"));
+  }
+
+  @Test
   void multiAttributeLoginRendersConfiguredHelperText() throws IOException, TemplateException {
     Map<String, Object> model = baseModel("standard");
     model.put("matchAttributes", List.of("dateOfBirth"));
@@ -535,13 +576,13 @@ class TemplateSyntaxTest {
   void multiAttributeLoginMarksRequiredAttributeWhenEnabled()
       throws IOException, TemplateException {
     Map<String, Object> model = baseModel("standard");
-    model.put("matchAttributes", List.of("dateOfBirth"));
+    model.put("matchAttributes", List.of("dateOfBirth", "nationalId"));
     model.put("honorUserProfileRequired", true);
     model.put(
         "profile",
         profileWithAttributes(
-            mockAttribute(
-                "dateOfBirth", "${dateOfBirth}", Map.of("inputType", "html5-date"), true)));
+            mockAttribute("dateOfBirth", "${dateOfBirth}", Map.of("inputType", "html5-date"), true),
+            mockAttribute("nationalId", "${nationalId}", Map.of(), false)));
     String html = renderVotingPortalLogin(model);
     String normalized = html.replaceAll("\\s+", " ");
 
@@ -572,6 +613,26 @@ class TemplateSyntaxTest {
   }
 
   @Test
+  void noRequiredMarkersWhenEveryFieldIsMandatory() throws IOException, TemplateException {
+    // With nothing optional, an asterisk on every field tells the voter nothing.
+    Map<String, Object> model = baseModel("standard");
+    model.put("matchAttributes", List.of("dateOfBirth", "nationalId"));
+    model.put("honorUserProfileRequired", true);
+    model.put(
+        "profile",
+        profileWithAttributes(
+            mockAttribute("dateOfBirth", "${dateOfBirth}", Map.of("inputType", "html5-date"), true),
+            mockAttribute("nationalId", "${nationalId}", Map.of(), true)));
+    String html = renderVotingPortalLogin(model);
+    String normalized = html.replaceAll("\\s+", " ");
+
+    assertFalse(html.contains("requiredFields"));
+    assertFalse(normalized.contains("</label> *"));
+    // still enforced, just not annotated
+    assertTrue(normalized.contains("required"));
+  }
+
+  @Test
   void multiAttributeLoginDoesNotMarkNonRequiredAttributeEvenWhenEnabled()
       throws IOException, TemplateException {
     Map<String, Object> model = baseModel("standard");
@@ -585,9 +646,11 @@ class TemplateSyntaxTest {
     String html = renderVotingPortalLogin(model);
     String normalized = html.replaceAll("\\s+", " ");
 
+    // The attribute is neither enforced nor marked. The notice does appear, because the credential
+    // is mandatory while this field is not - exactly the distinction the notice exists to draw.
     assertFalse(normalized.contains("aria-invalid=\"\" required"));
-    assertFalse(html.contains("requiredFields"));
-    assertFalse(normalized.contains("</label> *"));
+    assertTrue(html.contains("requiredFields"));
+    assertEquals(1, normalized.split("</label> \\*", -1).length - 1);
   }
 
   @Test
