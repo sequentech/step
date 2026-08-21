@@ -526,6 +526,7 @@ const VotingScreen: React.FC = () => {
                 <Typography
                     className="description"
                     variant="body2"
+                    component="div"
                     sx={{color: theme.palette.customGrey.main}}
                 >
                     {stringToHtml(

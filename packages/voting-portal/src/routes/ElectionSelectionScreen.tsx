@@ -9,6 +9,7 @@ import {Dialog, IconButton, PageLimit, SelectElection, theme} from "@sequentech/
 import {
     isString,
     stringToHtml,
+    escapeTranslationValues,
     translateFromPresentation,
     EVotingStatus,
     IElectionEventStatus,
@@ -647,14 +648,16 @@ const ElectionSelectionScreen: React.FC = () => {
         oneBallotStyle,
     ])
 
+    // warningMsg is rendered as HTML below, so its interpolated values are escaped
     const warningMsg = errorMsg
-        ? t(`electionSelectionScreen.errors.${errorMsg}`, {
-              electionIds: errorMsgElectionIds,
-          })
+        ? t(
+              `electionSelectionScreen.errors.${errorMsg}`,
+              escapeTranslationValues({electionIds: errorMsgElectionIds})
+          )
         : ballotStyleConfigurationError
           ? t(
                 ballotStyleConfigurationError.translationKey,
-                ballotStyleConfigurationError.translationParams
+                escapeTranslationValues(ballotStyleConfigurationError.translationParams ?? {})
             )
           : alertMsg
             ? t(`electionSelectionScreen.alerts.${alertMsg}`)
@@ -689,10 +692,11 @@ const ElectionSelectionScreen: React.FC = () => {
                         </Dialog>
                     </StyledTitle>
                     {warningMsg ? (
-                        <Alert severity="warning">{warningMsg}</Alert>
+                        <Alert severity="warning">{stringToHtml(warningMsg)}</Alert>
                     ) : (
                         <Typography
                             variant="body1"
+                            component="div"
                             sx={{color: theme.palette.customGrey.contrastText}}
                         >
                             {stringToHtml(t("electionSelectionScreen.description"))}
@@ -731,7 +735,9 @@ const ElectionSelectionScreen: React.FC = () => {
                     ))
                 ) : (
                     <Box sx={{margin: "auto"}}>
-                        <Typography>{t("electionSelectionScreen.noResults")}</Typography>
+                        <Typography component="div">
+                            {stringToHtml(t("electionSelectionScreen.noResults"))}
+                        </Typography>
                     </Box>
                 )}
             </ElectionContainer>

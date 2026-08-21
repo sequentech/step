@@ -323,7 +323,11 @@ export const Question: React.FC<IQuestionProps> = ({
                 ) : null}
             </StyledTitle>
             {question.description || question.description_i18n?.[i18n.language] ? (
-                <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+                <Typography
+                    variant="body2"
+                    component="div"
+                    sx={{color: theme.palette.customGrey.main}}
+                >
                     {stringToHtml(translate(question, "description", i18n.language) || "")}
                 </Typography>
             ) : null}

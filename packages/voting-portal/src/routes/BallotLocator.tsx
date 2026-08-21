@@ -18,8 +18,10 @@ import {
     stringToHtml,
     EShowCastVoteLogsPolicy,
     formatVotingPortalDateTime,
+    translateHtml,
+    stringToText,
 } from "@sequentech/ui-core"
-import {Box, TextField, Typography, Button, Stack} from "@mui/material"
+import {Box, TextField, Typography, Button, Stack, TypographyProps} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import Tabs from "@mui/material/Tabs"
 import Tab from "@mui/material/Tab"
@@ -71,7 +73,7 @@ const StyledTitle = styled(Typography)`
     margin-bottom: 16px;
 `
 
-const StyledError = styled(Typography)`
+const StyledError = styled(Typography)<TypographyProps>`
     position: absolute;
     margin-top: -12px;
     color: ${({theme}) => theme.palette.red.main};
@@ -626,7 +628,11 @@ const LogsTable: React.FC<LogsTableProps> = ({
                 onPageChange={handleChangePage}
                 onRowsPerPageChange={handleChangeRowsPerPage}
             />
-            {somethingWentWrongErr && <StyledError>{t("errors.page.somethingWrong")}</StyledError>}
+            {somethingWentWrongErr && (
+                <StyledError component="div">
+                    {stringToHtml(t("errors.page.somethingWrong"))}
+                </StyledError>
+            )}
         </>
     )
 }
@@ -661,14 +667,18 @@ const BallotIdInput: React.FC<BallotIdInputProps> = ({
                     shrink: true,
                 }}
                 label="Ballot ID"
-                placeholder={t(placeholderLabel)}
+                placeholder={stringToText(t(placeholderLabel))}
                 onKeyDown={captureEnter}
             />
             {!validatedBallotId && (
-                <StyledError>{t("ballotLocator.wrongFormatBallotId")}</StyledError>
+                <StyledError component="div">
+                    {stringToHtml(t("ballotLocator.wrongFormatBallotId"))}
+                </StyledError>
             )}
             {ballotIdNotFoundErr && validatedBallotId && (
-                <StyledError>{t("ballotLocator.ballotIdNotFoundAtFilter")}</StyledError>
+                <StyledError component="div">
+                    {stringToHtml(t("ballotLocator.ballotIdNotFoundAtFilter"))}
+                </StyledError>
             )}
         </>
     )
@@ -791,8 +801,12 @@ const BallotLocatorLogic = () => {
                         </Dialog>
                     </StyledTitle>
 
-                    <Typography variant="body1" sx={{color: theme.palette.customGrey.contrastText}}>
-                        {t("ballotLocator.description")}
+                    <Typography
+                        variant="body1"
+                        component="div"
+                        sx={{color: theme.palette.customGrey.contrastText}}
+                    >
+                        {stringToHtml(t("ballotLocator.description"))}
                     </Typography>
                 </Box>
             </Box>
@@ -800,11 +814,17 @@ const BallotLocatorLogic = () => {
             {hasBallotId && !lookupLoading && (
                 <Box>
                     {ambiguousBallotId ? (
-                        <MessageFailed>{t("ballotLocator.ambiguous", {ballotId})}</MessageFailed>
+                        <MessageFailed>
+                            {translateHtml(t, "ballotLocator.ambiguous", {ballotId})}
+                        </MessageFailed>
                     ) : hasBallotId && !!ballotContent ? (
-                        <MessageSuccess>{t("ballotLocator.found", {ballotId})}</MessageSuccess>
+                        <MessageSuccess>
+                            {translateHtml(t, "ballotLocator.found", {ballotId})}
+                        </MessageSuccess>
                     ) : (
-                        <MessageFailed>{t("ballotLocator.notFound", {ballotId})}</MessageFailed>
+                        <MessageFailed>
+                            {translateHtml(t, "ballotLocator.notFound", {ballotId})}
+                        </MessageFailed>
                     )}
                 </Box>
             )}
@@ -819,7 +839,9 @@ const BallotLocatorLogic = () => {
             )}
             {hasBallotId && ballotContent && (
                 <>
-                    <Typography>{t("ballotLocator.contentDesc")}</Typography>
+                    <Typography component="div">
+                        {stringToHtml(t("ballotLocator.contentDesc"))}
+                    </Typography>
                     <InfoDataBox>{ballotContent}</InfoDataBox>
                 </>
             )}

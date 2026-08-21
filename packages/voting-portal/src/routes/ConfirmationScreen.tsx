@@ -439,11 +439,15 @@ const ConfirmationScreen: React.FC = () => {
                     {stringToHtml(t("confirmationScreen.confirmationHelpDialog.content"))}
                 </Dialog>
             </StyledTitle>
-            <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+            <Typography variant="body2" component="div" sx={{color: theme.palette.customGrey.main}}>
                 {stringToHtml(t("confirmationScreen.description"))}
             </Typography>
             {isBlankBallot ? (
-                <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+                <Typography
+                    variant="body2"
+                    component="div"
+                    sx={{color: theme.palette.customGrey.main}}
+                >
                     {stringToHtml(t("confirmationScreen.blankBallot.description"))}
                 </Typography>
             ) : null}
@@ -525,6 +529,7 @@ const ConfirmationScreen: React.FC = () => {
             </Typography>
             <Typography
                 variant="body2"
+                component="div"
                 sx={{color: theme.palette.customGrey.main}}
                 id="qr-code-description"
             >
