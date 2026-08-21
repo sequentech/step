@@ -147,8 +147,8 @@ fn an_event_with_no_elections_is_rejected() {
 
 #[test]
 fn an_event_with_no_areas_is_rejected() {
-    // The sibling of the test above, and it was missing. Every voter belongs to an
-    // area, so a bundle with none imports an event nobody can be enrolled in.
+    // Every voter belongs to an area, so a bundle with none imports an event nobody
+    // can be enrolled in.
     let mut bundle = sound();
     bundle.areas.clear();
     bundle.area_contests.clear();
@@ -257,10 +257,6 @@ fn allowing_more_selections_than_there_are_candidates_is_rejected() {
 
 #[test]
 fn a_negative_vote_count_is_refused() {
-    // **It was not.** Every rule about these three fields is a comparison — `min >
-    // max`, `winners > available` — and -1 satisfies all of them, so a contest
-    // asking for minus one winner passed validation and imported. This test used to
-    // assert only that nothing *wrapped*, which quietly documented the hole.
     for field in ["min_votes", "max_votes", "winning_candidates_num"] {
         let mut bundle = sound();
         match field {
@@ -278,11 +274,9 @@ fn a_negative_vote_count_is_refused() {
             "a negative {field} should be reported as an invalid value"
         );
 
-        // And still no wraparound, which is what the original test was about: i64 to
-        // usize would make -1 enormous and trip "more winners than candidates"
-        // instead of naming the real fault. Asserted for that field only — a negative
-        // `max_votes` legitimately trips `min_votes > max_votes` as well, and calling
-        // that a wraparound would be reading the arithmetic rule wrong.
+        // No wraparound either: i64 to usize would make -1 enormous and trip "more
+        // winners than candidates" instead. That field only — a negative `max_votes`
+        // legitimately trips `min_votes > max_votes` as well.
         if field == "winning_candidates_num" {
             assert!(!report
                 .errors()
@@ -293,8 +287,8 @@ fn a_negative_vote_count_is_refused() {
 
 #[test]
 fn zero_is_a_count_a_contest_may_legitimately_carry() {
-    // The bound is *negative*, not "not positive". A contest a voter may abstain in
-    // has `min_votes` 0, and refusing that would refuse the platform's own exports.
+    // The bound is negative, not "not positive": a contest a voter may abstain in has
+    // `min_votes` 0.
     let mut bundle = sound();
     bundle.contests[0].min_votes = Some(0);
     assert!(!error_codes(&bundle).contains(&Code::InvalidValue));
@@ -317,10 +311,7 @@ fn a_contest_with_no_candidates_is_a_warning_not_an_error() {
 
 #[test]
 fn the_algorithm_list_is_the_enum_and_nothing_else() {
-    // `COUNTING_ALGORITHMS` *is* `CountingAlgType::VARIANTS` now, so this asserts the
-    // property that matters instead: every value the list offers round-trips through
-    // the enum. It fails if a variant is ever given a `strum` spelling that differs
-    // from its `serde` one, which is the one way the two could still part company.
+    // Fails if a variant's `strum` spelling ever differs from its `serde` one.
     for value in COUNTING_ALGORITHMS {
         assert!(
             CountingAlgType::from_str(value).is_ok(),
@@ -331,10 +322,7 @@ fn the_algorithm_list_is_the_enum_and_nothing_else() {
 
 #[test]
 fn the_preferential_list_matches_the_enum() {
-    // The subset is spelled out — a `&'static [&'static str]` is what the browser is
-    // handed, and `is_preferential` cannot be called in a const — so this is what
-    // keeps it honest. Both directions: a variant wrongly listed, and one wrongly
-    // left out.
+    // Both directions: a variant wrongly listed, and one wrongly left out.
     for value in COUNTING_ALGORITHMS {
         let algorithm = CountingAlgType::from_str(value)
             .expect("every offered algorithm parses");
@@ -492,9 +480,8 @@ fn no_labels_means_no_warning() {
 
 /// A report definition carrying one permission label.
 ///
-/// Built here rather than taken from the fixture: `reports` is normally empty,
-/// because report definitions travel in `export_reports-<uuid>.csv` and a populated
-/// array in the JSON is silently ignored by the importer. See `schema::reports`.
+/// Built rather than taken from the fixture: `reports` is normally empty, because
+/// definitions travel in `export_reports-<uuid>.csv`. See `schema::reports`.
 fn labelled_report(
     bundle: &ImportElectionEventSchema,
     label: &str,
@@ -509,8 +496,6 @@ fn labelled_report(
         encryption_policy:
             crate::election_config::report::EReportEncryption::Unencrypted,
         cron_config: None,
-        // The event's own timestamp is `Option<DateTime<Local>>`; a report
-        // definition carries a required UTC one. Nothing here reads it.
         created_at: chrono::DateTime::UNIX_EPOCH,
         permission_label: Some(vec![label.into()]),
     }
@@ -518,11 +503,6 @@ fn labelled_report(
 
 #[test]
 fn a_label_on_a_report_names_the_reports_collection() {
-    // The path is where the thing *is*: a front end turns it into a wizard step or a
-    // spreadsheet cell. This warning was pinned to `elections[].permission_label`
-    // while the labels it collects come from reports too — so a bundle whose only
-    // labelled entity is a report sent somebody to the elections screen, where there
-    // is nothing to change.
     let mut bundle = sound();
     bundle.reports = vec![labelled_report(&bundle, "auditors")];
 
