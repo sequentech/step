@@ -1873,6 +1873,11 @@ const basqueTranslation: TranslationType = {
             paginationPolicy: {
                 label: "Orri Izena",
             },
+            isAcclaimed: {
+                label: "Aklamazioz erabakia",
+                helperText:
+                    "Botoemaileek lehiaketa hau ikusten dute baina ezin dute ezer hautatu, ez da ezer erregistratzen eta hautagai guztiak irabazle gisa jasotzen dira zero bozkarekin. Ezarri hau boto-txartelak argitaratu aurretik: ondoren aldatzeak dagoeneko emandako boto-txartelak baliogabetzen ditu.",
+            },
             allowWriteins: {
                 label: "Eskuzko hautagaitzak baimendu",
             },
@@ -2250,6 +2255,8 @@ const basqueTranslation: TranslationType = {
                 channel_paper: "Papera",
                 channel_postal: "Posta",
                 channel_in_person: "Aurrez aurre",
+                acclamation_note:
+                    "Aklamazioz hautatua. Lehiaketa hau bozketarik gabe erabaki zen, beraz, ez zen bozkarik erregistratu.",
             },
             pendingResolutions: {
                 round: "Txanda {{round}}",

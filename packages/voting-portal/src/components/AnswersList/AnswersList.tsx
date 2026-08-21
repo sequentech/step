@@ -12,6 +12,7 @@ import {
     ECollapsibleLists,
     showCategoryOnReview,
     isCategoryListSelected,
+    isAcclaimedContest,
 } from "@sequentech/ui-core"
 import {Answer} from "../Answer/Answer"
 import {useAppDispatch, useAppSelector} from "../../store/hooks"
@@ -105,9 +106,12 @@ export const AnswersList: React.FC<AnswersListProps> = ({
               )
             : undefined
 
+    // An acclaimed contest is display-only: every list stays greyed out, and
+    // the review screen shows all of them rather than only the selected ones.
+    const isAcclaimed = isAcclaimedContest(contest)
     const isChecked = () => !isUndefined(selectionState) && selectionState.selected > -1
     const isListSelectedOnReview =
-        isReview && isCategoryListSelected(category, questionState?.choices ?? [])
+        isReview && (isAcclaimed || isCategoryListSelected(category, questionState?.choices ?? []))
     const setChecked = (value: boolean) => {
         if (isRadioSelection) {
             dispatch(
@@ -134,7 +138,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
         )
     }
 
-    if (isReview && !showCategoryOnReview(category, questionState)) {
+    if (isReview && !isAcclaimed && !showCategoryOnReview(category, questionState)) {
         return null
     }
 
@@ -159,7 +163,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
 
     let sortedSubtypes = sortBy(subtypesPresentation, ["sort_order"])
 
-    const shouldDisableList = disableSelect && !isChecked()
+    const shouldDisableList = isAcclaimed || (disableSelect && !isChecked())
 
     return (
         <CandidatesList

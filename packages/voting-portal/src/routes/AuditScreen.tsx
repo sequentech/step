@@ -120,9 +120,14 @@ const AuditScreen: React.FC = () => {
     const isMultiContest =
         auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
         EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
-    const hashedBallot = isMultiContest
-        ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
-        : hashBallot(auditableBallot as IAuditableSingleBallot)
+    // Hashing runs during render, before the redirect effect below, so it
+    // must not be attempted when there is no ballot to hash - which is the
+    // permanent state of this route for a fully acclaimed election.
+    const hashedBallot = !auditableBallot
+        ? undefined
+        : isMultiContest
+          ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
+          : hashBallot(auditableBallot as IAuditableSingleBallot)
     const ballotHash = auditableBallot && hashedBallot
     const backLink = useRootBackLink()
     const navigate = useNavigate()

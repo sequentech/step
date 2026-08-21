@@ -67,6 +67,9 @@ impl Tally {
 
     #[instrument(err, skip_all)]
     fn get_tally_type(contest: &Contest) -> Result<CountingAlgType> {
+        if contest.is_acclaimed() {
+            return Ok(CountingAlgType::PluralityAtLarge);
+        }
         contest
             .counting_algorithm
             .ok_or_else(|| Box::new(Error::TallyTypeNotFound) as Box<dyn std::error::Error>)

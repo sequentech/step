@@ -247,6 +247,7 @@ const Candidate: React.FC<CandidateProps> = ({
                 isSelectable ? (
                     <Select
                         displayEmpty
+                        disabled={shouldDisable}
                         value={selectedPosition ?? 0}
                         onChange={handlePositionChange}
                         renderValue={(value) => {

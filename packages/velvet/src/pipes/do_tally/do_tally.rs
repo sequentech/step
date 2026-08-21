@@ -7,6 +7,7 @@ use crate::pipes::{
     decode_ballots::OUTPUT_DECODED_BALLOTS_FILE,
     do_tally::counting_algorithm::utils::{
         get_area_tally_operation, get_area_weight, get_contest_tally_operation,
+        tallied_counting_algorithm,
     },
     error::{Error, Result},
     pipe_inputs::{PipeInputs, PREFIX_TALLY_SHEET},
@@ -366,7 +367,7 @@ impl Pipe for DoTally {
 
                             let area_op = get_area_tally_operation(
                                 &election_input.ballot_styles,
-                                contest_object.get_counting_algorithm(),
+                                tallied_counting_algorithm(&contest_object),
                                 &area_input.id,
                             );
 

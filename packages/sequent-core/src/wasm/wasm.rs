@@ -766,6 +766,20 @@ pub fn test_contest_reencoding_js(
             )
         })
         .into_json()?;
+
+    // An acclaimed contest is never encoded, so there is no round trip to
+    // check and no selection policy to report on: the voting portal gets back
+    // exactly the (empty) selection it holds.
+    if contest.is_acclaimed() {
+        let serializer = Serializer::json_compatible();
+        return decoded_contest
+            .serialize(&serializer)
+            .map_err(|err| {
+                format!("Error converting decoded contest to json {:?}", err)
+            })
+            .into_json();
+    }
+
     let bigint = contest
         .encode_plaintext_contest_bigint(&decoded_contest)
         .into_json()?;

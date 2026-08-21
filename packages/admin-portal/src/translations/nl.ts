@@ -1877,6 +1877,11 @@ const dutchTranslation: TranslationType = {
             paginationPolicy: {
                 label: "Paginanaam",
             },
+            isAcclaimed: {
+                label: "Bij acclamatie beslist",
+                helperText:
+                    "Kiezers zien deze stemming maar kunnen niets selecteren, er wordt niets geregistreerd en alle kandidaten worden als winnaar met nul stemmen gerapporteerd. Stel dit in voordat stembiljetten worden gepubliceerd: het later wijzigen maakt reeds uitgebrachte stemmen ongeldig.",
+            },
             allowWriteins: {
                 label: "Handgeschreven kandidaten toestaan",
             },
@@ -2253,6 +2258,8 @@ const dutchTranslation: TranslationType = {
                 channel_paper: "Papier",
                 channel_postal: "Post",
                 channel_in_person: "Persoonlijk",
+                acclamation_note:
+                    "Bij acclamatie gekozen. Deze stemming is zonder stemming beslist, dus er zijn geen stemmen geregistreerd.",
             },
             pendingResolutions: {
                 round: "Ronde {{round}}",

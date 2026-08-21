@@ -608,7 +608,8 @@ impl GenerateReports {
             let blank_ballots = if is_blank_ballots_enabled {
                 reports
                     .iter()
-                    .find(|r| r.area.is_none())
+                    .find(|r| r.area.is_none() && !is_acclaimed_report(r))
+                    .or_else(|| reports.iter().find(|r| r.area.is_none()))
                     .and_then(|r| r.contest_result.as_ref())
                     .and_then(|cr| cr.extended_metrics.as_ref())
                     .map(|m| m.total_blank_ballots)
@@ -1165,8 +1166,7 @@ impl Pipe for GenerateReports {
                         == Some(DeclineToVotePolicy::ENABLED);
 
                 let total_decline_to_vote = if is_decline_to_vote_enabled {
-                    contest_reports
-                        .first()
+                    ballot_level_report(&contest_reports)
                         .and_then(|r| {
                             r.contest_result
                                 .clone()
@@ -1190,8 +1190,7 @@ impl Pipe for GenerateReports {
                         == Some(BlankBallotsPolicy::ENABLED);
 
                 let total_blank_ballots = if is_blank_ballots_enabled {
-                    contest_reports
-                        .first()
+                    ballot_level_report(&contest_reports)
                         .and_then(|r| {
                             r.contest_result
                                 .clone()
@@ -1497,6 +1496,30 @@ fn report_candidates_order_policy(contest: &Contest) -> Option<CandidatesOrderPo
             None
         }
     }
+}
+
+/// Whether this report's contest is acclaimed, and so cannot answer for the
+/// ballot as a whole: it has no ballots at all and reports zero.
+fn is_acclaimed_report(report: &ReportData) -> bool {
+    report
+        .contest
+        .as_ref()
+        .or_else(|| report.contest_result.as_ref().map(|result| &result.contest))
+        .is_some_and(|contest| contest.is_acclaimed())
+}
+
+/// A contest whose result speaks for the whole ballot.
+///
+/// Ballot-level metrics (blank ballots, decline to vote) are replicated onto
+/// every contest result, so any contest answers for the ballot - except an
+/// acclaimed one, which has no ballots at all and reports zero. Contest order
+/// comes from an unsorted directory read, so picking blindly would make the
+/// election-level total depend on filesystem order.
+fn ballot_level_report(reports: &[ReportData]) -> Option<&ReportData> {
+    reports
+        .iter()
+        .find(|report| !is_acclaimed_report(report))
+        .or_else(|| reports.first())
 }
 
 fn report_contest(report: &ReportDataComputed) -> Option<&Contest> {
@@ -2115,6 +2138,78 @@ mod participation_by_channel_tests {
             assert!(rendered.contains("Participation by channel"));
             assert!(rendered.contains("Online"));
             assert!(rendered.contains("25.0%"));
+        }
+    }
+
+    fn render_both_templates(variables: serde_json::Value) -> Vec<String> {
+        let serde_json::Value::Object(variables) = variables else {
+            panic!("report variables must be an object");
+        };
+        [
+            include_str!("../../resources/report_content.hbs"),
+            include_str!(
+                "../../../../../.devcontainer/minio/public-assets/electoral_results_user.hbs"
+            ),
+        ]
+        .into_iter()
+        .map(|template| reports::render_template_text(template, variables.clone()).unwrap())
+        .collect()
+    }
+
+    fn contest_report(counting_algorithm: &str, is_acclaimed: bool) -> serde_json::Value {
+        serde_json::json!({
+            "reports": [{
+                "election_name": "Election",
+                "contest": {
+                    "name": "Contest",
+                    "description": "",
+                    "counting_algorithm": counting_algorithm,
+                    "is_acclaimed": is_acclaimed,
+                    "min_votes": 0,
+                    "max_votes": 1
+                },
+                "contest_result": {},
+                "candidate_result": [{
+                    "candidate": {"name": "Alice"},
+                    "total_count": 7,
+                    "percentage_votes": 70.0,
+                    "winning_position": 1
+                }]
+            }]
+        })
+    }
+
+    /// The candidate table is the point of the report. A gate that silently
+    /// stops matching - an `eq` in subexpression position, say - would empty
+    /// every plurality report without failing anything else.
+    #[test]
+    fn renders_the_candidate_table_for_a_plurality_contest() {
+        for rendered in render_both_templates(contest_report("plurality-at-large", false)) {
+            assert!(
+                rendered.contains("Candidate result"),
+                "missing candidate table"
+            );
+            assert!(rendered.contains("Alice"));
+            assert!(rendered.contains("Participation"));
+            assert!(!rendered.contains("Won by acclamation"));
+        }
+    }
+
+    /// An acclaimed contest keeps its candidate table but drops participation,
+    /// which would otherwise be a wall of zeros with no explanation.
+    #[test]
+    fn renders_acclamation_note_without_participation_for_an_acclaimed_contest() {
+        for rendered in render_both_templates(contest_report("plurality-at-large", true)) {
+            assert!(rendered.contains("Won by acclamation"));
+            assert!(
+                rendered.contains("Candidate result"),
+                "missing candidate table"
+            );
+            assert!(rendered.contains("Alice"));
+            assert!(
+                !rendered.contains("Total number of votes counted"),
+                "acclaimed contests must not show participation"
+            );
         }
     }
 }

@@ -1859,6 +1859,11 @@ const englishTranslation = {
             paginationPolicy: {
                 label: "Page Name",
             },
+            isAcclaimed: {
+                label: "Decided by acclamation",
+                helperText:
+                    "Voters see this contest but cannot select anything, nothing is recorded for it, and every candidate is reported as a winner with zero votes. Set this before publishing ballots: changing it afterwards invalidates ballots already cast.",
+            },
             allowWriteins: {
                 label: "Allow Write-Ins",
             },
@@ -2235,6 +2240,8 @@ const englishTranslation = {
                 channel_paper: "Paper",
                 channel_postal: "Postal",
                 channel_in_person: "In person",
+                acclamation_note:
+                    "Won by acclamation. This contest was decided without a vote, so no votes were recorded for it.",
             },
             pendingResolutions: {
                 round: "Round {{round}}",

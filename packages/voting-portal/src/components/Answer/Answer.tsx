@@ -8,6 +8,7 @@ import {
     isUndefined,
     normalizeWriteInText,
     translate,
+    isAcclaimedContest,
     ICandidate,
     IContest,
 } from "@sequentech/ui-core"
@@ -84,6 +85,9 @@ export const Answer: React.FC<IAnswerProps> = ({
         if (!contest.counting_algorithm) return false
         return isPreferential(contest.counting_algorithm)
     }, [contest.counting_algorithm])
+    // An acclaimed contest is display-only, so every option stays greyed out
+    // and inert however the rest of the ballot is filled in.
+    const isAcclaimed = isAcclaimedContest(contest)
     const totalCandidates = contest.candidates.length
     const selectionState = useAppSelector(
         selectBallotSelectionVoteChoice(ballotStyle.election_id, contestId, answer.id)
@@ -139,7 +143,7 @@ export const Answer: React.FC<IAnswerProps> = ({
     }
 
     const handlePreferentialChange = (position: number | null) => {
-        if (!isSelectable || isReview) {
+        if (!isSelectable || isReview || isAcclaimed) {
             return
         }
         setIsTouched(true)
@@ -159,7 +163,7 @@ export const Answer: React.FC<IAnswerProps> = ({
         )
     }
     const setChecked = (value: boolean) => {
-        if (!isSelectable || isReview || isPreferentialVote) {
+        if (!isSelectable || isReview || isPreferentialVote || isAcclaimed) {
             return
         }
         setIsTouched(true)
@@ -216,10 +220,12 @@ export const Answer: React.FC<IAnswerProps> = ({
         )
     }
 
-    const shouldDisable = disableSelect && !isChecked()
+    const shouldDisable = isAcclaimed || (disableSelect && !isChecked())
 
     const isWriteIn = checkIsWriteIn(answer)
-    const allowWriteIns = question && checkAllowWriteIns(question)
+    // An acclaimed contest records nothing, so it offers no write-in field
+    // either: rendering one would invite text that is never encoded.
+    const allowWriteIns = !isAcclaimed && question && checkAllowWriteIns(question)
 
     const setWriteInText = (writeInText: string): void => {
         if (!isWriteIn || !allowWriteIns || !isSelectable || isReview) {
@@ -240,7 +246,9 @@ export const Answer: React.FC<IAnswerProps> = ({
         )
     }
 
-    if (isReview && !isChecked() && !showWhenListSelected) {
+    // The review screen normally lists only what the voter selected; an
+    // acclaimed contest has no selection, so it lists every candidate instead.
+    if (isReview && !isChecked() && !showWhenListSelected && !isAcclaimed) {
         return null
     }
 

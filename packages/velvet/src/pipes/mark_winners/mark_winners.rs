@@ -50,9 +50,23 @@ impl MarkWinners {
             }
         });
 
+        // Every candidate of an acclaimed contest is elected, however many
+        // positions the contest declares: there was no vote to rank them by,
+        // so there is nothing to select the top ones on. A withdrawn candidate
+        // and an empty write-in slot are not candidates for election, though,
+        // and the votes-descending cut normally kept them out.
+        let num_winners = if contest_result.contest.is_acclaimed() {
+            winners.retain(|winner| {
+                !winner.candidate.is_disabled() && !winner.candidate.is_write_in()
+            });
+            winners.len()
+        } else {
+            contest_result.contest.winning_candidates_num as usize
+        };
+
         winners
             .into_iter()
-            .take(contest_result.contest.winning_candidates_num as usize)
+            .take(num_winners)
             .enumerate()
             .map(|(index, w)| WinnerResult {
                 candidate: w.candidate.clone(),

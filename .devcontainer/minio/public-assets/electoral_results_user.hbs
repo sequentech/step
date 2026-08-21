@@ -30,6 +30,10 @@
     {{#if report.contest}}
     <p class="contest-desc">{{ sanitize_html report.contest.description }}</p>
     {{/if}}
+    {{#if report.contest.is_acclaimed}}
+    <p class="contest-acclamation">Won by acclamation. This contest was decided without a vote,
+      so no votes were recorded for it and every candidate is elected.</p>
+    {{/if}}
     
 
 {{#if report.contest}}
@@ -55,6 +59,7 @@
     {{/if}}
 
 {{#if report.contest}}
+    {{#unless report.contest.is_acclaimed}}
     <table>
       <tr>
         <th colspan="3">Participation</th>
@@ -100,6 +105,7 @@
         <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_invalid_votes_implicit }}%</td> 
       </tr>
     </table>
+    {{/unless}}
     {{/if}}
 
     {{#if report.participation_by_channel}}
@@ -153,6 +159,10 @@
     {{/if}}
 
     {{#if report.contest}}
+        {{!-- Only plurality contests get this table. An acclaimed contest is
+                      tallied as plurality but keeps its declared algorithm here, so a
+                      (mis)configured preferential acclaimed contest shows no candidate
+                      table; the results portal and admin portal still list it. --}}
         {{#eq report.contest.counting_algorithm "plurality-at-large"}}
           <table class="section">
             <tr>

@@ -8,6 +8,8 @@ import {
     splitList,
     keyBy,
     translate,
+    translateFromPresentation,
+    isAcclaimedContest,
     IContest,
     CandidatesOrder,
     EOverVotePolicy,
@@ -148,6 +150,16 @@ export const Question: React.FC<IQuestionProps> = ({
     let [disableSelect, setDisableSelect] = useState(false)
     let {invalidOrBlankCandidates, noCategoryCandidates, categoriesMap} =
         categorizeCandidates(question)
+    // An acclaimed contest is display-only: nothing can be selected, so it
+    // offers no explicit blank or invalid options, reports no selection
+    // errors, and is not part of a declined or blank ballot either.
+    const isAcclaimed = isAcclaimedContest(question)
+    const markerCandidates = isAcclaimed ? [] : invalidOrBlankCandidates
+    const defaultLanguageCode =
+        ballotStyle.ballot_eml.election_presentation?.language_conf?.default_language_code ??
+        ballotStyle.ballot_eml.election_event_presentation?.language_conf?.default_language_code
+    const showDeclineToVote = !!isDeclineToVote && !isAcclaimed
+    const showBlankBallot = !!isBlankBallot && !isAcclaimed
     const [isTouched, setIsTouched] = useState(isReview)
     const contestState = useAppSelector(
         selectBallotSelectionQuestion(ballotStyle.election_id, question.id)
@@ -191,7 +203,7 @@ export const Question: React.FC<IQuestionProps> = ({
     const candidatesOrderType = question.presentation?.candidates_order
 
     let [invalidBottomCandidatesUnsorted, invalidTopCandidatesUnsorted] = splitList(
-        invalidOrBlankCandidates,
+        markerCandidates,
         checkPositionIsTop
     )
 
@@ -290,7 +302,7 @@ export const Question: React.FC<IQuestionProps> = ({
     // when isRadioChecked is true, clicking on another option works as a radio button:
     // it deselects the previously selected option to select the new one
     const isRadioSelection = checkIsRadioSelection(question)
-    const isBlank = isReview && contestState && checkIsBlank(contestState)
+    const isBlank = !isAcclaimed && isReview && contestState && checkIsBlank(contestState)
 
     return (
         <Box component="section" aria-labelledby={`contest-${question.id}-title`}>
@@ -327,28 +339,42 @@ export const Question: React.FC<IQuestionProps> = ({
                     {stringToHtml(translate(question, "description", i18n.language) || "")}
                 </Typography>
             ) : null}
-            {isDeclineToVote ? (
+            {isAcclaimed ? (
+                <Typography variant="body2" className="contest-acclamation">
+                    {stringToHtml(
+                        translateFromPresentation(
+                            question,
+                            "acclamation_description",
+                            i18n.language,
+                            {defaultLanguageCode}
+                        ) || t("contest.acclamation.description")
+                    )}
+                </Typography>
+            ) : null}
+            {showDeclineToVote ? (
                 <InvalidBlankWrapper className="candidates-review-decline" columnCount={1}>
                     <BlankAnswer title={t("reviewScreen.declineToVote")} />
                 </InvalidBlankWrapper>
-            ) : isBlankBallot ? (
+            ) : showBlankBallot ? (
                 <InvalidBlankWrapper className="candidates-review-blank-ballot" columnCount={1}>
                     <BlankAnswer title={t("reviewScreen.blankBallot")} />
                 </InvalidBlankWrapper>
             ) : (
                 <>
-                    <InvalidErrorsList
-                        ballotStyle={ballotStyle}
-                        question={question}
-                        hasWriteIns={hasWriteIns}
-                        isInvalidWriteIns={isInvalidWriteIns}
-                        setIsInvalidWriteIns={onSetIsInvalidWriteIns}
-                        setDecodedContests={setDecodedContests}
-                        isReview={isReview}
-                        errorSelectionState={errorSelectionState}
-                        isTouched={isTouched}
-                        setIsTouched={setIsTouched}
-                    />
+                    {isAcclaimed ? null : (
+                        <InvalidErrorsList
+                            ballotStyle={ballotStyle}
+                            question={question}
+                            hasWriteIns={hasWriteIns}
+                            isInvalidWriteIns={isInvalidWriteIns}
+                            setIsInvalidWriteIns={onSetIsInvalidWriteIns}
+                            setDecodedContests={setDecodedContests}
+                            isReview={isReview}
+                            errorSelectionState={errorSelectionState}
+                            isTouched={isTouched}
+                            setIsTouched={setIsTouched}
+                        />
+                    )}
                     {isBlank ? (
                         <InvalidBlankWrapper className="candidates-review-blank" columnCount={1}>
                             <BlankAnswer />{" "}

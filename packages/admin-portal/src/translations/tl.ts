@@ -1884,6 +1884,11 @@ const tagalogTranslation: TranslationType = {
             paginationPolicy: {
                 label: "Pangalan ng Pahina",
             },
+            isAcclaimed: {
+                label: "Napagpasyahan sa pamamagitan ng aklamasyon",
+                helperText:
+                    "Nakikita ng mga botante ang paligsahang ito ngunit walang mapipili, walang naitatala, at lahat ng kandidato ay iniuulat na nanalo na may zero na boto. Itakda ito bago ilathala ang mga balota: ang pagbabago pagkatapos ay magpapawalang-bisa sa mga balotang naisumite na.",
+            },
             allowWriteins: {
                 label: "Payagan ang Mga Manu-manong Kandidato",
             },
@@ -2261,6 +2266,8 @@ const tagalogTranslation: TranslationType = {
                 channel_paper: "Papel",
                 channel_postal: "Koreo",
                 channel_in_person: "Personal",
+                acclamation_note:
+                    "Nanalo sa pamamagitan ng aklamasyon. Ang paligsahang ito ay napagpasyahan nang walang botohan, kaya walang naitalang boto.",
             },
             pendingResolutions: {
                 round: "Ikot {{round}}",
