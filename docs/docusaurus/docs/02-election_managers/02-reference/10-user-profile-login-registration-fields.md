@@ -23,11 +23,29 @@ To create an attribute, see
 
 **Realm settings** → **User profile** → select or create an attribute.
 
+Settings that apply to the whole page rather than to one field are **realm attributes**, edited in
+the Admin Portal under the election event's **Keycloak realm attributes**. That editor lists the
+attributes a realm has, not the ones it supports, so each environment's default event realm
+configuration should carry them at their defaults — otherwise an election manager has no way to
+discover them:
+
+| Realm attribute | Default |
+|---|---|
+| `credential-field-position` | `LAST` |
+| `credential-input-policy` | `standard` |
+| `credential-input-pattern` | `dddd-dddd-dddd-dddd` |
+| `credential-input-placeholder` | `d` |
+| `login-validation-policy` | `BROWSER` |
+| `voter-certificate-policy` | `disabled` |
+
+An attribute left unset behaves as its default, so seeding them changes nothing except what the
+editor shows.
+
 | Setting group | Controls |
 |---|---|
 | **General** (name, display name, required) | Field identity, label, and whether it is mandatory |
 | **Annotations** | Input type, placeholder, helper text, limits, option labels |
-| **Validations** | Server-side rules, and the option list for `select` / radio / checkbox fields |
+| **Validations** | Server-side rules, and the option list for choice fields |
 
 Attribute names must match those used in voter import files, the Admin Portal's Voters tab, and
 the authenticator's **User attributes to match** list. Renaming an attribute does not rename it in
@@ -43,7 +61,8 @@ existing user records.
 | **Login**, standard username + password | None — username and password only |
 | **Login**, attribute-based (**Multi-Attribute + Password Form**) | Only the attributes in the authenticator's **User attributes to match** |
 
-Attribute-based login is set up in
+Setting up attribute-based login, including its matching, ambiguity and abuse-control settings, is
+covered in
 [Logging In Without a Username (Attribute + Password)](../01-tutorials/101-admin_portal_tutorials_multi-attribute-password-login.md).
 
 An attribute in **User attributes to match** that is not declared in User Profile renders as a
@@ -176,12 +195,14 @@ That default suppresses autofill for every field, including ones a browser could
 Where an attribute maps to a standard autofill purpose, declare it so the browser can fill it and
 assistive technology can identify it:
 
-| Attribute holds | Annotation to set |
+Set `html-attribute:autocomplete` on the attribute, with the token for its purpose:
+
+| Attribute holds | Token |
 |---|---|
-| A date of birth | `html-attribute:autocomplete` = `bday` |
-| A phone number | `html-attribute:autocomplete` = `tel` |
-| An email address | `html-attribute:autocomplete` = `email` |
-| A given or family name | `html-attribute:autocomplete` = `given-name` / `family-name` |
+| A date of birth | `bday` |
+| A phone number | `tel` |
+| An email address | `email` |
+| A given or family name | `given-name` / `family-name` |
 
 The annotation overrides the page's `autocomplete="off"` for that field only. Attributes with no
 standard purpose — a national ID or a member number — have no token and keep the default.
@@ -211,10 +232,13 @@ setting governs the fields in **User attributes to match**:
 
 | Setting | Behavior |
 |---|---|
-| **Off** (default) | Every listed attribute is mandatory. No asterisks are shown. |
-| **On** | Each field follows its own **Required field** setting. Non-required fields may be left blank, and matching proceeds on the attributes that were filled in. |
+| **Off** (default) | Every listed attribute is mandatory |
+| **On** | Each field follows its own **Required field** setting. Non-required fields may be left blank, and matching proceeds on the attributes that were filled in |
 
 An all-blank submission always fails. An attribute not declared in User Profile stays mandatory.
+
+Asterisks and the "Required fields" notice appear only when at least one field is optional, since
+marking every field would distinguish nothing. When they appear, the password or PIN is marked too.
 
 > ⚠️ Enabling this widens who a login attempt can match: leaving `nationalId` blank matches every
 > voter with the submitted `dateOfBirth`, leaving the password as the only narrowing factor. See
@@ -275,9 +299,9 @@ radio and checkbox fields, so it is load-bearing for rendering on both.
 | `SERVER_ONLY` | The form carries `novalidate`; submission always reaches the authenticator, which answers with the generic message |
 
 Browser messages come from the browser's language, not the realm's, and only one field is reported
-at a time. `SERVER_ONLY` removes them. The constraint attributes stay in place either way:
-`required` is still announced by assistive technology, `inputTypeMaxlength` still caps typing, and
-`inputTypeMin`/`Max` still bound the date picker.
+at a time. `SERVER_ONLY` removes them. The annotations stay in place either way: required fields
+are still announced by assistive technology, typing limits still apply, and the date picker is
+still bounded.
 
 The structured PIN validates its own format in either mode, in the page's language, beside the
 field.
@@ -302,7 +326,7 @@ By default the password or PIN box sits after the identity fields. Set the realm
 `credential-field-position` to `FIRST` to put it above them, with the page's initial focus on it —
 useful where a PIN from a voter letter is the primary thing being entered.
 
-| `credential-field-position` | Effect |
+| Value | Effect |
 |---|---|
 | `LAST` (default) | Credential after the fields, focus on the first field |
 | `FIRST` | Credential before the fields, focus on the credential |
@@ -313,18 +337,10 @@ username and password login page. On the registration form an attribute declarin
 
 ### Structured PIN input
 
-Renders the password box as fixed-length digit groups with numeric keyboards, group navigation and
-paste handling. It remains the voter's ordinary Keycloak password. Configured with realm
-attributes, in the election event's **Keycloak realm attributes** editor:
-
-| Realm attribute | Values | Default |
-|---|---|---|
-| `credential-input-policy` | `standard` or `structured` | `standard` |
-| `credential-input-pattern` | Digit pattern, e.g. `dddd-dddd-dddd-dddd` | `dddd-dddd-dddd-dddd` |
-| `credential-input-placeholder` | Character shown for each empty digit, e.g. `#` | `d` |
-
-It applies to the login page, and to the registration form in login mode with a password field.
-For the pattern grammar and limits, see
+Renders the password box as fixed-length digit groups. It remains the voter's ordinary Keycloak
+password, and applies to the login page and to the registration form in login mode with a password
+field. Set `credential-input-policy` to `structured` to enable it; the pattern, placeholder, input
+behaviour and rollout steps are covered in
 [Structured PIN login](../../07-developers/06-keycloak/structured_pin_login.md).
 
 ---
@@ -337,8 +353,6 @@ For the pattern grammar and limits, see
 |---|---|---|
 | [Attribute-based login](../01-tutorials/101-admin_portal_tutorials_multi-attribute-password-login.md) | **Multi-Attribute + Password Form** authenticator | Replaces the username field with User Profile attribute fields |
 | [Structured PIN](../../07-developers/06-keycloak/structured_pin_login.md) | `credential-input-*` realm attributes | Password box becomes fixed-length digit groups |
-| Credential position | Realm attribute `credential-field-position` | Renders the credential above the match fields and focuses it |
-| Format checking | Realm attribute `login-validation-policy` | `SERVER_ONLY` stops the browser reporting invalid formats and leaves the validation to the authenticator |
 | Locked username | Realm attribute `loginHintUsernamePolicy` = `READ_ONLY` | Username is prefilled and read-only |
 | [Digital certificate login](../../07-developers/06-keycloak/x509_client_cert_architecture.md) | Realm attribute `voter-certificate-policy` = `enabled` | Shows the **digital-certificates** provider button; hidden while `disabled` |
 | Other identity providers | Keycloak **Identity providers** | Each enabled provider adds a button below the form |
