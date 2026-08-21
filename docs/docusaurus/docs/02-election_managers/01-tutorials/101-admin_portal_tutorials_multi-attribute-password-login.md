@@ -108,9 +108,10 @@ election event realm rather than on the authenticator, and neither is required:
 | `credential-field-position` | `LAST` | `FIRST` moves the password or PIN box above the attribute fields and gives it the page's initial focus - useful when a PIN from a voter letter is the main thing being entered. |
 | `login-validation-policy` | `BROWSER` | `SERVER_ONLY` stops the browser from rejecting badly formatted values, so every submission reaches this authenticator and gets its generic message instead. |
 
-Both are covered in
-[Configuring Login and Registration Fields](../02-reference/10-user-profile-login-registration-fields.md#putting-the-credential-first),
-which also explains where realm attributes are edited.
+Configuring Login and Registration Fields covers them in
+[Putting the credential first](../02-reference/10-user-profile-login-registration-fields.md#putting-the-credential-first) and
+[Who reports invalid formats on the login page](../02-reference/10-user-profile-login-registration-fields.md#who-reports-invalid-formats-on-the-login-page),
+and explains where realm attributes are edited.
 
 ---
 
