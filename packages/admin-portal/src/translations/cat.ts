@@ -1199,6 +1199,9 @@ const catalanTranslation: TranslationType = {
                     createErrorReason: "Error creant votant: {{reason}}",
                     createSuccess: "Votant creat",
                     attribute: {
+                        hintBetween: "Entre {{min}} i {{max}} caràcters",
+                        hintMin: "Com a mínim {{min}} caràcters",
+                        hintMax: "Com a màxim {{max}} caràcters",
                         andMore: "i {{count}} més",
                         invalidLength: '"{{field}}" ha de tenir entre {{min}} i {{max}} caràcters',
                         tooShort: '"{{field}}" ha de tenir com a mínim {{min}} caràcters',

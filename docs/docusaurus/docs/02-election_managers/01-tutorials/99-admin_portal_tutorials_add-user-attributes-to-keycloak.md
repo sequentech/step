@@ -58,12 +58,22 @@ To show a date input field:
 ## Limiting the Number of Characters
 
 To bound how much text an attribute accepts, **Add Validator** > **Validator type**: `length`, and
-set the maximum number of characters. Keycloak enforces it when the record is saved.
+set a minimum, a maximum, or both. Keycloak enforces the bounds when the record is saved.
 
-The Admin Portal does not stop the field accepting more than that while it is being typed: a limit
-applied as you type would silently discard the end of a pasted value, and would make an existing
-value that is already longer than the limit impossible to correct. Instead, a value that breaks the
-limit is refused on save and reported as such, naming the field and the limit it broke.
+The Admin Portal states the bounds under the field, so they are known before they are broken, and
+checks the value when the field is left. A value that breaks a bound marks the field and says which
+bound it broke, and the voter cannot be saved until it is corrected.
+
+The field is deliberately not capped while it is being typed. A cap applied as you type discards the
+end of a pasted value without saying so, and makes a stored value that is already longer than the
+maximum impossible to correct, since a browser will refuse to extend it but will not shorten it. A
+minimum cannot be applied that way at all, so both bounds are checked the same way instead.
+
+By default Keycloak measures the value with leading and trailing spaces removed, and the Admin
+Portal measures it the same way. Setting the validator's `trim-disabled` option changes both.
+
+A bound that is somehow reached anyway — a value written by an import, or an attribute the form does
+not show — is still refused on save, and reported naming each field and the bound it broke.
 
 ## Localization Overrides
 

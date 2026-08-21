@@ -1197,6 +1197,9 @@ const galegoTranslation: TranslationType = {
                     createErrorReason: "Erro ao crear o votante: {{reason}}",
                     createSuccess: "Votante creado",
                     attribute: {
+                        hintBetween: "Entre {{min}} e {{max}} caracteres",
+                        hintMin: "Polo menos {{min}} caracteres",
+                        hintMax: "Como máximo {{max}} caracteres",
                         andMore: "e {{count}} máis",
                         invalidLength: '"{{field}}" debe ter entre {{min}} e {{max}} caracteres',
                         tooShort: '"{{field}}" debe ter polo menos {{min}} caracteres',

@@ -1187,6 +1187,9 @@ const englishTranslation = {
                     createErrorReason: "Error creating voter: {{reason}}",
                     createSuccess: "Voter created",
                     attribute: {
+                        hintBetween: "Between {{min}} and {{max}} characters",
+                        hintMin: "At least {{min}} characters",
+                        hintMax: "At most {{max}} characters",
                         andMore: "and {{count}} more",
                         invalidLength: '"{{field}}" must be between {{min}} and {{max}} characters',
                         tooShort: '"{{field}}" must be at least {{min}} characters',

@@ -48,6 +48,8 @@ import {FormStyles} from "@/components/styles/FormStyles"
 import {CREATE_USER} from "@/queries/CreateUser"
 import {
     formatUserAtributes,
+    getAttributeLengthBounds,
+    getAttributeLengthViolation,
     getInputOptionLabels,
     getSelectOptionLabel,
     getTranslationLabel,
@@ -92,8 +94,11 @@ const getAttributeStringValue = (value: string | string[] | null | undefined): s
 
 interface AttributeTextInputProps {
     disabled: boolean
+    error?: boolean
+    helperText?: string
     label: string
     onCommit: (value: string) => void
+    onValidate?: (value: string) => void
     required: boolean
     value: string | string[] | null | undefined
     type?: string
@@ -105,8 +110,11 @@ interface AttributeTextInputProps {
 // defaultValue/key) and only written back on blur.
 const AttributeTextInput: React.FC<AttributeTextInputProps> = ({
     disabled,
+    error,
+    helperText,
     label,
     onCommit,
+    onValidate,
     required,
     value,
     type,
@@ -120,11 +128,14 @@ const AttributeTextInput: React.FC<AttributeTextInputProps> = ({
             label={label}
             defaultValue={normalizedValue}
             onBlur={(event) => {
+                onValidate?.(event.target.value)
                 if (event.target.value !== normalizedValue) {
                     onCommit(event.target.value)
                 }
             }}
             disabled={disabled}
+            error={error}
+            helperText={helperText}
             required={required}
             fullWidth
             InputLabelProps={type === "date" ? {shrink: true} : undefined}
@@ -279,6 +290,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const [errorText, setErrorText] = useState("")
     const [saveError, setSaveError] = useState("")
     const [saving, setSaving] = useState(false)
+    const [lengthErrors, setLengthErrors] = useState<Record<string, string>>({})
     // Guarded through a ref as well as state: two clicks dispatched before
     // React commits the first would both read the same stale state.
     const savingRef = useRef(false)
@@ -332,6 +344,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         }
         setStep("edit")
         setSaveError("")
+        setLengthErrors({})
         savingRef.current = false
         closedRef.current = false
         setSaving(false)
@@ -493,6 +506,60 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     // has to diagnose it. messageArgs carries the already translated message
     // through react-admin's polyglot provider, which would otherwise look it up
     // as a key and find nothing.
+    // Stated under the field so the bound is known before it is broken, and
+    // measured on blur so nothing the admin types is ever altered for them.
+    const lengthHint = (attr: UserProfileAttribute): string | undefined => {
+        const bounds = getAttributeLengthBounds(attr)
+        if (!bounds) {
+            return undefined
+        }
+        if (bounds.min !== undefined && bounds.max !== undefined) {
+            return t("usersAndRolesScreen.voters.errors.attribute.hintBetween", {
+                min: bounds.min,
+                max: bounds.max,
+            })
+        }
+
+        return bounds.min !== undefined
+            ? t("usersAndRolesScreen.voters.errors.attribute.hintMin", {min: bounds.min})
+            : t("usersAndRolesScreen.voters.errors.attribute.hintMax", {max: bounds.max})
+    }
+
+    const validateLength = (attr: UserProfileAttribute) => (value: string) => {
+        const name = attr.name
+        if (!name) {
+            return
+        }
+        const bounds = getAttributeLengthBounds(attr)
+        const violation = getAttributeLengthViolation(bounds, value)
+
+        setLengthErrors((previous) => {
+            if (!violation || !bounds) {
+                if (previous[name] === undefined) {
+                    return previous
+                }
+                const {[name]: _removed, ...rest} = previous
+                return rest
+            }
+
+            const field = getTranslationLabel(name, attr.display_name, t)
+            const message =
+                bounds.min !== undefined && bounds.max !== undefined
+                    ? t("usersAndRolesScreen.voters.errors.attribute.invalidLength", {
+                          field,
+                          min: bounds.min,
+                          max: bounds.max,
+                      })
+                    : t(`usersAndRolesScreen.voters.errors.attribute.${violation}`, {
+                          field,
+                          min: bounds.min,
+                          max: bounds.max,
+                      })
+
+            return {...previous, [name]: message}
+        })
+    }
+
     const resolveFieldLabel = (field: string): string => {
         const attribute = userAttributes.find((candidate) => candidate.name === field)
 
@@ -573,6 +640,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     }
 
     const onSubmit = async () => {
+        if (Object.keys(lengthErrors).length > 0) {
+            return
+        }
         if (createMode) {
             await onSubmitCreateUser()
             return
@@ -1050,6 +1120,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             <AttributeTextInput
                                 key={index}
                                 label={getTranslationLabel(attr.name, attr.display_name, t)}
+                                error={!!lengthErrors[attr.name]}
+                                helperText={lengthErrors[attr.name] ?? lengthHint(attr)}
+                                onValidate={validateLength(attr)}
                                 value={value}
                                 onCommit={(newValue) => {
                                     const attrName = attr.name as string
@@ -1079,7 +1152,10 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 key={attr.display_name}
                                 label={getTranslationLabel(attr.name, attr.display_name, t)}
                                 onChange={handleChange}
+                                onBlur={(event) => validateLength(attr)(event.target.value)}
                                 source={attr.name}
+                                error={!!lengthErrors[attr.name]}
+                                helperText={lengthErrors[attr.name] ?? lengthHint(attr)}
                                 required={isFieldRequired(attr)}
                                 disabled={
                                     (attr.name === "username" && !createMode) ||
@@ -1099,7 +1175,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 )
             }
         },
-        [user, permissionLabels, choices, electionsList]
+        [user, permissionLabels, choices, electionsList, lengthErrors]
     )
 
     const isFieldRequired = (config: UserProfileAttribute): boolean => {
@@ -1118,7 +1194,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         return userAttributes?.map((attr, index) => (
             <React.Fragment key={attr.name || index}>{renderFormField(attr, index)}</React.Fragment>
         ))
-    }, [userAttributes, user, permissionLabels, choices, electionsList])
+    }, [userAttributes, user, permissionLabels, choices, electionsList, lengthErrors])
 
     const saveErrorAlert = saveError ? (
         <WizardStyles.ErrorMessage variant="body2" role="alert" className="edit-voter-save-error">
@@ -1165,7 +1241,15 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         <PageHeaderStyles.Wrapper>
             <SimpleForm
                 toolbar={
-                    step === "edit" ? <SaveButton alwaysEnable={!errorText && !saving} /> : false
+                    step === "edit" ? (
+                        <SaveButton
+                            alwaysEnable={
+                                !errorText && !saving && Object.keys(lengthErrors).length === 0
+                            }
+                        />
+                    ) : (
+                        false
+                    )
                 }
                 record={user}
                 onSubmit={onSubmit}

@@ -1196,6 +1196,9 @@ const dutchTranslation: TranslationType = {
                     createErrorReason: "Fout bij aanmaken kiezer: {{reason}}",
                     createSuccess: "Kiezer aangemaakt",
                     attribute: {
+                        hintBetween: "Tussen {{min}} en {{max}} tekens",
+                        hintMin: "Minimaal {{min}} tekens",
+                        hintMax: "Maximaal {{max}} tekens",
                         andMore: "en nog {{count}}",
                         invalidLength: '"{{field}}" moet tussen {{min}} en {{max}} tekens bevatten',
                         tooShort: '"{{field}}" moet minimaal {{min}} tekens bevatten',

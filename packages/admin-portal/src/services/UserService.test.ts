@@ -4,6 +4,8 @@
 
 import {UserProfileAttribute} from "@/gql/graphql"
 import {
+    getAttributeLengthBounds,
+    getAttributeLengthViolation,
     getInputOptionLabels,
     getSelectOptionDescription,
     getSelectOptionLabel,
@@ -125,5 +127,89 @@ describe("getSelectOptionLabel", () => {
 
     it("does not repeat a description that only restates the option", () => {
         expect(getSelectOptionLabel({Male: "Male"}, "Male", translate())).toBe("Male")
+    })
+})
+
+describe("getAttributeLengthBounds", () => {
+    it("reads both bounds from the length validator", () => {
+        expect(
+            getAttributeLengthBounds(attribute({validations: {length: {min: 1, max: 2}}}))
+        ).toEqual({min: 1, max: 2, trim: true})
+    })
+
+    it("reads bounds Keycloak stored as strings", () => {
+        expect(
+            getAttributeLengthBounds(attribute({validations: {length: {min: "1", max: "2"}}}))
+        ).toEqual({min: 1, max: 2, trim: true})
+    })
+
+    it("reads a single bound", () => {
+        expect(getAttributeLengthBounds(attribute({validations: {length: {max: 40}}}))).toEqual({
+            min: undefined,
+            max: 40,
+            trim: true,
+        })
+    })
+
+    it("follows the attribute when it opts out of trimming", () => {
+        expect(
+            getAttributeLengthBounds(
+                attribute({validations: {length: {"max": 2, "trim-disabled": "true"}}})
+            )?.trim
+        ).toBe(false)
+        expect(
+            getAttributeLengthBounds(
+                attribute({validations: {length: {"max": 2, "trim-disabled": true}}})
+            )?.trim
+        ).toBe(false)
+    })
+
+    it("returns undefined when nothing is bounded", () => {
+        expect(getAttributeLengthBounds(attribute({validations: {length: {}}}))).toBeUndefined()
+        expect(
+            getAttributeLengthBounds(attribute({validations: {options: {options: ["a"]}}}))
+        ).toBeUndefined()
+        expect(getAttributeLengthBounds(attribute({}))).toBeUndefined()
+    })
+
+    // The annotation caps typing on the voter-facing forms but is not enforced
+    // on submit, so stating it would claim a rule the server does not apply.
+    it("ignores the inputTypeMaxlength annotation", () => {
+        expect(
+            getAttributeLengthBounds(attribute({annotations: {inputTypeMaxlength: 5}}))
+        ).toBeUndefined()
+    })
+})
+
+describe("getAttributeLengthViolation", () => {
+    const bounds = getAttributeLengthBounds(attribute({validations: {length: {min: 2, max: 4}}}))
+
+    it("names the bound the value breaks", () => {
+        expect(getAttributeLengthViolation(bounds, "a")).toBe("tooShort")
+        expect(getAttributeLengthViolation(bounds, "abcde")).toBe("tooLong")
+    })
+
+    it("accepts a value within the bounds, including at them", () => {
+        expect(getAttributeLengthViolation(bounds, "ab")).toBeUndefined()
+        expect(getAttributeLengthViolation(bounds, "abcd")).toBeUndefined()
+    })
+
+    it("leaves an absent value to the attribute being required", () => {
+        expect(getAttributeLengthViolation(bounds, "")).toBeUndefined()
+        expect(getAttributeLengthViolation(bounds, "   ")).toBeUndefined()
+    })
+
+    it("measures the same string Keycloak will", () => {
+        // Trimmed by default, so the surrounding spaces are not characters.
+        expect(getAttributeLengthViolation(bounds, "  ab  ")).toBeUndefined()
+
+        const untrimmed = getAttributeLengthBounds(
+            attribute({validations: {length: {"min": 2, "max": 4, "trim-disabled": "true"}}})
+        )
+        expect(getAttributeLengthViolation(untrimmed, "  ab  ")).toBe("tooLong")
+    })
+
+    it("bounds nothing when the attribute bounds nothing", () => {
+        expect(getAttributeLengthViolation(undefined, "anything at all")).toBeUndefined()
     })
 })

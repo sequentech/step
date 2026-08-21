@@ -154,3 +154,77 @@ export const getSelectOptionLabel = (
 
     return description && description !== option ? `${option} - ${description}` : option
 }
+
+const toPositiveInteger = (value: unknown): number | undefined => {
+    const parsed = typeof value === "string" ? Number.parseInt(value, 10) : value
+
+    return typeof parsed === "number" && Number.isInteger(parsed) && parsed > 0 ? parsed : undefined
+}
+
+export interface AttributeLengthBounds {
+    min?: number
+    max?: number
+    /// Whether the bounds are measured against the trimmed value.
+    trim: boolean
+}
+
+export type AttributeLengthViolation = "tooShort" | "tooLong"
+
+/**
+ * The character bounds Keycloak's `length` validator puts on an attribute, or
+ * undefined when it bounds nothing. Only the validator is read: the
+ * `inputTypeMaxlength` annotation caps typing on the voter-facing forms but is
+ * not enforced on submit, so stating it here would claim a rule the server does
+ * not apply.
+ */
+export const getAttributeLengthBounds = (
+    attribute: UserProfileAttribute
+): AttributeLengthBounds | undefined => {
+    const validations = attribute.validations as
+        | {length?: {"min"?: unknown; "max"?: unknown; "trim-disabled"?: unknown} | null}
+        | null
+        | undefined
+    const length = validations?.length
+    if (!length) {
+        return undefined
+    }
+
+    const min = toPositiveInteger(length.min)
+    const max = toPositiveInteger(length.max)
+    if (min === undefined && max === undefined) {
+        return undefined
+    }
+
+    // Keycloak measures the trimmed value unless the attribute opts out, so the
+    // form has to measure the same string the server will.
+    const trimDisabled = length["trim-disabled"]
+
+    return {min, max, trim: !(trimDisabled === true || trimDisabled === "true")}
+}
+
+/**
+ * Which bound a value breaks, or undefined when it breaks none. An absent value
+ * is a matter for the attribute being required, which the form states
+ * separately, so a minimum only bounds a value that is actually there.
+ */
+export const getAttributeLengthViolation = (
+    bounds: AttributeLengthBounds | undefined,
+    value: string
+): AttributeLengthViolation | undefined => {
+    if (!bounds) {
+        return undefined
+    }
+
+    const measured = bounds.trim ? value.trim() : value
+    if (measured.length === 0) {
+        return undefined
+    }
+    if (bounds.min !== undefined && measured.length < bounds.min) {
+        return "tooShort"
+    }
+    if (bounds.max !== undefined && measured.length > bounds.max) {
+        return "tooLong"
+    }
+
+    return undefined
+}
