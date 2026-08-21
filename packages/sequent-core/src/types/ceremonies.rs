@@ -8,7 +8,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::default::Default;
-use strum_macros::{Display, EnumString};
+use strum_macros::{Display, EnumString, VariantNames};
 
 #[derive(
     Display,
@@ -366,6 +366,11 @@ pub struct TallyResolution {
     Debug,
     EnumString,
     Display,
+    // So the one list of admissible values is this enum. `election_config::validate`
+    // used to carry a hand-written copy of these ten strings and a second copy of
+    // `is_preferential`'s answer; a list written twice is a list that drifts, and the
+    // way it fails is a bundle the validator accepts and the platform does not.
+    VariantNames,
     Default,
     Serialize,
     Deserialize,
