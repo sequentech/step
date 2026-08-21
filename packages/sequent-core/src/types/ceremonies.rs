@@ -367,10 +367,7 @@ pub struct TallyResolution {
     Debug,
     EnumString,
     Display,
-    // So the one list of admissible values is this enum. `election_config::validate`
-    // used to carry a hand-written copy of these ten strings and a second copy of
-    // `is_preferential`'s answer; a list written twice is a list that drifts, and the
-    // way it fails is a bundle the validator accepts and the platform does not.
+    // `election_config::validate` reads `VARIANTS` as the list of admissible values.
     VariantNames,
     Default,
     Serialize,

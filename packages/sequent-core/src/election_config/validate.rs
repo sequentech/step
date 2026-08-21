@@ -26,12 +26,7 @@ use super::problem::{Code, Problem, Report};
 use super::schema::ImportElectionEventSchema;
 use crate::types::ceremonies::CountingAlgType;
 
-/// Every value `CountingAlgType` accepts, taken from the enum itself.
-///
-/// **Not written out here.** It was — ten strings, copied from the enum's serde
-/// renames — and a list written twice is a list that drifts: the way it fails is a
-/// bundle this accepts and the importer does not, or an algorithm the platform
-/// gained and this went on rejecting.
+/// Every value `CountingAlgType` accepts, from the enum itself.
 pub const COUNTING_ALGORITHMS: &[&str] = CountingAlgType::VARIANTS;
 
 /// The algorithms a wizard offers, which is fewer than the platform accepts.
@@ -68,10 +63,9 @@ pub const OFFERED_COUNTING_ALGORITHMS: &[&str] = &[
 /// algorithm, so a preferential contest counted by plurality imports cleanly and
 /// then reads the rankings a voter entered as unordered selections.
 ///
-/// Still spelled out, because a `&'static [&'static str]` is what the browser is
-/// handed and `is_preferential` cannot be called in a const. `the_preferential_list_
-/// matches_the_enum` fails the moment the two disagree, which is the drift this
-/// would otherwise invite.
+/// Spelled out because the browser is handed a `&'static [&'static str]` and
+/// `is_preferential` is not a const fn. `the_preferential_list_matches_the_enum`
+/// fails if the two disagree.
 pub const PREFERENTIAL_ALGORITHMS: &[&str] = &[
     "instant-runoff",
     "borda",
@@ -805,11 +799,9 @@ fn check_contests(bundle: &ImportElectionEventSchema, report: &mut Report) {
         let max_votes = contest.max_votes;
         let winners = contest.winning_candidates_num;
 
-        // Present, and not below zero. **Only the relations were checked**, and every
-        // one of them is a comparison — `min > max`, `winners > available` — so a
-        // contest asking for -1 winners satisfied all of them and imported. The
-        // platform's column is a signed integer and takes it; what it means is
-        // nothing, and the count reaches ballot encoding and the tally.
+        // Present, and not below zero. The fields are signed and every other rule
+        // about them is relational — `min > max`, `winners > available` — which a
+        // negative value satisfies, so the floor has to be stated.
         for (field, value) in [
             ("min_votes", min_votes),
             ("max_votes", max_votes),
@@ -870,11 +862,9 @@ fn check_contests(bundle: &ImportElectionEventSchema, report: &mut Report) {
 
         let algorithm = contest.counting_algorithm.as_deref();
         match algorithm {
-            // Matched exactly, then parsed. `CountingAlgType::from_str` is
-            // `ascii_case_insensitive`, so parsing *first* would accept `Borda` —
-            // which Rust reads correctly and `ICountingAlgorithm` in `ui-core`, which
-            // compares the string, does not. So: the enum says which values exist,
-            // and this says they have to be spelled the way the platform spells them.
+            // Matched exactly, then parsed: `CountingAlgType::from_str` is
+            // `ascii_case_insensitive` and would accept `Borda`, which
+            // `ICountingAlgorithm` in `ui-core` compares by value and would miss.
             Some(value) if COUNTING_ALGORITHMS.contains(&value) => {
                 let preferential = CountingAlgType::from_str(value)
                     .map(|algorithm| algorithm.is_preferential())
@@ -1488,10 +1478,8 @@ fn check_permission_labels(
     // so an entity carrying a label is invisible to every administrator who does
     // not hold it — including whoever runs the import. The bundle cannot know who
     // holds what, so this is a warning naming the label rather than a refusal.
-    // Per collection, because `Problem::path` is where the thing *is*: a front end
-    // turns it into a wizard step or a spreadsheet cell. One warning pointing at
-    // `elections[]` for a label that only a report carries sends somebody to a screen
-    // where there is nothing to change.
+    // Per collection: `Problem::path` is where the entity is, and a front end turns
+    // it into a wizard step or a spreadsheet cell.
     let mut from_elections: Vec<String> = Vec::new();
     let mut from_reports: Vec<String> = Vec::new();
 

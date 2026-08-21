@@ -1621,12 +1621,10 @@ mod tests {
     const TENANT: &str = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
     const EVENT: &str = "e0000000-0000-5000-8000-000000000000";
 
-    /// A bundle that deserializes and is fatally invalid: it has an election and no
-    /// areas, and every voter belongs to an area.
+    /// A bundle that deserializes and is fatally invalid: an election and no areas.
     ///
-    /// Deliberately *not* a sound bundle. A sound one belongs in
-    /// `election_config`'s own fixtures, where both callers can share it rather than
-    /// this file keeping a second copy of the thing the whole change is about.
+    /// Deliberately not a sound one — a sound bundle belongs in `election_config`'s
+    /// fixtures, shared by both callers rather than copied here.
     fn a_bundle_with_no_areas() -> String {
         serde_json::json!({
             "tenant_id": TENANT,
@@ -1657,10 +1655,8 @@ mod tests {
 
     /// The import refuses a bundle the shared rules call fatal, and says why.
     ///
-    /// This is the integration boundary rather than the rule: `election_config`'s own
-    /// suite covers what counts as a problem, and this covers that a problem actually
-    /// stops an import — reported by an operator, not by a test, the first time it
-    /// did not.
+    /// The integration boundary rather than the rule: `election_config`'s own suite
+    /// covers what counts as a problem.
     #[tokio::test]
     async fn a_fatal_bundle_does_not_import() {
         std::env::set_var(ENV_VAR_APP_VERSION, DEV_APP_VERSION);
@@ -1671,7 +1667,6 @@ mod tests {
         let error = outcome
             .expect_err("a bundle with no areas should not import")
             .to_string();
-        // Every problem at once, in the wording the browser-side tools show.
         assert!(
             error.contains("cannot be imported"),
             "unexpected message: {error}"
@@ -1681,9 +1676,8 @@ mod tests {
 
     /// And a bundle with no fatal problems gets through this gate.
     ///
-    /// Asserted on the same bundle with its one fault repaired, so the pair says
-    /// *this* is what the refusal was about — not that the whole fixture is somehow
-    /// unacceptable.
+    /// The same bundle with its one fault repaired, so the pair says which fault the
+    /// refusal was about.
     #[tokio::test]
     async fn a_bundle_whose_fault_is_fixed_gets_through() {
         std::env::set_var(ENV_VAR_APP_VERSION, DEV_APP_VERSION);
@@ -1702,7 +1696,6 @@ mod tests {
                 .await
                 .expect("a bundle with no fatal problems should get past validation");
 
-        // Past the gate and remapped, which is the step validation runs before.
         assert!(!ids.is_empty());
     }
 }
