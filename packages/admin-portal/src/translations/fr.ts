@@ -1199,6 +1199,16 @@ const frenchTranslation: TranslationType = {
                     createError: "Erreur lors de la création de l'électeur",
                     createErrorReason: "Erreur lors de la création de l'électeur : {{reason}}",
                     createSuccess: "Électeur créé",
+                    attribute: {
+                        invalidLength:
+                            '"{{field}}" doit contenir entre {{min}} et {{max}} caractères',
+                        tooShort: '"{{field}}" doit contenir au moins {{min}} caractères',
+                        tooLong: '"{{field}}" doit contenir au maximum {{max}} caractères',
+                        required: '"{{field}}" est obligatoire',
+                        invalidEmail: '"{{field}}" doit être une adresse e-mail valide',
+                        invalidFormat: '"{{field}}" n\'a pas le format attendu',
+                        invalid: '"{{field}}" a une valeur non valide',
+                    },
                     createPasswordError:
                         "Électeur créé, mais son mot de passe n'a pas pu être défini",
                     createPasswordErrorReason:

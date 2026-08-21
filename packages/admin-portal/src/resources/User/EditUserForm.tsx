@@ -497,9 +497,15 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     // has to diagnose it. messageArgs carries the already translated message
     // through react-admin's polyglot provider, which would otherwise look it up
     // as a key and find nothing.
+    const resolveFieldLabel = (field: string): string => {
+        const attribute = userAttributes.find((candidate) => candidate.name === field)
+
+        return getTranslationLabel(field, attribute?.display_name, t)
+    }
+
     const reportSaveError = (error: unknown, messageKey: string, reasonKey: string): string => {
         console.error("Error saving voter:", error)
-        const message = getSaveUserErrorMessage(error, messageKey, reasonKey, t)
+        const message = getSaveUserErrorMessage(error, messageKey, reasonKey, t, resolveFieldLabel)
         notify(message, {type: "error", messageArgs: {_: message}})
 
         return message

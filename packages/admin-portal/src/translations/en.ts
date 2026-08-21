@@ -1186,6 +1186,15 @@ const englishTranslation = {
                     createError: "Error creating voter",
                     createErrorReason: "Error creating voter: {{reason}}",
                     createSuccess: "Voter created",
+                    attribute: {
+                        invalidLength: '"{{field}}" must be between {{min}} and {{max}} characters',
+                        tooShort: '"{{field}}" must be at least {{min}} characters',
+                        tooLong: '"{{field}}" must be at most {{max}} characters',
+                        required: '"{{field}}" is required',
+                        invalidEmail: '"{{field}}" must be a valid email address',
+                        invalidFormat: '"{{field}}" does not have the expected format',
+                        invalid: '"{{field}}" has an invalid value',
+                    },
                     createPasswordError: "Voter created, but their password could not be set",
                     createPasswordErrorReason:
                         "Voter created, but their password could not be set: {{reason}}",

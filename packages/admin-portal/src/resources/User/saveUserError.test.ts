@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {PASSWORD_POLICY_VIOLATION_ERROR_CODE} from "./editPasswordError"
-import {getSaveUserErrorMessage} from "./saveUserError"
+import {getSaveUserErrorMessage, USER_PROFILE_VALIDATION_ERROR_CODE} from "./saveUserError"
 
 const MESSAGE_KEY = "usersAndRolesScreen.voters.errors.editError"
 const REASON_KEY = "usersAndRolesScreen.voters.errors.editErrorReason"
@@ -57,6 +57,92 @@ describe("getSaveUserErrorMessage", () => {
         expect(message).toContain("passwordPolicyRules.minimumLength")
         expect(message).toContain("count=12")
         expect(message).not.toContain("does not comply")
+    })
+
+    it("names the refused attribute and the bounds it broke", () => {
+        const message = getSaveUserErrorMessage(
+            {
+                graphQLErrors: [
+                    {
+                        message: 'Invalid value for "roll": error-invalid-length (1, 2)',
+                        extensions: {
+                            code: USER_PROFILE_VALIDATION_ERROR_CODE,
+                            user_profile_field: "roll",
+                            user_profile_error: "error-invalid-length",
+                            user_profile_params: ["roll", 1, 2],
+                        },
+                    },
+                ],
+            },
+            MESSAGE_KEY,
+            REASON_KEY,
+            translate,
+            (field) => (field === "roll" ? "Roll" : field)
+        )
+
+        expect(message).toContain("attribute.invalidLength")
+        expect(message).toContain("field=Roll")
+        expect(message).toContain("min=1")
+        expect(message).toContain("max=2")
+        // The attribute name Keycloak repeats as the first argument is not a bound.
+        expect(message).not.toContain("min=roll")
+    })
+
+    it("reads the refused attribute out of a webhook response body", () => {
+        const message = getSaveUserErrorMessage(
+            {
+                graphQLErrors: [
+                    {
+                        message: "unexpected response from webhook",
+                        extensions: {
+                            code: "unexpected",
+                            internal: {
+                                response: {
+                                    body: JSON.stringify({
+                                        message: "Invalid value",
+                                        extensions: {
+                                            code: USER_PROFILE_VALIDATION_ERROR_CODE,
+                                            user_profile_field: "ward",
+                                            user_profile_error: "error-user-attribute-required",
+                                            user_profile_params: ["ward"],
+                                        },
+                                    }),
+                                },
+                            },
+                        },
+                    },
+                ],
+            },
+            MESSAGE_KEY,
+            REASON_KEY,
+            translate
+        )
+
+        expect(message).toContain("attribute.required")
+        expect(message).toContain("field=ward")
+    })
+
+    it("falls back to a generic wording for a constraint it does not know", () => {
+        const message = getSaveUserErrorMessage(
+            {
+                graphQLErrors: [
+                    {
+                        extensions: {
+                            code: USER_PROFILE_VALIDATION_ERROR_CODE,
+                            user_profile_field: "roll",
+                            user_profile_error: "error-something-new",
+                            user_profile_params: ["roll"],
+                        },
+                    },
+                ],
+            },
+            MESSAGE_KEY,
+            REASON_KEY,
+            translate
+        )
+
+        expect(message).toContain("attribute.invalid")
+        expect(message).not.toContain("error-something-new")
     })
 
     it("uses the generic policy message when the violation carries no details", () => {

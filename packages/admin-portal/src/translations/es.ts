@@ -1197,6 +1197,16 @@ const spanishTranslation: TranslationType = {
                     createError: "Error creando votante",
                     createErrorReason: "Error creando votante: {{reason}}",
                     createSuccess: "Votante creado",
+                    attribute: {
+                        invalidLength: '"{{field}}" debe tener entre {{min}} y {{max}} caracteres',
+                        tooShort: '"{{field}}" debe tener al menos {{min}} caracteres',
+                        tooLong: '"{{field}}" debe tener como máximo {{max}} caracteres',
+                        required: '"{{field}}" es obligatorio',
+                        invalidEmail:
+                            '"{{field}}" debe ser una dirección de correo electrónico válida',
+                        invalidFormat: '"{{field}}" no tiene el formato esperado',
+                        invalid: '"{{field}}" tiene un valor no válido',
+                    },
                     createPasswordError: "Votante creado, pero no se pudo establecer su contraseña",
                     createPasswordErrorReason:
                         "Votante creado, pero no se pudo establecer su contraseña: {{reason}}",

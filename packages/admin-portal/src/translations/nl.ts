@@ -1195,6 +1195,15 @@ const dutchTranslation: TranslationType = {
                     createError: "Fout bij aanmaken kiezer",
                     createErrorReason: "Fout bij aanmaken kiezer: {{reason}}",
                     createSuccess: "Kiezer aangemaakt",
+                    attribute: {
+                        invalidLength: '"{{field}}" moet tussen {{min}} en {{max}} tekens bevatten',
+                        tooShort: '"{{field}}" moet minimaal {{min}} tekens bevatten',
+                        tooLong: '"{{field}}" mag maximaal {{max}} tekens bevatten',
+                        required: '"{{field}}" is verplicht',
+                        invalidEmail: '"{{field}}" moet een geldig e-mailadres zijn',
+                        invalidFormat: '"{{field}}" heeft niet de verwachte indeling',
+                        invalid: '"{{field}}" heeft een ongeldige waarde',
+                    },
                     createPasswordError:
                         "Kiezer aangemaakt, maar het wachtwoord kon niet worden ingesteld",
                     createPasswordErrorReason:

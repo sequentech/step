@@ -1196,6 +1196,16 @@ const galegoTranslation: TranslationType = {
                     createError: "Erro ao crear o votante",
                     createErrorReason: "Erro ao crear o votante: {{reason}}",
                     createSuccess: "Votante creado",
+                    attribute: {
+                        invalidLength: '"{{field}}" debe ter entre {{min}} e {{max}} caracteres',
+                        tooShort: '"{{field}}" debe ter polo menos {{min}} caracteres',
+                        tooLong: '"{{field}}" debe ter como máximo {{max}} caracteres',
+                        required: '"{{field}}" é obrigatorio',
+                        invalidEmail:
+                            '"{{field}}" debe ser un enderezo de correo electrónico válido',
+                        invalidFormat: '"{{field}}" non ten o formato esperado',
+                        invalid: '"{{field}}" ten un valor non válido',
+                    },
                     createPasswordError:
                         "Votante creado, pero non se puido establecer o seu contrasinal",
                     createPasswordErrorReason:

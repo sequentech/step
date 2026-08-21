@@ -16,7 +16,8 @@ use rocket::Request;
 use sequent_core::services::jwt;
 use sequent_core::services::keycloak::{
     get_event_realm, get_realm_password_policy, get_tenant_realm,
-    is_keycloak_bad_request, PasswordPolicyViolation,
+    get_user_profile_validation_errors, is_keycloak_bad_request,
+    PasswordPolicyViolation, UserProfileValidationError,
 };
 use sequent_core::services::keycloak::{GroupInfo, KeycloakAdminClient};
 use sequent_core::types::keycloak::{
@@ -575,6 +576,57 @@ pub async fn get_users(
     }))
 }
 
+/// Readable rendering of a refused user profile constraint, for consumers that
+/// do not translate the structured extensions themselves.
+fn describe_user_profile_validation(
+    validation: &UserProfileValidationError,
+) -> String {
+    let field = validation.field.as_deref().unwrap_or("unknown attribute");
+    let reason = validation
+        .error_message
+        .as_deref()
+        .unwrap_or("invalid value");
+    // Keycloak repeats the attribute name as the first argument of the
+    // constraint, which the message already states.
+    let skip_first = validation
+        .params
+        .first()
+        .and_then(|param| param.as_str())
+        .is_some_and(|param| Some(param) == validation.field.as_deref());
+    let arguments: Vec<String> = validation
+        .params
+        .iter()
+        .skip(usize::from(skip_first))
+        .map(|param| param.to_string())
+        .collect();
+
+    if arguments.is_empty() {
+        format!("Invalid value for \"{field}\": {reason}")
+    } else {
+        format!(
+            "Invalid value for \"{field}\": {reason} ({})",
+            arguments.join(", ")
+        )
+    }
+}
+
+/// Turn a refused Keycloak write into a client error naming the attribute it
+/// refused, and into an internal error when Keycloak did not say which.
+fn keycloak_user_error(error: anyhow::Error, context: &str) -> JsonError {
+    match get_user_profile_validation_errors(&error).first() {
+        Some(validation) => ErrorResponse::user_profile_validation(
+            Status::BadRequest,
+            &describe_user_profile_validation(validation),
+            validation,
+        ),
+        None => ErrorResponse::new(
+            Status::InternalServerError,
+            &format!("{context}: {error:?}"),
+            ErrorCode::InternalServerError,
+        ),
+    }
+}
+
 #[derive(Deserialize, Debug)]
 pub struct CreateUserBody {
     tenant_id: String,
@@ -588,7 +640,7 @@ pub struct CreateUserBody {
 pub async fn create_user(
     claims: jwt::JwtClaims,
     body: Json<CreateUserBody>,
-) -> Result<Json<User>, (Status, String)> {
+) -> Result<Json<User>, JsonError> {
     let input = body.into_inner();
     let mut required_perms = Vec::<Permissions>::new();
     if input.election_event_id.is_some() {
@@ -603,19 +655,32 @@ pub async fn create_user(
             }
         }
     };
-    authorize(&claims, true, Some(input.tenant_id.clone()), required_perms)?;
+    authorize(&claims, true, Some(input.tenant_id.clone()), required_perms)
+        .map_err(|(status, message)| {
+            ErrorResponse::new(status, &message, ErrorCode::Unauthorized)
+        })?;
     let realm = match input.election_event_id.clone() {
         Some(election_event_id) => {
             get_event_realm(&input.tenant_id, &election_event_id)
         }
         None => get_tenant_realm(&input.tenant_id),
     };
-    let client = KeycloakAdminClient::new()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let client = KeycloakAdminClient::new().await.map_err(|error| {
+        ErrorResponse::new(
+            Status::InternalServerError,
+            &format!("Error connecting to Keycloak: {error:?}"),
+            ErrorCode::InternalServerError,
+        )
+    })?;
     let (tenant_id_attribute, groups) = if input.election_event_id.is_some() {
-        let voter_group_name = env::var("KEYCLOAK_VOTER_GROUP_NAME")
-            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        let voter_group_name =
+            env::var("KEYCLOAK_VOTER_GROUP_NAME").map_err(|error| {
+                ErrorResponse::new(
+                    Status::InternalServerError,
+                    &format!("Error reading voter group name: {error:?}"),
+                    ErrorCode::InternalServerError,
+                )
+            })?;
         (
             Some(HashMap::from([(
                 TENANT_ID_ATTR_NAME.to_string(),
@@ -657,7 +722,9 @@ pub async fn create_user(
     let user = client
         .create_user(&realm, &user, user_attributes, groups)
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|error| {
+            keycloak_user_error(error, "Error creating user in Keycloak")
+        })?;
 
     match (user.id.clone(), &input.user_roles_ids) {
         (Some(id), Some(user_roles_ids)) => {
@@ -725,6 +792,10 @@ impl EditUserError {
             violation.rule.as_str(),
             violation.required_count,
         ))
+    }
+
+    fn from_keycloak(error: anyhow::Error, context: &str) -> Self {
+        Self(keycloak_user_error(error, context))
     }
 }
 
@@ -1088,11 +1159,10 @@ pub async fn edit_user(
             if password_only && is_keycloak_bad_request(&error) {
                 EditUserError::password_policy_violation()
             } else {
-                (
-                    Status::InternalServerError,
-                    format!("Error editing user in Keycloak: {error:?}"),
+                EditUserError::from_keycloak(
+                    error,
+                    "Error editing user in Keycloak",
                 )
-                    .into()
             }
         })?;
 
