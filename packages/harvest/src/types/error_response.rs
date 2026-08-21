@@ -56,11 +56,29 @@ pub struct ErrorExtensions {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub password_policy_required_count: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub user_profile_field: Option<String>,
+    pub user_profile_errors: Option<Vec<UserProfileErrorExtension>>,
+    /// How many attributes Keycloak refused in total, which can exceed the
+    /// number reported above.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub user_profile_error: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub user_profile_params: Option<Vec<Value>>,
+    pub user_profile_errors_total: Option<usize>,
+}
+
+/// One refused attribute, as the admin portal reads it.
+#[derive(Serialize)]
+pub struct UserProfileErrorExtension {
+    pub field: Option<String>,
+    pub error: Option<String>,
+    pub params: Vec<Value>,
+}
+
+impl From<&UserProfileValidationError> for UserProfileErrorExtension {
+    fn from(validation: &UserProfileValidationError) -> Self {
+        Self {
+            field: validation.field.clone(),
+            error: validation.error_message.clone(),
+            params: validation.params.clone(),
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -80,9 +98,8 @@ impl ErrorResponse {
                     code: code.as_ref().into(),
                     password_policy_rule: None,
                     password_policy_required_count: None,
-                    user_profile_field: None,
-                    user_profile_error: None,
-                    user_profile_params: None,
+                    user_profile_errors: None,
+                    user_profile_errors_total: None,
                 },
             }),
         );
@@ -102,22 +119,24 @@ impl ErrorResponse {
                     code: ErrorCode::PasswordPolicyViolation.as_ref().into(),
                     password_policy_rule: Some(rule.into()),
                     password_policy_required_count: Some(required_count),
-                    user_profile_field: None,
-                    user_profile_error: None,
-                    user_profile_params: None,
+                    user_profile_errors: None,
+                    user_profile_errors_total: None,
                 },
             }),
         )
     }
 
-    /// A user profile constraint Keycloak refused a write against. The offending
-    /// field and the constraint's arguments travel in the extensions so the
-    /// admin portal can name the field and state the limit in its own language,
-    /// while the message stays readable on its own for any other consumer.
+    /// The user profile constraints Keycloak refused a write against. Each
+    /// offending field and the constraint's arguments travel in the extensions
+    /// so the admin portal can name the fields and state their limits in its
+    /// own language, while the message stays readable on its own for any other
+    /// consumer. `total` counts everything Keycloak refused, which can exceed
+    /// what is reported.
     pub fn user_profile_validation(
         status: Status,
         message: &str,
-        validation: &UserProfileValidationError,
+        validations: &[UserProfileValidationError],
+        total: usize,
     ) -> JsonError {
         Custom(
             status,
@@ -127,9 +146,13 @@ impl ErrorResponse {
                     code: ErrorCode::UserProfileValidation.as_ref().into(),
                     password_policy_rule: None,
                     password_policy_required_count: None,
-                    user_profile_field: validation.field.clone(),
-                    user_profile_error: validation.error_message.clone(),
-                    user_profile_params: Some(validation.params.clone()),
+                    user_profile_errors: Some(
+                        validations
+                            .iter()
+                            .map(UserProfileErrorExtension::from)
+                            .collect(),
+                    ),
+                    user_profile_errors_total: Some(total),
                 },
             }),
         )

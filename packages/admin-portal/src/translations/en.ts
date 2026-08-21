@@ -1187,6 +1187,7 @@ const englishTranslation = {
                     createErrorReason: "Error creating voter: {{reason}}",
                     createSuccess: "Voter created",
                     attribute: {
+                        andMore: "and {{count}} more",
                         invalidLength: '"{{field}}" must be between {{min}} and {{max}} characters',
                         tooShort: '"{{field}}" must be at least {{min}} characters',
                         tooLong: '"{{field}}" must be at most {{max}} characters',

@@ -16,6 +16,13 @@ export interface UserProfileValidation {
     params: unknown[]
 }
 
+export interface UserProfileValidations {
+    /// The refused attributes Harvest reported, capped on its side.
+    reported: UserProfileValidation[]
+    /// Everything Keycloak refused, which can exceed what was reported.
+    total: number
+}
+
 // Keycloak's own constraint keys, mapped to what the admin is told. Anything
 // Keycloak may add later falls back to the generic message rather than
 // surfacing a raw key.
@@ -29,28 +36,43 @@ const CONSTRAINT_MESSAGES: Record<string, string> = {
 }
 
 const readValidation = (value: unknown): UserProfileValidation | undefined => {
+    const entry = value as {field?: unknown; error?: unknown; params?: unknown} | undefined
+    if (typeof entry !== "object" || entry === null) {
+        return undefined
+    }
+
+    return {
+        field: typeof entry.field === "string" ? entry.field : undefined,
+        error: typeof entry.error === "string" ? entry.error : undefined,
+        params: Array.isArray(entry.params) ? entry.params : [],
+    }
+}
+
+const readValidations = (value: unknown): UserProfileValidations | undefined => {
     const extensions = value as
         | {
               code?: unknown
-              user_profile_field?: unknown
-              user_profile_error?: unknown
-              user_profile_params?: unknown
+              user_profile_errors?: unknown
+              user_profile_errors_total?: unknown
           }
         | undefined
     if (extensions?.code !== USER_PROFILE_VALIDATION_ERROR_CODE) {
         return undefined
     }
 
+    const reported = (
+        Array.isArray(extensions.user_profile_errors) ? extensions.user_profile_errors : []
+    )
+        .map(readValidation)
+        .filter((entry): entry is UserProfileValidation => entry !== undefined)
+    if (reported.length === 0) {
+        return undefined
+    }
+
+    const total = extensions.user_profile_errors_total
     return {
-        field:
-            typeof extensions.user_profile_field === "string"
-                ? extensions.user_profile_field
-                : undefined,
-        error:
-            typeof extensions.user_profile_error === "string"
-                ? extensions.user_profile_error
-                : undefined,
-        params: Array.isArray(extensions.user_profile_params) ? extensions.user_profile_params : [],
+        reported,
+        total: typeof total === "number" && total > reported.length ? total : reported.length,
     }
 }
 
@@ -59,11 +81,11 @@ const readValidation = (value: unknown): UserProfileValidation | undefined => {
  * one. Harvest forwards the attribute and the constraint's arguments, so the
  * admin can be told which field to correct rather than that something failed.
  */
-export const getUserProfileValidation = (error: unknown): UserProfileValidation | undefined => {
+export const getUserProfileValidations = (error: unknown): UserProfileValidations | undefined => {
     const actionError = error as IGraphQLActionError | undefined
 
     for (const graphQLError of actionError?.graphQLErrors ?? []) {
-        const direct = readValidation(graphQLError.extensions)
+        const direct = readValidations(graphQLError.extensions)
         if (direct) {
             return direct
         }
@@ -71,7 +93,7 @@ export const getUserProfileValidation = (error: unknown): UserProfileValidation 
         const responseBody = parseActionResponseBody(
             graphQLError.extensions?.internal?.response?.body
         ) as {extensions?: unknown} | undefined
-        const fromBody = readValidation(responseBody?.extensions)
+        const fromBody = readValidations(responseBody?.extensions)
         if (fromBody) {
             return fromBody
         }
@@ -98,16 +120,11 @@ const interpolation = (messageKey: string, args: unknown[]): Record<string, unkn
     }
 }
 
-const getUserProfileValidationMessage = (
-    error: unknown,
+const describeValidation = (
+    validation: UserProfileValidation,
     t: TranslateMessage,
     resolveFieldLabel?: (field: string) => string
-): string | undefined => {
-    const validation = getUserProfileValidation(error)
-    if (!validation) {
-        return undefined
-    }
-
+): string => {
     const field = validation.field ?? ""
     const messageKey = CONSTRAINT_MESSAGES[validation.error ?? ""] ?? "invalid"
 
@@ -115,6 +132,31 @@ const getUserProfileValidationMessage = (
         field: (resolveFieldLabel && field ? resolveFieldLabel(field) : field) || field,
         ...interpolation(messageKey, constraintArguments(validation)),
     })
+}
+
+const getUserProfileValidationMessage = (
+    error: unknown,
+    t: TranslateMessage,
+    resolveFieldLabel?: (field: string) => string
+): string | undefined => {
+    const validations = getUserProfileValidations(error)
+    if (!validations) {
+        return undefined
+    }
+
+    const described = validations.reported
+        .map((validation) => describeValidation(validation, t, resolveFieldLabel))
+        .join("; ")
+    const unreported = validations.total - validations.reported.length
+
+    // Keycloak refuses every attribute at once, so a mis-mapped import can
+    // produce more than a message can carry. Say so rather than let the rest
+    // pass unmentioned.
+    return unreported > 0
+        ? `${described}; ${t("usersAndRolesScreen.voters.errors.attribute.andMore", {
+              count: unreported,
+          })}`
+        : described
 }
 
 /**

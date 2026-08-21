@@ -59,18 +59,27 @@ describe("getSaveUserErrorMessage", () => {
         expect(message).not.toContain("does not comply")
     })
 
+    const profileErrors = (
+        errors: Array<Record<string, unknown>>,
+        total?: number
+    ): Record<string, unknown> => ({
+        code: USER_PROFILE_VALIDATION_ERROR_CODE,
+        user_profile_errors: errors,
+        user_profile_errors_total: total ?? errors.length,
+    })
+
     it("names the refused attribute and the bounds it broke", () => {
         const message = getSaveUserErrorMessage(
             {
                 graphQLErrors: [
                     {
-                        message: 'Invalid value for "roll": error-invalid-length (1, 2)',
-                        extensions: {
-                            code: USER_PROFILE_VALIDATION_ERROR_CODE,
-                            user_profile_field: "roll",
-                            user_profile_error: "error-invalid-length",
-                            user_profile_params: ["roll", 1, 2],
-                        },
+                        extensions: profileErrors([
+                            {
+                                field: "roll",
+                                error: "error-invalid-length",
+                                params: ["roll", 1, 2],
+                            },
+                        ]),
                     },
                 ],
             },
@@ -88,7 +97,73 @@ describe("getSaveUserErrorMessage", () => {
         expect(message).not.toContain("min=roll")
     })
 
-    it("reads the refused attribute out of a webhook response body", () => {
+    it("names every refused attribute, in the order Keycloak reported them", () => {
+        const message = getSaveUserErrorMessage(
+            {
+                graphQLErrors: [
+                    {
+                        extensions: profileErrors([
+                            {field: "ward", error: "error-invalid-value", params: ["ward"]},
+                            {
+                                field: "roll",
+                                error: "error-invalid-length",
+                                params: ["roll", 1, 2],
+                            },
+                        ]),
+                    },
+                ],
+            },
+            MESSAGE_KEY,
+            REASON_KEY,
+            translate
+        )
+
+        expect(message).toContain("field=ward")
+        expect(message).toContain("field=roll")
+        expect(message.indexOf("field=ward")).toBeLessThan(message.indexOf("field=roll"))
+    })
+
+    it("says how many refused attributes it did not list", () => {
+        const message = getSaveUserErrorMessage(
+            {
+                graphQLErrors: [
+                    {
+                        extensions: profileErrors(
+                            [{field: "ward", error: "error-invalid-value", params: ["ward"]}],
+                            4
+                        ),
+                    },
+                ],
+            },
+            MESSAGE_KEY,
+            REASON_KEY,
+            translate
+        )
+
+        expect(message).toContain("attribute.andMore")
+        expect(message).toContain("count=3")
+    })
+
+    it("does not claim there are more when everything was listed", () => {
+        const message = getSaveUserErrorMessage(
+            {
+                graphQLErrors: [
+                    {
+                        extensions: profileErrors([
+                            {field: "ward", error: "error-invalid-value", params: ["ward"]},
+                        ]),
+                    },
+                ],
+            },
+            MESSAGE_KEY,
+            REASON_KEY,
+            translate
+        )
+
+        expect(message).not.toContain("andMore")
+    })
+
+    it("reads the refused attributes out of a webhook response body", () => {
         const message = getSaveUserErrorMessage(
             {
                 graphQLErrors: [
@@ -100,12 +175,13 @@ describe("getSaveUserErrorMessage", () => {
                                 response: {
                                     body: JSON.stringify({
                                         message: "Invalid value",
-                                        extensions: {
-                                            code: USER_PROFILE_VALIDATION_ERROR_CODE,
-                                            user_profile_field: "ward",
-                                            user_profile_error: "error-user-attribute-required",
-                                            user_profile_params: ["ward"],
-                                        },
+                                        extensions: profileErrors([
+                                            {
+                                                field: "ward",
+                                                error: "error-user-attribute-required",
+                                                params: ["ward"],
+                                            },
+                                        ]),
                                     }),
                                 },
                             },
@@ -127,12 +203,9 @@ describe("getSaveUserErrorMessage", () => {
             {
                 graphQLErrors: [
                     {
-                        extensions: {
-                            code: USER_PROFILE_VALIDATION_ERROR_CODE,
-                            user_profile_field: "roll",
-                            user_profile_error: "error-something-new",
-                            user_profile_params: ["roll"],
-                        },
+                        extensions: profileErrors([
+                            {field: "roll", error: "error-something-new", params: ["roll"]},
+                        ]),
                     },
                 ],
             },

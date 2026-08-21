@@ -1198,6 +1198,7 @@ const spanishTranslation: TranslationType = {
                     createErrorReason: "Error creando votante: {{reason}}",
                     createSuccess: "Votante creado",
                     attribute: {
+                        andMore: "y {{count}} más",
                         invalidLength: '"{{field}}" debe tener entre {{min}} y {{max}} caracteres',
                         tooShort: '"{{field}}" debe tener al menos {{min}} caracteres',
                         tooLong: '"{{field}}" debe tener como máximo {{max}} caracteres',

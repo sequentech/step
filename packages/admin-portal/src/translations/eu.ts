@@ -1192,6 +1192,7 @@ const basqueTranslation: TranslationType = {
                     createErrorReason: "Errorea bozkatzailea sortzerakoan: {{reason}}",
                     createSuccess: "Bozkatzailea sortua",
                     attribute: {
+                        andMore: "eta beste {{count}}",
                         invalidLength:
                             '"{{field}}" eremuak {{min}} eta {{max}} karaktere artean izan behar ditu',
                         tooShort: '"{{field}}" eremuak gutxienez {{min}} karaktere izan behar ditu',
