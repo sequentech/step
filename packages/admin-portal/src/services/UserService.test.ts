@@ -6,6 +6,7 @@ import {UserProfileAttribute} from "@/gql/graphql"
 import {
     getAttributeLengthBounds,
     getAttributeLengthViolation,
+    getAttributeViolation,
     getInputOptionLabels,
     getSelectOptionDescription,
     getSelectOptionLabel,
@@ -211,5 +212,41 @@ describe("getAttributeLengthViolation", () => {
 
     it("bounds nothing when the attribute bounds nothing", () => {
         expect(getAttributeLengthViolation(undefined, "anything at all")).toBeUndefined()
+    })
+})
+
+describe("getAttributeViolation", () => {
+    const bounds = getAttributeLengthBounds(attribute({validations: {length: {min: 2, max: 3}}}))
+
+    it("reports an empty required field as required, not as too short", () => {
+        expect(getAttributeViolation(bounds, "", true)).toBe("required")
+        expect(getAttributeViolation(bounds, "   ", true)).toBe("required")
+    })
+
+    it("leaves an empty optional field alone", () => {
+        expect(getAttributeViolation(bounds, "", false)).toBeUndefined()
+        expect(getAttributeViolation(bounds, "   ", false)).toBeUndefined()
+    })
+
+    it("still reports the bounds of a value that is there", () => {
+        expect(getAttributeViolation(bounds, "a", true)).toBe("tooShort")
+        expect(getAttributeViolation(bounds, "abcd", true)).toBe("tooLong")
+        expect(getAttributeViolation(bounds, "ab", true)).toBeUndefined()
+    })
+
+    it("reports a required field with no bounds at all", () => {
+        expect(getAttributeViolation(undefined, "", true)).toBe("required")
+        expect(getAttributeViolation(undefined, "anything", true)).toBeUndefined()
+    })
+
+    it("counts an untrimmed attribute's spaces as a value", () => {
+        const untrimmed = getAttributeLengthBounds(
+            attribute({validations: {length: {"min": 2, "max": 3, "trim-disabled": "true"}}})
+        )
+
+        // The spaces are a value rather than an absent one, so this is three
+        // characters, within the bounds, and not a required field left empty.
+        expect(getAttributeViolation(untrimmed, "   ", true)).toBeUndefined()
+        expect(getAttributeViolation(untrimmed, "    ", true)).toBe("tooLong")
     })
 })

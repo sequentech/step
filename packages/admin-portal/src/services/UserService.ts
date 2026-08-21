@@ -228,3 +228,23 @@ export const getAttributeLengthViolation = (
 
     return undefined
 }
+
+export type AttributeViolation = AttributeLengthViolation | "required"
+
+/**
+ * What a touched field has to report, or undefined when it has nothing to
+ * report. An attribute that is required and left empty reports that rather than
+ * a bound, since an empty value breaks no bound.
+ */
+export const getAttributeViolation = (
+    bounds: AttributeLengthBounds | undefined,
+    value: string,
+    required: boolean
+): AttributeViolation | undefined => {
+    const measured = bounds?.trim === false ? value : value.trim()
+    if (required && measured.length === 0) {
+        return "required"
+    }
+
+    return getAttributeLengthViolation(bounds, value)
+}

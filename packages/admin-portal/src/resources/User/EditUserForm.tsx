@@ -49,7 +49,7 @@ import {CREATE_USER} from "@/queries/CreateUser"
 import {
     formatUserAtributes,
     getAttributeLengthBounds,
-    getAttributeLengthViolation,
+    getAttributeViolation,
     getInputOptionLabels,
     getSelectOptionLabel,
     getTranslationLabel,
@@ -528,36 +528,46 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             : t("usersAndRolesScreen.voters.errors.attribute.hintMax", {max: bounds.max})
     }
 
-    const validateLength = (attr: UserProfileAttribute) => (value: string) => {
+    // What a field reports once it has been touched. Only touched fields are
+    // checked, so opening a voter never lights up over data the admin has not
+    // been near.
+    const attributeError = (attr: UserProfileAttribute, value: string): string | undefined => {
+        const bounds = getAttributeLengthBounds(attr)
+        const violation = getAttributeViolation(bounds, value, isFieldRequired(attr))
+        if (!violation) {
+            return undefined
+        }
+
+        const field = getTranslationLabel(attr.name, attr.display_name, t)
+        // Both bounds together read better as one sentence than as whichever
+        // end the value happened to fall off.
+        const messageKey =
+            violation !== "required" && bounds?.min !== undefined && bounds?.max !== undefined
+                ? "invalidLength"
+                : violation
+
+        return t(`usersAndRolesScreen.voters.errors.attribute.${messageKey}`, {
+            field,
+            min: bounds?.min,
+            max: bounds?.max,
+        })
+    }
+
+    const validateAttribute = (attr: UserProfileAttribute) => (value: string) => {
         const name = attr.name
         if (!name) {
             return
         }
-        const bounds = getAttributeLengthBounds(attr)
-        const violation = getAttributeLengthViolation(bounds, value)
+        const message = attributeError(attr, value)
 
         setLengthErrors((previous) => {
-            if (!violation || !bounds) {
-                if (previous[name] === undefined) {
-                    return previous
-                }
+            if (previous[name] === message) {
+                return previous
+            }
+            if (!message) {
                 const {[name]: _removed, ...rest} = previous
                 return rest
             }
-
-            const field = getTranslationLabel(name, attr.display_name, t)
-            const message =
-                bounds.min !== undefined && bounds.max !== undefined
-                    ? t("usersAndRolesScreen.voters.errors.attribute.invalidLength", {
-                          field,
-                          min: bounds.min,
-                          max: bounds.max,
-                      })
-                    : t(`usersAndRolesScreen.voters.errors.attribute.${violation}`, {
-                          field,
-                          min: bounds.min,
-                          max: bounds.max,
-                      })
 
             return {...previous, [name]: message}
         })
@@ -1126,7 +1136,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 error={!!lengthErrors[attr.name]}
                                 helperText={lengthErrors[attr.name] ?? lengthHint(attr)}
                                 maxLength={getAttributeLengthBounds(attr)?.max}
-                                onValidate={validateLength(attr)}
+                                onValidate={validateAttribute(attr)}
                                 value={value}
                                 onCommit={(newValue) => {
                                     const attrName = attr.name as string
@@ -1156,10 +1166,22 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 key={attr.display_name}
                                 label={getTranslationLabel(attr.name, attr.display_name, t)}
                                 onChange={handleChange}
-                                onBlur={(event) => validateLength(attr)(event.target.value)}
+                                onBlur={(event) => validateAttribute(attr)(event.target.value)}
                                 source={attr.name}
-                                error={!!lengthErrors[attr.name]}
                                 helperText={lengthErrors[attr.name] ?? lengthHint(attr)}
+                                sx={
+                                    lengthErrors[attr.name]
+                                        ? {
+                                              "& .MuiFormHelperText-root": {
+                                                  color: "error.main",
+                                              },
+                                              "& .MuiOutlinedInput-root fieldset": {
+                                                  borderColor: "error.main",
+                                              },
+                                              "& .MuiInputLabel-root": {color: "error.main"},
+                                          }
+                                        : undefined
+                                }
                                 slotProps={{
                                     htmlInput: {maxLength: getAttributeLengthBounds(attr)?.max},
                                 }}
