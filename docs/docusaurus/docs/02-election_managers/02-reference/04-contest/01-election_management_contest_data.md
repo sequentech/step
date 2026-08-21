@@ -117,6 +117,7 @@ When voter selection is invalid (e.g., null vote or too many selections):
 - **Warn**: Warning during ballot and review phases.
 - **Warn Implicit and Explicit**: Warning for explicitly invalid (null/spoiled) and implicitly invalid (e.g., too many).
 - **Not Allowed**: Cannot submit if invalid options selected.
+- **Allowed with Exclusive Explicit**: Same as Allowed, except selecting the explicit-invalid option is mutually exclusive with any other selection — picking it clears other selected candidates, and picking a candidate clears it, mirroring how blank vote already behaves. Combining an explicit-invalid selection with other candidates (e.g. via an older client) is still tallied like Allowed, since that combination remains an intentionally supported ballot shape for clients that rely on it.
 
 ##### Preferential systems (e.g. Instant Runoff)
 

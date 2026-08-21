@@ -48,6 +48,7 @@ import {
     useRefresh,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
+import {translateSharedValidationError} from "@/resources/TallySheet/utils"
 import ElectionHeader from "@/components/ElectionHeader"
 import {ListActions} from "@/components/ListActions"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
@@ -58,6 +59,7 @@ import {
     REVIEW_TALLY_SHEET_IMPORT,
 } from "@/queries/TallySheetImport"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
+import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {
@@ -105,6 +107,7 @@ interface TallySheetImportValidationError {
     contest_external_id?: string | null
     candidate_external_id?: string | null
     field?: string | null
+    params?: Record<string, string> | null
 }
 
 interface TallySheetImportPreviewItem {
@@ -1005,6 +1008,7 @@ const TallySheetImportsDatagrid: React.FC<{
 
     return (
         <DatagridConfigurable
+            header={ThreeStateDatagridHeader}
             omit={OMIT_FIELDS}
             bulkActionButtons={false}
             sx={{
@@ -1067,6 +1071,7 @@ const TallySheetImportsDatagrid: React.FC<{
             />
             <FunctionField
                 source="summary.imported_ballot_box_count"
+                sortable={false}
                 label={String(t("tallySheetImport.summary.imported"))}
                 render={(record: TallySheetImportRecord) =>
                     (record.summary ?? emptySummary).imported_ballot_box_count
@@ -1074,6 +1079,7 @@ const TallySheetImportsDatagrid: React.FC<{
             />
             <FunctionField
                 source="summary.changed_ballot_box_count"
+                sortable={false}
                 label={String(t("tallySheetImport.summary.changed"))}
                 render={(record: TallySheetImportRecord) =>
                     (record.summary ?? emptySummary).changed_ballot_box_count
@@ -1081,6 +1087,7 @@ const TallySheetImportsDatagrid: React.FC<{
             />
             <FunctionField
                 source="summary.new_ballot_box_count"
+                sortable={false}
                 label={String(t("tallySheetImport.summary.new"))}
                 render={(record: TallySheetImportRecord) =>
                     (record.summary ?? emptySummary).new_ballot_box_count
@@ -1088,6 +1095,7 @@ const TallySheetImportsDatagrid: React.FC<{
             />
             <FunctionField
                 source="summary.unchanged_ballot_box_count"
+                sortable={false}
                 label={String(t("tallySheetImport.summary.unchanged"))}
                 render={(record: TallySheetImportRecord) =>
                     (record.summary ?? emptySummary).unchanged_ballot_box_count
@@ -1234,17 +1242,20 @@ const SummaryChip: React.FC<{label: string; value: number}> = ({label, value}) =
     </Box>
 )
 
-const ValidationErrors: React.FC<{errors: TallySheetImportValidationError[]}> = ({errors}) => (
-    <Alert severity="error">
-        <Stack gap={0.5}>
-            {errors.map((error, index) => (
-                <Typography key={`${error.code}:${index}`} variant="body2">
-                    {error.message}
-                </Typography>
-            ))}
-        </Stack>
-    </Alert>
-)
+const ValidationErrors: React.FC<{errors: TallySheetImportValidationError[]}> = ({errors}) => {
+    const {t} = useTranslation()
+    return (
+        <Alert severity="error">
+            <Stack gap={0.5}>
+                {errors.map((error, index) => (
+                    <Typography key={`${error.code}:${index}`} variant="body2">
+                        {translateSharedValidationError(t, error)}
+                    </Typography>
+                ))}
+            </Stack>
+        </Alert>
+    )
+}
 
 const CsvDiffView: React.FC<{previous: string; incoming: string}> = ({previous, incoming}) => {
     const diff = useMemo(() => diffLines(previous, incoming), [incoming, previous])

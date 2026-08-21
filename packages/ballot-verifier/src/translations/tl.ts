@@ -72,6 +72,7 @@ const tagalogTranslation = {
             points: "({{points}} Mga Punto)",
             contestNotFound: "Paligsahan hindi natagpuan: {{contestId}}",
             declineToVote: "Hindi bumoto",
+            blankBallot: "Blangkong balota",
         },
         footer: {
             poweredBy: "Pinapagana ng <1></1>",

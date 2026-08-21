@@ -27,7 +27,7 @@ import type {
     ResultsAndParticipationLabelOverrides,
     ResultsAndParticipationLabels,
 } from "./types"
-import {mergeLabels} from "./utils"
+import {mergeLabels, orderCandidateReferences} from "./utils"
 
 type CandidateStatus = "active" | "eliminated" | "winner"
 type NavigationDirection = "left" | "right"
@@ -216,6 +216,10 @@ export const PreferentialCandidateResults: React.FC<PreferentialCandidateResults
     )
     const [representedRounds, setRepresentedRounds] = useState<RoundWindow>(initialRoundWindow)
     const candidateById = useMemo(() => new Map(candidates.map((c) => [c.id, c])), [candidates])
+    const orderedNameReferences = useMemo(
+        () => orderCandidateReferences(processResults.name_references, candidates),
+        [candidates, processResults.name_references]
+    )
 
     useEffect(() => {
         setRepresentedRounds((current) => {
@@ -275,7 +279,7 @@ export const PreferentialCandidateResults: React.FC<PreferentialCandidateResults
         return null
     }
 
-    const {rounds, name_references} = processResults
+    const {rounds} = processResults
     const visibleRounds = rounds.slice(representedRounds.start, representedRounds.end + 1)
 
     return (
@@ -342,7 +346,7 @@ export const PreferentialCandidateResults: React.FC<PreferentialCandidateResults
                         </TableRow>
                     </TableHead>
                     <TableBody className="seq-tally-results-preferential-results__table-body">
-                        {name_references.map((candidate) => {
+                        {orderedNameReferences.map((candidate) => {
                             const candidateName = getCandidateName(candidate, candidateById)
 
                             return (

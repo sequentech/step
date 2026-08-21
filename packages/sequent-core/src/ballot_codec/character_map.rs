@@ -200,6 +200,7 @@ mod tests {
             contest_id: contest.id.clone(),
             is_explicit_invalid: false,
             is_decline_to_vote: false,
+            is_blank_ballot: false,
             invalid_errors: vec![],
             invalid_alerts: vec![],
             choices,
@@ -240,6 +241,7 @@ mod tests {
             contest_id: contest.id.clone(),
             is_explicit_invalid: false,
             is_decline_to_vote: false,
+            is_blank_ballot: false,
             invalid_errors: vec![],
             invalid_alerts: vec![],
             choices: vec![

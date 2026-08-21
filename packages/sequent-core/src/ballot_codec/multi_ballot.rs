@@ -7,8 +7,8 @@ use std::num::TryFromIntError;
 use super::bigint;
 use super::{vec, RawBallotContest};
 use crate::ballot::{
-    AreaPresentation, BallotStyle, Candidate, Contest, DeclineToVotePolicy,
-    EUnderVotePolicy, MultiContestEncodingMode,
+    AreaPresentation, BallotStyle, BlankBallotsPolicy, Candidate, Contest,
+    DeclineToVotePolicy, EUnderVotePolicy, MultiContestEncodingMode,
 };
 use crate::ballot_codec::{
     check_blank_vote_policy, check_invalid_vote_policy,
@@ -66,6 +66,8 @@ pub struct MultiBallotCodecContext<'a> {
     pub vote_slot_counts: Vec<usize>,
     /// Whether the ballot-level decline-to-vote flag is encoded.
     pub include_decline_to_vote: bool,
+    /// Whether the ballot-level blank-ballots flag is encoded.
+    pub include_blank_ballots: bool,
     /// The mixed radix bases for the whole ballot.
     pub bases: Vec<u64>,
 }
@@ -79,6 +81,7 @@ impl<'a> MultiBallotCodecContext<'a> {
     pub fn new(
         contests: &'a [Contest],
         include_decline_to_vote: bool,
+        include_blank_ballots: bool,
         mode: MultiContestEncodingMode,
     ) -> Result<Self, String> {
         // Validated in contest.id order, the same order `new_unchecked`
@@ -90,7 +93,32 @@ impl<'a> MultiBallotCodecContext<'a> {
             validate_contest_configuration(contest)?;
         }
 
-        Self::new_unchecked(contests, include_decline_to_vote, mode)
+        let context = Self::new_unchecked(
+            contests,
+            include_decline_to_vote,
+            include_blank_ballots,
+            mode,
+        )?;
+
+        // Reject ballot styles that can't fit in the 30 byte plaintext
+        // envelope at configuration time, rather than deep inside
+        // `encode_to_30_bytes` at cast time. Computed from the bases
+        // already built above, to avoid recomputing them via
+        // `maximum_size_bytes`/`get_bases`, which route through this same
+        // validated constructor.
+        let max_choices: Vec<u64> =
+            context.bases.iter().map(|base| base - 1).collect();
+        let max_bigint = mixed_radix::encode(&max_choices, &context.bases)?;
+        let max_size_bytes = bigint::encode_bigint_to_bytes(&max_bigint)?.len();
+        if max_size_bytes > BallotChoices::MAX_SIZE_BYTES {
+            return Err(format!(
+                "Ballot style requires {} bytes to encode, exceeding the maximum of {}",
+                max_size_bytes,
+                BallotChoices::MAX_SIZE_BYTES
+            ));
+        }
+
+        Ok(context)
     }
 
     /// Precomputes the constants used to encode and decode multi-contest
@@ -102,6 +130,7 @@ impl<'a> MultiBallotCodecContext<'a> {
     pub fn new_unchecked(
         contests: &'a [Contest],
         include_decline_to_vote: bool,
+        include_blank_ballots: bool,
         mode: MultiContestEncodingMode,
     ) -> Result<Self, String> {
         // The order of the contests is computed sorting by id.
@@ -114,6 +143,11 @@ impl<'a> MultiBallotCodecContext<'a> {
         // 0: not invalid, 1: explicit invalid
         let mut bases: Vec<u64> = vec![];
         if include_decline_to_vote {
+            bases.push(2);
+        }
+        // the base for the ballot-level blank flag is 2, positioned
+        // immediately after the decline flag: 0: not blank, 1: blank
+        if include_blank_ballots {
             bases.push(2);
         }
 
@@ -160,6 +194,7 @@ impl<'a> MultiBallotCodecContext<'a> {
             contest_contexts,
             vote_slot_counts,
             include_decline_to_vote,
+            include_blank_ballots,
             bases,
         })
     }
@@ -193,11 +228,13 @@ impl<'a> MultiBallotCodecContext<'a> {
 
         // One per-contest invalid flag, optional per-contest blank flags, and
         // vote_slot_count slots per contest, plus a ballot-level invalid flag
-        // when decline-to-vote is enabled.
+        // when decline-to-vote is enabled and a ballot-level blank flag when
+        // blank-ballots is enabled.
         let expected_choices = expected_vote_slots
             + self.contest_contexts.len()
             + expected_blank_slots
-            + usize::from(self.include_decline_to_vote);
+            + usize::from(self.include_decline_to_vote)
+            + usize::from(self.include_blank_ballots);
         if choices.len() != expected_choices {
             return Err(format!(
                 "Unexpected number of choices {} != {}",
@@ -212,6 +249,24 @@ impl<'a> MultiBallotCodecContext<'a> {
             false
         };
         let mut choice_index = usize::from(self.include_decline_to_vote);
+
+        let is_blank_ballot = if self.include_blank_ballots {
+            let value = choices
+                .get(choice_index)
+                .map(|value| *value > 0)
+                .unwrap_or(false);
+            choice_index += 1;
+            value
+        } else {
+            false
+        };
+        // Encoding rejects ballots with both flags set (see
+        // encrypt_decoded_multi_contest's consistency check), but the two
+        // flags are independent bits in the raw ballot, so a malformed or
+        // adversarially-crafted plaintext could still set both. Decline
+        // takes precedence so a ballot is never simultaneously reported as
+        // declined and as blank.
+        let is_blank_ballot = is_blank_ballot && !is_explicit_invalid;
 
         // Contest contexts are sorted by contest id, the order in which
         // selections are encoded and decoded.
@@ -262,6 +317,7 @@ impl<'a> MultiBallotCodecContext<'a> {
 
         Ok(DecodedBallotChoices {
             is_explicit_invalid,
+            is_blank_ballot,
             choices: contest_choices,
             serial_number,
         })
@@ -284,17 +340,24 @@ impl<'a> MultiBallotCodecContext<'a> {
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct BallotChoices {
     pub is_explicit_invalid: bool,
+    /// Whether every contest on this ballot was left blank. Can only be
+    /// true for multi-contest ballots with the blank ballots policy
+    /// enabled, and is mutually exclusive with `is_explicit_invalid`.
+    #[serde(default)]
+    pub is_blank_ballot: bool,
     pub choices: Vec<ContestChoices>,
     pub counting_algorithm: CountingAlgType,
 }
 impl BallotChoices {
     pub fn new(
         is_explicit_invalid: bool,
+        is_blank_ballot: bool,
         choices: Vec<ContestChoices>,
         counting_algorithm: CountingAlgType,
     ) -> Self {
         BallotChoices {
             is_explicit_invalid,
+            is_blank_ballot,
             choices,
             counting_algorithm,
         }
@@ -407,6 +470,11 @@ pub struct DecodedContestChoice(pub String);
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct DecodedBallotChoices {
     pub is_explicit_invalid: bool,
+    /// Whether every contest on this ballot was left blank. Can only be
+    /// true for multi-contest ballots with the blank ballots policy
+    /// enabled.
+    #[serde(default)]
+    pub is_blank_ballot: bool,
     pub choices: Vec<DecodedContestChoices>,
     pub serial_number: Option<String>,
 }
@@ -424,6 +492,18 @@ impl BallotStyle {
                 presentation.decline_to_vote_policy.clone()
             })
             == Some(DeclineToVotePolicy::ENABLED)
+    }
+
+    /// Returns whether blank ballots is enabled for this election.
+    ///
+    /// When disabled (the default), multi-contest ballots omit the
+    /// ballot-level blank-ballot bit from the mixed-radix encoding for
+    /// backwards compatibility with existing elections.
+    pub fn blank_ballots_enabled(&self) -> bool {
+        self.election_presentation
+            .as_ref()
+            .and_then(|presentation| presentation.blank_ballots_policy.clone())
+            == Some(BlankBallotsPolicy::ENABLED)
     }
 
     /// Returns Error if all counting algorithms are not the same.
@@ -486,16 +566,28 @@ impl BallotChoices {
     ) -> Result<RawBallotContest, String> {
         let contests = self.get_contests(config)?;
         let include_decline_to_vote = config.decline_to_vote_enabled();
+        let include_blank_ballots = config.blank_ballots_enabled();
 
         if self.is_explicit_invalid && !include_decline_to_vote {
             return Err(
                 "Decline to vote is not enabled for this election".to_string()
             );
         }
+        if self.is_blank_ballot && !include_blank_ballots {
+            return Err(
+                "Blank ballots is not enabled for this election".to_string()
+            );
+        }
+        if self.is_blank_ballot && self.is_explicit_invalid {
+            return Err(
+                "A ballot cannot be both declined and blank".to_string()
+            );
+        }
 
         let context = MultiBallotCodecContext::new(
             &contests,
             include_decline_to_vote,
+            include_blank_ballots,
             config.multi_contest_encoding_mode.unwrap_or_default(),
         )?;
         let bases = context.bases.clone();
@@ -515,6 +607,9 @@ impl BallotChoices {
             let invalid_vote: u64 =
                 if self.is_explicit_invalid { 1 } else { 0 };
             choices.push(invalid_vote);
+        }
+        if include_blank_ballots {
+            choices.push(u64::from(self.is_blank_ballot));
         }
 
         // Iterate in contest order (contest contexts are sorted by id, the
@@ -689,6 +784,7 @@ impl BallotChoices {
             &bigint,
             &style.contests,
             style.decline_to_vote_enabled(),
+            style.blank_ballots_enabled(),
             style.multi_contest_encoding_mode.unwrap_or_default(),
             None,
         )
@@ -701,12 +797,14 @@ impl BallotChoices {
         bigint: &BigUint,
         contests: &Vec<Contest>,
         include_decline_to_vote: bool,
+        include_blank_ballots: bool,
         mode: MultiContestEncodingMode,
         serial_number_counter: Option<&mut u32>,
     ) -> Result<DecodedBallotChoices, String> {
         let context = MultiBallotCodecContext::new(
             contests,
             include_decline_to_vote,
+            include_blank_ballots,
             mode,
         )?;
 
@@ -738,6 +836,7 @@ impl BallotChoices {
         raw_ballot: &RawBallotContest,
         contests: &Vec<Contest>,
         include_decline_to_vote: bool,
+        include_blank_ballots: bool,
         mode: MultiContestEncodingMode,
         serial_number_counter: Option<&mut u32>,
     ) -> Result<DecodedBallotChoices, String> {
@@ -747,6 +846,7 @@ impl BallotChoices {
         let context = MultiBallotCodecContext::new_unchecked(
             contests,
             include_decline_to_vote,
+            include_blank_ballots,
             mode,
         )?;
 
@@ -950,11 +1050,17 @@ impl BallotChoices {
     pub fn get_bases(
         contests: &Vec<Contest>,
         include_decline_to_vote: bool,
+        include_blank_ballots: bool,
         mode: MultiContestEncodingMode,
     ) -> Result<Vec<u64>, String> {
-        let context = MultiBallotCodecContext::new(
+        // Uses `new_unchecked`, not the validated `new`: this is a pure
+        // bases-shape computation used by `maximum_size_bytes` to measure
+        // capacity, and `new`'s own capacity check depends on this not
+        // looping back through it.
+        let context = MultiBallotCodecContext::new_unchecked(
             contests,
             include_decline_to_vote,
+            include_blank_ballots,
             mode,
         )?;
 
@@ -992,11 +1098,13 @@ impl BallotChoices {
         bigint: &BigUint,
         contests: &Vec<Contest>,
         include_decline_to_vote: bool,
+        include_blank_ballots: bool,
         mode: MultiContestEncodingMode,
     ) -> Result<RawBallotContest, String> {
         let context = MultiBallotCodecContext::new(
             contests,
             include_decline_to_vote,
+            include_blank_ballots,
             mode,
         )?;
 
@@ -1066,9 +1174,15 @@ impl BallotChoices {
     pub fn maximum_size_bytes(
         contests: &Vec<Contest>,
         include_decline_to_vote: bool,
+        include_blank_ballots: bool,
         mode: MultiContestEncodingMode,
     ) -> Result<usize, String> {
-        let bases = Self::get_bases(contests, include_decline_to_vote, mode)?;
+        let bases = Self::get_bases(
+            contests,
+            include_decline_to_vote,
+            include_blank_ballots,
+            mode,
+        )?;
 
         let choices: Vec<u64> = bases.iter().map(|b| b - 1).collect();
 
@@ -1261,6 +1375,7 @@ mod tests {
         let style = test_ballot_style(vec![contest.clone()]);
         let ballot = BallotChoices::new(
             false,
+            false,
             vec![ContestChoices::new(
                 contest.id.clone(),
                 vec![ContestChoice::new(blank_id.clone(), 0)],
@@ -1279,6 +1394,7 @@ mod tests {
         let decoded = BallotChoices::decode(
             &raw,
             &style.contests,
+            false,
             false,
             style.multi_contest_encoding_mode.unwrap_or_default(),
             None,
@@ -1299,6 +1415,7 @@ mod tests {
         let style = test_ballot_style(vec![contest.clone()]);
         let ballot = BallotChoices::new(
             false,
+            false,
             vec![ContestChoices::new(
                 contest.id.clone(),
                 vec![ContestChoice::new(invalid_id.clone(), 0)],
@@ -1317,6 +1434,7 @@ mod tests {
         let decoded = BallotChoices::decode(
             &raw,
             &style.contests,
+            false,
             false,
             style.multi_contest_encoding_mode.unwrap_or_default(),
             None,
@@ -2115,6 +2233,7 @@ mod tests {
         {
             let decoded_ballot_choices = DecodedBallotChoices {
                 is_explicit_invalid: ballot_decline_to_vote,
+                is_blank_ballot: false,
                 choices: vec![
                     DecodedContestChoices::new(
                         "contest-a".to_string(),
@@ -2158,6 +2277,7 @@ mod tests {
         let style = test_ballot_style(vec![test_contest("1", 2, 1)]);
         let ballot = BallotChoices::new(
             true,
+            false,
             vec![ContestChoices::new("1".to_string(), vec![], false)],
             CountingAlgType::PluralityAtLarge,
         );
@@ -2192,6 +2312,7 @@ mod tests {
         // min-votes policy error.
         let empty_ballot = BallotChoices::new(
             false,
+            false,
             vec![ContestChoices::new("1".to_string(), vec![], false)],
             CountingAlgType::PluralityAtLarge,
         );
@@ -2211,6 +2332,7 @@ mod tests {
         // Declined ballot: no selection policy errors must be collected.
         let declined_ballot = BallotChoices::new(
             true,
+            false,
             vec![ContestChoices::new("1".to_string(), vec![], false)],
             CountingAlgType::PluralityAtLarge,
         );
@@ -2243,6 +2365,468 @@ mod tests {
     }
 
     #[test]
+    fn test_blank_ballot_rejected_when_policy_disabled() {
+        let style = test_ballot_style(vec![test_contest("1", 2, 1)]);
+        let ballot = BallotChoices::new(
+            false,
+            true,
+            vec![ContestChoices::new("1".to_string(), vec![], false)],
+            CountingAlgType::PluralityAtLarge,
+        );
+
+        let err = ballot.encode_to_30_bytes(&style).expect_err(
+            "blank ballot should be rejected when policy is disabled",
+        );
+        assert!(
+            err.contains("Blank ballots is not enabled for this election"),
+            "Unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn test_blank_ballot_rejected_when_declined_also_set() {
+        let mut style = test_ballot_style(vec![test_contest("1", 2, 1)]);
+        style.election_presentation = Some(ElectionPresentation {
+            decline_to_vote_policy: Some(DeclineToVotePolicy::ENABLED),
+            blank_ballots_policy: Some(BlankBallotsPolicy::ENABLED),
+            ..Default::default()
+        });
+        let ballot = BallotChoices::new(
+            true,
+            true,
+            vec![ContestChoices::new("1".to_string(), vec![], false)],
+            CountingAlgType::PluralityAtLarge,
+        );
+
+        let err = ballot
+            .encode_to_30_bytes(&style)
+            .expect_err("a ballot cannot be both declined and blank");
+        assert!(
+            err.contains("A ballot cannot be both declined and blank"),
+            "Unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn test_blank_ballot_rejected_when_contest_has_selections() {
+        let candidates: Vec<Candidate> = (0..3)
+            .map(|i| random_candidate(i.to_string(), "1".to_string()))
+            .collect();
+        let candidate_id = candidates[0].id.clone();
+        let contest = random_contest("1".to_string(), candidates, 0, 2);
+        let mut style = test_ballot_style(vec![contest]);
+        style.election_presentation = Some(ElectionPresentation {
+            blank_ballots_policy: Some(BlankBallotsPolicy::ENABLED),
+            ..Default::default()
+        });
+
+        let decoded_contests = vec![DecodedVoteContest {
+            contest_id: "1".to_string(),
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            is_blank_ballot: true,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: vec![DecodedVoteChoice {
+                id: candidate_id,
+                selected: 0,
+                write_in_text: None,
+            }],
+        }];
+
+        let err = encode_to_plaintext_decoded_multi_contest(
+            &decoded_contests,
+            &style,
+        )
+        .expect_err(
+            "a blank ballot flag disagreeing with actual selections should be rejected",
+        );
+        assert!(
+            format!("{err:?}")
+                .contains("Blank ballot flag disagrees with contest content"),
+            "Unexpected error: {err:?}"
+        );
+    }
+
+    #[test]
+    fn test_multi_contest_reencoding_with_blank_ballot() {
+        let ballot_selection_json = json!([{
+            "contest_id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+            "is_explicit_invalid": false,
+            "is_decline_to_vote": false,
+            "is_blank_ballot": true,
+            "invalid_errors": [],
+            "invalid_alerts": [],
+            "choices": [
+                {
+                    "id": "05614f41-720a-4fd5-842f-58355c0bbdc0",
+                    "selected": -1
+                }
+            ]
+        },
+        {
+            "contest_id": "ba08a9eb-49c9-44d7-a25e-b2e142e17b0b",
+            "is_explicit_invalid": false,
+            "is_decline_to_vote": false,
+            "is_blank_ballot": true,
+            "invalid_errors": [],
+            "invalid_alerts": [],
+            "choices": [
+                {
+                    "id": "05e14f41-720a-4fd5-842f-58355c0bbdc0",
+                    "selected": -1
+                }
+            ]
+        }]);
+
+        let election_json = json!({
+            "id": "b48da6fd-f7e5-4868-9abb-e23452f373ad",
+            "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+            "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+            "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+            "public_key": {
+                "public_key": "xEH1M/iIdDkZg1ENaP7yPZWtaOcnYLTmK+sFYmuDJVk",
+                "is_demo": false
+            },
+            "area_id": "dcaf94aa-e2f8-460b-8da6-2a7907c04664",
+            "contests": [
+                {
+                "id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+                "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                "name": "Contest",
+                "max_votes": 1,
+                "min_votes": 0,
+                "winning_candidates_num": 1,
+                "voting_type": "non-preferential",
+                "counting_algorithm": CountingAlgType::PluralityAtLarge,
+                "is_encrypted": true,
+                "candidates": [
+                    {
+                        "id": "05614f41-720a-4fd5-842f-58355c0bbdc0",
+                        "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                        "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                        "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                        "contest_id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+                        "name": "B"
+                    }
+                ]
+            },{
+                "id": "ba08a9eb-49c9-44d7-a25e-b2e142e17b0b",
+                "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                "name": "Contest2",
+                "max_votes": 1,
+                "min_votes": 0,
+                "winning_candidates_num": 1,
+                "voting_type": "non-preferential",
+                "counting_algorithm": CountingAlgType::PluralityAtLarge,
+                "is_encrypted": true,
+                "candidates": [
+                    {
+                        "id": "05e14f41-720a-4fd5-842f-58355c0bbdc0",
+                        "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                        "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                        "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                        "contest_id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+                        "name": "B"
+                    }
+                ]
+            }],
+            "election_event_presentation": {
+                "contest_encryption_policy": "multiple-contests"
+            },
+            "election_presentation": {
+                "blank_ballots_policy": "enabled"
+            }
+        });
+
+        let decoded_multi_contests: Vec<DecodedVoteContest> =
+            deserialize_value(ballot_selection_json)
+                .expect("Failed to parse ballot selection");
+        let ballot_style: BallotStyle =
+            deserialize_value(election_json).expect("Failed to parse election");
+
+        let result = test_multi_contest_reencoding(
+            &decoded_multi_contests,
+            &ballot_style,
+        );
+
+        assert!(
+            result.is_ok(),
+            "Multi-contest reencoding with blank ballot failed: {:?}",
+            result.err()
+        );
+
+        let output_contests = result.unwrap();
+        assert_eq!(output_contests.len(), 2);
+        assert_eq!(output_contests[0].is_blank_ballot, true);
+        assert_eq!(output_contests[1].is_blank_ballot, true);
+        assert!(!output_contests[0].is_decline_to_vote);
+        assert!(!output_contests[1].is_decline_to_vote);
+    }
+
+    #[test]
+    fn test_multi_contest_reencoding_with_invalid_blank_ballot() {
+        // Only one contest is marked blank ballot: invalid, since the flag
+        // must agree across every contest in the ballot.
+        let ballot_selection_json = json!([{
+            "contest_id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+            "is_explicit_invalid": false,
+            "is_decline_to_vote": false,
+            "is_blank_ballot": true,
+            "invalid_errors": [],
+            "invalid_alerts": [],
+            "choices": []
+        },
+        {
+            "contest_id": "ba08a9eb-49c9-44d7-a25e-b2e142e17b0b",
+            "is_explicit_invalid": false,
+            "is_decline_to_vote": false,
+            "is_blank_ballot": false,
+            "invalid_errors": [],
+            "invalid_alerts": [],
+            "choices": []
+        }]);
+
+        let election_json = json!({
+            "id": "b48da6fd-f7e5-4868-9abb-e23452f373ad",
+            "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+            "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+            "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+            "public_key": {
+                "public_key": "xEH1M/iIdDkZg1ENaP7yPZWtaOcnYLTmK+sFYmuDJVk",
+                "is_demo": false
+            },
+            "area_id": "dcaf94aa-e2f8-460b-8da6-2a7907c04664",
+            "contests": [
+                {
+                "id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+                "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                "name": "Contest",
+                "max_votes": 1,
+                "min_votes": 0,
+                "winning_candidates_num": 1,
+                "voting_type": "non-preferential",
+                "counting_algorithm": CountingAlgType::PluralityAtLarge,
+                "is_encrypted": true,
+                "candidates": [
+                    {
+                        "id": "05614f41-720a-4fd5-842f-58355c0bbdc0",
+                        "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                        "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                        "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                        "contest_id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+                        "name": "B"
+                    }
+                ]
+            },{
+                "id": "ba08a9eb-49c9-44d7-a25e-b2e142e17b0b",
+                "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                "name": "Contest2",
+                "max_votes": 1,
+                "min_votes": 0,
+                "winning_candidates_num": 1,
+                "voting_type": "non-preferential",
+                "counting_algorithm": CountingAlgType::PluralityAtLarge,
+                "is_encrypted": true,
+                "candidates": [
+                    {
+                        "id": "05e14f41-720a-4fd5-842f-58355c0bbdc0",
+                        "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                        "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                        "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                        "contest_id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+                        "name": "B"
+                    }
+                ]
+            }],
+            "election_event_presentation": {
+                "contest_encryption_policy": "multiple-contests"
+            },
+            "election_presentation": {
+                "blank_ballots_policy": "enabled"
+            }
+        });
+
+        let decoded_multi_contests: Vec<DecodedVoteContest> =
+            deserialize_value(ballot_selection_json)
+                .expect("Failed to parse ballot selection");
+        let ballot_style: BallotStyle =
+            deserialize_value(election_json).expect("Failed to parse election");
+
+        let result = test_multi_contest_reencoding(
+            &decoded_multi_contests,
+            &ballot_style,
+        );
+
+        assert!(
+            result.is_err(),
+            "Expected invalid mixed blank-ballot ballot to fail, got: {:?}",
+            result.ok()
+        );
+        let err = result.unwrap_err();
+        assert!(
+            err.contains(
+                "Invalid number of contests marked blank ballot 1 != 2"
+            ),
+            "Unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn test_bases_layout_blank_after_decline() {
+        let contests = vec![test_contest("1", 2, 1)];
+
+        let bases_neither = BallotChoices::get_bases(
+            &contests,
+            false,
+            false,
+            MultiContestEncodingMode::LEGACY,
+        )
+        .expect("get_bases should succeed");
+        // per-contest invalid flag + 1 vote slot, no ballot-level flags
+        assert_eq!(bases_neither, vec![2, 3]);
+
+        let bases_decline_only = BallotChoices::get_bases(
+            &contests,
+            true,
+            false,
+            MultiContestEncodingMode::LEGACY,
+        )
+        .expect("get_bases should succeed");
+        assert_eq!(bases_decline_only, vec![2, 2, 3]);
+
+        let bases_blank_only = BallotChoices::get_bases(
+            &contests,
+            false,
+            true,
+            MultiContestEncodingMode::LEGACY,
+        )
+        .expect("get_bases should succeed");
+        assert_eq!(bases_blank_only, vec![2, 2, 3]);
+
+        let bases_both = BallotChoices::get_bases(
+            &contests,
+            true,
+            true,
+            MultiContestEncodingMode::LEGACY,
+        )
+        .expect("get_bases should succeed");
+        // decline flag, then blank flag, positioned immediately after it,
+        // then the per-contest slots -- unchanged relative to decline-only.
+        assert_eq!(bases_both, vec![2, 2, 2, 3]);
+    }
+
+    #[test]
+    fn test_decode_gives_decline_precedence_when_both_flags_set() {
+        // Encoding rejects a ballot with both flags set (see
+        // encrypt_decoded_multi_contest's consistency check), but decode
+        // must still defend against a malformed or adversarially-crafted
+        // raw ballot where both bits happen to be set.
+        let contests = vec![test_contest("1", 2, 1)];
+        let bases = BallotChoices::get_bases(
+            &contests,
+            true,
+            true,
+            MultiContestEncodingMode::LEGACY,
+        )
+        .expect("get_bases should succeed");
+        // [decline flag, blank flag, contest invalid flag, vote slot]
+        let choices = vec![1, 1, 0, 0];
+        let raw_ballot = RawBallotContest::new(bases, choices);
+
+        let decoded = BallotChoices::decode(
+            &raw_ballot,
+            &contests,
+            true,
+            true,
+            MultiContestEncodingMode::LEGACY,
+            None,
+        )
+        .expect("decode should succeed even with both flags set");
+
+        assert!(decoded.is_explicit_invalid);
+        assert!(!decoded.is_blank_ballot);
+    }
+
+    #[test]
+    fn test_ballot_style_capacity_check_rejects_oversized_style() {
+        let oversized_contest = test_contest("1", 64, 64);
+        let style = test_ballot_style(vec![oversized_contest]);
+
+        let err = MultiBallotCodecContext::new(
+            &style.contests,
+            false,
+            false,
+            MultiContestEncodingMode::LEGACY,
+        )
+        .map(|_| ())
+        .expect_err("an oversized ballot style should be rejected");
+
+        assert!(
+            err.contains("exceeding the maximum of"),
+            "Unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn test_maximum_size_bytes_grows_with_blank_and_decline() {
+        let contests = vec![test_contest("1", 3, 2)];
+
+        let base_size = BallotChoices::maximum_size_bytes(
+            &contests,
+            false,
+            false,
+            MultiContestEncodingMode::LEGACY,
+        )
+        .expect("maximum_size_bytes should succeed");
+
+        let with_decline = BallotChoices::maximum_size_bytes(
+            &contests,
+            true,
+            false,
+            MultiContestEncodingMode::LEGACY,
+        )
+        .expect("maximum_size_bytes should succeed");
+
+        let with_blank = BallotChoices::maximum_size_bytes(
+            &contests,
+            false,
+            true,
+            MultiContestEncodingMode::LEGACY,
+        )
+        .expect("maximum_size_bytes should succeed");
+
+        let with_both = BallotChoices::maximum_size_bytes(
+            &contests,
+            true,
+            true,
+            MultiContestEncodingMode::LEGACY,
+        )
+        .expect("maximum_size_bytes should succeed");
+
+        assert!(
+            with_decline >= base_size,
+            "enabling decline should not shrink the required size"
+        );
+        assert!(
+            with_blank >= base_size,
+            "enabling blank should not shrink the required size"
+        );
+        assert!(
+            with_both >= with_decline && with_both >= with_blank,
+            "enabling both flags should require at least as much space as either alone"
+        );
+    }
+
+    #[test]
     fn test_get_bases_output_shape() {
         let contest_a = test_contest("a", 3, 2);
         let contest_b = test_contest("b", 5, 1);
@@ -2250,6 +2834,7 @@ mod tests {
 
         let bases = BallotChoices::get_bases(
             &contests,
+            false,
             false,
             MultiContestEncodingMode::LEGACY,
         )
@@ -2266,6 +2851,7 @@ mod tests {
         let bases = BallotChoices::get_bases(
             &contests,
             true,
+            false,
             MultiContestEncodingMode::LEGACY,
         )
         .expect("get_bases should succeed");
@@ -2288,6 +2874,7 @@ mod tests {
 
         let candidate_id = style.contests[1].candidates[0].id.clone();
         let ballot = BallotChoices::new(
+            false,
             false,
             vec![
                 ContestChoices::new("1".to_string(), vec![], true),
@@ -2347,6 +2934,7 @@ mod tests {
         let max_bytes = BallotChoices::maximum_size_bytes(
             &style.contests,
             style.decline_to_vote_enabled(),
+            style.blank_ballots_enabled(),
             style.multi_contest_encoding_mode.unwrap_or_default(),
         )
         .unwrap();
@@ -2523,6 +3111,7 @@ mod tests {
 
         let ballot = BallotChoices::new(
             use_decline_to_vote,
+            false,
             choices,
             CountingAlgType::PluralityAtLarge,
         );
@@ -2651,6 +3240,7 @@ mod tests {
             contest_id: contest.id.clone(),
             is_explicit_invalid,
             is_decline_to_vote: false,
+            is_blank_ballot: false,
             invalid_errors: vec![],
             invalid_alerts: vec![],
             choices: contest
