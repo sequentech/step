@@ -11,7 +11,9 @@
 
 use super::problem::{Code, Severity};
 use super::schema::ImportElectionEventSchema;
-use super::validate::validate;
+use super::validate::{validate, COUNTING_ALGORITHMS, PREFERENTIAL_ALGORITHMS};
+use crate::types::ceremonies::CountingAlgType;
+use std::str::FromStr;
 
 const TENANT: &str = "3f0c9d21-7b4e-4a55-9c3a-1d2e5f6a7b80";
 
@@ -244,12 +246,48 @@ fn allowing_more_selections_than_there_are_candidates_is_rejected() {
 }
 
 #[test]
-fn a_negative_vote_count_does_not_wrap_into_a_huge_number() {
-    // i64 to usize would make -1 enormous and silently pass the comparison.
+fn a_negative_vote_count_is_refused() {
+    // **It was not.** Every rule about these three fields is a comparison — `min >
+    // max`, `winners > available` — and -1 satisfies all of them, so a contest
+    // asking for minus one winner passed validation and imported. This test used to
+    // assert only that nothing *wrapped*, which quietly documented the hole.
+    for field in ["min_votes", "max_votes", "winning_candidates_num"] {
+        let mut bundle = sound();
+        match field {
+            "min_votes" => bundle.contests[0].min_votes = Some(-1),
+            "max_votes" => bundle.contests[0].max_votes = Some(-1),
+            _ => bundle.contests[0].winning_candidates_num = Some(-1),
+        }
+
+        let report = validate(&bundle);
+        assert!(
+            report
+                .errors()
+                .any(|problem| problem.code == Code::InvalidValue
+                    && problem.path.ends_with(field)),
+            "a negative {field} should be reported as an invalid value"
+        );
+
+        // And still no wraparound, which is what the original test was about: i64 to
+        // usize would make -1 enormous and trip "more winners than candidates"
+        // instead of naming the real fault. Asserted for that field only — a negative
+        // `max_votes` legitimately trips `min_votes > max_votes` as well, and calling
+        // that a wraparound would be reading the arithmetic rule wrong.
+        if field == "winning_candidates_num" {
+            assert!(!report
+                .errors()
+                .any(|problem| problem.code == Code::ContestArithmetic));
+        }
+    }
+}
+
+#[test]
+fn zero_is_a_count_a_contest_may_legitimately_carry() {
+    // The bound is *negative*, not "not positive". A contest a voter may abstain in
+    // has `min_votes` 0, and refusing that would refuse the platform's own exports.
     let mut bundle = sound();
-    bundle.contests[0].winning_candidates_num = Some(-1);
-    let codes = error_codes(&bundle);
-    assert!(!codes.contains(&Code::ContestArithmetic));
+    bundle.contests[0].min_votes = Some(0);
+    assert!(!error_codes(&bundle).contains(&Code::InvalidValue));
 }
 
 #[test]
@@ -266,6 +304,37 @@ fn a_contest_with_no_candidates_is_a_warning_not_an_error() {
 }
 
 // -- tally system -----------------------------------------------------------
+
+#[test]
+fn the_algorithm_list_is_the_enum_and_nothing_else() {
+    // `COUNTING_ALGORITHMS` *is* `CountingAlgType::VARIANTS` now, so this asserts the
+    // property that matters instead: every value the list offers round-trips through
+    // the enum. It fails if a variant is ever given a `strum` spelling that differs
+    // from its `serde` one, which is the one way the two could still part company.
+    for value in COUNTING_ALGORITHMS {
+        assert!(
+            CountingAlgType::from_str(value).is_ok(),
+            "{value} is offered but the platform cannot parse it"
+        );
+    }
+}
+
+#[test]
+fn the_preferential_list_matches_the_enum() {
+    // The subset is spelled out — a `&'static [&'static str]` is what the browser is
+    // handed, and `is_preferential` cannot be called in a const — so this is what
+    // keeps it honest. Both directions: a variant wrongly listed, and one wrongly
+    // left out.
+    for value in COUNTING_ALGORITHMS {
+        let algorithm = CountingAlgType::from_str(value)
+            .expect("every offered algorithm parses");
+        assert_eq!(
+            PREFERENTIAL_ALGORITHMS.contains(value),
+            algorithm.is_preferential(),
+            "{value}: the list and CountingAlgType::is_preferential disagree"
+        );
+    }
+}
 
 #[test]
 fn an_unknown_counting_algorithm_is_rejected() {
@@ -639,6 +708,71 @@ fn no_labels_means_no_warning() {
             .filter(|problem| problem.code == Code::PermissionLabel)
             .count(),
         0
+    );
+}
+
+/// A report definition carrying one permission label.
+///
+/// Built here rather than taken from the fixture: `reports` is normally empty,
+/// because report definitions travel in `export_reports-<uuid>.csv` and a populated
+/// array in the JSON is silently ignored by the importer. See `schema::reports`.
+fn labelled_report(
+    bundle: &ImportElectionEventSchema,
+    label: &str,
+) -> crate::election_config::report::Report {
+    crate::election_config::report::Report {
+        id: "11111111-1111-4111-8111-111111111111".into(),
+        election_event_id: bundle.election_event.id.clone(),
+        tenant_id: bundle.election_event.tenant_id.clone(),
+        election_id: None,
+        report_type: "results".into(),
+        template_alias: None,
+        encryption_policy:
+            crate::election_config::report::EReportEncryption::Unencrypted,
+        cron_config: None,
+        // The event's own timestamp is `Option<DateTime<Local>>`; a report
+        // definition carries a required UTC one. Nothing here reads it.
+        created_at: chrono::DateTime::UNIX_EPOCH,
+        permission_label: Some(vec![label.into()]),
+    }
+}
+
+#[test]
+fn a_label_on_a_report_names_the_reports_collection() {
+    // The path is where the thing *is*: a front end turns it into a wizard step or a
+    // spreadsheet cell. This warning was pinned to `elections[].permission_label`
+    // while the labels it collects come from reports too — so a bundle whose only
+    // labelled entity is a report sent somebody to the elections screen, where there
+    // is nothing to change.
+    let mut bundle = sound();
+    bundle.reports = vec![labelled_report(&bundle, "auditors")];
+
+    let report = validate(&bundle);
+    let warning = report
+        .warnings()
+        .find(|problem| problem.code == Code::PermissionLabel)
+        .expect("expected a permission label warning");
+
+    assert_eq!(warning.path, "reports[].permission_label");
+    assert!(warning.message.contains("auditors"));
+}
+
+#[test]
+fn labels_on_both_are_reported_once_each() {
+    let mut bundle = sound();
+    bundle.elections[0].permission_label = Some("officers".into());
+    bundle.reports = vec![labelled_report(&bundle, "auditors")];
+
+    let report = validate(&bundle);
+    let paths: Vec<&str> = report
+        .warnings()
+        .filter(|problem| problem.code == Code::PermissionLabel)
+        .map(|problem| problem.path.as_str())
+        .collect();
+
+    assert_eq!(
+        paths,
+        vec!["elections[].permission_label", "reports[].permission_label"]
     );
 }
 
