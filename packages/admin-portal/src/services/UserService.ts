@@ -154,31 +154,3 @@ export const getSelectOptionLabel = (
 
     return description && description !== option ? `${option} - ${description}` : option
 }
-
-const toPositiveInteger = (value: unknown): number | undefined => {
-    const parsed = typeof value === "string" ? Number.parseInt(value, 10) : value
-
-    return typeof parsed === "number" && Number.isInteger(parsed) && parsed > 0 ? parsed : undefined
-}
-
-/**
- * Maximum number of characters an attribute accepts, or undefined when it is
- * unbounded. Keycloak caps typing with the `inputTypeMaxlength` annotation and
- * rejects on submit with the `length` validator, and an attribute can carry
- * either or both. The validator is the rule the server actually enforces, so it
- * wins: capping an admin at a lower typing hint would leave a value that
- * already exceeds it impossible to repair. Both are stored as a number or as a
- * string depending on how they were configured.
- */
-export const getAttributeMaxLength = (attribute: UserProfileAttribute): number | undefined => {
-    const annotations = attribute.annotations as {inputTypeMaxlength?: unknown} | null | undefined
-    const validations = attribute.validations as
-        | {length?: {max?: unknown} | null}
-        | null
-        | undefined
-
-    return (
-        toPositiveInteger(validations?.length?.max) ??
-        toPositiveInteger(annotations?.inputTypeMaxlength)
-    )
-}

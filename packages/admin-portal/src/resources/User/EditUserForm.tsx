@@ -48,7 +48,6 @@ import {FormStyles} from "@/components/styles/FormStyles"
 import {CREATE_USER} from "@/queries/CreateUser"
 import {
     formatUserAtributes,
-    getAttributeMaxLength,
     getInputOptionLabels,
     getSelectOptionLabel,
     getTranslationLabel,
@@ -94,7 +93,6 @@ const getAttributeStringValue = (value: string | string[] | null | undefined): s
 interface AttributeTextInputProps {
     disabled: boolean
     label: string
-    maxLength?: number
     onCommit: (value: string) => void
     required: boolean
     value: string | string[] | null | undefined
@@ -108,7 +106,6 @@ interface AttributeTextInputProps {
 const AttributeTextInput: React.FC<AttributeTextInputProps> = ({
     disabled,
     label,
-    maxLength,
     onCommit,
     required,
     value,
@@ -130,7 +127,6 @@ const AttributeTextInput: React.FC<AttributeTextInputProps> = ({
             disabled={disabled}
             required={required}
             fullWidth
-            slotProps={{htmlInput: {maxLength}}}
             InputLabelProps={type === "date" ? {shrink: true} : undefined}
         />
     )
@@ -1054,7 +1050,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             <AttributeTextInput
                                 key={index}
                                 label={getTranslationLabel(attr.name, attr.display_name, t)}
-                                maxLength={getAttributeMaxLength(attr)}
                                 value={value}
                                 onCommit={(newValue) => {
                                     const attrName = attr.name as string
@@ -1086,7 +1081,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 onChange={handleChange}
                                 source={attr.name}
                                 required={isFieldRequired(attr)}
-                                slotProps={{htmlInput: {maxLength: getAttributeMaxLength(attr)}}}
                                 disabled={
                                     (attr.name === "username" && !createMode) ||
                                     !(

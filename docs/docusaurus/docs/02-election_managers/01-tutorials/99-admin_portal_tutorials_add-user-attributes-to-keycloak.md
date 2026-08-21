@@ -57,24 +57,13 @@ To show a date input field:
 
 ## Limiting the Number of Characters
 
-An attribute can be capped in two ways, and Keycloak treats them differently:
+To bound how much text an attribute accepts, **Add Validator** > **Validator type**: `length`, and
+set the maximum number of characters. Keycloak enforces it when the record is saved.
 
-- **Add Validator** > **Validator type**: `length`, setting the maximum number of characters. This
-  is the rule the server enforces when the form is submitted.
-- In **Annotations** > **Add annotation**, Key: `inputTypeMaxlength` and the maximum as its value.
-  This stops the voter typing past the limit in the enrollment and login forms, but is not enforced
-  on submit.
-
-Setting both, to the same value, is recommended. The Admin Portal honours either, and where an
-attribute carries both it follows the `length` validator, since capping an admin at a lower typing
-hint would leave a stored value that already exceeds it impossible to repair. Its text fields stop
-accepting characters once the maximum is reached, when creating and when editing a voter.
-
-Fields whose value comes from a fixed list — selects, checkboxes, areas, elections and permission
-labels — are unaffected, and so is the phone number field: it displays a formatted national number while it
-stores the full international one, so a character count of what is typed would not match what the
-`length` validator measures. A `length` validator on a phone attribute is still enforced on
-submit.
+The Admin Portal does not stop the field accepting more than that while it is being typed: a limit
+applied as you type would silently discard the end of a pasted value, and would make an existing
+value that is already longer than the limit impossible to correct. Instead, a value that breaks the
+limit is refused on save and reported as such, naming the field and the limit it broke.
 
 ## Localization Overrides
 

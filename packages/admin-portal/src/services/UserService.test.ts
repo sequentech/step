@@ -4,7 +4,6 @@
 
 import {UserProfileAttribute} from "@/gql/graphql"
 import {
-    getAttributeMaxLength,
     getInputOptionLabels,
     getSelectOptionDescription,
     getSelectOptionLabel,
@@ -126,52 +125,5 @@ describe("getSelectOptionLabel", () => {
 
     it("does not repeat a description that only restates the option", () => {
         expect(getSelectOptionLabel({Male: "Male"}, "Male", translate())).toBe("Male")
-    })
-})
-
-describe("getAttributeMaxLength", () => {
-    it("reads the annotation Keycloak caps typing with", () => {
-        expect(getAttributeMaxLength(attribute({annotations: {inputTypeMaxlength: 10}}))).toBe(10)
-    })
-
-    it("reads the length validator Keycloak rejects on submit with", () => {
-        expect(getAttributeMaxLength(attribute({validations: {length: {min: 2, max: 10}}}))).toBe(
-            10
-        )
-    })
-
-    it("lets the validator win, since it is the bound the server enforces", () => {
-        // Capping at the lower typing hint would leave a stored value that
-        // already exceeds it impossible to repair.
-        expect(
-            getAttributeMaxLength(
-                attribute({
-                    annotations: {inputTypeMaxlength: 20},
-                    validations: {length: {max: 255}},
-                })
-            )
-        ).toBe(255)
-    })
-
-    it("reads a bound Keycloak stored as a string", () => {
-        expect(getAttributeMaxLength(attribute({validations: {length: {max: "10"}}}))).toBe(10)
-        expect(getAttributeMaxLength(attribute({annotations: {inputTypeMaxlength: "10"}}))).toBe(10)
-    })
-
-    it("returns undefined when the attribute is unbounded", () => {
-        expect(getAttributeMaxLength(attribute({validations: {length: {min: 2}}}))).toBeUndefined()
-        expect(getAttributeMaxLength(attribute({validations: {}}))).toBeUndefined()
-        expect(getAttributeMaxLength(attribute({}))).toBeUndefined()
-    })
-
-    it("ignores a bound that could not restrict anything", () => {
-        expect(getAttributeMaxLength(attribute({validations: {length: {max: 0}}}))).toBeUndefined()
-        expect(getAttributeMaxLength(attribute({validations: {length: {max: -1}}}))).toBeUndefined()
-        expect(
-            getAttributeMaxLength(attribute({validations: {length: {max: "none"}}}))
-        ).toBeUndefined()
-        expect(
-            getAttributeMaxLength(attribute({validations: {length: {max: 1.5}}}))
-        ).toBeUndefined()
     })
 })
