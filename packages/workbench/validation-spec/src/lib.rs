@@ -642,21 +642,21 @@ pub struct Effects {
 /// The mapping. (config × vote_state) determines everything; the
 /// observation point exists only inside the output (see [`InlineViews`]).
 pub fn f(config: &Config, vs: &VoteState) -> Effects {
-    // `f` is now a convenience that composes the query-provider: it feeds the
-    // same `vs` as the intention (stage 0, reachability) AND the formed shape
-    // (stage 1, the ballot-queries) — the conflation a predictor can make and
-    // production cannot. Routing `f` through the provider means the whole
-    // headless sweep validates the provider (byte-identically).
-    let cv = ContestValidator::from_config(*config);
-    let vv = cv.for_vote_state(*vs);
-    let hard = vv.hard_gate();
-    let soft = vv.soft_gate();
+    // `f` is the FROZEN ORACLE. It composes the bug-compatible free functions
+    // directly (emissions → gates → inline/reachability/tally), reproducing
+    // production byte-identically, and is deliberately pinned here: it does
+    // NOT route through the query-provider. The provider is the rationalized
+    // (fixed) implementation, and `f` is the "before" leg the diff report
+    // (characterization/fix-diff.md) measures the fix against — so the two
+    // must be free to diverge. (Phase 1 briefly routed `f` through the
+    // provider to prove the decomposition faithful; that proof is banked in
+    // the byte-identical sweep, and the wiring is intentionally reverted here
+    // — see queries.rs and characterization/README.md, "the frozen oracle".)
+    let em = emissions(config, vs);
+    let hard = hard_gate(config, vs, &em);
+    let soft = soft_gate(config, vs, &em);
     Effects {
-        inline: InlineViews {
-            voting_untouched: vv.inline(ObservationPoint::UntouchedVoting),
-            voting: vv.inline(ObservationPoint::Voting),
-            review: vv.inline(ObservationPoint::Review),
-        },
+        inline: inline_views(&config.policies, &em.errors, &em.alerts),
         gate: Gate { hard, soft },
         dialog: if hard {
             Dialog::Blocking
@@ -665,9 +665,14 @@ pub fn f(config: &Config, vs: &VoteState) -> Effects {
         } else {
             Dialog::None
         },
-        reachability: cv.reachability(vs),
-        tally: vv.tally(),
-        emissions: vv.emissions().clone(),
+        reachability: reachability(config, vs),
+        tally: classify(
+            vs.decline,
+            vs.explicit_invalid,
+            !em.errors.is_empty(),
+            selection_class(vs),
+        ),
+        emissions: em,
     }
 }
 
