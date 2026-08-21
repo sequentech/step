@@ -8,6 +8,7 @@ import {
     getAttributeLengthViolation,
     getAttributeViolation,
     getInputOptionLabels,
+    getStatedLengthBounds,
     isHiddenAttribute,
     getSelectOptionDescription,
     getSelectOptionLabel,
@@ -275,5 +276,43 @@ describe("isHiddenAttribute", () => {
     // means something else entirely.
     it("does not confuse the flag with a hidden input type", () => {
         expect(isHiddenAttribute(attribute({annotations: {inputType: "hidden"}}))).toBe(false)
+    })
+})
+
+describe("getStatedLengthBounds", () => {
+    const boundsOf = (length: Record<string, unknown>) =>
+        getAttributeLengthBounds(attribute({validations: {length}}))
+
+    it("states bounds a person actually types into", () => {
+        expect(getStatedLengthBounds(boundsOf({min: 2, max: 3}))).toEqual({min: 2, max: 3})
+        expect(getStatedLengthBounds(boundsOf({max: 2}))).toEqual({min: undefined, max: 2})
+    })
+
+    // Keycloak's base attributes carry these as scaffolding, and clients copy
+    // them for free-text attributes; nobody types 255 characters into a name.
+    it("does not state a maximum nobody reaches", () => {
+        expect(getStatedLengthBounds(boundsOf({max: 255}))).toBeUndefined()
+        expect(getStatedLengthBounds(boundsOf({min: 1, max: 255}))).toBeUndefined()
+    })
+
+    // A minimum of one says only that the value is present, which the field
+    // already says by being required or not.
+    it("does not state a minimum of one", () => {
+        expect(getStatedLengthBounds(boundsOf({min: 1, max: 2}))).toEqual({
+            min: undefined,
+            max: 2,
+        })
+        expect(getStatedLengthBounds(boundsOf({min: 1}))).toBeUndefined()
+    })
+
+    it("still states a low maximum alongside a real minimum", () => {
+        expect(getStatedLengthBounds(boundsOf({min: 2, max: 255}))).toEqual({
+            min: 2,
+            max: undefined,
+        })
+    })
+
+    it("states nothing for an unbounded attribute", () => {
+        expect(getStatedLengthBounds(undefined)).toBeUndefined()
     })
 })

@@ -50,6 +50,7 @@ import {
     formatUserAtributes,
     getAttributeLengthBounds,
     getAttributeViolation,
+    getStatedLengthBounds,
     getInputOptionLabels,
     getSelectOptionLabel,
     getTranslationLabel,
@@ -508,7 +509,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     // Stated under the field so the bound is known before it is broken, and
     // measured on blur so nothing the admin types is ever altered for them.
     const lengthHint = (attr: UserProfileAttribute): string | undefined => {
-        const bounds = getAttributeLengthBounds(attr)
+        const bounds = getStatedLengthBounds(getAttributeLengthBounds(attr))
         if (!bounds) {
             return undefined
         }

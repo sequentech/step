@@ -264,3 +264,38 @@ export const isHiddenAttribute = (attribute: UserProfileAttribute): boolean => {
 
     return hidden === true || (typeof hidden === "string" && hidden.trim().toLowerCase() === "true")
 }
+
+/**
+ * The largest maximum worth stating under a field. Keycloak's own base
+ * attributes carry maxima in the hundreds as scaffolding rather than as a rule
+ * anyone types into, and clients tend to copy that for free-text attributes, so
+ * stating them would put a hint under most of a voter form for a bound nobody
+ * reaches.
+ */
+const STATED_MAXIMUM_LENGTH = 100
+
+export interface StatedLengthBounds {
+    min?: number
+    max?: number
+}
+
+/**
+ * The bounds worth stating under a field, or undefined when none of them are.
+ * The field is still checked against everything the validator sets: this only
+ * decides what is worth saying up front.
+ */
+export const getStatedLengthBounds = (
+    bounds: AttributeLengthBounds | undefined
+): StatedLengthBounds | undefined => {
+    if (!bounds) {
+        return undefined
+    }
+
+    // A minimum of one says only that the value is present, which the field
+    // already says by being required or not.
+    const min = bounds.min !== undefined && bounds.min > 1 ? bounds.min : undefined
+    const max =
+        bounds.max !== undefined && bounds.max <= STATED_MAXIMUM_LENGTH ? bounds.max : undefined
+
+    return min === undefined && max === undefined ? undefined : {min, max}
+}
