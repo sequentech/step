@@ -97,6 +97,7 @@ interface AttributeTextInputProps {
     error?: boolean
     helperText?: string
     label: string
+    maxLength?: number
     onCommit: (value: string) => void
     onValidate?: (value: string) => void
     required: boolean
@@ -113,6 +114,7 @@ const AttributeTextInput: React.FC<AttributeTextInputProps> = ({
     error,
     helperText,
     label,
+    maxLength,
     onCommit,
     onValidate,
     required,
@@ -138,6 +140,7 @@ const AttributeTextInput: React.FC<AttributeTextInputProps> = ({
             helperText={helperText}
             required={required}
             fullWidth
+            slotProps={{htmlInput: {maxLength}}}
             InputLabelProps={type === "date" ? {shrink: true} : undefined}
         />
     )
@@ -1122,6 +1125,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 label={getTranslationLabel(attr.name, attr.display_name, t)}
                                 error={!!lengthErrors[attr.name]}
                                 helperText={lengthErrors[attr.name] ?? lengthHint(attr)}
+                                maxLength={getAttributeLengthBounds(attr)?.max}
                                 onValidate={validateLength(attr)}
                                 value={value}
                                 onCommit={(newValue) => {
@@ -1156,6 +1160,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 source={attr.name}
                                 error={!!lengthErrors[attr.name]}
                                 helperText={lengthErrors[attr.name] ?? lengthHint(attr)}
+                                slotProps={{
+                                    htmlInput: {maxLength: getAttributeLengthBounds(attr)?.max},
+                                }}
                                 required={isFieldRequired(attr)}
                                 disabled={
                                     (attr.name === "username" && !createMode) ||

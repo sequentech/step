@@ -64,10 +64,12 @@ The Admin Portal states the bounds under the field, so they are known before the
 checks the value when the field is left. A value that breaks a bound marks the field and says which
 bound it broke, and the voter cannot be saved until it is corrected.
 
-The field is deliberately not capped while it is being typed. A cap applied as you type discards the
-end of a pasted value without saying so, and makes a stored value that is already longer than the
-maximum impossible to correct, since a browser will refuse to extend it but will not shorten it. A
-minimum cannot be applied that way at all, so both bounds are checked the same way instead.
+A field with a maximum also stops accepting characters once it is reached, so the maximum cannot be
+exceeded by typing. Note that pasting a longer value into such a field keeps only what fits, without
+warning, and that a stored value already longer than the maximum can only be shortened, never
+extended — in that case the field reports the value as too long until it is brought within the
+bound. A minimum cannot be applied while typing at all, so it is only checked when the field is
+left.
 
 By default Keycloak measures the value with leading and trailing spaces removed, and the Admin
 Portal measures it the same way. Setting the validator's `trim-disabled` option changes both.
