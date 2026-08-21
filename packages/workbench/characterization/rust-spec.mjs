@@ -94,3 +94,18 @@ export function specClassify(cells) {
         }))
     ).map((o) => o.tally)
 }
+
+/**
+ * BallotValidator's cross-contest gate OR for a batch of ballots. Each ballot
+ * is an array of per-contest {config, voteState}.
+ * @param {{config: object, voteState: object}[][]} ballots
+ * @returns {{hard: boolean, soft: boolean}[]} one per ballot, in order
+ */
+export function specBallot(ballots) {
+    return run(
+        ballots.map((contests) => ({
+            kind: "ballot",
+            contests: contests.map((c) => ({config: c.config, voteState: c.voteState})),
+        }))
+    )
+}

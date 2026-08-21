@@ -13,12 +13,24 @@
 //!    "selection": "none|regular|marker|mixed"}
 //!       → {"tally": "<BallotClass>"} — probes the classifier with
 //!         synthetic error states, as classifier-table.mjs does
+//!   {"kind": "ballot", "contests": [{config, voteState}, …]}
+//!       → {"hard": b, "soft": b} — BallotValidator's cross-contest gate OR,
+//!         for ballot-gate-composition.mjs
 //!
 //! Deterministic and side-effect free: no clock, no randomness, no files.
 
 use serde::Deserialize;
 use std::io::Read;
-use validation_spec::{classify, f, Config, SelectionClass, VoteState};
+use validation_spec::{
+    classify, f, BallotValidator, Config, ContestValidator, SelectionClass, VoteState,
+};
+
+#[derive(Deserialize)]
+struct ContestCell {
+    config: Config,
+    #[serde(rename = "voteState")]
+    vote_state: VoteState,
+}
 
 #[derive(Deserialize)]
 #[serde(tag = "kind")]
@@ -37,6 +49,8 @@ enum Cell {
         has_errors: bool,
         selection: SelectionClass,
     },
+    #[serde(rename = "ballot")]
+    Ballot { contests: Vec<ContestCell> },
 }
 
 fn main() {
@@ -60,6 +74,16 @@ fn main() {
                 serde_json::json!({
                     "tally": classify(*decline, *flag, *has_errors, *selection)
                 })
+            }
+            Cell::Ballot { contests } => {
+                let votes = contests
+                    .iter()
+                    .map(|c| {
+                        ContestValidator::from_config(c.config).for_vote_state(c.vote_state)
+                    })
+                    .collect();
+                let bv = BallotValidator::from_votes(votes);
+                serde_json::json!({ "hard": bv.hard_gate(), "soft": bv.soft_gate() })
             }
         })
         .collect();

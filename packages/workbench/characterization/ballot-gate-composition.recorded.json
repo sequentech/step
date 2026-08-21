@@ -1,0 +1,123 @@
+{
+  "pairs": 9,
+  "disagreements": [],
+  "rows": [
+    {
+      "a": "none",
+      "b": "none",
+      "observed": {
+        "hard": false,
+        "soft": false
+      },
+      "expected": {
+        "hard": false,
+        "soft": false
+      },
+      "ok": true
+    },
+    {
+      "a": "none",
+      "b": "hard",
+      "observed": {
+        "hard": true,
+        "soft": false
+      },
+      "expected": {
+        "hard": true,
+        "soft": false
+      },
+      "ok": true
+    },
+    {
+      "a": "none",
+      "b": "soft",
+      "observed": {
+        "hard": false,
+        "soft": true
+      },
+      "expected": {
+        "hard": false,
+        "soft": true
+      },
+      "ok": true
+    },
+    {
+      "a": "hard",
+      "b": "none",
+      "observed": {
+        "hard": true,
+        "soft": false
+      },
+      "expected": {
+        "hard": true,
+        "soft": false
+      },
+      "ok": true
+    },
+    {
+      "a": "hard",
+      "b": "hard",
+      "observed": {
+        "hard": true,
+        "soft": false
+      },
+      "expected": {
+        "hard": true,
+        "soft": false
+      },
+      "ok": true
+    },
+    {
+      "a": "hard",
+      "b": "soft",
+      "observed": {
+        "hard": true,
+        "soft": true
+      },
+      "expected": {
+        "hard": true,
+        "soft": true
+      },
+      "ok": true
+    },
+    {
+      "a": "soft",
+      "b": "none",
+      "observed": {
+        "hard": false,
+        "soft": true
+      },
+      "expected": {
+        "hard": false,
+        "soft": true
+      },
+      "ok": true
+    },
+    {
+      "a": "soft",
+      "b": "hard",
+      "observed": {
+        "hard": true,
+        "soft": true
+      },
+      "expected": {
+        "hard": true,
+        "soft": true
+      },
+      "ok": true
+    },
+    {
+      "a": "soft",
+      "b": "soft",
+      "observed": {
+        "hard": false,
+        "soft": true
+      },
+      "expected": {
+        "hard": false,
+        "soft": true
+      },
+      "ok": true
+    }
+  ]
+}
