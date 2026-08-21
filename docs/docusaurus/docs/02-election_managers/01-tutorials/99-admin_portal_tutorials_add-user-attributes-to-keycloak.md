@@ -55,6 +55,21 @@ To show a date input field:
 1. In **Annotations** > **Add annotation**, set Key: `Input type`, Value: `multiselect-checkboxes`
 2. **TODO:** Implementation pending
 
+## Hiding an Attribute
+
+An attribute that is carried on the voter but is not meant to be seen or edited can be marked
+hidden: in **Annotations** > **Add annotation**, set Key: `hidden`, Value: `true`.
+
+A hidden attribute is left off the voter-facing enrollment and login forms, and off the Admin
+Portal's voter list and its create and edit forms — it is not shown as a column, is not offered in
+the columns selector or the filters, and is not shown as a field.
+
+Hiding an attribute does not remove or alter it. Its value is still stored, still carried through
+when a voter is edited, and still included when voters are exported.
+
+Note this is different from setting the `Input type` annotation to `hidden`, which is Keycloak's own
+way of rendering an attribute as a hidden input on a form rather than keeping it off the form.
+
 ## Limiting the Number of Characters
 
 To bound how much text an attribute accepts, **Add Validator** > **Validator type**: `length`, and

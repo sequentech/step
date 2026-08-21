@@ -8,6 +8,7 @@ import {
     getAttributeLengthViolation,
     getAttributeViolation,
     getInputOptionLabels,
+    isHiddenAttribute,
     getSelectOptionDescription,
     getSelectOptionLabel,
     resolveOptionLabel,
@@ -248,5 +249,31 @@ describe("getAttributeViolation", () => {
         // characters, within the bounds, and not a required field left empty.
         expect(getAttributeViolation(untrimmed, "   ", true)).toBeUndefined()
         expect(getAttributeViolation(untrimmed, "    ", true)).toBe("tooLong")
+    })
+})
+
+describe("isHiddenAttribute", () => {
+    it("reads the flag Keycloak's admin console writes, as a string", () => {
+        expect(isHiddenAttribute(attribute({annotations: {hidden: "true"}}))).toBe(true)
+        expect(isHiddenAttribute(attribute({annotations: {hidden: "TRUE"}}))).toBe(true)
+        expect(isHiddenAttribute(attribute({annotations: {hidden: " true "}}))).toBe(true)
+    })
+
+    it("reads the flag a realm configuration carries, as a boolean", () => {
+        expect(isHiddenAttribute(attribute({annotations: {hidden: true}}))).toBe(true)
+    })
+
+    it("does not hide an attribute that is not marked", () => {
+        expect(isHiddenAttribute(attribute({annotations: {hidden: "false"}}))).toBe(false)
+        expect(isHiddenAttribute(attribute({annotations: {hidden: false}}))).toBe(false)
+        expect(isHiddenAttribute(attribute({annotations: {hidden: ""}}))).toBe(false)
+        expect(isHiddenAttribute(attribute({annotations: {}}))).toBe(false)
+        expect(isHiddenAttribute(attribute({}))).toBe(false)
+    })
+
+    // inputType: "hidden" is Keycloak's own annotation for a hidden input and
+    // means something else entirely.
+    it("does not confuse the flag with a hidden input type", () => {
+        expect(isHiddenAttribute(attribute({annotations: {inputType: "hidden"}}))).toBe(false)
     })
 })

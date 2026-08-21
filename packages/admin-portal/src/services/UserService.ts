@@ -248,3 +248,19 @@ export const getAttributeViolation = (
 
     return getAttributeLengthViolation(bounds, value)
 }
+
+/**
+ * Whether an attribute is marked hidden.
+ *
+ * This is Sequent's own annotation rather than a Keycloak one: Keycloak stores
+ * and returns it without acting on it, and the login theme reads it to keep the
+ * attribute off the voter-facing forms. Keycloak's admin console writes
+ * annotation values as strings while a realm configuration can carry a boolean,
+ * so both are accepted, matching how the enrollment extension reads it.
+ */
+export const isHiddenAttribute = (attribute: UserProfileAttribute): boolean => {
+    const annotations = attribute.annotations as {hidden?: unknown} | null | undefined
+    const hidden = annotations?.hidden
+
+    return hidden === true || (typeof hidden === "string" && hidden.trim().toLowerCase() === "true")
+}
