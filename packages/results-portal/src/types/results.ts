@@ -135,6 +135,8 @@ export interface ResultsRow {
     explicit_blank_votes_percent?: ResultsSqlNumber
     implicit_blank_votes?: ResultsSqlNumber
     implicit_blank_votes_percent?: ResultsSqlNumber
+    blank_ballots?: ResultsSqlNumber
+    blank_ballots_percent?: ResultsSqlNumber
     total_votes?: ResultsSqlNumber
     total_votes_percent?: ResultsSqlNumber
     total_auditable_votes?: ResultsSqlNumber

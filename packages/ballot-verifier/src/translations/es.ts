@@ -76,6 +76,7 @@ const spanishTranslation: TranslationType = {
             points: "({{points}} Puntos)",
             contestNotFound: "Pregunta no encontrada: {{contestId}}",
             declineToVote: "Se abstuvo de votar",
+            blankBallot: "Papeleta en blanco",
         },
         footer: {
             poweredBy: "Funciona con <1></1>",

@@ -349,7 +349,7 @@ export const EditElectionEventCAs: React.FC = () => {
 
     const confirmExportAction = async () => {
         if (!record?.id) return
-        const currWidget = addWidget(ETasksExecution.EXPORT_CERTIFICATE_AUTHORITIES, undefined)
+        const currWidget = addWidget(ETasksExecution.EXPORT_CERTIFICATE_AUTHORITIES, true)
         try {
             const {data, errors} = await exportCA({
                 variables: {

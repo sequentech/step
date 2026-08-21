@@ -55,6 +55,13 @@ const basqueTranslation: TranslationType = {
                 continue: "Jarraitu",
                 cancel: "Utzi",
             },
+            blankBallotDialog: {
+                title: "Ez duzu hautagairik hautatu",
+                content:
+                    "Ez duzu inolako hautaketarik egin. Zure boto-txartela zuri gisa aurkeztuko da, aukera baliozko eta nahitakoa da eta horrela zenbatuko da.",
+                continue: "Jarraitu",
+                cancel: "Utzi",
+            },
         },
         startScreen: {
             startButton: "Hasi Bozketa",
@@ -87,6 +94,9 @@ const basqueTranslation: TranslationType = {
             backButton: "Editatu bozketa",
             castBallotButton: "Eman bozketa",
             auditButton: "Egiaztatu bozketa",
+            copyBallotId: "Kopiatu bozketa IDa",
+            ballotIdCopied: "Bozketa IDa kopiatu da",
+            ballotIdCopyError: "Ezin izan da bozketa IDa kopiatu",
             reviewScreenHelpDialog: {
                 title: "Berrikuspena pantailari buruz",
                 content:
@@ -111,6 +121,13 @@ const basqueTranslation: TranslationType = {
                 title: "Ziur zaude zure botoa eman nahi duzula?",
                 content: "Berretsi ondoren, zure botoa emango da.",
                 ok: "Bai, nire botoa eman nahi dut",
+                cancel: "Ezeztatu",
+            },
+            confirmCastBlankBallotDialog: {
+                title: "Ziur zaude boto-txartel zuria aurkeztu nahi duzula?",
+                content:
+                    "Ez duzu hautagairik hautatu. Berretsi ondoren, zure boto-txartela zuri gisa aurkeztuko da.",
+                ok: "Bai, nire boto-txartel zuria aurkeztu nahi dut",
                 cancel: "Ezeztatu",
             },
             error: {
@@ -204,11 +221,16 @@ const basqueTranslation: TranslationType = {
                     "Barne-errore bat gertatu da botoa ematean. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin.",
             },
             declineToVote: "Bozkatzeari uko egin",
+            blankBallot: "Boto-txartel zuria",
         },
         confirmationScreen: {
             title: "Zure botoa eman da",
             description:
                 "Beheko berrespen kodeak egiaztatzen du <b>zure bozketa arrakastaz eman dela</b>. Kode hau erabil dezakezu zure bozketa kontatu dela egiaztatzeko.",
+            blankBallot: {
+                description:
+                    "Zure boto-txartela zuri gisa aurkeztu da, aukera baliozko eta nahitakoa da.",
+            },
             ballotId: "Bozketa IDa",
             printButton: "Inprimatu",
             finishButton: "Amaitu",

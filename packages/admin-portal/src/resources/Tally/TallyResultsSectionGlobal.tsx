@@ -10,9 +10,15 @@ import {
 import {useTranslation} from "react-i18next"
 import {Sequent_Backend_Candidate_Extended} from "./types"
 import {useAtomValue} from "jotai"
-import {sortCandidates} from "@/utils/candidateSort"
 import {tallyQueryData} from "@/atoms/tally-candidates"
-import {ICountingAlgorithm, TallySheetVotingChannel, VotingStatusChannel} from "@sequentech/ui-core"
+import {
+    IContestPresentation,
+    ICountingAlgorithm,
+    parseEntityPresentation,
+    sortByPresentationOrder,
+    TallySheetVotingChannel,
+    VotingStatusChannel,
+} from "@sequentech/ui-core"
 import {parseProcessResults, parseResultAnnotations} from "./utils"
 import {RunoffStatus} from "./types"
 import {LoadingResults} from "./TallyElectionsResults"
@@ -42,6 +48,13 @@ export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesPro
     const tallyData = useAtomValue(tallyQueryData)
     const aliasRenderer = useAliasRenderer()
     const defaultElectionLang = useDefaultElectionLang(electionId, electionEventId)
+    const contest = useMemo(
+        () =>
+            tallyData?.sequent_backend_contest?.find(
+                (candidateContest) => candidateContest.id === contestId
+            ),
+        [contestId, tallyData?.sequent_backend_contest]
+    )
 
     const candidates: Array<Sequent_Backend_Candidate> | undefined = useMemo(
         () =>
@@ -92,26 +105,32 @@ export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesPro
     }, [results, candidates, aliasRenderer, defaultElectionLang])
 
     const orderedResultsData = useMemo(() => {
-        return [...resultsData].sort(sortCandidates)
-    }, [resultsData])
+        const candidatesOrder = parseEntityPresentation<IContestPresentation>(
+            contest?.presentation
+        )?.candidates_order
+
+        return sortByPresentationOrder(resultsData, candidatesOrder, {
+            getLabel: (candidate) => candidate.name,
+            getPresentation: (candidate) => candidate.presentation,
+        })
+    }, [contest?.presentation, resultsData])
 
     const contestName = useMemo(() => {
         if (!contestId || !tallyData) return undefined
 
-        const contest = tallyData?.sequent_backend_contest?.find(
-            (contest) => contest.id === contestId
-        )
         if (!contest?.presentation) return undefined
 
-        return aliasRenderer(contest.presentation)
-    }, [contestId, tallyData, i18n.language, aliasRenderer])
+        return aliasRenderer(contest.presentation, defaultElectionLang)
+    }, [contest, i18n.language, aliasRenderer, defaultElectionLang])
 
     const electionName: string | undefined = useMemo(() => {
         const election = tallyData?.sequent_backend_election?.find(
             (election) => election.id === electionId
         )
-        return election?.presentation ? aliasRenderer(election.presentation) : undefined
-    }, [tallyData?.sequent_backend_election, electionId, aliasRenderer])
+        return election?.presentation
+            ? aliasRenderer(election.presentation, defaultElectionLang)
+            : undefined
+    }, [tallyData?.sequent_backend_election, electionId, aliasRenderer, defaultElectionLang])
 
     const processResults = useMemo(
         () =>

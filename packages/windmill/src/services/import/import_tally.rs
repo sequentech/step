@@ -262,6 +262,8 @@ async fn process_results_election_file(
             last_updated_at,
             total_voters_percent,
             documents,
+            blank_ballots: None,
+            blank_ballots_percent: None,
         };
 
         results_elections.push(results_election);
@@ -515,6 +517,12 @@ async fn process_tally_session_execution_file(
             status,
             results_event_id: new_results_event_id,
             documents: None,
+            // Imported history is never a pending request: an event arriving
+            // with a RECOUNT row would otherwise have its tally replayed by the
+            // first process_board tick after the import. NULL reads as NORMAL,
+            // and `insert_many_tally_session_executions` does not carry this
+            // column anyway (the same as `documents`).
+            run_reason: None,
         };
 
         tally_session_executions.push(tally_session_execution);
@@ -571,6 +579,8 @@ async fn process_results_election_area_file(
             last_updated_at,
             documents,
             name,
+            blank_ballots: None,
+            blank_ballots_percent: None,
         };
 
         results_elections_areas.push(results_election_area);
