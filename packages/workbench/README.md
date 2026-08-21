@@ -369,12 +369,18 @@ excluding portal sources from the check.
 
 ## What's next
 
-Where the work stands (2026-08-19): the validation characterization is
-complete. Production is compared against one executable spec
-**exhaustively** on the headless domain — 276,480 cells, plurality and
+Where the work stands (2026-08-21, caught up to `origin/main`
+`da683e463b`): the validation characterization is complete, and now runs
+on merged code. The catch-up brought main's Blank Ballots work (velvet's
+`do_tally` changes forward-ported into velvet-core) and the fifth
+`invalid_vote_policy` value `allowed-with-exclusive-explicit`, which is
+characterized (≡ `allowed` for every emitted effect; its marker-exclusivity
+clear booth-confirmed). Every instrument was re-run green on merged code.
+Production is compared against one executable spec
+**exhaustively** on the headless domain — 345,600 cells, plurality and
 preferential, zero disagreements — and **per cell** in the real booth
 (229/229), with the browser-side independence claims discharged by
-sufficiency (156,416 cells via 2,208 quotient classes)
+sufficiency (195,520 cells via 2,616 quotient classes)
 ([characterization/README.md](characterization/README.md)). The findings
 are no longer things somebody noticed: each is a **property derived from
 the certified spec**, with an acceptance test so the derivation cannot
@@ -426,7 +432,7 @@ which artifact ships, roughly by payoff:
    number unrelated to the ballot. It does not miscount any vote; it
    corrupts what the voter is told at casting time, in both directions —
    a dialog on a ballot the checker is content with, and no dialog where
-   the policy promises one. Exhaustive over 276,480 certified cells,
+   the policy promises one. Exhaustive over 345,600 certified cells,
    confirmed in a real booth, with git provenance showing the count
    predates preferential contests by fifteen months and was not revisited
    when they arrived ([docs/UPSTREAM_FINDINGS.md](docs/UPSTREAM_FINDINGS.md)
@@ -454,10 +460,11 @@ Standing maintenance, as upstream moves:
   recurring `do_tally` forward-ports (Known gaps above); until then,
   budget the port on each catch-up merge and reconcile the strand
   divergence deliberately rather than by merge default.
-- **When #2949's `allowed-with-exclusive-explicit` reaches `main`**,
-  extend the invalid-rule characterization with the fifth policy value —
-  both current marker directions are already observed as its baseline
-  (INVALID_VOTE_POLICY_INTENT.md §8).
+- **The fifth `invalid_vote_policy` value is characterized** (done
+  2026-08-21, when `allowed-with-exclusive-explicit` reached `main`): it
+  is ≡ `allowed` for every emitted effect (certified by the sweep) and
+  its marker-exclusivity clear is booth-confirmed
+  (INVALID_VOTE_POLICY_INTENT.md §8; UPSTREAM_FINDINGS.md S1/S5).
 - **After any portal refresh**, re-run the characterization suite
   (headless runners + `dom-validate.mjs`) and the consumer census —
   LIFTING.md's refresh runbook ends with this step.

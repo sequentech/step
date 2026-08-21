@@ -330,15 +330,14 @@ account of current behaviour, not as original design intent.
 
 ## 8. Upstream evolution: the exclusivity variant (#2949)
 
-`23932601d2` ("✨ Explicit Invalid/Decline to vote should support
-mutual exclusivity (#2949)", 2026-08-05) — merged to the
-`release/10.0` branch family, **not yet on `origin/main`** and absent
-from this workbench's tree — adds a fifth value,
-`allowed-with-exclusive-explicit`: per its commit message, the null
-marker and other selections become mutually exclusive, mirroring the
-blank marker's clearing behaviour (the exact reducer mechanics are not
-verifiable from this tree). Its doc line also states why the default
-does *not* clear:
+The exclusivity variant (#2941/#2949) adds a fifth value,
+`allowed-with-exclusive-explicit`, under which the null marker and other
+selections become mutually exclusive, mirroring the blank marker's
+clearing behaviour. As of the 2026-08-21 catch-up it is **on `main` and
+characterized by this workbench** (units 3a/3b): the reducer mechanics
+are now verified in tree — `ballotSelectionsSlice.ts` clears the flag
+when a candidate is selected and clears candidates when the flag is set.
+Its doc line states why the default does *not* clear:
 
 > "Combining an explicit-invalid selection with other candidates
 > (e.g. via an older client) is still tallied like Allowed, since
@@ -352,14 +351,16 @@ client reliance. What #2949 does not address is S5's privacy facet —
 under every `allowed`-family default the latent candidate preference
 is still encrypted into the cast ballot.
 
-**Workbench follow-up:** when #2949 reaches main, the invalid-rule
-characterization gains a fifth policy value, and marker exclusivity
-(`ballotSelectionsSlice.ts`) becomes policy-dependent for the invalid
-marker — which today has **no** exclusivity (the mixed state forms; only
-the blank marker clears). Both current directions are observed in
-`characterization/dom-validate.md` (invalid `marker_plus` reachable;
-blank `regular_then_marker` → `no (cleared)`), giving the fifth value a
-full observed baseline to diff against.
+**Workbench status (done):** the invalid-rule characterization now carries
+the fifth policy value, and marker exclusivity is policy-dependent for the
+invalid marker — it clears under `allowed-with-exclusive-explicit` and
+persists under the other four. All three directions are booth-observed in
+`characterization/dom-validate.md`: the invalid `marker_plus` cell is
+reachable under the four non-exclusive policies (the S5 baseline) and
+`reachable=false, constraintKind=marker_cleared` under the fifth; the
+blank `regular_then_marker` clears as before. The spec models it in
+`reachability()` and the sweep certifies the value ≡ `allowed` for every
+emitted effect (345,600 headless cells, 0 disagreements).
 
 ## 9. Bearing on the findings
 

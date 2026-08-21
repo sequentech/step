@@ -555,11 +555,11 @@ This is not a rewrite proposal. The path is incremental:
 >   one link, not two (`EVIDENCE_RESTRUCTURE.md`). Per-rule tables
 >   survive as documentation rendered from the spec.
 > - **Validation (the evidence layer).** Production ≡ the spec
->   **exhaustively** on the representable headless domain — 276,480
+>   **exhaustively** on the representable headless domain — 345,600
 >   cells, plurality and preferential, zero disagreements
 >   (`headless-sweep.md`); per cell in the real booth (229/229,
 >   `dom-validate.md`); by sufficiency for the browser-side independence
->   claims (2,208 quotient classes covering 156,416 cells,
+>   claims (2,616 quotient classes covering 195,520 cells,
 >   `quotient-validate.md`, under the source-verified props-boundary
 >   license and its re-entry condition); and by witness for the
 >   browser-side dependence claims (`browser-witnesses.md`).
@@ -570,12 +570,14 @@ This is not a rewrite proposal. The path is incremental:
 > - **Findings, now derived rather than noticed.** Each is a property the
 >   analysis layer evaluates over the whole certified domain, with an
 >   acceptance test so the derivation cannot lose it.
->   *no-silent-discount*: 3,168 cells in exactly the two known families
->   (`selectedMin`, `selectedMax`) — no new families — and all 80
->   permitting configurations require `invalid_vote_policy = allowed`,
->   now exhaustively rather than by argument. Five representatives are
+>   *no-silent-discount*: 6,336 cells in exactly the two known families
+>   (`selectedMin`, `selectedMax`) — no new families — and all 160
+>   permitting configurations require `invalid_vote_policy ∈ {allowed,
+>   allowed-with-exclusive-explicit}` (the fifth value inherits the
+>   defect, muting identically), now exhaustively rather than by
+>   argument. Five representatives are
 >   confirmed booth → encrypt → cast → decrypt → decode → tally
->   (`reproduce-verify.mjs`). *gate/checker count agreement*: 6,200 cells
+>   (`reproduce-verify.mjs`). *gate/checker count agreement*: 8,576 cells
 >   where the dialog the voter meets differs from the one the ballot
 >   warrants, in five shapes — filed as S6. Recipes in `REPRODUCE.md`,
 >   escalation in `UPSTREAM_FINDINGS.md`, policy intent in

@@ -272,7 +272,7 @@ executable **witness** per dependence — a concrete pair of cells that
 differ in that one input and produce different values, which is what
 settles an existential claim; `headless-sweep.mjs` discharges the
 headless independence claims by exhaustion (production ≡ spec on all
-276,480 **representable** cells — those a bundled fixture can actually
+345,600 **representable** cells — those a bundled fixture can actually
 drive; `cell.mjs`'s `representable()` names the rest, with the
 reason each is out of reach) and emits the **quotient inventory** — the
 classes defined just below, with one representative cell each;
@@ -281,7 +281,7 @@ witnesses; `quotient-validate.mjs` discharges the browser-side
 independence claims by **sufficiency** — the filter reads the inputs only
 through a computed summary, so cells sharing that summary must behave
 alike and one booth run settles the whole class (one run per reachable
-emissions × consulted-policies class — 156,416 cells covered via 2,208
+emissions × consulted-policies class — 195,520 cells covered via 2,616
 classes). Zero disagreements on every stage; everything unreachable is
 labelled with its unblocking condition.
 
@@ -300,7 +300,7 @@ against the spec.
 
 | command (`node characterization/…`) | produces |
 |---|---|
-| `headless-sweep.mjs` | `headless-sweep.md` + `.recorded.json` — production (real WASM checker/gates/tally) vs the Rust spec on **every** cell of the representable headless domain: all six policies × sane bounds × plurality states × the reachable preferential states; **276,480 cells, ~1 min**. This is the exhaustive fidelity check, and it emits the quotient inventory the browser stage consumes |
+| `headless-sweep.mjs` | `headless-sweep.md` + `.recorded.json` — production (real WASM checker/gates/tally) vs the Rust spec on **every** cell of the representable headless domain: all six policies × sane bounds × plurality states × the reachable preferential states; **345,600 cells, ~1 min**. This is the exhaustive fidelity check, and it emits the quotient inventory the browser stage consumes |
 | `classifier-table.mjs` | `classifier-table.recorded.json` + `.md` — velvet-wasm's real tally vs the spec's `classify` on the classifier's own 32-cell cross-product, including the decline inputs the decode cannot reach |
 
 ### Evidence — browser (dev server on :5173)
@@ -360,14 +360,14 @@ preference:
    the input domain directly — all six policies × sane bounds × every
    vote state a bundled fixture can drive, plurality and preferential
    (malformed rankings and well-formed ones alike) — and compares
-   production against the spec on every one of its **276,480** cells. It
+   production against the spec on every one of its **345,600** cells. It
    is rule-agnostic: nothing in it knows what a rule is.
 2. **Sufficiency.** Where the booth is far too slow to enumerate,
    [`quotient-validate.mjs`](quotient-validate.mjs) covers by equivalence
    class instead. The inline filter reads its inputs only through
    (emissions, the four consulted policies, observation point), so one
-   booth run settles every cell sharing that summary: **156,416** cells
-   via **2,208** runs, on a license that is source-verified and carries a
+   booth run settles every cell sharing that summary: **195,520** cells
+   via **2,616** runs, on a license that is source-verified and carries a
    re-entry condition.
 3. **Cell by cell.** For what neither reaches — chiefly the booth-side
    effects on specific cells: [`dom-validate.md`](dom-validate.md) drives
@@ -390,9 +390,9 @@ artifact's own legend carries its labels and residues.
 
 | Role | Covered by | Status |
 |---|---|---|
-| Checkers | exhaustion | production ≡ spec on every swept cell (`headless-sweep.md`, **276,480**, plurality and preferential). One sweep serves **both** bands: the tally decode runs the identical function, so this is also the tally-side checker characterization |
-| Gates | exhaustion | both gates **and** the dialog projection on all 276,480 swept cells (`headless-sweep.md`) |
-| Filter | per-cell, then sufficiency | `dom-validate.md`: every grid cell through the real booth via the reviewer path, inline observed at both observation points, the untouched view asserted empty per cell — **229/229**. Beyond the grids, the independence claims are discharged by sufficiency (`quotient-validate.md`, 2,208 classes / 156,416 cells) |
+| Checkers | exhaustion | production ≡ spec on every swept cell (`headless-sweep.md`, **345,600**, plurality and preferential). One sweep serves **both** bands: the tally decode runs the identical function, so this is also the tally-side checker characterization |
+| Gates | exhaustion | both gates **and** the dialog projection on all 345,600 swept cells (`headless-sweep.md`) |
+| Filter | per-cell, then sufficiency | `dom-validate.md`: every grid cell through the real booth via the reviewer path, inline observed at both observation points, the untouched view asserted empty per cell — **229/229**. Beyond the grids, the independence claims are discharged by sufficiency (`quotient-validate.md`, 2,616 classes / 195,520 cells) |
 | Input constraint | per-cell | the `reachable` column of `dom-validate.md` across every rule cell (the state forms or it does not), **plus** direct evidence for both prevention mechanisms: the over-vote `disable` policy (`no (disabled)`, from probing the (max+1)th control's `disabled` attribute) and blank-marker exclusivity (`no (cleared)`, the marker collapsing a co-selected regular) |
 | Marker exclusivity (prevention) | per-cell, plus the crypto chain | characterized by *attempting* each state through the UI and recording whether it forms. Both directions recorded in `dom-validate`: the invalid marker does **not** clear (`marker_plus` forms — reachable `yes`, confirmed end-to-end by `invalid-latent-choices-e2e.mjs`), the blank marker **does** (`regular_then_marker` collapses to {marker only} — `no (cleared)`). Open: the decline booth flow |
 | Tally classifier | exhaustion, plus a direct decision table | the `tally` column on every swept cell, plus the standalone 32-cell six-class table (`classifier-table.md`, 32/32 matching the documented precedence — and the only production evidence for decline) |
@@ -422,15 +422,15 @@ the derivation cannot quietly lose the finding it exists to produce.
 
 - **no-silent-discount** ([`no-silent-discount.md`](no-silent-discount.md))
   — no reachable cell should show the voter nothing at any casting point
-  and then have the tally class it `ImplicitInvalid`. **3,168 cells in
-  exactly two families** (`selectedMin`, `selectedMax`), and all 80
-  permitting configurations require `invalid_vote_policy = allowed` —
-  exhaustively, where that was previously an argument over 248 recorded
-  cells. Escalated as S1/S2.
+  and then have the tally class it `ImplicitInvalid`. **6,336 cells in
+  exactly two families** (`selectedMin`, `selectedMax`), and all 160
+  permitting configurations require `invalid_vote_policy ∈ {allowed,
+  allowed-with-exclusive-explicit}` — exhaustively (the fifth value
+  mutes like `allowed`, so it inherits the defect). Escalated as S1/S2.
 - **gate/checker count agreement**
   ([`gate-count-agreement.md`](gate-count-agreement.md)) — the count the
   gates decide from should equal the checker's. It does not on ranked
-  ballots: **6,200 cells where the dialog the voter meets differs from the
+  ballots: **8,576 cells where the dialog the voter meets differs from the
   one the ballot warrants**, in five shapes. Escalated as S6.
 
 Both are escalated in

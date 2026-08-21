@@ -256,6 +256,23 @@ combination be flagged at configuration time? **Reproduce:**
 [REPRODUCE.md](REPRODUCE.md) Part 1, Recipe 1 (over-vote) and Recipe 2
 (below-min).
 
+**Upstream evolution (2026-08-21, widens the finding).** `main` now
+carries a fifth `invalid_vote_policy` value,
+`allowed-with-exclusive-explicit` (#2941), added for a different purpose
+(it makes the invalid marker mutually exclusive — the S5 resolution
+below). It behaves **identically to `allowed` at the checker, both gates
+and the message filter** — it emits nothing, gates like `allowed`, and
+mutes with the same two-entry keep-list — verified exhaustively on the
+catch-up branch (production ≡ spec on 345,600 headless cells, 0
+disagreements). So it **inherits S1 exactly**: the no-silent-discount
+property, evaluated over the certified domain, now reports the
+silent-discount configurations DOUBLING from 80 to 160, the new 80 all
+requiring `invalid = allowed-with-exclusive-explicit`, in the same two
+families (`selectedMin`, `selectedMax`); 6,336 cells in total. Wherever
+this finding reads `invalid = allowed`, read `invalid ∈ {allowed,
+allowed-with-exclusive-explicit}` — both are signal-free at the filter,
+so both discount silently. The consultation question stands for both.
+
 ## S2. (S1 ∩ S3) A deliberate explicit-blank vote silently discarded when `min_votes ≥ 2`
 
 *This is the intersection of S1 (silent discounting) and S3 (a deliberate
@@ -412,19 +429,23 @@ them intended (and if so, why)? **Reproduce:** [REPRODUCE.md](REPRODUCE.md)
 Part 2 (decrypt the cast ciphertext in the ballot pipeline; the choice
 falls out of the plaintext).
 
-**Upstream evolution (2026-08-05, substantially answers the mechanism
-question):** `23932601d2` ("✨ Explicit Invalid/Decline to vote should
-support mutual exclusivity (#2949)", on `release/10.0`, not yet on
-`origin/main`) adds a fifth policy value
-`allowed-with-exclusive-explicit` that does exactly what the question
-above proposes — the null marker clears other selections — as an
-**opt-in**, and documents why the default does not: combining
-explicit-invalid with candidates "remains an intentionally supported
-ballot shape for clients that rely on it". So preservation is
-intended (client reliance) and exclusivity is now available. **Open
-residue:** the privacy-adjacent facet — under the default the latent
-preference is still encrypted into the cast ballot, and #2949 does
-not address it. See
+**Upstream evolution (landed on `main`, and now characterized):** the
+fifth policy value `allowed-with-exclusive-explicit` (#2941/#2949) does
+exactly what the question above proposes — the invalid marker clears
+other selections, and vice versa — as an **opt-in**, documenting why the
+default does not: combining explicit-invalid with candidates "remains an
+intentionally supported ballot shape for clients that rely on it". So
+preservation is intended (client reliance) and exclusivity is now
+available. As of the 2026-08-21 catch-up this value is on `main` and the
+workbench characterizes it: the exclusivity clear is booth-confirmed —
+`dom-validate.md`'s `(allowed-with-exclusive-explicit, marker_plus)` cell
+records `reachable=false, constraintKind=marker_cleared` (the flag is
+cleared when the regular is selected), the mirror of the blank marker.
+**Open residue, unchanged:** the privacy-adjacent facet — under the
+DEFAULT (`allowed`) the latent preference is still encrypted into the
+cast ballot, confirmed end-to-end again on merged code
+(`invalid-latent-choices-e2e`), and the new value does not address it
+because it is opt-in. See
 [INVALID_VOTE_POLICY_INTENT.md §8](INVALID_VOTE_POLICY_INTENT.md).
 
 ## S6. On a ranked ballot the submission gates count only first preferences
@@ -451,18 +472,18 @@ emissions, which use the correct count; the gates feed nothing into the
 tally. No vote is miscounted. This corrupts *what the voter is told at
 casting time*, in both directions.
 
-**Scope** (exhaustive over the 276,480 cells `headless-sweep.md`
-certifies): the two counts disagree on 92,160 cells. On 85,960 another
-clause fires either way, so nothing reaches the voter. On **6,200** the
+**Scope** (exhaustive over the 345,600 cells `headless-sweep.md`
+certifies): the two counts disagree on 115,200 cells. On 106,624 another
+clause fires either way, so nothing reaches the voter. On **8,576** the
 dialog the voter meets differs from the one the ballot warrants:
 
 | consequence | cells |
 |---|---|
-| dialog kind changed: dismissible → blocking | 1,644 |
-| dialog kind changed: blocking → dismissible | 1,532 |
-| dialog with **nothing** rendered inline (should be no dialog) | 1,456 |
-| **missing** dialog the policy promises | 1,120 |
-| spurious dialog (should be none) | 448 |
+| dialog kind changed: dismissible → blocking | 2,192 |
+| dialog kind changed: blocking → dismissible | 1,776 |
+| dialog with **nothing** rendered inline (should be no dialog) | 1,952 |
+| **missing** dialog the policy promises | 2,000 |
+| spurious dialog (should be none) | 656 |
 
 Malformed rankings (a duplicate or a gap) only ever see the dialog's
 *kind* change, because their error's policy raises a dialog either way.
