@@ -52,6 +52,22 @@ class MessageBundleTest {
   }
 
   @Test
+  void everyLocaleDefinesTheGenericCredentialsMessage() throws IOException {
+    // MultiAttributePasswordAuthenticator uses this instead of Keycloak's invalidUserMessage,
+    // which reads "Invalid username or password" on a form that has no username field. A locale
+    // missing the key would fall back to showing the key name to the voter.
+    for (String language : List.of("ca", "en", "es", "eu", "fr", "gl", "nl", "tl")) {
+      String message = load(language).getProperty("invalidCredentialsMessage");
+      assertTrue(message != null && !message.isBlank(), language + " is missing the key");
+      assertTrue(
+          !message.toLowerCase(Locale.ROOT).contains("usuari")
+              && !message.toLowerCase(Locale.ROOT).contains("username")
+              && !message.toLowerCase(Locale.ROOT).contains("erabiltzaile"),
+          language + " still names a username: " + message);
+    }
+  }
+
+  @Test
   void everyLocalePreservesAllGroupStatusPlaceholders() throws IOException {
     for (String language : List.of("ca", "en", "es", "eu", "fr", "gl", "nl", "tl")) {
       String status = load(language).getProperty("structuredCredentialGroupStatus");

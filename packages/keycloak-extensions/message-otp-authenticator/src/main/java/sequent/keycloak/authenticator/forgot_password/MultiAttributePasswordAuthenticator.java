@@ -48,6 +48,13 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
   public static final String PROVIDER_ID = "multi-attribute-password-form";
 
   /**
+   * Shown for every failed attempt. Deliberately not Keycloak's {@code invalidUserMessage}: that
+   * reads "Invalid username or password", and this form has no username field - the voter matched
+   * on profile attributes. Defined in the Sequent theme's message bundles.
+   */
+  public static final String INVALID_CREDENTIALS_MESSAGE = "invalidCredentialsMessage";
+
+  /**
    * Renders the active theme's own {@code login.ftl} (voting-portal / admin-portal), instead of a
    * bespoke template, so this authenticator gets the same registration link, social-provider
    * buttons, remember-me and password-visibility toggle as the standard login form. {@code
@@ -127,7 +134,7 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
 
   private void fail(AuthenticationFlowContext context, MultivaluedMap<String, String> formData) {
     context.getEvent().error(Errors.INVALID_USER_CREDENTIALS);
-    Response challengeResponse = challenge(context, formData, Messages.INVALID_USER);
+    Response challengeResponse = challenge(context, formData, INVALID_CREDENTIALS_MESSAGE);
     context.failureChallenge(AuthenticationFlowError.INVALID_CREDENTIALS, challengeResponse);
     context.clearUser();
   }
