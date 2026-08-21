@@ -27,16 +27,24 @@
 //! There is no observation-context input: the observation point indexes
 //! the OUTPUT of the one category it parameterizes (inline).
 //!
-//! This crate is a **characterization artifact**, not production code: it
-//! transcribes the production rules bug-compatibly, with every surprising
-//! behaviour carried as a named quirk (see [`quirks`]) tied to its
-//! suspect/defect entry in `docs/UPSTREAM_FINDINGS.md`. Removing or
-//! toggling a quirk is an adjudication decision, not a refactor — until
-//! consultation blesses a change, this crate must match the live system.
-//! Equivalence is checked two ways (see
-//! `characterization/rust-conformance.mjs`): against the recorded
-//! wasm-observed ground truth of every characterization cell, and against
-//! `spec.mjs` over a large seeded-random input sample.
+//! This crate is a **characterization artifact**, not production code, and it
+//! holds TWO implementations side by side:
+//!
+//!   * the **frozen oracle** — `f` and the free functions it composes
+//!     (`emissions`, `hard_gate`, `soft_gate`, `inline_views`, `classify`,
+//!     `reachability`). It transcribes the production rules bug-compatibly,
+//!     every surprising behaviour carried as a named quirk (see [`quirks`])
+//!     tied to its suspect/defect entry in `docs/UPSTREAM_FINDINGS.md`. It is
+//!     checked against the real WASM cell by cell over the certified domain
+//!     by `characterization/headless-sweep.mjs` — production ≡ oracle, and it
+//!     stays that way.
+//!   * the **rationalized implementation** — the query-provider (`f_fixed`,
+//!     [`queries`]), written as if the accidents had never existed. It is
+//!     MEANT to diverge from the oracle; `characterization/fix-diff.md` shows
+//!     where and attributes every difference to one intended fix. Which
+//!     quirks it fixes versus preserves is the fix ledger — the `disposition`
+//!     on each [`quirks`] entry. We make those fix decisions autonomously
+//!     (distillation step 5); upstream reviews them at merge.
 //!
 //! Enum wire strings match the production JSON values exactly (the same
 //! strings the recorded tables carry); the *type names* are
@@ -60,7 +68,7 @@ pub const EXPLICIT_NOT_ALLOWED: &str = "errors.explicit.notAllowed";
 pub const EXPLICIT_ALERT: &str = "errors.explicit.alert";
 
 mod queries;
-pub use queries::{BallotValidator, ContestValidator, ObservationPoint, VoteValidator};
+pub use queries::{f_fixed, BallotValidator, ContestValidator, ObservationPoint, VoteValidator};
 
 /// Messages whose `error_type` is Explicit or EncodingError — the hard
 /// gate's fast path fires on any of them. The encoding/configuration keys
@@ -680,12 +688,27 @@ pub fn f(config: &Config, vs: &VoteState) -> Effects {
 // Quirk registry — the enumerated accidental complexity
 // ---------------------------------------------------------------------------
 
-/// A named surprising behaviour this crate reproduces bug-compatibly. Each
-/// entry ties a code site (the `QUIRK(...)` comment bearing the same id)
-/// to its suspect/defect record. Toggling or removing one is an
-/// adjudication decision (the three-state model —
-/// characterization/README.md); until then the spec must match the live
-/// system, and the conformance harness enforces that it does.
+/// A quirk's disposition in the rationalized implementation (`f_fixed`) —
+/// the fix ledger. The frozen oracle carries every quirk regardless (it is
+/// production's record); this is what the rewrite does with each.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum QuirkDisposition {
+    /// Gone by construction — an accident you cannot write on purpose, so the
+    /// rational rewrite simply does not contain it. The consequence is a bucket
+    /// in `characterization/fix-diff.md` (or none, if the quirk was latent).
+    FixedInRewrite,
+    /// A real rule the rewrite still encodes; whether the rule is itself
+    /// wrong is a deliberate judgment deferred to distillation step 5 phase 3.
+    PendingJudgment,
+    /// Judged intentional upstream and kept as a rule.
+    Kept,
+}
+
+/// A named surprising behaviour, carried bug-compatibly by the frozen oracle
+/// (`f`). Each entry ties a code site (the `QUIRK(...)` comment bearing the
+/// same id) to its suspect/defect record and records its `disposition` in the
+/// rationalized `f_fixed`. `characterization/fix-diff.md` shows the
+/// consequence of each fixed one.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct QuirkInfo {
     pub id: &'static str,
@@ -694,18 +717,22 @@ pub struct QuirkInfo {
     /// Where in this crate the behaviour lives.
     pub site: &'static str,
     pub description: &'static str,
+    /// What the rationalized implementation does with it.
+    pub disposition: QuirkDisposition,
 }
 
 pub fn quirks() -> &'static [QuirkInfo] {
     &[
         QuirkInfo {
             id: "S6_GATES_COUNT_FIRST_PREFERENCES_ONLY",
+            disposition: QuirkDisposition::FixedInRewrite,
             finding: "S6 (UPSTREAM_FINDINGS.md; derived by gate-count-agreement.md)",
             site: "gate_selections (both gates)",
             description: "the gates count only rank-0 selections                           (choice.selected == 0, voting_screen.rs) while the                           checker counts every ranked one (selected > -1,                           raw_ballot.rs); identical on plurality, divergent on                           ranked ballots, so a ranked ballot with no first                           preference is gated as BLANK and a WARN_AND_ALERT                           under-vote alert can fire with no dialog",
         },
         QuirkInfo {
             id: "S1_ALLOWED_MUTES_IMPLICIT_ERRORS",
+            disposition: QuirkDisposition::PendingJudgment,
             finding: "S1 (and INVALID_VOTE_POLICY_INTENT.md §5)",
             site: "rendered_keys (master keep-list)",
             description: "under invalid=allowed every error is hidden except \
@@ -715,6 +742,7 @@ pub fn quirks() -> &'static [QuirkInfo] {
         },
         QuirkInfo {
             id: "S2_ERROR_OUTRANKS_BLANK_MARKER",
+            disposition: QuirkDisposition::PendingJudgment,
             finding: "S2",
             site: "classify (invalid guard precedes marker guard)",
             description: "a marker-only ballot with any error classifies \
@@ -724,6 +752,7 @@ pub fn quirks() -> &'static [QuirkInfo] {
         },
         QuirkInfo {
             id: "S3_MARKER_COUNTS_AS_SELECTION",
+            disposition: QuirkDisposition::PendingJudgment,
             finding: "S3",
             site: "selections_with_markers",
             description: "the blank marker and the invalid flag each count as \
@@ -731,6 +760,7 @@ pub fn quirks() -> &'static [QuirkInfo] {
         },
         QuirkInfo {
             id: "S4_GATE_REDERIVES_UNDERVOTE_AT_ZERO",
+            disposition: QuirkDisposition::FixedInRewrite,
             finding: "S4",
             site: "soft_gate (under-vote clause)",
             description: "the gate re-derives the under-vote zone with an \
@@ -739,6 +769,7 @@ pub fn quirks() -> &'static [QuirkInfo] {
         },
         QuirkInfo {
             id: "S4_UNDERVOTE_ZONE_INCLUDES_ZERO",
+            disposition: QuirkDisposition::FixedInRewrite,
             finding: "S4 (checker half)",
             site: "emissions (under-vote clause)",
             description: "the checker's zone min ≤ n < max includes n = 0 \
@@ -746,6 +777,7 @@ pub fn quirks() -> &'static [QuirkInfo] {
         },
         QuirkInfo {
             id: "S5_INVALID_MARKER_PRESERVES_CHOICES",
+            disposition: QuirkDisposition::Kept,
             finding: "S5",
             site: "reachability (no marker_cleared for the invalid marker)",
             description: "the blank marker clears co-selected regulars; the \
@@ -754,6 +786,7 @@ pub fn quirks() -> &'static [QuirkInfo] {
         },
         QuirkInfo {
             id: "D3_SELECTED_MAX_ALERT_SELF_DEDUP",
+            disposition: QuirkDisposition::FixedInRewrite,
             finding: "Defect 3",
             site: "rendered_keys (dedup block)",
             description: "the dedup predicate matches the very alert under \

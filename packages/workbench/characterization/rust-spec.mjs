@@ -78,6 +78,18 @@ export function specF(cells) {
 }
 
 /**
+ * The RATIONALIZED implementation's mapping (`f_fixed`, the query-provider) —
+ * the "after" leg of the diff report. Same cell shape as {@link specF}.
+ * @param {{config: object, voteState: object}[]} cells
+ * @returns {object[]} one `Effects` record per cell, in order
+ */
+export function specFixed(cells) {
+    return run(
+        cells.map((c) => ({kind: "fixed", config: c.config, voteState: c.voteState}))
+    )
+}
+
+/**
  * Probe the classifier directly on a batch of hand-shaped decoded ballots —
  * the inputs decode cannot reach (decline; see `classifier-table.mjs`).
  * @param {{decline: boolean, flag: boolean, hasErrors: boolean, selection: string}[]} cells

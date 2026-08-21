@@ -201,10 +201,13 @@ at each observation point, reachability, and the tally class. Runners
 reach it through [`rust-spec.mjs`](rust-spec.mjs), which batches cells
 through the crate's `emit-grid` binary; the cell definitions live in
 [`rule-specs.mjs`](rule-specs.mjs) (`specConfig` / `voteState` / `RULE_ROWS`
-— what each row means in spec terms). The crate is **bug-compatible**, with
+— what each row means in spec terms). `f` is **bug-compatible** — the frozen oracle — with
 every surprising behaviour carried as a named **quirk** (`quirks()` in its
-`lib.rs`, each tied to its UPSTREAM_FINDINGS.md suspect — toggling one is an
-adjudication decision, not a refactor).
+`lib.rs`, each tied to its UPSTREAM_FINDINGS.md suspect). Alongside it the
+crate carries a **rationalized** implementation, `f_fixed` (the query-provider),
+that fixes or preserves each quirk per its `disposition` — the fix ledger — with
+every deliberate divergence recorded in `fix-diff.md`. The predictions the
+evidence and analysis layers compare against are always the oracle's.
 
 ### Three kinds of tool: evidence, analysis, documentation
 
@@ -215,7 +218,7 @@ mechanical — **does it touch production, and what does its failure mean?**
 | kind | touches production? | a failing run means | files |
 |---|---|---|---|
 | **evidence** | yes — real WASM or a real browser | production and the spec disagree: **fidelity is broken** | `headless-sweep`, `classifier-table`, `ballot-gate-composition`, `dom-validate`, `quotient-validate`, `browser-witnesses`, the three `*-e2e-pipeline`s + `reproduce-verify` |
-| **analysis** | **no** — it consumes the certified spec | a finding it used to derive has stopped appearing: **the derivation is broken**, not production | `effect-dependencies`, `effect-map`, `no-silent-discount`, `gate-count-agreement` |
+| **analysis** | **no** — it consumes the certified spec | a finding it used to derive has stopped appearing: **the derivation is broken**, not production | `effect-dependencies`, `effect-map`, `no-silent-discount`, `gate-count-agreement`, `fix-diff` |
 | **documentation** | no | nothing — it cannot fail | `rule-tables` |
 
 **The evidence layer** establishes exactly one claim: **production ≡ the
@@ -337,6 +340,7 @@ These consume the certified spec. None of them observes production.
 | `effect-map.mjs` | `effect-map.md` — the human projection of the dependency ledger: the mapping as a causal diagram (Mermaid; topology checked against the ledger on every run), the functional-cancellations table, and per-knob cards. Pure JSON → markdown; instant |
 | `no-silent-discount.mjs` | `no-silent-discount.md` + `.report.json` — the no-silent-discount property, evaluated over every cell the sweep certifies. Fails if a violation already escalated as S1/S2 stops being found |
 | `gate-count-agreement.mjs` | `gate-count-agreement.md` + `.report.json` — the gate/checker count-agreement property (quirk S6). For every cell where the two counts differ it evaluates the mapping twice — as production behaves, and with the gates handed the checker's count — so the consequence is the *difference* in what the voter meets, derived rather than asserted. Reports its own domain limit |
+| `fix-diff.mjs` | `fix-diff.md` + `.report.json` — the rationalized implementation (`f_fixed`, the query-provider) against the frozen oracle (`f`) over the certified domain, every differing cell attributed to one intended fix (S6, S4; D3 is latent). This is the fork's acceptance check and the review artifact — **it fails on any unexplained difference**, or if a known fix stops biting |
 
 ### Documentation
 
@@ -453,8 +457,9 @@ tally. See VOTE_VALIDATION.md "Selection counting and marker candidates".
 1. **Spec.** Add the rule's checker emissions to
    [`../validation-spec/src/lib.rs`](../validation-spec/src/lib.rs)
    (transcribed from checker.rs, in decode order); any surprising
-   behaviour it carries gets a named entry in that crate's `quirks()`.
-   There is one spec now, so there is one place to do this.
+   behaviour it carries gets a named entry in that crate's `quirks()`
+   (with a `disposition` — does the rationalized `f_fixed` fix it or preserve
+   it). There is one spec now, so there is one place to do this.
 2. **Cells.** Add a `RULE_SPECS` entry in
    [`rule-specs.mjs`](rule-specs.mjs) (`specConfig` / `voteState` — what a
    row means in spec terms) and its grid to `RULE_ROWS`. Pick or extend a
