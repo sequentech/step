@@ -28,6 +28,7 @@ use crate::types::documents::EDocuments;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::try_join;
+use sequent_core::election_config::emit::{plain_csv, MULTI_VALUE_SEPARATOR, REPORT_COLUMNS};
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::s3;
@@ -450,18 +451,12 @@ pub async fn process_export_zip(
         let temp_reports_file = NamedTempFile::new()
             .map_err(|e| anyhow!("Error creating temporary reports file: {e:?}"))?;
         {
-            let mut wtr = csv::Writer::from_writer(&temp_reports_file);
-            wtr.write_record(&[
-                "ID",
-                "Election ID",
-                "Report Type",
-                "Template Alias",
-                "Cron Config",
-                "Encryption Policy",
-                "Password",
-                "Permission Labels",
-            ])
-            .map_err(|e| anyhow!("Error writing CSV header: {e:?}"))?;
+            // Written through the shared emitter. The header used to read "ID",
+            // "Election ID", … — harmless, because `process_reports_file` skips it
+            // and reads by index, but it meant an export and a generated bundle
+            // differed on sight for no reason. REPORT_COLUMNS is the one name for
+            // this file's shape.
+            let mut rows: Vec<Vec<String>> = Vec::new();
             for report in reports_data {
                 let password = get_password(
                     &hasura_transaction,
@@ -472,7 +467,7 @@ pub async fn process_export_zip(
                 .await?
                 .unwrap_or("".to_string());
 
-                wtr.write_record(&[
+                rows.push(vec![
                     report.id.to_string(),
                     report.election_id.unwrap_or_default().to_string(),
                     report.report_type.to_string(),
@@ -481,12 +476,15 @@ pub async fn process_export_zip(
                         .map_err(|e| anyhow!("Error serializing cron config: {e:?}"))?,
                     report.encryption_policy.to_string(),
                     password,
-                    report.permission_label.unwrap_or_default().join("|"),
-                ])
-                .map_err(|e| anyhow!("Error writing CSV record: {e:?}"))?;
+                    report
+                        .permission_label
+                        .unwrap_or_default()
+                        .join(MULTI_VALUE_SEPARATOR),
+                ]);
             }
-            wtr.flush()
-                .map_err(|e| anyhow!("Error flushing CSV writer: {e:?}"))?;
+
+            std::fs::write(temp_reports_file.path(), plain_csv(REPORT_COLUMNS, &rows))
+                .map_err(|e| anyhow!("Error writing reports CSV: {e:?}"))?;
         }
         let mut reports_file = File::open(temp_reports_file.path())
             .map_err(|e| anyhow!("Error opening temporary reports file: {e:?}"))?;

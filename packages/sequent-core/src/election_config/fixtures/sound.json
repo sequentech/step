@@ -1,0 +1,75 @@
+{
+  "_comment": "The base every case in cases.json patches. A bundle with nothing wrong with it: one election, one contest with two candidates, two areas in a parent chain, and a ballot linking the leaf area to the contest. Deliberately minimal — anything a case needs, the case adds.",
+  "tenant_id": "11111111-1111-4111-8111-111111111111",
+  "keycloak_event_realm": null,
+  "election_event": {
+    "id": "e0000000-0000-5000-8000-000000000000",
+    "tenant_id": "11111111-1111-4111-8111-111111111111",
+    "is_archived": false,
+    "encryption_protocol": "RSA256"
+  },
+  "elections": [
+    {
+      "id": "e1000000-0000-5000-8000-000000000000",
+      "tenant_id": "11111111-1111-4111-8111-111111111111",
+      "election_event_id": "e0000000-0000-5000-8000-000000000000",
+      "external_id": "officers"
+    }
+  ],
+  "contests": [
+    {
+      "id": "c1000000-0000-5000-8000-000000000000",
+      "tenant_id": "11111111-1111-4111-8111-111111111111",
+      "election_event_id": "e0000000-0000-5000-8000-000000000000",
+      "election_id": "e1000000-0000-5000-8000-000000000000",
+      "external_id": "president",
+      "min_votes": 0,
+      "max_votes": 1,
+      "winning_candidates_num": 1,
+      "voting_type": "non-preferential",
+      "counting_algorithm": "plurality-at-large"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "d1000000-0000-5000-8000-000000000000",
+      "tenant_id": "11111111-1111-4111-8111-111111111111",
+      "election_event_id": "e0000000-0000-5000-8000-000000000000",
+      "contest_id": "c1000000-0000-5000-8000-000000000000",
+      "external_id": "pres-a"
+    },
+    {
+      "id": "d2000000-0000-5000-8000-000000000000",
+      "tenant_id": "11111111-1111-4111-8111-111111111111",
+      "election_event_id": "e0000000-0000-5000-8000-000000000000",
+      "contest_id": "c1000000-0000-5000-8000-000000000000",
+      "external_id": "pres-b"
+    }
+  ],
+  "areas": [
+    {
+      "id": "a1000000-0000-5000-8000-000000000000",
+      "tenant_id": "11111111-1111-4111-8111-111111111111",
+      "election_event_id": "e0000000-0000-5000-8000-000000000000",
+      "name": "North Region"
+    },
+    {
+      "id": "a2000000-0000-5000-8000-000000000000",
+      "tenant_id": "11111111-1111-4111-8111-111111111111",
+      "election_event_id": "e0000000-0000-5000-8000-000000000000",
+      "name": "North Local 1",
+      "parent_id": "a1000000-0000-5000-8000-000000000000"
+    }
+  ],
+  "area_contests": [
+    {
+      "id": "b1000000-0000-5000-8000-000000000000",
+      "area_id": "a2000000-0000-5000-8000-000000000000",
+      "contest_id": "c1000000-0000-5000-8000-000000000000"
+    }
+  ],
+  "scheduled_events": null,
+  "reports": [],
+  "keys_ceremonies": [],
+  "applications": []
+}

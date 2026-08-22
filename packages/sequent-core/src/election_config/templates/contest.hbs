@@ -1,0 +1,56 @@
+{{!--
+SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+SPDX-License-Identifier: AGPL-3.0-only
+
+Base contest.  The vote counts and tally system below are what a contest gets when
+the workbook does not say: single-choice plurality, one winner.  They are values,
+not placeholders -- because they are always present, validation's MissingField rule
+for these five fields cannot fire on a built bundle, so build.rs warns for each one
+it had to stand in for.  Which of them should instead be mandatory is a product
+decision; see say_what_the_template_stood_in_for.
+--}}
+{
+    "id": "{{id}}",
+    "tenant_id": "{{tenant_id}}",
+    "election_event_id": "{{election_event_id}}",
+    "election_id": "{{election_id}}",
+    "created_at": "{{created_at}}",
+    "last_updated_at": "{{created_at}}",
+    "labels": null,
+    "annotations": null,
+    "is_acclaimed": false,
+    "is_active": true,
+    "description": "",
+    "presentation": {
+        "i18n": {
+            "en": {}
+        },
+        "columns": null,
+        "sort_order": null,
+        "allow_writeins": false,
+        "candidates_order": "custom",
+        "over_vote_policy": "not-allowed-with-msg-and-disable",
+        "blank_vote_policy": "warn-only-in-review",
+        "collapsible_lists": "disabled",
+        "pagination_policy": "1",
+        "under_vote_policy": "warn-only-in-review",
+        "invalid_vote_policy": "warn-invalid-implicit-and-explicit",
+        "duplicated_rank_policy": "allowed-warn-and-dialog",
+        "enable_checkable_lists": "allow-selecting-candidates",
+        "preference_gaps_policy": "allowed-warn-and-dialog",
+        "max_selections_per_type": null,
+        "candidates_icon_checkbox_policy": "square-checkbox"
+    },
+    "min_votes": 0,
+    "max_votes": 1,
+    "winning_candidates_num": 1,
+    "voting_type": "non-preferential",
+    "counting_algorithm": "plurality-at-large",
+    "is_encrypted": true,
+    "tally_configuration": {
+        "tie_breaking_policy": "random"
+    },
+    "image_document_id": null,
+    "conditions": null,
+    "external_id": null
+}

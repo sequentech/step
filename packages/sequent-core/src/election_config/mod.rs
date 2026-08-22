@@ -23,15 +23,78 @@
 //! See `beyond/docs/docusaurus/docs/engineering/election-config-architecture.md`
 //! and <https://github.com/sequentech/meta/issues/12769>.
 
+/// Turning a source document's rows into a bundle. Needs the templates, so it
+/// shares their feature.
+#[cfg(feature = "election_config_templates")]
+pub mod build;
+
+/// What a bundle becomes as files. Needs the builder, so it shares its feature;
+/// the zip writer itself is behind `election_config_archive`.
+#[cfg(feature = "election_config_templates")]
+pub mod archive;
+
+/// The Election Architect's plan, and how it becomes rows the builder reads.
+/// Needs the builder's feature, since compiling a plan means building a bundle.
+#[cfg(feature = "election_config_templates")]
+pub mod architect;
+
+pub mod branding;
+pub mod emit;
+pub mod ids;
+pub mod paths;
+pub mod presets;
+
+/// Bundles with known verdicts, shared by every caller of [`validate`] so the two
+/// reach the same answer rather than each agreeing with itself.
+pub mod fixtures;
 pub mod problem;
+
+/// Rendering the base entity templates, behind its own feature so a front end
+/// that only validates an existing bundle carries no template engine.
+#[cfg(feature = "election_config_templates")]
+pub mod render;
+
 pub mod report;
 pub mod schema;
+pub mod sheet;
+
+/// A moment a plan names, and the instant the platform acts on. Ungated: the
+/// scheduler's requirements are not a template concern.
+pub mod time;
 pub mod validate;
+
+/// Reading `.xlsx`, behind its own feature so front ends with no workbook to read
+/// do not carry a spreadsheet library.
+#[cfg(feature = "election_config_xlsx")]
+pub mod xlsx;
 
 #[cfg(test)]
 mod validate_tests;
 
+// Every re-export below carries the same gate as the module it names. A
+// re-export gated differently from its module is not a style question: `pub use
+// build::…` without a gate does not compile at all once the module is absent,
+// and `default_features` does not imply `election_config_templates` — so the
+// crate was broken for every feature set windmill, harvest, velvet and the
+// browser builds actually declare. `cargo build --workspace` hid it by unifying
+// step-cli's features across the graph, which is why only CI saw it.
+#[cfg(feature = "election_config_templates")]
+pub use architect::{validate_plan, Blueprint};
+#[cfg(feature = "election_config_templates")]
+pub use archive::{layout, Artifact, Layout};
+#[cfg(feature = "election_config_templates")]
+pub use build::{
+    build, BuildOptions, Bundle, CommunicationTemplate, JsonTable, PlainTable,
+};
+pub use emit::{json_csv, plain_csv, JsonField};
+pub use ids::IdFactory;
+pub use paths::{coerce_cell, deep_merge, expand, Cell};
+pub use presets::{AuthPreset, RealmPatch};
 pub use problem::{Code, Problem, Report as ValidationReport, Severity};
+#[cfg(feature = "election_config_templates")]
+pub use render::TemplateSet;
 pub use report::{EReportEncryption, Report, ReportCronConfig, ReportType};
 pub use schema::ImportElectionEventSchema;
+pub use sheet::{Origin, Row, Sheet, Workbook};
+pub use time::Timestamp;
 pub use validate::validate;
