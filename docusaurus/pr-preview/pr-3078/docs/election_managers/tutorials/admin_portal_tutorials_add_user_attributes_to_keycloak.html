@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Adding User Attributes to Keycloak | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3078/docs/election_managers/tutorials/admin_portal_tutorials_add_user_attributes_to_keycloak"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Adding User Attributes to Keycloak | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3078/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3078/docs/election_managers/tutorials/admin_portal_tutorials_add_user_attributes_to_keycloak"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3078/docs/election_managers/tutorials/admin_portal_tutorials_add_user_attributes_to_keycloak" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3078/docs/election_managers/tutorials/admin_portal_tutorials_add_user_attributes_to_keycloak" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Adding User Attributes to Keycloak","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3078/docs/election_managers/tutorials/admin_portal_tutorials_add_user_attributes_to_keycloak"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3078/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/pr-preview/pr-3078/assets/js/runtime~main.c125067b.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3078/assets/js/runtime~main.f749055d.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3078/assets/js/main.376a0c79.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -53,11 +53,18 @@ the Admin Portal ignores it, because it reads a different set of translations.</
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="hiding-an-attribute">Hiding an Attribute<a href="#hiding-an-attribute" class="hash-link" aria-label="Direct link to Hiding an Attribute" title="Direct link to Hiding an Attribute" translate="no">​</a></h2>
 <p>An attribute that is carried on the voter but is not meant to be seen or edited can be marked
 hidden: in <strong>Annotations</strong> &gt; <strong>Add annotation</strong>, set Key: <code>hidden</code>, Value: <code>true</code>.</p>
+<p>The value must be exactly <code>true</code>. This is matched literally, so <code>TRUE</code> or a value with spaces around
+it does not hide anything — the voter-facing forms read the annotation the same way, and matching it
+any more loosely here would hide an attribute from administrators while voters still saw it.</p>
 <p>A hidden attribute is left off the voter-facing enrollment and login forms, and off the Admin
 Portal&#x27;s voter list and its create and edit forms — it is not shown as a column, is not offered in
-the columns selector or the filters, and is not shown as a field.</p>
+the columns selector or the filters, and is not shown as a field. The Approvals screens are not
+affected and still show it.</p>
 <p>Hiding an attribute does not remove or alter it. Its value is still stored, still carried through
 when a voter is edited, and still included when voters are exported.</p>
+<p>Hiding is therefore about keeping a form readable, not about restricting access: the value is still
+sent to the browser and still appears in exports. To control who may read or write an attribute, set
+its permissions in <strong>Realm settings</strong> &gt; <strong>User profile</strong> instead.</p>
 <p>Do not mark an attribute both hidden and required: creating a voter through the Admin Portal would
 then be impossible, since the field it insists on is one the form does not show.</p>
 <p>Note this is different from setting the <code>Input type</code> annotation to <code>hidden</code>, which is Keycloak&#x27;s own
