@@ -199,6 +199,26 @@ fn an_archive_entry_names_the_file_the_plan_points_at() {
     assert_eq!(name("images/document_2f1c_"), None);
 }
 
+/// A plan with nobody in it still saves as a save file.
+///
+/// **The one the contract check found.** Telling a save file from a delivery by
+/// "does it have a `census.csv`" looked equivalent to telling them apart by the
+/// nested zip, and is not: a plan with no members writes an archive with a single
+/// member, which was then read as a delivery — so the wizard's own save file was
+/// the one file it could not recognise, and only for the plans most likely to be
+/// saved early.
+#[test]
+fn a_save_file_with_nothing_beside_the_plan_is_still_a_save_file() {
+    let saved = super::super::archive::save_file(&sound(), &Sources::default())
+        .expect("a plan with no census saves");
+
+    let opened = open(&saved.bytes).expect("and opens");
+    assert_eq!(opened.source, Source::PlanArchive);
+    assert_eq!(opened.plan.external_id, "union-2027");
+    assert!(opened.sources.census.is_none());
+    assert!(opened.sources.files.is_empty());
+}
+
 /// Reopening a delivery brings its census and its files back.
 ///
 /// It did not. The delivery branch read `blueprint.json` and returned

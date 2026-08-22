@@ -321,11 +321,15 @@ fn open_delivery(bytes: &[u8], names: &[String]) -> Result<Opened, Report> {
         .map(|area| (area.name.clone(), area.external_id.clone()))
         .collect();
 
-    // The root first. A save file is the wizard's own format and the only one that
-    // can be assumed complete.
-    let saved = names
+    // **Which of the two this is, decided by the nested zip and not by the census.**
+    // A delivery holds `official_election_setup.zip`; a save file does not. Asking
+    // whether `census.csv` is present looked equivalent and is not: a plan with no
+    // members saves as a zip with a single member, and reading that as a delivery
+    // makes the wizard's own save file the one file it cannot recognise. The
+    // contract check caught it on the first plan it tried.
+    let saved = !names
         .iter()
-        .any(|name| name == super::archive::CENSUS_MEMBER);
+        .any(|name| name == super::archive::IMPORTABLE_MEMBER);
     let (census_text, files, source) = if saved {
         (
             entry(bytes, super::archive::CENSUS_MEMBER)
