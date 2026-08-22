@@ -84,8 +84,15 @@ pub mod schema;
 pub mod sheet;
 
 /// What travels beside a plan rather than inside it: the census, and the files a
-/// plan names. Ungated — a plan describes these whether or not this build can
-/// render a template, and `validate_plan` has to be able to check them.
+/// plan names.
+///
+/// Behind the same feature as [`architect`], because it yields that module's
+/// `PlannedVoter` and every consumer — `validate_plan`, `to_workbook`, `build` —
+/// is behind it too. Left ungated when it was written, on the theory that a plan
+/// describes these things whether or not the build can render a template; that
+/// theory was wrong in fact, since `validate_plan` lives in `architect`, and it
+/// cost a feature combination that would not compile.
+#[cfg(feature = "election_config_templates")]
 pub mod sources;
 
 /// A moment a plan names, and the instant the platform acts on. Ungated: the

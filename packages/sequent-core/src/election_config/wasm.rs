@@ -321,7 +321,7 @@ pub fn build_from_workbook(
         Err(problem) => return failed(problem).map(IBuildOutput::from),
     };
 
-    let built = build(&read, &templates, &options);
+    let built = build(&read, &templates, &options, &Sources::default());
 
     let bundle = match built {
         Ok(bundle) => bundle,

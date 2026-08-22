@@ -183,7 +183,7 @@ fn compiled(plan: &Blueprint) -> Bundle {
         materials: plan_materials(plan),
         ..BuildOptions::default()
     };
-    match build(&workbook, &templates, &options) {
+    match build(&workbook, &templates, &options, &Sources::default()) {
         Ok(bundle) => bundle,
         Err(report) => panic!("expected a clean build, got:\n{report}"),
     }
@@ -2741,7 +2741,12 @@ fn a_row_naming_a_file_nobody_supplied_is_refused() {
     let templates = TemplateSet::builtin().unwrap();
     // The sheet, with the bytes deliberately withheld — which is exactly what a
     // workbook arriving without its folder of files looks like.
-    let outcome = build(&workbook, &templates, &BuildOptions::default());
+    let outcome = build(
+        &workbook,
+        &templates,
+        &BuildOptions::default(),
+        &Sources::default(),
+    );
 
     let report = match outcome {
         Ok(bundle) => bundle.warnings,
@@ -2773,7 +2778,8 @@ fn a_file_nobody_names_is_said_out_loud() {
         ..BuildOptions::default()
     };
 
-    let bundle = build(&workbook, &templates, &options).expect("a clean build");
+    let bundle = build(&workbook, &templates, &options, &Sources::default())
+        .expect("a clean build");
     assert!(bundle
         .warnings
         .problems
@@ -2951,7 +2957,12 @@ fn a_sheet_naming_a_logo_nobody_supplied_is_refused() {
     let workbook = workbook_of(&plan).expect("a workbook");
     let templates = TemplateSet::builtin().unwrap();
     // The bytes deliberately withheld — a workbook arriving without its folder.
-    let outcome = build(&workbook, &templates, &BuildOptions::default());
+    let outcome = build(
+        &workbook,
+        &templates,
+        &BuildOptions::default(),
+        &Sources::default(),
+    );
     let report = match outcome {
         Ok(bundle) => bundle.warnings,
         Err(report) => report,

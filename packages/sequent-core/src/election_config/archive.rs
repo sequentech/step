@@ -403,6 +403,7 @@ mod tests {
     use crate::election_config::paths::Cell;
     use crate::election_config::render::TemplateSet;
     use crate::election_config::sheet::{Sheet, Workbook};
+    use crate::election_config::sources::Sources;
 
     fn text(value: &str) -> Cell {
         Cell::text(value)
@@ -458,8 +459,13 @@ mod tests {
         .unwrap();
 
         let templates = TemplateSet::builtin().unwrap();
-        build(&workbook, &templates, &BuildOptions::default())
-            .expect("a clean build")
+        build(
+            &workbook,
+            &templates,
+            &BuildOptions::default(),
+            &Sources::default(),
+        )
+        .expect("a clean build")
     }
 
     fn names(artifacts: &[Artifact]) -> Vec<&str> {

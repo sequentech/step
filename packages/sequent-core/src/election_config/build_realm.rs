@@ -478,16 +478,38 @@ impl Builder<'_> {
 
     /// The census's columns that are not the platform's own.
     ///
-    /// From the sheet's headers rather than from the rows: a column present in the
-    /// header and empty in every row is still a column the author declared, and
-    /// dropping it here would mean an attribute that appears the moment somebody fills
-    /// one cell in.
+    /// From the headers rather than from the rows: a column present in the header
+    /// and empty in every row is still a column the author declared, and dropping it
+    /// here would mean an attribute that appears the moment somebody fills one cell
+    /// in.
+    ///
+    /// **From the source's headers where there is a source.** This is the one place
+    /// the census's *shape* decides something outside the census, and it decides it
+    /// silently — Keycloak drops an attribute its user profile does not declare, so
+    /// a column that never reaches this list is a value the sign-in flow reads as
+    /// absent, with no error anywhere. A census that is a file rather than a `Vec`
+    /// can answer "which columns" from its first line, which is why
+    /// [`CensusSource::columns`] exists at all; asking the Voters sheet instead
+    /// would mean the answer could not be given until every row had been read into
+    /// memory.
+    ///
+    /// The sheet is still the answer for a workbook built straight from xlsx, which
+    /// has no source. `the_realm_declares_the_same_attributes_either_way` is what
+    /// keeps the two from drifting.
     fn census_attributes(&self) -> Vec<String> {
-        let Some(sheet) = self.workbook.sheet(SHEET_VOTERS) else {
-            return Vec::new();
+        let sheet_headers = || {
+            self.workbook
+                .sheet(SHEET_VOTERS)
+                .map(|sheet| sheet.headers.clone())
+                .unwrap_or_default()
         };
+        let headers = match self.census {
+            Some(census) => census.columns().to_vec(),
+            None => sheet_headers(),
+        };
+
         let mut found: Vec<String> = Vec::new();
-        for header in &sheet.headers {
+        for header in &headers {
             let name = header.trim();
             if name.is_empty()
                 || VOTER_LEADING_COLUMNS.contains(&name)

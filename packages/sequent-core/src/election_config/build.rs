@@ -31,6 +31,7 @@ use crate::election_config::sheet::{
     SHEET_ELECTION_EVENT, SHEET_MATERIALS, SHEET_PARAMETERS, SHEET_REPORTS,
     SHEET_SCHEDULED_EVENTS,
 };
+use crate::election_config::sources::{CensusSource, Sources};
 use crate::types::ceremonies::CeremoniesPolicy;
 use serde_json::{json, Map, Value};
 
@@ -424,8 +425,9 @@ pub fn build(
     workbook: &Workbook,
     templates: &TemplateSet,
     options: &BuildOptions,
+    sources: &Sources,
 ) -> Result<Bundle, Report> {
-    Builder::new(workbook, templates, options)?.build()
+    Builder::new(workbook, templates, options, sources)?.build()
 }
 
 struct Builder<'a> {
@@ -455,6 +457,18 @@ struct Builder<'a> {
     slug: String,
     ids: IdFactory,
 
+    /// The census this build was handed, where it was handed one.
+    ///
+    /// **Only its `columns()` are read**, and that is the whole reason it is here.
+    /// `declare_census_attributes` turns every census column into a Keycloak
+    /// user-profile attribute, and Keycloak silently drops an attribute its profile
+    /// does not declare — so the column list has to be answerable without reading a
+    /// census, which a `Vec` of rows cannot promise and a source can.
+    ///
+    /// The rows still come from the workbook's Voters sheet. See
+    /// [`Builder::build_voters`] for why, and for what has to change first.
+    census: Option<&'a dyn CensusSource>,
+
     /// `external_id` -> generated UUID, per entity kind.
     election_ids: Vec<(String, String)>,
     contest_ids: Vec<(String, String)>,
@@ -467,6 +481,7 @@ impl<'a> Builder<'a> {
         workbook: &'a Workbook,
         templates: &'a TemplateSet,
         options: &BuildOptions,
+        sources: &'a Sources,
     ) -> Result<Self, Report> {
         let mut report = Report::default();
         let event_row = event_row(workbook).map_err(|problem| {
@@ -503,6 +518,7 @@ impl<'a> Builder<'a> {
             ceremony_policy: options.ceremony_policy.clone(),
             images: options.images.clone(),
             materials: options.materials.clone(),
+            census: sources.census.as_deref(),
             workbook,
             templates,
             base_export,

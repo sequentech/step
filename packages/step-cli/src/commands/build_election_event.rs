@@ -19,6 +19,7 @@ use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use colored::Colorize;
 use sequent_core::election_config::render::ENTITY_TEMPLATES;
+use sequent_core::election_config::sources::Sources;
 use sequent_core::election_config::xlsx::read_xlsx;
 use sequent_core::election_config::{
     archive, build, presets, validate, BuildOptions, Bundle, ImportElectionEventSchema, Problem,
@@ -158,7 +159,7 @@ impl BuildElectionEvent {
             ceremony_policy: CeremoniesPolicy::MANUAL_CEREMONIES,
         };
 
-        let bundle = match build(&workbook, &templates, &options) {
+        let bundle = match build(&workbook, &templates, &options, &Sources::default()) {
             Ok(bundle) => bundle,
             Err(report) => {
                 report_problems(&report);

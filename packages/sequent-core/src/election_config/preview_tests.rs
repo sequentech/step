@@ -132,7 +132,12 @@ fn sound() -> Blueprint {
 fn built(plan: &Blueprint) -> Bundle {
     let workbook = workbook_of(plan).expect("the plan compiles to rows");
     let templates = TemplateSet::builtin().unwrap();
-    match build(&workbook, &templates, &BuildOptions::default()) {
+    match build(
+        &workbook,
+        &templates,
+        &BuildOptions::default(),
+        &Sources::default(),
+    ) {
         Ok(bundle) => bundle,
         Err(report) => panic!("expected a clean build, got:\n{report}"),
     }
@@ -630,6 +635,7 @@ fn a_candidates_photograph_previews_from_the_plans_own_bytes() {
             images: plan_images(&plan),
             ..BuildOptions::default()
         },
+        &Sources::default(),
     )
     .expect("a sound plan builds");
 

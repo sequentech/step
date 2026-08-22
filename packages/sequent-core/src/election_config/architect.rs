@@ -4054,7 +4054,7 @@ pub fn compile_plan(
         materials: plan_materials(plan),
         ..options.clone()
     };
-    let bundle = build(&workbook, templates, &with_ceremony)?;
+    let bundle = build(&workbook, templates, &with_ceremony, &sources)?;
 
     for problem in bundle.warnings.problems.clone() {
         report.push(problem);

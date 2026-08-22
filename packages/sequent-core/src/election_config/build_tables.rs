@@ -141,6 +141,25 @@ impl CommunicationTemplate {
 impl Builder<'_> {
     // -- voters -----------------------------------------------------------
 
+    /// The voters CSV, from the workbook's Voters sheet.
+    ///
+    /// **Not from `Builder::census`, and that is a decision rather than an
+    /// oversight.** Two reasons, and only the second is temporary.
+    ///
+    /// The Voters tab stays in the workbook — that was the owner's call — so the
+    /// census is already in memory here whatever this function reads. Iterating a
+    /// source instead would move no bytes; it would only add a second walk.
+    ///
+    /// The blocking reason is that a source yields [`PlannedVoter`], which cannot
+    /// carry three columns this reads: `enabled`, `email_verified` and
+    /// `authorized-election-ids`. All three are in `RowShape::OWNED`, so they are
+    /// excluded from `extra`, and `PlannedVoter` has no field for them. Routing
+    /// this through a source today would silently default every voter to enabled
+    /// and authorise every voter for **every election** — a restricted voter handed
+    /// ballots they should never see, with no problem reported anywhere.
+    ///
+    /// `a_source_cannot_yet_say_what_the_voters_sheet_says` pins that, so the day
+    /// the Voters tab does come out the change fails loudly instead.
     pub(super) fn build_voters(&mut self) -> PlainTable {
         let Some(sheet) = self.workbook.sheet(SHEET_VOTERS).cloned() else {
             return PlainTable::default();

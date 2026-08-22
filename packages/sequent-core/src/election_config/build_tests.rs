@@ -6,9 +6,11 @@
 //! there is builder.
 
 use super::*;
+use crate::election_config::architect::PlannedVoter;
 use crate::election_config::emit::JsonField;
 use crate::election_config::paths::Cell;
 use crate::election_config::sheet::Sheet;
+use crate::election_config::sources::{RowShape, Sources, VecCensus};
 
 fn text(value: &str) -> Cell {
     Cell::text(value)
@@ -107,7 +109,12 @@ fn with_sheet(name: &str, grid: Vec<Vec<Cell>>) -> Workbook {
 
 fn built(workbook: &Workbook) -> Bundle {
     let templates = TemplateSet::builtin().unwrap();
-    match build(workbook, &templates, &BuildOptions::default()) {
+    match build(
+        workbook,
+        &templates,
+        &BuildOptions::default(),
+        &Sources::default(),
+    ) {
         Ok(bundle) => bundle,
         Err(report) => panic!("expected a clean build, got:\n{report}"),
     }
@@ -115,7 +122,12 @@ fn built(workbook: &Workbook) -> Bundle {
 
 fn refused(workbook: &Workbook) -> Report {
     let templates = TemplateSet::builtin().unwrap();
-    match build(workbook, &templates, &BuildOptions::default()) {
+    match build(
+        workbook,
+        &templates,
+        &BuildOptions::default(),
+        &Sources::default(),
+    ) {
         Ok(_) => panic!("expected a refusal"),
         Err(report) => report,
     }
@@ -508,6 +520,7 @@ fn a_tenant_id_may_be_supplied() {
             tenant_id: Some("11111111-1111-4111-8111-111111111111".to_string()),
             ..BuildOptions::default()
         },
+        &Sources::default(),
     )
     .unwrap();
     assert_eq!(bundle.tenant_id, "11111111-1111-4111-8111-111111111111");
@@ -552,6 +565,7 @@ fn the_slug_comes_from_the_event_or_the_caller() {
             slug: Some("chosen".to_string()),
             ..BuildOptions::default()
         },
+        &Sources::default(),
     )
     .unwrap();
     assert_eq!(bundle.slug, "chosen");
@@ -578,6 +592,7 @@ fn a_created_at_may_be_supplied_and_reaches_every_entity() {
             created_at: Some("2030-06-01T00:00:00.000000Z".to_string()),
             ..BuildOptions::default()
         },
+        &Sources::default(),
     )
     .unwrap();
     assert_eq!(
@@ -691,6 +706,7 @@ fn a_base_export_contributes_fields_the_templates_do_not_know() {
             })),
             ..BuildOptions::default()
         },
+        &Sources::default(),
     )
     .unwrap();
     assert_eq!(
@@ -722,6 +738,7 @@ fn a_base_export_never_supplies_identity() {
             })),
             ..BuildOptions::default()
         },
+        &Sources::default(),
     )
     .unwrap();
 
@@ -753,6 +770,7 @@ fn a_base_export_does_not_override_what_the_author_wrote() {
             })),
             ..BuildOptions::default()
         },
+        &Sources::default(),
     )
     .unwrap();
     assert_eq!(
@@ -771,6 +789,7 @@ fn a_base_export_with_nothing_useful_in_it_changes_nothing() {
             base_export: Some(json!({"elections": [], "election_event": {}})),
             ..BuildOptions::default()
         },
+        &Sources::default(),
     )
     .unwrap();
     assert_eq!(
@@ -789,7 +808,13 @@ fn an_overridden_template_is_what_gets_built() {
         r#"{"id": "{{id}}", "name": "", "description": "", "presentation": {"allow_early_voting": "early_voting_allowed"}}"#,
     )])
     .unwrap();
-    let bundle = build(&sound(), &templates, &BuildOptions::default()).unwrap();
+    let bundle = build(
+        &sound(),
+        &templates,
+        &BuildOptions::default(),
+        &Sources::default(),
+    )
+    .unwrap();
     assert_eq!(
         bundle.export["areas"][0]["presentation"]["allow_early_voting"],
         json!("early_voting_allowed")
@@ -802,8 +827,13 @@ fn an_overridden_template_is_what_gets_built() {
 fn a_template_that_renders_broken_json_is_reported_not_panicked() {
     let templates =
         TemplateSet::with_overrides(&[("area", "{\"oops\": }")]).unwrap();
-    let report = build(&sound(), &templates, &BuildOptions::default())
-        .expect_err("a broken template must refuse the build");
+    let report = build(
+        &sound(),
+        &templates,
+        &BuildOptions::default(),
+        &Sources::default(),
+    )
+    .expect_err("a broken template must refuse the build");
     assert!(has_error_saying(&report, "did not render valid JSON"));
 }
 
@@ -1680,7 +1710,7 @@ fn base_realm() -> Value {
 
 fn with_options(workbook: &Workbook, options: BuildOptions) -> Bundle {
     let templates = TemplateSet::builtin().unwrap();
-    match build(workbook, &templates, &options) {
+    match build(workbook, &templates, &options, &Sources::default()) {
         Ok(bundle) => bundle,
         Err(report) => panic!("expected a clean build, got:\n{report}"),
     }
@@ -2420,6 +2450,174 @@ fn a_census_column_of_its_own_is_declared_in_the_realms_user_profile() {
     assert_eq!(branch["permissions"]["edit"], json!(["admin"]));
     assert_eq!(branch["required"], Value::Null);
     assert_eq!(branch["validations"], Value::Null);
+}
+
+/// A census column becomes a realm attribute whichever side it is read from.
+///
+/// **The silent regression this change had to walk past.** `census_attributes` now
+/// prefers `CensusSource::columns()` where a build is handed a source, and keeps
+/// reading the Voters sheet's headers where it is not — the workbook path has no
+/// source and never will. Two readers of one fact is how a fact drifts, and the
+/// drift here has no symptom: Keycloak drops an attribute its user profile does not
+/// declare, so the sign-in flow reads a value the census plainly contains as
+/// absent, and nothing anywhere says why.
+#[test]
+fn the_realm_declares_the_same_attributes_either_way() {
+    let workbook = with_sheet(
+        "Voters",
+        vec![
+            vec![
+                text("username"),
+                text("email"),
+                text("area.external_id"),
+                text("branch_code"),
+                text("seniority"),
+            ],
+            vec![
+                text("ada"),
+                text("ada@example.org"),
+                text("area-north"),
+                text("B-14"),
+                text("1998"),
+            ],
+        ],
+    );
+
+    let declared = |sources: &Sources| -> Vec<String> {
+        let templates = TemplateSet::builtin().unwrap();
+        let bundle = build(
+            &workbook,
+            &templates,
+            &BuildOptions {
+                base_export: Some(
+                    json!({"keycloak_event_realm": base_realm()}),
+                ),
+                ..BuildOptions::default()
+            },
+            sources,
+        )
+        .expect("a clean build");
+        let raw = bundle.export["keycloak_event_realm"]["components"]
+            ["org.keycloak.userprofile.UserProfileProvider"][0]["config"]
+            ["kc.user.profile.config"][0]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let profile: Value = serde_json::from_str(&raw).unwrap();
+        profile["attributes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|attribute| attribute["name"].as_str().unwrap().to_string())
+            .collect()
+    };
+
+    // The same census twice: once as the sheet the workbook carries, once as a
+    // source beside it. The sheet stays either way — `build_voters` still reads it.
+    let from_sheet = declared(&Sources::default());
+    let from_source = declared(&Sources {
+        census: Some(std::sync::Arc::new(VecCensus::new(vec![PlannedVoter {
+            username: "ada".into(),
+            email: "ada@example.org".into(),
+            area_external_id: "area-north".into(),
+            extra: [
+                ("branch_code".to_string(), "B-14".to_string()),
+                ("seniority".to_string(), "1998".to_string()),
+            ]
+            .into_iter()
+            .collect(),
+            ..Default::default()
+        }]))),
+        ..Sources::default()
+    });
+
+    assert_eq!(from_sheet, from_source);
+    // And it is not vacuously equal because neither declared anything.
+    assert!(
+        from_sheet.contains(&"branch_code".to_string()),
+        "{from_sheet:?}"
+    );
+    assert!(
+        from_sheet.contains(&"seniority".to_string()),
+        "{from_sheet:?}"
+    );
+}
+
+/// What a source cannot yet say, and why `build_voters` still reads the sheet.
+///
+/// `PlannedVoter` — the row a `CensusSource` yields — has no field for `enabled`,
+/// `email_verified` or `authorized-election-ids`, and `RowShape::OWNED` keeps them
+/// out of `extra` as well. Pointing `build_voters` at a source today would
+/// therefore switch on a voter the census switched off, and hand a voter
+/// restricted to one election a ballot for every election in the event. Neither
+/// would report a problem; both would simply be wrong in the delivery.
+///
+/// So this pins the gap rather than the intention. When `PlannedVoter` grows those
+/// fields — which is what has to happen before the Voters tab can leave the
+/// workbook — this test fails and says where to look.
+#[test]
+fn a_source_cannot_yet_say_what_the_voters_sheet_says() {
+    let columns: Vec<String> = [
+        "username",
+        "area.external_id",
+        "enabled",
+        "email_verified",
+        "authorized-election-ids",
+    ]
+    .iter()
+    .map(|name| (*name).to_string())
+    .collect();
+
+    let voter = RowShape::of(&columns).voter(
+        &[
+            "ada".to_string(),
+            "area-north".to_string(),
+            "FALSE".to_string(),
+            "FALSE".to_string(),
+            "statewide".to_string(),
+        ],
+        &std::collections::BTreeMap::new(),
+    );
+
+    assert_eq!(voter.username, "ada");
+    assert_eq!(voter.area_external_id, "area-north");
+    // Three columns in, nothing out. Not in a field, not in `extra`.
+    assert_eq!(voter.extra, std::collections::BTreeMap::new());
+
+    // The same row through the sheet, where all three survive — which is the
+    // contrast that makes the gap a gap rather than a preference.
+    let bundle = built(&with_sheet(
+        "Voters",
+        vec![
+            vec![
+                text("username"),
+                text("area.external_id"),
+                text("enabled"),
+                text("email_verified"),
+                text("authorized-election-ids"),
+            ],
+            vec![
+                text("ada"),
+                text("area-north"),
+                text("FALSE"),
+                text("FALSE"),
+                text("statewide"),
+            ],
+        ],
+    ));
+
+    let at = |column: &str| {
+        bundle
+            .voters
+            .column(column)
+            .map(|index| bundle.voters.rows[0][index].clone())
+    };
+    assert_eq!(at("enabled").as_deref(), Some("false"));
+    assert_eq!(at("email_verified").as_deref(), Some("false"));
+    assert!(
+        at("authorized-election-ids").is_some_and(|ids| !ids.is_empty()),
+        "the sheet's restriction should reach the CSV"
+    );
 }
 
 #[test]
