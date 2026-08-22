@@ -572,9 +572,56 @@ fn check_schedule(plan: &Blueprint, report: &mut Report) {
 }
 
 /// Districting: the areas themselves, before any contest points at one.
+/// Refuse an identifier a plan already used for the same kind of thing.
+///
+/// [`super::ids::IdFactory::uid`] keys on the kind and the `external_id` and
+/// nothing else — no enclosing election, no row number — so a repeat anywhere in
+/// the plan mints one id for two things and the second silently replaces the first
+/// in every table that references it. The builder catches it as a workbook row
+/// number; an author who never saw a workbook needs it in the plan's own terms.
+fn require_unique_external_id<'plan>(
+    what: &str,
+    external_id: &'plan str,
+    at: &str,
+    seen: &mut Vec<(&'plan str, String)>,
+    report: &mut Report,
+) {
+    let id = external_id.trim();
+    if id.is_empty() {
+        // Absent is a different fault, reported where the field is required.
+        return;
+    }
+
+    match seen.iter().find(|(earlier_id, _)| *earlier_id == id) {
+        Some((_, earlier)) => report.push(
+            Problem::error(
+                Code::DuplicateId,
+                format!("{at}.external_id"),
+                format!(
+                    "'{id}' is already the identifier of the {what} at {earlier}. \
+                     Every generated id derives from it, so the two would become \
+                     one."
+                ),
+            )
+            .about(Some(external_id)),
+        ),
+        None => seen.push((id, at.to_string())),
+    }
+}
+
 fn check_areas(plan: &Blueprint, report: &mut Report) {
+    let mut seen: Vec<(&str, String)> = Vec::new();
+
     for (index, area) in plan.areas.iter().enumerate() {
         let at = format!("areas[{index}]");
+
+        require_unique_external_id(
+            "area",
+            &area.external_id,
+            &at,
+            &mut seen,
+            report,
+        );
 
         if area.external_id.trim().is_empty() {
             report.push(Problem::error(
@@ -704,8 +751,22 @@ fn check_ballot(plan: &Blueprint, report: &mut Report) {
         return;
     }
 
+    // Across the whole plan, not per election: `uid` keys a contest on its
+    // external_id alone, so two elections naming the same contest name one contest.
+    let mut elections_seen: Vec<(&str, String)> = Vec::new();
+    let mut contests_seen: Vec<(&str, String)> = Vec::new();
+    let mut candidates_seen: Vec<(&str, String)> = Vec::new();
+
     for (index, election) in plan.elections.iter().enumerate() {
         let at = format!("elections[{index}]");
+
+        require_unique_external_id(
+            "election",
+            &election.external_id,
+            &at,
+            &mut elections_seen,
+            report,
+        );
 
         if election.contests.is_empty() {
             report.push(
@@ -720,6 +781,27 @@ fn check_ballot(plan: &Blueprint, report: &mut Report) {
 
         for (contest_index, contest) in election.contests.iter().enumerate() {
             let at = format!("{at}.contests[{contest_index}]");
+
+            require_unique_external_id(
+                "contest",
+                &contest.external_id,
+                &at,
+                &mut contests_seen,
+                report,
+            );
+
+            for (candidate_index, candidate) in
+                contest.candidates.iter().enumerate()
+            {
+                require_unique_external_id(
+                    "candidate",
+                    &candidate.external_id,
+                    &format!("{at}.candidates[{candidate_index}]"),
+                    &mut candidates_seen,
+                    report,
+                );
+            }
+
             let choices = contest
                 .candidates
                 .iter()

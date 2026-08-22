@@ -189,10 +189,6 @@ mod tests {
             })
             .collect();
 
-        // An exhaustive `match` rather than a list, so adding a `Code` does not
-        // compile until somebody decides which side it belongs on. A list left the
-        // new variant neither covered nor reported, which is the opposite of what
-        // the comment claimed.
         // Every variant, and the `match` below is what makes this hold: adding a
         // `Code` does not compile until somebody says which side it belongs on. The
         // old hard-coded list left a new variant neither covered nor reported, which

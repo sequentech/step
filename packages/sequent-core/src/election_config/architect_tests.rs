@@ -867,6 +867,112 @@ fn two_areas_may_not_share_a_name() {
 }
 
 #[test]
+fn two_areas_may_not_share_an_identifier() {
+    // The identifier is the whole of what `uid` hashes, so the second area mints the
+    // id the first already has and replaces it wherever it is referenced. The
+    // builder catches this as a workbook row; a wizard author never saw a workbook.
+    let mut plan = districted();
+    plan.areas[1].external_id = "region-north".to_string();
+    let report = validate_plan(&plan);
+    assert!(
+        says(
+            &report,
+            "'region-north' is already the identifier of the area at areas[0]"
+        ),
+        "{report}"
+    );
+    assert!(report
+        .errors()
+        .any(|problem| problem.code == Code::DuplicateId));
+    assert!(report
+        .errors()
+        .any(|problem| problem.path == "areas[1].external_id"));
+}
+
+#[test]
+fn two_contests_in_different_elections_may_not_share_an_identifier() {
+    // Scoped across the plan, not per election: `uid("contest", &[external_id])`
+    // takes no enclosing election, so the same identifier in two elections is one
+    // contest on the ballot and one of the two vanishes.
+    let mut plan = sound();
+    let mut second = plan.elections[0].clone();
+    second.external_id = "board".to_string();
+    plan.elections.push(second);
+
+    let report = validate_plan(&plan);
+    assert!(
+        says(
+            &report,
+            "'president' is already the identifier of the contest at \
+             elections[0].contests[0]"
+        ),
+        "{report}"
+    );
+    assert!(report
+        .errors()
+        .any(|problem| problem.path == "elections[1].contests[0].external_id"));
+}
+
+#[test]
+fn two_candidates_may_not_share_an_identifier() {
+    let mut plan = sound();
+    plan.elections[0].contests[0].candidates[1].external_id =
+        "alice".to_string();
+    let report = validate_plan(&plan);
+    assert!(
+        says(
+            &report,
+            "'alice' is already the identifier of the candidate at \
+             elections[0].contests[0].candidates[0]"
+        ),
+        "{report}"
+    );
+}
+
+#[test]
+fn two_elections_may_not_share_an_identifier() {
+    let mut plan = sound();
+    let second = plan.elections[0].clone();
+    plan.elections.push(second);
+    let report = validate_plan(&plan);
+    assert!(
+        says(
+            &report,
+            "'officers' is already the identifier of the election at elections[0]"
+        ),
+        "{report}"
+    );
+}
+
+#[test]
+fn an_unset_identifier_is_a_missing_field_and_not_a_duplicate() {
+    // Two blank ids are two things to fill in, not two names for one thing, and
+    // saying "duplicate" about them would point at the wrong repair.
+    let mut plan = districted();
+    plan.areas[0].external_id = String::new();
+    plan.areas[1].external_id = "  ".to_string();
+    let report = validate_plan(&plan);
+    assert!(
+        !report
+            .problems
+            .iter()
+            .any(|problem| problem.code == Code::DuplicateId
+                && problem.path.starts_with("areas[")
+                && problem.path.ends_with(".external_id")),
+        "{report}"
+    );
+    assert_eq!(
+        report
+            .errors()
+            .filter(|problem| problem.code == Code::MissingField
+                && problem.message == "an area needs an identifier")
+            .count(),
+        2,
+        "{report}"
+    );
+}
+
+#[test]
 fn an_area_needs_a_name_because_that_is_what_a_voter_is_matched_on() {
     let mut plan = districted();
     plan.areas[0].name = "  ".to_string();
