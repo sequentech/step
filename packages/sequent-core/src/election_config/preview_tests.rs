@@ -5,6 +5,8 @@
 //! Tests for [`super`].
 
 use super::*;
+use crate::election_config::sources::Sources;
+use crate::election_config::Workbook;
 use crate::types::ceremonies::CeremoniesPolicy;
 
 use crate::election_config::architect::{
@@ -16,9 +18,18 @@ use crate::election_config::policy::{
     Behaviour, Overrides, PolicyPatch, TallyPatch,
 };
 use crate::election_config::time::Timestamp;
+
 use crate::election_config::{
     build, BuildOptions, ImportElectionEventSchema, TemplateSet,
 };
+
+/// `to_workbook` against the census and files the plan is still carrying.
+///
+/// One function rather than every call site: when the census leaves `Blueprint`,
+/// this is where a test says where its voters come from.
+fn workbook_of(plan: &Blueprint) -> Result<Workbook, Problem> {
+    to_workbook(plan, &Sources::from_plan(plan))
+}
 
 fn at(local: &str) -> Timestamp {
     Timestamp::new(local, "America/Phoenix", -420)
@@ -119,7 +130,7 @@ fn sound() -> Blueprint {
 }
 
 fn built(plan: &Blueprint) -> Bundle {
-    let workbook = to_workbook(plan).expect("the plan compiles to rows");
+    let workbook = workbook_of(plan).expect("the plan compiles to rows");
     let templates = TemplateSet::builtin().unwrap();
     match build(&workbook, &templates, &BuildOptions::default()) {
         Ok(bundle) => bundle,
@@ -611,7 +622,7 @@ fn a_candidates_photograph_previews_from_the_plans_own_bytes() {
         bytes: vec![0x89, b'P', b'N', b'G', 1, 2, 3],
     });
 
-    let workbook = to_workbook(&plan).expect("the plan compiles to rows");
+    let workbook = workbook_of(&plan).expect("the plan compiles to rows");
     let bundle = build(
         &workbook,
         &TemplateSet::builtin().unwrap(),

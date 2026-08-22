@@ -54,6 +54,7 @@ use crate::election_config::profile::{apply_profile, check_required, Profile};
 use crate::election_config::render::TemplateSet;
 use crate::election_config::schema::ImportElectionEventSchema;
 use crate::election_config::sheet::{Row, Sheet, Workbook, SHEET_PARAMETERS};
+use crate::election_config::sources::{self, Sources};
 use crate::election_config::time::{self, Timestamp};
 use crate::election_config::validate::{ALLOW_EARLY_VOTING, NO_EARLY_VOTING};
 use crate::types::ceremonies::CeremoniesPolicy;
@@ -1517,7 +1518,7 @@ pub const DEFAULT_AREA_NAME: &str = "All voters";
 /// closes before it opens. [`super::validate`] then checks the bundle, and a
 /// problem there is phrased in the bundle's vocabulary. Both run; they are asking
 /// different questions and an author needs both answers.
-pub fn validate_plan(plan: &Blueprint) -> Report {
+pub fn validate_plan(plan: &Blueprint, sources: &Sources) -> Report {
     let mut report = Report::default();
 
     if plan.version > BLUEPRINT_VERSION {
@@ -1559,7 +1560,7 @@ pub fn validate_plan(plan: &Blueprint) -> Report {
     check_trustees(plan, &mut report);
     check_schedule(plan, &mut report);
     check_areas(plan, &mut report);
-    check_census(plan, &mut report);
+    check_census(plan, sources, &mut report);
     check_ballot(plan, &mut report);
     check_unique_identifiers(plan, &mut report);
 
@@ -2117,8 +2118,24 @@ fn check_areas(plan: &Blueprint, report: &mut Report) {
 ///
 /// A census with no voters in it is not an error: a plan may carry the shape of
 /// an election long before anybody has the membership list.
-fn check_census(plan: &Blueprint, report: &mut Report) {
-    if plan.voters.is_empty() {
+/// The census could not be read, wherever the reading was being done.
+///
+/// One message rather than one per call site. A source that fails fails the same
+/// way whether it was being checked or written into a workbook, and the sentence
+/// that differs is the one the source itself hands back — a file that vanished
+/// between the picker and the build, a sheet whose header moved, a JS object that
+/// threw. Naming each site separately would put four entries in the catalogue that
+/// all translate to the same paragraph.
+fn unreadable_census(why: String) -> Problem {
+    Problem::error(Code::InvalidValue, "voters", why).id("census.unreadable")
+}
+
+fn check_census(plan: &Blueprint, sources: &Sources, report: &mut Report) {
+    let Some(census) = &sources.census else {
+        return;
+    };
+    if let Err(why) = census.rewind() {
+        report.push(unreadable_census(why));
         return;
     }
 
@@ -2128,74 +2145,98 @@ fn check_census(plan: &Blueprint, report: &mut Report) {
         .map(|area| area.external_id.as_str())
         .collect();
 
-    let mut seen: std::collections::BTreeMap<&str, usize> =
+    // **Owned rather than borrowed, and this is the honest cost of streaming.**
+    // The rows are dropped a batch at a time, so a `&str` into one of them cannot
+    // outlive the batch. At ten million members this map is the real ceiling —
+    // several hundred megabytes on top of the census, in a heap a browser caps —
+    // and no amount of streaming the *rows* removes it. The fix, when it is
+    // needed, is a `duplicate_usernames` default method on `CensusSource` that a
+    // database-backed source answers with one `GROUP BY`; that is an addition to
+    // the trait rather than a change to it, which is why the shape holds.
+    let mut seen: std::collections::BTreeMap<String, usize> =
         std::collections::BTreeMap::new();
+    // One pass, where there were two. The aggregate warning below used to
+    // re-iterate the whole census to ask a question that can be answered while
+    // walking it once.
+    let mut any_area = false;
+    let mut index = 0usize;
 
-    for (index, voter) in plan.voters.iter().enumerate() {
-        let username = voter.username.trim();
-
-        if username.is_empty() {
-            report.push(Problem::error(
-                Code::MissingField,
-                format!("voters[{index}].username"),
-                "a voter needs a username; it is what they sign in as and what                  their account is derived from",
-            )
-.id("voter.no-username").detail("row", index + 1));
-            continue;
+    loop {
+        let batch = match census.next_batch(sources::BATCH) {
+            Ok(batch) => batch,
+            Err(why) => {
+                report.push(unreadable_census(why));
+                return;
+            }
+        };
+        if batch.is_empty() {
+            break;
         }
 
-        if let Some(first) = seen.insert(username, index) {
-            report.push(Problem::error(
-                Code::DuplicateId,
-                format!("voters[{index}].username"),
-                format!(
-                    "'{username}' is also row {first}. Two voters sharing a                      username become one account, and this one would replace                      the other without saying so."
-                ),
-            )
-.id("voter.duplicate-username").detail("username", username).detail("first", first + 1));
-        }
-
-        // Blank is not "the default area", which is what this used to assume.
-        //
-        // `build_tables::voter_area_name` reads `area.external_id` off every voter
-        // row and refuses the whole bundle when it is absent, so a voter with no
-        // area is a plan that cannot be built — and this screen was calling it
-        // Ready to build. There is no default: an area is how a voter is given a
-        // ballot at all.
-        let area = voter.area_external_id.trim();
-        if area.is_empty() {
-            report.push(Problem::error(
-                Code::MissingField,
-                format!("voters[{index}].area.external_id"),
-                "a voter needs an area: it is what decides which ballot they are \
-                 handed, and the build refuses a census row without one",
-            )
-            .id("voter.no-area")
-            .detail("row", index + 1));
-        } else if !named.contains(area) {
-            report.push(Problem::error(
-                Code::DanglingReference,
-                format!("voters[{index}].area.external_id"),
-                format!(
-                    "no area has external_id '{area}', so this voter would get no \
-                     ballot. Copy the identifier from the area rather than \
-                     retyping it — it is the column headed `area.external_id`, \
-                     not the area's name."
-                ),
-            )
-.id("voter.area-unknown").detail("area", area).detail("row", index + 1));
+        for voter in &batch {
+            let username = voter.username.trim();
+            if username.is_empty() {
+                report.push(Problem::error(
+                    Code::MissingField,
+                    format!("voters[{index}].username"),
+                    "a voter needs a username; it is what they sign in as and what                      their account is derived from",
+                )
+                .id("voter.no-username")
+                .detail("row", index + 1));
+                index += 1;
+                continue;
+            }
+            if let Some(first) = seen.insert(username.to_owned(), index) {
+                report.push(Problem::error(
+                    Code::DuplicateId,
+                    format!("voters[{index}].username"),
+                    format!(
+                        "'{username}' is also row {first}. Two voters sharing a                          username become one account, and this one would replace                          the other without saying so."
+                    ),
+                )
+                .id("voter.duplicate-username")
+                .detail("username", username)
+                .detail("first", first + 1));
+            }
+            // Blank is not "the default area", which is what this used to assume.
+            //
+            // `build_tables::voter_area_name` reads `area.external_id` off every
+            // voter row and refuses the whole bundle when it is absent, so a voter
+            // with no area is a plan that cannot be built — and this screen was
+            // calling it Ready to build. There is no default: an area is how a
+            // voter is given a ballot at all.
+            let area = voter.area_external_id.trim();
+            if area.is_empty() {
+                report.push(Problem::error(
+                    Code::MissingField,
+                    format!("voters[{index}].area.external_id"),
+                    "a voter needs an area: it is what decides which ballot they                      are handed, and the build refuses a census row without one",
+                )
+                .id("voter.no-area")
+                .detail("row", index + 1));
+            } else {
+                any_area = true;
+                if !named.contains(area) {
+                    report.push(Problem::error(
+                        Code::DanglingReference,
+                        format!("voters[{index}].area.external_id"),
+                        format!(
+                            "no area is called '{area}'. This voter would be                              handed no ballot at all."
+                        ),
+                    )
+                    .id("voter.area-unknown")
+                    .detail("area", area)
+                    .detail("row", index + 1));
+                }
+            }
+            index += 1;
         }
     }
 
     // Said once rather than per voter: a census loaded against the wrong plan
     // produces one of these for every row, and ten thousand copies of the same
     // sentence is a report nobody reads.
-    if !plan.areas.is_empty()
-        && plan
-            .voters
-            .iter()
-            .all(|voter| voter.area_external_id.trim().is_empty())
-    {
+    if !plan.areas.is_empty() && index > 0 && !any_area {
         report.push(Problem::warning(
             Code::MissingField,
             "voters",
@@ -2203,7 +2244,7 @@ fn check_census(plan: &Blueprint, report: &mut Report) {
              gets the default ballot. If the districting is meant to apply, the \
              census needs an area column.",
         )
-.id("census.no-area-column"));
+        .id("census.no-area-column"));
     }
 }
 
@@ -2445,7 +2486,10 @@ fn check_ballot(plan: &Blueprint, report: &mut Report) {
 /// [`Workbook`] rather than a bundle so that everything downstream — templates,
 /// ids, CSV shapes, the realm, the archive — is the code the workbook reader
 /// already uses.
-pub fn to_workbook(plan: &Blueprint) -> Result<Workbook, Problem> {
+pub fn to_workbook(
+    plan: &Blueprint,
+    sources: &Sources,
+) -> Result<Workbook, Problem> {
     let languages = plan.languages_or_english();
 
     let mut sheets = vec![
@@ -2457,7 +2501,7 @@ pub fn to_workbook(plan: &Blueprint) -> Result<Workbook, Problem> {
         area_contests_sheet(plan)?,
     ];
 
-    if let Some(voters) = voters_sheet(plan)? {
+    if let Some(voters) = voters_sheet(sources)? {
         sheets.push(voters);
     }
 
@@ -3184,10 +3228,10 @@ fn candidates_sheet(
 /// whatever else the client carries, in a stable order so two builds of one
 /// census diff cleanly. Everything unrecognised is passed through, which is how
 /// a reporting breakout column survives the round trip.
-fn voters_sheet(plan: &Blueprint) -> Result<Option<Sheet>, Problem> {
-    if plan.voters.is_empty() {
+fn voters_sheet(sources: &Sources) -> Result<Option<Sheet>, Problem> {
+    let Some(census) = &sources.census else {
         return Ok(None);
-    }
+    };
 
     /// The columns `PlannedVoter` names in its own right.
     ///
@@ -3217,29 +3261,43 @@ fn voters_sheet(plan: &Blueprint) -> Result<Option<Sheet>, Problem> {
         "area.external_id",
     ];
 
-    // Sorted, so a census that gains a column does not reorder the ones it had.
-    let mut extra: Vec<&str> = plan
-        .voters
+    // From the source rather than from the rows, because the source is the only
+    // thing that can answer this before ten million rows have been read. A CSV
+    // knows its header; a sheet knows its first line. The order is the source's
+    // own — a spreadsheet that gains a column should not reorder the ones it had —
+    // and for a census held in memory that order is sorted, so this writes the
+    // same header it always did.
+    let extra: Vec<&str> = census
+        .columns()
         .iter()
-        .flat_map(|voter| voter.extra.keys().map(String::as_str))
+        .map(String::as_str)
         .filter(|key| {
             !NAMED.contains(key)
-                && !["id", "enabled", "email_verified"].contains(key)
-                && *key != "area.external_id"
-                && *key != "authorized-election-ids"
+                && ![
+                    "id",
+                    "enabled",
+                    "email_verified",
+                    "authorized-election-ids",
+                ]
+                .contains(key)
         })
         .collect();
-    extra.sort_unstable();
-    extra.dedup();
 
     let mut columns: Vec<String> =
         NAMED.iter().map(|name| (*name).to_string()).collect();
     columns.extend(extra.iter().map(|key| (*key).to_string()));
 
-    let rows = plan
-        .voters
-        .iter()
-        .map(|voter| {
+    census.rewind().map_err(unreadable_census)?;
+
+    let mut rows: Vec<Vec<Cell>> = Vec::new();
+    loop {
+        let batch = census
+            .next_batch(sources::BATCH)
+            .map_err(unreadable_census)?;
+        if batch.is_empty() {
+            break;
+        }
+        rows.extend(batch.iter().map(|voter| {
             let mut row = vec![
                 Cell::text(voter.username.clone()),
                 text_or_blank(&voter.email),
@@ -3255,8 +3313,14 @@ fn voters_sheet(plan: &Blueprint) -> Result<Option<Sheet>, Problem> {
                     .unwrap_or(Cell::Blank)
             }));
             row
-        })
-        .collect();
+        }));
+    }
+
+    // A source that yields nothing is a census nobody loaded, and an empty tab is
+    // one somebody opens and closes again.
+    if rows.is_empty() {
+        return Ok(None);
+    }
 
     sheet_of("Voters", columns, rows).map(Some)
 }
@@ -3930,7 +3994,12 @@ pub fn compile_plan(
         None => plan,
     };
 
-    let mut report = validate_plan(plan);
+    // Derived here, from the plan the profile has already been applied to — the
+    // same plan that gets validated and built. `from_plan` is scaffolding while
+    // `Blueprint` still carries its own bulk; when it stops, this becomes the
+    // caller's `sources` and nothing else in this function moves.
+    let sources = Sources::from_plan(plan);
+    let mut report = validate_plan(plan, &sources);
     if let Some(profile) = profile {
         for problem in profile.warnings.problems.clone() {
             report.push(problem);
@@ -3941,7 +4010,7 @@ pub fn compile_plan(
         return Err(report);
     }
 
-    let workbook = to_workbook(plan).map_err(|problem| {
+    let workbook = to_workbook(plan, &sources).map_err(|problem| {
         let mut failed = Report::default();
         failed.push(problem);
         failed

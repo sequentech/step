@@ -10,7 +10,17 @@ use crate::election_config::architect::{
 };
 use crate::election_config::build::BuildOptions;
 use crate::election_config::render::TemplateSet;
+use crate::election_config::sources::Sources;
 use crate::election_config::xlsx_write::write_xlsx;
+use crate::election_config::Workbook;
+
+/// `to_workbook` against the census and files the plan is still carrying.
+///
+/// One function rather than every call site: when the census leaves `Blueprint`,
+/// this is where a test says where its voters come from.
+fn workbook_of(plan: &Blueprint) -> Result<Workbook, Problem> {
+    to_workbook(plan, &Sources::from_plan(plan))
+}
 
 fn sound() -> Blueprint {
     serde_json::from_value(serde_json::json!({
@@ -89,7 +99,7 @@ fn a_bare_plan_file_opens() {
 #[test]
 fn a_workbook_opens_as_a_plan_rather_than_as_a_broken_delivery() {
     let plan = sound();
-    let bytes = write_xlsx(&to_workbook(&plan).unwrap()).unwrap();
+    let bytes = write_xlsx(&workbook_of(&plan).unwrap()).unwrap();
 
     assert!(
         is_zip(&bytes),
@@ -228,7 +238,7 @@ fn a_workbook_with_only_warnings_opens_and_says_so() {
         file_name: "logo.png".to_string(),
         bytes: vec![1, 2, 3],
     });
-    let bytes = write_xlsx(&to_workbook(&plan).unwrap()).unwrap();
+    let bytes = write_xlsx(&workbook_of(&plan).unwrap()).unwrap();
 
     let opened = open(&bytes).expect("a lost image does not stop a load");
     assert!(!opened.report.has_errors());

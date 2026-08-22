@@ -10,11 +10,32 @@ use crate::election_config::policy::{
     Behaviour, CandidatesOrder, OverVote, Overrides, PolicyPatch, TallyPatch,
 };
 use crate::election_config::sheet;
+use crate::election_config::sources::{Sources, VecCensus};
 use crate::election_config::{
     build, validate, BuildOptions, Bundle, ImportElectionEventSchema,
     TemplateSet,
 };
 use crate::types::ceremonies::CeremoniesPolicy;
+
+/// The census and files the plan itself is still carrying.
+///
+/// One function rather than a hundred call sites. `Sources` is a separate argument
+/// because the census is on its way out of `Blueprint` — when the field goes, this
+/// helper becomes the one place a test says where its voters come from, and every
+/// test that does not care about a census never learns that it changed.
+fn sources_of(plan: &Blueprint) -> Sources {
+    Sources::from_plan(plan)
+}
+
+/// `validate_plan` against the plan's own data.
+fn checked(plan: &Blueprint) -> Report {
+    validate_plan(plan, &sources_of(plan))
+}
+
+/// `to_workbook` against the plan's own data.
+fn workbook_of(plan: &Blueprint) -> Result<Workbook, Problem> {
+    to_workbook(plan, &sources_of(plan))
+}
 
 /// A moment in a zone that does not observe daylight saving.
 ///
@@ -127,7 +148,7 @@ fn sound() -> Blueprint {
 }
 
 fn compiled(plan: &Blueprint) -> Bundle {
-    let workbook = to_workbook(plan).expect("the plan compiles to rows");
+    let workbook = workbook_of(plan).expect("the plan compiles to rows");
     let templates = TemplateSet::builtin().unwrap();
     // The same options `compile_plan` builds, so a test asserting on this sees the
     // document the wizard ships rather than a nearby one. The trustees are the only
@@ -1022,7 +1043,7 @@ fn a_plan_written_before_the_channels_existed_is_online() {
 
 /// What the event sheet says a voter reads before they choose.
 fn default_language_of(plan: &Blueprint) -> String {
-    let workbook = to_workbook(plan).expect("the plan compiles to rows");
+    let workbook = workbook_of(plan).expect("the plan compiles to rows");
     let row = workbook
         .rows(crate::election_config::sheet::SHEET_ELECTION_EVENT)
         .first()
@@ -1061,7 +1082,7 @@ fn a_default_language_the_ballot_does_not_offer_is_refused() {
     let mut plan = sound();
     plan.default_language = Some("fr".to_string());
 
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
     assert!(report.has_errors());
     assert!(says(&report, "not one of the languages"));
     assert!(codes(&report).contains(&"InvalidValue".to_string()));
@@ -1085,7 +1106,7 @@ fn the_sheet_never_writes_a_language_the_event_does_not_have() {
 
 #[test]
 fn a_sound_plan_has_nothing_to_report() {
-    let report = validate_plan(&sound());
+    let report = checked(&sound());
     assert!(report.is_empty(), "{report}");
 }
 
@@ -1095,7 +1116,7 @@ fn a_threshold_no_number_of_trustees_can_meet_is_an_error() {
     // the result cannot be decrypted by anybody.
     let mut plan = sound();
     plan.trustee_threshold = 5;
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
     assert!(report.has_errors());
     assert!(says(&report, "could never be decrypted"));
 }
@@ -1111,7 +1132,7 @@ fn a_threshold_of_one_is_refused() {
     // to refuse.
     let mut plan = sound();
     plan.trustee_threshold = 1;
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
     assert!(report.has_errors(), "{report}");
     assert!(says(&report, "any single trustee can open the tally alone"));
 }
@@ -1121,7 +1142,7 @@ fn a_single_trustee_is_refused() {
     let mut plan = sound();
     plan.trustees.truncate(1);
     plan.trustee_threshold = 1;
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
     assert!(report.has_errors(), "{report}");
     assert!(says(&report, "one trustee"));
     assert!(says(&report, "at least two people"));
@@ -1133,7 +1154,7 @@ fn no_trustees_is_now_an_error_rather_than_a_warning() {
     // which imports and then has nobody to generate a key.
     let mut plan = sound();
     plan.trustees.clear();
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
     assert!(report.has_errors(), "{report}");
     assert!(says(&report, "no trustees"));
 }
@@ -1155,7 +1176,7 @@ fn a_trustee_needs_an_email_that_could_receive_an_invitation() {
     for (email, expected) in cases {
         let mut plan = sound();
         plan.trustees[0].email = email.to_string();
-        let report = validate_plan(&plan);
+        let report = checked(&plan);
         assert!(
             report.has_errors(),
             "'{email}' should be refused:\n{report}"
@@ -1178,7 +1199,7 @@ fn an_unusual_but_valid_address_is_accepted() {
     ] {
         let mut plan = sound();
         plan.trustees[0].email = email.to_string();
-        let report = validate_plan(&plan);
+        let report = checked(&plan);
         assert!(!report.has_errors(), "'{email}' should pass:\n{report}");
     }
 }
@@ -1187,14 +1208,14 @@ fn an_unusual_but_valid_address_is_accepted() {
 fn a_threshold_of_zero_is_refused() {
     let mut plan = sound();
     plan.trustee_threshold = 0;
-    assert!(validate_plan(&plan).has_errors());
+    assert!(checked(&plan).has_errors());
 }
 
 #[test]
 fn voting_that_closes_before_it_opens_is_refused() {
     let mut plan = sound();
     plan.schedule.voting_closes = Some(at("2027-01-01T00:00"));
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
     assert!(says(&report, "closes before it opens"));
 }
 
@@ -1203,7 +1224,7 @@ fn a_key_ceremony_after_voting_opens_is_refused() {
     // The key has to exist before a vote can be encrypted with it.
     let mut plan = sound();
     plan.schedule.key_ceremony = Some(at("2027-03-02T10:00"));
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
     assert!(says(&report, "before voting opens"));
 }
 
@@ -1211,7 +1232,7 @@ fn a_key_ceremony_after_voting_opens_is_refused() {
 fn a_tally_before_voting_closes_is_refused() {
     let mut plan = sound();
     plan.schedule.tally_ceremony = Some(at("2027-03-01T10:00"));
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
     assert!(says(&report, "votes that had not been cast"));
 }
 
@@ -1221,7 +1242,7 @@ fn a_tally_before_voting_closes_is_refused() {
 /// nothing anywhere saying why.
 #[test]
 fn the_voting_window_is_emitted_as_an_instant_the_scheduler_can_read() {
-    let workbook = to_workbook(&sound()).expect("a sound plan should compile");
+    let workbook = workbook_of(&sound()).expect("a sound plan should compile");
     let rows = workbook.rows("scheduledevents");
     assert_eq!(rows.len(), 2, "an opening and a closing");
 
@@ -1250,7 +1271,7 @@ fn a_voting_window_crossing_a_clock_change_is_said_out_loud() {
         -420,
     ));
 
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
 
     assert!(says(&report, "daylight-saving change"));
     assert!(!report.has_errors(), "legitimate, so not an error");
@@ -1283,7 +1304,7 @@ fn an_incomplete_voting_window_is_a_warning_not_an_error() {
     // saveable.
     let mut plan = sound();
     plan.schedule.voting_closes = None;
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
     assert!(!report.has_errors(), "{report}");
     assert!(says(&report, "opened"));
 }
@@ -1292,7 +1313,7 @@ fn an_incomplete_voting_window_is_a_warning_not_an_error() {
 fn a_contest_electing_more_than_a_voter_may_choose_is_refused() {
     let mut plan = sound();
     plan.elections[0].contests[0].winners = 3;
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
     assert!(says(&report, "a voter may only choose"));
     assert!(codes(&report).contains(&"ContestArithmetic".to_string()));
 }
@@ -1302,7 +1323,7 @@ fn a_contest_electing_more_than_it_has_candidates_is_refused() {
     let mut plan = sound();
     plan.elections[0].contests[0].max_votes = 5;
     plan.elections[0].contests[0].winners = 5;
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
     assert!(says(&report, "from a field of 2"));
 }
 
@@ -1326,7 +1347,7 @@ fn blank_and_invalid_options_do_not_count_as_candidates() {
     contest.max_votes = 2;
     contest.winners = 2;
 
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
     assert!(says(&report, "from a field of 1"));
 }
 
@@ -1334,7 +1355,7 @@ fn blank_and_invalid_options_do_not_count_as_candidates() {
 fn a_contest_with_no_candidates_yet_is_a_warning() {
     let mut plan = sound();
     plan.elections[0].contests[0].candidates.clear();
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
     assert!(!report.has_errors(), "{report}");
     assert!(says(&report, "no candidates yet"));
 }
@@ -1343,7 +1364,7 @@ fn a_contest_with_no_candidates_yet_is_a_warning() {
 fn a_plan_with_no_elections_is_refused() {
     let mut plan = sound();
     plan.elections.clear();
-    assert!(validate_plan(&plan).has_errors());
+    assert!(checked(&plan).has_errors());
 }
 
 #[test]
@@ -1351,7 +1372,7 @@ fn a_plan_with_no_name_or_identifier_is_refused() {
     let mut plan = sound();
     plan.name = Translated::default();
     plan.external_id = "  ".to_string();
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
     assert_eq!(report.errors().count(), 2, "{report}");
 }
 
@@ -1359,7 +1380,7 @@ fn a_plan_with_no_name_or_identifier_is_refused() {
 fn no_points_of_contact_is_worth_saying() {
     let mut plan = sound();
     plan.contacts.clear();
-    assert!(says(&validate_plan(&plan), "who gets called"));
+    assert!(says(&checked(&plan), "who gets called"));
 }
 
 #[test]
@@ -1368,7 +1389,7 @@ fn a_plan_from_a_newer_version_is_refused_rather_than_half_read() {
     // would not know which parts survived.
     let mut plan = sound();
     plan.version = BLUEPRINT_VERSION + 1;
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
     assert!(report.has_errors());
     assert!(says(&report, "newer version"));
 }
@@ -1620,7 +1641,7 @@ fn assigning_a_contest_to_the_same_area_twice_produces_one_link() {
 fn a_contest_naming_an_area_nobody_defined_is_refused() {
     let mut plan = districted();
     plan.elections[0].contests[1].areas = vec!["nowhere".to_string()];
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
     assert!(says(&report, "no area has the identifier 'nowhere'"));
     assert!(report.has_errors());
 }
@@ -1631,7 +1652,7 @@ fn two_areas_may_not_share_a_name() {
     // importer found first.
     let mut plan = districted();
     plan.areas[1].name = "North Region".to_string();
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
     assert!(says(&report, "both named 'North Region'"));
 }
 
@@ -1639,7 +1660,7 @@ fn two_areas_may_not_share_a_name() {
 fn an_area_needs_a_name_because_that_is_what_a_voter_is_matched_on() {
     let mut plan = districted();
     plan.areas[0].name = "  ".to_string();
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
     assert!(says(&report, "identifies a voter's area by name"));
 }
 
@@ -1647,7 +1668,7 @@ fn an_area_needs_a_name_because_that_is_what_a_voter_is_matched_on() {
 fn an_area_cannot_be_inside_itself() {
     let mut plan = districted();
     plan.areas[0].parent_external_id = Some("region-north".to_string());
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
     assert!(says(&report, "cannot be inside itself"));
     assert!(codes(&report).contains(&"AreaCycle".to_string()));
 }
@@ -1656,7 +1677,7 @@ fn an_area_cannot_be_inside_itself() {
 fn a_parent_that_does_not_exist_is_refused() {
     let mut plan = districted();
     plan.areas[1].parent_external_id = Some("region-south".to_string());
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
     assert!(says(&report, "no area has the identifier 'region-south'"));
 }
 
@@ -1713,7 +1734,7 @@ fn a_plan_may_carry_its_own_census() {
         },
     ];
 
-    let workbook = to_workbook(&plan).expect("this plan is sound");
+    let workbook = workbook_of(&plan).expect("this plan is sound");
     let voters = workbook
         .sheet("voters")
         .expect("the census should be a sheet");
@@ -1731,6 +1752,128 @@ fn a_plan_may_carry_its_own_census() {
     assert_eq!(voters.rows.len(), 2);
 }
 
+/// The census is read from the source, not from the plan.
+///
+/// **The test that makes this change more than a rename.** `Sources::from_plan`
+/// derives the source from the fields the plan still has, which is what keeps every
+/// other test in this file green — and is also exactly what would hide a check that
+/// went on reading `plan.voters`. So this hands over a plan whose census is empty
+/// and a source that has one, and asks for the two answers only a census can give:
+/// a Voters sheet, and a problem about a voter's area.
+///
+/// When the field goes, this test does not change. That is the point of writing it
+/// now rather than after.
+#[test]
+fn the_census_comes_from_the_source() {
+    let mut plan = sound();
+    plan.areas = vec![PlannedArea {
+        external_id: "north".into(),
+        name: "North Local 1".into(),
+        parent_external_id: None,
+        allow_early_voting: false,
+    }];
+    assert!(
+        plan.voters.is_empty(),
+        "the plan must not be the source here"
+    );
+
+    let census = Sources {
+        census: Some(std::sync::Arc::new(VecCensus::new(vec![
+            PlannedVoter {
+                username: "ada".into(),
+                area_external_id: "north".into(),
+                extra: [("department".to_string(), "engineering".to_string())]
+                    .into_iter()
+                    .collect(),
+                ..Default::default()
+            },
+            PlannedVoter {
+                username: "grace".into(),
+                area_external_id: "nowhere".into(),
+                ..Default::default()
+            },
+        ]))),
+        ..Sources::default()
+    };
+
+    let sheet = to_workbook(&plan, &census)
+        .expect("this plan is sound")
+        .sheet("voters")
+        .cloned()
+        .expect("the source's census should be a sheet");
+    assert_eq!(sheet.rows.len(), 2);
+    assert!(sheet.headers.contains(&"department".to_string()));
+
+    assert!(
+        validate_plan(&plan, &census)
+            .problems
+            .iter()
+            .any(|problem| problem.id.as_deref() == Some("voter.area-unknown")),
+        "the check should have read the source's second voter"
+    );
+}
+
+/// What the census check says, now that something reads it.
+///
+/// Each of these was written and none was covered: the whole of `check_census`
+/// could have been deleted and this file would have passed. They are here because
+/// the checks just moved onto a different reader, and a silent one would look
+/// exactly like a census with nothing wrong in it.
+#[test]
+fn the_census_check_names_what_is_wrong_with_a_row() {
+    let mut plan = sound();
+    plan.areas = vec![PlannedArea {
+        external_id: "north".into(),
+        name: "North Local 1".into(),
+        parent_external_id: None,
+        allow_early_voting: false,
+    }];
+
+    let named = |voters: Vec<PlannedVoter>| -> Vec<String> {
+        let sources = Sources {
+            census: Some(std::sync::Arc::new(VecCensus::new(voters))),
+            ..Sources::default()
+        };
+        validate_plan(&plan, &sources)
+            .problems
+            .into_iter()
+            .filter_map(|problem| problem.id)
+            .collect()
+    };
+
+    let at = |area: &str| PlannedVoter {
+        username: "ada".into(),
+        area_external_id: area.into(),
+        ..Default::default()
+    };
+
+    assert!(named(vec![at("north")]).is_empty(), "this census is fine");
+    assert!(named(vec![at("elsewhere")])
+        .contains(&"voter.area-unknown".to_string()));
+    assert!(named(vec![at("")]).contains(&"voter.no-area".to_string()));
+    assert!(named(vec![PlannedVoter {
+        username: "   ".into(),
+        area_external_id: "north".into(),
+        ..Default::default()
+    }])
+    .contains(&"voter.no-username".to_string()));
+    assert!(named(vec![at("north"), at("north")])
+        .contains(&"voter.duplicate-username".to_string()));
+
+    // Per row for the error, once for the aggregate. The existing
+    // `a_census_that_ignores_the_districting_says_so_once` counts the second half;
+    // this counts both, because the rewrite that made this one pass instead of two
+    // could have lost either.
+    let none = named((0..12).map(|_| at("")).collect());
+    assert_eq!(none.iter().filter(|id| *id == "voter.no-area").count(), 12);
+    assert_eq!(
+        none.iter()
+            .filter(|id| *id == "census.no-area-column")
+            .count(),
+        1
+    );
+}
+
 /// A plan with no census has no sheet, rather than an empty one.
 #[test]
 fn no_census_is_not_an_empty_census() {
@@ -1738,7 +1881,7 @@ fn no_census_is_not_an_empty_census() {
     // has no voters", which is a different claim from "this plan does not carry
     // the census" — and produces a bundle importing an election nobody can vote
     // in.
-    let workbook = to_workbook(&sound()).expect("this plan is sound");
+    let workbook = workbook_of(&sound()).expect("this plan is sound");
 
     assert!(
         workbook.sheet("voters").is_none(),
@@ -1759,7 +1902,7 @@ fn the_voters_sheet_matches_what_the_builder_reads() {
         ..Default::default()
     }];
 
-    let workbook = to_workbook(&plan).expect("this plan is sound");
+    let workbook = workbook_of(&plan).expect("this plan is sound");
     let voters = workbook
         .sheet("voters")
         .expect("the census should be a sheet");
@@ -1811,7 +1954,7 @@ fn a_duplicate_username_is_refused() {
         },
     ];
 
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
 
     assert!(
         report
@@ -1842,7 +1985,7 @@ fn a_voter_in_an_area_that_does_not_exist_is_refused() {
         ..Default::default()
     }];
 
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
 
     assert!(
         report
@@ -1871,7 +2014,7 @@ fn a_census_that_ignores_the_districting_says_so_once() {
         })
         .collect();
 
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
 
     // Once, not once per voter: ten thousand copies of one sentence is a report
     // nobody reads.
@@ -1902,7 +2045,7 @@ fn a_write_in_slot_reaches_the_ballot_as_its_own_row() {
 
     // The normalised key, not the tab's label: `Workbook::rows` folds case and
     // spaces so `Admin Users` and `AdminUsers` cannot be two sheets.
-    let workbook = to_workbook(&plan).expect("a workbook");
+    let workbook = workbook_of(&plan).expect("a workbook");
     let contests = workbook.rows(sheet::SHEET_CONTESTS);
     let candidates = workbook.rows(sheet::SHEET_CANDIDATES);
 
@@ -1942,7 +2085,7 @@ fn a_write_in_slot_reaches_the_ballot_as_its_own_row() {
 /// A contest that allows none writes none.
 #[test]
 fn a_contest_without_write_ins_gets_no_extra_rows() {
-    let workbook = to_workbook(&sound()).expect("a workbook");
+    let workbook = workbook_of(&sound()).expect("a workbook");
     assert!(!workbook.rows(sheet::SHEET_CANDIDATES).iter().any(|row| {
         row.get("presentation.is_write_in")
             .map(|cell| format!("{cell:?}"))
@@ -1969,7 +2112,7 @@ fn every_description_is_written_once_per_language() {
     plan.elections[0].contests[0].candidates[0].description =
         Translated::new("Incumbent");
 
-    let workbook = to_workbook(&plan).expect("a workbook");
+    let workbook = workbook_of(&plan).expect("a workbook");
 
     for (sheet, text) in [
         (sheet::SHEET_ELECTION_EVENT, "The union's 2027 elections"),
@@ -2056,7 +2199,7 @@ fn the_order_the_ballot_is_arranged_in_reaches_the_bundle() {
     plan.elections_order = "alphabetical".to_string();
     plan.elections[0].contests_order = "random".to_string();
 
-    let workbook = to_workbook(&plan).expect("a workbook");
+    let workbook = workbook_of(&plan).expect("a workbook");
     assert_eq!(
         workbook.rows(sheet::SHEET_ELECTION_EVENT)[0]
             .get("presentation.elections_order")
@@ -2178,7 +2321,7 @@ fn a_plan_with_no_trustees_emits_no_ceremony() {
     // is why the early return matters. A ceremony with no members and a threshold
     // of zero would import, and the key would be generated with nobody holding a
     // share of it.
-    assert!(says(&validate_plan(&plan), "no trustees"));
+    assert!(says(&checked(&plan), "no trustees"));
     assert!(compiled(&plan).export["keys_ceremonies"]
         .as_array()
         .expect("an array")
@@ -2194,7 +2337,7 @@ fn a_trustee_with_no_name_is_refused() {
     let mut plan = sound();
     plan.trustees[0].name = "  ".to_string();
 
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
     assert!(report.has_errors());
     assert!(says(&report, "resolves the key ceremony's"));
 }
@@ -2205,7 +2348,7 @@ fn a_voter_can_look_up_their_own_ballot_unless_the_plan_says_otherwise() {
     let plan = sound();
     assert_eq!(plan.show_cast_vote_logs, "show-logs-tab");
     assert_eq!(
-        to_workbook(&plan)
+        workbook_of(&plan)
             .expect("a workbook")
             .rows(sheet::SHEET_ELECTION_EVENT)[0]
             .get("presentation.show_cast_vote_logs")
@@ -2278,7 +2421,7 @@ fn every_complaint_about_a_plan_carries_its_name_and_its_specifics() {
     plan.elections[0].contests[0].winners = 9;
     plan.contacts.clear();
 
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
     assert!(report.problems.len() >= 6, "expected several complaints");
 
     let unnamed: Vec<&str> = report
@@ -2333,7 +2476,7 @@ fn a_trustee_row_with_nothing_in_it_is_nobody() {
         },
     ];
 
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
     assert!(
         report
             .problems
@@ -2347,7 +2490,7 @@ fn a_trustee_row_with_nothing_in_it_is_nobody() {
         name: "Ada Lovelace".to_string(),
         email: "ada@example.org".to_string(),
     };
-    assert!(validate_plan(&plan)
+    assert!(checked(&plan)
         .problems
         .iter()
         .any(|problem| problem.id.as_deref() == Some("trustees.only-one")));
@@ -2359,7 +2502,7 @@ fn a_plan_can_say_which_language_a_voter_starts_in() {
     let mut plan = sound();
     plan.language_detection_policy = Some("force-default".to_string());
 
-    let workbook = to_workbook(&plan).expect("a workbook");
+    let workbook = workbook_of(&plan).expect("a workbook");
     let rows = workbook.rows(sheet::SHEET_ELECTION_EVENT);
     assert_eq!(
         rows[0]
@@ -2376,7 +2519,7 @@ fn a_language_detection_policy_the_platform_never_heard_of_is_refused() {
     let mut plan = sound();
     plan.language_detection_policy = Some("guess".to_string());
 
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
     assert!(report.has_errors());
     assert!(says(&report, "is not a language detection policy"));
 }
@@ -2390,7 +2533,7 @@ fn the_branding_switches_reach_the_event_row() {
     plan.show_user_profile = Some(true);
     plan.materials_activated = Some(true);
 
-    let workbook = to_workbook(&plan).expect("a workbook");
+    let workbook = workbook_of(&plan).expect("a workbook");
     let rows = workbook.rows(sheet::SHEET_ELECTION_EVENT);
     for column in [
         "presentation.skip_election_list",
@@ -2415,7 +2558,7 @@ fn support_material_headings_travel_per_language() {
         .insert("es".to_string(), "Guías del votante".to_string());
     plan.materials_subtitle = Translated::new("How to vote");
 
-    let workbook = to_workbook(&plan).expect("a workbook");
+    let workbook = workbook_of(&plan).expect("a workbook");
     let rows = workbook.rows(sheet::SHEET_ELECTION_EVENT);
     assert_eq!(
         rows[0]
@@ -2434,7 +2577,7 @@ fn a_plan_that_says_nothing_new_writes_no_new_columns() {
     // Each field is emitted only when set, because `election_event.hbs` already
     // carries a value for every one of them — so an absent column leaves the
     // template's own, and a plan saved last week is unaffected.
-    let workbook = to_workbook(&sound()).expect("a workbook");
+    let workbook = workbook_of(&sound()).expect("a workbook");
     let rows = workbook.rows(sheet::SHEET_ELECTION_EVENT);
     for column in [
         "presentation.language_conf.language_detection_policy",
@@ -2569,7 +2712,7 @@ fn a_workbook_can_carry_support_materials() {
         is_hidden: false,
     }];
 
-    let workbook = to_workbook(&plan).expect("a workbook");
+    let workbook = workbook_of(&plan).expect("a workbook");
     let rows = workbook.rows(sheet::SHEET_MATERIALS);
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].text("file"), Some("rules.pdf"));
@@ -2594,7 +2737,7 @@ fn a_row_naming_a_file_nobody_supplied_is_refused() {
         ..Default::default()
     }];
 
-    let workbook = to_workbook(&plan).expect("a workbook");
+    let workbook = workbook_of(&plan).expect("a workbook");
     let templates = TemplateSet::builtin().unwrap();
     // The sheet, with the bytes deliberately withheld — which is exactly what a
     // workbook arriving without its folder of files looks like.
@@ -2619,7 +2762,7 @@ fn a_file_nobody_names_is_said_out_loud() {
     // The mirror, and the more dangerous of the two: it reaches the archive, the
     // importer creates a document for it, and nothing points at it ever again.
     let plan = sound();
-    let workbook = to_workbook(&plan).expect("a workbook");
+    let workbook = workbook_of(&plan).expect("a workbook");
     let templates = TemplateSet::builtin().unwrap();
     let options = BuildOptions {
         materials: vec![MaterialFile {
@@ -2712,7 +2855,7 @@ fn a_workbook_can_carry_the_logo() {
         bytes: b"\x89PNG".to_vec(),
     });
 
-    let workbook = to_workbook(&plan).expect("a workbook");
+    let workbook = workbook_of(&plan).expect("a workbook");
     let rows = workbook.rows(sheet::SHEET_ELECTION_EVENT);
     // The sheet names the file; the bytes travel beside it, because a cell cannot
     // hold one. Exactly the Materials answer, and for the same reason.
@@ -2767,7 +2910,7 @@ fn a_plan_carrying_both_a_logo_file_and_a_link_is_told_which_wins() {
         bytes: b"\x89PNG".to_vec(),
     });
 
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
     assert!(
         report
             .problems
@@ -2786,7 +2929,7 @@ fn a_logo_named_with_no_bytes_is_refused() {
         bytes: Vec::new(),
     });
 
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
     assert!(
         report
             .problems
@@ -2805,7 +2948,7 @@ fn a_sheet_naming_a_logo_nobody_supplied_is_refused() {
         bytes: b"\x89PNG".to_vec(),
     });
 
-    let workbook = to_workbook(&plan).expect("a workbook");
+    let workbook = workbook_of(&plan).expect("a workbook");
     let templates = TemplateSet::builtin().unwrap();
     // The bytes deliberately withheld — a workbook arriving without its folder.
     let outcome = build(&workbook, &templates, &BuildOptions::default());
@@ -2840,7 +2983,7 @@ fn a_planned_message_is_not_itself_a_problem() {
         schedule: MessageSchedule::default(),
     });
 
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
     assert!(!report.has_errors(), "a message is not a defect");
     assert!(
         !says(&report, "nothing sends these"),
@@ -2873,7 +3016,7 @@ fn a_weekly_repeat_with_no_time_says_so() {
         },
     });
 
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
     assert!(!report.has_errors(), "a missing hour does not stop a build");
     assert!(
         report
@@ -2901,7 +3044,7 @@ fn a_weekly_repeat_with_a_time_is_quiet_about_it() {
         },
     });
 
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
     assert!(
         !report
             .problems
@@ -2927,7 +3070,7 @@ fn a_message_that_does_not_repeat_is_not_asked_for_an_hour() {
         schedule: MessageSchedule::default(),
     });
 
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
     assert!(
         !report
             .problems
@@ -3003,7 +3146,7 @@ fn messages_leave_as_two_files_outside_the_bundle() {
 
     // The sheet is there, though — that is what puts it in the delivery's
     // spreadsheet rather than only in two JSON files beside it.
-    let workbook = to_workbook(&plan).expect("a workbook");
+    let workbook = workbook_of(&plan).expect("a workbook");
     assert!(workbook.has("messages"), "the plan's messages are a sheet");
 }
 
@@ -3124,7 +3267,7 @@ fn a_plan_the_builder_refuses_is_refused_by_the_wizard_first() {
             continue;
         }
 
-        let verdict = validate_plan(&plan);
+        let verdict = checked(&plan);
         if !verdict.has_errors() {
             lies.push(format!(
                 "{what}: the builder refuses it and validate_plan says it is fine"
@@ -3525,7 +3668,7 @@ fn the_plans_own_sheets_are_in_the_workbook() {
         date: "2027-02-01".to_string(),
     }];
 
-    let workbook = to_workbook(&plan).unwrap();
+    let workbook = workbook_of(&plan).unwrap();
 
     assert_eq!(workbook.rows("contacts").len(), 1);
     assert_eq!(
@@ -3553,7 +3696,7 @@ fn the_ceremony_sheet_keeps_the_threshold_out_of_the_event() {
     let mut plan = sound();
     plan.trustee_threshold = 3;
 
-    let workbook = to_workbook(&plan).unwrap();
+    let workbook = workbook_of(&plan).unwrap();
     let value = |key: &str| {
         workbook
             .rows("ceremony")
@@ -3593,7 +3736,7 @@ fn a_ceremony_time_survives_with_its_zone() {
         -480,
     ));
 
-    let workbook = to_workbook(&plan).unwrap();
+    let workbook = workbook_of(&plan).unwrap();
     let value = |key: &str| {
         workbook
             .rows("ceremony")
@@ -3658,7 +3801,7 @@ fn a_plan_that_says_nothing_grows_no_empty_tabs() {
     plan.notes = "   ".to_string();
     plan.schedule.milestones = Vec::new();
 
-    let workbook = to_workbook(&plan).unwrap();
+    let workbook = workbook_of(&plan).unwrap();
     assert!(!workbook.has("contacts"));
     assert!(!workbook.has("messages"));
     assert!(!workbook.has("milestones"));
@@ -3678,7 +3821,7 @@ fn every_sheet_the_wizard_writes_is_a_known_one() {
     }];
     plan.contacts = vec![Contact::default()];
 
-    let workbook = to_workbook(&plan).unwrap();
+    let workbook = workbook_of(&plan).unwrap();
     assert_eq!(
         workbook.unread_sheets(),
         Vec::<&str>::new(),
@@ -3791,8 +3934,8 @@ fn a_plan_with_no_platform_sheets_is_unchanged() {
     with_empty.platform = Vec::new();
 
     assert_eq!(
-        to_workbook(&plain).unwrap(),
-        to_workbook(&with_empty).unwrap()
+        workbook_of(&plain).unwrap(),
+        workbook_of(&with_empty).unwrap()
     );
     assert_eq!(
         compiled(&plain).export,
@@ -3810,7 +3953,7 @@ fn a_platform_sheet_that_collides_with_a_real_one_is_refused() {
         &[&["external_id"], &["somewhere-else"]],
     )];
 
-    let refused = to_workbook(&plan)
+    let refused = workbook_of(&plan)
         .expect_err("two ElectionEvent sheets cannot both be meant");
     assert_eq!(refused.code, Code::ConflictingColumns);
 }
@@ -3846,7 +3989,7 @@ fn a_carried_sheet_survives_the_saved_plan() {
 #[test]
 #[ignore]
 fn emit_a_workbook_to_look_at() {
-    let workbook = to_workbook(&sound()).expect("the sample plan writes");
+    let workbook = workbook_of(&sound()).expect("the sample plan writes");
     let bytes = crate::election_config::xlsx_write::write_xlsx(&workbook)
         .expect("and it becomes a file");
     let at = std::env::temp_dir().join("election_workbook.xlsx");
@@ -4130,7 +4273,7 @@ fn the_wording_blob_is_written_before_the_named_columns() {
         .collect(),
     );
 
-    let workbook = to_workbook(&plan).expect("the plan compiles to rows");
+    let workbook = workbook_of(&plan).expect("the plan compiles to rows");
     let row = workbook.rows(sheet::SHEET_ELECTION_EVENT)[0].clone();
     let order: Vec<String> =
         row.without(&[]).into_iter().map(|(name, _)| name).collect();
@@ -4161,7 +4304,7 @@ fn the_event_keeps_its_name_when_a_client_overrides_wording() {
         .collect(),
     );
 
-    let workbook = to_workbook(&plan).expect("the plan compiles to rows");
+    let workbook = workbook_of(&plan).expect("the plan compiles to rows");
     let row = workbook.rows(sheet::SHEET_ELECTION_EVENT)[0].clone();
     assert_eq!(
         row.text("presentation.i18n.en.name").unwrap_or_default(),
@@ -4175,7 +4318,7 @@ fn a_stylesheet_reaches_the_event_sheet() {
     let mut plan = sound();
     plan.css = ".candidate { border-color: rebeccapurple; }".to_string();
 
-    let workbook = to_workbook(&plan).expect("the plan compiles to rows");
+    let workbook = workbook_of(&plan).expect("the plan compiles to rows");
     let row = workbook.rows(sheet::SHEET_ELECTION_EVENT)[0].clone();
     assert_eq!(
         row.text("presentation.css"),
@@ -4192,7 +4335,7 @@ fn a_stylesheet_reaches_the_event_sheet() {
 fn saying_nothing_about_wording_writes_an_empty_cell() {
     let plan = sound();
 
-    let workbook = to_workbook(&plan).expect("the plan compiles to rows");
+    let workbook = workbook_of(&plan).expect("the plan compiles to rows");
     let row = workbook.rows(sheet::SHEET_ELECTION_EVENT)[0].clone();
     let written = row.text("presentation.i18n.en");
     assert!(
@@ -4229,7 +4372,7 @@ fn the_sign_in_pages_wording_is_written_as_realm_parameters() {
         ),
     ]);
 
-    let workbook = to_workbook(&plan).expect("the plan compiles to rows");
+    let workbook = workbook_of(&plan).expect("the plan compiles to rows");
     let said: Vec<(String, String)> = workbook
         .rows(sheet::SHEET_PARAMETERS)
         .iter()
@@ -4267,7 +4410,7 @@ fn a_translation_is_not_message_format_escaped() {
         BTreeMap::from([("hello".to_string(), "Welcome, {0}".to_string())]),
     )]);
 
-    let workbook = to_workbook(&plan).expect("the plan compiles to rows");
+    let workbook = workbook_of(&plan).expect("the plan compiles to rows");
     let value = workbook.rows(sheet::SHEET_PARAMETERS)[0]
         .text("value")
         .map(str::to_string);
@@ -4282,7 +4425,7 @@ fn a_translation_is_not_message_format_escaped() {
 /// change what a rebuild of an untouched workbook produces.
 #[test]
 fn no_sign_in_wording_means_no_parameters_sheet() {
-    let workbook = to_workbook(&sound()).expect("the plan compiles to rows");
+    let workbook = workbook_of(&sound()).expect("the plan compiles to rows");
     assert!(
         workbook.sheet(sheet::SHEET_PARAMETERS).is_none(),
         "a plan with no sign-in wording should not invent a Parameters sheet"
@@ -4316,7 +4459,7 @@ fn wording_is_appended_to_a_carried_parameters_sheet() {
         BTreeMap::from([("doLogIn".to_string(), "Sign in".to_string())]),
     )]);
 
-    let workbook = to_workbook(&plan).expect("the plan compiles to rows");
+    let workbook = workbook_of(&plan).expect("the plan compiles to rows");
     let keys: Vec<String> = workbook
         .rows(sheet::SHEET_PARAMETERS)
         .iter()
@@ -4360,7 +4503,7 @@ fn the_login_stylesheet_is_escaped_and_wording_is_not() {
         .collect(),
     );
 
-    let workbook = to_workbook(&plan).expect("the plan compiles to rows");
+    let workbook = workbook_of(&plan).expect("the plan compiles to rows");
     let row = workbook.rows(sheet::SHEET_PARAMETERS);
     let value = |name: &str| {
         row.iter()

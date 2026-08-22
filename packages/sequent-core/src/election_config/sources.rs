@@ -121,6 +121,51 @@ impl std::fmt::Debug for Sources {
 }
 
 impl Sources {
+    /// Everything a plan still carries inline, lifted out of it.
+    ///
+    /// **The scaffolding, and it is meant to be temporary.** While `Blueprint` still
+    /// has `voters` and the three `bytes` fields, this is what lets every caller
+    /// take a `&Sources` without any of them changing what they mean — so the
+    /// commit that finally deletes those fields is a small diff over a codebase
+    /// that already threads sources everywhere, rather than one enormous one that
+    /// does both at once.
+    ///
+    /// It goes away in the same change as the fields. Nothing new should call it.
+    pub fn from_plan(plan: &super::architect::Blueprint) -> Self {
+        let mut files: BTreeMap<String, Arc<[u8]>> = BTreeMap::new();
+        let mut carry = |name: &str, bytes: &[u8]| {
+            if !name.is_empty() && !bytes.is_empty() {
+                files.insert(name.to_owned(), Arc::from(bytes));
+            }
+        };
+        if let Some(logo) = &plan.logo {
+            carry(&logo.file_name, &logo.bytes);
+        }
+        for material in &plan.materials {
+            carry(&material.file_name, &material.bytes);
+        }
+        for election in &plan.elections {
+            for contest in &election.contests {
+                for candidate in &contest.candidates {
+                    if let Some(image) = &candidate.image {
+                        carry(&image.file_name, &image.bytes);
+                    }
+                }
+            }
+        }
+
+        Sources {
+            // `None` rather than an empty source, so "this plan has no census" and
+            // "this census has no rows yet" stay distinguishable — `voters_sheet`
+            // already returns `None` for the first and a header for the second.
+            census: (!plan.voters.is_empty()).then(|| {
+                Arc::new(VecCensus::new(plan.voters.clone()))
+                    as Arc<dyn CensusSource>
+            }),
+            files,
+        }
+    }
+
     /// Read a census in full, for the callers that genuinely need it all at once.
     ///
     /// Provided so those callers say so out loud rather than each writing their own

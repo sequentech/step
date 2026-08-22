@@ -14,6 +14,15 @@
 
 use super::*;
 use crate::election_config::architect::{to_workbook, Blueprint};
+use crate::election_config::sources::Sources;
+
+/// `to_workbook` against the census and files the plan is still carrying.
+///
+/// One function rather than every call site: when the census leaves `Blueprint`,
+/// this is where a test says where its voters come from.
+fn workbook_of(plan: &Blueprint) -> Result<Workbook, Problem> {
+    to_workbook(plan, &Sources::from_plan(plan))
+}
 
 /// The sample plan `architect_tests` uses, rebuilt here.
 ///
@@ -104,7 +113,7 @@ fn sound() -> Blueprint {
 }
 
 fn read(plan: &Blueprint) -> Blueprint {
-    let workbook = to_workbook(plan).expect("the plan writes");
+    let workbook = workbook_of(plan).expect("the plan writes");
     plan_from_workbook(&workbook)
         .expect("and reads back without errors")
         .plan
@@ -118,8 +127,8 @@ fn read(plan: &Blueprint) -> Blueprint {
 #[test]
 fn a_plan_round_trips_to_the_same_workbook() {
     let plan = sound();
-    let once = to_workbook(&plan).expect("the plan writes");
-    let twice = to_workbook(&read(&plan)).expect("and writes again");
+    let once = workbook_of(&plan).expect("the plan writes");
+    let twice = workbook_of(&read(&plan)).expect("and writes again");
 
     assert_eq!(once, twice);
 }
@@ -329,7 +338,7 @@ fn a_contest_on_one_area_keeps_that_area() {
 #[test]
 fn a_dangling_reference_names_the_cell_and_drops_the_row() {
     let plan = sound();
-    let mut workbook_rows = to_workbook(&plan).unwrap();
+    let mut workbook_rows = workbook_of(&plan).unwrap();
     // Rebuild the Contests sheet with an election that does not exist.
     let contests = crate::election_config::sheet::Sheet::from_grid(
         "Contests",
@@ -458,7 +467,7 @@ fn a_workbook_that_is_not_a_configuration_is_refused() {
 #[test]
 fn the_platform_sheets_are_carried_through() {
     let plan = sound();
-    let mut sheets = to_workbook(&plan).unwrap().sheets().to_vec();
+    let mut sheets = workbook_of(&plan).unwrap().sheets().to_vec();
     sheets.push(
         crate::election_config::sheet::Sheet::from_grid(
             "Admin Users",
@@ -484,7 +493,7 @@ fn the_platform_sheets_are_carried_through() {
 
     // And it is still there after writing the plan out again, which is what makes
     // the rebuilt delivery carry `admin_users.csv`.
-    let again = to_workbook(&back).unwrap();
+    let again = workbook_of(&back).unwrap();
     assert!(again.has("adminusers"));
 }
 
@@ -502,7 +511,7 @@ fn an_image_that_cannot_travel_is_said_out_loud() {
         bytes: vec![1, 2, 3, 4],
     });
 
-    let workbook = to_workbook(&plan).unwrap();
+    let workbook = workbook_of(&plan).unwrap();
     let read = plan_from_workbook(&workbook).expect("it still reads");
 
     assert!(read.plan.logo.is_none(), "no bytes came back");
@@ -613,7 +622,7 @@ fn with_voters(grid: &[&[&str]]) -> Blueprint {
         .collect();
     let voters = Sheet::from_grid("Voters", &cells).unwrap();
 
-    let workbook = to_workbook(&sound()).expect("the plan writes");
+    let workbook = workbook_of(&sound()).expect("the plan writes");
     let sheets: Vec<Sheet> = workbook
         .sheets()
         .iter()
@@ -748,7 +757,7 @@ fn a_plan_with_no_telephone_writes_no_ivr_columns() {
     // A web-only plan should produce the workbook it always did. Three empty
     // columns on every sheet would show up in every diff and be three more
     // things for somebody reading a delivery to wonder about.
-    let workbook = to_workbook(&sound()).expect("the plan writes");
+    let workbook = workbook_of(&sound()).expect("the plan writes");
     let headers: Vec<String> = workbook
         .rows(crate::election_config::sheet::SHEET_ELECTION_EVENT)
         .first()
@@ -798,7 +807,7 @@ fn a_plan_nobody_wrote_a_prompt_on_carries_no_prompt_column() {
     // The column appears only when somebody has written one. A blank column on
     // four sheets of every bundle is a diff on every rebuild and four more
     // things for whoever reads a delivery to wonder about.
-    let workbook = to_workbook(&sound()).expect("the plan writes");
+    let workbook = workbook_of(&sound()).expect("the plan writes");
     for sheet in ["electionevent", "elections", "contests", "candidates"] {
         let headers: Vec<String> = workbook
             .rows(sheet)

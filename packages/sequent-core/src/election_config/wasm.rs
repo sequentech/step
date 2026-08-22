@@ -37,6 +37,7 @@ use crate::election_config::census_csv;
 use crate::election_config::fixtures;
 use crate::election_config::problem::{Code, Problem, Report};
 use crate::election_config::schema::ImportElectionEventSchema;
+use crate::election_config::sources;
 use crate::election_config::validate;
 use serde::Serialize;
 use wasm_bindgen::prelude::*;
@@ -390,7 +391,11 @@ pub fn validate_plan_js(plan: JsValue) -> Result<IReport, JsError> {
             JsError::new(&format!("this is not an election plan: {error}"))
         })?;
 
-    to_js(&architect::validate_plan(&plan)).map(IReport::from)
+    // Derived from the plan's own fields while the plan still carries them. The
+    // additive `options.census` this grows in the next commit changes what is
+    // passed here, not what this function is for.
+    let sources = sources::Sources::from_plan(&plan);
+    to_js(&architect::validate_plan(&plan, &sources)).map(IReport::from)
 }
 
 /// Compile a plan into the bundle and the files that travel beside it.
