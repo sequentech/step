@@ -1857,6 +1857,112 @@ fn the_caller_may_bring_the_census_and_the_files() {
     );
 }
 
+/// Two candidates cannot both have `photo.jpg`.
+///
+/// **The failure this prevents has no symptom.** Bytes travel keyed by name from
+/// the moment they leave the plan — in `sources.files`, in a save file's `files/`
+/// directory, in `BuildOptions::images` — so two photographs called `photo.jpg` are
+/// one photograph, and the wrong face appears on a ballot. Nothing catches it today
+/// because the plan carries the bytes inline, where two identical names are two
+/// different values. The moment it stops, they are one.
+#[test]
+fn two_files_may_not_share_a_name() {
+    let mut plan = sound();
+    let image = |name: &str| CandidateImage {
+        file_name: name.to_string(),
+        bytes: b"JPEG".to_vec(),
+    };
+    plan.elections[0].contests[0].candidates[0].image =
+        Some(image("photo.jpg"));
+    plan.elections[0].contests[0].candidates[1].image =
+        Some(image("photo.jpg"));
+
+    let report = checked(&plan);
+    let clash = report
+        .problems
+        .iter()
+        .find(|problem| problem.id.as_deref() == Some("file.duplicate-name"))
+        .unwrap_or_else(|| panic!("expected a clash, got:\n{report}"));
+
+    // Names the other one, because "these two clash" is only actionable if it says
+    // which two.
+    assert!(
+        clash
+            .message
+            .contains(&plan.elections[0].contests[0].candidates[0].external_id),
+        "{}",
+        clash.message
+    );
+
+    // And two different names are two files.
+    plan.elections[0].contests[0].candidates[1].image =
+        Some(image("other.jpg"));
+    assert!(!checked(&plan)
+        .problems
+        .iter()
+        .any(|problem| problem.id.as_deref() == Some("file.duplicate-name")));
+}
+
+/// A file the plan names and nobody holds, and a file nobody names.
+#[test]
+fn the_plan_and_the_files_are_checked_against_each_other() {
+    let mut plan = sound();
+    plan.elections[0].contests[0].candidates[0].image = Some(CandidateImage {
+        file_name: "ada.jpg".to_string(),
+        bytes: Vec::new(),
+    });
+
+    // Named, held by nobody: an archive entry with nothing in it fails the whole
+    // import rather than losing a picture.
+    let named: Vec<String> = validate_plan(&plan, &Sources::default())
+        .problems
+        .into_iter()
+        .filter_map(|problem| problem.id)
+        .collect();
+    assert!(named.contains(&"file.missing".to_string()), "{named:?}");
+
+    // Held by the caller rather than by the plan, which is what a reopened save
+    // file looks like. No complaint.
+    let beside = Sources {
+        files: [(
+            "ada.jpg".to_string(),
+            std::sync::Arc::from(b"JPEG".to_vec()),
+        )]
+        .into_iter()
+        .collect(),
+        ..Sources::default()
+    };
+    let named: Vec<String> = validate_plan(&plan, &beside)
+        .problems
+        .into_iter()
+        .filter_map(|problem| problem.id)
+        .collect();
+    assert!(!named.contains(&"file.missing".to_string()), "{named:?}");
+
+    // And a file nothing names travels in the delivery and is shown to nobody.
+    let spare = Sources {
+        files: [
+            (
+                "ada.jpg".to_string(),
+                std::sync::Arc::from(b"JPEG".to_vec()),
+            ),
+            (
+                "nobody.png".to_string(),
+                std::sync::Arc::from(b"PNG".to_vec()),
+            ),
+        ]
+        .into_iter()
+        .collect(),
+        ..Sources::default()
+    };
+    let report = validate_plan(&plan, &spare);
+    assert!(!report.has_errors(), "{report}");
+    assert!(report
+        .problems
+        .iter()
+        .any(|problem| problem.id.as_deref() == Some("file.unused")));
+}
+
 /// The census is read from the source, not from the plan.
 ///
 /// **The test that makes this change more than a rename.** `Sources::from_plan`

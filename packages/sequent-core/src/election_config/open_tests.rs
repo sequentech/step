@@ -595,6 +595,20 @@ fn an_election_event_archive_brings_the_census_with_it() {
         ada.extra.get("department").map(String::as_str),
         Some("Engineering")
     );
+
+    // And the realm/census cross-check stays quiet on the wizard's own output.
+    // `declare_census_attributes` puts every census column into the user profile,
+    // so a check that fired here would fire on every export this tool writes.
+    assert!(
+        !opened
+            .report
+            .problems
+            .iter()
+            .any(|problem| problem.id.as_deref()
+                == Some("census.column-not-declared")),
+        "{}",
+        opened.report
+    );
 }
 
 #[test]

@@ -214,7 +214,7 @@ pub struct RowShape {
 
 /// Columns a [`PlannedVoter`] has a field of its own for, plus the ones the
 /// platform regenerates and a plan must never carry.
-const OWNED: &[&str] = &[
+pub const OWNED: &[&str] = &[
     "username",
     "email",
     "first_name",

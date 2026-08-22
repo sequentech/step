@@ -604,10 +604,109 @@ pub fn fill_from_archive(
     report: &mut Report,
 ) {
     if let Some(csv) = beside.voters.as_deref() {
+        check_census_against_profile(document, csv, report);
         voters_into(plan, csv, report);
     }
     images_into(plan, document, beside, report);
     materials_into(plan, document, beside, report);
+}
+
+/// The census's columns against the realm's user profile.
+///
+/// **The one cross-check worth making, and only here.** Two artifacts arrived
+/// together in one archive, so they can be compared against each other — which is
+/// different from a plan carrying a note about what its census *ought* to contain.
+/// There is nothing to keep in step, because both sides are files somebody handed
+/// over.
+///
+/// A census column Keycloak has never heard of reaches nobody: the platform drops
+/// an attribute its user profile does not declare, with no error and nothing in a
+/// log. So an export whose realm does not declare a column its own voters CSV
+/// carries is worth one sentence, said where somebody can still ask for a better
+/// export.
+///
+/// A warning, never an error. The wizard's own build declares what the census
+/// carries — `build_realm::declare_census_attributes` — so this is a statement
+/// about the file that was opened, not about the election that will be built from
+/// it.
+fn check_census_against_profile(
+    document: &Value,
+    csv: &str,
+    report: &mut Report,
+) {
+    let Some(declared) = declared_attributes(document) else {
+        return;
+    };
+    let Ok(reader) = super::census_csv::CensusCsv::new(csv) else {
+        // Unreadable is `voters_into`'s to report, a line below this one.
+        return;
+    };
+
+    let missing: Vec<&String> = reader
+        .header()
+        .columns
+        .iter()
+        .filter(|column| {
+            !super::sources::OWNED.contains(&column.as_str())
+                && !declared.iter().any(|name| name == *column)
+        })
+        .collect();
+
+    if missing.is_empty() {
+        return;
+    }
+
+    report.push(
+        Problem::warning(
+            Code::MissingField,
+            "voters",
+            format!(
+                "this export's census has {} that its own realm does not declare \
+                 as a user attribute, so the platform it came from was dropping \
+                 {}: {}",
+                if missing.len() == 1 { "a column" } else { "columns" },
+                if missing.len() == 1 { "it" } else { "them" },
+                missing
+                    .iter()
+                    .map(|name| name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+        )
+        .id("census.column-not-declared"),
+    );
+}
+
+/// The user-profile attribute names an export's realm declares.
+///
+/// The profile travels as a stringified JSON blob inside a Keycloak component, so
+/// it has to be parsed rather than read. `None` when the export carries no realm at
+/// all, which is ordinary — there is then nothing to compare against.
+fn declared_attributes(document: &Value) -> Option<Vec<String>> {
+    let raw = document
+        .get("keycloak_event_realm")?
+        .get("components")?
+        .get("org.keycloak.userprofile.UserProfileProvider")?
+        .as_array()?
+        .first()?
+        .get("config")?
+        .get("kc.user.profile.config")?;
+    let text = match raw {
+        Value::String(text) => text.clone(),
+        Value::Array(items) => items.first()?.as_str()?.to_string(),
+        _ => return None,
+    };
+    let profile: Value = serde_json::from_str(&text).ok()?;
+    Some(
+        profile
+            .get("attributes")?
+            .as_array()?
+            .iter()
+            .filter_map(|attribute| {
+                attribute.get("name")?.as_str().map(str::to_string)
+            })
+            .collect(),
+    )
 }
 
 /// The census, out of the export's own CSV.

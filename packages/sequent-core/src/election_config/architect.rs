@@ -1576,6 +1576,7 @@ pub fn validate_plan(plan: &Blueprint, sources: &Sources) -> Report {
     check_languages(plan, &mut report);
     check_language_detection(plan, &mut report);
     check_logo(plan, sources, &mut report);
+    check_sources(plan, sources, &mut report);
     check_trustees(plan, &mut report);
     check_schedule(plan, &mut report);
     check_areas(plan, &mut report);
@@ -1699,6 +1700,161 @@ fn check_language_detection(plan: &Blueprint, report: &mut Report) {
             .id("languages.detection-unknown")
             .detail("policy", policy),
         );
+    }
+}
+
+/// Every file the plan names, against every file it was handed.
+///
+/// Three questions, and the first is the one that has no other home.
+///
+/// **Two owners, one file name.** Bytes are keyed by name from the moment they
+/// leave the plan — in `sources.files`, in a save file's `files/` directory, in
+/// `BuildOptions::images` — so two candidates whose photographs are both
+/// `photo.jpg` are not two photographs. One silently becomes the other's, and the
+/// wrong face appears on a ballot. Nothing catches this today because the plan
+/// carries the bytes inline, where two identical names are two different values;
+/// the moment it stops, they are one.
+///
+/// **A file the plan names and nobody carries.** The build says this already —
+/// `material.file-missing`, `logo.file-missing` — but it says it at build time, in
+/// the workbook's vocabulary, about a spreadsheet column somebody may never have
+/// seen. Here it is the field the author actually filled in.
+///
+/// **A file nobody names.** A warning, not an error: it is dead weight in a
+/// delivery rather than a broken one. Worth saying because the usual cause is a
+/// photograph that was attached and then had its candidate renamed.
+fn check_sources(plan: &Blueprint, sources: &Sources, report: &mut Report) {
+    /// Where a file name was written, and what it is for.
+    struct Named {
+        file_name: String,
+        path: String,
+        what: String,
+        /// The logo has its own message for the absent case; see [`check_logo`].
+        reports_absence: bool,
+        carried: bool,
+    }
+
+    let held = |name: &str, bytes: &[u8]| {
+        !bytes.is_empty() || sources.files.contains_key(name)
+    };
+
+    let mut named: Vec<Named> = Vec::new();
+
+    if let Some(logo) = &plan.logo {
+        if !logo.file_name.is_empty() {
+            named.push(Named {
+                carried: held(&logo.file_name, &logo.bytes),
+                file_name: logo.file_name.clone(),
+                path: "logo".to_string(),
+                what: "the logo".to_string(),
+                reports_absence: false,
+            });
+        }
+    }
+
+    for (at, material) in plan.materials.iter().enumerate() {
+        if !material.file_name.is_empty() {
+            named.push(Named {
+                carried: held(&material.file_name, &material.bytes),
+                file_name: material.file_name.clone(),
+                path: format!("materials[{at}].file_name"),
+                what: format!(
+                    "the support material '{}'",
+                    if material.external_id.is_empty() {
+                        material.file_name.as_str()
+                    } else {
+                        material.external_id.as_str()
+                    }
+                ),
+                reports_absence: true,
+            });
+        }
+    }
+
+    for (e, election) in plan.elections.iter().enumerate() {
+        for (c, contest) in election.contests.iter().enumerate() {
+            for (n, candidate) in contest.candidates.iter().enumerate() {
+                let Some(image) = &candidate.image else {
+                    continue;
+                };
+                if image.file_name.is_empty() {
+                    continue;
+                }
+                named.push(Named {
+                    carried: held(&image.file_name, &image.bytes),
+                    file_name: image.file_name.clone(),
+                    path: format!(
+                        "elections[{e}].contests[{c}].candidates[{n}].image"
+                    ),
+                    what: format!("{}'s photograph", candidate.external_id),
+                    reports_absence: true,
+                });
+            }
+        }
+    }
+
+    // Reported against the *second* of two, and naming the first — the same shape
+    // as `voter.duplicate-username`, because "these two clash" is only actionable
+    // if it says which two.
+    let mut first_use: std::collections::BTreeMap<&str, &str> =
+        std::collections::BTreeMap::new();
+    for entry in &named {
+        match first_use.get(entry.file_name.as_str()) {
+            Some(first) => report.push(
+                Problem::error(
+                    Code::DuplicateId,
+                    &entry.path,
+                    format!(
+                        "'{}' is also the file name of {}. Bytes travel keyed by \
+                         name, so these are not two files — one would silently \
+                         become the other.",
+                        entry.file_name, first
+                    ),
+                )
+                .id("file.duplicate-name")
+                .detail("file", &entry.file_name),
+            ),
+            None => {
+                first_use.insert(&entry.file_name, &entry.what);
+            }
+        }
+    }
+
+    for entry in &named {
+        if !entry.carried && entry.reports_absence {
+            report.push(
+                Problem::error(
+                    Code::DanglingReference,
+                    &entry.path,
+                    format!(
+                        "'{}' is named for {} and nothing here holds it. An \
+                         archive entry with nothing in it fails the import \
+                         rather than losing a file.",
+                        entry.file_name, entry.what
+                    ),
+                )
+                .id("file.missing")
+                .detail("file", &entry.file_name),
+            );
+        }
+    }
+
+    for carried in sources.files.keys() {
+        if !named.iter().any(|entry| &entry.file_name == carried) {
+            report.push(
+                Problem::warning(
+                    Code::BallotCoverage,
+                    "files",
+                    format!(
+                        "'{carried}' was supplied and nothing in this plan names \
+                         it, so it would travel in the delivery and be shown to \
+                         nobody."
+                    ),
+                )
+                .id("file.unused")
+                .detail("file", carried),
+            );
+        }
     }
 }
 
