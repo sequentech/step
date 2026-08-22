@@ -31,6 +31,7 @@
 //! none goes stale.
 
 use serde_json::{json, Map, Value};
+use strum_macros::{Display, EnumString};
 
 /// Parameter keys a preset may consume.
 ///
@@ -71,11 +72,24 @@ pub const OTP_CONFIG_ALIAS: &str = "janitor-otp-by-availability";
 /// identity provider.
 pub const NONE: &str = "none";
 
+/// Which collection of the realm a requirement is about.
+///
+/// A `&str` before, matched with a `_ =>` arm that meant "authenticator" — so a
+/// misspelled kind was checked against the wrong collection and reported nothing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumString)]
+pub enum RequirementKind {
+    #[strum(serialize = "flow")]
+    Flow,
+    #[strum(serialize = "authenticator")]
+    Authenticator,
+    #[strum(serialize = "authenticator_config")]
+    AuthenticatorConfig,
+}
+
 /// Something a preset needs the target realm to already have.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Requirement {
-    /// `flow`, `authenticator` or `authenticator_config`.
-    pub kind: &'static str,
+    pub kind: RequirementKind,
     pub name: &'static str,
     pub why: &'static str,
 }
@@ -381,7 +395,7 @@ pub const PRESETS: &[AuthPreset] = &[
         required_parameters: &[],
         optional_parameters: &[],
         requires: &[Requirement {
-            kind: "flow",
+            kind: RequirementKind::Flow,
             name: CERTIFICATE_FIRST_LOGIN_FLOW,
             why: "a first-time certificate login is handed to this flow",
         }],
@@ -399,7 +413,7 @@ pub const PRESETS: &[AuthPreset] = &[
             PARAM_OTP_TTL_SECONDS,
         ],
         requires: &[Requirement {
-            kind: "authenticator",
+            kind: RequirementKind::Authenticator,
             name: OTP_AUTHENTICATOR,
             why: "the one-time code step is bound to this authenticator's config",
         }],
@@ -417,7 +431,7 @@ pub const PRESETS: &[AuthPreset] = &[
             PARAM_SAML_PRINCIPAL_ATTRIBUTE,
         ],
         requires: &[Requirement {
-            kind: "flow",
+            kind: RequirementKind::Flow,
             name: SAML_FIRST_BROKER_FLOW,
             why: "a first-time SAML login is handed to this flow to match the \
                   assertion against an existing census voter",
@@ -437,13 +451,13 @@ pub const PRESETS: &[AuthPreset] = &[
         ],
         requires: &[
             Requirement {
-                kind: "authenticator",
+                kind: RequirementKind::Authenticator,
                 name: OTP_AUTHENTICATOR,
                 why: "the one-time code step is bound to this authenticator's \
                       config",
             },
             Requirement {
-                kind: "authenticator_config",
+                kind: RequirementKind::AuthenticatorConfig,
                 name: DEFERRED_AUTHENTICATOR_CONFIG,
                 why: "the login form's fields and prefill policy are set on this \
                       config",
@@ -530,13 +544,6 @@ mod tests {
         for preset in PRESETS {
             assert!(!preset.requires.is_empty(), "{}", preset.name);
             for requirement in preset.requires {
-                assert!(
-                    ["flow", "authenticator", "authenticator_config"]
-                        .contains(&requirement.kind),
-                    "{}: {}",
-                    preset.name,
-                    requirement.kind
-                );
                 assert!(!requirement.why.is_empty());
             }
         }
