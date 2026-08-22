@@ -21,7 +21,7 @@ use super::{value_as_text, Builder};
 use crate::election_config::branding;
 use crate::election_config::paths::{deep_merge, set_path, split_path};
 use crate::election_config::presets::{
-    self, AuthPreset, PresetInput, RealmPatch, PARAM_AUTH_TYPE,
+    self, AuthPreset, PresetInput, RealmPatch, RequirementKind, PARAM_AUTH_TYPE,
 };
 use crate::election_config::problem::Code;
 use crate::election_config::sheet::SHEET_VOTERS;
@@ -360,10 +360,12 @@ impl Builder<'_> {
 
         let mut warnings = Vec::new();
         for requirement in preset.requires {
+            // Exhaustive: the `_ =>` arm this replaces meant a misspelled kind was
+            // checked against the authenticators and reported nothing.
             let present = match requirement.kind {
-                "flow" => &flows,
-                "authenticator_config" => &configs,
-                _ => &authenticators,
+                RequirementKind::Flow => &flows,
+                RequirementKind::Authenticator => &authenticators,
+                RequirementKind::AuthenticatorConfig => &configs,
             };
             if !present.iter().any(|name| name == requirement.name) {
                 warnings.push(format!(
