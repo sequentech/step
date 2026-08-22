@@ -15,6 +15,8 @@ import {
 import {useMutation, useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
+import {useAtomValue} from "jotai"
+import cssInputLookAndFeel from "@/atoms/css-input-look-and-feel"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IRole, IUser} from "@sequentech/ui-core"
 import {
@@ -37,6 +39,7 @@ import {
     Sequent_Backend_Election,
     SetUserRoleMutation,
     UserProfileAttribute,
+    UserProfileAttributeGroup,
 } from "@/gql/graphql"
 import {EDIT_USER} from "@/queries/EditUser"
 import {LIST_USER_ROLES} from "@/queries/ListUserRoles"
@@ -48,11 +51,12 @@ import {FormStyles} from "@/components/styles/FormStyles"
 import {CREATE_USER} from "@/queries/CreateUser"
 import {
     formatUserAtributes,
+    getAttributeLabel,
     getAttributeLengthBounds,
     getAttributeViolation,
-    getStatedLengthBounds,
     getInputOptionLabels,
     getSelectOptionLabel,
+    getStatedLengthBounds,
     getTranslationLabel,
     resolveOptionLabel,
     userBasicInfo,
@@ -71,6 +75,14 @@ import {getSaveUserErrorMessage} from "./saveUserError"
 import {VOTED_CHANNEL} from "./ListUsers"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {computeRoleDiff, computeUserDiff, UserBaseline} from "@/services/UserEditReviewChanges"
+import {
+    getVoterInputType,
+    groupVoterAttributes,
+    VoterAttributeGroups,
+    VoterEditorRoot,
+    VoterField,
+    VOTER_EDITOR_FIXED_FIELDS,
+} from "./VoterEditorLayout"
 
 interface ListUserRolesProps {
     userId?: string
@@ -173,6 +185,14 @@ const AttributeTextInput: React.FC<AttributeTextInputProps> = ({
     )
 }
 
+const isFieldRequired = (config: UserProfileAttribute): boolean => {
+    // Keycloak controls requiredness. Username remains required by Step, while
+    // email keeps its existing optional behavior.
+    return Boolean(
+        (config?.required?.roles || config?.name === "username") && config?.name !== "email"
+    )
+}
+
 export const ListUserRoles: React.FC<ListUserRolesProps> = ({
     userRoles,
     rolesList,
@@ -265,6 +285,7 @@ interface EditUserFormProps {
     close?: () => void
     rolesList: Array<IRole>
     userAttributes: UserProfileAttribute[]
+    userAttributeGroups: UserProfileAttributeGroup[]
     createMode?: boolean
     record?: RaRecord<Identifier>
     onTaskLaunched?: (taskExecutionId: string) => void
@@ -277,11 +298,13 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     electionId,
     rolesList,
     userAttributes,
+    userAttributeGroups,
     createMode = false,
     record,
     onTaskLaunched,
 }) => {
     const {t} = useTranslation()
+    const voterEditorCss = useAtomValue(cssInputLookAndFeel)
     const reviewI18nContext = electionEventId ? "voters" : "users"
 
     const [user, setUser] = useState<IUser | undefined>(
@@ -950,7 +973,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         }
     })
 
-    const renderFormField = useCallback(
+    const renderFormInput = useCallback(
         (attr: UserProfileAttribute, index: number) => {
             if (attr.name === VOTED_CHANNEL) {
                 return
@@ -996,7 +1019,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                                 )} ${isRequired ? "*" : ""}`}
                                                 inputProps={{
                                                     ...params.inputProps,
-                                                    id: "autocomplete-input",
                                                     required: isRequired,
                                                     name: displayName,
                                                 }}
@@ -1251,23 +1273,54 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         [user, permissionLabels, choices, electionsList, lengthErrors]
     )
 
-    const isFieldRequired = (config: UserProfileAttribute): boolean => {
-        // changed: required is controlled from keycloak
-        // if the user profile attribute is not null in keycloak (at tenant or election event levels),
-        // then the field is required
-        // exceot username thai is always required
-        if ((config?.required?.roles || config?.name === "username") && config?.name !== "email") {
-            return true
-        }
-        return false
-    }
-
-    const formFields = useMemo(() => {
-        // to check if fields are required
-        return userAttributes?.map((attr, index) => (
-            <React.Fragment key={attr.name || index}>{renderFormField(attr, index)}</React.Fragment>
-        ))
-    }, [userAttributes, user, permissionLabels, choices, electionsList, lengthErrors])
+    const visibleUserAttributes = useMemo(
+        () =>
+            userAttributes.filter(
+                (attribute) =>
+                    Boolean(attribute.name) &&
+                    attribute.name !== VOTED_CHANNEL &&
+                    !attribute.name?.toLowerCase().includes("area")
+            ),
+        [userAttributes]
+    )
+    const attributeRuns = useMemo(
+        () => groupVoterAttributes(visibleUserAttributes, userAttributeGroups),
+        [visibleUserAttributes, userAttributeGroups]
+    )
+    const resolveGroupText = useCallback(
+        (value?: string | null) => {
+            if (!value) return ""
+            const translated = String(t(value))
+            return translated === value ? getAttributeLabel(value) : translated
+        },
+        [t]
+    )
+    const renderFormField = useCallback(
+        (attribute: UserProfileAttribute, index: number) => {
+            if (!attribute.name) return null
+            const input = renderFormInput(attribute, index)
+            if (!input) return null
+            return (
+                <VoterField
+                    inputType={getVoterInputType(attribute)}
+                    key={attribute.name}
+                    name={attribute.name}
+                    required={isFieldRequired(attribute)}
+                >
+                    {input}
+                </VoterField>
+            )
+        },
+        [renderFormInput]
+    )
+    const formFields = (
+        <VoterAttributeGroups
+            runs={attributeRuns}
+            renderField={renderFormField}
+            getHeader={(run) => resolveGroupText(run.group?.display_header ?? run.name)}
+            getDescription={(run) => resolveGroupText(run.group?.display_description)}
+        />
+    )
 
     const alertMessage =
         saveError ||
@@ -1316,198 +1369,246 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
     return (
         <PageHeaderStyles.Wrapper>
-            <SimpleForm
-                toolbar={
-                    step === "edit" ? (
-                        <SaveButton
-                            alwaysEnable={!errorText && !saving && !hasFieldErrors}
-                            disabled={saving || hasFieldErrors}
-                        />
-                    ) : (
-                        false
-                    )
-                }
-                record={user}
-                onSubmit={onSubmit}
-                sanitizeEmptyValues
-            >
-                <PageHeaderStyles.Title>
-                    {t(`usersAndRolesScreen.${reviewI18nContext}.title`)}
-                </PageHeaderStyles.Title>
-                <PageHeaderStyles.SubTitle>
-                    {t(`usersAndRolesScreen.${reviewI18nContext}.subtitle`)}
-                </PageHeaderStyles.SubTitle>
-                <Box sx={{display: step === "review" ? "none" : undefined}}>
-                    {formFields}
-                    <FormStyles.CheckboxControlLabel
-                        label={`${t("usersAndRolesScreen.users.fields.enabled")} *`}
-                        control={
-                            <Checkbox
-                                disabled={
-                                    !(
-                                        createMode ||
-                                        !electionEventId ||
-                                        canEditVoters ||
-                                        enabledByVoteNum
-                                    )
-                                }
-                                checked={user?.enabled || false}
-                                onChange={(event: any) => {
-                                    setUser({...user, enabled: event.target.checked})
-                                }}
+            <VoterEditorRoot customCss={voterEditorCss} mode={createMode ? "create" : "edit"}>
+                <SimpleForm
+                    toolbar={
+                        step === "edit" ? (
+                            <SaveButton
+                                alwaysEnable={!errorText && !saving && !hasFieldErrors}
+                                disabled={saving || hasFieldErrors}
                             />
-                        }
-                    />
-                    {electionEventId && (
-                        <FormControl fullWidth>
-                            <ElectionHeaderStyles.Title>
-                                {t("usersAndRolesScreen.users.fields.area")}
-                                {` *`}
-                            </ElectionHeaderStyles.Title>
-                            <SelectArea
-                                tenantId={tenantId}
-                                electionEventId={electionEventId}
-                                source={createMode ? "attributes.area-id[0]" : "area.id"}
-                                onSelectArea={handleAreaSelection}
-                                label=""
-                                isRequired={true}
-                                disabled={
-                                    !(
-                                        createMode ||
-                                        !electionEventId ||
-                                        canEditVoters ||
-                                        enabledByVoteNum
-                                    )
+                        ) : (
+                            false
+                        )
+                    }
+                    record={user}
+                    onSubmit={onSubmit}
+                    sanitizeEmptyValues
+                >
+                    <PageHeaderStyles.Title>
+                        {t(`usersAndRolesScreen.${reviewI18nContext}.title`)}
+                    </PageHeaderStyles.Title>
+                    <PageHeaderStyles.SubTitle>
+                        {t(`usersAndRolesScreen.${reviewI18nContext}.subtitle`)}
+                    </PageHeaderStyles.SubTitle>
+                    <Box
+                        sx={{
+                            display: step === "review" ? "none" : undefined,
+                            minWidth: 0,
+                            width: "100%",
+                        }}
+                    >
+                        {formFields}
+                        <VoterField
+                            name="enabled"
+                            inputType={VOTER_EDITOR_FIXED_FIELDS.enabled}
+                            required
+                        >
+                            <FormStyles.CheckboxControlLabel
+                                label={`${t("usersAndRolesScreen.users.fields.enabled")} *`}
+                                control={
+                                    <Checkbox
+                                        disabled={
+                                            !(
+                                                createMode ||
+                                                !electionEventId ||
+                                                canEditVoters ||
+                                                enabledByVoteNum
+                                            )
+                                        }
+                                        checked={user?.enabled || false}
+                                        onChange={(event: any) => {
+                                            setUser({...user, enabled: event.target.checked})
+                                        }}
+                                    />
                                 }
-                                customStyle={{
-                                    "& legend": {
-                                        display: "none",
-                                    },
-                                }}
                             />
-                        </FormControl>
-                    )}
-                    {createMode && (
-                        <>
-                            <FormControl fullWidth>
-                                <ElectionHeaderStyles.Title>
-                                    {t("usersAndRolesScreen.users.fields.password")}:
-                                </ElectionHeaderStyles.Title>
-                                <PasswordInputStyle
-                                    label={false}
-                                    source="password"
-                                    onChange={handleChange}
-                                    error={!!errorText}
-                                    disabled={
-                                        !(
-                                            createMode ||
-                                            !electionEventId ||
-                                            canEditVoters ||
-                                            enabledByVoteNum
-                                        )
-                                    }
-                                />
-                            </FormControl>
-                            <FormControl fullWidth>
-                                <ElectionHeaderStyles.Title>
-                                    {t("usersAndRolesScreen.users.fields.repeatPassword")}:
-                                </ElectionHeaderStyles.Title>
-                                <PasswordInputStyle
-                                    label={false}
-                                    source="confirm_password"
-                                    onChange={handleChange}
-                                    helperText={errorText}
-                                    error={!!errorText}
-                                    disabled={
-                                        !(
-                                            createMode ||
-                                            !electionEventId ||
-                                            canEditVoters ||
-                                            enabledByVoteNum
-                                        )
-                                    }
-                                />
-                            </FormControl>
-                            <InputContainerStyle sx={{flexDirection: "row !important"}}>
-                                <InputLabelStyle paddingTop={false}>
-                                    <Box sx={{display: "flex", gap: "8px"}}>
-                                        {t(`usersAndRolesScreen.editPassword.temporatyLabel`)}
-                                        <IconTooltip
-                                            icon={faInfoCircle as any}
-                                            info={String(
-                                                t(`usersAndRolesScreen.editPassword.temporatyInfo`)
-                                            )}
+                        </VoterField>
+                        {electionEventId && (
+                            <VoterField
+                                name="area"
+                                inputType={VOTER_EDITOR_FIXED_FIELDS.area}
+                                required
+                            >
+                                <FormControl fullWidth>
+                                    <ElectionHeaderStyles.Title>
+                                        {t("usersAndRolesScreen.users.fields.area")}
+                                        {` *`}
+                                    </ElectionHeaderStyles.Title>
+                                    <SelectArea
+                                        tenantId={tenantId}
+                                        electionEventId={electionEventId}
+                                        source={createMode ? "attributes.area-id[0]" : "area.id"}
+                                        onSelectArea={handleAreaSelection}
+                                        label=""
+                                        isRequired={true}
+                                        disabled={
+                                            !(
+                                                createMode ||
+                                                !electionEventId ||
+                                                canEditVoters ||
+                                                enabledByVoteNum
+                                            )
+                                        }
+                                        customStyle={{
+                                            "& legend": {
+                                                display: "none",
+                                            },
+                                        }}
+                                    />
+                                </FormControl>
+                            </VoterField>
+                        )}
+                        {createMode && (
+                            <>
+                                <VoterField
+                                    name="password"
+                                    inputType={VOTER_EDITOR_FIXED_FIELDS.password}
+                                    required={false}
+                                >
+                                    <FormControl fullWidth>
+                                        <ElectionHeaderStyles.Title>
+                                            {t("usersAndRolesScreen.users.fields.password")}:
+                                        </ElectionHeaderStyles.Title>
+                                        <PasswordInputStyle
+                                            label={false}
+                                            source="password"
+                                            onChange={handleChange}
+                                            error={!!errorText}
+                                            disabled={
+                                                !(
+                                                    createMode ||
+                                                    !electionEventId ||
+                                                    canEditVoters ||
+                                                    enabledByVoteNum
+                                                )
+                                            }
                                         />
-                                    </Box>
-                                </InputLabelStyle>
-                                <BooleanInput
-                                    source=""
-                                    label={false}
-                                    onChange={(e) => setTemportay(!temporary)}
-                                    checked={temporary}
-                                    disabled={
-                                        !(
-                                            createMode ||
-                                            !electionEventId ||
-                                            canEditVoters ||
-                                            enabledByVoteNum
-                                        )
-                                    }
-                                />
-                            </InputContainerStyle>
-                        </>
-                    )}
-                    {isUndefined(electionEventId) ? (
-                        <ListUserRoles
-                            userRoles={userRoles}
-                            rolesList={rolesList}
-                            activeRoleIds={createMode ? selectedRolesOnCreate : selectedRoleIds}
-                            onToggleRole={
-                                createMode ? handleSelectedRolesOnCreate : handleSelectedRoles
-                            }
-                        />
-                    ) : null}
-                    {step === "edit" && saveErrorAlert}
-                </Box>
-                {!createMode && step === "review" && (
-                    <Box sx={{width: "100%"}}>
-                        <ReviewChangesTable
-                            title={t(`usersAndRolesScreen.${reviewI18nContext}.review.title`)}
-                            subtitle={t(`usersAndRolesScreen.${reviewI18nContext}.review.subtitle`)}
-                            fieldLabel={t(`usersAndRolesScreen.${reviewI18nContext}.review.field`)}
-                            currentValueLabel={t(
-                                `usersAndRolesScreen.${reviewI18nContext}.review.currentValue`
-                            )}
-                            newValueLabel={t(
-                                `usersAndRolesScreen.${reviewI18nContext}.review.newValue`
-                            )}
-                            rows={reviewRows}
-                            headingRef={reviewHeadingRef}
-                        />
-                        {saveErrorAlert}
-                        <WizardStyles.FooterContainer>
-                            <WizardStyles.StyledFooter>
-                                <WizardStyles.BackButton
-                                    type="button"
-                                    onClick={handleBackToEdit}
-                                    disabled={saving}
-                                    className="edit-voter-review-edit-button"
+                                    </FormControl>
+                                </VoterField>
+                                <VoterField
+                                    name="confirm_password"
+                                    inputType={VOTER_EDITOR_FIXED_FIELDS.confirm_password}
+                                    required={false}
                                 >
-                                    {t("common.label.edit")}
-                                </WizardStyles.BackButton>
-                                <WizardStyles.NextButton
-                                    type="button"
-                                    onClick={handleConfirmChanges}
-                                    disabled={saving}
-                                    className="edit-voter-review-confirm-button"
+                                    <FormControl fullWidth>
+                                        <ElectionHeaderStyles.Title>
+                                            {t("usersAndRolesScreen.users.fields.repeatPassword")}:
+                                        </ElectionHeaderStyles.Title>
+                                        <PasswordInputStyle
+                                            label={false}
+                                            source="confirm_password"
+                                            onChange={handleChange}
+                                            helperText={errorText}
+                                            error={!!errorText}
+                                            disabled={
+                                                !(
+                                                    createMode ||
+                                                    !electionEventId ||
+                                                    canEditVoters ||
+                                                    enabledByVoteNum
+                                                )
+                                            }
+                                        />
+                                    </FormControl>
+                                </VoterField>
+                                <VoterField
+                                    name="password_temporary"
+                                    inputType={VOTER_EDITOR_FIXED_FIELDS.password_temporary}
+                                    required={false}
                                 >
-                                    {t(`usersAndRolesScreen.${reviewI18nContext}.review.confirm`)}
-                                </WizardStyles.NextButton>
-                            </WizardStyles.StyledFooter>
-                        </WizardStyles.FooterContainer>
+                                    <InputContainerStyle sx={{flexDirection: "row !important"}}>
+                                        <InputLabelStyle paddingTop={false}>
+                                            <Box sx={{display: "flex", gap: "8px"}}>
+                                                {t(
+                                                    `usersAndRolesScreen.editPassword.temporatyLabel`
+                                                )}
+                                                <IconTooltip
+                                                    icon={faInfoCircle as any}
+                                                    info={String(
+                                                        t(
+                                                            `usersAndRolesScreen.editPassword.temporatyInfo`
+                                                        )
+                                                    )}
+                                                />
+                                            </Box>
+                                        </InputLabelStyle>
+                                        <BooleanInput
+                                            source=""
+                                            label={false}
+                                            onChange={(e) => setTemportay(!temporary)}
+                                            checked={temporary}
+                                            disabled={
+                                                !(
+                                                    createMode ||
+                                                    !electionEventId ||
+                                                    canEditVoters ||
+                                                    enabledByVoteNum
+                                                )
+                                            }
+                                        />
+                                    </InputContainerStyle>
+                                </VoterField>
+                            </>
+                        )}
+                        {isUndefined(electionEventId) ? (
+                            <ListUserRoles
+                                userRoles={userRoles}
+                                rolesList={rolesList}
+                                activeRoleIds={createMode ? selectedRolesOnCreate : selectedRoleIds}
+                                onToggleRole={
+                                    createMode ? handleSelectedRolesOnCreate : handleSelectedRoles
+                                }
+                            />
+                        ) : null}
+                        {step === "edit" && saveErrorAlert}
                     </Box>
-                )}
-            </SimpleForm>
+                    {!createMode && step === "review" && (
+                        <Box sx={{width: "100%"}}>
+                            <ReviewChangesTable
+                                title={t(`usersAndRolesScreen.${reviewI18nContext}.review.title`)}
+                                subtitle={t(
+                                    `usersAndRolesScreen.${reviewI18nContext}.review.subtitle`
+                                )}
+                                fieldLabel={t(
+                                    `usersAndRolesScreen.${reviewI18nContext}.review.field`
+                                )}
+                                currentValueLabel={t(
+                                    `usersAndRolesScreen.${reviewI18nContext}.review.currentValue`
+                                )}
+                                newValueLabel={t(
+                                    `usersAndRolesScreen.${reviewI18nContext}.review.newValue`
+                                )}
+                                rows={reviewRows}
+                                headingRef={reviewHeadingRef}
+                            />
+                            {saveErrorAlert}
+                            <WizardStyles.FooterContainer>
+                                <WizardStyles.StyledFooter>
+                                    <WizardStyles.BackButton
+                                        type="button"
+                                        onClick={handleBackToEdit}
+                                        disabled={saving}
+                                        className="edit-voter-review-edit-button"
+                                    >
+                                        {t("common.label.edit")}
+                                    </WizardStyles.BackButton>
+                                    <WizardStyles.NextButton
+                                        type="button"
+                                        onClick={handleConfirmChanges}
+                                        disabled={saving}
+                                        className="edit-voter-review-confirm-button"
+                                    >
+                                        {t(
+                                            `usersAndRolesScreen.${reviewI18nContext}.review.confirm`
+                                        )}
+                                    </WizardStyles.NextButton>
+                                </WizardStyles.StyledFooter>
+                            </WizardStyles.FooterContainer>
+                        </Box>
+                    )}
+                </SimpleForm>
+            </VoterEditorRoot>
         </PageHeaderStyles.Wrapper>
     )
 }

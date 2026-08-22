@@ -34,6 +34,8 @@ pub const USER_FIELDS: [&str; 9] = [
     "enabled",
     "email_verified",
     "area-id",
+    // The event export exposes `area-id` under this import-friendly alias.
+    // A Keycloak attribute with the same name must not create a second header.
     "area_name",
 ];
 
@@ -334,7 +336,7 @@ pub async fn export_users_file(
 mod tests {
     use super::*;
 
-    fn profile_attribute(name: &str) -> UserProfileAttribute {
+    fn attribute(name: &str) -> UserProfileAttribute {
         UserProfileAttribute {
             annotations: None,
             display_name: None,
@@ -349,21 +351,66 @@ mod tests {
     }
 
     #[test]
-    fn area_name_profile_attribute_does_not_duplicate_reserved_header() {
-        let attributes = vec![
-            profile_attribute("area_name"),
-            profile_attribute("custom_attribute"),
-        ];
-
+    fn area_name_profile_attribute_does_not_duplicate_or_shift_export_columns() {
+        let attributes = vec![attribute("area_name"), attribute("custom_attribute")];
         let headers = get_headers(&None, &attributes);
+        let user = User {
+            id: Some("id".to_string()),
+            email: Some("email@example.com".to_string()),
+            email_verified: Some(true),
+            enabled: Some(true),
+            first_name: Some("First".to_string()),
+            last_name: Some("Last".to_string()),
+            username: Some("username".to_string()),
+            attributes: Some(HashMap::from([
+                ("area-id".to_string(), vec!["area-1".to_string()]),
+                (
+                    "custom_attribute".to_string(),
+                    vec!["custom-value".to_string()],
+                ),
+            ])),
+            ..Default::default()
+        };
+        let areas_by_id = Some(HashMap::from([(
+            "area-1".to_string(),
+            "Area One".to_string(),
+        )]));
+        let record = get_user_record(&None, &areas_by_id, &user, &attributes);
 
         assert_eq!(
+            1,
             headers
                 .iter()
-                .filter(|header| header.as_str() == "area_name")
-                .count(),
-            1
+                .filter(|header| *header == "area_name")
+                .count()
         );
-        assert!(headers.contains(&"custom_attribute".to_string()));
+        assert_eq!(headers.len(), record.len());
+        assert_eq!(
+            Some(&"username".to_string()),
+            record.get(
+                headers
+                    .iter()
+                    .position(|header| header == "username")
+                    .unwrap()
+            )
+        );
+        assert_eq!(
+            Some(&"Area One".to_string()),
+            record.get(
+                headers
+                    .iter()
+                    .position(|header| header == "area_name")
+                    .unwrap()
+            )
+        );
+        assert_eq!(
+            Some(&"custom-value".to_string()),
+            record.get(
+                headers
+                    .iter()
+                    .position(|header| header == "custom_attribute")
+                    .unwrap()
+            )
+        );
     }
 }
