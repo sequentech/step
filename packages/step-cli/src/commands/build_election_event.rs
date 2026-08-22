@@ -288,6 +288,11 @@ impl BuildElectionEvent {
     /// Write the bundle, the archive, and everything that travels beside it.
     fn write(&self, bundle: &Bundle) -> Result<()> {
         let layout = archive::layout(bundle);
+        // Checked before anything is removed. `--slug` reaches `bundle.slug`
+        // unchanged, and `Path::join` with an absolute path *replaces* the base — so
+        // `--slug /etc`, `--slug ..` and `--slug ""` all made the `remove_dir_all`
+        // below point somewhere the caller did not name.
+        one_name(&bundle.slug, "the slug")?;
         let directory = self.out.join(&bundle.slug);
 
         // Replaced rather than merged into: a stale member left over from a
@@ -304,6 +309,7 @@ impl BuildElectionEvent {
         }
 
         let archive_bytes = archive::zip(&layout.importable).map_err(problem_error)?;
+        one_name(&layout.archive_name, "the archive name")?;
         let archive_path = directory.join(&layout.archive_name);
         fs::write(&archive_path, &archive_bytes)
             .with_context(|| format!("could not write {}", archive_path.display()))?;
@@ -337,7 +343,33 @@ impl BuildElectionEvent {
     }
 }
 
+/// One path component, and not a way out of the directory it is joined to.
+///
+/// `Path::join` replaces the base when handed an absolute path, and honours `..`, so
+/// anything interpolated into a name has to be checked before it is used — including
+/// values that look internal, like the tenant id in an artifact filename.
+fn one_name(value: &str, what: &str) -> Result<()> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        anyhow::bail!("{what} cannot be empty");
+    }
+    let sound = !trimmed.contains('/')
+        && !trimmed.contains('\\')
+        && trimmed != ".."
+        && trimmed != "."
+        && Path::new(trimmed).components().count() == 1;
+    if !sound {
+        anyhow::bail!("{what} must be a single name rather than a path: '{value}'");
+    }
+    Ok(())
+}
+
 fn write_artifact(directory: &Path, name: &str, bytes: &[u8]) -> Result<()> {
+    // The layout's names are generated, and a generated name with a separator in it
+    // would still write outside `directory`.
+    for part in name.split('/') {
+        one_name(part, "an artifact name")?;
+    }
     let path = directory.join(name);
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)
@@ -373,4 +405,31 @@ fn problem_error(problem: Problem) -> anyhow::Error {
         Severity::Warning => "warning",
     };
     anyhow!("{label}: {}: {}", problem.path, problem.message)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::one_name;
+
+    #[test]
+    fn a_name_that_escapes_its_directory_is_refused() {
+        // Each of these made `out.join(slug)` point somewhere the caller did not
+        // name, and the built directory is removed before it is written.
+        for value in ["", "  ", "..", ".", "/etc", "../sibling", "a/b", "a\\b"] {
+            assert!(
+                one_name(value, "the slug").is_err(),
+                "'{value}' should be refused"
+            );
+        }
+    }
+
+    #[test]
+    fn an_ordinary_name_is_allowed() {
+        for value in ["union-2027", "union_2027", "Union 2027", "a.b"] {
+            assert!(
+                one_name(value, "the slug").is_ok(),
+                "'{value}' should be allowed"
+            );
+        }
+    }
 }
