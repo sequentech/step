@@ -380,6 +380,47 @@ fn a_numeric_id_matches_the_same_number_written_as_text() {
     );
 }
 
+#[test]
+fn a_numeric_id_matches_in_the_areas_and_area_contests_sheets_too() {
+    // The Areas and AreaContests builders read their reference cells through a
+    // different accessor from the Elections one, so a numeric id registered in one
+    // pass and vanished in the next — and in AreaContests two different numeric pairs
+    // both keyed the duplicate check as ("", "").
+    let mut sheets: Vec<Sheet> = sound()
+        .sheets()
+        .iter()
+        .filter(|sheet| sheet.name != "Areas" && sheet.name != "AreaContests")
+        .cloned()
+        .collect();
+    sheets.push(
+        Sheet::from_grid(
+            "Areas",
+            &[
+                vec![text("external_id"), text("name")],
+                vec![Cell::Int(2001), text("North")],
+                vec![Cell::Int(2002), text("South")],
+            ],
+        )
+        .unwrap(),
+    );
+    sheets.push(
+        Sheet::from_grid(
+            "AreaContests",
+            &[
+                vec![text("area.external_id"), text("contest.external_id")],
+                vec![Cell::Int(2001), text("president")],
+                vec![Cell::Int(2002), text("president")],
+            ],
+        )
+        .unwrap(),
+    );
+
+    let bundle = built(&Workbook::new(sheets).unwrap());
+    assert_eq!(bundle.export["areas"].as_array().unwrap().len(), 2);
+    // Two links, not one collapsed pair and not a spurious duplicate refusal.
+    assert_eq!(bundle.export["area_contests"].as_array().unwrap().len(), 2);
+}
+
 // -- areas ----------------------------------------------------------------
 
 #[test]

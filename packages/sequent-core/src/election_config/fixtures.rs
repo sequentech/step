@@ -189,7 +189,17 @@ mod tests {
             })
             .collect();
 
-        for code in [
+        // An exhaustive `match` rather than a list, so adding a `Code` does not
+        // compile until somebody decides which side it belongs on. A list left the
+        // new variant neither covered nor reported, which is the opposite of what
+        // the comment claimed.
+        // Every variant, and the `match` below is what makes this hold: adding a
+        // `Code` does not compile until somebody says which side it belongs on. The
+        // old hard-coded list left a new variant neither covered nor reported, which
+        // is the opposite of what its comment claimed.
+        const EVERY_CODE: [Code; 11] = [
+            Code::MissingField,
+            Code::InvalidValue,
             Code::DanglingReference,
             Code::DuplicateId,
             Code::AreaCycle,
@@ -197,14 +207,34 @@ mod tests {
             Code::TallyMismatch,
             Code::BallotCoverage,
             Code::PermissionLabel,
-        ] {
-            assert!(covered.contains(&code), "no case produces {code:?}");
-        }
+            Code::MissingSchedule,
+            Code::ConflictingColumns,
+        ];
 
-        // MissingField and InvalidValue come from a bundle that does not
-        // deserialize at all, or from reading a source document — neither of
-        // which is a case here. MissingSchedule needs scheduled events, which
-        // arrive with the builder rather than with a bundle on its own.
+        for code in EVERY_CODE {
+            let wanted = match code {
+                Code::DanglingReference
+                | Code::DuplicateId
+                | Code::AreaCycle
+                | Code::ContestArithmetic
+                | Code::TallyMismatch
+                | Code::BallotCoverage
+                | Code::PermissionLabel => true,
+                // From a bundle that does not deserialize at all, or from reading a
+                // source document — neither of which is a case here.
+                Code::MissingField | Code::InvalidValue => false,
+                // Needs scheduled events, which arrive with the builder rather than
+                // with a bundle on its own.
+                Code::MissingSchedule => false,
+                // Reported while reading a workbook's columns, not from a bundle.
+                Code::ConflictingColumns => false,
+            };
+            assert_eq!(
+                covered.contains(&code),
+                wanted,
+                "{code:?}: the fixture cases and this list disagree"
+            );
+        }
     }
 
     #[test]
