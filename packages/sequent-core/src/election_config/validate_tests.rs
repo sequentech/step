@@ -159,6 +159,12 @@ fn an_event_with_no_areas_is_a_warning_not_an_error() {
         .warnings()
         .any(|problem| problem.code == Code::BallotCoverage
             && problem.path == "areas"));
+    // And not as a missing field at any severity: areas are not required.
+    assert!(!report
+        .problems
+        .iter()
+        .any(|problem| problem.path == "areas"
+            && problem.code == Code::MissingField));
 }
 
 // -- references -------------------------------------------------------------
