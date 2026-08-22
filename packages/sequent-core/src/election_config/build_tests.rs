@@ -316,6 +316,55 @@ fn a_problem_names_the_sheet_and_row_to_look_at() {
     assert_eq!(problem.code, Code::DanglingReference);
 }
 
+#[test]
+fn a_contest_is_told_what_the_template_stood_in_for() {
+    // The template carries all five, so `MissingField` cannot fire for them on a
+    // built bundle. Being told which values were not the workbook's is the part
+    // that does not need a product decision.
+    let bundle = built(&with_sheet(
+        "Contests",
+        vec![
+            vec![
+                text("external_id"),
+                text("election.external_id"),
+                text("presentation.i18n.en.name"),
+                text("max_votes"),
+            ],
+            vec![
+                text("president"),
+                text("statewide"),
+                text("President"),
+                Cell::Int(3),
+            ],
+        ],
+    ));
+
+    let said: Vec<&str> = bundle
+        .warnings
+        .problems
+        .iter()
+        .map(|problem| problem.message.as_str())
+        .collect();
+    for column in [
+        "min_votes",
+        "winning_candidates_num",
+        "voting_type",
+        "counting_algorithm",
+    ] {
+        assert!(
+            said.iter()
+                .any(|message| message.contains(&format!("has no {column}"))),
+            "nothing said about {column}:\n{:#?}",
+            said
+        );
+    }
+    // The one the workbook did give is not reported, and it is the one that wins.
+    assert!(!said
+        .iter()
+        .any(|message| message.contains("has no max_votes")));
+    assert_eq!(bundle.export["contests"][0]["max_votes"], 3);
+}
+
 // -- references -----------------------------------------------------------
 
 #[test]

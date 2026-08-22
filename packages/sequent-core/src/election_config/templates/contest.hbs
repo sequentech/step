@@ -2,11 +2,12 @@
 SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 
-Base contest.  The vote counts and tally system have no sensible default, so the
-workbook must supply min_votes, max_votes, winning_candidates_num, voting_type
-and counting_algorithm; validation rejects a contest missing any of them rather
-than guessing.  The defaults below are placeholders that never survive a valid
-workbook.
+Base contest.  The vote counts and tally system below are what a contest gets when
+the workbook does not say: single-choice plurality, one winner.  They are values,
+not placeholders -- because they are always present, validation's MissingField rule
+for these five fields cannot fire on a built bundle, so build.rs warns for each one
+it had to stand in for.  Which of them should instead be mandatory is a product
+decision; see say_what_the_template_stood_in_for.
 --}}
 {
     "id": "{{id}}",

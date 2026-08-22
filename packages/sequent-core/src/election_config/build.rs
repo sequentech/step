@@ -805,6 +805,8 @@ impl<'a> Builder<'a> {
             self.contest_ids
                 .push((external_id.clone(), contest_id.clone()));
 
+            self.say_what_the_template_stood_in_for(row, &external_id);
+
             let context = json!({
                 "id": contest_id,
                 "tenant_id": self.tenant_id,
@@ -839,6 +841,47 @@ impl<'a> Builder<'a> {
             );
         }
         Value::Array(contests)
+    }
+
+    /// Warn for each ballot-shaping column a contest row left to `contest.hbs`.
+    ///
+    /// The template carries a value for all five, so `validate`'s `MissingField`
+    /// rule for them can never fire on a built bundle: an omitted `max_votes`
+    /// becomes "choose one" and nothing says so. The template's defaults stay —
+    /// `contests_sheet` writes the two the wizard does not ask about, and janitor's
+    /// workbooks, which #2983 matches byte for byte, rely on the rest — so which
+    /// columns become mandatory is a product decision. Being told what was
+    /// substituted is not, and that is this.
+    fn say_what_the_template_stood_in_for(
+        &mut self,
+        row: &Row,
+        external_id: &str,
+    ) {
+        const STOOD_IN_FOR: [(&str, &str); 5] = [
+            ("min_votes", "0"),
+            ("max_votes", "1"),
+            ("winning_candidates_num", "1"),
+            ("voting_type", "non-preferential"),
+            ("counting_algorithm", "plurality-at-large"),
+        ];
+
+        for (column, substituted) in STOOD_IN_FOR {
+            let given = row
+                .get(column)
+                .map(|value| value_as_text(value).trim().to_string())
+                .unwrap_or_default();
+            if !given.is_empty() {
+                continue;
+            }
+            self.warn(
+                row.origin(Some(column)).to_string(),
+                format!(
+                    "contest '{external_id}' has no {column}, so the base template's \
+                     '{substituted}' stands in. Say it in the workbook if that is not \
+                     what this contest does."
+                ),
+            );
+        }
     }
 
     fn build_candidates(&mut self) -> Value {

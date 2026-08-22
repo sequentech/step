@@ -1029,6 +1029,13 @@ fn contests_sheet(
         "max_votes".to_string(),
         "min_votes".to_string(),
         "winning_candidates_num".to_string(),
+        // Written out rather than left to `contest.hbs` to supply. The wizard
+        // offers one voting method today, and a workbook that says which one it
+        // means is a document somebody can read and edit; a template default is
+        // not, and the builder now warns about every column it has to stand in
+        // for.
+        "voting_type".to_string(),
+        "counting_algorithm".to_string(),
         "description".to_string(),
         "presentation.over_vote_policy".to_string(),
         "presentation.under_vote_policy".to_string(),
@@ -1049,6 +1056,8 @@ fn contests_sheet(
                 // stop somebody voting at all.
                 Cell::Int(0),
                 Cell::Int(contest.winners),
+                Cell::text("non-preferential"),
+                Cell::text("plurality-at-large"),
                 Cell::text(contest.description.clone()),
                 Cell::text(plan.policies.over_vote()),
                 Cell::text(plan.policies.under_vote()),
