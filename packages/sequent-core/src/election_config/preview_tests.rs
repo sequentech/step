@@ -259,12 +259,24 @@ fn the_preview_key_is_marked_as_not_a_real_key() {
 /// `create_ballot_style` used to read `DEMO_PUBLIC_KEY` from the process
 /// environment on its happy path, with a `?`. `std::env::var` always fails on
 /// `wasm32-unknown-unknown`, so this call is the whole reason the read moved into
-/// the branch that needs it — and a test process has no such variable either,
-/// which is why every test in this file would fail without that change.
+/// the branch that needs it: a preview passes the key it wants shown instead.
+///
+/// Proved by setting the variable to something a preview must not use, rather than
+/// by requiring it unset. The devenv shell exports `DEMO_PUBLIC_KEY`, so the old
+/// assertion could not hold inside the devcontainer — and a preview ignoring a
+/// variable that happens to be absent proves nothing about whether it reads one.
 #[test]
 fn a_preview_needs_no_environment() {
-    assert!(std::env::var("DEMO_PUBLIC_KEY").is_err());
-    preview(&sound());
+    std::env::set_var("DEMO_PUBLIC_KEY", "a-key-a-preview-must-never-show");
+
+    let preview = preview(&sound());
+    let key = preview.ballot_styles[0]
+        .public_key
+        .as_ref()
+        .expect("a ballot style carries a key field");
+
+    assert_eq!(key.public_key, NOT_A_KEY);
+    assert!(key.is_demo);
 }
 
 // -- what the file is ------------------------------------------------------
