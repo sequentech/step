@@ -83,6 +83,11 @@ pub mod report;
 pub mod schema;
 pub mod sheet;
 
+/// What travels beside a plan rather than inside it: the census, and the files a
+/// plan names. Ungated — a plan describes these whether or not this build can
+/// render a template, and `validate_plan` has to be able to check them.
+pub mod sources;
+
 /// A moment a plan names, and the instant the platform acts on. Ungated: the
 /// scheduler's requirements are not a template concern.
 pub mod time;
