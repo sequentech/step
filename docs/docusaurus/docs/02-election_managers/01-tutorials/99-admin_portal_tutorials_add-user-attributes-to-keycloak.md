@@ -60,12 +60,21 @@ To show a date input field:
 An attribute that is carried on the voter but is not meant to be seen or edited can be marked
 hidden: in **Annotations** > **Add annotation**, set Key: `hidden`, Value: `true`.
 
+The value must be exactly `true`. This is matched literally, so `TRUE` or a value with spaces around
+it does not hide anything — the voter-facing forms read the annotation the same way, and matching it
+any more loosely here would hide an attribute from administrators while voters still saw it.
+
 A hidden attribute is left off the voter-facing enrollment and login forms, and off the Admin
 Portal's voter list and its create and edit forms — it is not shown as a column, is not offered in
-the columns selector or the filters, and is not shown as a field.
+the columns selector or the filters, and is not shown as a field. The Approvals screens are not
+affected and still show it.
 
 Hiding an attribute does not remove or alter it. Its value is still stored, still carried through
 when a voter is edited, and still included when voters are exported.
+
+Hiding is therefore about keeping a form readable, not about restricting access: the value is still
+sent to the browser and still appears in exports. To control who may read or write an attribute, set
+its permissions in **Realm settings** > **User profile** instead.
 
 Do not mark an attribute both hidden and required: creating a voter through the Admin Portal would
 then be impossible, since the field it insists on is one the form does not show.
