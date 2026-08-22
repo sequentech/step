@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use strum_macros::Display;
+use strum_macros::EnumIter;
 use strum_macros::EnumString;
 
 #[derive(
@@ -24,6 +25,9 @@ use strum_macros::EnumString;
     Eq,
     Clone,
     EnumString,
+    // So the one list of processors is this enum: `election_config` names them in a
+    // message, and a second list is a second thing to keep in step.
+    EnumIter,
     Hash,
 )]
 pub enum EventProcessors {
