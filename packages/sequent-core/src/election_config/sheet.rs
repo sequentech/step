@@ -93,13 +93,43 @@ pub fn normalise_sheet_name(name: &str) -> String {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Origin {
     pub sheet: String,
+
+    /// The row as the spreadsheet numbers them, or `0` for the sheet as a whole.
+    ///
+    /// Spreadsheets count from one, so zero cannot name a real row and is free to
+    /// mean "this is about the sheet, not a row in it" — which is what a missing
+    /// column or an empty sheet is about.
     pub row: usize,
+
     pub column: Option<String>,
+}
+
+impl Origin {
+    /// A problem with a sheet rather than with any row of it.
+    pub fn sheet(name: impl Into<String>) -> Self {
+        Origin {
+            sheet: name.into(),
+            row: 0,
+            column: None,
+        }
+    }
+
+    /// A problem with a whole column.
+    pub fn column(name: impl Into<String>, column: impl Into<String>) -> Self {
+        Origin {
+            sheet: name.into(),
+            row: 0,
+            column: Some(column.into()),
+        }
+    }
 }
 
 impl fmt::Display for Origin {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "sheet '{}' row {}", self.sheet, self.row)?;
+        write!(formatter, "sheet '{}'", self.sheet)?;
+        if self.row > 0 {
+            write!(formatter, " row {}", self.row)?;
+        }
         if let Some(column) = &self.column {
             write!(formatter, " column '{column}'")?;
         }
@@ -713,6 +743,19 @@ mod tests {
         let problem = sheet.rows[0].require("title").unwrap_err();
         assert_eq!(problem.code, Code::MissingField);
         assert_eq!(problem.path, "sheet 'Elections' row 2 column 'title'");
+    }
+
+    #[test]
+    fn an_origin_about_a_whole_sheet_does_not_claim_a_row() {
+        // "row 0" names no row a spreadsheet has, and reads as a bug.
+        assert_eq!(
+            Origin::sheet("Parameters").to_string(),
+            "sheet 'Parameters'"
+        );
+        assert_eq!(
+            Origin::column("Voters", "home address").to_string(),
+            "sheet 'Voters' column 'home address'"
+        );
     }
 
     #[test]

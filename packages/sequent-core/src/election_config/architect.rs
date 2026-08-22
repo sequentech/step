@@ -42,8 +42,14 @@
 
 use std::cmp::Ordering;
 
+use crate::election_config::archive::{Artifact, Layout};
+use crate::election_config::build::{build, BuildOptions, Bundle};
 use crate::election_config::paths::Cell;
+use crate::election_config::policy::{Behaviour, Overrides};
 use crate::election_config::problem::{Code, Problem, Report, Severity};
+use crate::election_config::profile::{apply_profile, check_required, Profile};
+use crate::election_config::render::TemplateSet;
+use crate::election_config::schema::ImportElectionEventSchema;
 use crate::election_config::sheet::{Sheet, Workbook};
 use crate::election_config::time::{self, Timestamp};
 use serde::{Deserialize, Serialize};
@@ -54,7 +60,99 @@ use serde::{Deserialize, Serialize};
 /// somebody spent an afternoon on; being able to say "this is from an older
 /// version" beats failing to deserialize it with a serde error about a missing
 /// field.
-pub const BLUEPRINT_VERSION: u32 = 1;
+pub const BLUEPRINT_VERSION: u32 = 2;
+
+/// Bring a version 1 plan up to date, in place.
+///
+/// Version 1 carried `policies`, a three-value `allowed | warn | restricted`
+/// per policy, applied to every contest identically. Version 2 carries the
+/// platform's own values, per contest.
+///
+/// The mapping below is **version 1's own**, reproduced exactly — including
+/// where it was wrong. `restricted` for an under-vote produced
+/// `warn-only-in-review` and `restricted` for a blank or invalid vote produced
+/// `not-allowed`, and a plan that compiled to those bytes yesterday has to
+/// compile to them today. Getting it *right* for an old plan would silently
+/// change an election somebody has already reviewed; new plans get the
+/// considered defaults instead.
+fn migrate_v1(document: &mut serde_json::Value) {
+    let Some(object) = document.as_object_mut() else {
+        return;
+    };
+    if object.get("version").and_then(serde_json::Value::as_u64) != Some(1) {
+        return;
+    }
+
+    let old = object.remove("policies").unwrap_or(serde_json::Value::Null);
+    let says = |key: &str| -> &str {
+        old.get(key)
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("warn")
+    };
+
+    let mut policies = serde_json::Map::new();
+    policies.insert(
+        "over_vote".to_string(),
+        serde_json::json!(match says("over_vote") {
+            "allowed" => "allowed",
+            "restricted" => "not-allowed-with-msg-and-disable",
+            _ => "allowed-with-msg",
+        }),
+    );
+    policies.insert(
+        "under_vote".to_string(),
+        serde_json::json!(match says("under_vote") {
+            "allowed" => "allowed",
+            "restricted" => "warn-only-in-review",
+            _ => "warn",
+        }),
+    );
+    for (key, restricted) in [
+        ("blank_vote", "not-allowed"),
+        ("invalid_vote", "not-allowed"),
+    ] {
+        policies.insert(
+            key.to_string(),
+            serde_json::json!(match says(key) {
+                "allowed" => "allowed",
+                "restricted" => restricted,
+                _ => "warn",
+            }),
+        );
+    }
+
+    object.insert(
+        "defaults".to_string(),
+        serde_json::json!({"policies": policies}),
+    );
+    object.insert("version".to_string(), serde_json::json!(2));
+}
+
+/// Read a saved plan, bringing an older one up to date.
+///
+/// The only way a plan should be deserialized. A plan from a *newer* version is
+/// left alone here and refused by [`validate_plan`], which can say so as a
+/// problem rather than as a serde error about a field nobody has heard of.
+pub fn read_plan(document: &str) -> Result<Blueprint, Problem> {
+    let mut value: serde_json::Value =
+        serde_json::from_str(document).map_err(|error| {
+            Problem::error(
+                Code::InvalidValue,
+                "plan",
+                format!("this is not an election plan: {error}"),
+            )
+        })?;
+
+    migrate_v1(&mut value);
+
+    serde_json::from_value(value).map_err(|error| {
+        Problem::error(
+            Code::InvalidValue,
+            "plan",
+            format!("this plan cannot be read: {error}"),
+        )
+    })
+}
 
 /// What the wizard collected.
 ///
@@ -67,7 +165,7 @@ pub const BLUEPRINT_VERSION: u32 = 1;
 /// has no field for (the trustee threshold, the ceremony dates, the points of
 /// contact) and breaks whenever the bundle's shape changes. Saving the plan is both
 /// simpler and lossless.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Blueprint {
     /// [`BLUEPRINT_VERSION`] at the time it was saved.
     pub version: u32,
@@ -112,8 +210,12 @@ pub struct Blueprint {
     #[serde(default)]
     pub elections: Vec<PlannedElection>,
 
+    /// How contests behave unless they say otherwise.
+    ///
+    /// Was the only place policies could be set, and applied to every contest
+    /// identically; now the bottom of a three-level resolution.
     #[serde(default)]
-    pub policies: Policies,
+    pub defaults: Behaviour,
 
     /// Anything the wizard has no field for. Carried, not interpreted.
     #[serde(default)]
@@ -157,7 +259,7 @@ impl Translated {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Contact {
     pub name: String,
     #[serde(default)]
@@ -166,7 +268,7 @@ pub struct Contact {
     pub email: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Trustee {
     pub name: String,
     #[serde(default)]
@@ -203,7 +305,7 @@ pub struct Schedule {
     pub milestones: Vec<Milestone>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Milestone {
     pub event: String,
     pub date: String,
@@ -215,7 +317,7 @@ pub struct Milestone {
 /// the voters CSV identifies a voter's area *by name*, so it is an identifier the
 /// importer matches on. Two areas sharing a name would silently put voters in
 /// whichever one the importer found first.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct PlannedArea {
     pub external_id: String,
 
@@ -234,16 +336,27 @@ pub struct PlannedArea {
     pub parent_external_id: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct PlannedElection {
     pub external_id: String,
     #[serde(default)]
     pub name: Translated,
+
+    /// One set for every contest here, replacing whatever the contests say.
+    ///
+    /// `None` — the normal case — means each contest resolves the event default
+    /// against its own overrides. `Some` is the old wizard's
+    /// `samePolicyForAllContests`: edited once, and a contest's own overrides
+    /// are not consulted. One field rather than a flag beside a value, because
+    /// "shared is on but there is no shared value" is a state somebody would
+    /// eventually produce and nobody could explain.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shared: Option<Overrides>,
     #[serde(default)]
     pub contests: Vec<PlannedContest>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct PlannedContest {
     pub external_id: String,
     #[serde(default)]
@@ -265,6 +378,10 @@ pub struct PlannedContest {
     #[serde(default)]
     pub candidates: Vec<PlannedCandidate>,
 
+    /// What this contest says about how it behaves, over the event's defaults.
+    #[serde(default, skip_serializing_if = "Overrides::is_empty")]
+    pub overrides: Overrides,
+
     /// Which areas put this contest on their ballot.
     ///
     /// Empty means every area, which is what a plan that has never thought about
@@ -278,7 +395,7 @@ fn one() -> i64 {
     1
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct PlannedCandidate {
     pub external_id: String,
     #[serde(default)]
@@ -291,75 +408,19 @@ pub struct PlannedCandidate {
     pub explicit_invalid: bool,
 }
 
-/// What the ballot does when a voter does something unusual.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum Policy {
-    /// Let it happen without comment.
-    Allowed,
-    /// Let it happen, but say something first.
-    Warn,
-    /// Do not let it happen.
-    Restricted,
-}
-
-impl Default for Policy {
-    fn default() -> Self {
-        Policy::Warn
-    }
-}
-
-#[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize,
-)]
-pub struct Policies {
-    /// Choosing more than `max_votes`.
-    #[serde(default)]
-    pub over_vote: Policy,
-    /// Choosing nothing at all.
-    #[serde(default)]
-    pub blank_vote: Policy,
-    /// Choosing fewer than `max_votes`.
-    #[serde(default)]
-    pub under_vote: Policy,
-    /// Deliberately spoiling the ballot.
-    #[serde(default)]
-    pub invalid_vote: Policy,
-}
-
-impl Policies {
-    /// The platform's `over_vote_policy` values.
-    fn over_vote(self) -> &'static str {
-        match self.over_vote {
-            Policy::Allowed => "allowed",
-            Policy::Warn => "allowed-with-msg",
-            Policy::Restricted => "not-allowed-with-msg-and-disable",
-        }
-    }
-
-    fn under_vote(self) -> &'static str {
-        match self.under_vote {
-            Policy::Allowed => "allowed",
-            Policy::Warn => "warn",
-            Policy::Restricted => "warn-only-in-review",
-        }
-    }
-
-    fn blank_vote(self) -> &'static str {
-        match self.blank_vote {
-            Policy::Allowed => "allowed",
-            Policy::Warn => "warn",
-            Policy::Restricted => "not-allowed",
-        }
-    }
-
-    fn invalid_vote(self) -> &'static str {
-        match self.invalid_vote {
-            Policy::Allowed => "allowed",
-            Policy::Warn => "warn",
-            Policy::Restricted => "not-allowed",
-        }
-    }
+/// What a contest ends up with.
+///
+/// Most specific last, with one exception: an election that has claimed the
+/// decision does not consult its contests at all. That is a statement about the
+/// election rather than a value copied onto each contest and then silently
+/// stale, which is what would happen if "shared" merely pre-filled them.
+pub fn resolve(
+    plan: &Blueprint,
+    election: &PlannedElection,
+    contest: &PlannedContest,
+) -> Behaviour {
+    let claimed = election.shared.as_ref().unwrap_or(&contest.overrides);
+    plan.defaults.apply(claimed)
 }
 
 /// The area used when a plan names none.
@@ -1023,11 +1084,15 @@ fn contests_sheet(
     plan: &Blueprint,
     languages: &[String],
 ) -> Result<Sheet, Problem> {
+    // The behaviour columns come from the policy module rather than being
+    // listed here, so a new policy is one declaration rather than a column, a
+    // cell and two places to forget.
+    let behaviour = Behaviour::default().columns();
+
     let mut columns = vec![
         "external_id".to_string(),
         "election.external_id".to_string(),
         "max_votes".to_string(),
-        "min_votes".to_string(),
         "winning_candidates_num".to_string(),
         // Written out rather than left to `contest.hbs` to supply. The wizard
         // offers one voting method today, and a workbook that says which one it
@@ -1037,12 +1102,9 @@ fn contests_sheet(
         "voting_type".to_string(),
         "counting_algorithm".to_string(),
         "description".to_string(),
-        "presentation.over_vote_policy".to_string(),
-        "presentation.under_vote_policy".to_string(),
-        "presentation.blank_vote_policy".to_string(),
-        "presentation.invalid_vote_policy".to_string(),
         "presentation.sort_order".to_string(),
     ];
+    columns.extend(behaviour.iter().map(|(column, _)| (*column).to_string()));
     columns.extend(i18n_columns("presentation", languages));
 
     let mut rows = Vec::new();
@@ -1052,19 +1114,18 @@ fn contests_sheet(
                 Cell::text(contest.external_id.clone()),
                 Cell::text(election.external_id.clone()),
                 Cell::Int(contest.max_votes),
-                // The wizard does not ask, and a required minimum is a way to
-                // stop somebody voting at all.
-                Cell::Int(0),
                 Cell::Int(contest.winners),
                 Cell::text("non-preferential"),
                 Cell::text("plurality-at-large"),
                 Cell::text(contest.description.clone()),
-                Cell::text(plan.policies.over_vote()),
-                Cell::text(plan.policies.under_vote()),
-                Cell::text(plan.policies.blank_vote()),
-                Cell::text(plan.policies.invalid_vote()),
                 Cell::Int(order as i64),
             ];
+            row.extend(
+                resolve(plan, election, contest)
+                    .columns()
+                    .into_iter()
+                    .map(|(_, cell)| cell),
+            );
             row.extend(i18n_values(&contest.name, languages));
             rows.push(row);
         }
@@ -1297,6 +1358,117 @@ pub fn side_files(plan: &Blueprint) -> Vec<(String, String)> {
 fn pretty(value: &serde_json::Value) -> String {
     serde_json::to_string_pretty(value).unwrap_or_else(|_| "{}".to_string())
         + "\n"
+}
+
+/// Everything a plan produces.
+#[derive(Debug, Clone)]
+pub struct Compiled {
+    pub bundle: Bundle,
+
+    /// The files, split into what goes inside the importable archive and what
+    /// must not. [`side_files`] is already folded into `auxiliary`.
+    pub layout: Layout,
+
+    /// Warnings from every pass. Errors are returned as `Err` instead, so a
+    /// caller holding a `Compiled` is holding something worth writing out.
+    pub report: Report,
+}
+
+/// Turn a plan into what it is for.
+///
+/// This is the function the wizard and the CLI both call, and until it existed
+/// there was nothing joining the two halves of this module: [`to_workbook`] and
+/// [`side_files`] had no callers outside the tests, so a plan could be validated
+/// and mapped but never actually built.
+///
+/// Six steps, none of them new — which is the point. A plan becomes the same rows
+/// a spreadsheet produces, and everything after that is the existing builder:
+///
+/// 1. [`validate_plan`], in the plan's own vocabulary. Errors stop here, because
+///    a problem phrased as `contests[2].winning_candidates_num` is no use to
+///    somebody looking at a wizard.
+/// 2. [`to_workbook`].
+/// 3. [`super::build`].
+/// 4. Deserialize the export into [`ImportElectionEventSchema`] and
+///    [`super::validate`] it — the same second pass `step-cli` and
+///    `buildFromWorkbook` each make. Two implementations that merely looked
+///    similar would not survive this.
+/// 5. [`super::archive::layout`].
+/// 6. [`side_files`] into `auxiliary`, because a ceremony schedule is not part of
+///    an import and putting it inside the archive would suggest otherwise.
+pub fn compile_plan(
+    plan: &Blueprint,
+    templates: &TemplateSet,
+    options: &BuildOptions,
+    profile: Option<&Profile>,
+) -> Result<Compiled, Report> {
+    // The profile first, so a locked value is the one that gets validated and
+    // the one that gets built. Checking the plan as written and then forcing the
+    // value afterwards would report problems about text nobody will ship.
+    let applied;
+    let plan = match profile {
+        Some(profile) => {
+            applied = apply_profile(plan, profile)?;
+            &applied
+        }
+        None => plan,
+    };
+
+    let mut report = validate_plan(plan);
+    if let Some(profile) = profile {
+        check_required(plan, profile, &mut report);
+    }
+    if report.has_errors() {
+        return Err(report);
+    }
+
+    let workbook = to_workbook(plan).map_err(|problem| {
+        let mut failed = Report::default();
+        failed.push(problem);
+        failed
+    })?;
+
+    let bundle = build(&workbook, templates, options)?;
+
+    for problem in bundle.warnings.problems.clone() {
+        report.push(problem);
+    }
+
+    match serde_json::from_value::<ImportElectionEventSchema>(
+        bundle.export.clone(),
+    ) {
+        Ok(schema) => {
+            for problem in super::validate(&schema).problems {
+                report.push(problem);
+            }
+        }
+        Err(error) => report.push(Problem::error(
+            Code::InvalidValue,
+            "bundle",
+            format!(
+                "the built bundle does not match the import schema, which is a \
+                 bug in this tool rather than in the plan: {error}"
+            ),
+        )),
+    }
+
+    if report.has_errors() {
+        return Err(report);
+    }
+
+    let mut layout = super::archive::layout(&bundle);
+    for (name, contents) in side_files(plan) {
+        layout.auxiliary.push(Artifact {
+            name,
+            bytes: contents.into_bytes(),
+        });
+    }
+
+    Ok(Compiled {
+        bundle,
+        layout,
+        report,
+    })
 }
 
 #[cfg(test)]

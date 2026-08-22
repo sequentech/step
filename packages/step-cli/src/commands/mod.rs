@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+pub mod build_election_event;
 pub mod cast_vote;
 pub mod complete_key_ceremony;
 pub mod configure;

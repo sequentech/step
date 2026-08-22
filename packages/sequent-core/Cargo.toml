@@ -126,7 +126,7 @@ csv = "1.3.0"
 
 # reading authoring spreadsheets; optional so front ends with no workbook to read
 # do not carry it into their WASM bundle
-calamine = { version = "0.26", features = ["dates"], optional = true }
+calamine = { version = "0.36", features = ["dates"], optional = true }
 
 # uuid5 for the deterministic ids a generated bundle uses. The `uuid` crate is not
 # used for this: its v4 feature pulls getrandom, whose WASM support is version
@@ -134,9 +134,13 @@ calamine = { version = "0.26", features = ["dates"], optional = true }
 # randomness.
 sha1 = { version = "0.10", optional = true }
 
-# writing the importable archive; optional so a front end that only validates a
-# bundle carries no zip writer
-zip = { version = "2.1", optional = true }
+# Writing the importable archive; optional so a front end that only validates a
+# bundle carries no zip writer.
+#
+# default-features = false is load-bearing: the default set pulls bzip2, zstd and
+# lzma, all of which are C libraries with no wasm32 target, and this module has to
+# compile for a browser. Deflate is the only method an import archive uses.
+zip = { version = "2.1", default-features = false, features = ["deflate"], optional = true }
 
 
 # WASM plugin management

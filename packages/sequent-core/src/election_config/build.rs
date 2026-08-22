@@ -771,7 +771,7 @@ impl<'a> Builder<'a> {
 
         if elections.is_empty() {
             self.problem(
-                sheet_origin("Elections"),
+                Origin::sheet("Elections"),
                 Code::MissingField,
                 "an election event needs at least one election",
             );
@@ -839,7 +839,7 @@ impl<'a> Builder<'a> {
 
         if contests.is_empty() {
             self.problem(
-                sheet_origin("Contests"),
+                Origin::sheet("Contests"),
                 Code::MissingField,
                 "an election event needs at least one contest",
             );
@@ -980,11 +980,7 @@ impl<'a> Builder<'a> {
                 .find(|(_, seen_name)| seen_name == name)
             {
                 self.problem(
-                    Origin {
-                        sheet: "Areas".to_string(),
-                        row: 0,
-                        column: Some("name".to_string()),
-                    },
+                    Origin::column("Areas", "name"),
                     Code::DuplicateId,
                     format!(
                         "two areas are both named '{name}' ('{earlier}' and \
@@ -1060,7 +1056,7 @@ impl<'a> Builder<'a> {
 
         if areas.is_empty() {
             self.problem(
-                sheet_origin("Areas"),
+                Origin::sheet("Areas"),
                 Code::MissingField,
                 "an election event needs at least one area; every voter \
                  belongs to one",
@@ -1121,7 +1117,7 @@ impl<'a> Builder<'a> {
 
         if links.is_empty() {
             self.problem(
-                sheet_origin("AreaContests"),
+                Origin::sheet("AreaContests"),
                 Code::BallotCoverage,
                 "no area is linked to any contest, so no voter would see a \
                  ballot",
@@ -1223,14 +1219,6 @@ fn event_row(workbook: &Workbook) -> Result<Row, Problem> {
                  one election event"
             ),
         )),
-    }
-}
-
-fn sheet_origin(sheet: &str) -> Origin {
-    Origin {
-        sheet: sheet.to_string(),
-        row: 0,
-        column: None,
     }
 }
 
