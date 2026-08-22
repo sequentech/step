@@ -98,9 +98,9 @@ By default Keycloak measures the value with leading and trailing spaces removed,
 Portal measures it the same way. Setting the validator's `trim-disabled` option changes both.
 
 A bound that is somehow reached anyway — a value written by an import, or an attribute the form
-does not show — is refused on save and reported naming each field and the bound it broke. Note that on
-Datafix election events the save is carried out by a background task, so its refusal is reported
-through that task rather than in the form.
+does not show — is refused on save and reported naming each field and the bound it broke. Note
+that on Datafix election events the save is carried out by a background task, so its refusal is
+reported through that task rather than in the form.
 
 ## Localization Overrides
 
