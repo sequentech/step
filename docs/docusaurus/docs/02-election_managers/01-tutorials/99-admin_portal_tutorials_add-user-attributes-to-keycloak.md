@@ -77,46 +77,70 @@ Tenant CSS configured under **Settings** > **Look and Feel** can target the foll
 - `.voter-editor__groups`: collection of attribute sections.
 - `.voter-attribute-group` and `[data-group-name="..."]`: one consecutive Attribute Group run. The data value is the raw Keycloak group name.
 - `.voter-attribute-group__legend`: group heading.
+- `.voter-attribute-group__description`: group description.
 - `.voter-attribute-group__grid`: fields within a group.
 - `.voter-field`, `[data-field-name="..."]`, `[data-input-type="..."]`, and `[data-required="true"|"false"]`: field wrapper and metadata. Field names are the canonical raw Keycloak names.
 
 Step-owned fields also expose stable names: `enabled`, `area`, `password`, `confirm_password`, and `password_temporary`.
 
-The following example creates responsive two-column groups with bordered cards and lets selected fields span both columns:
+The following complete example creates lightly tinted, bordered cards for named Attribute Groups,
+uses a responsive two-column grid, keeps form controls white, and lets the postal address span both
+columns. The empty-name exclusion leaves the unlabelled section containing Step-owned fields
+unboxed.
 
 ```css
-.voter-editor .voter-editor__groups {
-  gap: 1.25rem;
-}
-
-.voter-editor .voter-attribute-group {
-  border: 1px solid #d9dce8;
+.voter-editor .voter-attribute-group[data-group-name]:not([data-group-name=""]) {
+  min-width: 0;
+  margin: 0 0 24px;
+  border: 1px solid rgba(15, 5, 76, 0.16);
   border-radius: 12px;
-  padding: 1rem;
+  padding: 20px 22px 24px;
+  background-color: rgba(15, 5, 76, 0.02);
 }
 
 .voter-editor .voter-attribute-group__legend {
-  color: #17105f;
-  padding: 0 0.35rem;
+  padding: 0 8px;
+  color: #0f054c;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.voter-editor .voter-attribute-group__description {
+  margin-bottom: 24px;
+  color: #666670;
 }
 
 .voter-editor .voter-attribute-group__grid {
+  display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 16px;
+  row-gap: 20px;
 }
 
-.voter-editor .voter-field[data-field-name="email"],
-.voter-editor .voter-field[data-input-type="multiselect-checkboxes"] {
+.voter-editor [data-field-name="postal_address"] {
   grid-column: 1 / -1;
 }
 
 @media (max-width: 700px) {
-  .voter-editor .voter-attribute-group__grid {
-    grid-template-columns: minmax(0, 1fr);
+  .voter-editor .voter-attribute-group[data-group-name]:not([data-group-name=""]) {
+    padding: 16px;
   }
+
+  .voter-editor .voter-attribute-group__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.voter-editor .voter-attribute-group[data-group-name]:not([data-group-name=""]) .MuiInputBase-root {
+  background-color: #fff;
 }
 ```
 
-Do not target generated MUI or Emotion class names; they are implementation details and can change during upgrades. CSS `order` can change only the visual order, not keyboard or screen-reader order, so configure field order in Keycloak instead.
+Do not target generated MUI or Emotion class names such as `.css-abc123`; they are implementation
+details and can change during upgrades. `.MuiInputBase-root` in the example is a stable MUI component
+class, scoped beneath the stable voter group selector. CSS `order` can change only the visual order,
+not keyboard or screen-reader order, so configure field order in Keycloak instead.
 
 ## Hiding an Attribute
 
