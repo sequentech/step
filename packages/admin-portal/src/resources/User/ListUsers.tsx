@@ -83,7 +83,12 @@ import {DownloadDocument} from "./DownloadDocument"
 import {IMPORT_USERS} from "@/queries/ImportUsers"
 import {ElectoralLogFilters, ElectoralLogList} from "@/components/ElectoralLogList"
 import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
-import {getAttributeLabel, getTranslationLabel, userBasicInfo} from "@/services/UserService"
+import {
+    getAttributeLabel,
+    getTranslationLabel,
+    isHiddenAttribute,
+    userBasicInfo,
+} from "@/services/UserService"
 import CustomDateField from "./CustomDateField"
 import {ListActionsMenu} from "@/components/ListActionsMenu"
 import SyncAltIcon from "@mui/icons-material/SyncAlt"
@@ -225,7 +230,13 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     )
 
     const visibleUserAttributes = useMemo(() => {
-        const attributes = userAttributes?.get_user_profile_attributes
+        // An attribute marked hidden is kept off the voter-facing forms by the
+        // login theme; it is kept out of here for the same reason, which covers
+        // the voter columns and filters and the edit and create forms at once,
+        // since they are all handed this same list.
+        const attributes = userAttributes?.get_user_profile_attributes?.filter(
+            (attribute) => !isHiddenAttribute(attribute)
+        )
         if (!attributes || !electionEventId) {
             return attributes
         }
