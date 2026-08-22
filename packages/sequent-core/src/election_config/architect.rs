@@ -2084,6 +2084,21 @@ fn check_areas(plan: &Blueprint, report: &mut Report) {
                     .about(Some(&area.external_id))
                     .id("area.inside-itself"),
                 );
+            } else if let Some(loop_at) = climbs_into_a_loop(plan, area) {
+                // Longer than one hop: A inside B inside A. Reported here in the
+                // plan's own vocabulary rather than left to the bundle validator,
+                // which names generated ids the author never chose.
+                report.push(
+                    Problem::error(
+                        Code::AreaCycle,
+                        format!("{at}.parent_external_id"),
+                        format!(
+                            "the areas are inside each other: '{loop_at}' is reached \
+                             again by walking up from here"
+                        ),
+                    )
+                    .about(Some(&area.external_id)),
+                );
             } else if !plan
                 .areas
                 .iter()
@@ -2319,6 +2334,36 @@ fn check_unique_identifiers(plan: &Blueprint, report: &mut Report) {
             }
         }
     }
+}
+
+/// The identifier a walk up the parent chain reaches twice, if any.
+///
+/// Self-parenting is caught by its own message; this is for A inside B inside A and
+/// anything longer. The walk stops at the first repeat, so a chain hanging off a loop
+/// reports the loop rather than running forever.
+fn climbs_into_a_loop(plan: &Blueprint, from: &PlannedArea) -> Option<String> {
+    let mut seen = vec![from.external_id.as_str()];
+    let mut at = from
+        .parent_external_id
+        .as_deref()
+        .filter(|id| !id.is_empty());
+
+    while let Some(parent) = at {
+        if seen.contains(&parent) {
+            return Some(parent.to_string());
+        }
+        seen.push(parent);
+        at = plan
+            .areas
+            .iter()
+            .find(|area| area.external_id == parent)
+            .and_then(|area| {
+                area.parent_external_id
+                    .as_deref()
+                    .filter(|id| !id.is_empty())
+            });
+    }
+    None
 }
 
 fn check_ballot(plan: &Blueprint, report: &mut Report) {

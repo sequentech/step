@@ -380,6 +380,47 @@ fn a_numeric_id_matches_the_same_number_written_as_text() {
     );
 }
 
+#[test]
+fn a_numeric_id_matches_in_the_areas_and_area_contests_sheets_too() {
+    // The Areas and AreaContests builders read their reference cells through a
+    // different accessor from the Elections one, so a numeric id registered in one
+    // pass and vanished in the next — and in AreaContests two different numeric pairs
+    // both keyed the duplicate check as ("", "").
+    let mut sheets: Vec<Sheet> = sound()
+        .sheets()
+        .iter()
+        .filter(|sheet| sheet.name != "Areas" && sheet.name != "AreaContests")
+        .cloned()
+        .collect();
+    sheets.push(
+        Sheet::from_grid(
+            "Areas",
+            &[
+                vec![text("external_id"), text("name")],
+                vec![Cell::Int(2001), text("North")],
+                vec![Cell::Int(2002), text("South")],
+            ],
+        )
+        .unwrap(),
+    );
+    sheets.push(
+        Sheet::from_grid(
+            "AreaContests",
+            &[
+                vec![text("area.external_id"), text("contest.external_id")],
+                vec![Cell::Int(2001), text("president")],
+                vec![Cell::Int(2002), text("president")],
+            ],
+        )
+        .unwrap(),
+    );
+
+    let bundle = built(&Workbook::new(sheets).unwrap());
+    assert_eq!(bundle.export["areas"].as_array().unwrap().len(), 2);
+    // Two links, not one collapsed pair and not a spurious duplicate refusal.
+    assert_eq!(bundle.export["area_contests"].as_array().unwrap().len(), 2);
+}
+
 // -- areas ----------------------------------------------------------------
 
 #[test]
@@ -1072,6 +1113,36 @@ fn a_column_name_the_importer_would_reject_is_caught_before_the_upload() {
 
 fn with_schedule(grid: Vec<Vec<Cell>>) -> Workbook {
     with_sheet("ScheduledEvents", grid)
+}
+
+#[test]
+fn two_rows_scheduling_one_processor_for_one_election_are_rejected() {
+    // Both the uuid5 and the task id derive from the processor and the election
+    // alone, so the second row would import as the first and its time would be lost.
+    let report = refused(&with_schedule(vec![
+        vec![
+            text("event_type"),
+            text("scheduled_datetime"),
+            text("election.external_id"),
+        ],
+        vec![
+            text("START_VOTING_PERIOD"),
+            text("2027-03-01T16:00:00Z"),
+            text("statewide"),
+        ],
+        vec![
+            text("START_VOTING_PERIOD"),
+            text("2027-03-02T16:00:00Z"),
+            text("statewide"),
+        ],
+    ]));
+
+    assert!(
+        report
+            .errors()
+            .any(|problem| problem.code == Code::DuplicateId),
+        "expected a duplicate identity to be reported, got:\n{report}"
+    );
 }
 
 #[test]

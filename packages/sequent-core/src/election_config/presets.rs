@@ -482,7 +482,7 @@ pub fn get(name: &str) -> Option<&'static AuthPreset> {
     PRESETS.iter().find(|preset| preset.name == name)
 }
 
-/// Every preset name, sorted.
+/// Every preset name, in declaration order.
 pub fn names() -> Vec<&'static str> {
     PRESETS.iter().map(|preset| preset.name).collect()
 }
