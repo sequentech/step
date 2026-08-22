@@ -1193,9 +1193,31 @@ const catalanTranslation: TranslationType = {
                 },
                 errors: {
                     editError: "Error editant votant",
+                    editErrorReason: "Error editant votant: {{reason}}",
                     editSuccess: "Votant editat",
                     createError: "Error creant votant",
+                    createErrorReason: "Error creant votant: {{reason}}",
                     createSuccess: "Votant creat",
+                    attribute: {
+                        invalidNamed: 'S\'ha rebutjat "{{field}}": {{constraint}}',
+                        fieldsToCorrect: "Alguns camps s'han de corregir abans de desar",
+                        hintBetween: "Entre {{min}} i {{max}} caràcters",
+                        hintMin: "Com a mínim {{min}} caràcters",
+                        hintMax: "Com a màxim {{max}} caràcters",
+                        andMore: "i {{count}} més",
+                        invalidLength: '"{{field}}" ha de tenir entre {{min}} i {{max}} caràcters',
+                        tooShort: '"{{field}}" ha de tenir com a mínim {{min}} caràcters',
+                        tooLong: '"{{field}}" ha de tenir com a màxim {{max}} caràcters',
+                        required: '"{{field}}" és obligatori',
+                        invalidEmail:
+                            '"{{field}}" ha de ser una adreça de correu electrònic vàlida',
+                        invalidFormat: '"{{field}}" no té el format esperat',
+                        invalid: '"{{field}}" té un valor no vàlid',
+                    },
+                    createPasswordError:
+                        "Votant creat, però no s'ha pogut establir la seva contrasenya",
+                    createPasswordErrorReason:
+                        "Votant creat, però no s'ha pogut establir la seva contrasenya: {{reason}}",
                 },
                 delete: {
                     body: "Estàs segur que vols esborrar aquest votant?",

@@ -16,7 +16,8 @@ use rocket::Request;
 use sequent_core::services::jwt;
 use sequent_core::services::keycloak::{
     get_event_realm, get_realm_password_policy, get_tenant_realm,
-    is_keycloak_bad_request, PasswordPolicyViolation,
+    get_user_profile_validation_errors, is_keycloak_bad_request,
+    PasswordPolicyViolation, UserProfileValidationError,
 };
 use sequent_core::services::keycloak::{GroupInfo, KeycloakAdminClient};
 use sequent_core::types::keycloak::{
@@ -575,6 +576,68 @@ pub async fn get_users(
     }))
 }
 
+/// Names a refused attribute and the constraint it broke, for logs and for any
+/// consumer that does not read the structured extensions. The constraint's
+/// arguments are left to those extensions, which the admin portal renders in
+/// the admin's own language.
+fn describe_user_profile_validation(
+    validation: &UserProfileValidationError,
+) -> String {
+    let field = validation.field.as_deref().unwrap_or("unknown attribute");
+    let reason = validation
+        .error_message
+        .as_deref()
+        .unwrap_or("invalid value");
+
+    format!("Invalid value for \"{field}\": {reason}")
+}
+
+/// How many refused attributes are reported at once. Keycloak reports every
+/// one it refused, and a mis-mapped import can refuse most of a profile, which
+/// is more than an error message can usefully carry.
+const MAX_REPORTED_USER_PROFILE_ERRORS: usize = 10;
+
+/// Client error naming the attributes Keycloak refused, listing at most
+/// MAX_REPORTED_USER_PROFILE_ERRORS of them and saying how many were left out.
+fn user_profile_error(validations: &[UserProfileValidationError]) -> JsonError {
+    let reported: Vec<UserProfileValidationError> = validations
+        .iter()
+        .take(MAX_REPORTED_USER_PROFILE_ERRORS)
+        .cloned()
+        .collect();
+    let mut message = reported
+        .iter()
+        .map(describe_user_profile_validation)
+        .collect::<Vec<String>>()
+        .join("; ");
+    let unreported = validations.len() - reported.len();
+    if unreported > 0 {
+        message.push_str(&format!(" (and {unreported} more)"));
+    }
+
+    ErrorResponse::user_profile_validation(
+        Status::BadRequest,
+        &message,
+        &reported,
+        validations.len(),
+    )
+}
+
+/// Turn a refused Keycloak write into a client error naming the attributes it
+/// refused, and into an internal error when Keycloak did not say which.
+fn keycloak_user_error(error: anyhow::Error, context: &str) -> JsonError {
+    let validations = get_user_profile_validation_errors(&error);
+    if validations.is_empty() {
+        return ErrorResponse::new(
+            Status::InternalServerError,
+            &format!("{context}: {error:?}"),
+            ErrorCode::InternalServerError,
+        );
+    }
+
+    user_profile_error(&validations)
+}
+
 #[derive(Deserialize, Debug)]
 pub struct CreateUserBody {
     tenant_id: String,
@@ -588,7 +651,7 @@ pub struct CreateUserBody {
 pub async fn create_user(
     claims: jwt::JwtClaims,
     body: Json<CreateUserBody>,
-) -> Result<Json<User>, (Status, String)> {
+) -> Result<Json<User>, JsonError> {
     let input = body.into_inner();
     let mut required_perms = Vec::<Permissions>::new();
     if input.election_event_id.is_some() {
@@ -603,19 +666,37 @@ pub async fn create_user(
             }
         }
     };
-    authorize(&claims, true, Some(input.tenant_id.clone()), required_perms)?;
+    authorize(&claims, true, Some(input.tenant_id.clone()), required_perms)
+        .map_err(|(status, message)| {
+            let code = if status == Status::InternalServerError {
+                ErrorCode::InternalServerError
+            } else {
+                ErrorCode::Unauthorized
+            };
+            ErrorResponse::new(status, &message, code)
+        })?;
     let realm = match input.election_event_id.clone() {
         Some(election_event_id) => {
             get_event_realm(&input.tenant_id, &election_event_id)
         }
         None => get_tenant_realm(&input.tenant_id),
     };
-    let client = KeycloakAdminClient::new()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let client = KeycloakAdminClient::new().await.map_err(|error| {
+        ErrorResponse::new(
+            Status::InternalServerError,
+            &format!("Error connecting to Keycloak: {error:?}"),
+            ErrorCode::InternalServerError,
+        )
+    })?;
     let (tenant_id_attribute, groups) = if input.election_event_id.is_some() {
-        let voter_group_name = env::var("KEYCLOAK_VOTER_GROUP_NAME")
-            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        let voter_group_name =
+            env::var("KEYCLOAK_VOTER_GROUP_NAME").map_err(|error| {
+                ErrorResponse::new(
+                    Status::InternalServerError,
+                    &format!("Error reading voter group name: {error:?}"),
+                    ErrorCode::InternalServerError,
+                )
+            })?;
         (
             Some(HashMap::from([(
                 TENANT_ID_ATTR_NAME.to_string(),
@@ -657,7 +738,9 @@ pub async fn create_user(
     let user = client
         .create_user(&realm, &user, user_attributes, groups)
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|error| {
+            keycloak_user_error(error, "Error creating user in Keycloak")
+        })?;
 
     match (user.id.clone(), &input.user_roles_ids) {
         (Some(id), Some(user_roles_ids)) => {
@@ -725,6 +808,10 @@ impl EditUserError {
             violation.rule.as_str(),
             violation.required_count,
         ))
+    }
+
+    fn from_keycloak(error: anyhow::Error, context: &str) -> Self {
+        Self(keycloak_user_error(error, context))
     }
 }
 
@@ -1088,11 +1175,10 @@ pub async fn edit_user(
             if password_only && is_keycloak_bad_request(&error) {
                 EditUserError::password_policy_violation()
             } else {
-                (
-                    Status::InternalServerError,
-                    format!("Error editing user in Keycloak: {error:?}"),
+                EditUserError::from_keycloak(
+                    error,
+                    "Error editing user in Keycloak",
                 )
-                    .into()
             }
         })?;
 
@@ -1432,11 +1518,75 @@ pub async fn get_user_profile_attributes(
 
 #[cfg(test)]
 mod tests {
-    use super::EditUserError;
+    use super::{
+        user_profile_error, EditUserError, MAX_REPORTED_USER_PROFILE_ERRORS,
+    };
     use rocket::http::Status;
     use sequent_core::services::keycloak::{
-        PasswordPolicyRule, PasswordPolicyViolation,
+        PasswordPolicyRule, PasswordPolicyViolation, UserProfileValidationError,
     };
+
+    fn refused(field: &str) -> UserProfileValidationError {
+        UserProfileValidationError {
+            field: Some(field.to_string()),
+            error_message: Some("error-invalid-length".to_string()),
+            params: Some(vec![field.into(), 1.into(), 2.into()]),
+        }
+    }
+
+    #[test]
+    fn a_refused_attribute_is_a_structured_bad_request() {
+        let response = user_profile_error(&[refused("roll")]);
+        let extensions = &response.1 .0.extensions;
+
+        assert_eq!(response.0, Status::BadRequest);
+        assert_eq!(extensions.code, "UserProfileValidation");
+        assert_eq!(extensions.user_profile_errors_total, Some(1));
+        assert!(response.1 .0.message.contains("roll"));
+        assert!(response.1 .0.message.contains("error-invalid-length"));
+    }
+
+    #[test]
+    fn every_refused_attribute_is_reported_in_order() {
+        let response = user_profile_error(&[refused("ward"), refused("roll")]);
+        let reported = response
+            .1
+             .0
+            .extensions
+            .user_profile_errors
+            .as_ref()
+            .unwrap();
+
+        assert_eq!(reported.len(), 2);
+        assert_eq!(reported[0].field.as_deref(), Some("ward"));
+        assert_eq!(reported[1].field.as_deref(), Some("roll"));
+        let message = &response.1 .0.message;
+        assert!(message.find("ward") < message.find("roll"));
+    }
+
+    #[test]
+    fn a_long_list_of_refused_attributes_is_capped_and_counted() {
+        let validations: Vec<UserProfileValidationError> = (0..15)
+            .map(|index| refused(&format!("field_{index}")))
+            .collect();
+
+        let response = user_profile_error(&validations);
+        let extensions = &response.1 .0.extensions;
+        let reported = extensions.user_profile_errors.as_ref().unwrap();
+
+        assert_eq!(reported.len(), MAX_REPORTED_USER_PROFILE_ERRORS);
+        // The count is of everything refused, not of what was listed.
+        assert_eq!(extensions.user_profile_errors_total, Some(15));
+        assert!(response.1 .0.message.contains("(and 5 more)"));
+        assert!(!response.1 .0.message.contains("field_10"));
+    }
+
+    #[test]
+    fn a_short_list_does_not_claim_there_are_more() {
+        let response = user_profile_error(&[refused("roll")]);
+
+        assert!(!response.1 .0.message.contains("more"));
+    }
 
     #[test]
     fn password_policy_violation_is_a_structured_bad_request() {

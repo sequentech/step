@@ -1192,9 +1192,30 @@ const spanishTranslation: TranslationType = {
                 },
                 errors: {
                     editError: "Error editando votante",
+                    editErrorReason: "Error editando votante: {{reason}}",
                     editSuccess: "Votante editado",
                     createError: "Error creando votante",
+                    createErrorReason: "Error creando votante: {{reason}}",
                     createSuccess: "Votante creado",
+                    attribute: {
+                        invalidNamed: 'Se rechazó "{{field}}": {{constraint}}',
+                        fieldsToCorrect: "Algunos campos deben corregirse antes de guardar",
+                        hintBetween: "Entre {{min}} y {{max}} caracteres",
+                        hintMin: "Al menos {{min}} caracteres",
+                        hintMax: "Como máximo {{max}} caracteres",
+                        andMore: "y {{count}} más",
+                        invalidLength: '"{{field}}" debe tener entre {{min}} y {{max}} caracteres',
+                        tooShort: '"{{field}}" debe tener al menos {{min}} caracteres',
+                        tooLong: '"{{field}}" debe tener como máximo {{max}} caracteres',
+                        required: '"{{field}}" es obligatorio',
+                        invalidEmail:
+                            '"{{field}}" debe ser una dirección de correo electrónico válida',
+                        invalidFormat: '"{{field}}" no tiene el formato esperado',
+                        invalid: '"{{field}}" tiene un valor no válido',
+                    },
+                    createPasswordError: "Votante creado, pero no se pudo establecer su contraseña",
+                    createPasswordErrorReason:
+                        "Votante creado, pero no se pudo establecer su contraseña: {{reason}}",
                 },
                 delete: {
                     body: "¿Estás seguro que quieres borrar este votante?",

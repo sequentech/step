@@ -12,6 +12,7 @@ use keycloak::{
     },
     KeycloakError,
 };
+use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::convert::From;
@@ -41,6 +42,76 @@ async fn error_check(
     }
 
     Ok(response)
+}
+
+/// A user profile constraint that Keycloak refused a write against.
+///
+/// Keycloak reports these as a 400 whose body names the offending attribute,
+/// an i18n key for the constraint, and the constraint's own arguments, e.g.
+/// `{"field": "roll", "errorMessage": "error-invalid-length", "params": ["roll", 1, 2]}`.
+/// The `keycloak` crate parses that body into `KeycloakHttpError`, which keeps
+/// only `errorMessage` and drops both the field and the arguments, so the raw
+/// body is parsed here instead.
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+pub struct UserProfileValidationError {
+    pub field: Option<String>,
+    #[serde(rename = "errorMessage")]
+    pub error_message: Option<String>,
+    #[serde(default)]
+    pub params: Option<Vec<Value>>,
+}
+
+/// Keycloak reports several rejected attributes as a list and a single one as a
+/// bare object, so both are accepted.
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum UserProfileValidationBody {
+    Many {
+        errors: Vec<UserProfileValidationError>,
+    },
+    One(UserProfileValidationError),
+}
+
+impl UserProfileValidationError {
+    /// Keycloak reports every error in this shape, and the untagged parse below
+    /// accepts any object, so only an entry that names the attribute it refused
+    /// is one of these. Without a name it is some other rejection — a password
+    /// against the realm policy, for instance — and belongs to whatever handles
+    /// that instead.
+    fn is_meaningful(&self) -> bool {
+        self.field.is_some()
+    }
+}
+
+/// Extract the user profile constraints Keycloak rejected a write against, so a
+/// caller can tell the operator which field was refused and why rather than
+/// only that the write failed. Returns an empty vector for any other error.
+pub fn get_user_profile_validation_errors(
+    error: &anyhow::Error,
+) -> Vec<UserProfileValidationError> {
+    error
+        .chain()
+        .find_map(|source| {
+            let keycloak_error = source.downcast_ref::<KeycloakError>()?;
+            let KeycloakError::HttpFailure {
+                status: 400, text, ..
+            } = keycloak_error
+            else {
+                return None;
+            };
+
+            let parsed = match serde_json::from_str(text).ok()? {
+                UserProfileValidationBody::Many { errors } => errors,
+                UserProfileValidationBody::One(error) => vec![error],
+            };
+            let meaningful: Vec<UserProfileValidationError> = parsed
+                .into_iter()
+                .filter(UserProfileValidationError::is_meaningful)
+                .collect();
+
+            (!meaningful.is_empty()).then_some(meaningful)
+        })
+        .unwrap_or_default()
 }
 
 /// Return whether an anyhow error chain contains an HTTP 400 returned by
@@ -569,9 +640,91 @@ impl KeycloakAdminClient {
 
 #[cfg(test)]
 mod tests {
-    use super::is_keycloak_bad_request;
+    use super::{get_user_profile_validation_errors, is_keycloak_bad_request};
     use anyhow::Context;
     use keycloak::KeycloakError;
+
+    fn bad_request(text: &str) -> anyhow::Error {
+        anyhow::Error::new(KeycloakError::HttpFailure {
+            status: 400,
+            body: serde_json::from_str(text).ok(),
+            text: text.to_string(),
+        })
+        .context("Failed to create user in keycloak")
+    }
+
+    #[test]
+    fn reads_the_attribute_and_bounds_keycloak_refused() {
+        let errors = get_user_profile_validation_errors(&bad_request(
+            r#"{"field":"roll","errorMessage":"error-invalid-length","params":["roll",1,2]}"#,
+        ));
+
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].field.as_deref(), Some("roll"));
+        assert_eq!(
+            errors[0].error_message.as_deref(),
+            Some("error-invalid-length")
+        );
+        assert_eq!(errors[0].params.as_ref().map(Vec::len), Some(3));
+    }
+
+    #[test]
+    fn reads_an_attribute_whose_arguments_keycloak_left_null() {
+        let errors = get_user_profile_validation_errors(&bad_request(
+            r#"{"field":"roll","errorMessage":"error-invalid-length","params":null}"#,
+        ));
+
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].field.as_deref(), Some("roll"));
+    }
+
+    #[test]
+    fn reads_every_attribute_when_keycloak_refuses_several() {
+        let errors = get_user_profile_validation_errors(&bad_request(
+            r#"{"errors":[{"field":"roll","errorMessage":"error-invalid-length","params":["roll",1,2]},{"field":"ward","errorMessage":"error-user-attribute-required","params":["ward"]}]}"#,
+        ));
+
+        assert_eq!(errors.len(), 2);
+        assert_eq!(errors[1].field.as_deref(), Some("ward"));
+    }
+
+    #[test]
+    fn says_nothing_about_a_rejection_that_carries_no_attribute_name() {
+        // Keycloak's generic error shape: a rejected password reads like this,
+        // and is not a refused attribute.
+        assert!(get_user_profile_validation_errors(&bad_request(
+            r#"{"errorMessage":"invalidPasswordMinLengthMessage","params":["8"]}"#
+        ))
+        .is_empty());
+    }
+
+    #[test]
+    fn says_nothing_about_a_rejection_that_names_no_attribute() {
+        assert!(get_user_profile_validation_errors(&bad_request(
+            "Password policy violation"
+        ))
+        .is_empty());
+        assert!(get_user_profile_validation_errors(&bad_request(
+            r#"{"error":"invalid_grant"}"#
+        ))
+        .is_empty());
+        assert!(get_user_profile_validation_errors(&anyhow::anyhow!(
+            "connection refused"
+        ))
+        .is_empty());
+    }
+
+    #[test]
+    fn ignores_a_rejection_that_is_not_a_bad_request() {
+        let error = anyhow::Error::new(KeycloakError::HttpFailure {
+            status: 500,
+            body: None,
+            text: r#"{"field":"roll","errorMessage":"error-invalid-length"}"#
+                .to_string(),
+        });
+
+        assert!(get_user_profile_validation_errors(&error).is_empty());
+    }
 
     #[test]
     fn detects_a_keycloak_bad_request_through_anyhow_context() {
