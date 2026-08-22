@@ -217,6 +217,21 @@ export interface CompileOptions {
      */
     files?: Record<string, Uint8Array>;
 }
+
+/**
+ * What the bytes handed to `openFile` turned out to be.
+ *
+ * `plan-archive` is the wizard's own save file. `delivery` is what a build hands
+ * over. `plan` is a bare `blueprint.json`, which still opens and no longer gets
+ * written.
+ */
+export type OpenedSource =
+    | "delivery"
+    | "plan"
+    | "plan-archive"
+    | "workbook"
+    | "election-event"
+    | "election-event-archive";
 "#;
 
 #[wasm_bindgen]
@@ -965,6 +980,218 @@ pub fn open_configuration(
     };
 
     to_js(&answer)
+}
+
+// -- opening, with what travelled beside the plan ------------------------------
+
+/// A census the core holds, handed out under the interface it takes in.
+///
+/// **The same three methods as `CensusPull`, pointing the other way.** A host that
+/// opens a save file gets one of these and can pass it straight back to
+/// `compilePlan` as `options.census`, so ten million members are read from the zip,
+/// counted, and written into a bundle without ever being a JavaScript value.
+///
+/// `CensusCsvReader` is the same shape and stays, because a dropped CSV has no
+/// `Opened` to come from. The two are interchangeable wherever a `CensusPull` is
+/// wanted, which is the whole reason the interface was written before either.
+#[cfg(all(
+    feature = "election_config_xlsx",
+    feature = "election_config_archive"
+))]
+#[wasm_bindgen(js_name = CensusHandle)]
+pub struct CensusHandle {
+    inner: std::sync::Arc<dyn sources::CensusSource>,
+}
+
+#[cfg(all(
+    feature = "election_config_xlsx",
+    feature = "election_config_archive"
+))]
+#[wasm_bindgen(js_class = CensusHandle)]
+impl CensusHandle {
+    /// The columns a row will have, in order.
+    #[wasm_bindgen(js_name = columns)]
+    pub fn columns(&self) -> Result<JsValue, JsError> {
+        serde_wasm_bindgen::to_value(self.inner.columns())
+            .map_err(JsError::from)
+    }
+
+    /// Back to the first row.
+    #[wasm_bindgen(js_name = rewind)]
+    pub fn rewind(&self) -> Result<(), JsError> {
+        self.inner.rewind().map_err(|why| JsError::new(&why))
+    }
+
+    /// The next `size` rows as arrays of strings, aligned to `columns()`.
+    #[wasm_bindgen(js_name = nextBatch)]
+    pub fn next_batch(&self, size: usize) -> Result<JsValue, JsError> {
+        let batch = self
+            .inner
+            .next_batch(size)
+            .map_err(|why| JsError::new(&why))?;
+        let columns = self.inner.columns();
+        let rows: Vec<Vec<&str>> = batch
+            .iter()
+            .map(|voter| {
+                columns
+                    .iter()
+                    .map(|column| sources::cell_of(voter, column))
+                    .collect()
+            })
+            .collect();
+        serde_wasm_bindgen::to_value(&rows).map_err(JsError::from)
+    }
+}
+
+/// What `openFile` made of the bytes.
+///
+/// A struct rather than a plain object because two of its members must not be
+/// serialised: the census is a handle, and the files are bytes a host wants as
+/// `Uint8Array`s rather than as arrays of numbers.
+#[cfg(all(
+    feature = "election_config_xlsx",
+    feature = "election_config_archive"
+))]
+#[wasm_bindgen(js_name = OpenedConfiguration)]
+pub struct OpenedConfiguration {
+    plan: Option<serde_json::Value>,
+    report: Report,
+    source: Option<crate::election_config::open::Source>,
+    sources: Option<sources::Sources>,
+}
+
+#[cfg(all(
+    feature = "election_config_xlsx",
+    feature = "election_config_archive"
+))]
+#[wasm_bindgen(js_class = OpenedConfiguration)]
+impl OpenedConfiguration {
+    /// The plan, or `null` when nothing could be read. Read `report` then.
+    #[wasm_bindgen(js_name = plan)]
+    pub fn plan(&self) -> Result<JsValue, JsError> {
+        to_js(&self.plan)
+    }
+
+    /// Everything found on the way, errors and warnings together.
+    #[wasm_bindgen(js_name = report)]
+    pub fn report(&self) -> Result<JsValue, JsError> {
+        to_js(&self.report)
+    }
+
+    /// What the bytes turned out to be: `delivery`, `plan-archive`, `workbook`…
+    #[wasm_bindgen(js_name = source)]
+    pub fn source(&self) -> Result<JsValue, JsError> {
+        to_js(&self.source)
+    }
+
+    /// The census that travelled with it, if one did.
+    ///
+    /// **Taken, not borrowed.** A handle owns its cursor, and two of them over one
+    /// census would each think they were at the start. Calling this twice returns
+    /// `undefined` the second time rather than a second reader of the same rows.
+    #[wasm_bindgen(js_name = takeCensus)]
+    pub fn take_census(&mut self) -> Option<CensusHandle> {
+        self.sources
+            .as_mut()
+            .and_then(|sources| sources.census.take())
+            .map(|inner| CensusHandle { inner })
+    }
+
+    /// The bytes the plan's file names point at, as `Record<string, Uint8Array>`.
+    ///
+    /// Serialised in one go, unlike the census, because these are a logo and some
+    /// photographs — kilobytes each, and a host wants them as values to put in
+    /// state rather than as a stream to pull.
+    #[wasm_bindgen(js_name = files)]
+    pub fn files(&self) -> Result<JsValue, JsError> {
+        let files: std::collections::BTreeMap<&str, &[u8]> = self
+            .sources
+            .as_ref()
+            .map(|sources| {
+                sources
+                    .files
+                    .iter()
+                    .map(|(name, bytes)| (name.as_str(), bytes.as_ref()))
+                    .collect()
+            })
+            .unwrap_or_default();
+        serde_wasm_bindgen::to_value(&files).map_err(JsError::from)
+    }
+}
+
+/// Open a delivery, a save file, a plan, a workbook or an event export.
+///
+/// The successor to [`open_configuration`], which stays for now because beyond's
+/// CI builds this crate's live tip and a boundary that only grows is the only kind
+/// that can be pushed first. The difference is everything the older one had no
+/// place for: a save file's census and the files it carries.
+#[cfg(all(
+    feature = "election_config_xlsx",
+    feature = "election_config_archive"
+))]
+#[wasm_bindgen(js_name = openFile)]
+pub fn open_file(
+    bytes: &[u8],
+    name: Option<String>,
+) -> Result<OpenedConfiguration, JsError> {
+    Ok(
+        match crate::election_config::open::open_named(bytes, name.as_deref()) {
+            Ok(opened) => OpenedConfiguration {
+                plan: Some(serde_json::to_value(&opened.plan).map_err(
+                    |error| {
+                        JsError::new(&format!(
+                            "this plan could not be read: {error}"
+                        ))
+                    },
+                )?),
+                report: opened.report,
+                source: Some(opened.source),
+                sources: Some(opened.sources),
+            },
+            Err(report) => OpenedConfiguration {
+                plan: None,
+                report,
+                source: None,
+                sources: None,
+            },
+        },
+    )
+}
+
+/// The zip the wizard hands over when somebody saves.
+///
+/// **Never a bare `blueprint.json`.** A plan on its own is a plan with the members'
+/// names and the candidates' photographs missing, so what comes back is always an
+/// archive: the plan, its census and the files it names.
+#[cfg(all(
+    feature = "election_config_xlsx",
+    feature = "election_config_archive"
+))]
+#[wasm_bindgen(js_name = saveFile)]
+pub fn save_file_js(
+    plan: JsValue,
+    options: JsValue,
+) -> Result<JsValue, JsError> {
+    let plan: architect::Blueprint = serde_wasm_bindgen::from_value(plan)
+        .map_err(|error| {
+            JsError::new(&format!("this is not an election plan: {error}"))
+        })?;
+
+    let derived;
+    let sources = match sources_from(&options, &plan)? {
+        Some(sources) => {
+            derived = sources;
+            &derived
+        }
+        None => {
+            derived = sources::Sources::from_plan(&plan);
+            &derived
+        }
+    };
+
+    let artifact = archive::save_file(&plan, sources)
+        .map_err(|problem| JsError::new(&problem.message))?;
+    to_js(&File::from(&artifact))
 }
 
 /// What a profile hides, so the wizard knows what not to draw.
