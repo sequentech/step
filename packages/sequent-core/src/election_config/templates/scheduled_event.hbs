@@ -3,7 +3,7 @@ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 
 Base scheduled event.  event_processor, the scheduled date and task_id are
-computed in build.py — task_id in particular must match
+computed in election_config::build_tables — task_id in particular must match
 sequent_core::types::scheduled_event::generate_manage_date_task_name exactly, or
 the platform cannot find the task it scheduled.
 --}}

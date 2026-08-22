@@ -41,8 +41,7 @@ mod tables;
 
 pub use realm::PARAM_LOGIN_CUSTOM_CSS;
 pub use tables::{
-    CommunicationTemplate, JsonTable, PlainTable, EVENT_PROCESSORS,
-    VOTER_LEADING_COLUMNS,
+    CommunicationTemplate, JsonTable, PlainTable, VOTER_LEADING_COLUMNS,
 };
 
 /// Timestamp on every generated entity.
@@ -940,7 +939,12 @@ impl<'a> Builder<'a> {
 
         let mut areas = Vec::new();
         for row in &rows {
-            let Some(external_id) = row.text("external_id").map(str::to_string)
+            // Read the way `require_external_id` registered it: `row.text` answers
+            // only for a string cell and does not trim, so a numeric or space-padded
+            // id resolved in the first pass and not in this one.
+            let Some(external_id) = row
+                .get("external_id")
+                .map(|value| value_as_text(value).trim().to_string())
             else {
                 continue;
             };
@@ -1015,16 +1019,17 @@ impl<'a> Builder<'a> {
         for row in &rows {
             let areas = self.area_ids.clone();
             let contests = self.contest_ids.clone();
+            // Through `value_as_text`, like `resolve` below: `row.text` answers only
+            // for a string cell, so a numeric id read as nothing here and two
+            // different numeric pairs both keyed the duplicate check as ("", "").
             let area_external = row
-                .text("area.external_id")
-                .map(str::trim)
-                .unwrap_or_default()
-                .to_string();
+                .get("area.external_id")
+                .map(|value| value_as_text(value).trim().to_string())
+                .unwrap_or_default();
             let contest_external = row
-                .text("contest.external_id")
-                .map(str::trim)
-                .unwrap_or_default()
-                .to_string();
+                .get("contest.external_id")
+                .map(|value| value_as_text(value).trim().to_string())
+                .unwrap_or_default();
 
             let area_id = self.resolve(row, "area.external_id", &areas, "area");
             let contest_id =
