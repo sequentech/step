@@ -62,17 +62,9 @@ impl Builder<'_> {
         let Some(preset) = presets::get(&name) else {
             // Whichever said it wrong is where the author has to look.
             let origin = if explicit.is_some() {
-                Origin {
-                    sheet: "auth preset option".to_string(),
-                    row: 0,
-                    column: None,
-                }
+                Origin::sheet("auth preset option")
             } else {
-                Origin {
-                    sheet: "Parameters".to_string(),
-                    row: 0,
-                    column: Some("value".to_string()),
-                }
+                Origin::column("Parameters", "value")
             };
             let message = format!(
                 "'{name}' is not an authentication preset; expected one of {}",
@@ -107,11 +99,7 @@ impl Builder<'_> {
                 wanted.join(", ")
             );
             self.problem(
-                Origin {
-                    sheet: "Parameters".to_string(),
-                    row: 0,
-                    column: None,
-                },
+                Origin::sheet("Parameters"),
                 Code::MissingField,
                 message,
             );
@@ -452,11 +440,7 @@ impl Builder<'_> {
                     "the realm's user profile is not readable JSON: {error}"
                 );
                 self.problem(
-                    Origin {
-                        sheet: "base export".to_string(),
-                        row: 0,
-                        column: None,
-                    },
+                    Origin::sheet("base export"),
                     Code::InvalidValue,
                     message,
                 );

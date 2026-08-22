@@ -39,6 +39,16 @@ pub mod archive;
 pub mod architect;
 
 pub mod branding;
+
+/// How a ballot behaves, in the platform's own words. Ungated: the bundle
+/// validator needs the value space and carries no feature.
+pub mod policy;
+
+/// What a client's build of the wizard may say. Shares the architect's feature,
+/// since applying a profile means having a plan to apply it to.
+#[cfg(feature = "election_config_templates")]
+pub mod profile;
+
 pub mod emit;
 pub mod ids;
 pub mod paths;
@@ -62,6 +72,16 @@ pub mod sheet;
 /// scheduler's requirements are not a template concern.
 pub mod time;
 pub mod validate;
+
+/// The browser's view of this module: thin wrappers over the same functions
+/// `step-cli` and windmill call.
+///
+/// Gated the way `crate::wasm` is, so it appears in exactly the builds that have a
+/// JavaScript side. What it exposes depends on the other features — checking an
+/// existing bundle needs neither a template engine nor a spreadsheet parser, and a
+/// front end that only does that should carry neither.
+#[cfg(all(feature = "wasm", feature = "default_features"))]
+pub mod wasm;
 
 /// Reading `.xlsx`, behind its own feature so front ends with no workbook to read
 /// do not carry a spreadsheet library.
@@ -89,8 +109,11 @@ pub use build::{
 pub use emit::{json_csv, plain_csv, JsonField};
 pub use ids::IdFactory;
 pub use paths::{coerce_cell, deep_merge, expand, Cell};
+pub use policy::{Policies as ContestPolicies, PolicyPatch, PolicyValue};
 pub use presets::{AuthPreset, RealmPatch};
 pub use problem::{Code, Problem, Report as ValidationReport, Severity};
+#[cfg(feature = "election_config_templates")]
+pub use profile::{apply_profile, ClientProfile, Profile};
 #[cfg(feature = "election_config_templates")]
 pub use render::TemplateSet;
 pub use report::{EReportEncryption, Report, ReportCronConfig, ReportType};

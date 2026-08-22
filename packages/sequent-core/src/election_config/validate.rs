@@ -361,6 +361,8 @@ fn check_contests(bundle: &ImportElectionEventSchema, report: &mut Report) {
             ),
         }
 
+        check_presentation_policies(contest, &path, about, report);
+
         let available = candidates_per_contest
             .get(contest.id.as_str())
             .copied()
@@ -401,6 +403,83 @@ fn check_contests(bundle: &ImportElectionEventSchema, report: &mut Report) {
                     );
                 }
             }
+        }
+    }
+}
+
+/// Every `presentation.*_policy` against the values the platform has.
+///
+/// A policy the Admin Portal does not know imports without complaint and then
+/// behaves as whatever the voting portal falls back to — which is a ballot
+/// behaving in a way nobody chose, discovered by a voter. Both hand-written
+/// mappings that fed this format got at least one of them wrong, so it is worth
+/// checking the bundle rather than trusting whoever produced it.
+fn check_presentation_policies(
+    contest: &crate::types::hasura::core::Contest,
+    path: &impl Fn(&str) -> String,
+    about: Option<&str>,
+    report: &mut Report,
+) {
+    use crate::election_config::policy::{
+        BlankVote, CandidatesOrder, DuplicatedRank, InvalidVote, OverVote,
+        PolicyValue, PreferenceGaps, UnderVote,
+    };
+    use strum::IntoEnumIterator;
+
+    let Some(presentation) = contest
+        .presentation
+        .as_ref()
+        .and_then(|value| value.as_object())
+    else {
+        return;
+    };
+
+    fn known<T: PolicyValue + IntoEnumIterator>() -> Vec<&'static str> {
+        T::iter().map(PolicyValue::as_str).collect()
+    }
+
+    let checks: Vec<(&str, Vec<&'static str>)> = vec![
+        ("over_vote_policy", known::<OverVote>()),
+        ("blank_vote_policy", known::<BlankVote>()),
+        ("under_vote_policy", known::<UnderVote>()),
+        ("invalid_vote_policy", known::<InvalidVote>()),
+        ("duplicated_rank_policy", known::<DuplicatedRank>()),
+        ("preference_gaps_policy", known::<PreferenceGaps>()),
+        ("candidates_order", known::<CandidatesOrder>()),
+    ];
+
+    for (key, allowed) in checks {
+        // Absent is fine: the platform has its own default for each of these,
+        // and a bundle is not obliged to state one.
+        let Some(value) = presentation.get(key) else {
+            continue;
+        };
+        if value.is_null() {
+            continue;
+        }
+        let Some(text) = value.as_str() else {
+            report.push(
+                Problem::error(
+                    Code::InvalidValue,
+                    path(&format!("presentation.{key}")),
+                    format!("{key} should be text, and is {value}"),
+                )
+                .about(about),
+            );
+            continue;
+        };
+        if !allowed.contains(&text) {
+            report.push(
+                Problem::error(
+                    Code::InvalidValue,
+                    path(&format!("presentation.{key}")),
+                    format!(
+                        "'{text}' is not a {key}; expected one of {}",
+                        allowed.join(", ")
+                    ),
+                )
+                .about(about),
+            );
         }
     }
 }

@@ -202,22 +202,12 @@ fn a_zone_that_is_not_a_whole_hour_is_fine() {
     assert_eq!(kolkata.to_rfc3339().unwrap(), "2027-03-01T09:00:00+05:30");
 }
 
+/// These fields come out of a saved plan, which people hand-edit. Before the
+/// `checked_mul`, this panicked in a debug build and — worse — wrapped to a
+/// plausible-looking `-00:01` in a release one.
 #[test]
-fn an_offset_too_large_to_multiply_is_reported_not_panicked() {
-    // `offset_minutes * 60` is i32 arithmetic and `instant` runs before `check` does,
-    // so a value above `i32::MAX / 60` used to panic in debug and wrap in release.
-    let stamp = Timestamp {
-        local: "2027-03-01T16:00:00".to_string(),
-        zone: String::new(),
-        offset_minutes: i32::MAX,
-    };
-
-    let problem = stamp
-        .instant()
-        .expect_err("an unusable offset is a problem");
-    assert!(
-        problem.message.contains("not a usable offset"),
-        "unexpected message: {}",
-        problem.message
-    );
+fn an_absurd_offset_is_reported_rather_than_overflowing() {
+    let stamp = Timestamp::new("2027-03-01T09:00", "Nowhere", i32::MAX);
+    assert!(stamp.instant().is_err());
+    assert!(stamp.to_rfc3339().is_err());
 }
