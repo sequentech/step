@@ -1186,9 +1186,31 @@ const basqueTranslation: TranslationType = {
                 askCreate: "Bat sortu nahi duzu?",
                 errors: {
                     editError: "Errorea bozkatzailea editatzerakoan",
+                    editErrorReason: "Errorea bozkatzailea editatzerakoan: {{reason}}",
                     editSuccess: "Bozkatzailea editatua",
                     createError: "Errorea bozkatzailea sortzerakoan",
+                    createErrorReason: "Errorea bozkatzailea sortzerakoan: {{reason}}",
                     createSuccess: "Bozkatzailea sortua",
+                    attribute: {
+                        invalidNamed: '"{{field}}" baztertu da: {{constraint}}',
+                        fieldsToCorrect: "Eremu batzuk zuzendu behar dira gorde aurretik",
+                        hintBetween: "{{min}} eta {{max}} karaktere artean",
+                        hintMin: "Gutxienez {{min}} karaktere",
+                        hintMax: "Gehienez {{max}} karaktere",
+                        andMore: "eta beste {{count}}",
+                        invalidLength:
+                            '"{{field}}" eremuak {{min}} eta {{max}} karaktere artean izan behar ditu',
+                        tooShort: '"{{field}}" eremuak gutxienez {{min}} karaktere izan behar ditu',
+                        tooLong: '"{{field}}" eremuak gehienez {{max}} karaktere izan behar ditu',
+                        required: '"{{field}}" nahitaezkoa da',
+                        invalidEmail: '"{{field}}" baliozko helbide elektronikoa izan behar da',
+                        invalidFormat: '"{{field}}" ez dauka espero den formatua',
+                        invalid: '"{{field}}" balio baliogabea dauka',
+                    },
+                    createPasswordError:
+                        "Bozkatzailea sortua, baina ezin izan da bere pasahitza ezarri",
+                    createPasswordErrorReason:
+                        "Bozkatzailea sortua, baina ezin izan da bere pasahitza ezarri: {{reason}}",
                 },
                 delete: {
                     body: "Ziur zaude bozkatzaile hau ezabatu nahi duzula?",

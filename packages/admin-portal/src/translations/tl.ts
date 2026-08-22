@@ -1192,9 +1192,31 @@ const tagalogTranslation: TranslationType = {
                 askCreate: "Gusto mo bang lumikha ng isa?",
                 errors: {
                     editError: "Error sa pag-edit ng botante",
+                    editErrorReason: "Error sa pag-edit ng botante: {{reason}}",
                     editSuccess: "Nai-edit ang botante",
                     createError: "Error sa paglikha ng botante",
+                    createErrorReason: "Error sa paglikha ng botante: {{reason}}",
                     createSuccess: "Nalikha ang botante",
+                    attribute: {
+                        invalidNamed: 'Tinanggihan ang "{{field}}": {{constraint}}',
+                        fieldsToCorrect: "May mga field na kailangang itama bago mag-save",
+                        hintBetween: "Sa pagitan ng {{min}} at {{max}} na karakter",
+                        hintMin: "Hindi bababa sa {{min}} na karakter",
+                        hintMax: "Hindi hihigit sa {{max}} na karakter",
+                        andMore: "at {{count}} pa",
+                        invalidLength:
+                            'Ang "{{field}}" ay dapat na nasa pagitan ng {{min}} at {{max}} na karakter',
+                        tooShort: 'Ang "{{field}}" ay dapat na hindi bababa sa {{min}} na karakter',
+                        tooLong: 'Ang "{{field}}" ay dapat na hindi hihigit sa {{max}} na karakter',
+                        required: 'Ang "{{field}}" ay kinakailangan',
+                        invalidEmail: 'Ang "{{field}}" ay dapat na wastong email address',
+                        invalidFormat: 'Ang "{{field}}" ay walang inaasahang format',
+                        invalid: 'Ang "{{field}}" ay may hindi wastong halaga',
+                    },
+                    createPasswordError:
+                        "Nalikha ang botante, ngunit hindi maitakda ang password nito",
+                    createPasswordErrorReason:
+                        "Nalikha ang botante, ngunit hindi maitakda ang password nito: {{reason}}",
                 },
                 delete: {
                     body: "Sigurado ka bang gusto mong tanggalin ang botante na ito?",
