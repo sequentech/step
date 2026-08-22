@@ -177,15 +177,19 @@ pub fn open_named(bytes: &[u8], name: Option<&str>) -> Result<Opened, Report> {
             }
         }
 
-        let plan: Blueprint = serde_json::from_str(text).map_err(|error| {
+        // Through `read_plan`, so an older plan is migrated rather than read as
+        // though it were current. It was not, and a version 2 plan opened here
+        // kept its area *names* in the field the builder reads as identifiers.
+        let read = super::architect::read_plan(text).map_err(|problem| {
             refuse(format!(
                 "this is not a plan file. If you have the delivery .zip, open \
-                 that instead. ({error})"
+                 that instead. ({})",
+                problem.message
             ))
         })?;
         return Ok(Opened {
-            sources: Sources::from_plan(&plan),
-            plan,
+            plan: read.plan,
+            sources: read.sources,
             report: Report::default(),
             source: Source::Plan,
         });
@@ -300,9 +304,13 @@ pub fn open_named(bytes: &[u8], name: Option<&str>) -> Result<Opened, Report> {
 /// there.
 fn open_delivery(bytes: &[u8], names: &[String]) -> Result<Opened, Report> {
     let raw = entry(bytes, super::archive::PLAN_MEMBER)?;
-    let plan: Blueprint = serde_json::from_slice(&raw).map_err(|error| {
-        refuse(format!("the plan in this zip could not be read: {error}"))
-    })?;
+    let document: serde_json::Value =
+        serde_json::from_slice(&raw).map_err(|error| {
+            refuse(format!("the plan in this zip could not be read: {error}"))
+        })?;
+    let read = super::architect::read_plan_value(document)
+        .map_err(|problem| refuse(problem.message))?;
+    let plan = read.plan;
 
     let mut report = Report::default();
 
@@ -423,7 +431,7 @@ fn open_delivery(bytes: &[u8], names: &[String]) -> Result<Opened, Report> {
     // Nothing beside the plan means the plan is all there is, which is what a
     // delivery written before this change looks like.
     let sources = if census.is_none() && files.is_empty() {
-        Sources::from_plan(&plan)
+        read.sources
     } else {
         Sources {
             census,

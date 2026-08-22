@@ -209,13 +209,38 @@ fn migrate_v2(document: &mut serde_json::Value) {
     object.insert("version".to_string(), serde_json::json!(3));
 }
 
+/// A plan as it came off disk, and whatever came with it.
+pub struct ReadPlan {
+    pub plan: Blueprint,
+
+    /// What the document carried beside the plan proper.
+    ///
+    /// Derived from the plan's own fields while it still has them. When they go,
+    /// the migration lifts them out of the JSON into here, so a plan saved last
+    /// month opens with its census and its photographs rather than opening empty.
+    pub sources: Sources,
+}
+
 /// Read a saved plan, bringing an older one up to date.
 ///
-/// The only way a plan should be deserialized. A plan from a *newer* version is
-/// left alone here and refused by [`validate_plan`], which can say so as a
-/// problem rather than as a serde error about a field nobody has heard of.
-pub fn read_plan(document: &str) -> Result<Blueprint, Problem> {
-    let mut value: serde_json::Value =
+/// **The only way a plan is deserialized, and it was not.** This function said so
+/// in its own documentation and had no callers outside the tests: `open`,
+/// `compilePlan`, `previewBallot`, `applyProfile` and `step-cli` each reached for
+/// `serde_json::from_str` directly. So `migrate_v1` and `migrate_v2` never ran
+/// anywhere but in a test, and a version 2 plan opened in the wizard kept its area
+/// *names* in a field the builder reads as identifiers — every voter's area
+/// dangling, in a plan that had opened without complaint.
+///
+/// It matters more from here on. The migration that removes the census from the
+/// document is the one that has to lift it *out* into [`ReadPlan::sources`], and a
+/// caller that bypasses this would hand back a plan whose census is silently empty
+/// against a green suite.
+///
+/// A plan from a *newer* version is left alone here and refused by
+/// [`validate_plan`], which can say so as a problem rather than as a serde error
+/// about a field nobody has heard of.
+pub fn read_plan(document: &str) -> Result<ReadPlan, Problem> {
+    let value: serde_json::Value =
         serde_json::from_str(document).map_err(|error| {
             Problem::error(
                 Code::InvalidValue,
@@ -225,11 +250,21 @@ pub fn read_plan(document: &str) -> Result<Blueprint, Problem> {
             .id("plan.not-a-plan")
             .detail("error", error)
         })?;
+    read_plan_value(value)
+}
 
+/// [`read_plan`], for a caller that already has the document parsed.
+///
+/// The wasm boundary hands over a `JsValue`, and `step-cli` a file it has read; both
+/// arrive as a `serde_json::Value` before they are a plan. Separate so that neither
+/// has to serialise back to text just to be read properly.
+pub fn read_plan_value(
+    mut value: serde_json::Value,
+) -> Result<ReadPlan, Problem> {
     migrate_v1(&mut value);
     migrate_v2(&mut value);
 
-    serde_json::from_value(value).map_err(|error| {
+    let plan: Blueprint = serde_json::from_value(value).map_err(|error| {
         Problem::error(
             Code::InvalidValue,
             "plan",
@@ -237,6 +272,11 @@ pub fn read_plan(document: &str) -> Result<Blueprint, Problem> {
         )
         .id("plan.unreadable")
         .detail("error", error)
+    })?;
+
+    Ok(ReadPlan {
+        sources: Sources::from_plan(&plan),
+        plan,
     })
 }
 

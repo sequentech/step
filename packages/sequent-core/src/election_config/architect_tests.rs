@@ -606,7 +606,7 @@ fn a_version_one_plan_compiles_to_the_bytes_it_used_to() {
         }
     }"#;
 
-    let plan = read_plan(document).expect("an older plan still opens");
+    let plan = read_plan(document).expect("an older plan still opens").plan;
     assert_eq!(plan.version, BLUEPRINT_VERSION);
 
     let presentation =
@@ -4486,7 +4486,9 @@ fn a_version_two_plan_keeps_its_voters_in_their_areas() {
         ]
     }"#;
 
-    let plan = read_plan(document).expect("a version 2 plan still opens");
+    let plan = read_plan(document)
+        .expect("a version 2 plan still opens")
+        .plan;
     assert_eq!(plan.version, BLUEPRINT_VERSION);
 
     assert_eq!(plan.voters[0].area_external_id, "local-1");
@@ -5060,4 +5062,53 @@ fn a_plan_that_configures_the_ivr_is_not_told_to_go_and_configure_it() {
         !says(&report, "IVR tab"),
         "a configured IVR was still told to configure itself: {report}"
     );
+}
+
+/// `read_plan_value` is the only place a `Blueprint` is deserialized.
+///
+/// **A rule that was written down and not kept.** `read_plan` said it in its own
+/// documentation while five production call sites reached for `serde_json` or
+/// `serde_wasm_bindgen` directly — so the migrations ran nowhere, and a version 2
+/// plan opened in the wizard had its area names sitting in the identifier field.
+///
+/// Read off the sources rather than off behaviour, because the failure is a *new*
+/// call site rather than a wrong one, and nothing at run time can notice a
+/// migration that was skipped. The next such line to be written is the one this
+/// catches.
+#[test]
+fn nothing_else_deserializes_a_plan() {
+    let files: &[(&str, &str)] = &[
+        ("architect.rs", include_str!("architect.rs")),
+        ("open.rs", include_str!("open.rs")),
+        ("wasm.rs", include_str!("wasm.rs")),
+        ("plan_from_event.rs", include_str!("plan_from_event.rs")),
+        (
+            "plan_from_workbook.rs",
+            include_str!("plan_from_workbook.rs"),
+        ),
+        ("profile.rs", include_str!("profile.rs")),
+    ];
+
+    let mut found: Vec<String> = Vec::new();
+    for (name, source) in files {
+        for (number, line) in source.lines().enumerate() {
+            let line = line.trim();
+            let deserializes = line.contains("serde_json::from_value")
+                || line.contains("serde_json::from_str")
+                || line.contains("serde_json::from_slice")
+                || line.contains("serde_wasm_bindgen::from_value");
+            if deserializes && line.contains("Blueprint") {
+                found.push(format!("{name}:{}", number + 1));
+            }
+        }
+    }
+
+    // Exactly one: `read_plan_value`. A second is either a bypass or a rename, and
+    // both want a person to look.
+    assert_eq!(
+        found.len(),
+        1,
+        "a plan should only be deserialized in `read_plan_value`; found {found:?}"
+    );
+    assert!(found[0].starts_with("architect.rs:"), "{found:?}");
 }

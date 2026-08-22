@@ -240,6 +240,54 @@ fn a_delivery_brings_its_census_and_its_files_back() {
     assert_eq!(back[0].area_external_id, "north");
 }
 
+/// Opening an old plan migrates it. It did not.
+///
+/// **`read_plan` documented itself as the only way a plan should be deserialized
+/// and had no callers outside the tests.** `open`, `compilePlan`, `previewBallot`,
+/// `applyProfile` and `step-cli` each reached for `serde_json` directly, so
+/// `migrate_v1` and `migrate_v2` ran nowhere but in a unit test.
+///
+/// The version 2 case is the visible one: a plan of that vintage keys its voters
+/// by area *name*, and the builder reads `area.external_id`. Opened unmigrated, the
+/// name lands in the identifier field and every voter's area dangles — in a plan
+/// that opened without a word of complaint.
+#[test]
+fn an_older_plan_is_migrated_on_the_way_in() {
+    let document = serde_json::json!({
+        "version": 2,
+        "external_id": "union-2027",
+        "name": {"en": "Union Election 2027"},
+        "languages": ["en"],
+        "areas": [
+            {"external_id": "local-1", "name": "North Local 1"},
+        ],
+        "elections": [{
+            "external_id": "officers",
+            "name": {"en": "Officers"},
+            "contests": [{
+                "external_id": "president",
+                "name": {"en": "President"},
+                "candidates": [{"external_id": "alice", "name": {"en": "Alice"}}]
+            }]
+        }],
+        "voters": [{"username": "ada", "area_name": "North Local 1"}]
+    });
+
+    let opened = open(document.to_string().as_bytes()).expect("it opens");
+
+    assert_eq!(opened.plan.version, BLUEPRINT_VERSION);
+    // The name resolved to the identifier the builder reads. Unmigrated this is
+    // `North Local 1`, and the voter belongs to no area at all.
+    assert_eq!(opened.plan.voters[0].area_external_id, "local-1");
+
+    // And the sources that came back are the migrated plan's, not the raw one's.
+    let census = opened.sources.census.as_ref().expect("its census");
+    assert_eq!(
+        census.next_batch(10).expect("readable")[0].area_external_id,
+        "local-1"
+    );
+}
+
 #[test]
 fn a_bare_plan_file_opens() {
     let plan = sound();

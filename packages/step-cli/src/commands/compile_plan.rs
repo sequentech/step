@@ -19,7 +19,7 @@
 use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use colored::Colorize;
-use sequent_core::election_config::architect::{compile_plan, Blueprint, Compile};
+use sequent_core::election_config::architect::{compile_plan, read_plan, Blueprint, Compile};
 use sequent_core::election_config::preview::{preview_publication, PreviewOptions};
 use sequent_core::election_config::profile::{ClientProfile, Profile};
 use sequent_core::election_config::{
@@ -99,8 +99,13 @@ impl CompilePlan {
     fn compile(&self) -> Result<()> {
         let source = fs::read_to_string(&self.plan)
             .with_context(|| format!("could not read {}", self.plan.display()))?;
-        let plan: Blueprint = serde_json::from_str(&source)
+        // Through the core's own reader, so an older plan is migrated exactly as
+        // the wizard migrates it. `serde_json::from_str` here read a version 2
+        // plan as though it were current.
+        let read = read_plan(&source)
+            .map_err(problem_error)
             .with_context(|| format!("{} is not an election plan", self.plan.display()))?;
+        let plan = read.plan;
 
         let profile = self.profile()?;
         let templates = TemplateSet::builtin().map_err(problem_error)?;

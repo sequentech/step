@@ -438,16 +438,31 @@ pub fn build_from_workbook(
 #[cfg(feature = "election_config_archive")]
 #[wasm_bindgen(js_name = validatePlan)]
 pub fn validate_plan_js(plan: JsValue) -> Result<IReport, JsError> {
-    let plan: architect::Blueprint = serde_wasm_bindgen::from_value(plan)
-        .map_err(|error| {
-            JsError::new(&format!("this is not an election plan: {error}"))
-        })?;
+    let plan = plan_from_js(plan)?;
 
     // Derived from the plan's own fields while the plan still carries them. The
     // additive `options.census` this grows in the next commit changes what is
     // passed here, not what this function is for.
     let sources = sources::Sources::from_plan(&plan);
     to_js(&architect::validate_plan(&plan, &sources)).map(IReport::from)
+}
+
+/// A plan out of JavaScript, through the one reader that migrates it.
+///
+/// **Every entry point took `serde_wasm_bindgen::from_value` straight to a
+/// `Blueprint`**, so `migrate_v1` and `migrate_v2` never ran on this side at all —
+/// a version 2 plan reached `compilePlan` with its area *names* in the field the
+/// builder reads as identifiers. Through a `serde_json::Value` rather than
+/// directly, because that is what the migrations edit.
+#[cfg(feature = "election_config_archive")]
+fn plan_from_js(plan: JsValue) -> Result<architect::Blueprint, JsError> {
+    let document: serde_json::Value = serde_wasm_bindgen::from_value(plan)
+        .map_err(|error| {
+            JsError::new(&format!("this is not an election plan: {error}"))
+        })?;
+    architect::read_plan_value(document)
+        .map(|read| read.plan)
+        .map_err(|problem| JsError::new(&problem.message))
 }
 
 // -- the census, pulled from JavaScript ----------------------------------------
@@ -635,10 +650,7 @@ pub fn compile_plan_js(
     plan: JsValue,
     options: JsValue,
 ) -> Result<IBuildOutput, JsError> {
-    let plan: architect::Blueprint = serde_wasm_bindgen::from_value(plan)
-        .map_err(|error| {
-            JsError::new(&format!("this is not an election plan: {error}"))
-        })?;
+    let plan = plan_from_js(plan)?;
 
     // The profile travels *inside* options rather than as a third argument.
     // It was a third argument, and the browser passed two — so every profile
@@ -712,10 +724,7 @@ pub fn preview_ballot_js(
     plan: JsValue,
     options: JsValue,
 ) -> Result<IPreviewOutput, JsError> {
-    let plan: architect::Blueprint = serde_wasm_bindgen::from_value(plan)
-        .map_err(|error| {
-            JsError::new(&format!("this is not an election plan: {error}"))
-        })?;
+    let plan = plan_from_js(plan)?;
 
     let profile = profile_from(&options)?;
     let demo_key = demo_public_key_from(&options)?;
@@ -1172,10 +1181,7 @@ pub fn save_file_js(
     plan: JsValue,
     options: JsValue,
 ) -> Result<JsValue, JsError> {
-    let plan: architect::Blueprint = serde_wasm_bindgen::from_value(plan)
-        .map_err(|error| {
-            JsError::new(&format!("this is not an election plan: {error}"))
-        })?;
+    let plan = plan_from_js(plan)?;
 
     let derived;
     let sources = match sources_from(&options, &plan)? {
@@ -1219,8 +1225,7 @@ pub fn apply_profile_js(
     plan: JsValue,
     profile: JsValue,
 ) -> Result<JsValue, JsError> {
-    let plan: architect::Blueprint = serde_wasm_bindgen::from_value(plan)
-        .map_err(|error| JsError::new(&format!("bad plan: {error}")))?;
+    let plan = plan_from_js(plan)?;
     let document: profile::ClientProfile =
         serde_wasm_bindgen::from_value(profile)
             .map_err(|error| JsError::new(&format!("bad profile: {error}")))?;
