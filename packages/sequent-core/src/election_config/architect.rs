@@ -1325,9 +1325,6 @@ pub fn compile_plan(
 
     let mut report = validate_plan(plan);
     if let Some(profile) = profile {
-        for problem in profile.warnings.problems.clone() {
-            report.push(problem);
-        }
         check_required(plan, profile, &mut report);
     }
     if report.has_errors() {

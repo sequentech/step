@@ -413,7 +413,6 @@ pub fn read_profile_js(profile: JsValue) -> Result<JsValue, JsError> {
         /// it is Rust's job — a required field with no asterisk is a form
         /// somebody fills in twice.
         required: Vec<String>,
-        warnings: Report,
     }
 
     let document: profile::ClientProfile =
@@ -440,7 +439,6 @@ pub fn read_profile_js(profile: JsValue) -> Result<JsValue, JsError> {
                 .into_iter()
                 .map(str::to_string)
                 .collect(),
-            warnings: read.warnings.clone(),
         }),
         // An error, not a `Report` returned as success. The caller casts this
         // result to a profile; handing back `{problems: [...]}` produced

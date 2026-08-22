@@ -203,10 +203,6 @@ pub struct Profile {
     pub id: String,
     pub display_name: Option<String>,
 
-    /// What is odd about this profile without being wrong with it. Carried
-    /// rather than discarded, so [`compile_plan`](super::architect::compile_plan)
-    /// can fold it into the report somebody actually reads.
-    pub warnings: Report,
     defaults: Vec<(PlanPath, Value)>,
     locked: Vec<PlanPath>,
     hidden: Vec<PlanPath>,
@@ -311,7 +307,6 @@ impl Profile {
         Ok(Profile {
             id: document.id.clone(),
             display_name: document.display_name.clone(),
-            warnings: report,
             defaults,
             locked,
             hidden,
