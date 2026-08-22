@@ -38,7 +38,7 @@ export {default as BlankAnswer} from "./components/BlankAnswer/BlankAnswer"
 export {default as CustomAutocompleteArrayInput} from "./components/CustomAutocompleteArrayInput/CustomAutocompleteArrayInput"
 export {default as Loader} from "./components/Loader/Loader"
 export {default as ExpandableText} from "./components/ExpandableText/ExpandableText"
-export {ActionsContainer, StyledButton} from "./components/ConfirmationActions/ConfirmationActions"
+export {ActionsContainer, StyledButton} from "./components/ActionsRow/ActionsRow"
 export {PlaintextVoteContest} from "./components/PlaintextVoteContest/PlaintextVoteContest"
 export type {PlaintextVoteContestProps} from "./components/PlaintextVoteContest/PlaintextVoteContest"
 export {
@@ -82,3 +82,72 @@ export type {
     ReviewChangesRow,
     ReviewChangesTableProps,
 } from "./components/ReviewChangesTable/ReviewChangesTable"
+
+// The ballot a voter marks, and the port a host implements to hold their marks.
+//
+// One implementation, two consumers: the voting portal renders these over its
+// redux store, and the Election Architect's preview renders the same components
+// over local state. Previously the wizard drew byte-identical *copies* of the
+// candidate row, kept honest by a parity checker, and could not draw a contest at
+// all — so a preview could differ from the ballot, which for an election is not a
+// cosmetic problem.
+export {SupportMaterialsLayout, SupportMaterialCard} from "./ballot/SupportMaterialsLayout"
+export type {
+    ISupportMaterialsLayoutProps,
+    ISupportMaterialCardProps,
+} from "./ballot/SupportMaterialsLayout"
+export {ConfirmationLayout} from "./ballot/ConfirmationLayout"
+export type {IConfirmationLayoutProps} from "./ballot/ConfirmationLayout"
+export {ReviewLayout} from "./ballot/ReviewLayout"
+export type {IReviewLayoutProps} from "./ballot/ReviewLayout"
+// The voter's breadcrumb. The portal's `Stepper` is a shim over this that answers
+// `withElectionList` from its store; the wizard's Ballot Preview draws it directly.
+export {BallotSteps} from "./ballot/BallotSteps"
+export type {IBallotStepsProps} from "./ballot/BallotSteps"
+// The ballot list screen, which the portal's `ElectionSelectionScreen` renders and
+// the wizard's preview draws.
+export {ElectionListLayout} from "./ballot/ElectionListLayout"
+export type {IElectionListLayoutProps} from "./ballot/ElectionListLayout"
+// The ballot screen itself, and the row of buttons under it.
+export {BallotScreenLayout} from "./ballot/BallotScreenLayout"
+export type {IBallotScreenLayoutProps} from "./ballot/BallotScreenLayout"
+export {BallotActions} from "./ballot/BallotActions"
+// The rows under the review and confirmation screens, lifted the same way: the portal's
+// `ReviewScreen` and `ConfirmationScreen` drew them inline, so a preview could only
+// approximate them — and did, with plain buttons and no icons.
+export {ReviewActions} from "./ballot/ReviewActions"
+export type {IReviewActionsProps} from "./ballot/ReviewActions"
+export {ConfirmationActions} from "./ballot/ConfirmationActions"
+export type {IConfirmationActionsProps} from "./ballot/ConfirmationActions"
+export type {IBallotActionsProps} from "./ballot/BallotActions"
+// The Admin Portal's emulator, less the part that reads its own database. Two
+// consumers for the same reason as above: the portal tries a call against a
+// published event, the wizard against the plan on screen.
+export {IvrCall, IvrPromptLine} from "./ballot/IvrCall"
+export type {
+    IIvrCallProps,
+    IvrAction,
+    IvrCallDriver,
+    IvrCallStatus,
+    IvrExpectedInput,
+    IvrPrompt,
+} from "./ballot/IvrCall"
+export {forgetIvrEmulator, IvrEmulatorError, loadIvrEmulator} from "./ballot/ivrEmulator"
+export type {
+    ImportModule,
+    IvrEmulatorApi,
+    IvrEmulatorConfig,
+    IvrEmulatorFailure,
+} from "./ballot/ivrEmulator"
+export {Question} from "./ballot/Question"
+export type {IQuestionProps} from "./ballot/Question"
+export {Answer} from "./ballot/Answer"
+export {AnswersList} from "./ballot/AnswersList"
+export {InvalidErrorsList} from "./ballot/InvalidErrorsList"
+export {BallotSelectionProvider, useBallotSelection} from "./ballot/selection"
+export {BallotEngineProvider, useBallotEngine} from "./ballot/engine"
+export type {BallotEngine} from "./ballot/engine"
+export type {BallotSelectionPort, ContestSelection, VoteChoice} from "./ballot/selection"
+export type {IBallotStyle as IBallotStyleRow} from "./ballot/types"
+export * from "./ballot/presentation"
+export {IInvalidPlaintextErrorType} from "./ballot/errors"

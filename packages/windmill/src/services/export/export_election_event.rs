@@ -143,6 +143,23 @@ pub async fn read_export_data(
         vec![]
     };
 
+    // The rows for the documents that already travel. Their *files* have always
+    // been exported — `export_S3_files/` is the event's private bucket — so without
+    // these an export was one-way: import it back and the tab is empty because
+    // nothing points at the uploads. That asymmetry is how the format came to look
+    // as though it did not support materials at all.
+    let export_support_materials = crate::postgres::document::get_support_material_documents(
+        &transaction,
+        &tenant_id,
+        &election_event_id,
+    )
+    .await
+    .context("Error retrieving support materials for export")?
+    .unwrap_or_default()
+    .into_iter()
+    .map(|(material, _document)| material)
+    .collect::<Vec<_>>();
+
     let version =
         std::env::var(ENV_VAR_APP_VERSION).unwrap_or_else(|_| DEV_APP_VERSION.to_string());
 
@@ -161,6 +178,7 @@ pub async fn read_export_data(
         reports: export_reports,
         keys_ceremonies: Some(export_keys_ceremonies),
         applications: Some(export_applications),
+        support_materials: Some(export_support_materials),
         version,
     };
 

@@ -4,6 +4,7 @@
 
 pub mod build_election_event;
 pub mod cast_vote;
+pub mod compile_plan;
 pub mod complete_key_ceremony;
 pub mod configure;
 pub mod confirm_tally_ceremoney_key;

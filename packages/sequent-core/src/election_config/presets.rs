@@ -164,6 +164,18 @@ pub struct AuthPreset {
     pub required_parameters: &'static [&'static str],
     pub optional_parameters: &'static [&'static str],
 
+    /// User-profile attributes this preset expects the realm to declare.
+    ///
+    /// Named statically rather than derived by calling `build` with a dummy input,
+    /// because a caller wants this *before* deciding anything — the census's column
+    /// chooser offers exactly these, so a column somebody adds is a column the
+    /// sign-in flow can actually read.
+    ///
+    /// The everyday five (`username`, `email`, `first_name`, `last_name`, plus the
+    /// area) are not listed: they are the platform's own, present in every realm, and
+    /// repeating them per preset would be four chances to forget one.
+    pub profile_attributes: &'static [&'static str],
+
     build: fn(&PresetInput) -> RealmPatch,
 }
 
@@ -394,6 +406,8 @@ pub const PRESETS: &[AuthPreset] = &[
         build: certificates_patch,
         required_parameters: &[],
         optional_parameters: &[],
+        // The certificate carries the identity; nothing extra is read off the voter.
+        profile_attributes: &[],
         requires: &[Requirement {
             kind: RequirementKind::Flow,
             name: CERTIFICATE_FIRST_LOGIN_FLOW,
@@ -412,6 +426,8 @@ pub const PRESETS: &[AuthPreset] = &[
             PARAM_OTP_LENGTH,
             PARAM_OTP_TTL_SECONDS,
         ],
+        // The code goes to whichever of these the census holds, so both are read.
+        profile_attributes: &["email", "mobile"],
         requires: &[Requirement {
             kind: RequirementKind::Authenticator,
             name: OTP_AUTHENTICATOR,
@@ -425,6 +441,10 @@ pub const PRESETS: &[AuthPreset] = &[
                   mobile number.",
         uses_otp: false,
         build: saml_patch,
+        // The identity provider authenticates; the assertion is matched against a
+        // census voter by the principal attribute, which is a *parameter* rather than
+        // a fixed column.
+        profile_attributes: &[],
         required_parameters: &[PARAM_SAML_METADATA_URL],
         optional_parameters: &[
             PARAM_SAML_IDP_ALIAS,
@@ -443,6 +463,10 @@ pub const PRESETS: &[AuthPreset] = &[
                   types their date of birth, then a one-time code.",
         uses_otp: true,
         build: voter_link_dob_patch,
+        // What `voter_link_dob_patch` configures, and what its `search-attributes`
+        // and `hidden-profile-attributes` name. A census for this preset without a
+        // `dateOfBirth` column is a census nobody can log in with.
+        profile_attributes: &["dateOfBirth", "mobile"],
         required_parameters: &[],
         optional_parameters: &[
             PARAM_OTP_SENDER_ID,

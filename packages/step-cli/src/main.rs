@@ -29,6 +29,7 @@ enum MainCommand {
 #[derive(Subcommand)]
 enum StepCommands {
     BuildElectionEvent(commands::build_election_event::BuildElectionEvent),
+    CompilePlan(commands::compile_plan::CompilePlan),
     Config(commands::configure::Config),
     CreateElectionEvent(commands::create_election_event::CreateElectionEventCLI),
     CreateElection(commands::create_election::CreateElection),
@@ -73,6 +74,7 @@ fn main() {
     match &cli.command {
         MainCommand::Step(step_cmd) => match step_cmd {
             StepCommands::BuildElectionEvent(cmd) => cmd.run(),
+            StepCommands::CompilePlan(cmd) => cmd.run(),
             StepCommands::Config(cmd) => cmd.run(),
             StepCommands::CreateElectionEvent(create_event) => create_event.run(),
             StepCommands::CreateElection(create_election) => create_election.run(),

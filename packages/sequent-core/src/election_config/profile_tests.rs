@@ -16,6 +16,7 @@ fn plan() -> Blueprint {
         version: BLUEPRINT_VERSION,
         external_id: "union-2027".to_string(),
         name: Translated::new("Union Election 2027"),
+        description: Translated::default(),
         trustees: vec![
             Trustee {
                 name: "A".to_string(),
@@ -31,15 +32,18 @@ fn plan() -> Blueprint {
             shared: None,
             external_id: "officers".to_string(),
             name: Translated::new("Officers"),
+            description: Translated::default(),
             contests: vec![
                 PlannedContest {
                     external_id: "president".to_string(),
                     name: Translated::new("President"),
+                    description: Translated::default(),
                     max_votes: 1,
                     winners: 1,
                     candidates: vec![PlannedCandidate {
                         external_id: "alice".to_string(),
                         name: Translated::new("Alice"),
+                        description: Translated::default(),
                         ..Default::default()
                     }],
                     ..Default::default()
@@ -47,11 +51,13 @@ fn plan() -> Blueprint {
                 PlannedContest {
                     external_id: "board".to_string(),
                     name: Translated::new("Board"),
+                    description: Translated::default(),
                     max_votes: 3,
                     winners: 3,
                     ..Default::default()
                 },
             ],
+            ..Default::default()
         }],
         ..Default::default()
     }
@@ -149,6 +155,54 @@ fn the_paths_the_docs_advertise_are_accepted() {
     }
 }
 
+/// Every scalar the wizard lets a profile fix, whether or not a default plan
+/// serialises it.
+///
+/// `auth_preset` is an `Option` that skips serialising while empty, so the shape
+/// a path is checked against had no such key and *How voters sign in* — a setting
+/// the client profile builder offers, and one somebody would obviously hide —
+/// was refused with `'auth_preset' names nothing a plan has`. A profile
+/// downloaded from the builder with that row touched could not be loaded at all,
+/// and the message sent whoever met it looking for a typo they had not made.
+///
+/// The others are here because they are the same shape of field and the mistake
+/// is not specific to one of them: any `Option` or `skip_serializing_if` added to
+/// `Blueprint` is invisible to `shape_of_a_plan` until somebody fills it in.
+///
+/// **This list is not the guard.** It is six fields somebody remembered, and it grew
+/// by two only because a client met the sixth. The guard is in `beyond`:
+/// `check-core-contract.mjs` builds a profile naming *every* path the client profile
+/// builder's catalogue offers and asks this crate to accept it, so the catalogue and
+/// the shape cannot drift without a red job. That check runs where the catalogue
+/// lives, which is why it is not a list retyped here.
+#[test]
+fn a_profile_may_fix_a_field_an_empty_plan_leaves_out() {
+    for path in [
+        "auth_preset",
+        "logo_url",
+        "schedule.key_ceremony",
+        "schedule.tally_ceremony",
+        // The fifth and sixth, reported from the wizard: both are maps with
+        // `skip_serializing_if`, so a profile hiding *Wording overrides* or *Sign-in
+        // page wording* — two rows the builder offers side by side — was refused
+        // with `'i18n' names nothing a plan has`, and reloading did not help because
+        // the document was the thing being refused.
+        "i18n",
+        "keycloak_messages",
+    ] {
+        let document = ClientProfile {
+            id: "acme".to_string(),
+            defaults: defaults(&[(path, Value::from("x"))]),
+            hidden: vec![path.to_string()],
+            ..Default::default()
+        };
+        assert!(
+            Profile::read(&document).is_ok(),
+            "'{path}' is a setting the wizard offers and must be usable"
+        );
+    }
+}
+
 #[test]
 fn a_path_reaching_into_a_contest_is_accepted() {
     profile_of(ClientProfile {
@@ -160,6 +214,58 @@ fn a_path_reaching_into_a_contest_is_accepted() {
         locked: vec!["elections[].contests[].max_votes".to_string()],
         ..Default::default()
     });
+}
+
+/// Hiding a whole screen is the commonest thing a delivery profile does, and it
+/// was refused.
+///
+/// The builder's "All hidden" button writes the step's *prefixes* — `schedule`,
+/// `messages`, `voting_channels` — none of which is a settings row, so none of
+/// them gets a default seeded. Every such profile was then refused on load, and
+/// the only symptom was a wizard that would not start.
+#[test]
+fn hiding_a_screen_needs_no_default() {
+    for path in ["schedule", "messages", "voters", "voting_channels"] {
+        let document = ClientProfile {
+            id: "acme".to_string(),
+            hidden: vec![path.to_string()],
+            ..Default::default()
+        };
+        assert!(
+            Profile::read(&document).is_ok(),
+            "hiding '{path}' is what a delivery profile does and must load"
+        );
+    }
+}
+
+/// The other half, and the reason the rule existed: a *locked* path with nothing
+/// to lock to shows the client a value it does not fix.
+#[test]
+fn locking_without_a_value_is_still_refused() {
+    let report = refused(ClientProfile {
+        id: "acme".to_string(),
+        locked: vec!["trustee_threshold".to_string()],
+        ..Default::default()
+    });
+    assert!(says(&report, "locked but has no default"));
+}
+
+/// Hiding does not stop enforcing where a value *is* given — the split is about
+/// what a profile must say, not about what it may.
+#[test]
+fn a_hidden_path_with_a_value_still_fixes_it() {
+    let profile = profile_of(ClientProfile {
+        id: "acme".to_string(),
+        defaults: defaults(&[("trustee_threshold", Value::from(5))]),
+        hidden: vec!["trustee_threshold".to_string()],
+        ..Default::default()
+    });
+    let plan = Blueprint {
+        trustee_threshold: 2,
+        ..Default::default()
+    };
+    let applied = apply_profile(&plan, &profile).expect("applies");
+    assert_eq!(applied.trustee_threshold, 5);
 }
 
 #[test]
@@ -257,7 +363,7 @@ fn one_path_with_every_element_reaches_every_contest() {
     let descriptions: Vec<&str> = applied.elections[0]
         .contests
         .iter()
-        .map(|contest| contest.description.as_str())
+        .map(|contest| contest.description.get("en").unwrap_or(""))
         .collect();
 
     assert_eq!(
@@ -450,7 +556,7 @@ fn a_locked_value_reaches_the_built_bundle() {
 
     let mut disagrees = plan();
     disagrees.elections[0].contests[0].description =
-        "typed by hand".to_string();
+        Translated::new("typed by hand");
 
     let templates = TemplateSet::builtin().unwrap();
     let compiled = compile_plan(
@@ -507,6 +613,13 @@ fn a_profiles_required_field_stops_the_build() {
 #[test]
 fn a_profile_document_round_trips_through_json() {
     let document = ClientProfile {
+        presets: Vec::new(),
+        only_our_presets: false,
+        // `true`, not `false`: the field is `skip_serializing_if` off, so a `false`
+        // here would be omitted from the JSON and the round trip would prove nothing
+        // about it.
+        preview_slim: true,
+        auth_presets: Vec::new(),
         id: "smart-td".to_string(),
         display_name: Some("SMART TD Locals".to_string()),
         defaults: defaults(&[("trustee_threshold", Value::from(3))]),
@@ -521,4 +634,349 @@ fn a_profile_document_round_trips_through_json() {
     assert_eq!(read.id, "smart-td");
     assert_eq!(read.locked, vec!["trustee_threshold".to_string()]);
     assert_eq!(read.defaults["trustee_threshold"], Value::from(3));
+}
+
+/// A profile may name its own ballot-rule sets, in the client's own words.
+#[test]
+fn a_profile_may_offer_its_own_presets() {
+    let document = ClientProfile {
+        id: "smart-td".into(),
+        presets: vec![NamedPreset {
+            name: "Local officer election".into(),
+            about: "How Article 21 says a local ballot runs.".into(),
+            values: [
+                (
+                    "over_vote".to_string(),
+                    "not-allowed-with-msg-and-disable".to_string(),
+                ),
+                ("blank_vote".to_string(), "allowed".to_string()),
+            ]
+            .into_iter()
+            .collect(),
+        }],
+        ..Default::default()
+    };
+
+    let read = Profile::read(&document).expect("this profile is sound");
+
+    assert_eq!(read.presets.len(), 1);
+    assert_eq!(read.presets[0].name, "Local officer election");
+    // Ours are offered alongside unless the profile says otherwise: an author
+    // naming one of a client's ballots should not have to re-describe the
+    // general case to keep it.
+    assert!(!read.only_our_presets);
+}
+
+/// The gate that makes presets safe to put in front of a client.
+#[test]
+fn a_preset_cannot_invent_a_behaviour_the_platform_lacks() {
+    // `not-allowed` is a real value — for blank votes. An under-vote can only
+    // ever be warned about, and two earlier versions of this tool emitted
+    // exactly this: a contest that imports cleanly and then behaves in a way
+    // nobody chose.
+    let document = ClientProfile {
+        id: "acme".into(),
+        presets: vec![NamedPreset {
+            name: "Strict".into(),
+            values: [("under_vote".to_string(), "not-allowed".to_string())]
+                .into_iter()
+                .collect(),
+            ..Default::default()
+        }],
+        ..Default::default()
+    };
+
+    let report = Profile::read(&document).expect_err("this must be refused");
+
+    assert!(report.has_errors());
+    assert!(
+        report
+            .problems
+            .iter()
+            .any(|problem| problem.path == "presets[0].values.under_vote"),
+        "the problem should name the value that is wrong, not the profile: {:?}",
+        report.problems
+    );
+}
+
+/// And a rule that is not a rule at all.
+#[test]
+fn a_preset_cannot_name_a_rule_that_does_not_exist() {
+    let document = ClientProfile {
+        id: "acme".into(),
+        presets: vec![NamedPreset {
+            name: "Strict".into(),
+            values: [("over_vote_polciy".to_string(), "allowed".to_string())]
+                .into_iter()
+                .collect(),
+            ..Default::default()
+        }],
+        ..Default::default()
+    };
+
+    let report = Profile::read(&document).expect_err("a typo must be refused");
+
+    // Ignoring it would give a preset that quietly does less than it says,
+    // which is the failure nobody notices until a client asks why their
+    // button did nothing.
+    assert!(report.has_errors());
+}
+
+/// Hiding ours and offering none leaves nothing to choose.
+#[test]
+fn a_profile_cannot_leave_the_client_with_no_preset_at_all() {
+    let document = ClientProfile {
+        id: "acme".into(),
+        only_our_presets: true,
+        ..Default::default()
+    };
+
+    let report = Profile::read(&document).expect_err("this must be refused");
+
+    assert!(
+        report
+            .problems
+            .iter()
+            .any(|problem| problem.path == "only_our_presets"),
+        "{:?}",
+        report.problems
+    );
+}
+
+/// A preset needs a name; it is what the button says.
+#[test]
+fn a_preset_needs_a_name() {
+    let document = ClientProfile {
+        id: "acme".into(),
+        presets: vec![NamedPreset {
+            name: "   ".into(),
+            ..Default::default()
+        }],
+        ..Default::default()
+    };
+
+    assert!(Profile::read(&document).is_err());
+}
+
+/// A profile may name any field the plan has, including the skipped-when-empty
+/// ones.
+///
+/// Third time this trap has been hit — `Overrides`, then `messages`, now `css`
+/// and `i18n`. `shape_of_a_plan` is built from `Blueprint::default()`, and a
+/// field with `skip_serializing_if` is simply absent from it, so a profile
+/// naming one is refused as a typo. From outside it looks like a wizard that
+/// will not start for one client, over a field that plainly exists.
+#[test]
+fn a_profile_may_name_a_field_that_is_skipped_when_empty() {
+    for path in ["css", "i18n", "messages"] {
+        let document = ClientProfile {
+            id: "acme".to_string(),
+            hidden: vec![path.to_string()],
+            ..Default::default()
+        };
+        assert!(
+            Profile::read(&document).is_ok(),
+            "'{path}' is a real field and a profile must be able to name it"
+        );
+    }
+}
+
+/// A starting value reaches a translated field whose map is drawn but blank.
+///
+/// The reported bug. A new plan's `name` is `{"en": ""}` — the wizard draws a
+/// box per language, so the key exists before anybody types — and a shallow
+/// emptiness check read that as an answer already given, so the profile's value
+/// was skipped and the client saw an empty box above an error asking for a name.
+#[test]
+fn a_starting_value_fills_a_translated_field_that_is_only_apparently_set() {
+    let profile = profile_of(ClientProfile {
+        id: "acme".to_string(),
+        defaults: defaults(&[(
+            "name",
+            serde_json::json!({"en": "SMART Elections"}),
+        )]),
+        ..Default::default()
+    });
+    let plan = Blueprint {
+        name: Translated::new(""),
+        ..Default::default()
+    };
+
+    let seeded = apply_profile(&plan, &profile).expect("applies");
+    assert_eq!(
+        seeded.name.by_language.get("en").map(String::as_str),
+        Some("SMART Elections")
+    );
+}
+
+/// And still does not overwrite a real answer.
+#[test]
+fn a_starting_value_leaves_a_name_somebody_typed_alone() {
+    let profile = profile_of(ClientProfile {
+        id: "acme".to_string(),
+        defaults: defaults(&[(
+            "name",
+            serde_json::json!({"en": "SMART Elections"}),
+        )]),
+        ..Default::default()
+    });
+    let plan = Blueprint {
+        name: Translated::new("Their own name"),
+        ..Default::default()
+    };
+
+    let seeded = apply_profile(&plan, &profile).expect("applies");
+    assert_eq!(
+        seeded.name.by_language.get("en").map(String::as_str),
+        Some("Their own name")
+    );
+}
+
+/// A card that is a group of controls rather than a group of fields.
+///
+/// **This was a live bug, not a new feature.** The builder has written
+/// `messages.invitation-to-vote` into `hidden` since those two cards existed — it is how
+/// somebody switches off *The message telling a voter their ballot is ready* — and
+/// `read` refused it, because a message is one of a list and that is not a path any plan
+/// has. So switching a messaging card off produced a profile the wizard would not start
+/// on. Found by asking the vendored core what it accepts, one path at a time.
+#[test]
+fn a_card_of_controls_can_be_switched_off() {
+    for path in [
+        "messages.invitation-to-vote",
+        "messages.get-out-the-vote",
+        "elections.exchange",
+        // Two ballot options a contest offers by *carrying a candidate*: the
+        // plan says `explicit_blank` on one of them, and the switch on the
+        // screen is one decision per contest rather than one per candidate.
+        "elections.contests.blank_vote",
+        "elections.contests.decline_to_vote",
+    ] {
+        let document = ClientProfile {
+            id: "acme".to_string(),
+            hidden: vec![path.to_string()],
+            ..Default::default()
+        };
+        let read = Profile::read(&document);
+        assert!(
+            read.is_ok(),
+            "a profile hiding the card '{path}' should be readable: {:?}",
+            read.err()
+        );
+    }
+}
+
+/// And a typo is still a typo, which is the whole reason the refusal exists.
+#[test]
+fn a_path_naming_nothing_is_still_refused() {
+    for typo in [
+        "messages.invitation-to-vot",
+        // The two ballot options are the likeliest to be mistyped, because the
+        // screen calls them *Blank Vote* and *Decline to Vote* and the plan
+        // calls the flags `explicit_blank` and `explicit_invalid`. Neither
+        // spelling is the path, and guessing either must fail loudly.
+        "elections.contests.explicit_blank",
+        "elections.contests.decline",
+    ] {
+        let document = ClientProfile {
+            id: "acme".to_string(),
+            hidden: vec![typo.to_string()],
+            ..Default::default()
+        };
+        assert!(
+            Profile::read(&document).is_err(),
+            "'{typo}' names no control and no field, so it is a typo"
+        );
+    }
+}
+
+/// Paths a profile plainly ought to be able to name, asked of the real shape.
+///
+/// **The trap this file keeps meeting**, written down as a test rather than as a
+/// fourth comment. `shape_of_a_plan` is a hand-filled `Blueprint`, and any field
+/// that is `Option` or `skip_serializing_if` is absent from it unless somebody
+/// remembered to fill it in — at which point a profile naming that field is
+/// refused as a typo, and the report says the path "names nothing a plan has"
+/// about a path that plainly exists. `Overrides`, `messages`, `css`/`i18n` and now
+/// `candidates[].image` have all been that bug, and each one looked from outside
+/// like a wizard that will not start for one client.
+#[test]
+fn a_profile_can_name_every_optional_corner_of_a_plan() {
+    for path in [
+        "elections[].contests[].candidates[].image",
+        "elections[].contests[].candidates[].disabled",
+        "logo",
+        "css",
+        "i18n",
+        "messages",
+        "elections[].contests[].overrides.tally.min_votes",
+    ] {
+        let document = ClientProfile {
+            id: "a-client".to_string(),
+            hidden: vec![path.to_string()],
+            ..Default::default()
+        };
+        let read = Profile::read(&document);
+        assert!(
+            read.is_ok(),
+            "a profile hiding {path} was refused: {:?}",
+            read.err()
+        );
+    }
+}
+
+/// The time zone is a control, and what a profile may say about one.
+///
+/// It is written onto all four moments rather than stored once — `Timestamp`
+/// carries its own zone — so there is no single `schedule.zone` in a plan and
+/// there never will be. Hiding *the time zone* is one decision, not four, and the
+/// Election Schedule screen has always asked whether it is hidden; what was
+/// missing was any way for a profile to say so.
+///
+/// **Hidden yes, fixed no**, and the asymmetry is the interesting half. `locked`
+/// with no default is an error on purpose — a client shown a value they cannot
+/// change has to be shown *some* value — and a control cannot carry a default,
+/// because there is no path for one to be written to. So this mechanism can take
+/// the zone off a client's screen and cannot pin it to Madrid. Pinning it needs a
+/// field on `ClientProfile` that the wizard reads, the way `preview_slim` is read,
+/// and that is not this.
+#[test]
+fn the_time_zone_is_a_control_a_profile_may_hide() {
+    let hidden = ClientProfile {
+        id: "a-client".to_string(),
+        hidden: vec!["schedule.zone".to_string()],
+        ..Default::default()
+    };
+    assert!(
+        Profile::read(&hidden).is_ok(),
+        "a profile hiding the time zone was refused"
+    );
+
+    // Refused in `defaults`, like every other control: a value would have nowhere
+    // to be written.
+    let valued = ClientProfile {
+        id: "a-client".to_string(),
+        defaults: [(
+            "schedule.zone".to_string(),
+            serde_json::json!("Europe/Madrid"),
+        )]
+        .into_iter()
+        .collect(),
+        ..Default::default()
+    };
+    assert!(
+        Profile::read(&valued).is_err(),
+        "a default for a control was accepted"
+    );
+
+    // And therefore refused when locked, which needs one.
+    let locked = ClientProfile {
+        id: "a-client".to_string(),
+        locked: vec!["schedule.zone".to_string()],
+        ..Default::default()
+    };
+    assert!(
+        Profile::read(&locked).is_err(),
+        "a control was locked with no value to lock it to"
+    );
 }

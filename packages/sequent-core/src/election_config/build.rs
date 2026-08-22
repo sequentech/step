@@ -28,9 +28,10 @@ use crate::election_config::render::TemplateSet;
 use crate::election_config::sheet::{
     normalise_sheet_name, Origin, Row, Workbook, SHEET_AREAS,
     SHEET_AREA_CONTESTS, SHEET_CANDIDATES, SHEET_CONTESTS, SHEET_ELECTIONS,
-    SHEET_ELECTION_EVENT, SHEET_PARAMETERS, SHEET_REPORTS,
+    SHEET_ELECTION_EVENT, SHEET_MATERIALS, SHEET_PARAMETERS, SHEET_REPORTS,
     SHEET_SCHEDULED_EVENTS,
 };
+use crate::types::ceremonies::CeremoniesPolicy;
 use serde_json::{json, Map, Value};
 
 #[path = "build_realm.rs"]
@@ -60,10 +61,46 @@ pub const DEFAULT_VERSION: &str = "v10.0.0";
 /// These are not dotted paths into the entity and must not be merged into it —
 /// `election.external_id` is how a contest names its election, not a field called
 /// `external_id` on an object called `election`.
+/// Where the telephone channel's configuration sits on the event sheet.
+///
+/// Annotation keys rather than schema paths, and `.` is the only separator
+/// `split_path` knows — so the colon travels through untouched and these land as
+/// `annotations["ivr:config"]`, which is the key the Admin Portal reads.
+pub const IVR_CONFIG_COLUMN: &str = "annotations.ivr:config";
+pub const IVR_PROMPTS_COLUMN: &str = "annotations.ivr:prompts";
+pub const IVR_PHONE_COLUMN: &str = "annotations.ivr:phone-number";
+
+/// What a caller hears in place of an entity's description.
+///
+/// One column on each of the four sheets that carry a description, holding
+/// `{lang: {prompt}}` as a JSON string — the shape `parseIvrEntityAnnotations`
+/// reads. Per entity rather than per language, because the platform keeps it as
+/// one annotation and splitting it into language columns would mean reassembling
+/// it here from an unknown set of them.
+pub const IVR_I18N_COLUMN: &str = "annotations.ivr:i18n";
+
 pub fn control_columns(sheet_key: &str) -> &'static [&'static str] {
     match sheet_key {
-        SHEET_CONTESTS => &["election.external_id"],
-        SHEET_CANDIDATES => &["contest.external_id"],
+        // `presentation.logo_file` names a file for the builder to find; it is not a
+        // field of `ElectionEventPresentation` and would be carried into the JSON as
+        // one by the deep merge below. `build_election_event` reads it off the row
+        // and writes `presentation.logo_url` instead.
+        // The three IVR annotations are read off the row and written as JSON
+        // *strings*, which the generic path cannot do: `coerce_scalar` parses
+        // bracketed text into an object, and the platform's annotations are
+        // `string: string` — `IvrConfig.tsx` calls `JSON.parse` on what it
+        // finds and `parseIvrEntityAnnotations` logs an error for anything
+        // else. See `build_election_event`.
+        SHEET_ELECTION_EVENT => &[
+            "presentation.logo_file",
+            IVR_CONFIG_COLUMN,
+            IVR_PROMPTS_COLUMN,
+            IVR_PHONE_COLUMN,
+            IVR_I18N_COLUMN,
+        ],
+        SHEET_ELECTIONS => &[IVR_I18N_COLUMN],
+        SHEET_CONTESTS => &["election.external_id", IVR_I18N_COLUMN],
+        SHEET_CANDIDATES => &["contest.external_id", IVR_I18N_COLUMN],
         SHEET_AREAS => &["parent.external_id"],
         SHEET_AREA_CONTESTS => &["area.external_id", "contest.external_id"],
         SHEET_SCHEDULED_EVENTS => &[
@@ -190,6 +227,131 @@ pub struct BuildOptions {
     /// [`presets::NONE`] leaves the realm alone whatever the document declares —
     /// worth having while a client has not yet supplied what a preset needs.
     pub auth_preset: Option<String>,
+
+    /// Images the archive should carry, and which document each one is.
+    ///
+    /// Not in the workbook, because a cell cannot hold bytes. The sheet carries
+    /// `image_document_id` and these carry the file, which is what lets the builder
+    /// compose the url a voter's ballot reads — it needs the tenant, and
+    /// [`Builder::resolve_tenant_id`] is the only thing that knows which tenant the
+    /// bundle will claim.
+    ///
+    /// Empty for the workbook path, which has no bytes to offer.
+    pub images: Vec<ImageFile>,
+
+    /// Voter-facing help documents, for the same reason as [`Self::images`]: a
+    /// spreadsheet cell cannot hold bytes, so the sheet names a file and these
+    /// carry it.
+    ///
+    /// Each one's `document_id` must also appear on a `support_materials` row in the
+    /// JSON, or the import fails on the *zip entry* with a message about a
+    /// replacement map. `validate` refuses that pairing rather than letting the
+    /// importer discover it.
+    pub materials: Vec<MaterialFile>,
+
+    /// Who holds the election key, and how many of them the tally needs.
+    ///
+    /// `None` for the workbook path, which has no trustee sheet to draw from —
+    /// that bundle keeps the empty `keys_ceremonies` the template writes.
+    ///
+    /// The names are **names**, not identifiers, and that is the platform's own
+    /// convention rather than a shortcut:
+    /// `windmill/src/services/import/import_election_event.rs` builds a
+    /// `HashMap<name, id>` from `get_all_trustees(tenant_id)` and maps the
+    /// bundle's `trustee_ids` through it, the same way a voter's area name is
+    /// resolved. And the same trap: an unmatched name goes through
+    /// `.unwrap_or_default()` and becomes an empty string, so the ceremony
+    /// imports with a member who does not exist and nothing reports it.
+    pub keys_ceremony: Option<KeysCeremonyPlan>,
+
+    /// Whether the key ceremony is run by people or by the platform.
+    ///
+    /// Written into the ceremony's `settings`, which is where
+    /// `KeysCeremony::policy()` looks and which the importer carries through
+    /// untouched. Defaults to `manual-ceremonies` — the platform's own default,
+    /// and what every bundle built before this field existed silently was.
+    pub ceremony_policy: CeremoniesPolicy,
+}
+
+/// Who holds the election key. See [`BuildOptions::keys_ceremony`].
+#[derive(Debug, Clone, Default)]
+pub struct KeysCeremonyPlan {
+    /// Trustee **names**, resolved against the target tenant on import.
+    pub trustee_names: Vec<String>,
+    pub threshold: i64,
+}
+
+/// One image on its way into the archive.
+///
+/// The three parts of a photograph have to agree, and this holds two of them: the
+/// identifier the JSON names and the file the archive carries. See
+/// `engineering/how-an-image-travels-in-a-bundle` for what the importer does with
+/// them.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct ImageFile {
+    /// The document's identifier, as `image_document_id` and the url both name it.
+    pub document_id: String,
+    /// The file's own name. The last segment of the url, and of the archive entry.
+    pub file_name: String,
+    pub bytes: Vec<u8>,
+}
+
+/// One voter-facing help document, on its way into the archive.
+///
+/// The same shape as [`ImageFile`] and a different destination, which is the whole
+/// distinction: a candidate's photograph is **public** and goes to `images/`, where
+/// the importer uploads it with `is_public = true` and the Voting Portal renders it
+/// straight from the public bucket. A support material is **private** — the portal
+/// fetches it through the authenticated document route — so it goes to
+/// `export_S3_files/`, which the importer uploads against the election event with
+/// `is_public = false`.
+///
+/// Putting one in the other's folder is not a cosmetic error: a material in
+/// `images/` is published to anybody holding the URL, and a photograph in
+/// `export_S3_files/` 404s on every ballot.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct MaterialFile {
+    /// The document's identifier, which the material row's `document_id` names.
+    pub document_id: String,
+    pub file_name: String,
+    pub bytes: Vec<u8>,
+}
+
+impl MaterialFile {
+    /// The archive entry the importer's `export_S3_files/` branch expects.
+    ///
+    /// `document_<id>_<name>`, matched by the same unanchored `extract_document_uuid`
+    /// that reads an image's name — so the tempfile prefix the platform's own
+    /// exporter adds is optional here too.
+    pub fn entry_name(&self) -> String {
+        format!(
+            "export_S3_files/document_{}_{}",
+            self.document_id, self.file_name
+        )
+    }
+}
+
+impl ImageFile {
+    /// The archive entry name the importer's `images/` branch expects.
+    ///
+    /// No tempfile prefix. The platform's own exports carry a 12-character one —
+    /// `enGgihs9azd5document_…` — which is an artefact of how the exporter names
+    /// temporary files; `extract_document_uuid` matches unanchored, so leaving it
+    /// out is accepted and keeps the same plan producing the same bytes.
+    pub fn entry_name(&self) -> String {
+        format!("images/document_{}_{}", self.document_id, self.file_name)
+    }
+
+    /// Where the file will be readable, relative to `PUBLIC_BUCKET_URL`.
+    ///
+    /// Bucket-relative rather than absolute: the Voting Portal concatenates, so an
+    /// `https://…` value would produce `https://bucket/https://…`.
+    pub fn public_path(&self, tenant_id: &str) -> String {
+        format!(
+            "tenant-{}/document-{}/{}",
+            tenant_id, self.document_id, self.file_name
+        )
+    }
 }
 
 /// A built bundle: the JSON document and what was worth saying about it.
@@ -226,6 +388,13 @@ pub struct Bundle {
     /// Communication and report templates, loaded through the Admin Portal
     /// rather than imported — the event zip has no member for them.
     pub templates: Vec<CommunicationTemplate>,
+
+    /// Photographs, which *are* imported: `images/` members the importer uploads
+    /// and keeps pointed at by the same replacement map that renames the JSON.
+    pub images: Vec<ImageFile>,
+
+    /// Support materials' files, the private counterpart of [`Self::images`].
+    pub materials: Vec<MaterialFile>,
 
     /// Everything the document asked of the event's Keycloak realm.
     ///
@@ -272,6 +441,12 @@ struct Builder<'a> {
     auth_preset: Option<&'static AuthPreset>,
     realm_patch: RealmPatch,
 
+    /// Who holds the election key. See [`BuildOptions::keys_ceremony`].
+    keys_ceremony: Option<KeysCeremonyPlan>,
+    ceremony_policy: CeremoniesPolicy,
+    images: Vec<ImageFile>,
+    materials: Vec<MaterialFile>,
+
     event_row: Row,
     event_external_id: String,
     event_id: String,
@@ -302,12 +477,16 @@ impl<'a> Builder<'a> {
         let event_external_id = match event_row.text("external_id") {
             Some(id) if !id.trim().is_empty() => id.trim().to_string(),
             _ => {
-                report.push(Problem::error(
-                    Code::MissingField,
-                    event_row.origin(Some("external_id")).to_string(),
-                    "the election event needs an external_id: every generated \
-                     identifier is derived from it",
-                ));
+                let origin = event_row.origin(Some("external_id"));
+                report.push(
+                    Problem::error(
+                        Code::MissingField,
+                        origin.to_string(),
+                        "the election event needs an external_id: every \
+                         generated identifier is derived from it",
+                    )
+                    .at(&origin),
+                );
                 return Err(report);
             }
         };
@@ -319,6 +498,10 @@ impl<'a> Builder<'a> {
 
         let base_export = options.base_export.clone().unwrap_or(Value::Null);
         let mut builder = Builder {
+            keys_ceremony: options.keys_ceremony.clone(),
+            ceremony_policy: options.ceremony_policy.clone(),
+            images: options.images.clone(),
+            materials: options.materials.clone(),
             workbook,
             templates,
             base_export,
@@ -370,6 +553,160 @@ impl<'a> Builder<'a> {
         let realm = self.build_realm();
         let admin_realm_patch = self.admin_realm_patch();
 
+        // **No keys ceremony, ever, from either path.**
+        //
+        // A ceremony's `trustee_ids` carries trustee *names*, which the importer
+        // resolves against trustees the target tenant already has. A name it cannot
+        // find becomes an empty string through `unwrap_or_default`, and the insert
+        // then parses `""` as a `Uuid` — so one unrecognised name refuses the
+        // *entire* import with `Error parsing trustee_ids as UUIDs`, a message that
+        // never mentions trustees, and the event is never created.
+        //
+        // Neither producer can avoid that. A spreadsheet and a browser are both
+        // written away from the environment being imported into, so neither knows
+        // which trustees exist, and no derivation fixes it: a valid value is a row in
+        // that database, so an id generated from a name parses and then matches
+        // nothing.
+        //
+        // So the ceremony is delivery information rather than import data. It travels
+        // in the outer zip as `ceremony_schedule.json` and `trustees_list.json`, and
+        // the ceremony itself is made in the Admin Portal afterwards, where trustees
+        // are picked from the ones that exist rather than spelled.
+        let keys_ceremonies: Vec<Value> = Vec::new();
+
+        // One row per material the caller supplied, carrying the `document_id`
+        // that puts the archive entry's identifier into the importer's replacement
+        // map. Built here rather than from a sheet column so the derivation stays
+        // in one place, the way `keys_ceremonies` is.
+        // From the **sheet**, so the wizard and a workbook produce the same rows.
+        //
+        // The row names a file; the bytes arrive separately in `options.materials`,
+        // keyed by that name — which is what lets a workbook carry documents at all:
+        // a spreadsheet cell cannot hold one, so the sheet names `rules.pdf` and the
+        // caller hands over a folder or a zip containing it.
+        //
+        // The document identifier is derived here from the row's `external_id`
+        // rather than stored, exactly as every other entity's is, so the JSON and
+        // the archive entry cannot disagree and two runs of one workbook produce the
+        // same bytes.
+        let mut support_materials: Vec<Value> = Vec::new();
+        let mut material_files: Vec<MaterialFile> = Vec::new();
+        let by_name: std::collections::BTreeMap<&str, &MaterialFile> = self
+            .materials
+            .iter()
+            .map(|file| (file.file_name.as_str(), file))
+            .collect();
+
+        for row in self.workbook.rows(SHEET_MATERIALS) {
+            let external_id = row.text("external_id").unwrap_or_default();
+            if external_id.is_empty() {
+                self.report.push(
+                    Problem::error(
+                        Code::MissingField,
+                        format!("{}.external_id", SHEET_MATERIALS),
+                        "a support material needs an identifier: its document's id \
+                         is derived from it, so without one the file cannot be \
+                         matched to the row",
+                    )
+                    .id("material.no-identifier"),
+                );
+                continue;
+            }
+
+            let file_name = row.text("file").unwrap_or_default();
+            let document_id = (!file_name.is_empty())
+                .then(|| self.ids.uid("material-document", &[&external_id]));
+
+            // A row naming a file nobody supplied. Refused rather than emitted:
+            // the row would import as a link to a document that was never created,
+            // which is a tab of broken links and no error anywhere.
+            if !file_name.is_empty() {
+                match by_name.get(&*file_name) {
+                    Some(file) => material_files.push(MaterialFile {
+                        document_id: document_id.clone().unwrap_or_default(),
+                        file_name: file.file_name.clone(),
+                        bytes: file.bytes.clone(),
+                    }),
+                    None => {
+                        self.report.push(
+                            Problem::error(
+                                Code::DanglingReference,
+                                format!("{}.file", SHEET_MATERIALS),
+                                format!(
+                                    "'{file_name}' is named here and was not \
+                                     supplied. Put the file beside the workbook \
+                                     under exactly that name."
+                                ),
+                            )
+                            .id("material.file-missing")
+                            .detail("file", &file_name)
+                            .about(Some(&external_id)),
+                        );
+                        continue;
+                    }
+                }
+            }
+
+            let mut data = serde_json::Map::new();
+            if !file_name.is_empty() {
+                data.insert("file_name".to_string(), json!(file_name));
+            }
+            // Whatever languages the sheet actually carries, read off the row's
+            // own headers rather than from a list of languages this function does
+            // not have. `presentation.i18n.<lang>.title` is the workbook's own
+            // shape, so a bilingual sheet needs no extra column convention.
+            let mut title = serde_json::Map::new();
+            for (column, value) in &row.cells {
+                if let Some(rest) = column.strip_prefix("presentation.i18n.") {
+                    if let Some(language) = rest.strip_suffix(".title") {
+                        title.insert(language.to_string(), value.clone());
+                    }
+                }
+            }
+            if !title.is_empty() {
+                data.insert("title".to_string(), Value::Object(title));
+            }
+
+            support_materials.push(json!({
+                "id": self.ids.uid("support_material", &[&external_id]),
+                "tenant_id": self.tenant_id,
+                "election_event_id": self.event_id,
+                "document_id": document_id,
+                "kind": row.text("kind").filter(|kind| !kind.is_empty())
+                    .unwrap_or("document"),
+                "data": Value::Object(data),
+                "labels": {},
+                "annotations": {},
+                "is_hidden": row.get("is_hidden").and_then(Value::as_bool).unwrap_or(false),
+                "created_at": self.created_at,
+                "last_updated_at": self.created_at,
+            }));
+        }
+
+        // A file nobody named. The mirror of the check above, and the more dangerous
+        // of the two: it lands in the archive, the importer creates a document for
+        // it, and nothing ever points at it.
+        for file in &self.materials {
+            if !material_files
+                .iter()
+                .any(|used| used.file_name == file.file_name)
+            {
+                self.report.push(
+                    Problem::warning(
+                        Code::BallotCoverage,
+                        SHEET_MATERIALS,
+                        format!(
+                            "'{}' was supplied and no row names it, so it would be \
+                             uploaded and shown to nobody.",
+                            file.file_name
+                        ),
+                    )
+                    .id("material.file-unused")
+                    .detail("file", &file.file_name),
+                );
+            }
+        }
+
         let version = self
             .base_export
             .get("version")
@@ -393,8 +730,9 @@ impl<'a> Builder<'a> {
             // only ever reached from process_reports_file, so a populated array
             // here would be silently dropped.
             "reports": [],
-            "keys_ceremonies": [],
+            "keys_ceremonies": keys_ceremonies,
             "applications": [],
+            "support_materials": support_materials,
             "version": version,
         });
 
@@ -424,6 +762,8 @@ impl<'a> Builder<'a> {
             admin_users,
             role_permissions,
             templates,
+            images: self.images,
+            materials: material_files,
             realm_patch: self.realm_patch,
             admin_realm_patch,
             auth_preset: self.auth_preset.map(|preset| preset.name),
@@ -440,8 +780,12 @@ impl<'a> Builder<'a> {
         code: Code,
         message: impl Into<String>,
     ) {
-        self.report
-            .push(Problem::error(code, origin.to_string(), message));
+        // One line for roughly forty complaints, which is the whole reason this
+        // funnel exists: every check that reads the workbook comes through here
+        // already holding the `Origin`, so none of them can forget the locator.
+        self.report.push(
+            Problem::error(code, origin.to_string(), message).at(&origin),
+        );
     }
 
     pub(super) fn warn(
@@ -516,6 +860,38 @@ impl<'a> Builder<'a> {
                     .map(|path| (path.to_string(), value.clone()))
             })
             .collect()
+    }
+
+    /// Put the entity's spoken prompt on it, if the row carries one.
+    ///
+    /// Shared by the four builders rather than written out in each, and it is a
+    /// string for the same reason the event's three are: the platform's
+    /// annotations are `string: string`, and `parseIvrEntityAnnotations` logs
+    /// "Unexpected type of ivr entity annotation" for anything else. `Row` has
+    /// already coerced a bracketed cell into an object, so whatever it became is
+    /// serialised back.
+    fn apply_ivr_prompt(&self, row: &Row, entity: &mut Map<String, Value>) {
+        let Some(value) = row.get(IVR_I18N_COLUMN) else {
+            return;
+        };
+        let text = match value {
+            Value::Null => return,
+            Value::String(raw) => raw.trim().to_string(),
+            other => match serde_json::to_string(other) {
+                Ok(text) => text,
+                Err(_) => return,
+            },
+        };
+        if text.is_empty() || text == "{}" {
+            return;
+        }
+
+        let mut annotations = match entity.get("annotations") {
+            Some(Value::Object(existing)) => existing.clone(),
+            _ => Map::new(),
+        };
+        annotations.insert("ivr:i18n".to_string(), Value::String(text));
+        entity.insert("annotations".to_string(), Value::Object(annotations));
     }
 
     /// Parameters nothing acts on, to be carried in the event's annotations.
@@ -673,7 +1049,8 @@ impl<'a> Builder<'a> {
             "created_at": self.created_at,
         });
         let row = self.event_row.clone();
-        let event = self.render("election_event", Some(&row), context);
+        let mut event = self.render("election_event", Some(&row), context);
+        self.apply_ivr_prompt(&row, &mut event);
 
         let event_id = self.event_id.clone();
         let tenant_id = self.tenant_id.clone();
@@ -691,6 +1068,7 @@ impl<'a> Builder<'a> {
         }
 
         event.insert("external_id".to_string(), json!(self.event_external_id));
+        self.apply_logo(&mut event);
 
         for (path, value) in self.parameter_patches("election_event.") {
             if let Err(problem) =
@@ -698,6 +1076,53 @@ impl<'a> Builder<'a> {
             {
                 self.report.push(problem);
             }
+        }
+
+        // The telephone channel's configuration, as the platform keeps it.
+        //
+        // Read off the row rather than merged in with everything else, because
+        // each of these is a JSON *string* and the generic path would parse the
+        // bracketed text into an object. An object reaches the Admin Portal as
+        // the wrong type and is silently ignored — `IvrConfig.tsx` checks
+        // `typeof === "string"` and falls back to `{}` — so the tab would come
+        // up empty with nothing anywhere saying why.
+        let ivr: Vec<(&str, String)> =
+            [IVR_CONFIG_COLUMN, IVR_PROMPTS_COLUMN, IVR_PHONE_COLUMN]
+                .iter()
+                .filter_map(|column| {
+                    // Whatever the cell coerced to, back to a compact JSON string.
+                    //
+                    // `Row` holds values that have already been through
+                    // `coerce_scalar`, and bracketed text is parsed there — so the flow
+                    // arrives as an object and `text()` returns nothing for it. Being a
+                    // control column keeps it out of the *merge*; it does not un-parse
+                    // it. Re-serialising also means a hand-written workbook may put
+                    // either a JSON object or a quoted string in the cell and both
+                    // reach the platform as the string it wants.
+                    let value = self.event_row.get(column)?;
+                    let text = match value {
+                        Value::Null => return None,
+                        Value::String(text) => text.trim().to_string(),
+                        other => serde_json::to_string(other).ok()?,
+                    };
+                    if text.is_empty() {
+                        return None;
+                    }
+                    // The key is what follows `annotations.`, colon and all.
+                    let key = column.strip_prefix("annotations.")?;
+                    Some((key, text))
+                })
+                .collect();
+
+        if !ivr.is_empty() {
+            let mut annotations = match event.get("annotations") {
+                Some(Value::Object(existing)) => existing.clone(),
+                _ => Map::new(),
+            };
+            for (key, text) in ivr {
+                annotations.insert(key.to_string(), Value::String(text));
+            }
+            event.insert("annotations".to_string(), Value::Object(annotations));
         }
 
         let carried = self.uninterpreted_parameters();
@@ -751,7 +1176,8 @@ impl<'a> Builder<'a> {
                 "election_event_id": self.event_id,
                 "created_at": self.created_at,
             });
-            let election = self.render("election", Some(row), context);
+            let mut election = self.render("election", Some(row), context);
+            self.apply_ivr_prompt(row, &mut election);
 
             let event_id = self.event_id.clone();
             let tenant_id = self.tenant_id.clone();
@@ -812,7 +1238,8 @@ impl<'a> Builder<'a> {
                 "election_id": election_id,
                 "created_at": self.created_at,
             });
-            let contest = self.render("contest", Some(row), context);
+            let mut contest = self.render("contest", Some(row), context);
+            self.apply_ivr_prompt(row, &mut contest);
 
             let event_id = self.event_id.clone();
             let tenant_id = self.tenant_id.clone();
@@ -839,6 +1266,70 @@ impl<'a> Builder<'a> {
             );
         }
         Value::Array(contests)
+    }
+
+    /// The photograph for one candidate, by the identifier its row names.
+    fn image_for(&self, document_id: &str) -> Option<&ImageFile> {
+        self.images
+            .iter()
+            .find(|image| image.document_id == document_id)
+    }
+
+    /// Turn the event row's `presentation.logo_file` into a url and an archive entry.
+    ///
+    /// By **name**, not by identifier, which is the same choice the Materials sheet
+    /// makes and for the same reason: a spreadsheet cell cannot hold bytes, so the
+    /// sheet says `logo.png` and the file travels beside the workbook. The identifier
+    /// is derived here rather than stored, so the url and the archive entry are the
+    /// same string by construction and two runs of one plan produce the same bytes.
+    ///
+    /// This matters more than it looks. `process_s3_file` pulls the identifier out of
+    /// the entry name and fails the **whole import** when it appears nowhere in the
+    /// JSON — so an archive carrying a logo the url does not name is not a missing
+    /// picture, it is a bundle that will not import. The url is what puts it in the
+    /// replacement map.
+    fn apply_logo(&mut self, event: &mut Map<String, Value>) {
+        let Some(named) = self
+            .event_row
+            .text("presentation.logo_file")
+            .filter(|name| !name.is_empty())
+            .map(str::to_string)
+        else {
+            return;
+        };
+
+        let document_id =
+            self.ids.uid("logo-document", &[&self.event_external_id]);
+        let Some(image) = self
+            .images
+            .iter_mut()
+            .find(|image| image.file_name == named)
+        else {
+            // Refused rather than skipped: a plan that says it has a logo and
+            // builds without one is a client opening their ballot to the plain
+            // Sequent header and nothing anywhere saying why.
+            self.report.push(
+                Problem::error(
+                    Code::DanglingReference,
+                    format!("{}.presentation.logo_file", SHEET_ELECTION_EVENT),
+                    format!(
+                        "'{named}' is named as the logo and was not supplied. \
+                         Put the file beside the workbook under exactly that name."
+                    ),
+                )
+                .id("logo.file-missing")
+                .detail("file", &named),
+            );
+            return;
+        };
+
+        image.document_id = document_id;
+        let url = image.public_path(&self.tenant_id);
+        if let Err(problem) =
+            set_path(event, &split_path("presentation.logo_url"), json!(url))
+        {
+            self.report.push(problem);
+        }
     }
 
     fn build_candidates(&mut self) -> Value {
@@ -868,7 +1359,8 @@ impl<'a> Builder<'a> {
                 "contest_id": contest_id,
                 "created_at": self.created_at,
             });
-            let candidate = self.render("candidate", Some(row), context);
+            let mut candidate = self.render("candidate", Some(row), context);
+            self.apply_ivr_prompt(row, &mut candidate);
 
             let event_id = self.event_id.clone();
             let tenant_id = self.tenant_id.clone();
@@ -884,6 +1376,48 @@ impl<'a> Builder<'a> {
                 ],
             );
             candidate.insert("external_id".to_string(), json!(external_id));
+
+            // The photograph's other half. `image_document_id` came from the row;
+            // the url is composed here because it embeds the tenant, and this is
+            // the only place that knows which tenant the bundle claims.
+            //
+            // Only when the archive actually carries the file: a row naming a
+            // document with no member behind it gets no url, and `validate`'s
+            // `check_images` says so rather than putting a broken picture on a
+            // ballot.
+            let named = candidate
+                .get("image_document_id")
+                .and_then(Value::as_str)
+                .filter(|id| !id.is_empty())
+                .map(str::to_string);
+            if let Some(image) =
+                named.as_deref().and_then(|id| self.image_for(id))
+            {
+                let url = image.public_path(&self.tenant_id);
+                let presentation = candidate
+                    .entry("presentation".to_string())
+                    .or_insert_with(|| json!({}));
+                if let Some(presentation) = presentation.as_object_mut() {
+                    // Replacing any image entry rather than appending, which is
+                    // what the Admin Portal's own uploader does: `getImageUrl`
+                    // takes the *first* `is_image` url, so a second one would be
+                    // dead weight that only shows up as a stale picture.
+                    let mut urls: Vec<Value> = presentation
+                        .get("urls")
+                        .and_then(Value::as_array)
+                        .cloned()
+                        .unwrap_or_default()
+                        .into_iter()
+                        .filter(|url| {
+                            url.get("is_image").and_then(Value::as_bool)
+                                != Some(true)
+                        })
+                        .collect();
+                    urls.push(json!({"url": url, "is_image": true}));
+                    presentation.insert("urls".to_string(), json!(urls));
+                }
+            }
+
             candidates.push(Value::Object(candidate));
         }
 

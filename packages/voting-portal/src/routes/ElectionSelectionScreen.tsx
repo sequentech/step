@@ -5,7 +5,7 @@
 import {Box, Button, CircularProgress, Typography, Alert} from "@mui/material"
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
-import {Dialog, IconButton, PageLimit, SelectElection, theme} from "@sequentech/ui-essentials"
+import {Dialog, ElectionListLayout, IconButton, SelectElection} from "@sequentech/ui-essentials"
 import {
     isString,
     stringToHtml,
@@ -75,65 +75,10 @@ import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
 import {setSupportMaterial} from "../store/supportMaterials/supportMaterialsSlice"
 import {useElectionClassName} from "../hooks/useElectionClassName"
 
-const StyledTitle = styled(Typography)`
-    margin-top: 25.5px;
-    display: flex;
-    flex-direction: row;
-    gap: 16px;
-    font-size: 24px;
-    font-weight: 500;
-    line-height: 27px;
-    margin-top: 20px;
-    margin-bottom: 16px;
-`
-
-const ElectionContainer = styled(Box)`
-    display: flex;
-    flex-direction: column;
-    gap: 30px;
-    margin-bottom: 30px;
-`
-
-const TitleSection = styled(Box)`
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    gap: 32px;
-    min-height: 100px;
-
-    @media (max-width: ${({theme}) => theme.breakpoints.values.sm}px) {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 16px;
-        min-height: unset;
-        padding: 24px 0;
-    }
-`
-
-const PageActions = styled(Box)`
-    display: flex;
-    align-items: center;
-    flex-shrink: 0;
-    gap: 16px;
-
-    .election-event-results-button {
-        min-width: 150px;
-        padding: 10px 24px;
-        justify-content: center;
-        font-weight: 500;
-        line-height: 24px;
-        white-space: nowrap;
-    }
-
-    @media (max-width: ${({theme}) => theme.breakpoints.values.sm}px) {
-        width: 100%;
-
-        > .MuiButton-root {
-            flex: 1;
-        }
-    }
-`
+// `StyledTitle`, `TitleSection`, `PageActions` and `ElectionContainer` were here.
+// They are `ElectionListLayout` in `ui-essentials` now, with the class names they
+// carry, so the Election Architect's Ballot Preview draws this screen's tree rather
+// than a second one that a client's stylesheet would not fit.
 
 interface ElectionWrapperProps {
     electionId: string
@@ -663,43 +608,30 @@ const ElectionSelectionScreen: React.FC = () => {
     if (loadingElectionEvent || loadingElections || loadingBallotStyles) return <CircularProgress />
 
     return (
-        <PageLimit maxWidth="lg" className="election-selection-screen screen">
-            <Box marginTop="48px">
-                <Stepper selected={0} />
-            </Box>
-
-            <TitleSection className="title-section">
-                <Box sx={{flex: 1, minWidth: 0}} className="election-selection-heading">
-                    <StyledTitle variant="h1">
-                        <Box>{t("electionSelectionScreen.title")}</Box>
-                        <IconButton
-                            icon={faCircleQuestion}
-                            sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
-                            fontSize="16px"
-                            onClick={() => setOpenChooserHelp(true)}
-                        />
-                        <Dialog
-                            handleClose={() => setOpenChooserHelp(false)}
-                            open={openChooserHelp}
-                            title={t("electionSelectionScreen.chooserHelpDialog.title")}
-                            ok={t("electionSelectionScreen.chooserHelpDialog.ok")}
-                            variant="info"
-                        >
-                            {stringToHtml(t("electionSelectionScreen.chooserHelpDialog.content"))}
-                        </Dialog>
-                    </StyledTitle>
-                    {warningMsg ? (
-                        <Alert severity="warning">{warningMsg}</Alert>
-                    ) : (
-                        <Typography
-                            variant="body1"
-                            sx={{color: theme.palette.customGrey.contrastText}}
-                        >
-                            {stringToHtml(t("electionSelectionScreen.description"))}
-                        </Typography>
-                    )}
-                </Box>
-                <PageActions className="election-event-actions">
+        <ElectionListLayout
+            steps={<Stepper selected={0} />}
+            titleAdornment={
+                <>
+                    <IconButton
+                        icon={faCircleQuestion}
+                        sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
+                        fontSize="16px"
+                        onClick={() => setOpenChooserHelp(true)}
+                    />
+                    <Dialog
+                        handleClose={() => setOpenChooserHelp(false)}
+                        open={openChooserHelp}
+                        title={t("electionSelectionScreen.chooserHelpDialog.title")}
+                        ok={t("electionSelectionScreen.chooserHelpDialog.ok")}
+                        variant="info"
+                    >
+                        {stringToHtml(t("electionSelectionScreen.chooserHelpDialog.content"))}
+                    </Dialog>
+                </>
+            }
+            alert={warningMsg ? <Alert severity="warning">{warningMsg}</Alert> : undefined}
+            actions={
+                <>
                     {eventResultsUrl ? (
                         <Button
                             className="results-button election-event-results-button"
@@ -717,25 +649,24 @@ const ElectionSelectionScreen: React.FC = () => {
                             {t("materials.common.label")}
                         </Button>
                     ) : null}
-                </PageActions>
-            </TitleSection>
-            <ElectionContainer className="elections-list">
-                {!hasNoElections ? (
-                    electionIds.map((electionId) => (
-                        <ElectionWrapper
-                            electionId={electionId}
-                            key={electionId}
-                            bypassChooser={bypassChooser}
-                            canVoteTest={canVoteTest}
-                        />
-                    ))
-                ) : (
-                    <Box sx={{margin: "auto"}}>
-                        <Typography>{t("electionSelectionScreen.noResults")}</Typography>
-                    </Box>
-                )}
-            </ElectionContainer>
-        </PageLimit>
+                </>
+            }
+        >
+            {!hasNoElections ? (
+                electionIds.map((electionId) => (
+                    <ElectionWrapper
+                        electionId={electionId}
+                        key={electionId}
+                        bypassChooser={bypassChooser}
+                        canVoteTest={canVoteTest}
+                    />
+                ))
+            ) : (
+                <Box sx={{margin: "auto"}}>
+                    <Typography>{t("electionSelectionScreen.noResults")}</Typography>
+                </Box>
+            )}
+        </ElectionListLayout>
     )
 }
 

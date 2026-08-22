@@ -15,11 +15,12 @@ import {
     BallotSelection,
     ECollapsibleLists,
 } from "@sequentech/ui-core"
-import {theme, BlankAnswer} from "@sequentech/ui-essentials"
+import BlankAnswer from "../components/BlankAnswer/BlankAnswer"
+import {theme} from "../services/theme"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
-import {Answer} from "../Answer/Answer"
-import {AnswersList} from "../AnswersList/AnswersList"
+import {Answer} from "./Answer"
+import {AnswersList} from "./AnswersList"
 import {
     checkIsExplicitBlankVote,
     checkIsInvalidVote,
@@ -30,20 +31,15 @@ import {
     getCheckableOptions,
     checkAllowWriteIns,
     checkIsWriteIn,
-} from "../../services/ElectionConfigService"
-import {
-    CategoriesMap,
-    categorizeCandidates,
-    getShuffledCategories,
-} from "../../services/CategoryService"
-import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
-import {InvalidErrorsList} from "../InvalidErrorsList/InvalidErrorsList"
+} from "./presentation"
+import {CategoriesMap, categorizeCandidates, getShuffledCategories} from "@sequentech/ui-core"
+import {IBallotStyle} from "./types"
+import {InvalidErrorsList} from "./InvalidErrorsList"
 import {useTranslation} from "react-i18next"
 import {IDecodedVoteContest, IInvalidPlaintextError} from "@sequentech/ui-core"
-import {useAppSelector} from "../../store/hooks"
-import {selectBallotSelectionQuestion} from "../../store/ballotSelections/ballotSelectionsSlice"
+import {useBallotSelection} from "./selection"
 import {sortCandidatesInContest, checkIsBlank} from "@sequentech/ui-core"
-import {provideBallotService} from "../../services/BallotService"
+import {useBallotEngine} from "./engine"
 import {faAngleDown, faAngleRight} from "@fortawesome/free-solid-svg-icons"
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 
@@ -138,8 +134,8 @@ export const Question: React.FC<IQuestionProps> = ({
 }) => {
     // THIS IS A CONTEST COMPONENT
     const {i18n, t} = useTranslation()
-    const {isPreferential} = provideBallotService()
-    const isPreferentialVote = isPreferential(question.counting_algorithm)
+    const engine = useBallotEngine()
+    const isPreferentialVote = engine.isPreferential(question.counting_algorithm)
     let [candidatesOrder, setCandidatesOrder] = useState<Array<string> | null>(null)
     const [explicitBlank, setExplicitBlank] = useState<boolean>(false)
     let [categoriesMapOrder, setCategoriesMapOrder] = useState<CategoriesMap | null>(null)
@@ -149,9 +145,8 @@ export const Question: React.FC<IQuestionProps> = ({
     let {invalidOrBlankCandidates, noCategoryCandidates, categoriesMap} =
         categorizeCandidates(question)
     const [isTouched, setIsTouched] = useState(isReview)
-    const contestState = useAppSelector(
-        selectBallotSelectionQuestion(ballotStyle.election_id, question.id)
-    )
+    const selection = useBallotSelection()
+    const contestState = selection.contest(ballotStyle, question.id)
     const {checkableLists, checkableCandidates} = getCheckableOptions(question)
     const explicitBlankCandidateIds = useMemo(
         () =>
@@ -196,12 +191,12 @@ export const Question: React.FC<IQuestionProps> = ({
     )
 
     // Sort invalid/blank candidates within their top/bottom blocks
-    let invalidBottomCandidates = sortCandidatesInContest(
+    let invalidBottomCandidates = engine.sortCandidatesInContest(
         invalidBottomCandidatesUnsorted,
         candidatesOrderType,
         true
     )
-    let invalidTopCandidates = sortCandidatesInContest(
+    let invalidTopCandidates = engine.sortCandidatesInContest(
         invalidTopCandidatesUnsorted,
         candidatesOrderType,
         true
@@ -259,7 +254,7 @@ export const Question: React.FC<IQuestionProps> = ({
     }
 
     if (null === candidatesOrder) {
-        let sortedCandidates = sortCandidatesInContest(
+        let sortedCandidates = engine.sortCandidatesInContest(
             noCategoryCandidates,
             candidatesOrderType,
             true
@@ -290,7 +285,7 @@ export const Question: React.FC<IQuestionProps> = ({
     // when isRadioChecked is true, clicking on another option works as a radio button:
     // it deselects the previously selected option to select the new one
     const isRadioSelection = checkIsRadioSelection(question)
-    const isBlank = isReview && contestState && checkIsBlank(contestState)
+    const isBlank = isReview && contestState && engine.checkIsBlank(contestState)
 
     return (
         <Box component="section" aria-labelledby={`contest-${question.id}-title`}>

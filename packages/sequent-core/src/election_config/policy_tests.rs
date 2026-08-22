@@ -280,3 +280,194 @@ fn the_catalog_covers_every_policy_the_columns_write() {
         assert!(!labels.is_empty());
     }
 }
+
+/// The tie-breaking policy is a real decision with a considered default.
+///
+/// `external-procedure`, not `random`. A random tie-break is defensible and it
+/// is also a result nobody can derive from the ballots, which is precisely the
+/// result that gets challenged — so the default leaves the tie in the open for
+/// somebody to settle under their own rules.
+#[test]
+fn a_tie_is_left_for_a_person_to_settle_unless_asked_otherwise() {
+    assert_eq!(Tally::default().tie_breaking_policy, "external-procedure");
+
+    let random = Tally::default().apply(&TallyPatch {
+        tie_breaking_policy: Some("random".to_string()),
+        ..TallyPatch::default()
+    });
+    assert_eq!(random.tie_breaking_policy, "random");
+}
+
+/// It is written where the platform reads it.
+///
+/// `tally_configuration.tie_breaking_policy`, not a bare column: the Admin
+/// Portal keeps it under the contest's tally configuration, and a flat
+/// `tie_breaking_policy` would land somewhere nothing reads.
+#[test]
+fn the_tie_breaking_column_is_nested_where_the_contest_keeps_it() {
+    let columns = Tally::default().columns();
+    assert!(columns
+        .iter()
+        .any(|(name, _)| *name == "tally_configuration.tie_breaking_policy"));
+    assert!(!columns
+        .iter()
+        .any(|(name, _)| *name == "tie_breaking_policy"));
+}
+
+/// One column and nothing collapsible: an ordinary list of candidates.
+///
+/// These defaults matter more than most. Every contest the wizard has ever built
+/// carried whatever `contest.hbs` said, and this is the first time the plan has
+/// an opinion — so the opinion has to be the shape almost every ballot wants.
+#[test]
+fn a_ballot_is_one_plain_column_unless_asked_otherwise() {
+    let layout = Layout::default();
+    assert_eq!(layout.columns, 1);
+    assert_eq!(layout.collapsible_lists, "disabled");
+    assert_eq!(layout.enable_checkable_lists, "disabled");
+    assert_eq!(layout.max_selections_per_type, 0);
+}
+
+/// Every layout value lands under the contest's presentation.
+#[test]
+fn the_layout_writes_only_presentation_columns() {
+    let columns = Layout::default().columns_for_sheet();
+    assert_eq!(columns.len(), 4);
+    for (name, _) in &columns {
+        assert!(
+            name.starts_with("presentation."),
+            "{name} is not on the presentation"
+        );
+    }
+}
+
+/// A patch replaces what it names and leaves the rest.
+#[test]
+fn a_layout_patch_touches_only_what_it_names() {
+    let two = Layout::default().apply(&LayoutPatch {
+        columns: Some(2),
+        ..LayoutPatch::default()
+    });
+    assert_eq!(two.columns, 2);
+    // Untouched, rather than reset to the type's own default — which is the same
+    // value here, so this is asserted through a level that changed it.
+    let three = two.apply(&LayoutPatch {
+        collapsible_lists: Some("enabled-collapsed".to_string()),
+        ..LayoutPatch::default()
+    });
+    assert_eq!(three.columns, 2);
+    assert_eq!(three.collapsible_lists, "enabled-collapsed");
+}
+
+/// An empty layout patch means "whatever the level above decided".
+///
+/// `Overrides::is_empty` decides whether an election has claimed a decision, and
+/// a third group that never reported itself empty would make every election look
+/// as though it had.
+#[test]
+fn a_level_that_says_nothing_about_the_layout_says_nothing_at_all() {
+    assert!(Overrides::default().is_empty());
+    assert!(!Overrides {
+        layout: LayoutPatch {
+            columns: Some(2),
+            ..LayoutPatch::default()
+        },
+        ..Overrides::default()
+    }
+    .is_empty());
+}
+
+/// The three groups all reach the sheet.
+#[test]
+fn a_contest_writes_its_rules_its_counting_and_its_layout() {
+    let columns = Behaviour::default().columns();
+    let names: Vec<&str> = columns.iter().map(|(name, _)| *name).collect();
+    assert!(names.contains(&"presentation.over_vote_policy"));
+    assert!(names.contains(&"counting_algorithm"));
+    assert!(names.contains(&"presentation.columns"));
+}
+
+/// Every field of every group reaches a sheet column.
+///
+/// The one way these hand-written groups can go wrong quietly. `apply` is a
+/// struct literal, so a field added and forgotten there will not compile — but
+/// `columns()` builds a `Vec`, and a field left out of it is a setting somebody
+/// chose on screen that never reaches the bundle. Nothing else would notice.
+///
+/// Counted through serde rather than listed, so adding a field to either struct
+/// fails this test until its column exists.
+#[test]
+fn no_setting_is_carried_on_screen_and_dropped_on_the_way_out() {
+    fn field_count<T: Serialize>(value: &T) -> usize {
+        serde_json::to_value(value)
+            .expect("serialisable")
+            .as_object()
+            .expect("a struct")
+            .len()
+    }
+
+    let tally = Tally::default();
+    assert_eq!(
+        field_count(&tally),
+        tally.columns().len(),
+        "Tally has a field with no column"
+    );
+
+    let layout = Layout::default();
+    assert_eq!(
+        field_count(&layout),
+        layout.columns_for_sheet().len(),
+        "Layout has a field with no column"
+    );
+
+    let policies = Policies::default();
+    assert_eq!(
+        field_count(&policies),
+        policies.columns().len(),
+        "Policies has a field with no column"
+    );
+}
+
+/// The counting rules a `TallyPatch` carries, by name.
+///
+/// The Election Architect's *Contest Ballot Rules* card names four of these in
+/// its client-profile entry — every one except `min_votes`, which the Ballot
+/// screen draws in the contest's own row as *Minimum Choices* and which the
+/// card therefore must not switch off. That list is written out in
+/// `beyond/packages/election-architect/src/profile/sections.ts` as
+/// `CONTEST_TALLY_RULES`, and nothing over there can see this struct.
+///
+/// So a sixth rule added here fails this test, which is where somebody is told
+/// the card would silently stop covering it.
+#[test]
+fn tally_patch_carries_exactly_the_rules_the_architect_lists() {
+    let patch = TallyPatch {
+        voting_type: Some("plurality-at-large".to_string()),
+        counting_algorithm: Some("plurality-at-large".to_string()),
+        min_votes: Some(1),
+        is_encrypted: Some(true),
+        tie_breaking_policy: Some("random".to_string()),
+    };
+    // Every field set, so `skip_serializing_if` hides none of them.
+    let value = serde_json::to_value(&patch).expect("a patch serializes");
+    let mut names: Vec<&str> = value
+        .as_object()
+        .expect("a struct")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    names.sort_unstable();
+
+    assert_eq!(
+        names,
+        vec![
+            "counting_algorithm",
+            "is_encrypted",
+            "min_votes",
+            "tie_breaking_policy",
+            "voting_type",
+        ],
+        "TallyPatch changed: update CONTEST_TALLY_RULES in sections.ts, and \
+         decide whether the new rule belongs on the Contest Ballot Rules card"
+    );
+}

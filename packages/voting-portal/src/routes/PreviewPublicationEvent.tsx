@@ -32,7 +32,7 @@ import {
     getBallotStyleConfigurationError,
 } from "../services/BallotStyles"
 
-interface PreviewDocument {
+export interface PreviewDocument {
     ballot_styles: Array<IElectionDTO>
     elections: Array<Sequent_Backend_Election>
     election_event: Sequent_Backend_Election_Event

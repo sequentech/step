@@ -24,6 +24,7 @@ use sequent_core::election_config::{
     archive, build, presets, validate, BuildOptions, Bundle, ImportElectionEventSchema, Problem,
     Severity, TemplateSet, ValidationReport,
 };
+use sequent_core::types::ceremonies::CeremoniesPolicy;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -141,6 +142,20 @@ impl BuildElectionEvent {
             slug: self.slug.clone(),
             created_at: self.created_at.clone(),
             auth_preset: self.auth_preset.clone(),
+            // Both empty, and both deliberately spelled out rather than
+            // `..Default::default()`. A workbook cell cannot hold bytes, so the
+            // workbook path has no photographs to offer; and nothing here builds a
+            // key ceremony, which is `compile-plan`'s job because only a plan
+            // carries the trustee list. Naming them keeps the compiler as the thing
+            // that notices the next field — which is exactly what caught these two.
+            images: Vec::new(),
+            // A workbook path has no bytes to offer for either. The Materials
+            // sheet names files that a caller supplies; until it does, empty.
+            materials: Vec::new(),
+            keys_ceremony: None,
+            // No ceremony from a workbook, so this labels nothing; the platform's
+            // own default, named rather than defaulted for the reason above.
+            ceremony_policy: CeremoniesPolicy::MANUAL_CEREMONIES,
         };
 
         let bundle = match build(&workbook, &templates, &options) {

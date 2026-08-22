@@ -10,7 +10,12 @@ export type Choice = {
     name: string
 }
 
-interface CustomAutocompleteArrayInputProps {
+// Exported because its own stories are typed by it, and a declaration referring to
+// a type it cannot name is an error the build refuses (TS4023) — which made
+// `yarn build` fail in this package before anything below was consumable. Found
+// while making the ballot importable by another repository, which needs this
+// package to build at all.
+export interface CustomAutocompleteArrayInputProps {
     label: string
     defaultValue?: string[]
     onChange: (value: string[]) => void

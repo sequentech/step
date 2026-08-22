@@ -53,6 +53,13 @@ jobs:
           - gate: election_config_xlsx
             cache: xlsx
             features: --features election_config_xlsx
+          # The pair no other row covers, and the one the wizard's wasm actually
+          # builds: a spreadsheet reader *and* a zip writer together. Code that
+          # needs both — reading a workbook into a plan, writing one into a
+          # delivery — compiles in this configuration and no other.
+          - gate: election_config_archive,election_config_xlsx
+            cache: archive-xlsx
+            features: --features election_config_archive,election_config_xlsx
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -88,7 +95,16 @@ jobs:
           - service: immu-board
           - service: immudb-rs
           - service: sequent-core
-            extra: --features keycloak,default_features
+            # Every gate, because `feature-gates` above is `cargo check --lib` —
+            # compile-only, and `--lib` excludes test targets. So until this line
+            # listed them, **no job in either repository executed the ~320 tests
+            # behind `election_config_templates` and `election_config_xlsx`**:
+            # the whole architect, build, preview and profile suites. The first
+            # run after widening it found a real one — a preview was not
+            # reproducible, and only when `keycloak` was in the build, because a
+            # transitive dependency turns on `serde_json`'s `preserve_order` and
+            # cargo unifies that across the workspace.
+            extra: --features keycloak,default_features,election_config_xlsx,election_config_templates,election_config_archive
           - service: step-cli
           - service: velvet
           - service: wrap-map-err

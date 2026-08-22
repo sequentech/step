@@ -195,6 +195,100 @@ pub struct ClientProfile {
     /// [`validate_plan`](super::architect::validate_plan) and is not listed here.
     #[serde(default)]
     pub required: Vec<String>,
+
+    /// Named sets of ballot rules this client is offered, instead of ours.
+    ///
+    /// The wizard offers three — permissive, standard, strict — which are a
+    /// sensible spread for elections in general and frequently not the spread
+    /// for *one organisation*. A client whose rules describe two ways they run
+    /// a ballot is better served by those two, named after their own rules,
+    /// than by three they have to translate.
+    ///
+    /// Additive to the built-in three rather than replacing them, unless
+    /// [`Self::only_our_presets`] says otherwise — a profile author fixing one
+    /// client's vocabulary should not have to re-describe the general case to
+    /// keep it.
+    ///
+    /// Each value is a partial set: anything it omits takes the platform's
+    /// default, exactly like the built-in presets.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub presets: Vec<NamedPreset>,
+
+    /// Offer only the profile's own presets, not ours as well.
+    ///
+    /// For a client whose rules genuinely admit two possibilities and no
+    /// others, where showing a third invites choosing it.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub only_our_presets: bool,
+
+    /// Start the ballot preview without the voting portal's chrome.
+    ///
+    /// The preview frames a screen in the portal's own header, breadcrumb
+    /// steps, footer and action row, which is what makes it answer *"is this
+    /// what a voter sees"*. It is also four blocks of furniture around the one
+    /// line somebody is checking when they are checking a candidate's name, so
+    /// it comes off — and which way it *starts* differs by how a client works.
+    ///
+    /// Here rather than in [`Self::defaults`], and the difference matters:
+    /// `defaults` seeds blueprint paths, and this is not one. Whether a preview
+    /// wears the chrome is a question about the wizard, not about the election,
+    /// so it travels the way [`Self::only_our_presets`] does — a field of its
+    /// own that the wizard reads and the bundle never sees.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub preview_slim: bool,
+
+    /// How voters may prove who they are, and the Keycloak configuration behind
+    /// each way.
+    ///
+    /// **The list a wizard offers comes from here and nowhere else.** A client's
+    /// identity provider is theirs, so the four Sequent ships are a *default*
+    /// rather than a ceiling — they are what
+    /// [`DEFAULT_PROFILE_JSON`] carries, and a profile naming its own replaces
+    /// them entirely rather than adding to them.
+    ///
+    /// Replacing rather than adding, unlike [`Self::presets`], and the difference
+    /// is worth stating: a ballot-rule set a client does not choose is a button
+    /// nobody presses, while a *sign-in flow* a client's realm cannot provision
+    /// is an election nobody can log into, discovered on the morning voting
+    /// opens. Offering ours alongside theirs would be offering exactly that.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub auth_presets: Vec<super::preset_doc::AuthPresetDoc>,
+}
+
+/// The profile a build with no `?profile=` uses.
+///
+/// In git, and `include_str!`'d rather than transcribed into Rust, so the
+/// Keycloak configuration exists exactly once. It is generated from
+/// [`super::presets::PRESETS`] and pinned by
+/// `default_profile_json_matches_the_shipped_presets` — nobody can read a
+/// two-hundred-line realm patch and be sure a transcription is faithful, so
+/// nobody is asked to.
+pub const DEFAULT_PROFILE_JSON: &str =
+    include_str!("presets/default_profile.json");
+
+/// The shipped profile, parsed.
+///
+/// Parsed on each call rather than held in a `OnceLock`: this is read once when a
+/// wizard starts, `include_str!` means there is no IO, and a global would be a
+/// second place for a mutated copy to hide.
+pub fn default_profile() -> Result<ClientProfile, serde_json::Error> {
+    serde_json::from_str(DEFAULT_PROFILE_JSON)
+}
+
+/// A named set of ballot rules a profile offers.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct NamedPreset {
+    /// What the button says. The client's own word for it, not ours.
+    pub name: String,
+
+    /// One line on when to pick it, shown under the buttons.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub about: String,
+
+    /// `policy field -> value`, as `policyCatalog()` spells them. Validated
+    /// against the real value space, so a profile cannot invent a behaviour.
+    #[serde(default)]
+    pub values: BTreeMap<String, String>,
 }
 
 /// A profile with every path parsed and checked.
@@ -207,10 +301,79 @@ pub struct Profile {
     /// rather than discarded, so [`compile_plan`](super::architect::compile_plan)
     /// can fold it into the report somebody actually reads.
     pub warnings: Report,
+    /// The ballot-rule sets this client is offered, and whether ours go too.
+    pub presets: Vec<NamedPreset>,
+    pub only_our_presets: bool,
+    /// See [`ClientProfile::preview_slim`].
+    pub preview_slim: bool,
     defaults: Vec<(PlanPath, Value)>,
     locked: Vec<PlanPath>,
     hidden: Vec<PlanPath>,
     required: Vec<PlanPath>,
+}
+
+/**
+ * Paths that name a **control** rather than a field of a plan.
+ *
+ * Almost everything a profile hides is a plan field, and a path naming nothing is a
+ * typo that configures nothing silently — which is what `read` refuses, and rightly.
+ *
+ * A few of the wizard's cards are not groups of fields, though. *The message telling a
+ * voter their ballot is ready* is one message out of a list, named by its kind rather
+ * than by an index nobody can predict. *Import & Export* on the Ballot screen is three
+ * file widgets over a ballot that is already nameable — switching it off means "type it
+ * in by hand", not "have no ballot". Neither has a plan field of its own, and inventing
+ * one would put a setting in the delivery that no election uses.
+ *
+ * So they are named here, exactly, and the list is short on purpose: an entry is a
+ * promise that some screen honours it, and a wildcard here would turn every typo back
+ * into silence.
+ *
+ * **This was already broken.** The builder has written `messages.invitation-to-vote`
+ * since those cards existed, and `read` refused it — so switching off a messaging card
+ * produced a profile the wizard would not start on, reported as a build that "cannot
+ * start" with a path in the message. Found by asking the vendored core what it accepts,
+ * one path at a time, rather than by reading either side.
+ */
+fn names_a_control(text: &str) -> bool {
+    matches!(
+        text,
+        "messages.invitation-to-vote"
+            | "messages.get-out-the-vote"
+            | "elections.exchange"
+            // Two ballot options that are *candidates* in the plan. A contest
+            // offers "none of these" by carrying a candidate flagged
+            // `explicit_blank`, and "I reject this ballot" by one flagged
+            // `explicit_invalid` — so the honest field path would be
+            // `elections[].contests[].candidates[].explicit_blank`, and a profile
+            // fixing that would be saying something about every candidate rather
+            // than about whether the option is offered. The switch on the screen
+            // is one decision per contest; these name that decision.
+            | "elections.contests.blank_vote"
+            | "elections.contests.decline_to_vote"
+            // The four Admin Portal tables on the Organization screen. `platform`
+            // is a *list of workbook sheets*, carried rather than interpreted, so
+            // there is no `platform.adminusers` in the shape of a plan and never
+            // will be — the honest field path would be `platform[3].rows[7].cells`,
+            // which is a statement about a cell of a spreadsheet rather than about
+            // whether a client is asked for administrators at all. These name the
+            // card.
+            //
+            // Refused in `defaults` like the rest, and that is the point: a
+            // starting value here would be applied to a path the core cannot
+            // resolve. What a profile can say about them is *shown* or *not shown*.
+            // The schedule's **time zone**, which is written onto all four moments
+            // rather than stored once — `Timestamp` carries its own zone, so the
+            // field-shaped path would be `schedule.voting_opens.zone` and three
+            // more, and hiding *the time zone* is one decision rather than four.
+            // The screen already asks whether it is hidden; until now the builder
+            // had no switch to say so, because the row was marked unprofilable.
+            | "schedule.zone"
+            | "platform.adminusers"
+            | "platform.permissions"
+            | "platform.templates"
+            | "platform.parameters"
+    )
 }
 
 impl Profile {
@@ -229,7 +392,9 @@ impl Profile {
             for (index, text) in paths.iter().enumerate() {
                 match PlanPath::parse(text) {
                     Ok(path) => {
-                        if !reaches_anything(&path, &shape) {
+                        if !reaches_anything(&path, &shape)
+                            && !names_a_control(text)
+                        {
                             report.push(Problem::error(
                                 Code::DanglingReference,
                                 format!("{field}[{index}]"),
@@ -285,23 +450,76 @@ impl Profile {
             ));
         }
 
-        for path in locked.iter().chain(hidden.iter()) {
+        // Locked only, and the asymmetry is the point.
+        //
+        // An error, not a warning. `apply_profile` writes only what `defaults`
+        // names, so a lock with nothing to lock *to* fixes the field at whatever
+        // the plan happens to say — which for a new plan is nothing. A client is
+        // shown that value, greyed out, above a caption saying their
+        // organisation set it. There is no case where that is useful.
+        //
+        // **Hidden is not the same question, and requiring a value there was a
+        // mistake.** Nothing is drawn, so there is nothing to be wrong about on
+        // screen, and this module's own opening says `hidden` is not access
+        // control — a saved plan can carry anything in a field the wizard never
+        // showed. Demanding a default in the name of enforcement claimed a
+        // guarantee the design explicitly disclaims.
+        //
+        // What it cost: hiding a whole screen is the commonest thing a delivery
+        // profile does, and the builder writes the step's *prefixes* to do it —
+        // `schedule`, `messages`, `voting_channels` — none of which is a
+        // settings row, so none of them had a default to seed. Every such
+        // profile was refused, and the only symptom was a wizard that would not
+        // start.
+        //
+        // A hidden path with a value still fixes it: this is about what a
+        // profile must say, not about what it may.
+        for path in locked.iter() {
             if !defaults.iter().any(|(each, _)| each == path) {
-                // An error, not a warning. `apply_profile` writes only what
-                // `defaults` names, so a lock with nothing to lock *to* fixes
-                // the field at whatever the plan happens to say — which for a
-                // new plan is nothing. There is no case where that is useful,
-                // and a profile that quietly enforces none of what it claims is
-                // worse than one that will not load.
                 report.push(Problem::error(
                     Code::MissingField,
                     "defaults",
                     format!(
-                        "'{path}' is locked or hidden but has no default, so \
-                         nothing would be enforced. Give it a value."
+                        "'{path}' is locked but has no default, so nothing \
+                         would be enforced. Give it a value."
                     ),
                 ));
             }
+        }
+
+        // A preset may only name real policies, with real values. This is the
+        // whole reason presets live in Rust rather than being a list of strings
+        // the browser renders: the wizard offers exactly what the core hands
+        // over, so a client-facing button cannot select a behaviour no importer
+        // accepts. Two earlier versions of this tool shipped three such values.
+        for (index, preset) in document.presets.iter().enumerate() {
+            if preset.name.trim().is_empty() {
+                report.push(Problem::error(
+                    Code::MissingField,
+                    format!("presets[{index}].name"),
+                    "a preset needs a name; it is what the button says",
+                ));
+            }
+            for (field, value) in preset.values.iter() {
+                match super::policy::Behaviour::default().accepts(field, value)
+                {
+                    Ok(()) => {}
+                    Err(why) => report.push(Problem::error(
+                        Code::InvalidValue,
+                        format!("presets[{index}].values.{field}"),
+                        why,
+                    )),
+                }
+            }
+        }
+
+        if document.only_our_presets && document.presets.is_empty() {
+            report.push(Problem::error(
+                Code::InvalidValue,
+                "only_our_presets",
+                "this hides our presets and offers none of its own, so the \
+                 client would have no set to choose",
+            ));
         }
 
         if report.has_errors() {
@@ -312,6 +530,9 @@ impl Profile {
             id: document.id.clone(),
             display_name: document.display_name.clone(),
             warnings: report,
+            presets: document.presets.clone(),
+            only_our_presets: document.only_our_presets,
+            preview_slim: document.preview_slim,
             defaults,
             locked,
             hidden,
@@ -430,12 +651,26 @@ pub fn check_required(
 /// Null, empty text, an empty list and an empty object all do. Zero and `false`
 /// do not — they are answers, and a threshold of 0 being treated as unset is how
 /// a default quietly overwrites a deliberate choice.
+/// Whether the plan says nothing here, so a starting value may be written.
+///
+/// **An object of empty values is empty**, and getting that wrong made every
+/// starting value for a translated field disappear. A new plan's name is
+/// `{"en": ""}` rather than `{}` — the wizard draws a box per language, so the
+/// map has a key the moment a language exists — and a shallow
+/// `object.is_empty()` reads that as an answer somebody gave. The profile's
+/// value was then skipped, and a delivery engineer who had fixed "SMART
+/// Elections" as the name opened the client's link to an empty box above an
+/// error asking for a name.
+///
+/// Recursive rather than special-cased for `Translated`: the same shape occurs
+/// wherever a map is drawn per language, and a rule that knows about one field
+/// would be wrong for the next one.
 fn is_unset(value: &Value) -> bool {
     match value {
         Value::Null => true,
         Value::String(text) => text.trim().is_empty(),
-        Value::Array(list) => list.is_empty(),
-        Value::Object(object) => object.is_empty(),
+        Value::Array(list) => list.iter().all(is_unset),
+        Value::Object(object) => object.values().all(is_unset),
         _ => false,
     }
 }
@@ -452,13 +687,27 @@ fn one(problem: Problem) -> Report {
 /// `elections[]` would reach nothing and look like a typo. This has one element
 /// in each list so the shape is walkable all the way down.
 fn shape_of_a_plan() -> Value {
-    use super::policy::{Overrides, PolicyPatch, TallyPatch};
+    use super::policy::{LayoutPatch, Overrides, PolicyPatch, TallyPatch};
 
     let mut plan = Blueprint {
         version: super::architect::BLUEPRINT_VERSION,
         ..Default::default()
     };
     plan.contacts.push(Default::default());
+    // `messages` carries `skip_serializing_if`, so an empty plan has no such
+    // key and `hidden: ["messages"]` — which is how the Voter Messaging screen
+    // is dropped — read as a typo. Same trap as `Overrides` and `shared` below.
+    plan.messages.push(Default::default());
+    // `css` and `i18n` carry `skip_serializing_if` too, so an empty plan has
+    // neither key and a profile naming either is refused as a typo. Third time
+    // this trap has been hit — `Overrides`, then `messages`, now these — and it
+    // always looks the same from outside: a wizard that will not start for one
+    // client, over a field that plainly exists.
+    plan.css = "/* */".to_string();
+    plan.i18n
+        .entry("en".to_string())
+        .or_default()
+        .insert("a.key".to_string(), "Some words".to_string());
     plan.trustees.push(Default::default());
     plan.areas.push(Default::default());
     plan.schedule.milestones.push(Default::default());
@@ -471,6 +720,63 @@ fn shape_of_a_plan() -> Value {
     plan.schedule.voting_opens = moment.clone();
     plan.schedule.voting_closes = moment.clone();
     plan.schedule.tally_ceremony = moment;
+    // The same trap once more. `auth_preset` is an `Option` that skips
+    // serialising while empty, so a shape built from defaults has no such key
+    // and every profile naming *How voters sign in* was refused —
+    // `'auth_preset' names nothing a plan has` — even though the plan has it and
+    // the wizard offers it. A profile downloaded from the client profile builder
+    // with that setting touched could not be loaded at all.
+    plan.auth_preset = Some(String::new());
+    // **The sixth.** `ivr` is an `Option` that serialises as `null`, which has no
+    // keys to walk into, and its `flow` and `prompts` are empty collections — so a
+    // shape built from defaults would make `ivr.phone_number` and every path under
+    // the flow look like a typo, and a profile naming any of them would be refused
+    // with `'ivr' names nothing a plan has`. Filled in whole, one entry deep, for
+    // the same reason `schedule`'s moments and `messages`' first row are.
+    plan.ivr = Some(super::architect::PlannedIvr {
+        phone_number: "+15550100".to_string(),
+        flow: vec![super::architect::IvrPhase {
+            phase: "announcement".to_string(),
+            name: "welcome".to_string(),
+            prompt_key: "greeting".to_string(),
+            accept_key: "2".to_string(),
+            receipt_format: "phonetic_hex_4".to_string(),
+        }],
+        prompts: [(
+            "en".to_string(),
+            [("greeting".to_string(), "Some words".to_string())]
+                .into_iter()
+                .collect(),
+        )]
+        .into_iter()
+        .collect(),
+        // **The seventh time.** Both carry `skip_serializing_if`, so a shape
+        // built from defaults would have neither key and every profile naming
+        // `ivr.retry_limits` or `ivr.assistance_phone` would be refused. Filled
+        // the moment they were added, rather than after somebody reported it.
+        retry_limits: [("auth".to_string(), 3u32)].into_iter().collect(),
+        assistance_phone: "+15550199".to_string(),
+    });
+    // **The fifth**, and the pattern is now unmistakable: `keycloak_messages` is a map
+    // carrying `skip_serializing_if`, so a shape built from defaults has no such key
+    // and every profile touching *Sign-in page wording* was refused outright —
+    // including one downloaded from the client profile builder with that row hidden,
+    // which is how this was reported. `i18n` is the same trap and is filled in above,
+    // next to `css`; it was filled twice for a while, once here and once there, and
+    // the second insertion silently replaced the first because both write `en`.
+    //
+    // Compensating field by field is what has happened four times before this, and it
+    // will keep happening: any `Option` or `skip_serializing_if` added to `Blueprint`
+    // is invisible here until somebody fills it in. What is new is that it now fails
+    // in CI rather than at a client's screen — `check-core-contract.mjs` in `beyond`
+    // builds a profile naming *every* path its catalogue offers and asks this function
+    // to accept it, so the catalogue and the shape cannot drift again without a red
+    // job. The catalogue is where "paths the product offers" actually lives, which is
+    // why the check belongs there rather than as a list retyped here.
+    plan.keycloak_messages.insert(
+        String::from("en"),
+        BTreeMap::from([(String::from("key"), String::new())]),
+    );
 
     // Filled rather than defaulted, because `Overrides` and `Option<Overrides>`
     // both carry `skip_serializing_if`. Left empty they vanish from the shape,
@@ -492,6 +798,13 @@ fn shape_of_a_plan() -> Value {
             counting_algorithm: Some(String::new()),
             min_votes: Some(0),
             is_encrypted: Some(true),
+            tie_breaking_policy: Some(String::new()),
+        },
+        layout: LayoutPatch {
+            columns: Some(1),
+            collapsible_lists: Some(String::new()),
+            enable_checkable_lists: Some(String::new()),
+            max_selections_per_type: Some(0),
         },
     };
 
@@ -499,7 +812,19 @@ fn shape_of_a_plan() -> Value {
         overrides: filled.clone(),
         ..Default::default()
     };
-    contest.candidates.push(Default::default());
+    let mut standing = super::architect::PlannedCandidate::default();
+    // **The fourth time this file has met the same trap.** `image` is an
+    // `Option`, so a default candidate has none, so the serialised shape has no
+    // such key, so `elections[].contests[].candidates[].image` reads as a typo —
+    // and a profile hiding the photograph is refused with a message naming a path
+    // that plainly exists. `Overrides`, `messages`, and `css`/`i18n` were the
+    // first three; every one of them looked from outside like a wizard that will
+    // not start for one client.
+    standing.image = Some(super::architect::CandidateImage {
+        file_name: "a.png".to_string(),
+        bytes: Vec::new(),
+    });
+    contest.candidates.push(standing);
 
     let mut election = super::architect::PlannedElection {
         shared: Some(filled),
