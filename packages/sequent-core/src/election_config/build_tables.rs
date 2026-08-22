@@ -15,15 +15,19 @@
 
 use super::{value_as_text, Builder};
 use crate::election_config::emit::{
-    scheduled_event_task_id, JsonField, MULTI_VALUE_SEPARATOR, REPORT_COLUMNS,
-    SCHEDULED_EVENT_COLUMNS,
+    JsonField, MULTI_VALUE_SEPARATOR, REPORT_COLUMNS, SCHEDULED_EVENT_COLUMNS,
 };
 use crate::election_config::problem::Code;
 use crate::election_config::sheet::{
     Origin, Row, SHEET_ADMIN_USERS, SHEET_PERMISSIONS, SHEET_REPORTS,
     SHEET_SCHEDULED_EVENTS, SHEET_TEMPLATES, SHEET_VOTERS,
 };
+use crate::types::scheduled_event::{
+    generate_manage_date_task_name, EventProcessors,
+};
 use serde_json::{json, Value};
+use std::str::FromStr;
+use strum::IntoEnumIterator;
 
 /// Voter columns the builder derives or reorders.
 ///
@@ -39,21 +43,6 @@ pub const VOTER_LEADING_COLUMNS: &[&str] = &[
     "username",
     "area_name",
     "authorized-election-ids",
-];
-
-/// `EventProcessors` in `crate::types::scheduled_event`.
-pub const EVENT_PROCESSORS: &[&str] = &[
-    "ALLOW_INIT_REPORT",
-    "CREATE_REPORT",
-    "SEND_TEMPLATE",
-    "START_VOTING_PERIOD",
-    "END_VOTING_PERIOD",
-    "ALLOW_VOTING_PERIOD_END",
-    "START_ENROLLMENT_PERIOD",
-    "END_ENROLLMENT_PERIOD",
-    "START_LOCKDOWN_PERIOD",
-    "END_LOCKDOWN_PERIOD",
-    "ALLOW_TALLY",
 ];
 
 /// A CSV to be written: header plus already-stringified rows.
@@ -437,9 +426,10 @@ impl Builder<'_> {
 
         // Kept alongside so the window check does not have to read the payload
         // back out of the JSON it just wrote.
-        let mut scheduled: Vec<(String, Option<String>)> = Vec::new();
+        let mut scheduled: Vec<(EventProcessors, Option<String>)> = Vec::new();
         // The same, with the row it came from, for the duplicate check below.
-        let mut identities: Vec<(String, Option<String>, usize)> = Vec::new();
+        let mut identities: Vec<(EventProcessors, Option<String>, usize)> =
+            Vec::new();
 
         for row in &rows_in {
             let Some(processor) = self.event_processor(row) else {
@@ -509,7 +499,7 @@ impl Builder<'_> {
                 _ => JsonField::Null,
             };
 
-            let task_id = scheduled_event_task_id(
+            let task_id = generate_manage_date_task_name(
                 &self.tenant_id,
                 &self.event_id,
                 election_id.as_deref(),
@@ -519,7 +509,10 @@ impl Builder<'_> {
             rows.push(vec![
                 JsonField::string(self.ids.uid(
                     "scheduled_event",
-                    &[&processor, election_id.as_deref().unwrap_or("")],
+                    &[
+                        processor.to_string().as_str(),
+                        election_id.as_deref().unwrap_or(""),
+                    ],
                 )),
                 JsonField::string(self.tenant_id.clone()),
                 JsonField::string(self.event_id.clone()),
@@ -528,7 +521,7 @@ impl Builder<'_> {
                 JsonField::Null, // archived_at
                 JsonField::Null, // labels
                 annotations,
-                JsonField::string(processor.clone()),
+                JsonField::string(processor.to_string()),
                 JsonField::Value(json!({
                     "cron": Value::Null,
                     "scheduled_date": when,
@@ -559,7 +552,7 @@ impl Builder<'_> {
     }
 
     /// The row's `event_type` as a processor name the platform knows.
-    fn event_processor(&mut self, row: &Row) -> Option<String> {
+    fn event_processor(&mut self, row: &Row) -> Option<EventProcessors> {
         let Some(raw) = row.get("event_type").map(value_as_text) else {
             self.problem(
                 row.origin(Some("event_type")),
@@ -573,8 +566,15 @@ impl Builder<'_> {
         // as the constant.
         let processor = raw.trim().to_uppercase().replace(['-', ' '], "_");
 
-        if !EVENT_PROCESSORS.contains(&processor.as_str()) {
-            let mut expected: Vec<&str> = EVENT_PROCESSORS.to_vec();
+        // Parsed through the platform's own enum rather than matched against a copy
+        // of its variants: the task name the scheduler looks a job up by is built
+        // from this value, so a second list of processors is a second chance for a
+        // task that never fires.
+        let Ok(parsed) = EventProcessors::from_str(&processor) else {
+            let mut expected: Vec<String> =
+                <EventProcessors as IntoEnumIterator>::iter()
+                    .map(|each| each.to_string())
+                    .collect();
             expected.sort_unstable();
             let message = format!(
                 "'{}' is not an event processor; expected one of {}",
@@ -587,8 +587,8 @@ impl Builder<'_> {
                 message,
             );
             return None;
-        }
-        Some(processor)
+        };
+        Some(parsed)
     }
 
     /// Warn about an election whose voting period never opens or never closes.
@@ -596,24 +596,29 @@ impl Builder<'_> {
     /// A scheduled event with no election applies to the whole event, so an
     /// election is covered either by its own row or by an event-wide one. An
     /// uncovered election imports fine and then quietly never opens.
-    fn check_voting_windows(&mut self, scheduled: &[(String, Option<String>)]) {
+    fn check_voting_windows(
+        &mut self,
+        scheduled: &[(EventProcessors, Option<String>)],
+    ) {
         let elections = self.election_ids.clone();
         let mut warnings: Vec<String> = Vec::new();
 
         for (external_id, election_id) in &elections {
-            let covered: Vec<&str> = scheduled
+            let covered: Vec<EventProcessors> = scheduled
                 .iter()
                 .filter(|(_, scoped)| {
                     scoped.is_none() || scoped.as_deref() == Some(election_id)
                 })
-                .map(|(processor, _)| processor.as_str())
+                .map(|(processor, _)| processor.clone())
                 .collect();
 
-            let missing: Vec<&str> =
-                ["START_VOTING_PERIOD", "END_VOTING_PERIOD"]
-                    .into_iter()
-                    .filter(|processor| !covered.contains(processor))
-                    .collect();
+            let missing: Vec<EventProcessors> = [
+                EventProcessors::START_VOTING_PERIOD,
+                EventProcessors::END_VOTING_PERIOD,
+            ]
+            .into_iter()
+            .filter(|processor| !covered.contains(processor))
+            .collect();
 
             if missing.is_empty() {
                 continue;
@@ -622,17 +627,19 @@ impl Builder<'_> {
             let effects: Vec<&str> = missing
                 .iter()
                 .map(|processor| {
-                    if *processor == "START_VOTING_PERIOD" {
+                    if *processor == EventProcessors::START_VOTING_PERIOD {
                         "open"
                     } else {
                         "close"
                     }
                 })
                 .collect();
+            let named: Vec<String> =
+                missing.iter().map(|each| each.to_string()).collect();
             warnings.push(format!(
                 "election '{external_id}' has no {} scheduled event; its \
                  voting period will not {} on its own",
-                missing.join(" and no "),
+                named.join(" and no "),
                 effects.join(" or ")
             ));
         }

@@ -41,8 +41,7 @@ mod tables;
 
 pub use realm::PARAM_LOGIN_CUSTOM_CSS;
 pub use tables::{
-    CommunicationTemplate, JsonTable, PlainTable, EVENT_PROCESSORS,
-    VOTER_LEADING_COLUMNS,
+    CommunicationTemplate, JsonTable, PlainTable, VOTER_LEADING_COLUMNS,
 };
 
 /// Timestamp on every generated entity.
