@@ -1621,11 +1621,12 @@ mod tests {
     const TENANT: &str = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
     const EVENT: &str = "e0000000-0000-5000-8000-000000000000";
 
-    /// A bundle that deserializes and is fatally invalid: an election and no areas.
+    /// A bundle that deserializes and is fatally invalid: its contest points at an
+    /// election that is not in it.
     ///
     /// Deliberately not a sound one — a sound bundle belongs in `election_config`'s
     /// fixtures, shared by both callers rather than copied here.
-    fn a_bundle_with_no_areas() -> String {
+    fn a_bundle_with_a_dangling_election() -> String {
         serde_json::json!({
             "tenant_id": TENANT,
             "keycloak_event_realm": null,
@@ -1641,7 +1642,18 @@ mod tests {
                 "election_event_id": EVENT,
                 "external_id": "officers"
             }],
-            "contests": [],
+            "contests": [{
+                "id": "c1000000-0000-5000-8000-000000000000",
+                "tenant_id": TENANT,
+                "election_event_id": EVENT,
+                "election_id": "e9000000-0000-5000-8000-000000000000",
+                "external_id": "president",
+                "min_votes": 0,
+                "max_votes": 1,
+                "winning_candidates_num": 1,
+                "voting_type": "non-preferential",
+                "counting_algorithm": "plurality-at-large"
+            }],
             "candidates": [],
             "areas": [],
             "area_contests": [],
@@ -1661,17 +1673,24 @@ mod tests {
     async fn a_fatal_bundle_does_not_import() {
         std::env::set_var(ENV_VAR_APP_VERSION, DEV_APP_VERSION);
 
-        let outcome =
-            get_election_event_schema(&a_bundle_with_no_areas(), None, TENANT.to_string()).await;
+        let outcome = get_election_event_schema(
+            &a_bundle_with_a_dangling_election(),
+            None,
+            TENANT.to_string(),
+        )
+        .await;
 
         let error = outcome
-            .expect_err("a bundle with no areas should not import")
+            .expect_err("a contest pointing at a missing election should not import")
             .to_string();
         assert!(
             error.contains("cannot be imported"),
             "unexpected message: {error}"
         );
-        assert!(error.contains("areas"), "unexpected message: {error}");
+        assert!(
+            error.contains("contests[0].election_id"),
+            "unexpected message: {error}"
+        );
     }
 
     /// And a bundle with no fatal problems gets through this gate.
@@ -1683,13 +1702,9 @@ mod tests {
         std::env::set_var(ENV_VAR_APP_VERSION, DEV_APP_VERSION);
 
         let mut bundle: serde_json::Value =
-            serde_json::from_str(&a_bundle_with_no_areas()).expect("the fixture parses");
-        bundle["areas"] = serde_json::json!([{
-            "id": "a1000000-0000-5000-8000-000000000000",
-            "tenant_id": TENANT,
-            "election_event_id": EVENT,
-            "name": "North Region"
-        }]);
+            serde_json::from_str(&a_bundle_with_a_dangling_election()).expect("the fixture parses");
+        bundle["contests"][0]["election_id"] =
+            serde_json::json!("e1000000-0000-5000-8000-000000000000");
 
         let (_schema, ids) =
             get_election_event_schema(&bundle.to_string(), None, TENANT.to_string())

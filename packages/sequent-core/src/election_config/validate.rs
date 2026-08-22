@@ -654,11 +654,15 @@ fn check_identity(bundle: &ImportElectionEventSchema, report: &mut Report) {
             "an election event needs at least one election",
         ));
     }
+    // A warning rather than a refusal, for the reason the ballot-coverage rules below
+    // are: the bundle is consistent and the platform imports it, it just means no
+    // voter can be given a ballot yet. An event still being configured looks like
+    // this, and so does the platform's own export of one.
     if bundle.areas.is_empty() {
-        report.push(Problem::error(
-            Code::MissingField,
+        report.push(Problem::warning(
+            Code::BallotCoverage,
             "areas",
-            "an election event needs at least one area; every voter belongs to one",
+            "the event has no areas, so no voter can be given a ballot until one exists",
         ));
     }
 }
