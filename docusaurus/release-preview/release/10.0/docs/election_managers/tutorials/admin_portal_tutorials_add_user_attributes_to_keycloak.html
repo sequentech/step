@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Adding User Attributes to Keycloak | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/election_managers/tutorials/admin_portal_tutorials_add_user_attributes_to_keycloak"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Adding User Attributes to Keycloak | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/release-preview/release/10.0/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/election_managers/tutorials/admin_portal_tutorials_add_user_attributes_to_keycloak"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/election_managers/tutorials/admin_portal_tutorials_add_user_attributes_to_keycloak" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/election_managers/tutorials/admin_portal_tutorials_add_user_attributes_to_keycloak" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Adding User Attributes to Keycloak","item":"https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/election_managers/tutorials/admin_portal_tutorials_add_user_attributes_to_keycloak"}]}</script><link rel="stylesheet" href="/docusaurus/release-preview/release/10.0/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/release-preview/release/10.0/assets/js/runtime~main.9357f9a6.js" defer="defer"></script>
+<script src="/docusaurus/release-preview/release/10.0/assets/js/runtime~main.dd653283.js" defer="defer"></script>
 <script src="/docusaurus/release-preview/release/10.0/assets/js/main.950861cb.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -29,7 +29,16 @@
 <ol>
 <li class="">In <strong>Annotations</strong> &gt; <strong>Add annotation</strong>, set Key: <code>Input type</code>, Value: <code>select</code></li>
 <li class=""><strong>Add Validator</strong> &gt; <strong>Validator type</strong>: <code>options</code> and add the desired options (e.g., M, F)</li>
+<li class="">Optionally describe each option, so that whoever edits a voter does not have to interpret the
+stored values. In <strong>Annotations</strong> &gt; <strong>Add annotation</strong>, set Key: <code>inputOptionLabels</code> and a JSON
+value mapping each option to its description, such as <code>{&quot;M&quot;: &quot;Male&quot;, &quot;F&quot;: &quot;Female&quot;}</code>. A
+description written as <code>${sex_male}</code> is resolved through the Admin Portal&#x27;s own localization
+overrides (see below) and falls back to a readable form of the key when there is no override.
+The <code>inputOptionLabelsI18nPrefix</code> annotation is honoured on the voter-facing login forms only;
+the Admin Portal ignores it, because it reads a different set of translations.</li>
 </ol>
+<p>The dropdown in the Admin Portal shows the stored option followed by its description, for example
+<code>M - Male</code>, so the value written to the voter stays visible.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="birth-date">Birth Date<a href="#birth-date" class="hash-link" aria-label="Direct link to Birth Date" title="Direct link to Birth Date" translate="no">​</a></h3>
 <p>To show a date input field:</p>
 <ol>
@@ -41,12 +50,53 @@
 <li class="">In <strong>Annotations</strong> &gt; <strong>Add annotation</strong>, set Key: <code>Input type</code>, Value: <code>multiselect-checkboxes</code></li>
 <li class=""><strong>TODO:</strong> Implementation pending</li>
 </ol>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="hiding-an-attribute">Hiding an Attribute<a href="#hiding-an-attribute" class="hash-link" aria-label="Direct link to Hiding an Attribute" title="Direct link to Hiding an Attribute" translate="no">​</a></h2>
+<p>An attribute that is carried on the voter but is not meant to be seen or edited can be marked
+hidden: in <strong>Annotations</strong> &gt; <strong>Add annotation</strong>, set Key: <code>hidden</code>, Value: <code>true</code>.</p>
+<p>The value must be exactly <code>true</code>. This is matched literally, so <code>TRUE</code> or a value with spaces around
+it does not hide anything — the voter-facing forms read the annotation the same way, and matching it
+any more loosely here would hide an attribute from administrators while voters still saw it.</p>
+<p>A hidden attribute is left off the voter-facing enrollment and login forms, and off the Admin
+Portal&#x27;s voter list and its create and edit forms — it is not shown as a column, is not offered in
+the columns selector or the filters, and is not shown as a field. The Approvals screens are not
+affected and still show it.</p>
+<p>Hiding an attribute does not remove or alter it. Its value is still stored, still carried through
+when a voter is edited, and still included when voters are exported.</p>
+<p>Hiding is therefore about keeping a form readable, not about restricting access: the value is still
+sent to the browser and still appears in exports. To control who may read or write an attribute, set
+its permissions in <strong>Realm settings</strong> &gt; <strong>User profile</strong> instead.</p>
+<p>Do not mark an attribute both hidden and required: creating a voter through the Admin Portal would
+then be impossible, since the field it insists on is one the form does not show.</p>
+<p>Note this is different from setting the <code>Input type</code> annotation to <code>hidden</code>, which is Keycloak&#x27;s own
+way of rendering an attribute as a hidden input on a form rather than keeping it off the form.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="limiting-the-number-of-characters">Limiting the Number of Characters<a href="#limiting-the-number-of-characters" class="hash-link" aria-label="Direct link to Limiting the Number of Characters" title="Direct link to Limiting the Number of Characters" translate="no">​</a></h2>
+<p>To bound how much text an attribute accepts, <strong>Add Validator</strong> &gt; <strong>Validator type</strong>: <code>length</code>, and
+set a minimum, a maximum, or both. Keycloak enforces the bounds when the record is saved.</p>
+<p>The Admin Portal states the bounds under the field, so they are known before they are broken, and
+checks the value when the field is left. A value that breaks a bound marks the field and says which
+bound it broke, and the voter cannot be saved until it is corrected.</p>
+<p>Bounds nobody types into are left unstated, to keep the form readable: a maximum in the hundreds,
+which Keycloak&#x27;s own base attributes carry as scaffolding, and a minimum of one, which says only
+that the value is present. They are still checked, and still reported when broken.</p>
+<p>A field with a maximum also stops accepting characters once it is reached, so the maximum cannot be
+exceeded by typing. That count is of the characters as typed, so a value padded with spaces can
+stop being accepted a little before the validator would object to it. Note that pasting a longer
+value into such a field keeps only what fits, without warning, and that a stored value already
+longer than the maximum can only be shortened, never extended — in that case the field reports the
+value as too long until it is brought within the bound. A minimum cannot be applied while typing at
+all, so it is only checked when the field is left.</p>
+<p>By default Keycloak measures the value with leading and trailing spaces removed, and the Admin
+Portal measures it the same way. Setting the validator&#x27;s <code>trim-disabled</code> option changes both.</p>
+<p>A bound that is somehow reached anyway — a value written by an import, or an attribute the form
+does not show — is refused on save and reported naming each field and the bound it broke. Note
+that on Datafix election events the save is carried out by a background task, so its refusal is
+reported through that task rather than in the form.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="localization-overrides">Localization Overrides<a href="#localization-overrides" class="hash-link" aria-label="Direct link to Localization Overrides" title="Direct link to Localization Overrides" translate="no">​</a></h2>
 <p>To customize the display label of a user attribute, add a translation override via the Admin Portal under <strong>Settings</strong> &gt; <strong>Localization</strong> &gt; <strong>Add</strong>.</p>
 <p>User attribute keys must use the prefix <code>usersAndRolesScreen.users.fields.</code> followed by the attribute name.</p>
 <p><strong>Example:</strong> to display the <code>personal_administrative_number</code> attribute as &quot;PAN&quot;, add the following to the tenant&#x27;s localization settings:</p>
 <p>Key: <code>usersAndRolesScreen.users.fields.personal_administrative_number</code>
 Value: <code>PAN</code></p>
-<p>This works for any attribute name, including custom ones not present in the default translations.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/02-election_managers/01-tutorials/99-admin_portal_tutorials_add-user-attributes-to-keycloak.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/release-preview/release/10.0/docs/election_managers/tutorials/admin_portal_tutorials_create_and_set_google_meet_credentials"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Create and set google meet credentials</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/release-preview/release/10.0/docs/election_managers/tutorials/admin_portal_tutorials_multi_idp_attribute_linking"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Linking Multiple IdP Identities to a Single User via Custom Attribute</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#overview" class="table-of-contents__link toc-highlight">Overview</a></li><li><a href="#configuration-steps" class="table-of-contents__link toc-highlight">Configuration Steps</a></li><li><a href="#supported-attribute-types" class="table-of-contents__link toc-highlight">Supported Attribute Types</a><ul><li><a href="#sex" class="table-of-contents__link toc-highlight">Sex</a></li><li><a href="#birth-date" class="table-of-contents__link toc-highlight">Birth Date</a></li><li><a href="#checkboxes-not-supported-yet" class="table-of-contents__link toc-highlight">Checkboxes (Not Supported Yet)</a></li></ul></li><li><a href="#localization-overrides" class="table-of-contents__link toc-highlight">Localization Overrides</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
+<p>This works for any attribute name, including custom ones not present in the default translations.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/02-election_managers/01-tutorials/99-admin_portal_tutorials_add-user-attributes-to-keycloak.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/release-preview/release/10.0/docs/election_managers/tutorials/admin_portal_tutorials_create_and_set_google_meet_credentials"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Create and set google meet credentials</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/release-preview/release/10.0/docs/election_managers/tutorials/admin_portal_tutorials_multi_idp_attribute_linking"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Linking Multiple IdP Identities to a Single User via Custom Attribute</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#overview" class="table-of-contents__link toc-highlight">Overview</a></li><li><a href="#configuration-steps" class="table-of-contents__link toc-highlight">Configuration Steps</a></li><li><a href="#supported-attribute-types" class="table-of-contents__link toc-highlight">Supported Attribute Types</a><ul><li><a href="#sex" class="table-of-contents__link toc-highlight">Sex</a></li><li><a href="#birth-date" class="table-of-contents__link toc-highlight">Birth Date</a></li><li><a href="#checkboxes-not-supported-yet" class="table-of-contents__link toc-highlight">Checkboxes (Not Supported Yet)</a></li></ul></li><li><a href="#hiding-an-attribute" class="table-of-contents__link toc-highlight">Hiding an Attribute</a></li><li><a href="#limiting-the-number-of-characters" class="table-of-contents__link toc-highlight">Limiting the Number of Characters</a></li><li><a href="#localization-overrides" class="table-of-contents__link toc-highlight">Localization Overrides</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
 </body>
 </html>

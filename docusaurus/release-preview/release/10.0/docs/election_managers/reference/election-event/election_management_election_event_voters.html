@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Voters | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/election_managers/reference/election-event/election_management_election_event_voters"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Voters | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/release-preview/release/10.0/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/election_managers/reference/election-event/election_management_election_event_voters"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/election_managers/reference/election-event/election_management_election_event_voters" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/election_managers/reference/election-event/election_management_election_event_voters" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Voters","item":"https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/election_managers/reference/election-event/election_management_election_event_voters"}]}</script><link rel="stylesheet" href="/docusaurus/release-preview/release/10.0/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/release-preview/release/10.0/assets/js/runtime~main.9357f9a6.js" defer="defer"></script>
+<script src="/docusaurus/release-preview/release/10.0/assets/js/runtime~main.dd653283.js" defer="defer"></script>
 <script src="/docusaurus/release-preview/release/10.0/assets/js/main.950861cb.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -39,6 +39,18 @@
 <li class=""><strong>Change Password</strong>: Update the voter&#x27;s password (see below).</li>
 <li class=""><strong>User’s Logs</strong>: View actions performed by the voter.</li>
 </ul>
+<hr>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="adding-and-editing-a-voter">Adding and editing a voter<a href="#adding-and-editing-a-voter" class="hash-link" aria-label="Direct link to Adding and editing a voter" title="Direct link to Adding and editing a voter" translate="no">​</a></h4>
+<p>Fields are checked as they are left. One that is required and left empty, or whose value breaks a
+limit configured for that attribute, is marked and explains what it expects, and the voter cannot be
+saved until it is corrected. Where an attribute sets a limit worth knowing in advance, it is stated
+under the field before it is reached.</p>
+<p>If a voter still cannot be saved, the editor stays open with the values as entered, so nothing has to
+be typed again, and reports why. Where the rejection concerns particular fields, each one is named
+along with the rule it broke — up to ten of them, with any beyond that counted rather than listed.</p>
+<p>Limits come from the attribute&#x27;s configuration in Keycloak; see
+<a class="" href="/docusaurus/release-preview/release/10.0/docs/election_managers/tutorials/admin_portal_tutorials_add_user_attributes_to_keycloak">Adding User Attributes to Keycloak</a>
+for how they are set and which ones the portal states up front.</p>
 <hr>
 <h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="send-notifications">Send Notifications<a href="#send-notifications" class="hash-link" aria-label="Direct link to Send Notifications" title="Direct link to Send Notifications" translate="no">​</a></h4>
 <p>Use this tab to send notifications to voters through various methods, schedules, and templates.</p>
