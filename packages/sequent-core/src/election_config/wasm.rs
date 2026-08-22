@@ -437,14 +437,28 @@ pub fn build_from_workbook(
 /// wizard, and a bundle-level problem has no wizard field to point at.
 #[cfg(feature = "election_config_archive")]
 #[wasm_bindgen(js_name = validatePlan)]
-pub fn validate_plan_js(plan: JsValue) -> Result<IReport, JsError> {
+pub fn validate_plan_js(
+    plan: JsValue,
+    // Optional, and every existing caller passes nothing — which still means
+    // "read them off the plan". The wizard validates on every keystroke, and this
+    // is where a census that is no longer inside the plan has to arrive or the
+    // duplicate usernames and the dangling areas stop being reported at all.
+    options: JsValue,
+) -> Result<IReport, JsError> {
     let plan = plan_from_js(plan)?;
 
-    // Derived from the plan's own fields while the plan still carries them. The
-    // additive `options.census` this grows in the next commit changes what is
-    // passed here, not what this function is for.
-    let sources = sources::Sources::from_plan(&plan);
-    to_js(&architect::validate_plan(&plan, &sources)).map(IReport::from)
+    let derived;
+    let sources = match sources_from(&options, &plan)? {
+        Some(sources) => {
+            derived = sources;
+            &derived
+        }
+        None => {
+            derived = sources::Sources::from_plan(&plan);
+            &derived
+        }
+    };
+    to_js(&architect::validate_plan(&plan, sources)).map(IReport::from)
 }
 
 /// A plan out of JavaScript, through the one reader that migrates it.
