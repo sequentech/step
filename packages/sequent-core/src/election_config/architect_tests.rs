@@ -1370,15 +1370,17 @@ fn areas_inside_each_other_are_refused_by_the_plan_validator() {
             external_id: "north".to_string(),
             name: "North".to_string(),
             parent_external_id: Some("south".to_string()),
+            allow_early_voting: false,
         },
         PlannedArea {
             external_id: "south".to_string(),
             name: "South".to_string(),
             parent_external_id: Some("north".to_string()),
+            allow_early_voting: false,
         },
     ];
 
-    let report = validate_plan(&plan);
+    let report = checked(&plan);
     assert!(
         report
             .errors()

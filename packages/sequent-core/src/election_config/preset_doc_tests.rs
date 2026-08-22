@@ -332,3 +332,43 @@ fn default_profile_json_matches_the_shipped_presets() {
          SEQUENT_WRITE_DEFAULT_PROFILE=1."
     );
 }
+
+/// A profile's requirement kind is text, and text can be wrong.
+///
+/// `NeedsDoc` comes out of a client profile at run time, so its `kind` is whatever
+/// somebody typed. `RequirementKind` was introduced because the `&str` it replaced
+/// fell through a `_ =>` arm meaning "authenticator": a misspelling was checked
+/// against the wrong collection of the realm and reported nothing, which is the
+/// same as not checking. Refusing to make a `Requirement` at all is the only answer
+/// that cannot do that quietly.
+#[test]
+fn a_requirement_kind_nobody_recognises_is_not_guessed_at() {
+    let need = |kind: &str| NeedsDoc {
+        kind: kind.to_string(),
+        name: "browser".to_string(),
+        why: "the login page needs it".to_string(),
+    };
+
+    assert_eq!(
+        need("flow").as_requirement().map(|it| it.kind),
+        Some(presets::RequirementKind::Flow)
+    );
+    assert_eq!(
+        need("authenticator").as_requirement().map(|it| it.kind),
+        Some(presets::RequirementKind::Authenticator)
+    );
+    assert_eq!(
+        need("authenticator_config")
+            .as_requirement()
+            .map(|it| it.kind),
+        Some(presets::RequirementKind::AuthenticatorConfig)
+    );
+
+    // Whitespace is a typo, not a different kind.
+    assert!(need("  flow  ").as_requirement().is_some());
+
+    // And the ones that used to be silently treated as authenticators.
+    assert!(need("authenticater").as_requirement().is_none());
+    assert!(need("Flow").as_requirement().is_none());
+    assert!(need("").as_requirement().is_none());
+}

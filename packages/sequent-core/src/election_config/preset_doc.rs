@@ -33,7 +33,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use super::presets::{PresetInput, RealmPatch, Requirement};
+use super::presets::{PresetInput, RealmPatch, Requirement, RequirementKind};
+use std::str::FromStr;
 
 /// Something a preset needs the target realm to already have.
 ///
@@ -50,12 +51,18 @@ pub struct NeedsDoc {
 
 impl NeedsDoc {
     /// Borrowed for the checks in [`super::presets`], which take `Requirement`.
-    pub fn as_requirement(&self) -> Requirement {
-        Requirement {
-            kind: leak(&self.kind),
+    ///
+    /// `None` when `kind` is not one of the three collections a realm actually
+    /// has. This is a profile's own text and so can be misspelled, and
+    /// [`RequirementKind`] exists precisely because the `&str` this replaced was
+    /// matched with a `_ =>` arm meaning "authenticator" — a misspelling was
+    /// checked against the wrong collection and reported nothing at all.
+    pub fn as_requirement(&self) -> Option<Requirement> {
+        Some(Requirement {
+            kind: RequirementKind::from_str(self.kind.trim()).ok()?,
             name: leak(&self.name),
             why: leak(&self.why),
-        }
+        })
     }
 }
 
