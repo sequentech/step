@@ -428,6 +428,8 @@ impl Builder<'_> {
         // Kept alongside so the window check does not have to read the payload
         // back out of the JSON it just wrote.
         let mut scheduled: Vec<(String, Option<String>)> = Vec::new();
+        // The same, with the row it came from, for the duplicate check below.
+        let mut identities: Vec<(String, Option<String>, usize)> = Vec::new();
 
         for row in &rows_in {
             let Some(processor) = self.event_processor(row) else {
@@ -457,6 +459,36 @@ impl Builder<'_> {
                 };
                 election_id = Some(resolved);
             }
+
+            // The row's identity, and it has to be unique: both the uuid5 and the
+            // task id derive from the processor and the election alone, so two rows
+            // naming the same pair emit the same id twice. The importer keeps one and
+            // the other scheduled time is lost with no message. Rejected the way
+            // `require_unique` rejects a duplicate voter.
+            if let Some((.., earlier)) =
+                identities
+                    .iter()
+                    .find(|(seen_processor, seen_election, _)| {
+                        seen_processor == &processor
+                            && seen_election == &election_id
+                    })
+            {
+                let message = format!(
+                    "{processor} is already scheduled for this election by row \
+                     {earlier}, and both rows would import as one"
+                );
+                self.problem(
+                    row.origin(Some("event_type")),
+                    Code::DuplicateId,
+                    message,
+                );
+                continue;
+            }
+            identities.push((
+                processor.clone(),
+                election_id.clone(),
+                row.number,
+            ));
 
             // Not a schema field, but it is how the author labels the row, and
             // keeping it makes the emitted CSV readable next to the source.

@@ -95,7 +95,13 @@ impl Timestamp {
     /// otherwise.
     pub fn instant(&self) -> Result<DateTime<FixedOffset>, Problem> {
         let naive = self.naive()?;
-        let offset = FixedOffset::east_opt(self.offset_minutes * 60)
+        // `checked_mul` because `offset_minutes` deserializes from any `i32` and this
+        // runs before `check` does: the multiplication overflows above
+        // `i32::MAX / 60`, which panics in debug and wraps in release.
+        let offset = self
+            .offset_minutes
+            .checked_mul(60)
+            .and_then(FixedOffset::east_opt)
             .ok_or_else(|| {
                 self.problem(format!(
                     "{} is not a usable offset",

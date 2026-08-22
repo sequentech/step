@@ -1075,6 +1075,36 @@ fn with_schedule(grid: Vec<Vec<Cell>>) -> Workbook {
 }
 
 #[test]
+fn two_rows_scheduling_one_processor_for_one_election_are_rejected() {
+    // Both the uuid5 and the task id derive from the processor and the election
+    // alone, so the second row would import as the first and its time would be lost.
+    let report = refused(&with_schedule(vec![
+        vec![
+            text("event_type"),
+            text("scheduled_datetime"),
+            text("election.external_id"),
+        ],
+        vec![
+            text("START_VOTING_PERIOD"),
+            text("2027-03-01T16:00:00Z"),
+            text("statewide"),
+        ],
+        vec![
+            text("START_VOTING_PERIOD"),
+            text("2027-03-02T16:00:00Z"),
+            text("statewide"),
+        ],
+    ]));
+
+    assert!(
+        report
+            .errors()
+            .any(|problem| problem.code == Code::DuplicateId),
+        "expected a duplicate identity to be reported, got:\n{report}"
+    );
+}
+
+#[test]
 fn a_voting_window_becomes_two_rows_of_the_scheduled_events_csv() {
     let bundle = built(&with_schedule(vec![
         vec![

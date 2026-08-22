@@ -486,9 +486,18 @@ impl Builder<'_> {
         }
 
         let encoded = profile.to_string();
+        // Reported rather than asserted: the array element can be any JSON value, and
+        // a base export holding a string there would otherwise abort the whole build.
+        // Same shape as the missing-attributes warning above.
+        let Some(component) = component.as_object_mut() else {
+            self.warn(
+                "keycloak_event_realm",
+                "the base export's user profile component is not an object, so the \
+                 census columns were left undeclared",
+            );
+            return;
+        };
         let config = component
-            .as_object_mut()
-            .expect("a realm component is an object")
             .entry("config")
             .or_insert_with(|| Value::Object(Map::new()));
         if let Some(config) = config.as_object_mut() {

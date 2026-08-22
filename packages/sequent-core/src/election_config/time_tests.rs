@@ -201,3 +201,23 @@ fn a_zone_that_is_not_a_whole_hour_is_fine() {
     assert!(problems(&kathmandu).is_empty());
     assert_eq!(kolkata.to_rfc3339().unwrap(), "2027-03-01T09:00:00+05:30");
 }
+
+#[test]
+fn an_offset_too_large_to_multiply_is_reported_not_panicked() {
+    // `offset_minutes * 60` is i32 arithmetic and `instant` runs before `check` does,
+    // so a value above `i32::MAX / 60` used to panic in debug and wrap in release.
+    let stamp = Timestamp {
+        local: "2027-03-01T16:00:00".to_string(),
+        zone: String::new(),
+        offset_minutes: i32::MAX,
+    };
+
+    let problem = stamp
+        .instant()
+        .expect_err("an unusable offset is a problem");
+    assert!(
+        problem.message.contains("not a usable offset"),
+        "unexpected message: {}",
+        problem.message
+    );
+}
