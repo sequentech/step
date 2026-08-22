@@ -170,7 +170,7 @@ fn compiled(plan: &Blueprint) -> Bundle {
         // "no image member" against a generator that was writing them correctly —
         // which is the second time this helper drifting from `compile_plan` has
         // produced a wrong answer, the first being the key ceremony above.
-        images: plan_images(plan),
+        images: plan_images(plan, &sources_of(plan)),
         // And who runs the ceremony, which is the third thing this helper has had
         // to be told after `compile_plan` learned it. The comment above is not
         // rhetorical: every field added to `BuildOptions` that `compile_plan`
@@ -180,7 +180,7 @@ fn compiled(plan: &Blueprint) -> Bundle {
         // The fourth. Two sessions added one each on the same afternoon, which is
         // the strongest argument yet that this helper should call `compile_plan`
         // rather than reproduce it.
-        materials: plan_materials(plan),
+        materials: plan_materials(plan, &sources_of(plan)),
         ..BuildOptions::default()
     };
     match build(&workbook, &templates, &options, &Sources::default()) {
@@ -226,9 +226,14 @@ fn says(report: &Report, needle: &str) -> bool {
 #[test]
 fn a_plan_compiles_to_an_archive_the_importer_dispatches_on() {
     let templates = TemplateSet::builtin().unwrap();
-    let compiled =
-        compile_plan(&sound(), &templates, &BuildOptions::default(), None)
-            .expect("a sound plan compiles");
+    let compiled = compile_plan(Compile {
+        plan: &sound(),
+        templates: &templates,
+        options: &BuildOptions::default(),
+        profile: None,
+        sources: None,
+    })
+    .expect("a sound plan compiles");
 
     let importable: Vec<&str> = compiled
         .layout
@@ -248,9 +253,14 @@ fn a_plan_compiles_to_an_archive_the_importer_dispatches_on() {
 #[test]
 fn the_plans_own_files_travel_beside_the_archive_not_inside_it() {
     let templates = TemplateSet::builtin().unwrap();
-    let compiled =
-        compile_plan(&sound(), &templates, &BuildOptions::default(), None)
-            .expect("a sound plan compiles");
+    let compiled = compile_plan(Compile {
+        plan: &sound(),
+        templates: &templates,
+        options: &BuildOptions::default(),
+        profile: None,
+        sources: None,
+    })
+    .expect("a sound plan compiles");
 
     let auxiliary: Vec<&str> = compiled
         .layout
@@ -288,9 +298,14 @@ fn a_plan_with_errors_produces_no_files_and_says_why() {
     plan.trustee_threshold = 9; // more than there are trustees
 
     let templates = TemplateSet::builtin().unwrap();
-    let report =
-        compile_plan(&plan, &templates, &BuildOptions::default(), None)
-            .expect_err("a plan nobody could decrypt must not compile");
+    let report = compile_plan(Compile {
+        plan: &plan,
+        templates: &templates,
+        options: &BuildOptions::default(),
+        profile: None,
+        sources: None,
+    })
+    .expect_err("a plan nobody could decrypt must not compile");
 
     assert!(report.has_errors());
     assert!(says(&report, "could never be decrypted"));
@@ -1781,6 +1796,67 @@ fn a_plan_may_carry_its_own_census() {
     assert_eq!(voters.rows.len(), 2);
 }
 
+/// A caller's own census and files reach the bundle, and the plan's are not consulted.
+///
+/// `Compile::sources` is `None` at every call site today, so nothing would notice if
+/// it were ignored. This hands over a plan that carries **nothing** — no voters, no
+/// logo bytes — beside sources that carry both, and looks for them in the finished
+/// bundle. It is the Rust half of what `compilePlan`'s new `census` and `files`
+/// options do, and the only half that can be tested without a browser.
+#[test]
+fn the_caller_may_bring_the_census_and_the_files() {
+    let mut plan = sound();
+    plan.areas = vec![PlannedArea {
+        external_id: "north".into(),
+        name: "North Local 1".into(),
+        parent_external_id: None,
+        allow_early_voting: false,
+    }];
+    // A logo the plan names and does not carry, which is what a plan opened from a
+    // save file looks like.
+    plan.logo = Some(CandidateImage {
+        file_name: "union.png".to_string(),
+        bytes: Vec::new(),
+    });
+    assert!(plan.voters.is_empty());
+
+    let sources = Sources {
+        census: Some(std::sync::Arc::new(VecCensus::new(vec![PlannedVoter {
+            username: "ada".into(),
+            area_external_id: "north".into(),
+            ..Default::default()
+        }]))),
+        files: [(
+            "union.png".to_string(),
+            std::sync::Arc::from(b"PNG".to_vec()),
+        )]
+        .into_iter()
+        .collect(),
+    };
+
+    let templates = TemplateSet::builtin().expect("the built-in templates");
+    let compiled = compile_plan(Compile {
+        plan: &plan,
+        templates: &templates,
+        options: &BuildOptions::default(),
+        profile: None,
+        sources: Some(&sources),
+    })
+    .expect("a plan with a census beside it compiles");
+
+    assert_eq!(compiled.bundle.voters.rows.len(), 1);
+    assert_eq!(
+        compiled
+            .bundle
+            .images
+            .iter()
+            .map(|image| (image.file_name.as_str(), image.bytes.as_slice()))
+            .collect::<Vec<_>>(),
+        vec![("union.png", b"PNG".as_slice())],
+        "the caller's bytes should be the ones that travel"
+    );
+}
+
 /// The census is read from the source, not from the plan.
 ///
 /// **The test that makes this change more than a rename.** `Sources::from_plan`
@@ -2876,7 +2952,7 @@ fn a_logo_travels_in_the_public_branch() {
         bytes: b"\x89PNG".to_vec(),
     });
 
-    let images = plan_images(&plan);
+    let images = plan_images(&plan, &sources_of(&plan));
     assert_eq!(images.len(), 1);
     assert!(images[0].entry_name().starts_with("images/"));
 }
@@ -3292,8 +3368,13 @@ fn a_plan_the_builder_refuses_is_refused_by_the_wizard_first() {
     let mut lies: Vec<String> = Vec::new();
 
     for (what, plan) in mutations() {
-        let compiled =
-            compile_plan(&plan, &templates, &BuildOptions::default(), None);
+        let compiled = compile_plan(Compile {
+            plan: &plan,
+            templates: &templates,
+            options: &BuildOptions::default(),
+            profile: None,
+            sources: None,
+        });
 
         // Two ways the builder refuses: an `Err` report, or an `Ok` carrying
         // errors. Both are refusals, and only checking the first would miss the
@@ -3344,9 +3425,14 @@ fn a_plan_the_builder_refuses_is_refused_by_the_wizard_first() {
 #[test]
 fn the_bundle_declares_the_version_that_wrote_it() {
     let templates = TemplateSet::builtin().unwrap();
-    let compiled =
-        compile_plan(&sound(), &templates, &BuildOptions::default(), None)
-            .expect("a sound plan compiles");
+    let compiled = compile_plan(Compile {
+        plan: &sound(),
+        templates: &templates,
+        options: &BuildOptions::default(),
+        profile: None,
+        sources: None,
+    })
+    .expect("a sound plan compiles");
 
     let declared = compiled
         .bundle
@@ -3423,9 +3509,14 @@ fn the_archive_carries_no_keys_ceremony_it_cannot_fill_in_correctly() {
         "this test is meaningless unless the plan names trustees"
     );
 
-    let compiled =
-        compile_plan(&plan, &templates, &BuildOptions::default(), None)
-            .expect("a sound plan compiles");
+    let compiled = compile_plan(Compile {
+        plan: &plan,
+        templates: &templates,
+        options: &BuildOptions::default(),
+        profile: None,
+        sources: None,
+    })
+    .expect("a sound plan compiles");
 
     let ceremonies = compiled
         .bundle
@@ -3466,9 +3557,14 @@ fn the_delivery_is_a_zip_that_is_not_importable_holding_one_that_is() {
     use crate::election_config::archive;
 
     let templates = TemplateSet::builtin().unwrap();
-    let compiled =
-        compile_plan(&sound(), &templates, &BuildOptions::default(), None)
-            .expect("a sound plan compiles");
+    let compiled = compile_plan(Compile {
+        plan: &sound(),
+        templates: &templates,
+        options: &BuildOptions::default(),
+        profile: None,
+        sources: None,
+    })
+    .expect("a sound plan compiles");
 
     let delivery =
         archive::delivery(&compiled.layout).expect("a delivery is written");
@@ -3543,9 +3639,14 @@ fn no_keys_ceremony_is_ever_emitted() {
         "meaningless unless the plan names trustees"
     );
 
-    let compiled =
-        compile_plan(&plan, &templates, &BuildOptions::default(), None)
-            .expect("a sound plan compiles");
+    let compiled = compile_plan(Compile {
+        plan: &plan,
+        templates: &templates,
+        options: &BuildOptions::default(),
+        profile: None,
+        sources: None,
+    })
+    .expect("a sound plan compiles");
 
     let ceremonies = compiled
         .bundle
@@ -3572,9 +3673,14 @@ fn a_delivery_reopens_as_the_plan_that_made_it() {
 
     let templates = TemplateSet::builtin().unwrap();
     let plan = sound();
-    let compiled =
-        compile_plan(&plan, &templates, &BuildOptions::default(), None)
-            .expect("a sound plan compiles");
+    let compiled = compile_plan(Compile {
+        plan: &plan,
+        templates: &templates,
+        options: &BuildOptions::default(),
+        profile: None,
+        sources: None,
+    })
+    .expect("a sound plan compiles");
 
     let delivery =
         archive::delivery(&compiled.layout).expect("a delivery is written");
@@ -3605,9 +3711,14 @@ fn a_zip_without_a_plan_says_what_it_had_instead() {
     use crate::election_config::archive;
 
     let templates = TemplateSet::builtin().unwrap();
-    let compiled =
-        compile_plan(&sound(), &templates, &BuildOptions::default(), None)
-            .expect("a sound plan compiles");
+    let compiled = compile_plan(Compile {
+        plan: &sound(),
+        templates: &templates,
+        options: &BuildOptions::default(),
+        profile: None,
+        sources: None,
+    })
+    .expect("a sound plan compiles");
 
     // The importable member is exactly the wrong file to hand back, and the likeliest.
     let importable = archive::zip(&compiled.layout.importable).expect("a zip");
@@ -3643,12 +3754,13 @@ fn a_zip_without_a_plan_says_what_it_had_instead() {
 #[cfg(feature = "election_config_xlsx")]
 #[test]
 fn a_delivery_carries_the_workbook_beside_the_plan() {
-    let compiled = compile_plan(
-        &sound(),
-        &TemplateSet::builtin().unwrap(),
-        &BuildOptions::default(),
-        None,
-    )
+    let compiled = compile_plan(Compile {
+        plan: &sound(),
+        templates: &TemplateSet::builtin().unwrap(),
+        options: &BuildOptions::default(),
+        profile: None,
+        sources: None,
+    })
     .expect("the sample plan compiles");
 
     let auxiliary: Vec<&str> = compiled

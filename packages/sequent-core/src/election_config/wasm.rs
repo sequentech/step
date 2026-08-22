@@ -37,7 +37,7 @@ use crate::election_config::census_csv;
 use crate::election_config::fixtures;
 use crate::election_config::problem::{Code, Problem, Report};
 use crate::election_config::schema::ImportElectionEventSchema;
-use crate::election_config::sources;
+use crate::election_config::sources::{self, Sources};
 use crate::election_config::validate;
 use serde::Serialize;
 use wasm_bindgen::prelude::*;
@@ -179,6 +179,43 @@ export interface PreviewOutput {
     elections: Array<{id: string; name: string}>;
     /** Everything found on the way, errors and warnings together. */
     report: Report;
+}
+
+/**
+ * A census the host holds, read a batch at a time.
+ *
+ * The reason this is an interface and not an array: a census can be ten million
+ * members, and handing that over as one value means holding it twice while the
+ * boundary copies it. So the core pulls, and the rows are alive only for as long
+ * as it takes to turn one batch into voters.
+ *
+ * `CensusCsvReader` implements it as it stands — deliberately. A CSV the browser
+ * has already parsed should not be parsed again to be handed over.
+ */
+export interface CensusPull {
+    /** The columns a row will have, in order. Answerable before any row. */
+    columns(): string[];
+    /** Back to the first row; one compile reads the census more than once. */
+    rewind(): void;
+    /** The next `size` rows, aligned to `columns()`. Empty when done. */
+    nextBatch(size: number): string[][];
+}
+
+/**
+ * What `compilePlan` and `previewBallot` accept beside the plan.
+ *
+ * Both fields are optional and both are new. Passing neither is what every caller
+ * did until now and still means the same thing: the census and the files are read
+ * off the plan itself.
+ */
+export interface CompileOptions {
+    /** Where the voters come from, instead of `plan.voters`. */
+    census?: CensusPull;
+    /**
+     * The bytes the plan's file names refer to — a logo, a candidate's
+     * photograph, a support material. Keyed by the name the plan carries.
+     */
+    files?: Record<string, Uint8Array>;
 }
 "#;
 
@@ -398,6 +435,175 @@ pub fn validate_plan_js(plan: JsValue) -> Result<IReport, JsError> {
     to_js(&architect::validate_plan(&plan, &sources)).map(IReport::from)
 }
 
+// -- the census, pulled from JavaScript ----------------------------------------
+
+/// A census the host holds, read a batch at a time.
+///
+/// Declared as an extern type rather than deserialised, because a census is not
+/// data here — it is three methods, and the whole point is that the rows never
+/// cross the boundary as one value. Ten million members reaching Rust as a JS array
+/// is the thing this exists to prevent, and it is also, exactly, what
+/// `serde_wasm_bindgen::from_value` would do with them.
+///
+/// The shape is [`CensusCsvReader`]'s own, which is not a coincidence: that class
+/// already exists, the wizard's census store already speaks to it, and a CSV the
+/// browser has parsed once should not be parsed again to be handed over. A
+/// `CensusCsvReader` **is** a `CensusPull`.
+#[cfg(feature = "election_config_archive")]
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(typescript_type = "CensusPull")]
+    pub type CensusPull;
+
+    /// The columns a row will have, in order. Answered before any row is read.
+    #[wasm_bindgen(method, catch, js_name = columns)]
+    fn columns(this: &CensusPull) -> Result<JsValue, JsValue>;
+
+    /// Back to the first row. One compile reads the census more than once.
+    #[wasm_bindgen(method, catch, js_name = rewind)]
+    fn rewind(this: &CensusPull) -> Result<(), JsValue>;
+
+    /// The next `size` rows as arrays of strings, aligned to `columns()`. An empty
+    /// array means the census is done.
+    #[wasm_bindgen(method, catch, js_name = nextBatch)]
+    fn next_batch(this: &CensusPull, size: usize) -> Result<JsValue, JsValue>;
+
+    /// The options object, reached for the two things serde cannot deserialise.
+    #[wasm_bindgen(typescript_type = "CompileOptions")]
+    pub type CompileOptions;
+
+    #[wasm_bindgen(method, getter, js_name = census)]
+    fn census(this: &CompileOptions) -> Option<CensusPull>;
+}
+
+/// A [`CensusPull`] as something the core can read.
+#[cfg(feature = "election_config_archive")]
+struct JsCensus {
+    pull: CensusPull,
+    shape: sources::RowShape,
+    by_area_name: std::collections::BTreeMap<String, String>,
+}
+
+#[cfg(feature = "election_config_archive")]
+impl JsCensus {
+    /// **The columns are read here, once, and kept.**
+    ///
+    /// `CensusSource::columns` hands back a borrowed slice, so it cannot call into
+    /// JavaScript; and it should not, because `build_realm::census_attributes` asks
+    /// this question for every build and a round trip per call would be paid for
+    /// nothing. Reading them at construction is also what makes the promise true —
+    /// the column list is available before the first row.
+    fn new(
+        pull: CensusPull,
+        by_area_name: std::collections::BTreeMap<String, String>,
+    ) -> Result<Self, JsError> {
+        let columns = pull.columns().map_err(|error| {
+            JsError::new(&format!(
+                "the census could not say what its columns are: {error:?}"
+            ))
+        })?;
+        let columns: Vec<String> = serde_wasm_bindgen::from_value(columns)
+            .map_err(|error| {
+                JsError::new(&format!(
+                    "a census column list is strings: {error}"
+                ))
+            })?;
+        Ok(JsCensus {
+            pull,
+            shape: sources::RowShape::of(&columns),
+            by_area_name,
+        })
+    }
+}
+
+#[cfg(feature = "election_config_archive")]
+impl sources::CensusSource for JsCensus {
+    fn columns(&self) -> &[String] {
+        self.shape.columns()
+    }
+
+    fn rewind(&self) -> Result<(), String> {
+        self.pull.rewind().map_err(|error| {
+            format!("the census could not be reopened: {error:?}")
+        })
+    }
+
+    fn next_batch(
+        &self,
+        size: usize,
+    ) -> Result<Vec<architect::PlannedVoter>, String> {
+        let batch = self.pull.next_batch(size).map_err(|error| {
+            format!("the census could not be read past this point: {error:?}")
+        })?;
+        let rows: Vec<Vec<String>> = serde_wasm_bindgen::from_value(batch)
+            .map_err(|error| {
+                format!("a census batch is rows of strings: {error}")
+            })?;
+        Ok(rows
+            .iter()
+            .map(|row| self.shape.voter(row, &self.by_area_name))
+            .collect())
+    }
+}
+
+/// What the caller is handing over beside the plan, if anything.
+///
+/// **Additive on purpose.** A host that passes neither gets `None`, and
+/// `compile_plan` then derives both from the plan's own fields exactly as before.
+/// That is what lets this land before the browser half without a red window: beyond
+/// builds against step's live tip, so a boundary that only grows is the only kind
+/// that can be pushed first.
+#[cfg(feature = "election_config_archive")]
+fn sources_from(
+    options: &JsValue,
+    plan: &architect::Blueprint,
+) -> Result<Option<sources::Sources>, JsError> {
+    #[derive(serde::Deserialize, Default)]
+    #[serde(default)]
+    struct Carrying {
+        /// Name to bytes. The plan names a file; this is the file.
+        files: std::collections::BTreeMap<String, Vec<u8>>,
+    }
+
+    if !options.is_object() {
+        return Ok(None);
+    }
+
+    // Reached through a getter rather than serde: a census is three methods, and
+    // there is nothing here for `from_value` to deserialise.
+    let census = options.unchecked_ref::<CompileOptions>().census();
+
+    let carrying: Carrying = serde_wasm_bindgen::from_value(options.clone())
+        .map_err(|error| JsError::new(&format!("bad options: {error}")))?;
+
+    if census.is_none() && carrying.files.is_empty() {
+        return Ok(None);
+    }
+
+    // A name is what a plan points at, so the areas have to be resolvable before a
+    // row is read: a census that says `area_name` is matched back to the
+    // `external_id` the plan keys by.
+    let by_area_name = plan
+        .areas
+        .iter()
+        .map(|area| (area.name.clone(), area.external_id.clone()))
+        .collect();
+
+    Ok(Some(sources::Sources {
+        census: match census {
+            Some(pull) => {
+                Some(std::sync::Arc::new(JsCensus::new(pull, by_area_name)?))
+            }
+            None => None,
+        },
+        files: carrying
+            .files
+            .into_iter()
+            .map(|(name, bytes)| (name, std::sync::Arc::from(bytes)))
+            .collect(),
+    }))
+}
+
 /// Compile a plan into the bundle and the files that travel beside it.
 ///
 /// The same [`Output`] `buildFromWorkbook` returns, because a wizard and a
@@ -426,6 +632,7 @@ pub fn compile_plan_js(
     // missing positional at an FFI boundary is `undefined` and `undefined`
     // deserializes to `Option::None`. A named field cannot be dropped that way.
     let profile = profile_from(&options)?;
+    let sources = sources_from(&options, &plan)?;
     let options = build_options(options)?;
 
     let templates = match TemplateSet::builtin() {
@@ -433,12 +640,13 @@ pub fn compile_plan_js(
         Err(problem) => return failed(problem).map(IBuildOutput::from),
     };
 
-    let compiled = match architect::compile_plan(
-        &plan,
-        &templates,
-        &options,
-        profile.as_ref(),
-    ) {
+    let compiled = match architect::compile_plan(architect::Compile {
+        plan: &plan,
+        templates: &templates,
+        options: &options,
+        profile: profile.as_ref(),
+        sources: sources.as_ref(),
+    }) {
         Ok(compiled) => compiled,
         Err(report) => {
             return to_js(&Output::refused(report)).map(IBuildOutput::from)
@@ -496,6 +704,7 @@ pub fn preview_ballot_js(
 
     let profile = profile_from(&options)?;
     let demo_key = demo_public_key_from(&options)?;
+    let sources = sources_from(&options, &plan)?;
     let options = build_options(options)?;
 
     let templates = match TemplateSet::builtin() {
@@ -508,12 +717,13 @@ pub fn preview_ballot_js(
     // The same call `compile_plan` makes, so a plan that previews is a plan that
     // compiles and vice versa. Anything else and the review screen would show a
     // ballot for a bundle that will not build.
-    let compiled = match architect::compile_plan(
-        &plan,
-        &templates,
-        &options,
-        profile.as_ref(),
-    ) {
+    let compiled = match architect::compile_plan(architect::Compile {
+        plan: &plan,
+        templates: &templates,
+        options: &options,
+        profile: profile.as_ref(),
+        sources: sources.as_ref(),
+    }) {
         Ok(compiled) => compiled,
         Err(report) => {
             return to_js(&PreviewOutput {

@@ -19,7 +19,7 @@
 use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use colored::Colorize;
-use sequent_core::election_config::architect::{compile_plan, Blueprint};
+use sequent_core::election_config::architect::{compile_plan, Blueprint, Compile};
 use sequent_core::election_config::preview::{preview_publication, PreviewOptions};
 use sequent_core::election_config::profile::{ClientProfile, Profile};
 use sequent_core::election_config::{
@@ -124,7 +124,13 @@ impl CompilePlan {
             ceremony_policy: CeremoniesPolicy::MANUAL_CEREMONIES,
         };
 
-        let compiled = match compile_plan(&plan, &templates, &options, profile.as_ref()) {
+        let compiled = match compile_plan(Compile {
+            plan: &plan,
+            templates: &templates,
+            options: &options,
+            profile: profile.as_ref(),
+            sources: None,
+        }) {
             Ok(compiled) => compiled,
             Err(report) => {
                 report_problems(&report);

@@ -541,7 +541,7 @@ fn the_hidden_and_locked_paths_are_handed_over_as_they_were_written() {
 /// the plan — anything less and the lock is decoration.
 #[test]
 fn a_locked_value_reaches_the_built_bundle() {
-    use crate::election_config::architect::compile_plan;
+    use crate::election_config::architect::{compile_plan, Compile};
     use crate::election_config::{BuildOptions, TemplateSet};
 
     let profile = profile_of(ClientProfile {
@@ -559,12 +559,13 @@ fn a_locked_value_reaches_the_built_bundle() {
         Translated::new("typed by hand");
 
     let templates = TemplateSet::builtin().unwrap();
-    let compiled = compile_plan(
-        &disagrees,
-        &templates,
-        &BuildOptions::default(),
-        Some(&profile),
-    )
+    let compiled = compile_plan(Compile {
+        plan: &disagrees,
+        templates: &templates,
+        options: &BuildOptions::default(),
+        profile: Some(&profile),
+        sources: None,
+    })
     .expect("compiles");
 
     let descriptions: Vec<&str> = compiled.bundle.export["contests"]
@@ -586,7 +587,7 @@ fn a_locked_value_reaches_the_built_bundle() {
 /// vocabulary, on the path the wizard routes by.
 #[test]
 fn a_profiles_required_field_stops_the_build() {
-    use crate::election_config::architect::compile_plan;
+    use crate::election_config::architect::{compile_plan, Compile};
     use crate::election_config::{BuildOptions, TemplateSet};
 
     let profile = profile_of(ClientProfile {
@@ -596,12 +597,13 @@ fn a_profiles_required_field_stops_the_build() {
     });
 
     let templates = TemplateSet::builtin().unwrap();
-    let report = compile_plan(
-        &plan(),
-        &templates,
-        &BuildOptions::default(),
-        Some(&profile),
-    )
+    let report = compile_plan(Compile {
+        plan: &plan(),
+        templates: &templates,
+        options: &BuildOptions::default(),
+        profile: Some(&profile),
+        sources: None,
+    })
     .expect_err("this build requires a logo");
 
     assert!(report

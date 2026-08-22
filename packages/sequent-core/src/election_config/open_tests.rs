@@ -6,7 +6,7 @@
 
 use super::*;
 use crate::election_config::architect::{
-    compile_plan, to_workbook, BLUEPRINT_VERSION,
+    compile_plan, to_workbook, Compile, BLUEPRINT_VERSION,
 };
 use crate::election_config::build::BuildOptions;
 use crate::election_config::render::TemplateSet;
@@ -59,12 +59,13 @@ fn says(report: &Report, needle: &str) -> bool {
 }
 
 fn delivery_of(plan: &Blueprint) -> Vec<u8> {
-    let compiled = compile_plan(
-        plan,
-        &TemplateSet::builtin().unwrap(),
-        &BuildOptions::default(),
-        None,
-    )
+    let compiled = compile_plan(Compile {
+        plan: plan,
+        templates: &TemplateSet::builtin().unwrap(),
+        options: &BuildOptions::default(),
+        profile: None,
+        sources: None,
+    })
     .expect("the sample plan compiles");
     super::super::archive::delivery(&compiled.layout)
         .expect("and packs")

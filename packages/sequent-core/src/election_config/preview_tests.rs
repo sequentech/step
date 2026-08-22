@@ -27,8 +27,12 @@ use crate::election_config::{
 ///
 /// One function rather than every call site: when the census leaves `Blueprint`,
 /// this is where a test says where its voters come from.
+fn sources_of(plan: &Blueprint) -> Sources {
+    Sources::from_plan(plan)
+}
+
 fn workbook_of(plan: &Blueprint) -> Result<Workbook, Problem> {
-    to_workbook(plan, &Sources::from_plan(plan))
+    to_workbook(plan, &sources_of(plan))
 }
 
 fn at(local: &str) -> Timestamp {
@@ -632,7 +636,7 @@ fn a_candidates_photograph_previews_from_the_plans_own_bytes() {
         &workbook,
         &TemplateSet::builtin().unwrap(),
         &BuildOptions {
-            images: plan_images(&plan),
+            images: plan_images(&plan, &sources_of(&plan)),
             ..BuildOptions::default()
         },
         &Sources::default(),

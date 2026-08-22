@@ -1408,27 +1408,46 @@ pub fn material_document_id(ids: &IdFactory, external_id: &str) -> String {
 }
 
 /// Every support material file in a plan, with the identifier its row will name.
-pub fn plan_materials(plan: &Blueprint) -> Vec<MaterialFile> {
+pub fn plan_materials(
+    plan: &Blueprint,
+    sources: &Sources,
+) -> Vec<MaterialFile> {
     let Some(ids) = IdFactory::new(&plan.external_id) else {
         return Vec::new();
     };
     plan.materials
         .iter()
-        .filter(|material| !material.bytes.is_empty())
-        .map(|material| MaterialFile {
+        .map(|material| {
+            let bytes = match sources.files.get(&material.file_name) {
+                Some(bytes) => bytes.to_vec(),
+                None => material.bytes.clone(),
+            };
+            (material, bytes)
+        })
+        .filter(|(_, bytes)| !bytes.is_empty())
+        .map(|(material, bytes)| MaterialFile {
             // Keyed by name from here on: the builder matches the sheet's `file`
             // column against these and derives the identifier itself, so the JSON
             // and the archive cannot disagree about which is which.
             document_id: String::new(),
             file_name: material.file_name.clone(),
-            bytes: material.bytes.clone(),
+            bytes,
         })
         .collect()
 }
 
-pub fn plan_images(plan: &Blueprint) -> Vec<ImageFile> {
+pub fn plan_images(plan: &Blueprint, sources: &Sources) -> Vec<ImageFile> {
     let Some(ids) = IdFactory::new(&plan.external_id) else {
         return Vec::new();
+    };
+    // The named file where the caller has it, the plan's own bytes otherwise.
+    // Which way round matters: a plan opened from a save file carries names and no
+    // bytes, and a plan the wizard is holding carries both.
+    let bytes_of = |name: &str, carried: &[u8]| -> Vec<u8> {
+        match sources.files.get(name) {
+            Some(bytes) => bytes.to_vec(),
+            None => carried.to_vec(),
+        }
     };
     let mut images = Vec::new();
     // The logo rides with the photographs rather than with the support materials,
@@ -1439,7 +1458,7 @@ pub fn plan_images(plan: &Blueprint) -> Vec<ImageFile> {
         images.push(ImageFile {
             document_id: logo_document_id(&ids, &plan.external_id),
             file_name: logo.file_name.clone(),
-            bytes: logo.bytes.clone(),
+            bytes: bytes_of(&logo.file_name, &logo.bytes),
         });
     }
     for election in &plan.elections {
@@ -1452,7 +1471,7 @@ pub fn plan_images(plan: &Blueprint) -> Vec<ImageFile> {
                             &candidate.external_id,
                         ),
                         file_name: image.file_name.clone(),
-                        bytes: image.bytes.clone(),
+                        bytes: bytes_of(&image.file_name, &image.bytes),
                     });
                 }
             }
@@ -1556,7 +1575,7 @@ pub fn validate_plan(plan: &Blueprint, sources: &Sources) -> Report {
 
     check_languages(plan, &mut report);
     check_language_detection(plan, &mut report);
-    check_logo(plan, &mut report);
+    check_logo(plan, sources, &mut report);
     check_trustees(plan, &mut report);
     check_schedule(plan, &mut report);
     check_areas(plan, &mut report);
@@ -1691,11 +1710,20 @@ fn check_language_detection(plan: &Blueprint, report: &mut Report) {
 /// loud rather than resolved silently, because the two answers usually differ and
 /// only one of them is on the ballot.
 ///
-/// A file with no bytes is the same as no file: the wizard clears `file_name` and
-/// `bytes` together, and a name with nothing behind it would name an archive entry
-/// that does not exist — which fails the whole import rather than losing a picture.
-fn check_logo(plan: &Blueprint, report: &mut Report) {
-    let file = plan.logo.as_ref().filter(|file| !file.bytes.is_empty());
+/// A file with nothing behind it is the same as no file: the wizard clears
+/// `file_name` and `bytes` together, and a name nothing answers to would name an
+/// archive entry that does not exist — which fails the whole import rather than
+/// losing a picture.
+///
+/// **"Nothing behind it" now means the sources as well as the plan.** A plan opened
+/// from a save file names its logo and carries no bytes at all, because the bytes
+/// are a member of the zip beside it; refusing that would refuse every reopened
+/// plan.
+fn check_logo(plan: &Blueprint, sources: &Sources, report: &mut Report) {
+    let carried = |file: &&CandidateImage| {
+        !file.bytes.is_empty() || sources.files.contains_key(&file.file_name)
+    };
+    let file = plan.logo.as_ref().filter(carried);
     let url = plan.logo_url.as_deref().filter(|url| !url.is_empty());
 
     if let (Some(file), Some(url)) = (file, url) {
@@ -1716,7 +1744,7 @@ fn check_logo(plan: &Blueprint, report: &mut Report) {
     }
 
     if let Some(logo) = plan.logo.as_ref() {
-        if logo.bytes.is_empty() && !logo.file_name.is_empty() {
+        if !carried(&logo) && !logo.file_name.is_empty() {
             report.push(
                 Problem::error(
                     Code::MissingField,
@@ -4021,12 +4049,36 @@ pub struct Compiled {
 /// 5. [`super::archive::layout`].
 /// 6. [`side_files`] into `auxiliary`, because a ceremony schedule is not part of
 ///    an import and putting it inside the archive would suggest otherwise.
-pub fn compile_plan(
-    plan: &Blueprint,
-    templates: &TemplateSet,
-    options: &BuildOptions,
-    profile: Option<&Profile>,
-) -> Result<Compiled, Report> {
+/// What [`compile_plan`] is given.
+///
+/// Named fields rather than five positional arguments, and the reason is on the
+/// record: `compile_plan_js` passed a profile as a third positional that the
+/// browser never sent, so every profiled build silently compiled with `None` and
+/// no locked value ever reached a bundle. Nothing complained on either side. Rust
+/// would have caught that one, but five arguments is the shape where the next such
+/// mistake hides, and `sources` is the fifth.
+pub struct Compile<'a> {
+    pub plan: &'a Blueprint,
+    pub templates: &'a TemplateSet,
+    pub options: &'a BuildOptions,
+    pub profile: Option<&'a Profile>,
+
+    /// The census and the files, where the caller has them.
+    ///
+    /// `None` means *derive them from the plan*, which is what every caller wants
+    /// while `Blueprint` still carries its own bulk. When it stops, this stops
+    /// being optional and the plan-derived branch goes with it.
+    pub sources: Option<&'a Sources>,
+}
+
+pub fn compile_plan(request: Compile<'_>) -> Result<Compiled, Report> {
+    let Compile {
+        plan,
+        templates,
+        options,
+        profile,
+        sources,
+    } = request;
     // The profile first, so a locked value is the one that gets validated and
     // the one that gets built. Checking the plan as written and then forcing the
     // value afterwards would report problems about text nobody will ship.
@@ -4039,12 +4091,19 @@ pub fn compile_plan(
         None => plan,
     };
 
-    // Derived here, from the plan the profile has already been applied to — the
-    // same plan that gets validated and built. `from_plan` is scaffolding while
-    // `Blueprint` still carries its own bulk; when it stops, this becomes the
-    // caller's `sources` and nothing else in this function moves.
-    let sources = Sources::from_plan(plan);
-    let mut report = validate_plan(plan, &sources);
+    // The caller's, where there is one. Otherwise derived from the plan the
+    // profile has already been applied to — the same plan that gets validated and
+    // built. `from_plan` is scaffolding while `Blueprint` still carries its own
+    // bulk; when it stops, so does this branch.
+    let derived;
+    let sources = match sources {
+        Some(sources) => sources,
+        None => {
+            derived = Sources::from_plan(plan);
+            &derived
+        }
+    };
+    let mut report = validate_plan(plan, sources);
     if let Some(profile) = profile {
         for problem in profile.warnings.problems.clone() {
             report.push(problem);
@@ -4055,7 +4114,7 @@ pub fn compile_plan(
         return Err(report);
     }
 
-    let workbook = to_workbook(plan, &sources).map_err(|problem| {
+    let workbook = to_workbook(plan, sources).map_err(|problem| {
         let mut failed = Report::default();
         failed.push(problem);
         failed
@@ -4094,12 +4153,12 @@ pub fn compile_plan(
         // after import — where the trustees exist and can be picked rather than
         // spelled. `check_trustees` says so in the report.
         keys_ceremony: None,
-        images: plan_images(plan),
+        images: plan_images(plan, sources),
         ceremony_policy: plan.ceremony_policy.clone(),
-        materials: plan_materials(plan),
+        materials: plan_materials(plan, sources),
         ..options.clone()
     };
-    let bundle = build(&workbook, templates, &with_ceremony, &sources)?;
+    let bundle = build(&workbook, templates, &with_ceremony, sources)?;
 
     for problem in bundle.warnings.problems.clone() {
         report.push(problem);
