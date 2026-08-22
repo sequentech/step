@@ -137,6 +137,23 @@ fn a_plan_becomes_a_bundle_the_platform_accepts() {
 }
 
 #[test]
+fn a_plan_leaves_nothing_for_the_base_template_to_stand_in_for() {
+    // `contest.hbs` carries values for the five ballot-shaping fields, so a
+    // workbook that omits one gets it without being asked and `build` warns. The
+    // wizard is not allowed to be one of those workbooks: `contests_sheet` writes
+    // all five, so the compiled bundle says what the plan meant and nothing more.
+    let bundle = compiled(&sound());
+    let stood_in: Vec<&str> = bundle
+        .warnings
+        .problems
+        .iter()
+        .map(|problem| problem.message.as_str())
+        .filter(|message| message.contains("stands in"))
+        .collect();
+    assert!(stood_in.is_empty(), "{stood_in:#?}");
+}
+
+#[test]
 fn the_same_plan_compiles_to_the_same_bytes_twice() {
     // The TypeScript stamped new Date() into every entity, so no two runs of the
     // same answers agreed. Ids are derived and timestamps fixed, so these do.
