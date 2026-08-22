@@ -280,14 +280,24 @@ impl Builder<'_> {
     /// eligible for all of them, and writing an empty attribute would deny access
     /// to all of them instead.
     fn voter_elections(&mut self, row: &Row) -> String {
-        let Some(raw) = row.get("authorized-election-ids").cloned() else {
-            let all: Vec<&str> = self
-                .election_ids
-                .iter()
+        let every_election = |ids: &[(String, String)]| -> String {
+            ids.iter()
                 .map(|(_, id)| id.as_str())
-                .collect();
-            return all.join(MULTI_VALUE_SEPARATOR);
+                .collect::<Vec<&str>>()
+                .join(MULTI_VALUE_SEPARATOR)
         };
+
+        let Some(raw) = row.get("authorized-election-ids").cloned() else {
+            return every_election(&self.election_ids);
+        };
+
+        // A cell holding only spaces means the same as an empty one. It is *present*,
+        // so without this every entry falls to the `is_empty` guard below, `resolved`
+        // stays empty, and an empty attribute denies the voter every election —
+        // silently, because nothing about that is reported.
+        if value_as_text(&raw).trim().is_empty() {
+            return every_election(&self.election_ids);
+        }
 
         let requested: Vec<Value> = match raw {
             Value::Array(items) => items,

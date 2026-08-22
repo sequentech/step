@@ -556,6 +556,33 @@ fn a_contest_with_no_candidates_yet_is_a_warning() {
 }
 
 #[test]
+fn areas_inside_each_other_are_refused_by_the_plan_validator() {
+    // Self-parenting had its own message; a two-hop loop passed the plan validator
+    // and was only caught later, in bundle vocabulary the author never wrote.
+    let mut plan = sound();
+    plan.areas = vec![
+        PlannedArea {
+            external_id: "north".to_string(),
+            name: "North".to_string(),
+            parent_external_id: Some("south".to_string()),
+        },
+        PlannedArea {
+            external_id: "south".to_string(),
+            name: "South".to_string(),
+            parent_external_id: Some("north".to_string()),
+        },
+    ];
+
+    let report = validate_plan(&plan);
+    assert!(
+        report
+            .errors()
+            .any(|problem| problem.code == Code::AreaCycle),
+        "expected an area cycle, got:\n{report}"
+    );
+}
+
+#[test]
 fn a_plan_with_no_elections_is_refused() {
     let mut plan = sound();
     plan.elections.clear();
