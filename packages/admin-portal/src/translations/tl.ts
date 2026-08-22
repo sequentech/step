@@ -277,6 +277,7 @@ const tagalogTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "I-export ang mga Template",
                 IMPORT_TEMPLATES: "I-import ang mga Template",
                 DELETE_ELECTION_EVENT: "Tanggalin ang Kaganapan ng Halalan",
+                DELETE_VOTERS: "Delete Voters",
                 PREPARE_PUBLICATION_PREVIEW: "Ihanda ang paunang tingin ng publikasyon",
                 EXPORT_TALLY_RESULTS_XLSX:
                     "I-export ang mga resulta ng pagbibilang sa format na XLSX",
@@ -1032,6 +1033,13 @@ const tagalogTranslation: TranslationType = {
                     disabled: "Naka-disable",
                 },
             },
+            blankBallotsPolicy: {
+                label: "Patakaran sa mga blangkong balota",
+                options: {
+                    enabled: "Pinagana",
+                    disabled: "Naka-disable",
+                },
+            },
             votingScreenBackPolicy: {
                 label: "Patakaran sa pindutang Bumalik ng screen ng pagboto",
                 options: {
@@ -1127,6 +1135,11 @@ const tagalogTranslation: TranslationType = {
                 delete: {
                     body: "Sigurado ka bang gusto mong tanggalin ang tagagamit na ito?",
                     bulkBody: "Sigurado ka bang gusto mong tanggalin ang mga napiling tagagamit?",
+                    bulkBodySelected: "Delete the {{count}} selected users? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} users are selected. You can instead delete every user matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Error sa pag-export ng mga tagagamit",
@@ -1179,13 +1192,41 @@ const tagalogTranslation: TranslationType = {
                 askCreate: "Gusto mo bang lumikha ng isa?",
                 errors: {
                     editError: "Error sa pag-edit ng botante",
+                    editErrorReason: "Error sa pag-edit ng botante: {{reason}}",
                     editSuccess: "Nai-edit ang botante",
                     createError: "Error sa paglikha ng botante",
+                    createErrorReason: "Error sa paglikha ng botante: {{reason}}",
                     createSuccess: "Nalikha ang botante",
+                    attribute: {
+                        invalidNamed: 'Tinanggihan ang "{{field}}": {{constraint}}',
+                        fieldsToCorrect: "May mga field na kailangang itama bago mag-save",
+                        hintBetween: "Sa pagitan ng {{min}} at {{max}} na karakter",
+                        hintMin: "Hindi bababa sa {{min}} na karakter",
+                        hintMax: "Hindi hihigit sa {{max}} na karakter",
+                        andMore: "at {{count}} pa",
+                        invalidLength:
+                            'Ang "{{field}}" ay dapat na nasa pagitan ng {{min}} at {{max}} na karakter',
+                        tooShort: 'Ang "{{field}}" ay dapat na hindi bababa sa {{min}} na karakter',
+                        tooLong: 'Ang "{{field}}" ay dapat na hindi hihigit sa {{max}} na karakter',
+                        required: 'Ang "{{field}}" ay kinakailangan',
+                        invalidEmail: 'Ang "{{field}}" ay dapat na wastong email address',
+                        invalidFormat: 'Ang "{{field}}" ay walang inaasahang format',
+                        invalid: 'Ang "{{field}}" ay may hindi wastong halaga',
+                    },
+                    createPasswordError:
+                        "Nalikha ang botante, ngunit hindi maitakda ang password nito",
+                    createPasswordErrorReason:
+                        "Nalikha ang botante, ngunit hindi maitakda ang password nito: {{reason}}",
                 },
                 delete: {
                     body: "Sigurado ka bang gusto mong tanggalin ang botante na ito?",
                     bulkBody: "Sigurado ka bang gusto mong tanggalin ang mga napiling botante?",
+                    bulkBodySelected:
+                        "Delete the {{count}} selected voters? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} voters are selected. You can instead delete every voter matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Error sa pag-export ng mga botante",
@@ -2232,6 +2273,7 @@ const tagalogTranslation: TranslationType = {
                     round: "Ikot",
                 },
                 total_declined_to_vote: "Kabuuang Tumangging Bumoto",
+                total_blank_ballots: "Kabuuang Blangkong Balota",
                 participation_by_channel: "Paglahok ayon sa channel",
                 channel: "Channel",
                 channel_online: "Online",
@@ -2435,9 +2477,19 @@ const tagalogTranslation: TranslationType = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "Ang kabuuang bilang ng mga balidong boto ay hindi tumutugma sa suma ng mga boto ng kandidato at mga blangkong boto",
+                    "Ang mga boto ng kandidato ({{candidateVotesSum}}) ay dapat nasa pagitan ng {{lowerBound}} at {{upperBound}} ayon sa mga panuntunan sa pagboto ng paligsahang ito ({{nonBlankValidVotes}} balidong hindi blangkong boto × hanggang {{maxMarks}} marka bawat balota)",
                 censusTooSmall:
-                    "Ang senso ay dapat na mas malaki o katumbas ng kabuuang bilang ng mga boto",
+                    "Ang kabuuang bilang ng mga boto ({{totalVotes}}) ay hindi dapat mas malaki kaysa sa senso ({{census}})",
+                totalInvalidDoesNotMatch:
+                    "Ang kabuuang bilang ng mga di-balidong boto ({{totalInvalid}}) ay dapat katumbas ng implicit na di-balidong boto ({{implicitInvalid}}) kasama ang explicit na di-balidong boto ({{explicitInvalid}})",
+                totalVotesDoesNotMatch:
+                    "Ang kabuuang bilang ng boto ({{totalVotes}}) ay dapat katumbas ng kabuuang balidong boto ({{totalValidVotes}}) kasama ang kabuuang di-balidong boto ({{totalInvalid}})",
+                unknownCountingAlgorithm:
+                    "Hindi nakikilala ang counting algorithm ng paligsahang ito ({{countingAlgorithm}}), kaya hindi matukoy ang pinapayagang bilang ng mga boto ng kandidato. Suriin ang konpigurasyon ng paligsahan.",
+                blankBallotsInconsistent:
+                    "Ang Blangkong Balota ay dapat magkaroon ng parehong halaga sa bawat sheet ng kontest sa kahong ito",
+                blankBallotsOutOfBounds:
+                    "Ang halaga ng Blangkong Balota ay wala sa hanay na ipinahihiwatig ng bilang ng blangkong boto bawat kontest sa kahong ito",
             },
             label: {
                 area: "Lugar",
@@ -2448,6 +2500,7 @@ const tagalogTranslation: TranslationType = {
                 explicit_invalid: "Tahasang Invalid na Boto",
                 implicit_invalid: "Implicit na Invalid na Boto",
                 total_blank_votes: "Blankong Boto",
+                blank_ballots: "Blangkong Balota",
                 census: "Senso",
             },
             common: {

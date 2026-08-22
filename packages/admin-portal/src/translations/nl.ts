@@ -277,6 +277,7 @@ const dutchTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "Sjablonen Exporteren",
                 IMPORT_TEMPLATES: "Sjablonen Importeren",
                 DELETE_ELECTION_EVENT: "Verkiezingsevenement Verwijderen",
+                DELETE_VOTERS: "Delete Voters",
                 PREPARE_PUBLICATION_PREVIEW: "De publicatievoorbeeldweergave voorbereiden",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporteer de telresultaten in XLSX-indeling",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Certificaatautoriteiten exporteren",
@@ -1030,6 +1031,13 @@ const dutchTranslation: TranslationType = {
                     disabled: "Uitgeschakeld",
                 },
             },
+            blankBallotsPolicy: {
+                label: "Beleid voor blanco stembiljetten",
+                options: {
+                    enabled: "Ingeschakeld",
+                    disabled: "Uitgeschakeld",
+                },
+            },
             votingScreenBackPolicy: {
                 label: "Beleid voor de terugknop van het stemscherm",
                 options: {
@@ -1125,6 +1133,11 @@ const dutchTranslation: TranslationType = {
                 delete: {
                     body: "Weet u zeker dat u deze gebruiker wilt verwijderen?",
                     bulkBody: "Weet u zeker dat u de geselecteerde gebruikers wilt verwijderen?",
+                    bulkBodySelected: "Delete the {{count}} selected users? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} users are selected. You can instead delete every user matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Fout bij exporteren gebruikers",
@@ -1177,13 +1190,41 @@ const dutchTranslation: TranslationType = {
                 askCreate: "Wilt u er een aanmaken?",
                 errors: {
                     editError: "Fout bij bewerken kiezer",
+                    editErrorReason: "Fout bij bewerken kiezer: {{reason}}",
                     editSuccess: "Kiezer bewerkt",
                     createError: "Fout bij aanmaken kiezer",
+                    createErrorReason: "Fout bij aanmaken kiezer: {{reason}}",
                     createSuccess: "Kiezer aangemaakt",
+                    attribute: {
+                        invalidNamed: '"{{field}}" is geweigerd: {{constraint}}',
+                        fieldsToCorrect:
+                            "Sommige velden moeten worden gecorrigeerd voordat u opslaat",
+                        hintBetween: "Tussen {{min}} en {{max}} tekens",
+                        hintMin: "Minimaal {{min}} tekens",
+                        hintMax: "Maximaal {{max}} tekens",
+                        andMore: "en nog {{count}}",
+                        invalidLength: '"{{field}}" moet tussen {{min}} en {{max}} tekens bevatten',
+                        tooShort: '"{{field}}" moet minimaal {{min}} tekens bevatten',
+                        tooLong: '"{{field}}" mag maximaal {{max}} tekens bevatten',
+                        required: '"{{field}}" is verplicht',
+                        invalidEmail: '"{{field}}" moet een geldig e-mailadres zijn',
+                        invalidFormat: '"{{field}}" heeft niet de verwachte indeling',
+                        invalid: '"{{field}}" heeft een ongeldige waarde',
+                    },
+                    createPasswordError:
+                        "Kiezer aangemaakt, maar het wachtwoord kon niet worden ingesteld",
+                    createPasswordErrorReason:
+                        "Kiezer aangemaakt, maar het wachtwoord kon niet worden ingesteld: {{reason}}",
                 },
                 delete: {
                     body: "Weet u zeker dat u deze kiezer wilt verwijderen?",
                     bulkBody: "Weet u zeker dat u de geselecteerde kiezers wilt verwijderen?",
+                    bulkBodySelected:
+                        "Delete the {{count}} selected voters? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} voters are selected. You can instead delete every voter matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Fout bij exporteren kiezers",
@@ -2224,6 +2265,7 @@ const dutchTranslation: TranslationType = {
                     round: "Ronde",
                 },
                 total_declined_to_vote: "Totaal aantal weigeringen om te stemmen",
+                total_blank_ballots: "Totaal Aantal Blanco Stembiljetten",
                 participation_by_channel: "Deelname per kanaal",
                 channel: "Kanaal",
                 channel_online: "Online",
@@ -2425,9 +2467,19 @@ const dutchTranslation: TranslationType = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "Het totaal aantal geldige stemmen komt niet overeen met de som van de stemmen voor kandidaten plus blanco stemmen",
+                    "Kandidaatstemmen ({{candidateVotesSum}}) moeten tussen {{lowerBound}} en {{upperBound}} liggen volgens de stemregels van deze verkiezing ({{nonBlankValidVotes}} geldige niet-blanco stemmen × maximaal {{maxMarks}} markeringen per stembiljet)",
                 censusTooSmall:
-                    "De census moet groter dan of gelijk zijn aan het totaal aantal stemmen",
+                    "Het totaal aantal stemmen ({{totalVotes}}) mag niet groter zijn dan de census ({{census}})",
+                totalInvalidDoesNotMatch:
+                    "Het totaal aantal ongeldige stemmen ({{totalInvalid}}) moet gelijk zijn aan impliciet ongeldige stemmen ({{implicitInvalid}}) plus expliciet ongeldige stemmen ({{explicitInvalid}})",
+                totalVotesDoesNotMatch:
+                    "Het totaal aantal stemmen ({{totalVotes}}) moet gelijk zijn aan het totaal aantal geldige stemmen ({{totalValidVotes}}) plus het totaal aantal ongeldige stemmen ({{totalInvalid}})",
+                unknownCountingAlgorithm:
+                    "Het telalgoritme van deze verkiezing ({{countingAlgorithm}}) wordt niet herkend, waardoor het toegestane aantal kandidaatstemmen niet kan worden bepaald. Controleer de configuratie van de verkiezing.",
+                blankBallotsInconsistent:
+                    "Blanco Stembiljetten moeten dezelfde waarde hebben op elk telformulier van deze stembus",
+                blankBallotsOutOfBounds:
+                    "De waarde van Blanco Stembiljetten valt buiten het bereik dat wordt geïmpliceerd door de blanco-stemtellingen per race van deze stembus",
             },
             label: {
                 area: "Gebied",
@@ -2438,6 +2490,7 @@ const dutchTranslation: TranslationType = {
                 explicit_invalid: "Expliciet Ongeldige Stemmen",
                 implicit_invalid: "Impliciet Ongeldige Stemmen",
                 total_blank_votes: "Blanco Stemmen",
+                blank_ballots: "Blanco Stembiljetten",
                 census: "Kieserslijst",
             },
             common: {

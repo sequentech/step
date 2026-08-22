@@ -52,7 +52,13 @@ import {CREATE_USER} from "@/queries/CreateUser"
 import {
     formatUserAtributes,
     getAttributeLabel,
+    getAttributeLengthBounds,
+    getAttributeViolation,
+    getInputOptionLabels,
+    getSelectOptionLabel,
+    getStatedLengthBounds,
     getTranslationLabel,
+    resolveOptionLabel,
     userBasicInfo,
 } from "@/services/UserService"
 import PhoneInput from "@/components/PhoneInput"
@@ -65,7 +71,7 @@ import IconTooltip from "@/components/IconTooltip"
 import {faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 import {useUsersPermissions} from "./useUsersPermissions"
 import {CustomAutocompleteArrayInput, ReviewChangesTable} from "@sequentech/ui-essentials"
-import {useCustomNotify} from "@/hooks/useCustomNotify"
+import {getSaveUserErrorMessage} from "./saveUserError"
 import {VOTED_CHANNEL} from "./ListUsers"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {computeRoleDiff, computeUserDiff, UserBaseline} from "@/services/UserEditReviewChanges"
@@ -101,8 +107,12 @@ const getAttributeStringValue = (value: string | string[] | null | undefined): s
 
 interface AttributeTextInputProps {
     disabled: boolean
+    error?: boolean
+    helperText?: string
     label: string
+    maxLength?: number
     onCommit: (value: string) => void
+    onValidate?: (value: string) => void
     required: boolean
     value: string | string[] | null | undefined
     type?: string
@@ -114,13 +124,24 @@ interface AttributeTextInputProps {
 // defaultValue/key) and only written back on blur.
 const AttributeTextInput: React.FC<AttributeTextInputProps> = ({
     disabled,
+    error,
+    helperText,
     label,
+    maxLength,
     onCommit,
+    onValidate,
     required,
     value,
     type,
 }) => {
     const normalizedValue = getAttributeStringValue(value)
+
+    const commit = (current: string) => {
+        onValidate?.(current)
+        if (current !== normalizedValue) {
+            onCommit(current)
+        }
+    }
 
     return (
         <FormStyles.TextField
@@ -128,14 +149,37 @@ const AttributeTextInput: React.FC<AttributeTextInputProps> = ({
             type={type}
             label={label}
             defaultValue={normalizedValue}
-            onBlur={(event) => {
-                if (event.target.value !== normalizedValue) {
-                    onCommit(event.target.value)
-                }
-            }}
+            onBlur={(event) => commit(event.target.value)}
             disabled={disabled}
+            error={error}
+            helperText={helperText}
             required={required}
             fullWidth
+            slotProps={{
+                htmlInput: {
+                    maxLength,
+                    // This field only writes back on blur, and submitting the
+                    // form with Enter does not blur it, so the value being
+                    // typed would be dropped and never checked. Bound here
+                    // rather than on the TextField, which would put it on the
+                    // wrapper instead of the input. Committing a changed value
+                    // remounts this input, which drops focus, the same as
+                    // leaving the field would.
+                    onKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => {
+                        if (event.key !== "Enter") {
+                            return
+                        }
+                        event.preventDefault()
+                        // A half-entered date reads as empty, and committing
+                        // that would clear the stored one. Clearing a date is
+                        // still done by emptying the field and leaving it.
+                        if (type === "date" && event.currentTarget.value === "") {
+                            return
+                        }
+                        commit(event.currentTarget.value)
+                    },
+                },
+            }}
             InputLabelProps={type === "date" ? {shrink: true} : undefined}
         />
     )
@@ -297,6 +341,13 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         })) || []
     )
     const [errorText, setErrorText] = useState("")
+    const [saveError, setSaveError] = useState("")
+    const [saving, setSaving] = useState(false)
+    const [lengthErrors, setLengthErrors] = useState<Record<string, string>>({})
+    // Guarded through a ref as well as state: two clicks dispatched before
+    // React commits the first would both read the same stale state.
+    const savingRef = useRef(false)
+    const closedRef = useRef(false)
 
     const [step, setStep] = useState<"edit" | "review">("edit")
     const baselineRef = useRef<UserBaseline>({
@@ -341,7 +392,15 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     ])
 
     useEffect(() => {
+        if (!id) {
+            return
+        }
         setStep("edit")
+        setSaveError("")
+        setLengthErrors({})
+        savingRef.current = false
+        closedRef.current = false
+        setSaving(false)
     }, [id])
 
     useEffect(() => {
@@ -462,9 +521,147 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         )
     }, [])
 
+    // Counted over the attributes actually on the form: an error left against
+    // one that is no longer shown could never be cleared, and would hold the
+    // save for good.
+    const hasFieldErrors = userAttributes.some((attr) => attr.name && lengthErrors[attr.name])
+
+    const beginSave = (): boolean => {
+        if (savingRef.current) {
+            return false
+        }
+        savingRef.current = true
+        setSaving(true)
+        setSaveError("")
+
+        return true
+    }
+
+    const endSave = () => {
+        // A form that has asked to close is still mounted and clickable for as
+        // long as the drawer animates out, so it stays latched rather than
+        // re-arming its buttons for that window. The latch does not outlive the
+        // drawer: it is a temporary one, so closing it unmounts this form and
+        // the next one starts from fresh refs.
+        if (closedRef.current) {
+            return
+        }
+        savingRef.current = false
+        setSaving(false)
+    }
+
+    // Latched only once the caller has taken over, so a form with nothing to
+    // close, or whose caller throws, re-arms instead of going quietly dead.
+    const closeForm = () => {
+        if (!close) {
+            return
+        }
+        close()
+        closedRef.current = true
+    }
+
+    // Stated under the field so the bound is known before it is broken.
+    const lengthHint = (attr: UserProfileAttribute): string | undefined => {
+        const bounds = getStatedLengthBounds(getAttributeLengthBounds(attr))
+        if (!bounds) {
+            return undefined
+        }
+        if (bounds.min !== undefined && bounds.max !== undefined) {
+            return t("usersAndRolesScreen.voters.errors.attribute.hintBetween", {
+                min: bounds.min,
+                max: bounds.max,
+            })
+        }
+
+        return bounds.min !== undefined
+            ? t("usersAndRolesScreen.voters.errors.attribute.hintMin", {min: bounds.min})
+            : t("usersAndRolesScreen.voters.errors.attribute.hintMax", {max: bounds.max})
+    }
+
+    // What a field reports once it has been touched. Only touched fields are
+    // checked, so opening a voter never lights up over data the admin has not
+    // been near.
+    const attributeError = (attr: UserProfileAttribute, value: string): string | undefined => {
+        const bounds = getAttributeLengthBounds(attr)
+        const violation = getAttributeViolation(bounds, value, isFieldRequired(attr))
+        if (!violation) {
+            return undefined
+        }
+
+        // The bounds the field states decide how this reads, so the two cannot
+        // disagree over a bound the hint leaves unsaid; the numbers themselves
+        // are the ones the value was measured against.
+        const stated = getStatedLengthBounds(bounds) ?? bounds
+        const field = getTranslationLabel(attr.name, attr.display_name, t)
+        // Both bounds together read better as one sentence than as whichever
+        // end the value happened to fall off.
+        const messageKey =
+            violation !== "required" && stated?.min !== undefined && stated?.max !== undefined
+                ? "invalidLength"
+                : violation
+
+        return t(`usersAndRolesScreen.voters.errors.attribute.${messageKey}`, {
+            field,
+            min: bounds?.min,
+            max: bounds?.max,
+        })
+    }
+
+    const validateAttribute = (attr: UserProfileAttribute) => (value: string) => {
+        const name = attr.name
+        if (!name) {
+            return
+        }
+        const message = attributeError(attr, value)
+
+        setLengthErrors((previous) => {
+            if (previous[name] === message) {
+                return previous
+            }
+            if (!message) {
+                const {[name]: _removed, ...rest} = previous
+                return rest
+            }
+
+            return {...previous, [name]: message}
+        })
+    }
+
+    const resolveFieldLabel = (field: string): string => {
+        const attribute = userAttributes.find((candidate) => candidate.name === field)
+
+        // An attribute the form does not show, a hidden one for instance, has
+        // no label to give, and the name is better than nothing to go on.
+        return getTranslationLabel(field, attribute?.display_name, t) || field
+    }
+
+    // The extracted reason is capped, so the raw rejection is logged for whoever
+    // has to diagnose it. messageArgs carries the already translated message
+    // through react-admin's polyglot provider, which would otherwise look it up
+    // as a key and find nothing.
+    const reportSaveError = (error: unknown, messageKey: string, reasonKey: string): string => {
+        console.error("Error saving voter:", error)
+        const message = getSaveUserErrorMessage(error, messageKey, reasonKey, t, resolveFieldLabel)
+        notify(message, {type: "error", messageArgs: {_: message}})
+
+        return message
+    }
+
     const onSubmitCreateUser = async () => {
+        if (!beginSave()) {
+            return
+        }
         try {
-            let {errors, data} = await createUser({
+            await createUserAndPassword()
+        } finally {
+            endSave()
+        }
+    }
+
+    const createUserAndPassword = async () => {
+        let createdUserId: string | null | undefined
+        try {
+            const {data} = await createUser({
                 variables: {
                     tenantId,
                     electionEventId,
@@ -485,31 +682,46 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     userRolesIds: selectedRolesOnCreate,
                 },
             })
-            //update user password after creating user
-            //@ts-ignore because data returns create_user property but not recognized
-            close?.()
-            if (errors) {
-                notify(t("usersAndRolesScreen.voters.errors.createError"), {type: "error"})
-                console.log(`Error creating user: ${errors}`)
-            } else {
-                if ((user?.password?.length ?? 0) > 0 && data?.create_user.id) {
-                    await handleUpdateUserPassword(data?.create_user.id)
-                }
-                notify(t("usersAndRolesScreen.voters.errors.createSuccess"), {type: "success"})
-                refresh()
-            }
+            createdUserId = data?.create_user?.id
         } catch (error) {
-            close?.()
-            notify(t("usersAndRolesScreen.voters.errors.createError"), {type: "error"})
-            console.log(`Error creating user: ${error}`)
+            setSaveError(
+                reportSaveError(
+                    error,
+                    "usersAndRolesScreen.voters.errors.createError",
+                    "usersAndRolesScreen.voters.errors.createErrorReason"
+                )
+            )
+            return
         }
+
+        // The voter exists from here on, so the form closes whatever happens
+        // next: submitting it again would only try to create the voter twice.
+        try {
+            if ((user?.password?.length ?? 0) > 0 && createdUserId) {
+                await handleUpdateUserPassword(createdUserId)
+            }
+            notify(t("usersAndRolesScreen.voters.errors.createSuccess"), {type: "success"})
+        } catch (error) {
+            reportSaveError(
+                error,
+                "usersAndRolesScreen.voters.errors.createPasswordError",
+                "usersAndRolesScreen.voters.errors.createPasswordErrorReason"
+            )
+        }
+        refresh()
+        closeForm()
     }
 
     const onSubmit = async () => {
-        if (createMode) {
-            onSubmitCreateUser()
+        // Reachable past the disabled button by submitting the form itself.
+        if (hasFieldErrors) {
             return
         }
+        if (createMode) {
+            await onSubmitCreateUser()
+            return
+        }
+        setSaveError("")
         const diff = computeUserDiff(
             baselineRef.current,
             {user, phoneInputs, selectedActedTrustee},
@@ -572,8 +784,19 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     }
 
     const handleConfirmChanges = async () => {
+        if (!beginSave()) {
+            return
+        }
         try {
             const result = await handleEditUser()
+
+            // Datafix edits run as a task: surface it as soon as the edit is
+            // accepted, so ListUsers can still track an edit that is already
+            // running if a later step fails.
+            const taskExecutionId = result?.data?.edit_user?.task_execution?.id
+            if (taskExecutionId) {
+                onTaskLaunched?.(taskExecutionId)
+            }
 
             const baselineRoleIds = baselineRoleIdsRef.current
             const rolesToRemove = baselineRoleIds.filter(
@@ -601,30 +824,39 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 })
             }
 
+            // Only moved once everything landed, so a retry after a failure
+            // re-applies the whole set. Keycloak joins and leaves a group
+            // idempotently, so re-applying what already landed is harmless.
             baselineRoleIdsRef.current = selectedRoleIds
             if (authContext.userId === user?.id) {
                 authContext.updateTokenAndPermissionLabels()
             }
-            // Datafix edits run as a task: surface it so ListUsers can show
-            // the progress widget, and let the widget report the outcome
-            // instead of a premature success toast. Non-Datafix edits return
-            // no task and are done synchronously here.
-            const taskExecutionId = result?.data?.edit_user?.task_execution?.id
-            if (taskExecutionId) {
-                onTaskLaunched?.(taskExecutionId)
-            } else {
+            // A launched task reports its own outcome in the widget, so a
+            // premature success toast would contradict it.
+            if (!taskExecutionId) {
                 notify(t("usersAndRolesScreen.voters.errors.editSuccess"), {type: "success"})
             }
             refresh()
-            close?.()
+            closeForm()
         } catch (error) {
-            notify(t("usersAndRolesScreen.voters.errors.editError"), {type: "error"})
-            close?.()
+            // Whatever landed before the failure is already committed, so the
+            // list behind the drawer has to catch up either way.
+            refresh()
+            setSaveError(
+                reportSaveError(
+                    error,
+                    "usersAndRolesScreen.voters.errors.editError",
+                    "usersAndRolesScreen.voters.errors.editErrorReason"
+                )
+            )
+        } finally {
+            endSave()
         }
     }
 
     const handleBackToEdit = () => {
         setStep("edit")
+        setSaveError("")
     }
 
     const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -753,25 +985,30 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     : user && user[attr.name as keyof IUser]
                 const displayName = attr.display_name ?? ""
                 const isRequired = isFieldRequired(attr)
+                const optionLabels = getInputOptionLabels(attr)
                 if (attr.annotations?.inputType === "select") {
+                    const configuredOptions: unknown = attr.validations?.options?.options
+                    const options = Array.isArray(configuredOptions)
+                        ? configuredOptions.filter(
+                              (option): option is string => typeof option === "string"
+                          )
+                        : []
+                    const selectOptions: string[] = options.length > 0 ? [...options].sort() : ["-"]
                     return (
                         <Grid key={index} container spacing={2}>
                             <Grid size={12}>
                                 <FormControl fullWidth>
                                     <Autocomplete
-                                        defaultValue={value || null}
-                                        value={value || null}
+                                        value={getAttributeStringValue(value) || null}
                                         onChange={(event, newValue) => {
                                             const fieldName = attr.name || ""
                                             const selectedValue = newValue || ""
                                             handleSelectChange(fieldName)(selectedValue)
                                         }}
-                                        options={
-                                            attr.validations.options?.options
-                                                ? [...attr.validations.options.options].sort()
-                                                : ["-"]
+                                        options={selectOptions}
+                                        getOptionLabel={(option) =>
+                                            getSelectOptionLabel(optionLabels, option, t)
                                         }
-                                        getOptionLabel={(option) => t(option) || String(option)}
                                         renderInput={(params) => (
                                             <TextField
                                                 {...params} // Spread all params provided by Autocomplete
@@ -813,15 +1050,13 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             </Grid>
                         </Grid>
                     )
-                } else if (
-                    attr.annotations?.inputType === "multiselect-checkboxes" &&
-                    attr.annotations?.inputOptionLabels
-                ) {
-                    const choices = Object.entries(attr.annotations?.inputOptionLabels)?.map(
-                        ([key, value]) => {
-                            return {id: key, name: getAttributeLabel(value as string)}
-                        }
-                    )
+                } else if (attr.annotations?.inputType === "multiselect-checkboxes") {
+                    const choices = Object.entries(optionLabels ?? {}).map(([key, value]) => {
+                        return {id: key, name: resolveOptionLabel(value, t)}
+                    })
+                    if (choices.length === 0) {
+                        return
+                    }
                     return (
                         <FormControl key={index} component="fieldset">
                             <FormLabel component="legend" style={{margin: 0}}>
@@ -961,6 +1196,10 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             <AttributeTextInput
                                 key={index}
                                 label={getTranslationLabel(attr.name, attr.display_name, t)}
+                                error={!!lengthErrors[attr.name]}
+                                helperText={lengthErrors[attr.name] ?? lengthHint(attr)}
+                                maxLength={getAttributeLengthBounds(attr)?.max}
+                                onValidate={validateAttribute(attr)}
                                 value={value}
                                 onCommit={(newValue) => {
                                     const attrName = attr.name as string
@@ -990,7 +1229,28 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 key={attr.display_name}
                                 label={getTranslationLabel(attr.name, attr.display_name, t)}
                                 onChange={handleChange}
+                                onBlur={(event) => validateAttribute(attr)(event.target.value)}
                                 source={attr.name}
+                                helperText={lengthErrors[attr.name] ?? lengthHint(attr)}
+                                slotProps={{
+                                    htmlInput: {
+                                        "maxLength": getAttributeLengthBounds(attr)?.max,
+                                        "aria-invalid": !!lengthErrors[attr.name],
+                                    },
+                                }}
+                                sx={
+                                    lengthErrors[attr.name]
+                                        ? {
+                                              "& .MuiFormHelperText-root": {
+                                                  color: "error.main",
+                                              },
+                                              "& .MuiOutlinedInput-root fieldset": {
+                                                  borderColor: "error.main",
+                                              },
+                                              "& .MuiInputLabel-root": {color: "error.main"},
+                                          }
+                                        : undefined
+                                }
                                 required={isFieldRequired(attr)}
                                 disabled={
                                     (attr.name === "username" && !createMode) ||
@@ -1010,7 +1270,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 )
             }
         },
-        [user, permissionLabels, choices, electionsList]
+        [user, permissionLabels, choices, electionsList, lengthErrors]
     )
 
     const visibleUserAttributes = useMemo(
@@ -1062,6 +1322,16 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         />
     )
 
+    const alertMessage =
+        saveError ||
+        (hasFieldErrors ? t("usersAndRolesScreen.voters.errors.attribute.fieldsToCorrect") : "")
+
+    const saveErrorAlert = alertMessage ? (
+        <WizardStyles.ErrorMessage variant="body2" role="alert" className="edit-voter-save-error">
+            {alertMessage}
+        </WizardStyles.ErrorMessage>
+    ) : null
+
     if (!user && !createMode) {
         return null
     }
@@ -1101,7 +1371,16 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         <PageHeaderStyles.Wrapper>
             <VoterEditorRoot customCss={voterEditorCss} mode={createMode ? "create" : "edit"}>
                 <SimpleForm
-                    toolbar={step === "edit" ? <SaveButton alwaysEnable={!errorText} /> : false}
+                    toolbar={
+                        step === "edit" ? (
+                            <SaveButton
+                                alwaysEnable={!errorText && !saving && !hasFieldErrors}
+                                disabled={saving || hasFieldErrors}
+                            />
+                        ) : (
+                            false
+                        )
+                    }
                     record={user}
                     onSubmit={onSubmit}
                     sanitizeEmptyValues
@@ -1282,6 +1561,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 }
                             />
                         ) : null}
+                        {step === "edit" && saveErrorAlert}
                     </Box>
                     {!createMode && step === "review" && (
                         <Box sx={{width: "100%"}}>
@@ -1302,11 +1582,13 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 rows={reviewRows}
                                 headingRef={reviewHeadingRef}
                             />
+                            {saveErrorAlert}
                             <WizardStyles.FooterContainer>
                                 <WizardStyles.StyledFooter>
                                     <WizardStyles.BackButton
                                         type="button"
                                         onClick={handleBackToEdit}
+                                        disabled={saving}
                                         className="edit-voter-review-edit-button"
                                     >
                                         {t("common.label.edit")}
@@ -1314,6 +1596,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                     <WizardStyles.NextButton
                                         type="button"
                                         onClick={handleConfirmChanges}
+                                        disabled={saving}
                                         className="edit-voter-review-confirm-button"
                                     >
                                         {t(

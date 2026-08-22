@@ -191,7 +191,18 @@ type Mutation {
     delete_users(
         tenant_id: String!
         election_event_id: String
-        users_id: [String!]!
+        election_id: String
+        users_id: [String!]
+        select_all: Boolean
+        first_name: json
+        last_name: json
+        username: json
+        email: json
+        attributes: json
+        has_voted: Boolean
+        enabled: Boolean
+        email_verified: Boolean
+        authorized_to_election_alias: String
     ): DeleteUsersOutput
 }
 
@@ -1565,6 +1576,8 @@ type UserProfileConfiguration {
 
 type DeleteUsersOutput {
     ids: String
+    error_msg: String
+    task_execution: tasks_execution_type
 }
 
 type ExportTasksOutput {

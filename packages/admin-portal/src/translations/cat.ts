@@ -244,6 +244,7 @@ const catalanTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "Exportar plantilles",
                 IMPORT_TEMPLATES: "Importar plantilles",
                 DELETE_ELECTION_EVENT: "Esborrar esdeveniment electoral",
+                DELETE_VOTERS: "Delete Voters",
                 PREPARE_PUBLICATION_PREVIEW: "Preparar la vista prèvia de la publicació",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporta els resultats del recompte en format XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Exportar autoritats de certificació",
@@ -1034,6 +1035,13 @@ const catalanTranslation: TranslationType = {
                     disabled: "Desactivat",
                 },
             },
+            blankBallotsPolicy: {
+                label: "Política de paperetes en blanc",
+                options: {
+                    enabled: "Habilitat",
+                    disabled: "Desactivat",
+                },
+            },
             votingScreenBackPolicy: {
                 label: "Política del botó Enrere de la pantalla de votació",
                 options: {
@@ -1128,6 +1136,11 @@ const catalanTranslation: TranslationType = {
                 delete: {
                     body: "Estàs segur que vols esborrar aquest usuari?",
                     bulkBody: "Estàs segur que vols esborrar els usuaris seleccionats?",
+                    bulkBodySelected: "Delete the {{count}} selected users? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} users are selected. You can instead delete every user matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Error exportant usuaris",
@@ -1180,13 +1193,41 @@ const catalanTranslation: TranslationType = {
                 },
                 errors: {
                     editError: "Error editant votant",
+                    editErrorReason: "Error editant votant: {{reason}}",
                     editSuccess: "Votant editat",
                     createError: "Error creant votant",
+                    createErrorReason: "Error creant votant: {{reason}}",
                     createSuccess: "Votant creat",
+                    attribute: {
+                        invalidNamed: 'S\'ha rebutjat "{{field}}": {{constraint}}',
+                        fieldsToCorrect: "Alguns camps s'han de corregir abans de desar",
+                        hintBetween: "Entre {{min}} i {{max}} caràcters",
+                        hintMin: "Com a mínim {{min}} caràcters",
+                        hintMax: "Com a màxim {{max}} caràcters",
+                        andMore: "i {{count}} més",
+                        invalidLength: '"{{field}}" ha de tenir entre {{min}} i {{max}} caràcters',
+                        tooShort: '"{{field}}" ha de tenir com a mínim {{min}} caràcters',
+                        tooLong: '"{{field}}" ha de tenir com a màxim {{max}} caràcters',
+                        required: '"{{field}}" és obligatori',
+                        invalidEmail:
+                            '"{{field}}" ha de ser una adreça de correu electrònic vàlida',
+                        invalidFormat: '"{{field}}" no té el format esperat',
+                        invalid: '"{{field}}" té un valor no vàlid',
+                    },
+                    createPasswordError:
+                        "Votant creat, però no s'ha pogut establir la seva contrasenya",
+                    createPasswordErrorReason:
+                        "Votant creat, però no s'ha pogut establir la seva contrasenya: {{reason}}",
                 },
                 delete: {
                     body: "Estàs segur que vols esborrar aquest votant?",
                     bulkBody: "Estàs segur que vols esborrar els votants seleccionats?",
+                    bulkBodySelected:
+                        "Delete the {{count}} selected voters? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} voters are selected. You can instead delete every voter matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Error exportant votants",
@@ -2238,6 +2279,7 @@ const catalanTranslation: TranslationType = {
                     round: "Ronda",
                 },
                 total_declined_to_vote: "Total de vots de renúncia",
+                total_blank_ballots: "Total de Paperetes en Blanc",
                 participation_by_channel: "Participació per canal",
                 channel: "Canal",
                 channel_online: "En línia",
@@ -2439,8 +2481,19 @@ const catalanTranslation: TranslationType = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "El total de vots vàlids no coincideix amb la suma dels vots dels candidats més els vots en blanc",
-                censusTooSmall: "El cens ha de ser major o igual al total de vots",
+                    "Els vots de candidats ({{candidateVotesSum}}) han d'estar entre {{lowerBound}} i {{upperBound}} segons les regles de votació d'aquesta contesa ({{nonBlankValidVotes}} vots vàlids no en blanc × fins a {{maxMarks}} marques per papereta)",
+                censusTooSmall:
+                    "El total de vots ({{totalVotes}}) no pot ser major que el cens ({{census}})",
+                totalInvalidDoesNotMatch:
+                    "El total de vots invàlids ({{totalInvalid}}) ha de ser igual als vots invàlids implícits ({{implicitInvalid}}) més els vots invàlids explícits ({{explicitInvalid}})",
+                totalVotesDoesNotMatch:
+                    "El total de vots ({{totalVotes}}) ha de ser igual al total de vots vàlids ({{totalValidVotes}}) més el total de vots invàlids ({{totalInvalid}})",
+                unknownCountingAlgorithm:
+                    "L'algorisme de recompte d'aquesta contesa ({{countingAlgorithm}}) no es reconeix, de manera que no es pot determinar el nombre permès de vots de candidats. Reviseu la configuració de la contesa.",
+                blankBallotsInconsistent:
+                    "Les Paperetes en Blanc han de tenir el mateix valor a tots els fulls de contesa d'aquesta urna",
+                blankBallotsOutOfBounds:
+                    "El valor de Paperetes en Blanc està fora del rang que impliquen els recomptes de vots en blanc per contesa d'aquesta urna",
             },
             label: {
                 area: "Àrea",
@@ -2451,6 +2504,7 @@ const catalanTranslation: TranslationType = {
                 explicit_invalid: "Vots Explícitament Invàlids",
                 implicit_invalid: "Vots Implícitament Invàlids",
                 total_blank_votes: "Vots en Blanc Totals",
+                blank_ballots: "Paperetes en Blanc",
                 census: "Cens",
             },
             common: {
