@@ -4223,6 +4223,63 @@ pub struct Compiled {
     pub report: Report,
 }
 
+/// Voter Messaging's templates, into the same list a Templates sheet produces.
+///
+/// **So they reach `export_templates-<tenant>.csv`.** The wizard wrote them to
+/// `admin_portal/communication_templates.json` and nowhere else — a loose member of
+/// the delivery, because `archive::admin_portal_member` does not match that name,
+/// so it lands *outside* `admin_portal_settings.zip` while the CSV of the same
+/// concept lands inside it. Two files, two places, one idea, and the person loading
+/// them has to know that.
+///
+/// Appended to `bundle.templates` rather than written as a Templates sheet, and
+/// that is a decision worth recording: a sheet would have to be merged with the one
+/// a janitor's workbook carries, and the merged row then has to survive
+/// `a_plan_round_trips_to_the_same_workbook` — the same cells, in the same order,
+/// coerced the same way, with `Translated` filled per language exactly as the
+/// Messages sheet fills it. Three chances to be subtly wrong for no gain: the
+/// delivery's spreadsheet already has a Messages tab, so the sheet would say the
+/// same thing twice.
+///
+/// **This does not put a template in the election-event import.** `templates/` and
+/// `export_templates-` are both `admin_portal_member`, so they travel in the Admin
+/// Portal's settings zip — which is what a tenant's templates are loaded through,
+/// and the invariant `messages_leave_as_two_files_outside_the_bundle` is really
+/// about.
+///
+/// The document is the JSON the loose file already carries per template, with the
+/// same three keys. Not an invention: the one shape the wizard has committed to for
+/// this content, in the column the reader looks up by.
+#[cfg(feature = "election_config_archive")]
+fn add_message_templates(plan: &Blueprint, bundle: &mut super::build::Bundle) {
+    for message in &plan.messages {
+        let alias = message.kind.alias();
+        // A template the workbook already carries under this alias wins. Two with
+        // one alias is what `build_templates` refuses outright, and a client's own
+        // wording is not this screen's to overwrite.
+        if bundle
+            .templates
+            .iter()
+            .any(|template| template.alias == alias)
+        {
+            continue;
+        }
+        bundle.templates.push(super::build::CommunicationTemplate {
+            name: alias.to_string(),
+            alias: alias.to_string(),
+            document: serde_json::json!({
+                "subject": message.subject,
+                "body": message.body,
+                "body_html": message.html,
+            })
+            .to_string(),
+            communication_method: Some("email".to_string()),
+            template_type: Some("voter".to_string()),
+            selected_methods: None,
+        });
+    }
+}
+
 /// Turn a plan into what it is for.
 ///
 /// This is the function the wizard and the CLI both call, and until it existed
@@ -4354,7 +4411,8 @@ pub fn compile_plan(request: Compile<'_>) -> Result<Compiled, Report> {
         materials: plan_materials(plan, sources),
         ..options.clone()
     };
-    let bundle = build(&workbook, templates, &with_ceremony, sources)?;
+    let mut bundle = build(&workbook, templates, &with_ceremony, sources)?;
+    add_message_templates(plan, &mut bundle);
 
     for problem in bundle.warnings.problems.clone() {
         report.push(problem);

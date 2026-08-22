@@ -3303,6 +3303,115 @@ fn a_message_that_does_not_repeat_is_not_asked_for_an_hour() {
     );
 }
 
+/// Voter Messaging's templates reach `export_templates-<tenant>.csv`.
+///
+/// **They reached one file and it was the wrong shape of place.**
+/// `admin_portal/communication_templates.json` is a loose member of the delivery —
+/// `archive::admin_portal_member` does not match that name — so it sat *outside*
+/// `admin_portal_settings.zip` while the CSV of the same concept sat inside it. Two
+/// files, two places, one idea, and whoever loads them has to know that.
+///
+/// Asserted through `compile_plan` rather than `build`, which is the seam: the
+/// builder still mints nothing from a message, and the wizard's compile adds them
+/// afterwards. `messages_leave_as_two_files_outside_the_bundle` below still holds.
+#[test]
+fn a_message_becomes_a_template_the_admin_portal_can_load() {
+    let mut plan = sound();
+    plan.messages = vec![PlannedMessage {
+        kind: MessageKind::GetOutTheVote,
+        subject: Translated::new("You have not voted yet"),
+        body: Translated::new("There is still time."),
+        ..Default::default()
+    }];
+
+    let templates = TemplateSet::builtin().unwrap();
+    let compiled = compile_plan(Compile {
+        plan: &plan,
+        templates: &templates,
+        options: &BuildOptions::default(),
+        profile: None,
+        sources: None,
+    })
+    .expect("a sound plan compiles");
+
+    let csv = compiled
+        .layout
+        .auxiliary
+        .iter()
+        .find(|artifact| artifact.name.starts_with("export_templates-"))
+        .unwrap_or_else(|| {
+            panic!(
+                "expected a templates CSV, got: {:?}",
+                compiled
+                    .layout
+                    .auxiliary
+                    .iter()
+                    .map(|artifact| artifact.name.as_str())
+                    .collect::<Vec<_>>()
+            )
+        });
+    let text = String::from_utf8(csv.bytes.clone()).expect("text");
+    assert!(text.contains("get-out-the-vote"), "{text}");
+    assert!(text.contains("You have not voted yet"), "{text}");
+
+    // Still not in the import. `export_templates-` is an `admin_portal_member`, so
+    // it rides in the Portal's settings zip — an election event that could rewrite
+    // a tenant's templates is the thing this whole arrangement prevents.
+    assert!(!compiled
+        .layout
+        .importable
+        .iter()
+        .any(|artifact| artifact.name.starts_with("export_templates-")));
+}
+
+/// A template the workbook already carries is not overwritten by a message.
+#[test]
+fn a_carried_template_wins_over_a_message_of_the_same_name() {
+    // Two templates with one alias is what `build_templates` refuses outright, and
+    // a client's own wording is not a screen's to replace.
+    let mut plan = sound();
+    plan.messages = vec![PlannedMessage {
+        kind: MessageKind::GetOutTheVote,
+        subject: Translated::new("The wizard's words"),
+        ..Default::default()
+    }];
+    plan.platform = vec![sheet::Sheet::from_grid(
+        "Templates",
+        &[
+            vec![
+                Cell::text("alias"),
+                Cell::text("name"),
+                Cell::text("template.document"),
+            ],
+            vec![
+                Cell::text("get-out-the-vote"),
+                Cell::text("Theirs"),
+                Cell::text("the client's own words"),
+            ],
+        ],
+    )
+    .expect("a sheet")];
+
+    let templates = TemplateSet::builtin().unwrap();
+    let compiled = compile_plan(Compile {
+        plan: &plan,
+        templates: &templates,
+        options: &BuildOptions::default(),
+        profile: None,
+        sources: None,
+    })
+    .expect("it compiles");
+
+    let minted: Vec<&str> = compiled
+        .bundle
+        .templates
+        .iter()
+        .filter(|template| template.alias == "get-out-the-vote")
+        .map(|template| template.document.as_str())
+        .collect();
+    assert_eq!(minted, vec!["the client's own words"]);
+}
+
 /// Templates belong to the tenant, so they travel beside the import, not in it.
 #[test]
 fn messages_leave_as_two_files_outside_the_bundle() {
