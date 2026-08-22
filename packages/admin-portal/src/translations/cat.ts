@@ -1199,6 +1199,7 @@ const catalanTranslation: TranslationType = {
                     createErrorReason: "Error creant votant: {{reason}}",
                     createSuccess: "Votant creat",
                     attribute: {
+                        fieldsToCorrect: "Corregiu {{count}} camp(s) abans de desar",
                         hintBetween: "Entre {{min}} i {{max}} caràcters",
                         hintMin: "Com a mínim {{min}} caràcters",
                         hintMax: "Com a màxim {{max}} caràcters",

@@ -58,7 +58,7 @@ pub struct UserProfileValidationError {
     #[serde(rename = "errorMessage")]
     pub error_message: Option<String>,
     #[serde(default)]
-    pub params: Vec<Value>,
+    pub params: Option<Vec<Value>>,
 }
 
 /// Keycloak reports several rejected attributes as a list and a single one as a
@@ -73,8 +73,13 @@ enum UserProfileValidationBody {
 }
 
 impl UserProfileValidationError {
+    /// Keycloak reports every error in this shape, and the untagged parse below
+    /// accepts any object, so only an entry that names the attribute it refused
+    /// is one of these. Without a name it is some other rejection — a password
+    /// against the realm policy, for instance — and belongs to whatever handles
+    /// that instead.
     fn is_meaningful(&self) -> bool {
-        self.field.is_some() || self.error_message.is_some()
+        self.field.is_some()
     }
 }
 
@@ -660,7 +665,17 @@ mod tests {
             errors[0].error_message.as_deref(),
             Some("error-invalid-length")
         );
-        assert_eq!(errors[0].params.len(), 3);
+        assert_eq!(errors[0].params.as_ref().map(Vec::len), Some(3));
+    }
+
+    #[test]
+    fn reads_an_attribute_whose_arguments_keycloak_left_null() {
+        let errors = get_user_profile_validation_errors(&bad_request(
+            r#"{"field":"roll","errorMessage":"error-invalid-length","params":null}"#,
+        ));
+
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].field.as_deref(), Some("roll"));
     }
 
     #[test]
@@ -671,6 +686,16 @@ mod tests {
 
         assert_eq!(errors.len(), 2);
         assert_eq!(errors[1].field.as_deref(), Some("ward"));
+    }
+
+    #[test]
+    fn says_nothing_about_a_rejection_that_carries_no_attribute_name() {
+        // Keycloak's generic error shape: a rejected password reads like this,
+        // and is not a refused attribute.
+        assert!(get_user_profile_validation_errors(&bad_request(
+            r#"{"errorMessage":"invalidPasswordMinLengthMessage","params":["8"]}"#
+        ))
+        .is_empty());
     }
 
     #[test]

@@ -67,6 +67,9 @@ the columns selector or the filters, and is not shown as a field.
 Hiding an attribute does not remove or alter it. Its value is still stored, still carried through
 when a voter is edited, and still included when voters are exported.
 
+Do not mark an attribute both hidden and required: creating a voter through the Admin Portal would
+then be impossible, since the field it insists on is one the form does not show.
+
 Note this is different from setting the `Input type` annotation to `hidden`, which is Keycloak's own
 way of rendering an attribute as a hidden input on a form rather than keeping it off the form.
 
@@ -80,7 +83,8 @@ checks the value when the field is left. A value that breaks a bound marks the f
 bound it broke, and the voter cannot be saved until it is corrected.
 
 A field with a maximum also stops accepting characters once it is reached, so the maximum cannot be
-exceeded by typing. Note that pasting a longer value into such a field keeps only what fits, without
+exceeded by typing. That count is of the characters as typed, so a value padded with spaces can stop
+being accepted a little before the validator would object to it. Note that pasting a longer value into such a field keeps only what fits, without
 warning, and that a stored value already longer than the maximum can only be shortened, never
 extended — in that case the field reports the value as too long until it is brought within the
 bound. A minimum cannot be applied while typing at all, so it is only checked when the field is
@@ -90,7 +94,9 @@ By default Keycloak measures the value with leading and trailing spaces removed,
 Portal measures it the same way. Setting the validator's `trim-disabled` option changes both.
 
 A bound that is somehow reached anyway — a value written by an import, or an attribute the form does
-not show — is still refused on save, and reported naming each field and the bound it broke.
+not show — is refused on save and reported naming each field and the bound it broke. Note that on
+Datafix election events the save is carried out by a background task, so its refusal is reported
+through that task rather than in the form.
 
 ## Localization Overrides
 

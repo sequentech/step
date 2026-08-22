@@ -125,7 +125,7 @@ export const resolveOptionLabel = (label: string, t: (key: string) => string): s
  * itself, which is how this form has always let an option be given a readable
  * name. Returns undefined when the option is left undescribed.
  */
-export const getSelectOptionDescription = (
+const getSelectOptionDescription = (
     optionLabels: Record<string, string> | undefined,
     option: string,
     t: (key: string) => string
@@ -156,7 +156,7 @@ export const getSelectOptionLabel = (
 }
 
 const toPositiveInteger = (value: unknown): number | undefined => {
-    const parsed = typeof value === "string" ? Number.parseInt(value, 10) : value
+    const parsed = typeof value === "string" ? Number(value) : value
 
     return typeof parsed === "number" && Number.isInteger(parsed) && parsed > 0 ? parsed : undefined
 }
@@ -164,11 +164,11 @@ const toPositiveInteger = (value: unknown): number | undefined => {
 export interface AttributeLengthBounds {
     min?: number
     max?: number
-    /// Whether the bounds are measured against the trimmed value.
+    /** Whether the bounds are measured against the trimmed value. */
     trim: boolean
 }
 
-export type AttributeLengthViolation = "tooShort" | "tooLong"
+type AttributeLengthViolation = "tooShort" | "tooLong"
 
 /**
  * The character bounds Keycloak's `length` validator puts on an attribute, or
@@ -185,7 +185,9 @@ export const getAttributeLengthBounds = (
         | null
         | undefined
     const length = validations?.length
-    if (!length) {
+    // A string or an array in the jsonb would answer `.length` with a number,
+    // off which a bound would then be read.
+    if (typeof length !== "object" || length === null || Array.isArray(length)) {
         return undefined
     }
 
@@ -207,7 +209,7 @@ export const getAttributeLengthBounds = (
  * is a matter for the attribute being required, which the form states
  * separately, so a minimum only bounds a value that is actually there.
  */
-export const getAttributeLengthViolation = (
+const getAttributeLengthViolation = (
     bounds: AttributeLengthBounds | undefined,
     value: string
 ): AttributeLengthViolation | undefined => {
@@ -229,7 +231,7 @@ export const getAttributeLengthViolation = (
     return undefined
 }
 
-export type AttributeViolation = AttributeLengthViolation | "required"
+type AttributeViolation = AttributeLengthViolation | "required"
 
 /**
  * What a touched field has to report, or undefined when it has nothing to
@@ -254,15 +256,16 @@ export const getAttributeViolation = (
  *
  * This is Sequent's own annotation rather than a Keycloak one: Keycloak stores
  * and returns it without acting on it, and the login theme reads it to keep the
- * attribute off the voter-facing forms. Keycloak's admin console writes
- * annotation values as strings while a realm configuration can carry a boolean,
- * so both are accepted, matching how the enrollment extension reads it.
+ * attribute off the voter-facing forms. It is read exactly as the theme reads
+ * it, so an attribute cannot end up hidden here and shown to voters: the theme
+ * matches the literal string, which is what Keycloak's admin console writes,
+ * and a realm configuration can carry the boolean instead.
  */
 export const isHiddenAttribute = (attribute: UserProfileAttribute): boolean => {
     const annotations = attribute.annotations as {hidden?: unknown} | null | undefined
     const hidden = annotations?.hidden
 
-    return hidden === true || (typeof hidden === "string" && hidden.trim().toLowerCase() === "true")
+    return hidden === true || hidden === "true"
 }
 
 /**

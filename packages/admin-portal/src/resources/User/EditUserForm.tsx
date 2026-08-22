@@ -136,6 +136,15 @@ const AttributeTextInput: React.FC<AttributeTextInputProps> = ({
                     onCommit(event.target.value)
                 }
             }}
+            onKeyDown={(event) => {
+                // This field only writes back on blur, and submitting the form
+                // with Enter does not blur it, so the value being typed would
+                // be dropped and never checked. Enter commits it instead.
+                if (event.key === "Enter") {
+                    event.preventDefault()
+                    event.currentTarget.blur()
+                }
+            }}
             disabled={disabled}
             error={error}
             helperText={helperText}
@@ -506,8 +515,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         closedRef.current = true
     }
 
-    // Stated under the field so the bound is known before it is broken, and
-    // measured on blur so nothing the admin types is ever altered for them.
+    // Stated under the field so the bound is known before it is broken.
     const lengthHint = (attr: UserProfileAttribute): string | undefined => {
         const bounds = getStatedLengthBounds(getAttributeLengthBounds(attr))
         if (!bounds) {
@@ -535,18 +543,21 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             return undefined
         }
 
+        // Quotes the bounds the field states, so the two cannot disagree over a
+        // bound the hint deliberately leaves unsaid.
+        const stated = getStatedLengthBounds(bounds) ?? bounds
         const field = getTranslationLabel(attr.name, attr.display_name, t)
         // Both bounds together read better as one sentence than as whichever
         // end the value happened to fall off.
         const messageKey =
-            violation !== "required" && bounds?.min !== undefined && bounds?.max !== undefined
+            violation !== "required" && stated?.min !== undefined && stated?.max !== undefined
                 ? "invalidLength"
                 : violation
 
         return t(`usersAndRolesScreen.voters.errors.attribute.${messageKey}`, {
             field,
-            min: bounds?.min,
-            max: bounds?.max,
+            min: stated?.min,
+            max: stated?.max,
         })
     }
 
@@ -928,10 +939,13 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 const isRequired = isFieldRequired(attr)
                 const optionLabels = getInputOptionLabels(attr)
                 if (attr.annotations?.inputType === "select") {
-                    const configuredOptions = attr.validations?.options?.options
-                    const selectOptions: string[] = Array.isArray(configuredOptions)
-                        ? [...configuredOptions].sort()
-                        : ["-"]
+                    const configuredOptions: unknown = attr.validations?.options?.options
+                    const options = Array.isArray(configuredOptions)
+                        ? configuredOptions.filter(
+                              (option): option is string => typeof option === "string"
+                          )
+                        : []
+                    const selectOptions: string[] = options.length > 0 ? [...options].sort() : ["-"]
                     return (
                         <Grid key={index} container spacing={2}>
                             <Grid size={12}>
@@ -1171,6 +1185,12 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 onBlur={(event) => validateAttribute(attr)(event.target.value)}
                                 source={attr.name}
                                 helperText={lengthErrors[attr.name] ?? lengthHint(attr)}
+                                slotProps={{
+                                    htmlInput: {
+                                        "maxLength": getAttributeLengthBounds(attr)?.max,
+                                        "aria-invalid": !!lengthErrors[attr.name],
+                                    },
+                                }}
                                 sx={
                                     lengthErrors[attr.name]
                                         ? {
@@ -1184,9 +1204,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                           }
                                         : undefined
                                 }
-                                slotProps={{
-                                    htmlInput: {maxLength: getAttributeLengthBounds(attr)?.max},
-                                }}
                                 required={isFieldRequired(attr)}
                                 disabled={
                                     (attr.name === "username" && !createMode) ||
@@ -1227,11 +1244,25 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         ))
     }, [userAttributes, user, permissionLabels, choices, electionsList, lengthErrors])
 
-    const hasFieldErrors = Object.keys(lengthErrors).length > 0
+    // Kept to the attributes actually on the form: an error left against one
+    // that is no longer shown could never be cleared, and would hold the save
+    // for good.
+    const fieldErrorCount = userAttributes.filter(
+        (attr) => attr.name && lengthErrors[attr.name]
+    ).length
+    const hasFieldErrors = fieldErrorCount > 0
 
-    const saveErrorAlert = saveError ? (
+    const alertMessage =
+        saveError ||
+        (hasFieldErrors
+            ? t("usersAndRolesScreen.voters.errors.attribute.fieldsToCorrect", {
+                  count: fieldErrorCount,
+              })
+            : "")
+
+    const saveErrorAlert = alertMessage ? (
         <WizardStyles.ErrorMessage variant="body2" role="alert" className="edit-voter-save-error">
-            {saveError}
+            {alertMessage}
         </WizardStyles.ErrorMessage>
     ) : null
 

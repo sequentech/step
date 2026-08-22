@@ -10,16 +10,16 @@ export type TranslateMessage = (key: string, options?: Record<string, unknown>) 
 
 export const USER_PROFILE_VALIDATION_ERROR_CODE = "UserProfileValidation"
 
-export interface UserProfileValidation {
+interface UserProfileValidation {
     field?: string
     error?: string
     params: unknown[]
 }
 
-export interface UserProfileValidations {
-    /// The refused attributes Harvest reported, capped on its side.
+interface UserProfileValidations {
+    /** The refused attributes Harvest reported, capped on its side. */
     reported: UserProfileValidation[]
-    /// Everything Keycloak refused, which can exceed what was reported.
+    /** Everything Keycloak refused, which can exceed what was reported. */
     total: number
 }
 
@@ -37,12 +37,14 @@ const CONSTRAINT_MESSAGES: Record<string, string> = {
 
 const readValidation = (value: unknown): UserProfileValidation | undefined => {
     const entry = value as {field?: unknown; error?: unknown; params?: unknown} | undefined
-    if (typeof entry !== "object" || entry === null) {
+    // Only an entry naming the attribute it refused is one of these, the same
+    // way Harvest decides it.
+    if (typeof entry !== "object" || entry === null || typeof entry.field !== "string") {
         return undefined
     }
 
     return {
-        field: typeof entry.field === "string" ? entry.field : undefined,
+        field: entry.field,
         error: typeof entry.error === "string" ? entry.error : undefined,
         params: Array.isArray(entry.params) ? entry.params : [],
     }
@@ -81,10 +83,11 @@ const readValidations = (value: unknown): UserProfileValidations | undefined => 
  * one. Harvest forwards the attribute and the constraint's arguments, so the
  * admin can be told which field to correct rather than that something failed.
  */
-export const getUserProfileValidations = (error: unknown): UserProfileValidations | undefined => {
+const getUserProfileValidations = (error: unknown): UserProfileValidations | undefined => {
     const actionError = error as IGraphQLActionError | undefined
+    const graphQLErrors = Array.isArray(actionError?.graphQLErrors) ? actionError.graphQLErrors : []
 
-    for (const graphQLError of actionError?.graphQLErrors ?? []) {
+    for (const graphQLError of graphQLErrors) {
         const direct = readValidations(graphQLError.extensions)
         if (direct) {
             return direct
@@ -129,7 +132,7 @@ const describeValidation = (
     const messageKey = CONSTRAINT_MESSAGES[validation.error ?? ""] ?? "invalid"
 
     return t(`usersAndRolesScreen.voters.errors.attribute.${messageKey}`, {
-        field: (resolveFieldLabel && field ? resolveFieldLabel(field) : field) || field,
+        field: resolveFieldLabel && field ? resolveFieldLabel(field) : field,
         ...interpolation(messageKey, constraintArguments(validation)),
     })
 }

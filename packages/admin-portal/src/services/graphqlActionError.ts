@@ -48,8 +48,9 @@ const readableReason = (value: unknown): string | undefined => {
  */
 export const getGraphQLActionErrorReason = (error: unknown): string | undefined => {
     const actionError = error as IGraphQLActionError | undefined
+    const graphQLErrors = Array.isArray(actionError?.graphQLErrors) ? actionError.graphQLErrors : []
 
-    for (const graphQLError of actionError?.graphQLErrors ?? []) {
+    for (const graphQLError of graphQLErrors) {
         const responseBody = parseActionResponseBody(
             graphQLError.extensions?.internal?.response?.body
         ) as {message?: unknown} | undefined

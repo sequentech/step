@@ -1197,6 +1197,7 @@ const galegoTranslation: TranslationType = {
                     createErrorReason: "Erro ao crear o votante: {{reason}}",
                     createSuccess: "Votante creado",
                     attribute: {
+                        fieldsToCorrect: "Corrixa {{count}} campo(s) antes de gardar",
                         hintBetween: "Entre {{min}} e {{max}} caracteres",
                         hintMin: "Polo menos {{min}} caracteres",
                         hintMax: "Como máximo {{max}} caracteres",

@@ -1200,6 +1200,7 @@ const frenchTranslation: TranslationType = {
                     createErrorReason: "Erreur lors de la création de l'électeur : {{reason}}",
                     createSuccess: "Électeur créé",
                     attribute: {
+                        fieldsToCorrect: "Corrigez {{count}} champ(s) avant d'enregistrer",
                         hintBetween: "Entre {{min}} et {{max}} caractères",
                         hintMin: "Au moins {{min}} caractères",
                         hintMax: "Au maximum {{max}} caractères",

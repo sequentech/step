@@ -198,6 +198,29 @@ describe("getSaveUserErrorMessage", () => {
         expect(message).toContain("field=ward")
     })
 
+    // Keycloak's generic error shape carries no field, and is not a refused
+    // attribute; reporting it as one would name no field at all.
+    it("ignores a reported entry that names no attribute", () => {
+        const message = getSaveUserErrorMessage(
+            {
+                graphQLErrors: [
+                    {
+                        message: "The password does not comply with the policy",
+                        extensions: profileErrors([
+                            {error: "invalidPasswordMessage", params: ["8"]},
+                        ]),
+                    },
+                ],
+            },
+            MESSAGE_KEY,
+            REASON_KEY,
+            translate
+        )
+
+        expect(message).not.toContain("attribute.")
+        expect(message).toContain("The password does not comply with the policy")
+    })
+
     it("falls back to a generic wording for a constraint it does not know", () => {
         const message = getSaveUserErrorMessage(
             {

@@ -5,13 +5,11 @@
 import {UserProfileAttribute} from "@/gql/graphql"
 import {
     getAttributeLengthBounds,
-    getAttributeLengthViolation,
     getAttributeViolation,
     getInputOptionLabels,
+    getSelectOptionLabel,
     getStatedLengthBounds,
     isHiddenAttribute,
-    getSelectOptionDescription,
-    getSelectOptionLabel,
     resolveOptionLabel,
 } from "./UserService"
 
@@ -79,39 +77,6 @@ describe("resolveOptionLabel", () => {
 
     it("leaves a description that merely contains a dollar sign alone", () => {
         expect(resolveOptionLabel("Paid $0. Non-member", translate())).toBe("Paid $0. Non-member")
-    })
-})
-
-describe("getSelectOptionDescription", () => {
-    it("reads the description configured for the option", () => {
-        expect(getSelectOptionDescription({M: "Male"}, "M", translate())).toBe("Male")
-    })
-
-    it("localizes a description written as a placeholder", () => {
-        expect(
-            getSelectOptionDescription({M: "${sex_male}"}, "M", translate({sex_male: "Hombre"}))
-        ).toBe("Hombre")
-    })
-
-    it("falls back to a readable name when the placeholder has no override", () => {
-        expect(getSelectOptionDescription({M: "${sex_male}"}, "M", translate())).toBe("Sex Male")
-    })
-
-    it("leaves a description that merely contains a dollar sign alone", () => {
-        expect(getSelectOptionDescription({A: "Paid $0. Non-member"}, "A", translate())).toBe(
-            "Paid $0. Non-member"
-        )
-    })
-
-    it("falls back to a localization override of the option itself", () => {
-        expect(getSelectOptionDescription(undefined, "M", translate({M: "Male"}))).toBe("Male")
-    })
-
-    it("returns undefined when the option is left undescribed", () => {
-        expect(getSelectOptionDescription({F: "Female"}, "M", translate())).toBeUndefined()
-        expect(getSelectOptionDescription(undefined, "M", translate())).toBeUndefined()
-        // A description that is just the option carries nothing the option does not.
-        expect(getSelectOptionDescription({M: "M"}, "M", translate())).toBeUndefined()
     })
 })
 
@@ -184,39 +149,6 @@ describe("getAttributeLengthBounds", () => {
     })
 })
 
-describe("getAttributeLengthViolation", () => {
-    const bounds = getAttributeLengthBounds(attribute({validations: {length: {min: 2, max: 4}}}))
-
-    it("names the bound the value breaks", () => {
-        expect(getAttributeLengthViolation(bounds, "a")).toBe("tooShort")
-        expect(getAttributeLengthViolation(bounds, "abcde")).toBe("tooLong")
-    })
-
-    it("accepts a value within the bounds, including at them", () => {
-        expect(getAttributeLengthViolation(bounds, "ab")).toBeUndefined()
-        expect(getAttributeLengthViolation(bounds, "abcd")).toBeUndefined()
-    })
-
-    it("leaves an absent value to the attribute being required", () => {
-        expect(getAttributeLengthViolation(bounds, "")).toBeUndefined()
-        expect(getAttributeLengthViolation(bounds, "   ")).toBeUndefined()
-    })
-
-    it("measures the same string Keycloak will", () => {
-        // Trimmed by default, so the surrounding spaces are not characters.
-        expect(getAttributeLengthViolation(bounds, "  ab  ")).toBeUndefined()
-
-        const untrimmed = getAttributeLengthBounds(
-            attribute({validations: {length: {"min": 2, "max": 4, "trim-disabled": "true"}}})
-        )
-        expect(getAttributeLengthViolation(untrimmed, "  ab  ")).toBe("tooLong")
-    })
-
-    it("bounds nothing when the attribute bounds nothing", () => {
-        expect(getAttributeLengthViolation(undefined, "anything at all")).toBeUndefined()
-    })
-})
-
 describe("getAttributeViolation", () => {
     const bounds = getAttributeLengthBounds(attribute({validations: {length: {min: 2, max: 3}}}))
 
@@ -241,6 +173,11 @@ describe("getAttributeViolation", () => {
         expect(getAttributeViolation(undefined, "anything", true)).toBeUndefined()
     })
 
+    it("measures the same string Keycloak will", () => {
+        // Trimmed by default, so the surrounding spaces are not characters.
+        expect(getAttributeViolation(bounds, "  ab  ", true)).toBeUndefined()
+    })
+
     it("counts an untrimmed attribute's spaces as a value", () => {
         const untrimmed = getAttributeLengthBounds(
             attribute({validations: {length: {"min": 2, "max": 3, "trim-disabled": "true"}}})
@@ -256,8 +193,14 @@ describe("getAttributeViolation", () => {
 describe("isHiddenAttribute", () => {
     it("reads the flag Keycloak's admin console writes, as a string", () => {
         expect(isHiddenAttribute(attribute({annotations: {hidden: "true"}}))).toBe(true)
-        expect(isHiddenAttribute(attribute({annotations: {hidden: "TRUE"}}))).toBe(true)
-        expect(isHiddenAttribute(attribute({annotations: {hidden: " true "}}))).toBe(true)
+    })
+
+    // The login theme matches the literal string, so anything it would still
+    // show to a voter stays shown here too, rather than being hidden from the
+    // admin alone.
+    it("is no more lenient than the theme that hides it from voters", () => {
+        expect(isHiddenAttribute(attribute({annotations: {hidden: "TRUE"}}))).toBe(false)
+        expect(isHiddenAttribute(attribute({annotations: {hidden: " true "}}))).toBe(false)
     })
 
     it("reads the flag a realm configuration carries, as a boolean", () => {

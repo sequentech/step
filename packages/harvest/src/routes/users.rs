@@ -576,8 +576,10 @@ pub async fn get_users(
     }))
 }
 
-/// Readable rendering of a refused user profile constraint, for consumers that
-/// do not translate the structured extensions themselves.
+/// Names a refused attribute and the constraint it broke, for logs and for any
+/// consumer that does not read the structured extensions. The constraint's
+/// arguments are left to those extensions, which the admin portal renders in
+/// the admin's own language.
 fn describe_user_profile_validation(
     validation: &UserProfileValidationError,
 ) -> String {
@@ -586,28 +588,8 @@ fn describe_user_profile_validation(
         .error_message
         .as_deref()
         .unwrap_or("invalid value");
-    // Keycloak repeats the attribute name as the first argument of the
-    // constraint, which the message already states.
-    let skip_first = validation
-        .params
-        .first()
-        .and_then(|param| param.as_str())
-        .is_some_and(|param| Some(param) == validation.field.as_deref());
-    let arguments: Vec<String> = validation
-        .params
-        .iter()
-        .skip(usize::from(skip_first))
-        .map(|param| param.to_string())
-        .collect();
 
-    if arguments.is_empty() {
-        format!("Invalid value for \"{field}\": {reason}")
-    } else {
-        format!(
-            "Invalid value for \"{field}\": {reason} ({})",
-            arguments.join(", ")
-        )
-    }
+    format!("Invalid value for \"{field}\": {reason}")
 }
 
 /// How many refused attributes are reported at once. Keycloak reports every
@@ -686,7 +668,12 @@ pub async fn create_user(
     };
     authorize(&claims, true, Some(input.tenant_id.clone()), required_perms)
         .map_err(|(status, message)| {
-            ErrorResponse::new(status, &message, ErrorCode::Unauthorized)
+            let code = if status == Status::InternalServerError {
+                ErrorCode::InternalServerError
+            } else {
+                ErrorCode::Unauthorized
+            };
+            ErrorResponse::new(status, &message, code)
         })?;
     let realm = match input.election_event_id.clone() {
         Some(election_event_id) => {
@@ -1543,7 +1530,7 @@ mod tests {
         UserProfileValidationError {
             field: Some(field.to_string()),
             error_message: Some("error-invalid-length".to_string()),
-            params: vec![field.into(), 1.into(), 2.into()],
+            params: Some(vec![field.into(), 1.into(), 2.into()]),
         }
     }
 
@@ -1556,9 +1543,7 @@ mod tests {
         assert_eq!(extensions.code, "UserProfileValidation");
         assert_eq!(extensions.user_profile_errors_total, Some(1));
         assert!(response.1 .0.message.contains("roll"));
-        // The attribute name Keycloak repeats as the first argument of the
-        // constraint is not restated as one of its bounds.
-        assert!(response.1 .0.message.contains("(1, 2)"));
+        assert!(response.1 .0.message.contains("error-invalid-length"));
     }
 
     #[test]

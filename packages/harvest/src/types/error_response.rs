@@ -48,7 +48,7 @@ pub enum ErrorCode {
     // Add any other needed error codes
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Default)]
 pub struct ErrorExtensions {
     pub code: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -76,7 +76,7 @@ impl From<&UserProfileValidationError> for UserProfileErrorExtension {
         Self {
             field: validation.field.clone(),
             error: validation.error_message.clone(),
-            params: validation.params.clone(),
+            params: validation.params.clone().unwrap_or_default(),
         }
     }
 }
@@ -96,10 +96,7 @@ impl ErrorResponse {
                 message: message.into(),
                 extensions: ErrorExtensions {
                     code: code.as_ref().into(),
-                    password_policy_rule: None,
-                    password_policy_required_count: None,
-                    user_profile_errors: None,
-                    user_profile_errors_total: None,
+                    ..Default::default()
                 },
             }),
         );
@@ -119,8 +116,7 @@ impl ErrorResponse {
                     code: ErrorCode::PasswordPolicyViolation.as_ref().into(),
                     password_policy_rule: Some(rule.into()),
                     password_policy_required_count: Some(required_count),
-                    user_profile_errors: None,
-                    user_profile_errors_total: None,
+                    ..Default::default()
                 },
             }),
         )
@@ -144,8 +140,6 @@ impl ErrorResponse {
                 message: message.into(),
                 extensions: ErrorExtensions {
                     code: ErrorCode::UserProfileValidation.as_ref().into(),
-                    password_policy_rule: None,
-                    password_policy_required_count: None,
                     user_profile_errors: Some(
                         validations
                             .iter()
@@ -153,6 +147,7 @@ impl ErrorResponse {
                             .collect(),
                     ),
                     user_profile_errors_total: Some(total),
+                    ..Default::default()
                 },
             }),
         )
