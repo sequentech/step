@@ -1070,6 +1070,122 @@ pub fn delivery(
     })
 }
 
+/// The census inside a save file. `export_voters-<id>.csv` is the delivery's name
+/// for the same thing; this one is not keyed by an identifier because a save file
+/// holds exactly one plan.
+pub const CENSUS_MEMBER: &str = "census.csv";
+
+/// Where a save file keeps the bytes the plan's file names point at.
+///
+/// A directory rather than the root, so a client whose logo is called
+/// `blueprint.json` cannot shadow the plan. Contrived, and it costs one string to
+/// make impossible.
+pub const FILES_PREFIX: &str = "files/";
+
+/// What the wizard hands over when somebody saves work in progress.
+///
+/// **A zip, always, and never a bare `blueprint.json`.** The plan stopped carrying
+/// its own census and its own bytes, so a JSON on its own is no longer the whole
+/// document — it is a document with the members' names and the candidates'
+/// photographs missing, which is exactly the kind of loss nobody notices until the
+/// file is reopened somewhere else.
+///
+/// Three kinds of member, and the layout is deliberately not the delivery's:
+///
+/// - `blueprint.json`, the same name a delivery uses, so one reader opens both.
+/// - `census.csv`, written by the same writer the delivery's voters CSV uses.
+/// - `files/<name>`, keyed by the name the plan itself carries.
+///
+/// A bare `blueprint.json` must keep *opening* forever — somebody has one saved
+/// from last month, and refusing it would be refusing their work. The rule is about
+/// what this hands over, not about what it accepts.
+#[cfg(feature = "election_config_archive")]
+pub fn save_file(
+    plan: &crate::election_config::architect::Blueprint,
+    sources: &crate::election_config::sources::Sources,
+) -> Result<Artifact, crate::election_config::Problem> {
+    use crate::election_config::problem::Code;
+    use crate::election_config::sources::BATCH;
+
+    let refused = |message: String| {
+        crate::election_config::Problem::error(
+            Code::InvalidValue,
+            "save",
+            message,
+        )
+    };
+
+    let json = serde_json::to_vec_pretty(plan).map_err(|error| {
+        refused(format!("this plan could not be written out ({error})"))
+    })?;
+
+    let mut members = vec![Artifact {
+        name: PLAN_MEMBER.to_string(),
+        bytes: json,
+    }];
+
+    if let Some(census) = &sources.census {
+        census.rewind().map_err(refused)?;
+        // Written a batch at a time into one buffer. The buffer is the honest limit
+        // of a zip member — an entry has to be written before the next one starts —
+        // and it is one copy rather than the three a plan used to carry.
+        let mut csv = String::new();
+        csv.push_str(&census.columns().join(","));
+        csv.push('\n');
+        loop {
+            let batch = census.next_batch(BATCH).map_err(refused)?;
+            if batch.is_empty() {
+                break;
+            }
+            for voter in &batch {
+                let row: Vec<String> = census
+                    .columns()
+                    .iter()
+                    .map(|column| {
+                        quoted(crate::election_config::sources::cell_of(
+                            voter, column,
+                        ))
+                    })
+                    .collect();
+                csv.push_str(&row.join(","));
+                csv.push('\n');
+            }
+        }
+        members.push(Artifact {
+            name: CENSUS_MEMBER.to_string(),
+            bytes: csv.into_bytes(),
+        });
+    }
+
+    for (name, bytes) in &sources.files {
+        members.push(Artifact {
+            name: format!("{FILES_PREFIX}{name}"),
+            bytes: bytes.to_vec(),
+        });
+    }
+
+    let slug = plan.external_id.trim();
+    let slug = if slug.is_empty() { "election" } else { slug };
+    Ok(Artifact {
+        name: format!("{slug}-plan.zip"),
+        bytes: zip(&members)?,
+    })
+}
+
+/// One CSV field, quoted only where it has to be.
+///
+/// The same rule `emit::plain_csv` follows, written again here rather than shared
+/// because that module is about the *bundle's* tables and this is about a save
+/// file. A comma, a quote or a newline in a member's name is ordinary — `O'Brien,
+/// Jr.` — and an unquoted one turns one member into two on the way back in.
+fn quoted(value: &str) -> String {
+    if value.contains([',', '"', '\n', '\r']) {
+        format!("\"{}\"", value.replace('"', "\"\""))
+    } else {
+        value.to_string()
+    }
+}
+
 /// The plan inside a delivery zip, or the reason it is not there.
 ///
 /// The other half of [`delivery`]. `Import Configuration` is handed whatever a client

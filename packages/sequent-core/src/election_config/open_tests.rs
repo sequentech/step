@@ -82,6 +82,164 @@ fn a_delivery_opens_as_the_plan_that_built_it() {
     assert_eq!(opened.plan.trustees.len(), 2);
 }
 
+/// A census with a member whose name has a comma in it, and two areas.
+fn with_a_census() -> (Blueprint, Sources) {
+    let mut plan = sound();
+    plan.areas = vec![
+        crate::election_config::architect::PlannedArea {
+            external_id: "north".into(),
+            name: "North Local 1".into(),
+            parent_external_id: None,
+            allow_early_voting: false,
+        },
+        crate::election_config::architect::PlannedArea {
+            external_id: "south".into(),
+            name: "South Local 2".into(),
+            parent_external_id: None,
+            allow_early_voting: false,
+        },
+    ];
+
+    let voters = vec![
+        crate::election_config::architect::PlannedVoter {
+            username: "ada".into(),
+            email: "ada@example.org".into(),
+            last_name: "O'Brien, Jr.".into(),
+            area_external_id: "north".into(),
+            extra: [("branch_code".to_string(), "B-14".to_string())]
+                .into_iter()
+                .collect(),
+            ..Default::default()
+        },
+        crate::election_config::architect::PlannedVoter {
+            username: "grace".into(),
+            area_external_id: "south".into(),
+            ..Default::default()
+        },
+    ];
+
+    let sources = Sources {
+        census: Some(std::sync::Arc::new(
+            crate::election_config::sources::VecCensus::new(voters),
+        )),
+        files: [(
+            "union.png".to_string(),
+            std::sync::Arc::from(b"PNG".to_vec()),
+        )]
+        .into_iter()
+        .collect(),
+    };
+    (plan, sources)
+}
+
+/// Everything in the census comes back, including the comma.
+///
+/// **The round trip is the whole claim of this change.** A plan that no longer
+/// carries its own members has to carry them somewhere, and a save file that loses
+/// a name — or splits one on a comma — loses work in a way nobody notices until the
+/// election is built from it.
+#[test]
+fn a_save_file_reopens_as_the_plan_and_the_census_it_was_written_from() {
+    let (plan, sources) = with_a_census();
+    let saved = super::super::archive::save_file(&plan, &sources)
+        .expect("a plan saves");
+
+    assert_eq!(saved.name, "union-2027-plan.zip");
+
+    let opened = open(&saved.bytes).expect("a save file is a plan");
+    assert_eq!(opened.source, Source::PlanArchive);
+    assert_eq!(opened.plan.external_id, "union-2027");
+
+    let census = opened.sources.census.as_ref().expect("its census");
+    let back = census.next_batch(100).expect("readable");
+    assert_eq!(back.len(), 2);
+    assert_eq!(back[0].username, "ada");
+    // The comma survived being a CSV field.
+    assert_eq!(back[0].last_name, "O'Brien, Jr.");
+    assert_eq!(back[0].email, "ada@example.org");
+    assert_eq!(back[0].area_external_id, "north");
+    assert_eq!(
+        back[0].extra.get("branch_code").map(String::as_str),
+        Some("B-14")
+    );
+    assert_eq!(back[1].username, "grace");
+    assert_eq!(back[1].area_external_id, "south");
+
+    // And the bytes the plan only names.
+    assert_eq!(
+        opened
+            .sources
+            .files
+            .get("union.png")
+            .map(|bytes| bytes.to_vec()),
+        Some(b"PNG".to_vec())
+    );
+}
+
+/// The platform's entry name, back to the name a plan points at.
+///
+/// `images/document_<uuid>_<name>` is how a document is stored, and the plan
+/// carries `<name>`. Only the *first* two underscore-separated pieces belong to the
+/// identifier: a file called `photo_of_ada.jpg` keeps every underscore it came with,
+/// and a greedy split would hand back `ada.jpg` for a photograph nothing names.
+#[test]
+fn an_archive_entry_names_the_file_the_plan_points_at() {
+    let name = super::plan_file_name;
+
+    assert_eq!(
+        name("images/document_2f1c_union.png").as_deref(),
+        Some("union.png")
+    );
+    assert_eq!(
+        name("export_S3_files/document_2f1c_photo_of_ada.jpg").as_deref(),
+        Some("photo_of_ada.jpg")
+    );
+    // Not a document entry, and guessing at one would invent a file name.
+    assert_eq!(name("images/union.png"), None);
+    assert_eq!(name("images/document_2f1c_"), None);
+}
+
+/// Reopening a delivery brings its census and its files back.
+///
+/// It did not. The delivery branch read `blueprint.json` and returned
+/// `Report::default()`, so what came back was whatever the JSON still happened to
+/// carry — which, once a plan stops carrying its own bulk, is nothing at all. The
+/// defect was invisible precisely because of the duplication this programme is
+/// removing.
+#[test]
+fn a_delivery_brings_its_census_and_its_files_back() {
+    let (plan, sources) = with_a_census();
+    let compiled = compile_plan(Compile {
+        plan: &plan,
+        templates: &TemplateSet::builtin().unwrap(),
+        options: &BuildOptions::default(),
+        profile: None,
+        sources: Some(&sources),
+    })
+    .expect("the sample plan compiles");
+    let delivery = super::super::archive::delivery(&compiled.layout)
+        .expect("and packs")
+        .bytes;
+
+    let opened = open(&delivery).expect("a delivery is a plan");
+    assert_eq!(opened.source, Source::Delivery);
+
+    let census = opened
+        .sources
+        .census
+        .as_ref()
+        .expect("the delivery's own voters CSV");
+    let back = census.next_batch(100).expect("readable");
+    assert_eq!(
+        back.iter()
+            .map(|voter| voter.username.clone())
+            .collect::<Vec<_>>(),
+        vec!["ada".to_string(), "grace".to_string()]
+    );
+    // `area_name` in the CSV, resolved back to the identifier a plan keys by.
+    assert_eq!(back[0].area_external_id, "north");
+}
+
 #[test]
 fn a_bare_plan_file_opens() {
     let plan = sound();

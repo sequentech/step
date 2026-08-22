@@ -303,6 +303,28 @@ impl RowShape {
     }
 }
 
+/// One voter's value for one census column.
+///
+/// The inverse of [`RowShape::voter`], and beside it for that reason: the two
+/// together are the whole answer to *what a census row means*, and a writer that
+/// spelled the mapping again would be the fourth copy of it. `area.external_id`
+/// rather than `area_name`, because the identifier is what a plan keys by and
+/// `build_tables::voter_area_name` is the one place that translates back.
+///
+/// An unknown column is empty rather than missing: a census whose header has a
+/// column no row filled in is ordinary, and the column is still one the author
+/// declared.
+pub fn cell_of<'a>(voter: &'a PlannedVoter, column: &str) -> &'a str {
+    match column {
+        "username" => &voter.username,
+        "email" => &voter.email,
+        "first_name" => &voter.first_name,
+        "last_name" => &voter.last_name,
+        "area.external_id" => &voter.area_external_id,
+        other => voter.extra.get(other).map(String::as_str).unwrap_or(""),
+    }
+}
+
 /// A census already in memory.
 ///
 /// The compatibility shim, and the one every test wants. It is also the honest

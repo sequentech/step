@@ -18,6 +18,7 @@
 use crate::election_config::architect::Blueprint;
 use crate::election_config::plan_from_workbook::plan_from_workbook;
 use crate::election_config::problem::{Code, Problem, Report};
+use crate::election_config::sources::Sources;
 use crate::election_config::xlsx::read_xlsx;
 
 /// What the bytes turned out to be.
@@ -27,7 +28,15 @@ pub enum Source {
     /// The `.zip` a build hands over, with `blueprint.json` inside it.
     Delivery,
     /// A bare plan, saved on its own.
+    ///
+    /// Still opened, and always will be — somebody has one of these saved from
+    /// last month. It is no longer what the wizard *writes*, because a plan on its
+    /// own is a plan with the members' names and the candidates' photographs
+    /// missing.
     Plan,
+    /// The zip the wizard saves: the plan, its census and its files.
+    #[serde(rename = "plan-archive")]
+    PlanArchive,
     /// An import workbook — the janitor's format, or the one in a delivery.
     Workbook,
     /// An `export_election_event-<id>.json`, as the Admin Portal writes it.
@@ -54,6 +63,15 @@ pub struct Opened {
     /// Warnings. Errors come back as `Err(Report)`.
     pub report: Report,
     pub source: Source,
+
+    /// What travelled beside the plan.
+    ///
+    /// Derived from the plan's own fields for every door that has nothing else to
+    /// offer, and read from the archive for the two that do. A caller can hand this
+    /// straight to `compile_plan` without asking which kind of file it opened,
+    /// which is the point: the difference between a delivery and a bare JSON stops
+    /// being the caller's problem.
+    pub sources: Sources,
 }
 
 /// The three `PK` signatures a zip can start with.
@@ -151,6 +169,7 @@ pub fn open_named(bytes: &[u8], name: Option<&str>) -> Result<Opened, Report> {
             if looks_like_an_event(&document) {
                 let read = super::plan_from_event::plan_from_event(&document)?;
                 return Ok(Opened {
+                    sources: Sources::from_plan(&read.plan),
                     plan: read.plan,
                     report: read.report,
                     source: Source::ElectionEvent,
@@ -165,6 +184,7 @@ pub fn open_named(bytes: &[u8], name: Option<&str>) -> Result<Opened, Report> {
             ))
         })?;
         return Ok(Opened {
+            sources: Sources::from_plan(&plan),
             plan,
             report: Report::default(),
             source: Source::Plan,
@@ -174,25 +194,14 @@ pub fn open_named(bytes: &[u8], name: Option<&str>) -> Result<Opened, Report> {
     let names = members(bytes)?;
 
     if names.iter().any(|name| name == super::archive::PLAN_MEMBER) {
-        let raw = super::archive::plan_in_delivery(bytes)
-            .map_err(|problem| one(problem))?;
-        let plan: Blueprint =
-            serde_json::from_slice(&raw).map_err(|error| {
-                refuse(format!(
-                    "the plan inside this delivery could not be read: {error}"
-                ))
-            })?;
-        return Ok(Opened {
-            plan,
-            report: Report::default(),
-            source: Source::Delivery,
-        });
+        return open_delivery(bytes, &names);
     }
 
     if names.iter().any(|name| name == "[Content_Types].xml") {
         let workbook = read_xlsx(bytes).map_err(one)?;
         let read = plan_from_workbook(&workbook)?;
         return Ok(Opened {
+            sources: Sources::from_plan(&read.plan),
             plan: read.plan,
             report: read.report,
             source: Source::Workbook,
@@ -252,6 +261,7 @@ pub fn open_named(bytes: &[u8], name: Option<&str>) -> Result<Opened, Report> {
         );
 
         return Ok(Opened {
+            sources: Sources::from_plan(&read.plan),
             plan: read.plan,
             report: read.report,
             source: Source::ElectionEventArchive,
@@ -272,6 +282,177 @@ pub fn open_named(bytes: &[u8], name: Option<&str>) -> Result<Opened, Report> {
             names.join(", ")
         )
     }))
+}
+
+/// A save file or a delivery — one reader, because they are one layout twice.
+///
+/// Both carry `blueprint.json` at the root. What differs is where the bulk sits: a
+/// save file keeps `census.csv` and `files/<name>` beside the plan, and a delivery
+/// keeps `export_voters-<id>.csv`, `images/…` and `export_S3_files/…` **inside**
+/// `official_election_setup.zip`. So the root is looked at first and the importable
+/// zip second, and the answer is a `Sources` either way.
+///
+/// **The delivery branch used to return `Report::default()` and nothing else.** It
+/// read `blueprint.json` and stopped, so reopening a delivery gave back a plan whose
+/// census and photographs were whatever the JSON happened to still carry — which,
+/// once the plan stops carrying them, is nothing at all. That is the defect this
+/// closes, and it is invisible today precisely because the duplication is still
+/// there.
+fn open_delivery(bytes: &[u8], names: &[String]) -> Result<Opened, Report> {
+    let raw = entry(bytes, super::archive::PLAN_MEMBER)?;
+    let plan: Blueprint = serde_json::from_slice(&raw).map_err(|error| {
+        refuse(format!("the plan in this zip could not be read: {error}"))
+    })?;
+
+    let mut report = Report::default();
+
+    // A name is what a plan points at, so the areas resolve before a row is read.
+    let by_area_name: std::collections::BTreeMap<String, String> = plan
+        .areas
+        .iter()
+        .map(|area| (area.name.clone(), area.external_id.clone()))
+        .collect();
+
+    // The root first. A save file is the wizard's own format and the only one that
+    // can be assumed complete.
+    let saved = names
+        .iter()
+        .any(|name| name == super::archive::CENSUS_MEMBER);
+    let (census_text, files, source) = if saved {
+        (
+            entry(bytes, super::archive::CENSUS_MEMBER)
+                .ok()
+                .and_then(|raw| String::from_utf8(raw).ok()),
+            names
+                .iter()
+                .filter(|name| {
+                    name.starts_with(super::archive::FILES_PREFIX)
+                        && !name.ends_with('/')
+                })
+                .filter_map(|name| {
+                    let short = name
+                        .strip_prefix(super::archive::FILES_PREFIX)?
+                        .to_string();
+                    entry(bytes, name).ok().map(|bytes| (short, bytes))
+                })
+                .collect::<Vec<_>>(),
+            Source::PlanArchive,
+        )
+    } else {
+        // A delivery: everything worth having is a member of the nested importable
+        // zip, so it has to be opened in turn.
+        let inner = names
+            .iter()
+            .find(|name| name.as_str() == super::archive::IMPORTABLE_MEMBER)
+            .and_then(|name| entry(bytes, name).ok());
+        match inner {
+            Some(inner) => {
+                let within = members(&inner).unwrap_or_default();
+                let census = within
+                    .iter()
+                    .find(|name| {
+                        name.contains(VOTERS_MEMBER) && name.ends_with(".csv")
+                    })
+                    .and_then(|name| entry(&inner, name).ok())
+                    .and_then(|raw| String::from_utf8(raw).ok());
+                // Keyed by the plan's own file name rather than the archive's
+                // entry name: `images/document_<id>_<name>` is how the platform
+                // stores it, and `<name>` is what the plan points at.
+                let files = within
+                    .iter()
+                    .filter(|name| {
+                        name.starts_with("images/")
+                            || name.starts_with("export_S3_files/")
+                    })
+                    .filter_map(|name| {
+                        let short = plan_file_name(name)?;
+                        entry(&inner, name).ok().map(|bytes| (short, bytes))
+                    })
+                    .collect::<Vec<_>>();
+                (census, files, Source::Delivery)
+            }
+            None => {
+                report.push(
+                    Problem::warning(
+                        Code::MissingField,
+                        "delivery",
+                        format!(
+                            "this zip has a plan but no \
+                             {}, so the census and the files it names are not \
+                             in it.",
+                            super::archive::IMPORTABLE_MEMBER
+                        ),
+                    )
+                    .id("delivery.no-importable"),
+                );
+                (None, Vec::new(), Source::Delivery)
+            }
+        }
+    };
+
+    let census = match census_text {
+        Some(text) => match super::sources::CsvCensus::new(&text, by_area_name)
+        {
+            Ok(census) => {
+                for note in census.notes() {
+                    report.push(
+                        Problem::warning(Code::InvalidValue, "voters", note)
+                            .id("census.note"),
+                    );
+                }
+                Some(std::sync::Arc::new(census)
+                    as std::sync::Arc<dyn super::sources::CensusSource>)
+            }
+            Err(why) => {
+                report.push(
+                    Problem::warning(
+                        Code::InvalidValue,
+                        "voters",
+                        format!(
+                            "the census in this zip could not be read: {why}"
+                        ),
+                    )
+                    .id("census.unreadable-member"),
+                );
+                None
+            }
+        },
+        None => None,
+    };
+
+    // Nothing beside the plan means the plan is all there is, which is what a
+    // delivery written before this change looks like.
+    let sources = if census.is_none() && files.is_empty() {
+        Sources::from_plan(&plan)
+    } else {
+        Sources {
+            census,
+            files: files
+                .into_iter()
+                .map(|(name, bytes)| (name, std::sync::Arc::from(bytes)))
+                .collect(),
+        }
+    };
+
+    Ok(Opened {
+        plan,
+        report,
+        source,
+        sources,
+    })
+}
+
+/// The name a plan would use for an archive entry.
+///
+/// The platform stores a document as `images/document_<uuid>_<name>`, and the plan
+/// points at `<name>` — so the identifier has to come off, and only the *first* two
+/// underscore-separated pieces belong to it. A file called `photo_of_ada.jpg` keeps
+/// every underscore it came with.
+fn plan_file_name(entry: &str) -> Option<String> {
+    let base = entry.rsplit('/').next()?;
+    let rest = base.strip_prefix("document_")?;
+    let (_, name) = rest.split_once('_')?;
+    (!name.is_empty()).then(|| name.to_string())
 }
 
 fn one(problem: Problem) -> Report {
