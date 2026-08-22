@@ -146,13 +146,19 @@ fn an_event_with_no_elections_is_rejected() {
 }
 
 #[test]
-fn an_event_with_no_areas_is_rejected() {
-    // Every voter belongs to an area, so a bundle with none imports an event nobody
-    // can be enrolled in.
+fn an_event_with_no_areas_is_a_warning_not_an_error() {
+    // Reported: a bundle with no areas would not import. It is consistent and the
+    // platform takes it; it just means nobody can be given a ballot yet.
     let mut bundle = sound();
     bundle.areas.clear();
     bundle.area_contests.clear();
-    assert!(error_codes(&bundle).contains(&Code::MissingField));
+
+    let report = validate(&bundle);
+    assert!(!report.has_errors(), "expected no errors, got:\n{report}");
+    assert!(report
+        .warnings()
+        .any(|problem| problem.code == Code::BallotCoverage
+            && problem.path == "areas"));
 }
 
 // -- references -------------------------------------------------------------
