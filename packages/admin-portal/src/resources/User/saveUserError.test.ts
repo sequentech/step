@@ -221,13 +221,16 @@ describe("getSaveUserErrorMessage", () => {
         expect(message).toContain("The password does not comply with the policy")
     })
 
-    it("falls back to a generic wording for a constraint it does not know", () => {
+    // Saying only that something is invalid is less than the message already on
+    // the wire, which names the field and the constraint.
+    it("keeps the backend message for a constraint it does not know", () => {
         const message = getSaveUserErrorMessage(
             {
                 graphQLErrors: [
                     {
+                        message: 'Invalid value for "roll": error-email-exists',
                         extensions: profileErrors([
-                            {field: "roll", error: "error-something-new", params: ["roll"]},
+                            {field: "roll", error: "error-email-exists", params: ["roll"]},
                         ]),
                     },
                 ],
@@ -237,8 +240,8 @@ describe("getSaveUserErrorMessage", () => {
             translate
         )
 
-        expect(message).toContain("attribute.invalid")
-        expect(message).not.toContain("error-something-new")
+        expect(message).toContain("error-email-exists")
+        expect(message).not.toContain("attribute.invalid")
     })
 
     it("uses the generic policy message when the violation carries no details", () => {

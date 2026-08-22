@@ -1198,7 +1198,7 @@ const spanishTranslation: TranslationType = {
                     createErrorReason: "Error creando votante: {{reason}}",
                     createSuccess: "Votante creado",
                     attribute: {
-                        fieldsToCorrect: "Corrija {{count}} campo(s) antes de guardar",
+                        fieldsToCorrect: "Algunos campos deben corregirse antes de guardar",
                         hintBetween: "Entre {{min}} y {{max}} caracteres",
                         hintMin: "Al menos {{min}} caracteres",
                         hintMax: "Como máximo {{max}} caracteres",

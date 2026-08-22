@@ -124,33 +124,41 @@ const AttributeTextInput: React.FC<AttributeTextInputProps> = ({
 }) => {
     const normalizedValue = getAttributeStringValue(value)
 
+    const commit = (current: string) => {
+        onValidate?.(current)
+        if (current !== normalizedValue) {
+            onCommit(current)
+        }
+    }
+
     return (
         <FormStyles.TextField
             key={normalizedValue}
             type={type}
             label={label}
             defaultValue={normalizedValue}
-            onBlur={(event) => {
-                onValidate?.(event.target.value)
-                if (event.target.value !== normalizedValue) {
-                    onCommit(event.target.value)
-                }
-            }}
-            onKeyDown={(event) => {
-                // This field only writes back on blur, and submitting the form
-                // with Enter does not blur it, so the value being typed would
-                // be dropped and never checked. Enter commits it instead.
-                if (event.key === "Enter") {
-                    event.preventDefault()
-                    event.currentTarget.blur()
-                }
-            }}
+            onBlur={(event) => commit(event.target.value)}
             disabled={disabled}
             error={error}
             helperText={helperText}
             required={required}
             fullWidth
-            slotProps={{htmlInput: {maxLength}}}
+            slotProps={{
+                htmlInput: {
+                    maxLength,
+                    // This field only writes back on blur, and submitting the
+                    // form with Enter does not blur it, so the value being
+                    // typed would be dropped and never checked. Bound here
+                    // rather than on the TextField, which would put it on the
+                    // wrapper instead of the input.
+                    onKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => {
+                        if (event.key === "Enter") {
+                            event.preventDefault()
+                            commit(event.currentTarget.value)
+                        }
+                    },
+                },
+            }}
             InputLabelProps={type === "date" ? {shrink: true} : undefined}
         />
     )
@@ -481,6 +489,11 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         )
     }, [])
 
+    // Counted over the attributes actually on the form: an error left against
+    // one that is no longer shown could never be cleared, and would hold the
+    // save for good.
+    const hasFieldErrors = userAttributes.some((attr) => attr.name && lengthErrors[attr.name])
+
     const beginSave = (): boolean => {
         if (savingRef.current) {
             return false
@@ -543,8 +556,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             return undefined
         }
 
-        // Quotes the bounds the field states, so the two cannot disagree over a
-        // bound the hint deliberately leaves unsaid.
+        // The bounds the field states decide how this reads, so the two cannot
+        // disagree over a bound the hint leaves unsaid; the numbers themselves
+        // are the ones the value was measured against.
         const stated = getStatedLengthBounds(bounds) ?? bounds
         const field = getTranslationLabel(attr.name, attr.display_name, t)
         // Both bounds together read better as one sentence than as whichever
@@ -556,8 +570,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
         return t(`usersAndRolesScreen.voters.errors.attribute.${messageKey}`, {
             field,
-            min: stated?.min,
-            max: stated?.max,
+            min: bounds?.min,
+            max: bounds?.max,
         })
     }
 
@@ -584,7 +598,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const resolveFieldLabel = (field: string): string => {
         const attribute = userAttributes.find((candidate) => candidate.name === field)
 
-        return getTranslationLabel(field, attribute?.display_name, t)
+        // An attribute the form does not show, a hidden one for instance, has
+        // no label to give, and the name is better than nothing to go on.
+        return getTranslationLabel(field, attribute?.display_name, t) || field
     }
 
     // The extracted reason is capped, so the raw rejection is logged for whoever
@@ -666,7 +682,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
     const onSubmit = async () => {
         // Reachable past the disabled button by submitting the form itself.
-        if (Object.keys(lengthErrors).length > 0) {
+        if (hasFieldErrors) {
             return
         }
         if (createMode) {
@@ -1244,21 +1260,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         ))
     }, [userAttributes, user, permissionLabels, choices, electionsList, lengthErrors])
 
-    // Kept to the attributes actually on the form: an error left against one
-    // that is no longer shown could never be cleared, and would hold the save
-    // for good.
-    const fieldErrorCount = userAttributes.filter(
-        (attr) => attr.name && lengthErrors[attr.name]
-    ).length
-    const hasFieldErrors = fieldErrorCount > 0
-
     const alertMessage =
         saveError ||
-        (hasFieldErrors
-            ? t("usersAndRolesScreen.voters.errors.attribute.fieldsToCorrect", {
-                  count: fieldErrorCount,
-              })
-            : "")
+        (hasFieldErrors ? t("usersAndRolesScreen.voters.errors.attribute.fieldsToCorrect") : "")
 
     const saveErrorAlert = alertMessage ? (
         <WizardStyles.ErrorMessage variant="body2" role="alert" className="edit-voter-save-error">

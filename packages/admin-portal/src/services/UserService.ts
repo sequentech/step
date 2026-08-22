@@ -184,9 +184,9 @@ export const getAttributeLengthBounds = (
         | {length?: {"min"?: unknown; "max"?: unknown; "trim-disabled"?: unknown} | null}
         | null
         | undefined
+    // Narrowed before any bound is read off it: the jsonb can hold anything,
+    // and a string or an array there would answer `.length` with a number.
     const length = validations?.length
-    // A string or an array in the jsonb would answer `.length` with a number,
-    // off which a bound would then be read.
     if (typeof length !== "object" || length === null || Array.isArray(length)) {
         return undefined
     }

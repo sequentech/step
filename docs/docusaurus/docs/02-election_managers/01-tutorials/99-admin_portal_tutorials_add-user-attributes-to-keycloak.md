@@ -82,19 +82,23 @@ The Admin Portal states the bounds under the field, so they are known before the
 checks the value when the field is left. A value that breaks a bound marks the field and says which
 bound it broke, and the voter cannot be saved until it is corrected.
 
+Bounds nobody types into are left unstated, to keep the form readable: a maximum in the hundreds,
+which Keycloak's own base attributes carry as scaffolding, and a minimum of one, which says only
+that the value is present. They are still checked, and still reported when broken.
+
 A field with a maximum also stops accepting characters once it is reached, so the maximum cannot be
-exceeded by typing. That count is of the characters as typed, so a value padded with spaces can stop
-being accepted a little before the validator would object to it. Note that pasting a longer value into such a field keeps only what fits, without
-warning, and that a stored value already longer than the maximum can only be shortened, never
-extended — in that case the field reports the value as too long until it is brought within the
-bound. A minimum cannot be applied while typing at all, so it is only checked when the field is
+exceeded by typing. That count is of the characters as typed, so a value padded with spaces can
+stop being accepted a little before the validator would object to it. Note that pasting a longer
+value into such a field keeps only what fits, without warning, and that a stored value already
+longer than the maximum can only be shortened, never extended — in that case the field reports the
+value as too long until it is brought within the bound. A minimum cannot be applied while typing at all, so it is only checked when the field is
 left.
 
 By default Keycloak measures the value with leading and trailing spaces removed, and the Admin
 Portal measures it the same way. Setting the validator's `trim-disabled` option changes both.
 
-A bound that is somehow reached anyway — a value written by an import, or an attribute the form does
-not show — is refused on save and reported naming each field and the bound it broke. Note that on
+A bound that is somehow reached anyway — a value written by an import, or an attribute the form
+does not show — is refused on save and reported naming each field and the bound it broke. Note that on
 Datafix election events the save is carried out by a background task, so its refusal is reported
 through that task rather than in the form.
 

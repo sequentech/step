@@ -1187,7 +1187,7 @@ const englishTranslation = {
                     createErrorReason: "Error creating voter: {{reason}}",
                     createSuccess: "Voter created",
                     attribute: {
-                        fieldsToCorrect: "Correct {{count}} field(s) before saving",
+                        fieldsToCorrect: "Some fields need correcting before saving",
                         hintBetween: "Between {{min}} and {{max}} characters",
                         hintMin: "At least {{min}} characters",
                         hintMax: "At most {{max}} characters",

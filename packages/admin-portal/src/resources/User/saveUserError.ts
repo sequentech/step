@@ -33,6 +33,7 @@ const CONSTRAINT_MESSAGES: Record<string, string> = {
     "error-user-attribute-required": "required",
     "error-invalid-email": "invalidEmail",
     "error-pattern-no-match": "invalidFormat",
+    "error-invalid-value": "invalid",
 }
 
 const readValidation = (value: unknown): UserProfileValidation | undefined => {
@@ -144,6 +145,12 @@ const getUserProfileValidationMessage = (
 ): string | undefined => {
     const validations = getUserProfileValidations(error)
     if (!validations) {
+        return undefined
+    }
+
+    // Harvest's own message names every field and the constraint it broke, so
+    // it beats saying only that something was invalid.
+    if (validations.reported.some((validation) => !CONSTRAINT_MESSAGES[validation.error ?? ""])) {
         return undefined
     }
 
