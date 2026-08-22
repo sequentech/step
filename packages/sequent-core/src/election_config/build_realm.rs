@@ -21,7 +21,7 @@ use super::{value_as_text, Builder};
 use crate::election_config::branding;
 use crate::election_config::paths::{deep_merge, set_path, split_path};
 use crate::election_config::presets::{
-    self, AuthPreset, PresetInput, RealmPatch, PARAM_AUTH_TYPE,
+    self, AuthPreset, PresetInput, RealmPatch, RequirementKind, PARAM_AUTH_TYPE,
 };
 use crate::election_config::problem::Code;
 use crate::election_config::sheet::SHEET_VOTERS;
@@ -255,10 +255,26 @@ impl Builder<'_> {
 
         match base_event_id {
             Some(base_event_id) if base_event_id != self.event_id => {
-                let encoded = Value::Object(realm).to_string();
+                let encoded = Value::Object(realm.clone()).to_string();
                 let swapped = encoded.replace(&base_event_id, &self.event_id);
-                serde_json::from_str(&swapped)
-                    .unwrap_or_else(|_| Value::String(swapped))
+                // The un-swapped realm, not `Value::String(swapped)`: a string here
+                // means `keycloak_event_realm` holds text where the importer expects
+                // an object, and it takes it wholesale. Keeping the base event's ids
+                // is the lesser fault, and it is said out loud.
+                match serde_json::from_str(&swapped) {
+                    Ok(reparsed) => reparsed,
+                    Err(error) => {
+                        self.warn(
+                            "keycloak_event_realm",
+                            format!(
+                                "the base export's realm could not be re-read after \
+                                 swapping the event id ({error}), so it is carried \
+                                 over unchanged"
+                            ),
+                        );
+                        Value::Object(realm)
+                    }
+                }
             }
             _ => Value::Object(realm),
         }
@@ -344,10 +360,12 @@ impl Builder<'_> {
 
         let mut warnings = Vec::new();
         for requirement in preset.requires {
+            // Exhaustive: the `_ =>` arm this replaces meant a misspelled kind was
+            // checked against the authenticators and reported nothing.
             let present = match requirement.kind {
-                "flow" => &flows,
-                "authenticator_config" => &configs,
-                _ => &authenticators,
+                RequirementKind::Flow => &flows,
+                RequirementKind::Authenticator => &authenticators,
+                RequirementKind::AuthenticatorConfig => &configs,
             };
             if !present.iter().any(|name| name == requirement.name) {
                 warnings.push(format!(
@@ -633,9 +651,18 @@ impl Builder<'_> {
         }
 
         let encoded = profile.to_string();
+        // Reported rather than asserted: the array element can be any JSON value, and
+        // a base export holding a string there would otherwise abort the whole build.
+        // Same shape as the missing-attributes warning above.
+        let Some(component) = component.as_object_mut() else {
+            self.warn(
+                "keycloak_event_realm",
+                "the base export's user profile component is not an object, so the \
+                 census columns were left undeclared",
+            );
+            return;
+        };
         let config = component
-            .as_object_mut()
-            .expect("a realm component is an object")
             .entry("config")
             .or_insert_with(|| Value::Object(Map::new()));
         if let Some(config) = config.as_object_mut() {

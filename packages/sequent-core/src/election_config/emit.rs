@@ -188,24 +188,6 @@ pub mod member {
     }
 }
 
-/// Build the task name the platform looks a scheduled event up by.
-///
-/// Mirrors `crate::types::scheduled_event::generate_manage_date_task_name`. A
-/// different shape means a task that never fires, so this is reproduced rather
-/// than approximated.
-pub fn scheduled_event_task_id(
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: Option<&str>,
-    processor: &str,
-) -> String {
-    let base = format!("tenant_{tenant_id}_event_{election_event_id}_");
-    match election_id {
-        Some(id) => format!("{base}election_{id}_{processor}"),
-        None => format!("{base}{processor}"),
-    }
-}
-
 /// Join multi-valued attribute values the way the importer splits them.
 pub fn join_multi_value<I, S>(values: I) -> String
 where
@@ -222,6 +204,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::scheduled_event::{
+        generate_manage_date_task_name, EventProcessors,
+    };
     use serde_json::json;
 
     // -- the JSON-in-CSV byte shape ----------------------------------------
@@ -276,11 +261,11 @@ mod tests {
             "_START_VOTING_PERIOD\"\"\""
         );
 
-        let task_id = scheduled_event_task_id(
+        let task_id = generate_manage_date_task_name(
             "9384db41-1b21-4b93-a6aa-edfc007136d8",
             "e8e06504-e7f2-5f35-acc1-abaf576bb300",
             Some("cf433085-801f-56b4-ac9e-24245d4d516a"),
-            "START_VOTING_PERIOD",
+            &EventProcessors::START_VOTING_PERIOD,
         );
 
         let row = vec![
@@ -410,14 +395,15 @@ mod tests {
 
     #[test]
     fn a_task_id_names_its_election_when_it_has_one() {
-        // Must match generate_manage_date_task_name exactly: the platform looks
-        // the task up by this name, so a different shape never fires.
+        // The platform looks the task up by this name. `emit` used to build it here
+        // and this test asserted the copy matched; it calls the platform's own
+        // function now, and the assertion pins the shape the scheduler expects.
         assert_eq!(
-            scheduled_event_task_id(
+            generate_manage_date_task_name(
                 "t",
                 "e",
                 Some("el"),
-                "START_VOTING_PERIOD"
+                &EventProcessors::START_VOTING_PERIOD
             ),
             "tenant_t_event_e_election_el_START_VOTING_PERIOD"
         );
@@ -426,7 +412,12 @@ mod tests {
     #[test]
     fn an_event_wide_task_id_omits_the_election() {
         assert_eq!(
-            scheduled_event_task_id("t", "e", None, "END_VOTING_PERIOD"),
+            generate_manage_date_task_name(
+                "t",
+                "e",
+                None,
+                &EventProcessors::END_VOTING_PERIOD
+            ),
             "tenant_t_event_e_END_VOTING_PERIOD"
         );
     }
