@@ -21,7 +21,7 @@ import {ContentCopy, VideoCall} from "@mui/icons-material"
 import {useTranslation} from "react-i18next"
 import {useMutation} from "@apollo/client"
 import {GENERATE_GOOGLE_MEET} from "../../../queries/GenerateGoogleMeet"
-import {IGraphQLActionError} from "@sequentech/ui-core"
+import {getGraphQLActionErrorReason} from "@/services/graphqlActionError"
 import {GenerateGoogleMeetMutation} from "@/gql/graphql"
 import {IPermissions} from "@/types/keycloak"
 
@@ -90,20 +90,16 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
             } else {
                 setError("Link is null.")
             }
-        } catch (err: any) {
-            console.error("Error generating Google Meet link:", err)
-            let error = err as IGraphQLActionError
-            let status =
-                error?.graphQLErrors?.[0]?.extensions?.internal?.response?.status?.toString() ?? ""
-            let body = error?.graphQLErrors?.[0]?.extensions?.internal?.response?.body ?? ""
-            let message = "Failed to generate Google Meet link. "
-            if (status) {
-                message += `Status: ${status}. `
-            }
-            if (body) {
-                message += `Body: ${body}. `
-            }
-            setError(message)
+        } catch (error: unknown) {
+            console.error("Error generating Google Meet link:", error)
+            // The handler's own message, rather than the status and the raw
+            // response body this used to print at whoever was generating a link.
+            const reason = getGraphQLActionErrorReason(error)
+            setError(
+                reason
+                    ? `Failed to generate Google Meet link: ${reason}`
+                    : "Failed to generate Google Meet link."
+            )
         }
         setIsGenerating(false)
     }
