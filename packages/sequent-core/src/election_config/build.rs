@@ -805,8 +805,6 @@ impl<'a> Builder<'a> {
             self.contest_ids
                 .push((external_id.clone(), contest_id.clone()));
 
-            self.say_what_the_template_stood_in_for(row, &external_id);
-
             let context = json!({
                 "id": contest_id,
                 "tenant_id": self.tenant_id,
@@ -815,6 +813,12 @@ impl<'a> Builder<'a> {
                 "created_at": self.created_at,
             });
             let contest = self.render("contest", Some(row), context);
+
+            self.say_what_the_template_stood_in_for(
+                row,
+                &external_id,
+                &contest,
+            );
 
             let event_id = self.event_id.clone();
             let tenant_id = self.tenant_id.clone();
@@ -847,25 +851,30 @@ impl<'a> Builder<'a> {
     ///
     /// The template carries a value for all five, so `validate`'s `MissingField`
     /// rule for them can never fire on a built bundle: an omitted `max_votes`
-    /// becomes "choose one" and nothing says so. The template's defaults stay —
+    /// becomes "choose one" and nothing says so. The template's values stay —
     /// `contests_sheet` writes the two the wizard does not ask about, and janitor's
-    /// workbooks, which #2983 matches byte for byte, rely on the rest — so which
+    /// workbooks, which #2983 matches byte for byte, leave the rest out — so which
     /// columns become mandatory is a product decision. Being told what was
     /// substituted is not, and that is this.
+    ///
+    /// Read out of `rendered` rather than listed here, so the message names the
+    /// value the bundle actually carries and a change to the template cannot make
+    /// this lie.
     fn say_what_the_template_stood_in_for(
         &mut self,
         row: &Row,
         external_id: &str,
+        rendered: &Map<String, Value>,
     ) {
-        const STOOD_IN_FOR: [(&str, &str); 5] = [
-            ("min_votes", "0"),
-            ("max_votes", "1"),
-            ("winning_candidates_num", "1"),
-            ("voting_type", "non-preferential"),
-            ("counting_algorithm", "plurality-at-large"),
+        const BALLOT_SHAPE: [&str; 5] = [
+            "min_votes",
+            "max_votes",
+            "winning_candidates_num",
+            "voting_type",
+            "counting_algorithm",
         ];
 
-        for (column, substituted) in STOOD_IN_FOR {
+        for column in BALLOT_SHAPE {
             let given = row
                 .get(column)
                 .map(|value| value_as_text(value).trim().to_string())
@@ -873,6 +882,8 @@ impl<'a> Builder<'a> {
             if !given.is_empty() {
                 continue;
             }
+            let substituted =
+                rendered.get(column).map(value_as_text).unwrap_or_default();
             self.warn(
                 row.origin(Some(column)).to_string(),
                 format!(

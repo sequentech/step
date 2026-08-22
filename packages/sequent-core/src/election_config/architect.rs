@@ -571,7 +571,6 @@ fn check_schedule(plan: &Blueprint, report: &mut Report) {
     }
 }
 
-/// Districting: the areas themselves, before any contest points at one.
 /// Refuse an identifier a plan already used for the same kind of thing.
 ///
 /// [`super::ids::IdFactory::uid`] keys on the kind and the `external_id` and
@@ -609,6 +608,7 @@ fn require_unique_external_id<'plan>(
     }
 }
 
+/// Districting: the areas themselves, before any contest points at one.
 fn check_areas(plan: &Blueprint, report: &mut Report) {
     let mut seen: Vec<(&str, String)> = Vec::new();
 

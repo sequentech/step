@@ -345,17 +345,20 @@ fn a_contest_is_told_what_the_template_stood_in_for() {
         .iter()
         .map(|problem| problem.message.as_str())
         .collect();
-    for column in [
-        "min_votes",
-        "winning_candidates_num",
-        "voting_type",
-        "counting_algorithm",
+    // The value named is read back out of the built contest rather than listed in
+    // the builder, so the message cannot drift from what `contest.hbs` carries.
+    for (column, substituted) in [
+        ("min_votes", "0"),
+        ("winning_candidates_num", "1"),
+        ("voting_type", "non-preferential"),
+        ("counting_algorithm", "plurality-at-large"),
     ] {
+        let wanted = format!(
+            "has no {column}, so the base template's '{substituted}' stands in"
+        );
         assert!(
-            said.iter()
-                .any(|message| message.contains(&format!("has no {column}"))),
-            "nothing said about {column}:\n{:#?}",
-            said
+            said.iter().any(|message| message.contains(&wanted)),
+            "nothing said about {column}:\n{said:#?}"
         );
     }
     // The one the workbook did give is not reported, and it is the one that wins.
