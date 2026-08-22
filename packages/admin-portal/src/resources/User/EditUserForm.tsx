@@ -150,12 +150,21 @@ const AttributeTextInput: React.FC<AttributeTextInputProps> = ({
                     // form with Enter does not blur it, so the value being
                     // typed would be dropped and never checked. Bound here
                     // rather than on the TextField, which would put it on the
-                    // wrapper instead of the input.
+                    // wrapper instead of the input. Committing a changed value
+                    // remounts this input, which drops focus, the same as
+                    // leaving the field would.
                     onKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => {
-                        if (event.key === "Enter") {
-                            event.preventDefault()
-                            commit(event.currentTarget.value)
+                        if (event.key !== "Enter") {
+                            return
                         }
+                        event.preventDefault()
+                        // A half-entered date reads as empty, and committing
+                        // that would clear the stored one. Clearing a date is
+                        // still done by emptying the field and leaving it.
+                        if (type === "date" && event.currentTarget.value === "") {
+                            return
+                        }
+                        commit(event.currentTarget.value)
                     },
                 },
             }}

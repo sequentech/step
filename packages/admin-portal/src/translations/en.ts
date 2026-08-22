@@ -1187,6 +1187,7 @@ const englishTranslation = {
                     createErrorReason: "Error creating voter: {{reason}}",
                     createSuccess: "Voter created",
                     attribute: {
+                        invalidNamed: '"{{field}}" was refused: {{constraint}}',
                         fieldsToCorrect: "Some fields need correcting before saving",
                         hintBetween: "Between {{min}} and {{max}} characters",
                         hintMin: "At least {{min}} characters",

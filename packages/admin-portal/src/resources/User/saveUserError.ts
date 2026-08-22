@@ -129,11 +129,24 @@ const describeValidation = (
     t: TranslateMessage,
     resolveFieldLabel?: (field: string) => string
 ): string => {
-    const field = validation.field ?? ""
-    const messageKey = CONSTRAINT_MESSAGES[validation.error ?? ""] ?? "invalid"
+    const rawField = validation.field ?? ""
+    const field = resolveFieldLabel && rawField ? resolveFieldLabel(rawField) : rawField
+    const messageKey = CONSTRAINT_MESSAGES[validation.error ?? ""]
+
+    // A constraint with no wording of its own still names its attribute, and
+    // carries what Keycloak called it rather than saying only that something
+    // was invalid.
+    if (!messageKey) {
+        return validation.error
+            ? t("usersAndRolesScreen.voters.errors.attribute.invalidNamed", {
+                  field,
+                  constraint: validation.error,
+              })
+            : t("usersAndRolesScreen.voters.errors.attribute.invalid", {field})
+    }
 
     return t(`usersAndRolesScreen.voters.errors.attribute.${messageKey}`, {
-        field: resolveFieldLabel && field ? resolveFieldLabel(field) : field,
+        field,
         ...interpolation(messageKey, constraintArguments(validation)),
     })
 }
@@ -145,12 +158,6 @@ const getUserProfileValidationMessage = (
 ): string | undefined => {
     const validations = getUserProfileValidations(error)
     if (!validations) {
-        return undefined
-    }
-
-    // Harvest's own message names every field and the constraint it broke, so
-    // it beats saying only that something was invalid.
-    if (validations.reported.some((validation) => !CONSTRAINT_MESSAGES[validation.error ?? ""])) {
         return undefined
     }
 

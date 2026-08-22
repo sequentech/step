@@ -1198,6 +1198,7 @@ const tagalogTranslation: TranslationType = {
                     createErrorReason: "Error sa paglikha ng botante: {{reason}}",
                     createSuccess: "Nalikha ang botante",
                     attribute: {
+                        invalidNamed: 'Tinanggihan ang "{{field}}": {{constraint}}',
                         fieldsToCorrect: "May mga field na kailangang itama bago mag-save",
                         hintBetween: "Sa pagitan ng {{min}} at {{max}} na karakter",
                         hintMin: "Hindi bababa sa {{min}} na karakter",

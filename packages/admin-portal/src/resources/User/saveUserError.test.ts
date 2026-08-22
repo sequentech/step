@@ -221,6 +221,36 @@ describe("getSaveUserErrorMessage", () => {
         expect(message).toContain("The password does not comply with the policy")
     })
 
+    // One constraint without a wording of its own must not cost every other
+    // refused attribute in the same refusal its own.
+    it("still localizes the attributes it knows alongside one it does not", () => {
+        const message = getSaveUserErrorMessage(
+            {
+                graphQLErrors: [
+                    {
+                        message: "Invalid value for two attributes",
+                        extensions: profileErrors([
+                            {
+                                field: "roll",
+                                error: "error-invalid-length",
+                                params: ["roll", 1, 2],
+                            },
+                            {field: "username", error: "error-username-exists", params: []},
+                        ]),
+                    },
+                ],
+            },
+            MESSAGE_KEY,
+            REASON_KEY,
+            translate
+        )
+
+        expect(message).toContain("attribute.invalidLength")
+        expect(message).toContain("min=1")
+        expect(message).toContain("attribute.invalidNamed")
+        expect(message).toContain("constraint=error-username-exists")
+    })
+
     // Saying only that something is invalid is less than the message already on
     // the wire, which names the field and the constraint.
     it("keeps the backend message for a constraint it does not know", () => {
@@ -240,8 +270,8 @@ describe("getSaveUserErrorMessage", () => {
             translate
         )
 
-        expect(message).toContain("error-email-exists")
-        expect(message).not.toContain("attribute.invalid")
+        expect(message).toContain("attribute.invalidNamed")
+        expect(message).toContain("constraint=error-email-exists")
     })
 
     it("uses the generic policy message when the violation carries no details", () => {

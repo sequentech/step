@@ -1196,6 +1196,7 @@ const dutchTranslation: TranslationType = {
                     createErrorReason: "Fout bij aanmaken kiezer: {{reason}}",
                     createSuccess: "Kiezer aangemaakt",
                     attribute: {
+                        invalidNamed: '"{{field}}" is geweigerd: {{constraint}}',
                         fieldsToCorrect:
                             "Sommige velden moeten worden gecorrigeerd voordat u opslaat",
                         hintBetween: "Tussen {{min}} en {{max}} tekens",

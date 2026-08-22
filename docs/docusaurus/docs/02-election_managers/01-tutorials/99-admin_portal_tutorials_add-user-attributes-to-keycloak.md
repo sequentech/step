@@ -91,8 +91,8 @@ exceeded by typing. That count is of the characters as typed, so a value padded 
 stop being accepted a little before the validator would object to it. Note that pasting a longer
 value into such a field keeps only what fits, without warning, and that a stored value already
 longer than the maximum can only be shortened, never extended — in that case the field reports the
-value as too long until it is brought within the bound. A minimum cannot be applied while typing at all, so it is only checked when the field is
-left.
+value as too long until it is brought within the bound. A minimum cannot be applied while typing at
+all, so it is only checked when the field is left.
 
 By default Keycloak measures the value with leading and trailing spaces removed, and the Admin
 Portal measures it the same way. Setting the validator's `trim-disabled` option changes both.

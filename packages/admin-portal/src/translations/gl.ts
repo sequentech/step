@@ -1197,6 +1197,7 @@ const galegoTranslation: TranslationType = {
                     createErrorReason: "Erro ao crear o votante: {{reason}}",
                     createSuccess: "Votante creado",
                     attribute: {
+                        invalidNamed: 'Rexeitouse "{{field}}": {{constraint}}',
                         fieldsToCorrect: "Algúns campos deben corrixirse antes de gardar",
                         hintBetween: "Entre {{min}} e {{max}} caracteres",
                         hintMin: "Polo menos {{min}} caracteres",
