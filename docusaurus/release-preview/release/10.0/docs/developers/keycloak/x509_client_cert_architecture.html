@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">X.509 Client Certificate Authentication — Architecture | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/developers/keycloak/x509_client_cert_architecture"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="X.509 Client Certificate Authentication — Architecture | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/release-preview/release/10.0/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/developers/keycloak/x509_client_cert_architecture"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/developers/keycloak/x509_client_cert_architecture" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/developers/keycloak/x509_client_cert_architecture" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"X.509 Client Certificate Authentication — Architecture","item":"https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/developers/keycloak/x509_client_cert_architecture"}]}</script><link rel="stylesheet" href="/docusaurus/release-preview/release/10.0/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/release-preview/release/10.0/assets/js/runtime~main.a4c85df2.js" defer="defer"></script>
-<script src="/docusaurus/release-preview/release/10.0/assets/js/main.950861cb.js" defer="defer"></script>
+<script src="/docusaurus/release-preview/release/10.0/assets/js/runtime~main.94043dac.js" defer="defer"></script>
+<script src="/docusaurus/release-preview/release/10.0/assets/js/main.8c789787.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
 <svg style="display: none;"><defs>
@@ -121,17 +121,19 @@ three places and must stay in sync:</p>
 <ul>
 <li class=""><strong>Keycloak realm import</strong> — <code>alias</code> field in the IDP entry of the realm JSON
 (e.g. <code>.devcontainer/keycloak/import/tenant-*-event-*.json</code>)</li>
-<li class=""><strong>Theme template</strong> — <code>login.ftl</code> filters the IDP out of the social-providers
-list when <code>voter-certificate-policy</code> is not <code>enabled</code>:<!-- -->
+<li class=""><strong>Theme template</strong> — <code>social-providers.ftl</code> (shared by <code>register.ftl</code> and both
+portals&#x27; <code>login.ftl</code>) filters the IDP out of the social-providers list when
+<code>voter-certificate-policy</code> is not <code>enabled</code>:<!-- -->
 <div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">p.alias != &#x27;digital-certificates&#x27;</span><br></span></code></pre></div></div>
 </li>
 <li class=""><strong>Rust constant</strong> — <code>sequent_core::types::keycloak::CERTIFICATES_IDP_ALIAS</code>
 (<code>packages/sequent-core/src/types/keycloak.rs</code>)</li>
 </ul>
-<p>The <code>sequent.voting-portal</code> Keycloak theme (<code>login.ftl</code>) renders the
-<code>digital-certificates</code> IDP as a social-provider button only when the realm
-attribute <code>voter-certificate-policy</code> is set to <code>enabled</code>. All other IDPs are
-always shown.</p>
+<p>The Sequent Keycloak themes render the <code>digital-certificates</code> IDP as a
+social-provider button only when the realm attribute <code>voter-certificate-policy</code>
+is set to <code>enabled</code>. All other IDPs are always shown. The rule lives in the
+shared <code>social-providers.ftl</code> macro, so it applies identically on both portals&#x27;
+login pages and on the registration page in login mode.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="x509certclassifierauthenticator">X509CertClassifierAuthenticator<a href="#x509certclassifierauthenticator" class="hash-link" aria-label="Direct link to X509CertClassifierAuthenticator" title="Direct link to X509CertClassifierAuthenticator" translate="no">​</a></h3>
 <p><code>X509CertClassifierAuthenticator</code> (<code>packages/keycloak-extensions/conditional-authenticators/</code>)
 runs first in the X.509 authentication flow. It reads the client certificate
