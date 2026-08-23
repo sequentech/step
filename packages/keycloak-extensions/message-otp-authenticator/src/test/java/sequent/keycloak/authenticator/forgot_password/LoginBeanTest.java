@@ -6,15 +6,14 @@ package sequent.keycloak.authenticator.forgot_password;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import jakarta.ws.rs.core.MultivaluedHashMap;
-import jakarta.ws.rs.core.MultivaluedMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -22,9 +21,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.keycloak.models.KeycloakSession;
-import org.keycloak.representations.userprofile.config.UPAttribute;
-import org.keycloak.representations.userprofile.config.UPAttributePermissions;
-import org.keycloak.representations.userprofile.config.UPConfig;
+import org.keycloak.userprofile.AttributeMetadata;
 import org.keycloak.userprofile.Attributes;
 import org.keycloak.userprofile.UserProfile;
 import org.keycloak.userprofile.UserProfileContext;
@@ -49,89 +46,77 @@ class LoginBeanTest {
   }
 
   @Test
-  void nonReadableConfiguredMatchAttributeStillExposesSanitizedRenderingMetadata() {
-    UPAttribute phone = new UPAttribute("phone");
-    phone.setDisplayName("Phone number");
-    phone.setPermissions(new UPAttributePermissions(Set.of(), Set.of("admin")));
-    phone.setAnnotations(
-        Map.of(
-            "inputType", "html5-tel",
-            "inputHelperTextBefore", "Enter your phone number",
-            "html-attribute:autocomplete", "tel",
-            "html-attribute:onfocus", "steal()",
-            "default", "+15551234567"));
-    configure(phone);
+  void nonReadableSelectedAttributeExposesOnlySafeRenderingMetadata() {
+    AttributeMetadata phone =
+        declare(
+            "phone",
+            "Phone number",
+            Map.of(
+                "inputType", "html5-tel",
+                "inputHelperTextBefore", "Enter your phone number",
+                "html-attribute:autocomplete", "off autofocus onfocus=alert(1)",
+                "html-attribute:onfocus", "steal()",
+                "disableAttribute", "other",
+                "default", "+15551234567"));
     when(profileAttributes.isRequired("phone")).thenReturn(false);
 
-    LoginBean bean = new LoginBean(new MultivaluedHashMap<>(), session, List.of("phone"));
+    LoginBean bean = new LoginBean(session, List.of("phone"));
     LoginBean.Attribute rendered = bean.getAttributesByName().get("phone");
 
     assertEquals("Phone number", rendered.getDisplayName());
     assertEquals("html5-tel", rendered.getAnnotations().get("inputType"));
-    assertEquals("tel", rendered.getAnnotations().get("html-attribute:autocomplete"));
+    assertEquals("Enter your phone number", rendered.getAnnotations().get("inputHelperTextBefore"));
+    assertFalse(rendered.getAnnotations().containsKey("html-attribute:autocomplete"));
     assertFalse(rendered.getAnnotations().containsKey("html-attribute:onfocus"));
+    assertFalse(rendered.getAnnotations().containsKey("disableAttribute"));
     assertFalse(rendered.getAnnotations().containsKey("default"));
-    assertFalse(rendered.isRequired());
     verify(profileAttributes, never()).getReadable();
+    verify(profileAttributes, never()).isRequired("phone");
+
+    assertFalse(rendered.isRequired());
+    verify(profileAttributes).isRequired("phone");
+    assertEquals("phone", phone.getName());
   }
 
   @Test
-  void exposesOnlySelectedFieldsAndOnlyCurrentSubmittedValues() {
-    UPAttribute phone = new UPAttribute("phone");
-    phone.setDefaultValue("persisted-looking-default");
-    UPAttribute internal = new UPAttribute("internalRiskScore");
-    internal.setAnnotations(Map.of("inputHelperTextBefore", "sensitive schema detail"));
-    configure(phone, internal);
-    when(profileAttributes.isRequired("phone")).thenReturn(true);
-    MultivaluedMap<String, String> formData = new MultivaluedHashMap<>();
-    formData.add("phone", "+573116611420");
-    formData.add("password", "must-not-be-exposed-by-profile");
+  void exposesOnlySelectedFieldsAndNeverReflectsSubmittedOrStoredValues() {
+    declare("phone", "Phone number", Map.of("inputType", "html5-tel"));
+    declare("internalRiskScore", "Internal risk score", Map.of());
 
-    LoginBean bean = new LoginBean(formData, session, List.of("phone"));
+    LoginBean bean = new LoginBean(session, List.of("phone"));
 
     assertEquals(Set.of("phone"), bean.getAttributesByName().keySet());
-    assertEquals(List.of("+573116611420"), bean.getAttributesByName().get("phone").getValues());
-    assertTrue(bean.getAttributesByName().get("phone").isRequired());
+    assertEquals(List.of(), bean.getAttributesByName().get("phone").getValues());
+    assertEquals("", bean.getAttributesByName().get("phone").getValue());
     assertFalse(bean.getAttributesByName().containsKey("internalRiskScore"));
-    assertFalse(bean.getAttributesByName().containsKey("password"));
   }
 
   @Test
-  void normalizesOnlyKeycloakGeneratedProfileTranslationKeys() {
-    UPAttribute dateOfBirth = new UPAttribute("dateOfBirth");
-    dateOfBirth.setDisplayName("${profile.attributes.dateOfBirth}");
-    UPAttribute nationalId = new UPAttribute("nationalId");
-    nationalId.setDisplayName("${custom.nationalId}");
-    UPAttribute phone = new UPAttribute("phone");
-    phone.setDisplayName("Phone number");
-    UPAttribute reference = new UPAttribute("reference");
-    reference.setDisplayName(" ");
-    configure(dateOfBirth, nationalId, phone, reference);
+  void preservesConfiguredNamespacedAndCustomDisplayNameKeys() {
+    declare("dateOfBirth", "${profile.attributes.dateOfBirth}", Map.of("inputType", "html5-date"));
+    declare("nationalId", "${custom.nationalId}", Map.of());
+    declare("phone", "Phone number", Map.of("inputType", "html5-tel"));
 
-    LoginBean bean =
-        new LoginBean(
-            new MultivaluedHashMap<>(),
-            session,
-            List.of("dateOfBirth", "nationalId", "phone", "reference"));
+    LoginBean bean = new LoginBean(session, List.of("dateOfBirth", "nationalId", "phone"));
 
-    assertEquals("${dateOfBirth}", bean.getAttributesByName().get("dateOfBirth").getDisplayName());
+    assertEquals(
+        "${profile.attributes.dateOfBirth}",
+        bean.getAttributesByName().get("dateOfBirth").getDisplayName());
     assertEquals(
         "${custom.nationalId}", bean.getAttributesByName().get("nationalId").getDisplayName());
     assertEquals("Phone number", bean.getAttributesByName().get("phone").getDisplayName());
-    assertEquals("reference", bean.getAttributesByName().get("reference").getDisplayName());
   }
 
   @Test
   void dependentFieldTargetMustAlsoBeAnExplicitMatchAttribute() {
-    UPAttribute country = new UPAttribute("country");
-    country.setAnnotations(Map.of("inputType", "select", "filterSelectAttribute", "municipality"));
-    UPAttribute municipality = new UPAttribute("municipality");
-    configure(country, municipality);
-    when(profileAttributes.isRequired("country")).thenReturn(false);
+    declare(
+        "country",
+        "Country",
+        Map.of("inputType", "select", "filterSelectAttribute", "municipality"));
+    declare("municipality", "Municipality", Map.of("inputType", "select"));
 
-    LoginBean countryOnly = new LoginBean(new MultivaluedHashMap<>(), session, List.of("country"));
-    LoginBean both =
-        new LoginBean(new MultivaluedHashMap<>(), session, List.of("country", "municipality"));
+    LoginBean countryOnly = new LoginBean(session, List.of("country"));
+    LoginBean both = new LoginBean(session, List.of("country", "municipality"));
 
     assertFalse(
         countryOnly
@@ -144,9 +129,30 @@ class LoginBeanTest {
         both.getAttributesByName().get("country").getAnnotations().get("filterSelectAttribute"));
   }
 
-  private void configure(UPAttribute... attributes) {
-    UPConfig configuration = new UPConfig();
-    configuration.setAttributes(List.of(attributes));
-    when(provider.getConfiguration()).thenReturn(configuration);
+  @Test
+  void multivaluedControlsBecomeScalarControlsForMatching() {
+    declare("regions", "Regions", Map.of("inputType", "multiselect"));
+    declare("channels", "Channels", Map.of("inputType", "multiselect-checkboxes"));
+
+    LoginBean bean = new LoginBean(session, List.of("regions", "channels"));
+
+    assertEquals(
+        "select", bean.getAttributesByName().get("regions").getAnnotations().get("inputType"));
+    assertEquals(
+        "select-radiobuttons",
+        bean.getAttributesByName().get("channels").getAnnotations().get("inputType"));
+    assertFalse(bean.getAttributesByName().get("regions").isMultivalued());
+    assertFalse(bean.getAttributesByName().get("channels").isMultivalued());
+  }
+
+  private AttributeMetadata declare(
+      String name, String displayName, Map<String, Object> annotations) {
+    AttributeMetadata metadata = mock(AttributeMetadata.class);
+    lenient().when(metadata.getName()).thenReturn(name);
+    lenient().when(metadata.getAttributeDisplayName()).thenReturn(displayName);
+    lenient().when(metadata.getAnnotations()).thenReturn(annotations);
+    lenient().when(metadata.getValidators()).thenReturn(List.of());
+    lenient().when(profileAttributes.getMetadata(name)).thenReturn(metadata);
+    return metadata;
   }
 }

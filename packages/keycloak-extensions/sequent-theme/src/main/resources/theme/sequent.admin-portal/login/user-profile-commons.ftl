@@ -98,7 +98,17 @@ SPDX-License-Identifier: AGPL-3.0-only
       controls are natively focusable and rendered in the order they should be tabbed, so source
       order already gives the correct sequence - a positive tabindex would only lift them out of
       the document's natural order.  -->
-<#macro inputFieldWithLabel attribute name values required=false requiredMarker=attribute.required autofocus=false autocomplete="">
+<#macro inputFieldWithLabel attribute name values required=attribute.required requiredMarker=attribute.required autofocus=false autocomplete="">
+	<#local describedBy = []>
+	<#if (attribute.annotations.inputHelperTextBefore!'')?has_content>
+		<#local describedBy += ['form-help-text-before-' + name]>
+	</#if>
+	<#if messagesPerField.existsError('${name}')>
+		<#local describedBy += ['input-error-' + name]>
+	</#if>
+	<#if (attribute.annotations.inputHelperTextAfter!'')?has_content>
+		<#local describedBy += ['form-help-text-after-' + name]>
+	</#if>
 	<div class="${properties.kcFormGroupClass!}">
 		<div class="${properties.kcLabelWrapperClass!}">
 			<label for="${name}" class="${properties.kcLabelClass!}">
@@ -114,7 +124,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<#if attribute.annotations.inputHelperTextBefore??>
 				<@fieldHelperText.helperTextBefore id=name text=attribute.annotations.inputHelperTextBefore/>
 			</#if>
-			<@inputFieldByType attribute=attribute name=name values=values required=required autofocus=autofocus autocomplete=autocomplete/>
+			<@inputFieldByType attribute=attribute name=name values=values required=required autofocus=autofocus autocomplete=autocomplete describedBy=describedBy?join(' ')/>
 			<#if messagesPerField.existsError('${name}')>
 				<span id="input-error-${name}" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
 					${kcSanitize(messagesPerField.get('${name}'))?no_esc}
@@ -127,33 +137,34 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 </#macro>
 
-<#macro inputFieldByType attribute name values required=false autofocus=false autocomplete="">
+<#macro inputFieldByType attribute name values required=false autofocus=false autocomplete="" describedBy="">
 	<#switch attribute.annotations.inputType!''>
 	<#case 'textarea'>
-		<@textareaTag attribute=attribute name=name values=values required=required autofocus=autofocus autocomplete=autocomplete/>
+		<@textareaTag attribute=attribute name=name values=values required=required autofocus=autofocus autocomplete=autocomplete describedBy=describedBy/>
 		<#break>
 	<#case 'select'>
 	<#case 'multiselect'>
-		<@selectTag attribute=attribute name=name values=values required=required autofocus=autofocus autocomplete=autocomplete/>
+		<@selectTag attribute=attribute name=name values=values required=required autofocus=autofocus autocomplete=autocomplete describedBy=describedBy/>
 		<#break>
 	<#case 'select-radiobuttons'>
 	<#case 'multiselect-checkboxes'>
-		<@inputTagSelects attribute=attribute name=name values=values/>
+		<@inputTagSelects attribute=attribute name=name values=values required=required describedBy=describedBy/>
 		<#break>
 	<#default>
 		<#if attribute.multivalued && values?has_content>
 			<#list values as value>
-				<@inputTag attribute=attribute name=name value=value!'' required=required autofocus=(autofocus && value?index == 0) autocomplete=autocomplete/>
+				<@inputTag attribute=attribute name=name value=value!'' required=required autofocus=(autofocus && value?index == 0) autocomplete=autocomplete describedBy=describedBy/>
 			</#list>
 		<#else>
-			<@inputTag attribute=attribute name=name value=attribute.value!'' required=required autofocus=autofocus autocomplete=autocomplete/>
+			<@inputTag attribute=attribute name=name value=attribute.value!'' required=required autofocus=autofocus autocomplete=autocomplete describedBy=describedBy/>
 		</#if>
 	</#switch>
 </#macro>
 
-<#macro inputTag attribute name value required=false autofocus=false autocomplete="">
+<#macro inputTag attribute name value required=false autofocus=false autocomplete="" describedBy="">
 	<input type="<@inputTagType attribute=attribute/>" id="${name}" name="${name}" value="${(value!'')}" class="${properties.kcInputClass!}"
 		aria-invalid="<#if messagesPerField.existsError('${name}')>true</#if>"
+		<#if describedBy?has_content>aria-describedby="${describedBy}"</#if>
 		<#if required>required</#if>
 		<#if autofocus>autofocus</#if>
 		<#-- Skipped when the attribute declares the same html-attribute annotation: a duplicate
@@ -165,7 +176,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<#if isLoginHintReadOnly(attribute.name)>readonly</#if>
 		<#--  Checks for attribute annotations that start with "html-attribute:" and sets them as input attributes  -->
 		<#list attribute.annotations as key, value>
-			<#if key?starts_with("html-attribute:")>${key[15..]}=${value}</#if>
+			<#if key?starts_with("html-attribute:")>${key[15..]}="${value}"</#if>
 		</#list>
 		<#if attribute.annotations.inputTypePlaceholder??>placeholder="${attribute.annotations.inputTypePlaceholder}"</#if>
 		<#if attribute.annotations.inputTypePattern??>pattern="${attribute.annotations.inputTypePattern}"</#if>
@@ -187,7 +198,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</#if>
 		<#if attribute.annotations.inputTypeMin??>min="${attribute.annotations.inputTypeMin}"</#if>
 		<#if attribute.annotations.inputTypeStep??>step="${attribute.annotations.inputTypeStep}"</#if>
-		<#if attribute.annotations.inputTypeStep??>step="${attribute.annotations.inputTypeStep}"</#if>
 		<#list attribute.html5DataAnnotations as key, value>
     		data-${key}="${value}"
 		</#list>
@@ -208,9 +218,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</#compress>
 </#macro>
 
-<#macro textareaTag attribute name values required=false autofocus=false autocomplete="">
+<#macro textareaTag attribute name values required=false autofocus=false autocomplete="" describedBy="">
 	<textarea id="${name}" name="${name}" class="${properties.kcInputClass!}"
 		aria-invalid="<#if messagesPerField.existsError('${name}')>true</#if>"
+		<#if describedBy?has_content>aria-describedby="${describedBy}"</#if>
 		<#if required>required</#if>
 		<#if autofocus>autofocus</#if>
 		<#if autocomplete?has_content>autocomplete="${autocomplete}"</#if>
@@ -222,19 +233,20 @@ SPDX-License-Identifier: AGPL-3.0-only
 	>${(attribute.value!'')}</textarea>
 </#macro>
 
-<#--  Radio and checkbox groups deliberately do not take these: marking every control in a group
-      required would demand all of them, and autofocusing each one is meaningless. See
-      inputFieldByType.  -->
-<#macro selectTag attribute name values required=false autofocus=false autocomplete="">
+<#--  The browser treats required on same-name radios as a group requirement. Required checkbox
+      multiselects are synchronized by fieldToggleHandlers so any one checked option satisfies the
+      group. Autofocus is omitted from both group types.  -->
+<#macro selectTag attribute name values required=false autofocus=false autocomplete="" describedBy="">
 	<select id="${name}" name="${name}" class="${properties.kcInputClass!}"
 		aria-invalid="<#if messagesPerField.existsError('${name}')>true</#if>"
+		<#if describedBy?has_content>aria-describedby="${describedBy}"</#if>
 		<#if required>required</#if>
 		<#if autofocus>autofocus</#if>
 		<#if autocomplete?has_content>autocomplete="${autocomplete}"</#if>
 		<#if attribute.readOnly || isLoginHintReadOnly(attribute.name)>disabled</#if>
 		<#if attribute.annotations.inputType=='multiselect'>multiple</#if>
 		<#if attribute.annotations.inputTypeSize??>size="${attribute.annotations.inputTypeSize}"</#if>
-		<#if attribute.annotations.filterSelectAttribute??>onchange="filterSelectAttribute(event, '${attribute.annotations.filterSelectAttribute}')"</#if>
+		<#if attribute.annotations.filterSelectAttribute??>onchange="filterSelectAttribute(event, '${attribute.annotations.filterSelectAttribute?js_string}')"</#if>
 	>
 	<#if attribute.annotations.inputType=='select'>
 		<option value=""></option>
@@ -265,7 +277,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</#if>
 </#macro>
 
-<#macro inputTagSelects attribute name values>
+<#macro inputTagSelects attribute name values required=false describedBy="">
 	<#if attribute.annotations.inputType=='select-radiobuttons'>
 		<#assign inputType='radio'>
 		<#assign classDiv=properties.kcInputClassRadio!>
@@ -290,6 +302,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div class="${classDiv}">
 			<input type="${inputType}" id="${name}-${option}" name="${name}" value="${option}" class="${classInput}"
 				aria-invalid="<#if messagesPerField.existsError('${name}')>true</#if>"
+				<#if describedBy?has_content>aria-describedby="${describedBy}"</#if>
+				<#if required && inputType == 'radio'>required</#if>
+				<#if required && inputType == 'checkbox'>data-required-checkbox-group="${name}" aria-required="true"<#if option?index == 0> required</#if></#if>
 				<#if attribute.readOnly || isLoginHintReadOnly(attribute.name)>disabled</#if>
 				<#if values?seq_contains(option)>checked</#if>
 				<#if attribute.annotations.disableAttribute??>onclick="readOnlyElementById(event, '${option}')"</#if>
@@ -371,6 +386,20 @@ SPDX-License-Identifier: AGPL-3.0-only
 			}
 		}
 	document.addEventListener('DOMContentLoaded', function() {
+		const requiredCheckboxGroups = new Map();
+		document.querySelectorAll('[data-required-checkbox-group]').forEach(function (checkbox) {
+			const name = checkbox.dataset.requiredCheckboxGroup;
+			const group = requiredCheckboxGroups.get(name) || [];
+			group.push(checkbox);
+			requiredCheckboxGroups.set(name, group);
+		});
+		requiredCheckboxGroups.forEach(function (checkboxes) {
+			const synchronizeRequired = function () {
+				checkboxes[0].required = !checkboxes.some(checkbox => checkbox.checked);
+			};
+			checkboxes.forEach(checkbox => checkbox.addEventListener('change', synchronizeRequired));
+			synchronizeRequired();
+		});
 		<#list readonlyElements as element>
 			setAllReadOnly("${element.id}", ${element.checked});
 		</#list>

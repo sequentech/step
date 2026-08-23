@@ -66,11 +66,12 @@ covered in
 [Logging In Without a Username (Attribute + Password)](../01-tutorials/101-admin_portal_tutorials_multi-attribute-password-login.md).
 
 An attribute in **User attributes to match** that is not declared in User Profile renders as a
-plain text field labelled with its raw attribute name, and is always mandatory to match.
+plain text field. Its attribute name is used as a message key and falls back to the raw name when
+no translation exists. It is always mandatory to match.
 
-> ⚠️ **Match attributes must hold a single value.** Matching compares one value per attribute. A
-> `multiselect` or `multiselect-checkboxes` attribute used for matching has everything after its
-> first selected value ignored.
+Matching compares one value per attribute. On the attribute-based login page, a `multiselect`
+declaration therefore renders as a single-selection list and `multiselect-checkboxes` renders as
+radio buttons. Registration keeps the configured multi-value control.
 
 ---
 
@@ -158,7 +159,8 @@ The option value is what gets stored. To display something else:
 `filterSelectAttribute`, set on the controlling attribute with the dependent field's id as its
 value, narrows the dependent dropdown to options whose value contains the selected value, and
 preselects the first match. Option values must embed the controlling value (province `08`,
-municipalities `08001`, `08002`).
+municipalities `08001`, `08002`). On attribute-based login, the dependent field must also be in
+**User attributes to match**.
 
 ### Enabling and disabling other fields
 
@@ -166,8 +168,8 @@ On radio-button and checkbox attributes:
 
 | Annotation | Effect | Where it applies |
 |---|---|---|
-| `disableAttribute` | Ticking the option makes the named field read-only and clears it | Both |
-| `disableElement` | Ticking the option disables the named field | Both |
+| `disableAttribute` | Ticking the option makes the named field read-only and clears it | Registration only |
+| `disableElement` | Ticking the option disables the named field | Registration only |
 
 ---
 
@@ -177,7 +179,7 @@ On radio-button and checkbox attributes:
 |---|---|---|
 | `default` | Initial value. Registration only; ignored on the attribute-based login form. | Registration only |
 | `confirm` | Renders a second input for the same attribute. The value is the confirmation field's label. | Registration only |
-| `html-attribute:<name>` | Sets an arbitrary HTML attribute, e.g. `html-attribute:autocomplete` = `bday`. Applies to text and HTML5 inputs only — dropdowns, radio buttons, checkboxes and text areas ignore it. On the attribute-based login page it overrides the theme's own `autocomplete` — see [Autofill and the login page](#autofill-and-the-login-page). | Both |
+| `html-attribute:<name>` | Sets an arbitrary HTML attribute, e.g. `html-attribute:autocomplete` = `bday`. Applies to text and HTML5 inputs only — dropdowns, radio buttons, checkboxes and text areas ignore it. | Registration only |
 | `hidden` = `true` | The attribute is not rendered on the registration page. It is still stored and still usable for matching. | Registration only |
 
 The **Deferred Registration User Creation** form action's **Hidden Profile Attributes** setting
@@ -188,28 +190,11 @@ Profile marks them required.
 
 ## Autofill and the login page
 
-The attribute-based login page sets `autocomplete="off"` on its match fields, so a shared device
-does not offer the previous voter's values.
-
-That default suppresses autofill for every field, including ones a browser could fill correctly.
-Where an attribute maps to a standard autofill purpose, declare it so the browser can fill it and
-assistive technology can identify it:
-
-Set `html-attribute:autocomplete` on the attribute, with the token for its purpose:
-
-| Attribute holds | Token |
-|---|---|
-| A date of birth | `bday` |
-| A phone number | `tel` |
-| An email address | `email` |
-| A given or family name | `given-name` / `family-name` |
-
-The annotation overrides the page's `autocomplete="off"` for that field only. Attributes with no
-standard purpose — a national ID or a member number — have no token and keep the default.
-
-This is a deployment decision. WCAG 2.1 success criterion 1.3.5 (Identify Input Purpose, AA)
-expects the token wherever one exists, so a remote election should declare them. A kiosk or
-shared-device deployment may prefer the default everywhere and accept that gap.
+The attribute-based login page sets `autocomplete="off"` on every match field and ignores User
+Profile `html-attribute:autocomplete` annotations. Failed match values are also not placed back in
+the page. These are deliberate shared-device protections for fields such as date of birth,
+national ID and phone number. Browsers may still apply their own autofill heuristics, so
+`autocomplete="off"` is a request rather than a privacy guarantee.
 
 ---
 
@@ -218,7 +203,8 @@ shared-device deployment may prefer the default everywhere and accept that gap.
 `inputType` = `html5-tel` renders an international phone-number widget: country selector with dial
 code, per-country placeholder formatting, and an initial country guessed from the browser
 timezone. The submitted value is the full international number, stored under the attribute's own
-name.
+name. If `inputTypePattern` is configured, the browser checks it against that normalized full
+number rather than the national-format value visible beside the separate dial code.
 
 ---
 

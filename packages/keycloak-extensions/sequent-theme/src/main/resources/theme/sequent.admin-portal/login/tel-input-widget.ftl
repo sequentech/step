@@ -13,7 +13,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <#macro assets>
     <link rel="stylesheet" href="${url.resourcesPath}/intl-tel-input-23.3.2/css/intlTelInput.css">
     <link rel="stylesheet" href="${url.resourcesPath}/intl-tel-input-23.3.2/css/customized.css">
-    <script type="text/javascript" src="${url.resourcesPath}/intl-tel-input-23.3.2/js/intlTelInput.min.js"></script>
+    <script type="text/javascript" src="${url.resourcesPath}/intl-tel-input-23.3.2/js/intlTelInputWithUtils.min.js"></script>
 
     <#--  Timezone country code data  -->
     <script type="text/javascript" src="${url.resourcesPath}/js/timezone-countrycode-data.js"></script>
@@ -25,14 +25,21 @@ SPDX-License-Identifier: AGPL-3.0-only
             // Get all inputs that use type tel
             const listTelInputs = document.querySelectorAll("input[type='tel']");
             listTelInputs.forEach(function (input) {
-                // Change id and name to use the correctly formatted phone number in the form
+                // A profile pattern describes the stored, normalized value. With a separate dial
+                // code the visible control holds only the national part, so native validation on
+                // that value would reject valid E.164 numbers.
+                const configuredPattern = input.getAttribute("pattern");
+                if (configuredPattern !== null) {
+                    input.removeAttribute("pattern");
+                }
+
+                // Keep the id so the visible input remains associated with its label. Rename only
+                // the raw input; intl-tel-input submits the normalized value under the original id.
                 let id = input.id;
-                input.id = id + "-input";
                 input.name = id + "-input";
 
                 // Use intel-tel-input
-                window.intlTelInput(input, {
-                    utilsScript: "${url.resourcesPath}/intl-tel-input-23.3.2/js/utils.js",
+                const phoneInput = window.intlTelInput(input, {
                     initialCountry: "auto",
                     separateDialCode: true,
                     customPlaceholder: function(selectedCountryPlaceholder, selectedCountryData) {
@@ -55,6 +62,29 @@ SPDX-License-Identifier: AGPL-3.0-only
                         return failure();
                     },
                 });
+
+                if (configuredPattern !== null) {
+                    const validateNormalizedPattern = function () {
+                        input.setCustomValidity("");
+                        if (!input.value) {
+                            return;
+                        }
+
+                        // Let the browser interpret the configured HTML pattern and provide its
+                        // localized validation message, but test the normalized E.164 value.
+                        const patternProbe = document.createElement("input");
+                        patternProbe.type = "text";
+                        patternProbe.required = true;
+                        patternProbe.pattern = configuredPattern;
+                        patternProbe.value = phoneInput.getNumber();
+                        if (!patternProbe.validity.valid) {
+                            input.setCustomValidity(patternProbe.validationMessage);
+                        }
+                    };
+                    input.addEventListener("input", validateNormalizedPattern);
+                    input.addEventListener("countrychange", validateNormalizedPattern);
+                    validateNormalizedPattern();
+                }
             });
         });
     </script>

@@ -4,38 +4,31 @@
 
 package sequent.keycloak.authenticator.forgot_password;
 
-import jakarta.ws.rs.core.MultivaluedMap;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.UserModel;
-import org.keycloak.representations.userprofile.config.UPAttribute;
-import org.keycloak.representations.userprofile.config.UPConfig;
+import org.keycloak.userprofile.AttributeMetadata;
+import org.keycloak.userprofile.AttributeValidatorMetadata;
 import org.keycloak.userprofile.Attributes;
 import org.keycloak.userprofile.UserProfile;
 import org.keycloak.userprofile.UserProfileContext;
 import org.keycloak.userprofile.UserProfileProvider;
 
 /**
- * A deliberately narrow model of the User Profile fields selected by {@code matchAttributes}.
+ * User Profile rendering metadata for the fields explicitly selected by {@code matchAttributes}.
  *
- * <p>The standard Keycloak form bean starts from {@link Attributes#getReadable()}, which removes
- * attributes whose profile permission does not include {@code view}. That is correct for showing an
- * authenticated user's stored profile, but not for this pre-authentication form: selecting an
- * attribute in {@code matchAttributes} is the administrator's explicit instruction to ask for it.
- * This bean therefore reads declarations from {@link UPConfig}, while never reading a user model or
- * stored attribute values.
- *
- * <p>Only the configured match fields and the rendering metadata used by the login theme are
- * exposed. Values come exclusively from the current form submission, so defaults, unrelated profile
- * attributes and persisted voter data cannot be reflected into an anonymous response.
+ * <p>Keycloak's standard form bean starts from {@link Attributes#getReadable()}, which hides
+ * attributes the anonymous voter cannot view. For this pre-authentication form, selecting an
+ * attribute in {@code matchAttributes} is the administrator's explicit instruction to ask for it,
+ * so this bean looks up only those declarations directly. It never reads stored values, submitted
+ * values, defaults, or arbitrary executable annotations into the anonymous response.
  */
-public class LoginBean {
+public final class LoginBean {
 
   private static final Set<String> SAFE_ANNOTATIONS =
       Set.of(
@@ -55,148 +48,60 @@ public class LoginBean {
           "inputOptionLabels",
           "inputOptionLabelsI18nPrefix",
           "inputOptionsFromValidation",
-          "filterSelectAttribute",
-          "disableAttribute",
-          "disableElement",
-          "html-attribute:autocomplete");
+          "filterSelectAttribute");
 
-  private final List<Attribute> attributes;
   private final Map<String, Attribute> attributesByName;
 
-  public LoginBean(
-      MultivaluedMap<String, String> formData,
-      KeycloakSession session,
-      List<String> matchAttributes) {
-    UserProfileProvider provider = session.getProvider(UserProfileProvider.class);
-    UPConfig configuration = provider == null ? null : provider.getConfiguration();
-    if (configuration == null
-        || configuration.getAttributes() == null
-        || matchAttributes == null
-        || matchAttributes.isEmpty()) {
-      attributes = List.of();
+  public LoginBean(KeycloakSession session, List<String> matchAttributes) {
+    UserProfileProvider provider =
+        session == null ? null : session.getProvider(UserProfileProvider.class);
+    UserProfile profile =
+        provider == null
+            ? null
+            : provider.create(UserProfileContext.REGISTRATION, null, (UserModel) null);
+    Attributes profileAttributes = profile == null ? null : profile.getAttributes();
+    if (profileAttributes == null || matchAttributes == null || matchAttributes.isEmpty()) {
       attributesByName = Map.of();
       return;
     }
 
-    Map<String, UPAttribute> configuredByName = new LinkedHashMap<>();
-    for (UPAttribute configured : configuration.getAttributes()) {
-      if (configured != null && configured.getName() != null) {
-        configuredByName.putIfAbsent(configured.getName(), configured);
-      }
-    }
-
-    UserProfile profile = provider.create(UserProfileContext.REGISTRATION, null, (UserModel) null);
-    Attributes profileAttributes = profile == null ? null : profile.getAttributes();
-    Set<String> selectedNames = Collections.unmodifiableSet(new LinkedHashSet<>(matchAttributes));
+    Set<String> selectedNames = new LinkedHashSet<>(matchAttributes);
     Map<String, Attribute> selected = new LinkedHashMap<>();
     for (String name : matchAttributes) {
-      UPAttribute configured = configuredByName.get(name);
-      if (configured == null || selected.containsKey(name)) {
+      if (name == null || selected.containsKey(name)) {
         continue;
       }
-      boolean required = profileAttributes != null && profileAttributes.isRequired(name);
-      selected.put(name, new Attribute(configured, formData, selectedNames, required));
+      AttributeMetadata metadata = profileAttributes.getMetadata(name);
+      if (metadata != null) {
+        selected.put(name, new Attribute(metadata, profileAttributes, selectedNames));
+      }
     }
-
     attributesByName = Collections.unmodifiableMap(selected);
-    attributes = List.copyOf(selected.values());
-  }
-
-  public List<Attribute> getAttributes() {
-    return attributes;
   }
 
   public Map<String, Attribute> getAttributesByName() {
     return attributesByName;
   }
 
-  /** The sanitized login fields intentionally expose no arbitrary data-* annotations or scripts. */
-  public Map<String, Object> getHtml5DataAnnotations() {
-    return Map.of();
-  }
-
-  public String getContext() {
-    return "MULTI_ATTRIBUTE_LOGIN";
-  }
-
-  /** FreeMarker-facing field metadata shaped like Keycloak's User Profile attribute bean. */
+  /** FreeMarker-facing rendering metadata for one selected match attribute. */
   public static final class Attribute {
     private final String name;
     private final String displayName;
+    private final Attributes profileAttributes;
     private final Map<String, Object> annotations;
     private final Map<String, Map<String, Object>> validators;
-    private final List<String> values;
-    private final boolean required;
-    private final boolean multivalued;
 
     private Attribute(
-        UPAttribute configured,
-        MultivaluedMap<String, String> formData,
-        Set<String> selectedNames,
-        boolean required) {
-      name = configured.getName();
-      displayName = loginDisplayName(configured);
-      annotations = safeAnnotations(configured.getAnnotations(), selectedNames);
-      validators = safeValidators(configured.getValidations(), annotations);
-      List<String> submitted = formData == null ? null : formData.get(name);
-      values = submitted == null ? List.of() : submitted.stream().filter(Objects::nonNull).toList();
-      this.required = required;
-      multivalued = configured.isMultivalued();
-    }
-
-    private static String loginDisplayName(UPAttribute configured) {
-      String configuredDisplayName = configured.getDisplayName();
-      if (configuredDisplayName == null || configuredDisplayName.isBlank()) {
-        return configured.getName();
-      }
-
-      // Keycloak's Admin Console generates this namespaced key for custom profile attributes. The
-      // extension's theme-resource bundles intentionally use the attribute name itself, matching
-      // the rest of STEP's profile rendering. Keep every other literal or custom message key as-is.
-      String keycloakGeneratedKey = "${profile.attributes." + configured.getName() + "}";
-      if (keycloakGeneratedKey.equals(configuredDisplayName)) {
-        return "${" + configured.getName() + "}";
-      }
-      return configuredDisplayName;
-    }
-
-    private static Map<String, Object> safeAnnotations(
-        Map<String, Object> configured, Set<String> selectedNames) {
-      if (configured == null || configured.isEmpty()) {
-        return Map.of();
-      }
-      Map<String, Object> safe = new LinkedHashMap<>();
-      for (Map.Entry<String, Object> entry : configured.entrySet()) {
-        if (!SAFE_ANNOTATIONS.contains(entry.getKey()) || entry.getValue() == null) {
-          continue;
-        }
-        if ("filterSelectAttribute".equals(entry.getKey())
-            && (!(entry.getValue() instanceof String target) || !selectedNames.contains(target))) {
-          continue;
-        }
-        safe.put(entry.getKey(), entry.getValue());
-      }
-      return Collections.unmodifiableMap(safe);
-    }
-
-    private static Map<String, Map<String, Object>> safeValidators(
-        Map<String, Map<String, Object>> configured, Map<String, Object> annotations) {
-      if (configured == null || configured.isEmpty()) {
-        return Map.of();
-      }
-      Set<String> exposedValidatorNames = new LinkedHashSet<>();
-      exposedValidatorNames.add("options");
-      if (annotations.get("inputOptionsFromValidation") instanceof String configuredName) {
-        exposedValidatorNames.add(configuredName);
-      }
-      Map<String, Map<String, Object>> safe = new LinkedHashMap<>();
-      for (String name : exposedValidatorNames) {
-        Map<String, Object> validator = configured.get(name);
-        if (validator != null) {
-          safe.put(name, Collections.unmodifiableMap(new LinkedHashMap<>(validator)));
-        }
-      }
-      return Collections.unmodifiableMap(safe);
+        AttributeMetadata metadata, Attributes profileAttributes, Set<String> selectedNames) {
+      name = metadata.getName();
+      String configuredDisplayName = metadata.getAttributeDisplayName();
+      displayName =
+          configuredDisplayName == null || configuredDisplayName.isBlank()
+              ? name
+              : configuredDisplayName;
+      this.profileAttributes = profileAttributes;
+      annotations = safeAnnotations(metadata.getAnnotations(), selectedNames);
+      validators = safeValidators(metadata.getValidators(), annotations);
     }
 
     public String getName() {
@@ -216,29 +121,81 @@ public class LoginBean {
     }
 
     public List<String> getValues() {
-      return values;
+      return List.of();
     }
 
     public String getValue() {
-      return values.isEmpty() ? "" : values.get(0);
+      return "";
     }
 
     public boolean isRequired() {
-      return required;
+      return profileAttributes.isRequired(name);
     }
 
     public boolean isMultivalued() {
-      return multivalued;
+      return false;
     }
 
-    /** Login collects a matching value; profile edit permissions must not disable its input. */
     public boolean isReadOnly() {
       return false;
     }
 
-    /** Arbitrary data-* annotations are intentionally not exposed on an anonymous login page. */
     public Map<String, Object> getHtml5DataAnnotations() {
       return Map.of();
     }
+  }
+
+  private static Map<String, Object> safeAnnotations(
+      Map<String, Object> configured, Set<String> selectedNames) {
+    if (configured == null || configured.isEmpty()) {
+      return Map.of();
+    }
+
+    Map<String, Object> safe = new LinkedHashMap<>();
+    for (Map.Entry<String, Object> entry : configured.entrySet()) {
+      if (!SAFE_ANNOTATIONS.contains(entry.getKey()) || entry.getValue() == null) {
+        continue;
+      }
+      if ("filterSelectAttribute".equals(entry.getKey())
+          && (!(entry.getValue() instanceof String target) || !selectedNames.contains(target))) {
+        continue;
+      }
+
+      Object value = entry.getValue();
+      if ("inputType".equals(entry.getKey())) {
+        if ("multiselect".equals(value)) {
+          value = "select";
+        } else if ("multiselect-checkboxes".equals(value)) {
+          value = "select-radiobuttons";
+        }
+      }
+      safe.put(entry.getKey(), value);
+    }
+    return Collections.unmodifiableMap(safe);
+  }
+
+  private static Map<String, Map<String, Object>> safeValidators(
+      List<AttributeValidatorMetadata> configured, Map<String, Object> annotations) {
+    if (configured == null || configured.isEmpty()) {
+      return Map.of();
+    }
+
+    Set<String> exposedNames = new LinkedHashSet<>();
+    exposedNames.add("options");
+    if (annotations.get("inputOptionsFromValidation") instanceof String configuredName) {
+      exposedNames.add(configuredName);
+    }
+
+    Map<String, Map<String, Object>> safe = new LinkedHashMap<>();
+    for (AttributeValidatorMetadata validator : configured) {
+      if (validator == null || !exposedNames.contains(validator.getValidatorId())) {
+        continue;
+      }
+      Map<String, Object> config = validator.getValidatorConfig();
+      safe.put(
+          validator.getValidatorId(),
+          config == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(config)));
+    }
+    return Collections.unmodifiableMap(safe);
   }
 }

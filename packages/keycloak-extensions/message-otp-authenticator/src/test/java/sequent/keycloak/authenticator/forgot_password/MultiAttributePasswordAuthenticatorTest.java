@@ -50,6 +50,7 @@ import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.representations.userprofile.config.UPConfig;
 import org.keycloak.services.managers.BruteForceProtector;
+import org.keycloak.userprofile.AttributeMetadata;
 import org.keycloak.userprofile.Attributes;
 import org.keycloak.userprofile.UserProfile;
 import org.keycloak.userprofile.UserProfileContext;
@@ -1275,9 +1276,7 @@ class MultiAttributePasswordAuthenticatorTest {
                 Utils.HONOR_USER_PROFILE_REQUIRED, "true"));
     mockUserProfileForOptionalAttributes(Map.of("dateOfBirth", true));
 
-    Set<String> optional =
-        authenticator.optionalAttributes(
-            context, List.of("dateOfBirth"), new MultivaluedHashMap<>());
+    Set<String> optional = authenticator.optionalAttributes(context, List.of("dateOfBirth"));
 
     assertTrue(optional.isEmpty());
   }
@@ -1291,9 +1290,7 @@ class MultiAttributePasswordAuthenticatorTest {
                 Utils.HONOR_USER_PROFILE_REQUIRED, "true"));
     mockUserProfileForOptionalAttributes(Map.of("nationalId", false));
 
-    Set<String> optional =
-        authenticator.optionalAttributes(
-            context, List.of("nationalId"), new MultivaluedHashMap<>());
+    Set<String> optional = authenticator.optionalAttributes(context, List.of("nationalId"));
 
     assertEquals(Set.of("nationalId"), optional);
   }
@@ -1309,8 +1306,7 @@ class MultiAttributePasswordAuthenticatorTest {
                 Utils.HONOR_USER_PROFILE_REQUIRED, "true"));
     mockUserProfileForOptionalAttributes(Map.of());
 
-    Set<String> optional =
-        authenticator.optionalAttributes(context, List.of("voterId"), new MultivaluedHashMap<>());
+    Set<String> optional = authenticator.optionalAttributes(context, List.of("voterId"));
 
     assertTrue(optional.isEmpty());
   }
@@ -1321,9 +1317,7 @@ class MultiAttributePasswordAuthenticatorTest {
         mockChallengeContext(Map.of(Utils.MATCH_ATTRIBUTES, "nationalId"));
     mockUserProfileForOptionalAttributes(Map.of("nationalId", false));
 
-    Set<String> optional =
-        authenticator.optionalAttributes(
-            context, List.of("nationalId"), new MultivaluedHashMap<>());
+    Set<String> optional = authenticator.optionalAttributes(context, List.of("nationalId"));
 
     assertTrue(optional.isEmpty());
   }
@@ -1333,16 +1327,17 @@ class MultiAttributePasswordAuthenticatorTest {
     UserProfile userProfile = mock(UserProfile.class);
     Attributes attributes = mock(Attributes.class);
 
-    List<UPAttribute> configured = new java.util.ArrayList<>();
     for (Map.Entry<String, Boolean> entry : requiredByName.entrySet()) {
       String name = entry.getKey();
-      configured.add(new UPAttribute(name));
+      AttributeMetadata metadata = mock(AttributeMetadata.class);
+      lenient().when(metadata.getName()).thenReturn(name);
+      lenient().when(metadata.getAttributeDisplayName()).thenReturn(name);
+      lenient().when(metadata.getAnnotations()).thenReturn(Map.of());
+      lenient().when(metadata.getValidators()).thenReturn(List.of());
+      lenient().when(attributes.getMetadata(name)).thenReturn(metadata);
       lenient().when(attributes.isRequired(name)).thenReturn(entry.getValue());
     }
-    UPConfig configuration = new UPConfig();
-    configuration.setAttributes(configured);
     lenient().when(userProfile.getAttributes()).thenReturn(attributes);
-    lenient().when(userProfileProvider.getConfiguration()).thenReturn(configuration);
     lenient()
         .when(userProfileProvider.create(eq(UserProfileContext.REGISTRATION), isNull(), isNull()))
         .thenReturn(userProfile);
@@ -1425,6 +1420,33 @@ class MultiAttributePasswordAuthenticatorTest {
   }
 
   @Test
+  void action_lockedOutStatesRenderGenericErrorWithoutHidingInternalEventReason() {
+    for (LockoutState state : List.of(LockoutState.TEMPORARY, LockoutState.PERMANENT)) {
+      AuthenticationFlowContext context = mockActionContext();
+      EventBuilder event = context.getEvent();
+      UserModel attributableUser = mock(UserModel.class);
+      Response challengeResponse = mock(Response.class);
+      java.util.concurrent.atomic.AtomicReference<String> renderedError =
+          new java.util.concurrent.atomic.AtomicReference<>();
+      MultiAttributePasswordAuthenticator actionAuthenticator =
+          actionAuthenticator(
+              Resolution.lockedOut(attributableUser, state), challengeResponse, renderedError);
+
+      actionAuthenticator.action(context);
+
+      assertEquals(
+          MultiAttributePasswordAuthenticator.INVALID_CREDENTIALS_MESSAGE, renderedError.get());
+      verify(event)
+          .error(
+              state == LockoutState.PERMANENT
+                  ? org.keycloak.events.Errors.USER_DISABLED
+                  : org.keycloak.events.Errors.USER_TEMPORARILY_DISABLED);
+      verify(context).forceChallenge(challengeResponse);
+      verify(context, never()).failureChallenge(any(), any());
+    }
+  }
+
+  @Test
   void action_passesNarrowedMatchAttributesFromOptionalAttributesToResolver() {
     AuthenticationFlowContext context = mockActionContext();
     AuthenticatorConfigModel authConfig = context.getAuthenticatorConfig();
@@ -1445,9 +1467,7 @@ class MultiAttributePasswordAuthenticatorTest {
 
           @Override
           protected Set<String> optionalAttributes(
-              AuthenticationFlowContext context,
-              List<String> matchAttributes,
-              MultivaluedMap<String, String> formData) {
+              AuthenticationFlowContext context, List<String> matchAttributes) {
             return Set.of("nationalId");
           }
 
@@ -1496,6 +1516,13 @@ class MultiAttributePasswordAuthenticatorTest {
 
   private MultiAttributePasswordAuthenticator actionAuthenticator(
       Resolution resolution, Response challengeResponse) {
+    return actionAuthenticator(resolution, challengeResponse, null);
+  }
+
+  private MultiAttributePasswordAuthenticator actionAuthenticator(
+      Resolution resolution,
+      Response challengeResponse,
+      java.util.concurrent.atomic.AtomicReference<String> renderedError) {
     return new MultiAttributePasswordAuthenticator() {
       @Override
       protected Map<String, String> collectSubmittedValues(
@@ -1522,6 +1549,9 @@ class MultiAttributePasswordAuthenticatorTest {
           AuthenticationFlowContext context,
           MultivaluedMap<String, String> formData,
           String error) {
+        if (renderedError != null) {
+          renderedError.set(error);
+        }
         return challengeResponse;
       }
     };

@@ -148,6 +148,32 @@ class TemplateSyntaxTest {
   }
 
   @Test
+  void structuredMultiAttributeFailureUsesTheAuthenticatorError()
+      throws IOException, TemplateException {
+    TemplateMethodModelEx hasError = arguments -> true;
+    TemplateMethodModelEx noMessage = arguments -> "";
+    TemplateMethodModelEx genericError = arguments -> "invalidCredentialsMessage";
+    Map<String, Object> model = baseModel("structured");
+    model.put(
+        "messagesPerField",
+        Map.of(
+            "exists", hasError,
+            "existsError", hasError,
+            "get", noMessage,
+            "getFirstError", genericError));
+    model.put("matchAttributes", List.of("dateOfBirth"));
+    model.put(
+        "profile",
+        profileWithAttributes(
+            mockAttribute("dateOfBirth", "${dateOfBirth}", Map.of("inputType", "html5-date"))));
+
+    String html = renderVotingPortalLogin(model);
+
+    assertTrue(html.contains("invalidCredentialsMessage"));
+    assertFalse(html.contains(">structuredCredentialError<"));
+  }
+
+  @Test
   void multiAttributeDateInputsHonorConfiguredMaxInBothPortals()
       throws IOException, TemplateException {
     for (String portal : List.of("sequent.admin-portal", "sequent.voting-portal")) {
@@ -238,9 +264,8 @@ class TemplateSyntaxTest {
 
   @Test
   void telInputWidgetInitialisesAfterTheFieldsItUpgrades() throws IOException, TemplateException {
-    // login.ftl emits the widget assets above its matchAttributes loop, so a synchronous
-    // querySelectorAll would run before the tel inputs exist and silently upgrade nothing -
-    // leaving the raw local number to be submitted instead of the normalised international one.
+    // The bundled build makes number normalization available synchronously. DOMContentLoaded still
+    // defers the query until after login.ftl has emitted the tel input.
     Map<String, Object> model = baseModel("standard");
     model.put("matchAttributes", List.of("mobile"));
     model.put(
@@ -253,6 +278,43 @@ class TemplateSyntaxTest {
     assertTrue(
         html.indexOf("querySelectorAll(\"input[type='tel']\")") < html.indexOf("type=\"tel\""));
     assertTrue(html.contains("addEventListener('DOMContentLoaded'"));
+    assertTrue(html.contains("intlTelInputWithUtils.min.js"));
+    assertFalse(html.contains("utilsScript"));
+    assertFalse(html.contains("input.id = id + \"-input\""));
+    assertTrue(html.contains("input.name = id + \"-input\""));
+  }
+
+  @Test
+  void telPatternIsCheckedAgainstTheNormalizedNumber() throws IOException, TemplateException {
+    Map<String, Object> model = baseModel("standard");
+    model.put("matchAttributes", List.of("mobile"));
+    model.put(
+        "profile",
+        profileWithAttributes(
+            mockAttribute(
+                "mobile",
+                "${mobile}",
+                Map.of("inputType", "html5-tel", "inputTypePattern", "^\\+\\d+$"))));
+
+    String html = renderVotingPortalLogin(model);
+
+    assertTrue(inputTagFor(html, "mobile").contains("pattern=\"^\\+\\d+$\""));
+    assertTrue(html.contains("input.removeAttribute(\"pattern\")"));
+    assertTrue(html.contains("patternProbe.value = phoneInput.getNumber()"));
+    assertTrue(html.contains("input.setCustomValidity(patternProbe.validationMessage)"));
+  }
+
+  @Test
+  void multiAttributeLoginSkipsUnusedPhoneAssets() throws IOException, TemplateException {
+    Map<String, Object> model = baseModel("standard");
+    model.put("matchAttributes", List.of("nationalId"));
+    model.put(
+        "profile", profileWithAttributes(mockAttribute("nationalId", "${nationalId}", Map.of())));
+
+    String html = renderVotingPortalLogin(model);
+
+    assertFalse(html.contains("intlTelInput"));
+    assertFalse(html.contains("intlTelInput.css"));
   }
 
   @Test
@@ -279,6 +341,91 @@ class TemplateSyntaxTest {
   }
 
   @Test
+  void registrationKeepsUserProfileRequiredValidation() throws IOException, TemplateException {
+    Map<String, Object> model = baseModel("standard");
+    model.put("formMode", "REGISTRATION");
+    model.put("passwordRequired", false);
+    model.put(
+        "profile",
+        Map.of(
+            "attributes",
+            List.of(
+                mockAttribute(
+                    "dateOfBirth", "${dateOfBirth}", Map.of("inputType", "html5-date"), true)),
+            "html5DataAnnotations",
+            Map.of()));
+
+    String html = renderRegister(model);
+
+    assertTrue(inputTagFor(html, "dateOfBirth").contains("required"));
+  }
+
+  @Test
+  void controlsReferenceTheirHelperAndErrorText() throws IOException, TemplateException {
+    TemplateMethodModelEx dateError =
+        arguments -> arguments.size() == 1 && "dateOfBirth".equals(arguments.get(0).toString());
+    TemplateMethodModelEx errorMessage = arguments -> "Invalid date";
+    Map<String, Object> model = baseModel("standard");
+    model.put(
+        "messagesPerField",
+        Map.of(
+            "exists", dateError,
+            "existsError", dateError,
+            "get", errorMessage,
+            "getFirstError", errorMessage));
+    model.put("matchAttributes", List.of("dateOfBirth"));
+    model.put(
+        "profile",
+        profileWithAttributes(
+            mockAttribute(
+                "dateOfBirth",
+                "${dateOfBirth}",
+                Map.of(
+                    "inputType",
+                    "html5-date",
+                    "inputHelperTextBefore",
+                    "Before",
+                    "inputHelperTextAfter",
+                    "After"))));
+
+    String html = renderVotingPortalLogin(model);
+    String input = inputTagFor(html, "dateOfBirth");
+
+    assertTrue(
+        input.contains(
+            "aria-describedby=\"form-help-text-before-dateOfBirth "
+                + "input-error-dateOfBirth form-help-text-after-dateOfBirth\""));
+    assertTrue(html.contains("id=\"form-help-text-before-dateOfBirth\""));
+    assertTrue(html.contains("id=\"input-error-dateOfBirth\""));
+    assertTrue(html.contains("id=\"form-help-text-after-dateOfBirth\""));
+  }
+
+  @Test
+  void requiredCheckboxGroupAcceptsAnyCheckedOption() throws IOException, TemplateException {
+    Map<String, Object> channels =
+        mockAttributeWithOptions(
+            "channels", Map.of("inputType", "multiselect-checkboxes"), List.of("sms", "email"));
+    channels.put("required", true);
+    Map<String, Object> model = baseModel("standard");
+    model.put("formMode", "REGISTRATION");
+    model.put("passwordRequired", false);
+    model.put(
+        "profile",
+        Map.of(
+            "attributes", List.of(channels),
+            "html5DataAnnotations", Map.of()));
+
+    String html = renderRegister(model);
+
+    assertTrue(
+        inputTagFor(html, "channels-sms").contains("data-required-checkbox-group=\"channels\""));
+    assertTrue(inputTagFor(html, "channels-sms").contains("required"));
+    assertTrue(
+        inputTagFor(html, "channels-email").contains("data-required-checkbox-group=\"channels\""));
+    assertTrue(html.contains("checkboxes[0].required = !checkboxes.some"));
+  }
+
+  @Test
   void multiAttributeLoginMarksUndeclaredAttributeRequiredWhenEnabled()
       throws IOException, TemplateException {
     // The authenticator keeps an attribute with no User Profile declaration mandatory, so the
@@ -301,27 +448,28 @@ class TemplateSyntaxTest {
   }
 
   @Test
-  void multiAttributeLoginLetsHtmlAttributeAnnotationOverrideTheThemeDefault()
-      throws IOException, TemplateException {
-    // A duplicate attribute is dropped by the HTML parser, so emitting both would make the theme
-    // default silently beat the realm's explicit configuration.
+  void registrationQuotesHtmlAttributeAnnotationValues() throws IOException, TemplateException {
     Map<String, Object> model = baseModel("standard");
-    model.put("matchAttributes", List.of("dateOfBirth"));
+    model.put("formMode", "REGISTRATION");
+    model.put("passwordRequired", false);
     model.put(
         "profile",
-        profileWithAttributes(
-            mockAttribute(
-                "dateOfBirth",
-                "${dateOfBirth}",
-                Map.of(
-                    "inputType", "html5-date",
-                    "html-attribute:tabindex", "7",
-                    "html-attribute:autocomplete", "bday"))));
-    String tag = inputTagFor(renderVotingPortalLogin(model), "dateOfBirth");
+        Map.of(
+            "attributes",
+            List.of(
+                mockAttribute(
+                    "dateOfBirth",
+                    "${dateOfBirth}",
+                    Map.of(
+                        "inputType",
+                        "html5-date",
+                        "html-attribute:autocomplete",
+                        "off autofocus onfocus=alert(1)"))),
+            "html5DataAnnotations",
+            Map.of()));
+    String tag = inputTagFor(renderRegister(model), "dateOfBirth");
 
-    assertTrue(tag.contains("tabindex=7"));
-    assertTrue(tag.contains("autocomplete=bday"));
-    assertFalse(tag.contains("autocomplete=\"off\""));
+    assertTrue(tag.contains("autocomplete=\"off autofocus onfocus=alert(1)\""));
   }
 
   /** The single rendered {@code <input>} tag carrying {@code id="<name>"}, whitespace collapsed. */
@@ -330,45 +478,6 @@ class TemplateSyntaxTest {
         Pattern.compile("<input[^>]*id=\"" + Pattern.quote(name) + "\"[^>]*>").matcher(html);
     assertTrue(matcher.find(), "no input rendered for " + name);
     return matcher.group().replaceAll("\\s+", " ");
-  }
-
-  @Test
-  void multiAttributeLoginLoadsProfileWidgetModules() throws IOException, TemplateException {
-    // register.ftl emits these from userProfileFormFields, which login.ftl does not go through.
-    Map<String, Object> model = baseModel("standard");
-    model.put("matchAttributes", List.of("dateOfBirth"));
-    Map<String, Object> profile =
-        new HashMap<>(
-            profileWithAttributes(
-                mockAttribute("dateOfBirth", "${dateOfBirth}", Map.of("inputType", "html5-date"))));
-    profile.put("html5DataAnnotations", Map.of("myWidget", "x"));
-    model.put("profile", profile);
-    String html = renderVotingPortalLogin(model);
-
-    assertTrue(html.contains("/js/myWidget.js"));
-  }
-
-  @Test
-  void multiAttributeLoginRendersControlsCarryingToggleAnnotations()
-      throws IOException, TemplateException {
-    // disableAttribute appends to a namespace-level list; rendering used to fail outright here.
-    Map<String, Object> model = baseModel("standard");
-    model.put("matchAttributes", List.of("consent"));
-    model.put(
-        "profile",
-        profileWithAttributes(
-            mockAttributeWithOptions(
-                "consent",
-                Map.of("inputType", "select-radiobuttons", "disableAttribute", "other"),
-                List.of("yes", "no"))));
-    String html = renderVotingPortalLogin(model);
-    String normalized = html.replaceAll("\\s+", " ");
-
-    // The handler definition alone proves nothing - fieldToggleHandlers always emits it. Assert
-    // the binding inputTagSelects generates on the option, and the initial state it registers.
-    assertTrue(normalized.contains("onclick=\"readOnlyElementById(event, 'yes')\""));
-    assertTrue(normalized.contains("setAllReadOnly(\"yes\", false)"));
-    assertTrue(html.contains("function readOnlyElementById"));
   }
 
   @Test
@@ -410,7 +519,7 @@ class TemplateSyntaxTest {
   void credentialFieldRendersFirstOnRegistrationWhenConfigured()
       throws IOException, TemplateException {
     Map<String, Object> model = credentialFirstModel();
-    model.put("formMode", "LOGIN");
+    model.put("formMode", "REGISTRATION");
     model.put("passwordRequired", true);
     model.put(
         "profile",
@@ -425,6 +534,44 @@ class TemplateSyntaxTest {
 
     assertTrue(html.indexOf("id=\"password\"") < html.indexOf("id=\"username\""));
     assertEquals(1, html.split("id=\"password\"", -1).length - 1);
+    assertTrue(inputTagFor(html, "password").contains("autofocus"));
+    assertEquals(1, html.split("autofocus", -1).length - 1);
+  }
+
+  @Test
+  void credentialFirstKeepsPasswordAnnotationsOwnedByUsername()
+      throws IOException, TemplateException {
+    Map<String, Object> model = credentialFirstModel();
+    model.put("formMode", "REGISTRATION");
+    model.put("passwordRequired", true);
+    model.put(
+        "profile",
+        Map.of(
+            "attributes",
+            List.of(
+                mockAttribute("dateOfBirth", "${dateOfBirth}", Map.of("inputType", "html5-date")),
+                mockAttribute(
+                    "username",
+                    "${username}",
+                    Map.of(
+                        "passwordHelperTextBefore",
+                        "Before password",
+                        "passwordHelperTextAfter",
+                        "After password",
+                        "passwordStrengthBar",
+                        "true"))),
+            "html5DataAnnotations",
+            Map.of()));
+
+    String html = renderRegister(model);
+
+    assertTrue(html.indexOf("id=\"password\"") < html.indexOf("id=\"dateOfBirth\""));
+    assertTrue(html.contains("id=\"form-help-text-before-username\""));
+    assertTrue(html.contains("Before password"));
+    assertTrue(html.contains("id=\"form-help-text-after-username\""));
+    assertTrue(html.contains("After password"));
+    assertTrue(html.contains("id=\"password-progress\""));
+    assertFalse(html.contains("form-help-text-before-dateOfBirth"));
   }
 
   @Test
@@ -438,11 +585,17 @@ class TemplateSyntaxTest {
         Map.of(
             "attributes",
             List.of(
-                mockAttribute("username", "${username}", Map.of("showPasswordAfterThis", "false")),
+                mockAttribute("username", "${username}", Map.of()),
                 mockAttribute(
                     "dateOfBirth",
                     "${dateOfBirth}",
-                    Map.of("inputType", "html5-date", "showPasswordAfterThis", "true"))),
+                    Map.of(
+                        "inputType",
+                        "html5-date",
+                        "showPasswordAfterThis",
+                        "true",
+                        "passwordHelperTextBefore",
+                        "Date-owned password helper"))),
             "html5DataAnnotations",
             Map.of()));
     String html = renderRegister(model);
@@ -451,6 +604,84 @@ class TemplateSyntaxTest {
     assertTrue(html.indexOf("id=\"dateOfBirth\"") < html.indexOf("id=\"password\""));
     assertTrue(html.indexOf("id=\"username\"") < html.indexOf("id=\"password\""));
     assertEquals(1, html.split("id=\"password\"", -1).length - 1);
+    assertTrue(html.contains("id=\"form-help-text-before-dateOfBirth\""));
+    assertTrue(html.contains("Date-owned password helper"));
+    assertFalse(html.contains("form-help-text-before-username"));
+  }
+
+  @Test
+  void allHiddenExplicitAnchorsStillRenderCredentialFirst() throws IOException, TemplateException {
+    Map<String, Object> model = credentialFirstModel();
+    model.put("formMode", "REGISTRATION");
+    model.put("passwordRequired", true);
+    model.put("hiddenProfileAttributes", List.of("dateOfBirth"));
+    model.put(
+        "profile",
+        Map.of(
+            "attributes",
+            List.of(
+                mockAttribute(
+                    "dateOfBirth",
+                    "${dateOfBirth}",
+                    Map.of(
+                        "inputType",
+                        "html5-date",
+                        "showPasswordAfterThis",
+                        "true",
+                        "passwordHelperTextBefore",
+                        "Hidden helper"))),
+            "html5DataAnnotations",
+            Map.of()));
+
+    String html = renderRegister(model);
+
+    assertEquals(1, html.split("id=\"password\"", -1).length - 1);
+    assertTrue(inputTagFor(html, "password").contains("autofocus"));
+    assertFalse(html.contains("id=\"username\""));
+    assertFalse(html.contains("id=\"dateOfBirth\""));
+    assertFalse(html.contains("Hidden helper"));
+  }
+
+  @Test
+  void showPasswordAfterThisCannotOverrideDisabledPasswordSetting()
+      throws IOException, TemplateException {
+    Map<String, Object> model = baseModel("standard");
+    model.put("formMode", "LOGIN");
+    model.put("passwordRequired", false);
+    model.put(
+        "profile",
+        Map.of(
+            "attributes",
+            List.of(
+                mockAttribute(
+                    "dateOfBirth",
+                    "${dateOfBirth}",
+                    Map.of("inputType", "html5-date", "showPasswordAfterThis", "true"))),
+            "html5DataAnnotations",
+            Map.of()));
+
+    assertFalse(renderRegister(model).contains("id=\"password\""));
+  }
+
+  @Test
+  void falseShowPasswordAfterThisAlsoOverridesCredentialFirst()
+      throws IOException, TemplateException {
+    Map<String, Object> model = credentialFirstModel();
+    model.put("formMode", "LOGIN");
+    model.put("passwordRequired", true);
+    model.put(
+        "profile",
+        Map.of(
+            "attributes",
+            List.of(
+                mockAttribute("username", "${username}", Map.of("showPasswordAfterThis", "false")),
+                mockAttribute("dateOfBirth", "${dateOfBirth}", Map.of("inputType", "html5-date"))),
+            "html5DataAnnotations",
+            Map.of()));
+
+    String html = renderRegister(model);
+
+    assertFalse(html.contains("id=\"password\""));
   }
 
   /** baseModel with the realm opted in to a credential-first layout. */
@@ -686,6 +917,26 @@ class TemplateSyntaxTest {
     // the credential field, which is always required.
     assertTrue(inputTagFor(html, "dateOfBirth").contains("required"));
     assertTrue(inputTagFor(html, "nationalId").contains("required"));
+  }
+
+  @Test
+  void requiredRadioMatchAttributeUsesBrowserGroupValidation()
+      throws IOException, TemplateException {
+    Map<String, Object> documentType =
+        mockAttributeWithOptions(
+            "documentType",
+            Map.of("inputType", "select-radiobuttons"),
+            List.of("national", "other"));
+    documentType.put("required", true);
+    Map<String, Object> model = baseModel("standard");
+    model.put("matchAttributes", List.of("documentType"));
+    model.put("honorUserProfileRequired", true);
+    model.put("profile", profileWithAttributes(documentType));
+
+    String html = renderVotingPortalLogin(model);
+
+    assertTrue(inputTagFor(html, "documentType-national").contains("required"));
+    assertTrue(inputTagFor(html, "documentType-other").contains("required"));
   }
 
   @Test

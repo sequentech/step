@@ -5,9 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <#import "template.ftl" as layout>
-<#import "user-profile-commons.ftl" as userProfileCommons>
-<#import "tel-input-widget.ftl" as telInputWidget>
-<#import "select-filter-widget.ftl" as selectFilterWidget>
+<#import "match-attributes.ftl" as matchAttributeFields>
 <#import "social-providers.ftl" as socialProviders>
 <#assign structuredCredential = (realm.attributes['credential-input-policy']!'standard') == 'structured'>
 <#--  SERVER_ONLY adds novalidate, so the browser stops adjudicating field formats and the
@@ -19,12 +17,13 @@ SPDX-License-Identifier: AGPL-3.0-only
     && matchAttributes?? && matchAttributes?has_content>
 <#assign credentialFieldError = messagesPerField.existsError('username','password')>
 <#assign structuredCredentialHasError = structuredCredential && credentialFieldError>
+<#assign honorRequired = honorUserProfileRequired??>
 <#--  Required markers only earn their place when some field is optional: the credential is
       always mandatory, so marking everything would tell the voter nothing. An attribute with no
       User Profile declaration stays mandatory in the authenticator (see
       MultiAttributePasswordAuthenticator#optionalAttributes), so it is never the optional one.  -->
-<#assign showRequiredMarkers = honorUserProfileRequired?? && matchAttributes??
-    && matchAttributes?filter(name -> profile.attributesByName[name]?? && !profile.attributesByName[name].required)?has_content>
+<#assign showRequiredMarkers = matchAttributeFields.showRequiredMarkers(
+    matchAttributes![], profile!{}, honorRequired)>
 <#--  The credential block is invoked in one of two positions, chosen by the realm's
       credential-field-position attribute. Kept as a local macro rather than a shared one: the two
       portals' credential markup differs, and only this one supports the structured PIN.  -->
@@ -60,7 +59,11 @@ SPDX-License-Identifier: AGPL-3.0-only
                         <#if structuredCredential>
                             <div id="structured-credential-hint" class="structured-credential__hint">${msg("structuredCredentialHint")}</div>
                             <span id="structured-credential-error" data-structured-credential-error class="${properties.kcInputErrorMessageClass!}" role="alert"<#if !structuredCredentialHasError> hidden</#if>>
-                                ${msg("structuredCredentialError")}
+                                <#if structuredCredentialHasError && matchAttributes?? && matchAttributes?has_content>
+                                    ${kcSanitize(messagesPerField.getFirstError('username','password'))?no_esc}
+                                <#else>
+                                    ${msg("structuredCredentialError")}
+                                </#if>
                             </span>
                         <#elseif usernameHidden?? && credentialFieldError>
                             <span id="input-error" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
@@ -88,37 +91,12 @@ SPDX-License-Identifier: AGPL-3.0-only
                 <form id="kc-form-login" <#if !structuredCredential>onsubmit="login.disabled = true; return true;"</#if><#if loginValidationServerOnly> novalidate</#if> action="${url.loginAction}" method="post">
                     <#if !usernameHidden??>
                         <#if matchAttributes?? && matchAttributes?has_content>
-                            <@telInputWidget.assets/>
-                            <@selectFilterWidget.assets/>
-
-                            <#if credentialFirst><@credentialField autofocus=true/></#if>
-                            <#list matchAttributes as name>
-                                <#if profile.attributesByName[name]??>
-                                    <#assign matchAttribute = profile.attributesByName[name]>
-                                    <#assign matchAttributeRequired = honorUserProfileRequired?? && matchAttribute.required>
-                                    <@userProfileCommons.inputFieldWithLabel attribute=matchAttribute name=name values=matchAttribute.values required=matchAttributeRequired requiredMarker=(matchAttributeRequired && showRequiredMarkers) autofocus=(!credentialFirst && name?index == 0) autocomplete="off"/>
-                                <#else>
-                                    <#-- Not declared in the realm's User Profile - still usable for matching, rendered as a plain text field -->
-                                    <div class="${properties.kcFormGroupClass!}">
-                                        <label for="${name}" class="${properties.kcLabelClass!}">${msg(name)}</label><#if showRequiredMarkers> *</#if>
-                                        <input id="${name}" class="${properties.kcInputClass!}" name="${name}" type="text" autocomplete="off"
-                                               <#if honorUserProfileRequired??>required</#if>
-                                               <#if !credentialFirst && name?index == 0>autofocus</#if>
-                                               <#if credentialFieldError>aria-invalid="true"</#if>
-                                        />
-                                    </div>
-                                </#if>
-                            </#list>
-
-                            <#--  Parity with register.ftl: the annotation handlers and the
-                                  per-profile widget modules are emitted by userProfileFormFields
-                                  there, which this loop does not go through.  -->
-                            <@userProfileCommons.fieldToggleHandlers/>
-                            <#if profile.html5DataAnnotations??>
-                                <#list profile.html5DataAnnotations?keys as key>
-                                    <script type="module" src="${url.resourcesPath}/js/${key}.js"></script>
-                                </#list>
-                            </#if>
+                            <@matchAttributeFields.render
+                                matchAttributes=matchAttributes profile=profile
+                                honorRequired=honorRequired showRequiredMarkers=showRequiredMarkers
+                                credentialFirst=credentialFirst fieldError=credentialFieldError>
+                                <#if credentialFirst><@credentialField autofocus=true/></#if>
+                            </@matchAttributeFields.render>
 
                             <#if credentialFieldError && !structuredCredential>
                                 <span id="input-error" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">

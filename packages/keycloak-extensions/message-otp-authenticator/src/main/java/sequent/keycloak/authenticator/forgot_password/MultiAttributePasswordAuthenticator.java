@@ -29,7 +29,6 @@ import org.keycloak.models.UserModel;
 import org.keycloak.models.credential.PasswordCredentialModel;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.representations.userprofile.config.UPAttribute;
-import org.keycloak.services.messages.Messages;
 
 /**
  * Authenticates a user by matching one or more configured user attributes against submitted form
@@ -104,7 +103,7 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
         Utils.getThrottleConfig(context.getAuthenticatorConfig());
     MultiAttributeCredentialResolver.MatchPolicy matchPolicy =
         Utils.getMatchPolicy(context.getAuthenticatorConfig());
-    Set<String> optionalAttributes = optionalAttributes(context, matchAttributes, formData);
+    Set<String> optionalAttributes = optionalAttributes(context, matchAttributes);
     List<String> attributesToMatch =
         effectiveMatchAttributes(matchAttributes, submittedValues, optionalAttributes);
     MultiAttributeCredentialResolver.Resolution result =
@@ -149,13 +148,7 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
       MultiAttributeCredentialResolver.LockoutState state) {
     boolean permanent = state == MultiAttributeCredentialResolver.LockoutState.PERMANENT;
     context.getEvent().error(permanent ? Errors.USER_DISABLED : Errors.USER_TEMPORARILY_DISABLED);
-    Response challengeResponse =
-        challenge(
-            context,
-            formData,
-            permanent
-                ? Messages.ACCOUNT_PERMANENTLY_DISABLED
-                : Messages.ACCOUNT_TEMPORARILY_DISABLED);
+    Response challengeResponse = challenge(context, formData, INVALID_CREDENTIALS_MESSAGE);
     context.forceChallenge(challengeResponse);
     context.clearUser();
   }
@@ -216,16 +209,14 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
    * itself has no notion of "optional", it's purely a form-level concern handled before calling it.
    */
   protected Set<String> optionalAttributes(
-      AuthenticationFlowContext context,
-      List<String> matchAttributes,
-      MultivaluedMap<String, String> formData) {
+      AuthenticationFlowContext context, List<String> matchAttributes) {
     if (!Utils.getBoolean(
         context.getAuthenticatorConfig(),
         Utils.HONOR_USER_PROFILE_REQUIRED,
         Boolean.parseBoolean(Utils.HONOR_USER_PROFILE_REQUIRED_DEFAULT))) {
       return Set.of();
     }
-    LoginBean profile = new LoginBean(formData, context.getSession(), matchAttributes);
+    LoginBean profile = new LoginBean(context.getSession(), matchAttributes);
     Map<String, LoginBean.Attribute> attributesByName = profile.getAttributesByName();
     Set<String> optional = new HashSet<>();
     for (String attribute : matchAttributes) {
@@ -313,7 +304,7 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
             Utils.MATCH_ATTRIBUTES,
             Utils.MATCH_ATTRIBUTES_DEFAULT);
     form.setAttribute("matchAttributes", matchAttributes);
-    form.setAttribute("profile", new LoginBean(formData, context.getSession(), matchAttributes));
+    form.setAttribute("profile", new LoginBean(context.getSession(), matchAttributes));
     if (Utils.getBoolean(
         context.getAuthenticatorConfig(),
         Utils.HONOR_USER_PROFILE_REQUIRED,
