@@ -141,9 +141,9 @@ const getSelectOptionDescription = (
 }
 
 /**
- * Label shown for one option of a `select` user profile attribute. The stored
- * option stays visible, so the admin still sees what is written to the voter,
- * and its description is appended when the attribute configures one.
+ * Label shown for one option of a `select` user profile attribute. A configured
+ * description replaces the stored value; the value is the fallback when the
+ * option has no description.
  */
 export const getSelectOptionLabel = (
     optionLabels: Record<string, string> | undefined,
@@ -152,7 +152,7 @@ export const getSelectOptionLabel = (
 ): string => {
     const description = getSelectOptionDescription(optionLabels, option, t)
 
-    return description && description !== option ? `${option} - ${description}` : option
+    return description ?? option
 }
 
 const toPositiveInteger = (value: unknown): number | undefined => {
