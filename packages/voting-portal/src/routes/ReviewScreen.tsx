@@ -623,7 +623,7 @@ export const ReviewScreen: React.FC = () => {
 
     if (ballotId && auditableBallot?.ballot_hash && ballotId !== auditableBallot?.ballot_hash) {
         setErrorMsg(
-            t("errors.encoding.writeInCharsExceeded", {
+            t(`reviewScreen.error.${CastBallotsErrorType.INCONSISTENT_HASH}`, {
                 ballotId,
                 auditableBallotHash: auditableBallot.ballot_hash,
             })

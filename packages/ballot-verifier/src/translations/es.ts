@@ -73,7 +73,9 @@ const spanishTranslation: TranslationType = {
                     "Las siguientes selecciones de la papeleta han sido descodificadas de la papeleta que importaste. Por favor, revísalas y asegúrate de que coincidan con las selecciones que hiciste en el Portal de Votación. Si tus selecciones no coinciden, por favor, contacta a las autoridades electorales...",
             },
             markedInvalid: "Voto explícitamente marcado inválido",
-            points: "({{points}} Puntos)",
+            points_one: "({{count}} Punto)",
+            points_many: "({{count}} Puntos)",
+            points_other: "({{count}} Puntos)",
             contestNotFound: "Pregunta no encontrada: {{contestId}}",
             declineToVote: "Se abstuvo de votar",
             blankBallot: "Papeleta en blanco",
@@ -89,12 +91,6 @@ const spanishTranslation: TranslationType = {
                 bytesToUtf8Conversion:
                     "Error convirtiendo bytes de opción de voto escrita a cadena UTF-8: {{errorMessage}}",
                 ballotTooLarge: "Voto más grande de lo esperado",
-            },
-            implicit: {
-                selectedMax:
-                    "El número de opciones seleccionadas {{numSelected}} es mayor que el máximo {{max}}",
-                selectedMin:
-                    "El número de opciones seleccionadas {{numSelected}} es menor que el máximo {{min}}",
             },
             explicit: {
                 notAllowed:

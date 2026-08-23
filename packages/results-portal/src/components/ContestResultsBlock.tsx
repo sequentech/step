@@ -177,6 +177,14 @@ export const ContestResultsBlock: React.FC<ContestResultsBlockProps> = ({
     const areaName = manifestContest.area_id
         ? translatedLabel(area, locale, manifestContest.area_id)
         : null
+    // The manifest is fetched JSON cast to `ResultsManifest`, so `positions: number` is an
+    // assertion rather than a guarantee. Coerce it: i18next skips pluralisation entirely when
+    // `count` is a string and falls back to the unsuffixed key, which these messages do not have.
+    const positions = Number(manifestContest.positions)
+    const positionsLabel =
+        Number.isFinite(positions) && positions > 0
+            ? t("resultsPortal.position", {count: positions})
+            : null
     const chartName = areaName
         ? `${electionName} - ${title} - ${areaName}`
         : `${electionName} - ${title}`
@@ -284,14 +292,7 @@ export const ContestResultsBlock: React.FC<ContestResultsBlockProps> = ({
                         color="text.secondary"
                     >
                         {electionName}
-                        {manifestContest.positions
-                            ? ` - ${t(
-                                  manifestContest.positions === 1
-                                      ? "resultsPortal.position"
-                                      : "resultsPortal.position_plural",
-                                  {count: manifestContest.positions}
-                              )}`
-                            : ""}
+                        {positionsLabel ? ` - ${positionsLabel}` : ""}
                         {areaName ? ` - ${areaName}` : ""}
                     </Typography>
                 </Box>

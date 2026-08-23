@@ -49,8 +49,9 @@ const galegoTranslation: TranslationType = {
             signedInAccess: "Acceso con sesión iniciada",
             published: "Publicado",
             notPublishedYet: "Aínda non publicado",
-            position: "{{count}} posto",
-            position_plural: "{{count}} postos",
+            position_one: "{{count}} posto",
+            position_many: "{{count}} postos",
+            position_other: "{{count}} postos",
             fallbackElectionName: "Elección",
             fallbackContestName: "Concurso {{contestId}}",
             state: {

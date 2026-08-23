@@ -69,7 +69,12 @@ const englishTranslation = {
                     "The following ballot selections have been decoded from the ballot you imported. Please review them and ensure that they match the selections you made in the Voting Portal.  If your selections don't match, please contact the election authorities...",
             },
             markedInvalid: "Ballot explicitly marked invalid",
-            points: "({{points}} Points)",
+            points_one: "({{count}} Point)",
+            // `_many` is selected only in es/cat/fr, for exact multiples of a million. English never
+            // selects it, but the other bundles are typed `TranslationType = typeof englishTranslation`,
+            // so the key has to be declared here before they can carry it.
+            points_many: "({{count}} Points)",
+            points_other: "({{count}} Points)",
             contestNotFound: "Contest not found: {{contestId}}",
             declineToVote: "Declined to vote",
             blankBallot: "Blank ballot",
@@ -85,12 +90,6 @@ const englishTranslation = {
                 bytesToUtf8Conversion:
                     "Error converting write-in from bytes to UTF-8 string: {{errorMessage}}",
                 ballotTooLarge: "Ballot larger than expected",
-            },
-            implicit: {
-                selectedMax:
-                    "Number of selected choices {{numSelected}} is more than the maximum {{max}}",
-                selectedMin:
-                    "Number of selected choices {{numSelected}} is less than the minimum {{min}}",
             },
             explicit: {
                 notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",

@@ -49,8 +49,9 @@ const tagalogTranslation: TranslationType = {
             signedInAccess: "Access na naka-sign in",
             published: "Nailathala",
             notPublishedYet: "Hindi pa nailalathala",
-            position: "{{count}} posisyon",
-            position_plural: "{{count}} posisyon",
+            position_one: "{{count}} posisyon",
+            position_many: "{{count}} posisyon",
+            position_other: "{{count}} posisyon",
             fallbackElectionName: "Halalan",
             fallbackContestName: "Labanan {{contestId}}",
             state: {

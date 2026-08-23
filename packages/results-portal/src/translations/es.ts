@@ -49,8 +49,9 @@ const spanishTranslation: TranslationType = {
             signedInAccess: "Acceso con sesión iniciada",
             published: "Publicado",
             notPublishedYet: "Todavía no publicado",
-            position: "{{count}} puesto",
-            position_plural: "{{count}} puestos",
+            position_one: "{{count}} puesto",
+            position_many: "{{count}} puestos",
+            position_other: "{{count}} puestos",
             fallbackElectionName: "Elección",
             fallbackContestName: "Contienda {{contestId}}",
             state: {

@@ -1926,9 +1926,11 @@ const spanishTranslation: TranslationType = {
                 trusteeList: "Autoridades",
                 threshold: "Umbral",
                 errorMinTrustees_one:
-                    "Seleccionaste sólo {{selected}} autoridad, pero debe seleccionar al menos {{threshold}}.",
+                    "Seleccionaste sólo {{selected}} autoridad, pero debes seleccionar al menos {{threshold}}.",
+                errorMinTrustees_many:
+                    "Seleccionaste sólo {{selected}} autoridades, pero debes seleccionar al menos {{threshold}}.",
                 errorMinTrustees_other:
-                    "Seleccionaste sólo {{selected}} autoridades, pero debe seleccionar al menos {{threshold}}.",
+                    "Seleccionaste sólo {{selected}} autoridades, pero debes seleccionar al menos {{threshold}}.",
                 errorThreshold:
                     "Seleccionaste un umbral de {{selected}} pero debe estar entre {{min}} y {{max}}.",
                 errorCreatingCeremony: "Error creando Ceremonia de Claves: {{error}}",
@@ -2060,8 +2062,9 @@ const spanishTranslation: TranslationType = {
                 contests: "Contests",
                 noTalliedContests: "No tallied contests available.",
                 publishSelectedContests: "Publish selected contests",
-                selectedContestCount: "{{count}} contest selected",
-                selectedContestCount_plural: "{{count}} contests selected",
+                selectedContestCount_one: "{{count}} contest selected",
+                selectedContestCount_many: "{{count}} contests selected",
+                selectedContestCount_other: "{{count}} contests selected",
                 history: "Publication history",
                 version: "Version",
                 status: "Status",

@@ -1920,6 +1920,8 @@ const basqueTranslation: TranslationType = {
                 trusteeList: "Fideikomisarioak",
                 errorMinTrustees_one:
                     "{{selected}} fideikomisario soilik hautatu duzu, baina gutxienez {{threshold}} hautatu behar dituzu.",
+                errorMinTrustees_many:
+                    "{{selected}} fideikomisario soilik hautatu dituzu, baina gutxienez {{threshold}} hautatu behar dituzu.",
                 errorMinTrustees_other:
                     "{{selected}} fideikomisario soilik hautatu dituzu, baina gutxienez {{threshold}} hautatu behar dituzu.",
                 errorThreshold:
@@ -2053,8 +2055,9 @@ const basqueTranslation: TranslationType = {
                 contests: "Contests",
                 noTalliedContests: "No tallied contests available.",
                 publishSelectedContests: "Publish selected contests",
-                selectedContestCount: "{{count}} contest selected",
-                selectedContestCount_plural: "{{count}} contests selected",
+                selectedContestCount_one: "{{count}} contest selected",
+                selectedContestCount_many: "{{count}} contests selected",
+                selectedContestCount_other: "{{count}} contests selected",
                 history: "Publication history",
                 version: "Version",
                 status: "Status",

@@ -1924,6 +1924,8 @@ const dutchTranslation: TranslationType = {
                 trusteeList: "Trustees",
                 errorMinTrustees_one:
                     "U selecteerde slechts {{selected}} trustee, maar u moet er minstens {{threshold}} selecteren.",
+                errorMinTrustees_many:
+                    "U selecteerde slechts {{selected}} trustees, maar u moet er minstens {{threshold}} selecteren.",
                 errorMinTrustees_other:
                     "U selecteerde slechts {{selected}} trustees, maar u moet er minstens {{threshold}} selecteren.",
                 errorThreshold:
@@ -2056,8 +2058,9 @@ const dutchTranslation: TranslationType = {
                 contests: "Contests",
                 noTalliedContests: "No tallied contests available.",
                 publishSelectedContests: "Publish selected contests",
-                selectedContestCount: "{{count}} contest selected",
-                selectedContestCount_plural: "{{count}} contests selected",
+                selectedContestCount_one: "{{count}} contest selected",
+                selectedContestCount_many: "{{count}} contests selected",
+                selectedContestCount_other: "{{count}} contests selected",
                 history: "Publication history",
                 version: "Version",
                 status: "Status",

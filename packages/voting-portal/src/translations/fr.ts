@@ -14,8 +14,9 @@ const frenchTranslation: TranslationType = {
             collapseToggle: "Masquer la liste {{listTitle}}",
             showCandidates: "Afficher les candidats",
             hideCandidates: "Masquer les candidats",
-            selectedCandidate: "{{count}} candidat sélectionné",
-            selectedCandidates: "{{count}} candidats sélectionnés",
+            selectedCandidates_one: "{{count}} candidat sélectionné",
+            selectedCandidates_many: "{{count}} candidats sélectionnés",
+            selectedCandidates_other: "{{count}} candidats sélectionnés",
             expandAll: "Tout afficher",
             collapseAll: "Tout réduire",
         },
@@ -340,24 +341,9 @@ const frenchTranslation: TranslationType = {
                 notEnoughChoices: "Nombre d'options insuffisant pour le déchiffrement",
                 writeInChoiceOutOfRange: "Entrée de saisie libre hors limites : {{index}}",
                 writeInNotEndInZero: "Le texte saisi ne se termine pas par 0",
-                writeInCharsExceeded:
-                    "Le texte saisi dépasse la longueur maximale de {{numCharsExceeded}} caractères. Veuillez le raccourcir.",
                 bytesToUtf8Conversion:
                     "Erreur lors de la conversion du texte de bytes en chaîne UTF-8 : {{errorMessage}}",
                 ballotTooLarge: "La taille du bulletin dépasse la limite prévue",
-            },
-            implicit: {
-                selectedMax:
-                    "Surcote : le nombre de choix sélectionnés {{numSelected}} est supérieur au maximum {{max}}",
-                selectedMin:
-                    "Le nombre de choix sélectionnés {{numSelected}} est inférieur au minimum {{min}}",
-                maxSelectionsPerType:
-                    "Le nombre de choix sélectionnés {{numSelected}} pour la liste {{type}} est supérieur au maximum {{max}}",
-                underVote:
-                    "Sous-vote : le nombre de choix sélectionnés {{numSelected}} est inférieur au maximum {{max}}",
-                overVoteDisabled:
-                    "Maximum atteint : vous avez sélectionné le maximum de {{numSelected}} choix. Pour modifier votre sélection, veuillez d'abord désélectionner une autre option.",
-                blankVote: "Vote blanc : 0 choix sélectionnés",
             },
             explicit: {
                 notAllowed: "Bulletin marqué comme invalide, mais cette question ne l'autorise pas",
