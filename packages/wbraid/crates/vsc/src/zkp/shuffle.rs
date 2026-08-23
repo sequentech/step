@@ -114,6 +114,11 @@ pub trait ShuffleChallenges<C: Context, const W: usize> {
     /// Values are reduced into the scalar field. That is sound for any
     /// convention whose challenges are wider than the group order, because these
     /// values are only ever used as exponents and `g^e = g^(e mod q)`.
+    ///
+    /// # Errors
+    ///
+    /// Implementation-defined: whatever the convention's derivation can fail
+    /// with — typically hashing to a scalar failing in the backend.
     fn batching_challenges(
         &self,
         generators: &[C::Element],
@@ -125,6 +130,11 @@ pub trait ShuffleChallenges<C: Context, const W: usize> {
     ) -> Result<Vec<C::Scalar>, Error>;
 
     /// The single challenge `v`, derived from the proof commitments.
+    ///
+    /// # Errors
+    ///
+    /// Implementation-defined: whatever the convention's derivation can fail
+    /// with — typically hashing to a scalar failing in the backend.
     fn challenge(
         &self,
         pk: &elgamal::PublicKey<C>,
@@ -240,12 +250,9 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
     #[crate::warning(
         "The following function is not optimized. Parallelize with rayon. Error handling wrt generators length is suboptimal"
     )]
-    #[allow(clippy::many_single_char_names)]
-    #[allow(clippy::similar_names)]
-    #[allow(clippy::too_many_lines)]
     pub fn shuffle(
         &self,
-        ciphertexts: &Vec<Ciphertext<C, W>>,
+        ciphertexts: &[Ciphertext<C, W>],
         context: &[u8],
     ) -> Result<(Vec<Ciphertext<C, W>>, ShuffleProof<C, W>), Error> {
         self.shuffle_with(ciphertexts, context, &NativeChallenges)
@@ -257,9 +264,24 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
     /// The proof algebra is identical; only the transcript differs. This is what
     /// lets braid emit a proof another implementation's verifier will accept
     /// (see [`ShuffleChallenges`]).
+    ///
+    /// # Errors
+    ///
+    /// - `EmptyShuffle` if the input ciphertexts are zero length
+    /// - `MismatchedShuffleLength` if there is a length mismatch between ciphertexts and generators
+    /// - Any error the [`ShuffleChallenges`] implementation returns while deriving
+    ///   the challenges
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the length of the generated permutation does
+    /// not match the ciphertexts length, which should be impossible.
+    #[allow(clippy::many_single_char_names)]
+    #[allow(clippy::similar_names)]
+    #[allow(clippy::too_many_lines)]
     pub fn shuffle_with<X: ShuffleChallenges<C, W>>(
         &self,
-        ciphertexts: &Vec<Ciphertext<C, W>>,
+        ciphertexts: &[Ciphertext<C, W>],
         context: &[u8],
         challenges: &X,
     ) -> Result<(Vec<Ciphertext<C, W>>, ShuffleProof<C, W>), Error> {
@@ -489,11 +511,10 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
     #[crate::warning(
         "The following function is not optimized. Parallelize with rayon. Error handling wrt generators length is suboptimal"
     )]
-    #[allow(clippy::similar_names)]
     pub fn verify(
         &self,
-        ciphertexts: &Vec<Ciphertext<C, W>>,
-        permuted_ciphertexts: &Vec<Ciphertext<C, W>>,
+        ciphertexts: &[Ciphertext<C, W>],
+        permuted_ciphertexts: &[Ciphertext<C, W>],
         proof: &ShuffleProof<C, W>,
         context: &[u8],
     ) -> Result<bool, Error> {
@@ -503,10 +524,20 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
     /// As [`verify`](Self::verify), but deriving the challenges through
     /// `challenges`. Must be paired with the matching
     /// [`shuffle_with`](Self::shuffle_with) convention.
+    ///
+    /// # Errors
+    ///
+    /// - `EmptyShuffle` if the input ciphertexts are zero length
+    /// - `MismatchedShuffleLength` if there is a length mismatch between the
+    ///   ciphertext lists, the generators, or the proof commitments
+    /// - Any error the [`ShuffleChallenges`] implementation returns while deriving
+    ///   the challenges
+    #[allow(clippy::similar_names)]
+    #[allow(clippy::too_many_lines)]
     pub fn verify_with<X: ShuffleChallenges<C, W>>(
         &self,
-        ciphertexts: &Vec<Ciphertext<C, W>>,
-        permuted_ciphertexts: &Vec<Ciphertext<C, W>>,
+        ciphertexts: &[Ciphertext<C, W>],
+        permuted_ciphertexts: &[Ciphertext<C, W>],
         proof: &ShuffleProof<C, W>,
         context: &[u8],
         challenges: &X,
