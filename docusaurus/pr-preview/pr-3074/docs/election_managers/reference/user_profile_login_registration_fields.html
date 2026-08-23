@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Configuring Login and Registration Fields | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3074/docs/election_managers/reference/user_profile_login_registration_fields"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Configuring Login and Registration Fields | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3074/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3074/docs/election_managers/reference/user_profile_login_registration_fields"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3074/docs/election_managers/reference/user_profile_login_registration_fields" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3074/docs/election_managers/reference/user_profile_login_registration_fields" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Configuring Login and Registration Fields","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3074/docs/election_managers/reference/user_profile_login_registration_fields"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3074/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/pr-preview/pr-3074/assets/js/runtime~main.6d11e32f.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3074/assets/js/runtime~main.b0d59058.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3074/assets/js/main.a6799b65.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -39,12 +39,11 @@ existing user records.</p>
 covered in
 <a class="" href="/docusaurus/pr-preview/pr-3074/docs/election_managers/tutorials/admin_portal_tutorials_multi_attribute_password_login">Logging In Without a Username (Attribute + Password)</a>.</p>
 <p>An attribute in <strong>User attributes to match</strong> that is not declared in User Profile renders as a
-plain text field labelled with its raw attribute name, and is always mandatory to match.</p>
-<blockquote>
-<p>⚠️ <strong>Match attributes must hold a single value.</strong> Matching compares one value per attribute. A
-<code>multiselect</code> or <code>multiselect-checkboxes</code> attribute used for matching has everything after its
-first selected value ignored.</p>
-</blockquote>
+plain text field. Its attribute name is used as a message key and falls back to the raw name when
+no translation exists. It is always mandatory to match.</p>
+<p>Matching compares one value per attribute. On the attribute-based login page, a <code>multiselect</code>
+declaration therefore renders as a single-selection list and <code>multiselect-checkboxes</code> renders as
+radio buttons. Registration keeps the configured multi-value control.</p>
 <hr>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="input-types">Input types<a href="#input-types" class="hash-link" aria-label="Direct link to Input types" title="Direct link to Input types" translate="no">​</a></h2>
 <p>Set the <code>inputType</code> annotation (<strong>Input type</strong> in the console).</p>
@@ -84,36 +83,31 @@ a validator:</p>
 <p><code>filterSelectAttribute</code>, set on the controlling attribute with the dependent field&#x27;s id as its
 value, narrows the dependent dropdown to options whose value contains the selected value, and
 preselects the first match. Option values must embed the controlling value (province <code>08</code>,
-municipalities <code>08001</code>, <code>08002</code>).</p>
+municipalities <code>08001</code>, <code>08002</code>). On attribute-based login, the dependent field must also be in
+<strong>User attributes to match</strong>.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="enabling-and-disabling-other-fields">Enabling and disabling other fields<a href="#enabling-and-disabling-other-fields" class="hash-link" aria-label="Direct link to Enabling and disabling other fields" title="Direct link to Enabling and disabling other fields" translate="no">​</a></h3>
 <p>On radio-button and checkbox attributes:</p>
-<table><thead><tr><th>Annotation</th><th>Effect</th><th>Where it applies</th></tr></thead><tbody><tr><td><code>disableAttribute</code></td><td>Ticking the option makes the named field read-only and clears it</td><td>Both</td></tr><tr><td><code>disableElement</code></td><td>Ticking the option disables the named field</td><td>Both</td></tr></tbody></table>
+<table><thead><tr><th>Annotation</th><th>Effect</th><th>Where it applies</th></tr></thead><tbody><tr><td><code>disableAttribute</code></td><td>Ticking the option makes the named field read-only and clears it</td><td>Registration only</td></tr><tr><td><code>disableElement</code></td><td>Ticking the option disables the named field</td><td>Registration only</td></tr></tbody></table>
 <hr>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="other-annotations">Other annotations<a href="#other-annotations" class="hash-link" aria-label="Direct link to Other annotations" title="Direct link to Other annotations" translate="no">​</a></h2>
-<table><thead><tr><th>Annotation</th><th>Effect</th><th>Where it applies</th></tr></thead><tbody><tr><td><code>default</code></td><td>Initial value. Registration only; ignored on the attribute-based login form.</td><td>Registration only</td></tr><tr><td><code>confirm</code></td><td>Renders a second input for the same attribute. The value is the confirmation field&#x27;s label.</td><td>Registration only</td></tr><tr><td><code>html-attribute:&lt;name&gt;</code></td><td>Sets an arbitrary HTML attribute, e.g. <code>html-attribute:autocomplete</code> = <code>bday</code>. Applies to text and HTML5 inputs only — dropdowns, radio buttons, checkboxes and text areas ignore it. On the attribute-based login page it overrides the theme&#x27;s own <code>autocomplete</code> — see <a href="#autofill-and-the-login-page" class="">Autofill and the login page</a>.</td><td>Both</td></tr><tr><td><code>hidden</code> = <code>true</code></td><td>The attribute is not rendered on the registration page. It is still stored and still usable for matching.</td><td>Registration only</td></tr></tbody></table>
+<table><thead><tr><th>Annotation</th><th>Effect</th><th>Where it applies</th></tr></thead><tbody><tr><td><code>default</code></td><td>Initial value. Registration only; ignored on the attribute-based login form.</td><td>Registration only</td></tr><tr><td><code>confirm</code></td><td>Renders a second input for the same attribute. The value is the confirmation field&#x27;s label.</td><td>Registration only</td></tr><tr><td><code>html-attribute:&lt;name&gt;</code></td><td>Sets an arbitrary HTML attribute, e.g. <code>html-attribute:autocomplete</code> = <code>bday</code>. Applies to text and HTML5 inputs only — dropdowns, radio buttons, checkboxes and text areas ignore it.</td><td>Registration only</td></tr><tr><td><code>hidden</code> = <code>true</code></td><td>The attribute is not rendered on the registration page. It is still stored and still usable for matching.</td><td>Registration only</td></tr></tbody></table>
 <p>The <strong>Deferred Registration User Creation</strong> form action&#x27;s <strong>Hidden Profile Attributes</strong> setting
 hides a comma-separated list of attributes from the registration form and ignores them if User
 Profile marks them required.</p>
 <hr>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="autofill-and-the-login-page">Autofill and the login page<a href="#autofill-and-the-login-page" class="hash-link" aria-label="Direct link to Autofill and the login page" title="Direct link to Autofill and the login page" translate="no">​</a></h2>
-<p>The attribute-based login page sets <code>autocomplete=&quot;off&quot;</code> on its match fields, so a shared device
-does not offer the previous voter&#x27;s values.</p>
-<p>That default suppresses autofill for every field, including ones a browser could fill correctly.
-Where an attribute maps to a standard autofill purpose, declare it so the browser can fill it and
-assistive technology can identify it:</p>
-<p>Set <code>html-attribute:autocomplete</code> on the attribute, with the token for its purpose:</p>
-<table><thead><tr><th>Attribute holds</th><th>Token</th></tr></thead><tbody><tr><td>A date of birth</td><td><code>bday</code></td></tr><tr><td>A phone number</td><td><code>tel</code></td></tr><tr><td>An email address</td><td><code>email</code></td></tr><tr><td>A given or family name</td><td><code>given-name</code> / <code>family-name</code></td></tr></tbody></table>
-<p>The annotation overrides the page&#x27;s <code>autocomplete=&quot;off&quot;</code> for that field only. Attributes with no
-standard purpose — a national ID or a member number — have no token and keep the default.</p>
-<p>This is a deployment decision. WCAG 2.1 success criterion 1.3.5 (Identify Input Purpose, AA)
-expects the token wherever one exists, so a remote election should declare them. A kiosk or
-shared-device deployment may prefer the default everywhere and accept that gap.</p>
+<p>The attribute-based login page sets <code>autocomplete=&quot;off&quot;</code> on every match field and ignores User
+Profile <code>html-attribute:autocomplete</code> annotations. Failed match values are also not placed back in
+the page. These are deliberate shared-device protections for fields such as date of birth,
+national ID and phone number. Browsers may still apply their own autofill heuristics, so
+<code>autocomplete=&quot;off&quot;</code> is a request rather than a privacy guarantee.</p>
 <hr>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="phone-number-fields">Phone number fields<a href="#phone-number-fields" class="hash-link" aria-label="Direct link to Phone number fields" title="Direct link to Phone number fields" translate="no">​</a></h2>
 <p><code>inputType</code> = <code>html5-tel</code> renders an international phone-number widget: country selector with dial
 code, per-country placeholder formatting, and an initial country guessed from the browser
 timezone. The submitted value is the full international number, stored under the attribute&#x27;s own
-name.</p>
+name. If <code>inputTypePattern</code> is configured, the browser checks it against that normalized full
+number rather than the national-format value visible beside the separate dial code.</p>
 <hr>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="required-fields">Required fields<a href="#required-fields" class="hash-link" aria-label="Direct link to Required fields" title="Direct link to Required fields" translate="no">​</a></h2>
 <p>An attribute&#x27;s <strong>Required field</strong> toggle marks it mandatory. On the registration page a required
