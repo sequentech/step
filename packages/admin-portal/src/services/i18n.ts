@@ -30,7 +30,7 @@ initializeLanguages({
     eu: basqueTranslation,
 })
 
-export const triggerOverrideTranslations = (i18n: I18N) => {
+export const triggerOverrideTranslations = (i18n?: I18N) => {
     initializeLanguages({
         en: englishTranslation,
         es: spanishTranslation,
@@ -41,13 +41,10 @@ export const triggerOverrideTranslations = (i18n: I18N) => {
         nl: dutchTranslation,
         eu: basqueTranslation,
     })
-    overwriteTranslations(
-        {i18n},
-        {
-            scope: ETranslationScope.ADMIN_PORTAL,
-            legacyScope: ETranslationScope.ADMIN_PORTAL,
-        }
-    )
+    overwriteTranslations(i18n ? {i18n} : undefined, {
+        scope: ETranslationScope.ADMIN_PORTAL,
+        legacyScope: ETranslationScope.ADMIN_PORTAL,
+    })
 }
 
 export const getAllLangs = (): Array<string> => ["en", "es", "cat", "fr", "tl", "gl", "nl", "eu"]

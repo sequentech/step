@@ -24,12 +24,66 @@ interface IAppliedTranslationOverride {
     key: string
     language: string
     previousValue: unknown
+    value: string
 }
 
 const appliedTranslationOverrides = new Map<ETranslationScope, IAppliedTranslationOverride[]>()
 
 const cloneTranslationResource = (value: unknown): unknown =>
     typeof value === "object" && value !== null ? deepmerge({}, value) : value
+
+const restoreTranslationOverrides = (overrides: IAppliedTranslationOverride[]) => {
+    overrides
+        .slice()
+        .reverse()
+        .forEach(({key, language, previousValue}) => {
+            // Unwind in reverse so a child key is removed before its parent
+            // object is restored. i18next treats undefined as deletion; its
+            // public type only exposes string values, while getResource can
+            // also return objects or undefined from the base resource layer.
+            i18n.addResource(language, "translations", key, previousValue as string, {
+                silent: true,
+            })
+        })
+}
+
+const reapplyTranslationOverrides = (
+    overrides: IAppliedTranslationOverride[]
+): IAppliedTranslationOverride[] =>
+    overrides.map(({key, language, value}) => {
+        const reappliedOverride = {
+            key,
+            language,
+            previousValue: cloneTranslationResource(
+                i18n.getResource(language, "translations", key)
+            ),
+            value,
+        }
+        i18n.addResource(language, "translations", key, value, {silent: true})
+        return reappliedOverride
+    })
+
+const applyTranslationOverrides = (
+    overrides: Record<string, Record<string, string>> | undefined
+): IAppliedTranslationOverride[] => {
+    const appliedOverrides: IAppliedTranslationOverride[] = []
+
+    Object.entries(overrides ?? {}).forEach(([language, translations]) => {
+        Object.entries(translations).forEach(([key, value]) => {
+            appliedOverrides.push({
+                key,
+                language,
+                previousValue: cloneTranslationResource(
+                    i18n.getResource(language, "translations", key)
+                ),
+                value,
+            })
+            i18n.addResource(language, "translations", key, value, {silent: true})
+        })
+    })
+
+    return appliedOverrides
+}
 
 interface ITranslationConfiguration {
     i18n?: Record<string, Record<string, string>>
@@ -192,55 +246,107 @@ export const applyConfigurationLanguagePolicy = (
     return applyLanguagePolicy(config.language_conf)
 }
 
-export const overwriteTranslations = (
+interface IOverwriteTranslationOptions {
+    scope: ETranslationScope
+    legacyScope?: ETranslationScope
+    changeDefaultLanguage?: boolean
+}
+
+export function overwriteTranslations(
     config: ITranslationConfiguration | undefined,
-    {
-        scope,
-        legacyScope,
-        changeDefaultLanguage = true,
-    }: {
-        scope: ETranslationScope
-        legacyScope?: ETranslationScope
-        changeDefaultLanguage?: boolean
-    }
-): boolean => {
-    const previousOverrides = appliedTranslationOverrides.get(scope) ?? []
-    previousOverrides
-        .slice()
-        .reverse()
-        .forEach(({key, language, previousValue}) => {
-            // Unwind in reverse so a child key is removed before its parent
-            // object is restored. i18next treats undefined as deletion; its
-            // public type only exposes string values, while getResource can
-            // also return objects or undefined from the base resource layer.
-            i18n.addResource(language, "translations", key, previousValue as string, {
-                silent: true,
+    changeDefaultLanguage?: boolean
+): boolean
+export function overwriteTranslations(
+    config: ITranslationConfiguration | undefined,
+    options: IOverwriteTranslationOptions
+): boolean
+export function overwriteTranslations(
+    config: ITranslationConfiguration | undefined,
+    options: IOverwriteTranslationOptions | boolean = true
+): boolean {
+    // Preserve the public pre-scoping API for consumers that still pass a
+    // boolean (or omit the second argument). Its unprefixed merge semantics
+    // remain unchanged; scoped consumers use the options object below.
+    if (typeof options === "boolean") {
+        const i18nObj = config?.i18n
+        if (!i18nObj) {
+            return false
+        }
+
+        // Legacy writes update the base layer. Temporarily remove scoped
+        // overlays, then replay them so they keep their precedence and later
+        // cleanup reveals the newly written legacy values.
+        const activeOverrideLayers = Array.from(appliedTranslationOverrides.entries())
+        activeOverrideLayers
+            .slice()
+            .reverse()
+            .forEach(([, overrides]) => restoreTranslationOverrides(overrides))
+        appliedTranslationOverrides.clear()
+
+        Object.entries(i18nObj).forEach(([language, translations]) => {
+            const currentResources = i18n.getResourceBundle(language, "translations") || {}
+            const nestedTranslations: any = {}
+
+            Object.entries(translations).forEach(([key, value]) => {
+                const keys = key.split(".")
+                keys.reduce((acc, part, index) => {
+                    return (acc[part] = index === keys.length - 1 ? value : acc[part] || {})
+                }, nestedTranslations)
             })
-        })
-    appliedTranslationOverrides.delete(scope)
 
-    const i18nObj = filterTranslationOverrides(config?.i18n, scope, legacyScope)
-    const nextOverrides: IAppliedTranslationOverride[] = []
-
-    Object.entries(i18nObj ?? {}).forEach(([language, translations]) => {
-        Object.entries(translations).forEach(([key, value]) => {
-            nextOverrides.push({
-                key,
+            i18n.addResourceBundle(
                 language,
-                previousValue: cloneTranslationResource(
-                    i18n.getResource(language, "translations", key)
-                ),
-            })
-            i18n.addResource(language, "translations", key, value, {silent: true})
+                "translations",
+                deepmerge(currentResources, nestedTranslations),
+                true,
+                true
+            )
         })
-    })
-    if (nextOverrides.length > 0) {
-        appliedTranslationOverrides.set(scope, nextOverrides)
+
+        activeOverrideLayers.forEach(([scope, overrides]) => {
+            appliedTranslationOverrides.set(scope, reapplyTranslationOverrides(overrides))
+        })
+        if (activeOverrideLayers.length > 0) {
+            i18n.emit("languageChanged", i18n.language)
+        }
+
+        return options ? applyConfigurationLanguagePolicy(config) : false
     }
 
-    // Both adding and restoring resources must update already-mounted React
-    // consumers. Emit once so a replacement is observed atomically.
-    if (previousOverrides.length > 0 || nextOverrides.length > 0) {
+    const {scope, legacyScope, changeDefaultLanguage = true} = options
+    const i18nObj = filterTranslationOverrides(config?.i18n, scope, legacyScope)
+    const hasNextOverrides = Object.values(i18nObj ?? {}).some(
+        (translations) => Object.keys(translations).length > 0
+    )
+    const activeOverrideLayers = Array.from(appliedTranslationOverrides.entries())
+    const previousLayerIndex = activeOverrideLayers.findIndex(
+        ([layerScope]) => layerScope === scope
+    )
+
+    if (previousLayerIndex >= 0 || hasNextOverrides) {
+        activeOverrideLayers
+            .slice()
+            .reverse()
+            .forEach(([, overrides]) => restoreTranslationOverrides(overrides))
+        appliedTranslationOverrides.clear()
+
+        const remainingLayers = activeOverrideLayers.filter(([layerScope]) => layerScope !== scope)
+        const insertionIndex = previousLayerIndex >= 0 ? previousLayerIndex : remainingLayers.length
+
+        for (let index = 0; index <= remainingLayers.length; index += 1) {
+            if (hasNextOverrides && index === insertionIndex) {
+                appliedTranslationOverrides.set(scope, applyTranslationOverrides(i18nObj))
+            }
+
+            const remainingLayer = remainingLayers[index]
+            if (remainingLayer) {
+                const [layerScope, overrides] = remainingLayer
+                appliedTranslationOverrides.set(layerScope, reapplyTranslationOverrides(overrides))
+            }
+        }
+
+        // Emit once after replay so mounted React consumers observe only the
+        // final layer order, not the temporary unwind state.
         i18n.emit("languageChanged", i18n.language)
     }
 

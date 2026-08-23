@@ -198,7 +198,12 @@ const EditElectionEventTextDataTable = () => {
         const newKey: string = e?.newKey ?? ""
         const newValue: string = e?.newVal ?? ""
         const newScope = e?.newScope
-        if (!newValue || !newKey || !isTranslationScope(newScope)) return
+        if (
+            !newValue ||
+            !parseTranslationOverrideKey(newKey).key.trim() ||
+            !isTranslationScope(newScope)
+        )
+            return
         if (isInvalidDateTimeOverride(newKey, newValue, newScope)) {
             notify(t("electionEventScreen.localization.notify.invalidDateTimeFormat"), {
                 type: "error",
@@ -254,7 +259,7 @@ const EditElectionEventTextDataTable = () => {
         const editVal: string = e?.editableVal ?? ""
         const editKey = parseTranslationOverrideKey(String(recordId)).key
         const editScope = e?.editableScope
-        if (!editVal || !editKey || !isTranslationScope(editScope)) return
+        if (!editVal || !editKey.trim() || !isTranslationScope(editScope)) return
         if (isInvalidDateTimeOverride(editKey, editVal, editScope)) {
             notify(t("electionEventScreen.localization.notify.invalidDateTimeFormat"), {
                 type: "error",

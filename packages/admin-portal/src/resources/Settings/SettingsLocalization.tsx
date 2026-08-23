@@ -139,7 +139,12 @@ const SettingsLocalization = () => {
         const newKey: string = e?.newKey ?? ""
         const newValue: string = e?.newVal ?? ""
         const newScope = e?.newScope
-        if (!newValue || !newKey || !isTranslationScope(newScope)) return
+        if (
+            !newValue ||
+            !parseTranslationOverrideKey(newKey).key.trim() ||
+            !isTranslationScope(newScope)
+        )
+            return
         const currentTranslations =
             (record?.settings as ITenantSettings | undefined)?.i18n?.[selectedLanguage] ?? {}
         const updatedTranslations = updateTranslationOverride(
@@ -190,7 +195,7 @@ const SettingsLocalization = () => {
         const editVal: string = e?.editableVal ?? ""
         const editKey = parseTranslationOverrideKey(String(recordId)).key
         const editScope = e?.editableScope
-        if (!editVal || !editKey || !isTranslationScope(editScope)) return
+        if (!editVal || !editKey.trim() || !isTranslationScope(editScope)) return
         const currentTranslations =
             (record?.settings as ITenantSettings | undefined)?.i18n?.[selectedLanguage] ?? {}
         const updatedI18nForLanguage = updateTranslationOverride(
