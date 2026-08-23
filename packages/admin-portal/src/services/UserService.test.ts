@@ -81,12 +81,14 @@ describe("resolveOptionLabel", () => {
 })
 
 describe("getSelectOptionLabel", () => {
-    it("shows the stored option next to its description", () => {
-        expect(getSelectOptionLabel({M: "Male"}, "M", translate())).toBe("M - Male")
+    it("shows the configured label without prepending the stored option", () => {
+        expect(getSelectOptionLabel({"0": "0 - Non Resident"}, "0", translate())).toBe(
+            "0 - Non Resident"
+        )
     })
 
-    it("keeps the stored option visible when the option itself is overridden", () => {
-        expect(getSelectOptionLabel(undefined, "M", translate({M: "Male"}))).toBe("M - Male")
+    it("shows the translated label without prepending the stored option", () => {
+        expect(getSelectOptionLabel(undefined, "M", translate({M: "Male"}))).toBe("Male")
     })
 
     it("shows the option alone when nothing describes it", () => {
