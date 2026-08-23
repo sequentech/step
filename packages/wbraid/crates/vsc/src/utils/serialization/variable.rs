@@ -18,12 +18,12 @@
 //! implementations for
 //!
 //! - Generic structs/tuples annotated with `vser` macro derives
-//! - Array[N; T]
-//! - Vec<T>
-//! - Option<T>
+//! - `[T; N]` arrays
+//! - `Vec<T>`
+//! - `Option<T>`
 //! - [`LargeVector`] (for performant serialization on large data)
-//! - u8, u16, u32, u64, u128
-//! - String
+//! - `u8`, `u16`, `u32`, `u64`, `u128`
+//! - `String`
 //!
 //! # Derive macro implementations
 //!

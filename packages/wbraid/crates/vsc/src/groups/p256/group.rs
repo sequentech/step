@@ -69,7 +69,7 @@ impl CryptographicGroup for P256Group {
 
     /// Encode bytes into the given number of P-256 elements.
     ///
-    /// The input is split into [`CHUNK_SIZE`]-byte chunks, one per element; `O`
+    /// The input is split into `CHUNK_SIZE`-byte (30-byte) chunks, one per element; `O`
     /// must equal `I.div_ceil(CHUNK_SIZE)`, which is checked at compile time.
     ///
     /// # Errors

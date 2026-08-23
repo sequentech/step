@@ -85,6 +85,10 @@ wasm-bindgen-test = "0.3"
 [lints.rustdoc]
 missing_crate_level_docs = "deny"
 broken_intra_doc_links = "deny"
+# Public docs must not link to items absent from the public docs build.
+private_intra_doc_links = "deny"
+# Bare generics like `Vec<T>` parse as HTML tags and vanish from rendered docs.
+invalid_html_tags = "deny"
 
 [lints.rust]
 missing_docs = "deny"
