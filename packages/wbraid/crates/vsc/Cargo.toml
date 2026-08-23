@@ -56,6 +56,14 @@ name = "cryptography"
 default = ["client", "server"]
 server = ["dep:rayon"]
 client = []
+# Fold strategy for the shuffle's wide parallel products (see
+# `zkp::shuffle::fold_values`). Off: rayon's recursive `reduce`, the historical
+# behaviour. On: `bounded_combine`, chunked plain loops whose stack use is
+# bounded by a small constant independent of input size and scheduling. The
+# folded values -- and therefore the proofs -- are byte-identical either way;
+# the switch exists so the two implementations can be benchmarked against each
+# other.
+bounded-combine = []
 custom-warnings = ["custom_warning_macro/on"]
 serde = ["dep:serde"]
 long_running_tests = []
