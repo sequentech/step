@@ -130,28 +130,37 @@ Property scope (the checks × faults table; ✔ = token-sufficient):
 | `2048b8df27` | Fault scaffolding + `DropCommit` (first benign fault) | n=2 t=2 drops≤2: 187 states; **no halts, every path completes, guards fire** — §6.4 send-until-acked verified over every ≤2-drop pattern |
 | `fa22aabf29` | Merge of `feat/braid-0.6.2/main` (vsc: deser-cursor fix, fold strategy, benchmark, lint) — made on top of the stateright work and pulled in | all suites green post-merge; symbolic state counts byte-identical (the deser fix perturbed nothing) |
 | `9c6a687c95` | `CrashBeforeRecord` (second benign fault): real `post` aborted at the record write via a failing-persistence delegate; death-not-halt semantics; budget spent only when the crash fires | crashes≤2: 187 states (isomorphic to drops≤2 — the two seam-sides mirror); mixed drops≤1+crashes≤1: 303 states; all properties + guards |
+| `c55d0d3b53` | Fetch-failure stutter lemma pinned (benign tier complete): read failures have zero durable footprint ⇒ schedule-equivalent, no fault class needed; module docs gain "deliberately NOT fault classes" | lemma test green against the real `BoardClient::update` |
 
 ## Next steps (plan of record)
 
 Agreed order for the fault program:
 
-3. **Benign tier, completion**: ~~crash before the own-post record~~ (DONE,
-   `9c6a687c95`). Remaining: transient visibility drops (withhold +
-   re-deliver). **Blocked on a modeling ruling** — `admit()` pins every
-   *fetched* predicate (board/mod.rs), so real trustees pin on every fetch,
-   while the harness's observation-timing compression discards idle-cycle
-   pins; under withhold faults the §6.3 gate's firing depends on pin timing,
-   so the compression under-approximates gate firings (could vacuously pass
-   anti-rewrite properties). Also needs gate-refusal semantics: `update()`'s
-   gate error is a *skip-this-cycle*, not a datalog halt — the harness must
-   distinguish it (as it already does for crash sentinels). Note:
-   duplicate-delivery faults are already absorbed by the model (board rows
-   dedup, store is predicate-keyed) and need no actions.
+3. **Benign tier — COMPLETE.** Write path: `DropCommit` (`2048b8df27`, after
+   the §6.4 commit point — covers b4 loss and pre-b4 failures alike, since the
+   resulting state is one) + `CrashBeforeRecord` (`9c6a687c95`, before it);
+   stage failures are behaviorally subsumed by the latter. Read path: benign
+   fetch failures are **stutters, not a fault class** — `update()` fetches
+   everything before admitting anything, so a read failure aborts with zero
+   durable footprint, and schedule exploration already covers any finite
+   number of them; the atomic-abort assumption is pinned by the
+   `fetch_failure_has_no_durable_footprint` test (`c55d0d3b53`).
+   Duplicate delivery is absorbed (board rows dedup, store is
+   predicate-keyed). Withholding has **no benign version** (b4 is one
+   consistent store: a fetch returns the board or an error) — it is
+   adversarial by nature and moves to step 4.
 4. **Adversarial tier**: manager ballots-equivocation (the differencing-attack
    row: check halt fires before a second lineage is decrypted), split views /
    withheld messages (adversarial b4), forged proofs via token validity tags
    (SignMix reads the tag instead of signing unconditionally). Properties:
    conditioned safety/liveness variants + the no-exemption uniqueness rows.
+   Carries two rulings armed by withholding: the **observation-timing
+   compression** (`admit()` pins every fetched predicate, so real trustees pin
+   on every fetch; the compression discards idle-cycle pins and would
+   under-approximate §6.3 gate firings — unsound for anti-rewrite properties
+   if kept), and **gate-refusal semantics** (`update()`'s gate error is a
+   skip-this-cycle, not a datalog halt — the harness must classify it, as it
+   already does crash sentinels).
 
 Beyond the agreed steps (candidates, not yet scheduled):
 
