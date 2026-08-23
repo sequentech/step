@@ -334,3 +334,4 @@ The voter account is not in the `voter` group in Keycloak. Add the user to the
 
 - [X.509 Architecture](../06-keycloak/x509_client_cert_architecture.md) — end-to-end flow, infrastructure, multi-tenancy
 - [X.509 — Adding CA Certificates](./08-x509-adding-ca-certificates.md) — adding external PKI CA certs to the trust bundle
+- [Configuring Login and Registration Fields](../../02-election_managers/02-reference/10-user-profile-login-registration-fields.md) — the other settings that shape the login page this button appears on
