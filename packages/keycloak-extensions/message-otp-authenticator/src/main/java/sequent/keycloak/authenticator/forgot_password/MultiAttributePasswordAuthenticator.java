@@ -21,7 +21,6 @@ import org.keycloak.authentication.Authenticator;
 import org.keycloak.authentication.AuthenticatorFactory;
 import org.keycloak.events.Errors;
 import org.keycloak.forms.login.LoginFormsProvider;
-import org.keycloak.forms.login.freemarker.model.AbstractUserProfileBean;
 import org.keycloak.models.AuthenticationExecutionModel.Requirement;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
@@ -226,11 +225,11 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
         Boolean.parseBoolean(Utils.HONOR_USER_PROFILE_REQUIRED_DEFAULT))) {
       return Set.of();
     }
-    LoginBean profile = new LoginBean(formData, context.getSession());
-    Map<String, AbstractUserProfileBean.Attribute> attributesByName = profile.getAttributesByName();
+    LoginBean profile = new LoginBean(formData, context.getSession(), matchAttributes);
+    Map<String, LoginBean.Attribute> attributesByName = profile.getAttributesByName();
     Set<String> optional = new HashSet<>();
     for (String attribute : matchAttributes) {
-      AbstractUserProfileBean.Attribute declared = attributesByName.get(attribute);
+      LoginBean.Attribute declared = attributesByName.get(attribute);
       if (declared != null && !declared.isRequired()) {
         optional.add(attribute);
       }
@@ -314,7 +313,7 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
             Utils.MATCH_ATTRIBUTES,
             Utils.MATCH_ATTRIBUTES_DEFAULT);
     form.setAttribute("matchAttributes", matchAttributes);
-    form.setAttribute("profile", new LoginBean(formData, context.getSession()));
+    form.setAttribute("profile", new LoginBean(formData, context.getSession(), matchAttributes));
     if (Utils.getBoolean(
         context.getAuthenticatorConfig(),
         Utils.HONOR_USER_PROFILE_REQUIRED,

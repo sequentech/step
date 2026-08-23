@@ -50,7 +50,6 @@ import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.representations.userprofile.config.UPConfig;
 import org.keycloak.services.managers.BruteForceProtector;
-import org.keycloak.userprofile.AttributeMetadata;
 import org.keycloak.userprofile.Attributes;
 import org.keycloak.userprofile.UserProfile;
 import org.keycloak.userprofile.UserProfileContext;
@@ -1192,8 +1191,10 @@ class MultiAttributePasswordAuthenticatorTest {
     UserProfileProvider userProfileProvider = mock(UserProfileProvider.class);
     UserProfile userProfile = mock(UserProfile.class);
     Attributes attributes = mock(Attributes.class);
-    lenient().when(attributes.getReadable()).thenReturn(Map.of());
+    UPConfig configuration = new UPConfig();
+    configuration.setAttributes(List.of());
     lenient().when(userProfile.getAttributes()).thenReturn(attributes);
+    lenient().when(userProfileProvider.getConfiguration()).thenReturn(configuration);
     lenient()
         .when(userProfileProvider.create(eq(UserProfileContext.REGISTRATION), isNull(), isNull()))
         .thenReturn(userProfile);
@@ -1332,18 +1333,16 @@ class MultiAttributePasswordAuthenticatorTest {
     UserProfile userProfile = mock(UserProfile.class);
     Attributes attributes = mock(Attributes.class);
 
-    Map<String, List<String>> readable = new HashMap<>();
+    List<UPAttribute> configured = new java.util.ArrayList<>();
     for (Map.Entry<String, Boolean> entry : requiredByName.entrySet()) {
       String name = entry.getKey();
-      readable.put(name, List.of());
-      AttributeMetadata metadata = mock(AttributeMetadata.class);
-      lenient().when(metadata.getName()).thenReturn(name);
-      lenient().when(attributes.getMetadata(name)).thenReturn(metadata);
+      configured.add(new UPAttribute(name));
       lenient().when(attributes.isRequired(name)).thenReturn(entry.getValue());
     }
-    lenient().when(attributes.getReadable()).thenReturn(readable);
-    lenient().when(attributes.getUnmanagedAttributes()).thenReturn(Map.of());
+    UPConfig configuration = new UPConfig();
+    configuration.setAttributes(configured);
     lenient().when(userProfile.getAttributes()).thenReturn(attributes);
+    lenient().when(userProfileProvider.getConfiguration()).thenReturn(configuration);
     lenient()
         .when(userProfileProvider.create(eq(UserProfileContext.REGISTRATION), isNull(), isNull()))
         .thenReturn(userProfile);
