@@ -94,6 +94,28 @@
 //!   *recomputation* (nothing pins the slot), the designed counterpart to
 //!   DropCommit's re-send — so the same unconditional properties must hold.
 //!
+//! Deliberately NOT fault classes:
+//! - **Benign fetch failures** (b4 unreachable on the read path) are
+//!   stutter-equivalent: `BoardClient::update` fetches everything before
+//!   admitting anything, so a read failure aborts the cycle with zero durable
+//!   footprint — behaviorally identical to the trustee not being scheduled,
+//!   which the exploration already quantifies over. "The system recovers from
+//!   any finite number of fetch failures" is therefore a corollary of
+//!   `eventually completes` over all schedules, not a claim needing its own
+//!   budget (which would only multiply the graph by counter-copies of
+//!   stutters). The lemma is pinned by
+//!   [`fetch_failure_has_no_durable_footprint`]; if `update` ever loses its
+//!   atomic-abort structure, that test is what breaks. A fetch that fails
+//!   *forever* is permanent starvation — b4 denying availability, trivially
+//!   within an untrusted b4's power and outside the liveness claims.
+//! - **Duplicate delivery** is absorbed by the model: board rows dedup
+//!   (§8.5 Note 2 read-side dedup, mirrored in `canonicalize`) and the store
+//!   is a set keyed by predicate, so a repeated message is a no-op.
+//! - **Withholding** (a fetch that succeeds but omits rows) has no benign
+//!   version: b4 is one server over one consistent store — a fetch returns
+//!   the board or an error. Serving partial or divergent boards is
+//!   *adversarial* behavior (split views), handled in the adversarial tier.
+//!
 //! # What this cannot see
 //!
 //! The symbolic axioms are stipulated, not checked: that honestly computed
@@ -386,6 +408,11 @@ struct ModelTransport<C: Context> {
     /// [`Turn::DropCommit`]: commits validate but never land, silently — the
     /// client believes b4 has the message. Staging is unaffected.
     drop_commits: bool,
+    /// Test-only knob for the stutter lemma
+    /// ([`fetch_failure_has_no_durable_footprint`]): `fetch` fails as if b4
+    /// were unreachable. Deliberately NOT a fault action — see the module's
+    /// Faults section.
+    fail_fetch: bool,
 }
 
 #[async_trait::async_trait(?Send)]
@@ -399,6 +426,9 @@ impl<C: Context> Transport<C> for ModelTransport<C> {
     }
 
     async fn fetch(&self) -> anyhow::Result<Vec<ProtocolMessage<C>>> {
+        if self.fail_fetch {
+            return Err(anyhow::anyhow!("model: b4 unavailable on fetch"));
+        }
         Ok(self
             .view
             .iter()
@@ -585,6 +615,7 @@ impl SymbolicModel {
             staged: Rc::clone(&staged),
             committed: Rc::clone(&committed),
             drop_commits,
+            fail_fetch: false,
         };
         (transport, staged, committed)
     }
@@ -1019,5 +1050,64 @@ fn model_check_symbolic_two_trustees_mixed_faults() {
             .with_dropped_commit_budget(1)
             .with_crash_before_record_budget(1),
         "n=2 t=2 drops<=1 crashes<=1",
+    );
+}
+
+/// The stutter lemma, pinned (see "Deliberately NOT fault classes" in the
+/// module docs): a benign fetch failure aborts the cycle with ZERO durable
+/// footprint — no pins, no record, no stage, no commit — so it is
+/// behaviorally identical to the trustee not being scheduled, and schedule
+/// exploration already covers any finite number of them. This test is the
+/// load-bearing assumption's tripwire: it fails if `BoardClient::update` ever
+/// stops aborting atomically (e.g. starts admitting messages before the fetch
+/// completes), at which point fetch failures stop being stutters and need
+/// modeling.
+#[test]
+fn fetch_failure_has_no_durable_footprint() {
+    let model = SymbolicModel::new(2, 2);
+    let init = model.init_states().pop().expect("one init state");
+    // Advance to a state with real content: trustee 1 posts its shares.
+    let s1 = model
+        .successor(&init, &Turn::Trustee(0))
+        .expect("first cycle is productive");
+
+    // Trustee 2 has work to do at s1 (it would admit t1's shares and post its
+    // own) — run its cycle against a b4 that fails the fetch.
+    let persistence = model.persistence_from(&s1.trustees[1]);
+    let before = persistence.snapshot();
+    let staged: Rc<RefCell<HashMap<String, Vec<u8>>>> =
+        Rc::new(RefCell::new(s1.staged.iter().cloned().collect()));
+    let committed: Rc<RefCell<Vec<ProtocolMessage<C>>>> = Rc::new(RefCell::new(Vec::new()));
+    let transport = ModelTransport {
+        view: model.visible_board(&s1, 1),
+        staged: Rc::clone(&staged),
+        committed: Rc::clone(&committed),
+        drop_commits: false,
+        fail_fetch: true,
+    };
+
+    let outcome = block_on(async {
+        let mut client = BoardClient::connect(transport, persistence.clone()).await?;
+        client.update().await?;
+        Ok::<(), anyhow::Error>(())
+    });
+
+    assert!(
+        outcome.is_err(),
+        "a failed fetch must surface as an update error"
+    );
+    assert_eq!(
+        persistence.snapshot(),
+        before,
+        "a failed fetch must not change durable state (no pins, no records)"
+    );
+    assert!(
+        committed.borrow().is_empty(),
+        "a failed fetch must not commit anything"
+    );
+    assert_eq!(
+        staged.borrow().len(),
+        s1.staged.len(),
+        "a failed fetch must not stage anything"
     );
 }
