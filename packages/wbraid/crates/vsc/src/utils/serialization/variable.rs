@@ -276,6 +276,19 @@ impl<T: VDeserializable, const N: usize> VDeserializable for [T; N] {
  * Due to `LargeVector`'s fixed size elements, the input byte length must factor exactly
  * into `N` * `T::size_bytes`
  *
+ * # Status: currently unused — and not a drop-in replacement for `Vec<T>`
+ *
+ * No production call site serializes a `LargeVector` today; lists of
+ * elements are serialized as `Vec<T>` everywhere, including inside
+ * Fiat-Shamir challenge derivations. The two encodings are **not**
+ * interchangeable: `Vec<T>` writes a length prefix per element, while
+ * `LargeVector` writes a single element count. Substituting one for the
+ * other at an existing call site therefore changes the serialized bytes,
+ * and anywhere those bytes feed a challenge it silently alters the
+ * transcript — previously generated proofs stop verifying. Plugging
+ * `LargeVector` into an existing site is a compatibility-breaking format
+ * change to be made deliberately, not a transparent optimization.
+ *
  * # Examples
  *
  * ```
