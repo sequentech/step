@@ -49,6 +49,7 @@ use sequent_core::ballot::{
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::s3;
+use sequent_core::sqlite::election_event::replace_election_event_translation_overrides_sqlite;
 use sequent_core::temp_path::{generate_temp_file, get_file_size};
 use sequent_core::types::permissions::Permissions;
 use serde_json::{json, Value};
@@ -1448,6 +1449,22 @@ pub async fn publish_results_website_artifacts(
     let selected_contests = selected_contest_ids(&publication)?;
     let source_sqlite = source_sqlite_file(tx, &publication).await?;
     let source_path: PathBuf = source_sqlite.path().to_path_buf();
+    let current_presentation =
+        get_election_event_by_id(tx, &publication.tenant_id, &publication.election_event_id)
+            .await?
+            .get_presentation()?
+            .unwrap_or_default();
+    let current_translation_overrides = current_presentation
+        .i18n
+        .map(serde_json::to_value)
+        .transpose()?;
+    let source_connection = Connection::open(&source_path)?;
+    replace_election_event_translation_overrides_sqlite(
+        &source_connection,
+        &publication.election_event_id,
+        current_translation_overrides.as_ref(),
+    )?;
+    drop(source_connection);
     let contests = query_manifest_contests(&source_path, &publication, &selected_contests)?;
     let custom_css = query_manifest_custom_css(&source_path, &publication)?;
     let language_config = query_manifest_language_config(&source_path, &publication)?;

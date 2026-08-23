@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useState} from "react"
+import React, {useCallback, useRef} from "react"
 import IntlTelInput from "intl-tel-input/react"
 import {Box, InputLabel} from "@mui/material"
 import {data} from "../lib/timezone-countrycode-data"
@@ -13,6 +13,9 @@ interface PhoneInputProps {
     initialValue?: string
     disabled?: boolean
 }
+
+const noop = () => undefined
+
 const PhoneInput = ({
     handlePhoneNumberChange,
     label,
@@ -20,11 +23,15 @@ const PhoneInput = ({
     initialValue,
     disabled,
 }: PhoneInputProps) => {
-    const [isValid, setIsValid] = useState<boolean | null>(null)
+    const handlePhoneNumberChangeRef = useRef(handlePhoneNumberChange)
+    handlePhoneNumberChangeRef.current = handlePhoneNumberChange
 
-    const onChangeNumber = (number: string) => {
-        handlePhoneNumberChange(number)
-    }
+    // intl-tel-input re-subscribes and invokes its update callback whenever
+    // any callback prop changes, so keep every callback identity stable.
+    const onChangeNumber = useCallback((number: string) => {
+        handlePhoneNumberChangeRef.current(number)
+    }, [])
+
     return (
         <Box sx={{margin: "16px 0", ...(fullWidth && {width: "100%"})}}>
             <InputLabel>{label}</InputLabel>
@@ -43,7 +50,9 @@ const PhoneInput = ({
                     },
                 }}
                 onChangeNumber={onChangeNumber}
-                onChangeValidity={setIsValid}
+                onChangeCountry={noop}
+                onChangeValidity={noop}
+                onChangeErrorCode={noop}
                 initialValue={initialValue}
                 disabled={disabled}
             />

@@ -29,9 +29,11 @@ import JsonImg from "../public/json.png"
 import Image from "mui-image"
 import {TenantEventContext} from ".."
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
-import {GetBallotStylesQuery} from "../gql/graphql"
 import {useAppDispatch} from "../store/hooks"
-import {updateBallotStyleAndSelection} from "../services/BallotStyles"
+import {
+    GetPublishedBallotStylesQuery,
+    updateBallotStyleAndSelection,
+} from "../services/BallotStyles"
 
 const ActionsContainer = styled(Box)`
     display: flex;
@@ -142,7 +144,7 @@ export const HomeScreen: React.FC<IProps> = ({
     const [isNextActive, setNextActive] = useState(false)
     const navigate = useNavigate()
     const {tenantId, eventId} = useContext(TenantEventContext)
-    const {data: dataBallotStyles} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
+    const {data: dataBallotStyles} = useQuery<GetPublishedBallotStylesQuery>(GET_BALLOT_STYLES)
     const dispatch = useAppDispatch()
 
     useEffect(() => {

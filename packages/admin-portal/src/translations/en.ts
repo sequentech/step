@@ -493,6 +493,7 @@ const englishTranslation = {
                 notify: {
                     success: "Localization updated Successfully",
                     error: "Localization update failed",
+                    duplicateKey: "An override with this key and portal scope already exists.",
                     invalidDateTimeFormat:
                         "Invalid date/time format. Use tokens yyyy, MM, dd, HH, mm, ss (e.g. dd/MM/yyyy HH:mm).",
                 },
@@ -502,7 +503,16 @@ const englishTranslation = {
                 },
                 labels: {
                     key: "Key",
+                    scope: "Portal scope",
                     value: "Value",
+                },
+                scopes: {
+                    legacy: "Legacy ({{portal}})",
+                    global: "Global",
+                    votingPortal: "Voting portal",
+                    ballotVerifier: "Ballot verifier",
+                    resultsPortal: "Results portal",
+                    adminPortal: "Admin portal",
                 },
             },
             field: {

@@ -13,13 +13,82 @@ import tagalogTranslation from "../translations/tl"
 import galegoTranslation from "../translations/gl"
 import dutchTranslation from "../translations/nl"
 import basqueTranslation from "../translations/eu"
-import {IElectionEventPresentation} from "../types/ElectionEventPresentation"
-import {ELanguageDetectionPolicy, ILanguageConf} from "@root/types/LanguageConf"
-import {getValueFromCookie} from "@root/utils/cookies"
+import {ELanguageDetectionPolicy, ILanguageConf} from "../types/LanguageConf"
+import {getValueFromCookie} from "../utils/cookies"
 import {iso_639_2t_to_bcp47_js, locale_to_internal_language_code_js} from "sequent-core"
-import {ITenantSettings} from "@root/types/TenantSettings"
+import {ETranslationScope, filterTranslationOverrides} from "./translationScopes"
 
 export const USER_LANGUAGE_COOKIE_NAME = "USER_LANGUAGE"
+
+interface IAppliedTranslationOverride {
+    key: string
+    language: string
+    previousValue: unknown
+    value: string
+}
+
+const appliedTranslationOverrides = new Map<ETranslationScope, IAppliedTranslationOverride[]>()
+
+const cloneTranslationResource = (value: unknown): unknown =>
+    typeof value === "object" && value !== null ? deepmerge({}, value) : value
+
+const restoreTranslationOverrides = (overrides: IAppliedTranslationOverride[]) => {
+    overrides
+        .slice()
+        .reverse()
+        .forEach(({key, language, previousValue}) => {
+            // Unwind in reverse so a child key is removed before its parent
+            // object is restored. i18next treats undefined as deletion; its
+            // public type only exposes string values, while getResource can
+            // also return objects or undefined from the base resource layer.
+            i18n.addResource(language, "translations", key, previousValue as string, {
+                silent: true,
+            })
+        })
+}
+
+const reapplyTranslationOverrides = (
+    overrides: IAppliedTranslationOverride[]
+): IAppliedTranslationOverride[] =>
+    overrides.map(({key, language, value}) => {
+        const reappliedOverride = {
+            key,
+            language,
+            previousValue: cloneTranslationResource(
+                i18n.getResource(language, "translations", key)
+            ),
+            value,
+        }
+        i18n.addResource(language, "translations", key, value, {silent: true})
+        return reappliedOverride
+    })
+
+const applyTranslationOverrides = (
+    overrides: Record<string, Record<string, string>> | undefined
+): IAppliedTranslationOverride[] => {
+    const appliedOverrides: IAppliedTranslationOverride[] = []
+
+    Object.entries(overrides ?? {}).forEach(([language, translations]) => {
+        Object.entries(translations).forEach(([key, value]) => {
+            appliedOverrides.push({
+                key,
+                language,
+                previousValue: cloneTranslationResource(
+                    i18n.getResource(language, "translations", key)
+                ),
+                value,
+            })
+            i18n.addResource(language, "translations", key, value, {silent: true})
+        })
+    })
+
+    return appliedOverrides
+}
+
+interface ITranslationConfiguration {
+    i18n?: Record<string, Record<string, string>>
+    language_conf?: ILanguageConf
+}
 
 /**
  * Minimal fallback used during app bootstrap before the WASM module is ready.
@@ -72,6 +141,9 @@ export const toBCP47 = (lang: string): string => {
 }
 
 export const initializeLanguages = (externalTranslations: Resource, language?: string) => {
+    // Reinitialization replaces the complete resource store, so there is no
+    // earlier scoped layer left to restore.
+    appliedTranslationOverrides.clear()
     const libTranslations: Resource = {
         en: englishTranslation,
         es: spanishTranslation,
@@ -101,6 +173,9 @@ export const initializeLanguages = (externalTranslations: Resource, language?: s
             escapeValue: false,
         },
         react: {
+            // Scoped overrides are installed after portal data loads. Subscribe React
+            // consumers to resource-store additions so already-mounted screens rerender.
+            bindI18nStore: "added",
             transKeepBasicHtmlNodesFor: ["ol", "li", "p", "br", "strong"],
         },
     }
@@ -147,7 +222,7 @@ export const applyLanguagePolicy = (languageConf: ILanguageConf | undefined): bo
 /// Url search param "lang" > user selected locale (saved in cookie) >  language detection policy > browser settings
 /// The Url search param "lang" is checked in i18n initialization.
 export const applyConfigurationLanguagePolicy = (
-    config: IElectionEventPresentation | ITenantSettings | undefined
+    config: ITranslationConfiguration | undefined
 ): boolean => {
     if (!config?.language_conf) {
         return false
@@ -171,40 +246,115 @@ export const applyConfigurationLanguagePolicy = (
     return applyLanguagePolicy(config.language_conf)
 }
 
-export const overwriteTranslations = (
-    electionEventPresentation: IElectionEventPresentation | undefined,
-    changeDefaultLanguage: boolean = true
-): boolean => {
-    // Check object has translations to overwrite
-    let hasChangedDefaultLanguage = false
-    const i18nObj = electionEventPresentation?.i18n
-    if (!i18nObj) {
-        return hasChangedDefaultLanguage
-    }
+interface IOverwriteTranslationOptions {
+    scope: ETranslationScope
+    legacyScope?: ETranslationScope
+    changeDefaultLanguage?: boolean
+}
 
-    Object.keys(i18nObj).forEach((lang) => {
-        const translations = i18nObj[lang]
-        const currentResources = i18n.getResourceBundle(lang, "translations") || {}
+export function overwriteTranslations(
+    config: ITranslationConfiguration | undefined,
+    changeDefaultLanguage?: boolean
+): boolean
+export function overwriteTranslations(
+    config: ITranslationConfiguration | undefined,
+    options: IOverwriteTranslationOptions
+): boolean
+export function overwriteTranslations(
+    config: ITranslationConfiguration | undefined,
+    options: IOverwriteTranslationOptions | boolean = true
+): boolean {
+    // Preserve the public pre-scoping API for consumers that still pass a
+    // boolean (or omit the second argument). Its unprefixed merge semantics
+    // remain unchanged; scoped consumers use the options object below.
+    if (typeof options === "boolean") {
+        const i18nObj = config?.i18n
+        if (!i18nObj) {
+            return false
+        }
 
-        // Convert dot notation to nested objects
-        const nestedTranslations = {}
-        Object.keys(translations).forEach((key) => {
-            const keys = key.split(".")
-            keys.reduce((acc, k, i) => {
-                return (acc[k] = i === keys.length - 1 ? translations[key] : acc[k] || {})
-            }, nestedTranslations)
+        // Legacy writes update the base layer. Temporarily remove scoped
+        // overlays, then replay them so they keep their precedence and later
+        // cleanup reveals the newly written legacy values.
+        const activeOverrideLayers = Array.from(appliedTranslationOverrides.entries())
+        activeOverrideLayers
+            .slice()
+            .reverse()
+            .forEach(([, overrides]) => restoreTranslationOverrides(overrides))
+        appliedTranslationOverrides.clear()
+
+        Object.entries(i18nObj).forEach(([language, translations]) => {
+            const currentResources = i18n.getResourceBundle(language, "translations") || {}
+            const nestedTranslations: any = {}
+
+            Object.entries(translations).forEach(([key, value]) => {
+                const keys = key.split(".")
+                keys.reduce((acc, part, index) => {
+                    return (acc[part] = index === keys.length - 1 ? value : acc[part] || {})
+                }, nestedTranslations)
+            })
+
+            i18n.addResourceBundle(
+                language,
+                "translations",
+                deepmerge(currentResources, nestedTranslations),
+                true,
+                true
+            )
         })
 
-        const mergedResources = deepmerge(currentResources, nestedTranslations)
+        activeOverrideLayers.forEach(([scope, overrides]) => {
+            appliedTranslationOverrides.set(scope, reapplyTranslationOverrides(overrides))
+        })
+        if (activeOverrideLayers.length > 0) {
+            i18n.emit("languageChanged", i18n.language)
+        }
 
-        i18n.addResourceBundle(lang, "translations", mergedResources, true, true) // Overwriting existing resource for language
-    })
+        return options ? applyConfigurationLanguagePolicy(config) : false
+    }
+
+    const {scope, legacyScope, changeDefaultLanguage = true} = options
+    const i18nObj = filterTranslationOverrides(config?.i18n, scope, legacyScope)
+    const hasNextOverrides = Object.values(i18nObj ?? {}).some(
+        (translations) => Object.keys(translations).length > 0
+    )
+    const activeOverrideLayers = Array.from(appliedTranslationOverrides.entries())
+    const previousLayerIndex = activeOverrideLayers.findIndex(
+        ([layerScope]) => layerScope === scope
+    )
+
+    if (previousLayerIndex >= 0 || hasNextOverrides) {
+        activeOverrideLayers
+            .slice()
+            .reverse()
+            .forEach(([, overrides]) => restoreTranslationOverrides(overrides))
+        appliedTranslationOverrides.clear()
+
+        const remainingLayers = activeOverrideLayers.filter(([layerScope]) => layerScope !== scope)
+        const insertionIndex = previousLayerIndex >= 0 ? previousLayerIndex : remainingLayers.length
+
+        for (let index = 0; index <= remainingLayers.length; index += 1) {
+            if (hasNextOverrides && index === insertionIndex) {
+                appliedTranslationOverrides.set(scope, applyTranslationOverrides(i18nObj))
+            }
+
+            const remainingLayer = remainingLayers[index]
+            if (remainingLayer) {
+                const [layerScope, overrides] = remainingLayer
+                appliedTranslationOverrides.set(layerScope, reapplyTranslationOverrides(overrides))
+            }
+        }
+
+        // Emit once after replay so mounted React consumers observe only the
+        // final layer order, not the temporary unwind state.
+        i18n.emit("languageChanged", i18n.language)
+    }
 
     if (changeDefaultLanguage) {
         // Apply language policy: skip if query param provided, otherwise check for FORCE_DEFAULT
-        hasChangedDefaultLanguage = applyConfigurationLanguagePolicy(electionEventPresentation)
+        return applyConfigurationLanguagePolicy(config)
     }
-    return hasChangedDefaultLanguage
+    return false
 }
 
 export default i18n

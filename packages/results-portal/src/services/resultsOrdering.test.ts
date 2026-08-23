@@ -54,6 +54,7 @@ jest.mock("./resultLabels", () => ({
 }))
 
 import {
+    getElectionEventPresentation,
     orderElectionResultRows,
     orderResultCandidates,
     orderResultContestIds,
@@ -139,6 +140,15 @@ const dataset: ResultsSqliteDataset = {
 }
 
 describe("results ordering", () => {
+    it("does not use presentation data from a different election event", () => {
+        expect(
+            getElectionEventPresentation(manifest, {
+                ...dataset,
+                election_event: [{id: "other-event", presentation: {elections_order: "custom"}}],
+            })
+        ).toBeUndefined()
+    })
+
     it("applies custom election, contest, and candidate order", () => {
         expect(orderResultElectionIds(manifest, dataset, "en")).toEqual([
             "election-z",

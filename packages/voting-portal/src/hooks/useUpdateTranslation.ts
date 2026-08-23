@@ -4,7 +4,7 @@
 
 import React, {useContext, useEffect} from "react"
 import {IElectionEvent} from "../store/electionEvents/electionEventsSlice"
-import {overwriteTranslations} from "@sequentech/ui-core"
+import {ETranslationScope, overwriteTranslations} from "@sequentech/ui-core"
 
 type props = {
     electionEvent: IElectionEvent | undefined
@@ -19,15 +19,21 @@ const useUpdateTranslation = (
     // So search param "lang" > user selected locale (saved in cookie) >
     // language detection policy (force default) > browser settings
     useEffect(() => {
-        if (!electionEvent?.presentation) {
-            return
-        }
-        let hasSetDefaultLanguage = overwriteTranslations(
-            electionEvent?.presentation,
-            !defaultLanguageTouched
-        )
+        const hasSetDefaultLanguage = overwriteTranslations(electionEvent?.presentation, {
+            scope: ETranslationScope.VOTING_PORTAL,
+            legacyScope: ETranslationScope.VOTING_PORTAL,
+            changeDefaultLanguage: !defaultLanguageTouched,
+        })
         if (hasSetDefaultLanguage) {
             setDefaultLanguageTouched(true)
+        }
+
+        return () => {
+            overwriteTranslations(undefined, {
+                scope: ETranslationScope.VOTING_PORTAL,
+                legacyScope: ETranslationScope.VOTING_PORTAL,
+                changeDefaultLanguage: false,
+            })
         }
     }, [electionEvent?.presentation])
 

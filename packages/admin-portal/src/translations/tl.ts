@@ -498,6 +498,7 @@ const tagalogTranslation: TranslationType = {
                 notify: {
                     success: "Matagumpay ang pag-update ng localization",
                     error: "Bigo ang pag-update ng localization",
+                    duplicateKey: "May override na para sa key at saklaw ng portal na ito.",
                     invalidDateTimeFormat:
                         "Di-wastong format ng petsa/oras. Gamitin ang mga token na yyyy, MM, dd, HH, mm, ss (hal. dd/MM/yyyy HH:mm).",
                 },
@@ -507,7 +508,16 @@ const tagalogTranslation: TranslationType = {
                 },
                 labels: {
                     key: "Susi",
+                    scope: "Saklaw ng portal",
                     value: "Halaga",
+                },
+                scopes: {
+                    legacy: "Legacy ({{portal}})",
+                    global: "Pangkalahatan",
+                    votingPortal: "Portal ng pagboto",
+                    ballotVerifier: "Tagapagpatunay ng balota",
+                    resultsPortal: "Portal ng mga resulta",
+                    adminPortal: "Portal ng admin",
                 },
             },
             field: {
