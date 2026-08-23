@@ -315,7 +315,7 @@ const dutchTranslation: TranslationType = {
             createAreaSuccess: "Gebied aangemaakt",
             updateAreaSuccess: "Gebied bijgewerkt",
             createAreaError: "Kon gebied niet aanmaken",
-            sequent_backend_area_contest: "Verkiezingen",
+            sequent_backend_area_contest: "Stemmingen",
             empty: {
                 header: "Nog geen gebieden.",
                 action: "Gebied aanmaken",
@@ -578,10 +578,10 @@ const dutchTranslation: TranslationType = {
                 },
                 contestEncryptionPolicy: {
                     options: {
-                        "single-contest": "Enkele Verkiezing",
-                        "multiple-contests": "Meerdere Verkiezingen",
+                        "single-contest": "Enkele Stemming",
+                        "multiple-contests": "Meerdere Stemmingen",
                     },
-                    policyLabel: "Encryptiebeleid verkiezingen",
+                    policyLabel: "Encryptiebeleid stemmingen",
                 },
                 votingPortalDateTimeFormat: {
                     policyLabel: "Datum- en tijdnotatie van stemportaal",
@@ -741,7 +741,7 @@ const dutchTranslation: TranslationType = {
                     hints: {
                         title: "Tips",
                         publishRequired:
-                            "Wijzigingen aan verkiezingen, verkiezingsonderdelen of kandidaten moeten eerst worden gepubliceerd voordat ze beschikbaar zijn. Alleen de meest recent gepubliceerde stembiljetstijlen voor het overeenkomstige gebied worden in de emulator gebruikt.",
+                            "Wijzigingen aan verkiezingen, stemmingen of kandidaten moeten eerst worden gepubliceerd voordat ze beschikbaar zijn. Alleen de meest recent gepubliceerde stembiljetstijlen voor het overeenkomstige gebied worden in de emulator gebruikt.",
                         eventChangesImmediate:
                             "Wijzigingen aan het verkiezingsevenement, zoals de IVR-configuratie of aangepaste prompts, zijn direct beschikbaar nadat de emulatorsessie opnieuw is gestart.",
                         credentials: 'De geldige kiezer-ID en pincode zijn "123" en "123".',
@@ -764,7 +764,7 @@ const dutchTranslation: TranslationType = {
                 elegibleVoters: "Stemgerechtigde Kiezers",
                 voters: "Effectieve Kiezers",
                 elections: "Verkiezingen",
-                contests: "Verkiezingen",
+                contests: "Stemmingen",
                 areas: "Gebieden",
                 sentEmails: "Verzonden e-mails",
                 sentSMS: "Verzonden SMS'en",
@@ -940,7 +940,7 @@ const dutchTranslation: TranslationType = {
                 image: "Afbeelding",
                 advanced: "Geavanceerde Configuratie",
                 numAllowedVotes: "Aantal toegestane stemmen",
-                reorder: "Volgorde verkiezingen wijzigen",
+                reorder: "Volgorde stemmingen wijzigen",
                 castVoteConfirm: "Bevestigingsvenster stem uitbrengen",
                 gracePeriodPolicy: "Respijttermijn",
                 allowTallyPolicy: "Telling Toestaan",
@@ -1342,14 +1342,14 @@ const dutchTranslation: TranslationType = {
                 "miru-download": "Miru Downloaden",
                 "miru-send": "Miru Verzenden",
                 "miru-sign": "Miru Ondertekenen",
-                "contest-write": "Verkiezing Bewerken",
-                "contest-read": "Verkiezing Lezen",
+                "contest-write": "Stemming Bewerken",
+                "contest-read": "Stemming Lezen",
                 "candidate-write": "Kandidaat Bewerken",
                 "candidate-read": "Kandidaat Lezen",
                 "permission-label-write": "Machtigingslabel Bewerken",
                 "scheduled-event-write": "Geplande Gebeurtenissen Bewerken",
-                "contest-create": "Verkiezing Aanmaken",
-                "contest-delete": "Verkiezing Verwijderen",
+                "contest-create": "Stemming Aanmaken",
+                "contest-delete": "Stemming Verwijderen",
                 "candidate-create": "Kandidaat Aanmaken",
                 "candidate-delete": "Kandidaat Verwijderen",
                 "election-create": "Verkiezing Aanmaken",
@@ -1627,7 +1627,7 @@ const dutchTranslation: TranslationType = {
             resources: {
                 electionEvent: "Verkiezingsevenement",
                 election: "Verkiezing",
-                contest: "Verkiezing",
+                contest: "Stemming",
                 candidate: "Kandidaat",
                 noResult: {
                     askCreate: "Wilt u er een aanmaken?",
@@ -1693,13 +1693,13 @@ const dutchTranslation: TranslationType = {
         createResource: {
             electionEvent: "Een Verkiezingsevenement aanmaken",
             election: "Een Verkiezing aanmaken",
-            contest: "Een Verkiezing aanmaken",
+            contest: "Een Stemming aanmaken",
             candidate: "Een Kandidaat aanmaken",
         },
         importResource: {
             electionEvent: "Een Verkiezingsevenement importeren",
             election: "Een Verkiezing importeren",
-            contest: "Een Verkiezing importeren",
+            contest: "Een Stemming importeren",
             candidate: "Een Kandidaat importeren",
             ImportHashMismatch: "Hashes komen niet overeen. Integriteitscontrole mislukt.",
         },
@@ -1716,7 +1716,7 @@ const dutchTranslation: TranslationType = {
             addResource: {
                 electionEvent: "Een Verkiezingsevenement aanmaken",
                 election: "Een Verkiezing aanmaken",
-                contest: "Een Verkiezing aanmaken",
+                contest: "Een Stemming aanmaken",
                 candidate: "Een Kandidaat aanmaken",
             },
             menuActions: {
@@ -1726,13 +1726,13 @@ const dutchTranslation: TranslationType = {
                 unarchive: {
                     electionEvent: "Dit Verkiezingsevenement dearchiveren",
                     election: "Deze verkiezing dearchiveren",
-                    contest: "Deze Verkiezing dearchiveren",
+                    contest: "Deze Stemming dearchiveren",
                     candidate: "Deze Kandidaat dearchiveren",
                 },
                 remove: {
                     electionEvent: "Dit Verkiezingsevenement verwijderen",
                     election: "Deze Verkiezing verwijderen",
-                    contest: "Deze Verkiezing verwijderen",
+                    contest: "Deze Stemming verwijderen",
                     candidate: "Deze Kandidaat verwijderen",
                 },
                 messages: {
@@ -1800,7 +1800,7 @@ const dutchTranslation: TranslationType = {
         },
         contestScreen: {
             common: {
-                subtitle: "Configuratie verkiezing.",
+                subtitle: "Configuratie stemming.",
             },
             edit: {
                 externalId: "Externe ID",
@@ -1909,7 +1909,7 @@ const dutchTranslation: TranslationType = {
                     "Hoogste beschikbare rangpositie voor kiezers (bijv. '5' staat rangen 1–5 toe). Moet minimaal gelijk zijn aan het aantal te rangschikken kandidaten (preferentieel stemmen).",
             },
             error: {},
-            createContestSuccess: "Verkiezing aangemaakt",
+            createContestSuccess: "Stemming aangemaakt",
             createContestError: "Fout bij aanmaken verkiezing",
         },
         keysGeneration: {
@@ -2055,12 +2055,12 @@ const dutchTranslation: TranslationType = {
                 visibility: "Visibility",
                 fullPublishedScope: "Full published scope",
                 personalVisibility: "Personal visibility",
-                contests: "Contests",
-                noTalliedContests: "No tallied contests available.",
-                publishSelectedContests: "Publish selected contests",
-                selectedContestCount_one: "{{count}} contest selected",
-                selectedContestCount_many: "{{count}} contests selected",
-                selectedContestCount_other: "{{count}} contests selected",
+                contests: "Stemmingen",
+                noTalliedContests: "Geen getelde stemmingen beschikbaar.",
+                publishSelectedContests: "Geselecteerde stemmingen publiceren",
+                selectedContestCount_one: "{{count}} stemming geselecteerd",
+                selectedContestCount_many: "{{count}} stemmingen geselecteerd",
+                selectedContestCount_other: "{{count}} stemmingen geselecteerd",
                 history: "Publication history",
                 version: "Version",
                 status: "Status",
@@ -2298,7 +2298,7 @@ const dutchTranslation: TranslationType = {
                 save: "Opslaan",
                 pendingApplyStatus: "Berekening in afwachting",
                 filterElection: "Verkiezing",
-                filterContest: "Wedstrijd",
+                filterContest: "Stemming",
                 filterArea: "Gebied",
                 filterStatusLabel: "Status",
                 clearFilters: "Filters wissen",
@@ -2453,7 +2453,7 @@ const dutchTranslation: TranslationType = {
             createTallySuccess: "Telblad opgeslagen",
             createTallyError: "Fout bij opslaan telblad",
             createTallyErrorSameKindExists:
-                "Telformulier bestaat al voor deze wedstrijd met hetzelfde kanaal en gebied",
+                "Telformulier bestaat al voor deze stemming met hetzelfde kanaal en gebied",
             allFieldsRequired: "Alle velden zijn verplicht",
             header: {
                 change: "Te Publiceren Wijzigingen",
@@ -2534,7 +2534,7 @@ const dutchTranslation: TranslationType = {
             },
             table: {
                 area: "Gebied",
-                contest: "Verkiezing",
+                contest: "Stemming",
                 approvedVersion: "Goedgekeurde versie",
                 latestVersion: "Nieuwste versie",
                 labels: "Labels",

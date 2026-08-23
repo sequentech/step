@@ -34,18 +34,17 @@ const englishTranslation = {
         votingScreen: {
             backButton: "Back",
             reviewButton: "Next",
-            clearButton: "Clear choices",
+            clearButton: "Clear selections",
             ballotHelpDialog: {
                 title: "About this screen",
                 content:
-                    "This screen shows the contests you are eligible to vote in. You can make your selection by activating the checkbox to the right of the Candidate/Answer. To reset your selections, click the “<b>Clear selection</b>” button; to move to the next step, click the “<b>Next</b>” button below.",
+                    "This screen shows the contests you are eligible to vote in. You can make your selection by activating the checkbox to the right of the Candidate/Answer. To reset your selections, click the “<b>Clear selections</b>” button; to move to the next step, click the “<b>Next</b>” button below.",
                 ok: "OK",
             },
             nonVotedDialog: {
                 title: "Your vote is invalid or blank",
-                content:
-                    "Some of your answers will make one or more ballot questions invalid or blank",
-                ok: "Review selection",
+                content: "Some of your answers will make one or more contests invalid or blank",
+                ok: "Review selections",
                 continue: "Continue",
                 cancel: "Cancel",
             },
@@ -77,10 +76,10 @@ const englishTranslation = {
             },
             instructionsTitle: "How to vote",
             instructionsDescription: "Follow these steps to cast your ballot",
-            step1Title: "1. Choose your options",
+            step1Title: "1. Make your selections",
             step1Description:
-                "Pick your preferred candidates and answer each ballot question as it appears. You can change your ballot anytime before casting your vote",
-            step2Title: "2. Review your choices",
+                "Pick your preferred candidates and answer each contest as it appears. You can change your ballot anytime before casting your vote",
+            step2Title: "2. Review your selections",
             step2Description:
                 "When you’re happy with your selections, we’ll securely encrypt your ballot and show you a final review. You’ll also get a unique tracker ID for reference",
             step3Title: "3. Cast your ballot",
@@ -182,7 +181,7 @@ const englishTranslation = {
                 CAST_VOTE_UnknownError:
                     "An unknown error occurred while casting your vote. Please try again later or contact support",
                 NO_BALLOT_SELECTION:
-                    "The selection state for this election is missing. Please check your choices or contact support",
+                    "The selection state for this election is missing. Please check your selections or contact support",
                 NO_BALLOT_STYLE: "This ballot is not available. Please contact support",
                 NO_AUDITABLE_BALLOT:
                     "There is no ballot available for audit. Please contact support",
@@ -251,13 +250,13 @@ const englishTranslation = {
             ballotIdHelpDialog: {
                 title: "About the Ballot ID",
                 content:
-                    "The Ballot ID is a unique code that lets you find your ballot in the ballot box. It does not contain any information about your choices.",
+                    "The Ballot ID is a unique code that lets you find your ballot in the ballot box. It does not contain any information about your selections.",
                 ok: "OK",
             },
             ballotIdDemoHelpDialog: {
                 title: "About the Ballot ID",
                 content:
-                    "The Ballot ID is a unique code that lets you find your ballot in the ballot box. It does not contain any information about your choices.",
+                    "The Ballot ID is a unique code that lets you find your ballot in the ballot box. It does not contain any information about your selections.",
                 ok: "OK",
             },
             errorDialogPrintBallotReceipt: {
@@ -342,7 +341,7 @@ const englishTranslation = {
                 ballotTooLarge: "Ballot larger than expected",
             },
             explicit: {
-                notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",
+                notAllowed: "Ballot marked explicitly invalid but the contest doesn't allow it",
                 alert: "This selection will be counted as an invalid vote",
             },
             page: {

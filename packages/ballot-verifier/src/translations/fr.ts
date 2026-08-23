@@ -74,7 +74,7 @@ const frenchTranslation: TranslationType = {
             points_one: "({{count}} Point)",
             points_many: "({{count}} Points)",
             points_other: "({{count}} Points)",
-            contestNotFound: "Question non trouvée : {{contestId}}",
+            contestNotFound: "Scrutin non trouvé : {{contestId}}",
             declineToVote: "A choisi de ne pas voter",
             blankBallot: "Bulletin blanc",
         },
@@ -92,7 +92,7 @@ const frenchTranslation: TranslationType = {
             },
             explicit: {
                 notAllowed:
-                    "Vote marqué explicitement comme invalide mais la question ne le permet pas",
+                    "Vote marqué explicitement comme invalide mais le scrutin ne le permet pas",
             },
         },
     },

@@ -33,11 +33,11 @@ const catalanTranslation: TranslationType = {
         votingScreen: {
             backButton: "Enrere",
             reviewButton: "Següent",
-            clearButton: "Netejar opcions",
+            clearButton: "Netejar seleccions",
             ballotHelpDialog: {
                 title: "Sobre aquesta pantalla",
                 content:
-                    "Aquesta pantalla mostra la votació en la qual vostè és elegible per votar. Pot seleccionar la seva secció activant la casella de la dreta Candidat/Resposta. Per restablir les seves seleccions, faci clic al botó “<b>Netejar selecció</b>”, per passar al següent pas, faci clic al botó “<b>Següent</b>”.",
+                    "Aquesta pantalla mostra les preguntes en les quals vostè és elegible per votar. Pot fer la seva selecció activant la casella a la dreta del Candidat/Resposta. Per restablir les seves seleccions, faci clic al botó “<b>Netejar seleccions</b>”, per passar al següent pas, faci clic al botó “<b>Següent</b>”.",
                 ok: "D'acord",
             },
             nonVotedDialog: {

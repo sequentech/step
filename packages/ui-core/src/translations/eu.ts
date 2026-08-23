@@ -39,9 +39,9 @@ const basqueTranslation: TranslationType = {
         homeScreen: {
             title: "Sequent Txartel Egiaztatzailea",
             description1:
-                "Txartel egiaztatzailea hautesleak kabinan txartela auditatzea aukeratzen duenean erabiltzen da. Egiaztapenak 1-2 minutu iraun beharko luke.",
+                "Txartel egiaztatzailea bozkatzaileak kabinan txartela auditatzea aukeratzen duenean erabiltzen da. Egiaztapenak 1-2 minutu iraun beharko luke.",
             description2:
-                "Txartel egiaztatzaileak hautesleari aukera ematen dio enkriptatutako txartelak kabinan egindako hautaketak zuzen jasotzen dituela ziurtatzeko. Egiaztapen hau egiteari nahi bezala emandakoaren egiaztagarritasuna deitzen zaio eta txartelaren enkriptazioan akatsak eta jarduera maltzurrak saihesten ditu.",
+                "Txartel egiaztatzaileak bozkatzaileari aukera ematen dio enkriptatutako txartelak kabinan egindako hautaketak zuzen jasotzen dituela ziurtatzeko. Egiaztapen hau egiteari nahi bezala emandakoaren egiaztagarritasuna deitzen zaio eta txartelaren enkriptazioan akatsak eta jarduera maltzurrak saihesten ditu.",
             descriptionMore: "Gehiago ikasi",
             startButton: "Arakatu fitxategia",
             dragDropOption: "Edo arrastatu eta jaregin hemen",
@@ -119,9 +119,9 @@ const basqueTranslation: TranslationType = {
             },
             configuration: {
                 multipleExplicitInvalidCandidates:
-                    "Boto-konfigurazio baliogabea: lehiaketak esplizituki baliogabe diren {{count}} hautagai definitzen ditu, baina bakarra onartzen da.",
+                    "Boto-konfigurazio baliogabea: galderak esplizituki baliogabe diren {{count}} hautagai definitzen ditu, baina bakarra onartzen da.",
                 multipleExplicitBlankCandidates:
-                    "Boto-konfigurazio baliogabea: lehiaketak esplizituki zuri gisa markatutako {{count}} hautagai definitzen ditu, baina bakarra onartzen da.",
+                    "Boto-konfigurazio baliogabea: galderak esplizituki zuri gisa markatutako {{count}} hautagai definitzen ditu, baina bakarra onartzen da.",
             },
         },
         ballotHash: "Zure Txartelaren IDa: {{ballotId}}",

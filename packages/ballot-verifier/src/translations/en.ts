@@ -92,7 +92,7 @@ const englishTranslation = {
                 ballotTooLarge: "Ballot larger than expected",
             },
             explicit: {
-                notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",
+                notAllowed: "Ballot marked explicitly invalid but the contest doesn't allow it",
             },
         },
     },
