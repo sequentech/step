@@ -388,6 +388,51 @@ mod tests {
         assert_eq!(n, back);
     }
 
+    /// An array whose elements serialize to *differing* lengths.
+    ///
+    /// Every other array test in this module uses fixed-width elements
+    /// (`[Ctx::Element; 2]` and friends), where all length prefixes are equal
+    /// and a deserializer that reads the same prefix every time still succeeds.
+    /// `Option<u32>` is 1 byte for `None` and 5 for `Some`, so this shape is the
+    /// one that distinguishes them.
+    #[test]
+    fn test_array_vser_uneven_element_lengths() {
+        let values: [Option<u32>; 3] = [Some(1), None, Some(2)];
+
+        let serialized = values.ser();
+        let back = <[Option<u32>; 3]>::deser(&serialized).unwrap();
+
+        assert_eq!(values, back);
+    }
+
+    /// `bool` accepts only the two encodings it produces.
+    ///
+    /// This matters beyond `bool` itself, since `Option` uses it as the
+    /// discriminator: a tolerated `0x02` would read as `None` and discard the
+    /// payload of what was written as `Some`.
+    #[test]
+    fn test_bool_rejects_non_canonical() {
+        assert_eq!(false, bool::deser(&[0]).unwrap());
+        assert_eq!(true, bool::deser(&[1]).unwrap());
+
+        assert!(bool::deser(&[2]).is_err());
+        assert!(bool::deser(&[0xff]).is_err());
+
+        assert!(Option::<u32>::deser(&[2]).is_err());
+    }
+
+    /// `None` is exactly its discriminator; bytes behind it are not accepted
+    /// and silently dropped.
+    #[test]
+    fn test_option_none_rejects_trailing_bytes() {
+        let none: Option<u32> = None;
+        let serialized = none.ser();
+        assert_eq!(1, serialized.len());
+        assert_eq!(none, Option::<u32>::deser(&serialized).unwrap());
+
+        assert!(Option::<u32>::deser(&[0, 0xff]).is_err());
+    }
+
     pub fn test_btreemap_u64_vec_ciphertext() {
         test_btreemap_u64_vec_ciphertext_internal::<RCtx, 2>(10, 10, 20);
         test_btreemap_u64_vec_ciphertext_internal::<RCtx, 2>(0, 10, 20);

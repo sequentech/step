@@ -18,12 +18,12 @@
 //! implementations for
 //!
 //! - Generic structs/tuples annotated with `vser` macro derives
-//! - Array[N; T]
-//! - Vec<T>
-//! - Option<T>
+//! - `[T; N]` arrays
+//! - `Vec<T>`
+//! - `Option<T>`
 //! - [`LargeVector`] (for performant serialization on large data)
-//! - u8, u16, u32, u64, u128
-//! - String
+//! - `u8`, `u16`, `u32`, `u64`, `u128`
+//! - `String`
 //!
 //! # Derive macro implementations
 //!
@@ -221,7 +221,11 @@ impl<T: VDeserializable, const N: usize> VDeserializable for [T; N] {
         let mut results: Vec<Result<T, Error>> = vec![];
 
         for _ in 0..N {
-            let len_bytes: [u8; LENGTH_BYTES] = get_slice(buffer, 0..LENGTH_BYTES)?.try_into()?;
+            // Read the prefix from the advancing cursor, not from `buffer`: the
+            // latter would reuse element 0's length for every element, which is
+            // invisible while all elements happen to serialize to the same
+            // length and a decode failure as soon as they do not.
+            let len_bytes: [u8; LENGTH_BYTES] = get_slice(bytes, 0..LENGTH_BYTES)?.try_into()?;
             let len: usize = LengthU::from_be_bytes(len_bytes).try_into()?;
 
             let upper_limit = checked_add(LENGTH_BYTES, len)?;
@@ -233,7 +237,7 @@ impl<T: VDeserializable, const N: usize> VDeserializable for [T; N] {
 
         if !bytes.is_empty() {
             return Err(Error::DeserializationError(
-                "Input bytes did factor to N chunks".to_string(),
+                "Input bytes did not factor into N chunks".to_string(),
             ));
         }
 
@@ -271,6 +275,19 @@ impl<T: VDeserializable, const N: usize> VDeserializable for [T; N] {
  *
  * Due to `LargeVector`'s fixed size elements, the input byte length must factor exactly
  * into `N` * `T::size_bytes`
+ *
+ * # Status: currently unused — and not a drop-in replacement for `Vec<T>`
+ *
+ * No production call site serializes a `LargeVector` today; lists of
+ * elements are serialized as `Vec<T>` everywhere, including inside
+ * Fiat-Shamir challenge derivations. The two encodings are **not**
+ * interchangeable: `Vec<T>` writes a length prefix per element, while
+ * `LargeVector` writes a single element count. Substituting one for the
+ * other at an existing call site therefore changes the serialized bytes,
+ * and anywhere those bytes feed a challenge it silently alters the
+ * transcript — previously generated proofs stop verifying. Plugging
+ * `LargeVector` into an existing site is a compatibility-breaking format
+ * change to be made deliberately, not a transparent optimization.
  *
  * # Examples
  *
@@ -406,10 +423,20 @@ impl VSerializable for bool {
 }
 
 /// Implements [`VDeserializable`] for bool
+///
+/// Only the two encodings [`VSerializable::ser`] produces for a `bool` are
+/// accepted. Mapping every other byte onto `false` would make distinct byte
+/// strings decode to the same value, and these bytes are challenge inputs.
 impl VDeserializable for bool {
     fn deser(buffer: &[u8]) -> Result<bool, Error> {
         let byte: [u8; 1] = buffer.try_into()?;
-        Ok(byte[0] == 1u8)
+        match byte[0] {
+            0 => Ok(false),
+            1 => Ok(true),
+            other => Err(Error::DeserializationError(format!(
+                "Non-canonical bool encoding: {other:#04x}"
+            ))),
+        }
     }
 }
 
@@ -852,6 +879,15 @@ impl<T: VDeserializable> VDeserializable for Option<T> {
             let value = T::deser(tail)?;
             Ok(Some(value))
         } else {
+            // `None` serializes to exactly the discriminator, so anything
+            // following it was never produced by `ser`. Returning `None` and
+            // dropping those bytes would silently accept data nobody can
+            // account for.
+            if buffer.len() != 1 {
+                return Err(Error::DeserializationError(
+                    "Trailing bytes after None discriminator".to_string(),
+                ));
+            }
             Ok(None)
         }
     }
