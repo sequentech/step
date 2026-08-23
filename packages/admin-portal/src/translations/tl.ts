@@ -2152,7 +2152,7 @@ const tagalogTranslation: TranslationType = {
                         trusteeName: "ID ng SBEI",
                         signed: "Napirmahan",
                     },
-                    status: "{{signed}} sa {{total}} Napirmahan",
+                    status: "{{signed}} sa {{total}} Napirmahan, minimum {{minimum}}",
                 },
             },
             sendToTransmissionPackageServers:

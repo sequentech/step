@@ -40,7 +40,7 @@ const spanishTranslation: TranslationType = {
             publishedResultsDescription: "Resultados publicados para este evento electoral.",
             resultsAndParticipationTitle: "Resultados y participación",
             electionsTitle: "Elecciones",
-            contestsTitle: "Contiendas",
+            contestsTitle: "Preguntas",
             areasTitle: "Áreas",
             globalArea: "Global",
             noResultsForSelection: "No hay resultados disponibles para esta selección.",
@@ -53,7 +53,7 @@ const spanishTranslation: TranslationType = {
             position_many: "{{count}} puestos",
             position_other: "{{count}} puestos",
             fallbackElectionName: "Elección",
-            fallbackContestName: "Contienda {{contestId}}",
+            fallbackContestName: "Pregunta {{contestId}}",
             state: {
                 unexpectedErrorTitle: "Error inesperado",
                 loadErrorMessage:

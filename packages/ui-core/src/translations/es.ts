@@ -39,7 +39,7 @@ const spanishTranslation: TranslationType = {
         homeScreen: {
             title: "Verificador de Voto Sequent",
             description1:
-                "El verificador de voto se usa cuando el votante elige auditar la boleta en la cabina de votación. La verificación debe tomar de 1 a 2 minutos.",
+                "El verificador de voto se usa cuando el votante elige auditar la papeleta en la cabina de votación. La verificación debe tomar de 1 a 2 minutos.",
             description2:
                 "El verificador de voto le permite al votante asegurarse de que el voto cifrado capture correctamente las selecciones realizadas en la cabina de votación. Permitir realizar esta verificación se denomina verificabilidad de transmisión según lo previsto y evita errores y actividades maliciosas durante el cifrado del voto.",
             descriptionMore: "Más información",
@@ -121,9 +121,9 @@ const spanishTranslation: TranslationType = {
             },
             configuration: {
                 multipleExplicitInvalidCandidates:
-                    "Configuración de voto inválida: el concurso define {{count}} candidatos explícitamente inválidos, pero solo se permite uno.",
+                    "Configuración de voto inválida: la pregunta define {{count}} candidatos explícitamente inválidos, pero solo se permite uno.",
                 multipleExplicitBlankCandidates:
-                    "Configuración de voto inválida: el concurso define {{count}} candidatos de voto en blanco explícito, pero solo se permite uno.",
+                    "Configuración de voto inválida: la pregunta define {{count}} candidatos de voto en blanco explícito, pero solo se permite uno.",
             },
         },
         ballotHash: "Su Localizador de Voto: {{ballotId}}",

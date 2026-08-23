@@ -2163,7 +2163,7 @@ const frenchTranslation: TranslationType = {
                         trusteeName: "Nom du Fiduciaire",
                         signed: "A Signé",
                     },
-                    status: "{{signed}} sur {{total}} Ont Signé",
+                    status: "{{signed}} sur {{total}} Ont Signé, minimum {{minimum}}",
                 },
             },
             sendToTransmissionPackageServers:
@@ -2447,7 +2447,7 @@ const frenchTranslation: TranslationType = {
                 ALL_USERS: "Tous",
                 NOT_VOTED: "Ceux qui n'ont pas voté",
                 VOTED: "Ceux qui ont déjà voté",
-                SELECTED: "À {{total}} Électeurs sélectionnés",
+                SELECTED: "À {{total}} {{voters}} sélectionnés",
             },
             path: {
                 users: "utilisateurs",
