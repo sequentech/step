@@ -293,3 +293,17 @@ pub struct UserProfileAttribute {
     pub permissions: Option<UPAttributePermissions>,
     pub selector: Option<UPAttributeSelector>,
 }
+
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+pub struct UserProfileAttributeGroup {
+    pub annotations: Option<HashMap<String, Value>>,
+    pub display_description: Option<String>,
+    pub display_header: Option<String>,
+    pub name: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+pub struct UserProfileConfiguration {
+    pub attributes: Vec<UserProfileAttribute>,
+    pub groups: Vec<UserProfileAttributeGroup>,
+}
