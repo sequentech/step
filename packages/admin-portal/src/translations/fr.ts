@@ -1204,9 +1204,32 @@ const frenchTranslation: TranslationType = {
                 },
                 errors: {
                     editError: "Erreur lors de l'édition de l'électeur",
+                    editErrorReason: "Erreur lors de l'édition de l'électeur : {{reason}}",
                     editSuccess: "Électeur édité",
                     createError: "Erreur lors de la création de l'électeur",
+                    createErrorReason: "Erreur lors de la création de l'électeur : {{reason}}",
                     createSuccess: "Électeur créé",
+                    attribute: {
+                        invalidNamed: '"{{field}}" a été refusé : {{constraint}}',
+                        fieldsToCorrect:
+                            "Certains champs doivent être corrigés avant d'enregistrer",
+                        hintBetween: "Entre {{min}} et {{max}} caractères",
+                        hintMin: "Au moins {{min}} caractères",
+                        hintMax: "Au maximum {{max}} caractères",
+                        andMore: "et {{count}} de plus",
+                        invalidLength:
+                            '"{{field}}" doit contenir entre {{min}} et {{max}} caractères',
+                        tooShort: '"{{field}}" doit contenir au moins {{min}} caractères',
+                        tooLong: '"{{field}}" doit contenir au maximum {{max}} caractères',
+                        required: '"{{field}}" est obligatoire',
+                        invalidEmail: '"{{field}}" doit être une adresse e-mail valide',
+                        invalidFormat: '"{{field}}" n\'a pas le format attendu',
+                        invalid: '"{{field}}" a une valeur non valide',
+                    },
+                    createPasswordError:
+                        "Électeur créé, mais son mot de passe n'a pas pu être défini",
+                    createPasswordErrorReason:
+                        "Électeur créé, mais son mot de passe n'a pas pu être défini : {{reason}}",
                 },
                 delete: {
                     body: "Êtes-vous sûr de vouloir supprimer cet électeur ?",
@@ -2473,8 +2496,15 @@ const frenchTranslation: TranslationType = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "Le total des votes valides ne correspond pas à la somme des votes des candidats plus les votes blancs",
-                censusTooSmall: "Le recensement doit être supérieur ou égal au total des votes",
+                    "Les votes des candidats ({{candidateVotesSum}}) doivent être compris entre {{lowerBound}} et {{upperBound}} selon les règles de vote de ce scrutin ({{nonBlankValidVotes}} votes valides non blancs × jusqu'à {{maxMarks}} marques par bulletin)",
+                censusTooSmall:
+                    "Le total des votes ({{totalVotes}}) ne doit pas être supérieur au recensement ({{census}})",
+                totalInvalidDoesNotMatch:
+                    "Le total des votes invalides ({{totalInvalid}}) doit être égal aux votes invalides implicites ({{implicitInvalid}}) plus les votes invalides explicites ({{explicitInvalid}})",
+                totalVotesDoesNotMatch:
+                    "Le total des votes ({{totalVotes}}) doit être égal au total des votes valides ({{totalValidVotes}}) plus le total des votes invalides ({{totalInvalid}})",
+                unknownCountingAlgorithm:
+                    "L'algorithme de dépouillement de ce scrutin ({{countingAlgorithm}}) n'est pas reconnu, le nombre autorisé de votes de candidats ne peut donc pas être déterminé. Vérifiez la configuration du scrutin.",
                 blankBallotsInconsistent:
                     "Les Bulletins Blancs doivent avoir la même valeur sur toutes les feuilles de dépouillement de cette urne",
                 blankBallotsOutOfBounds:

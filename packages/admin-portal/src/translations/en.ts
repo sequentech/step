@@ -1191,9 +1191,29 @@ const englishTranslation = {
                 askCreate: "Do you want to create one?",
                 errors: {
                     editError: "Error editing voter",
+                    editErrorReason: "Error editing voter: {{reason}}",
                     editSuccess: "Voter edited",
                     createError: "Error creating voter",
+                    createErrorReason: "Error creating voter: {{reason}}",
                     createSuccess: "Voter created",
+                    attribute: {
+                        invalidNamed: '"{{field}}" was refused: {{constraint}}',
+                        fieldsToCorrect: "Some fields need correcting before saving",
+                        hintBetween: "Between {{min}} and {{max}} characters",
+                        hintMin: "At least {{min}} characters",
+                        hintMax: "At most {{max}} characters",
+                        andMore: "and {{count}} more",
+                        invalidLength: '"{{field}}" must be between {{min}} and {{max}} characters',
+                        tooShort: '"{{field}}" must be at least {{min}} characters',
+                        tooLong: '"{{field}}" must be at most {{max}} characters',
+                        required: '"{{field}}" is required',
+                        invalidEmail: '"{{field}}" must be a valid email address',
+                        invalidFormat: '"{{field}}" does not have the expected format',
+                        invalid: '"{{field}}" has an invalid value',
+                    },
+                    createPasswordError: "Voter created, but their password could not be set",
+                    createPasswordErrorReason:
+                        "Voter created, but their password could not be set: {{reason}}",
                 },
                 delete: {
                     body: "Are you sure you want to delete this voter?",
@@ -2435,8 +2455,15 @@ const englishTranslation = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "Total valid votes does not match the sum of the candidate votes plus blank votes",
-                censusTooSmall: "Census must be greater or equal than the total votes",
+                    "Candidate votes ({{candidateVotesSum}}) must be between {{lowerBound}} and {{upperBound}} for this contest's voting rules ({{nonBlankValidVotes}} valid non-blank votes × up to {{maxMarks}} marks per ballot)",
+                censusTooSmall:
+                    "Total votes ({{totalVotes}}) must not be greater than census ({{census}})",
+                totalInvalidDoesNotMatch:
+                    "Total invalid votes ({{totalInvalid}}) must equal implicit invalid votes ({{implicitInvalid}}) plus explicit invalid votes ({{explicitInvalid}})",
+                totalVotesDoesNotMatch:
+                    "Total votes ({{totalVotes}}) must equal total valid votes ({{totalValidVotes}}) plus total invalid votes ({{totalInvalid}})",
+                unknownCountingAlgorithm:
+                    "This contest's counting algorithm ({{countingAlgorithm}}) is not recognised, so the allowed number of candidate votes cannot be determined. Check the contest configuration.",
                 blankBallotsInconsistent:
                     "Blank Ballots must have the same value on every contest sheet of this ballot box",
                 blankBallotsOutOfBounds:

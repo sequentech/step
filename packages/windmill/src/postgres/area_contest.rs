@@ -200,8 +200,15 @@ pub async fn get_contests_by_area_id(
         )
         .await?;
 
-    // Map each row to the contest_id column and collect into a Vec<String>
-    let contest_ids: Vec<String> = rows.into_iter().map(|row| row.get("contest_id")).collect();
+    // contest_id is a uuid column: row.get::<_, String> panics on it, since
+    // tokio-postgres only implements FromSql<String> for text-like types.
+    let contest_ids: Vec<String> = rows
+        .into_iter()
+        .map(|row| {
+            row.try_get::<_, Uuid>("contest_id")
+                .map(|id| id.to_string())
+        })
+        .collect::<std::result::Result<_, _>>()?;
 
     Ok(contest_ids)
 }

@@ -1202,9 +1202,31 @@ const tagalogTranslation: TranslationType = {
                 askCreate: "Gusto mo bang lumikha ng isa?",
                 errors: {
                     editError: "Error sa pag-edit ng botante",
+                    editErrorReason: "Error sa pag-edit ng botante: {{reason}}",
                     editSuccess: "Nai-edit ang botante",
                     createError: "Error sa paglikha ng botante",
+                    createErrorReason: "Error sa paglikha ng botante: {{reason}}",
                     createSuccess: "Nalikha ang botante",
+                    attribute: {
+                        invalidNamed: 'Tinanggihan ang "{{field}}": {{constraint}}',
+                        fieldsToCorrect: "May mga field na kailangang itama bago mag-save",
+                        hintBetween: "Sa pagitan ng {{min}} at {{max}} na karakter",
+                        hintMin: "Hindi bababa sa {{min}} na karakter",
+                        hintMax: "Hindi hihigit sa {{max}} na karakter",
+                        andMore: "at {{count}} pa",
+                        invalidLength:
+                            'Ang "{{field}}" ay dapat na nasa pagitan ng {{min}} at {{max}} na karakter',
+                        tooShort: 'Ang "{{field}}" ay dapat na hindi bababa sa {{min}} na karakter',
+                        tooLong: 'Ang "{{field}}" ay dapat na hindi hihigit sa {{max}} na karakter',
+                        required: 'Ang "{{field}}" ay kinakailangan',
+                        invalidEmail: 'Ang "{{field}}" ay dapat na wastong email address',
+                        invalidFormat: 'Ang "{{field}}" ay walang inaasahang format',
+                        invalid: 'Ang "{{field}}" ay may hindi wastong halaga',
+                    },
+                    createPasswordError:
+                        "Nalikha ang botante, ngunit hindi maitakda ang password nito",
+                    createPasswordErrorReason:
+                        "Nalikha ang botante, ngunit hindi maitakda ang password nito: {{reason}}",
                 },
                 delete: {
                     body: "Sigurado ka bang gusto mong tanggalin ang botante na ito?",
@@ -2465,9 +2487,15 @@ const tagalogTranslation: TranslationType = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "Ang kabuuang bilang ng mga balidong boto ay hindi tumutugma sa suma ng mga boto ng kandidato at mga blangkong boto",
+                    "Ang mga boto ng kandidato ({{candidateVotesSum}}) ay dapat nasa pagitan ng {{lowerBound}} at {{upperBound}} ayon sa mga panuntunan sa pagboto ng paligsahang ito ({{nonBlankValidVotes}} balidong hindi blangkong boto × hanggang {{maxMarks}} marka bawat balota)",
                 censusTooSmall:
-                    "Ang senso ay dapat na mas malaki o katumbas ng kabuuang bilang ng mga boto",
+                    "Ang kabuuang bilang ng mga boto ({{totalVotes}}) ay hindi dapat mas malaki kaysa sa senso ({{census}})",
+                totalInvalidDoesNotMatch:
+                    "Ang kabuuang bilang ng mga di-balidong boto ({{totalInvalid}}) ay dapat katumbas ng implicit na di-balidong boto ({{implicitInvalid}}) kasama ang explicit na di-balidong boto ({{explicitInvalid}})",
+                totalVotesDoesNotMatch:
+                    "Ang kabuuang bilang ng boto ({{totalVotes}}) ay dapat katumbas ng kabuuang balidong boto ({{totalValidVotes}}) kasama ang kabuuang di-balidong boto ({{totalInvalid}})",
+                unknownCountingAlgorithm:
+                    "Hindi nakikilala ang counting algorithm ng paligsahang ito ({{countingAlgorithm}}), kaya hindi matukoy ang pinapayagang bilang ng mga boto ng kandidato. Suriin ang konpigurasyon ng paligsahan.",
                 blankBallotsInconsistent:
                     "Ang Blangkong Balota ay dapat magkaroon ng parehong halaga sa bawat sheet ng kontest sa kahong ito",
                 blankBallotsOutOfBounds:

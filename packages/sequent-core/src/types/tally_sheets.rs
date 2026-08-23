@@ -4,6 +4,7 @@
 #![allow(non_camel_case_types)]
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::str::FromStr;
 use strum_macros::{AsRefStr, Display, EnumString};
@@ -85,4 +86,8 @@ pub struct AreaContestResults {
     pub blank_ballots: Option<u64>,
     pub census: Option<u64>,
     pub candidate_results: HashMap<String, CandidateResults>,
+    /// Free-form extra data from the source tally system that doesn't have
+    /// a dedicated field
+    #[serde(default)]
+    pub annotations: Option<Value>,
 }
