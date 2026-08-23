@@ -128,17 +128,25 @@ Property scope (the checks × faults table; ✔ = token-sufficient):
 | `62f628e1a1`, `acac82a755` | `Action::ComputeBallots` removed (Q13 resolved: our harnesses model the manager as an actor) | — |
 | `a57c222d84` | Transport model: stage/commit split + per-trustee views | counts unchanged (behavior-preserving fault-free) |
 | `2048b8df27` | Fault scaffolding + `DropCommit` (first benign fault) | n=2 t=2 drops≤2: 187 states; **no halts, every path completes, guards fire** — §6.4 send-until-acked verified over every ≤2-drop pattern |
+| `fa22aabf29` | Merge of `feat/braid-0.6.2/main` (vsc: deser-cursor fix, fold strategy, benchmark, lint) — made on top of the stateright work and pulled in | all suites green post-merge; symbolic state counts byte-identical (the deser fix perturbed nothing) |
+| `9c6a687c95` | `CrashBeforeRecord` (second benign fault): real `post` aborted at the record write via a failing-persistence delegate; death-not-halt semantics; budget spent only when the crash fires | crashes≤2: 187 states (isomorphic to drops≤2 — the two seam-sides mirror); mixed drops≤1+crashes≤1: 303 states; all properties + guards |
 
 ## Next steps (plan of record)
 
 Agreed order for the fault program:
 
-3. **Benign tier, completion**: crash *before* the own-post record is written
-   (the other side of the §6.4 seam — recompute, not re-send; must also be
-   halt-free and completing), transient visibility drops (withhold +
-   re-deliver, exercising the full re-fetch). Note: duplicate-delivery faults
-   are already absorbed by the model (board rows dedup, store is
-   predicate-keyed) and need no actions.
+3. **Benign tier, completion**: ~~crash before the own-post record~~ (DONE,
+   `9c6a687c95`). Remaining: transient visibility drops (withhold +
+   re-deliver). **Blocked on a modeling ruling** — `admit()` pins every
+   *fetched* predicate (board/mod.rs), so real trustees pin on every fetch,
+   while the harness's observation-timing compression discards idle-cycle
+   pins; under withhold faults the §6.3 gate's firing depends on pin timing,
+   so the compression under-approximates gate firings (could vacuously pass
+   anti-rewrite properties). Also needs gate-refusal semantics: `update()`'s
+   gate error is a *skip-this-cycle*, not a datalog halt — the harness must
+   distinguish it (as it already does for crash sentinels). Note:
+   duplicate-delivery faults are already absorbed by the model (board rows
+   dedup, store is predicate-keyed) and need no actions.
 4. **Adversarial tier**: manager ballots-equivocation (the differencing-attack
    row: check halt fires before a second lineage is decrypted), split views /
    withheld messages (adversarial b4), forged proofs via token validity tags
