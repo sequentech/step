@@ -22,6 +22,9 @@ The system supports adding additional user attributes that will appear as new fi
 4. Set the display name as `${sex}` if you want to override the translations in **Localization** > **Realm overrides**.
 5. Continue configuring Annotations and other parameters (see examples below).
 
+For the full list of annotations and what each one does to the rendered field, see
+[Configuring Login and Registration Fields](../02-reference/10-user-profile-login-registration-fields.md).
+
 ## Supported Attribute Types
 
 The following attribute types are supported:

@@ -40,6 +40,17 @@ class StructuredCredentialAssetTest {
   }
 
   @Test
+  void autofocusMovesFromTheHiddenRealInputToTheVisibleOne() throws IOException {
+    // credential-field-position=FIRST puts autofocus on the real input, which this widget hides.
+    // Without the transfer the page opens with nothing focused.
+    String script = Files.readString(SCRIPT);
+
+    assertTrue(script.contains("realInput.hasAttribute(\"autofocus\")"));
+    assertTrue(script.contains("realInput.removeAttribute(\"autofocus\")"));
+    assertTrue(script.contains("displayInput.focus()"));
+  }
+
+  @Test
   void patternIsBoundedAndMalformedValuesKeepTheStockField() throws IOException {
     String script = Files.readString(SCRIPT);
 
