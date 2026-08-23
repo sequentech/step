@@ -84,6 +84,15 @@
 //!   compute-once/send-until-acked discipline is what recovers it — so the
 //!   unconditional properties must still hold: no halts, every path
 //!   completes.
+//! - [`Turn::CrashBeforeRecord`] (benign): the other side of the §6.4 commit
+//!   point — the process dies after staging, before the own-post record.
+//!   Injected through [`CrashingPersistence`] so the real `BoardClient::post`
+//!   executes the real order and aborts exactly where a crash would: stage
+//!   landed, record absent, commit never attempted, the committed-set growth
+//!   from `update` kept (a crash preserves prior durable writes). The harness
+//!   reads the [`CRASH_SENTINEL`] as death-not-halt. Recovery is
+//!   *recomputation* (nothing pins the slot), the designed counterpart to
+//!   DropCommit's re-send — so the same unconditional properties must hold.
 //!
 //! # What this cannot see
 //!
@@ -239,6 +248,9 @@ impl std::fmt::Debug for SystemState {
         if self.faults.dropped_commits > 0 {
             write!(f, " drops={}", self.faults.dropped_commits)?;
         }
+        if self.faults.crashes_before_record > 0 {
+            write!(f, " crashes={}", self.faults.crashes_before_record)?;
+        }
         if !self.halts.is_empty() {
             write!(f, " HALTS={:?}", self.halts)?;
         }
@@ -255,6 +267,11 @@ enum Turn {
     /// fault, budgeted): records are written and bodies staged, but nothing
     /// becomes board-visible. See the module's Faults section.
     DropCommit(usize),
+    /// Trustee `i` runs a cycle that dies mid-post, after staging and before
+    /// the own-post record (benign fault, budgeted): the other side of the
+    /// §6.4 commit point — recovery is recomputation, not re-send. See the
+    /// module's Faults section.
+    CrashBeforeRecord(usize),
     /// The manager posts the ballots (a token), which it can only do once the
     /// DKG has published a public key.
     PostBallots,
@@ -270,6 +287,8 @@ enum Turn {
 struct FaultBudgets {
     /// Maximum [`Turn::DropCommit`] cycles across a run.
     dropped_commits: usize,
+    /// Maximum [`Turn::CrashBeforeRecord`] cycles across a run.
+    crashes_before_record: usize,
 }
 
 /// How many faults of each class have fired on this path (state). Doubles as
@@ -277,6 +296,56 @@ struct FaultBudgets {
 #[derive(Clone, Default, PartialEq, Eq, Hash)]
 struct FaultRecord {
     dropped_commits: usize,
+    crashes_before_record: usize,
+}
+
+/// The fault, if any, injected into one trustee cycle.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum CycleFault {
+    None,
+    /// Commits validate but never land ([`Turn::DropCommit`]).
+    DropCommits,
+    /// The process dies after staging, before the own-post record is written
+    /// ([`Turn::CrashBeforeRecord`]): `persist_own_post` fails with
+    /// [`CRASH_SENTINEL`], aborting the real `BoardClient::post` mid-algorithm
+    /// — stage landed, record didn't, commit never reached.
+    CrashBeforeRecord,
+}
+
+/// Marks an injected crash (as opposed to a real datalog error, which halts).
+const CRASH_SENTINEL: &str = "model-crash: died before writing the own-post record";
+
+/// [`MemoryPersistence`] with an injectable §6.4-seam failure: transparent
+/// delegate unless `fail_record` is set, in which case the own-post record
+/// write — the commit point — fails with [`CRASH_SENTINEL`]. Everything
+/// already persisted (the committed set grown during `update`) stays, exactly
+/// like a real crash: durable state reflects writes made so far.
+struct CrashingPersistence {
+    inner: MemoryPersistence,
+    fail_record: bool,
+}
+
+#[async_trait::async_trait(?Send)]
+impl braid::board::persistence::Persistence for CrashingPersistence {
+    async fn load(&self) -> anyhow::Result<Vec<Predicate>> {
+        self.inner.load().await
+    }
+    async fn persist(&mut self, predicate: &Predicate) -> anyhow::Result<()> {
+        self.inner.persist(predicate).await
+    }
+    async fn load_own_posts(&self) -> anyhow::Result<Vec<(Predicate, StagedRef)>> {
+        self.inner.load_own_posts().await
+    }
+    async fn persist_own_post(
+        &mut self,
+        predicate: &Predicate,
+        staged: &StagedRef,
+    ) -> anyhow::Result<()> {
+        if self.fail_record {
+            return Err(anyhow::anyhow!(CRASH_SENTINEL));
+        }
+        self.inner.persist_own_post(predicate, staged).await
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -474,6 +543,13 @@ impl SymbolicModel {
         self
     }
 
+    /// Allow up to `budget` [`Turn::CrashBeforeRecord`] cycles in the
+    /// exploration.
+    fn with_crash_before_record_budget(mut self, budget: usize) -> Self {
+        self.budgets.crashes_before_record = budget;
+        self
+    }
+
     /// The board as trustee `i` sees it: the true board minus rows b4 withholds
     /// from it. Fault-free, `withheld[i]` is empty and this is the whole board.
     fn visible_board(&self, state: &SystemState, i: usize) -> Vec<ProtocolMessage<C>> {
@@ -648,20 +724,31 @@ impl SymbolicModel {
     /// before durable updates (observation-timing compression), productive
     /// cycles only if they changed nothing (`next == *state`).
     /// One trustee's full update/infer/post cycle against the (possibly
-    /// fault-configured) transport, its effects merged into `next`. `None`
-    /// means the cycle was idle — not a transition (see the guard notes).
+    /// fault-configured) transport and persistence, its effects merged into
+    /// `next`. `None` means the cycle was idle — not a transition (see the
+    /// guard notes). `Some(crashed)` reports whether an injected crash
+    /// actually fired (its budget is only spent when it did — a
+    /// crash-before-record on a cycle that never writes a record, e.g. a pure
+    /// re-send, degenerates to the honest cycle and folds with it).
     fn trustee_cycle(
         &self,
         state: &SystemState,
         next: &mut SystemState,
         i: usize,
-        drop_commits: bool,
-    ) -> Option<()> {
+        fault: CycleFault,
+    ) -> Option<bool> {
         let persistence = self.persistence_from(&state.trustees[i]);
-        let (transport, staged, committed) =
-            self.transport_for(state, self.visible_board(state, i), drop_commits);
+        let client_persistence = CrashingPersistence {
+            inner: persistence.clone(),
+            fail_record: fault == CycleFault::CrashBeforeRecord,
+        };
+        let (transport, staged, committed) = self.transport_for(
+            state,
+            self.visible_board(state, i),
+            fault == CycleFault::DropCommits,
+        );
         let outcome = block_on(async {
-            let mut client = BoardClient::connect(transport, persistence.clone()).await?;
+            let mut client = BoardClient::connect(transport, client_persistence).await?;
             client.update().await?;
             let produced = self.symbolic_step(i, client.view())?;
             let produced_any = !produced.is_empty();
@@ -671,17 +758,23 @@ impl SymbolicModel {
             Ok::<bool, anyhow::Error>(produced_any)
         });
 
+        let mut crashed = false;
         match outcome {
             Ok(produced_any) => {
                 if !produced_any {
                     return None;
                 }
             }
+            // An injected crash is a death, not a datalog halt: keep the
+            // durable state written so far and move on — a restarted trustee
+            // recomputes next cycle (§6.4: nothing was recorded, so nothing
+            // pins the slot).
+            Err(e) if format!("{e:#}").contains(CRASH_SENTINEL) => crashed = true,
             Err(e) => next.halts.push(format!("t{}: {e:#}", i + 1)),
         }
         next.trustees[i] = Self::durable_from(&persistence);
         Self::merge_transport(next, staged, committed);
-        Some(())
+        Some(crashed)
     }
 
     fn successor(&self, state: &SystemState, turn: &Turn) -> Option<SystemState> {
@@ -689,11 +782,18 @@ impl SymbolicModel {
 
         match turn {
             Turn::Trustee(i) => {
-                self.trustee_cycle(state, &mut next, *i, false)?;
+                self.trustee_cycle(state, &mut next, *i, CycleFault::None)?;
             }
             Turn::DropCommit(i) => {
-                self.trustee_cycle(state, &mut next, *i, true)?;
+                self.trustee_cycle(state, &mut next, *i, CycleFault::DropCommits)?;
                 next.faults.dropped_commits += 1;
+            }
+            Turn::CrashBeforeRecord(i) => {
+                let crashed =
+                    self.trustee_cycle(state, &mut next, *i, CycleFault::CrashBeforeRecord)?;
+                if crashed {
+                    next.faults.crashes_before_record += 1;
+                }
             }
             Turn::PostBallots => {
                 let pk_hash = self.public_key_hash_on(state)?;
@@ -768,6 +868,9 @@ impl Model for SymbolicModel {
         if state.faults.dropped_commits < self.budgets.dropped_commits {
             candidates.extend((0..self.n).map(Turn::DropCommit));
         }
+        if state.faults.crashes_before_record < self.budgets.crashes_before_record {
+            candidates.extend((0..self.n).map(Turn::CrashBeforeRecord));
+        }
         // The manager posts ballots once, after the DKG yields a public key.
         let has_ballots = state.board.iter().any(|bytes| {
             ProtocolMessage::<C>::deser(bytes)
@@ -828,6 +931,19 @@ impl Model for SymbolicModel {
                 },
             ));
         }
+        if self.budgets.crashes_before_record > 0 {
+            props.push(Property::<Self>::sometimes(
+                "a crash before the own-post record fires",
+                |_, state| state.faults.crashes_before_record > 0,
+            ));
+            props.push(Property::<Self>::sometimes(
+                "the protocol completes despite a crash before the record",
+                |model, state| {
+                    state.faults.crashes_before_record > 0
+                        && plaintexts_on(state) == model.mixing_trustees.len()
+                },
+            ));
+        }
         props
     }
 }
@@ -880,5 +996,28 @@ fn model_check_symbolic_two_trustees_dropped_commits() {
     check(
         SymbolicModel::new(2, 2).with_dropped_commit_budget(2),
         "n=2 t=2 drops<=2",
+    );
+}
+
+/// The other side of the §6.4 seam: crashes after staging, before the record —
+/// recovery must be recomputation (nothing pins the slot).
+#[test]
+fn model_check_symbolic_two_trustees_crashes() {
+    check(
+        SymbolicModel::new(2, 2).with_crash_before_record_budget(2),
+        "n=2 t=2 crashes<=2",
+    );
+}
+
+/// Fault interaction: both benign classes in one exploration — a crash on one
+/// side of the commit point and a lost commit on the other, in every order and
+/// interleaving.
+#[test]
+fn model_check_symbolic_two_trustees_mixed_faults() {
+    check(
+        SymbolicModel::new(2, 2)
+            .with_dropped_commit_budget(1)
+            .with_crash_before_record_budget(1),
+        "n=2 t=2 drops<=1 crashes<=1",
     );
 }
