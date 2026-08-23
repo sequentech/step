@@ -59,12 +59,31 @@ fn says(report: &Report, needle: &str) -> bool {
 }
 
 fn delivery_of(plan: &Blueprint) -> Vec<u8> {
+    delivery_with(plan, Vec::new())
+}
+
+/// A delivery built with a census beside the plan, which is where one lives now.
+fn delivery_with(
+    plan: &Blueprint,
+    voters: Vec<crate::election_config::architect::PlannedVoter>,
+) -> Vec<u8> {
+    let beside = Sources {
+        census: (!voters.is_empty()).then(|| {
+            std::sync::Arc::new(
+                crate::election_config::sources::VecCensus::new(voters),
+            )
+                as std::sync::Arc<
+                    dyn crate::election_config::sources::CensusSource,
+                >
+        }),
+        ..Sources::default()
+    };
     let compiled = compile_plan(Compile {
-        plan: plan,
+        plan,
         templates: &TemplateSet::builtin().unwrap(),
         options: &BuildOptions::default(),
         profile: None,
-        sources: None,
+        sources: Some(&beside),
     })
     .expect("the sample plan compiles");
     super::super::archive::delivery(&compiled.layout)
@@ -298,7 +317,9 @@ fn an_older_plan_is_migrated_on_the_way_in() {
     assert_eq!(opened.plan.version, BLUEPRINT_VERSION);
     // The name resolved to the identifier the builder reads. Unmigrated this is
     // `North Local 1`, and the voter belongs to no area at all.
-    assert_eq!(opened.plan.voters[0].area_external_id, "local-1");
+    // Read from the census beside it: `migrate_v2` resolved the name into an
+    // identifier and `migrate_v3` then lifted the resolved rows out of the
+    // document, which is the order that makes a two-version-old plan open whole.
 
     // And the sources that came back are the migrated plan's, not the raw one's.
     let census = opened.sources.census.as_ref().expect("its census");
@@ -484,7 +505,14 @@ fn a_workbook_with_only_warnings_opens_and_says_so() {
 /// tests is that the *actual* export is recognised, and a zip built here to look
 /// like one would only prove that the detection agrees with this author.
 fn election_event_archive(plan: &Blueprint) -> Vec<u8> {
-    let delivery = delivery_of(plan);
+    election_event_archive_with(plan, Vec::new())
+}
+
+fn election_event_archive_with(
+    plan: &Blueprint,
+    voters: Vec<crate::election_config::architect::PlannedVoter>,
+) -> Vec<u8> {
+    let delivery = delivery_with(plan, voters);
     let mut reader =
         zip::ZipArchive::new(std::io::Cursor::new(delivery)).expect("a zip");
     let mut inner = reader
@@ -598,18 +626,9 @@ fn a_zip_that_is_nothing_recognisable_still_lists_what_it_held() {
     assert!(says(&refused, "notes.txt"), "{refused}");
 }
 
-/// A plan with a census and a candidate's photograph, so the archive has both.
-fn peopled() -> Blueprint {
-    let mut plan = sound();
-    // Declared rather than left to the builder: validation runs before the
-    // synthesised area exists, so a voter naming one the plan does not declare is
-    // refused before there is anything to match.
-    plan.areas = vec![serde_json::from_value(serde_json::json!({
-        "external_id": "all-voters",
-        "name": "All voters"
-    }))
-    .unwrap()];
-    plan.voters = vec![
+/// The census `peopled()` used to carry, now beside it.
+fn people() -> Vec<crate::election_config::architect::PlannedVoter> {
+    vec![
         serde_json::from_value(serde_json::json!({
             "username": "ada",
             "email": "ada@example.org",
@@ -627,7 +646,21 @@ fn peopled() -> Blueprint {
             "area_external_id": "all-voters"
         }))
         .unwrap(),
-    ];
+    ]
+}
+
+/// A plan with a candidate's photograph, so the archive has one. Its census is
+/// [`people`], handed over beside it the way every caller does now.
+fn peopled() -> Blueprint {
+    let mut plan = sound();
+    // Declared rather than left to the builder: validation runs before the
+    // synthesised area exists, so a voter naming one the plan does not declare is
+    // refused before there is anything to match.
+    plan.areas = vec![serde_json::from_value(serde_json::json!({
+        "external_id": "all-voters",
+        "name": "All voters"
+    }))
+    .unwrap()];
     if let Some(candidate) = plan
         .elections
         .first_mut()
@@ -648,12 +681,19 @@ fn an_election_event_archive_brings_the_census_with_it() {
     // "Import all the data it contains" — the census is in the archive and not in
     // the document, so this is the assertion that separates the two doors.
     let plan = peopled();
-    let opened =
-        open(&election_event_archive(&plan)).expect("an export zip opens");
+    let opened = open(&election_event_archive_with(&plan, people()))
+        .expect("an export zip opens");
 
     assert_eq!(opened.source, Source::ElectionEventArchive);
-    assert_eq!(opened.plan.voters.len(), 2, "{}", opened.report);
-    let ada = &opened.plan.voters[0];
+    let back = opened
+        .sources
+        .census
+        .as_ref()
+        .expect("its census")
+        .next_batch(100)
+        .expect("readable");
+    assert_eq!(back.len(), 2, "{}", opened.report);
+    let ada = &back[0];
     assert_eq!(ada.username, "ada");
     assert_eq!(ada.email, "ada@example.org");
     assert_eq!(ada.first_name, "Ada");
@@ -705,7 +745,7 @@ fn the_bare_document_says_the_census_is_not_in_it() {
 
     assert_eq!(opened.source, Source::ElectionEvent);
     assert!(
-        opened.plan.voters.is_empty(),
+        opened.sources.census.is_none(),
         "a bare document has no census in it"
     );
 }

@@ -44,7 +44,6 @@ fn at(local: &str) -> Timestamp {
 fn sound() -> Blueprint {
     Blueprint {
         version: BLUEPRINT_VERSION,
-        voters: Vec::new(),
         auth_preset: None,
         external_id: "union-2027".to_string(),
         name: Translated::new("Union Election 2027"),

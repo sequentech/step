@@ -59,6 +59,12 @@ pub struct ReadPlan {
     pub plan: Blueprint,
     /// Warnings only. Errors come back as `Err(Report)`.
     pub report: Report,
+
+    /// The Voters sheet, as a census beside the plan rather than inside it.
+    ///
+    /// A workbook is the one door that always carried its members in the same
+    /// file, so this is where they land now that a plan has nowhere to put them.
+    pub sources: crate::election_config::sources::Sources,
 }
 
 /// Sheets the wizard has no screens for, carried rather than interpreted.
@@ -99,7 +105,7 @@ pub fn plan_from_workbook(workbook: &Workbook) -> Result<ReadPlan, Report> {
 
     plan.areas = areas;
     plan.elections = elections;
-    plan.voters = read_voters(workbook, &plan.areas, &mut report);
+    let voters = read_voters(workbook, &plan.areas, &mut report);
     plan.materials = read_materials(workbook, &plan.languages, &mut report);
 
     read_schedule(workbook, &mut plan, &mut report);
@@ -113,7 +119,21 @@ pub fn plan_from_workbook(workbook: &Workbook) -> Result<ReadPlan, Report> {
     if report.has_errors() {
         return Err(report);
     }
-    Ok(ReadPlan { plan, report })
+    Ok(ReadPlan {
+        sources: crate::election_config::sources::Sources {
+            census: (!voters.is_empty()).then(|| {
+                std::sync::Arc::new(
+                    crate::election_config::sources::VecCensus::new(voters),
+                )
+                    as std::sync::Arc<
+                        dyn crate::election_config::sources::CensusSource,
+                    >
+            }),
+            ..Default::default()
+        },
+        plan,
+        report,
+    })
 }
 
 // -- saying what is wrong ------------------------------------------------------

@@ -155,13 +155,12 @@ impl Sources {
         }
 
         Sources {
-            // `None` rather than an empty source, so "this plan has no census" and
-            // "this census has no rows yet" stay distinguishable — `voters_sheet`
-            // already returns `None` for the first and a header for the second.
-            census: (!plan.voters.is_empty()).then(|| {
-                Arc::new(VecCensus::new(plan.voters.clone()))
-                    as Arc<dyn CensusSource>
-            }),
+            // **No census.** A plan stopped carrying one at version 4: the rows
+            // come from a file, from a handle, or from `migrate_v3` lifting them
+            // out of an older document. What remains of this shim is the bytes a
+            // plan still holds inline, and they go the same way once the browser
+            // holds them beside the plan too.
+            census: None,
             files,
         }
     }

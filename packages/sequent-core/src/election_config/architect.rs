@@ -68,7 +68,15 @@ use serde::{Deserialize, Serialize};
 /// somebody spent an afternoon on; being able to say "this is from an older
 /// version" beats failing to deserialize it with a serde error about a missing
 /// field.
-pub const BLUEPRINT_VERSION: u32 = 3;
+/// The plan format's own version.
+///
+/// **4 removed the census from the document.** A plan describing ten million
+/// voters was ten million rows of JSON — saved, re-serialised on every compile,
+/// and copied across the wasm boundary each time, while the same rows also went
+/// into the workbook and into `export_voters-<id>.csv`. The members travel as a
+/// census now, and [`migrate_v3`] lifts them out of an older document so it opens
+/// with everybody still in it.
+pub const BLUEPRINT_VERSION: u32 = 4;
 
 /// Bring a version 1 plan up to date, in place.
 ///
@@ -209,6 +217,37 @@ fn migrate_v2(document: &mut serde_json::Value) {
     object.insert("version".to_string(), serde_json::json!(3));
 }
 
+/// Lift a version 3 plan's census out of the document.
+///
+/// **The one migration that has to hand something back.** `migrate_v1` and
+/// `migrate_v2` rewrite the document in place and that is the whole of their job;
+/// this one *removes* a field, and the rows in it are somebody's members. Dropping
+/// them would open a saved plan as an election with nobody in it — silently, and
+/// against a document that still looks complete.
+///
+/// So it returns them, [`read_plan_value`] puts them in [`ReadPlan::sources`], and
+/// the caller hands that to [`compile_plan`] exactly as it would a census read from
+/// a file. A plan saved last month opens with everybody still in it.
+///
+/// The field is *removed* from the value as well as read, so nothing downstream can
+/// find a second copy — which is the whole point of the version bump.
+fn migrate_v3(document: &mut serde_json::Value) -> Vec<PlannedVoter> {
+    let Some(object) = document.as_object_mut() else {
+        return Vec::new();
+    };
+    if object.get("version").and_then(serde_json::Value::as_u64) != Some(3) {
+        return Vec::new();
+    }
+
+    let lifted = object
+        .remove("voters")
+        .and_then(|rows| serde_json::from_value(rows).ok())
+        .unwrap_or_default();
+
+    object.insert("version".to_string(), serde_json::json!(4));
+    lifted
+}
+
 /// A plan as it came off disk, and whatever came with it.
 pub struct ReadPlan {
     pub plan: Blueprint,
@@ -263,6 +302,7 @@ pub fn read_plan_value(
 ) -> Result<ReadPlan, Problem> {
     migrate_v1(&mut value);
     migrate_v2(&mut value);
+    let lifted = migrate_v3(&mut value);
 
     let plan: Blueprint = serde_json::from_value(value).map_err(|error| {
         Problem::error(
@@ -275,7 +315,13 @@ pub fn read_plan_value(
     })?;
 
     Ok(ReadPlan {
-        sources: Sources::from_plan(&plan),
+        sources: Sources {
+            census: (!lifted.is_empty()).then(|| {
+                std::sync::Arc::new(sources::VecCensus::new(lifted))
+                    as std::sync::Arc<dyn sources::CensusSource>
+            }),
+            files: Sources::from_plan(&plan).files,
+        },
         plan,
     })
 }
@@ -575,23 +621,6 @@ pub struct Blueprint {
 
     #[serde(default)]
     pub elections: Vec<PlannedElection>,
-
-    /// The voters, when the plan carries them.
-    ///
-    /// Optional on purpose. A plan describes an election and a census is a
-    /// separate, much larger, much more sensitive thing — so most plans have
-    /// none and the wizard says so. But a client whose membership does not
-    /// change between elections has every reason to keep the two together, and
-    /// telling them to hold the list somewhere else is telling them to hold it
-    /// somewhere worse.
-    ///
-    /// The columns are `build_tables::VOTER_LEADING_COLUMNS` plus whatever else
-    /// the client carries; anything unrecognised becomes a Keycloak user
-    /// attribute, which is how a reporting breakout arrives without a code
-    /// change. That is the same passthrough the workbook path has, so a census
-    /// exported from one route imports through the other.
-    #[serde(default)]
-    pub voters: Vec<PlannedVoter>,
 
     /// The messages voters are sent, and when somebody should send them.
     ///
@@ -4250,7 +4279,6 @@ pub struct Compiled {
 /// The document is the JSON the loose file already carries per template, with the
 /// same three keys. Not an invention: the one shape the wizard has committed to for
 /// this content, in the column the reader looks up by.
-#[cfg(feature = "election_config_archive")]
 fn add_message_templates(plan: &Blueprint, bundle: &mut super::build::Bundle) {
     for message in &plan.messages {
         let alias = message.kind.alias();

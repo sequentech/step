@@ -205,7 +205,7 @@ pub fn open_named(bytes: &[u8], name: Option<&str>) -> Result<Opened, Report> {
         let workbook = read_xlsx(bytes).map_err(one)?;
         let read = plan_from_workbook(&workbook)?;
         return Ok(Opened {
-            sources: Sources::from_plan(&read.plan),
+            sources: read.sources,
             plan: read.plan,
             report: read.report,
             source: Source::Workbook,
@@ -257,15 +257,18 @@ pub fn open_named(bytes: &[u8], name: Option<&str>) -> Result<Opened, Report> {
                 })
                 .collect(),
         };
-        super::plan_from_event::fill_from_archive(
+        let mut sources = super::plan_from_event::fill_from_archive(
             &mut read.plan,
             &document,
             &beside,
             &mut read.report,
         );
+        // The photographs and the support materials are still fields of the plan,
+        // so the bytes half of the shim still applies. The census is not.
+        sources.files = Sources::from_plan(&read.plan).files;
 
         return Ok(Opened {
-            sources: Sources::from_plan(&read.plan),
+            sources,
             plan: read.plan,
             report: read.report,
             source: Source::ElectionEventArchive,

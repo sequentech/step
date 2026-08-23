@@ -20,8 +20,34 @@ use crate::election_config::sources::Sources;
 ///
 /// One function rather than every call site: when the census leaves `Blueprint`,
 /// this is where a test says where its voters come from.
+/// The census `sound()` used to carry in a `voters` field it no longer has.
+///
+/// One row, with a client's own column on it, because that column is what half
+/// this file is about — a census exported from one route must import through the
+/// other with the passthrough intact.
+fn people() -> Vec<crate::election_config::architect::PlannedVoter> {
+    vec![crate::election_config::architect::PlannedVoter {
+        username: "ada".to_string(),
+        email: "ada@example.org".to_string(),
+        area_external_id: "north".to_string(),
+        extra: [("department".to_string(), "Engineering".to_string())]
+            .into_iter()
+            .collect(),
+        ..Default::default()
+    }]
+}
+
+fn beside() -> Sources {
+    Sources {
+        census: Some(std::sync::Arc::new(
+            crate::election_config::sources::VecCensus::new(people()),
+        )),
+        ..Sources::default()
+    }
+}
+
 fn workbook_of(plan: &Blueprint) -> Result<Workbook, Problem> {
-    to_workbook(plan, &Sources::from_plan(plan))
+    to_workbook(plan, &beside())
 }
 
 /// The sample plan `architect_tests` uses, rebuilt here.
@@ -92,10 +118,6 @@ fn sound() -> Blueprint {
                 ]
             }]
         }],
-        "voters": [
-            {"username": "ada", "email": "ada@example.org",
-             "area_external_id": "north", "department": "Engineering"}
-        ],
         "messages": [{
             "kind": "get-out-the-vote",
             "subject": {"en": "You have not voted yet"},
@@ -117,6 +139,20 @@ fn read(plan: &Blueprint) -> Blueprint {
     plan_from_workbook(&workbook)
         .expect("and reads back without errors")
         .plan
+}
+
+/// The census a workbook reads back, which is where one lives now.
+fn read_voters(
+    workbook: &Workbook,
+) -> Vec<crate::election_config::architect::PlannedVoter> {
+    plan_from_workbook(workbook)
+        .expect("it reads")
+        .sources
+        .census
+        .as_ref()
+        .expect("its census")
+        .next_batch(100)
+        .expect("readable")
 }
 
 /// The property test: what it produces is what it produced.
@@ -278,8 +314,9 @@ fn a_ceremony_time_keeps_the_zone_it_was_chosen_in() {
 
 #[test]
 fn a_voters_own_columns_come_back_with_them() {
-    let back = read(&sound());
-    let voter = &back.voters[0];
+    let workbook = workbook_of(&sound()).expect("the plan writes");
+    let back = read_voters(&workbook);
+    let voter = &back[0];
 
     assert_eq!(voter.username, "ada");
     assert_eq!(voter.area_external_id, "north");
@@ -612,7 +649,9 @@ fn every_blueprint_field_is_accounted_for() {
 }
 
 /// A Voters sheet with these headers and rows, in place of the fixture's.
-fn with_voters(grid: &[&[&str]]) -> Blueprint {
+fn with_voters(
+    grid: &[&[&str]],
+) -> Vec<crate::election_config::architect::PlannedVoter> {
     use crate::election_config::paths::Cell;
     use crate::election_config::sheet::{Sheet, Workbook};
 
@@ -635,9 +674,7 @@ fn with_voters(grid: &[&[&str]]) -> Blueprint {
         })
         .collect();
 
-    plan_from_workbook(&Workbook::new(sheets).unwrap())
-        .expect("it reads")
-        .plan
+    read_voters(&Workbook::new(sheets).unwrap())
 }
 
 /// A census written before the column moved still loads.
@@ -655,8 +692,8 @@ fn a_sheet_that_still_names_the_area_is_understood() {
         &["grace", "South Local 2"],
     ]);
 
-    assert_eq!(plan.voters[0].area_external_id, "north");
-    assert_eq!(plan.voters[1].area_external_id, "south");
+    assert_eq!(plan[0].area_external_id, "north");
+    assert_eq!(plan[1].area_external_id, "south");
 }
 
 /// `area.external_id` wins when a sheet carries both.
@@ -672,8 +709,8 @@ fn the_identifier_wins_over_a_stale_name() {
         &["ada", "south", "North Local 1"],
     ]);
 
-    assert_eq!(plan.voters[0].area_external_id, "south");
-    assert!(!plan.voters[0].extra.contains_key("area_name"));
+    assert_eq!(plan[0].area_external_id, "south");
+    assert!(!plan[0].extra.contains_key("area_name"));
 }
 
 /// A name no area answers to is kept, not blanked.
@@ -686,7 +723,7 @@ fn an_area_name_matching_nothing_survives_to_be_reported() {
     let plan =
         with_voters(&[&["username", "area_name"], &["ada", "North Local 4"]]);
 
-    assert_eq!(plan.voters[0].area_external_id, "North Local 4");
+    assert_eq!(plan[0].area_external_id, "North Local 4");
 }
 
 #[test]

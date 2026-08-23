@@ -37,6 +37,34 @@ fn workbook_of(plan: &Blueprint) -> Result<Workbook, Problem> {
     to_workbook(plan, &sources_of(plan))
 }
 
+/// A census beside the plan, which is the only place one lives now.
+///
+/// The plan lost its `voters` field at version 4, so a test with members hands
+/// them over the way every caller does — as a source. The files half still comes
+/// off the plan, because the bytes have not moved yet.
+fn with_voters(plan: &Blueprint, voters: Vec<PlannedVoter>) -> Sources {
+    Sources {
+        census: (!voters.is_empty()).then(|| {
+            std::sync::Arc::new(VecCensus::new(voters))
+                as std::sync::Arc<
+                    dyn crate::election_config::sources::CensusSource,
+                >
+        }),
+        files: sources_of(plan).files,
+    }
+}
+
+fn checked_with(plan: &Blueprint, voters: Vec<PlannedVoter>) -> Report {
+    validate_plan(plan, &with_voters(plan, voters))
+}
+
+fn workbook_with(
+    plan: &Blueprint,
+    voters: Vec<PlannedVoter>,
+) -> Result<Workbook, Problem> {
+    to_workbook(plan, &with_voters(plan, voters))
+}
+
 /// A moment in a zone that does not observe daylight saving.
 ///
 /// Phoenix rather than Los Angeles on purpose: a March window in California
@@ -52,7 +80,6 @@ fn at(local: &str) -> Timestamp {
 fn sound() -> Blueprint {
     Blueprint {
         version: BLUEPRINT_VERSION,
-        voters: Vec::new(),
         auth_preset: None,
         external_id: "union-2027".to_string(),
         name: Translated::new("Union Election 2027"),
@@ -1760,7 +1787,7 @@ fn a_plan_may_carry_its_own_census() {
         parent_external_id: None,
         allow_early_voting: false,
     }];
-    plan.voters = vec![
+    let voters = vec![
         PlannedVoter {
             username: "ada".into(),
             email: "ada@example.org".into(),
@@ -1778,7 +1805,8 @@ fn a_plan_may_carry_its_own_census() {
         },
     ];
 
-    let workbook = workbook_of(&plan).expect("this plan is sound");
+    let workbook =
+        workbook_with(&plan, voters.clone()).expect("this plan is sound");
     let voters = workbook
         .sheet("voters")
         .expect("the census should be a sheet");
@@ -1818,7 +1846,6 @@ fn the_caller_may_bring_the_census_and_the_files() {
         file_name: "union.png".to_string(),
         bytes: Vec::new(),
     });
-    assert!(plan.voters.is_empty());
 
     let sources = Sources {
         census: Some(std::sync::Arc::new(VecCensus::new(vec![PlannedVoter {
@@ -1983,10 +2010,6 @@ fn the_census_comes_from_the_source() {
         parent_external_id: None,
         allow_early_voting: false,
     }];
-    assert!(
-        plan.voters.is_empty(),
-        "the plan must not be the source here"
-    );
 
     let census = Sources {
         census: Some(std::sync::Arc::new(VecCensus::new(vec![
@@ -2108,12 +2131,13 @@ fn the_voters_sheet_matches_what_the_builder_reads() {
     // this module does not have. Two lists means they can drift, and the way
     // they would drift is a census column the builder silently ignores.
     let mut plan = sound();
-    plan.voters = vec![PlannedVoter {
+    let voters = vec![PlannedVoter {
         username: "ada".into(),
         ..Default::default()
     }];
 
-    let workbook = workbook_of(&plan).expect("this plan is sound");
+    let workbook =
+        workbook_with(&plan, voters.clone()).expect("this plan is sound");
     let voters = workbook
         .sheet("voters")
         .expect("the census should be a sheet");
@@ -2154,7 +2178,7 @@ fn the_voters_sheet_matches_what_the_builder_reads() {
 #[test]
 fn a_duplicate_username_is_refused() {
     let mut plan = sound();
-    plan.voters = vec![
+    let voters = vec![
         PlannedVoter {
             username: "ada".into(),
             ..Default::default()
@@ -2165,7 +2189,7 @@ fn a_duplicate_username_is_refused() {
         },
     ];
 
-    let report = checked(&plan);
+    let report = checked_with(&plan, voters.clone());
 
     assert!(
         report
@@ -2188,7 +2212,7 @@ fn a_voter_in_an_area_that_does_not_exist_is_refused() {
         parent_external_id: None,
         allow_early_voting: false,
     }];
-    plan.voters = vec![PlannedVoter {
+    let voters = vec![PlannedVoter {
         username: "ada".into(),
         // The census says one thing and the areas another, which is what
         // retyping an identifier rather than copying it produces.
@@ -2196,7 +2220,7 @@ fn a_voter_in_an_area_that_does_not_exist_is_refused() {
         ..Default::default()
     }];
 
-    let report = checked(&plan);
+    let report = checked_with(&plan, voters.clone());
 
     assert!(
         report
@@ -2218,14 +2242,14 @@ fn a_census_that_ignores_the_districting_says_so_once() {
         parent_external_id: None,
         allow_early_voting: false,
     }];
-    plan.voters = (0..5)
+    let voters: Vec<PlannedVoter> = (0..5)
         .map(|index| PlannedVoter {
             username: format!("voter-{index}"),
             ..Default::default()
         })
         .collect();
 
-    let report = checked(&plan);
+    let report = checked_with(&plan, voters.clone());
 
     // Once, not once per voter: ten thousand copies of one sentence is a report
     // nobody reads.
@@ -3503,29 +3527,38 @@ fn messages_leave_as_two_files_outside_the_bundle() {
 #[test]
 fn a_plan_the_builder_refuses_is_refused_by_the_wizard_first() {
     /// A plan, and the name of what was done to it.
-    fn mutations() -> Vec<(&'static str, Blueprint)> {
-        let mut cases: Vec<(&'static str, Blueprint)> = Vec::new();
+    fn mutations() -> Vec<(&'static str, Blueprint, Vec<PlannedVoter>)> {
+        // A census per case, beside the plan, because a plan has nowhere to put
+        // one since version 4 — and three of these cases are *about* a census.
+        let mut cases: Vec<(&'static str, Blueprint, Vec<PlannedVoter>)> =
+            Vec::new();
 
         // The defect that started this: a voter whose area is blank. It was
         // accepted here as "the default area" and refused by the builder, which
         // needs an `area.external_id` on every row.
-        let mut blank_area = sound();
-        blank_area.voters = vec![PlannedVoter {
-            username: "ada".into(),
-            area_external_id: String::new(),
-            ..Default::default()
-        }];
-        cases.push(("a voter with no area", blank_area));
+        let blank_area = sound();
+        cases.push((
+            "a voter with no area",
+            blank_area,
+            vec![PlannedVoter {
+                username: "ada".into(),
+                area_external_id: String::new(),
+                ..Default::default()
+            }],
+        ));
 
         // The same, spelled wrong rather than left out — the likelier mistake,
         // and the one a copy-paste from a spreadsheet makes.
-        let mut wrong_area = sound();
-        wrong_area.voters = vec![PlannedVoter {
-            username: "ada".into(),
-            area_external_id: "nowhere".into(),
-            ..Default::default()
-        }];
-        cases.push(("a voter in an area that does not exist", wrong_area));
+        let wrong_area = sound();
+        cases.push((
+            "a voter in an area that does not exist",
+            wrong_area,
+            vec![PlannedVoter {
+                username: "ada".into(),
+                area_external_id: "nowhere".into(),
+                ..Default::default()
+            }],
+        ));
 
         // An area with no name. The voters CSV identifies an area by name, so
         // this is unreachable rather than merely untidy.
@@ -3533,14 +3566,14 @@ fn a_plan_the_builder_refuses_is_refused_by_the_wizard_first() {
         if let Some(area) = unnamed_area.areas.first_mut() {
             area.name = String::new();
         }
-        cases.push(("an area with no name", unnamed_area));
+        cases.push(("an area with no name", unnamed_area, Vec::new()));
 
         // Nothing to vote on.
         let mut no_contests = sound();
         for election in &mut no_contests.elections {
             election.contests.clear();
         }
-        cases.push(("an election with no contests", no_contests));
+        cases.push(("an election with no contests", no_contests, Vec::new()));
 
         // A contest with nothing on it.
         let mut no_candidates = sound();
@@ -3549,7 +3582,7 @@ fn a_plan_the_builder_refuses_is_refused_by_the_wizard_first() {
                 contest.candidates.clear();
             }
         }
-        cases.push(("a contest with no candidates", no_candidates));
+        cases.push(("a contest with no candidates", no_candidates, Vec::new()));
 
         // Two things sharing an identifier. Identifiers are event-wide, so the
         // second silently replaces the first.
@@ -3562,7 +3595,11 @@ fn a_plan_the_builder_refuses_is_refused_by_the_wizard_first() {
                 }
             }
         }
-        cases.push(("two candidates sharing an identifier", duplicate));
+        cases.push((
+            "two candidates sharing an identifier",
+            duplicate,
+            Vec::new(),
+        ));
 
         // More choices than there are things to choose.
         let mut too_many = sound();
@@ -3574,6 +3611,7 @@ fn a_plan_the_builder_refuses_is_refused_by_the_wizard_first() {
         cases.push((
             "a contest allowing more choices than it has options",
             too_many,
+            Vec::new(),
         ));
 
         cases
@@ -3582,13 +3620,14 @@ fn a_plan_the_builder_refuses_is_refused_by_the_wizard_first() {
     let templates = TemplateSet::builtin().unwrap();
     let mut lies: Vec<String> = Vec::new();
 
-    for (what, plan) in mutations() {
+    for (what, plan, voters) in mutations() {
+        let beside = with_voters(&plan, voters.clone());
         let compiled = compile_plan(Compile {
             plan: &plan,
             templates: &templates,
             options: &BuildOptions::default(),
             profile: None,
-            sources: None,
+            sources: Some(&beside),
         });
 
         // Two ways the builder refuses: an `Err` report, or an `Ok` carrying
@@ -3603,7 +3642,7 @@ fn a_plan_the_builder_refuses_is_refused_by_the_wizard_first() {
             continue;
         }
 
-        let verdict = checked(&plan);
+        let verdict = checked_with(&plan, voters);
         if !verdict.has_errors() {
             lies.push(format!(
                 "{what}: the builder refuses it and validate_plan says it is fine"
@@ -4595,23 +4634,33 @@ fn a_version_two_plan_keeps_its_voters_in_their_areas() {
         ]
     }"#;
 
-    let plan = read_plan(document)
-        .expect("a version 2 plan still opens")
-        .plan;
-    assert_eq!(plan.version, BLUEPRINT_VERSION);
+    let read = read_plan(document).expect("a version 2 plan still opens");
+    assert_eq!(read.plan.version, BLUEPRINT_VERSION);
 
-    assert_eq!(plan.voters[0].area_external_id, "local-1");
-    assert_eq!(plan.voters[1].area_external_id, "local-2");
+    // **Through `sources` now, and the two migrations run in order.** `migrate_v2`
+    // resolves the area names into identifiers *inside the document*, and
+    // `migrate_v3` then lifts the resolved rows out of it — so a plan two versions
+    // old opens with everybody in it and every area found.
+    let voters = read
+        .sources
+        .census
+        .as_ref()
+        .expect("its census")
+        .next_batch(100)
+        .expect("readable");
+
+    assert_eq!(voters[0].area_external_id, "local-1");
+    assert_eq!(voters[1].area_external_id, "local-2");
 
     // A name no area answers to is kept as written rather than dropped, so
     // validation reports it against the row that has it. Dropping it would turn a
     // loud problem into a voter who quietly gets no ballot.
-    assert_eq!(plan.voters[2].area_external_id, "Nowhere At All");
-    assert_eq!(plan.voters[3].area_external_id, "");
+    assert_eq!(voters[2].area_external_id, "Nowhere At All");
+    assert_eq!(voters[3].area_external_id, "");
 
     // And the old key does not survive as a passthrough attribute, which would
     // collide with the `area_name` column the finished bundle emits.
-    for voter in &plan.voters {
+    for voter in &voters {
         assert!(
             !voter.extra.contains_key("area_name"),
             "{:?} kept the old key",
@@ -5220,4 +5269,72 @@ fn nothing_else_deserializes_a_plan() {
         "a plan should only be deserialized in `read_plan_value`; found {found:?}"
     );
     assert!(found[0].starts_with("architect.rs:"), "{found:?}");
+}
+
+/// A version 3 plan opens with its members, and the document loses them.
+///
+/// **The migration that has to hand something back.** `migrate_v1` and `migrate_v2`
+/// rewrite a document in place; this one *removes* a field, and the rows in it are
+/// somebody's members. Dropping them would open a saved plan as an election with
+/// nobody in it — silently, against a file that still looks complete.
+#[test]
+fn a_version_three_plan_keeps_its_census() {
+    let document = r#"{
+        "version": 3,
+        "external_id": "union-2027",
+        "name": {"en": "Union Election 2027"},
+        "areas": [{"external_id": "north", "name": "North Local 1"}],
+        "voters": [
+            {"username": "ada", "area_external_id": "north",
+             "department": "Engineering"},
+            {"username": "grace", "area_external_id": "north"}
+        ]
+    }"#;
+
+    let read = read_plan(document).expect("a version 3 plan still opens");
+    assert_eq!(read.plan.version, BLUEPRINT_VERSION);
+
+    let voters = read
+        .sources
+        .census
+        .as_ref()
+        .expect("its census came out of the document")
+        .next_batch(100)
+        .expect("readable");
+    assert_eq!(voters.len(), 2);
+    assert_eq!(voters[0].username, "ada");
+    assert_eq!(voters[0].area_external_id, "north");
+    // A client's own column rides through the lift, which is the passthrough the
+    // whole census path is for.
+    assert_eq!(
+        voters[0].extra.get("department").map(String::as_str),
+        Some("Engineering")
+    );
+
+    // And what comes back out carries none of them. A plan that still had a
+    // `voters` key would be the duplication this version removed, reinstated by
+    // the migration that was supposed to end it.
+    let written = serde_json::to_value(&read.plan).expect("it writes");
+    assert!(
+        written.get("voters").is_none(),
+        "the migrated plan still has a voters key: {written}"
+    );
+}
+
+/// A version 4 plan is left alone.
+#[test]
+fn the_lift_only_happens_once() {
+    // `migrate_v3` keys on `"version": 3`. A current document with a stray
+    // `voters` key — hand-edited, or written by something that has not caught up —
+    // must not have it silently adopted as the census, because the plan it came
+    // from does not believe it has one.
+    let document = r#"{
+        "version": 4,
+        "external_id": "union-2027",
+        "name": {"en": "Union Election 2027"},
+        "voters": [{"username": "ada"}]
+    }"#;
+
+    let read = read_plan(document).expect("it opens");
+    assert!(read.sources.census.is_none());
 }

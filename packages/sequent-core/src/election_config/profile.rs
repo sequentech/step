@@ -369,6 +369,16 @@ fn names_a_control(text: &str) -> bool {
             // The screen already asks whether it is hidden; until now the builder
             // had no switch to say so, because the row was marked unprofilable.
             | "schedule.zone"
+            // **The Census screen.** A plan stopped carrying its members at
+            // version 4 — they travel as a census beside it — so there is no
+            // `voters` in the shape of a plan and never will be again. Hiding the
+            // screen is still a thing a delivery profile says, and it is the whole
+            // reason this list exists: the honest field path would name a row of a
+            // file the plan does not contain.
+            //
+            // Refused in `defaults` like the rest. A starting value for a census
+            // is not a thing.
+            | "voters"
             | "platform.adminusers"
             | "platform.permissions"
             | "platform.templates"

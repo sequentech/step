@@ -31,7 +31,7 @@ use serde_json::{Map, Value};
 
 use super::architect::{
     Blueprint, IvrPhase, PlannedArea, PlannedCandidate, PlannedContest,
-    PlannedElection, PlannedIvr, Translated, BLUEPRINT_VERSION,
+    PlannedElection, PlannedIvr, PlannedVoter, Translated, BLUEPRINT_VERSION,
 };
 use super::plan_from_workbook::ReadPlan;
 use super::policy::{Behaviour, Overrides};
@@ -169,7 +169,13 @@ pub fn plan_from_event(document: &Value) -> Result<ReadPlan, Report> {
          below will say so.",
     ));
 
-    Ok(ReadPlan { plan, report })
+    Ok(ReadPlan {
+        // The bare document carries no census — that is what tells it apart from
+        // the archive, and `fill_from_archive` is the door that has one.
+        sources: crate::election_config::sources::Sources::default(),
+        plan,
+        report,
+    })
 }
 
 /// Read a flat bag of platform keys as the three groups a `Behaviour` has.
@@ -602,13 +608,22 @@ pub fn fill_from_archive(
     document: &Value,
     beside: &Beside,
     report: &mut Report,
-) {
+) -> crate::election_config::sources::Sources {
+    let mut sources = crate::election_config::sources::Sources::default();
     if let Some(csv) = beside.voters.as_deref() {
         check_census_against_profile(document, csv, report);
-        voters_into(plan, csv, report);
+        // Beside the plan, not in it: a plan has had nowhere to put a census
+        // since version 4, and this door is the one that always brought one.
+        let people = voters_from_csv(csv, plan, report);
+        if !people.is_empty() {
+            sources.census = Some(std::sync::Arc::new(
+                crate::election_config::sources::VecCensus::new(people),
+            ));
+        }
     }
     images_into(plan, document, beside, report);
     materials_into(plan, document, beside, report);
+    sources
 }
 
 /// The census's columns against the realm's user profile.
@@ -710,7 +725,11 @@ fn declared_attributes(document: &Value) -> Option<Vec<String>> {
 }
 
 /// The census, out of the export's own CSV.
-fn voters_into(plan: &mut Blueprint, csv: &str, report: &mut Report) {
+fn voters_from_csv(
+    csv: &str,
+    plan: &Blueprint,
+    report: &mut Report,
+) -> Vec<PlannedVoter> {
     // Read through the same reader the census screen uses for a dropped file, so
     // an import and a paste disagree about nothing — quoting, blank lines, a
     // trailing newline, a BOM.
@@ -725,7 +744,7 @@ fn voters_into(plan: &mut Blueprint, csv: &str, report: &mut Report) {
                      census is empty: {error}"
                 ),
             ));
-            return;
+            return Vec::new();
         }
     };
 
@@ -740,7 +759,7 @@ fn voters_into(plan: &mut Blueprint, csv: &str, report: &mut Report) {
              there is no way to tell one voter from another and the census is \
              empty.",
         ));
-        return;
+        return Vec::new();
     }
 
     // Columns the wizard has its own field for. Everything else rides in `extra`,
@@ -823,7 +842,7 @@ fn voters_into(plan: &mut Blueprint, csv: &str, report: &mut Report) {
         }
     }
 
-    plan.voters = people;
+    people
 }
 
 /// How many census rows to read at a time. The reader's own unit of work.
