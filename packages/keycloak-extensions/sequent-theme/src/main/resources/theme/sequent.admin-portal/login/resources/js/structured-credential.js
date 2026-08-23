@@ -653,6 +653,15 @@ if (container) {
       showError();
     }
 
+    // The template puts autofocus on the real input, which this widget hides - a hidden field
+    // cannot hold focus, so the page would open with nothing focused. Move the intent onto the
+    // visible group input.
+    if (realInput.hasAttribute("autofocus")) {
+      realInput.removeAttribute("autofocus");
+      displayInput.focus();
+      selectGroup(activeGroup);
+    }
+
     form.addEventListener(
       "submit",
       (event) => {

@@ -17,6 +17,9 @@ class RegisterTemplateTest {
   private static final Path REGISTER_TEMPLATE =
       Path.of("src/main/resources/theme/sequent.admin-portal/login/register.ftl");
 
+  private static final Path SOCIAL_PROVIDERS_TEMPLATE =
+      Path.of("src/main/resources/theme/sequent.admin-portal/login/social-providers.ftl");
+
   @Test
   void deferredLoginModeEnablesSocialProviders() throws IOException {
     String template = Files.readString(REGISTER_TEMPLATE);
@@ -25,10 +28,22 @@ class RegisterTemplateTest {
         template.contains(
             "displaySocialProviders=(formMode?? && formMode = 'LOGIN' && (social.providers)?has_content)"));
     assertTrue(template.contains("<#elseif section = \"socialProviders\" >"));
+    assertTrue(template.contains("<@socialProviders.render/>"));
+  }
+
+  @Test
+  void socialProvidersMacroRendersProviderList() throws IOException {
+    // Shared with sequent.voting-portal/login/login.ftl - see social-providers.ftl's own header
+    // comment. Content assertions live here rather than duplicated per caller.
+    String template = Files.readString(SOCIAL_PROVIDERS_TEMPLATE);
+
     assertTrue(template.contains("id=\"kc-social-providers\""));
     assertTrue(template.contains("msg(\"identity-provider-login-label\")"));
     assertTrue(template.contains("href=\"${p.loginUrl}\""));
     assertTrue(template.contains("${msg(p.displayName)!}"));
+    assertTrue(
+        template.contains(
+            "p.alias != 'digital-certificates' || (realm.attributes['voter-certificate-policy']!'disabled') == 'enabled'"));
   }
 
   @Test
