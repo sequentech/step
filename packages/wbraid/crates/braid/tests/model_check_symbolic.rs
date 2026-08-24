@@ -109,11 +109,23 @@
 //!   holds both. Halting is per-trustee ([`SystemState::halted`]) precisely
 //!   so the checker can hunt the bad interleaving — a trustee decrypting the
 //!   second lineage before observing the collision — which the no-exemption
-//!   lineage property would catch. Adversarial classes get *conditioned*
-//!   safety/liveness (halts are the REQUIRED response; completion is not
-//!   promised) instead of the benign tier's unconditional forms. The budget
-//!   here bounds a content-creating action for finiteness; it is not a
-//!   tolerance claim.
+//!   lineage property would catch. The budget here bounds a content-creating
+//!   action for finiteness; it is not a tolerance claim.
+//! - **Dishonest mixer** (ADVERSARIAL, [`SymbolicModel::dishonest_mixers`]): a
+//!   sub-threshold set of trustees that subvert their shuffle — honest
+//!   everywhere else. Two kinds ([`DishonestKind`]): `KnownPermutation` (a
+//!   valid shuffle the adversary can invert — attacks privacy/linkage) and
+//!   `Forge` (a shuffle that alters the ballot set — attacks integrity). The
+//!   defense against forgery is honest verification: an honest trustee checks
+//!   that a mix's output multiset equals its input's before signing, so a
+//!   forged mix never gathers the threshold signatures it needs and never
+//!   reaches decryption. Against a known permutation the defense is the
+//!   remaining honest mixer's opaque layer. Fixed for the run, not budgeted.
+//!
+//! Adversarial classes get *conditioned* liveness (completion is not promised
+//! once an adversary acts) and *conditioned* safety (only an adversary may
+//! cause a halt), while the functional privacy and integrity properties (see
+//! Properties) hold unconditionally.
 //!
 //! Deliberately NOT fault classes:
 //! - **Benign fetch failures** (b4 unreachable on the read path) are
@@ -535,18 +547,21 @@ impl<C: Context> Transport<C> for ModelTransport<C> {
 ///////////////////////////////////////////////////////////////////////////
 //
 // The privacy and integrity properties reason about *what the ballots carry*
-// and *how they were shuffled*, not about protocol mechanisms. To make that
-// checkable, ballots and mixes carry a symbolic content descriptor in their
-// token body; a property re-derives it from board bytes and walks the mix
-// chain — never touching real crypto.
+// and *how they were shuffled*, not about protocol mechanisms. Ballots and
+// mixes carry a symbolic content descriptor in their token body; properties
+// re-derive it from board bytes and walk the mix chain — never touching real
+// crypto.
 //
 //   * A ballot set is a multiset of **voter symbols** (small integers). An
-//     honest shuffle is invisible at the multiset level, which is exactly the
-//     privacy abstraction: privacy is about the multiset, not the order.
-//   * Each mix carries a [`Transform`]: what it does to the multiset, and
-//     whether it contributes an **opaque** (adversary-unknown) layer. The
-//     privacy guarantee is "every decrypted set passed through ≥1 opaque
-//     layer"; integrity is "the decrypted multiset equals the ballots'".
+//     honest shuffle is invisible at the multiset level: privacy is about the
+//     multiset, not the order.
+//   * A mix carries the multiset it output and whether it added an **opaque**
+//     (adversary-unknown) layer. An honest shuffle preserves the multiset and
+//     is opaque; a dishonest mixer may instead apply a permutation it knows
+//     (multiset preserved, NOT opaque) or forge the content (multiset
+//     changed). The multiset it claims is what an honest verifier checks
+//     against the input before signing (a real shuffle proof proves exactly
+//     "output is a permutation of input" — nothing about secrecy).
 
 /// The honest ballot set: two distinct voters. Small on purpose.
 const HONEST_VOTERS: [u8; 2] = [0, 1];
@@ -557,12 +572,16 @@ const HONEST_VOTERS: [u8; 2] = [0, 1];
 /// dropped voter's ballot.
 const EQUIVOCATED_VOTERS: [u8; 1] = [0];
 
-/// A mix's symbolic effect on the multiset it shuffles.
-#[derive(Clone, PartialEq, Eq, Debug)]
-enum Transform {
-    /// An honest shuffle: multiset preserved, and an adversary-unknown
-    /// (opaque) permutation layer added — where privacy lives.
-    Honest,
+/// How a dishonest mixer subverts its shuffle (model config, [`SymbolicModel`]).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum DishonestKind {
+    /// A real shuffle, but with a permutation the adversary knows: the multiset
+    /// is preserved (so it verifies and an honest signer accepts it), but it
+    /// adds no opaque layer. Attacks privacy/linkage.
+    KnownPermutation,
+    /// A forged shuffle: the output multiset differs from the input (here, a
+    /// voter is dropped). An honest verifier rejects it. Attacks integrity.
+    Forge,
 }
 
 /// Encode a ballots token body: the voter multiset plus a salt (so an
@@ -581,27 +600,28 @@ fn decode_ballots(body: &[u8]) -> Option<Vec<u8>> {
         .map(|(voters, _salt)| voters)
 }
 
-/// Encode a mix token body. The `(mixer, input)` pair keeps distinct mixes'
-/// outputs distinct (as distinct real shuffles would be); the transform is the
-/// semantic payload.
-fn encode_mix(mixer: TrusteeIndex, input: &CiphertextsHash, transform: &Transform) -> Vec<u8> {
-    let tag: u8 = match transform {
-        Transform::Honest => 0,
-    };
-    serde_json::to_vec(&(mixer, format!("{input:?}"), tag)).expect("encode mix token")
+/// Encode a mix token body: `(mixer, input)` keeps distinct mixes' outputs
+/// distinct (as distinct real shuffles would be), and `(output_voters, opaque)`
+/// is the semantic payload — the multiset this mix claims to output and whether
+/// it added an opaque layer.
+fn encode_mix(
+    mixer: TrusteeIndex,
+    input: &CiphertextsHash,
+    output_voters: &[u8],
+    opaque: bool,
+) -> Vec<u8> {
+    serde_json::to_vec(&(mixer, format!("{input:?}"), output_voters, opaque))
+        .expect("encode mix token")
 }
 
-/// The [`Transform`] carried by a mix token body, or `None` if the body is not
-/// a mix token. The stored body is `Vec::<u8>::ser(token)`, so the framing is
-/// undone before the JSON is parsed.
-fn decode_mix_transform(body: &[u8]) -> Option<Transform> {
+/// The `(output multiset, opaque)` carried by a mix token body, or `None` if
+/// the body is not a mix token. The stored body is `Vec::<u8>::ser(token)`, so
+/// the framing is undone before the JSON is parsed.
+fn decode_mix(body: &[u8]) -> Option<(Vec<u8>, bool)> {
     let token = <Vec<u8>>::deser(body).ok()?;
-    let (_mixer, _input, tag): (TrusteeIndex, String, u8) =
+    let (_mixer, _input, output_voters, opaque): (TrusteeIndex, String, Vec<u8>, bool) =
         serde_json::from_slice(&token).ok()?;
-    match tag {
-        0 => Some(Transform::Honest),
-        _ => None,
-    }
+    Some((output_voters, opaque))
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -636,6 +656,17 @@ impl WireSigner<C> for SymbolicTrustee {
 struct SymbolicModel {
     n: usize,
     budgets: FaultBudgets,
+    /// The dishonest mixers, by 1-based index: how each subverts its shuffle.
+    /// A dishonest trustee is honest everywhere else (this scopes dishonesty to
+    /// the mixing phase, which is what the privacy and integrity properties are
+    /// about). Fixed for the run, not budgeted. The interesting cases keep this
+    /// sub-threshold; a threshold-filling set is used only in negative-control
+    /// tests, to show a property bites.
+    dishonest_mixers: HashMap<TrusteeIndex, DishonestKind>,
+    /// Whether honest trustees verify a mix before signing it (the integrity
+    /// defense). Always true except in the negative control that shows the
+    /// integrity property fails when the defense is removed.
+    honest_verification: bool,
     manager: ProtocolManager<C>,
     trustees: Vec<SymbolicTrustee>,
     configuration: Configuration<C>,
@@ -663,7 +694,7 @@ impl SymbolicModel {
             signing_keys.push(sk);
             // Present in the configuration but never used: share encryption is
             // crypto-layer machinery the symbolic executor bypasses.
-            share_enc_keys.push(KeyPair::<C>::generate().pkey.y.clone());
+            share_enc_keys.push(KeyPair::<C>::generate().pkey.y);
         }
 
         let configuration = Configuration::<C>::new(
@@ -700,6 +731,8 @@ impl SymbolicModel {
         Self {
             n,
             budgets: FaultBudgets::default(),
+            dishonest_mixers: HashMap::new(),
+            honest_verification: true,
             manager,
             trustees,
             configuration,
@@ -707,6 +740,31 @@ impl SymbolicModel {
             mixing_trustees: (1..=threshold).collect(),
             memo: Mutex::new(HashMap::new()),
         }
+    }
+
+    /// Trustee `index` (1-based) mixes dishonestly in the given way. Chainable
+    /// (a negative control makes every mixer dishonest).
+    fn with_dishonest_mixer(mut self, index: TrusteeIndex, kind: DishonestKind) -> Self {
+        self.dishonest_mixers.insert(index, kind);
+        self
+    }
+
+    /// Trustee `index` mixes with a permutation the adversary knows — a valid
+    /// shuffle that adds no privacy.
+    fn with_known_permutation_mixer(self, index: TrusteeIndex) -> Self {
+        self.with_dishonest_mixer(index, DishonestKind::KnownPermutation)
+    }
+
+    /// Trustee `index` forges its mix — drops a voter. Honest signers must
+    /// reject it, so it never reaches decryption.
+    fn with_forging_mixer(self, index: TrusteeIndex) -> Self {
+        self.with_dishonest_mixer(index, DishonestKind::Forge)
+    }
+
+    /// Remove the honest-verification defense (negative control only).
+    fn without_honest_verification(mut self) -> Self {
+        self.honest_verification = false;
+        self
     }
 
     /// Allow up to `budget` [`Turn::DropCommit`] cycles in the exploration.
@@ -844,13 +902,14 @@ impl SymbolicModel {
 
         let mut outgoing = Vec::new();
         for action in &actions {
-            outgoing.extend(self.execute_symbolic(i, action));
+            outgoing.extend(self.execute_symbolic(i, action, view));
         }
         Ok(outgoing)
     }
 
     /// Execute one derived action symbolically: assemble the real wire message
-    /// around a token body.
+    /// around a token body. `view` is the trustee's board, needed to read the
+    /// content its mixes shuffle and its signatures verify.
     ///
     /// Token discipline: a token is a deterministic function of the action's
     /// hash-bound inputs; the producer's index is included exactly when the
@@ -859,7 +918,12 @@ impl SymbolicModel {
     /// when the real computation must agree across trustees (the joint public
     /// key, the combined plaintexts) — otherwise hash-equality agreement
     /// between trustees would spuriously fail.
-    fn execute_symbolic(&self, i: usize, action: &Action) -> Vec<ProtocolMessage<C>> {
+    fn execute_symbolic(
+        &self,
+        i: usize,
+        action: &Action,
+        view: &MessageStore<C>,
+    ) -> Vec<ProtocolMessage<C>> {
         let t = &self.trustees[i];
         match action {
             Action::ComputeShares(cfg, self_index) => {
@@ -871,19 +935,46 @@ impl SymbolicModel {
                 vec![ProtocolMessage::<C>::public_key(t, DATE, *cfg, &token)]
             }
             Action::ComputeMix(cfg, pk, _source, input, self_index) => {
-                // An honest mixer shuffles honestly: the transform is `Honest`.
-                let token = encode_mix(*self_index, input, &Transform::Honest);
+                let (ballots, mixes) = view_content_maps(view);
+                let bound = ballots.len() + mixes.len() + 1;
+                let (input_voters, _) = content_at(input, &ballots, &mixes, bound)
+                    .expect("a mix's input has resolvable content");
+                // Honest by default; a dishonest mixer subverts its own shuffle.
+                let (output_voters, opaque) = match self.dishonest_mixers.get(self_index) {
+                    Some(DishonestKind::Forge) => {
+                        // Drop a voter: the forged output is a strict subset.
+                        let mut v = input_voters.clone();
+                        v.pop();
+                        (v, false)
+                    }
+                    // A valid shuffle (multiset preserved), but not opaque.
+                    Some(DishonestKind::KnownPermutation) => (input_voters.clone(), false),
+                    None => (input_voters.clone(), true),
+                };
+                let token = encode_mix(*self_index, input, &output_voters, opaque);
                 vec![ProtocolMessage::<C>::mix(t, DATE, *cfg, *pk, *input, &token)]
             }
-            Action::SignMix(cfg, pk, _source, input, output, _self_index) => {
-                // The real executor verifies the shuffle proof here. In this
-                // fault-free milestone every artifact is honestly fabricated,
-                // so "the proof verifies" holds by the symbolic axiom and the
-                // signature is unconditional. Fault modeling replaces this
-                // with a check of the token's validity claim.
-                vec![ProtocolMessage::<C>::mix_signature(
-                    t, DATE, *cfg, *pk, *input, *output,
-                )]
+            Action::SignMix(cfg, pk, _source, input, output, self_index) => {
+                let signer = ProtocolMessage::<C>::mix_signature(t, DATE, *cfg, *pk, *input, *output);
+                if self.dishonest_mixers.contains_key(self_index) || !self.honest_verification {
+                    // A dishonest trustee signs without verifying; so does an
+                    // honest one when the defense is disabled (negative control).
+                    return vec![signer];
+                }
+                // Honest verification: the shuffle proof proves "output is a
+                // permutation of input" — symbolically, the mix's output
+                // multiset must equal its input's. A forged mix (voter dropped)
+                // fails, and the honest trustee declines to sign it, so a
+                // forgery can never gather the threshold signatures it needs to
+                // extend the chain.
+                let (ballots, mixes) = view_content_maps(view);
+                let bound = ballots.len() + mixes.len() + 1;
+                let out_ms = content_at(output, &ballots, &mixes, bound).map(|(m, _)| m);
+                let in_ms = content_at(input, &ballots, &mixes, bound).map(|(m, _)| m);
+                match (out_ms, in_ms) {
+                    (Some(o), Some(i)) if o == i => vec![signer],
+                    _ => vec![],
+                }
             }
             Action::ComputePartialDecryptions(cfg, pk, cts, _shares_hashes, self_index) => {
                 let token = format!("pdec:t{self_index}:{cts:?}").into_bytes();
@@ -1164,15 +1255,19 @@ impl Model for SymbolicModel {
             },
         ));
 
-        // === Mechanism cross-check (temporary): the lineage proxy. Retained
-        // alongside the functional properties above until they are trusted;
-        // it asserts the same privacy fact at the level of "how".
+        // Mechanism cross-check (retired in the de-clutter step): the lineage
+        // proxy asserts the same single-input-set fact as privacy/differencing,
+        // at the level of "how". Kept one increment as an independent check on
+        // the new content walk.
         props.push(Property::<Self>::always(
             "partial decryptions never span two ballots lineages",
-            |model, state| single_decryption_lineage(model, state),
+            single_decryption_lineage,
         ));
 
-        if self.budgets.ballots_equivocations == 0 {
+        let adversarial =
+            self.budgets.ballots_equivocations > 0 || !self.dishonest_mixers.is_empty();
+
+        if !adversarial {
             // Safety, UNCONDITIONAL over the benign-fault space: no pattern
             // of at most budget-many benign faults may ever halt a trustee.
             props.push(Property::<Self>::always("no trustee halts", |_, state| {
@@ -1181,8 +1276,7 @@ impl Model for SymbolicModel {
             // Liveness, in its strong form: on EVERY path the protocol
             // completes. Sound here, unlike in the crypto harness, because
             // the exploration is exhaustive (deterministic edges + dedup) and
-            // acyclic (the board only grows), with no depth cap. Also
-            // UNCONDITIONAL over the benign-fault space — the k-fault-
+            // acyclic (the board only grows), with no depth cap. The k-fault-
             // tolerance claim: the mailbox recovers every benign fault.
             //
             // Completion is plaintexts from every MIXING trustee, not every
@@ -1195,47 +1289,42 @@ impl Model for SymbolicModel {
                 |model, state| plaintexts_on(state) == model.mixing_trustees.len(),
             ));
         } else {
-            // Conditioned safety: benign faults never halt anyone; only the
-            // adversarial equivocation may.
+            // Conditioned safety: only an adversary may cause a halt (benign
+            // faults never do).
             props.push(Property::<Self>::always(
-                "no trustee halts unless the manager equivocated",
-                |_, state| {
-                    state.halted.iter().all(|h| !h)
-                        || state.faults.ballots_equivocations > 0
-                },
+                "no trustee halts unless an adversary acted",
+                |model, state| state.halted.iter().all(|h| !h) || adversarial_acted(model, state),
             ));
-            // Conditioned liveness, strengthened to the REQUIRED response:
-            // every path either completes, or the equivocation fired and
-            // every mixing trustee ends halted — the designed outcome of
-            // halt-on-equivocation. (A weaker "completes or equivocation
-            // fired" would pass even if trustees sailed past the collision.)
+            // Conditioned liveness: every path either completes or an adversary
+            // acted. Weaker than the benign completion claim on purpose — an
+            // adversary can always deny liveness, so completion is not promised
+            // once one has acted. The functional safety properties above are
+            // what hold regardless.
             props.push(Property::<Self>::eventually(
-                "completes, or equivocation halts every mixing trustee",
+                "completes, or an adversary acted",
                 |model, state| {
                     plaintexts_on(state) == model.mixing_trustees.len()
-                        || (state.faults.ballots_equivocations > 0
-                            && (0..model.mixing_trustees.len())
-                                .all(|i| state.halted[i]))
+                        || adversarial_acted(model, state)
                 },
             ));
-            // Non-vacuity guards for the adversarial class.
-            props.push(Property::<Self>::sometimes(
-                "the manager equivocates",
-                |_, state| state.faults.ballots_equivocations > 0,
-            ));
+            // Non-vacuity: the adversary actually acts on some path (else every
+            // conditioned property passes without testing the attack).
+            props.push(Property::<Self>::sometimes("an adversary acts", |model, state| {
+                adversarial_acted(model, state)
+            }));
+        }
+        if self.budgets.ballots_equivocations > 0 {
             props.push(Property::<Self>::sometimes(
                 "a trustee halts on the equivocation",
                 |_, state| {
-                    state.faults.ballots_equivocations > 0
-                        && state.halted.iter().any(|h| *h)
+                    state.faults.ballots_equivocations > 0 && state.halted.iter().any(|h| *h)
                 },
             ));
+        }
+        if !self.dishonest_mixers.is_empty() {
             props.push(Property::<Self>::sometimes(
-                "equivocation strikes before completion",
-                |model, state| {
-                    state.faults.ballots_equivocations > 0
-                        && plaintexts_on(state) < model.mixing_trustees.len()
-                },
+                "the dishonest mixer mixes",
+                dishonest_mix_present,
             ));
         }
         // Non-vacuity guards, emitted only when a budget enables the class: a
@@ -1284,6 +1373,34 @@ fn plaintexts_on(state: &SystemState) -> usize {
         .count()
 }
 
+/// Whether the configured dishonest mixer has posted a mix — the adversary has
+/// acted. (It only ever mixes dishonestly, so any of its mixes counts.)
+fn dishonest_mix_present(model: &SymbolicModel, state: &SystemState) -> bool {
+    if model.dishonest_mixers.is_empty() {
+        return false;
+    }
+    state.board.iter().any(|bytes| {
+        ProtocolMessage::<C>::deser(bytes)
+            .ok()
+            .and_then(|m| verify(&m, &model.configuration).ok())
+            .map(|(p, _)| matches!(p, Predicate::Mix(m) if model.dishonest_mixers.contains_key(&m.sender)))
+            .unwrap_or(false)
+    })
+}
+
+/// Whether any modeled adversary has acted on this path: the manager
+/// equivocated, or the dishonest mixer mixed. The excuse the conditioned
+/// liveness and safety properties allow.
+fn adversarial_acted(model: &SymbolicModel, state: &SystemState) -> bool {
+    (model.budgets.ballots_equivocations > 0 && state.faults.ballots_equivocations > 0)
+        || dishonest_mix_present(model, state)
+}
+
+/// A mix chain read from ballots/mix bodies: `output hash → (input hash, output
+/// multiset, opaque)`. Shared by the board-side ([`BoardContents`]) and the
+/// view-side ([`view_content_maps`]) readers.
+type MixMap = HashMap<CiphertextsHash, (CiphertextsHash, Vec<u8>, bool)>;
+
 /// The symbolic content at a ciphertexts hash: the sorted voter multiset it
 /// carries, and whether its mix chain includes an opaque (honest) layer.
 /// Computed by walking the chain from the hash back to its ballots root —
@@ -1291,7 +1408,7 @@ fn plaintexts_on(state: &SystemState) -> usize {
 fn content_at(
     hash: &CiphertextsHash,
     ballots: &HashMap<CiphertextsHash, Vec<u8>>,
-    mixes: &HashMap<CiphertextsHash, (CiphertextsHash, Transform)>,
+    mixes: &MixMap,
     depth: usize,
 ) -> Option<(Vec<u8>, bool)> {
     if depth == 0 {
@@ -1302,14 +1419,38 @@ fn content_at(
         sorted.sort_unstable();
         return Some((sorted, false));
     }
-    let (input, transform) = mixes.get(hash)?;
-    // `_opaque` (the chain's opacity so far) is carried once a transform can
-    // leave it unchanged; an honest layer sets it true regardless.
-    let (voters, _opaque) = content_at(input, ballots, mixes, depth - 1)?;
-    match transform {
-        // An honest shuffle preserves the multiset and adds an opaque layer.
-        Transform::Honest => Some((voters, true)),
+    let (input, output_voters, opaque) = mixes.get(hash)?;
+    // The multiset is what this mix claims to output; opacity accumulates along
+    // the chain (any honest layer makes the whole chain opaque).
+    let (_, prev_opaque) = content_at(input, ballots, mixes, depth - 1)?;
+    let mut sorted = output_voters.clone();
+    sorted.sort_unstable();
+    Some((sorted, prev_opaque || *opaque))
+}
+
+/// The ballots and mix maps a trustee reads from its own view (`MessageStore`),
+/// to compute the content its mixes shuffle and its signatures verify.
+fn view_content_maps(view: &MessageStore<C>) -> (HashMap<CiphertextsHash, Vec<u8>>, MixMap) {
+    let mut ballots: HashMap<CiphertextsHash, Vec<u8>> = HashMap::new();
+    let mut mixes: MixMap = HashMap::new();
+    for predicate in view.get_predicates() {
+        match predicate {
+            Predicate::Ballots(b) => {
+                if let Some(voters) = view.ballots_body(&b.ciphertexts).and_then(decode_ballots) {
+                    ballots.insert(b.ciphertexts, voters);
+                }
+            }
+            Predicate::Mix(m) => {
+                if let Some((out, opaque)) =
+                    view.mix_body_by_output(&m.output).and_then(decode_mix)
+                {
+                    mixes.insert(m.output, (m.input, out, opaque));
+                }
+            }
+            _ => {}
+        }
     }
+    (ballots, mixes)
 }
 
 /// The board read symbolically: ballot sets, mix chain, decryption counts, and
@@ -1318,8 +1459,8 @@ fn content_at(
 struct BoardContents {
     /// ciphertexts hash → voter multiset (ballots roots).
     ballots: HashMap<CiphertextsHash, Vec<u8>>,
-    /// mix output hash → (input hash, transform).
-    mixes: HashMap<CiphertextsHash, (CiphertextsHash, Transform)>,
+    /// mix output hash → (input hash, output multiset, opaque).
+    mixes: MixMap,
     /// ciphertexts hash → how many partial decryptions it has.
     pdec_counts: HashMap<CiphertextsHash, usize>,
     /// ciphertexts hashes that have a published `Plaintexts`.
@@ -1351,8 +1492,8 @@ impl BoardContents {
                     }
                 }
                 Predicate::Mix(m) => {
-                    if let Some(t) = body.as_deref().and_then(decode_mix_transform) {
-                        c.mixes.insert(m.output, (m.input, t));
+                    if let Some((out, opaque)) = body.as_deref().and_then(decode_mix) {
+                        c.mixes.insert(m.output, (m.input, out, opaque));
                     }
                 }
                 Predicate::PartialDecryptions(p) => {
@@ -1449,6 +1590,17 @@ fn check(model: SymbolicModel, label: &str) -> usize {
     states
 }
 
+/// Run the checker and assert the named property was VIOLATED (a counterexample
+/// was found). Negative controls: they prove a property has teeth by removing
+/// the defense it checks and confirming it then fails.
+fn expect_violation(model: SymbolicModel, property: &str) {
+    let checker = model.checker().threads(1).spawn_bfs().join();
+    assert!(
+        checker.discoveries().iter().any(|(name, _)| *name == property),
+        "expected a counterexample for `{property}`, but it held"
+    );
+}
+
 #[test]
 fn model_check_symbolic_two_trustees() {
     check(SymbolicModel::new(2, 2), "n=2 t=2");
@@ -1472,6 +1624,68 @@ fn model_check_symbolic_two_trustees_dropped_commits() {
     check(
         SymbolicModel::new(2, 2).with_dropped_commit_budget(2),
         "n=2 t=2 drops<=2",
+    );
+}
+
+/// A sub-threshold dishonest mixer that shuffles with a permutation the
+/// adversary knows: a valid shuffle (it completes), but the privacy guarantee
+/// must still hold because the other, honest mixer contributes an opaque layer.
+#[test]
+fn model_check_symbolic_two_trustees_known_permutation_mixer() {
+    check(
+        SymbolicModel::new(2, 2).with_known_permutation_mixer(1),
+        "n=2 t=2 known-perm mixer t1",
+    );
+}
+
+/// A sub-threshold dishonest mixer that forges its shuffle (drops a voter).
+/// Honest verification must reject it, so the forged content never reaches
+/// decryption: integrity holds, and the protocol does not complete.
+#[test]
+fn model_check_symbolic_two_trustees_forging_mixer() {
+    check(
+        SymbolicModel::new(2, 2).with_forging_mixer(1),
+        "n=2 t=2 forging mixer t1",
+    );
+}
+
+/// The forging mixer at the second position: the honest first mixer shuffles,
+/// then the forger corrupts, and the honest first mixer must refuse to sign the
+/// forgery.
+#[test]
+fn model_check_symbolic_two_trustees_forging_mixer_pos2() {
+    check(
+        SymbolicModel::new(2, 2).with_forging_mixer(2),
+        "n=2 t=2 forging mixer t2",
+    );
+}
+
+/// Negative control — integrity has teeth: remove honest verification, and a
+/// forged mix reaches decryption, publishing plaintexts that DON'T match the
+/// ballots. Confirms the integrity property is not passing vacuously in
+/// [`model_check_symbolic_two_trustees_forging_mixer`] (where it holds only
+/// because honest verification stalls the forgery).
+#[test]
+fn integrity_property_has_teeth() {
+    expect_violation(
+        SymbolicModel::new(2, 2)
+            .with_forging_mixer(1)
+            .without_honest_verification(),
+        "published plaintexts match the honest ballots",
+    );
+}
+
+/// Negative control — privacy/linkage has teeth: make BOTH mixers use
+/// adversary-known permutations (a threshold-filling dishonest set), and the
+/// decrypted set has no opaque layer, so linkage fails. Confirms the property
+/// is not vacuous when a genuine honest mixer is present.
+#[test]
+fn linkage_property_has_teeth() {
+    expect_violation(
+        SymbolicModel::new(2, 2)
+            .with_known_permutation_mixer(1)
+            .with_known_permutation_mixer(2),
+        "every decrypted set passed through an honest shuffle",
     );
 }
 
