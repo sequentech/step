@@ -93,6 +93,21 @@
 //!   reads the [`CRASH_SENTINEL`] as death-not-halt. Recovery is
 //!   *recomputation* (nothing pins the slot), the designed counterpart to
 //!   DropCommit's re-send — so the same unconditional properties must hold.
+//! - [`Turn::EquivocateBallots`] (ADVERSARIAL): the manager posts a second,
+//!   different ballots message — the differencing-attack move (decrypt two
+//!   input sets differing by one voter's ballot; the multiset difference of
+//!   the outputs discloses that vote, with no crypto broken and no dishonest
+//!   trustee). The defense under test is the `Ballots` slot's GLOBAL
+//!   collision (`predicate.rs`: any two ballots collide, sender
+//!   notwithstanding) → datalog error → halt, per trustee, when its OWN view
+//!   holds both. Halting is per-trustee ([`SystemState::halted`]) precisely
+//!   so the checker can hunt the bad interleaving — a trustee decrypting the
+//!   second lineage before observing the collision — which the no-exemption
+//!   lineage property would catch. Adversarial classes get *conditioned*
+//!   safety/liveness (halts are the REQUIRED response; completion is not
+//!   promised) instead of the benign tier's unconditional forms. The budget
+//!   here bounds a content-creating action for finiteness; it is not a
+//!   tolerance claim.
 //!
 //! Deliberately NOT fault classes:
 //! - **Benign fetch failures** (b4 unreachable on the read path) are
@@ -143,11 +158,12 @@ use stateright::{Checker, Model, Property};
 
 use braid::board::store::MessageStore;
 use braid::board::transport::{StagedRef, Transport};
+use braid::board::verify::verify;
 use braid::board::BoardClient;
 use braid::datalog::action::Action;
 use braid::messages::artifact::Configuration;
 use braid::messages::newtypes::{
-    hash_bytes, ConfigurationHash, PublicKeyHash, Timestamp, TrusteeIndex,
+    hash_bytes, CiphertextsHash, ConfigurationHash, PublicKeyHash, Timestamp, TrusteeIndex,
 };
 use braid::messages::predicate::{ConfigurationValid, Predicate};
 use braid::messages::wire::{MessageType, ProtocolMessage, Signer as WireSigner};
@@ -202,9 +218,13 @@ struct SystemState {
     /// Fault provenance: what has fired on this path (see the module's Faults
     /// section).
     faults: FaultRecord,
-    /// Datalog halts observed so far. A healthy run leaves this empty; the
-    /// safety property is exactly that it stays empty.
-    halts: Vec<String>,
+    /// Per-trustee datalog halts (halt-on-equivocation is each trustee's own
+    /// decision, made when ITS view shows a collision). A halted trustee takes
+    /// no further turns; the others keep running until they halt too —
+    /// freezing the whole system at the first halt would hide exactly the
+    /// interleavings the adversarial properties are about (could another
+    /// trustee decrypt a second lineage before observing the collision?).
+    halted: Vec<Option<String>>,
 }
 
 impl SystemState {
@@ -236,7 +256,6 @@ impl SystemState {
             t.committed.sort_unstable();
             t.own_posts.sort_unstable();
         }
-        self.halts.sort_unstable();
     }
 }
 
@@ -273,8 +292,13 @@ impl std::fmt::Debug for SystemState {
         if self.faults.crashes_before_record > 0 {
             write!(f, " crashes={}", self.faults.crashes_before_record)?;
         }
-        if !self.halts.is_empty() {
-            write!(f, " HALTS={:?}", self.halts)?;
+        if self.faults.ballots_equivocations > 0 {
+            write!(f, " equivocations={}", self.faults.ballots_equivocations)?;
+        }
+        for (i, h) in self.halted.iter().enumerate() {
+            if let Some(h) = h {
+                write!(f, " t{}-HALTED[{}]", i + 1, h)?;
+            }
         }
         Ok(())
     }
@@ -297,6 +321,12 @@ enum Turn {
     /// The manager posts the ballots (a token), which it can only do once the
     /// DKG has published a public key.
     PostBallots,
+    /// The ADVERSARIAL manager posts a second, different ballots message for
+    /// the same configuration (same heads, different ciphertext-set token):
+    /// the differencing-attack move. The `Ballots` slot is global — any two
+    /// ballots predicates collide — so every trustee that acts on a view
+    /// holding both must halt. See the module's Faults section.
+    EquivocateBallots,
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -311,6 +341,10 @@ struct FaultBudgets {
     dropped_commits: usize,
     /// Maximum [`Turn::CrashBeforeRecord`] cycles across a run.
     crashes_before_record: usize,
+    /// Maximum [`Turn::EquivocateBallots`] posts across a run (adversarial;
+    /// this budget is a finiteness bound on a content-creating action, not a
+    /// tolerance claim — see the module's Faults section).
+    ballots_equivocations: usize,
 }
 
 /// How many faults of each class have fired on this path (state). Doubles as
@@ -319,6 +353,7 @@ struct FaultBudgets {
 struct FaultRecord {
     dropped_commits: usize,
     crashes_before_record: usize,
+    ballots_equivocations: usize,
 }
 
 /// The fault, if any, injected into one trustee cycle.
@@ -580,6 +615,13 @@ impl SymbolicModel {
         self
     }
 
+    /// Allow up to `budget` [`Turn::EquivocateBallots`] posts in the
+    /// exploration.
+    fn with_ballots_equivocation_budget(mut self, budget: usize) -> Self {
+        self.budgets.ballots_equivocations = budget;
+        self
+    }
+
     /// The board as trustee `i` sees it: the true board minus rows b4 withholds
     /// from it. Fault-free, `withheld[i]` is empty and this is the whole board.
     fn visible_board(&self, state: &SystemState, i: usize) -> Vec<ProtocolMessage<C>> {
@@ -801,7 +843,7 @@ impl SymbolicModel {
             // recomputes next cycle (§6.4: nothing was recorded, so nothing
             // pins the slot).
             Err(e) if format!("{e:#}").contains(CRASH_SENTINEL) => crashed = true,
-            Err(e) => next.halts.push(format!("t{}: {e:#}", i + 1)),
+            Err(e) => next.halted[i] = Some(format!("{e:#}")),
         }
         next.trustees[i] = Self::durable_from(&persistence);
         Self::merge_transport(next, staged, committed);
@@ -844,6 +886,26 @@ impl SymbolicModel {
                     .expect("fault-free manager publish cannot fail");
                 Self::merge_transport(&mut next, staged, committed);
             }
+            Turn::EquivocateBallots => {
+                // Same heads as the honest ballots (the differencing attack
+                // holds everything equal except the ciphertext set); the
+                // counter salts the token so successive equivocations differ.
+                let pk_hash = self.public_key_hash_on(state)?;
+                let k = state.faults.ballots_equivocations;
+                let token = format!("ballots-equivocation:{k}:{pk_hash:?}").into_bytes();
+                let message = ProtocolMessage::<C>::ballots(
+                    &self.manager,
+                    DATE,
+                    self.configuration_hash,
+                    pk_hash,
+                    self.mixing_trustees.clone(),
+                    &token,
+                );
+                let (transport, staged, committed) = self.transport_for(state, Vec::new(), false);
+                block_on(transport.publish(&message)).expect("model publish cannot fail");
+                Self::merge_transport(&mut next, staged, committed);
+                next.faults.ballots_equivocations += 1;
+            }
         }
 
         next.canonicalize();
@@ -882,25 +944,26 @@ impl Model for SymbolicModel {
                 })
                 .collect(),
             faults: FaultRecord::default(),
-            halts: Vec::new(),
+            halted: vec![None; self.n],
         }]
     }
 
     /// The lookahead: only turns that actually move the system are offered.
     fn actions(&self, state: &Self::State, actions: &mut Vec<Self::Action>) {
-        // A halted system takes no further steps.
-        if !state.halts.is_empty() {
-            return;
-        }
-        let mut candidates: Vec<Turn> = (0..self.n).map(Turn::Trustee).collect();
+        // A HALTED trustee takes no further turns; the others keep running
+        // (halting is per-trustee, see `SystemState::halted`).
+        let active: Vec<usize> = (0..self.n)
+            .filter(|i| state.halted[*i].is_none())
+            .collect();
+        let mut candidates: Vec<Turn> = active.iter().copied().map(Turn::Trustee).collect();
         // Fault turns, while their budget lasts. The lookahead prunes the
         // pointless ones for free: a faulty cycle of an idle trustee produces
         // nothing and is not a transition.
         if state.faults.dropped_commits < self.budgets.dropped_commits {
-            candidates.extend((0..self.n).map(Turn::DropCommit));
+            candidates.extend(active.iter().copied().map(Turn::DropCommit));
         }
         if state.faults.crashes_before_record < self.budgets.crashes_before_record {
-            candidates.extend((0..self.n).map(Turn::CrashBeforeRecord));
+            candidates.extend(active.iter().copied().map(Turn::CrashBeforeRecord));
         }
         // The manager posts ballots once, after the DKG yields a public key.
         let has_ballots = state.board.iter().any(|bytes| {
@@ -910,6 +973,12 @@ impl Model for SymbolicModel {
         });
         if !has_ballots && self.public_key_hash_on(state).is_some() {
             candidates.push(Turn::PostBallots);
+        }
+        // The adversarial manager can post a divergent second ballots while
+        // its budget lasts (meaningful only once a first ballots exists).
+        if has_ballots && state.faults.ballots_equivocations < self.budgets.ballots_equivocations
+        {
+            candidates.push(Turn::EquivocateBallots);
         }
         for turn in candidates {
             if self.lookahead(state, &turn).is_some() {
@@ -923,29 +992,84 @@ impl Model for SymbolicModel {
     }
 
     fn properties(&self) -> Vec<Property<Self>> {
-        let mut props = vec![
-            // Safety, on every reachable state — UNCONDITIONAL over the
-            // benign-fault space: no pattern of at most budget-many dropped
-            // commits may ever halt a trustee. (Adversarial fault classes,
-            // when added, get conditioned variants instead.)
-            Property::<Self>::always("no trustee halts", |_, state| state.halts.is_empty()),
+        let mut props = Vec::new();
+
+        // The crown jewel, UNCONDITIONAL over the entire fault space (the
+        // no-exemption pattern): honest partial decryptions never span two
+        // ballots lineages. This is the direct negation of the differencing
+        // attack's precondition — faults may stall the protocol or be
+        // detected, but claimed progress must never straddle two input sets.
+        props.push(Property::<Self>::always(
+            "partial decryptions never span two ballots lineages",
+            |model, state| single_decryption_lineage(model, state),
+        ));
+
+        if self.budgets.ballots_equivocations == 0 {
+            // Safety, UNCONDITIONAL over the benign-fault space: no pattern
+            // of at most budget-many benign faults may ever halt a trustee.
+            props.push(Property::<Self>::always("no trustee halts", |_, state| {
+                state.halted.iter().all(|h| h.is_none())
+            }));
             // Liveness, in its strong form: on EVERY path the protocol
-            // completes. Sound here, unlike in the crypto harness, because the
-            // exploration is exhaustive (deterministic edges + dedup) and
+            // completes. Sound here, unlike in the crypto harness, because
+            // the exploration is exhaustive (deterministic edges + dedup) and
             // acyclic (the board only grows), with no depth cap. Also
-            // UNCONDITIONAL over the benign-fault space — this is the k-fault-
-            // tolerance claim: the mailbox's send-until-acked discipline
-            // recovers every dropped commit.
+            // UNCONDITIONAL over the benign-fault space — the k-fault-
+            // tolerance claim: the mailbox recovers every benign fault.
             //
             // Completion is plaintexts from every MIXING trustee, not every
             // trustee: the post-DKG quorum is the mixing list (of size ==
             // threshold) — both `ComputePartialDecryptions` and
             // `ComputePlaintexts` require `mixing_position` (decrypt.rs).
             // Non-mixing trustees go quiet after the DKG by design.
-            Property::<Self>::eventually("protocol completes", |model, state| {
-                plaintexts_on(state) == model.mixing_trustees.len()
-            }),
-        ];
+            props.push(Property::<Self>::eventually(
+                "protocol completes",
+                |model, state| plaintexts_on(state) == model.mixing_trustees.len(),
+            ));
+        } else {
+            // Conditioned safety: benign faults never halt anyone; only the
+            // adversarial equivocation may.
+            props.push(Property::<Self>::always(
+                "no trustee halts unless the manager equivocated",
+                |_, state| {
+                    state.halted.iter().all(|h| h.is_none())
+                        || state.faults.ballots_equivocations > 0
+                },
+            ));
+            // Conditioned liveness, strengthened to the REQUIRED response:
+            // every path either completes, or the equivocation fired and
+            // every mixing trustee ends halted — the designed outcome of
+            // halt-on-equivocation. (A weaker "completes or equivocation
+            // fired" would pass even if trustees sailed past the collision.)
+            props.push(Property::<Self>::eventually(
+                "completes, or equivocation halts every mixing trustee",
+                |model, state| {
+                    plaintexts_on(state) == model.mixing_trustees.len()
+                        || (state.faults.ballots_equivocations > 0
+                            && (0..model.mixing_trustees.len())
+                                .all(|i| state.halted[i].is_some()))
+                },
+            ));
+            // Non-vacuity guards for the adversarial class.
+            props.push(Property::<Self>::sometimes(
+                "the manager equivocates",
+                |_, state| state.faults.ballots_equivocations > 0,
+            ));
+            props.push(Property::<Self>::sometimes(
+                "a trustee halts on the equivocation",
+                |_, state| {
+                    state.faults.ballots_equivocations > 0
+                        && state.halted.iter().any(|h| h.is_some())
+                },
+            ));
+            props.push(Property::<Self>::sometimes(
+                "equivocation strikes before completion",
+                |model, state| {
+                    state.faults.ballots_equivocations > 0
+                        && plaintexts_on(state) < model.mixing_trustees.len()
+                },
+            ));
+        }
         // Non-vacuity guards, emitted only when a budget enables the class: a
         // fault model that never fires would otherwise pass everything above
         // without testing anything.
@@ -990,6 +1114,62 @@ fn plaintexts_on(state: &SystemState) -> usize {
                 .unwrap_or(false)
         })
         .count()
+}
+
+/// The no-exemption lineage check: every `PartialDecryptions` on the board
+/// must trace, through the mix chain (`Mix.output → Mix.input`), back to ONE
+/// common `Ballots` root. Two decrypted lineages — or a decryption whose chain
+/// doesn't reach any ballots — is the differencing-attack precondition and
+/// always a violation, no matter which faults fired. Uses the real `verify`
+/// (signature + statement) to extract predicates from board bytes.
+fn single_decryption_lineage(model: &SymbolicModel, state: &SystemState) -> bool {
+    let mut roots: Vec<CiphertextsHash> = Vec::new();
+    let mut edges: HashMap<CiphertextsHash, CiphertextsHash> = HashMap::new();
+    let mut decrypted_ends: Vec<CiphertextsHash> = Vec::new();
+    for bytes in &state.board {
+        let Ok(message) = ProtocolMessage::<C>::deser(bytes) else {
+            return false;
+        };
+        if message.message_type == MessageType::Configuration {
+            continue;
+        }
+        let Ok((predicate, _)) = verify(&message, &model.configuration) else {
+            return false;
+        };
+        match predicate {
+            Predicate::Ballots(b) => roots.push(b.ciphertexts),
+            Predicate::Mix(m) => {
+                edges.insert(m.output, m.input);
+            }
+            Predicate::PartialDecryptions(p) => decrypted_ends.push(p.ciphertexts),
+            _ => {}
+        }
+    }
+
+    let mut common_root: Option<CiphertextsHash> = None;
+    for end in decrypted_ends {
+        let mut cursor = end;
+        let mut steps = 0;
+        while !roots.contains(&cursor) {
+            match edges.get(&cursor) {
+                Some(input) => cursor = *input,
+                // A decryption whose chain reaches no ballots root.
+                None => return false,
+            }
+            steps += 1;
+            if steps > state.board.len() {
+                // Cycle in the alleged chain: certainly not a lineage.
+                return false;
+            }
+        }
+        match &common_root {
+            None => common_root = Some(cursor),
+            Some(root) if *root == cursor => {}
+            // Two distinct ballots lineages carry decryptions: violation.
+            Some(_) => return false,
+        }
+    }
+    true
 }
 
 /// Explore ALL interleavings over the real datalog with symbolic artifacts.
@@ -1050,6 +1230,20 @@ fn model_check_symbolic_two_trustees_mixed_faults() {
             .with_dropped_commit_budget(1)
             .with_crash_before_record_budget(1),
         "n=2 t=2 drops<=1 crashes<=1",
+    );
+}
+
+/// The first adversarial run: a manager who may post one divergent second
+/// ballots message, at any reachable point, in every interleaving. Checks the
+/// differencing-attack row end to end: partial decryptions never span two
+/// lineages (unconditional), halts happen only given the equivocation
+/// (conditioned safety), and every path either completes or ends with every
+/// mixing trustee halted (the required halt-on-equivocation response).
+#[test]
+fn model_check_symbolic_two_trustees_ballots_equivocation() {
+    check(
+        SymbolicModel::new(2, 2).with_ballots_equivocation_budget(1),
+        "n=2 t=2 equivocations<=1",
     );
 }
 
