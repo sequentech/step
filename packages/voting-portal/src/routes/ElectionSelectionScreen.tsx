@@ -394,8 +394,14 @@ const ElectionSelectionScreen: React.FC = () => {
         selectCastVotesByElectionId(String(testElectionId || tenantId))
     )
     const [openChooserHelp, setOpenChooserHelp] = useState(false)
-    const [materialsPolicy, setMaterialsPolicy] = useState<ESupportMaterialsPolicy>(
-        ESupportMaterialsPolicy.OFF
+    // Derived directly from the published ballot style snapshot (not the live
+    // election event) on every render, so a policy change only takes effect
+    // after the next publication, and the correct value is available as soon
+    // as oneBallotStyle is - no extra render cycle lag through a state+effect
+    // pair that would otherwise let a stale "Off" default flash through
+    // (visible in particular on a hard page refresh).
+    const materialsPolicy = getEffectiveSupportMaterialsPolicy(
+        oneBallotStyle?.ballot_eml.election_event_presentation?.materials
     )
     const isMaterialsVisible = materialsPolicy !== ESupportMaterialsPolicy.OFF
     const isMaterialsMandatory = materialsPolicy === ESupportMaterialsPolicy.MANDATORY_FOR_VOTING
@@ -470,12 +476,20 @@ const ElectionSelectionScreen: React.FC = () => {
         variables: {
             electionEventId: eventId || "",
         },
-        // Always re-check on mount: the voter may have just acknowledged on the
-        // Support Materials screen and navigated back here, and a cached "not
-        // acknowledged yet" result must not re-gate the Ballot list.
-        fetchPolicy: "network-only",
+        // Support Materials writes the acknowledgment straight into the Apollo
+        // cache on Continue (see SupportMaterialsScreen), so the default
+        // cache-first policy already reflects it instantly on return here
+        // instead of re-gating the Ballot list behind a fresh network round trip.
         skip: globalSettings.DISABLE_AUTH || !isMaterialsMandatory,
     })
+
+    // Whether we have a definitive answer yet. On a fresh page load the Apollo
+    // cache starts empty, so this query is genuinely loading for a moment -
+    // default to "not yet known" rather than "not acknowledged" so voting
+    // stays blocked (safe) without flashing the gate banner (misleading) for a
+    // voter who has, in fact, already acknowledged.
+    const hasAcknowledgmentLoaded =
+        !isMaterialsMandatory || dataMaterialsAcknowledgment !== undefined
 
     const hasAcknowledgedSupportMaterials =
         !isMaterialsMandatory ||
@@ -644,15 +658,6 @@ const ElectionSelectionScreen: React.FC = () => {
     }, [dataElectionEvent, dispatch])
 
     useEffect(() => {
-        // A policy change only takes effect after the next publication.
-        setMaterialsPolicy(
-            getEffectiveSupportMaterialsPolicy(
-                oneBallotStyle?.ballot_eml.election_event_presentation?.materials
-            )
-        )
-    }, [oneBallotStyle])
-
-    useEffect(() => {
         if (castVotes?.sequent_backend_cast_vote) {
             const castVoteList = castVotes.sequent_backend_cast_vote
             dispatch(addCastVotes(castVoteList))
@@ -713,7 +718,16 @@ const ElectionSelectionScreen: React.FC = () => {
             ? t(`electionSelectionScreen.alerts.${alertMsg}`)
             : undefined
 
-    const showMaterialsGateBanner = isMaterialsMandatory && !hasAcknowledgedSupportMaterials
+    // Block voting until we positively know the voter has acknowledged.
+    const materialsGate =
+        isMaterialsMandatory && !(hasAcknowledgmentLoaded && hasAcknowledgedSupportMaterials)
+
+    // Only show the instruction banner once acknowledgment status is
+    // positively known to be missing - never while it's still loading, so a
+    // page refresh doesn't flash it before the "already acknowledged" result
+    // arrives.
+    const showMaterialsGateBanner =
+        isMaterialsMandatory && hasAcknowledgmentLoaded && !hasAcknowledgedSupportMaterials
 
     if (loadingElectionEvent || loadingElections || loadingBallotStyles) return <CircularProgress />
 
@@ -795,7 +809,7 @@ const ElectionSelectionScreen: React.FC = () => {
                             key={electionId}
                             bypassChooser={bypassChooser}
                             canVoteTest={canVoteTest}
-                            materialsGate={showMaterialsGateBanner}
+                            materialsGate={materialsGate}
                         />
                     ))
                 ) : (

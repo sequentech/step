@@ -21,6 +21,7 @@ import {useLocation, useNavigate, useParams} from "react-router-dom"
 import {
     AcknowledgeSupportMaterialsMutation,
     GetDocumentQuery,
+    GetSupportMaterialsAcknowledgmentQuery,
     Sequent_Backend_Support_Material,
 } from "../gql/graphql"
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft"
@@ -36,6 +37,7 @@ import {useMutation, useQuery} from "@apollo/client/react"
 import {GET_DOCUMENT} from "../queries/GetDocument"
 import {setDocument} from "../store/documents/documentsSlice"
 import {ACKNOWLEDGE_SUPPORT_MATERIALS} from "../queries/AcknowledgeSupportMaterials"
+import {GET_SUPPORT_MATERIALS_ACKNOWLEDGMENT} from "../queries/GetSupportMaterialsAcknowledgment"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -137,7 +139,24 @@ const SupportMaterialsScreen: React.FC = () => {
     const [acknowledgeError, setAcknowledgeError] = useState<string | undefined>()
     const [acknowledging, setAcknowledging] = useState(false)
     const [acknowledgeSupportMaterials] = useMutation<AcknowledgeSupportMaterialsMutation>(
-        ACKNOWLEDGE_SUPPORT_MATERIALS
+        ACKNOWLEDGE_SUPPORT_MATERIALS,
+        {
+            update: (cache, {data}) => {
+                if (!eventId || !data?.acknowledge_support_materials) {
+                    return
+                }
+                cache.writeQuery<GetSupportMaterialsAcknowledgmentQuery>({
+                    query: GET_SUPPORT_MATERIALS_ACKNOWLEDGMENT,
+                    variables: {electionEventId: eventId},
+                    data: {
+                        get_support_materials_acknowledgment: {
+                            __typename: "GetSupportMaterialsAcknowledgmentOutput",
+                            document_ids: data.acknowledge_support_materials.document_ids,
+                        },
+                    },
+                })
+            },
+        }
     )
 
     const allMaterialsViewed = useMemo(
