@@ -55,6 +55,13 @@ const tagalogTranslation: TranslationType = {
                 continue: "Magpatuloy",
                 cancel: "Kanselahin",
             },
+            blankBallotDialog: {
+                title: "Wala kang napiling kandidato",
+                content:
+                    "Wala kang ginawang pagpili. Ang iyong balota ay isusumite bilang blangkong balota, na isang wasto at sinasadyang pagpili at ibibilang bilang ganoon.",
+                continue: "Magpatuloy",
+                cancel: "Kanselahin",
+            },
         },
         startScreen: {
             startButton: "Simulan ang Pagboto",
@@ -87,6 +94,9 @@ const tagalogTranslation: TranslationType = {
             backButton: "I-edit ang balota",
             castBallotButton: "I-submit ang balota",
             auditButton: "Suriin ang balota",
+            copyBallotId: "Kopyahin ang ballot ID",
+            ballotIdCopied: "Nakopya ang ballot ID",
+            ballotIdCopyError: "Hindi makopya ang ballot ID",
             reviewScreenHelpDialog: {
                 title: "Tungkol sa screen ng pagsusuri",
                 content:
@@ -111,6 +121,13 @@ const tagalogTranslation: TranslationType = {
                 title: "Sigurado ka bang nais mong i-submit ang iyong boto?",
                 content: "Pagkatapos mong kumpirmahin, ang iyong boto ay mai-susubmit.",
                 ok: "Oo, nais kong i-submit ang aking boto",
+                cancel: "Kanselahin",
+            },
+            confirmCastBlankBallotDialog: {
+                title: "Sigurado ka bang nais mong magsumite ng blangkong balota?",
+                content:
+                    "Wala kang napiling kandidato. Pagkatapos mong kumpirmahin, ang iyong balota ay isusumite bilang blangko.",
+                ok: "Oo, nais kong isumite ang aking blangkong balota",
                 cancel: "Kanselahin",
             },
             error: {
@@ -203,11 +220,16 @@ const tagalogTranslation: TranslationType = {
                     "Nagkaroon ng internal error habang nagboboto. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
             },
             declineToVote: "Tumangging bumoto",
+            blankBallot: "Blangkong balota",
         },
         confirmationScreen: {
             title: "Ang iyong boto ay nai-submit na",
             description:
                 "Ang code ng kumpirmasyon sa ibaba ay nagpapatunay na <b>ang iyong balota ay matagumpay na nai-submit</b>. Maaari mong gamitin ang code na ito upang tiyakin na ang iyong balota ay nabilang.",
+            blankBallot: {
+                description:
+                    "Ang iyong balota ay naisumite bilang blangko, na isang wasto at sinasadyang pagpili.",
+            },
             ballotId: "ID ng Balota",
             printButton: "I-print",
             finishButton: "Tapos na",

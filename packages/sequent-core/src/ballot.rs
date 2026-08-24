@@ -10,6 +10,7 @@ use crate::plaintext::{
 };
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use crate::serialization::deserialize_with_path::deserialize_value;
+use crate::services::tally_sheet_validation::effective_max_marks_per_ballot_typed;
 use crate::types::ceremonies::TallySessionResolutionData;
 use crate::types::ceremonies::{
     CeremoniesPolicy, CountingAlgType, TallyOperation,
@@ -884,6 +885,14 @@ pub enum InvalidVotePolicy {
     #[strum(serialize = "not-allowed")]
     #[serde(rename = "not-allowed")]
     NOT_ALLOWED,
+    // Same as ALLOWED, except the explicit-invalid marker becomes a
+    // mutually exclusive selection: picking it clears any other selected
+    // candidates (and vice versa), so it can't be bundled with them. See
+    // `ballotSelectionsSlice.ts` for the enforcement, which mirrors how
+    // blank vote is already exclusive against other selections.
+    #[strum(serialize = "allowed-with-exclusive-explicit")]
+    #[serde(rename = "allowed-with-exclusive-explicit")]
+    ALLOWED_WITH_EXCLUSIVE_EXPLICIT,
 }
 
 #[derive(
@@ -1476,6 +1485,13 @@ pub struct ElectionPresentation {
     pub voting_screen_back_policy: Option<VotingScreenBackPolicy>,
     #[borsh(skip)]
     pub css: Option<String>,
+    /// The policy to determine if a ballot blank in every contest is
+    /// recorded and reported as a blank ballot at the election level.
+    ///
+    /// Appended after all pre-existing fields (rather than grouped next to
+    /// decline_to_vote_policy) to preserve the Borsh binary layout of
+    /// already-serialized ElectionPresentation/BallotStyle payloads.
+    pub blank_ballots_policy: Option<BlankBallotsPolicy>,
 }
 
 impl hasura_core::Election {
@@ -1517,6 +1533,7 @@ impl Default for ElectionPresentation {
             decline_to_vote_policy: Some(DeclineToVotePolicy::default()),
             voting_screen_back_policy: Some(VotingScreenBackPolicy::default()),
             css: None,
+            blank_ballots_policy: Some(BlankBallotsPolicy::default()),
         }
     }
 }
@@ -1702,6 +1719,23 @@ impl Contest {
 
     pub fn get_counting_algorithm(&self) -> CountingAlgType {
         self.counting_algorithm.unwrap_or_default()
+    }
+
+    /// Maximum number of candidate marks one non-blank ballot can
+    /// legitimately contribute in this contest. Delegates to
+    /// `effective_max_marks_per_ballot_typed`, which shares its computation
+    /// with the string-keyed variant the Hasura `Contest` representation
+    /// uses, so the two cannot disagree about the same contest.
+    pub fn max_marks_per_ballot(&self) -> u64 {
+        let cumulative_number_of_checkboxes =
+            self.presentation.as_ref().and_then(|presentation| {
+                presentation.cumulative_number_of_checkboxes
+            });
+        effective_max_marks_per_ballot_typed(
+            Some(self.max_votes),
+            self.get_counting_algorithm(),
+            cumulative_number_of_checkboxes,
+        )
     }
 
     pub fn base32_writeins(&self) -> bool {
@@ -2901,6 +2935,36 @@ pub enum DeclineToVotePolicy {
     #[strum(serialize = "enabled")]
     #[serde(rename = "enabled")]
     /// The user can decline to vote at the election level (for all contests).
+    ENABLED,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
+/// Used to determine if a ballot on which the voter left every contest
+/// blank can be recorded and reported as a blank ballot.
+pub enum BlankBallotsPolicy {
+    #[default]
+    #[strum(serialize = "disabled")]
+    #[serde(rename = "disabled")]
+    /// Ballots blank in every contest are not tracked as such.
+    DISABLED,
+    #[strum(serialize = "enabled")]
+    #[serde(rename = "enabled")]
+    /// Ballots blank in every contest are recorded and reported as blank
+    /// ballots, at the election level.
     ENABLED,
 }
 

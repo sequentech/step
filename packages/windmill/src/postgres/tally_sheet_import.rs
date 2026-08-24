@@ -109,6 +109,7 @@ pub async fn insert_tally_sheet_import(
     summary: &TallySheetImportSummary,
     validation_report: Option<&Value>,
     canonical_csv_sha256: Option<&str>,
+    annotations: Option<&Value>,
 ) -> Result<TallySheetImport> {
     let id = Uuid::new_v4();
     let summary_value = serde_json::to_value(summary)?;
@@ -121,7 +122,7 @@ pub async fn insert_tally_sheet_import(
                 created_at, last_updated_at, annotations, labels, summary, validation_report,
                 canonical_csv_sha256
             ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW(), NULL, NULL, $11, $12, $13
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW(), $11, NULL, $12, $13, $14
             ) RETURNING *;
             "#,
         )
@@ -141,6 +142,7 @@ pub async fn insert_tally_sheet_import(
                 &selected_channel.to_string(),
                 &status.to_string(),
                 &created_by_user_id.to_string(),
+                &annotations.cloned(),
                 &summary_value,
                 &validation_report.cloned(),
                 &canonical_csv_sha256.map(str::to_string),

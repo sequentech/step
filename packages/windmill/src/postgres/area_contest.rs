@@ -168,6 +168,52 @@ pub async fn get_areas_by_contest_id(
 }
 
 #[instrument(err, skip_all)]
+pub async fn get_contests_by_area_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: &str,
+) -> Result<Vec<String>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    contest_id
+                FROM
+                    sequent_backend.area_contest
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    area_id = $3;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(area_id)?,
+            ],
+        )
+        .await?;
+
+    // contest_id is a uuid column: row.get::<_, String> panics on it, since
+    // tokio-postgres only implements FromSql<String> for text-like types.
+    let contest_ids: Vec<String> = rows
+        .into_iter()
+        .map(|row| {
+            row.try_get::<_, Uuid>("contest_id")
+                .map(|id| id.to_string())
+        })
+        .collect::<std::result::Result<_, _>>()?;
+
+    Ok(contest_ids)
+}
+
+#[instrument(err, skip_all)]
 pub async fn area_contest_exists(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,

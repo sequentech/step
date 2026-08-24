@@ -18,7 +18,7 @@ use crate::{
     types::{
         ceremonies::{
             AutomaticRecountPolicy, CeremoniesPolicy,
-            KeysCeremonyExecutionStatus, KeysCeremonyStatus,
+            KeysCeremonyExecutionStatus, KeysCeremonyStatus, TallyRunReason,
         },
         participation::VotesByChannel,
         tally_sheets::{AreaContestResults, TallySheetStatus},
@@ -554,6 +554,20 @@ pub struct TallySessionExecution {
     pub status: Option<Value>,
     pub results_event_id: Option<String>,
     pub documents: Option<Value>,
+    pub run_reason: Option<String>,
+}
+
+impl TallySessionExecution {
+    /// The reason this execution was created. Rows written before the column
+    /// existed hold `NULL`, and an unrecognised value means a newer writer this
+    /// build doesn't know about; both read as `NORMAL`, which only advances the
+    /// tally with unprocessed board messages and so is the safe reading.
+    pub fn run_reason(&self) -> TallyRunReason {
+        self.run_reason
+            .as_deref()
+            .and_then(|value| value.parse::<TallyRunReason>().ok())
+            .unwrap_or_default()
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -623,5 +637,90 @@ mod tally_session_contest_annotations_tests {
         };
         let serialized = serde_json::to_value(current).unwrap();
         assert_eq!(serialized["votes_by_channel"], serde_json::json!({}));
+    }
+}
+
+#[cfg(test)]
+mod tally_session_execution_run_reason_tests {
+    use super::*;
+
+    fn execution_with_run_reason(
+        run_reason: Option<&str>,
+    ) -> TallySessionExecution {
+        TallySessionExecution {
+            id: "id".to_string(),
+            tenant_id: "tenant".to_string(),
+            election_event_id: "event".to_string(),
+            created_at: None,
+            last_updated_at: None,
+            labels: None,
+            annotations: None,
+            current_message_id: 0,
+            tally_session_id: "session".to_string(),
+            session_ids: None,
+            status: None,
+            results_event_id: None,
+            documents: None,
+            run_reason: run_reason.map(|value| value.to_string()),
+        }
+    }
+
+    #[test]
+    fn reads_each_known_reason() {
+        assert_eq!(
+            execution_with_run_reason(Some("NORMAL")).run_reason(),
+            TallyRunReason::NORMAL
+        );
+        assert_eq!(
+            execution_with_run_reason(Some("RECOUNT")).run_reason(),
+            TallyRunReason::RECOUNT
+        );
+        assert_eq!(
+            execution_with_run_reason(Some("TIE_BREAK_RERUN")).run_reason(),
+            TallyRunReason::TIE_BREAK_RERUN
+        );
+    }
+
+    // Rows written before the column existed must not be mistaken for a
+    // recount: replaying the last board message on every tick would rebuild
+    // results for every historical session on the first tally after upgrade.
+    #[test]
+    fn treats_a_missing_reason_as_normal() {
+        assert_eq!(
+            execution_with_run_reason(None).run_reason(),
+            TallyRunReason::NORMAL
+        );
+    }
+
+    #[test]
+    fn treats_an_unrecognised_reason_as_normal() {
+        assert_eq!(
+            execution_with_run_reason(Some("SOMETHING_NEWER")).run_reason(),
+            TallyRunReason::NORMAL
+        );
+        assert_eq!(
+            execution_with_run_reason(Some("")).run_reason(),
+            TallyRunReason::NORMAL
+        );
+        // Casing is significant: the column stores the enum's own Display form.
+        assert_eq!(
+            execution_with_run_reason(Some("recount")).run_reason(),
+            TallyRunReason::NORMAL
+        );
+    }
+
+    #[test]
+    fn round_trips_through_the_stored_string_form() {
+        for reason in [
+            TallyRunReason::NORMAL,
+            TallyRunReason::RECOUNT,
+            TallyRunReason::TIE_BREAK_RERUN,
+        ] {
+            let stored = reason.to_string();
+            assert_eq!(
+                execution_with_run_reason(Some(&stored)).run_reason(),
+                reason
+            );
+        }
     }
 }

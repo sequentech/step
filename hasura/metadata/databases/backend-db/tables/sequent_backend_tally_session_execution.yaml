@@ -54,6 +54,7 @@ select_permissions:
               - labels
               - last_updated_at
               - results_event_id
+              - run_reason
               - session_ids
               - status
               - tally_session_id
@@ -74,6 +75,7 @@ select_permissions:
               - labels
               - last_updated_at
               - results_event_id
+              - run_reason
               - session_ids
               - status
               - tally_session_id
@@ -95,6 +97,7 @@ select_permissions:
               - labels
               - last_updated_at
               - results_event_id
+              - run_reason
               - session_ids
               - status
               - tally_session_id
@@ -115,6 +118,7 @@ select_permissions:
               - labels
               - last_updated_at
               - results_event_id
+              - run_reason
               - session_ids
               - status
               - tally_session_id

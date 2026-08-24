@@ -276,6 +276,7 @@ const spanishTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "Exportar Plantillas",
                 IMPORT_TEMPLATES: "Importar Plantillas",
                 DELETE_ELECTION_EVENT: "Eliminar evento electoral",
+                DELETE_VOTERS: "Delete Voters",
                 PREPARE_PUBLICATION_PREVIEW: "Preparar la vista previa de la publicación",
                 EXPORT_TALLY_RESULTS_XLSX: "Exportar los resultados del escrutinio en formato XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Exportar autoridades de certificación",
@@ -495,6 +496,7 @@ const spanishTranslation: TranslationType = {
                 notify: {
                     success: "Localización actualizada con éxito",
                     error: "La actualización de la localización ha fallado",
+                    duplicateKey: "Ya existe una sustitución con esta clave y ámbito del portal.",
                     invalidDateTimeFormat:
                         "Formato de fecha/hora no válido. Usa los tokens yyyy, MM, dd, HH, mm, ss (p. ej. dd/MM/yyyy HH:mm).",
                 },
@@ -504,7 +506,16 @@ const spanishTranslation: TranslationType = {
                 },
                 labels: {
                     key: "Clave",
+                    scope: "Ámbito del portal",
                     value: "Valor",
+                },
+                scopes: {
+                    legacy: "Heredado ({{portal}})",
+                    global: "Global",
+                    votingPortal: "Portal de votación",
+                    ballotVerifier: "Verificador de papeletas",
+                    resultsPortal: "Portal de resultados",
+                    adminPortal: "Portal de administración",
                 },
             },
             field: {
@@ -1043,6 +1054,13 @@ const spanishTranslation: TranslationType = {
                     disabled: "Deshabilitado",
                 },
             },
+            blankBallotsPolicy: {
+                label: "Política de papeletas en blanco",
+                options: {
+                    enabled: "Habilitado",
+                    disabled: "Deshabilitado",
+                },
+            },
             votingScreenBackPolicy: {
                 label: "Política del botón Atrás de la pantalla de votación",
                 options: {
@@ -1138,6 +1156,11 @@ const spanishTranslation: TranslationType = {
                 delete: {
                     body: "¿Estás seguro que quieres borrar este usuario?",
                     bulkBody: "¿Estás seguro que quieres borrar los usuarios seleccionados?",
+                    bulkBodySelected: "Delete the {{count}} selected users? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} users are selected. You can instead delete every user matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Error al exportar usuarios",
@@ -1190,13 +1213,40 @@ const spanishTranslation: TranslationType = {
                 },
                 errors: {
                     editError: "Error editando votante",
+                    editErrorReason: "Error editando votante: {{reason}}",
                     editSuccess: "Votante editado",
                     createError: "Error creando votante",
+                    createErrorReason: "Error creando votante: {{reason}}",
                     createSuccess: "Votante creado",
+                    attribute: {
+                        invalidNamed: 'Se rechazó "{{field}}": {{constraint}}',
+                        fieldsToCorrect: "Algunos campos deben corregirse antes de guardar",
+                        hintBetween: "Entre {{min}} y {{max}} caracteres",
+                        hintMin: "Al menos {{min}} caracteres",
+                        hintMax: "Como máximo {{max}} caracteres",
+                        andMore: "y {{count}} más",
+                        invalidLength: '"{{field}}" debe tener entre {{min}} y {{max}} caracteres',
+                        tooShort: '"{{field}}" debe tener al menos {{min}} caracteres',
+                        tooLong: '"{{field}}" debe tener como máximo {{max}} caracteres',
+                        required: '"{{field}}" es obligatorio',
+                        invalidEmail:
+                            '"{{field}}" debe ser una dirección de correo electrónico válida',
+                        invalidFormat: '"{{field}}" no tiene el formato esperado',
+                        invalid: '"{{field}}" tiene un valor no válido',
+                    },
+                    createPasswordError: "Votante creado, pero no se pudo establecer su contraseña",
+                    createPasswordErrorReason:
+                        "Votante creado, pero no se pudo establecer su contraseña: {{reason}}",
                 },
                 delete: {
                     body: "¿Estás seguro que quieres borrar este votante?",
                     bulkBody: "¿Estás seguro que quieres borrar los votantes seleccionados?",
+                    bulkBodySelected:
+                        "Delete the {{count}} selected voters? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} voters are selected. You can instead delete every voter matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Error al exportar votantes",
@@ -1821,6 +1871,7 @@ const spanishTranslation: TranslationType = {
                 "warn": "Advertencia",
                 "warn-invalid-implicit-and-explicit": "Advertir Inválidos Implícitos y Explícitos",
                 "not-allowed": "No Permitido",
+                "allowed-with-exclusive-explicit": "Permitido con Voto Inválido Exclusivo",
             },
             candidatesIconCheckboxPolicy: {
                 "label": "Forma del icono de la casilla de verificación de los candidatos",
@@ -2240,6 +2291,7 @@ const spanishTranslation: TranslationType = {
                     round: "Ronda",
                 },
                 total_declined_to_vote: "Total de votos de renuncia",
+                total_blank_ballots: "Total de Papeletas en Blanco",
                 participation_by_channel: "Participación por canal",
                 channel: "Canal",
                 channel_online: "En línea",
@@ -2441,8 +2493,19 @@ const spanishTranslation: TranslationType = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "El total de votos válidos no coincide con la suma de los votos de los candidatos más los votos en blanco",
-                censusTooSmall: "El censo debe ser mayor o igual al total de votos",
+                    "Los votos de candidatos ({{candidateVotesSum}}) deben estar entre {{lowerBound}} y {{upperBound}} según las reglas de votación de esta contienda ({{nonBlankValidVotes}} votos válidos no en blanco × hasta {{maxMarks}} marcas por papeleta)",
+                censusTooSmall:
+                    "El total de votos ({{totalVotes}}) no puede ser mayor que el censo ({{census}})",
+                totalInvalidDoesNotMatch:
+                    "El total de votos inválidos ({{totalInvalid}}) debe ser igual a los votos inválidos implícitos ({{implicitInvalid}}) más los votos inválidos explícitos ({{explicitInvalid}})",
+                totalVotesDoesNotMatch:
+                    "El total de votos ({{totalVotes}}) debe ser igual al total de votos válidos ({{totalValidVotes}}) más el total de votos inválidos ({{totalInvalid}})",
+                unknownCountingAlgorithm:
+                    "El algoritmo de recuento de esta contienda ({{countingAlgorithm}}) no se reconoce, por lo que no se puede determinar el número permitido de votos de candidatos. Revise la configuración de la contienda.",
+                blankBallotsInconsistent:
+                    "Las Papeletas en Blanco deben tener el mismo valor en todas las hojas de escrutinio de esta urna",
+                blankBallotsOutOfBounds:
+                    "El valor de Papeletas en Blanco está fuera del rango que implican los recuentos de votos en blanco por contienda de esta urna",
             },
             label: {
                 area: "Area",
@@ -2453,6 +2516,7 @@ const spanishTranslation: TranslationType = {
                 explicit_invalid: "Votos Explícitamente Inválidos",
                 implicit_invalid: "Votos Implícitamente Inválidos",
                 total_blank_votes: "Votos en Blanco Totales",
+                blank_ballots: "Papeletas en Blanco",
                 census: "Censo",
             },
             common: {

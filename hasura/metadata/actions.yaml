@@ -1053,6 +1053,21 @@ actions:
           - role: voter-read
           - role: user-read
           - role: admin-user
+    - name: get_user_profile_configuration
+      definition:
+          kind: ""
+          handler: http://{{HARVEST_DOMAIN}}/get-user-profile-configuration
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: voter-read
+          - role: user-read
+          - role: admin-user
     - name: get_user_template
       definition:
           kind: synchronous

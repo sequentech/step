@@ -53,7 +53,7 @@ import {
     DeleteUsersMutation,
     ExportTenantUsersMutation,
     ExportUsersMutation,
-    GetUserProfileAttributesQuery,
+    GetUserProfileConfigurationQuery,
     ImportUsersMutation,
     ManualVerificationMutation,
     GenerateVoterInformationLetterMutation,
@@ -67,8 +67,16 @@ import {useMutation, useQuery} from "@apollo/client"
 import {ATTR_RESET_VALUE, IPermissions} from "@/types/keycloak"
 import {isDatafixElectionEvent} from "@/services/Datafix"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
-import {IRole, IUser, translate} from "@sequentech/ui-core"
-import {ESupportMaterialsPolicy, getEffectiveSupportMaterialsPolicy} from "@sequentech/ui-core"
+import {
+    EElectionEventWeightedVotingPolicy,
+    ESupportMaterialsPolicy,
+    getEffectiveSupportMaterialsPolicy,
+    IElectionEventPresentation,
+    IRole,
+    IUser,
+    parseEntityPresentation,
+    translate,
+} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {FormStyles} from "@/components/styles/FormStyles"
@@ -77,8 +85,13 @@ import {EXPORT_TENANT_USERS} from "@/queries/ExportTenantUsers"
 import {DownloadDocument} from "./DownloadDocument"
 import {IMPORT_USERS} from "@/queries/ImportUsers"
 import {ElectoralLogFilters, ElectoralLogList} from "@/components/ElectoralLogList"
-import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
-import {getAttributeLabel, getTranslationLabel, userBasicInfo} from "@/services/UserService"
+import {USER_PROFILE_CONFIGURATION} from "@/queries/GetUserProfileConfiguration"
+import {
+    getAttributeLabel,
+    getTranslationLabel,
+    isHiddenAttribute,
+    userBasicInfo,
+} from "@/services/UserService"
 import CustomDateField from "./CustomDateField"
 import {ListActionsMenu} from "@/components/ListActionsMenu"
 import SyncAltIcon from "@mui/icons-material/SyncAlt"
@@ -86,11 +99,13 @@ import {ReconciliationWizard} from "@/resources/VoterListSync/ReconciliationWiza
 import EditPassword from "./EditPassword"
 import {styled} from "@mui/material/styles"
 import {DELETE_USERS} from "@/queries/DeleteUsers"
+import {buildUserFilterPayload} from "@/queries/GetUsers"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import SelectArea from "@/components/area/SelectArea"
 import {WidgetProps} from "@/components/Widget"
 import {ResetFilters} from "@/components/ResetFilters"
+import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {UserActionTypes} from "@/components/types"
 import {useUsersPermissions} from "./useUsersPermissions"
@@ -107,15 +122,16 @@ export const AUTHORIZED_ELECTION_IDS = "authorized-election-ids"
 export const VOTED_CHANNEL = "voted-channel"
 export const DISABLE_COMMENT = "disable-comment"
 export const SUPPORT_MATERIALS_ACKNOWLEDGED = "support-materials-acknowledged"
+export const VOTE_WEIGHT = "vote-weight"
 
 const DataGridContainerStyle = styled(DatagridConfigurable, {
     shouldForwardProp: (prop) => prop !== "isOpenSideBar", // Prevent `isOpenSideBar` from being passed to the DOM
 })<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
-        overflowx: auto;
+        overflow-x: auto;
         width: 100%;
         ${({isOpenSideBar}) =>
-            `maxWidth: ${isOpenSideBar ? "calc(100vw - 355px)" : "calc(100vw - 108px)"};`}
+            `max-width: ${isOpenSideBar ? "calc(100vw - 355px)" : "calc(100vw - 108px)"};`}
         &  > div:first-of-type {
             position: absolute;
             width: 100%;
@@ -198,11 +214,20 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [openManualVerificationModal, setOpenManualVerificationModal] = React.useState(false)
     const [openDeleteBulkModal, setOpenDeleteBulkModal] = React.useState(false)
+    const [deletingBulk, setDeletingBulk] = useState(false)
     const [openEditPassword, setOpenEditPassword] = React.useState(false)
     const [openVoterInformationLetter, setOpenVoterInformationLetter] = useState(false)
     const [voterInformationLetterPassword, setVoterInformationLetterPassword] = useState<string>()
     const [generatingVoterInformationLetter, setGeneratingVoterInformationLetter] = useState(false)
     const [selectedIds, setSelectedIds] = useState<Identifier[]>([])
+    const filterValuesRef = useRef<Record<string, any>>({})
+    // What the pending bulk delete will actually act on. `selectAll` means
+    // every voter matching the active filters, which only the server can
+    // enumerate -- the browser holds one page.
+    const [deleteScope, setDeleteScope] = useState<{
+        selectedCount: number
+        matchingCount: number
+    }>({selectedCount: 0, matchingCount: 0})
     const [deleteId, setDeleteId] = useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = useState<boolean>(false)
     const [openImportDrawer, setOpenImportDrawer] = useState<boolean>(false)
@@ -225,8 +250,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     )
     const PHONE_NUMBER_USER_ATTRIBUTE = "sequent.read-only.mobile-number"
 
-    const {data: userAttributes} = useQuery<GetUserProfileAttributesQuery>(
-        USER_PROFILE_ATTRIBUTES,
+    const {data: userProfileConfiguration} = useQuery<GetUserProfileConfigurationQuery>(
+        USER_PROFILE_CONFIGURATION,
         {
             variables: {
                 tenantId: tenantId,
@@ -234,11 +259,48 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             },
         }
     )
+    // Keep the existing list/filter consumers on their current attributes-only
+    // shape while create/edit also receives the new group metadata.
+    const userAttributes = useMemo(
+        () =>
+            userProfileConfiguration
+                ? {
+                      get_user_profile_attributes:
+                          userProfileConfiguration.get_user_profile_configuration.attributes,
+                  }
+                : undefined,
+        [userProfileConfiguration]
+    )
+    const userAttributeGroups =
+        userProfileConfiguration?.get_user_profile_configuration.groups ?? []
+
+    const visibleUserAttributes = useMemo(() => {
+        // An attribute marked hidden is kept off the voter-facing forms by the
+        // login theme; it is kept out of here for the same reason, which covers
+        // the voter columns and filters and the edit and create forms at once,
+        // since they are all handed this same list.
+        const attributes = userAttributes?.get_user_profile_attributes?.filter(
+            (attribute) => !isHiddenAttribute(attribute)
+        )
+        if (!attributes || !electionEventId) {
+            return attributes
+        }
+
+        const weightedVotingPolicy = parseEntityPresentation<IElectionEventPresentation>(
+            electionEventRecord?.presentation
+        )?.weighted_voting_policy
+
+        return weightedVotingPolicy === EElectionEventWeightedVotingPolicy.VOTERS_WEIGHTED_VOTING
+            ? attributes
+            : attributes.filter((attribute) => attribute.name !== VOTE_WEIGHT)
+    }, [electionEventId, electionEventRecord?.presentation, userAttributes])
 
     const Filters = useMemo(() => {
         let filters: ReactElement[] = []
-        if (userAttributes?.get_user_profile_attributes) {
-            filters = userAttributes.get_user_profile_attributes
+        if (visibleUserAttributes) {
+            filters = visibleUserAttributes
+                // Has its own dedicated boolean column/handling, not a generic
+                // text filter.
                 .filter((attr) => attr.name !== SUPPORT_MATERIALS_ACKNOWLEDGED)
                 .map((attr) => {
                     //covert to valid source string (if attr name is for example sequent.read-only.otp-method)
@@ -296,7 +358,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             }
         }
         return filters
-    }, [userAttributes?.get_user_profile_attributes, isDatafixEvent])
+    }, [visibleUserAttributes, isDatafixEvent])
 
     const [exportTenantUsers] = useMutation<ExportTenantUsersMutation>(EXPORT_TENANT_USERS, {
         context: {
@@ -634,41 +696,80 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         return getActionsForUserType(userType)
     }, [electionEventId])
 
-    async function confirmDeleteBulkAction() {
-        const {errors} = await deleteUsers({
-            variables: {
-                tenantId: tenantId,
-                electionEventId: electionEventId,
-                usersId: selectedIds,
-            },
-        })
+    async function confirmDeleteBulkAction(selectAll: boolean) {
+        const scopeKey = electionEventId ? "voters" : "users"
+        setDeletingBulk(true)
+        // Voter deletion runs as a tracked task so a long run, or a partial
+        // failure part-way through, is visible instead of silently timing out.
+        const widget = electionEventId
+            ? addWidget(ETasksExecution.DELETE_VOTERS, undefined)
+            : undefined
 
-        if (errors) {
-            notify(
-                t(
-                    `usersAndRolesScreen.${
-                        electionEventId ? "voters" : "users"
-                    }.notifications.deleteError`
-                ),
-                {type: "error"}
-            )
-            return
+        const failed = () => {
+            if (widget) {
+                updateWidgetFail(widget.identifier)
+            }
+            notify(t(`usersAndRolesScreen.${scopeKey}.notifications.deleteError`), {
+                type: "error",
+            })
         }
 
-        notify(
-            t(
-                `usersAndRolesScreen.${
-                    electionEventId ? "voters" : "users"
-                }.notifications.multipleDeleteSuccess`
-            ),
-            {type: "success"}
-        )
+        try {
+            // Exactly the filters the list is showing, built by the list's own
+            // builder from the same merged filter object the dataProvider gets.
+            // Precedence matches ra-core's useListController, which spreads the
+            // permanent `filter` prop last; reversing it would resolve a
+            // different set than the one on screen.
+            const listFilters = selectAll
+                ? buildUserFilterPayload({
+                      ...filterValuesRef.current,
+                      ...myFilters,
+                      ...permanentFilters,
+                  })
+                : undefined
 
-        refresh()
+            const {data, errors} = await deleteUsers({
+                variables: {
+                    tenantId: tenantId,
+                    electionEventId: electionEventId,
+                    electionId: electionId,
+                    usersId: selectAll ? undefined : selectedIds,
+                    selectAll,
+                    ...(listFilters ?? {}),
+                },
+            })
+
+            if (errors || data?.delete_users?.error_msg) {
+                failed()
+                return
+            }
+
+            const taskId = data?.delete_users?.task_execution?.id
+            if (widget) {
+                taskId
+                    ? setWidgetTaskId(widget.identifier, taskId)
+                    : updateWidgetFail(widget.identifier)
+            }
+
+            notify(t(`usersAndRolesScreen.${scopeKey}.notifications.multipleDeleteSuccess`), {
+                type: "success",
+            })
+
+            refresh()
+        } catch (error) {
+            // useMutation has no onError here, so Apollo rethrows.
+            failed()
+        } finally {
+            setDeletingBulk(false)
+        }
     }
 
-    // @ts-ignore
-    function BulkActions(props) {
+    function BulkActions() {
+        const {total, filterValues, selectedIds: listSelectedIds} = useListContext()
+        // Kept in a ref so confirmDeleteBulkAction, which lives outside the
+        // List context, sends the filters that were active when the operator
+        // opened the dialog.
+        filterValuesRef.current = filterValues ?? {}
         return (
             <>
                 {canSendTemplates && (
@@ -676,7 +777,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         variant="actionbar"
                         key="send-notification"
                         onClick={() => {
-                            sendTemplateAction(props.selectedIds ?? [], AudienceSelection.SELECTED)
+                            sendTemplateAction(listSelectedIds ?? [], AudienceSelection.SELECTED)
                         }}
                     >
                         <ResourceListStyles.MailIcon />
@@ -688,7 +789,17 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     <Button
                         variant="actionbar"
                         onClick={() => {
-                            setSelectedIds(props.selectedIds)
+                            const ids: Identifier[] = listSelectedIds ?? []
+                            setSelectedIds(ids)
+                            // Both counts are offered to the operator; nothing
+                            // is inferred from the selection. The header
+                            // checkbox only ever selects the loaded page, so
+                            // guessing intent from it would silently escalate a
+                            // page-sized delete into an event-sized one.
+                            setDeleteScope({
+                                selectedCount: ids.length,
+                                matchingCount: total ?? ids.length,
+                            })
                             setOpenDeleteBulkModal(true)
                         }}
                     >
@@ -717,7 +828,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             setExporting(true)
 
             if (electionEventId) {
-                currWidget = addWidget(ETasksExecution.EXPORT_VOTERS, undefined)
+                currWidget = addWidget(ETasksExecution.EXPORT_VOTERS, true)
                 const {data: exportUsersData, errors} = await exportUsers({
                     variables: {tenantId, electionEventId, electionId},
                 })
@@ -1037,7 +1148,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         const attributesFields: UserProfileAttribute[] = []
         const omitFields = ["id", "email_verified", "email"]
 
-        userAttributes?.get_user_profile_attributes.forEach((attr) => {
+        visibleUserAttributes?.forEach((attr) => {
             if (attr.name && userBasicInfo.includes(attr.name)) {
                 basicInfoFields.push(attr)
             } else if (attr.name === SUPPORT_MATERIALS_ACKNOWLEDGED) {
@@ -1049,7 +1160,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             }
         })
         return {basicInfoFields, attributesFields, omitFields}
-    }, [userAttributes?.get_user_profile_attributes])
+    }, [visibleUserAttributes])
 
     const renderFields = (fields: UserProfileAttribute[]) => {
         const allFields = fields.map((attr) => {
@@ -1193,11 +1304,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         }, [isFetching, filtersChanged])
 
         const hasAuthorizedElectionIdsAttributes = useMemo(
-            () =>
-                userAttributes?.get_user_profile_attributes.find(
-                    (attr) => attr.name === AUTHORIZED_ELECTION_IDS
-                ),
-            [userAttributes?.get_user_profile_attributes]
+            () => visibleUserAttributes?.find((attr) => attr.name === AUTHORIZED_ELECTION_IDS),
+            [visibleUserAttributes]
         )
 
         if (isLoading || (isFetching && filtersChanged)) {
@@ -1206,8 +1314,9 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
 
         return (
             <>
-                {userAttributes?.get_user_profile_attributes && (
+                {visibleUserAttributes && (
                     <DataGridContainerStyle
+                        header={ThreeStateDatagridHeader}
                         preferenceKey={getPreferenceKey(location.pathname, "voters")}
                         omit={listFields.omitFields}
                         isOpenSideBar={isOpenSidebar}
@@ -1271,7 +1380,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                 }}
                             />
                         )}
-                        {electionEventId && showVoterListSync && (
+                        {electionEventId && showVoterListSync && isDatafixEvent && (
                             <FunctionField<IUser>
                                 source={`attributes['${DISABLE_COMMENT}']`}
                                 label={String(
@@ -1391,9 +1500,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                     electionEventId={electionEventId}
                                     close={handleClose}
                                     rolesList={rolesList || []}
-                                    userAttributes={
-                                        userAttributes?.get_user_profile_attributes || []
-                                    }
+                                    userAttributes={visibleUserAttributes || []}
+                                    userAttributeGroups={userAttributeGroups}
                                 />
                             }
                             withComponent={canCreateVoters}
@@ -1432,7 +1540,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     electionId={electionId}
                     close={handleClose}
                     rolesList={rolesList || []}
-                    userAttributes={userAttributes?.get_user_profile_attributes || []}
+                    userAttributes={visibleUserAttributes || []}
+                    userAttributeGroups={userAttributeGroups}
                     record={userRecord}
                     onTaskLaunched={handleEditUserTask}
                 />
@@ -1450,7 +1559,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     electionEventId={electionEventId}
                     close={handleClose}
                     rolesList={rolesList || []}
-                    userAttributes={userAttributes?.get_user_profile_attributes || []}
+                    userAttributes={visibleUserAttributes || []}
+                    userAttributeGroups={userAttributeGroups}
                 />
             </ResourceListStyles.Drawer>
             <Dialog
@@ -1537,18 +1647,57 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             <Dialog
                 variant="warning"
                 open={openDeleteBulkModal}
-                ok={String(t("common.label.delete"))}
+                ok={String(
+                    t(
+                        `usersAndRolesScreen.${
+                            electionEventId ? "voters" : "users"
+                        }.delete.okSelected`,
+                        {count: deleteScope.selectedCount}
+                    )
+                )}
                 cancel={String(t("common.label.cancel"))}
                 title={String(t("common.label.warning"))}
+                middleActions={
+                    electionEventId && deleteScope.matchingCount > deleteScope.selectedCount
+                        ? [
+                              <Button
+                                  key="delete-all-matching"
+                                  variant="warning"
+                                  disabled={deletingBulk}
+                                  onClick={() => {
+                                      if (deletingBulk) {
+                                          return
+                                      }
+                                      confirmDeleteBulkAction(true)
+                                      setOpenDeleteBulkModal(false)
+                                      unselectAll()
+                                  }}
+                              >
+                                  {t(
+                                      `usersAndRolesScreen.${
+                                          electionEventId ? "voters" : "users"
+                                      }.delete.okAllMatching`
+                                  )}
+                              </Button>,
+                          ]
+                        : []
+                }
                 handleClose={(result: boolean) => {
                     if (result) {
-                        confirmDeleteBulkAction()
+                        confirmDeleteBulkAction(false)
                     }
                     setOpenDeleteBulkModal(false)
                     unselectAll()
                 }}
             >
-                {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.delete.bulkBody`)}
+                {t(
+                    `usersAndRolesScreen.${electionEventId ? "voters" : "users"}.delete.${
+                        electionEventId && deleteScope.matchingCount > deleteScope.selectedCount
+                            ? "bulkBodyChoose"
+                            : "bulkBodySelected"
+                    }`,
+                    {count: deleteScope.selectedCount}
+                )}
             </Dialog>
 
             <Dialog

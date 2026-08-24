@@ -273,6 +273,7 @@ const englishTranslation = {
                 EXPORT_TEMPLATES: "Export Templates",
                 IMPORT_TEMPLATES: "Import Templates",
                 DELETE_ELECTION_EVENT: "Delete Election Event",
+                DELETE_VOTERS: "Delete Voters",
                 PREPARE_PUBLICATION_PREVIEW: "Prepare Publication Preview",
                 EXPORT_TALLY_RESULTS_XLSX: "Export Tally Results in XLSX format",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Export Certificate Authorities",
@@ -492,6 +493,7 @@ const englishTranslation = {
                 notify: {
                     success: "Localization updated Successfully",
                     error: "Localization update failed",
+                    duplicateKey: "An override with this key and portal scope already exists.",
                     invalidDateTimeFormat:
                         "Invalid date/time format. Use tokens yyyy, MM, dd, HH, mm, ss (e.g. dd/MM/yyyy HH:mm).",
                 },
@@ -501,7 +503,16 @@ const englishTranslation = {
                 },
                 labels: {
                     key: "Key",
+                    scope: "Portal scope",
                     value: "Value",
+                },
+                scopes: {
+                    legacy: "Legacy ({{portal}})",
+                    global: "Global",
+                    votingPortal: "Voting portal",
+                    ballotVerifier: "Ballot verifier",
+                    resultsPortal: "Results portal",
+                    adminPortal: "Admin portal",
                 },
             },
             field: {
@@ -1033,6 +1044,13 @@ const englishTranslation = {
                     disabled: "Disabled",
                 },
             },
+            blankBallotsPolicy: {
+                label: "Blank Ballots Policy",
+                options: {
+                    enabled: "Enabled",
+                    disabled: "Disabled",
+                },
+            },
             votingScreenBackPolicy: {
                 label: "Voting Screen Back Button Policy",
                 options: {
@@ -1127,6 +1145,11 @@ const englishTranslation = {
                 delete: {
                     body: "Are you sure you want to delete this user?",
                     bulkBody: "Are you sure you want to delete the selected users?",
+                    bulkBodySelected: "Delete the {{count}} selected users? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} users are selected. You can instead delete every user matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Error exporting users",
@@ -1179,13 +1202,39 @@ const englishTranslation = {
                 askCreate: "Do you want to create one?",
                 errors: {
                     editError: "Error editing voter",
+                    editErrorReason: "Error editing voter: {{reason}}",
                     editSuccess: "Voter edited",
                     createError: "Error creating voter",
+                    createErrorReason: "Error creating voter: {{reason}}",
                     createSuccess: "Voter created",
+                    attribute: {
+                        invalidNamed: '"{{field}}" was refused: {{constraint}}',
+                        fieldsToCorrect: "Some fields need correcting before saving",
+                        hintBetween: "Between {{min}} and {{max}} characters",
+                        hintMin: "At least {{min}} characters",
+                        hintMax: "At most {{max}} characters",
+                        andMore: "and {{count}} more",
+                        invalidLength: '"{{field}}" must be between {{min}} and {{max}} characters',
+                        tooShort: '"{{field}}" must be at least {{min}} characters',
+                        tooLong: '"{{field}}" must be at most {{max}} characters',
+                        required: '"{{field}}" is required',
+                        invalidEmail: '"{{field}}" must be a valid email address',
+                        invalidFormat: '"{{field}}" does not have the expected format',
+                        invalid: '"{{field}}" has an invalid value',
+                    },
+                    createPasswordError: "Voter created, but their password could not be set",
+                    createPasswordErrorReason:
+                        "Voter created, but their password could not be set: {{reason}}",
                 },
                 delete: {
                     body: "Are you sure you want to delete this voter?",
                     bulkBody: "Are you sure you want to delete the selected voters?",
+                    bulkBodySelected:
+                        "Delete the {{count}} selected voters? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} voters are selected. You can instead delete every voter matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Error exporting voters",
@@ -1801,6 +1850,7 @@ const englishTranslation = {
                 "warn": "Warn",
                 "warn-invalid-implicit-and-explicit": "Warn Invalid Implicit And Explicit",
                 "not-allowed": "Not Allowed",
+                "allowed-with-exclusive-explicit": "Allowed With Exclusive Explicit",
             },
             candidatesIconCheckboxPolicy: {
                 "label": "Candidates checkbox icon shape",
@@ -2216,6 +2266,7 @@ const englishTranslation = {
                     round: "Round",
                 },
                 total_declined_to_vote: "Total Declined to Vote",
+                total_blank_ballots: "Total Blank Ballots",
                 participation_by_channel: "Participation by channel",
                 channel: "Channel",
                 channel_online: "Online",
@@ -2415,8 +2466,19 @@ const englishTranslation = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "Total valid votes does not match the sum of the candidate votes plus blank votes",
-                censusTooSmall: "Census must be greater or equal than the total votes",
+                    "Candidate votes ({{candidateVotesSum}}) must be between {{lowerBound}} and {{upperBound}} for this contest's voting rules ({{nonBlankValidVotes}} valid non-blank votes × up to {{maxMarks}} marks per ballot)",
+                censusTooSmall:
+                    "Total votes ({{totalVotes}}) must not be greater than census ({{census}})",
+                totalInvalidDoesNotMatch:
+                    "Total invalid votes ({{totalInvalid}}) must equal implicit invalid votes ({{implicitInvalid}}) plus explicit invalid votes ({{explicitInvalid}})",
+                totalVotesDoesNotMatch:
+                    "Total votes ({{totalVotes}}) must equal total valid votes ({{totalValidVotes}}) plus total invalid votes ({{totalInvalid}})",
+                unknownCountingAlgorithm:
+                    "This contest's counting algorithm ({{countingAlgorithm}}) is not recognised, so the allowed number of candidate votes cannot be determined. Check the contest configuration.",
+                blankBallotsInconsistent:
+                    "Blank Ballots must have the same value on every contest sheet of this ballot box",
+                blankBallotsOutOfBounds:
+                    "Blank Ballots value is outside the range implied by this box's per-contest blank vote counts",
             },
             label: {
                 area: "Area",
@@ -2427,6 +2489,7 @@ const englishTranslation = {
                 explicit_invalid: "Explicitly Invalid Votes",
                 implicit_invalid: "Implicitly Invalid Votes",
                 total_blank_votes: "Blank Votes",
+                blank_ballots: "Blank Ballots",
                 census: "Census",
             },
             common: {

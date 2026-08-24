@@ -235,7 +235,9 @@ const CustomDateTimeFormatInvalidNotifier: React.FC<{
     return null
 }
 
-export const EditElectionEventDataForm: React.FC = () => {
+export const EditElectionEventDataForm: React.FC<{
+    transform: (data: Sequent_Backend_Election_Event_Extended) => Promise<RaRecord<Identifier>>
+}> = ({transform}) => {
     const {t} = useTranslation()
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [tenantId] = useTenantStore()
@@ -366,6 +368,7 @@ export const EditElectionEventDataForm: React.FC = () => {
             tenant_id: record?.tenant_id,
             election_event_id: record?.id,
         },
+        pagination: {page: 1, perPage: 9999},
     })
 
     const [votingSettings] = useState<TVotingSetting>({
@@ -1141,6 +1144,16 @@ export const EditElectionEventDataForm: React.FC = () => {
             },
         }
     }
+
+    const saveTransform = async (values: Sequent_Backend_Election_Event_Extended) => {
+        try {
+            return await transform(await onSave(values))
+        } catch (error) {
+            notify(error instanceof Error ? error.message : String(error), {type: "error"})
+            throw error
+        }
+    }
+
     return (
         <>
             <Box
@@ -1170,7 +1183,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                         {canSave && (
                             <SaveButton
                                 type="button"
-                                transform={onSave}
+                                transform={saveTransform}
                                 alwaysEnable={activateSave}
                             />
                         )}

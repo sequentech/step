@@ -4545,7 +4545,13 @@
     "parRequestUriLifespan": "60",
     "clientSessionMaxLifespan": "0",
     "frontendUrl": "",
-    "acr.loa.map": "{}"
+    "acr.loa.map": "{}",
+    "credential-input-policy": "standard",
+    "credential-input-pattern": "dddd-dddd-dddd-dddd",
+    "credential-input-placeholder": "d",
+    "credential-field-position": "LAST",
+    "login-validation-policy": "BROWSER",
+    "voter-certificate-policy": "disabled"
   },
   "keycloakVersion": "24.0.5",
   "userManagedAccessAllowed": false,

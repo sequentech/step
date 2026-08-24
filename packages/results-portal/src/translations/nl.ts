@@ -74,6 +74,7 @@ const dutchTranslation: TranslationType = {
                 totalVotesCounted: "Totaal getelde stemmen",
                 validVotes: "Geldige stemmen",
                 participation: "Opkomst",
+                totalBlankBallots: "Totaal aantal blanco stembiljetten",
             },
             resultsAndParticipation: {
                 participationSummary: "Samenvatting deelname",
