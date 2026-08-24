@@ -12,24 +12,14 @@ export enum ESupportMaterialsPolicy {
 }
 
 export interface IElectionEventMaterials {
-    /** @deprecated superseded by `policy`; kept for backwards compatibility. */
-    activated?: boolean
     policy?: ESupportMaterialsPolicy
 }
 
-/**
- * Resolves the effective policy, falling back to the legacy `activated`
- * boolean when `policy` hasn't been set (election events created before
- * this field existed). Mirrors `ElectionEventMaterials::effective_policy`
- * in `sequent-core`.
- */
+/** Mirrors `ElectionEventMaterials::effective_policy` in `sequent-core`. */
 export const getEffectiveSupportMaterialsPolicy = (
     materials?: IElectionEventMaterials
 ): ESupportMaterialsPolicy => {
-    if (materials?.policy) {
-        return materials.policy
-    }
-    return materials?.activated ? ESupportMaterialsPolicy.OPTIONAL : ESupportMaterialsPolicy.OFF
+    return materials?.policy ?? ESupportMaterialsPolicy.OFF
 }
 
 export interface ICustomUrls {

@@ -994,25 +994,12 @@ pub enum SupportMaterialsPolicy {
     Default,
 )]
 pub struct ElectionEventMaterials {
-    /// Deprecated: superseded by `policy`. Kept for backwards compatibility
-    /// with election events created before `SupportMaterialsPolicy` existed;
-    /// see `effective_policy`.
-    pub activated: Option<bool>,
     pub policy: Option<SupportMaterialsPolicy>,
 }
 
 impl ElectionEventMaterials {
-    /// Resolves the effective policy, falling back to the legacy `activated`
-    /// boolean when `policy` hasn't been set (e.g. election events created
-    /// before this field existed).
     pub fn effective_policy(&self) -> SupportMaterialsPolicy {
-        self.policy.unwrap_or_else(|| {
-            if self.activated.unwrap_or(false) {
-                SupportMaterialsPolicy::Optional
-            } else {
-                SupportMaterialsPolicy::Off
-            }
-        })
+        self.policy.unwrap_or_default()
     }
 }
 
@@ -3046,43 +3033,16 @@ mod support_materials_policy_tests {
     }
 
     #[test]
-    fn test_materials_without_field_is_backwards_compatible() {
+    fn test_materials_without_policy_defaults_to_off() {
         let materials: ElectionEventMaterials =
             serde_json::from_str("{}").unwrap();
         assert_eq!(materials.policy, None);
-        assert_eq!(materials.activated, None);
-        assert_eq!(materials.effective_policy(), SupportMaterialsPolicy::Off);
-    }
-
-    // Election events created before `policy` existed only have `activated`.
-    #[test]
-    fn test_effective_policy_falls_back_to_legacy_activated_flag() {
-        let materials = ElectionEventMaterials {
-            activated: Some(true),
-            policy: None,
-        };
-        assert_eq!(
-            materials.effective_policy(),
-            SupportMaterialsPolicy::Optional
-        );
-
-        let materials = ElectionEventMaterials {
-            activated: Some(false),
-            policy: None,
-        };
-        assert_eq!(materials.effective_policy(), SupportMaterialsPolicy::Off);
-
-        let materials = ElectionEventMaterials {
-            activated: None,
-            policy: None,
-        };
         assert_eq!(materials.effective_policy(), SupportMaterialsPolicy::Off);
     }
 
     #[test]
-    fn test_effective_policy_prefers_explicit_policy_over_legacy_flag() {
+    fn test_effective_policy_returns_explicit_policy() {
         let materials = ElectionEventMaterials {
-            activated: Some(false),
             policy: Some(SupportMaterialsPolicy::MandatoryForVoting),
         };
         assert_eq!(
