@@ -386,6 +386,35 @@ fn names_a_control(text: &str) -> bool {
     )
 }
 
+/// Paths the wizard works out per row, so a profile may lock one without a value.
+///
+/// **The opposite problem from [`names_a_control`].** A control reaches nothing, so
+/// there is no field to fix. These reach a real field on every row of a list — and
+/// that is exactly why no default can be right: `defaults` holds one value per path,
+/// applied to every element the path resolves to, and one identifier shared by every
+/// area is a duplicate by construction. `check_unique_identifiers` would refuse the
+/// build it produced.
+///
+/// So *fixed* here means what a delivery engineer means by it: the client does not get
+/// to type one. The wizard derives an area's identifier from its name and shows it
+/// greyed; hidden, it derives the same identifier and shows nothing. Neither needs a
+/// value from the profile, and [`Profile::read`] refuses one — `is_fixed` writes a
+/// default **unconditionally**, so `{"areas[].external_id": ""}` would blank every
+/// area's identifier on every compile and report a missing field about a box the
+/// client cannot see.
+///
+/// `parent_external_id` is here for the same reason read the other way round. It is
+/// not derived from anything; there is simply nothing to derive it *to*. Locking or
+/// hiding **Inside** says a client's districting is flat — no value expresses that
+/// better than the absence of one, and a wildcard default naming some parent would
+/// make every area the child of one of them, which `check_areas` reads as a cycle.
+///
+/// Short on purpose, like the list above it: an entry here is a promise that some
+/// screen fills the field in without asking.
+fn derives_its_own_value(text: &str) -> bool {
+    matches!(text, "areas[].external_id" | "areas[].parent_external_id")
+}
+
 impl Profile {
     /// Read a profile document, refusing one that cannot mean what it says.
     ///
@@ -442,6 +471,26 @@ impl Profile {
                             format!("'{path}' names nothing a plan has"),
                         ));
                     }
+                    // Refused rather than merely unnecessary. One value written
+                    // to every row of a list is a collision by construction
+                    // here, and `is_fixed` writes it *unconditionally* — so a
+                    // profile saying `{"areas[].external_id": ""}` blanks every
+                    // area's identifier on every compile, and the client meets
+                    // "an area needs an identifier" about a box they cannot
+                    // see. That is `EA-F4-052` one level deeper, and this is the
+                    // door it would come through.
+                    if derives_its_own_value(text) {
+                        report.push(Problem::error(
+                            Code::InvalidValue,
+                            format!("defaults.{text}"),
+                            format!(
+                                "'{path}' is derived per row, so one value for \
+                                 all of them cannot be right. Lock or hide it \
+                                 instead; either keeps what the wizard worked \
+                                 out."
+                            ),
+                        ));
+                    }
                     defaults.push((path, value.clone()));
                 }
                 Err(why) => report.push(Problem::error(
@@ -484,7 +533,16 @@ impl Profile {
         //
         // A hidden path with a value still fixes it: this is about what a
         // profile must say, not about what it may.
+        //
+        // **Except where no value could be right**, which is the one case a
+        // default cannot express: a path the wizard computes per row. An area's
+        // identifier is derived from its name, so locking it means *the client
+        // does not get to type one* — not that every area is called the same
+        // thing. See [`derives_its_own_value`].
         for path in locked.iter() {
+            if derives_its_own_value(path.as_str()) {
+                continue;
+            }
             if !defaults.iter().any(|(each, _)| each == path) {
                 report.push(Problem::error(
                     Code::MissingField,

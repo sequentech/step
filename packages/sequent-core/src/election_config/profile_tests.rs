@@ -250,6 +250,72 @@ fn locking_without_a_value_is_still_refused() {
     assert!(says(&report, "locked but has no default"));
 }
 
+/// An area's identifier is worked out from its name, so locking it needs no value.
+///
+/// The exception to the rule above, and the reason it is an exception rather than a
+/// relaxation: `defaults` holds **one** value per path and applies it to every element
+/// the path resolves to. One identifier shared by every area is a duplicate by
+/// construction. There is no value to give, so requiring one made *fixed* unreachable
+/// for the only two settings on that screen a delivery profile wants to take away.
+#[test]
+fn a_derived_path_may_be_locked_without_a_value() {
+    for path in ["areas[].external_id", "areas[].parent_external_id"] {
+        let document = ClientProfile {
+            id: "acme".to_string(),
+            locked: vec![path.to_string()],
+            ..Default::default()
+        };
+        assert!(
+            Profile::read(&document).is_ok(),
+            "locking '{path}' says the client does not type one, and needs no value"
+        );
+    }
+}
+
+/// And a value for one is refused rather than merely unnecessary.
+///
+/// `is_fixed` writes a default **unconditionally**, so this would blank every area's
+/// identifier on every compile and report "an area needs an identifier" about a box
+/// the client cannot see. `EA-F4-052` one level deeper, and this is the door.
+#[test]
+fn a_derived_path_is_refused_a_default() {
+    let report = refused(ClientProfile {
+        id: "acme".to_string(),
+        defaults: defaults(&[("areas[].external_id", Value::from(""))]),
+        ..Default::default()
+    });
+    assert!(says(&report, "is derived per row"));
+
+    // Including the shape that looks harmless: a *name* for every area at once is
+    // just as wrong as an identifier for every area at once, and this path is not
+    // exempt, so the ordinary rule still refuses nothing here. Checked so the
+    // exemption is known to be narrow.
+    let allowed = ClientProfile {
+        id: "acme".to_string(),
+        defaults: defaults(&[("areas[].name", Value::from("North"))]),
+        ..Default::default()
+    };
+    assert!(
+        Profile::read(&allowed).is_ok(),
+        "only the two derived paths are exempt; the rest of the row is ordinary"
+    );
+}
+
+/// Hiding one still needs no value, which it never did — checked because the two
+/// halves are now decided by different code and could drift apart.
+#[test]
+fn a_derived_path_may_be_hidden_without_a_value() {
+    let document = ClientProfile {
+        id: "acme".to_string(),
+        hidden: vec![
+            "areas[].external_id".to_string(),
+            "areas[].parent_external_id".to_string(),
+        ],
+        ..Default::default()
+    };
+    assert!(Profile::read(&document).is_ok());
+}
+
 /// Hiding does not stop enforcing where a value *is* given — the split is about
 /// what a profile must say, not about what it may.
 #[test]
