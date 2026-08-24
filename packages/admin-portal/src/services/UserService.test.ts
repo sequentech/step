@@ -193,6 +193,15 @@ describe("getAttributeViolation", () => {
 })
 
 describe("isHiddenAttribute", () => {
+    it("never hides attributes forced visible in the admin portal", () => {
+        expect(
+            isHiddenAttribute(attribute({name: "username", annotations: {hidden: "true"}}))
+        ).toBe(false)
+        expect(isHiddenAttribute(attribute({name: "username", annotations: {hidden: true}}))).toBe(
+            false
+        )
+    })
+
     it("reads the flag Keycloak's admin console writes, as a string", () => {
         expect(isHiddenAttribute(attribute({annotations: {hidden: "true"}}))).toBe(true)
     })

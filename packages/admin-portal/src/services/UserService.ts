@@ -49,6 +49,8 @@ export const getTranslationLabel = (
 
 export const userBasicInfo = ["first_name", "last_name", "email", "username"]
 
+const alwaysVisibleAdminAttributes = ["username"]
+
 export const formatUserAtributes = (attributes: any) => {
     const newUserAttributesObject: Record<string, any> = {}
     if (attributes) {
@@ -252,16 +254,21 @@ export const getAttributeViolation = (
 }
 
 /**
- * Whether an attribute is marked hidden.
+ * Whether an attribute should be hidden in the admin portal.
  *
  * This is Sequent's own annotation rather than a Keycloak one: Keycloak stores
  * and returns it without acting on it, and the login theme reads it to keep the
- * attribute off the voter-facing forms. It is read exactly as the theme reads
- * it, so an attribute cannot end up hidden here and shown to voters: the theme
+ * attribute off the voter-facing forms. Username is the exception: hiding it at
+ * login must not remove Keycloak's built-in identifier from admin lists and
+ * forms. Other attributes are read exactly as the theme reads them: the theme
  * matches the literal string, which is what Keycloak's admin console writes,
  * and a realm configuration can carry the boolean instead.
  */
 export const isHiddenAttribute = (attribute: UserProfileAttribute): boolean => {
+    if (attribute.name && alwaysVisibleAdminAttributes.includes(attribute.name)) {
+        return false
+    }
+
     const annotations = attribute.annotations as {hidden?: unknown} | null | undefined
     const hidden = annotations?.hidden
 
