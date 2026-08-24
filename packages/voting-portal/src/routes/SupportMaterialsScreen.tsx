@@ -16,6 +16,7 @@ import {
 import {styled} from "@mui/material/styles"
 import {TenantEventType} from ".."
 import {useAppDispatch, useAppSelector} from "../store/hooks"
+import {selectFirstBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 import {useLocation, useNavigate, useParams} from "react-router-dom"
 import {
     AcknowledgeSupportMaterialsMutation,
@@ -83,6 +84,7 @@ const SupportMaterialsScreen: React.FC = () => {
     const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
     const materials = useAppSelector(getSupportMaterialsList())
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
+    const ballotStyle = useAppSelector(selectFirstBallotStyle)
     const {globalSettings} = useContext(SettingsContext)
     const dispatch = useAppDispatch()
 
@@ -123,8 +125,10 @@ const SupportMaterialsScreen: React.FC = () => {
         }
     }, [electionEvent])
 
+    // Sourced from the published ballot style snapshot, not the live election
+    // event, so a policy change only takes effect after the next publication.
     const materialsPolicy = getEffectiveSupportMaterialsPolicy(
-        electionEvent?.presentation?.materials
+        ballotStyle?.ballot_eml.election_event_presentation?.materials
     )
     const isMandatory = materialsPolicy === ESupportMaterialsPolicy.MANDATORY_FOR_VOTING
 

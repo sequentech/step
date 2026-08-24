@@ -644,10 +644,13 @@ const ElectionSelectionScreen: React.FC = () => {
     }, [dataElectionEvent, dispatch])
 
     useEffect(() => {
+        // A policy change only takes effect after the next publication.
         setMaterialsPolicy(
-            getEffectiveSupportMaterialsPolicy(electionEvent?.presentation?.materials)
+            getEffectiveSupportMaterialsPolicy(
+                oneBallotStyle?.ballot_eml.election_event_presentation?.materials
+            )
         )
-    }, [electionEvent?.presentation?.materials])
+    }, [oneBallotStyle])
 
     useEffect(() => {
         if (castVotes?.sequent_backend_cast_vote) {
