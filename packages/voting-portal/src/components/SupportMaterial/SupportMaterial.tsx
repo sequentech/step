@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {Box, Button, Typography} from "@mui/material"
+import {Box, Button, Typography, TypographyProps} from "@mui/material"
 import React, {useContext} from "react"
 import {styled} from "@mui/material/styles"
 import {useTranslation} from "react-i18next"
@@ -18,6 +18,7 @@ import DescriptionIcon from "@mui/icons-material/Description"
 import {useGetPublicDocumentUrl} from "../../hooks/public-document-url"
 import {SettingsContext} from "../../providers/SettingsContextProvider"
 import {useAppSelector} from "../../store/hooks"
+import {stringToHtml} from "@sequentech/ui-core"
 import {selectDocumentById} from "../../store/documents/documentsSlice"
 
 const BorderBox = styled(Box)`
@@ -66,7 +67,7 @@ const StyledTitle = styled(Typography)`
     }
 `
 
-const StyledSubTitle = styled(Typography)`
+const StyledSubTitle = styled(Typography)<TypographyProps>`
     font-size: 18px;
     line-height: 20px;
     margin-top: 0;
@@ -123,7 +124,7 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
                 </Box>
                 <TextContainer>
                     <StyledTitle>{title}</StyledTitle>
-                    <StyledSubTitle>{subtitle}</StyledSubTitle>
+                    <StyledSubTitle component="div">{stringToHtml(subtitle || "")}</StyledSubTitle>
                 </TextContainer>
                 <Box sx={{display: "flex", alignItems: "center"}}>
                     <StyledButton

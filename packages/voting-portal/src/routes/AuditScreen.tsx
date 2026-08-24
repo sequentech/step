@@ -188,7 +188,7 @@ const AuditScreen: React.FC = () => {
                     {stringToHtml(t("auditScreen.step1HelpDialog.content"))}
                 </Dialog>
             </StyledTitle>
-            <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+            <Typography variant="body2" component="div" sx={{color: theme.palette.customGrey.main}}>
                 {stringToHtml(t("auditScreen.description"))}
             </Typography>
             <StyledTitle variant="h5" fontWeight="bold" fontSize="18px">
@@ -210,7 +210,11 @@ const AuditScreen: React.FC = () => {
                 </Dialog>
             </StyledTitle>
             <Step1Container>
-                <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+                <Typography
+                    variant="body2"
+                    component="div"
+                    sx={{color: theme.palette.customGrey.main}}
+                >
                     {stringToHtml(t("auditScreen.step1Description"))}
                 </Typography>
                 <StyledButton
@@ -229,7 +233,7 @@ const AuditScreen: React.FC = () => {
             <StyledTitle variant="h5" fontWeight="bold" fontSize="18px">
                 <Box>{t("auditScreen.step2Title")}</Box>
             </StyledTitle>
-            <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+            <Typography variant="body2" component="div" sx={{color: theme.palette.customGrey.main}}>
                 <StyledLinkContainer>
                     <Trans
                         i18nKey="auditScreen.step2Description"
