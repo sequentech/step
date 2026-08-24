@@ -3,7 +3,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {Dialog} from "@sequentech/ui-essentials"
-import {ILanguageConf, isString, ITenantSettings} from "@sequentech/ui-core"
+import {
+    ETranslationScope,
+    ILanguageConf,
+    isString,
+    isTranslationScope,
+    ITenantSettings,
+    parseTranslationOverrideKey,
+    updateTranslationOverride,
+} from "@sequentech/ui-core"
 import React, {useEffect, useMemo, useState} from "react"
 import {
     Button,
@@ -41,6 +49,12 @@ import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 import {Sequent_Backend_Tenant} from "@/gql/graphql"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
+import {TranslationScopeInput, translationScopeLabel} from "@/components/TranslationScopeInput"
+
+const TENANT_TRANSLATION_SCOPES = [
+    ETranslationScope.GLOBAL,
+    ETranslationScope.ADMIN_PORTAL,
+] as const
 
 const SettingsLocalization = () => {
     // const record = useRecordContext<Sequent_Backend_Tenant>()
@@ -67,7 +81,6 @@ const SettingsLocalization = () => {
     )
 
     const [update, {isLoading}] = useUpdate()
-    console.log({record})
 
     const {t} = useTranslation()
     const notify = useNotify()
@@ -94,11 +107,16 @@ const SettingsLocalization = () => {
         () =>
             Object.entries(
                 (record?.settings as ITenantSettings | undefined)?.i18n?.[selectedLanguage] || {}
-            ).map(([key, value]) => ({
-                id: key,
-                value,
-            })),
-        [record?.settings, selectedLanguage]
+            ).map(([storedKey, value]) => {
+                const {key, scope} = parseTranslationOverrideKey(storedKey)
+                return {
+                    id: storedKey,
+                    key,
+                    scope: translationScopeLabel(t, scope, ETranslationScope.ADMIN_PORTAL),
+                    value,
+                }
+            }),
+        [record?.settings, selectedLanguage, t]
     )
     const translationListContext = useList({data: translationData, perPage: 25})
 
@@ -117,10 +135,33 @@ const SettingsLocalization = () => {
     }
 
     const handleCreateText = (e: any) => {
-        if (!e || !e?.presentation || !e?.presentation?.i18n) return
-        const newKey: string = e?.presentation?.i18n?.[selectedLanguage]?.newKey ?? ""
-        const newValue: string = e?.presentation?.i18n?.[selectedLanguage]?.newVal ?? ""
-        if (!newValue || !newValue) return
+        if (!e) return
+        const newKey: string = e?.newKey ?? ""
+        const newValue: string = e?.newVal ?? ""
+        const newScope = e?.newScope
+        if (
+            !newValue ||
+            !parseTranslationOverrideKey(newKey).key.trim() ||
+            !isTranslationScope(newScope)
+        )
+            return
+        const currentTranslations =
+            (record?.settings as ITenantSettings | undefined)?.i18n?.[selectedLanguage] ?? {}
+        const updatedTranslations = updateTranslationOverride(
+            currentTranslations,
+            newKey,
+            newScope,
+            newValue
+        )
+        if (!updatedTranslations) {
+            notify(
+                t("electionEventScreen.localization.notify.duplicateKey", {
+                    defaultValue: "An override with this key and portal scope already exists.",
+                }),
+                {type: "error"}
+            )
+            return
+        }
         update(
             "sequent_backend_tenant",
             {
@@ -131,12 +172,7 @@ const SettingsLocalization = () => {
                         ...(record?.settings ?? {}),
                         i18n: {
                             ...((record?.settings as ITenantSettings | undefined)?.i18n ?? {}),
-                            [selectedLanguage]: {
-                                ...((record?.settings as ITenantSettings | undefined)?.i18n?.[
-                                    selectedLanguage
-                                ] ?? {}),
-                                [newKey]: newValue,
-                            },
+                            [selectedLanguage]: updatedTranslations,
                         },
                     },
                 },
@@ -155,10 +191,29 @@ const SettingsLocalization = () => {
         )
     }
     const handleEditText = (e: any) => {
-        console.log({e})
         if (!e || !recordId) return
         const editVal: string = e?.editableVal ?? ""
-        if (!editVal) return
+        const editKey = parseTranslationOverrideKey(String(recordId)).key
+        const editScope = e?.editableScope
+        if (!editVal || !editKey.trim() || !isTranslationScope(editScope)) return
+        const currentTranslations =
+            (record?.settings as ITenantSettings | undefined)?.i18n?.[selectedLanguage] ?? {}
+        const updatedI18nForLanguage = updateTranslationOverride(
+            currentTranslations,
+            editKey,
+            editScope,
+            editVal,
+            String(recordId)
+        )
+        if (!updatedI18nForLanguage) {
+            notify(
+                t("electionEventScreen.localization.notify.duplicateKey", {
+                    defaultValue: "An override with this key and portal scope already exists.",
+                }),
+                {type: "error"}
+            )
+            return
+        }
         update(
             "sequent_backend_tenant",
             {
@@ -169,12 +224,7 @@ const SettingsLocalization = () => {
                         ...record?.settings,
                         i18n: {
                             ...(record?.settings as ITenantSettings | undefined)?.i18n,
-                            [selectedLanguage]: {
-                                ...(record?.settings as ITenantSettings | undefined)?.i18n?.[
-                                    selectedLanguage
-                                ],
-                                [recordId as string]: editVal,
-                            },
+                            [selectedLanguage]: updatedI18nForLanguage,
                         },
                     },
                 },
@@ -243,6 +293,17 @@ const SettingsLocalization = () => {
         )
     }
 
+    const parsedRecordId = parseTranslationOverrideKey(String(recordId ?? ""))
+    const editRecord = {
+        editableKey: parsedRecordId.key,
+        editableScope: parsedRecordId.scope ?? ETranslationScope.ADMIN_PORTAL,
+        editableVal: recordId
+            ? (record?.settings as ITenantSettings | undefined)?.i18n?.[selectedLanguage]?.[
+                  recordId as string
+              ]
+            : undefined,
+    }
+
     return (
         <>
             <SimpleForm toolbar={false}>
@@ -295,6 +356,7 @@ const SettingsLocalization = () => {
                             }}
                         >
                             <SimpleForm
+                                record={{}}
                                 onSubmit={handleCreateText}
                                 toolbar={<SaveButton sx={{marginInline: "1rem"}} />}
                             >
@@ -306,14 +368,22 @@ const SettingsLocalization = () => {
                                         {t("electionEventScreen.localization.common.subTitle")}
                                     </PageHeaderStyles.SubTitle>
 
+                                    <Box sx={{display: "flex", gap: 2, width: "100%"}}>
+                                        <TranslationScopeInput
+                                            source="newScope"
+                                            defaultValue={ETranslationScope.ADMIN_PORTAL}
+                                            allowedScopes={TENANT_TRANSLATION_SCOPES}
+                                        />
+                                        <TextInput
+                                            source="newKey"
+                                            label={String(
+                                                t("electionEventScreen.localization.labels.key")
+                                            )}
+                                            fullWidth
+                                        />
+                                    </Box>
                                     <TextInput
-                                        source={`presentation.i18n.${selectedLanguage}.newKey`}
-                                        label={String(
-                                            t("electionEventScreen.localization.labels.key")
-                                        )}
-                                    />
-                                    <TextInput
-                                        source={`presentation.i18n.${selectedLanguage}.newVal`}
+                                        source="newVal"
                                         label={String(
                                             t("electionEventScreen.localization.labels.value")
                                         )}
@@ -328,8 +398,16 @@ const SettingsLocalization = () => {
                     <ListContextProvider value={translationListContext}>
                         <Datagrid header={ThreeStateDatagridHeader} bulkActionButtons={false}>
                             <TextField
-                                source="id"
+                                source="key"
                                 label={String(t("electionEventScreen.localization.labels.key"))}
+                            />
+                            <TextField
+                                source="scope"
+                                label={String(
+                                    t("electionEventScreen.localization.labels.scope", {
+                                        defaultValue: "Portal scope",
+                                    })
+                                )}
                             />
                             <TextField
                                 source="value"
@@ -353,11 +431,8 @@ const SettingsLocalization = () => {
                 }}
             >
                 <SimpleForm
-                    record={
-                        (record?.settings as ITenantSettings | undefined)?.i18n?.[
-                            selectedLanguage
-                        ] || {}
-                    }
+                    key={`${selectedLanguage}:${String(recordId)}`}
+                    record={editRecord}
                     toolbar={<SaveButton sx={{marginInline: "1rem"}} />}
                     onSubmit={handleEditText}
                 >
@@ -369,22 +444,22 @@ const SettingsLocalization = () => {
                             {t("electionEventScreen.localization.common.subTitle")}
                         </PageHeaderStyles.SubTitle>
 
-                        <TextInput
-                            source="editableKey"
-                            label={String(t("electionEventScreen.localization.labels.key"))}
-                            defaultValue={recordId ?? undefined}
-                            disabled
-                        />
+                        <Box sx={{display: "flex", gap: 2, width: "100%"}}>
+                            <TranslationScopeInput
+                                source="editableScope"
+                                defaultValue={ETranslationScope.ADMIN_PORTAL}
+                                allowedScopes={TENANT_TRANSLATION_SCOPES}
+                            />
+                            <TextInput
+                                source="editableKey"
+                                label={String(t("electionEventScreen.localization.labels.key"))}
+                                readOnly
+                                fullWidth
+                            />
+                        </Box>
                         <TextInput
                             source="editableVal"
                             label={String(t("electionEventScreen.localization.labels.value"))}
-                            defaultValue={
-                                recordId
-                                    ? (record?.settings as ITenantSettings | undefined)?.i18n?.[
-                                          selectedLanguage
-                                      ][recordId]
-                                    : undefined
-                            }
                             multiline
                         />
                     </>

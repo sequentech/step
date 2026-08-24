@@ -2,12 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useMemo, useState} from "react"
-import {Routes, Route, useNavigate, Navigate} from "react-router-dom"
+import {Routes, Route, useNavigate, Navigate, useMatch} from "react-router-dom"
 import {styled} from "@mui/material/styles"
 import {Footer, Header, NotFoundScreen, PageBanner} from "@sequentech/ui-essentials"
 import {
     applyConfigurationLanguagePolicy,
+    ETranslationScope,
     IElectionEventPresentation,
+    overwriteTranslations,
     setCookie,
     USER_LANGUAGE_COOKIE_NAME,
     getValueFromCookie,
@@ -22,11 +24,7 @@ import {ApolloContextProvider, ApolloWrapper} from "./providers/ApolloContextPro
 import {LoginScreen} from "./screens/LoginScreen"
 import {SettingsContext} from "./providers/SettingsContextProvider"
 import {useAppSelector} from "./store/hooks"
-import {
-    selectBallotStyleByElectionId,
-    selectBallotStyleElectionIds,
-    selectFirstBallotStyle,
-} from "./store/ballotStyles/ballotStylesSlice"
+import {selectBallotStyleByElectionEventId} from "./store/ballotStyles/ballotStylesSlice"
 import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
 import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
 
@@ -41,7 +39,10 @@ const StyledApp = styled(Stack)`
 const HeaderWithContext: React.FC = () => {
     const authContext = useContext(AuthContext)
     const {globalSettings} = useContext(SettingsContext)
-    const ballotStyle = useAppSelector(selectFirstBallotStyle)
+    const routeMatch = useMatch("/tenant/:tenantId/event/:eventId/*")
+    const ballotStyle = useAppSelector(
+        selectBallotStyleByElectionEventId(routeMatch?.params.eventId)
+    )
 
     let presentation: IElectionEventPresentation | undefined =
         ballotStyle?.ballot_eml.election_event_presentation
@@ -88,12 +89,15 @@ const App = () => {
     const [fileName, setFileName] = useState("")
     const ballotService = provideBallotService()
 
-    const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
-    const ballotStyle = useAppSelector((state) =>
-        ballotStyleElectionIds.length > 0
-            ? selectBallotStyleByElectionId(String(ballotStyleElectionIds[0]))(state)
-            : undefined
-    )
+    const routeMatch = useMatch("/tenant/:tenantId/event/:eventId/*")
+    const currentEventId = routeMatch?.params.eventId
+    const ballotStyle = useAppSelector(selectBallotStyleByElectionEventId(currentEventId))
+
+    useEffect(() => {
+        setConfirmationBallot(null)
+        setBallotId("")
+        setFileName("")
+    }, [currentEventId])
 
     useEffect(() => {
         if (globalSettings.DISABLE_AUTH) {
@@ -104,7 +108,19 @@ const App = () => {
     }, [navigate])
 
     useEffect(() => {
-        applyConfigurationLanguagePolicy(ballotStyle?.ballot_eml?.election_event_presentation)
+        const presentation = ballotStyle?.ballot_eml?.election_event_presentation
+        overwriteTranslations(presentation, {
+            scope: ETranslationScope.BALLOT_VERIFIER,
+            changeDefaultLanguage: false,
+        })
+        applyConfigurationLanguagePolicy(presentation)
+
+        return () => {
+            overwriteTranslations(undefined, {
+                scope: ETranslationScope.BALLOT_VERIFIER,
+                changeDefaultLanguage: false,
+            })
+        }
     }, [ballotStyle?.ballot_eml?.election_event_presentation])
 
     const customCss = useMemo(
