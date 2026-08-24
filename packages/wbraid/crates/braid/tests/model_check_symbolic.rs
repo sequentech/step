@@ -29,6 +29,12 @@
 //! trustees). `H(token)` chains through heads and predicates exactly as a
 //! real artifact hash would.
 //!
+//! Ballots and mix tokens additionally carry **symbolic content** (see the
+//! Symbolic content section): a ballot set is a multiset of voter symbols, and
+//! a mix carries a [`Transform`] describing its effect on that multiset. This
+//! is what lets properties assert privacy and integrity directly — about what
+//! is decrypted, not about the mechanisms that were supposed to protect it.
+//!
 //! # What this buys
 //!
 //! Every transition is a deterministic function of the state: message bytes
@@ -131,15 +137,38 @@
 //!   the board or an error. Serving partial or divergent boards is
 //!   *adversarial* behavior (split views), handled in the adversarial tier.
 //!
+//! # Properties
+//!
+//! The properties are **functional**: they assert the assets — privacy and
+//! integrity — over the symbolic content, not the mechanisms that defend them.
+//! A violation is a real failure however it was reached, so one property
+//! covers every way it could break.
+//!
+//!   * **Privacy (differencing)**: all threshold-decrypted sets carry the same
+//!     ballot multiset. Two *different* decrypted sets is the differencing
+//!     attack consummated (their difference discloses a ballot).
+//!   * **Privacy (linkage)**: every decrypted set passed through ≥1 opaque
+//!     (honest) shuffle, so the adversary cannot know the whole permutation.
+//!   * **Integrity**: published plaintexts carry exactly the honest ballots — a
+//!     corrupted mix never reaches decryption.
+//!
+//! All three are unconditional over the entire fault space (the no-exemption
+//! pattern). Alongside them the harness keeps the benign-tier completion and
+//! no-halt claims, the adversarial conditioned variants, and the non-vacuity
+//! guards (see Faults). Full privacy *as secrecy* — what an adversary can
+//! deduce — is a knowledge property no explicit-state checker expresses; these
+//! are its behavioral shadows, which are what a consistent-board-plus-faults
+//! model can actually decide.
+//!
 //! # What this cannot see
 //!
 //! The symbolic axioms are stipulated, not checked: that honestly computed
 //! artifacts verify (e.g. Fiat-Shamir domain agreement between prover and
 //! verifier) and that forged ones do not. Those live in the crypto harness and
 //! the crypto layer's own tests. Assuming them, everything the protocol builds
-//! on top — interleaving, halting, slot collisions, chain lineage — is checked
-//! here. An attack that breaks the axioms themselves is a cryptanalysis
-//! result, out of scope for any model checker.
+//! on top — interleaving, halting, slot collisions, privacy and integrity of
+//! the decrypted content — is checked here. An attack that breaks the axioms
+//! themselves is a cryptanalysis result, out of scope for any model checker.
 
 mod common;
 
@@ -218,13 +247,17 @@ struct SystemState {
     /// Fault provenance: what has fired on this path (see the module's Faults
     /// section).
     faults: FaultRecord,
-    /// Per-trustee datalog halts (halt-on-equivocation is each trustee's own
-    /// decision, made when ITS view shows a collision). A halted trustee takes
-    /// no further turns; the others keep running until they halt too —
+    /// Whether each trustee has halted (halt-on-equivocation is each trustee's
+    /// own decision, made when ITS view shows a collision). A halted trustee
+    /// takes no further turns; the others keep running until they halt too —
     /// freezing the whole system at the first halt would hide exactly the
     /// interleavings the adversarial properties are about (could another
     /// trustee decrypt a second lineage before observing the collision?).
-    halted: Vec<Option<String>>,
+    ///
+    /// A bool, not the error message: the datalog error text embeds artifact
+    /// hashes in a hash-sorted order, which would leak into state identity as
+    /// dedup noise. What the properties care about is *that* a trustee halted.
+    halted: Vec<bool>,
 }
 
 impl SystemState {
@@ -296,8 +329,8 @@ impl std::fmt::Debug for SystemState {
             write!(f, " equivocations={}", self.faults.ballots_equivocations)?;
         }
         for (i, h) in self.halted.iter().enumerate() {
-            if let Some(h) = h {
-                write!(f, " t{}-HALTED[{}]", i + 1, h)?;
+            if *h {
+                write!(f, " t{}-HALTED", i + 1)?;
             }
         }
         Ok(())
@@ -494,6 +527,80 @@ impl<C: Context> Transport<C> for ModelTransport<C> {
             self.committed.borrow_mut().push(message);
         }
         Ok(())
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Symbolic content
+///////////////////////////////////////////////////////////////////////////
+//
+// The privacy and integrity properties reason about *what the ballots carry*
+// and *how they were shuffled*, not about protocol mechanisms. To make that
+// checkable, ballots and mixes carry a symbolic content descriptor in their
+// token body; a property re-derives it from board bytes and walks the mix
+// chain — never touching real crypto.
+//
+//   * A ballot set is a multiset of **voter symbols** (small integers). An
+//     honest shuffle is invisible at the multiset level, which is exactly the
+//     privacy abstraction: privacy is about the multiset, not the order.
+//   * Each mix carries a [`Transform`]: what it does to the multiset, and
+//     whether it contributes an **opaque** (adversary-unknown) layer. The
+//     privacy guarantee is "every decrypted set passed through ≥1 opaque
+//     layer"; integrity is "the decrypted multiset equals the ballots'".
+
+/// The honest ballot set: two distinct voters. Small on purpose.
+const HONEST_VOTERS: [u8; 2] = [0, 1];
+
+/// The ballot set an equivocating manager substitutes — the honest set minus
+/// one voter (the differencing move at the source). If this set and the honest
+/// set were ever *both* decrypted, the multiset difference would disclose the
+/// dropped voter's ballot.
+const EQUIVOCATED_VOTERS: [u8; 1] = [0];
+
+/// A mix's symbolic effect on the multiset it shuffles.
+#[derive(Clone, PartialEq, Eq, Debug)]
+enum Transform {
+    /// An honest shuffle: multiset preserved, and an adversary-unknown
+    /// (opaque) permutation layer added — where privacy lives.
+    Honest,
+}
+
+/// Encode a ballots token body: the voter multiset plus a salt (so an
+/// equivocating manager's successive ballots stay distinct artifacts).
+fn encode_ballots(voters: &[u8], salt: usize) -> Vec<u8> {
+    serde_json::to_vec(&(voters, salt)).expect("encode ballots token")
+}
+
+/// The voter multiset carried by a ballots token body, or `None` if the body
+/// is not a ballots token. The stored body is `Vec::<u8>::ser(token)` (the wire
+/// constructor frames it), so the framing is undone before the JSON is parsed.
+fn decode_ballots(body: &[u8]) -> Option<Vec<u8>> {
+    let token = <Vec<u8>>::deser(body).ok()?;
+    serde_json::from_slice::<(Vec<u8>, usize)>(&token)
+        .ok()
+        .map(|(voters, _salt)| voters)
+}
+
+/// Encode a mix token body. The `(mixer, input)` pair keeps distinct mixes'
+/// outputs distinct (as distinct real shuffles would be); the transform is the
+/// semantic payload.
+fn encode_mix(mixer: TrusteeIndex, input: &CiphertextsHash, transform: &Transform) -> Vec<u8> {
+    let tag: u8 = match transform {
+        Transform::Honest => 0,
+    };
+    serde_json::to_vec(&(mixer, format!("{input:?}"), tag)).expect("encode mix token")
+}
+
+/// The [`Transform`] carried by a mix token body, or `None` if the body is not
+/// a mix token. The stored body is `Vec::<u8>::ser(token)`, so the framing is
+/// undone before the JSON is parsed.
+fn decode_mix_transform(body: &[u8]) -> Option<Transform> {
+    let token = <Vec<u8>>::deser(body).ok()?;
+    let (_mixer, _input, tag): (TrusteeIndex, String, u8) =
+        serde_json::from_slice(&token).ok()?;
+    match tag {
+        0 => Some(Transform::Honest),
+        _ => None,
     }
 }
 
@@ -764,7 +871,8 @@ impl SymbolicModel {
                 vec![ProtocolMessage::<C>::public_key(t, DATE, *cfg, &token)]
             }
             Action::ComputeMix(cfg, pk, _source, input, self_index) => {
-                let token = format!("mix:t{self_index}:{input:?}").into_bytes();
+                // An honest mixer shuffles honestly: the transform is `Honest`.
+                let token = encode_mix(*self_index, input, &Transform::Honest);
                 vec![ProtocolMessage::<C>::mix(t, DATE, *cfg, *pk, *input, &token)]
             }
             Action::SignMix(cfg, pk, _source, input, output, _self_index) => {
@@ -843,7 +951,7 @@ impl SymbolicModel {
             // recomputes next cycle (§6.4: nothing was recorded, so nothing
             // pins the slot).
             Err(e) if format!("{e:#}").contains(CRASH_SENTINEL) => crashed = true,
-            Err(e) => next.halted[i] = Some(format!("{e:#}")),
+            Err(_) => next.halted[i] = true,
         }
         next.trustees[i] = Self::durable_from(&persistence);
         Self::merge_transport(next, staged, committed);
@@ -870,7 +978,7 @@ impl SymbolicModel {
             }
             Turn::PostBallots => {
                 let pk_hash = self.public_key_hash_on(state)?;
-                let token = format!("ballots:{pk_hash:?}").into_bytes();
+                let token = encode_ballots(&HONEST_VOTERS, 0);
                 let message = ProtocolMessage::<C>::ballots(
                     &self.manager,
                     DATE,
@@ -888,11 +996,12 @@ impl SymbolicModel {
             }
             Turn::EquivocateBallots => {
                 // Same heads as the honest ballots (the differencing attack
-                // holds everything equal except the ciphertext set); the
-                // counter salts the token so successive equivocations differ.
+                // holds everything equal except the ballot set); a different
+                // voter multiset, salted by the counter so successive
+                // equivocations are distinct artifacts.
                 let pk_hash = self.public_key_hash_on(state)?;
                 let k = state.faults.ballots_equivocations;
-                let token = format!("ballots-equivocation:{k}:{pk_hash:?}").into_bytes();
+                let token = encode_ballots(&EQUIVOCATED_VOTERS, k + 1);
                 let message = ProtocolMessage::<C>::ballots(
                     &self.manager,
                     DATE,
@@ -944,7 +1053,7 @@ impl Model for SymbolicModel {
                 })
                 .collect(),
             faults: FaultRecord::default(),
-            halted: vec![None; self.n],
+            halted: vec![false; self.n],
         }]
     }
 
@@ -952,9 +1061,7 @@ impl Model for SymbolicModel {
     fn actions(&self, state: &Self::State, actions: &mut Vec<Self::Action>) {
         // A HALTED trustee takes no further turns; the others keep running
         // (halting is per-trustee, see `SystemState::halted`).
-        let active: Vec<usize> = (0..self.n)
-            .filter(|i| state.halted[*i].is_none())
-            .collect();
+        let active: Vec<usize> = (0..self.n).filter(|i| !state.halted[*i]).collect();
         let mut candidates: Vec<Turn> = active.iter().copied().map(Turn::Trustee).collect();
         // Fault turns, while their budget lasts. The lookahead prunes the
         // pointless ones for free: a faulty cycle of an idle trustee produces
@@ -994,11 +1101,72 @@ impl Model for SymbolicModel {
     fn properties(&self) -> Vec<Property<Self>> {
         let mut props = Vec::new();
 
-        // The crown jewel, UNCONDITIONAL over the entire fault space (the
-        // no-exemption pattern): honest partial decryptions never span two
-        // ballots lineages. This is the direct negation of the differencing
-        // attack's precondition — faults may stall the protocol or be
-        // detected, but claimed progress must never straddle two input sets.
+        // === Functional properties: the assets themselves, UNCONDITIONAL over
+        // the entire fault space (the no-exemption pattern). They read the
+        // symbolic content, not protocol mechanisms — a violation is a real
+        // privacy or integrity failure however it was reached.
+
+        // PRIVACY (differencing): the adversary must never obtain two
+        // *different* decrypted ballot sets. Two threshold-decrypted sets with
+        // different multisets is the differencing attack consummated —
+        // regardless of how the divergence arose.
+        props.push(Property::<Self>::always(
+            "all decrypted sets carry the same ballots",
+            |model, state| {
+                let board = BoardContents::read(model, state);
+                let bound = state.board.len() + 1;
+                let mut seen: Option<Vec<u8>> = None;
+                for set in board.decrypted_sets(model.mixing_trustees.len()) {
+                    let Some((voters, _)) = board.content_at(&set, bound) else {
+                        return false; // a decrypted set with no valid lineage
+                    };
+                    match &seen {
+                        None => seen = Some(voters),
+                        Some(first) => {
+                            if *first != voters {
+                                return false;
+                            }
+                        }
+                    }
+                }
+                true
+            },
+        ));
+
+        // PRIVACY (linkage): every decrypted set must have passed through at
+        // least one opaque (honest, adversary-unknown) shuffle. A set decrypted
+        // with no opaque layer means the adversary knows the whole permutation
+        // and can re-link inputs to outputs.
+        props.push(Property::<Self>::always(
+            "every decrypted set passed through an honest shuffle",
+            |model, state| {
+                let board = BoardContents::read(model, state);
+                let bound = state.board.len() + 1;
+                board.decrypted_sets(model.mixing_trustees.len()).iter().all(|set| {
+                    matches!(board.content_at(set, bound), Some((_, opaque)) if opaque)
+                })
+            },
+        ));
+
+        // INTEGRITY: any published plaintexts must carry exactly the honest
+        // ballot set. A completed output whose multiset differs from the
+        // ballots means a corrupted mix reached decryption.
+        props.push(Property::<Self>::always(
+            "published plaintexts match the honest ballots",
+            |model, state| {
+                let board = BoardContents::read(model, state);
+                let bound = state.board.len() + 1;
+                let mut honest = HONEST_VOTERS.to_vec();
+                honest.sort_unstable();
+                board.plaintext_sets.iter().all(|set| {
+                    matches!(board.content_at(set, bound), Some((voters, _)) if voters == honest)
+                })
+            },
+        ));
+
+        // === Mechanism cross-check (temporary): the lineage proxy. Retained
+        // alongside the functional properties above until they are trusted;
+        // it asserts the same privacy fact at the level of "how".
         props.push(Property::<Self>::always(
             "partial decryptions never span two ballots lineages",
             |model, state| single_decryption_lineage(model, state),
@@ -1008,7 +1176,7 @@ impl Model for SymbolicModel {
             // Safety, UNCONDITIONAL over the benign-fault space: no pattern
             // of at most budget-many benign faults may ever halt a trustee.
             props.push(Property::<Self>::always("no trustee halts", |_, state| {
-                state.halted.iter().all(|h| h.is_none())
+                state.halted.iter().all(|h| !h)
             }));
             // Liveness, in its strong form: on EVERY path the protocol
             // completes. Sound here, unlike in the crypto harness, because
@@ -1032,7 +1200,7 @@ impl Model for SymbolicModel {
             props.push(Property::<Self>::always(
                 "no trustee halts unless the manager equivocated",
                 |_, state| {
-                    state.halted.iter().all(|h| h.is_none())
+                    state.halted.iter().all(|h| !h)
                         || state.faults.ballots_equivocations > 0
                 },
             ));
@@ -1047,7 +1215,7 @@ impl Model for SymbolicModel {
                     plaintexts_on(state) == model.mixing_trustees.len()
                         || (state.faults.ballots_equivocations > 0
                             && (0..model.mixing_trustees.len())
-                                .all(|i| state.halted[i].is_some()))
+                                .all(|i| state.halted[i]))
                 },
             ));
             // Non-vacuity guards for the adversarial class.
@@ -1059,7 +1227,7 @@ impl Model for SymbolicModel {
                 "a trustee halts on the equivocation",
                 |_, state| {
                     state.faults.ballots_equivocations > 0
-                        && state.halted.iter().any(|h| h.is_some())
+                        && state.halted.iter().any(|h| *h)
                 },
             ));
             props.push(Property::<Self>::sometimes(
@@ -1114,6 +1282,103 @@ fn plaintexts_on(state: &SystemState) -> usize {
                 .unwrap_or(false)
         })
         .count()
+}
+
+/// The symbolic content at a ciphertexts hash: the sorted voter multiset it
+/// carries, and whether its mix chain includes an opaque (honest) layer.
+/// Computed by walking the chain from the hash back to its ballots root —
+/// `None` if the chain is dangling or malformed.
+fn content_at(
+    hash: &CiphertextsHash,
+    ballots: &HashMap<CiphertextsHash, Vec<u8>>,
+    mixes: &HashMap<CiphertextsHash, (CiphertextsHash, Transform)>,
+    depth: usize,
+) -> Option<(Vec<u8>, bool)> {
+    if depth == 0 {
+        return None; // chain longer than the board: malformed
+    }
+    if let Some(voters) = ballots.get(hash) {
+        let mut sorted = voters.clone();
+        sorted.sort_unstable();
+        return Some((sorted, false));
+    }
+    let (input, transform) = mixes.get(hash)?;
+    // `_opaque` (the chain's opacity so far) is carried once a transform can
+    // leave it unchanged; an honest layer sets it true regardless.
+    let (voters, _opaque) = content_at(input, ballots, mixes, depth - 1)?;
+    match transform {
+        // An honest shuffle preserves the multiset and adds an opaque layer.
+        Transform::Honest => Some((voters, true)),
+    }
+}
+
+/// The board read symbolically: ballot sets, mix chain, decryption counts, and
+/// published-plaintext sets. Built by one pass over the board through the real
+/// `verify`; the privacy and integrity properties reason over it.
+struct BoardContents {
+    /// ciphertexts hash → voter multiset (ballots roots).
+    ballots: HashMap<CiphertextsHash, Vec<u8>>,
+    /// mix output hash → (input hash, transform).
+    mixes: HashMap<CiphertextsHash, (CiphertextsHash, Transform)>,
+    /// ciphertexts hash → how many partial decryptions it has.
+    pdec_counts: HashMap<CiphertextsHash, usize>,
+    /// ciphertexts hashes that have a published `Plaintexts`.
+    plaintext_sets: Vec<CiphertextsHash>,
+}
+
+impl BoardContents {
+    fn read(model: &SymbolicModel, state: &SystemState) -> Self {
+        let mut c = BoardContents {
+            ballots: HashMap::new(),
+            mixes: HashMap::new(),
+            pdec_counts: HashMap::new(),
+            plaintext_sets: Vec::new(),
+        };
+        for bytes in &state.board {
+            let Ok(message) = ProtocolMessage::<C>::deser(bytes) else {
+                continue;
+            };
+            if message.message_type == MessageType::Configuration {
+                continue;
+            }
+            let Ok((predicate, body)) = verify(&message, &model.configuration) else {
+                continue;
+            };
+            match predicate {
+                Predicate::Ballots(b) => {
+                    if let Some(voters) = body.as_deref().and_then(decode_ballots) {
+                        c.ballots.insert(b.ciphertexts, voters);
+                    }
+                }
+                Predicate::Mix(m) => {
+                    if let Some(t) = body.as_deref().and_then(decode_mix_transform) {
+                        c.mixes.insert(m.output, (m.input, t));
+                    }
+                }
+                Predicate::PartialDecryptions(p) => {
+                    *c.pdec_counts.entry(p.ciphertexts).or_insert(0) += 1;
+                }
+                Predicate::Plaintexts(p) => c.plaintext_sets.push(p.ciphertexts),
+                _ => {}
+            }
+        }
+        c
+    }
+
+    /// The content at `hash`, walking the mix chain to its ballots root.
+    fn content_at(&self, hash: &CiphertextsHash, bound: usize) -> Option<(Vec<u8>, bool)> {
+        content_at(hash, &self.ballots, &self.mixes, bound)
+    }
+
+    /// Sets with at least `threshold` partial decryptions — enough to
+    /// reconstruct the plaintexts, so the disclosure has happened.
+    fn decrypted_sets(&self, threshold: usize) -> Vec<CiphertextsHash> {
+        self.pdec_counts
+            .iter()
+            .filter(|(_, count)| **count >= threshold)
+            .map(|(hash, _)| *hash)
+            .collect()
+    }
 }
 
 /// The no-exemption lineage check: every `PartialDecryptions` on the board
