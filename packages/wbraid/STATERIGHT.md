@@ -131,6 +131,7 @@ Property scope (the checks × faults table; ✔ = token-sufficient):
 | `fa22aabf29` | Merge of `feat/braid-0.6.2/main` (vsc: deser-cursor fix, fold strategy, benchmark, lint) — made on top of the stateright work and pulled in | all suites green post-merge; symbolic state counts byte-identical (the deser fix perturbed nothing) |
 | `9c6a687c95` | `CrashBeforeRecord` (second benign fault): real `post` aborted at the record write via a failing-persistence delegate; death-not-halt semantics; budget spent only when the crash fires | crashes≤2: 187 states (isomorphic to drops≤2 — the two seam-sides mirror); mixed drops≤1+crashes≤1: 303 states; all properties + guards |
 | `c55d0d3b53` | Fetch-failure stutter lemma pinned (benign tier complete): read failures have zero durable footprint ⇒ schedule-equivalent, no fault class needed; module docs gain "deliberately NOT fault classes" | lemma test green against the real `BoardClient::update` |
+| `fd6c60dd2c` | `EquivocateBallots` (first adversarial fault, the differencing-attack row) + per-trustee halting (a halted trustee loses its turns; others run on — the global freeze would have hidden the dangerous interleavings) + the no-exemption lineage property on every state of every config | equivocations≤1: 135 states; conditioned safety + required-response liveness + 3 guards all verified; benign counts unchanged. Caveat: with a consistent board the second lineage can never begin (seeing ballots#2 implies seeing ballots#1 ⇒ halt); the sharp variant is equivocation + split views |
 
 ## Next steps (plan of record)
 
@@ -149,18 +150,21 @@ Agreed order for the fault program:
    predicate-keyed). Withholding has **no benign version** (b4 is one
    consistent store: a fetch returns the board or an error) — it is
    adversarial by nature and moves to step 4.
-4. **Adversarial tier**: manager ballots-equivocation (the differencing-attack
-   row: check halt fires before a second lineage is decrypted), split views /
-   withheld messages (adversarial b4), forged proofs via token validity tags
-   (SignMix reads the tag instead of signing unconditionally). Properties:
-   conditioned safety/liveness variants + the no-exemption uniqueness rows.
-   Carries two rulings armed by withholding: the **observation-timing
-   compression** (`admit()` pins every fetched predicate, so real trustees pin
-   on every fetch; the compression discards idle-cycle pins and would
-   under-approximate §6.3 gate firings — unsound for anti-rewrite properties
-   if kept), and **gate-refusal semantics** (`update()`'s gate error is a
-   skip-this-cycle, not a datalog halt — the harness must classify it, as it
-   already does crash sentinels).
+4. **Adversarial tier**: ~~manager ballots-equivocation~~ (DONE, `fd6c60dd2c`
+   — verified under a consistent board, where the collision halts every
+   trustee before a second lineage can begin). Remaining: **split views /
+   withheld messages** (adversarial b4) — including the sharp differencing
+   variant, equivocation + withholding, where b4 hides one ballots from some
+   trustees; and **forged proofs** via token validity tags (SignMix reads the
+   tag instead of signing unconditionally). Properties: the no-exemption
+   lineage row is already in place on every config; conditioned variants per
+   class. The withholding work carries the two parked rulings: the
+   **observation-timing compression** (`admit()` pins every fetched
+   predicate, so real trustees pin on every fetch; the compression discards
+   idle-cycle pins and would under-approximate §6.3 gate firings — unsound
+   for anti-rewrite properties if kept), and **gate-refusal semantics**
+   (`update()`'s gate error is a skip-this-cycle, not a datalog halt — the
+   harness must classify it, as it already does crash sentinels).
 
 Beyond the agreed steps (candidates, not yet scheduled):
 
