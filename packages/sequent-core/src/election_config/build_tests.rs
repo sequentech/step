@@ -964,17 +964,37 @@ fn a_voter_is_enabled_unless_the_source_says_otherwise() {
 }
 
 #[test]
-fn a_voter_with_no_election_restriction_is_authorized_for_all_of_them() {
-    // Writing an empty attribute would deny access to every election instead.
-    let bundle = built(&with_voters(vec![
-        vec![text("username"), text("area.external_id")],
-        vec![text("m-1001"), text("area-north")],
-    ]));
-    let column = bundle.voters.column("authorized-election-ids").unwrap();
-    assert_eq!(
-        bundle.voters.rows[0][column],
-        bundle.export["elections"][0]["id"].as_str().unwrap()
-    );
+fn a_voter_with_no_election_restriction_gets_no_election_ids() {
+    // The area says which contests a voter sees. The elections attribute is a
+    // *restriction*, so writing one where the census expressed none states
+    // something the census did not — and it goes stale as soon as an election is
+    // added. A blank cell and an absent column mean the same thing.
+    for grid in [
+        vec![
+            vec![text("username"), text("area.external_id")],
+            vec![text("m-1001"), text("area-north")],
+        ],
+        vec![
+            vec![
+                text("username"),
+                text("authorized-election-ids"),
+                text("area.external_id"),
+            ],
+            vec![text("m-1001"), Cell::Blank, text("area-north")],
+        ],
+        vec![
+            vec![
+                text("username"),
+                text("authorized-election-ids"),
+                text("area.external_id"),
+            ],
+            vec![text("m-1001"), text("   "), text("area-north")],
+        ],
+    ] {
+        let bundle = built(&with_voters(grid));
+        let column = bundle.voters.column("authorized-election-ids").unwrap();
+        assert_eq!(bundle.voters.rows[0][column], "");
+    }
 }
 
 #[test]
