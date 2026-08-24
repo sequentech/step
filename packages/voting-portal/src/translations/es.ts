@@ -317,7 +317,7 @@ const spanishTranslation: TranslationType = {
             },
             materialsGate: {
                 instructions:
-                    "You must read the <MaterialsLink>Support Materials</MaterialsLink> before you can vote.",
+                    "Debes leer <MaterialsLink>{{materialsTitle}}</MaterialsLink> antes de poder votar.",
             },
         },
         errors: {
@@ -365,6 +365,11 @@ const spanishTranslation: TranslationType = {
                 close: "Cerrar",
                 preview: "Vista previa",
                 download: "Descargar",
+            },
+            mandatory: {
+                checkboxLabel: "He leído los Materiales de Soporte",
+                continueButton: "Continuar",
+                error: "Hubo un problema al registrar tu confirmación. Por favor, inténtalo de nuevo.",
             },
         },
         ballotLocator: {

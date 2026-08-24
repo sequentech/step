@@ -315,7 +315,7 @@ const frenchTranslation: TranslationType = {
             },
             materialsGate: {
                 instructions:
-                    "You must read the <MaterialsLink>Support Materials</MaterialsLink> before you can vote.",
+                    "Vous devez lire <MaterialsLink>{{materialsTitle}}</MaterialsLink> avant de pouvoir voter.",
             },
         },
         errors: {
@@ -362,6 +362,11 @@ const frenchTranslation: TranslationType = {
                 close: "Fermer",
                 preview: "Aperçu",
                 download: "Télécharger",
+            },
+            mandatory: {
+                checkboxLabel: "J'ai lu la documentation et le support",
+                continueButton: "Continuer",
+                error: "Un problème est survenu lors de l'enregistrement de votre confirmation. Veuillez réessayer.",
             },
         },
         ballotLocator: {

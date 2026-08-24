@@ -308,7 +308,7 @@ const englishTranslation = {
             },
             materialsGate: {
                 instructions:
-                    "You must read the <MaterialsLink>Support Materials</MaterialsLink> before you can vote.",
+                    "You must read the <MaterialsLink>{{materialsTitle}}</MaterialsLink> before you can vote.",
             },
         },
         errors: {

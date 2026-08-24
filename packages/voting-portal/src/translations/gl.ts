@@ -315,7 +315,7 @@ const galegoTranslation: TranslationType = {
             },
             materialsGate: {
                 instructions:
-                    "You must read the <MaterialsLink>Support Materials</MaterialsLink> before you can vote.",
+                    "Debes ler <MaterialsLink>{{materialsTitle}}</MaterialsLink> antes de poder votar.",
             },
         },
         errors: {
@@ -363,6 +363,11 @@ const galegoTranslation: TranslationType = {
                 close: "Pechar",
                 preview: "Previsualizar",
                 download: "Descargar",
+            },
+            mandatory: {
+                checkboxLabel: "Lin os Materiais de apoio",
+                continueButton: "Continuar",
+                error: "Houbo un problema ao rexistrar a túa confirmación. Inténtao de novo.",
             },
         },
         ballotLocator: {

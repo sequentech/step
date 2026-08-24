@@ -315,7 +315,7 @@ const dutchTranslation: TranslationType = {
             },
             materialsGate: {
                 instructions:
-                    "You must read the <MaterialsLink>Support Materials</MaterialsLink> before you can vote.",
+                    "U moet <MaterialsLink>{{materialsTitle}}</MaterialsLink> lezen voordat u kunt stemmen.",
             },
         },
         errors: {
@@ -363,6 +363,11 @@ const dutchTranslation: TranslationType = {
                 close: "Sluiten",
                 preview: "Voorbeeld",
                 download: "Downloaden",
+            },
+            mandatory: {
+                checkboxLabel: "Ik heb het Ondersteunend Materiaal gelezen",
+                continueButton: "Doorgaan",
+                error: "Er was een probleem bij het registreren van uw bevestiging. Probeer het opnieuw.",
             },
         },
         ballotLocator: {

@@ -315,7 +315,7 @@ const basqueTranslation: TranslationType = {
             },
             materialsGate: {
                 instructions:
-                    "You must read the <MaterialsLink>Support Materials</MaterialsLink> before you can vote.",
+                    "<MaterialsLink>{{materialsTitle}}</MaterialsLink> irakurri behar duzu bozkatu ahal izateko.",
             },
         },
         errors: {
@@ -363,6 +363,11 @@ const basqueTranslation: TranslationType = {
                 close: "Itxi",
                 preview: "Aurrebista",
                 download: "Deskargatu",
+            },
+            mandatory: {
+                checkboxLabel: "Laguntza Materialak irakurri ditut",
+                continueButton: "Jarraitu",
+                error: "Arazoa izan da zure berrespena erregistratzean. Mesedez, saiatu berriro.",
             },
         },
         ballotLocator: {

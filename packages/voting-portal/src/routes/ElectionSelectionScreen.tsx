@@ -492,6 +492,12 @@ const ElectionSelectionScreen: React.FC = () => {
     })
 
     const materialsPath = `/tenant/${tenantId}/event/${eventId}/materials${location.search}`
+    const materialsTitle =
+        (electionEvent &&
+            translateFromPresentation(electionEvent, "materialsTitle", i18n.language, {
+                defaultLanguageCode: eventDefaultLanguageCode,
+            })) ||
+        t("materials.common.label")
 
     const handleNavigateMaterials = () => {
         navigate(materialsPath)
@@ -759,14 +765,7 @@ const ElectionSelectionScreen: React.FC = () => {
                         </Button>
                     ) : null}
                     {isMaterialsVisible && electionEvent ? (
-                        <Button onClick={handleNavigateMaterials}>
-                            {translateFromPresentation(
-                                electionEvent,
-                                "materialsTitle",
-                                i18n.language,
-                                {defaultLanguageCode: eventDefaultLanguageCode}
-                            ) || t("materials.common.label")}
-                        </Button>
+                        <Button onClick={handleNavigateMaterials}>{materialsTitle}</Button>
                     ) : null}
                 </PageActions>
             </TitleSection>
@@ -778,6 +777,7 @@ const ElectionSelectionScreen: React.FC = () => {
                 >
                     <Trans
                         i18nKey="electionSelectionScreen.materialsGate.instructions"
+                        values={{materialsTitle}}
                         components={{
                             MaterialsLink: <MaterialsGateLink to={materialsPath} />,
                         }}

@@ -314,7 +314,7 @@ const tagalogTranslation: TranslationType = {
             },
             materialsGate: {
                 instructions:
-                    "You must read the <MaterialsLink>Support Materials</MaterialsLink> before you can vote.",
+                    "Kailangan mong basahin ang <MaterialsLink>{{materialsTitle}}</MaterialsLink> bago ka makaboto.",
             },
         },
         errors: {
@@ -362,6 +362,11 @@ const tagalogTranslation: TranslationType = {
                 close: "Isara",
                 preview: "Silipin",
                 download: "I-download",
+            },
+            mandatory: {
+                checkboxLabel: "Nabasa ko na ang Mga Pangsuportang Materyales",
+                continueButton: "Magpatuloy",
+                error: "Nagkaroon ng problema sa pagre-record ng iyong kumpirmasyon. Pakisubukan muli.",
             },
         },
         ballotLocator: {
