@@ -29,15 +29,15 @@ const tagalogTranslation: TranslationType = {
                 position: "Posisyon",
                 none: "Wala",
                 ordinals: {
-                    first: "st",
-                    second: "nd",
-                    third: "rd",
-                    other: "th",
+                    first: ".",
+                    second: ".",
+                    third: ".",
+                    other: ".",
                 },
             },
         },
         homeScreen: {
-            title: "Sequent Ballot Verifier",
+            title: "Tagasuri ng Balota ng Sequent",
             description1:
                 "Ang ballot verifier ay ginagamit kapag pinili ng botante na i-audit ang balota sa voting booth. Ang pag-verify ay tatagal ng 1-2 minuto.",
             description2:
@@ -53,7 +53,7 @@ const tagalogTranslation: TranslationType = {
             useSampleLink: "Gamitin ang sample na sisiyasating balota",
         },
         confirmationScreen: {
-            title: "Sequent Ballot Verifier",
+            title: "Tagasuri ng Balota ng Sequent",
             topDescription1:
                 "Batay sa impormasyon sa na-import na Sisiyasating Balota, nakalkula namin na:",
             topDescription2: "Kung ito ang Ballot ID na ipinakita sa Voting Booth:",
@@ -62,9 +62,9 @@ const tagalogTranslation: TranslationType = {
             bottomDescription2:
                 "Kung hindi sila nagtutugma, i-click dito upang malaman ang mga posibleng dahilan at kung ano ang mga hakbang na maaari mong gawin.",
             ballotChoicesDescription: "At ang iyong mga napili sa balota ay:",
-            helpAndFaq: "Help at FAQ",
+            helpAndFaq: "Tulong at Madalas Itanong",
             backButton: "Bumalik",
-            markedInvalid: "Ang balota ay tahasang minarkahan na invalid",
+            markedInvalid: "Ang balota ay tahasang minarkahan na di-wasto",
         },
         ballotSelectionsScreen: {
             statusModal: {
@@ -90,16 +90,16 @@ const tagalogTranslation: TranslationType = {
             },
             implicit: {
                 selectedMax:
-                    "Overvote: Ang bilang ng mga napili {{numSelected}} ay higit sa maximum na {{max}}",
+                    "Sobrang Boto: Ang bilang ng mga napili {{numSelected}} ay higit sa maximum na {{max}}",
                 selectedMin:
                     "Ang bilang ng mga napili {{numSelected}} ay mas mababa sa minimum na {{min}}",
                 maxSelectionsPerType:
                     "Ang bilang ng mga napili {{numSelected}} para sa listahan {{type}} ay higit sa maximum na {{max}}",
                 underVote:
-                    "Undervote: Ang bilang ng mga napili {{numSelected}} ay mas mababa sa maximum na {{max}}",
+                    "Kulang na Boto: Ang bilang ng mga napili {{numSelected}} ay mas mababa sa maximum na {{max}}",
                 overVoteDisabled:
                     "Naabot na ang maximum: Napili mo na ang maximum na {{numSelected}} na mga opsyon. Upang baguhin ang iyong pagpili, mangyaring alisin muna ang isa pang opsyon.",
-                blankVote: "Blank Vote: Walang pinili",
+                blankVote: "Blangkong Boto: Walang pinili",
                 preferenceOrderWithGaps:
                     "Di-wastong boto! Ang pagkakasunod-sunod ng kagustuhan ay may isa o higit pang puwang.",
                 duplicatedPosition:

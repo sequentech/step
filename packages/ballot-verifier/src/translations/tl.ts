@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 const tagalogTranslation = {
     translations: {
-        welcome: "Kamusta <br/> <strong>World</strong>",
+        welcome: "Kamusta <br/> <strong>Mundo</strong>",
         404: {
             title: "Hindi natagpuan ang pahina",
             subtitle: "Ang pahinang hinahanap mo ay wala",

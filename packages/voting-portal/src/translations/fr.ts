@@ -370,6 +370,9 @@ const frenchTranslation: TranslationType = {
                 certAuthFailedTitle: "Échec de l'authentification par certificat",
                 certAuthFailedMessage:
                     "Votre certificat n'a pas pu être vérifié. Veuillez vous assurer que vous utilisez un certificat d'électeur valide, puis réessayez.",
+                invalidLoginHintParametersTitle: "Lien de vote invalide",
+                invalidLoginHintParametersMessage:
+                    "Ce lien de vote contient des informations de connexion invalides. Demandez un nouveau lien et réessayez.",
             },
         },
         materials: {

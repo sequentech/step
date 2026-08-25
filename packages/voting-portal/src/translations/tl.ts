@@ -24,7 +24,7 @@ const tagalogTranslation: TranslationType = {
             ballot: "Balota",
             review: "Suriin",
             confirmation: "Kumpirmahin",
-            audit: "Audit",
+            audit: "I-audit",
         },
         footer: {
             poweredBy: "Pinapagana ng <1></1>",
@@ -310,7 +310,7 @@ const tagalogTranslation: TranslationType = {
             noResults: "Walang mga balota sa ngayon.",
             resultsButton: "Tingnan ang mga resulta",
             demoDialog: {
-                title: "Demo Voting Booth",
+                title: "Demo na Kahon ng Boto",
                 content:
                     "Ikaw ay nasa isang demo voting booth. <strong>Ang iyong boto ay hindi mai-susubmit.</strong> Para lamang sa layunin ng demonstrasyon.",
                 ok: "Naiintindihan ko na ang aking boto ay hindi mai-susubmit",
@@ -371,6 +371,9 @@ const tagalogTranslation: TranslationType = {
                 certAuthFailedTitle: "Nabigo ang Pagpapatunay ng Sertipiko",
                 certAuthFailedMessage:
                     "Hindi ma-verify ang iyong sertipiko. Pakitiyak na gumagamit ka ng wastong sertipiko ng botante at subukang muli.",
+                invalidLoginHintParametersTitle: "Hindi wastong link ng pagboto",
+                invalidLoginHintParametersMessage:
+                    "Ang link ng pagboto na ito ay naglalaman ng hindi wastong impormasyon sa pag-log in. Humiling ng bagong link at subukang muli.",
             },
         },
         materials: {
@@ -414,7 +417,7 @@ const tagalogTranslation: TranslationType = {
                 statement_kind: "Uri",
                 statement_timestamp: "Timestamp",
                 username: "Username",
-                ballot_id: "Ballot ID",
+                ballot_id: "ID ng Balota",
                 message: "Mensahe",
             },
         },

@@ -24,7 +24,7 @@ const dutchTranslation: TranslationType = {
             ballot: "Stembiljet",
             review: "Controle",
             confirmation: "Bevestigen",
-            audit: "Audit",
+            audit: "Auditeren",
         },
         footer: {
             poweredBy: "Aangedreven door <1></1>",
@@ -372,6 +372,9 @@ const dutchTranslation: TranslationType = {
                 certAuthFailedTitle: "Certificaatauthenticatie Mislukt",
                 certAuthFailedMessage:
                     "Uw certificaat kon niet worden geverifieerd. Controleer of u een geldig kiezercertificaat gebruikt en probeer het opnieuw.",
+                invalidLoginHintParametersTitle: "Ongeldige stemlink",
+                invalidLoginHintParametersMessage:
+                    "Deze stemlink bevat ongeldige inloggegevens. Vraag een nieuwe link aan en probeer het opnieuw.",
             },
         },
         materials: {
