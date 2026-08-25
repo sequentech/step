@@ -2,7 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+mod auth;
 mod config;
+mod hasura;
+mod provision;
+mod types;
+mod vote;
 
 use std::path::PathBuf;
 

@@ -19,6 +19,7 @@ graphql_client = "0.14"
 tokio = { workspace = true }
 uuid = { version = "1.5", features = ["v4", "fast-rng"] }
 sequent-core = { path = "../sequent-core", features = ["default_features"] }
+strand = { path = "../strand" }
 
 [[bin]]
 name = "load-test"
