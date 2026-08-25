@@ -496,6 +496,7 @@ const spanishTranslation: TranslationType = {
                 notify: {
                     success: "Localización actualizada con éxito",
                     error: "La actualización de la localización ha fallado",
+                    duplicateKey: "Ya existe una sustitución con esta clave y ámbito del portal.",
                     invalidDateTimeFormat:
                         "Formato de fecha/hora no válido. Usa los tokens yyyy, MM, dd, HH, mm, ss (p. ej. dd/MM/yyyy HH:mm).",
                 },
@@ -505,7 +506,16 @@ const spanishTranslation: TranslationType = {
                 },
                 labels: {
                     key: "Clave",
+                    scope: "Ámbito del portal",
                     value: "Valor",
+                },
+                scopes: {
+                    legacy: "Heredado ({{portal}})",
+                    global: "Global",
+                    votingPortal: "Portal de votación",
+                    ballotVerifier: "Verificador de papeletas",
+                    resultsPortal: "Portal de resultados",
+                    adminPortal: "Portal de administración",
                 },
             },
             field: {
@@ -1192,9 +1202,30 @@ const spanishTranslation: TranslationType = {
                 },
                 errors: {
                     editError: "Error editando votante",
+                    editErrorReason: "Error editando votante: {{reason}}",
                     editSuccess: "Votante editado",
                     createError: "Error creando votante",
+                    createErrorReason: "Error creando votante: {{reason}}",
                     createSuccess: "Votante creado",
+                    attribute: {
+                        invalidNamed: 'Se rechazó "{{field}}": {{constraint}}',
+                        fieldsToCorrect: "Algunos campos deben corregirse antes de guardar",
+                        hintBetween: "Entre {{min}} y {{max}} caracteres",
+                        hintMin: "Al menos {{min}} caracteres",
+                        hintMax: "Como máximo {{max}} caracteres",
+                        andMore: "y {{count}} más",
+                        invalidLength: '"{{field}}" debe tener entre {{min}} y {{max}} caracteres',
+                        tooShort: '"{{field}}" debe tener al menos {{min}} caracteres',
+                        tooLong: '"{{field}}" debe tener como máximo {{max}} caracteres',
+                        required: '"{{field}}" es obligatorio',
+                        invalidEmail:
+                            '"{{field}}" debe ser una dirección de correo electrónico válida',
+                        invalidFormat: '"{{field}}" no tiene el formato esperado',
+                        invalid: '"{{field}}" tiene un valor no válido',
+                    },
+                    createPasswordError: "Votante creado, pero no se pudo establecer su contraseña",
+                    createPasswordErrorReason:
+                        "Votante creado, pero no se pudo establecer su contraseña: {{reason}}",
                 },
                 delete: {
                     body: "¿Estás seguro que quieres borrar este votante?",

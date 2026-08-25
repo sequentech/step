@@ -493,6 +493,7 @@ const englishTranslation = {
                 notify: {
                     success: "Localization updated Successfully",
                     error: "Localization update failed",
+                    duplicateKey: "An override with this key and portal scope already exists.",
                     invalidDateTimeFormat:
                         "Invalid date/time format. Use tokens yyyy, MM, dd, HH, mm, ss (e.g. dd/MM/yyyy HH:mm).",
                 },
@@ -502,7 +503,16 @@ const englishTranslation = {
                 },
                 labels: {
                     key: "Key",
+                    scope: "Portal scope",
                     value: "Value",
+                },
+                scopes: {
+                    legacy: "Legacy ({{portal}})",
+                    global: "Global",
+                    votingPortal: "Voting portal",
+                    ballotVerifier: "Ballot verifier",
+                    resultsPortal: "Results portal",
+                    adminPortal: "Admin portal",
                 },
             },
             field: {
@@ -1181,9 +1191,29 @@ const englishTranslation = {
                 askCreate: "Do you want to create one?",
                 errors: {
                     editError: "Error editing voter",
+                    editErrorReason: "Error editing voter: {{reason}}",
                     editSuccess: "Voter edited",
                     createError: "Error creating voter",
+                    createErrorReason: "Error creating voter: {{reason}}",
                     createSuccess: "Voter created",
+                    attribute: {
+                        invalidNamed: '"{{field}}" was refused: {{constraint}}',
+                        fieldsToCorrect: "Some fields need correcting before saving",
+                        hintBetween: "Between {{min}} and {{max}} characters",
+                        hintMin: "At least {{min}} characters",
+                        hintMax: "At most {{max}} characters",
+                        andMore: "and {{count}} more",
+                        invalidLength: '"{{field}}" must be between {{min}} and {{max}} characters',
+                        tooShort: '"{{field}}" must be at least {{min}} characters',
+                        tooLong: '"{{field}}" must be at most {{max}} characters',
+                        required: '"{{field}}" is required',
+                        invalidEmail: '"{{field}}" must be a valid email address',
+                        invalidFormat: '"{{field}}" does not have the expected format',
+                        invalid: '"{{field}}" has an invalid value',
+                    },
+                    createPasswordError: "Voter created, but their password could not be set",
+                    createPasswordErrorReason:
+                        "Voter created, but their password could not be set: {{reason}}",
                 },
                 delete: {
                     body: "Are you sure you want to delete this voter?",

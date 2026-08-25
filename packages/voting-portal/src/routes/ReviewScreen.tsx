@@ -121,6 +121,17 @@ const StyledIcon = styled(Icon)`
     padding: 5px;
 `
 
+const BallotIdHelpDialog = styled(Dialog)`
+    @media (min-width: 601px) {
+        .MuiDialogActions-root.has-middle > .cancel-button,
+        .MuiDialogActions-root.has-middle > .audit-button {
+            flex: 1 1 0;
+            min-width: 0;
+            width: auto;
+        }
+    }
+`
+
 const StyledCircularProgress = styled(CircularProgress)`
     width: 14px !important;
     height: 14px !important;
@@ -822,11 +833,10 @@ export const ReviewScreen: React.FC = () => {
                     onHelpClick={() => setOpenBallotIdHelp(true)}
                 />
             )}
-            <Dialog
+            <BallotIdHelpDialog
                 handleClose={handleCloseDialogIdHelp}
                 open={openBallotIdHelp}
                 title={t("reviewScreen.ballotIdHelpDialog.title")}
-                ok={t("reviewScreen.ballotIdHelpDialog.ok")}
                 maxWidth="md"
                 middleActions={
                     auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP
@@ -845,8 +855,8 @@ export const ReviewScreen: React.FC = () => {
                 variant="info"
             >
                 {stringToHtml(t("reviewScreen.ballotIdHelpDialog.content"))}
-            </Dialog>
-            {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP && !isFullyAcclaimed ? (
+            </BallotIdHelpDialog>
+            {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP && !isFullyAcclaimed? (
                 <AuditBallotHelpDialog
                     auditBallotHelp={auditBallotHelp}
                     handleClose={handleCloseDialogAuditHelp}

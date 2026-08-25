@@ -128,7 +128,9 @@ pub fn check_voting_not_allowed_next_util(
                             )
                     }))
         } else {
-            false
+            // An incomplete validation map is not proof that the contest is
+            // valid. Fail closed until its decoded state is available.
+            true
         }
     });
 
