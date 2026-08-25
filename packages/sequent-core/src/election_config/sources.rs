@@ -313,13 +313,28 @@ impl RowShape {
 /// An unknown column is empty rather than missing: a census whose header has a
 /// column no row filled in is ordinary, and the column is still one the author
 /// declared.
+///
+/// **`area_name` answers here too, and leaving it out lost every voter's area.**
+/// [`RowShape::voter`] has always *read* that column — it is what the platform's
+/// own export writes — resolving it against the plan's areas and keeping the name
+/// when nothing matched. Nothing wrote it back. So a census whose header says
+/// `area_name` came out of `next_batch` with that column blank, and since the CSV
+/// inside a delivery says exactly that, reopening a delivery handed the wizard a
+/// census with no areas in it at all. The pair is meant to be each other's
+/// inverse; one half knew about a column the other did not.
+///
+/// The identifier rather than the display name, because the identifier is what the
+/// voter holds and what `voter()` put there. Translating it back to a name needs
+/// the plan's areas, and `build_tables::voter_area_name` is the one place that
+/// does it — at the boundary that writes the platform's own CSV, which is the only
+/// reader that wants a name.
 pub fn cell_of<'a>(voter: &'a PlannedVoter, column: &str) -> &'a str {
     match column {
         "username" => &voter.username,
         "email" => &voter.email,
         "first_name" => &voter.first_name,
         "last_name" => &voter.last_name,
-        "area.external_id" => &voter.area_external_id,
+        "area.external_id" | "area_name" => &voter.area_external_id,
         other => voter.extra.get(other).map(String::as_str).unwrap_or(""),
     }
 }
@@ -663,6 +678,81 @@ mod tests {
             source.next_batch(1).expect("reads")[0].area_external_id,
             "north"
         );
+    }
+
+    #[test]
+    fn a_row_read_through_a_shape_comes_back_out_of_it_unchanged() {
+        // **The pair are each other's inverse, and one half did not know about a
+        // column.** `RowShape::voter` has always read `area_name`; `cell_of` had no
+        // arm for it and fell through to `extra`, which is empty for an owned
+        // column. So a census whose header says `area_name` — which is exactly what
+        // the CSV inside a delivery says — came back out with that cell blank, and
+        // reopening a delivery handed the wizard a census with no areas at all.
+        //
+        // Asserted over every column of the shape rather than for `area_name`
+        // alone: the property is that reading a row and writing it back gives the
+        // row, and it holds or it does not.
+        fn round_trip(
+            header: &str,
+            row: &[&str],
+            areas: BTreeMap<String, String>,
+        ) {
+            let columns: Vec<String> =
+                header.split(',').map(str::to_owned).collect();
+            let shape = RowShape::of(&columns);
+            let values: Vec<String> =
+                row.iter().map(|each| (*each).to_owned()).collect();
+            let voter = shape.voter(&values, &areas);
+            let back: Vec<&str> = columns
+                .iter()
+                .map(|column| cell_of(&voter, column))
+                .collect();
+            assert_eq!(
+                back, row,
+                "header `{header}` did not survive a round trip"
+            );
+        }
+
+        // The delivery's own header, which is the case that was broken.
+        round_trip(
+            "email,first_name,last_name,username,area_name",
+            &["a@b.org", "Ada", "Lovelace", "ada", "north"],
+            BTreeMap::new(),
+        );
+        // A workbook's header, which was never broken — checked so the fix cannot
+        // have moved the breakage rather than removed it.
+        round_trip(
+            "username,email,first_name,last_name,area.external_id",
+            &["ada", "a@b.org", "Ada", "Lovelace", "north"],
+            BTreeMap::new(),
+        );
+        // And a passthrough column, which rides in `extra`.
+        round_trip(
+            "username,area_name,seniority",
+            &["ada", "north", "1998"],
+            BTreeMap::new(),
+        );
+    }
+
+    #[test]
+    fn a_resolved_area_is_written_back_as_the_identifier() {
+        // Where a name *was* resolved, what comes back is the identifier rather
+        // than the name that arrived: the identifier is what the voter holds and
+        // what a plan keys by. `build_tables::voter_area_name` is the one place
+        // that turns it back into a name, at the boundary that writes the
+        // platform's own CSV.
+        let areas: BTreeMap<String, String> =
+            [("North Local".to_owned(), "north".to_owned())]
+                .into_iter()
+                .collect();
+        let columns: Vec<String> =
+            vec!["username".to_owned(), "area_name".to_owned()];
+        let shape = RowShape::of(&columns);
+        let voter =
+            shape.voter(&["ada".to_owned(), "North Local".to_owned()], &areas);
+
+        assert_eq!(voter.area_external_id, "north");
+        assert_eq!(cell_of(&voter, "area_name"), "north");
     }
 
     #[test]
