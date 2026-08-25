@@ -10,7 +10,7 @@ use sequent_core::util::path::list_subfolders;
 use serde::Serialize;
 use tracing::{event, instrument, Level};
 
-use crate::pipes::do_tally::CandidateResult;
+use crate::pipes::do_tally::counting_algorithm::acclaimed::is_eligible_acclaimed_candidate;
 use crate::pipes::do_tally::{list_tally_sheet_subfolders, OUTPUT_BREAKDOWNS_FOLDER};
 use crate::pipes::error::{Error, Result};
 use crate::pipes::{
@@ -38,6 +38,23 @@ impl MarkWinners {
 
     #[instrument(skip_all)]
     pub fn get_winners(contest_result: &ContestResult) -> Vec<WinnerResult> {
+        if contest_result.contest.is_acclaimed() {
+            // There are no vote totals to sort. Preserve the configured
+            // candidate order so positions 1..N are deterministic and match
+            // the ballot/results ordering rather than alphabetical tie logic.
+            return contest_result
+                .candidate_result
+                .iter()
+                .filter(|result| is_eligible_acclaimed_candidate(&result.candidate))
+                .enumerate()
+                .map(|(index, result)| WinnerResult {
+                    candidate: result.candidate.clone(),
+                    total_count: 0,
+                    winning_position: index + 1,
+                })
+                .collect();
+        }
+
         let mut winners = contest_result.candidate_result.clone();
 
         winners.retain(|w| !w.candidate.is_explicit_blank() && !w.candidate.is_explicit_invalid());
@@ -50,23 +67,9 @@ impl MarkWinners {
             }
         });
 
-        // Every candidate of an acclaimed contest is elected, however many
-        // positions the contest declares: there was no vote to rank them by,
-        // so there is nothing to select the top ones on. A withdrawn candidate
-        // and an empty write-in slot are not candidates for election, though,
-        // and the votes-descending cut normally kept them out.
-        let num_winners = if contest_result.contest.is_acclaimed() {
-            winners.retain(|winner| {
-                !winner.candidate.is_disabled() && !winner.candidate.is_write_in()
-            });
-            winners.len()
-        } else {
-            contest_result.contest.winning_candidates_num as usize
-        };
-
         winners
             .into_iter()
-            .take(num_winners)
+            .take(contest_result.contest.winning_candidates_num as usize)
             .enumerate()
             .map(|(index, w)| WinnerResult {
                 candidate: w.candidate.clone(),
@@ -245,4 +248,68 @@ pub struct WinnerResult {
     pub candidate: Candidate,
     pub total_count: u64,
     pub winning_position: usize,
+}
+
+#[cfg(test)]
+mod tests {
+    use sequent_core::ballot::{CandidatePresentation, Contest};
+
+    use super::*;
+    use crate::pipes::do_tally::CandidateResult;
+
+    fn candidate_result(
+        id: &str,
+        name: &str,
+        configure: impl FnOnce(&mut CandidatePresentation),
+    ) -> CandidateResult {
+        let mut presentation = CandidatePresentation::new();
+        configure(&mut presentation);
+        CandidateResult {
+            candidate: Candidate {
+                id: id.to_string(),
+                name: Some(name.to_string()),
+                presentation: Some(presentation),
+                ..Candidate::default()
+            },
+            percentage_votes: 0.0,
+            total_count: 0,
+        }
+    }
+
+    #[test]
+    fn acclaimed_winners_preserve_configuration_order_and_exclude_placeholders() {
+        let contest_result = ContestResult {
+            contest: Contest {
+                is_acclaimed: Some(true),
+                winning_candidates_num: 1,
+                ..Contest::default()
+            },
+            candidate_result: vec![
+                candidate_result("configured-first", "Zulu", |_| {}),
+                candidate_result("blank", "Blank", |p| p.is_explicit_blank = Some(true)),
+                candidate_result("disabled", "Disabled", |p| p.is_disabled = Some(true)),
+                candidate_result("write-in", "Write in", |p| p.is_write_in = Some(true)),
+                candidate_result("configured-second", "Alpha", |_| {}),
+            ],
+            ..ContestResult::default()
+        };
+
+        let winners = MarkWinners::get_winners(&contest_result);
+
+        assert_eq!(
+            winners
+                .iter()
+                .map(|winner| winner.candidate.id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["configured-first", "configured-second"]
+        );
+        assert_eq!(
+            winners
+                .iter()
+                .map(|winner| winner.winning_position)
+                .collect::<Vec<_>>(),
+            vec![1, 2]
+        );
+        assert!(winners.iter().all(|winner| winner.total_count == 0));
+    }
 }

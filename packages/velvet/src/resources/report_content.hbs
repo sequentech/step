@@ -205,11 +205,7 @@ SPDX-License-Identifier: AGPL-3.0-only
         </table>
       {{/if}}
 
-        {{!-- Only plurality contests get this table. An acclaimed contest is
-                      tallied as plurality but keeps its declared algorithm here, so a
-                      (mis)configured preferential acclaimed contest shows no candidate
-                      table; the results portal and admin portal still list it. --}}
-        {{#eq report.contest.counting_algorithm "plurality-at-large"}}
+        {{#if report.show_candidate_results}}
           <table>
             <tr>
               <th colspan="4">Candidate result</th>
@@ -229,7 +225,7 @@ SPDX-License-Identifier: AGPL-3.0-only
               </tr>
               {{/each}}
           </table>
-        {{/eq}}
+        {{/if}}
         
         {{#eq report.contest.counting_algorithm "instant-runoff"}}
           {{#if report.contest_result.process_results}}

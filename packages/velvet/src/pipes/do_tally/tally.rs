@@ -4,7 +4,8 @@
 
 use super::counting_algorithm::Error as CntAlgError;
 use super::counting_algorithm::{
-    instant_runoff::InstantRunoff, plurality_at_large::PluralityAtLarge, CountingAlgorithm,
+    acclaimed::Acclaimed, instant_runoff::InstantRunoff, plurality_at_large::PluralityAtLarge,
+    CountingAlgorithm,
 };
 use super::error::{Error, Result};
 use super::{BlankVotes, CandidateResult, ContestResult, ExtendedMetricsContest, InvalidVotes};
@@ -67,9 +68,6 @@ impl Tally {
 
     #[instrument(err, skip_all)]
     fn get_tally_type(contest: &Contest) -> Result<CountingAlgType> {
-        if contest.is_acclaimed() {
-            return Ok(CountingAlgType::PluralityAtLarge);
-        }
         contest
             .counting_algorithm
             .ok_or_else(|| Box::new(Error::TallyTypeNotFound) as Box<dyn std::error::Error>)
@@ -382,6 +380,13 @@ pub fn create_tally(
     tally_sheet_results: Vec<ContestResult>,
     tally_results: Vec<ContestResult>,
 ) -> Result<Box<dyn CountingAlgorithm>> {
+    // Acclamation is an outcome, not a counting algorithm. Select its
+    // synthetic result before checking or opening any ballot path, and ignore
+    // scope/aggregate inputs that cannot apply to a contest with no vote.
+    if contest.is_acclaimed() {
+        return Ok(Box::new(Acclaimed::new(contest)));
+    }
+
     let ballots_files: Vec<(PathBuf, Weight)> = ballots_files
         .iter()
         .filter(|(f, _weight)| {
@@ -425,6 +430,8 @@ mod tests {
         AreaContestResults, CandidateResults, InvalidVotes as TallySheetInvalidVotes,
     };
     use std::collections::HashMap;
+    use std::io::Write;
+    use tempfile::NamedTempFile;
 
     fn tally_sheet(candidate_votes: u64, blank_votes: u64) -> TallySheet {
         let mut candidate_results = HashMap::new();
@@ -501,6 +508,19 @@ mod tests {
         }
     }
 
+    fn acclaimed_contest() -> Contest {
+        Contest {
+            id: "acclaimed".to_string(),
+            is_acclaimed: Some(true),
+            counting_algorithm: Some(CountingAlgType::InstantRunoff),
+            candidates: vec![Candidate {
+                id: "candidate".to_string(),
+                ..Candidate::default()
+            }],
+            ..Contest::default()
+        }
+    }
+
     fn multi_selection_tally_sheet() -> TallySheet {
         let candidate_results = HashMap::from([
             (
@@ -553,6 +573,50 @@ mod tests {
             (actual - expected).abs() < 1e-10,
             "expected {expected}, got {actual}"
         );
+    }
+
+    #[test]
+    fn acclaimed_factory_does_not_read_or_aggregate_any_tally_input() {
+        let mut invalid_ballots = NamedTempFile::new().expect("temporary ballot file");
+        writeln!(invalid_ballots, "not valid json").expect("write invalid ballots");
+        let input_result = ContestResult {
+            census: 50,
+            total_votes: 40,
+            candidate_result: vec![CandidateResult {
+                candidate: Candidate {
+                    id: "candidate".to_string(),
+                    ..Candidate::default()
+                },
+                percentage_votes: 100.0,
+                total_count: 40,
+            }],
+            ..ContestResult::default()
+        };
+
+        for scope_operation in [
+            ScopeOperation::Area(TallyOperation::SkipCandidateResults),
+            ScopeOperation::Contest(TallyOperation::AggregateResults),
+        ] {
+            let result = create_tally(
+                &acclaimed_contest(),
+                scope_operation,
+                vec![(invalid_ballots.path().to_path_buf(), Weight::default())],
+                500,
+                100,
+                vec![input_result.clone()],
+                vec![input_result.clone()],
+            )
+            .expect("acclaimed tally factory")
+            .tally()
+            .expect("synthetic result");
+
+            assert_eq!(result.census, 0);
+            assert_eq!(result.auditable_votes, 0);
+            assert_eq!(result.total_votes, 0);
+            assert_eq!(result.candidate_result.len(), 1);
+            assert_eq!(result.candidate_result[0].total_count, 0);
+            assert_eq!(result.process_results, None);
+        }
     }
 
     #[test]

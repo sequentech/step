@@ -13,7 +13,11 @@ use sequent_core::{
     serialization::deserialize_with_path::{deserialize_str, deserialize_value},
     services::{area_tree::TreeNodeArea, pdf, reports},
     sqlite::results_election_area,
-    types::{ceremonies::TallyType, participation::ParticipationChannel, to_map::ToMap},
+    types::{
+        ceremonies::{CountingAlgType, TallyType},
+        participation::ParticipationChannel,
+        to_map::ToMap,
+    },
     util::{date_time::get_date_and_time, path::list_subfolders},
 };
 use serde::{Deserialize, Serialize};
@@ -248,6 +252,7 @@ impl GenerateReports {
                     area: report.area.clone(),
                     area_annotations,
                     candidate_result,
+                    show_candidate_results: should_show_candidate_results(report.contest.as_ref()),
                     is_aggregate: false,
                     tally_sheet_id: None,
                     channel_type: report.channel_type.clone(),
@@ -1425,6 +1430,10 @@ pub struct ReportDataComputed {
     pub tally_sheet_id: Option<String>,
     pub contest_result: Option<ContestResult>,
     pub candidate_result: Vec<CandidateResultForReport>,
+    /// Plurality uses this summary table normally; an acclaimed contest uses
+    /// it regardless of its configured algorithm because it has no rounds.
+    #[serde(default)]
+    pub show_candidate_results: bool,
     pub channel_type: Option<String>,
     pub election_results: Option<ElectionResultReport>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -1496,6 +1505,13 @@ fn report_candidates_order_policy(contest: &Contest) -> Option<CandidatesOrderPo
             None
         }
     }
+}
+
+fn should_show_candidate_results(contest: Option<&Contest>) -> bool {
+    contest.is_some_and(|contest| {
+        contest.is_acclaimed()
+            || contest.get_counting_algorithm() == CountingAlgType::PluralityAtLarge
+    })
 }
 
 /// Whether this report's contest is acclaimed, and so cannot answer for the
@@ -1736,6 +1752,7 @@ mod participation_by_channel_tests {
             tally_sheet_id: None,
             contest_result: None,
             candidate_result: vec![],
+            show_candidate_results: false,
             channel_type: None,
             election_results: None,
             participation_by_channel,
@@ -2169,6 +2186,7 @@ mod participation_by_channel_tests {
                     "max_votes": 1
                 },
                 "contest_result": {},
+                "show_candidate_results": is_acclaimed || counting_algorithm == "plurality-at-large",
                 "candidate_result": [{
                     "candidate": {"name": "Alice"},
                     "total_count": 7,
@@ -2199,17 +2217,35 @@ mod participation_by_channel_tests {
     /// which would otherwise be a wall of zeros with no explanation.
     #[test]
     fn renders_acclamation_note_without_participation_for_an_acclaimed_contest() {
-        for rendered in render_both_templates(contest_report("plurality-at-large", true)) {
-            assert!(rendered.contains("Won by acclamation"));
-            assert!(
-                rendered.contains("Candidate result"),
-                "missing candidate table"
-            );
-            assert!(rendered.contains("Alice"));
-            assert!(
-                !rendered.contains("Total number of votes counted"),
-                "acclaimed contests must not show participation"
-            );
+        for counting_algorithm in ["plurality-at-large", "instant-runoff"] {
+            for rendered in render_both_templates(contest_report(counting_algorithm, true)) {
+                assert!(rendered.contains("Won by acclamation"));
+                assert!(
+                    rendered.contains("Candidate result"),
+                    "missing candidate table for {counting_algorithm}"
+                );
+                assert!(rendered.contains("Alice"));
+                assert!(
+                    !rendered.contains("Total number of votes counted"),
+                    "acclaimed contests must not show participation"
+                );
+            }
         }
+    }
+
+    #[test]
+    fn candidate_summary_policy_includes_acclaimed_preferential_contests() {
+        let preferential = Contest {
+            counting_algorithm: Some(CountingAlgType::InstantRunoff),
+            ..Contest::default()
+        };
+        let acclaimed_preferential = Contest {
+            is_acclaimed: Some(true),
+            ..preferential.clone()
+        };
+
+        assert!(!should_show_candidate_results(Some(&preferential)));
+        assert!(should_show_candidate_results(Some(&acclaimed_preferential)));
+        assert!(!should_show_candidate_results(None));
     }
 }

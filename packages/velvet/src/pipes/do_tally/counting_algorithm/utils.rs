@@ -191,25 +191,11 @@ pub fn update_extended_metrics(
     metrics
 }
 
-/// The counting algorithm the tally actually applies to a contest.
-///
-/// An acclaimed contest is decided without a vote, so it has no ballots at
-/// any scope and is counted as a plain plurality contest whatever algorithm
-/// it declares. Running a preferential algorithm over zero ballots would
-/// eliminate every candidate at once and stall the whole tally session on a
-/// fabricated tie.
-#[instrument(skip_all)]
-pub fn tallied_counting_algorithm(contest: &Contest) -> CountingAlgType {
-    match contest.is_acclaimed() {
-        true => CountingAlgType::PluralityAtLarge,
-        false => contest.get_counting_algorithm(),
-    }
-}
-
 #[instrument(skip_all)]
 pub fn get_contest_tally_operation(contest: &Contest) -> TallyOperation {
-    let default_tally_op =
-        tallied_counting_algorithm(contest).get_default_tally_operation_for_contest();
+    let default_tally_op = contest
+        .get_counting_algorithm()
+        .get_default_tally_operation_for_contest();
     let annotations = contest.annotations.clone().unwrap_or_default();
     let operation = annotations
         .get("tally_operation")
