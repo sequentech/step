@@ -37,6 +37,7 @@ import {
     EElectionEventContestEncryptionPolicy,
     EBlankBallotsPolicy,
 } from "@sequentech/ui-core"
+import {getConfirmationContests} from "../services/confirmationContests"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -258,25 +259,19 @@ const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = ({
     const contestsOrderType =
         confirmationBallot?.election_config.election_presentation?.contests_order
     const sortedPlaintextVoteQuestions = useMemo(() => {
-        if (!plaintextVoteQuestions.length) {
-            return []
-        }
-
         const sortedContests = sortContestList(
             confirmationBallot?.election_config.contests || [],
             contestsOrderType
         )
-        const contestIndexMap = new Map(
-            sortedContests.map((contest, index) => [contest.id, index] as const)
-        )
 
-        return [...plaintextVoteQuestions].sort((a, b) => {
-            const firstIndex = contestIndexMap.get(a.contest_id) ?? Number.MAX_SAFE_INTEGER
-            const secondIndex = contestIndexMap.get(b.contest_id) ?? Number.MAX_SAFE_INTEGER
-            return firstIndex - secondIndex
-        })
+        return getConfirmationContests(sortedContests, plaintextVoteQuestions)
     }, [confirmationBallot?.election_config.contests, contestsOrderType, plaintextVoteQuestions])
     const {globalSettings} = useContext(SettingsContext)
+    const defaultLanguageCode =
+        confirmationBallot?.election_config.election_presentation?.language_conf
+            ?.default_language_code ??
+        confirmationBallot?.election_config.election_event_presentation?.language_conf
+            ?.default_language_code
 
     const isDeclineToVotePolicyEnabled =
         confirmationBallot?.election_config?.election_presentation?.decline_to_vote_policy ===
@@ -358,6 +353,8 @@ const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = ({
                             declineToVoteLabel={t("confirmationScreen.declineToVote")}
                             isBlankBallotsPolicyEnabled={isBlankBallotsPolicyEnabled}
                             blankBallotLabel={t("confirmationScreen.blankBallot")}
+                            acclamationDescription={t("confirmationScreen.acclamationDescription")}
+                            defaultLanguageCode={defaultLanguageCode}
                         />
                     ))}
                 </>
