@@ -1868,9 +1868,11 @@ impl BoardContents {
 }
 
 /// Explore ALL interleavings over the real datalog with symbolic artifacts.
-/// Not `#[ignore]`d: with tokens instead of crypto this is meant to be fast
-/// enough for the ordinary test suite — that speed is part of what the test
-/// demonstrates.
+/// Not `#[ignore]`d: tokens instead of crypto keep the per-edge cost to
+/// microseconds, so these run in the ordinary suite. Most configs are
+/// sub-second to a few seconds; the two n=4 split-view configs, which run with
+/// the observation-timing compression off (ruling 1), dominate (~28s + ~45s),
+/// for a full suite around 80s.
 fn check(model: SymbolicModel, label: &str) -> usize {
     let checker = model.checker().threads(1).spawn_bfs().join();
     checker.assert_properties();

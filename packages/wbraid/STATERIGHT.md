@@ -42,7 +42,7 @@ and measured, and what comes next. Complements:
 | Exploration | tree (ThreadRng ⇒ no folding) | graph/DAG (canonical identity + folding) |
 | Terminal property | `sometimes` completes + plaintexts == inputs | strong `eventually` completes |
 | Role | honest-path axioms: honest artifacts verify (Fiat–Shamir domains agree), decryption recovers the inputs | protocol logic: interleavings, halting, collisions, privacy/integrity of decrypted content; the fault program |
-| Cost | `#[ignore]`d (real crypto per edge) | in the ordinary suite (~1s for all configs) |
+| Cost | `#[ignore]`d (real crypto per edge) | in the ordinary suite; most configs sub-second to a few seconds, but the two n=4 split-view configs (compression off, ~3.7k states) dominate at ~28s + ~45s — full suite ~80s |
 
 The split is deliberate: v2 *assumes* the symbolic axioms (honest artifacts
 verify; forged ones don't) and checks everything the protocol builds on top;
