@@ -265,25 +265,29 @@ struct SystemState {
     /// fault-free runs this is exactly the non-Configuration board content —
     /// the crash-between-stage-and-commit fault is what will make them differ.
     staged: Vec<(String, Vec<u8>)>,
-    /// Per-trustee visibility: handles (see [`staged_handle`]) of board rows b4
-    /// withholds from trustee `i`. Empty in fault-free runs; adversarial-board
-    /// fault actions (drops, split views) populate it.
+    /// Per-trustee visibility: the **strands** b4 withholds from trustee `i`,
+    /// each identified by its ballots-root hash (hex). b4 hides a strand
+    /// whole — its ballots and everything derived from it — so each trustee
+    /// always sees a *coherent* partial board (a split view), never an orphan
+    /// mix whose root is missing. The shared DKG artifacts (shares, public key)
+    /// belong to no strand and are never withheld. Empty in fault-free runs.
     withheld: Vec<Vec<String>>,
     trustees: Vec<TrusteeDurable>,
     /// Fault provenance: what has fired on this path (see the module's Faults
     /// section).
     faults: FaultRecord,
-    /// Whether each trustee has halted (halt-on-equivocation is each trustee's
-    /// own decision, made when ITS view shows a collision). A halted trustee
-    /// takes no further turns; the others keep running until they halt too —
-    /// freezing the whole system at the first halt would hide exactly the
-    /// interleavings the adversarial properties are about (could another
-    /// trustee decrypt a second lineage before observing the collision?).
+    /// Why each trustee has halted, if it has (`None` = still running). Halting
+    /// is per-trustee: a halted trustee takes no further turns, the others run
+    /// on — freezing the whole system at the first halt would hide exactly the
+    /// interleavings the adversarial properties are about.
     ///
-    /// A bool, not the error message: the datalog error text embeds artifact
-    /// hashes in a hash-sorted order, which would leak into state identity as
-    /// dedup noise. What the properties care about is *that* a trustee halted.
-    halted: Vec<bool>,
+    /// The *reason* is a stable [`HaltReason`], NOT the error message: the raw
+    /// text embeds artifact hashes in a hash-sorted order, which would leak
+    /// into state identity as dedup noise. The reason distinguishes the two
+    /// halt mechanisms (§5.3) — the completeness gate (§6.3, anti-rewrite) and
+    /// the collision rule (§5.2, halt-on-equivocation) — so a property can
+    /// name which one fired.
+    halted: Vec<Option<HaltReason>>,
 }
 
 impl SystemState {
@@ -355,8 +359,8 @@ impl std::fmt::Debug for SystemState {
             write!(f, " equivocations={}", self.faults.ballots_equivocations)?;
         }
         for (i, h) in self.halted.iter().enumerate() {
-            if *h {
-                write!(f, " t{}-HALTED", i + 1)?;
+            if let Some(reason) = h {
+                write!(f, " t{}-HALTED({reason:?})", i + 1)?;
             }
         }
         Ok(())
@@ -377,12 +381,12 @@ enum Turn {
     /// §6.4 commit point — recovery is recomputation, not re-send. See the
     /// module's Faults section.
     CrashBeforeRecord(usize),
-    /// b4 begins withholding board row `handle` from trustee `i` (ADVERSARIAL,
-    /// budgeted). If `i` had already pinned that row, its next `update()` finds
-    /// a committed predicate missing → §6.3 gate HALT; if not, `i` simply never
-    /// sees it → a stutter. Split views are different `withheld` sets per
-    /// trustee — this one primitive covers both. See the module's Faults
-    /// section.
+    /// b4 begins withholding a whole strand (identified by its ballots-root
+    /// hash, hex) from trustee `i` (ADVERSARIAL b4, budgeted). If `i` had
+    /// pinned anything in that strand, its next `update()` finds a committed
+    /// predicate missing → completeness-gate HALT (§6.3); if not, `i` simply
+    /// never sees the strand → a stutter. Split views are different withheld
+    /// strands per trustee. See the module's Faults section.
     Withhold(usize, String),
     /// The manager posts the ballots (a token), which it can only do once the
     /// DKG has published a public key.
@@ -398,6 +402,20 @@ enum Turn {
 ///////////////////////////////////////////////////////////////////////////
 // Faults
 ///////////////////////////////////////////////////////////////////////////
+
+/// Which of braid's two halt mechanisms (§5.3) stopped a trustee. Stable (no
+/// hashes) so it can live in state identity without adding dedup noise.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+enum HaltReason {
+    /// The completeness gate (§6.3): a predicate the trustee had committed to
+    /// is no longer reconstructible from b4 — the anti-rewrite defense.
+    CompletenessGate,
+    /// The collision rule (§5.2): two messages projecting to the same slot in
+    /// one view — halt-on-equivocation.
+    Collision,
+    /// Any other datalog error (a structural rule).
+    Other,
+}
 
 /// How many faults of each class the exploration may inject (model config).
 /// Zero everywhere by default: the fault-free model.
@@ -487,6 +505,11 @@ impl braid::board::persistence::Persistence for CrashingPersistence {
 /// same scheme identifies board rows in [`SystemState::withheld`].
 fn staged_handle(bytes: &[u8]) -> String {
     hex::encode(&hash_bytes(bytes)[..])
+}
+
+/// The stable key (full hash, hex) identifying a strand by its ballots root.
+fn strand_key(root: &CiphertextsHash) -> String {
+    hex::encode(root.0)
 }
 
 /// The model's b4: what one actor sees and can do during one cycle.
@@ -821,17 +844,113 @@ impl SymbolicModel {
         self
     }
 
-    /// The board as trustee `i` sees it: the true board minus rows b4 withholds
-    /// from it. Fault-free, `withheld[i]` is empty and this is the whole board.
+    /// The board as trustee `i` sees it: the true board minus every row that
+    /// belongs to a strand b4 withholds from `i`. Fault-free, `withheld[i]` is
+    /// empty and this is the whole board. A row with no strand (the shared DKG
+    /// artifacts: Configuration, Shares, PublicKey) is always visible.
     fn visible_board(&self, state: &SystemState, i: usize) -> Vec<ProtocolMessage<C>> {
+        let hidden = &state.withheld[i];
+        if hidden.is_empty() {
+            return state
+                .board
+                .iter()
+                .map(|bytes| ProtocolMessage::<C>::deser(bytes).expect("well-formed message"))
+                .collect();
+        }
+        let roots = self.board_strand_roots(state);
         state
             .board
             .iter()
-            .filter(|bytes| !state.withheld[i].contains(&staged_handle(bytes)))
-            .map(|bytes| {
-                ProtocolMessage::<C>::deser(bytes).expect("board holds well-formed message bytes")
+            .map(|bytes| ProtocolMessage::<C>::deser(bytes).expect("well-formed message"))
+            .filter(|message| match self.message_strand(message, &roots) {
+                Some(root) => !hidden.contains(&strand_key(&root)),
+                None => true,
             })
             .collect()
+    }
+
+    /// The ballots-root hash (hex) of every strand currently on the board — the
+    /// withholdable units. Distinct ballots messages are distinct strands.
+    fn ballots_roots(&self, state: &SystemState) -> Vec<String> {
+        let mut roots = Vec::new();
+        for bytes in &state.board {
+            if let Ok(message) = ProtocolMessage::<C>::deser(bytes) {
+                if let Ok((Predicate::Ballots(b), _)) = verify(&message, &self.configuration) {
+                    let key = strand_key(&b.ciphertexts);
+                    if !roots.contains(&key) {
+                        roots.push(key);
+                    }
+                }
+            }
+        }
+        roots
+    }
+
+    /// Map every ciphertexts hash on the board (a ballots root or a mix output)
+    /// to its strand root, by following mix inputs back to the ballots.
+    fn board_strand_roots(&self, state: &SystemState) -> HashMap<CiphertextsHash, CiphertextsHash> {
+        // Ballots roots (each is its own root) and mix output→input edges.
+        let mut is_root: Vec<CiphertextsHash> = Vec::new();
+        let mut edge: HashMap<CiphertextsHash, CiphertextsHash> = HashMap::new();
+        for bytes in &state.board {
+            let Ok(message) = ProtocolMessage::<C>::deser(bytes) else {
+                continue;
+            };
+            match verify(&message, &self.configuration) {
+                Ok((Predicate::Ballots(b), _)) => is_root.push(b.ciphertexts),
+                Ok((Predicate::Mix(m), _)) => {
+                    edge.insert(m.output, m.input);
+                }
+                _ => {}
+            }
+        }
+        let mut roots: HashMap<CiphertextsHash, CiphertextsHash> = HashMap::new();
+        for r in &is_root {
+            roots.insert(*r, *r);
+        }
+        let bound = state.board.len() + 1;
+        for (&output, _) in edge.iter() {
+            // Walk output → input → … until a ballots root (or give up).
+            let mut cursor = output;
+            let mut steps = 0;
+            let root = loop {
+                if is_root.contains(&cursor) {
+                    break Some(cursor);
+                }
+                match edge.get(&cursor) {
+                    Some(&input) => cursor = input,
+                    None => break None,
+                }
+                steps += 1;
+                if steps > bound {
+                    break None;
+                }
+            };
+            if let Some(root) = root {
+                roots.insert(output, root);
+            }
+        }
+        roots
+    }
+
+    /// The strand root a message belongs to, or `None` if it belongs to no
+    /// strand (the shared DKG artifacts) or its chain cannot be resolved.
+    fn message_strand(
+        &self,
+        message: &ProtocolMessage<C>,
+        roots: &HashMap<CiphertextsHash, CiphertextsHash>,
+    ) -> Option<CiphertextsHash> {
+        let (predicate, _) = verify(message, &self.configuration).ok()?;
+        let ciphertexts = match predicate {
+            Predicate::Ballots(b) => b.ciphertexts,
+            Predicate::Mix(m) => m.output,
+            Predicate::MixSignature(m) => m.output,
+            Predicate::PartialDecryptions(p) => p.ciphertexts,
+            Predicate::Plaintexts(p) => p.ciphertexts,
+            // Shares, PublicKey, ConfigurationValid: no strand.
+            _ => return None,
+        };
+        roots.get(&ciphertexts).copied()
     }
 
     /// A transport for one actor's cycle, plus the handles the harness reads
@@ -1082,7 +1201,17 @@ impl SymbolicModel {
             // recomputes next cycle (§6.4: nothing was recorded, so nothing
             // pins the slot).
             Err(e) if format!("{e:#}").contains(CRASH_SENTINEL) => crashed = true,
-            Err(_) => next.halted[i] = true,
+            Err(e) => {
+                let msg = format!("{e:#}");
+                let reason = if msg.contains("anti-rewrite") {
+                    HaltReason::CompletenessGate
+                } else if msg.contains("colliding") {
+                    HaltReason::Collision
+                } else {
+                    HaltReason::Other
+                };
+                next.halted[i] = Some(reason);
+            }
         }
         next.trustees[i] = Self::durable_from(&persistence);
         Self::merge_transport(next, staged, committed);
@@ -1107,13 +1236,13 @@ impl SymbolicModel {
                     next.faults.crashes_before_record += 1;
                 }
             }
-            Turn::Withhold(i, handle) => {
-                // b4 hides a row from trustee `i`. No cycle runs; the effect is
-                // on what `i` sees next. Always a state change (withheld grows).
-                if state.withheld[*i].contains(handle) {
+            Turn::Withhold(i, root) => {
+                // b4 begins hiding strand `root` from trustee `i`. No cycle
+                // runs; the effect is on what `i` sees next.
+                if state.withheld[*i].contains(root) {
                     return None;
                 }
-                next.withheld[*i].push(handle.clone());
+                next.withheld[*i].push(root.clone());
                 next.faults.withholdings += 1;
             }
             Turn::PostBallots => {
@@ -1193,7 +1322,7 @@ impl Model for SymbolicModel {
                 })
                 .collect(),
             faults: FaultRecord::default(),
-            halted: vec![false; self.n],
+            halted: vec![None; self.n],
         }]
     }
 
@@ -1201,7 +1330,7 @@ impl Model for SymbolicModel {
     fn actions(&self, state: &Self::State, actions: &mut Vec<Self::Action>) {
         // A HALTED trustee takes no further turns; the others keep running
         // (halting is per-trustee, see `SystemState::halted`).
-        let active: Vec<usize> = (0..self.n).filter(|i| !state.halted[*i]).collect();
+        let active: Vec<usize> = (0..self.n).filter(|i| state.halted[*i].is_none()).collect();
         let mut candidates: Vec<Turn> = active.iter().copied().map(Turn::Trustee).collect();
         // Fault turns, while their budget lasts. The lookahead prunes the
         // pointless ones for free: a faulty cycle of an idle trustee produces
@@ -1227,17 +1356,14 @@ impl Model for SymbolicModel {
         {
             candidates.push(Turn::EquivocateBallots);
         }
-        // Adversarial b4 can begin withholding any currently-visible non-config
-        // row from any still-active trustee, while its budget lasts.
+        // Adversarial b4 can begin withholding a whole strand (ballots + its
+        // lineage) from any still-active trustee, while its budget lasts.
         if state.faults.withholdings < self.budgets.withholdings {
+            let strands = self.ballots_roots(state);
             for &i in &active {
-                for bytes in &state.board {
-                    let handle = staged_handle(bytes);
-                    let is_config = ProtocolMessage::<C>::deser(bytes)
-                        .map(|m| m.message_type == MessageType::Configuration)
-                        .unwrap_or(true);
-                    if !is_config && !state.withheld[i].contains(&handle) {
-                        candidates.push(Turn::Withhold(i, handle));
+                for root in &strands {
+                    if !state.withheld[i].contains(root) {
+                        candidates.push(Turn::Withhold(i, root.clone()));
                     }
                 }
             }
@@ -1336,7 +1462,7 @@ impl Model for SymbolicModel {
             // Safety, UNCONDITIONAL over the benign-fault space: no pattern
             // of at most budget-many benign faults may ever halt a trustee.
             props.push(Property::<Self>::always("no trustee halts", |_, state| {
-                state.halted.iter().all(|h| !h)
+                state.halted.iter().all(|h| h.is_none())
             }));
             // Liveness, in its strong form: on EVERY path the protocol
             // completes. Sound here, unlike in the crypto harness, because
@@ -1358,7 +1484,9 @@ impl Model for SymbolicModel {
             // faults never do).
             props.push(Property::<Self>::always(
                 "no trustee halts unless an adversary acted",
-                |model, state| state.halted.iter().all(|h| !h) || adversarial_acted(model, state),
+                |model, state| {
+                    state.halted.iter().all(|h| h.is_none()) || adversarial_acted(model, state)
+                },
             ));
             // Conditioned liveness: every path either completes or an adversary
             // acted. Weaker than the benign completion claim on purpose — an
@@ -1382,7 +1510,8 @@ impl Model for SymbolicModel {
             props.push(Property::<Self>::sometimes(
                 "a trustee halts on the equivocation",
                 |_, state| {
-                    state.faults.ballots_equivocations > 0 && state.halted.iter().any(|h| *h)
+                    state.faults.ballots_equivocations > 0
+                        && state.halted.iter().any(|h| h.is_some())
                 },
             ));
         }
@@ -1398,8 +1527,14 @@ impl Model for SymbolicModel {
                 |_, state| state.faults.withholdings > 0,
             ));
             props.push(Property::<Self>::sometimes(
-                "a trustee halts under withholding (the gate fires)",
-                |_, state| state.faults.withholdings > 0 && state.halted.iter().any(|h| *h),
+                "the completeness gate halts a trustee under withholding",
+                |_, state| {
+                    state.faults.withholdings > 0
+                        && state
+                            .halted
+                            .iter()
+                            .any(|h| *h == Some(HaltReason::CompletenessGate))
+                },
             ));
         }
         // Non-vacuity guards, emitted only when a budget enables the class: a
