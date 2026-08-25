@@ -114,13 +114,30 @@
 //! - **Dishonest mixer** (ADVERSARIAL, [`SymbolicModel::dishonest_mixers`]): a
 //!   sub-threshold set of trustees that subvert their shuffle — honest
 //!   everywhere else. Two kinds ([`DishonestKind`]): `KnownPermutation` (a
-//!   valid shuffle the adversary can invert — attacks privacy/linkage) and
-//!   `Forge` (a shuffle that alters the ballot set — attacks integrity). The
-//!   defense against forgery is honest verification: an honest trustee checks
-//!   that a mix's output multiset equals its input's before signing, so a
-//!   forged mix never gathers the threshold signatures it needs and never
-//!   reaches decryption. Against a known permutation the defense is the
-//!   remaining honest mixer's opaque layer. Fixed for the run, not budgeted.
+//!   valid shuffle the adversary can invert — attacks privacy/linkage),
+//!   `Forge` (a shuffle that alters the ballot set — attacks integrity), and
+//!   `SkipsAnchor` (mixes honestly but skips the input-ballot check — attacks
+//!   privacy via split views). The defense against forgery is honest
+//!   verification: an honest trustee checks that a mix's output multiset equals
+//!   its input's before signing, so a forged mix never gathers the threshold
+//!   signatures it needs. Against a known permutation the defense is the
+//!   remaining honest mixer's opaque layer. Against an illegitimate ballot set
+//!   the defense is the **anchor check** (below). Fixed for the run, not
+//!   budgeted.
+//! - **The input-ballot anchor** (a modeled honest behavior, not a fault): the
+//!   mixnet cannot establish which ballots are legitimate — braid's trustees
+//!   process whatever the manager signs. So legitimacy is an external,
+//!   publicly-verifiable fact (the anchor, [`HONEST_VOTERS`]), and honest
+//!   trustees enforce it by refusing a *first* mix rooted at any other ballots.
+//!   The check lives at exactly the first-mix engagement — `ComputeMix` for the
+//!   first mixer (its compute IS its signature), `SignMix` for the other quorum
+//!   members — and nowhere else (downstream trusts the chain), mirroring where
+//!   the real datalog roots and signs the chain. It is threshold-robust: an
+//!   illegitimate strand needs its WHOLE quorum to skip the check. This is an
+//!   honest-behavior *assumption* licensed by the trust model (§ Trust model in
+//!   the spec: input legitimacy is an external precondition); the negative
+//!   control (`SkipsAnchor` quorum, or the anchor removed) shows it is
+//!   load-bearing.
 //! - [`Turn::Withhold`] (ADVERSARIAL b4, budgeted): b4 begins hiding a board
 //!   row from one trustee. This is the whole of adversarial b4 — it cannot
 //!   forge (signatures are checked) and reordering is neutralized by canonical
@@ -215,7 +232,7 @@ use braid::board::store::MessageStore;
 use braid::board::transport::{StagedRef, Transport};
 use braid::board::verify::verify;
 use braid::board::BoardClient;
-use braid::datalog::action::Action;
+use braid::datalog::action::{Action, MixSource};
 use braid::messages::artifact::Configuration;
 use braid::messages::newtypes::{
     hash_bytes, CiphertextsHash, ConfigurationHash, PublicKeyHash, Timestamp, TrusteeIndex,
@@ -613,7 +630,12 @@ impl<C: Context> Transport<C> for ModelTransport<C> {
 //     against the input before signing (a real shuffle proof proves exactly
 //     "output is a permutation of input" — nothing about secrecy).
 
-/// The honest ballot set: two distinct voters. Small on purpose.
+/// The **anchor**: the legitimate ballot set. The mixnet cannot establish
+/// input-ballot legitimacy itself (its trustees process whatever the manager
+/// signs); legitimacy is an external, publicly-verifiable fact, and honest
+/// trustees enforce it by refusing to process a first mix rooted at any other
+/// ballots (see the anchor check in `execute_symbolic`). Two distinct voters,
+/// small on purpose.
 const HONEST_VOTERS: [u8; 2] = [0, 1];
 
 /// The ballot set an equivocating manager substitutes — the honest set minus
@@ -632,6 +654,11 @@ enum DishonestKind {
     /// A forged shuffle: the output multiset differs from the input (here, a
     /// voter is dropped). An honest verifier rejects it. Attacks integrity.
     Forge,
+    /// Mixes honestly, but SKIPS the input-ballot anchor check — an operator
+    /// that processes an illegitimate ballot set. Attacks privacy via split
+    /// views: a whole illegitimate-strand quorum of these lets a second,
+    /// divergent strand complete.
+    SkipsAnchor,
 }
 
 /// Encode a ballots token body: the voter multiset plus a salt (so an
@@ -717,6 +744,19 @@ struct SymbolicModel {
     /// defense). Always true except in the negative control that shows the
     /// integrity property fails when the defense is removed.
     honest_verification: bool,
+    /// The mixing quorum an equivocated ballots names. `None` = the same list
+    /// as the honest ballots. A DISJOINT quorum (needs n >= 2*threshold) is
+    /// what makes the type-2 split-view attack constructible: the two strands
+    /// are mixed and decrypted by disjoint trustee sets, so no trustee ever
+    /// crosses strands.
+    equivocation_quorum: Option<Vec<TrusteeIndex>>,
+    /// A FIXED split view (adversarial b4): each trustee sees only the strands
+    /// whose mixing quorum includes it — the coherent partition a split-view b4
+    /// presents. Deterministic (no branching), unlike the `Withhold` search, so
+    /// it stays tractable at the n it takes to make type-2 reachable
+    /// (n >= 2*threshold). It asks the outcome directly: given the partition,
+    /// does the search reach two differently-decrypted strands?
+    fixed_split_view: bool,
     manager: ProtocolManager<C>,
     trustees: Vec<SymbolicTrustee>,
     configuration: Configuration<C>,
@@ -783,6 +823,8 @@ impl SymbolicModel {
             budgets: FaultBudgets::default(),
             dishonest_mixers: HashMap::new(),
             honest_verification: true,
+            equivocation_quorum: None,
+            fixed_split_view: false,
             manager,
             trustees,
             configuration,
@@ -844,13 +886,41 @@ impl SymbolicModel {
         self
     }
 
+    /// The equivocated ballots names `quorum` as its mixing list (a disjoint
+    /// quorum enables the type-2 split-view attack).
+    fn with_equivocation_quorum(mut self, quorum: Vec<TrusteeIndex>) -> Self {
+        self.equivocation_quorum = Some(quorum);
+        self
+    }
+
+    /// b4 presents each trustee only the strands whose mixing quorum includes
+    /// it (a coherent, fixed split view).
+    fn with_fixed_split_view(mut self) -> Self {
+        self.fixed_split_view = true;
+        self
+    }
+
+    /// The mixing quorum of each strand root on the board (from the ballots'
+    /// `trustees` field): which trustees are meant to process it.
+    fn strand_quorums(&self, state: &SystemState) -> HashMap<CiphertextsHash, Vec<TrusteeIndex>> {
+        let mut q = HashMap::new();
+        for bytes in &state.board {
+            if let Ok(message) = ProtocolMessage::<C>::deser(bytes) {
+                if let Ok((Predicate::Ballots(b), _)) = verify(&message, &self.configuration) {
+                    q.insert(b.ciphertexts, b.trustees.clone());
+                }
+            }
+        }
+        q
+    }
+
     /// The board as trustee `i` sees it: the true board minus every row that
     /// belongs to a strand b4 withholds from `i`. Fault-free, `withheld[i]` is
     /// empty and this is the whole board. A row with no strand (the shared DKG
     /// artifacts: Configuration, Shares, PublicKey) is always visible.
     fn visible_board(&self, state: &SystemState, i: usize) -> Vec<ProtocolMessage<C>> {
         let hidden = &state.withheld[i];
-        if hidden.is_empty() {
+        if hidden.is_empty() && !self.fixed_split_view {
             return state
                 .board
                 .iter()
@@ -858,12 +928,26 @@ impl SymbolicModel {
                 .collect();
         }
         let roots = self.board_strand_roots(state);
+        // Under a fixed split view, `i` sees a strand only if its mixing quorum
+        // includes trustee `i+1` (1-based). Together with any withheld strands.
+        let quorums = self.fixed_split_view.then(|| self.strand_quorums(state));
+        let trustee = (i + 1) as TrusteeIndex;
         state
             .board
             .iter()
             .map(|bytes| ProtocolMessage::<C>::deser(bytes).expect("well-formed message"))
             .filter(|message| match self.message_strand(message, &roots) {
-                Some(root) => !hidden.contains(&strand_key(&root)),
+                Some(root) => {
+                    if hidden.contains(&strand_key(&root)) {
+                        return false;
+                    }
+                    if let Some(quorums) = &quorums {
+                        if let Some(q) = quorums.get(&root) {
+                            return q.contains(&trustee);
+                        }
+                    }
+                    true
+                }
                 None => true,
             })
             .collect()
@@ -1060,6 +1144,30 @@ impl SymbolicModel {
         Ok(outgoing)
     }
 
+    /// Whether trustee `i` enforces the input-ballot anchor: an honest actor
+    /// (not dishonest in any way, defense enabled) does; a dishonest operator
+    /// (`dishonest_mixers`) or the disabled-defense negative control does not.
+    fn checks_anchor(&self, i: &TrusteeIndex) -> bool {
+        self.honest_verification && !self.dishonest_mixers.contains_key(i)
+    }
+
+    /// Whether the ballots at `input` (a first mix's input) are the anchor —
+    /// the legitimate ballot set. `false` if the ballots are illegitimate or
+    /// unresolvable.
+    fn anchor_ok(&self, input: &CiphertextsHash, view: &MessageStore<C>) -> bool {
+        let (ballots, _) = view_content_maps(view);
+        let mut anchor = HONEST_VOTERS.to_vec();
+        anchor.sort_unstable();
+        ballots
+            .get(input)
+            .map(|voters| {
+                let mut v = voters.clone();
+                v.sort_unstable();
+                v == anchor
+            })
+            .unwrap_or(false)
+    }
+
     /// Execute one derived action symbolically: assemble the real wire message
     /// around a token body. `view` is the trustee's board, needed to read the
     /// content its mixes shuffle and its signatures verify.
@@ -1087,12 +1195,26 @@ impl SymbolicModel {
                 let token = format!("pk:{shares_hashes:?}").into_bytes();
                 vec![ProtocolMessage::<C>::public_key(t, DATE, *cfg, &token)]
             }
-            Action::ComputeMix(cfg, pk, _source, input, self_index) => {
+            Action::ComputeMix(cfg, pk, source, input, self_index) => {
+                // Anchor check (§ input-ballot legitimacy): the FIRST mixer
+                // engages the ballots here — its compute IS its signature (the
+                // datalog derives `mix_signature` from `mix`), so this is the
+                // one place it can enforce the anchor. An honest first mixer
+                // refuses to mix a ballot set that is not the anchor; a
+                // dishonest one processes it anyway.
+                if *source == MixSource::Ballots
+                    && self.checks_anchor(self_index)
+                    && !self.anchor_ok(input, view)
+                {
+                    return vec![];
+                }
                 let (ballots, mixes) = view_content_maps(view);
                 let bound = ballots.len() + mixes.len() + 1;
                 let (input_voters, _) = content_at(input, &ballots, &mixes, bound)
                     .expect("a mix's input has resolvable content");
                 // Honest by default; a dishonest mixer subverts its own shuffle.
+                // `SkipsAnchor` still mixes honestly — its dishonesty is only
+                // the missing anchor check above.
                 let (output_voters, opaque) = match self.dishonest_mixers.get(self_index) {
                     Some(DishonestKind::Forge) => {
                         // Drop a voter: the forged output is a strict subset.
@@ -1102,24 +1224,38 @@ impl SymbolicModel {
                     }
                     // A valid shuffle (multiset preserved), but not opaque.
                     Some(DishonestKind::KnownPermutation) => (input_voters.clone(), false),
-                    None => (input_voters.clone(), true),
+                    Some(DishonestKind::SkipsAnchor) | None => (input_voters.clone(), true),
                 };
                 let token = encode_mix(*self_index, input, &output_voters, opaque);
                 vec![ProtocolMessage::<C>::mix(t, DATE, *cfg, *pk, *input, &token)]
             }
-            Action::SignMix(cfg, pk, _source, input, output, self_index) => {
+            Action::SignMix(cfg, pk, source, input, output, self_index) => {
                 let signer = ProtocolMessage::<C>::mix_signature(t, DATE, *cfg, *pk, *input, *output);
-                if self.dishonest_mixers.contains_key(self_index) || !self.honest_verification {
-                    // A dishonest trustee signs without verifying; so does an
-                    // honest one when the defense is disabled (negative control).
+                // A mixing-dishonest trustee (or the disabled-defense negative
+                // control) signs without verifying anything.
+                let blind = !self.honest_verification
+                    || matches!(
+                        self.dishonest_mixers.get(self_index),
+                        Some(DishonestKind::KnownPermutation) | Some(DishonestKind::Forge)
+                    );
+                if blind {
                     return vec![signer];
                 }
-                // Honest verification: the shuffle proof proves "output is a
-                // permutation of input" — symbolically, the mix's output
-                // multiset must equal its input's. A forged mix (voter dropped)
-                // fails, and the honest trustee declines to sign it, so a
-                // forgery can never gather the threshold signatures it needs to
-                // extend the chain.
+                // Anchor check: signing the FIRST mix is where every other
+                // quorum member engages the ballots. An honest signer refuses a
+                // first mix rooted at a ballot set that is not the anchor; a
+                // `SkipsAnchor` operator does not. Together with the first
+                // mixer's check, an illegitimate strand needs its WHOLE quorum
+                // dishonest to gather threshold signatures.
+                if *source == MixSource::Ballots
+                    && self.checks_anchor(self_index)
+                    && !self.anchor_ok(input, view)
+                {
+                    return vec![];
+                }
+                // Shuffle-proof verification: the mix's output multiset must
+                // equal its input's. A forged mix fails, so it never gathers
+                // the threshold signatures it needs to extend the chain.
                 let (ballots, mixes) = view_content_maps(view);
                 let bound = ballots.len() + mixes.len() + 1;
                 let out_ms = content_at(output, &ballots, &mixes, bound).map(|(m, _)| m);
@@ -1271,12 +1407,16 @@ impl SymbolicModel {
                 let pk_hash = self.public_key_hash_on(state)?;
                 let k = state.faults.ballots_equivocations;
                 let token = encode_ballots(&EQUIVOCATED_VOTERS, k + 1);
+                let quorum = self
+                    .equivocation_quorum
+                    .clone()
+                    .unwrap_or_else(|| self.mixing_trustees.clone());
                 let message = ProtocolMessage::<C>::ballots(
                     &self.manager,
                     DATE,
                     self.configuration_hash,
                     pk_hash,
-                    self.mixing_trustees.clone(),
+                    quorum,
                     &token,
                 );
                 let (transport, staged, committed) = self.transport_for(state, Vec::new(), false);
@@ -1456,6 +1596,7 @@ impl Model for SymbolicModel {
 
         let adversarial = self.budgets.ballots_equivocations > 0
             || self.budgets.withholdings > 0
+            || self.fixed_split_view
             || !self.dishonest_mixers.is_empty();
 
         if !adversarial {
@@ -1506,7 +1647,11 @@ impl Model for SymbolicModel {
                 adversarial_acted(model, state)
             }));
         }
-        if self.budgets.ballots_equivocations > 0 {
+        // The halt-on-equivocation guard applies only on a consistent board,
+        // where a trustee can see both ballots and halt on the collision. Under
+        // a split view no trustee ever sees both — the anchor check, not a
+        // halt, is the defense — so the guard is not expected there.
+        if self.budgets.ballots_equivocations > 0 && !self.fixed_split_view {
             props.push(Property::<Self>::sometimes(
                 "a trustee halts on the equivocation",
                 |_, state| {
@@ -1604,6 +1749,7 @@ fn dishonest_mix_present(model: &SymbolicModel, state: &SystemState) -> bool {
 fn adversarial_acted(model: &SymbolicModel, state: &SystemState) -> bool {
     (model.budgets.ballots_equivocations > 0 && state.faults.ballots_equivocations > 0)
         || (model.budgets.withholdings > 0 && state.faults.withholdings > 0)
+        || (model.fixed_split_view && state.board.len() > 1)
         || dishonest_mix_present(model, state)
 }
 
@@ -1893,6 +2039,42 @@ fn model_check_symbolic_two_trustees_forging_mixer_pos2() {
     check(
         SymbolicModel::new(2, 2).with_forging_mixer(2),
         "n=2 t=2 forging mixer t2",
+    );
+}
+
+/// The type-2 split view at n=4/t=2 (2*threshold == n, so two disjoint quorums
+/// exist): an adversarial manager equivocates ballots naming a disjoint quorum
+/// `{3,4}`, and b4 shows `{1,2}` only the legitimate strand and `{3,4}` only
+/// the illegitimate one. With the anchor check in force, honest `{3,4}` refuse
+/// to process the illegitimate first mix, so its strand never completes — only
+/// one set is decrypted and privacy holds. This is the defense the anchor
+/// provides, threshold-robustly.
+#[test]
+fn model_check_symbolic_split_view_anchored() {
+    check(
+        SymbolicModel::new(4, 2)
+            .with_ballots_equivocation_budget(1)
+            .with_equivocation_quorum(vec![3, 4])
+            .with_fixed_split_view(),
+        "n=4 t=2 split-view (anchor enforced)",
+    );
+}
+
+/// Negative control — the anchor has teeth: the whole illegitimate-strand
+/// quorum `{3,4}` SKIPS the anchor check, so the illegitimate strand completes
+/// alongside the legitimate one and the two decrypt to different ballot sets —
+/// the differencing attack consummated. Confirms the anchor is load-bearing
+/// (and that it takes a full dishonest quorum, i.e. threshold-many, to defeat).
+#[test]
+fn anchor_property_has_teeth() {
+    expect_violation(
+        SymbolicModel::new(4, 2)
+            .with_ballots_equivocation_budget(1)
+            .with_equivocation_quorum(vec![3, 4])
+            .with_fixed_split_view()
+            .with_dishonest_mixer(3, DishonestKind::SkipsAnchor)
+            .with_dishonest_mixer(4, DishonestKind::SkipsAnchor),
+        "all decrypted sets carry the same ballots",
     );
 }
 
