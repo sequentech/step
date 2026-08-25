@@ -75,16 +75,24 @@ pub struct Layout {
 pub fn layout(bundle: &Bundle) -> Layout {
     let suffix = &bundle.event_id;
 
-    let mut importable = vec![
-        Artifact::json(
-            member::file_name(member::ELECTION_EVENT, suffix, "json"),
-            &bundle.export,
-        ),
-        Artifact::csv(
+    let mut importable = vec![Artifact::json(
+        member::file_name(member::ELECTION_EVENT, suffix, "json"),
+        &bundle.export,
+    )];
+
+    // The census, only when there is one — same rule as `reports` below, and for a
+    // sharper reason. A plan may carry the shape of an election long before anybody
+    // has the membership list, and with no Voters sheet `build_voters` returns a
+    // table with no columns *and* no rows, so this member came out as a single
+    // newline: no header, no data. The platform's importer still reads it as a
+    // census and refuses the import, which made an election with no voters yet
+    // impossible to import at all.
+    if !bundle.voters.is_empty() {
+        importable.push(Artifact::csv(
             member::file_name(member::VOTERS, suffix, "csv"),
             &bundle.voters,
-        ),
-    ];
+        ));
+    }
 
     // The scheduled-events member is the JSON-in-CSV shape, always written even
     // when empty: the voting window lives here, so an absent file and an empty one
@@ -472,10 +480,21 @@ mod tests {
         artifacts.iter().map(|a| a.name.as_str()).collect()
     }
 
+    /// One voter, so the census member is written.
+    fn with_a_voter() -> Vec<(&'static str, Vec<Vec<Cell>>)> {
+        vec![(
+            "Voters",
+            vec![
+                vec![text("username"), text("area.external_id")],
+                vec![text("m-1001"), text("area-north")],
+            ],
+        )]
+    }
+
     #[test]
     fn the_zip_holds_the_members_the_importer_dispatches_on() {
         // Anything named otherwise is silently ignored rather than rejected.
-        let bundle = bundle(vec![]);
+        let bundle = bundle(with_a_voter());
         let layout = layout(&bundle);
         assert_eq!(
             names(&layout.importable),
@@ -489,6 +508,36 @@ mod tests {
             .collect::<Vec<_>>()
         );
         assert_eq!(layout.archive_name, "union-2027.zip");
+    }
+
+    #[test]
+    fn the_census_member_appears_only_when_there_are_voters() {
+        // An empty census is not a census, and the importer refuses the whole zip
+        // over it — so a plan whose membership list has not arrived yet has to be
+        // importable without one.
+        let census = |bundle: &Bundle| -> bool {
+            names(&layout(bundle).importable)
+                .iter()
+                .any(|name| name.starts_with("export_voters"))
+        };
+        assert!(!census(&bundle(vec![])));
+        assert!(census(&bundle(with_a_voter())));
+    }
+
+    #[test]
+    fn an_empty_census_member_is_the_blank_line_that_motivated_omitting_it() {
+        // What the member used to hold with no Voters sheet: not a header row, one
+        // newline. Pinned so the reason is a fact rather than a recollection.
+        let bundle = bundle(vec![]);
+        assert!(bundle.voters.columns.is_empty());
+        assert!(bundle.voters.rows.is_empty());
+        assert_eq!(
+            String::from_utf8(
+                Artifact::csv("x.csv", &bundle.voters).bytes.clone()
+            )
+            .unwrap(),
+            "\n"
+        );
     }
 
     #[test]

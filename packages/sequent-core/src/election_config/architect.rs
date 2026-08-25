@@ -3521,11 +3521,13 @@ fn candidates_sheet(
 /// different claim from "this plan does not carry the census" and produces a
 /// bundle that imports an election nobody can vote in.
 ///
-/// Columns are `VOTER_LEADING_COLUMNS` minus the two the builder derives — `id`
-/// comes from `ids::uid` and `authorized-election-ids` from the areas — plus
-/// whatever else the client carries, in a stable order so two builds of one
-/// census diff cleanly. Everything unrecognised is passed through, which is how
-/// a reporting breakout column survives the round trip.
+/// Columns are `VOTER_LEADING_COLUMNS` minus the two the builder answers on its
+/// own — `id` comes from `ids::uid`, and `authorized-election-ids` is left empty
+/// because a voter the wizard authored names no election restriction; the area
+/// carries their ballot — plus whatever else the client carries, in a stable
+/// order so two builds of one census diff cleanly. Everything unrecognised is
+/// passed through, which is how a reporting breakout column survives the round
+/// trip.
 fn voters_sheet(sources: &Sources) -> Result<Option<Sheet>, Problem> {
     let Some(census) = &sources.census else {
         return Ok(None);

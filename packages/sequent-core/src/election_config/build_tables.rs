@@ -143,9 +143,9 @@ impl Builder<'_> {
     /// carry three columns this reads: `enabled`, `email_verified` and
     /// `authorized-election-ids`. All three are in `RowShape::OWNED`, so they are
     /// excluded from `extra`, and `PlannedVoter` has no field for them. Routing
-    /// this through a source today would silently default every voter to enabled
-    /// and authorise every voter for **every election** — a restricted voter handed
-    /// ballots they should never see, with no problem reported anywhere.
+    /// this through a source today would silently switch on a voter the census
+    /// switched off, and drop the restriction from a voter who has one — handing
+    /// them ballots they should never see, with no problem reported anywhere.
     ///
     /// `a_source_cannot_yet_say_what_the_voters_sheet_says` pins that, so the day
     /// the Voters tab does come out the change fails loudly instead.
@@ -284,27 +284,27 @@ impl Builder<'_> {
 
     /// Resolve `authorized-election-ids` from external ids to UUIDs.
     ///
-    /// Blank means every election in the event: a voter with no restriction is
-    /// eligible for all of them, and writing an empty attribute would deny access
-    /// to all of them instead.
+    /// **Blank stays blank.** A voter who names no election is not restricted to
+    /// one, and the area already says which contests they see — an `AreaContests`
+    /// row is what puts a ballot in front of them, so the elections attribute only
+    /// has work to do when a client deliberately narrows it further.
+    ///
+    /// This used to expand blank to every election in the event, on the reasoning
+    /// that an empty attribute would deny access to all of them. Importing it says
+    /// otherwise, and the expansion is what a client saw as an election id appearing
+    /// against every voter they never restricted. The list is a restriction, so
+    /// writing one where the census expressed none states something the census did
+    /// not — and it goes stale the moment an election is added.
     fn voter_elections(&mut self, row: &Row) -> String {
-        let every_election = |ids: &[(String, String)]| -> String {
-            ids.iter()
-                .map(|(_, id)| id.as_str())
-                .collect::<Vec<&str>>()
-                .join(MULTI_VALUE_SEPARATOR)
-        };
-
         let Some(raw) = row.get("authorized-election-ids").cloned() else {
-            return every_election(&self.election_ids);
+            return String::new();
         };
 
-        // A cell holding only spaces means the same as an empty one. It is *present*,
-        // so without this every entry falls to the `is_empty` guard below, `resolved`
-        // stays empty, and an empty attribute denies the voter every election —
-        // silently, because nothing about that is reported.
+        // A cell holding only spaces means the same as an empty one — reported here
+        // rather than left to the loop below, which would reach the same answer by
+        // accident and stop doing so the day a blank grows a meaning.
         if value_as_text(&raw).trim().is_empty() {
-            return every_election(&self.election_ids);
+            return String::new();
         }
 
         let requested: Vec<Value> = match raw {
