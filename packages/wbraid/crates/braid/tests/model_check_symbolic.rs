@@ -121,6 +121,20 @@
 //!   forged mix never gathers the threshold signatures it needs and never
 //!   reaches decryption. Against a known permutation the defense is the
 //!   remaining honest mixer's opaque layer. Fixed for the run, not budgeted.
+//! - [`Turn::Withhold`] (ADVERSARIAL b4, budgeted): b4 begins hiding a board
+//!   row from one trustee. This is the whole of adversarial b4 — it cannot
+//!   forge (signatures are checked) and reordering is neutralized by canonical
+//!   identity, so withhold/reveal is all it has. Timing does the work: hide a
+//!   row a trustee has already pinned → its next `update()` finds a committed
+//!   predicate missing → §6.3 gate HALT (anti-rewrite); hide one it has not
+//!   pinned → it never sees it (a stutter). Split views are just different
+//!   `withheld` sets per trustee. Two attack shapes emerge under the search:
+//!   *type 1* (equivocation + rewrite — one trustee walked down both strands
+//!   over time, defeated by §6.3 in + §6.4 out pinning) and *type 2* (split
+//!   view — each trustee sees one strand, no rewrite; only constructible when
+//!   two disjoint mixing quorums exist, i.e. 2·threshold ≤ n, so n=2/t=2
+//!   cannot mount it). Enabling this budget also turns OFF the
+//!   observation-timing compression (ruling 1) so pins are faithful.
 //!
 //! Adversarial classes get *conditioned* liveness (completion is not promised
 //! once an adversary acts) and *conditioned* safety (only an adversary may
@@ -363,6 +377,13 @@ enum Turn {
     /// §6.4 commit point — recovery is recomputation, not re-send. See the
     /// module's Faults section.
     CrashBeforeRecord(usize),
+    /// b4 begins withholding board row `handle` from trustee `i` (ADVERSARIAL,
+    /// budgeted). If `i` had already pinned that row, its next `update()` finds
+    /// a committed predicate missing → §6.3 gate HALT; if not, `i` simply never
+    /// sees it → a stutter. Split views are different `withheld` sets per
+    /// trustee — this one primitive covers both. See the module's Faults
+    /// section.
+    Withhold(usize, String),
     /// The manager posts the ballots (a token), which it can only do once the
     /// DKG has published a public key.
     PostBallots,
@@ -390,6 +411,11 @@ struct FaultBudgets {
     /// this budget is a finiteness bound on a content-creating action, not a
     /// tolerance claim — see the module's Faults section).
     ballots_equivocations: usize,
+    /// Maximum [`Turn::Withhold`] events across a run (adversarial b4; a
+    /// finiteness bound). Enabling it also turns OFF the observation-timing
+    /// compression (ruling 1) so committed-set pins are tracked faithfully and
+    /// the §6.3 gate fires exactly where the real client's would.
+    withholdings: usize,
 }
 
 /// How many faults of each class have fired on this path (state). Doubles as
@@ -399,6 +425,7 @@ struct FaultRecord {
     dropped_commits: usize,
     crashes_before_record: usize,
     ballots_equivocations: usize,
+    withholdings: usize,
 }
 
 /// The fault, if any, injected into one trustee cycle.
@@ -787,6 +814,13 @@ impl SymbolicModel {
         self
     }
 
+    /// Allow up to `budget` [`Turn::Withhold`] events in the exploration.
+    /// Turns off the observation-timing compression (ruling 1).
+    fn with_withholding_budget(mut self, budget: usize) -> Self {
+        self.budgets.withholdings = budget;
+        self
+    }
+
     /// The board as trustee `i` sees it: the true board minus rows b4 withholds
     /// from it. Fault-free, `withheld[i]` is empty and this is the whole board.
     fn visible_board(&self, state: &SystemState, i: usize) -> Vec<ProtocolMessage<C>> {
@@ -1030,10 +1064,16 @@ impl SymbolicModel {
             Ok::<bool, anyhow::Error>(produced_any)
         });
 
+        // Ruling 1: with withholding enabled, an observe-only cycle that grew
+        // the committed set is a real transition (its pins decide whether a
+        // later gate fires), so the observation-timing compression is off and
+        // the `next == *state` guard in `successor` prunes genuinely-idle
+        // cycles instead. Otherwise (fault-free/benign) the compression stands.
+        let compress = self.budgets.withholdings == 0;
         let mut crashed = false;
         match outcome {
             Ok(produced_any) => {
-                if !produced_any {
+                if compress && !produced_any {
                     return None;
                 }
             }
@@ -1066,6 +1106,15 @@ impl SymbolicModel {
                 if crashed {
                     next.faults.crashes_before_record += 1;
                 }
+            }
+            Turn::Withhold(i, handle) => {
+                // b4 hides a row from trustee `i`. No cycle runs; the effect is
+                // on what `i` sees next. Always a state change (withheld grows).
+                if state.withheld[*i].contains(handle) {
+                    return None;
+                }
+                next.withheld[*i].push(handle.clone());
+                next.faults.withholdings += 1;
             }
             Turn::PostBallots => {
                 let pk_hash = self.public_key_hash_on(state)?;
@@ -1178,6 +1227,21 @@ impl Model for SymbolicModel {
         {
             candidates.push(Turn::EquivocateBallots);
         }
+        // Adversarial b4 can begin withholding any currently-visible non-config
+        // row from any still-active trustee, while its budget lasts.
+        if state.faults.withholdings < self.budgets.withholdings {
+            for &i in &active {
+                for bytes in &state.board {
+                    let handle = staged_handle(bytes);
+                    let is_config = ProtocolMessage::<C>::deser(bytes)
+                        .map(|m| m.message_type == MessageType::Configuration)
+                        .unwrap_or(true);
+                    if !is_config && !state.withheld[i].contains(&handle) {
+                        candidates.push(Turn::Withhold(i, handle));
+                    }
+                }
+            }
+        }
         for turn in candidates {
             if self.lookahead(state, &turn).is_some() {
                 actions.push(turn);
@@ -1264,8 +1328,9 @@ impl Model for SymbolicModel {
             single_decryption_lineage,
         ));
 
-        let adversarial =
-            self.budgets.ballots_equivocations > 0 || !self.dishonest_mixers.is_empty();
+        let adversarial = self.budgets.ballots_equivocations > 0
+            || self.budgets.withholdings > 0
+            || !self.dishonest_mixers.is_empty();
 
         if !adversarial {
             // Safety, UNCONDITIONAL over the benign-fault space: no pattern
@@ -1325,6 +1390,16 @@ impl Model for SymbolicModel {
             props.push(Property::<Self>::sometimes(
                 "the dishonest mixer mixes",
                 dishonest_mix_present,
+            ));
+        }
+        if self.budgets.withholdings > 0 {
+            props.push(Property::<Self>::sometimes(
+                "b4 withholds a row from a trustee",
+                |_, state| state.faults.withholdings > 0,
+            ));
+            props.push(Property::<Self>::sometimes(
+                "a trustee halts under withholding (the gate fires)",
+                |_, state| state.faults.withholdings > 0 && state.halted.iter().any(|h| *h),
             ));
         }
         // Non-vacuity guards, emitted only when a budget enables the class: a
@@ -1393,6 +1468,7 @@ fn dishonest_mix_present(model: &SymbolicModel, state: &SystemState) -> bool {
 /// liveness and safety properties allow.
 fn adversarial_acted(model: &SymbolicModel, state: &SystemState) -> bool {
     (model.budgets.ballots_equivocations > 0 && state.faults.ballots_equivocations > 0)
+        || (model.budgets.withholdings > 0 && state.faults.withholdings > 0)
         || dishonest_mix_present(model, state)
 }
 
@@ -1624,6 +1700,31 @@ fn model_check_symbolic_two_trustees_dropped_commits() {
     check(
         SymbolicModel::new(2, 2).with_dropped_commit_budget(2),
         "n=2 t=2 drops<=2",
+    );
+}
+
+/// Adversarial b4 withholds board rows (rewrite / split view). At n=2/t=2 the
+/// per-sender quorum arithmetic makes type-2 split-view differencing
+/// unconstructible (2·threshold > n), so privacy holds; the §6.3 gate + §6.4
+/// own-post record defend the type-1 rewrite case (a trustee fed a board
+/// missing something it pinned halts before re-deriving a divergent artifact).
+#[test]
+fn model_check_symbolic_two_trustees_withholding() {
+    check(
+        SymbolicModel::new(2, 2).with_withholding_budget(1),
+        "n=2 t=2 withhold<=1",
+    );
+}
+
+/// Withholding combined with equivocation — the type-1 differencing attempt
+/// (two ballots, b4 rewrites which one a trustee sees). Privacy must hold.
+#[test]
+fn model_check_symbolic_two_trustees_equivocation_and_withholding() {
+    check(
+        SymbolicModel::new(2, 2)
+            .with_ballots_equivocation_budget(1)
+            .with_withholding_budget(1),
+        "n=2 t=2 equiv<=1 withhold<=1",
     );
 }
 
