@@ -141,6 +141,8 @@ artifacts verify; plaintexts == inputs" on the honest path stays v1's job.
 | `fd6c60dd2c` | `EquivocateBallots` (first adversarial fault, the differencing-attack row) + per-trustee halting (a halted trustee loses its turns; others run on — the global freeze would have hidden the dangerous interleavings) + the no-exemption lineage property on every state of every config | equivocations≤1: 135 states; benign counts unchanged. Caveat: with a consistent board the second lineage can never begin (seeing ballots#2 implies seeing ballots#1 ⇒ halt); the sharp variant is equivocation + split views |
 | `949866871b` | Functional properties (privacy/differencing, privacy/linkage, integrity) over symbolic ballot/mix content — the asset-level reframe; the equivocation fault now models the differencing move at the source | benign counts unchanged; equivocation now **112** (was 135 — `halted` became `Vec<bool>`, removing hash-order dedup noise the error string had leaked into state identity) |
 | `22f4f84994` | Dishonest mixers (`KnownPermutation`, `Forge`, sub-threshold) + the honest-verification defense (decline to sign a mix whose output multiset ≠ input) — gives linkage and integrity their teeth. Two negative controls prove the properties bite | known-perm mixer: 35 (completes, privacy holds via the honest mixer's opaque layer); forging mixer: 22/24 (chain stalls, integrity holds); both negative controls confirm violation when the defense is removed |
+| `75b4806d15`, `c84871e493` | Adversarial-b4 **withholding** + ruling 1 (compression off under withholding); refactored to **strand-level** (b4 hides a whole strand, coherent views, far cheaper) + stable `HaltReason` (distinguishes the completeness gate from the collision rule) | withhold≤1: 461; equiv≤1 withhold≤1: 1638. The "completeness gate halts a trustee" guard fires — anti-rewrite (§6.3) demonstrated. Per-strand cut per-row's cost ~6× |
+| `06ba4290ca` | **Input-ballot anchor check** (honest trustees refuse a first mix rooted at ballots ≠ the anchor, at the two `MixSource::Ballots` arms only; `DishonestKind::SkipsAnchor`) + spec/threat-model note (a) | **n=4/t=2 split-view flips VIOLATED → holds** (3709 states) — the anchor defends type-2 threshold-robustly; `anchor_property_has_teeth` (whole `{3,4}` quorum skips) reproduces the differencing violation. All 17 configs pass |
 
 ## Next steps (plan of record)
 
@@ -161,20 +163,23 @@ Agreed order for the fault program:
    adversarial by nature and moves to step 4.
 4. **Adversarial tier**: ~~manager ballots-equivocation~~ (`fd6c60dd2c`);
    ~~functional privacy/integrity properties~~ (`949866871b`); ~~dishonest
-   mixers (known-permutation, forge) + honest verification~~ (`22f4f84994`).
-   Remaining: **split views / withheld messages** (adversarial b4) — including
-   the sharp differencing variant (equivocation + withholding, where b4 hides
-   one ballots from some trustees so a second lineage *can* begin and get
-   decrypted — the case a consistent board cannot reach). This work carries the
-   two parked rulings: the **observation-timing compression** (`admit()` pins
-   every fetched predicate, so real trustees pin on every fetch; the
-   compression discards idle-cycle pins and would under-approximate §6.3 gate
-   firings — unsound for anti-rewrite properties if kept), and **gate-refusal
-   semantics** (`update()`'s gate error is a skip-this-cycle, not a datalog
-   halt — the harness must classify it, as it already does crash sentinels).
-5. **De-clutter (step D)**: retire the mechanism lineage property (now kept
-   only as cross-validation — subsumed by privacy/differencing) once the split-
-   views work confirms the functional properties are trusted.
+   mixers~~ (`22f4f84994`); ~~withholding + ruling 1 (compression off)~~
+   (`75b4806d15`, `c84871e493` — the gate-refusal "ruling" dissolved: a
+   completeness-gate error is a **halt** per §6.3, which the harness already
+   records; only the compression ruling stood); ~~type-2 split view + the
+   input-ballot anchor~~ (`06ba4290ca`). **This surfaced the key finding**:
+   without a per-trustee input-legitimacy check, a manager equivocating a
+   *disjoint* mixing quorum across a split-view b4 breaks privacy at
+   n ≥ 2·threshold *with all trustees honest*. The anchor check is the
+   defense; the model demonstrates it is load-bearing (see the anchor row
+   above and the spec trust-model note). *Open:* the fully-general withholding
+   search at n=4 is intractable, so type-2 uses a **fixed** split partition —
+   the interleavings are searched, the partition is given. Discovering the
+   partition (seed-post-DKG) is a possible refinement, not needed for the
+   conclusion.
+5. **De-clutter (step D)**: retire the mechanism lineage property (kept as
+   cross-validation — subsumed by privacy/differencing) now that the
+   functional properties are exercised and trusted across the adversarial tier.
 
 Beyond the agreed steps (candidates, not yet scheduled):
 
