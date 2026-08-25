@@ -856,7 +856,7 @@ export const ReviewScreen: React.FC = () => {
             >
                 {stringToHtml(t("reviewScreen.ballotIdHelpDialog.content"))}
             </BallotIdHelpDialog>
-            {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP && !isFullyAcclaimed? (
+            {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP && !isFullyAcclaimed ? (
                 <AuditBallotHelpDialog
                     auditBallotHelp={auditBallotHelp}
                     handleClose={handleCloseDialogAuditHelp}
