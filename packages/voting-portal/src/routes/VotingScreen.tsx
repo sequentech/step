@@ -7,7 +7,7 @@ import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesS
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {store} from "../store/store"
 import {Box} from "@mui/material"
-import {PageLimit, Icon, IconButton, theme, Dialog} from "@sequentech/ui-essentials"
+import {BallotActions, BallotScreenLayout, Dialog, IconButton} from "@sequentech/ui-essentials"
 import {
     check_voting_error_dialog_bool,
     check_voting_not_allowed_next_bool,
@@ -42,7 +42,7 @@ import {
 import {clearDeclinedToVoteForElection, clearIsVoted, setIsVoted} from "../store/extra/extraSlice"
 import {TenantEventType} from ".."
 import {provideBallotService} from "../services/BallotService"
-import {Question} from "../components/Question/Question"
+import {Question} from "@sequentech/ui-essentials"
 import {CircularProgress} from "@mui/material"
 import {selectElectionById} from "../store/elections/electionsSlice"
 import {useRootBackLink} from "../hooks/root-back-link"
@@ -54,49 +54,12 @@ import {IDecodedVoteContest} from "@sequentech/ui-core"
 import {sortContestList} from "@sequentech/ui-core"
 import {useEncryptBallotForReview} from "../hooks/useEncryptBallotForReview"
 
-const StyledLink = styled(RouterLink)`
-    margin: auto 0;
-    text-decoration: none;
-    /* ensure the link contains only a single tabbable element: the button below */
-    &:focus {
-        outline: none;
-    }
-    & *[tabindex] {
-        outline: none;
-    }
-`
-
-const StyledTitle = styled(Typography)`
-    margin-top: 25.5px;
-    display: flex;
-    flex-direction: row;
-    gap: 16px;
-    font-size: 36px;
-    justify-content: center;
-`
-
-const ActionsContainer = styled(Box)`
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    margin-bottom: 20px;
-    margin-top: 10px;
-    gap: 2px;
-`
-
-const StyledButton = styled(Button)`
-    display flex;
-    padding: 5px;
-
-    span {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        padding: 5px;
-    }
-`
+// `StyledLink`, `StyledTitle`, `ActionsContainer` and `StyledButton` were here.
+// The heading is `BallotScreenLayout` in `ui-essentials` now and the row of buttons
+// is `BallotActions`, so the Election Architect's Ballot Preview draws this screen's
+// tree — class names included — rather than a second one that a client's stylesheet
+// would not fit. `ActionsContainer` and `StyledButton` were already shared there,
+// under `ConfirmationActions`; these were near-copies of them.
 
 interface ActionButtonProps {
     handleNext: () => void
@@ -141,52 +104,14 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     }
 
     return (
-        <>
-            <StyledButton
-                sx={{
-                    display: {sm: "none"},
-                    width: "100%",
-                }}
-                variant="secondary"
-                onClick={() => (handleClearCustom ? handleClearCustom() : handleClear())}
-            >
-                <Box>{t("votingScreen.clearButton")}</Box>
-            </StyledButton>
-
-            <ActionsContainer>
-                <StyledLink
-                    to={pageIndex && pageIndex > 0 ? {search: location.search} : exitLink}
-                    sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
-                    onClick={() => handlePrev()}
-                >
-                    <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
-                        <Icon icon={faAngleLeft} size="sm" />
-                        <Box>{t("votingScreen.backButton")}</Box>
-                    </StyledButton>
-                </StyledLink>
-
-                <StyledButton
-                    sx={{
-                        display: {xs: "none", sm: "block"},
-                        width: {xs: "100%", sm: "200px"},
-                    }}
-                    variant="secondary"
-                    onClick={() => (handleClearCustom ? handleClearCustom() : handleClear())}
-                >
-                    <Box>{t("votingScreen.clearButton")}</Box>
-                </StyledButton>
-
-                <StyledButton
-                    className="next-button"
-                    sx={{width: {xs: "100%", sm: "200px"}}}
-                    onClick={() => handleNext()}
-                    disabled={disableNext}
-                >
-                    <Box>{t("votingScreen.reviewButton")}</Box>
-                    <Icon icon={faAngleRight} size="sm" />
-                </StyledButton>
-            </ActionsContainer>
-        </>
+        <BallotActions
+            backComponent={RouterLink}
+            backTo={pageIndex && pageIndex > 0 ? {search: location.search} : exitLink}
+            onBack={() => handlePrev()}
+            onClear={() => (handleClearCustom ? handleClearCustom() : handleClear())}
+            onNext={() => handleNext()}
+            disableNext={disableNext}
+        />
     )
 }
 
@@ -495,47 +420,43 @@ const VotingScreen: React.FC = () => {
     }
 
     return (
-        <PageLimit maxWidth="lg" className="voting-screen screen">
-            <Box marginTop="48px" className="stepper-box">
-                <Stepper selected={1} />
-            </Box>
-            <StyledTitle variant="h4" className="title-container">
-                <Box className="selected-election-title">
-                    {translateFromPresentation(election, "name", i18n.language, {
-                        defaultLanguageCode,
-                    }) ?? "-"}
-                </Box>
-                <IconButton
-                    className="title-question"
-                    icon={faCircleQuestion}
-                    sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
-                    fontSize="16px"
-                    onClick={() => setOpenBallotHelp(true)}
-                />
-                <Dialog
-                    handleClose={() => setOpenBallotHelp(false)}
-                    open={openBallotHelp}
-                    title={t("votingScreen.ballotHelpDialog.title")}
-                    ok={t("votingScreen.ballotHelpDialog.ok")}
-                    variant="info"
-                >
-                    {stringToHtml(t("votingScreen.ballotHelpDialog.content"))}
-                </Dialog>
-            </StyledTitle>
-            {election.description ? (
-                <Typography
-                    className="description"
-                    variant="body2"
-                    sx={{color: theme.palette.customGrey.main}}
-                >
-                    {stringToHtml(
-                        translateFromPresentation(election, "description", i18n.language, {
-                            defaultLanguageCode,
-                        }) ?? "-"
-                    )}
-                </Typography>
-            ) : null}
-
+        <BallotScreenLayout
+            steps={<Stepper selected={1} />}
+            title={
+                translateFromPresentation(election, "name", i18n.language, {
+                    defaultLanguageCode,
+                }) ?? "-"
+            }
+            titleAdornment={
+                <>
+                    <IconButton
+                        className="title-question"
+                        icon={faCircleQuestion}
+                        sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
+                        fontSize="16px"
+                        onClick={() => setOpenBallotHelp(true)}
+                    />
+                    <Dialog
+                        handleClose={() => setOpenBallotHelp(false)}
+                        open={openBallotHelp}
+                        title={t("votingScreen.ballotHelpDialog.title")}
+                        ok={t("votingScreen.ballotHelpDialog.ok")}
+                        variant="info"
+                    >
+                        {stringToHtml(t("votingScreen.ballotHelpDialog.content"))}
+                    </Dialog>
+                </>
+            }
+            description={
+                election.description
+                    ? stringToHtml(
+                          translateFromPresentation(election, "description", i18n.language, {
+                              defaultLanguageCode,
+                          }) ?? "-"
+                      )
+                    : undefined
+            }
+        >
             <ContestPagination
                 ballotStyle={ballotStyle}
                 contests={contestsPerPage}
@@ -593,7 +514,7 @@ const VotingScreen: React.FC = () => {
                     )}
                 </Dialog>
             )}
-        </PageLimit>
+        </BallotScreenLayout>
     )
 }
 

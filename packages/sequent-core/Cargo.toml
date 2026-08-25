@@ -34,8 +34,8 @@ serde-wasm-bindgen = { version = "0.6", optional = true }
 web-sys = { version = "0.3", features = ['Performance', 'console'], optional = true}
 cfg-if = "1.0"
 # signatures
-ed25519-dalek = {version = "=3.0.0-pre.1", features = ["serde"]}
-curve25519-dalek = { version = "=5.0.0-pre.1", features = [] }
+ed25519-dalek = {version = "3.0", features = ["serde"]}
+curve25519-dalek = { version = "5.0", features = [] }
 # aws
 aws-config = { version = "1.6", features = ["behavior-version-latest"], optional = true }
 aws-sdk-sesv2 = { version = "1.70", optional = true }
@@ -124,6 +124,24 @@ kuchiki = { version = "0.8", optional = true }
 rusqlite = { version = "0.32", features = ["bundled"], optional = true }
 csv = "1.3.0"
 
+# reading authoring spreadsheets; optional so front ends with no workbook to read
+# do not carry it into their WASM bundle
+calamine = { version = "0.36", features = ["dates"], optional = true }
+
+# uuid5 for the deterministic ids a generated bundle uses. The `uuid` crate is not
+# used for this: its v4 feature pulls getrandom, whose WASM support is version
+# specific and already pinned elsewhere in this workspace, and nothing here needs
+# randomness.
+sha1 = { version = "0.10", optional = true }
+
+# Writing the importable archive; optional so a front end that only validates a
+# bundle carries no zip writer.
+#
+# default-features = false is load-bearing: the default set pulls bzip2, zstd and
+# lzma, all of which are C libraries with no wasm32 target, and this module has to
+# compile for a browser. Deflate is the only method an import archive uses.
+zip = { version = "2.1", default-features = false, features = ["deflate"], optional = true }
+
 
 # WASM plugin management
 wasmtime = {version = "41.0.2", optional = true}
@@ -150,7 +168,17 @@ lambda_inplace = []
 lambda_openwhisk = []
 lambda_aws_lambda = []
 plugins_wit = ["dep:wasmtime", "dep:wasmtime-wasi"]
-default_features = ["dep:strand", "dep:num-bigint", "dep:tempfile", "dep:ammonia"]
+default_features = ["dep:strand", "dep:num-bigint", "dep:tempfile", "dep:ammonia", "dep:sha1"]
+# Reading .xlsx into an election_config::sheet::Workbook. Separate from
+# default_features because admin-portal and voting-portal have no workbook to
+# read and should not pay for a spreadsheet parser in their bundle.
+election_config_xlsx = ["default_features", "dep:calamine", "dep:zip"]
+# Rendering the base entity templates. Separate from `reports`, which also brings
+# a headless browser and three AWS SDKs; this needs only the template engine.
+election_config_templates = ["default_features", "areas", "dep:handlebars"]
+# Writing the importable zip. Separate again: a front end that only validates an
+# existing bundle has nothing to write.
+election_config_archive = ["election_config_templates", "dep:zip"]
 
 sqlite = ["dep:tokio", "dep:rusqlite"]
 time = ["dep:time"]

@@ -33,6 +33,7 @@ import {
     selectElectionEventById,
 } from "./store/electionEvents/electionEventsSlice"
 import WatermarkBackground from "./components/WaterMark/Watermark"
+import {BallotSelectionAdapter} from "./components/BallotSelectionAdapter"
 import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
 import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
 import {useElectionClassName} from "./hooks/useElectionClassName"
@@ -42,6 +43,7 @@ import {
     removeLoginHintsFromSearch,
     routeAcceptsLoginHints,
 } from "./utils/loginHints"
+import {PREVIEW_FILE_KEY} from "./routes/PreviewFromFile"
 interface ElectionEventConfigDocument {
     id: string
     tenant_id: string
@@ -269,6 +271,16 @@ const App = () => {
         const isDemo = sessionStorage.getItem("isDemo")
 
         if (!globalSettings.DISABLE_AUTH && isDemo) {
+            // A preview opened from a file has no bucket coordinates to go back
+            // to, so it goes back to the page that holds it. Without this branch
+            // it would be sent to `/preview/undefined/undefined/…` and land on a
+            // blank screen.
+            if (sessionStorage.getItem(PREVIEW_FILE_KEY)) {
+                navigate("/preview/file")
+                window.location.reload()
+                return
+            }
+
             const areaId = sessionStorage.getItem("areaId")
             const documentId = sessionStorage.getItem("documentId")
             const publicationId = sessionStorage.getItem("publicationId")
@@ -298,7 +310,16 @@ const App = () => {
                         role="main"
                     >
                         <WatermarkBackground />
-                        <Outlet />
+                        {/* The shared ballot asks a port for the voter's marks
+                            rather than reading this app's store, so that the
+                            Election Architect can render the same components over
+                            its own state. Supplied once, here, rather than per
+                            screen: two screens draw contests today and a third
+                            would otherwise be a silent failure at the first
+                            click. */}
+                        <BallotSelectionAdapter>
+                            <Outlet />
+                        </BallotSelectionAdapter>
                     </PageBanner>
                 </ApolloWrapper>
                 <Footer />

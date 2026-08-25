@@ -63,9 +63,37 @@ jobs:
         run: |
           nix develop --command bash -c '
             set -euo pipefail
-            wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest,default_features
+            # `--locked` for the reason spelled out in
+            # `.devcontainer/scripts/rebuild-election-config-wasm.sh`: re-resolving
+            # picks `getrandom 0.4.3`, which does not build for wasm at all.
+            wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest,default_features -- --locked
             wasm-pack -v pack .
           '
+
+      # A second package from the same crate, for the election-configuration SPAs.
+      # The four front ends above build without these features on purpose: they get
+      # the bundle schema and the validator, and no spreadsheet parser, template
+      # engine or zip writer.
+      #
+      # Built here even though nothing vendors it yet, because this is the only
+      # place that compiles those features for wasm32. `zip`'s default features pull
+      # bzip2, zstd and lzma, which have no wasm32 target — restricting it to
+      # deflate is what makes this build possible, and a CI step is what keeps it
+      # that way when someone adds the next dependency.
+      - name: Check that the election-config WASM package builds
+        working-directory: packages/sequent-core
+        run: |
+          nix develop --command bash -c '
+            set -euo pipefail
+            ../../.devcontainer/scripts/rebuild-election-config-wasm.sh
+          '
+
+      - name: Upload the election-config WASM package
+        uses: actions/upload-artifact@v4
+        with:
+          name: sequent-election-config-wasm
+          path: packages/sequent-core/pkg-election-config/sequent-election-config-0.1.0.tgz
+          if-no-files-found: error
 
       # Note: Commented out because this doesn't work, probably because the paths in the devcontainer and the GitHub Action runner are different, so the hash of the built package doesn't match the hash in yarn.lock.
       # Keeping the commented-out code here for now in case we want to revisit this approach in the future

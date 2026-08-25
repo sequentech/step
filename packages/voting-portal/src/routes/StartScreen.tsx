@@ -4,7 +4,7 @@
 import React, {useEffect, useMemo, useState} from "react"
 import {Box, Checkbox, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
-import {Dialog, PageLimit, theme} from "@sequentech/ui-essentials"
+import {Dialog, StartLayout, theme} from "@sequentech/ui-essentials"
 import {
     IElection,
     stringToHtml,
@@ -251,60 +251,33 @@ const StartScreen: React.FC = () => {
     }
 
     return (
-        <PageLimit maxWidth="lg" className="start-screen screen">
-            <Box marginTop="48px">
-                <Stepper selected={1} />
-            </Box>
-            <StyledTitle variant="h3" justifyContent="center" fontWeight="bold">
-                <span>
-                    {translateFromPresentation(titleObject, "name", i18n.language, {
-                        defaultLanguageCode,
-                    }) ?? "-"}
-                </span>
-            </StyledTitle>
-            {titleObject.description ? (
-                <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                    {stringToHtml(
-                        translateFromPresentation(titleObject, "description", i18n.language, {
-                            defaultLanguageCode,
-                        }) ?? "-"
-                    )}
-                </Typography>
-            ) : null}
-            <Typography variant="h5">{t("startScreen.instructionsTitle")}</Typography>
-            <Typography variant="body2">{t("startScreen.instructionsDescription")}</Typography>
-            <Box
-                sx={{
-                    display: "flex",
-                    flexDirection: {xs: "column", md: "row"},
-                    gap: {sm: 0, md: "15px"},
-                }}
-            >
-                <Box sx={{width: {xs: "100%", md: "33.33333333%"}}}>
-                    <Typography variant="h5" sx={{color: theme.palette.brandColor}}>
-                        {t("startScreen.step1Title")}
-                    </Typography>
-                    <Typography variant="body2">{t("startScreen.step1Description")}</Typography>
-                </Box>
-                <Box sx={{width: {xs: "100%", md: "33.33333333%"}}}>
-                    <Typography variant="h5" sx={{color: theme.palette.brandColor}}>
-                        {t("startScreen.step2Title")}
-                    </Typography>
-                    <Typography variant="body2">{t("startScreen.step2Description")}</Typography>
-                </Box>
-                <Box sx={{width: {xs: "100%", md: "33.33333333%"}}}>
-                    <Typography variant="h5" sx={{color: theme.palette.brandColor}}>
-                        {t("startScreen.step3Title")}
-                    </Typography>
-                    <Typography variant="body2">{t("startScreen.step3Description")}</Typography>
-                </Box>
-            </Box>
-            <ActionButtons
-                election={election}
-                isDeclineToVotePolicyEnabled={isDeclineToVotePolicyEnabled}
-                onDeclineToVoteClick={() => setOpenDeclineDialog(true)}
-            />
-
+        <StartLayout
+            title={
+                translateFromPresentation(titleObject, "name", i18n.language, {
+                    defaultLanguageCode,
+                }) ?? "-"
+            }
+            description={
+                titleObject.description
+                    ? stringToHtml(
+                          translateFromPresentation(titleObject, "description", i18n.language, {
+                              defaultLanguageCode,
+                          }) ?? "-"
+                      )
+                    : undefined
+            }
+            /* The portal's own catalogue, passed in: the layout lives in
+               `ui-essentials` and these keys do not, so it takes them rather than
+               looking them up. See the note on `IStartWording`. */
+            steps={<Stepper selected={1} />}
+            below={
+                <ActionButtons
+                    election={election}
+                    isDeclineToVotePolicyEnabled={isDeclineToVotePolicyEnabled}
+                    onDeclineToVoteClick={() => setOpenDeclineDialog(true)}
+                />
+            }
+        >
             <Dialog
                 variant="warning"
                 open={showDemoDialog}
@@ -336,7 +309,7 @@ const StartScreen: React.FC = () => {
                     {stringToHtml(t("startScreen.declineToVoteDialog.content"))}
                 </Dialog>
             ) : null}
-        </PageLimit>
+        </StartLayout>
     )
 }
 

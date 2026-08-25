@@ -13,6 +13,7 @@
 //! translate or link them without matching on English text.
 
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::fmt;
 
 /// Whether a problem stops an import or merely deserves saying out loud.
@@ -58,6 +59,11 @@ pub enum Code {
     PermissionLabel,
     /// An election has no scheduled voting window.
     MissingSchedule,
+    /// Two spreadsheet columns disagree about the shape of the same field.
+    ///
+    /// Raised while reading a source document rather than while validating a
+    /// bundle: the bundle cannot be built at all until the author picks one.
+    ConflictingColumns,
 }
 
 /// One thing wrong with a bundle.
@@ -76,12 +82,87 @@ pub struct Problem {
     /// What is wrong, in one sentence, in English.
     pub message: String,
 
+    /// A stable name for *this sentence*, so a front end can translate it.
+    ///
+    /// [`Code`] cannot do this job and it is worth saying why, because it looks as
+    /// though it should. A code is a *category*: 38 of the plan checks share eleven
+    /// of them, and adding [`Problem::path`] does not separate them either —
+    /// `ContestArithmetic` produces four different sentences about the same contest,
+    /// since the path names the contest rather than the complaint. So a front end
+    /// matching on `code` groups problems correctly and translates them wrongly.
+    ///
+    /// Optional, and absent means "show the English". That is what every caller does
+    /// today, so adding an id is opt-in per message rather than a change to 143 call
+    /// sites, and a message that has not been given one degrades to exactly the
+    /// behaviour it has now.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+
+    /// The specifics [`Problem::message`] names, for a translation to name too.
+    ///
+    /// Sixteen of the plan checks interpolate — `'{email}' is not an email address`,
+    /// `'{username}' is also row {first}` — and no identifier can reconstruct those,
+    /// so the values travel beside the sentence. Strings rather than numbers because
+    /// this is display data: the front end substitutes them into a translated
+    /// sentence and does no arithmetic on them.
+    ///
+    /// `BTreeMap` so two runs of the same check serialise identically, which is what
+    /// lets a report be compared.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub details: BTreeMap<String, String>,
+
     /// The entity's `external_id` where it has one.
     ///
     /// The bundle's UUIDs are regenerated on import and mean nothing to whoever
     /// has to fix the source, whereas an `external_id` is what they typed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub external_id: Option<String>,
+
+    /// Where in the source spreadsheet, structurally.
+    ///
+    /// [`Problem::path`] already says this, as a sentence — `sheet 'Voters' row 12
+    /// column 'email'` — which is right for a log and useless to a screen that
+    /// wants to group four hundred complaints by tab and point at a cell. Parsing
+    /// that sentence back apart is the thing this exists to prevent.
+    ///
+    /// Only the checks that read a document set it. The plan checks and the bundle
+    /// checks correctly leave it empty: they are about a plan or a bundle, and
+    /// neither has a row 12.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at: Option<Locator>,
+}
+
+/// A cell, or a sheet, in the document a problem came from.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Locator {
+    pub sheet: String,
+
+    /// The row as the spreadsheet numbers them, absent when the complaint is about
+    /// the sheet rather than a row in it.
+    ///
+    /// [`crate::election_config::sheet::Origin`] spells that case `row: 0`, which
+    /// is a convention a front end should not have to be taught. `Option` says it
+    /// instead.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub row: Option<usize>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub column: Option<String>,
+}
+
+impl Problem {
+    /// Point this at the cell it came from.
+    pub fn at(
+        mut self,
+        origin: &crate::election_config::sheet::Origin,
+    ) -> Self {
+        self.at = Some(Locator {
+            sheet: origin.sheet.clone(),
+            row: (origin.row > 0).then_some(origin.row),
+            column: origin.column.clone(),
+        });
+        self
+    }
 }
 
 impl Problem {
@@ -96,6 +177,9 @@ impl Problem {
             path: path.into(),
             message: message.into(),
             external_id: None,
+            id: None,
+            details: BTreeMap::new(),
+            at: None,
         }
     }
 
@@ -110,11 +194,30 @@ impl Problem {
             path: path.into(),
             message: message.into(),
             external_id: None,
+            id: None,
+            details: BTreeMap::new(),
+            at: None,
         }
     }
 
     pub fn about(mut self, external_id: Option<&str>) -> Self {
         self.external_id = external_id.map(str::to_string);
+        self
+    }
+
+    /// Name this sentence, so a front end can translate it.
+    ///
+    /// Ids read `<area>.<complaint>` — `trustees.too-few`, not `trustees` — because
+    /// the area alone is the path, which is exactly what cannot tell two complaints
+    /// apart. `every_named_problem_has_its_own_name` refuses two messages sharing one.
+    pub fn id(mut self, id: &str) -> Self {
+        self.id = Some(id.to_string());
+        self
+    }
+
+    /// Carry a specific the sentence names, so a translation can name it too.
+    pub fn detail(mut self, key: &str, value: impl fmt::Display) -> Self {
+        self.details.insert(key.to_string(), value.to_string());
         self
     }
 }
@@ -181,6 +284,7 @@ impl fmt::Display for Report {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::election_config::sheet::Origin;
 
     #[test]
     fn a_report_with_only_warnings_is_importable() {
@@ -233,5 +337,56 @@ mod tests {
         let problem = Problem::error(Code::MissingField, "p", "m");
         let json = serde_json::to_value(&problem).unwrap();
         assert!(json.get("external_id").is_none());
+    }
+
+    #[test]
+    fn a_locator_carries_the_sheet_the_row_and_the_column() {
+        let origin = Origin {
+            sheet: "Voters".to_string(),
+            row: 12,
+            column: Some("email".to_string()),
+        };
+        let problem = Problem::error(Code::MissingField, "p", "m").at(&origin);
+        let json = serde_json::to_value(&problem).unwrap();
+
+        assert_eq!(json["at"]["sheet"], "Voters");
+        assert_eq!(json["at"]["row"], 12);
+        assert_eq!(json["at"]["column"], "email");
+    }
+
+    #[test]
+    fn a_problem_about_a_whole_sheet_has_no_row() {
+        // `Origin` spells this `row: 0`, which a front end would have to be
+        // taught. An absent row says it instead, and a screen that points at
+        // "row 0" of a spreadsheet is pointing at the headers.
+        let problem = Problem::error(Code::ConflictingColumns, "p", "m")
+            .at(&Origin::sheet("Voters"));
+        let json = serde_json::to_value(&problem).unwrap();
+
+        assert_eq!(json["at"]["sheet"], "Voters");
+        assert!(json["at"].get("row").is_none());
+    }
+
+    #[test]
+    fn a_problem_with_no_locator_serialises_exactly_as_it_did() {
+        // The whole field is additive: a plan check and a bundle check are about
+        // a plan and a bundle, and neither has a row 12. Their JSON has to be
+        // byte-identical to what it was, or every consumer of a report sees a
+        // shape change for a feature they do not use.
+        let problem = Problem::error(Code::MissingField, "p", "m");
+        let json = serde_json::to_value(&problem).unwrap();
+        assert!(json.get("at").is_none());
+    }
+
+    #[test]
+    fn an_old_report_without_a_locator_still_reads() {
+        let json = serde_json::json!({
+            "severity": "error",
+            "code": "missing_field",
+            "path": "contests[0].name",
+            "message": "it needs a name",
+        });
+        let problem: Problem = serde_json::from_value(json).unwrap();
+        assert!(problem.at.is_none());
     }
 }

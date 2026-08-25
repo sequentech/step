@@ -10,6 +10,77 @@ on:
     branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
 
 jobs:
+  # sequent-core is compiled against a different feature set by nearly every
+  # consumer, and a module gated one way with its re-export gated another only
+  # fails for the sets nobody happens to build locally: `cargo build --workspace`
+  # unifies features across the graph and hides it entirely. That is exactly how
+  # an ungated `pub use build::{…}` reached CI and reddened fourteen jobs in the
+  # slow suites below, each of which reports it as its own failure.
+  #
+  # `--lib` rather than `--all-targets`: the question is whether the library
+  # compiles for a consumer that asked for this much and no more. The test
+  # modules need `default_features` and are covered by the suites below.
+  #
+  # This job is `cargo check` only, so it finishes in a couple of minutes and
+  # names the gate that broke.
+  feature-gates:
+    name: sequent-core at ${{ matrix.gate }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    # This job reads code and runs `cargo check`. Without a block it inherits the
+    # repository default, which can include write scopes.
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - gate: no features
+            cache: none
+            features: ""
+          - gate: default_features
+            cache: default
+            features: --features default_features
+          - gate: keycloak,default_features
+            cache: keycloak
+            features: --features keycloak,default_features
+          - gate: election_config_templates
+            cache: templates
+            features: --features election_config_templates
+          - gate: election_config_archive
+            cache: archive
+            features: --features election_config_archive
+          - gate: election_config_xlsx
+            cache: xlsx
+            features: --features election_config_xlsx
+          # The pair no other row covers, and the one the wizard's wasm actually
+          # builds: a spreadsheet reader *and* a zip writer together. Code that
+          # needs both — reading a workbook into a plan, writing one into a
+          # delivery — compiles in this configuration and no other.
+          - gate: election_config_archive,election_config_xlsx
+            cache: archive-xlsx
+            features: --features election_config_archive,election_config_xlsx
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          # Or the job token stays in .git/config, readable by every later step.
+          persist-credentials: false
+
+      - name: Set up Rust tests
+        uses: ./.github/actions/setup-rust-tests
+        with:
+          # Per gate, or six jobs would evict each other's artifacts all day.
+          cargo-build-name: sequent-core-${{ matrix.cache }}
+          cargo-build-path: packages/target
+          cargo-lock-path: packages/Cargo.lock
+
+      - name: cargo check ${{ matrix.gate }}
+        env:
+          PROTOC: "/usr/bin/protoc"
+        run: cargo check -p sequent-core --lib ${{ matrix.features }}
+        working-directory: packages
+
   run-tests:
     name: Run Rust tests
     runs-on: ubuntu-24.04
@@ -24,7 +95,16 @@ jobs:
           - service: immu-board
           - service: immudb-rs
           - service: sequent-core
-            extra: --features keycloak,default_features
+            # Every gate, because `feature-gates` above is `cargo check --lib` —
+            # compile-only, and `--lib` excludes test targets. So until this line
+            # listed them, **no job in either repository executed the ~320 tests
+            # behind `election_config_templates` and `election_config_xlsx`**:
+            # the whole architect, build, preview and profile suites. The first
+            # run after widening it found a real one — a preview was not
+            # reproducible, and only when `keycloak` was in the build, because a
+            # transitive dependency turns on `serde_json`'s `preserve_order` and
+            # cargo unifies that across the workspace.
+            extra: --features keycloak,default_features,election_config_xlsx,election_config_templates,election_config_archive
           - service: step-cli
           - service: velvet
           - service: wrap-map-err

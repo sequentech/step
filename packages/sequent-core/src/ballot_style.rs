@@ -10,11 +10,15 @@ use crate::ballot::{
 };
 
 use crate::serialization::deserialize_with_path::deserialize_value;
+#[cfg(feature = "areas")]
+use crate::services::area_tree::TreeNode;
 use crate::services::translations::{Alias, Name};
 use crate::types::ceremonies::CountingAlgType;
 use crate::types::hasura::core::{self as hasura_types};
 use anyhow::{anyhow, Context, Result};
 use std::collections::HashMap;
+#[cfg(feature = "areas")]
+use std::collections::HashSet;
 use std::env;
 use std::str::FromStr;
 
@@ -36,6 +40,20 @@ pub fn parse_i18n_field(
     Some(content)
 }
 
+/// The stand-in key for an election whose key ceremony has not run yet.
+///
+/// Read here rather than at the top of [`create_ballot_style`] so that an
+/// election *with* a key does not need one: the read used to sit on the happy
+/// path with a `?`, which meant a deployment that had never set
+/// `DEMO_PUBLIC_KEY` could not generate any ballot style at all, real key or
+/// not. It is also unreachable in a browser — `std::env::var` always fails on
+/// `wasm32-unknown-unknown` — so anything calling this in WASM has to pass
+/// `demo_public_key` in instead.
+fn demo_public_key_from_env() -> Result<String> {
+    env::var("DEMO_PUBLIC_KEY")
+        .with_context(|| "DEMO_PUBLIC_KEY env var not found")
+}
+
 pub fn create_ballot_style(
     id: String,
     area: hasura_types::Area,                    // Area
@@ -47,6 +65,11 @@ pub fn create_ballot_style(
     candidates: Vec<hasura_types::Candidate>, // Candidate
     election_dates: StringifiedPeriodDates,   // Election Dates
     public_key: Option<String>,               // public key
+    // What to show when `public_key` is `None`. `None` means "read
+    // DEMO_PUBLIC_KEY from the environment", which is where windmill keeps it. A
+    // caller in a browser has no environment, so it passes the key it wants
+    // shown — see `election_config::preview::preview_publication`.
+    demo_public_key: Option<String>,
 ) -> Result<ballot::BallotStyle> {
     let mut sorted_contests = contests
         .clone()
@@ -54,8 +77,6 @@ pub fn create_ballot_style(
         .filter(|contest| contest.election_id == election.id)
         .collect::<Vec<hasura_types::Contest>>();
     sorted_contests.sort_by_key(|k| k.id.clone());
-    let demo_public_key_env = env::var("DEMO_PUBLIC_KEY")
-        .with_context(|| "DEMO_PUBLIC_KEY env var not found")?;
     let election_event_presentation: ElectionEventPresentation = election_event
         .presentation
         .clone()
@@ -137,17 +158,19 @@ pub fn create_ballot_style(
         election_id: election.id,
         num_allowed_revotes: election.num_allowed_revotes,
         description: election.description,
-        public_key: Some(
-            public_key
-                .map(|key| ballot::PublicKeyConfig {
-                    public_key: key,
-                    is_demo: false,
-                })
-                .unwrap_or(ballot::PublicKeyConfig {
-                    public_key: demo_public_key_env.to_string(),
-                    is_demo: true,
-                }),
-        ),
+        public_key: Some(match public_key {
+            Some(key) => ballot::PublicKeyConfig {
+                public_key: key,
+                is_demo: false,
+            },
+            None => ballot::PublicKeyConfig {
+                public_key: match demo_public_key {
+                    Some(key) => key,
+                    None => demo_public_key_from_env()?,
+                },
+                is_demo: true,
+            },
+        }),
         area_id: area.id,
         area_presentation: Some(area_presentation),
         contests,
@@ -311,4 +334,65 @@ fn create_contest(
             .transpose()?,
         tie_breaking_policy,
     })
+}
+
+/// Which contests an area votes on, per election.
+///
+/// Lifted out of `windmill::services::ballot_styles::ballot_style`, which is
+/// still its only production caller — it sits here because generating a ballot
+/// style is now two steps rather than one, and the second is
+/// [`create_ballot_style`], already here. A preview that resolved areas its own
+/// way would show a voter contests they will not get, or hide ones they will,
+/// and the divergence would be invisible until election day.
+///
+/// Inheritance is the point: an `area_contest` row on an ancestor puts that
+/// contest on every descendant's ballot, which is how districting works. So the
+/// path from the root down to `area` is walked, not just the area itself.
+///
+/// `election_ids` bounds the answer to the elections being published. windmill
+/// takes them from the `ballot_publication` row; a preview passes every election
+/// in the plan.
+#[cfg(feature = "areas")]
+pub fn elections_contests_for_area(
+    area: &hasura_types::Area,
+    areas_tree: &TreeNode,
+    election_ids: &[String],
+    contests_map: &HashMap<String, hasura_types::Contest>,
+    area_contests_map: &HashMap<String, hasura_types::AreaContest>,
+) -> Result<HashMap<String, HashSet<String>>> {
+    if election_ids.is_empty() {
+        return Err(anyhow!("No election ids"));
+    }
+
+    let area_ids: Vec<String> = areas_tree
+        .find_path_to_area(&area.id)
+        .ok_or(anyhow!("area not found in tree"))?
+        .into_iter()
+        .map(|ancestor| ancestor.id)
+        .collect();
+
+    let mut election_contest_map: HashMap<String, HashSet<String>> =
+        HashMap::new();
+
+    for area_contest in area_contests_map
+        .values()
+        .filter(|area_contest| area_ids.contains(&area_contest.area_id))
+    {
+        // A dangling area_contest is skipped rather than fatal. windmill logs it
+        // and carries on, because one bad row should not stop a whole
+        // publication; the shared validation reports it as a problem where
+        // somebody can act on it.
+        let Some(contest) = contests_map.get(&area_contest.contest_id) else {
+            continue;
+        };
+        if !election_ids.contains(&contest.election_id) {
+            continue;
+        }
+        election_contest_map
+            .entry(contest.election_id.clone())
+            .or_default()
+            .insert(contest.id.clone());
+    }
+
+    Ok(election_contest_map)
 }
