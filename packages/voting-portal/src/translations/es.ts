@@ -374,6 +374,9 @@ const spanishTranslation: TranslationType = {
                 certAuthFailedTitle: "Error de Autenticación con Certificado",
                 certAuthFailedMessage:
                     "No se ha podido verificar su certificado. Compruebe que está usando un certificado de votante válido e inténtelo de nuevo.",
+                invalidLoginHintParametersTitle: "Enlace de votación no válido",
+                invalidLoginHintParametersMessage:
+                    "Este enlace de votación contiene información de inicio de sesión no válida. Solicite un nuevo enlace e inténtelo de nuevo.",
             },
         },
         materials: {

@@ -24,7 +24,7 @@ const spanishTranslation: TranslationType = {
             description2:
                 "Por favor ingrese el ID de la papeleta proporcionado en el Portal de Votación:",
             ballotIdHelpDialog: {
-                title: "Information: Tu ID de papeleta",
+                title: "Información: Tu ID de papeleta",
                 ok: "OK",
                 content:
                     "Por favor ingrese el ID de la papeleta proporcionado en el Portal de Votación.",

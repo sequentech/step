@@ -375,6 +375,9 @@ const catalanTranslation: TranslationType = {
                 certAuthFailedTitle: "Error d'Autenticació amb Certificat",
                 certAuthFailedMessage:
                     "No s'ha pogut verificar el vostre certificat. Comproveu que esteu utilitzant un certificat de votant vàlid i torneu-ho a intentar.",
+                invalidLoginHintParametersTitle: "Enllaç de votació no vàlid",
+                invalidLoginHintParametersMessage:
+                    "Aquest enllaç de votació conté informació d'inici de sessió no vàlida. Sol·liciteu un enllaç nou i torneu-ho a intentar.",
             },
         },
         materials: {

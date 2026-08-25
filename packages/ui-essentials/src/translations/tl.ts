@@ -29,15 +29,15 @@ const tagalogTranslation: TranslationType = {
                 position: "Posisyon",
                 none: "Wala",
                 ordinals: {
-                    first: "st",
-                    second: "nd",
-                    third: "rd",
-                    other: "th",
+                    first: ".",
+                    second: ".",
+                    third: ".",
+                    other: ".",
                 },
             },
         },
         homeScreen: {
-            title: "Sequent Ballot Verifier",
+            title: "Tagasuri ng Balota ng Sequent",
             description1:
                 "Ginagamit ang ballot verifier kapag pinili ng botante na i-audit ang balota sa voting booth. Ang pag-verify ay dapat tumagal ng 1-2 minuto.",
             description2:
@@ -53,7 +53,7 @@ const tagalogTranslation: TranslationType = {
             useSampleLink: "Gumamit ng sample na auditable ballot",
         },
         confirmationScreen: {
-            title: "Sequent Ballot Verifier",
+            title: "Tagasuri ng Balota ng Sequent",
             topDescription1:
                 "Batay sa impormasyong nasa imported na Auditable Ballot, napag-alaman namin na:",
             topDescription2: "Kung ito ang Ballot ID na ipinakita sa Voting Booth:",
@@ -105,7 +105,7 @@ const tagalogTranslation: TranslationType = {
             header: "Hash:",
         },
         logout: {
-            buttonText: "Logout",
+            buttonText: "Mag-logout",
             modal: {
                 title: "Sigurado ka bang nais mong mag-logout?",
                 content:
@@ -137,7 +137,7 @@ const tagalogTranslation: TranslationType = {
             ballotLocator: "Hanapin ang iyong balota",
         },
         header: {
-            profile: "Profile",
+            profile: "Talaan",
             welcome: "Sumalubong,<br><span>{{name}}</span>",
             session: {
                 title: "Malapit nang mag-expire ang iyong session.",

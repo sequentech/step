@@ -372,6 +372,9 @@ const basqueTranslation: TranslationType = {
                 certAuthFailedTitle: "Ziurtagiriaren Autentifikazio Errorea",
                 certAuthFailedMessage:
                     "Ezin izan da zure ziurtagiria egiaztatu. Mesedez, egiaztatu boto-emaile ziurtagiri baliogarri bat erabiltzen ari zarela eta saiatu berriro.",
+                invalidLoginHintParametersTitle: "Botoa emateko esteka baliogabea",
+                invalidLoginHintParametersMessage:
+                    "Botoa emateko esteka honek saioa hasteko informazio baliogabea du. Eskatu esteka berri bat eta saiatu berriro.",
             },
         },
         materials: {

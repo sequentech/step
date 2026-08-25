@@ -372,6 +372,9 @@ const galegoTranslation: TranslationType = {
                 certAuthFailedTitle: "Erro de Autenticación con Certificado",
                 certAuthFailedMessage:
                     "Non foi posible verificar o seu certificado. Comprobe que está a usar un certificado de votante válido e ténteo de novo.",
+                invalidLoginHintParametersTitle: "Ligazón de votación non válida",
+                invalidLoginHintParametersMessage:
+                    "Esta ligazón de votación contén información de inicio de sesión non válida. Solicite unha nova ligazón e ténteo de novo.",
             },
         },
         materials: {
