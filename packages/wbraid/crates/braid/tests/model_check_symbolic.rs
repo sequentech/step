@@ -107,10 +107,10 @@
 //!   collision (`predicate.rs`: any two ballots collide, sender
 //!   notwithstanding) → datalog error → halt, per trustee, when its OWN view
 //!   holds both. Halting is per-trustee ([`SystemState::halted`]) precisely
-//!   so the checker can hunt the bad interleaving — a trustee decrypting the
-//!   second lineage before observing the collision — which the no-exemption
-//!   lineage property would catch. The budget here bounds a content-creating
-//!   action for finiteness; it is not a tolerance claim.
+//!   so the checker can hunt the bad interleaving — a trustee decrypting a
+//!   second strand before observing the collision — which the privacy/
+//!   differencing property would catch. The budget here bounds a
+//!   content-creating action for finiteness; it is not a tolerance claim.
 //! - **Dishonest mixer** (ADVERSARIAL, [`SymbolicModel::dishonest_mixers`]): a
 //!   sub-threshold set of trustees that subvert their shuffle — honest
 //!   everywhere else. Two kinds ([`DishonestKind`]): `KnownPermutation` (a
@@ -1585,15 +1585,6 @@ impl Model for SymbolicModel {
             },
         ));
 
-        // Mechanism cross-check (retired in the de-clutter step): the lineage
-        // proxy asserts the same single-input-set fact as privacy/differencing,
-        // at the level of "how". Kept one increment as an independent check on
-        // the new content walk.
-        props.push(Property::<Self>::always(
-            "partial decryptions never span two ballots lineages",
-            single_decryption_lineage,
-        ));
-
         let adversarial = self.budgets.ballots_equivocations > 0
             || self.budgets.withholdings > 0
             || self.fixed_split_view
@@ -1876,62 +1867,6 @@ impl BoardContents {
     }
 }
 
-/// The no-exemption lineage check: every `PartialDecryptions` on the board
-/// must trace, through the mix chain (`Mix.output → Mix.input`), back to ONE
-/// common `Ballots` root. Two decrypted lineages — or a decryption whose chain
-/// doesn't reach any ballots — is the differencing-attack precondition and
-/// always a violation, no matter which faults fired. Uses the real `verify`
-/// (signature + statement) to extract predicates from board bytes.
-fn single_decryption_lineage(model: &SymbolicModel, state: &SystemState) -> bool {
-    let mut roots: Vec<CiphertextsHash> = Vec::new();
-    let mut edges: HashMap<CiphertextsHash, CiphertextsHash> = HashMap::new();
-    let mut decrypted_ends: Vec<CiphertextsHash> = Vec::new();
-    for bytes in &state.board {
-        let Ok(message) = ProtocolMessage::<C>::deser(bytes) else {
-            return false;
-        };
-        if message.message_type == MessageType::Configuration {
-            continue;
-        }
-        let Ok((predicate, _)) = verify(&message, &model.configuration) else {
-            return false;
-        };
-        match predicate {
-            Predicate::Ballots(b) => roots.push(b.ciphertexts),
-            Predicate::Mix(m) => {
-                edges.insert(m.output, m.input);
-            }
-            Predicate::PartialDecryptions(p) => decrypted_ends.push(p.ciphertexts),
-            _ => {}
-        }
-    }
-
-    let mut common_root: Option<CiphertextsHash> = None;
-    for end in decrypted_ends {
-        let mut cursor = end;
-        let mut steps = 0;
-        while !roots.contains(&cursor) {
-            match edges.get(&cursor) {
-                Some(input) => cursor = *input,
-                // A decryption whose chain reaches no ballots root.
-                None => return false,
-            }
-            steps += 1;
-            if steps > state.board.len() {
-                // Cycle in the alleged chain: certainly not a lineage.
-                return false;
-            }
-        }
-        match &common_root {
-            None => common_root = Some(cursor),
-            Some(root) if *root == cursor => {}
-            // Two distinct ballots lineages carry decryptions: violation.
-            Some(_) => return false,
-        }
-    }
-    true
-}
-
 /// Explore ALL interleavings over the real datalog with symbolic artifacts.
 /// Not `#[ignore]`d: with tokens instead of crypto this is meant to be fast
 /// enough for the ordinary test suite — that speed is part of what the test
@@ -2128,11 +2063,11 @@ fn model_check_symbolic_two_trustees_mixed_faults() {
 }
 
 /// The first adversarial run: a manager who may post one divergent second
-/// ballots message, at any reachable point, in every interleaving. Checks the
-/// differencing-attack row end to end: partial decryptions never span two
-/// lineages (unconditional), halts happen only given the equivocation
-/// (conditioned safety), and every path either completes or ends with every
-/// mixing trustee halted (the required halt-on-equivocation response).
+/// ballots message, at any reachable point, in every interleaving. On a
+/// consistent board every trustee that acts on both ballots halts on the
+/// collision, so privacy/differencing holds (unconditional), halts happen only
+/// given the equivocation (conditioned safety), and every path either completes
+/// or an adversary acted (conditioned liveness).
 #[test]
 fn model_check_symbolic_two_trustees_ballots_equivocation() {
     check(

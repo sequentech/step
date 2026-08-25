@@ -41,7 +41,7 @@ and measured, and what comes next. Complements:
 | Artifact bodies | real crypto (`Trustee::step`) | deterministic tokens (`execute_symbolic`) |
 | Exploration | tree (ThreadRng ⇒ no folding) | graph/DAG (canonical identity + folding) |
 | Terminal property | `sometimes` completes + plaintexts == inputs | strong `eventually` completes |
-| Role | honest-path axioms: honest artifacts verify (Fiat–Shamir domains agree), decryption recovers the inputs | protocol logic: interleavings, halting, collisions, lineage; the fault program |
+| Role | honest-path axioms: honest artifacts verify (Fiat–Shamir domains agree), decryption recovers the inputs | protocol logic: interleavings, halting, collisions, privacy/integrity of decrypted content; the fault program |
 | Cost | `#[ignore]`d (real crypto per edge) | in the ordinary suite (~1s for all configs) |
 
 The split is deliberate: v2 *assumes* the symbolic axioms (honest artifacts
@@ -138,7 +138,7 @@ artifacts verify; plaintexts == inputs" on the honest path stays v1's job.
 | `fa22aabf29` | Merge of `feat/braid-0.6.2/main` (vsc: deser-cursor fix, fold strategy, benchmark, lint) — made on top of the stateright work and pulled in | all suites green post-merge; symbolic state counts byte-identical (the deser fix perturbed nothing) |
 | `9c6a687c95` | `CrashBeforeRecord` (second benign fault): real `post` aborted at the record write via a failing-persistence delegate; death-not-halt semantics; budget spent only when the crash fires | crashes≤2: 187 states (isomorphic to drops≤2 — the two seam-sides mirror); mixed drops≤1+crashes≤1: 303 states; all properties + guards |
 | `c55d0d3b53` | Fetch-failure stutter lemma pinned (benign tier complete): read failures have zero durable footprint ⇒ schedule-equivalent, no fault class needed; module docs gain "deliberately NOT fault classes" | lemma test green against the real `BoardClient::update` |
-| `fd6c60dd2c` | `EquivocateBallots` (first adversarial fault, the differencing-attack row) + per-trustee halting (a halted trustee loses its turns; others run on — the global freeze would have hidden the dangerous interleavings) + the no-exemption lineage property on every state of every config | equivocations≤1: 135 states; benign counts unchanged. Caveat: with a consistent board the second lineage can never begin (seeing ballots#2 implies seeing ballots#1 ⇒ halt); the sharp variant is equivocation + split views |
+| `fd6c60dd2c` | `EquivocateBallots` (first adversarial fault, the differencing-attack row) + per-trustee halting (a halted trustee loses its turns; others run on — the global freeze would have hidden the dangerous interleavings) + a no-exemption lineage property (a mechanism proxy, later subsumed by privacy/differencing and retired in step 5) | equivocations≤1: 135 states; benign counts unchanged. Caveat: with a consistent board the second lineage can never begin (seeing ballots#2 implies seeing ballots#1 ⇒ halt); the sharp variant is equivocation + split views |
 | `949866871b` | Functional properties (privacy/differencing, privacy/linkage, integrity) over symbolic ballot/mix content — the asset-level reframe; the equivocation fault now models the differencing move at the source | benign counts unchanged; equivocation now **112** (was 135 — `halted` became `Vec<bool>`, removing hash-order dedup noise the error string had leaked into state identity) |
 | `22f4f84994` | Dishonest mixers (`KnownPermutation`, `Forge`, sub-threshold) + the honest-verification defense (decline to sign a mix whose output multiset ≠ input) — gives linkage and integrity their teeth. Two negative controls prove the properties bite | known-perm mixer: 35 (completes, privacy holds via the honest mixer's opaque layer); forging mixer: 22/24 (chain stalls, integrity holds); both negative controls confirm violation when the defense is removed |
 | `75b4806d15`, `c84871e493` | Adversarial-b4 **withholding** + ruling 1 (compression off under withholding); refactored to **strand-level** (b4 hides a whole strand, coherent views, far cheaper) + stable `HaltReason` (distinguishes the completeness gate from the collision rule) | withhold≤1: 461; equiv≤1 withhold≤1: 1638. The "completeness gate halts a trustee" guard fires — anti-rewrite (§6.3) demonstrated. Per-strand cut per-row's cost ~6× |
@@ -177,9 +177,12 @@ Agreed order for the fault program:
    the interleavings are searched, the partition is given. Discovering the
    partition (seed-post-DKG) is a possible refinement, not needed for the
    conclusion.
-5. **De-clutter (step D)**: retire the mechanism lineage property (kept as
-   cross-validation — subsumed by privacy/differencing) now that the
-   functional properties are exercised and trusted across the adversarial tier.
+5. **De-clutter (step D) — DONE.** The mechanism lineage property (a proxy for
+   the single-input-set fact) is retired: privacy/differencing subsumes it and
+   is exercised across the whole adversarial tier, so the "how"-level proxy no
+   longer earns its place. The property set is now purely functional (privacy,
+   integrity) plus the benign completion/no-halt claims and the non-vacuity
+   guards.
 
 Beyond the agreed steps (candidates, not yet scheduled):
 
