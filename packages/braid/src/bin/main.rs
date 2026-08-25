@@ -9,6 +9,7 @@ use clap::Parser;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
+use std::time::Instant;
 use tokio::time::{sleep, Duration};
 use tracing::instrument;
 use tracing::{error, info};
@@ -39,6 +40,14 @@ struct Cli {
 
     #[arg(long, default_value_t = false)]
     strict: bool,
+
+    /// Exit successfully once no board has produced work for this many seconds.
+    ///
+    /// Unset (the default) keeps the historical behaviour: poll forever and let
+    /// something outside the process decide when to stop. Also settable with
+    /// EXIT_WHEN_IDLE_SECS, matching how TRUSTEE_NAME and IGNORE_BOARDS are read.
+    #[arg(long)]
+    exit_when_idle_secs: Option<u64>,
 }
 
 // How often the session map (which contains trustee's memory board) is cleared
@@ -97,6 +106,15 @@ async fn main() -> Result<()> {
         Session<RistrettoCtx, HttpB3, braid::native::board::SqliteStorage>,
     > = HashMap::new();
     let mut loop_count: i64 = 0;
+
+    let exit_when_idle_secs = get_exit_when_idle_secs(args.exit_when_idle_secs);
+    match exit_when_idle_secs {
+        Some(secs) => info!("Will exit after {}s with no activity on any board", secs),
+        None => info!("No idle deadline set, will run until stopped"),
+    }
+    // None means "currently active"; Some(t) is when the quiet period began.
+    let mut idle_since: Option<Instant> = None;
+
     loop {
         info!("{} >", loop_count);
 
@@ -118,6 +136,7 @@ async fn main() -> Result<()> {
         }
 
         let mut step_error = false;
+        let mut did_work = false;
         for board_name in &boards {
             if ignored_boards.contains(&board_name) {
                 info!("Ignoring board '{}'..", board_name);
@@ -154,7 +173,18 @@ async fn main() -> Result<()> {
 
             let result = s.step().await;
             match result {
-                Ok(_) => (),
+                Ok((posted_count, step_result)) => {
+                    // Three independent signs of a live protocol: we published,
+                    // a peer published, or the datalog still has work queued for
+                    // us. Actions matter on their own because a trustee can have
+                    // a pending action while no message moves in that tick.
+                    if posted_count > 0
+                        || step_result.added_messages > 0
+                        || !step_result.actions.is_empty()
+                    {
+                        did_work = true;
+                    }
+                }
                 Err(error) => {
                     let mut show_error = true;
                     let error_msg = format!("{:?}", error);
@@ -175,6 +205,33 @@ async fn main() -> Result<()> {
 
         if args.strict && step_error {
             break;
+        }
+
+        // Idle shutdown.
+        //
+        // Without this the trustee has no end: it polls B3 forever and is stopped
+        // from outside, so a ceremony that wedges holds the pod until whatever is
+        // watching gives up on it. Ending the run when the protocol goes quiet is
+        // what lets the workload be a Job rather than a scaled-to-zero Deployment.
+        //
+        // A step error counts as activity rather than idleness. A trustee that
+        // cannot reach the board has not finished, and exiting 0 there would
+        // report failure as success; the run should keep retrying and be bounded
+        // by the Job's own deadline instead.
+        if let Some(limit) = exit_when_idle_secs {
+            if did_work || step_error {
+                idle_since = None;
+            } else {
+                let since = *idle_since.get_or_insert_with(Instant::now);
+                if since.elapsed() >= Duration::from_secs(limit) {
+                    info!(
+                        "No activity on {} board(s) for {}s, exiting",
+                        session_map.len(),
+                        limit
+                    );
+                    break;
+                }
+            }
         }
 
         cfg_if::cfg_if! {
@@ -198,6 +255,23 @@ async fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Seconds of inactivity after which the run ends, from the flag or
+/// EXIT_WHEN_IDLE_SECS. An unparseable value is ignored rather than fatal, so a
+/// bad env var degrades to the historical run-forever behaviour instead of
+/// crash-looping a trustee mid-ceremony.
+fn get_exit_when_idle_secs(from_arg: Option<u64>) -> Option<u64> {
+    from_arg.or_else(|| {
+        let raw = std::env::var("EXIT_WHEN_IDLE_SECS").ok()?;
+        match raw.parse() {
+            Ok(secs) => Some(secs),
+            Err(_) => {
+                error!("Ignoring unparseable EXIT_WHEN_IDLE_SECS '{}'", raw);
+                None
+            }
+        }
+    })
 }
 
 fn get_ignored_boards() -> Vec<String> {
