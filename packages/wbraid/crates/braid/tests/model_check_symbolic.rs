@@ -993,7 +993,7 @@ impl SymbolicModel {
             roots.insert(*r, *r);
         }
         let bound = state.board.len() + 1;
-        for (&output, _) in edge.iter() {
+        for &output in edge.keys() {
             // Walk output → input → … until a ballots root (or give up).
             let mut cursor = output;
             let mut steps = 0;
@@ -1675,10 +1675,7 @@ impl Model for SymbolicModel {
                 "the completeness gate halts a trustee under withholding",
                 |_, state| {
                     state.faults.withholdings > 0
-                        && state
-                            .halted
-                            .iter()
-                            .any(|h| *h == Some(HaltReason::CompletenessGate))
+                        && state.halted.contains(&Some(HaltReason::CompletenessGate))
                 },
             ));
         }
