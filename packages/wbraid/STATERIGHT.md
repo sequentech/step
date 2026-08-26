@@ -303,7 +303,8 @@ load-bearing:
 - **Honest shuffle verification.** An honest trustee signs a mix only if it is a
   valid shuffle of its input. A forged mix therefore never gathers the threshold
   of signatures it needs to extend the chain, so forged content never reaches
-  decryption. (Control: disable verification ⇒ integrity fails.)
+  decryption. (Control: make a whole quorum dishonest, so the forgery is
+  blind-signed rather than rejected ⇒ integrity fails.)
 - **The opaque honest layer.** With fewer than a threshold of trustees
   dishonest, at least one shuffle in the chain is honest and opaque, so privacy
   holds even if others use known permutations. (Control: make a whole quorum use

@@ -136,8 +136,7 @@
 //!   illegitimate strand needs its WHOLE quorum to skip the check. This is an
 //!   honest-behavior *assumption* licensed by the trust model (§ Trust model in
 //!   the spec: input legitimacy is an external precondition); the negative
-//!   control (`SkipsAnchor` quorum, or the anchor removed) shows it is
-//!   load-bearing.
+//!   control (a whole `SkipsAnchor` quorum) shows it is load-bearing.
 //! - [`Turn::Withhold`] (ADVERSARIAL b4, budgeted): b4 begins hiding a board
 //!   row from one trustee. This is the whole of adversarial b4 — it cannot
 //!   forge (signatures are checked) and reordering is neutralized by canonical
@@ -740,10 +739,6 @@ struct SymbolicModel {
     /// sub-threshold; a threshold-filling set is used only in negative-control
     /// tests, to show a property bites.
     dishonest_mixers: HashMap<TrusteeIndex, DishonestKind>,
-    /// Whether honest trustees verify a mix before signing it (the integrity
-    /// defense). Always true except in the negative control that shows the
-    /// integrity property fails when the defense is removed.
-    honest_verification: bool,
     /// The mixing quorum an equivocated ballots names. `None` = the same list
     /// as the honest ballots. A DISJOINT quorum (needs n >= 2*threshold) is
     /// what makes the type-2 split-view attack constructible: the two strands
@@ -822,7 +817,6 @@ impl SymbolicModel {
             n,
             budgets: FaultBudgets::default(),
             dishonest_mixers: HashMap::new(),
-            honest_verification: true,
             equivocation_quorum: None,
             fixed_split_view: false,
             manager,
@@ -851,12 +845,6 @@ impl SymbolicModel {
     /// reject it, so it never reaches decryption.
     fn with_forging_mixer(self, index: TrusteeIndex) -> Self {
         self.with_dishonest_mixer(index, DishonestKind::Forge)
-    }
-
-    /// Remove the honest-verification defense (negative control only).
-    fn without_honest_verification(mut self) -> Self {
-        self.honest_verification = false;
-        self
     }
 
     /// Allow up to `budget` [`Turn::DropCommit`] cycles in the exploration.
@@ -1145,10 +1133,9 @@ impl SymbolicModel {
     }
 
     /// Whether trustee `i` enforces the input-ballot anchor: an honest actor
-    /// (not dishonest in any way, defense enabled) does; a dishonest operator
-    /// (`dishonest_mixers`) or the disabled-defense negative control does not.
+    /// does; a dishonest operator (any kind in `dishonest_mixers`) does not.
     fn checks_anchor(&self, i: &TrusteeIndex) -> bool {
-        self.honest_verification && !self.dishonest_mixers.contains_key(i)
+        !self.dishonest_mixers.contains_key(i)
     }
 
     /// Whether the ballots at `input` (a first mix's input) are the anchor —
@@ -1231,13 +1218,11 @@ impl SymbolicModel {
             }
             Action::SignMix(cfg, pk, source, input, output, self_index) => {
                 let signer = ProtocolMessage::<C>::mix_signature(t, DATE, *cfg, *pk, *input, *output);
-                // A mixing-dishonest trustee (or the disabled-defense negative
-                // control) signs without verifying anything.
-                let blind = !self.honest_verification
-                    || matches!(
-                        self.dishonest_mixers.get(self_index),
-                        Some(DishonestKind::KnownPermutation) | Some(DishonestKind::Forge)
-                    );
+                // A mixing-dishonest trustee signs without verifying anything.
+                let blind = matches!(
+                    self.dishonest_mixers.get(self_index),
+                    Some(DishonestKind::KnownPermutation) | Some(DishonestKind::Forge)
+                );
                 if blind {
                     return vec![signer];
                 }
@@ -2012,17 +1997,19 @@ fn anchor_property_has_teeth() {
     );
 }
 
-/// Negative control — integrity has teeth: remove honest verification, and a
-/// forged mix reaches decryption, publishing plaintexts that DON'T match the
-/// ballots. Confirms the integrity property is not passing vacuously in
-/// [`model_check_symbolic_two_trustees_forging_mixer`] (where it holds only
-/// because honest verification stalls the forgery).
+/// Negative control — integrity has teeth: with the WHOLE quorum dishonest
+/// (both of 2 = threshold), trustee 1's forged mix is blind-signed by trustee 2
+/// rather than rejected, so it reaches decryption and the published plaintexts
+/// do NOT match the ballots. Confirms the integrity property is not passing
+/// vacuously in [`model_check_symbolic_two_trustees_forging_mixer`] (where one
+/// honest trustee stalls the forgery), and that defeating it takes a full
+/// dishonest quorum.
 #[test]
 fn integrity_property_has_teeth() {
     expect_violation(
         SymbolicModel::new(2, 2)
             .with_forging_mixer(1)
-            .without_honest_verification(),
+            .with_dishonest_mixer(2, DishonestKind::KnownPermutation),
         "published plaintexts match the honest ballots",
     );
 }
