@@ -10,7 +10,6 @@ use sequent_core::util::path::list_subfolders;
 use serde::Serialize;
 use tracing::{event, instrument, Level};
 
-use crate::pipes::do_tally::counting_algorithm::acclaimed::is_eligible_acclaimed_candidate;
 use crate::pipes::do_tally::{list_tally_sheet_subfolders, OUTPUT_BREAKDOWNS_FOLDER};
 use crate::pipes::error::{Error, Result};
 use crate::pipes::{
@@ -45,7 +44,7 @@ impl MarkWinners {
             return contest_result
                 .candidate_result
                 .iter()
-                .filter(|result| is_eligible_acclaimed_candidate(&result.candidate))
+                .filter(|result| result.candidate.is_eligible_acclaimed_candidate())
                 .enumerate()
                 .map(|(index, result)| WinnerResult {
                     candidate: result.candidate.clone(),

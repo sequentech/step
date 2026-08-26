@@ -28,6 +28,7 @@ import {
     isCategoryListSelected,
     shouldShowCategoryCandidateOnReview,
     isAcclaimedContest,
+    isEligibleAcclaimedCandidate,
     translateFromPresentation,
     stringToHtml,
     type ICategory,
@@ -279,6 +280,12 @@ export const PlaintextVoteContest: React.FC<PlaintextVoteContestProps> = ({
     const isPreferentialVote = isPreferential(question.counting_algorithm)
     const isAcclaimed = isAcclaimedContest(question)
     const choicesById = keyBy(questionPlaintext.choices, "id")
+    const displayedQuestion = isAcclaimed
+        ? {
+              ...question,
+              candidates: question.candidates.filter(isEligibleAcclaimedCandidate),
+          }
+        : question
 
     const explicitInvalidAnswer =
         (questionPlaintext.is_explicit_invalid &&
@@ -295,7 +302,7 @@ export const PlaintextVoteContest: React.FC<PlaintextVoteContestProps> = ({
         !isAcclaimed && isBlankBallotsPolicyEnabled && questionPlaintext.is_blank_ballot
     )
 
-    const {noCategoryCandidates, categoriesMap} = categorizeCandidates(question)
+    const {noCategoryCandidates, categoriesMap} = categorizeCandidates(displayedQuestion)
     const sortedCategoryEntries = sortCategoryEntries(
         categoriesMap,
         question.presentation?.types_presentation
@@ -366,7 +373,7 @@ export const PlaintextVoteContest: React.FC<PlaintextVoteContestProps> = ({
                                     key={categoryName}
                                     categoryName={categoryName}
                                     category={category}
-                                    question={question}
+                                    question={displayedQuestion}
                                     questionPlaintext={questionPlaintext}
                                     choicesById={choicesById}
                                     isPreferentialVote={isPreferentialVote}

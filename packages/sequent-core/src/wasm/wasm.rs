@@ -718,6 +718,17 @@ pub fn get_candidate_points_js(
         .into_json()
 }
 
+/// Exposes the canonical acclaimed-candidate policy to browser consumers.
+#[wasm_bindgen]
+pub fn is_eligible_acclaimed_candidate_js(
+    candidate_json: JsValue,
+) -> Result<bool, JsValue> {
+    let candidate: Candidate = serde_wasm_bindgen::from_value(candidate_json)
+        .map_err(|err| format!("Error parsing candidate: {err}"))
+        .into_json()?;
+    Ok(candidate.is_eligible_acclaimed_candidate())
+}
+
 #[wasm_bindgen]
 pub fn is_preferential_js(
     counting_algorithm_js: JsValue,

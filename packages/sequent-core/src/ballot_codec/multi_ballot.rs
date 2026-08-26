@@ -1693,15 +1693,27 @@ mod tests {
             .iter()
             .map(|c| c.id.clone())
             .collect();
-        let mut style = test_ballot_style(vec![contest.clone()]);
+        let mut acclaimed = random_contest(
+            "acclaimed".to_string(),
+            vec![
+                random_candidate("winner-a".to_string(), "1".to_string()),
+                random_candidate("winner-b".to_string(), "1".to_string()),
+            ],
+            0,
+            1,
+        );
+        acclaimed.is_acclaimed = Some(true);
+        let acclaimed_decoded = decoded_vote_contest(&acclaimed, false, &[]);
+        let mut style = test_ballot_style(vec![acclaimed, contest.clone()]);
         style.multi_contest_encoding_mode =
             Some(MultiContestEncodingMode::EXPANDED_CAPACITY);
         let decoded = decoded_vote_contest(&contest, false, &selected_ids);
 
-        let result = test_multi_contest_reencoding(&vec![decoded], &style)
-            .expect(
-                "expanded capacity should encode a selection past max_votes",
-            );
+        let result = test_multi_contest_reencoding(
+            &vec![acclaimed_decoded, decoded],
+            &style,
+        )
+        .expect("expanded capacity should encode a selection past max_votes");
 
         let selected: Vec<&str> = result[0]
             .choices
@@ -1709,6 +1721,7 @@ mod tests {
             .filter(|choice| choice.selected > -1)
             .map(|choice| choice.id.as_str())
             .collect();
+        assert_eq!(result.len(), 1, "acclaimed contest must not be encoded");
         assert_eq!(selected.len(), 4);
         assert!(selected_ids
             .iter()

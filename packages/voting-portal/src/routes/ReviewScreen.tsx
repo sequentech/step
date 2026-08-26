@@ -81,7 +81,7 @@ import {
 } from "../store/castVotes/sessionBallotData"
 import {setConfirmationScreenData} from "../store/castVotes/confirmationScreenDataSlice"
 import {selectElectionById} from "../store/elections/electionsSlice"
-import {isDeclineToVoteByElectionId} from "../store/extra/extraSlice"
+import {completeAcclaimedElection, isDeclineToVoteByElectionId} from "../store/extra/extraSlice"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -359,6 +359,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const {isGoldUser, reauthWithGold} = authContext
     const addFakeCastVote = useAddFakeCastVote(tenantId, eventId)
     const tryInsertCastVote = useTryInsertCastVote()
+    const dispatch = useAppDispatch()
 
     const handleClose = (value: boolean) => {
         setAuditBallotHelp(false)
@@ -413,6 +414,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
         // to encrypt, hash or cast: the voter goes straight to confirmation.
         if (isFullyAcclaimed) {
             isCastingBallot.current = true
+            dispatch(completeAcclaimedElection(ballotStyle.election_id))
             return submit(null, {method: "post"})
         }
         const errorType = VotingPortalErrorType.UNABLE_TO_CAST_BALLOT

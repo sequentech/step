@@ -67,7 +67,12 @@ import {
 } from "../store/electionEvents/electionEventsSlice"
 import {TenantEventType} from ".."
 import Stepper from "../components/Stepper"
-import {clearIsVoted, selectBypassChooser, setBypassChooser} from "../store/extra/extraSlice"
+import {
+    clearIsVoted,
+    isAcclaimedElectionCompleted,
+    selectBypassChooser,
+    setBypassChooser,
+} from "../store/extra/extraSlice"
 import {updateBallotStyleAndSelection} from "../services/BallotStyles"
 import {BallotStyleConfigurationError} from "../services/BallotStyles"
 import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
@@ -190,6 +195,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     const election = useAppSelector(selectElectionById(electionId))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(electionId))
     const castVotes = useAppSelector(selectCastVotesByElectionId(String(electionId)))
+    const isAcclaimedCompleted = useAppSelector(isAcclaimedElectionCompleted(electionId))
     const [visitedBypassChooser, setVisitedBypassChooser] = useState(false)
     const authContext = useContext(AuthContext)
     const {globalSettings} = useContext(SettingsContext)
@@ -248,6 +254,10 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     const isPreview = sessionStorage.getItem("isDemo") === "true"
     const canVote = () => {
         if (!canVoteTest && !election.name?.includes("TEST")) {
+            return false
+        }
+
+        if (isAcclaimedCompleted) {
             return false
         }
 

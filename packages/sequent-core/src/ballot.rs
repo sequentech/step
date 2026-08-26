@@ -552,6 +552,17 @@ impl Candidate {
             .unwrap_or(false)
     }
 
+    /// Whether this entry represents a candidate elected by acclamation.
+    ///
+    /// Blank/invalid markers, withdrawn candidates, and empty write-in slots
+    /// are ballot configuration artefacts rather than elected candidates.
+    pub fn is_eligible_acclaimed_candidate(&self) -> bool {
+        !self.is_explicit_blank()
+            && !self.is_explicit_invalid()
+            && !self.is_disabled()
+            && !self.is_write_in()
+    }
+
     pub fn set_is_write_in(&mut self, is_write_in: bool) {
         let mut presentation =
             self.presentation.clone().unwrap_or(Default::default());
@@ -3035,6 +3046,51 @@ mod voting_screen_back_policy_tests {
         let presentation: ElectionPresentation =
             serde_json::from_str("{}").unwrap();
         assert_eq!(presentation.voting_screen_back_policy, None);
+    }
+}
+
+#[cfg(test)]
+mod acclaimed_candidate_tests {
+    use super::*;
+
+    fn candidate(
+        configure: impl FnOnce(&mut CandidatePresentation),
+    ) -> Candidate {
+        let mut presentation = CandidatePresentation::new();
+        configure(&mut presentation);
+        Candidate {
+            presentation: Some(presentation),
+            ..Candidate::default()
+        }
+    }
+
+    #[test]
+    fn eligibility_excludes_only_non_candidate_configuration_entries() {
+        assert!(candidate(|_| {}).is_eligible_acclaimed_candidate());
+        assert!(!candidate(|presentation| {
+            presentation.is_explicit_blank = Some(true);
+        })
+        .is_eligible_acclaimed_candidate());
+        assert!(!candidate(|presentation| {
+            presentation.is_explicit_invalid = Some(true);
+        })
+        .is_eligible_acclaimed_candidate());
+        assert!(!candidate(|presentation| {
+            presentation.is_disabled = Some(true);
+        })
+        .is_eligible_acclaimed_candidate());
+        assert!(!candidate(|presentation| {
+            presentation.is_write_in = Some(true);
+        })
+        .is_eligible_acclaimed_candidate());
+    }
+
+    #[test]
+    fn category_lists_remain_eligible_candidates() {
+        assert!(candidate(|presentation| {
+            presentation.is_category_list = Some(true);
+        })
+        .is_eligible_acclaimed_candidate());
     }
 }
 

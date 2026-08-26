@@ -7,17 +7,6 @@ use sequent_core::ballot::{Candidate, Contest};
 use super::{CountingAlgorithm, Result};
 use crate::pipes::do_tally::{CandidateResult, ContestResult, ExtendedMetricsContest};
 
-/// Whether a configured candidate represents somebody elected by acclamation.
-///
-/// Blank/invalid markers, withdrawn candidates and empty write-in slots are
-/// configuration artefacts rather than candidates who can be elected.
-pub(crate) fn is_eligible_acclaimed_candidate(candidate: &Candidate) -> bool {
-    !candidate.is_explicit_blank()
-        && !candidate.is_explicit_invalid()
-        && !candidate.is_disabled()
-        && !candidate.is_write_in()
-}
-
 /// Produces the canonical result for a contest decided without a vote.
 ///
 /// This deliberately does not contain a [`Tally`](super::super::tally::Tally):
@@ -42,7 +31,7 @@ impl CountingAlgorithm for Acclaimed {
             .contest
             .candidates
             .iter()
-            .filter(|candidate| is_eligible_acclaimed_candidate(candidate))
+            .filter(|candidate| candidate.is_eligible_acclaimed_candidate())
             .cloned()
             .map(|candidate| CandidateResult {
                 candidate,

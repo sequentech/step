@@ -9,6 +9,7 @@ import {
     normalizeWriteInText,
     translate,
     isAcclaimedContest,
+    isEligibleAcclaimedCandidate,
     ICandidate,
     IContest,
 } from "@sequentech/ui-core"
@@ -244,6 +245,12 @@ export const Answer: React.FC<IAnswerProps> = ({
                 },
             })
         )
+    }
+
+    // Use the same domain policy as tally/publication: ballot markers,
+    // disabled entries and empty write-in slots are not acclaimed winners.
+    if (isAcclaimed && !isEligibleAcclaimedCandidate(answer)) {
+        return null
     }
 
     // The review screen normally lists only what the voter selected; an

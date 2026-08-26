@@ -40,6 +40,11 @@ jest.mock(
         isCategoryListSelected: () => false,
         shouldShowCategoryCandidateOnReview: () => false,
         isAcclaimedContest: (contest?: IContest | null) => Boolean(contest?.is_acclaimed),
+        isEligibleAcclaimedCandidate: (candidate: any) =>
+            !candidate.presentation?.is_explicit_blank &&
+            !candidate.presentation?.is_explicit_invalid &&
+            !candidate.presentation?.is_disabled &&
+            !candidate.presentation?.is_write_in,
         translateFromPresentation: (contest: IContest, key: string, language: string) =>
             contest.presentation?.i18n?.[language]?.[key],
         stringToHtml: (value: string) => value,
@@ -95,6 +100,43 @@ describe("PlaintextVoteContest", () => {
         expect(markup).toContain("Custom acclamation description")
         expect(markup).toContain("Candidate A")
         expect(markup).toContain("Candidate B")
+    })
+
+    it("uses canonical acclaimed eligibility when displaying candidates", () => {
+        const markup = renderContest({
+            id: "contest",
+            name: "Acclaimed contest",
+            is_acclaimed: true,
+            candidates: [
+                {id: "eligible", name: "Eligible candidate"},
+                {
+                    id: "blank",
+                    name: "Explicit blank marker",
+                    presentation: {is_explicit_blank: true},
+                },
+                {
+                    id: "invalid",
+                    name: "Explicit invalid marker",
+                    presentation: {is_explicit_invalid: true},
+                },
+                {
+                    id: "disabled",
+                    name: "Disabled candidate",
+                    presentation: {is_disabled: true},
+                },
+                {
+                    id: "write-in",
+                    name: "Write-in slot",
+                    presentation: {is_write_in: true},
+                },
+            ],
+        } as unknown as IContest)
+
+        expect(markup).toContain("Eligible candidate")
+        expect(markup).not.toContain("Explicit blank marker")
+        expect(markup).not.toContain("Explicit invalid marker")
+        expect(markup).not.toContain("Disabled candidate")
+        expect(markup).not.toContain("Write-in slot")
     })
 
     it("continues to hide unselected candidates for a normal contest", () => {
