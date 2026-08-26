@@ -8,6 +8,9 @@ pub mod messages;
 pub mod client;
 pub mod grpc;
 
+#[cfg(feature = "probe")]
+pub mod probe;
+
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use crate::messages::newtypes::Timestamp;
