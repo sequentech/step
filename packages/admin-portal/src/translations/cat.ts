@@ -863,7 +863,9 @@ const catalanTranslation: TranslationType = {
                     startDisabled:
                         "No podeu continuar amb la cerimònia perquè no s'ha seleccionat cap elecció o les eleccions no estan publicades.",
                     ceremonyDisabled:
-                        "No podeu continuar amb la cerimònia perquè la sessió de recompte no està connectada o l'inici de la cerimònia no està permès.",
+                        "Els Membres de la Junta i els Trustees han de pujar els seus respectius fragments de clau per procedir amb el recompte.",
+                    startTallyDisabled:
+                        "No podeu continuar la cerimònia perquè no està permès iniciar-la.",
                 },
             },
             importAreas: {

@@ -480,7 +480,7 @@ export const TallyCeremony: React.FC = () => {
 
             setIsButtonDisabled(newIsButtonDisabled || isAutomaticCeremonyTallyNotAllowed)
             if (isAutomaticCeremonyTallyNotAllowed) {
-                setNextDisabledReason(t("electionEventScreen.tally.notify.ceremonyDisabled"))
+                setNextDisabledReason(t("electionEventScreen.tally.notify.startTallyDisabled"))
             } else if (newIsButtonDisabled) {
                 setNextDisabledReason(t("electionEventScreen.tally.notify.startDisabled"))
             }
@@ -506,11 +506,16 @@ export const TallyCeremony: React.FC = () => {
                 tallySession?.tally_type === ETallyType.ELECTORAL_RESULTS
                     ? isTallyAllowed
                     : isInitAllowed
+
             let newIsButtonDisabled =
                 tally?.execution_status !== ITallyExecutionStatus.CONNECTED || !isStartAllowed
             setIsButtonDisabled(newIsButtonDisabled)
             if (newIsButtonDisabled) {
-                setNextDisabledReason(t("electionEventScreen.tally.notify.ceremonyDisabled"))
+                if (tally?.execution_status !== ITallyExecutionStatus.CONNECTED) {
+                    setNextDisabledReason(t("electionEventScreen.tally.notify.ceremonyDisabled"))
+                } else {
+                    setNextDisabledReason(t("electionEventScreen.tally.notify.startTallyDisabled"))
+                }
             }
         }
 
@@ -520,7 +525,7 @@ export const TallyCeremony: React.FC = () => {
                 setIsButtonDisabled(newIsButtonDisabled)
             }
         }
-    }, [tally, page, elections, isTallyAllowed])
+    }, [tally, page, elections, isTallyAllowed, isInitAllowed])
 
     useEffect(() => {
         let singleKeysCeremony = keysCeremonies?.list_keys_ceremony?.items?.[0]
@@ -912,7 +917,15 @@ export const TallyCeremony: React.FC = () => {
                             is not allowed based on the tally type and the status of the elections.
                             */}
                             {nextDisabledReason && isButtonDisabled && (
-                                <Alert severity="warning">{nextDisabledReason}</Alert>
+                                <Alert
+                                    severity={
+                                        tally?.execution_status !== ITallyExecutionStatus.CONNECTED
+                                            ? "info"
+                                            : "warning"
+                                    }
+                                >
+                                    {nextDisabledReason}
+                                </Alert>
                             )}
                             <TallyElectionsList
                                 elections={elections}

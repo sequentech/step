@@ -862,7 +862,9 @@ const spanishTranslation: TranslationType = {
                     startDisabled:
                         "No puedes continuar con la ceremonia porque no se han seleccionado elecciones o las elecciones no están publicadas.",
                     ceremonyDisabled:
-                        "No puedes continuar con la ceremonia porque la sesión de recuento no está conectada o el inicio de la ceremonia no está permitido.",
+                        "Los Miembros de la Junta y los Fideicomisarios deben subir sus respectivos fragmentos de clave para proceder con el recuento.",
+                    startTallyDisabled:
+                        "No puede continuar la ceremonia porque no está permitido iniciarla.",
                 },
             },
             importAreas: {
