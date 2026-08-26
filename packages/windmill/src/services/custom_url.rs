@@ -85,11 +85,14 @@ struct DnsRecord {
 }
 
 #[instrument]
-pub async fn get_page_rule(target_value: &str) -> Result<Option<PageRule>, Box<dyn Error>> {
-    info!("target_value {:?}", target_value);
+pub async fn get_page_rule(
+    redirect_to: &str,
+    dns_prefix: &str,
+) -> Result<Option<PageRule>, Box<dyn Error>> {
+    info!("target_value {:?}", redirect_to);
     let page_rules = get_all_page_rules().await?;
     info!("get_page_rules: {:?}", page_rules);
-    Ok(find_matching_target(page_rules, target_value))
+    Ok(find_matching_target(page_rules, redirect_to, dns_prefix))
 }
 
 #[instrument]
@@ -100,24 +103,16 @@ pub async fn get_dns_record(record_name: &str) -> Result<Option<DnsRecord>, Box<
 
 #[instrument]
 pub async fn set_custom_url(
-    origin: &str,
     redirect_to: &str,
+    origin: &str,
     dns_prefix: &str,
-    prev_custom_urls: &PreviousCustomUrls,
     key: &str,
 ) -> Result<(), Box<dyn Error>> {
-    info!("Origin: {:?}", origin);
     info!("Redirect to: {:?}", redirect_to);
+    info!("Origin: {:?}", origin);
     info!("DNS Prefix: {:?}", dns_prefix);
 
-    let current_prev_url = match key {
-        "login" => &prev_custom_urls.login,
-        "enrollment" => &prev_custom_urls.enrollment,
-        "saml" => &prev_custom_urls.saml,
-        _ => panic!("Invalid key provided"),
-    };
-
-    let current_dns_record = match get_dns_record(current_prev_url).await {
+    let current_dns_record = match get_dns_record(dns_prefix).await {
         Ok(dns_record) => {
             info!("Current DNS record found: {:?}", dns_record);
             dns_record
@@ -131,7 +126,7 @@ pub async fn set_custom_url(
 
     match current_dns_record {
         Some(dns_record) => {
-            if let Err(e) = update_dns_record(&dns_record.id, redirect_to, dns_prefix).await {
+            if let Err(e) = update_dns_record(&dns_record.id, dns_prefix).await {
                 let error_message = format!("Failed to update DNS record: {}", e.to_string());
                 error!("{}", error_message);
                 return Err(error_message.into());
@@ -139,7 +134,7 @@ pub async fn set_custom_url(
             info!("DNS record updated successfully.");
         }
         None => {
-            if let Err(e) = create_dns_record(redirect_to, dns_prefix).await {
+            if let Err(e) = create_dns_record(dns_prefix).await {
                 let error_message = format!("Failed to create DNS record: {}", e.to_string());
                 error!("{}", error_message);
                 return Err(error_message.into());
@@ -148,13 +143,13 @@ pub async fn set_custom_url(
         }
     }
 
-    let current_page_rule = match get_page_rule(origin).await {
+    let current_page_rule = match get_page_rule(redirect_to, origin).await {
         Ok(page_rule) => {
             info!("Current page rule found: {:?}", page_rule);
             page_rule
         }
         Err(e) => {
-            let error_message = format!("Failed to get page rule for {}: {}", origin, e);
+            let error_message = format!("Failed to get page rule for {}: {}", redirect_to, e);
             error!("{}", error_message);
             return Err(error_message.into());
         }
@@ -265,7 +260,7 @@ fn find_matching_dns_record(records: Vec<DnsRecord>, expected_name: &str) -> Opt
         let name: Vec<String> = record.name.split(".").map(|s| s.to_owned()).collect();
 
         if let Some(name) = name.first() {
-            info!("name: {}", name);
+            info!("find_matching_dns_record name: {}", name);
 
             if name == expected_name {
                 return Some(record);
@@ -277,13 +272,28 @@ fn find_matching_dns_record(records: Vec<DnsRecord>, expected_name: &str) -> Opt
 }
 
 #[instrument]
-fn find_matching_target(rules: Vec<PageRule>, expected_redirect_url: &str) -> Option<PageRule> {
+fn find_matching_target(
+    rules: Vec<PageRule>,
+    expected_redirect_url: &str,
+    dns_prefix: &str,
+) -> Option<PageRule> {
     for rule in rules {
         for action in &rule.actions {
             if let ActionValue::ForwardURL(fwd) = action.value.clone() {
                 if fwd.url == expected_redirect_url {
                     return Some(rule);
                 }
+            }
+        }
+
+        for target in &rule.targets {
+            info!(
+                "find_matching_target target.constraint.value {:?}",
+                &target.constraint.value
+            );
+            info!("find_matching_target dns_prefix {:?}", dns_prefix);
+            if target.constraint.value.contains(dns_prefix) {
+                return Some(rule);
             }
         }
     }
@@ -329,7 +339,7 @@ fn create_dns_payload(origin: &str) -> CreateDNSRecordRequest {
     }
 }
 
-pub async fn create_dns_record(redirect_to: &str, dns_prefix: &str) -> Result<(), Box<dyn Error>> {
+pub async fn create_dns_record(dns_prefix: &str) -> Result<(), Box<dyn Error>> {
     let client = Client::new();
     let (zone_id, api_key) = match get_cloudflare_vars() {
         Ok(vars) => vars,
@@ -375,11 +385,7 @@ pub async fn create_dns_record(redirect_to: &str, dns_prefix: &str) -> Result<()
     }
 }
 
-pub async fn update_dns_record(
-    id: &str,
-    redirect_to: &str,
-    dns_prefix: &str,
-) -> Result<(), Box<dyn Error>> {
+pub async fn update_dns_record(id: &str, dns_prefix: &str) -> Result<(), Box<dyn Error>> {
     let client = Client::new();
     let (zone_id, api_key) = match get_cloudflare_vars() {
         Ok(vars) => vars,
@@ -432,7 +438,7 @@ async fn update_page_rule(
 ) -> Result<(), Box<dyn Error>> {
     let (zone_id, api_key) = get_cloudflare_vars()?;
     let client = Client::new();
-    let request_body = create_payload(redirect_to, origin);
+    let request_body = create_payload(origin, redirect_to);
     let page_rules = get_all_page_rules().await?;
     info!("Existing page rules: {:?}", page_rules);
 
@@ -463,7 +469,7 @@ async fn create_page_rule(redirect_to: &str, origin: &str) -> Result<(), Box<dyn
     let (zone_id, api_key) = get_cloudflare_vars()?;
     let client = Client::new();
     info!("create_page_rule");
-    let request_body = create_payload(redirect_to, origin);
+    let request_body = create_payload(origin, redirect_to);
     let response = client
         .post(&format!(
             "https://api.cloudflare.com/client/v4/zones/{}/pagerules",
