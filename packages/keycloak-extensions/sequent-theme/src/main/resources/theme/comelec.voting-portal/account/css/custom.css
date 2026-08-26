@@ -1,0 +1,17 @@
+/*
+SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+
+SPDX-License-Identifier: AGPL-3.0-only
+*/
+
+@media (min-width: 0px) {
+    .pf-c-brand {
+        height: 60px;
+    }
+}
+
+@media (min-width: 970px) {
+    .pf-c-brand {
+        height: 60px;
+    }
+}
