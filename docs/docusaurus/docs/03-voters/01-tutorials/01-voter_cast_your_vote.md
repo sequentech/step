@@ -19,6 +19,7 @@ To participate in the election, follow the steps below to authenticate, select y
 
 ![Voter Login Page](./assets/voter_login.png)
 
+
 1. Enter your login credentials (username and password).
 2. Select `Login`.
 
