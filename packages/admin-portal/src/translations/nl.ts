@@ -861,7 +861,9 @@ const dutchTranslation: TranslationType = {
                     startDisabled:
                         "U kunt de ceremonie niet voortzetten omdat er geen verkiezingen zijn geselecteerd of de verkiezingen niet zijn gepubliceerd.",
                     ceremonyDisabled:
-                        "U kunt de ceremonie niet voortzetten omdat de telsessie niet is verbonden of de start van de ceremonie niet is toegestaan.",
+                        "Leden van de Raad van Bestuur en Toezichthouders moeten hun respectievelijke sleutelfragmenten uploaden om met de telling verder te gaan.",
+                    startTallyDisabled:
+                        "U kunt de ceremonie niet voortzetten omdat het starten van de ceremonie niet is toegestaan.",
                 },
             },
             importAreas: {

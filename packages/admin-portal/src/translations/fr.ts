@@ -862,7 +862,9 @@ const frenchTranslation: TranslationType = {
                     startDisabled:
                         "Vous ne pouvez pas continuer la cérémonie car aucune élection n'est sélectionnée ou les élections ne sont pas publiées.",
                     ceremonyDisabled:
-                        "Vous ne pouvez pas continuer la cérémonie car la session de dépouillement n'est pas connectée ou le début de la cérémonie n'est pas autorisé.",
+                        "Les membres du conseil d'administration et les administrateurs doivent télécharger leurs fragments de clé respectifs pour procéder au dépouillement.",
+                    startTallyDisabled:
+                        "Vous ne pouvez pas poursuivre la cérémonie car son démarrage n’est pas autorisé.",
                 },
             },
             importAreas: {

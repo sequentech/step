@@ -861,7 +861,9 @@ const galegoTranslation: TranslationType = {
                     startDisabled:
                         "No puedes continuar con la ceremonia porque no se han seleccionado elecciones o las elecciones no están publicadas.",
                     ceremonyDisabled:
-                        "No puedes continuar con la ceremonia porque la sesión de recuento no está conectada o el inicio de la ceremonia no está permitido.",
+                        "Os Membros do Consello e os Trustees deben subir os seus respectivos fragmentos de clave para proceder coa conta.",
+                    startTallyDisabled:
+                        "Non pode continuar a cerimonia porque non está permitido iniciala.",
                 },
             },
             importAreas: {
