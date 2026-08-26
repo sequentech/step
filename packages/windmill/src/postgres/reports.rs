@@ -27,6 +27,15 @@ use crate::services::reports::template_renderer::EReportEncryption;
 // a module that compiles to WASM.
 pub use sequent_core::election_config::{Report, ReportCronConfig, ReportType};
 
+#[derive(Debug, Default, Deserialize, Hash, PartialEq, Eq, EnumString, Display)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+enum ReportConditionColumn {
+    #[default]
+    ElectionEventId,
+    ElectionId,
+}
+
 pub struct ReportWrapper(pub Report);
 
 impl TryFrom<Row> for ReportWrapper {
@@ -281,7 +290,7 @@ async fn get_reports_by_condition(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     condition_value: &str,
-    condition_column: &str,
+    condition_column: ReportConditionColumn,
 ) -> Result<Vec<Report>> {
     let tenant_uuid =
         parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
@@ -329,7 +338,7 @@ pub async fn get_reports_by_election_event_id(
         hasura_transaction,
         tenant_id,
         election_event_id,
-        "election_event_id",
+        ReportConditionColumn::ElectionEventId,
     )
     .await
 }
@@ -340,7 +349,13 @@ pub async fn get_reports_by_election_id(
     tenant_id: &str,
     election_id: &str,
 ) -> Result<Vec<Report>> {
-    get_reports_by_condition(hasura_transaction, tenant_id, election_id, "election_id").await
+    get_reports_by_condition(
+        hasura_transaction,
+        tenant_id,
+        election_id,
+        ReportConditionColumn::ElectionId,
+    )
+    .await
 }
 
 #[instrument(skip(hasura_transaction), err)]
