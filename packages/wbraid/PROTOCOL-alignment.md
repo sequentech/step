@@ -101,12 +101,42 @@ hashing "the complete preceding transcript"). No concrete forgery is exhibited
 here; the finding is a deviation from the specified strong-FS transcripts, and
 that alone warrants alignment — the description is the sound design.
 
-Remediation shape: include `u` (and, for exactness, `h` or rely on `ctx`) in
-the batching-seed input, and chain the seed into `v`, matching §6.3 verbatim.
-Contained change in `NativeChallenges` (both prover and verifier derive through
-it); no wire-format change; invalidates any previously recorded transcripts
-(none shipped). Recommended priority: **into 0.6.3, first or alongside task 1**
-— small, security-relevant, independent of the other tasks.
+Provenance: this is a **known, tracked deficiency**, not a new discovery — the
+tag constants carry `#[crate::warning("Challenge inputs are incomplete. …")]`
+in the current tree, and the protocol-description work left implementation
+notes with drop-in target code (this evaluation reached the same conclusion
+independently before reading them). The notes' essentials, recorded here so
+they survive the notes' deletion:
+
+- Batching seed transcript becomes `(g, h, u, pk, w, w′, ctx)` — the ignored
+  `generators`/`pedersen_commitments` parameters are already passed in — with
+  the tag array extended to match; the seed is then chained into `v` in place
+  of `pk` (binding the seed transitively binds the statement *and* `e`; this
+  is Verificatum's structure, `v = RO(ρ ‖ seed ‖ τ)`).
+- *Ordering dependency*: `challenge` needs the seed `batching_challenges`
+  produced, and the trait doesn't hand it over. Two options were considered:
+  cache it (v2v's `RefCell` pattern — makes the challenge object single-use
+  per proof and not `Sync`, so call sites need per-call instances) or extend
+  the trait so the dependency is explicit in the signatures.
+  **Decided 2026-08-27: extend the trait** — `batching_challenges` returns
+  the seed alongside `e`, and `challenge` takes it as a parameter. Both
+  prover and verifier already invoke the two methods in the required order,
+  so callers just pass along a value they now receive. `VmnChallenges`
+  adjusts to the new signatures and can drop its internal `RefCell` cache.
+- *Doc-vs-code choice*: retaining `pk` in `v`'s transcript alongside the seed
+  would be a harmless superset of §6.3's `v = H2S(seed, B, A′, B′, C′, D′,
+  F′, ctx)`. **Decided 2026-08-27: follow §6.3 verbatim** — the seed replaces
+  `pk` as the first component (the seed already binds it); one canonical
+  form, no divergence for future verifier implementors to reconcile.
+- Working reference: `v2v::challenges::VmnChallenges` implements the
+  seed-chained structure through the same trait.
+
+Remediation is therefore contained and pre-designed: the `ShuffleChallenges`
+trait signatures, its two implementors, and the two call sites (prover and
+verifier both derive through it); no wire-format change; invalidates any
+previously recorded transcripts (none shipped).
+**Decided 2026-08-27: first item of 0.6.3** — small, security-relevant,
+independent of the other tasks.
 
 ### C2 — The encryption context `ctx_enc` must be defined before task 2 completes
 
