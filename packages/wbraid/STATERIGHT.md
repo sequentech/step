@@ -271,12 +271,21 @@ Adversarial:
 
 ## The properties
 
-The properties assert the **assets** — privacy and integrity — directly over
-the symbolic content, rather than asserting that particular defense mechanisms
-fired. This is deliberate: one asset-level property covers *every* way the asset
-could be lost, and when it fails the counterexample is the real failure, not a
-proxy for it. All three are **safety** properties (checked on every reachable
-state) and hold unconditionally over the entire fault space:
+We check two kinds of property. **Safety** properties say "nothing bad ever
+happens" and are checked on *every* reachable state. **Liveness** properties say
+"something good eventually happens" and are checked over whole execution paths —
+sound here only because the exploration is exhaustive and acyclic (the board
+only grows), so "eventually" is a claim the search can actually settle rather
+than one it would have to give up on at some depth limit.
+
+### Safety
+
+The core safety properties assert the **assets** — privacy and integrity —
+directly over the symbolic content, rather than asserting that particular
+defense mechanisms fired. This is deliberate: one asset-level property covers
+*every* way the asset could be lost, and when it fails the counterexample is the
+real failure, not a proxy for it. All three hold unconditionally over the entire
+fault space:
 
 - **Privacy — differencing.** All fully-decrypted ballot sets carry the same
   multiset. Two *different* decrypted sets is the "differencing attack": the
@@ -286,14 +295,45 @@ state) and hold unconditionally over the entire fault space:
   re-link outputs to inputs.
 - **Integrity.** Any published plaintexts are exactly the legitimate ballot set.
 
-Alongside these: the accidental-fault configurations also check the strong
-**liveness** property (the protocol eventually completes on every path) and the
-**no-halt** property; the adversarial configurations check their weakened
-conditioned forms; and every enabled fault carries its non-vacuity guards.
+A fourth safety property, **no trustee gets stuck**, says a trustee never halts.
+It is `always`-shaped like the others (a halt never happens), but it is really
+the safety companion of the completion property below: a halted trustee makes no
+further progress. Under accidental faults it holds unconditionally; under
+adversarial faults it is conditioned — *only an adversary may cause a halt*, a
+benign fault never does.
 
-What is out of reach: full privacy *as secrecy* — a statement about what an
-adversary can *deduce* — is a knowledge property that no explicit-state checker
-expresses. The three properties above are its checkable behavioral shadows.
+Each defense standing behind these properties is paired with a **negative
+control** (see Defenses) that removes the defense and confirms the property then
+fails, proving it is not passing vacuously.
+
+### Liveness
+
+The liveness property is **completion**: the protocol eventually finishes —
+every mixing trustee publishes its plaintexts. This is where the
+accidental-versus-adversarial split matters most, and it is roughly the mirror
+image of the safety picture:
+
+- Under **accidental faults** the claim is strong and unconditional: on *every*
+  path the protocol completes, whatever pattern of up-to-*k* faults fired. This
+  is the **k-fault-tolerance** guarantee — the recovery mechanisms (re-send
+  after a dropped commit, recompute after a crash before the record) always get
+  the protocol home.
+- Under **adversarial faults** completion cannot be promised: an adversary can
+  always stall the protocol (an untrusted board can simply stop delivering
+  messages). So the claim is weakened to "completes, *or* an adversary acted" —
+  on any path where no adversary interfered, it still completes.
+
+For each enabled fault the harness also checks **non-vacuity guards** (the
+`sometimes` checks described under the fault model): that the fault actually
+fires on some path, and that recovery or the expected response actually happens.
+Without these a conditioned property could pass by never exercising the fault at
+all.
+
+### What is out of reach
+
+Full privacy *as secrecy* — a statement about what an adversary can *deduce* —
+is a knowledge property that no explicit-state checker expresses. The privacy
+properties above are its checkable behavioral shadows.
 
 ## Defenses, and the key finding
 
