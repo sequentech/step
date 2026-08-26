@@ -384,6 +384,32 @@ load-bearing:
   surface it as a per-trustee operator step: a single central check cannot catch
   a split view.
 
+## Scope and limitations
+
+What these results do and do not establish:
+
+- **Exhaustive for the checked configurations — not a proof for all
+  parameters.** A model checker explores the chosen configurations *completely*
+  — every interleaving and every fault pattern within budget — but it is not a
+  theorem prover. Our configurations are small (2–4 trustees, 2 ballots, small
+  fault budgets). The results are exhaustive over exactly those, which is strong
+  evidence, but they do not by themselves establish the properties for arbitrary
+  committee sizes or ballot counts. Small-instance exhaustiveness is both the
+  standard strength and the standard limit of explicit-state model checking.
+- **The cryptographic axioms are assumed, not checked** (in the symbolic
+  harness): that an honestly produced artifact verifies and a forged one does
+  not. The crypto harness checks these on the honest path; breaking them is
+  cryptanalysis, outside any model checker.
+- **One honest-behavior assumption is modeled** — the input-ballot anchor. It is
+  the single place we model a check braid's code does not perform, and it is
+  legitimate precisely because the check is inherently external and is named in
+  the trust model.
+- **Deliberately not modeled:** privacy as *secrecy* (a knowledge property — see
+  The properties), and robustness to malformed or forged messages at the
+  untrusted boundary. The latter is left to the real `verify()` (which rejects
+  them) and to fuzzing, which is the better tool for adversarial bytes (see
+  `ASSURANCE.md`).
+
 ## Status and next steps
 
 The benign and adversarial fault tiers are both complete, and the property set
