@@ -10,7 +10,7 @@ import {
     useLocation,
     useSubmit,
 } from "react-router-dom"
-import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
+import {IBallotStyle, selectBallotStyleByElectionId, showDemo} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box, CircularProgress} from "@mui/material"
 import {
@@ -342,7 +342,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {toHashableBallot, toHashableMultiBallot} = provideBallotService()
     const submit = useSubmit()
-    const isDemo = !!ballotStyle?.ballot_eml?.public_key?.is_demo
+    const isDemo = useAppSelector(showDemo(ballotStyle.election_id))
     const {globalSettings} = useContext(SettingsContext)
     const authContext = useContext(AuthContext)
     const {isGoldUser, reauthWithGold} = authContext
