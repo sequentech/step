@@ -160,7 +160,7 @@ convert to scalar arithmetic if the committee bound ever grows. No action for
 | # | Where | Fix |
 |---|---|---|
 | D1 | §2.5 | The generators tag is group-qualified: `"independent_generators_ristretto"`, not `"independent_generators"` |
-| D2 | §2.4 | State that `len(P)` in the domain label is a 64-bit **little**-endian integer (challenge counters elsewhere are big-endian) |
+| D2 | §2.4 | State the byte encoding of `len(P)` in the domain label. **Reversed 2026-08-27 from a doc-only fix to a code change**: the little-endian encoding in `domain_label` (`trustee/mod.rs`) is the *only* little-endian integer entering any hash transcript in braid/vsc — VSer lengths/integers and both hash counters are all big-endian — an inherited anomaly, not a convention. Decided: normalize the code to big-endian, riding along with C1 (which already invalidates all transcripts; none shipped), so the documented rule becomes uniform: *every 64-bit integer entering a hash transcript is big-endian*. §2.4 gets that sentence when the code lands. Verificatum interop is unaffected: `VmnChallenges` ignores the braid `context` parameter entirely and salts with VMN's own `rho` prefix (`v2v/src/challenges.rs`, `session.rs`) — the two derivations share no bytes |
 | D3 | §2.2 | Specify the encode trial order: the implementation searches `j` (byte 31) outer, `i` (byte 0) inner |
 | D4 | §1.5/§2.1 (optional) | Note the implementation is group-generic and ristretto255 is the deployed instantiation |
 
