@@ -2,17 +2,21 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-mutation CreateUser(
+mutation ImportUsers(
     $tenantId: String!
     $electionEventId: String
-    $user: KeycloakUser2!
+    $documentId: String!
+    $sha256: String
 ) {
-    create_user(
+    import_users(
         tenant_id: $tenantId
         election_event_id: $electionEventId
-        user: $user
+        document_id: $documentId
+        sha256: $sha256
     ) {
-        id
-        username
+        task_execution {
+            id
+            execution_status
+        }
     }
 }

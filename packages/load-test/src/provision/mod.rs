@@ -9,12 +9,13 @@
 mod import;
 mod publish;
 mod tasks;
+mod upload;
 mod voters;
 mod voting_status;
 
 pub use import::import_election_event;
 pub use publish::publish;
-pub use voters::{provision_voter, provision_voters, voter_credential, VoterCredential};
+pub use voters::{provision_voters, voter_credential, Area, VoterCredential};
 pub use voting_status::open_voting;
 
 use anyhow::{Context, Result};
@@ -92,18 +93,18 @@ pub async fn provision_election_event(
     publish(client, &election_event_id).await?;
     open_voting(client, &election_event_id).await?;
 
-    let area_ids = voters::get_area_ids(client, &election_event_id).await?;
-    let area_id = area_ids.into_iter().next().ok_or_else(|| {
+    let areas = voters::get_areas(client, &election_event_id).await?;
+    let area = areas.into_iter().next().ok_or_else(|| {
         anyhow::anyhow!("election event {election_event_id} has no areas to assign voters to")
     })?;
     let election_ids = voters::get_election_ids(client, &election_event_id).await?;
 
     let voters = voters::provision_voters(
         client,
+        http,
         tenant_id,
         &election_event_id,
-        &area_id,
-        &election_ids,
+        &area.name,
         voter_count,
     )
     .await?;
@@ -111,7 +112,7 @@ pub async fn provision_election_event(
     Ok(ProvisionedElectionEvent {
         tenant_id: tenant_id.to_string(),
         election_event_id,
-        area_id,
+        area_id: area.id,
         election_ids,
         voters,
     })

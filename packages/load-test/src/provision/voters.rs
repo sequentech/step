@@ -2,23 +2,38 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Voter provisioning: `create_user` (no password) + `edit_user` (sets it),
-//! the same two mutations `step-cli create-voter` + `update-voter` use
-//! (`packages/step-cli/src/commands/create_voter.rs`,
-//! `.../update_voter.rs`).
+//! Voter provisioning: build a voters CSV and bulk-import it via
+//! `import_users` — the same mutation/celery task
+//! (`packages/windmill/src/tasks/import_users.rs`, `.../import_users_file`)
+//! the admin-portal's Voters-tab import wizard uses. Chosen over the
+//! per-voter `create_user`/`edit_user` GraphQL calls this module used to
+//! make: it's one upload for the whole batch instead of two round trips per
+//! voter, and — unlike `edit_user` — it sets a real, immediately-usable
+//! password credential rather than a temporary one that would need a
+//! required-action flow to complete.
 //!
-//! Sets `area-id` **and** `authorized-election-ids` attributes.
-//! `authorize_voter_election`
-//! (`packages/sequent-core/src/services/authorization.rs:96-108`) requires
-//! both on the voter's JWT to allow casting; `step-cli create-voter` only
-//! sets `area-id`, since it's never used to provision a voter that then
-//! logs in and casts its own vote via password grant.
+//! Deliberately does **not** set an `authorized-election-ids` attribute.
+//! That's not how eligibility is normally established: the custom Keycloak
+//! protocol mapper `AuthorizedElectionsUserAttributeMapper`
+//! (`packages/keycloak-extensions/conditional-authenticators/src/main/java/sequent/keycloak/protocol/oidc/mappers/AuthorizedElectionsUserAttributeMapper.java:135-244`)
+//! computes that claim at token-issuance time: if the user has no explicit
+//! `authorized-election-ids` attribute, it looks up the voter's `area-id`
+//! attribute against `sequent_backend_area_contest` (joined to
+//! `contest.election_id`) and authorizes exactly the elections reachable
+//! from that area — falling back to *every* election in the event only if
+//! the area has none. Setting `area_name` in the CSV (which the importer
+//! resolves to the `area-id` attribute via `get_areas_by_name`,
+//! `packages/windmill/src/services/import/import_users.rs:698-712`) is
+//! therefore both necessary and sufficient; a real voter export from this
+//! platform leaves its own `authorized-election-ids` column blank for the
+//! same reason.
 
 use anyhow::{Context, Result};
 use graphql_client::GraphQLQuery;
-use serde_json::json;
 
 use crate::hasura::HasuraClient;
+use crate::provision::tasks::poll_task_execution;
+use crate::provision::upload::upload_document;
 use crate::types::hasura::*;
 
 #[derive(GraphQLQuery)]
@@ -40,20 +55,18 @@ pub struct GetElections;
 #[derive(GraphQLQuery)]
 #[graphql(
     schema_path = "src/graphql/schema.json",
-    query_path = "src/graphql/create_user.graphql",
+    query_path = "src/graphql/import_users.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
-pub struct CreateUser;
+pub struct ImportUsers;
 
-#[derive(GraphQLQuery)]
-#[graphql(
-    schema_path = "src/graphql/schema.json",
-    query_path = "src/graphql/edit_user.graphql",
-    response_derives = "Debug,Clone,Deserialize,Serialize"
-)]
-pub struct EditUser;
+#[derive(Debug, Clone)]
+pub struct Area {
+    pub id: String,
+    pub name: String,
+}
 
-pub async fn get_area_ids(client: &HasuraClient, election_event_id: &str) -> Result<Vec<String>> {
+pub async fn get_areas(client: &HasuraClient, election_event_id: &str) -> Result<Vec<Area>> {
     let variables = get_areas::Variables {
         election_event_id: election_event_id.to_string(),
     };
@@ -61,10 +74,13 @@ pub async fn get_area_ids(client: &HasuraClient, election_event_id: &str) -> Res
         .data_or_bail::<GetAreas>(variables)
         .await
         .context("failed to fetch areas")?;
+    // An area with no name can't be targeted by the CSV importer's
+    // by-name lookup (`get_areas_by_name`), so it can't be assigned a
+    // voter through this path either.
     Ok(data
         .sequent_backend_area
         .into_iter()
-        .map(|area| area.id)
+        .filter_map(|area| area.name.map(|name| Area { id: area.id, name }))
         .collect())
 }
 
@@ -100,91 +116,71 @@ pub fn voter_credential(index: u32) -> VoterCredential {
     VoterCredential { username, password }
 }
 
-pub async fn provision_voter(
-    client: &HasuraClient,
-    tenant_id: &str,
-    election_event_id: &str,
-    area_id: &str,
-    election_ids: &[String],
-    credential: &VoterCredential,
-) -> Result<()> {
-    let attributes = json!({
-        "area-id": [area_id],
-        "authorized-election-ids": election_ids,
-    });
+/// Builds the voters CSV `import_users_file`
+/// (`packages/windmill/src/services/import/import_users.rs:131-249`)
+/// expects: `password` in plaintext, hashed server-side with a random salt
+/// (`import_users.rs:756-765`), and `area_name` resolved to the `area-id`
+/// attribute by name — not `area-id` directly, which would attempt the
+/// same by-name lookup on the raw id and silently resolve to no area.
+fn build_voters_csv(area_name: &str, count: u32) -> Result<(Vec<u8>, Vec<VoterCredential>)> {
+    let mut writer = csv::Writer::from_writer(Vec::new());
+    writer.write_record(["username", "password", "area_name"])?;
 
-    let create_variables = create_user::Variables {
-        tenant_id: tenant_id.to_string(),
-        election_event_id: Some(election_event_id.to_string()),
-        user: create_user::KeycloakUser2 {
-            attributes: Some(attributes),
-            email: None,
-            email_verified: None,
-            enabled: Some(true),
-            first_name: None,
-            groups: None,
-            id: None,
-            last_name: None,
-            username: Some(credential.username.clone()),
-        },
-    };
-    let created = client
-        .data_or_bail::<CreateUser>(create_variables)
-        .await
-        .with_context(|| format!("failed to create voter `{}`", credential.username))?;
-    let user_id = created.create_user.id.ok_or_else(|| {
-        anyhow::anyhow!(
-            "create_user returned no id for voter `{}`",
-            credential.username
-        )
-    })?;
-
-    let edit_variables = edit_user::Variables {
-        body: edit_user::EditUsersInput {
-            attributes: None,
-            election_event_id: Some(election_event_id.to_string()),
-            email: None,
-            enabled: None,
-            first_name: None,
-            groups: None,
-            last_name: None,
-            password: Some(credential.password.clone()),
-            temporary: Some(false),
-            tenant_id: tenant_id.to_string(),
-            user_id,
-            username: None,
-        },
-    };
-    client
-        .data_or_bail::<EditUser>(edit_variables)
-        .await
-        .with_context(|| format!("failed to set password for voter `{}`", credential.username))?;
-
-    Ok(())
-}
-
-pub async fn provision_voters(
-    client: &HasuraClient,
-    tenant_id: &str,
-    election_event_id: &str,
-    area_id: &str,
-    election_ids: &[String],
-    count: u32,
-) -> Result<Vec<VoterCredential>> {
     let mut voters = Vec::with_capacity(count as usize);
     for index in 0..count {
         let credential = voter_credential(index);
-        provision_voter(
-            client,
-            tenant_id,
-            election_event_id,
-            area_id,
-            election_ids,
-            &credential,
-        )
-        .await?;
+        writer.write_record([&credential.username, &credential.password, area_name])?;
         voters.push(credential);
     }
+    writer.flush()?;
+
+    let bytes = writer
+        .into_inner()
+        .context("failed to build the voters CSV")?;
+    Ok((bytes, voters))
+}
+
+/// Provisions `count` voters into `election_event_id`'s `area_name` area in
+/// one bulk CSV import, returning their credentials.
+pub async fn provision_voters(
+    client: &HasuraClient,
+    http: &reqwest::Client,
+    tenant_id: &str,
+    election_event_id: &str,
+    area_name: &str,
+    count: u32,
+) -> Result<Vec<VoterCredential>> {
+    let (csv_bytes, voters) = build_voters_csv(area_name, count)?;
+
+    let document_id = upload_document(
+        client,
+        http,
+        "voters.csv",
+        "text/csv",
+        Some(election_event_id.to_string()),
+        &csv_bytes,
+    )
+    .await
+    .context("failed to upload the voters CSV")?;
+
+    let import_variables = import_users::Variables {
+        tenant_id: tenant_id.to_string(),
+        election_event_id: Some(election_event_id.to_string()),
+        document_id,
+        sha256: None,
+    };
+    let imported = client
+        .data_or_bail::<ImportUsers>(import_variables)
+        .await
+        .context("failed to start the voters import")?;
+    let imported = imported
+        .import_users
+        .ok_or_else(|| anyhow::anyhow!("import_users returned no data"))?;
+
+    poll_task_execution(client, &imported.task_execution.id)
+        .await
+        .context("voters import did not complete")?;
+
     Ok(voters)
 }
 
@@ -202,5 +198,30 @@ mod tests {
 
         let a_again = voter_credential(0);
         assert_eq!(a.username, a_again.username);
+    }
+
+    #[test]
+    fn the_voters_csv_has_the_columns_the_importer_expects() {
+        let (bytes, voters) = build_voters_csv("Ward 1", 3).unwrap();
+        let text = String::from_utf8(bytes).unwrap();
+        let mut lines = text.lines();
+
+        assert_eq!(lines.next(), Some("username,password,area_name"));
+        assert_eq!(lines.next(), Some("voter-0,voter-0,Ward 1"));
+        assert_eq!(lines.next(), Some("voter-1,voter-1,Ward 1"));
+        assert_eq!(lines.next(), Some("voter-2,voter-2,Ward 1"));
+        assert_eq!(lines.next(), None);
+        assert_eq!(voters.len(), 3);
+    }
+
+    #[test]
+    fn an_area_name_needing_quotes_round_trips() {
+        // area names are free text and can contain commas — the CSV writer
+        // must quote them, not just concatenate.
+        let (bytes, _voters) = build_voters_csv("Ward 1, English Public", 1).unwrap();
+        let text = String::from_utf8(bytes).unwrap();
+        let mut reader = csv::Reader::from_reader(text.as_bytes());
+        let record = reader.records().next().unwrap().unwrap();
+        assert_eq!(&record[2], "Ward 1, English Public");
     }
 }

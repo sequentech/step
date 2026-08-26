@@ -64,6 +64,38 @@ mod tests {
     }
 
     #[test]
+    fn the_bundled_template_has_a_working_voting_portal_client() {
+        // `data/election-event-template.json` exists specifically because
+        // `step-cli`'s fixture (above) doesn't set this up: its
+        // `voting-portal` client has no
+        // `authorized-elections-oidc-usermodel-attribute-mapper`, so a
+        // voter provisioned against it can never get an
+        // `authorized-election-ids` claim and Phase 2 casting 401s. This
+        // guards against that regressing silently if the bundled template
+        // is ever swapped out.
+        let contents = std::fs::read_to_string("data/election-event-template.json").unwrap();
+        let template = parse_template_str(&contents).unwrap();
+
+        let clients = template["keycloak_event_realm"]["clients"]
+            .as_array()
+            .expect("keycloak_event_realm.clients should be an array");
+        let voting_portal = clients
+            .iter()
+            .find(|client| client["clientId"] == "voting-portal")
+            .expect("template should have a voting-portal client");
+        let mapper_types: Vec<&str> = voting_portal["protocolMappers"]
+            .as_array()
+            .expect("voting-portal should have protocolMappers")
+            .iter()
+            .filter_map(|mapper| mapper["protocolMapper"].as_str())
+            .collect();
+        assert!(
+            mapper_types.contains(&"authorized-elections-oidc-usermodel-attribute-mapper"),
+            "voting-portal should carry the authorized-elections mapper, got {mapper_types:?}"
+        );
+    }
+
+    #[test]
     fn malformed_json_is_rejected() {
         assert!(parse_template_str("{ not json").is_err());
     }

@@ -2,10 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Keycloak Resource Owner Password Credentials (`grant_type=password`)
-//! login, shared by the admin login (tenant realm, confidential client) and
-//! voter login (event realm, public `voting-portal` client, no
-//! `client_secret`).
+//! Keycloak token endpoint calls: `grant_type=password` (shared by the
+//! admin login, if it uses a real user, and voter login — event realm,
+//! public `voting-portal` client, no `client_secret`) and
+//! `grant_type=client_credentials` (the admin login when it authenticates
+//! as a confidential client's service account instead — see
+//! `run::AdminAuth`).
 
 use serde::Deserialize;
 
@@ -42,7 +44,7 @@ impl std::fmt::Display for LoginError {
         match self {
             LoginError::Transport(err) => write!(f, "transport error: {err}"),
             LoginError::InvalidCredentials => {
-                write!(f, "invalid username or password")
+                write!(f, "invalid credentials")
             }
             LoginError::Rejected { status, body } => {
                 write!(f, "login rejected (HTTP {status}): {body}")
@@ -69,12 +71,6 @@ pub async fn login(
     username: &str,
     password: &str,
 ) -> Result<TokenResponse, LoginError> {
-    let url = format!(
-        "{}/realms/{}/protocol/openid-connect/token",
-        keycloak_url.trim_end_matches('/'),
-        realm
-    );
-
     let mut form: Vec<(&str, &str)> = vec![
         ("grant_type", "password"),
         ("scope", "openid"),
@@ -85,10 +81,46 @@ pub async fn login(
     if let Some(secret) = client_secret {
         form.push(("client_secret", secret));
     }
+    token_request(http, keycloak_url, realm, &form).await
+}
+
+/// `grant_type=client_credentials` — authenticates as the client's own
+/// service account rather than a human user. No password grant needs a
+/// password-capable human account to exist; this is what a confidential
+/// client's Keycloak service account (`service-account-<client_id>`) is
+/// for, and is the identity load-test's admin auth uses when the target
+/// realm's privileged role isn't held by any password-grant-capable user.
+pub async fn login_client_credentials(
+    http: &reqwest::Client,
+    keycloak_url: &str,
+    realm: &str,
+    client_id: &str,
+    client_secret: &str,
+) -> Result<TokenResponse, LoginError> {
+    let form: Vec<(&str, &str)> = vec![
+        ("grant_type", "client_credentials"),
+        ("scope", "openid"),
+        ("client_id", client_id),
+        ("client_secret", client_secret),
+    ];
+    token_request(http, keycloak_url, realm, &form).await
+}
+
+async fn token_request(
+    http: &reqwest::Client,
+    keycloak_url: &str,
+    realm: &str,
+    form: &[(&str, &str)],
+) -> Result<TokenResponse, LoginError> {
+    let url = format!(
+        "{}/realms/{}/protocol/openid-connect/token",
+        keycloak_url.trim_end_matches('/'),
+        realm
+    );
 
     let response = http
         .post(&url)
-        .form(&form)
+        .form(form)
         .send()
         .await
         .map_err(LoginError::Transport)?;
@@ -102,7 +134,7 @@ pub async fn login(
     } else {
         let body = response.text().await.unwrap_or_default();
         if status.is_client_error() {
-            if body.contains("invalid_grant") {
+            if body.contains("invalid_grant") || body.contains("invalid_client") {
                 Err(LoginError::InvalidCredentials)
             } else {
                 Err(LoginError::Rejected {
