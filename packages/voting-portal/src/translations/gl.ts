@@ -97,8 +97,6 @@ const galegoTranslation: TranslationType = {
         },
         reviewScreen: {
             title: "Revisa a túa papeleta",
-            contestsCount_one: "{{count}} pregunta para revisar",
-            contestsCount_other: "{{count}} preguntas para revisar",
             description:
                 "Para facer cambios nas túas seleccións, fai clic no botón “<b>Editar papeleta</b>”; para confirmar as túas seleccións, fai clic no botón “<b>Emitir a túa papeleta</b>” abaixo; e para auditar a túa papeleta, fai clic no botón “<b>Auditar Papeleta</b>” abaixo.",
             descriptionNoAudit:

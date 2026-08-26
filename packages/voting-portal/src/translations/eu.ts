@@ -96,8 +96,6 @@ const basqueTranslation: TranslationType = {
         },
         reviewScreen: {
             title: "Berrikusi zure bozketa",
-            contestsCount_one: "Berrikusteko galdera {{count}}",
-            contestsCount_other: "Berrikusteko {{count}} galdera",
             description:
                 'Zure hautaketetan aldaketak egiteko, sakatu "<b>Editatu bozketa</b>" botoia, zure hautaketak berresteko, sakatu beheko "<b>Eman zure bozketa</b>" botoia, eta zure bozketa auditatzeko sakatu beheko "<b>Auditatu Bozketa</b>" botoia.',
             descriptionNoAudit:

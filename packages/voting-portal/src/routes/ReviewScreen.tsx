@@ -36,7 +36,10 @@ import {
     ECastVoteGoldLevelPolicy,
     EElectionEventContestEncryptionPolicy,
     IHashableBallot,
+    translate,
+    checkIsBlank,
 } from "@sequentech/ui-core"
+import {checkIsInvalidVote, checkIsWriteIn} from "../services/ElectionConfigService"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
 import {
@@ -513,7 +516,7 @@ export const ReviewScreen: React.FC = () => {
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openReviewScreenHelp, setReviewScreenHelp] = useState(false)
     const {interpretContestSelection, interpretMultiContestSelection} = provideBallotService()
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const backLink = useRootBackLink()
     const navigate = useNavigate()
     const submit = useSubmit()
@@ -776,13 +779,54 @@ export const ReviewScreen: React.FC = () => {
     const contestsOrderType = ballotStyle?.ballot_eml.election_presentation?.contests_order
     const contests = sortContestList(ballotStyle.ballot_eml.contests, contestsOrderType)
 
+    // Built from the same redux ballot-selection state (selectionState) that
+    // Question/Answer already render from, using the same predicates
+    // (is_explicit_invalid, checkIsBlank) Question.tsx uses to decide between
+    // an invalid-vote row, a blank-vote row, and the selected candidates - so
+    // this can never describe a selection differently than what's visibly
+    // shown right below it.
+    const ballotSummary = contests
+        .map((question) => {
+            const contestName = translate(question, "name", i18n.language) || ""
+            if (isDeclineToVote) {
+                return `${contestName}: ${t("reviewScreen.declineToVote")}`
+            }
+            const contestState = selectionState?.find(
+                (contest) => contest.contest_id === question.id
+            )
+            if (contestState?.is_explicit_invalid) {
+                const invalidCandidate = question.candidates.find(checkIsInvalidVote)
+                const label = invalidCandidate
+                    ? translate(invalidCandidate, "name", i18n.language)
+                    : t("candidate.blankVote")
+                return `${contestName}: ${label}`
+            }
+            if (!contestState || checkIsBlank(contestState)) {
+                return `${contestName}: ${t("candidate.blankVote")}`
+            }
+            const names = contestState.choices
+                .filter((choice) => choice.selected > -1)
+                .sort((a, b) => a.selected - b.selected)
+                .map((choice) => {
+                    const candidate = question.candidates.find((c) => c.id === choice.id)
+                    if (!candidate) {
+                        return ""
+                    }
+                    const name = translate(candidate, "name", i18n.language) || ""
+                    return checkIsWriteIn(candidate) && choice.write_in_text
+                        ? `${name}: ${choice.write_in_text}`
+                        : name
+                })
+                .filter(Boolean)
+            return `${contestName}: ${names.join(", ")}`
+        })
+        .join(". ")
+
     return (
         <PageLimit maxWidth="lg" className="review-screen screen">
             {/* Client-side route entry doesn't trigger a native page load, so
-                nothing else announces "Review your ballot" or its instructions
-                arriving. Contest count stands in for a full candidate summary
-                for now — deriving actual selected-candidate names here risks
-                getting it wrong on a screen that's legally load-bearing. */}
+                nothing else announces "Review your ballot", its instructions,
+                or the voter's actual selections arriving. */}
             <VisuallyHidden tabIndex={-1} ref={screenAnnouncementRef}>
                 {t("reviewScreen.title")}
                 {". "}
@@ -791,7 +835,7 @@ export const ReviewScreen: React.FC = () => {
                     ? t("reviewScreen.descriptionNoAudit")
                     : t("reviewScreen.description")}
                 {". "}
-                {t("reviewScreen.contestsCount", {count: contests.length})}
+                {ballotSummary}
             </VisuallyHidden>
             {auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW ? null : (
                 <BallotHash hash={ballotId || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />

@@ -97,8 +97,6 @@ const englishTranslation = {
         },
         reviewScreen: {
             title: "Review your ballot",
-            contestsCount_one: "{{count}} question to review",
-            contestsCount_other: "{{count}} questions to review",
             description:
                 "To make changes in your selections, click “<b>Edit ballot</b>” button, to confirm your selections, click “<b>Cast your ballot</b>” button below, and to audit your ballot click the “<b>Audit Ballot</b>” button below.",
             descriptionNoAudit:
