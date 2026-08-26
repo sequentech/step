@@ -9,6 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 [![Chat][discord-badge]][discord-link]
 [![Build Status][build-badge]][build-link]
+[![Tally Integration Test][tally-test-badge]][tally-test-link]
 [![License][license-badge]][license-link]
 [![REUSE][reuse-badge]][reuse-link]
 [![Documentation][docs-badge]][docs-link]
@@ -372,6 +373,9 @@ when running in the terminal `devenv shell` or in the `Rebuild Container` vscode
 
 [build-badge]: https://github.com/sequentech/step/actions/workflows/pr_build.yml/badge.svg
 [build-link]: https://github.com/sequentech/step/actions/workflows/pr_build.yml
+
+[tally-test-badge]: https://github.com/sequentech/step/actions/workflows/tally-integration-test.yml/badge.svg
+[tally-test-link]: https://github.com/sequentech/step/actions/workflows/tally-integration-test.yml
 
 [license-badge]: https://img.shields.io/github/license/sequentech/step?label=license
 [license-link]: https://github.com/sequentech/step/blob/main/LICENSE
