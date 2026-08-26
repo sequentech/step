@@ -133,6 +133,11 @@ if (container) {
     const hadServerError = Boolean(error && !error.hidden);
     const defaultErrorMessage = error?.textContent || "";
     const originalTabIndex = realInput.tabIndex;
+    // The browser applies the HTML autofocus attribute to realInput before this
+    // script hides it, so that focus is lost rather than transferred. Reading it
+    // here and re-applying it to displayInput below keeps "start focused here"
+    // working across the swap.
+    const hadAutofocus = realInput.autofocus;
     const displayInput = document.createElement("input");
     const status = document.createElement("span");
     const digits = Array(pattern.totalSize).fill(null);
@@ -171,10 +176,23 @@ if (container) {
     status.setAttribute("role", "status");
     status.setAttribute("aria-live", "polite");
 
-    const describedBy = [hintId, errorId, status.id].filter(Boolean).join(" ");
-    if (describedBy) {
-      displayInput.setAttribute("aria-describedby", describedBy);
-    }
+    // errorId is only added to aria-describedby while an error is actually
+    // showing (via setErrorDescribed below). Per the ARIA accessible-description
+    // computation, a node with the `hidden` attribute is still read out if it is
+    // explicitly referenced by aria-describedby - so including errorId
+    // unconditionally here would announce the (static, always-rendered) error
+    // text on every focus, even on a fresh load with no error.
+    const setErrorDescribed = (described) => {
+      const describedBy = [hintId, described ? errorId : null, status.id]
+        .filter(Boolean)
+        .join(" ");
+      if (describedBy) {
+        displayInput.setAttribute("aria-describedby", describedBy);
+      } else {
+        displayInput.removeAttribute("aria-describedby");
+      }
+    };
+    setErrorDescribed(false);
 
     const groupEnd = (group) => group.digitStart + group.length;
 
@@ -257,6 +275,7 @@ if (container) {
         error.textContent = defaultErrorMessage;
       }
       displayInput.removeAttribute("aria-invalid");
+      setErrorDescribed(false);
       if (usernameInput) {
         usernameInput.removeAttribute("aria-invalid");
       }
@@ -267,6 +286,7 @@ if (container) {
       if (error) {
         error.textContent = message;
         error.hidden = false;
+        setErrorDescribed(true);
       } else {
         status.textContent = message;
       }
@@ -635,6 +655,15 @@ if (container) {
     render();
     if (hadServerError) {
       showError();
+      // role="alert" on a span that's already present in the very first
+      // paint of a fresh (non-AJAX) page load is unreliable across screen
+      // readers — some announce it immediately regardless of what the user
+      // just did, others never announce it at all. Moving focus here is
+      // deterministic: it reads the label, the error via aria-describedby,
+      // and nothing else, exactly when the error actually applies.
+      displayInput.focus();
+    } else if (hadAutofocus) {
+      displayInput.focus();
     }
 
     form.addEventListener(

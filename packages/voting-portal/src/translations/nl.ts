@@ -96,6 +96,8 @@ const dutchTranslation: TranslationType = {
         },
         reviewScreen: {
             title: "Controleer uw stembiljet",
+            contestsCount_one: "{{count}} vraag om te controleren",
+            contestsCount_other: "{{count}} vragen om te controleren",
             description:
                 "Om wijzigingen aan te brengen in uw selecties, klik op de knop “<b>Stembiljet bewerken</b>”. Om uw selecties te bevestigen, klik op de knop “<b>Breng uw stem uit</b>” hieronder. Om uw stembiljet te auditen, klik op de knop “<b>Audit stembiljet</b>” hieronder.",
             descriptionNoAudit:

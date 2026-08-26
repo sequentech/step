@@ -96,6 +96,8 @@ const frenchTranslation: TranslationType = {
         },
         reviewScreen: {
             title: "Révisez votre vote",
+            contestsCount_one: "{{count}} question à revoir",
+            contestsCount_other: "{{count}} questions à revoir",
             description:
                 "Pour apporter des modifications à vos sélections, cliquez sur le bouton “<b>Modifier votre vote</b>”, pour confirmer vos sélections, cliquez sur le bouton “<b>Envoyer votre vote</b>” ci-dessous, et pour auditer votre bulletin, cliquez sur le bouton “<b>Auditer le bulletin</b>” ci-dessous. ",
             descriptionNoAudit:

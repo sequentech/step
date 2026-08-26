@@ -1277,7 +1277,8 @@ class MultiAttributePasswordAuthenticatorTest {
       protected Response challenge(
           AuthenticationFlowContext context,
           MultivaluedMap<String, String> formData,
-          String error) {
+          String error,
+          String errorField) {
         return challengeResponse;
       }
     };

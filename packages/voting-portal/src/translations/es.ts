@@ -96,6 +96,8 @@ const spanishTranslation: TranslationType = {
         },
         reviewScreen: {
             title: "Revisa tu voto",
+            contestsCount_one: "{{count}} pregunta para revisar",
+            contestsCount_other: "{{count}} preguntas para revisar",
             description:
                 "Para realizar cambios en sus selecciones, haga clic en el botón “<b>Editar selección</b>”, para confirmar sus selecciones, haga clic en el botón “<b>Enviar tu voto</b>” debajo, y para auditar su papeleta haga clic en el botón “<b>Auditar papeleta</b>” debajo.",
             descriptionNoAudit:

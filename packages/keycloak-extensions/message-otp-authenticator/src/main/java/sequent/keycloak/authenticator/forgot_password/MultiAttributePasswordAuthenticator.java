@@ -26,6 +26,7 @@ import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.credential.PasswordCredentialModel;
+import org.keycloak.models.utils.FormMessage;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.services.messages.Messages;
@@ -120,7 +121,13 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
 
   private void fail(AuthenticationFlowContext context, MultivaluedMap<String, String> formData) {
     context.getEvent().error(Errors.INVALID_USER_CREDENTIALS);
-    Response challengeResponse = challenge(context, formData, Messages.INVALID_USER);
+    // Attached to the password field (rather than the global message setError() below uses) so
+    // that messagesPerField.existsError('username', 'password') is true in login.ftl - that's
+    // what gates structuredCredentialHasError, which in turn is what the structured-credential.js
+    // accessibility fix (deterministic focus + announcement on a real error) is keyed off of. Without
+    // a field, this fell back to the theme's generic, un-enhanced alert banner, which never got the
+    // reliable-announcement treatment.
+    Response challengeResponse = challenge(context, formData, Messages.INVALID_USER, FIELD_PASSWORD);
     context.failureChallenge(AuthenticationFlowError.INVALID_CREDENTIALS, challengeResponse);
     context.clearUser();
   }
@@ -215,13 +222,31 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
 
   protected Response challenge(
       AuthenticationFlowContext context, MultivaluedMap<String, String> formData, String error) {
+    return challenge(context, formData, error, null);
+  }
+
+  /**
+   * @param errorField when non-null, attaches {@code error} to this form field (via {@link
+   *     LoginFormsProvider#addError}) instead of setting it as a global message. This is what
+   *     {@code messagesPerField.existsError(...)} in {@code login.ftl} checks to decide whether to
+   *     show the structured-credential-specific error UI (and suppress the generic banner).
+   */
+  protected Response challenge(
+      AuthenticationFlowContext context,
+      MultivaluedMap<String, String> formData,
+      String error,
+      String errorField) {
     LoginFormsProvider form = context.form();
 
     if (formData.size() > 0) {
       form.setFormData(formData);
     }
     if (error != null) {
-      form.setError(error);
+      if (errorField != null) {
+        form.addError(new FormMessage(errorField, error));
+      } else {
+        form.setError(error);
+      }
     }
 
     List<String> matchAttributes =

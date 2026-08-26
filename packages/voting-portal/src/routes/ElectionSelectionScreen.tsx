@@ -3,9 +3,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {Box, Button, CircularProgress, Typography, Alert} from "@mui/material"
-import React, {useContext, useEffect, useMemo, useState} from "react"
+import React, {useContext, useEffect, useMemo, useRef, useState} from "react"
 import {useTranslation} from "react-i18next"
-import {Dialog, IconButton, PageLimit, SelectElection, theme} from "@sequentech/ui-essentials"
+import {
+    Dialog,
+    IconButton,
+    PageLimit,
+    SelectElection,
+    theme,
+    VisuallyHidden,
+} from "@sequentech/ui-essentials"
 import {
     isString,
     stringToHtml,
@@ -390,6 +397,7 @@ const ElectionSelectionScreen: React.FC = () => {
         | undefined
     >(undefined)
     const [alertMsg, setAlertMsg] = useState<ElectionScreenMsgType>()
+    const screenAnnouncementRef = useRef<HTMLDivElement>(null)
     const eventResultsUrl =
         globalSettings.RESULTS_PORTAL_URL &&
         eventId &&
@@ -600,6 +608,12 @@ const ElectionSelectionScreen: React.FC = () => {
     }, [electionEvent?.presentation?.materials?.activated])
 
     useEffect(() => {
+        if (!loadingElectionEvent && !loadingElections && !loadingBallotStyles) {
+            screenAnnouncementRef.current?.focus()
+        }
+    }, [loadingElectionEvent, loadingElections, loadingBallotStyles])
+
+    useEffect(() => {
         if (castVotes?.sequent_backend_cast_vote) {
             const castVoteList = castVotes.sequent_backend_cast_vote
             dispatch(addCastVotes(castVoteList))
@@ -665,6 +679,15 @@ const ElectionSelectionScreen: React.FC = () => {
 
     return (
         <PageLimit maxWidth="lg" className="election-selection-screen screen">
+            {/* Client-side route changes don't trigger a native page load, so
+                nothing else would tell a screen reader this screen's title and
+                description arrived. Moving focus here on mount gets them read
+                immediately instead of silently. */}
+            <VisuallyHidden tabIndex={-1} ref={screenAnnouncementRef}>
+                {t("electionSelectionScreen.title")}
+                {". "}
+                {warningMsg ?? t("electionSelectionScreen.description")}
+            </VisuallyHidden>
             <Box marginTop="48px">
                 <Stepper selected={0} />
             </Box>
@@ -724,7 +747,7 @@ const ElectionSelectionScreen: React.FC = () => {
                     ) : null}
                 </PageActions>
             </TitleSection>
-            <ElectionContainer className="elections-list">
+            <ElectionContainer className="elections-list" role="list">
                 {!hasNoElections ? (
                     electionIds.map((electionId) => (
                         <ElectionWrapper

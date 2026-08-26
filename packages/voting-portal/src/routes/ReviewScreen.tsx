@@ -22,6 +22,7 @@ import {
     Dialog,
     WarnBox,
     EWarnBoxAnnouncement,
+    VisuallyHidden,
 } from "@sequentech/ui-essentials"
 import {
     stringToHtml,
@@ -521,6 +522,7 @@ export const ReviewScreen: React.FC = () => {
     const authContext = useContext(AuthContext)
     const {isGoldUser, reauthWithGold} = authContext
     const isCastingBallot = useRef<boolean>(false)
+    const screenAnnouncementRef = useRef<HTMLDivElement>(null)
     const {globalSettings} = useContext(SettingsContext)
     const dispatch = useAppDispatch()
     const addFakeCastVote = useAddFakeCastVote(tenantId, eventId)
@@ -736,6 +738,12 @@ export const ReviewScreen: React.FC = () => {
         }
     }, [ballotStyle, selectionState, auditableBallot, isGoldenPolicy])
 
+    useEffect(() => {
+        if (ballotStyle && auditableBallot) {
+            screenAnnouncementRef.current?.focus()
+        }
+    }, [ballotStyle, auditableBallot])
+
     if (!ballotStyle || !auditableBallot) {
         return errorMsg ? (
             <Box sx={{margin: "auto 0"}}>
@@ -770,6 +778,21 @@ export const ReviewScreen: React.FC = () => {
 
     return (
         <PageLimit maxWidth="lg" className="review-screen screen">
+            {/* Client-side route entry doesn't trigger a native page load, so
+                nothing else announces "Review your ballot" or its instructions
+                arriving. Contest count stands in for a full candidate summary
+                for now — deriving actual selected-candidate names here risks
+                getting it wrong on a screen that's legally load-bearing. */}
+            <VisuallyHidden tabIndex={-1} ref={screenAnnouncementRef}>
+                {t("reviewScreen.title")}
+                {". "}
+                {auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW ||
+                auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP
+                    ? t("reviewScreen.descriptionNoAudit")
+                    : t("reviewScreen.description")}
+                {". "}
+                {t("reviewScreen.contestsCount", {count: contests.length})}
+            </VisuallyHidden>
             {auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW ? null : (
                 <BallotHash hash={ballotId || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />
             )}

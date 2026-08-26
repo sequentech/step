@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useMemo, useState} from "react"
+import React, {useEffect, useMemo, useRef, useState} from "react"
 import {Box, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
-import {Dialog, PageLimit, theme} from "@sequentech/ui-essentials"
+import {Dialog, PageLimit, theme, VisuallyHidden} from "@sequentech/ui-essentials"
 import {
     stringToHtml,
     translateFromPresentation,
@@ -61,6 +61,7 @@ const StartScreen: React.FC = () => {
     const navigate = useNavigate()
     const location = useLocation()
     const {encryptAndStoreBallot} = useEncryptBallotForReview()
+    const screenAnnouncementRef = useRef<HTMLDivElement>(null)
 
     const titleObject = useMemo(() => {
         const startScreenTitlePolicy = election?.presentation?.start_screen_title_policy
@@ -78,6 +79,12 @@ const StartScreen: React.FC = () => {
             navigate(backLink)
         }
     })
+
+    useEffect(() => {
+        if (election && titleObject) {
+            screenAnnouncementRef.current?.focus()
+        }
+    }, [election, titleObject])
 
     useEffect(() => {
         if (!ballotStyle) {
@@ -129,6 +136,29 @@ const StartScreen: React.FC = () => {
 
     return (
         <PageLimit maxWidth="lg" className="start-screen screen">
+            {/* Client-side route entry doesn't trigger a native page load, so
+                nothing else announces the election title/instructions arriving. */}
+            <VisuallyHidden tabIndex={-1} ref={screenAnnouncementRef}>
+                {translateFromPresentation(titleObject, "name", i18n.language, {
+                    defaultLanguageCode,
+                }) ?? "-"}
+                {". "}
+                {t("startScreen.instructionsTitle")}
+                {". "}
+                {t("startScreen.instructionsDescription")}
+                {". "}
+                {t("startScreen.step1Title")}
+                {". "}
+                {t("startScreen.step1Description")}
+                {". "}
+                {t("startScreen.step2Title")}
+                {". "}
+                {t("startScreen.step2Description")}
+                {". "}
+                {t("startScreen.step3Title")}
+                {". "}
+                {t("startScreen.step3Description")}
+            </VisuallyHidden>
             <Box marginTop="48px">
                 <Stepper selected={1} />
             </Box>

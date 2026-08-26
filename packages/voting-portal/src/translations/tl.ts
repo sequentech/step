@@ -96,6 +96,8 @@ const tagalogTranslation: TranslationType = {
         },
         reviewScreen: {
             title: "Suriin ang iyong balota",
+            contestsCount_one: "{{count}} tanong na susuriin",
+            contestsCount_other: "{{count}} mga tanong na susuriin",
             description:
                 "Upang baguhin ng iyong mga napili, i-click ang “<b>I-edit ang balota</b>” na button, upang kumpirmahin ang iyong mga napili, i-click ang “<b>I-submit ang iyong balota</b>” na button sa ibaba, at upang i-audit ang iyong balota i-click ang “<b>I-audit ang balota</b>” na button sa ibaba.",
             descriptionNoAudit:
