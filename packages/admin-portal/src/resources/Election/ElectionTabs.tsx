@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {Suspense, useContext, useEffect, useMemo, useState} from "react"
+import React, {Suspense, useContext, useEffect, useMemo, useRef, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {useRecordContext, useSidebarState, Identifier, RecordContextProvider} from "react-admin"
 import {v4 as uuidv4} from "uuid"
@@ -30,9 +30,11 @@ import {ListTallySheet} from "../TallySheet/ListTallySheet"
 // Stable Tab Components
 // ---------------------------------------------------------------------
 
-const DashboardTab: React.FC = () => (
+const DashboardTab: React.FC<{refreshRef: React.RefObject<HTMLButtonElement | null>}> = ({
+    refreshRef,
+}) => (
     <Suspense fallback={<div>Loading Dashboard...</div>}>
-        <DashboardElection />
+        <DashboardElection refreshRef={refreshRef} />
     </Suspense>
 )
 
@@ -147,6 +149,7 @@ export const ElectionTabs: React.FC = () => {
     const [hasPermissionToViewElection, setHasPermissionToViewElection] = useState<boolean>(true)
     const [open] = useSidebarState()
     const aliasRenderer = useAliasRenderer()
+    const refreshRef = useRef<HTMLButtonElement | null>(null)
 
     const isElectionEventLocked =
         electionRecord?.presentation?.locked_down === EElectionEventLockedDown.LOCKED_DOWN
@@ -203,7 +206,8 @@ export const ElectionTabs: React.FC = () => {
     const tabs = useMemo(() => {
         const result: Array<{
             label: string
-            component: React.FC
+            component: React.FC<any>
+            props?: any
             action?: (index: number) => void
         }> = []
 
@@ -211,6 +215,8 @@ export const ElectionTabs: React.FC = () => {
             result.push({
                 label: t("electionScreen.tabs.dashboard"),
                 component: DashboardTab,
+                props: {refreshRef},
+                action: () => refreshRef.current?.click(),
             })
         }
 

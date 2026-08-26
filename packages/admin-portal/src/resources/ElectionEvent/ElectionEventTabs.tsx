@@ -379,6 +379,7 @@ export const ElectionEventTabs: React.FC = () => {
                 label: t("electionEventScreen.tabs.dashboard"),
                 component: DashboardTab,
                 props: {refreshRef, handleChildMount},
+                action: () => refreshRef.current?.click(),
             })
         }
 

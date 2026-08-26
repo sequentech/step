@@ -33,7 +33,11 @@ const Container = styled(Box)`
     justify-content: space-between;
 `
 
-export default function DashboardElection() {
+interface DashboardElectionProps {
+    refreshRef?: React.RefObject<HTMLButtonElement | null>
+}
+
+export default function DashboardElection({refreshRef}: DashboardElectionProps) {
     const {i18n} = useTranslation()
     const [tenantId] = useTenantStore()
     const {globalSettings} = useContext(SettingsContext)
@@ -59,7 +63,11 @@ export default function DashboardElection() {
     // Ensure required parameters are set before running the query.
     const canQueryStats = Boolean(tenantId && record?.election_event_id && record?.id)
 
-    const {loading, data: dataStats} = useQuery<GetElectionStatsQuery>(GET_ELECTION_STATS, {
+    const {
+        loading,
+        data: dataStats,
+        refetch: doRefetch,
+    } = useQuery<GetElectionStatsQuery>(GET_ELECTION_STATS, {
         variables: {
             tenantId,
             electionEventId: record?.election_event_id,
@@ -95,6 +103,13 @@ export default function DashboardElection() {
     return (
         <Box sx={{width: 1024, marginX: "auto"}} className="dashboard">
             <Box>
+                <button
+                    ref={refreshRef}
+                    onClick={() => {
+                        doRefetch()
+                    }}
+                    style={{display: "none"}}
+                />
                 <Stats metrics={metrics} />
 
                 <Container>
