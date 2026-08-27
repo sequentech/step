@@ -290,6 +290,13 @@ production path relied on the slack. That favors outcome (1): audit + targeted f
 transcript breakage — worth deciding *after* the property tests exist, since a
 rewrite would inherit them. No new evidence bears on outcome (3).
 
+**Terminology settled 2026-08-28**: there is serialization *for challenge
+derivation* (Fiat-Shamir transcript inputs, computed transiently from in-memory
+values at proving time — VMN interop fixes ByteTree here, via the existing
+`VmnChallenges`/`v2v::encode` seam) and serialization *for communication and
+storage* (the wire format — what this investigation is about). Interop constrains
+only the first.
+
 **A fourth possibility, raised and declined (2026-08-28)**: adopt Verificatum's
 ByteTree as the native format, on the theory that it might cheapen
 Verificatum-compatible proof production. Evaluated against the precedence rule that
@@ -317,3 +324,70 @@ force is about transcripts — adopt VMN's Fiat-Shamir convention for production
 mixing (displacing the §6.3 native design now normative in PROTOCOL.md) or prove
 twice at mix time — and serialization is a bystander to it. The native-format
 choice remains free.
+
+## 9. Mini-spec: the v2 encoding (guardrail 1 — the format, in one page)
+
+**Model.** The existing trait pair keeps its names and entry points; only the
+required methods change:
+
+```rust
+trait VSerializable   { fn write(&self, out: &mut Vec<u8>);
+                        fn ser(&self) -> Vec<u8> { /* provided: write into a Vec */ } }
+trait VDeserializable { fn read(input: &mut &[u8]) -> Result<Self, Error>;
+                        fn deser(b: &[u8]) -> Result<Self, Error>
+                        { /* provided: read, then error unless input is exhausted */ } }
+```
+
+`read` consumes exactly the bytes `write` produced, from the front of the slice
+(advancing it). `deser` adds the format's **single** top-level strictness check:
+input exhausted.
+
+**Encoding rules — the entire format:**
+
+1. **Fixed-width leaves** — integers (`u8`–`u128` big-endian; `usize` as `u64`),
+   group elements, scalars, digests, keys, signatures: their existing v1
+   encodings, byte-for-byte. No framing.
+2. **`bool`**: one byte, `0` or `1`; anything else rejected.
+3. **Structs, tuples, arrays `[T; N]`**: the concatenation of the members'
+   encodings in declaration order. No tags, prefixes, or counts (`N` is in the
+   type).
+4. **`Vec<T>`**: the element count as `u64` big-endian, then the elements'
+   encodings concatenated. No per-element framing. A collection element whose
+   `read` consumes zero bytes is an error (guards zero-sized types: a count must
+   be bound by content).
+5. **`String`**: the byte length as `u64` big-endian, then the UTF-8 bytes
+   (invalid UTF-8 rejected).
+6. **`Option<T>`**: one byte `0` (`None`) or `1` (`Some`), then `Some`'s payload.
+7. **Enums** (hand-written, e.g. `MessageType`, `Predicate`): one `u8`
+   discriminant in declaration order, then the variant's payload. Unknown
+   discriminants rejected.
+8. **`PhantomData`**: zero bytes.
+
+All integers entering the format are big-endian (the D2 uniformity rule).
+
+**Properties, by construction.** *Canonical*: every rule is a deterministic
+function of the value — there is no encoding choice anywhere, and composition of
+injective, self-delimiting encodings is injective. *Strict*: `read` never skips
+or ignores bytes, so there is no slack to validate; the one exhaustion check in
+`deser` closes the top level. *Safe*: truncation is a slice-bounds error;
+collection loops are bounded by input length (each element consumes ≥ 1 byte);
+no allocation is sized by attacker-controlled counts.
+
+**The derive** emits rule 3 directly — field-by-field `write` calls and
+field-by-field `read` calls, plus the existing `Hash`-via-`ser` impl. No tuple
+conversion, no GATs, no arity-limited macros.
+
+**What this deletes**: `TFTuple` and its GATs; both tuple-impl macro towers; the
+entire `fixed` tier (`FSerializable`/`FDeserializable`, absorbed by rule 1 + rule
+3); `LargeVector` (rule 4 *is* its encoding, minus the type); the unused
+`Marker`/`ConstMarker` infrastructure. Net-negative diff is expected, per §7
+guardrail 3.
+
+**What changes on the wire**: every composite encoding (prefixes disappear);
+therefore every hash identity and transcript. Leaf encodings are unchanged. No
+golden bytes pin the old format anywhere (§7); all suites regenerate
+self-consistently, and the §7a property harness is the acceptance net.
+
+**Not in this format** (non-goals, §7 guardrail 4): versioning, schema evolution,
+derive support for enums, zero-copy, type-level size computation, runtime type
+tags.
