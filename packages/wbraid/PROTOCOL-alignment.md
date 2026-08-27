@@ -136,7 +136,10 @@ trait signatures, its two implementors, and the two call sites (prover and
 verifier both derive through it); no wire-format change; invalidates any
 previously recorded transcripts (none shipped).
 **Decided 2026-08-27: first item of 0.6.3** — small, security-relevant,
-independent of the other tasks.
+independent of the other tasks. **Implemented 2026-08-27**: trait extended
+(seed returned by `batching_challenges`, passed into `challenge`), both
+transcripts completed per §6.3, `VmnChallenges` stateless; the
+`#[crate::warning]`s are gone, and the vsc, v2v and braid suites pass.
 
 ### C2 — The encryption context `ctx_enc` must be defined before task 2 completes
 

@@ -99,17 +99,21 @@ pub struct Shuffler<C: Context, const W: usize> {
  * particular Verificatum's, so that proofs braid produces can be checked by an
  * independently written verifier (see `VERIFICATUM.md`).
  *
- * [`NativeChallenges`] is the default and reproduces the previous behaviour
- * exactly, so [`Shuffler::shuffle`] and [`Shuffler::verify`] are unchanged.
+ * [`NativeChallenges`] is the default, used by [`Shuffler::shuffle`] and
+ * [`Shuffler::verify`].
  *
  * Implementors must derive both challenges deterministically from public data
- * only. Note the batching challenges are handed the generators and the Pedersen
- * commitments as well as the ciphertexts: braid's own derivation ignores them,
- * but Verificatum's commits to them, and they are available at the point the
- * challenge is needed.
+ * only, and must follow strong Fiat-Shamir: the batching seed commits to the
+ * full statement (generators, Pedersen permutation commitments, public key,
+ * both ciphertext lists, context), and the final challenge chains that seed,
+ * so it transitively binds the statement and the batching vector.
  */
 pub trait ShuffleChallenges<C: Context, const W: usize> {
-    /// The batching vector `e = (e_1, ..., e_N)`.
+    /// The batching seed and vector `e = (e_1, ..., e_N)`.
+    ///
+    /// The seed is the digest committing to the full statement, from which the
+    /// batching vector is expanded; the caller passes it on to
+    /// [`challenge`](Self::challenge).
     ///
     /// Values are reduced into the scalar field. That is sound for any
     /// convention whose challenges are wider than the group order, because these
@@ -127,9 +131,15 @@ pub trait ShuffleChallenges<C: Context, const W: usize> {
         ciphertexts: &[Ciphertext<C, W>],
         permuted_ciphertexts: &[Ciphertext<C, W>],
         context: &[u8],
-    ) -> Result<Vec<C::Scalar>, Error>;
+    ) -> Result<(Vec<u8>, Vec<C::Scalar>), Error>;
 
-    /// The single challenge `v`, derived from the proof commitments.
+    /// The single challenge `v`, derived from the batching seed and the proof
+    /// commitments.
+    ///
+    /// `seed` is the value [`batching_challenges`](Self::batching_challenges)
+    /// returned for this statement. Binding it binds — transitively — the
+    /// statement and the batching vector `e`, so `v` cannot be fixed before
+    /// either.
     ///
     /// # Errors
     ///
@@ -137,7 +147,7 @@ pub trait ShuffleChallenges<C: Context, const W: usize> {
     /// with — typically hashing to a scalar failing in the backend.
     fn challenge(
         &self,
-        pk: &elgamal::PublicKey<C>,
+        seed: &[u8],
         commitments: &ShuffleCommitments<C, W>,
         context: &[u8],
     ) -> Result<C::Scalar, Error>;
@@ -151,14 +161,17 @@ pub struct NativeChallenges;
 impl<C: Context, const W: usize> ShuffleChallenges<C, W> for NativeChallenges {
     fn batching_challenges(
         &self,
-        _generators: &[C::Element],
-        _pedersen_commitments: &[C::Element],
+        generators: &[C::Element],
+        pedersen_commitments: &[C::Element],
         pk: &elgamal::PublicKey<C>,
         ciphertexts: &[Ciphertext<C, W>],
         permuted_ciphertexts: &[Ciphertext<C, W>],
         context: &[u8],
-    ) -> Result<Vec<C::Scalar>, Error> {
+    ) -> Result<(Vec<u8>, Vec<C::Scalar>), Error> {
         let a = [
+            C::generator().ser(),
+            generators.to_vec().ser(),
+            pedersen_commitments.to_vec().ser(),
             pk.ser(),
             ciphertexts.to_vec().ser(),
             permuted_ciphertexts.to_vec().ser(),
@@ -179,17 +192,17 @@ impl<C: Context, const W: usize> ShuffleChallenges<C, W> for NativeChallenges {
             let ds_tags: &[&[u8]; 2] = &[b"prefix", b"shuffle_proof_challenge_e_counter"];
             ret.push(C::G::hash_to_scalar(inputs, ds_tags)?);
         }
-        Ok(ret)
+        Ok((bytes.to_vec(), ret))
     }
 
     fn challenge(
         &self,
-        pk: &elgamal::PublicKey<C>,
+        seed: &[u8],
         commitments: &ShuffleCommitments<C, W>,
         context: &[u8],
     ) -> Result<C::Scalar, Error> {
         let a = [
-            pk.ser(),
+            seed.to_vec(),
             commitments.big_b_n.ser(),
             commitments.big_a_prime.ser(),
             commitments.big_b_prime_n.ser(),
@@ -306,7 +319,7 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         ///////////////// Step 1 /////////////////
 
         // Challenge e
-        let e_n = challenges.batching_challenges(
+        let (seed, e_n) = challenges.batching_challenges(
             &self.h_generators,
             &pedersen_commitments,
             &self.pk,
@@ -418,7 +431,7 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         ///////////////// Step 3 /////////////////
 
         // Challenge v
-        let v = challenges.challenge(&self.pk, &commitments, context)?;
+        let v = challenges.challenge(&seed, &commitments, context)?;
 
         ///////////////// Step 4 /////////////////
 
@@ -565,7 +578,7 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         let responses = &proof.responses;
         let g = C::generator();
 
-        let e_n = challenges.batching_challenges(
+        let (seed, e_n) = challenges.batching_challenges(
             &self.h_generators,
             &commitments.u_n,
             &self.pk,
@@ -573,7 +586,7 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
             permuted_ciphertexts,
             context,
         )?;
-        let v = challenges.challenge(&self.pk, commitments, context)?;
+        let v = challenges.challenge(&seed, commitments, context)?;
 
         ///////////////// Step 5 /////////////////
 
@@ -738,23 +751,23 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         Ok(ret)
     }
 
-    /// Domain separation tags for the e-challenge input
-    #[crate::warning(
-        "Challenge inputs are incomplete. Also add generators and pedersen commitments"
-    )]
-    const DS_TAGS_CHALLENGE_E: [&[u8]; 4] = [
+    /// Domain separation tags for the e-challenge (batching seed) input:
+    /// the full statement `(g, h, u, pk, w, w')` plus the context.
+    const DS_TAGS_CHALLENGE_E: [&[u8]; 7] = [
+        b"g",
+        b"h_n",
+        b"u_n",
         b"pk",
         b"w_n",
         b"w_prime_n",
         b"shuffle_proof_challenge_e_context",
     ];
 
-    /// Domain separation tags for the v-challenge input
-    #[crate::warning(
-        "Challenge inputs are incomplete. Also add generators, pedersen commitments, pk, and ciphertexts"
-    )]
+    /// Domain separation tags for the v-challenge input: the batching seed
+    /// (which transitively binds the statement and the batching vector `e`)
+    /// plus the proof commitments and the context.
     const DS_TAGS_CHALLENGE_V: [&[u8]; 8] = [
-        b"pk",
+        b"seed",
         b"big_b_n",
         b"big_a_prime",
         b"big_b_prime_n",
