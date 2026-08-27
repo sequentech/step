@@ -289,3 +289,19 @@ production path relied on the slack. That favors outcome (1): audit + targeted f
 (efficiency and redundant-prefix design), which is a format change with full
 transcript breakage — worth deciding *after* the property tests exist, since a
 rewrite would inherit them. No new evidence bears on outcome (3).
+
+**A fourth possibility, raised and declined (2026-08-28)**: adopt Verificatum's
+ByteTree as the native format, on the theory that it might cheapen
+Verificatum-compatible proof production. Evaluated against the precedence rule that
+our own format's merits outrank interop: it does not qualify. The interop saving is
+marginal — serialization is one of *seven* divergence rows in `VERIFICATUM.md`'s
+table (hash family, PRG, random oracle, challenge widths, and the global prefix ρ
+all differ), so native ByteTree proofs still would not verify under `vmnv`; it would
+shave only the serializer clause of the **convert** row, which v2v's existing seam
+already covers. Against the higher-priority criteria it *loses*: ByteTree frames
+every node and leaf with a tag byte plus a 4-byte length — including fixed-size
+leaves (a ristretto element becomes 37 bytes), re-importing S9's redundant-framing
+problem — and being schemaless it needs a separate typed-conventions layer, putting
+the strictness obligation on two layers instead of one. What ByteTree does
+contribute: its two-constructor minimalism is the simplicity benchmark the mini-spec
+(§7 guardrail 1) should be measured against.
