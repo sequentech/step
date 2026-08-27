@@ -194,8 +194,9 @@ impl<C: Context> Trustee<C> {
 /// configuration `id`. Shared by the [`mix`] and [`decrypt`] phases.
 fn domain_label(cfg_hash: &ConfigurationHash, suffix: &str) -> Vec<u8> {
     let mut bytes = cfg_hash.ser();
-    // platform-independent length (cannot use usize as it may differ)
-    bytes.extend((suffix.len() as u64).to_le_bytes());
+    // platform-independent length (cannot use usize as it may differ);
+    // big-endian, like every integer entering a hash transcript
+    bytes.extend((suffix.len() as u64).to_be_bytes());
     bytes.extend(suffix.as_bytes());
     bytes
 }

@@ -246,6 +246,9 @@ where:
   parameters — the election-execution identifier, the trustee identities and their keys,
   the threshold $t$, and the ciphertext width $W$ — so binding $\mathsf{cfg}$ binds
   every proof to one specific election execution and parameter set.
+- $\mathrm{len}(P)$ is the byte length of $P$, encoded as a 64-bit big-endian integer.
+  (Every 64-bit integer entering a hash transcript in this protocol — this length and
+  the counters of Sections 2.3 and 2.5 — is encoded big-endian.)
 - $P$ is a fixed ASCII purpose string naming the proof family (e.g. `"shuffle"`,
   `"decryption proof"`, `"shuffle_generators"`).
 - $H(\mathit{input})$ is the hash of the instance input (e.g. the list of ciphertexts
