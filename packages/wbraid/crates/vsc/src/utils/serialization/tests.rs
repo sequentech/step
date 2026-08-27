@@ -6,7 +6,6 @@
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
 
     use crate::context::Context;
     use crate::context::P256Ctx as PCtx;
@@ -159,12 +158,15 @@ mod tests {
             assert_eq!([messages[i].clone()], decrypted);
         }
 
-        // test also that a vector with padded bytes works
+        // A padded vector encoding must be rejected: `ser` never produces
+        // trailing bytes, and accepting them would make distinct byte strings
+        // decode to the same value. (This assertion previously checked the
+        // opposite — that padded bytes "work" — which is exactly the
+        // non-canonical acceptance the serialization audit removed.)
         let items = vec![0u32; 10];
         let mut bytes = items.ser();
         bytes.extend_from_slice(&[0u8; 5]);
-        let deserialized = Vec::<u32>::deser(&bytes).unwrap();
-        assert_eq!(items, deserialized);
+        assert!(Vec::<u32>::deser(&bytes).is_err());
     }
 
     fn test_4_struct_vser<Ctx: Context + PartialEq>() {
@@ -433,43 +435,73 @@ mod tests {
         assert!(Option::<u32>::deser(&[0, 0xff]).is_err());
     }
 
-    pub fn test_btreemap_u64_vec_ciphertext() {
-        test_btreemap_u64_vec_ciphertext_internal::<RCtx, 2>(10, 10, 20);
-        test_btreemap_u64_vec_ciphertext_internal::<RCtx, 2>(0, 10, 20);
+    // ------------------------------------------------------------------
+    // Strictness pinning: deser must accept exactly ser's image
+    // (see SERIALIZATION.md findings S1-S6)
+    // ------------------------------------------------------------------
+
+    #[test]
+    fn test_string_rejects_trailing_bytes() {
+        let s = "hello".to_string();
+        let mut bytes = s.ser();
+        assert_eq!(s, String::deser(&bytes).unwrap());
+        bytes.push(0);
+        assert!(String::deser(&bytes).is_err());
     }
 
-    /// Generates a random `BTreeMap` from `u64 to lists of ciphertexts, with
-    /// `num_entries` entries and between `cts_lower` and `cts_upper` ciphertexts
-    /// (exclusive of `cts_upper`) per entry, then tests whether it can be
-    /// serialized and deserialized correctly.
-    pub fn test_btreemap_u64_vec_ciphertext_internal<Ctx: Context + PartialEq, const W: usize>(
-        num_entries: usize,
-        cts_lower: usize,
-        cts_upper: usize,
-    ) {
-        use rand::RngExt;
+    #[test]
+    fn test_phantomdata_rejects_any_bytes() {
+        use std::marker::PhantomData;
+        let p: PhantomData<u32> = PhantomData;
+        assert_eq!(0, p.ser().len());
+        assert!(PhantomData::<u32>::deser(&[]).is_ok());
+        assert!(PhantomData::<u32>::deser(&[0]).is_err());
 
-        let mut map: BTreeMap<u64, Vec<Ciphertext<Ctx, W>>> = BTreeMap::new();
-        let mut rng = rand::rng();
-        for _ in 0..num_entries {
-            let mut key: u64 = rng.random();
-            while map.contains_key(&key) {
-                key = rng.random();
-            }
-            let mut ct_vec: Vec<Ciphertext<Ctx, W>> = Vec::new();
-            let num_ciphertexts = rng.random_range(cts_lower..cts_upper);
-            for _ in 0..num_ciphertexts {
-                let keypair = KeyPair::<Ctx>::generate();
-                let message: [Ctx::Element; W] = core::array::from_fn(|_| Ctx::random_element());
-                let ciphertext: Ciphertext<Ctx, W> = keypair.encrypt(&message);
-                ct_vec.push(ciphertext);
-            }
-            map.insert(key, ct_vec);
+        // The dangerous position: a struct ENDING in PhantomData receives all
+        // remaining bytes there (braid's Configuration has this shape), so
+        // trailing junk must fail the whole struct.
+        #[derive(Debug, VSer, PartialEq)]
+        struct EndsInPhantom<T> {
+            value: u64,
+            phantom: PhantomData<T>,
         }
+        let v = EndsInPhantom::<u32> {
+            value: 7,
+            phantom: PhantomData,
+        };
+        let mut bytes = v.ser();
+        assert_eq!(v, EndsInPhantom::<u32>::deser(&bytes).unwrap());
+        bytes.push(0);
+        assert!(EndsInPhantom::<u32>::deser(&bytes).is_err());
+    }
 
-        let serialized = map.ser();
-        let deserialized = BTreeMap::<u64, Vec<Ciphertext<Ctx, W>>>::deser(&serialized).unwrap();
-        assert_eq!(map, deserialized);
+    #[test]
+    fn test_largevector_rejects_trailing_and_roundtrips_empty() {
+        let lv: LargeVector<u64> = LargeVector(vec![1, 2, 3]);
+        let mut bytes = lv.ser();
+        assert_eq!(lv, LargeVector::<u64>::deser(&bytes).unwrap());
+        bytes.push(0);
+        assert!(LargeVector::<u64>::deser(&bytes).is_err());
+
+        // The empty vector must round-trip (previously a division by zero).
+        let empty: LargeVector<u64> = LargeVector(vec![]);
+        let bytes = empty.ser();
+        assert_eq!(empty, LargeVector::<u64>::deser(&bytes).unwrap());
+    }
+
+    #[test]
+    fn test_fixed_tuple_rejects_wrong_total_size() {
+        // The macro-generated tuple impl validates the total size up front
+        // rather than relying on the last leaf to reject a mis-sized slice.
+        let bytes = (&1u32, &2u64, &3u32).ser_f();
+        assert_eq!(
+            (1u32, 2u64, 3u32),
+            <(u32, u64, u32)>::deser_f(&bytes).unwrap()
+        );
+        assert!(<(u32, u64, u32)>::deser_f(&bytes[..bytes.len() - 1]).is_err());
+        let mut longer = bytes.clone();
+        longer.push(0);
+        assert!(<(u32, u64, u32)>::deser_f(&longer).is_err());
     }
 
     use crate::utils::serialization::variable::Marker;

@@ -207,13 +207,17 @@ impl<A: FSerializable, B: FSerializable> FSerializable for (&A, &B) {
 }
 
 /// Base case implementation of `FDeserializable` for `generate_tuple_impl` macro
-#[crate::warning(
-    "Tuple FDeserializable implementations (+ macro) do not validate total size with size_bytes()"
-)]
 impl<A: FSerializable + FDeserializable, B: FSerializable + FDeserializable> FDeserializable
     for (A, B)
 {
     fn deser_f(buffer: &[u8]) -> Result<Self, Error> {
+        // Strictness: validate the total size here rather than relying on the
+        // last leaf's exact-width check to catch it transitively.
+        if buffer.len() != A::size_bytes() + B::size_bytes() {
+            return Err(Error::DeserializationError(
+                "Unexpected byte length for (A, B)".to_string(),
+            ));
+        }
         let length_a = A::size_bytes();
 
         let a_bytes = get_slice(buffer, 0..length_a)?;
@@ -287,6 +291,14 @@ macro_rules! generate_tuple_impl {
             $($tail_tys: FSerializable + FDeserializable),+
         > FDeserializable for ($head_ty, $($tail_tys),+) {
             fn deser_f(buffer: &[u8]) -> Result<Self, Error> {
+                // Strictness: validate the total size here rather than relying
+                // on the last leaf's exact-width check to catch it transitively.
+                let expected = $head_ty::size_bytes() $(+ $tail_tys::size_bytes())+;
+                if buffer.len() != expected {
+                    return Err(Error::DeserializationError(
+                        "Unexpected byte length for tuple".to_string(),
+                    ));
+                }
 
                 // Determine the slice for the head element using its fixed length.
                 let head_len = $head_ty::size_bytes();

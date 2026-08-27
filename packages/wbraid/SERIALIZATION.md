@@ -53,12 +53,18 @@ Severity reflects distance from the required property, not a demonstrated exploi
 ### S1 — `Vec<T>::deser` accepts trailing bytes (strictness violation, core)
 
 `variable.rs` `Vec<T>::deser` reads the item count, loops, and never checks that the
-buffer is exhausted — `ser(v) ‖ junk` deserializes to `v`. The `[T; N]` impl has
-exactly the missing check (`if !bytes.is_empty()`), so this is an inconsistency, not a
-design decision. `Vec` appears in nearly every artifact (`Shares.commitments`,
-`Ballots.ciphertexts`, `Mix.ciphertexts`, every head's `trustees`, `ProtocolMessage`'s
-`head`/`body` fields), so the slack is reachable everywhere: any length-prefixed field
-slice can carry junk between the vector's true end and the slice boundary.
+buffer is exhausted — `ser(v) ‖ junk` deserializes to `v`. `Vec` appears in nearly
+every artifact (`Shares.commitments`, `Ballots.ciphertexts`, `Mix.ciphertexts`, every
+head's `trustees`, `ProtocolMessage`'s `head`/`body` fields), so the slack is
+reachable everywhere: any length-prefixed field slice can carry junk between the
+vector's true end and the slice boundary.
+
+Notably, the acceptance was **ratified by an existing test** — `test_vector_vser`
+asserted that "a vector with padded bytes works" — even though the `[T; N]` impl has
+exactly the opposite check. Whatever motivated that assertion, no production code
+depends on padded acceptance (all suites pass with the strict behavior).
+
+**Fixed**: `deser` rejects trailing bytes; the ratifying test now asserts rejection.
 
 ### S2 — `String::deser` accepts trailing bytes (strictness violation)
 
@@ -66,6 +72,8 @@ Reads its length prefix, decodes that many bytes, ignores the rest. Same class a
 (The `(A,)` single-field impl, by contrast, checks exactness.) Production wire usage
 of `String` is limited — to be confirmed in the per-artifact sweep — but the impl is
 in the core set.
+
+**Fixed**: exact-length check added.
 
 ### S3 — `PhantomData::deser` accepts arbitrary bytes (strictness violation, reaches `Configuration`)
 
@@ -75,28 +83,39 @@ bytes whatsoever; in the final position, the struct accepts arbitrary trailing b
 `braid::messages::artifact::Configuration` **ends with `phantom: PhantomData<C>`**, so
 `Configuration::deser(ser(cfg) ‖ anything)` succeeds — every byte string extending a
 valid configuration is accepted, each with a distinct `cfg_hash`, all denoting the
-same logical configuration. The fix is to require the empty slice.
+same logical configuration.
+
+**Fixed**: `PhantomData::deser` requires the empty slice.
 
 ### S4 — `BTreeMap` impl: accepts unsorted and duplicate keys, plus frame slack (latent)
 
-`ser` emits sorted-unique entries; `deser` inserts whatever it reads (later duplicates
-silently overwrite) and ignores bytes after its frame. Distinct byte strings decode to
-the same map. **No production wire type uses `BTreeMap`** — candidate for deletion
-under the unused-API rule rather than repair.
+`ser` emitted sorted-unique entries; `deser` inserted whatever it read (later
+duplicates silently overwriting) and ignored bytes after its frame. Distinct byte
+strings decoded to the same map. No production wire type used `BTreeMap`.
+
+**Deleted** under the unused-API rule, with an in-code note recording the sortedness
+requirement should a map ever be needed on the wire.
 
 ### S5 — `LargeVector` impl: floor-division slack and empty-vector failure (latent)
 
-`each = bytes.len() / count` truncates, so up to `count − 1` trailing bytes pass the
-`each == T::size_bytes()` check and are then dropped by `par_chunks_exact`. Separately
-`count = 0` divides by zero and errors, so an empty `LargeVector` does not round-trip.
-The type is documented as **unused in production** — fix or delete.
+`each = bytes.len() / count` truncated, so up to `count − 1` trailing bytes passed the
+`each == T::size_bytes()` check and were then dropped by `par_chunks_exact`. Separately
+`count = 0` divided by zero and errored, so an empty `LargeVector` did not round-trip.
+The type is documented as unused in production but deliberately retained (a
+performance vehicle with an honest status note).
+
+**Fixed** (exact `count × size` check; empty vector round-trips; zero-sized elements
+rejected). Whether the type should instead be deleted under the unused-API rule is an
+open call.
 
 ### S6 — F-tier tuple impls skip the total-size check (known, mitigated, should be pinned)
 
 Flagged by an existing `#[crate::warning]`. Sound today because every F-leaf rejects
-wrong-length input, making the check transitive — but that is an invariant no test
-pins. Either add the total-size check in the macro or pin the leaf-strictness
-invariant with tests.
+wrong-length input, making the check transitive — but that was an invariant no test
+pinned.
+
+**Fixed**: the tuple base case and the macro now validate the total size up front;
+the warning is retired.
 
 ### S7 — Ed25519 leaf strictness is unverified (open question)
 
@@ -177,11 +196,13 @@ complement of that pass.
 
 ## 7. Early read on the three outcomes
 
-The core defects are *localized and repairable*: S1 is one missing `is_empty` check,
-S2/S3 are exact-length checks, S4/S5 are deletable as unused. Fixes tighten the
-accepted set only — the produced encodings do not change, so **no transcript or wire
-compatibility is affected**. That favors outcome (1): audit + targeted fixes +
-pinning/property/fuzz tests. The standing argument for outcome (2) is S8/S9
+The core defects were *localized and repairable*, and the fixes have landed on this
+branch: S1–S3 and S6 strictness checks, S4 deleted, S5 repaired — each pinned by a
+reject test. The fixes tighten the accepted set only — the produced encodings do not
+change, so **no transcript or wire compatibility is affected**, and every suite (vsc,
+b4, v2v, braid end-to-end) passes under the strict behavior, demonstrating that no
+production path relied on the slack. That favors outcome (1): audit + targeted fixes
++ pinning/property/fuzz tests. The standing argument for outcome (2) is S8/S9
 (efficiency and redundant-prefix design), which is a format change with full
-transcript breakage — worth deciding *after* the fixes land and the property tests
-exist, since a rewrite would inherit them. No new evidence bears on outcome (3).
+transcript breakage — worth deciding *after* the property tests exist, since a
+rewrite would inherit them. No new evidence bears on outcome (3).

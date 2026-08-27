@@ -36,7 +36,6 @@
 use crate::utils::error::Error;
 use crate::utils::serialization::get_slice;
 use crate::utils::serialization::{FDeserializable, FSerializable};
-use std::collections::BTreeMap;
 
 /// Type for byte length prefixes
 // Ensures that usize can fit in LengthU, for LengthU = 64
@@ -159,6 +158,16 @@ impl<T: VDeserializable> VDeserializable for Vec<T> {
             ret.push(value);
             let tail = upper_limit..bytes.len();
             bytes = get_slice(bytes, tail)?;
+        }
+
+        // Strictness: `ser` emits exactly the counted items and nothing after
+        // them, so any remaining bytes were never produced by `ser`. Accepting
+        // them would make distinct byte strings decode to the same value, and
+        // these bytes are hash and signature inputs.
+        if !bytes.is_empty() {
+            return Err(Error::DeserializationError(
+                "Trailing bytes after Vec elements".to_string(),
+            ));
         }
 
         let ret: Result<Vec<T>, Error> = ret.into_iter().collect::<Result<Vec<T>, Error>>();
@@ -390,15 +399,26 @@ impl<T: FSerializable + FDeserializable + Send> VDeserializable for LargeVector<
         let len: usize = LengthU::from_be_bytes(len_bytes).try_into()?;
 
         let bytes = get_slice(buffer, LENGTH_BYTES..buffer.len())?;
-        let each = checked_div(bytes.len(), len)?;
 
-        if each != T::size_bytes() {
+        // Strictness: the data must be exactly `len` elements of `T`'s fixed
+        // size — a floor division here would silently drop up to `len - 1`
+        // trailing bytes (and reject the empty vector with a division by
+        // zero).
+        if T::size_bytes() == 0 {
             return Err(Error::DeserializationError(
-                "Unexpected chunk size for LargeVector".to_string(),
+                "LargeVector of zero-sized elements".to_string(),
+            ));
+        }
+        let expected = len.checked_mul(T::size_bytes()).ok_or_else(|| {
+            Error::DeserializationError("Length overflow for LargeVector".to_string())
+        })?;
+        if bytes.len() != expected {
+            return Err(Error::DeserializationError(
+                "Unexpected byte length for LargeVector".to_string(),
             ));
         }
 
-        let chunks = bytes.par_chunks_exact(each);
+        let chunks = bytes.par_chunks_exact(T::size_bytes());
         let chunks = chunks.map(|e| T::deser_f(e));
         let ret: Result<Vec<T>, Error> = chunks.collect();
         ret.map(|v| LargeVector(v))
@@ -746,9 +766,19 @@ impl<T> VSerializable for std::marker::PhantomData<T> {
 }
 
 /// Implements [`VDeserializable`] for `PhantomData` (zero-sized, deserializes from empty)
+///
+/// Strictness: `ser` produces the empty byte string, so only the empty byte
+/// string is accepted. Ignoring the buffer would let a phantom field absorb
+/// arbitrary bytes — in particular, a struct *ending* in `PhantomData` (like
+/// braid's `Configuration`) would accept any byte string extending a valid
+/// encoding, each with a distinct hash but the same decoded value.
 impl<T> VDeserializable for std::marker::PhantomData<T> {
-    fn deser(_buffer: &[u8]) -> Result<Self, Error> {
-        // PhantomData is zero-sized, always succeeds
+    fn deser(buffer: &[u8]) -> Result<Self, Error> {
+        if !buffer.is_empty() {
+            return Err(Error::DeserializationError(
+                "Trailing bytes for PhantomData".to_string(),
+            ));
+        }
         Ok(std::marker::PhantomData)
     }
 }
@@ -850,6 +880,13 @@ impl VDeserializable for String {
         let len: usize = LengthU::from_be_bytes(len_bytes).try_into()?;
 
         let upper_limit = checked_add(LENGTH_BYTES, len)?;
+        // Strictness: `ser` emits the prefix and exactly `len` bytes; anything
+        // after was never produced by `ser`.
+        if buffer.len() != upper_limit {
+            return Err(Error::DeserializationError(
+                "Trailing bytes after String".to_string(),
+            ));
+        }
         let bytes = get_slice(buffer, LENGTH_BYTES..upper_limit)?;
 
         let string = String::from_utf8(bytes.to_vec())
@@ -898,48 +935,9 @@ fn checked_add(a: usize, b: usize) -> Result<usize, Error> {
     a.checked_add(b)
         .ok_or_else(|| Error::DeserializationError("Length overflow".into()))
 }
-/// Helper for checked division of usize values
-fn checked_div(a: usize, b: usize) -> Result<usize, Error> {
-    a.checked_div(b)
-        .ok_or_else(|| Error::DeserializationError("Division by zero".into()))
-}
 
-/// Implements [`VSerializable`] for `BTreeMap<K, V>`.
-/// A `BTreeMap` is just a sorted map from K to V; we implement this
-/// naively by converting the `BTreeMap` into a vector of (K, V) pairs
-/// sorted in the same order as the `BTreeMap` and serializing it.
-#[crate::warning("This might need optimization")]
-impl<K: VSerializable, V: VSerializable> VSerializable for BTreeMap<K, V> {
-    fn ser(&self) -> Vec<u8> {
-        let converted_vec: Vec<(&K, &V)> = self.iter().collect();
-        let bytes = converted_vec.ser();
-        let len: LengthU = bytes.len().try_into().expect("usize::MAX <= LengthU::MAX");
-        let mut ret = len.to_be_bytes().to_vec();
-        ret.extend_from_slice(&bytes);
-
-        ret
-    }
-}
-
-/// Implements [`VDeserializable`] for `BTreeMap<K, V>`.
-#[crate::warning("This might need optimization")]
-impl<K: VDeserializable + Ord, V: VDeserializable> VDeserializable for BTreeMap<K, V> {
-    fn deser(buffer: &[u8]) -> Result<Self, Error> {
-        let len_bytes: [u8; LENGTH_BYTES] = buffer
-            .get(0..LENGTH_BYTES)
-            .ok_or_else(|| Error::DeserializationError("Buffer too short for length".into()))?
-            .try_into()?;
-        let len: usize = LengthU::from_be_bytes(len_bytes).try_into()?;
-
-        let bytes = buffer
-            .get(LENGTH_BYTES..checked_add(LENGTH_BYTES, len)?)
-            .ok_or_else(|| Error::DeserializationError("Buffer too short for data".into()))?;
-        let vec: Vec<(K, V)> = Vec::deser(bytes)?;
-        let mut res: BTreeMap<K, V> = BTreeMap::new();
-        for (k, v) in vec {
-            res.insert(k, v);
-        }
-
-        Ok(res)
-    }
-}
+// There is deliberately no `BTreeMap` implementation: the one that existed
+// here had no production callers, and its deserializer accepted unsorted and
+// duplicate-keyed encodings (silently canonicalizing them), so distinct byte
+// strings decoded to the same map. If a map is ever needed on the wire, its
+// deserializer must reject out-of-order and duplicate keys.
