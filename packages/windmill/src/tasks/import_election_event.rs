@@ -22,6 +22,8 @@ pub struct ImportElectionEventBody {
     pub password: Option<String>,
     pub check_only: Option<bool>,
     pub sha256: Option<String>,
+    #[serde(default)]
+    pub may_write_secret_attributes: bool,
 }
 
 #[instrument(err)]

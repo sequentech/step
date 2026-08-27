@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::postgres::document::insert_document;
+use crate::postgres::document::insert_document_with_annotations;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::documents::upload_and_return_document;
 use crate::services::export::export_users::{export_users_file, ExportBody};
@@ -12,7 +12,7 @@ use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction as _};
 use sequent_core::services::keycloak;
 use sequent_core::services::s3;
-use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::types::hasura::core::{DocumentAnnotations, TasksExecution};
 use sequent_core::util;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, info, instrument};
@@ -121,7 +121,15 @@ pub async fn export_users(
         .close()
         .with_context(|| "Error closing temporary file path")?;
 
-    let _document = insert_document(
+    let document_annotations = matches!(
+        &body,
+        ExportBody::Users {
+            include_secret_attributes: true,
+            ..
+        }
+    )
+    .then(DocumentAnnotations::voter_secret_export);
+    let _document = insert_document_with_annotations(
         &hasura_transaction,
         &tenant_id,
         match &body {
@@ -135,6 +143,7 @@ pub async fn export_users(
         size.try_into()?,
         false,
         Some(document_id.clone()),
+        document_annotations.as_ref(),
     )
     .await
     .map_err(|err| format!("Error inserting document: {:?}", err))?;

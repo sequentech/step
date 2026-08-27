@@ -1169,6 +1169,15 @@ const basqueTranslation: TranslationType = {
                 },
                 title: "Bozkatzaileak",
                 subtitle: "Ikusi eta editatu bozkatzaile datuak",
+                secretAttribute: {
+                    storedPlaceholder: "Gordetako balio zifratua",
+                    reveal: "Erakutsi",
+                    hide: "Ezkutatu",
+                    revealError: "Ezin izan da bozkatzailearen eremu zifratua erakutsi",
+                    includeInExport: "Sartu deszifratutako bozkatzailearen eremu sekretuak",
+                    exportWarning:
+                        "Esportazio sentikorra: deskargatutako CSVak eremu hauek testu arruntean izango ditu.",
+                },
                 review: {
                     title: "Aldaketak berrikusi",
                     subtitle: "Berretsi eguneratze hauek bidali aurretik.",
@@ -1287,6 +1296,8 @@ const basqueTranslation: TranslationType = {
                 "voter-create": "Sortu Bozkatzailea",
                 "voter-read": "Irakurri Bozkatzailea",
                 "voter-write": "Editatu Bozkatzailea",
+                "voter-secret-attribute-read": "Erakutsi Bozkatzailearen Eremu Sekretuak",
+                "voter-secret-attribute-write": "Editatu Bozkatzailearen Eremu Sekretuak",
                 "user-create": "Sortu Erabiltzailea",
                 "user-read": "Irakurri Erabiltzailea",
                 "user-write": "Editatu Erabiltzailea",

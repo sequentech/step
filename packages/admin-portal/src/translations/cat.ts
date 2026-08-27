@@ -1177,6 +1177,15 @@ const catalanTranslation: TranslationType = {
                 },
                 title: "Votants",
                 subtitle: "Veure i editar dades del votant",
+                secretAttribute: {
+                    storedPlaceholder: "Valor xifrat emmagatzemat",
+                    reveal: "Mostra",
+                    hide: "Amaga",
+                    revealError: "No s'ha pogut mostrar el camp xifrat del votant",
+                    includeInExport: "Inclou els camps secrets desxifrats del votant",
+                    exportWarning:
+                        "Exportació sensible: el CSV descarregat contindrà aquests camps en text pla.",
+                },
                 review: {
                     title: "Revisar canvis",
                     subtitle: "Confirma aquestes actualitzacions abans d'enviar-les.",
@@ -1295,6 +1304,8 @@ const catalanTranslation: TranslationType = {
                 "voter-create": "Crear Votant",
                 "voter-read": "Llegir Votant",
                 "voter-write": "Editar Votant",
+                "voter-secret-attribute-read": "Mostrar Camps Secrets del Votant",
+                "voter-secret-attribute-write": "Editar Camps Secrets del Votant",
                 "user-create": "Crear Usuari",
                 "user-read": "Llegir Usuari",
                 "user-write": "Editar Usuari",

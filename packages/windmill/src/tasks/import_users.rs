@@ -29,6 +29,8 @@ pub struct ImportUsersBody {
     pub election_event_id: Option<String>,
     #[serde(default = "default_is_admin")]
     pub is_admin: bool,
+    #[serde(default)]
+    pub may_write_secret_attributes: bool,
     pub sha256: Option<String>,
 }
 
@@ -143,6 +145,7 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
         body.election_event_id.clone(),
         body.tenant_id,
         body.is_admin,
+        body.may_write_secret_attributes,
     )
     .await
     {

@@ -15,6 +15,9 @@ use std::time::Instant;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
+use windmill::services::database::get_hasura_pool;
+use windmill::services::reports::template_renderer::get_declared_report_secret_attribute_names;
+use windmill::postgres::reports::ReportType;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GetManualVerificationPdfInput {
@@ -35,14 +38,41 @@ pub async fn get_manual_verification_pdf(
     body: Json<GetManualVerificationPdfInput>,
     claims: JwtClaims,
 ) -> Result<Json<GetManualVerificationPdfOutput>, (Status, String)> {
+    let input = body.into_inner();
     authorize(
         &claims,
         true,
-        Some(claims.hasura_claims.tenant_id.clone()),
+        Some(input.tenant_id.clone()),
         vec![Permissions::VOTER_MANUALLY_VERIFY],
     )?;
-
-    let input = body.into_inner();
+    let mut hasura_client = get_hasura_pool().await.get().await.map_err(|error| {
+        (Status::InternalServerError, format!("Error getting database client: {error}"))
+    })?;
+    let hasura_transaction = hasura_client.transaction().await.map_err(|error| {
+        (Status::InternalServerError, format!("Error starting database transaction: {error}"))
+    })?;
+    let declared_secret_names = get_declared_report_secret_attribute_names(
+        &hasura_transaction,
+        &input.tenant_id,
+        &input.election_event_id,
+        &ReportType::MANUAL_VERIFICATION,
+        None,
+    )
+    .await
+    .map_err(|error| {
+        (Status::InternalServerError, format!("Error reading report template: {error:#}"))
+    })?;
+    let may_read_secret_attributes = !declared_secret_names.is_empty();
+    if may_read_secret_attributes {
+        authorize(
+            &claims,
+            true,
+            Some(input.tenant_id.clone()),
+            vec![Permissions::VOTER_SECRET_ATTRIBUTE_READ],
+        )?;
+    }
+    drop(hasura_transaction);
+    drop(hasura_client);
     let document_id: String = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
 
@@ -54,6 +84,7 @@ pub async fn get_manual_verification_pdf(
                 input.election_event_id,
                 input.voter_id,
                 None,
+                may_read_secret_attributes,
             ),
         )
         .await

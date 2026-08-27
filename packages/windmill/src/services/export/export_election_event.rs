@@ -34,8 +34,9 @@ use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::s3;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::temp_path::generate_temp_file;
-use sequent_core::types::hasura::core::KeysCeremony;
-use sequent_core::types::hasura::core::{Candidate, Contest, Election};
+use sequent_core::types::hasura::core::{
+    Candidate, Contest, DocumentAnnotations, Election, KeysCeremony,
+};
 use sequent_core::util::version::{DEV_APP_VERSION, ENV_VAR_APP_VERSION};
 use std::collections::HashMap;
 use std::env;
@@ -55,7 +56,9 @@ use super::export_tally;
 use super::export_users::export_users_file;
 use super::export_users::ExportBody;
 use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
-use crate::services::documents::upload_and_return_document;
+use crate::services::documents::{
+    upload_and_return_document, upload_and_return_document_with_annotations,
+};
 use crate::services::password;
 
 #[instrument(err, skip(transaction))]
@@ -336,6 +339,7 @@ pub async fn process_export_zip(
     document_id: &str,
     export_config: ExportOptions,
 ) -> Result<()> {
+    let contains_voter_secrets = export_config.contains_voter_secrets;
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -345,7 +349,10 @@ pub async fn process_export_zip(
         .transaction()
         .await
         .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
-    info!("export_config: {:?}", export_config);
+    info!(
+        include_voters = export_config.include_voters,
+        contains_voter_secrets, "exporting election event"
+    );
     // Temporary file path for the ZIP archive
     let zip_filename = format!("export-election-event-{election_event_id}.zip");
     let zip_path = env::temp_dir().join(&zip_filename);
@@ -411,6 +418,7 @@ pub async fn process_export_zip(
                 tenant_id: tenant_id.to_string(),
                 election_event_id: Some(election_event_id.to_string()),
                 election_id: None,
+                include_secret_attributes: true,
             },
         )
         .await
@@ -789,20 +797,37 @@ pub async fn process_export_zip(
     .map_err(|e| anyhow!("Error generating the exported election event filename: {e:?}"))?;
 
     // Upload the ZIP file (encrypted or original) to Hasura
-    let _document = upload_and_return_document(
-        &hasura_transaction,
-        upload_path
-            .to_str()
-            .ok_or_else(|| anyhow!("Can't convert {:?} to string", upload_path))?,
-        zip_size,
-        "application/zip",
-        &tenant_id.to_string(),
-        Some(election_event_id.to_string()),
-        &export_event_filename,
-        Some(document_id.to_string()),
-        false,
-    )
-    .await?;
+    let upload_path = upload_path
+        .to_str()
+        .ok_or_else(|| anyhow!("Can't convert {:?} to string", upload_path))?;
+    let _document = if contains_voter_secrets {
+        upload_and_return_document_with_annotations(
+            &hasura_transaction,
+            upload_path,
+            zip_size,
+            "application/zip",
+            &tenant_id.to_string(),
+            Some(election_event_id.to_string()),
+            &export_event_filename,
+            Some(document_id.to_string()),
+            false,
+            &DocumentAnnotations::voter_secret_export(),
+        )
+        .await?
+    } else {
+        upload_and_return_document(
+            &hasura_transaction,
+            upload_path,
+            zip_size,
+            "application/zip",
+            &tenant_id.to_string(),
+            Some(election_event_id.to_string()),
+            &export_event_filename,
+            Some(document_id.to_string()),
+            false,
+        )
+        .await?
+    };
 
     // Clean up the ZIP files (optional)
     std::fs::remove_file(&zip_path).map_err(|e| anyhow!("Error removing ZIP file: {e:?}"))?;

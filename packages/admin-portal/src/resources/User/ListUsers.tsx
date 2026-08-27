@@ -32,7 +32,18 @@ import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import UploadIcon from "@mui/icons-material/Upload"
 import {ListActions} from "@/components/ListActions"
-import {Box, Button, Chip, Menu, MenuItem, Skeleton, Stack, Typography} from "@mui/material"
+import {
+    Box,
+    Button,
+    Checkbox,
+    Chip,
+    FormControlLabel,
+    Menu,
+    MenuItem,
+    Skeleton,
+    Stack,
+    Typography,
+} from "@mui/material"
 import {Dialog, theme} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {Action} from "@/components/ActionButons"
@@ -87,6 +98,7 @@ import {
     getAttributeLabel,
     getTranslationLabel,
     isHiddenAttribute,
+    isSecretAttribute,
     userBasicInfo,
 } from "@/services/UserService"
 import CustomDateField from "./CustomDateField"
@@ -169,6 +181,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
 
     const [open, setOpen] = useState(false)
     const [openExport, setOpenExport] = useState(false)
+    const [includeSecretAttributes, setIncludeSecretAttributes] = useState(false)
     const [exporting, setExporting] = useState(false)
     const [userType, setUserType] = useState<string | null>(null)
     const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
@@ -266,30 +279,32 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const Filters = useMemo(() => {
         let filters: ReactElement[] = []
         if (visibleUserAttributes) {
-            filters = visibleUserAttributes.map((attr) => {
-                //covert to valid source string (if attr name is for example sequent.read-only.otp-method)
-                const source = attr.name?.replaceAll(".", "%")
-                if (attr.annotations?.inputType === "html5-date") {
+            filters = visibleUserAttributes
+                .filter((attr) => !isSecretAttribute(attr))
+                .map((attr) => {
+                    //covert to valid source string (if attr name is for example sequent.read-only.otp-method)
+                    const source = attr.name?.replaceAll(".", "%")
+                    if (attr.annotations?.inputType === "html5-date") {
+                        return (
+                            <DateInput
+                                key={attr.name}
+                                source={`attributes.${attr.name}`}
+                                label={getTranslationLabel(attr.name, attr.display_name, t)}
+                            />
+                        )
+                    }
                     return (
-                        <DateInput
+                        <TextInput
                             key={attr.name}
-                            source={`attributes.${attr.name}`}
+                            source={
+                                userBasicInfo.includes(`${attr.name}`)
+                                    ? `${attr.name}.IsLike`
+                                    : `attributes.${source}`
+                            }
                             label={getTranslationLabel(attr.name, attr.display_name, t)}
                         />
                     )
-                }
-                return (
-                    <TextInput
-                        key={attr.name}
-                        source={
-                            userBasicInfo.includes(`${attr.name}`)
-                                ? `${attr.name}.IsLike`
-                                : `attributes.${source}`
-                        }
-                        label={getTranslationLabel(attr.name, attr.display_name, t)}
-                    />
-                )
-            })
+                })
             filters.push(<BooleanInput key="enabled" source={"enabled"} />)
             filters.push(<BooleanInput key="email_verified" source={"email_verified"} />)
             if (electionEventId) {
@@ -348,6 +363,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         canImportUsers,
         canCreateVoters,
         canEditVoters,
+        canReadVoterSecretAttributes,
         canEditVotersEmailTlf,
         canDeleteVoters,
         canImportVoters,
@@ -782,6 +798,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const handleExport = () => {
         setExporting(false)
         setExportDocumentId(undefined)
+        setIncludeSecretAttributes(false)
         setOpenExport(true)
     }
 
@@ -794,7 +811,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             if (electionEventId) {
                 currWidget = addWidget(ETasksExecution.EXPORT_VOTERS, true)
                 const {data: exportUsersData, errors} = await exportUsers({
-                    variables: {tenantId, electionEventId, electionId},
+                    variables: {
+                        tenantId,
+                        electionEventId,
+                        electionId,
+                        includeSecretAttributes,
+                    },
                 })
                 if (errors || !exportUsersData) {
                     setExporting(false)
@@ -1125,6 +1147,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
 
     const renderFields = (fields: UserProfileAttribute[]) => {
         const allFields = fields.map((attr) => {
+            if (isSecretAttribute(attr)) return null
             if (attr.name === AUTHORIZED_ELECTION_IDS) return null
             if (attr.name === DISABLE_COMMENT) return null
             if (attr.name === VOTED_CHANNEL) return null
@@ -1482,6 +1505,11 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     audienceSelection={audienceSelection}
                     electionEventId={electionEventId}
                     close={handleClose}
+                    secretAttributeNames={
+                        visibleUserAttributes
+                            ?.filter(isSecretAttribute)
+                            .flatMap((attribute) => (attribute.name ? [attribute.name] : [])) ?? []
+                    }
                 />
             </ResourceListStyles.Drawer>
             <ResourceListStyles.Drawer anchor="right" open={openNew} onClose={handleClose}>
@@ -1648,6 +1676,30 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 }}
             >
                 {t("common.export")}
+                {electionEventId &&
+                    canReadVoterSecretAttributes &&
+                    visibleUserAttributes?.some(isSecretAttribute) && (
+                        <Box sx={{mt: 2}}>
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
+                                        checked={includeSecretAttributes}
+                                        onChange={(event) =>
+                                            setIncludeSecretAttributes(event.target.checked)
+                                        }
+                                    />
+                                }
+                                label={String(
+                                    t("usersAndRolesScreen.voters.secretAttribute.includeInExport")
+                                )}
+                            />
+                            {includeSecretAttributes && (
+                                <Typography color="warning.main" variant="body2">
+                                    {t("usersAndRolesScreen.voters.secretAttribute.exportWarning")}
+                                </Typography>
+                            )}
+                        </Box>
+                    )}
                 <FormStyles.ReservedProgressSpace>
                     {exporting ? <FormStyles.ShowProgress /> : null}
                     {exporting && exportDocumentId ? (

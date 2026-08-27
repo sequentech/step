@@ -1150,6 +1150,15 @@ const englishTranslation = {
             voters: {
                 title: "Voters",
                 subtitle: "View and edit voter data",
+                secretAttribute: {
+                    storedPlaceholder: "Stored encrypted value",
+                    reveal: "Reveal",
+                    hide: "Hide",
+                    revealError: "The encrypted voter field could not be revealed",
+                    includeInExport: "Include decrypted secret voter fields",
+                    exportWarning:
+                        "Sensitive export: the downloaded CSV will contain these fields in plaintext.",
+                },
                 review: {
                     title: "Review changes",
                     subtitle: "Confirm these updates before submitting.",
@@ -1279,6 +1288,8 @@ const englishTranslation = {
                 "voter-create": "Create Voter",
                 "voter-read": "Read Voter",
                 "voter-write": "Edit Voter",
+                "voter-secret-attribute-read": "Reveal Secret Voter Fields",
+                "voter-secret-attribute-write": "Edit Secret Voter Fields",
                 "user-create": "Create User",
                 "user-read": "Read User",
                 "user-write": "Edit User",

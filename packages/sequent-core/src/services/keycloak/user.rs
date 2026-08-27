@@ -171,9 +171,6 @@ impl User {
             .get(AUTHORIZED_ELECTION_IDS_NAME)
             .cloned();
 
-        info!("get_authorized_election_ids: {:?}", result);
-        info!("attributes: {:?}", self.attributes);
-
         result
     }
 
@@ -395,7 +392,6 @@ impl KeycloakAdminClient {
         credentials: Option<Vec<CredentialRepresentation>>,
         temporary: Option<bool>,
     ) -> Result<User> {
-        info!("Editing user in keycloak ?: {:?}", attributes);
         let mut current_user: UserRepresentation = self
             .client
             .realm_users_with_user_id_get(realm, user_id, None)
@@ -483,7 +479,6 @@ impl KeycloakAdminClient {
     ) -> Result<User> {
         let mut new_user_keycloak: UserRepresentation = user.clone().into();
         new_user_keycloak.attributes = attributes.clone();
-        info!("Creating user in keycloak ?: {:?}", new_user_keycloak);
         new_user_keycloak.groups = groups.clone();
         self.client
             .realm_users_post(realm, new_user_keycloak.clone())

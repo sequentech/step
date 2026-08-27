@@ -8,6 +8,7 @@ use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use sequent_core::types::scheduled_event::*;
+use sequent_core::types::templates::SendTemplateBody;
 
 use anyhow::Result;
 use rocket::http::Status;
@@ -33,7 +34,7 @@ pub struct CreateEventOutput {
     pub id: String,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, body))]
 #[post("/scheduled-event", format = "json", data = "<body>")]
 pub async fn create_scheduled_event(
     body: Json<CreateEventBody>,
@@ -48,6 +49,23 @@ pub async fn create_scheduled_event(
                 Some(input.tenant_id.clone()),
                 vec![Permissions::NOTIFICATION_SEND],
             )?;
+            let payload: SendTemplateBody = serde_json::from_value(
+                input.event_payload.clone(),
+            )
+            .map_err(|error| {
+                (
+                    Status::BadRequest,
+                    format!("Invalid send-template payload: {error}"),
+                )
+            })?;
+            if !payload.secret_attribute_names.is_empty() {
+                authorize(
+                    &claims,
+                    true,
+                    Some(input.tenant_id.clone()),
+                    vec![Permissions::VOTER_SECRET_ATTRIBUTE_READ],
+                )?;
+            }
         }
         EventProcessors::CREATE_REPORT => {
             authorize(

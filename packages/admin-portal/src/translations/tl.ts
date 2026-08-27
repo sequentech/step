@@ -1175,6 +1175,15 @@ const tagalogTranslation: TranslationType = {
                 },
                 title: "Mga Botante",
                 subtitle: "Tingnan at i-edit ang data ng botante",
+                secretAttribute: {
+                    storedPlaceholder: "Nakaimbak na naka-encrypt na halaga",
+                    reveal: "Ipakita",
+                    hide: "Itago",
+                    revealError: "Hindi maipakita ang naka-encrypt na field ng botante",
+                    includeInExport: "Isama ang na-decrypt na mga lihim na field ng botante",
+                    exportWarning:
+                        "Sensitibong export: ang na-download na CSV ay maglalaman ng mga field na ito bilang plain text.",
+                },
                 review: {
                     title: "Suriin ang mga Pagbabago",
                     subtitle: "Kumpirmahin ang mga update na ito bago isumite.",
@@ -1293,6 +1302,8 @@ const tagalogTranslation: TranslationType = {
                 "voter-create": "Lumikha ng Botante",
                 "voter-read": "Basahin ang Botante",
                 "voter-write": "I-edit ang Botante",
+                "voter-secret-attribute-read": "Ipakita ang mga Lihim na Field ng Botante",
+                "voter-secret-attribute-write": "I-edit ang mga Lihim na Field ng Botante",
                 "user-create": "Lumikha ng Tagagamit",
                 "user-read": "Basahin ang Tagagamit",
                 "user-write": "I-edit ang Tagagamit",

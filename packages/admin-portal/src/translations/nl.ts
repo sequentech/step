@@ -1174,6 +1174,15 @@ const dutchTranslation: TranslationType = {
                 },
                 title: "Kiezers",
                 subtitle: "Kiezersgegevens bekijken en bewerken",
+                secretAttribute: {
+                    storedPlaceholder: "Opgeslagen versleutelde waarde",
+                    reveal: "Tonen",
+                    hide: "Verbergen",
+                    revealError: "Het versleutelde kiezersveld kon niet worden getoond",
+                    includeInExport: "Ontsleutelde geheime kiezersvelden opnemen",
+                    exportWarning:
+                        "Gevoelige export: de gedownloade CSV bevat deze velden als platte tekst.",
+                },
                 review: {
                     title: "Wijzigingen controleren",
                     subtitle: "Bevestig deze updates voordat u ze indient.",
@@ -1293,6 +1302,8 @@ const dutchTranslation: TranslationType = {
                 "voter-create": "Kiezer Aanmaken",
                 "voter-read": "Kiezer Lezen",
                 "voter-write": "Kiezer Bewerken",
+                "voter-secret-attribute-read": "Geheime Kiezersvelden Tonen",
+                "voter-secret-attribute-write": "Geheime Kiezersvelden Bewerken",
                 "user-create": "Gebruiker Aanmaken",
                 "user-read": "Gebruiker Lezen",
                 "user-write": "Gebruiker Bewerken",

@@ -79,6 +79,7 @@ async fn generate_activity_logs_report_impl(
             &hasura_transaction,
             &keycloak_transaction,
             /* task_execution */ None,
+            /* may_read_secret_attributes */ false,
         )
         .await
         .map_err(|err| anyhow!("error generating report: {err:?}"))?;

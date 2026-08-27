@@ -10,8 +10,21 @@ import {
     getSelectOptionLabel,
     getStatedLengthBounds,
     isHiddenAttribute,
+    isSecretAttribute,
     resolveOptionLabel,
 } from "./UserService"
+
+describe("isSecretAttribute", () => {
+    it("accepts Keycloak boolean and string annotations", () => {
+        expect(isSecretAttribute(attribute({annotations: {"sequent.secret": true}}))).toBe(true)
+        expect(isSecretAttribute(attribute({annotations: {"sequent.secret": "TRUE"}}))).toBe(true)
+    })
+
+    it("rejects unset and false annotations", () => {
+        expect(isSecretAttribute(attribute({annotations: {"sequent.secret": false}}))).toBe(false)
+        expect(isSecretAttribute(attribute({annotations: {}}))).toBe(false)
+    })
+})
 
 const attribute = (overrides: Partial<UserProfileAttribute>): UserProfileAttribute => ({
     name: "sex",

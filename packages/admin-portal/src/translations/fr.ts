@@ -1177,6 +1177,15 @@ const frenchTranslation: TranslationType = {
                 },
                 title: "Électeurs",
                 subtitle: "Voir et éditer les données de l'électeur",
+                secretAttribute: {
+                    storedPlaceholder: "Valeur chiffrée enregistrée",
+                    reveal: "Afficher",
+                    hide: "Masquer",
+                    revealError: "Le champ chiffré de l'électeur n'a pas pu être affiché",
+                    includeInExport: "Inclure les champs secrets déchiffrés de l'électeur",
+                    exportWarning:
+                        "Exportation sensible : le CSV téléchargé contiendra ces champs en texte clair.",
+                },
                 review: {
                     title: "Vérifier les modifications",
                     subtitle: "Confirmez ces mises à jour avant de les soumettre.",
@@ -1297,6 +1306,8 @@ const frenchTranslation: TranslationType = {
                 "voter-create": "Créer Électeur",
                 "voter-read": "Lire Électeur",
                 "voter-write": "Éditer Électeur",
+                "voter-secret-attribute-read": "Afficher les Champs Secrets de l'Électeur",
+                "voter-secret-attribute-write": "Éditer les Champs Secrets de l'Électeur",
                 "user-create": "Créer Utilisateur",
                 "user-read": "Lire Utilisateur",
                 "user-write": "Éditer Utilisateur",

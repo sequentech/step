@@ -7,6 +7,7 @@ use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::election::{get_election_event_elections, ElectionHead};
 use crate::services::users::ListUsersFilter;
 use crate::services::users::{list_users, list_users_with_vote_info};
+use crate::services::voter_secret_attributes::{decrypt_user_attributes, secret_attribute_names};
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use deadpool_postgres::Transaction;
@@ -44,6 +45,8 @@ pub struct ExportUsersBody {
     pub tenant_id: String,
     pub election_event_id: Option<String>,
     pub election_id: Option<String>,
+    #[serde(default)]
+    pub include_secret_attributes: bool,
 }
 
 #[derive(Deserialize, Debug, Clone, Serialize)]
@@ -57,6 +60,8 @@ pub enum ExportBody {
         tenant_id: String,
         election_event_id: Option<String>,
         election_id: Option<String>,
+        #[serde(default)]
+        include_secret_attributes: bool,
     },
     TenantUsers {
         tenant_id: String,
@@ -229,10 +234,29 @@ pub async fn export_users_file(
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| anyhow!("Error obtaining Keycloak admin client: {e:?}"))?;
-    let attributes = client
+    let profile_attributes = client
         .get_user_profile_attributes(&realm)
         .await
         .map_err(|e| anyhow!("Error obtaining Keycloak User Profile Attributes: {e:?}"))?;
+    let configured_secret_names = secret_attribute_names(&profile_attributes)?;
+    let include_secret_attributes = matches!(
+        &body,
+        ExportBody::Users {
+            include_secret_attributes: true,
+            election_event_id: Some(_),
+            ..
+        }
+    );
+    let attributes = profile_attributes
+        .into_iter()
+        .filter(|attribute| {
+            include_secret_attributes
+                || attribute
+                    .name
+                    .as_ref()
+                    .is_none_or(|name| !configured_secret_names.contains(name))
+        })
+        .collect::<Vec<_>>();
     let headers = get_headers(&elections, &attributes);
 
     // Pagination loop to export users in batches
@@ -303,7 +327,30 @@ pub async fn export_users_file(
         offset += users.len() as i32;
 
         // Write each user record to the CSV file
-        for user in users.clone() {
+        for mut user in users.clone() {
+            if include_secret_attributes {
+                let (tenant_id, election_event_id) = match &body {
+                    ExportBody::Users {
+                        tenant_id,
+                        election_event_id: Some(election_event_id),
+                        ..
+                    } => (tenant_id, election_event_id),
+                    _ => unreachable!("secret export is restricted to event voters"),
+                };
+                decrypt_user_attributes(
+                    &mut user,
+                    tenant_id,
+                    election_event_id,
+                    &configured_secret_names,
+                )
+                .await
+                .with_context(|| {
+                    format!(
+                        "Error decrypting secret attributes for voter {}",
+                        user.id.as_deref().unwrap_or("unknown")
+                    )
+                })?;
+            }
             let record = get_user_record(&elections, &areas_by_id, &user, &attributes);
             writer
                 .write_record(&record)

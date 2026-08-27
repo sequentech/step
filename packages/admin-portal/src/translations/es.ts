@@ -1175,6 +1175,15 @@ const spanishTranslation: TranslationType = {
                 },
                 title: "Votantes",
                 subtitle: "Ver y editar datos del votante",
+                secretAttribute: {
+                    storedPlaceholder: "Valor cifrado almacenado",
+                    reveal: "Mostrar",
+                    hide: "Ocultar",
+                    revealError: "No se pudo mostrar el campo cifrado del votante",
+                    includeInExport: "Incluir campos secretos descifrados del votante",
+                    exportWarning:
+                        "Exportación sensible: el CSV descargado contendrá estos campos en texto plano.",
+                },
                 review: {
                     title: "Revisar cambios",
                     subtitle: "Confirma estas actualizaciones antes de enviarlas.",
@@ -1292,6 +1301,8 @@ const spanishTranslation: TranslationType = {
                 "voter-create": "Crear Votante",
                 "voter-read": "Leer Votante",
                 "voter-write": "Editar Votante",
+                "voter-secret-attribute-read": "Mostrar Campos Secretos del Votante",
+                "voter-secret-attribute-write": "Editar Campos Secretos del Votante",
                 "user-create": "Crear Usuario",
                 "user-read": "Leer Usuario",
                 "user-write": "Editar Usuario",

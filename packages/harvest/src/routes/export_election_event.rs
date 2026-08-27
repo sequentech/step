@@ -8,12 +8,14 @@ use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
 use sequent_core::services::jwt::JwtClaims;
+use sequent_core::services::keycloak::{get_event_realm, KeycloakAdminClient};
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
+use windmill::services::voter_secret_attributes::secret_attribute_names;
 use windmill::services::{password, tasks_execution::*};
 use windmill::tasks::export_election_event::{self, ExportOptions};
 use windmill::types::tasks::ETasksExecution;
@@ -52,6 +54,40 @@ pub async fn export_election_event_route(
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
     let mut export_config = body.export_configurations.clone();
+    let profile = KeycloakAdminClient::new()
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Error connecting to Keycloak: {error:?}"),
+            )
+        })?
+        .get_user_profile_attributes(&get_event_realm(
+            &tenant_id,
+            &election_event_id,
+        ))
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Error reading voter profile: {error:?}"),
+            )
+        })?;
+    export_config.contains_voter_secrets = false;
+    if export_config.include_voters
+        && !secret_attribute_names(&profile)
+            .map_err(|error| (Status::BadRequest, error.to_string()))?
+            .is_empty()
+    {
+        authorize(
+            &claims,
+            true,
+            Some(tenant_id.clone()),
+            vec![Permissions::VOTER_SECRET_ATTRIBUTE_READ],
+        )?;
+        export_config.is_encrypted = true;
+        export_config.contains_voter_secrets = true;
+    }
 
     // Insert the task execution record
     let task_execution = post(

@@ -791,6 +791,7 @@ async fn process_voters_file(
     election_event_id: Option<String>,
     tenant_id: String,
     is_admin: bool,
+    may_write_secret_attributes: bool,
 ) -> Result<()> {
     let separator = if file_name.ends_with(".tsv") {
         b'\t'
@@ -805,6 +806,7 @@ async fn process_voters_file(
         election_event_id,
         tenant_id,
         is_admin,
+        may_write_secret_attributes,
     )
     .await
     .map_err(|err| anyhow!("Error importing users file: {err}"))?;
@@ -1162,6 +1164,7 @@ pub async fn process_document(
         None => file_election_event_schema,
     };
 
+    let may_write_secret_attributes = object.may_write_secret_attributes;
     let (election_event_schema, replacement_map) = process_election_event_file(
         hasura_transaction,
         &document_type,
@@ -1212,6 +1215,7 @@ pub async fn process_document(
                     Some(election_event_schema.election_event.id.clone()),
                     election_event_schema.tenant_id.to_string(),
                     false,
+                    may_write_secret_attributes,
                 )
                 .await
                 .context("Failed to import voters")?;

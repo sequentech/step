@@ -529,7 +529,7 @@ pub async fn build_ballot_images_pipe_config(
         tally_session_id: None,
     });
 
-    let (user_tpl_document, ext_cfg) = ballot_images_renderer
+    let (user_tpl_document, ext_cfg, _) = ballot_images_renderer
         .user_tpl_and_extra_cfg_provider(hasura_transaction)
         .await
         .map_err(|e| anyhow!("Error providing the user template and extra config: {e:?}"))?;

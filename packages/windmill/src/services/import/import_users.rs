@@ -7,6 +7,7 @@ use crate::postgres::keycloak_realm;
 use crate::postgres::keycloak_realm::get_duplicate_emails_allowed;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::sql_utils::{escape_sql_identifier, escape_sql_literal};
+use crate::services::voter_secret_attributes::{encrypt_attribute_values, secret_attribute_names};
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use base64::prelude::*;
@@ -18,7 +19,7 @@ use rand::{thread_rng, Rng};
 use regex::Regex;
 use ring::{digest, pbkdf2};
 use sequent_core::services::keycloak::{
-    get_event_realm, get_tenant_realm, MULTIVALUE_USER_ATTRIBUTE_SEPARATOR,
+    get_event_realm, get_tenant_realm, KeycloakAdminClient, MULTIVALUE_USER_ATTRIBUTE_SEPARATOR,
 };
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::keycloak::{
@@ -47,13 +48,15 @@ const EMAIL_VERIFIED_COL_NAME: &str = "email_verified";
 const GROUP_COL_NAME: &str = "group_name";
 const AREA_NAME_COL_NAME: &str = "area_name";
 const ELECTION_COL_PREFIX: &str = "election__";
-const RESERVED_COL_NAMES: [&str; 6] = [
+const INTERNAL_USER_ID_COL_NAME: &str = "sequent_internal_user_id";
+const RESERVED_COL_NAMES: [&str; 7] = [
     HASHED_PASSWORD_COL_NAME,
     SALT_COL_NAME,
     PASSWORD_COL_NAME,
     GROUP_COL_NAME,
     NUMBER_OF_ITERATIONS_COL_NAME,
     EMAIL_VERIFIED_COL_NAME,
+    INTERNAL_USER_ID_COL_NAME,
 ];
 static PBKDF2_ALGORITHM: pbkdf2::Algorithm = pbkdf2::PBKDF2_HMAC_SHA256;
 const CREDENTIAL_LEN: usize = digest::SHA256_OUTPUT_LEN;
@@ -183,6 +186,7 @@ fn get_copy_from_query(
         } else {
             Vec::new().into_iter()
         })
+        .chain(std::iter::once(INTERNAL_USER_ID_COL_NAME.to_string()))
         .collect::<Vec<String>>();
 
     // Two headers can map to the same field (`area_name` and `area-id`), or to
@@ -288,7 +292,7 @@ fn get_insert_user_query(
         .map(|&column| {
             let col_name = column.to_string();
             match column {
-                "id" => "gen_random_uuid()".to_string(),
+                "id" => INTERNAL_USER_ID_COL_NAME.to_string(),
                 // Cast enabled to boolean, with TRUE as default
                 "enabled" => {
                     if voters_table_columns.contains(&col_name) {
@@ -383,7 +387,7 @@ fn get_insert_user_query(
                             {voters_table} v
                         JOIN
                             new_user nu ON
-                                nu.username = v.username
+                                nu.id = v.{INTERNAL_USER_ID_COL_NAME}
                         "#
                     )
                 })
@@ -425,7 +429,7 @@ fn get_insert_user_query(
                     {voters_table} v
                 JOIN
                     new_user nu ON
-                        nu.username = v.username
+                        nu.id = v.{INTERNAL_USER_ID_COL_NAME}
                 JOIN
                     keycloak_group kg ON
                         kg.name = {group_name}
@@ -475,7 +479,7 @@ fn get_insert_user_query(
                     {voters_table} v
                 JOIN
                     new_user nu ON
-                    nu.username = v.username
+                    nu.id = v.{INTERNAL_USER_ID_COL_NAME}
                 ),
                 credentials AS (
                 INSERT 
@@ -536,6 +540,7 @@ pub async fn import_users_file(
     election_event_id: Option<String>,
     tenant_id: String,
     is_admin: bool,
+    may_write_secret_attributes: bool,
 ) -> Result<()> {
     let mut keycloak_db_client = match get_keycloak_pool().await.get().await {
         Ok(client) => client,
@@ -603,6 +608,38 @@ pub async fn import_users_file(
                 "CSV Header contains characters not allowed: {header}"
             )));
         }
+        if header == INTERNAL_USER_ID_COL_NAME {
+            return Err(Error::String(format!(
+                "CSV header `{INTERNAL_USER_ID_COL_NAME}` is reserved"
+            )));
+        }
+    }
+
+    let secret_names = if let Some(event_id) = election_event_id.as_deref() {
+        let client = KeycloakAdminClient::new().await.map_err(|err| {
+            Error::String(format!("Error obtaining Keycloak admin client: {err:?}"))
+        })?;
+        let profile = client
+            .get_user_profile_attributes(&get_event_realm(&tenant_id, event_id))
+            .await
+            .map_err(|err| {
+                Error::String(format!(
+                    "Error obtaining Keycloak User Profile Attributes: {err:?}"
+                ))
+            })?;
+        secret_attribute_names(&profile).map_err(|err| Error::String(err.to_string()))?
+    } else {
+        Default::default()
+    };
+    let imported_secret_names = headers
+        .iter()
+        .filter(|header| secret_names.contains(*header))
+        .collect::<Vec<_>>();
+    if !imported_secret_names.is_empty() && !may_write_secret_attributes {
+        return Err(Error::String(format!(
+            "Importing encrypted voter attributes requires voter-secret-attribute-write: {}",
+            imported_secret_names.join(", ")
+        )));
     }
 
     let (
@@ -638,7 +675,7 @@ pub async fn import_users_file(
         .map_err(|err| Error::String(format!("Error obtaining duplicate_emails_allowed: {err}")))?;
 
     let insert_user_query = match get_insert_user_query(
-        tenant_id,
+        tenant_id.clone(),
         realm_id,
         voters_table,
         &voters_table_processed_columns_names,
@@ -697,13 +734,14 @@ pub async fn import_users_file(
             }
         };
         owned_data.clear();
+        let user_id = Uuid::new_v4().to_string();
 
         let mut password_salt: Option<String> = None;
         let mut hashed_password: Option<String> = None;
         let mut num_of_iterations = *PBKDF2_ITERATIONS;
         let mut password: Option<String> = None;
         for (data, column_name) in record.iter().zip(voters_table_input_columns_names.iter()) {
-            let processed_data = match column_name.as_str() {
+            let mut processed_data = match column_name.as_str() {
                     column_name if column_name == AREA_ID_ATTR_NAME && !is_admin => {
                         match areas_map
                             .as_ref()
@@ -745,8 +783,21 @@ pub async fn import_users_file(
                     _ => data.to_string(),
                 };
 
+            if secret_names.contains(column_name) && !processed_data.is_empty() {
+                let event_id = election_event_id.as_deref().ok_or_else(|| {
+                    anyhow!("Encrypted voter attributes require an election event")
+                })?;
+                let values = processed_data
+                    .split(MULTIVALUE_USER_ATTRIBUTE_SEPARATOR)
+                    .map(str::to_string)
+                    .collect::<Vec<_>>();
+                processed_data =
+                    encrypt_attribute_values(&tenant_id, event_id, &user_id, column_name, &values)
+                        .await?
+                        .join(MULTIVALUE_USER_ATTRIBUTE_SEPARATOR);
+            }
+
             if column_name == PASSWORD_COL_NAME {
-                info!("password = {processed_data}");
                 password = Some(data.to_string());
             } else if column_name == NUMBER_OF_ITERATIONS_COL_NAME {
                 num_of_iterations = match data.parse::<u32>() {
@@ -789,6 +840,8 @@ pub async fn import_users_file(
             let username = Uuid::new_v4().to_string();
             owned_data.push(username);
         }
+
+        owned_data.push(user_id);
 
         let row: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = owned_data
             .iter()

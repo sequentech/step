@@ -127,7 +127,7 @@ pub async fn import_election_event_f(
     body: Json<import_election_event::ImportElectionEventBody>,
     claims: JwtClaims,
 ) -> Result<Json<ImportElectionEventOutput>, (Status, String)> {
-    let input = body.into_inner();
+    let mut input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let executer_name = claims
         .name
@@ -135,6 +135,13 @@ pub async fn import_election_event_f(
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
 
     authorize(&claims, true, Some(input.tenant_id.clone()), vec![])?;
+    input.may_write_secret_attributes = authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![Permissions::VOTER_SECRET_ATTRIBUTE_WRITE],
+    )
+    .is_ok();
 
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|err| {

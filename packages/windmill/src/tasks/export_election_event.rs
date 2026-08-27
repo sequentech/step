@@ -17,6 +17,8 @@ pub struct ExportOptions {
     pub password: Option<String>,
     pub is_encrypted: bool,
     pub include_voters: bool,
+    #[serde(default)]
+    pub contains_voter_secrets: bool,
     pub activity_logs: bool,
     pub bulletin_board: bool,
     pub publications: bool,

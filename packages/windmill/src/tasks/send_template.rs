@@ -10,6 +10,7 @@ use crate::services::election_statistics::update_election_statistics;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::providers::{email_sender::EmailSender, sms_sender::SmsSender};
 use crate::services::users::{list_users, list_users_with_vote_info, ListUsersFilter};
+use crate::services::voter_secret_attributes::{decrypt_user_attributes, secret_attribute_names};
 use crate::types::error::Result;
 
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
@@ -26,7 +27,7 @@ use lettre::Message;
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::generate_urls::get_auth_url;
 use sequent_core::services::generate_urls::AuthAction;
-use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
+use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm, KeycloakAdminClient};
 use sequent_core::services::translations::Name;
 use sequent_core::services::{keycloak, reports};
 use sequent_core::types::hasura::core::ElectionEvent;
@@ -37,7 +38,7 @@ use sequent_core::types::templates::{
 use sequent_core::util::aws::get_from_env_aws_config;
 use serde_json::json;
 use serde_json::{Map, Value};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::default::Default;
 use strand::info;
 use tracing::{event, info, instrument, Level};
@@ -361,6 +362,35 @@ pub async fn send_template(
                 .await?
         }
     };
+    let requested_secret_names = body
+        .secret_attribute_names
+        .iter()
+        .cloned()
+        .collect::<HashSet<_>>();
+    let configured_secret_names = if let Some(event_id) = election_event_id.as_deref() {
+        let profile = KeycloakAdminClient::new()
+            .await
+            .map_err(|error| anyhow!("Error obtaining Keycloak admin client: {error:?}"))?
+            .get_user_profile_attributes(&get_event_realm(&tenant_id, event_id))
+            .await
+            .map_err(|error| anyhow!("Error obtaining Keycloak user profile: {error:?}"))?;
+        secret_attribute_names(&profile)?
+    } else {
+        HashSet::new()
+    };
+    if let Some(name) = requested_secret_names
+        .iter()
+        .find(|name| !configured_secret_names.contains(*name))
+    {
+        return Err(Error::String(format!(
+            "Template requested `{name}`, which is not configured as an encrypted voter attribute"
+        )));
+    }
+    if !requested_secret_names.is_empty() && election_event_id.is_none() {
+        return Err(Error::String(
+            "Encrypted voter attributes require an election event".to_string(),
+        ));
+    }
 
     let mut keycloak_db_client: DbClient = get_keycloak_pool()
         .await
@@ -479,9 +509,30 @@ pub async fn send_template(
         };
 
         for user in filtered_users.iter() {
+            let mut render_user = user.clone();
+            if let Some(event_id) = election_event_id.as_deref() {
+                decrypt_user_attributes(
+                    &mut render_user,
+                    &tenant_id,
+                    event_id,
+                    &requested_secret_names,
+                )
+                .await
+                .with_context(|| {
+                    format!(
+                        "Failed to decrypt declared secret attributes for voter {}",
+                        user.id.as_deref().unwrap_or("unknown")
+                    )
+                })?;
+            }
+            if let Some(attributes) = render_user.attributes.as_mut() {
+                for name in configured_secret_names.difference(&requested_secret_names) {
+                    attributes.remove(name);
+                }
+            }
             let success = send_template_email_or_sms(
                 &hasura_transaction,
-                &user,
+                &render_user,
                 &election_event,
                 &tenant_id,
                 Some(admin_id.clone()),
