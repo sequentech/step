@@ -117,14 +117,29 @@ pinned.
 **Fixed**: the tuple base case and the macro now validate the total size up front;
 the warning is retired.
 
-### S7 — Ed25519 leaf strictness is unverified (open question)
+### S7 — Ed25519 leaf strictness (resolved against ed25519-dalek 3.0.0 source)
 
-`VerifyingKey::from_bytes` / `Signature::from_bytes` (ed25519-dalek v3): whether
-non-canonical point encodings are rejected at parse time, and the fact that signature
-`s`-range checking happens at verify time rather than parse time, need verification
-against the dalek version in use, plus reject tests. Likely low impact (both types
-round-trip their bytes verbatim, so no aliasing at the encoding level), but the audit
-should not assume.
+`VerifyingKey::from_bytes` validates points under **ZIP-215 rules — RFC 8032
+canonicality is explicitly unsupported** (its own doc says so, citing
+curve25519-dalek#626): a y-coordinate ≥ p is silently reduced, so a handful of curve
+points admit two accepted encodings. `Signature::from_bytes` accepts any 64 bytes
+(the `s < ℓ` check happens at verify time, where dalek ≥ 2.0 enforces it).
+
+**Why this does not break the canonicality property or braid**:
+
+- Both types store and return their input bytes verbatim (`VerifyingKey` keeps the
+  compressed bytes; `as_bytes` returns them), so `ser∘deser = id` on the accepted
+  set and the *encoding* stays value-injective — the aliasing exists only at the
+  curve-*point* level: two distinct `VerifyingKey` values can denote one point.
+- dalek's `PartialEq for VerifyingKey` compares **compressed bytes**, and braid's
+  sender resolution (`Configuration::get_trustee_position`) uses that equality — a
+  non-canonical alias of a configured key simply fails to match ("sender not part of
+  the configuration"). And even when a sender matches, the signature is verified
+  under the **configured** key, never the sender-supplied one (`board/verify.rs`).
+  Point aliasing is therefore neutralized twice over.
+
+Standing rule this implies: **identity comparisons on keys must remain byte-wise**;
+never compare or index by decompressed points.
 
 ### S8 — Encoding overhead (efficiency; input to the rewrite decision)
 
@@ -183,18 +198,46 @@ strict point decompress) and P-256 (SEC1 compressed only, strict field/scalar de
 a custom but unique `[0u8; 33]` identity encoding). The unfixed impls (S1–S5) are the
 complement of that pass.
 
-## 6. Remaining audit work (phase 1 completion)
+## 6. Per-artifact sweep (complete)
 
-- Per-artifact sweep: every braid wire struct (heads, artifacts, `Sender`, predicates
-  as persisted) and every vsc proof struct, walked against the framing model for
-  strictness end to end.
-- Resolve S7 against ed25519-dalek v3 source.
-- `vser_derive` details: unit-struct derive (tuple `()` has no impl — currently
-  uncompilable, fine), `Hash`-via-ser note.
-- The existing test suite has round-trips only — no reject tests. Phases 2–4 (pinning
-  tests, proptest bijection properties, fuzzing) as planned.
+Every wire type walked against the framing model, with all field types now strict:
 
-## 7. Early read on the three outcomes
+- **Heads** (`Configuration…PlaintextsHead`): derives over hash newtypes (1-field
+  exact framing), `Timestamp = u64`, `Vec<TrusteeIndex>` (`TrusteeIndex = usize`,
+  encoded via the strict u64 bridge), `tally_id: u128`. Strict.
+- **Artifacts**: `Configuration` (trailing hole closed via the `PhantomData` fix),
+  `Shares`, `DkgPublicKey`, `Ballots`, `Plaintexts` — derives over strict types.
+  `Mix` has a hand-written impl that is exactly the two-field tuple encoding
+  (`(Vec<Ciphertext>, Option<ShuffleProof>)`) — equivalent to a derive, strict.
+  `PartialDecryption` is the vsc type re-exported.
+- **`Predicate`** (persisted for anti-rewrite): hand-written enum as a
+  `(u8 tag, Vec<u8> inner)` tuple; unknown tags rejected, inner exactly consumed,
+  tags follow declaration order. Strict. (Note for S8: the inner `Vec<u8>` pays the
+  per-byte prefix blowup on every persisted commitment.)
+- **`ProtocolMessage`** (the pre-signature adversarial boundary): derive over
+  `Sender` (String + VerifyingKey), `Signature`, `MessageType` (manual enum impl,
+  strict), `Vec<u8>` head/body. Strict post-fixes.
+- **vsc proof and cryptosystem structs**: `SchnorrProof`, `DlogEqProof`, `PlEqProof`,
+  `ShuffleProof`/`ShuffleCommitments`/`Responses`, `elgamal::Ciphertext`/keys,
+  `naoryung::Ciphertext`, `dkgd` types, `ParticipantPosition` — all derives over
+  strict leaves (elements, scalars, digests, integers, `Vec`s, arrays).
+- **b4** stores and relays opaque bytes only — it never deserializes VSer content.
+- Out of wire scope: `wasm/persistence.rs` uses its own little-endian framing for
+  local storage only.
+
+## 7. Remaining audit work
+
+- Phase 3: proptest bijection properties — `deser(ser(x)) == x` for arbitrary values
+  and `ser(deser(b)) == b` for accepted `b` — across wire types, turning the point
+  fixes into a checked invariant.
+- Phase 4: fuzzing the deserializers and the `verify()` boundary (also discharges the
+  standing `arithmetic_side_effects` / "pending fuzzing" module warnings).
+- Open call: delete `LargeVector` (unused) or keep it as the documented performance
+  vehicle.
+- `vser_derive` note: unit structs derive a `()` tuple, which has no impl — they
+  simply fail to compile; acceptable.
+
+## 8. Early read on the three outcomes
 
 The core defects were *localized and repairable*, and the fixes have landed on this
 branch: S1–S3 and S6 strictness checks, S4 deleted, S5 repaired — each pinned by a
