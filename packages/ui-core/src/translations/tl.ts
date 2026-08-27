@@ -21,6 +21,21 @@ const tagalogTranslation: TranslationType = {
             ended: "Natapos",
             results: "Mga Resulta",
         },
+        a11y: {
+            closeDialog: "Isara ang dialog",
+            dismissMessage: "I-dismiss ang mensahe",
+            ballotIdHelp: "Tungkol sa iyong Ballot ID",
+            loading: "Naglo-load",
+            severity: {
+                error: "Error",
+                warning: "Babala",
+                success: "Tagumpay",
+                info: "Impormasyon",
+            },
+            selectList: "Piliin ang buong listahan",
+            preferenceLabel: "Kagustuhan",
+            writeInFor: "Pangalan ng write-in candidate",
+        },
         candidate: {
             moreInformationLink: "Karagdagang impormasyon",
             writeInsPlaceholder: "I-type ang write-in candidate dito",
