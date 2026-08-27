@@ -225,15 +225,55 @@ Every wire type walked against the framing model, with all field types now stric
 - Out of wire scope: `wasm/persistence.rs` uses its own little-endian framing for
   local storage only.
 
-## 7. Remaining audit work
+## 7. Plan of record (agreed 2026-08-28): rewrite attempt first, under guardrails
 
-- Phase 3: proptest bijection properties — `deser(ser(x)) == x` for arbitrary values
-  and `ser(deser(b)) == b` for accepted `b` — across wire types, turning the point
-  fixes into a checked invariant.
-- Phase 4: fuzzing the deserializers and the `verify()` boundary (also discharges the
-  standing `arithmetic_side_effects` / "pending fuzzing" module warnings).
-- Open call: delete `LargeVector` (unused) or keep it as the documented performance
-  vehicle.
+With transcript compatibility explicitly a non-constraint (the sole external pin,
+Verificatum interop, lives on `v2v`'s separate ByteTree path and is untouched), the
+riskiest item goes first: a bounded attempt at the outcome-(2) rewrite, **before** the
+remaining assurance campaign, so that campaign runs once, against whichever format
+survives. The property harness below was pulled forward as the rewrite's acceptance
+net (it pins the bijection, not byte layouts, so it transfers unchanged).
+
+Two showstoppers govern the attempt, either one aborting it:
+
+- **(a) Rabbit-holing**: iteration without end, losing the original goal.
+- **(b) Complexity**: the result must be *simpler and clearer* than current VSer, or
+  it is not viable regardless of its other merits — on this project clarity outranks
+  everything, including compile-time cleverness. (Standing evidence: a prior
+  exploration of compile-time size arithmetic via `generic_const_exprs` had to be
+  abandoned for exactly this reason. Accordingly, the `SIZE` associated const is cut
+  from the design — cursor parsing needs no size arithmetic for correctness.)
+
+Guardrails:
+
+1. **Mini-spec before code** — the format definition must fit in roughly a page of
+   prose here; if it cannot be described that briefly, the design is wrong.
+2. **Hard checkpoint** — the spike ends at: core module + derive + three
+   representative types (a fixed struct, a `Vec`-bearing artifact, the `Predicate`
+   enum) round-tripping under the property harness. Review happens there; no
+   iteration past it without an explicit go.
+3. **Objective simplicity criterion** — net-negative diff on serialization code;
+   strictly fewer concepts (no GATs, no tuple indirection, one trait); a single
+   strictness point.
+4. **Written non-goals** — no versioning, no schema evolution, no enum-derive
+   generalization, no zero-copy, no type-level size computation, no performance work
+   beyond what the format gives for free.
+
+## 7a. Remaining work
+
+- **Done — phase-3 harness** (`utils/serialization/properties.rs`): proptest
+  bijection properties P1 (`deser(ser(x)) == x`) and P2 (`deser(b) = Ok(v) ⟹
+  ser(v) == b`) over a kitchen-sink type covering every composition rule, both
+  contexts, V- and F-tier, with random-byte and mutation distributions. The mutation
+  distribution reproduces the S1/S3 failure class, so the harness is a genuine
+  regression net and the rewrite's acceptance suite.
+- The rewrite attempt (per §7), then the outcome decision.
+- Phase 4 on the surviving format: fuzzing the deserializers and the `verify()`
+  boundary (also discharges the standing "pending fuzzing" module warnings), plus
+  deeper property-campaign parameters (case counts).
+- Open call: delete `LargeVector` (unused) or keep it — note it is *obsoleted
+  entirely* by the outcome-2 format, where `Vec<T: fixed>` gets its encoding for
+  free.
 - `vser_derive` note: unit structs derive a `()` tuple, which has no impl — they
   simply fail to compile; acceptable.
 

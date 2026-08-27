@@ -142,6 +142,10 @@ pub mod variable;
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests;
 
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod properties;
+
 use crate::utils::error::Error;
 /// Helper to get a slice from a buffer, returning an error if the range is out of bounds
 ///
