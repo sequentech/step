@@ -24,14 +24,44 @@ pub struct ExportUsersOutput {
     pub task_execution: Option<TasksExecution>,
 }
 
+fn validate_secret_export_authorization(
+    body: &ExportBody,
+    may_read_secret_attributes: bool,
+) -> Result<()> {
+    let includes_secret_attributes = matches!(
+        body,
+        ExportBody::Users {
+            include_secret_attributes: true,
+            ..
+        }
+    );
+
+    if includes_secret_attributes && !may_read_secret_attributes {
+        return Err(Error::String(
+            "Exporting voter secret attributes requires voter-secret-attribute-read authorization"
+                .to_string(),
+        ));
+    }
+
+    Ok(())
+}
+
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 0)]
 pub async fn export_users(
     body: ExportBody,
+    may_read_secret_attributes: bool,
     document_id: String,
     task_execution: Option<TasksExecution>,
 ) -> Result<()> {
+    if let Err(error) = validate_secret_export_authorization(&body, may_read_secret_attributes) {
+        if let Some(task_execution) = &task_execution {
+            update_fail(task_execution, &error.to_string()).await?;
+        }
+        return Err(error);
+    }
+
     let mut hasura_db_client: DbClient = match get_hasura_pool().await.get().await {
         Ok(client) => client,
         Err(err) => {
@@ -160,4 +190,39 @@ pub async fn export_users(
         .with_context(|| "Failed to commit Hasura transaction")?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn voters_export(include_secret_attributes: bool) -> ExportBody {
+        ExportBody::Users {
+            tenant_id: "tenant".to_string(),
+            election_event_id: Some("event".to_string()),
+            election_id: None,
+            include_secret_attributes,
+        }
+    }
+
+    #[test]
+    fn rejects_secret_export_without_task_authorization() {
+        let result = validate_secret_export_authorization(&voters_export(true), false);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn accepts_secret_export_with_task_authorization() {
+        let result = validate_secret_export_authorization(&voters_export(true), true);
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn accepts_ordinary_export_without_secret_authorization() {
+        let result = validate_secret_export_authorization(&voters_export(false), false);
+
+        assert!(result.is_ok());
+    }
 }

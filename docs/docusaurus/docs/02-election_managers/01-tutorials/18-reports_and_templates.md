@@ -31,3 +31,27 @@ After creating a report entry, you will see it in the list. Click on the actions
 ### Other Report Types
 
 *Additional report types will be documented here as they become available.*
+
+## Secret Voter Fields in Reports
+
+Secret voter fields are available only to reports that render one identified voter at a time.
+Current examples are voter information letters and manual verification reports. Aggregate reports
+such as turnout, election activity, tally, and results do not receive a voter object and cannot use
+secret fields.
+
+The assigned template must both reference and declare every secret field it uses. For example:
+
+```json
+{
+  "secret_attribute_names": ["customerReference"],
+  "document": "<p>Reference: {{user.customerReference}}</p>"
+}
+```
+
+At generation time, Step validates the declaration against the election event's current Keycloak
+User Profile and decrypts only the declared names for the report's voter. The operator needs
+`voter-secret-attribute-read` in addition to the normal report permission. An undeclared, removed,
+or unreadable secret causes generation to fail rather than exposing its stored representation.
+
+See [Secret Voter Variables](../02-reference/user-manual/templates/admin_portal_reference_user-manual_templates.md#secret-voter-variables)
+for variable shapes and declaration rules.

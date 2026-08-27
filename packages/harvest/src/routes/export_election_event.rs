@@ -54,39 +54,50 @@ pub async fn export_election_event_route(
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
     let mut export_config = body.export_configurations.clone();
-    let profile = KeycloakAdminClient::new()
-        .await
-        .map_err(|error| {
-            (
-                Status::InternalServerError,
-                format!("Error connecting to Keycloak: {error:?}"),
-            )
-        })?
-        .get_user_profile_attributes(&get_event_realm(
-            &tenant_id,
-            &election_event_id,
-        ))
-        .await
-        .map_err(|error| {
-            (
-                Status::InternalServerError,
-                format!("Error reading voter profile: {error:?}"),
-            )
-        })?;
+    export_config.password = None;
     export_config.contains_voter_secrets = false;
-    if export_config.include_voters
-        && !secret_attribute_names(&profile)
+    export_config.may_read_voter_secrets = false;
+    export_config.is_encrypted = export_config.is_encrypted
+        || export_config.encrypt_with_password
+        || export_config.bulletin_board
+        || export_config.reports
+        || export_config.applications;
+
+    if export_config.include_voters && export_config.encrypt_with_password {
+        let profile = KeycloakAdminClient::new()
+            .await
+            .map_err(|error| {
+                (
+                    Status::InternalServerError,
+                    format!("Error connecting to Keycloak: {error:?}"),
+                )
+            })?
+            .get_user_profile_attributes(&get_event_realm(
+                &tenant_id,
+                &election_event_id,
+            ))
+            .await
+            .map_err(|error| {
+                (
+                    Status::InternalServerError,
+                    format!("Error reading voter profile: {error:?}"),
+                )
+            })?;
+        let has_secret_attributes = !secret_attribute_names(&profile)
             .map_err(|error| (Status::BadRequest, error.to_string()))?
-            .is_empty()
-    {
-        authorize(
-            &claims,
-            true,
-            Some(tenant_id.clone()),
-            vec![Permissions::VOTER_SECRET_ATTRIBUTE_READ],
-        )?;
-        export_config.is_encrypted = true;
-        export_config.contains_voter_secrets = true;
+            .is_empty();
+
+        if has_secret_attributes {
+            export_config.may_read_voter_secrets = authorize(
+                &claims,
+                true,
+                Some(tenant_id.clone()),
+                vec![Permissions::VOTER_SECRET_ATTRIBUTE_READ],
+            )
+            .is_ok();
+            export_config.contains_voter_secrets =
+                export_config.may_read_voter_secrets;
+        }
     }
 
     // Insert the task execution record

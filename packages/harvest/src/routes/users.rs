@@ -1193,19 +1193,17 @@ pub async fn edit_user(
         input.election_event_id.as_deref(),
         input.password.as_deref(),
     ) {
-        let password_policy = get_realm_password_policy(
-            &input.tenant_id,
-            election_event_id,
-        )
-        .await
-        .map_err(|error| {
-            (
-                Status::InternalServerError,
-                format!(
+        let password_policy =
+            get_realm_password_policy(&input.tenant_id, election_event_id)
+                .await
+                .map_err(|error| {
+                    (
+                        Status::InternalServerError,
+                        format!(
                     "Failed to read election event Password Policy: {error:#}"
                 ),
-            )
-        })?;
+                    )
+                })?;
         password_policy
             .validate_password(password)
             .map_err(|violation| {
@@ -1757,7 +1755,7 @@ pub async fn export_users_f(
         vec![required_perm],
     )?;
 
-    if body.include_secret_attributes {
+    let may_read_secret_attributes = if body.include_secret_attributes {
         if body.election_event_id.is_none() {
             return Err((
                 Status::BadRequest,
@@ -1771,7 +1769,10 @@ pub async fn export_users_f(
             Some(body.tenant_id.clone()),
             vec![Permissions::VOTER_SECRET_ATTRIBUTE_READ],
         )?;
-    }
+        true
+    } else {
+        false
+    };
 
     let document_id = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
@@ -1784,6 +1785,7 @@ pub async fn export_users_f(
                 election_id: body.election_id,
                 include_secret_attributes: body.include_secret_attributes,
             },
+            may_read_secret_attributes,
             document_id.clone(),
             task_execution.clone(),
         ))
@@ -1834,6 +1836,7 @@ pub async fn export_tenant_users_f(
             ExportBody::TenantUsers {
                 tenant_id: body.tenant_id,
             },
+            false,
             document_id.clone(),
             None,
         ))

@@ -51,6 +51,17 @@ Attribute names must match those used in voter import files, the Admin Portal's 
 the authenticator's **User attributes to match** list. Renaming an attribute does not rename it in
 existing user records.
 
+### Secret voter attributes
+
+The `sequent.secret` annotation classifies an election-event voter attribute for encrypted storage.
+It is an Admin Portal and voter-level output feature; it is not an input type for the registration
+or login pages. Because Keycloak sees only its encrypted envelope, a secret attribute must not be
+shown to voters or used for login matching, registration, token mapping, uniqueness checks, or
+voter self-service.
+
+Configure secret fields and their administrator-only scope as described in
+[Protecting a Voter Attribute as Secret](../01-tutorials/99-admin_portal_tutorials_add-user-attributes-to-keycloak.md#protecting-a-voter-attribute-as-secret).
+
 ---
 
 ## Which pages use which attributes

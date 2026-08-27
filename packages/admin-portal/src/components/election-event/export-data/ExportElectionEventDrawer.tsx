@@ -87,6 +87,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                     electionEventId,
                     exportConfigurations: {
                         is_encrypted: isEncrypted,
+                        encrypt_with_password: encryptWithPassword,
                         include_voters: includeVoters,
                         activity_logs: activityLogs,
                         bulletin_board: bulletinBoard,

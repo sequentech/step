@@ -2955,6 +2955,16 @@
             "defaultValue": null
           },
           {
+            "name": "encrypt_with_password",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "include_certificates",
             "description": null,
             "type": {

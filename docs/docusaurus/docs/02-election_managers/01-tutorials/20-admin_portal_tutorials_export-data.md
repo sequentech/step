@@ -8,4 +8,21 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-Content will be added here soon.
+The Admin Portal provides two voter export paths:
+
+- **Voters > Export** creates a CSV containing the voters in the current election event.
+- **Election Event > Export** creates an election-event archive and can optionally include a voters CSV.
+
+## Secret voter fields
+
+Secret voter fields are omitted from exports by default. This prevents encrypted storage values from appearing in a CSV when the user did not request access to their plaintext values.
+
+To include decrypted secret fields in a standalone voters CSV, select **Include decrypted secret voter fields**. The user starting the export must have the `voter-secret-attribute-read` permission. The export task verifies this authorization before reading the fields.
+
+An election-event archive includes decrypted secret voter fields only when all of the following are true:
+
+1. **Include Voters** is selected.
+2. **Encrypt with Password** is checked, so the resulting archive is password protected.
+3. The user starting the export has the `voter-secret-attribute-read` permission.
+
+If the user does not have that permission, the election-event export still includes the ordinary voter fields but omits all secret fields. Archives that contain decrypted voter secrets are marked as sensitive, so downloading them also requires the secret-read permission.

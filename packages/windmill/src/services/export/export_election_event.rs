@@ -418,7 +418,7 @@ pub async fn process_export_zip(
                 tenant_id: tenant_id.to_string(),
                 election_event_id: Some(election_event_id.to_string()),
                 election_id: None,
-                include_secret_attributes: true,
+                include_secret_attributes: export_config.contains_voter_secrets,
             },
         )
         .await

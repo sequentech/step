@@ -145,6 +145,7 @@ pub fn edit_voter(
                 Some(last_name.to_string())
             },
             attributes: attributes_value,
+            secret_attributes: None,
             email: if email.is_empty() {
                 None
             } else {
