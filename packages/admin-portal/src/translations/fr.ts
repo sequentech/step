@@ -277,6 +277,7 @@ const frenchTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "Exporter les Modèles",
                 IMPORT_TEMPLATES: "Importer les Modèles",
                 DELETE_ELECTION_EVENT: "Supprimer l'événement électoral",
+                DELETE_VOTERS: "Delete Voters",
                 PREPARE_PUBLICATION_PREVIEW: "Préparer l'aperçu de la publication",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporter les résultats du dépouillement au format XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Exporter les autorités de certification",
@@ -495,6 +496,7 @@ const frenchTranslation: TranslationType = {
                 notify: {
                     success: "Localisation mise à jour avec succès",
                     error: "Échec de la mise à jour de la localisation",
+                    duplicateKey: "Un remplacement avec cette clé et cette portée existe déjà.",
                     invalidDateTimeFormat:
                         "Format de date/heure non valide. Utilisez les jetons yyyy, MM, dd, HH, mm, ss (ex. dd/MM/yyyy HH:mm).",
                 },
@@ -504,7 +506,16 @@ const frenchTranslation: TranslationType = {
                 },
                 labels: {
                     key: "Clé",
+                    scope: "Portée du portail",
                     value: "Valeur",
+                },
+                scopes: {
+                    legacy: "Hérité ({{portal}})",
+                    global: "Global",
+                    votingPortal: "Portail de vote",
+                    ballotVerifier: "Vérificateur de bulletins",
+                    resultsPortal: "Portail des résultats",
+                    adminPortal: "Portail d'administration",
                 },
             },
             field: {
@@ -1035,6 +1046,13 @@ const frenchTranslation: TranslationType = {
                     disabled: "Désactivé",
                 },
             },
+            blankBallotsPolicy: {
+                label: "Politique des bulletins blancs",
+                options: {
+                    enabled: "Activé",
+                    disabled: "Désactivé",
+                },
+            },
             votingScreenBackPolicy: {
                 label: "Politique du bouton Retour de l’écran de vote",
                 options: {
@@ -1129,6 +1147,11 @@ const frenchTranslation: TranslationType = {
                 delete: {
                     body: "Êtes-vous sûr de vouloir supprimer cet utilisateur ?",
                     bulkBody: "Êtes-vous sûr de vouloir supprimer les utilisateurs sélectionnés ?",
+                    bulkBodySelected: "Delete the {{count}} selected users? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} users are selected. You can instead delete every user matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Erreur lors de l'exportation des utilisateurs",
@@ -1181,13 +1204,42 @@ const frenchTranslation: TranslationType = {
                 },
                 errors: {
                     editError: "Erreur lors de l'édition de l'électeur",
+                    editErrorReason: "Erreur lors de l'édition de l'électeur : {{reason}}",
                     editSuccess: "Électeur édité",
                     createError: "Erreur lors de la création de l'électeur",
+                    createErrorReason: "Erreur lors de la création de l'électeur : {{reason}}",
                     createSuccess: "Électeur créé",
+                    attribute: {
+                        invalidNamed: '"{{field}}" a été refusé : {{constraint}}',
+                        fieldsToCorrect:
+                            "Certains champs doivent être corrigés avant d'enregistrer",
+                        hintBetween: "Entre {{min}} et {{max}} caractères",
+                        hintMin: "Au moins {{min}} caractères",
+                        hintMax: "Au maximum {{max}} caractères",
+                        andMore: "et {{count}} de plus",
+                        invalidLength:
+                            '"{{field}}" doit contenir entre {{min}} et {{max}} caractères',
+                        tooShort: '"{{field}}" doit contenir au moins {{min}} caractères',
+                        tooLong: '"{{field}}" doit contenir au maximum {{max}} caractères',
+                        required: '"{{field}}" est obligatoire',
+                        invalidEmail: '"{{field}}" doit être une adresse e-mail valide',
+                        invalidFormat: '"{{field}}" n\'a pas le format attendu',
+                        invalid: '"{{field}}" a une valeur non valide',
+                    },
+                    createPasswordError:
+                        "Électeur créé, mais son mot de passe n'a pas pu être défini",
+                    createPasswordErrorReason:
+                        "Électeur créé, mais son mot de passe n'a pas pu être défini : {{reason}}",
                 },
                 delete: {
                     body: "Êtes-vous sûr de vouloir supprimer cet électeur ?",
                     bulkBody: "Êtes-vous sûr de vouloir supprimer les électeurs sélectionnés ?",
+                    bulkBodySelected:
+                        "Delete the {{count}} selected voters? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} voters are selected. You can instead delete every voter matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Erreur lors de l'exportation des électeurs",
@@ -2242,6 +2294,7 @@ const frenchTranslation: TranslationType = {
                     round: "Tour",
                 },
                 total_declined_to_vote: "Total des refus de vote",
+                total_blank_ballots: "Total des Bulletins Blancs",
                 participation_by_channel: "Participation par canal",
                 channel: "Canal",
                 channel_online: "En ligne",
@@ -2443,8 +2496,19 @@ const frenchTranslation: TranslationType = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "Le total des votes valides ne correspond pas à la somme des votes des candidats plus les votes blancs",
-                censusTooSmall: "Le recensement doit être supérieur ou égal au total des votes",
+                    "Les votes des candidats ({{candidateVotesSum}}) doivent être compris entre {{lowerBound}} et {{upperBound}} selon les règles de vote de ce scrutin ({{nonBlankValidVotes}} votes valides non blancs × jusqu'à {{maxMarks}} marques par bulletin)",
+                censusTooSmall:
+                    "Le total des votes ({{totalVotes}}) ne doit pas être supérieur au recensement ({{census}})",
+                totalInvalidDoesNotMatch:
+                    "Le total des votes invalides ({{totalInvalid}}) doit être égal aux votes invalides implicites ({{implicitInvalid}}) plus les votes invalides explicites ({{explicitInvalid}})",
+                totalVotesDoesNotMatch:
+                    "Le total des votes ({{totalVotes}}) doit être égal au total des votes valides ({{totalValidVotes}}) plus le total des votes invalides ({{totalInvalid}})",
+                unknownCountingAlgorithm:
+                    "L'algorithme de dépouillement de ce scrutin ({{countingAlgorithm}}) n'est pas reconnu, le nombre autorisé de votes de candidats ne peut donc pas être déterminé. Vérifiez la configuration du scrutin.",
+                blankBallotsInconsistent:
+                    "Les Bulletins Blancs doivent avoir la même valeur sur toutes les feuilles de dépouillement de cette urne",
+                blankBallotsOutOfBounds:
+                    "La valeur des Bulletins Blancs est en dehors de la plage impliquée par les décomptes de votes blancs par candidature de cette urne",
             },
             label: {
                 area: "Zone",
@@ -2455,6 +2519,7 @@ const frenchTranslation: TranslationType = {
                 explicit_invalid: "Votes Explícitement Inválidos",
                 implicit_invalid: "Votes Implicitement Inválidos",
                 total_blank_votes: "Votes en Blanc Totales",
+                blank_ballots: "Bulletins Blancs",
                 census: "Recensement",
             },
             common: {

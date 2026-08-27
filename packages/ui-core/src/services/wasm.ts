@@ -12,6 +12,7 @@ import SequentCoreLibInit, {
     get_default_consolidated_report_policy_js,
     get_default_language_detection_policy_js,
     get_default_decline_to_vote_policy_js,
+    get_default_blank_ballots_policy_js,
     get_default_voting_screen_back_policy_js,
     get_voting_screen_back_policy_values_js,
     IVotingScreenBackPolicy,
@@ -62,6 +63,7 @@ import {
     EConsolidatedReportPolicy,
     ELanguageDetectionPolicy,
     EDeclineToVotePolicy,
+    EBlankBallotsPolicy,
 } from ".."
 
 export type {
@@ -466,6 +468,15 @@ export const getDefaultLanguageDetectionPolicy = (): ELanguageDetectionPolicy =>
 export const getDefaultDeclineToVotePolicy = (): EDeclineToVotePolicy => {
     try {
         return get_default_decline_to_vote_policy_js() as EDeclineToVotePolicy
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const getDefaultBlankBallotsPolicy = (): EBlankBallotsPolicy => {
+    try {
+        return get_default_blank_ballots_policy_js() as EBlankBallotsPolicy
     } catch (error) {
         console.log(error)
         throw error

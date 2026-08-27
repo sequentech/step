@@ -17,6 +17,7 @@ import {
 import {ResultsManifestContest, ResultsRow, ResultsSqliteDataset} from "@/types/results"
 import {translatedLabel} from "@/services/resultLabels"
 import {entityClassName} from "@/services/cssClassNames"
+import {orderResultCandidates} from "@/services/resultsOrdering"
 
 interface ContestResultsBlockProps {
     manifestContest: ResultsManifestContest
@@ -98,9 +99,8 @@ export const ContestResultsBlock: React.FC<ContestResultsBlockProps> = ({
         : dataset.results_contest_candidate
 
     const candidates = useMemo<CandidateResultRow[]>(() => {
-        return dataset.candidate
-            .filter((candidate) => sameId(candidate.contest_id, manifestContest.contest_id))
-            .map((candidate) => {
+        return orderResultCandidates(dataset, manifestContest.contest_id, locale).map(
+            (candidate) => {
                 const result = resultsCandidates.find(
                     (row) =>
                         sameId(row.candidate_id, candidate.id) &&
@@ -116,8 +116,9 @@ export const ContestResultsBlock: React.FC<ContestResultsBlockProps> = ({
                     castVotesPercent: getNumber(result?.cast_votes_percent),
                     winningPosition: getNumber(result?.winning_position),
                 }
-            })
-    }, [dataset.candidate, resultsCandidates, manifestContest, locale])
+            }
+        )
+    }, [dataset, resultsCandidates, manifestContest, locale])
 
     const summary = useMemo<ResultsParticipationSummary | null>(() => {
         if (!resultContest) return null

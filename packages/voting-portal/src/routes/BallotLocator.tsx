@@ -40,10 +40,9 @@ import {updateBallotStyleAndSelection} from "../services/BallotStyles"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {selectFirstBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 import {SettingsContext} from "../providers/SettingsContextProvider"
-import useUpdateTranslation from "../hooks/useUpdateTranslation"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import {GET_ELECTIONS} from "../queries/GetElections"
-import {IElectionEvent} from "../store/electionEvents/electionEventsSlice"
+import {IElectionEvent, setElectionEvent} from "../store/electionEvents/electionEventsSlice"
 import Table from "@mui/material/Table"
 import TableSortLabel from "@mui/material/TableSortLabel"
 import TableBody from "@mui/material/TableBody"
@@ -143,6 +142,7 @@ const BallotLocator: React.FC = () => {
     const {t, i18n} = useTranslation()
     const location = useLocation()
     const {tenantId, eventId, electionId} = useParams()
+    const dispatch = useAppDispatch()
     const allowSendRequest = useRef<boolean>(true)
     const [value, setValue] = React.useState(0)
     const [inputBallotId, setInputBallotId] = useState("")
@@ -152,8 +152,7 @@ const BallotLocator: React.FC = () => {
     const [somethingWentWrongErr, setSomethingWentWrongErr] = useState(false)
     const validatedBallotId = isHex(inputBallotId ?? "")
     const [showCVLogsPolicy, setShowCVLogsPolicy] = useState(false)
-    const {globalSettings, defaultLanguageTouched, setDefaultLanguageTouched} =
-        useContext(SettingsContext)
+    const {globalSettings} = useContext(SettingsContext)
     const [page, setPage] = React.useState(0)
     const [rowsPerPage, setRowsPerPage] = React.useState(5)
     const lastCVRequestTimestamp = useRef<number | undefined>(undefined) // Timestamp of last LIST_CAST_VOTE_MESSAGES request
@@ -165,6 +164,13 @@ const BallotLocator: React.FC = () => {
         skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
     })
 
+    useEffect(() => {
+        const electionEvent = dataElectionEvent?.sequent_backend_election_event[0]
+        if (electionEvent) {
+            dispatch(setElectionEvent(electionEvent as IElectionEvent))
+        }
+    }, [dataElectionEvent, dispatch])
+
     const {refetch} = useQuery<ListCastVoteMessagesQuery>(LIST_CAST_VOTE_MESSAGES, {
         variables: {
             tenantId,
@@ -174,14 +180,6 @@ const BallotLocator: React.FC = () => {
         },
         skip: true,
     })
-
-    useUpdateTranslation(
-        {
-            electionEvent: dataElectionEvent?.sequent_backend_election_event[0] as IElectionEvent,
-        },
-        defaultLanguageTouched,
-        setDefaultLanguageTouched
-    ) // Overwrite translations
 
     let fetchTimeout: any = useRef(undefined)
 

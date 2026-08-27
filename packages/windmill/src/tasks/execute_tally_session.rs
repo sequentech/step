@@ -85,6 +85,7 @@ use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::ceremonies::CountingAlgType;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
+use sequent_core::types::ceremonies::TallyRunReason;
 use sequent_core::types::ceremonies::TallyTrusteeStatus;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::ceremonies::{CeremoniesPolicy, TallyCeremonyStatus};
@@ -987,6 +988,18 @@ async fn map_plaintext_data(
         .map(|board_message| board_message.id)
         .unwrap_or(-1);
 
+    // The reason recorded on the execution row is authoritative; the celery
+    // argument only reflects what the enqueuing process knew. That message can
+    // be lost without the recount ever running -- expired while no worker was
+    // consuming, or dropped because a concurrent process_board run held the
+    // lock and this task returned early -- and the reason would go with it.
+    // Reading it from the row instead means whichever task next wins the lock
+    // carries the recount out, so a lost message costs a delay rather than the
+    // recount itself. The argument is still honoured so that a message queued
+    // by an older producer keeps working.
+    let force_recount =
+        force_recount || tally_session_execution.run_reason() == TallyRunReason::RECOUNT;
+
     // Recounts and tie-break re-runs replay the last processed message; normally
     // we require a new (unprocessed) message to proceed.
     let board_message_to_process = match board_messages.iter().find(|m| m.id > last_message_id) {
@@ -1395,7 +1408,12 @@ pub async fn execute_tally_session_wrapped(
         &default_language,
         tally_type_enum.clone(),
         plaintexts_data.is_empty(),
-        force_new_results_id || has_resolved_tie_break,
+        // Same reasoning as the replay decision: a recount must produce a fresh
+        // results event even when the celery argument that requested it was
+        // lost, so the reason on the execution row counts too.
+        force_new_results_id
+            || has_resolved_tie_break
+            || tally_session_execution.run_reason() == TallyRunReason::RECOUNT,
     )
     .await?;
 
@@ -1432,6 +1450,9 @@ pub async fn execute_tally_session_wrapped(
                 results_event_id,
                 session_ids_i32,
                 tally_session_execution_documents,
+                // The run happened; the next execution is a normal one again,
+                // which is what consumes any RECOUNT reason.
+                TallyRunReason::NORMAL,
             )
             .await?;
 
@@ -1474,6 +1495,7 @@ pub async fn execute_tally_session_wrapped(
         results_event_id,
         session_ids_i32,
         tally_session_execution_documents,
+        TallyRunReason::NORMAL,
     )
     .await?;
 

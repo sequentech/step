@@ -5,6 +5,7 @@
 package sequent.keycloak.theme;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -14,6 +15,7 @@ import java.nio.file.Path;
 import java.text.MessageFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
 
@@ -49,6 +51,33 @@ class MessageBundleTest {
     assertEquals(
         "Le nom d'utilisateur ou le code PIN est incorrect.",
         format(messages, "structuredCredentialError", locale));
+  }
+
+  @Test
+  void everyLocaleDefinesTheGenericCredentialsMessage() throws IOException {
+    // MultiAttributePasswordAuthenticator uses this instead of Keycloak's invalidUserMessage,
+    // which reads "Invalid username or password" on a form that has no username field. A locale
+    // missing the key would fall back to showing the key name to the voter.
+    // One stem per language, so a translation naming the username fails in its own locale.
+    Map<String, List<String>> forbidden =
+        Map.of(
+            "ca", List.of("usuari"),
+            "en", List.of("username"),
+            "es", List.of("usuari"),
+            "eu", List.of("erabiltzaile"),
+            "fr", List.of("utilisateur"),
+            "gl", List.of("usuari"),
+            "nl", List.of("gebruikersnaam"),
+            "tl", List.of("username", "gumagamit"));
+    for (String language : forbidden.keySet()) {
+      String message = load(language).getProperty("invalidCredentialsMessage");
+      assertTrue(message != null && !message.isBlank(), language + " is missing the key");
+      for (String term : forbidden.get(language)) {
+        assertFalse(
+            message.toLowerCase(Locale.ROOT).contains(term),
+            language + " still names a username: " + message);
+      }
+    }
   }
 
   @Test

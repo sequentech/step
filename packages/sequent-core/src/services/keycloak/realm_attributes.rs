@@ -4,9 +4,12 @@
 use crate::ballot::VoterCertificatePolicy;
 use crate::services::keycloak::{get_event_realm, KeycloakAdminClient};
 use crate::types::keycloak::{
-    CredentialInputPolicy, MAX_CREDENTIAL_PATTERN_GROUPS,
-    MAX_CREDENTIAL_PATTERN_GROUP_SIZE, MAX_CREDENTIAL_PATTERN_TOTAL_SIZE,
-    REALM_ATTR_CREDENTIAL_INPUT_PATTERN, REALM_ATTR_CREDENTIAL_INPUT_POLICY,
+    CredentialFieldPosition, CredentialInputPolicy, LoginValidationPolicy,
+    MAX_CREDENTIAL_PATTERN_GROUPS, MAX_CREDENTIAL_PATTERN_GROUP_SIZE,
+    MAX_CREDENTIAL_PATTERN_TOTAL_SIZE, REALM_ATTR_CREDENTIAL_FIELD_POSITION,
+    REALM_ATTR_CREDENTIAL_INPUT_PATTERN,
+    REALM_ATTR_CREDENTIAL_INPUT_PLACEHOLDER,
+    REALM_ATTR_CREDENTIAL_INPUT_POLICY, REALM_ATTR_LOGIN_VALIDATION_POLICY,
     REALM_ATTR_SMARTLINK_CLOCK_SKEW_SECS, REALM_ATTR_SMARTLINK_ENABLED,
     REALM_ATTR_SMARTLINK_REQUIRED_ATTRIBUTES,
     REALM_ATTR_SMARTLINK_SHARED_SECRET, REALM_ATTR_SMARTLINK_TIMEOUT_SECS,
@@ -155,6 +158,23 @@ fn validate_realm_attribute_value(key: &str, value: &str) -> Result<()> {
                 );
             }
         }
+        REALM_ATTR_LOGIN_VALIDATION_POLICY => {
+            if LoginValidationPolicy::from_str(value).is_err() {
+                bail!("Invalid value {value:?} for realm attribute {key}");
+            }
+        }
+        REALM_ATTR_CREDENTIAL_FIELD_POSITION => {
+            if CredentialFieldPosition::from_str(value).is_err() {
+                bail!("Invalid value {value:?} for realm attribute {key}");
+            }
+        }
+        REALM_ATTR_CREDENTIAL_INPUT_PLACEHOLDER => {
+            if !is_valid_credential_input_placeholder(value) {
+                bail!(
+                    "Realm attribute {key} must be one visible non-digit character other than '-' or '*'"
+                );
+            }
+        }
         REALM_ATTR_SMARTLINK_ENABLED => {
             if bool::from_str(value).is_err() {
                 bail!("Realm attribute {key} must be 'true' or 'false'");
@@ -216,6 +236,19 @@ fn is_valid_credential_input_pattern(value: &str) -> bool {
     true
 }
 
+fn is_valid_credential_input_placeholder(value: &str) -> bool {
+    let mut characters = value.chars();
+    let Some(character) = characters.next() else {
+        return false;
+    };
+
+    characters.next().is_none()
+        && !character.is_control()
+        && !character.is_whitespace()
+        && !character.is_ascii_digit()
+        && !matches!(character, '-' | '*')
+}
+
 pub fn redacted_attributes(
     attributes: &HashMap<String, String>,
 ) -> HashMap<String, String> {
@@ -260,6 +293,8 @@ mod tests {
             ("acr.loa.map", "{}"),
             ("credential-input-policy", "structured"),
             ("credential-input-pattern", "dddd-dddd-dddd-dddd"),
+            ("credential-input-placeholder", "#"),
+            ("credential-field-position", "FIRST"),
             ("smart-link-enabled", "true"),
             ("smart-link-timeout-secs", "90"),
             ("smart-link-clock-skew-secs", "5"),
@@ -281,9 +316,72 @@ mod tests {
                 validate_realm_attributes(&attributes(&[
                     ("credential-input-policy", policy),
                     ("credential-input-pattern", pattern),
+                    ("credential-input-placeholder", "#"),
                 ]))
                 .is_ok(),
                 "expected policy={policy:?}, pattern={pattern:?} to be accepted"
+            );
+        }
+
+        for placeholder in ["d", "#", "_", "•"] {
+            assert!(
+                validate_realm_attributes(&attributes(&[(
+                    "credential-input-placeholder",
+                    placeholder,
+                )]))
+                .is_ok(),
+                "expected credential-input-placeholder={placeholder:?} to be accepted"
+            );
+        }
+    }
+
+    #[test]
+    fn validate_realm_attributes_validates_login_validation_policy() {
+        for value in ["BROWSER", "SERVER_ONLY"] {
+            assert!(
+                validate_realm_attributes(&attributes(&[(
+                    "login-validation-policy",
+                    value,
+                )]))
+                .is_ok(),
+                "expected login-validation-policy={value:?} to be accepted"
+            );
+        }
+
+        for value in ["browser", "server_only", "SERVER-ONLY", "true", "NONE"] {
+            assert!(
+                validate_realm_attributes(&attributes(&[(
+                    "login-validation-policy",
+                    value,
+                )]))
+                .is_err(),
+                "expected login-validation-policy={value:?} to be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn validate_realm_attributes_validates_credential_field_position() {
+        for value in ["LAST", "FIRST"] {
+            assert!(
+                validate_realm_attributes(&attributes(&[(
+                    "credential-field-position",
+                    value,
+                )]))
+                .is_ok(),
+                "expected credential-field-position={value:?} to be accepted"
+            );
+        }
+
+        // A misspelling would otherwise be stored and silently fall back to LAST.
+        for value in ["first", "last", "FRIST", "true", "TOP"] {
+            assert!(
+                validate_realm_attributes(&attributes(&[(
+                    "credential-field-position",
+                    value,
+                )]))
+                .is_err(),
+                "expected credential-field-position={value:?} to be rejected"
             );
         }
     }
@@ -325,6 +423,21 @@ mod tests {
                 )]))
                 .is_err(),
                 "expected credential-input-pattern={value:?} to be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn validate_realm_attributes_rejects_invalid_credential_input_placeholder()
+    {
+        for value in ["##", "1", "-", "*", " ", "\n"] {
+            assert!(
+                validate_realm_attributes(&attributes(&[(
+                    "credential-input-placeholder",
+                    value,
+                )]))
+                .is_err(),
+                "expected credential-input-placeholder={value:?} to be rejected"
             );
         }
     }

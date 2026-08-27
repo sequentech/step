@@ -72,6 +72,7 @@ const englishTranslation = {
                 totalVotesCounted: "Total votes counted",
                 validVotes: "Valid votes",
                 participation: "Participation",
+                totalBlankBallots: "Total blank ballots",
             },
             resultsAndParticipation: {
                 participationSummary: "Participation Summary",

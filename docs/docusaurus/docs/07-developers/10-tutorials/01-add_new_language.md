@@ -39,14 +39,19 @@ This guide outlines the steps to add a new language to the system. When adding a
             [lang_code]: [lang_code]Translation, // e.g., eu: basqueTranslation, [cite: 678]
         })
         ```
-    * **Add to `triggerOverrideTranslations` function**:
-        Similarly, add the new language to the `overwriteTranslations` call within this function.
+    * **Keep the scoped tenant override call in `triggerOverrideTranslations`**:
+        Tenant overrides are restricted to the Admin Portal, including legacy unprefixed keys.
         ```typescript
-        overwriteTranslations({
-            // ... other languages
-            [lang_code]: [lang_code]Translation, // e.g., eu: basqueTranslation, [cite: 678, 679]
-        })
+        overwriteTranslations(
+            {i18n},
+            {
+                scope: ETranslationScope.ADMIN_PORTAL,
+                legacyScope: ETranslationScope.ADMIN_PORTAL,
+            }
+        )
         ```
+        The tenant `i18n` object already contains every configured language, so no per-language
+        entry is needed in this call.
     * **Add to `getAllLangs` function**:
         Add the new language code to the array returned by this function.
         ```typescript
