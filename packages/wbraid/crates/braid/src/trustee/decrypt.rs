@@ -110,7 +110,7 @@ impl<C: Context> Trustee<C> {
         dkg_pk: &DkgPublicKey<C>,
     ) -> Result<Vec<ProtocolMessage<C>>> {
         use cryptography::dkgd::dealer::VerifiableShare;
-        use cryptography::dkgd::recipient::{DkgCiphertext, ParticipantPosition, Recipient};
+        use cryptography::dkgd::recipient::{ParticipantPosition, Recipient};
 
         let tally_id = view
             .tally_id()
@@ -145,7 +145,7 @@ impl<C: Context> Trustee<C> {
             Recipient::<C, T, P>::from_shares(position, &shares_array, &proof_context)
                 .map_err(|e| anyhow!("dealing verification failed: {:?}", e))?;
 
-        if joint_pk.inner.y != dkg_pk.pk {
+        if joint_pk.y != dkg_pk.pk {
             return Err(anyhow!(
                 "re-derived joint public key does not match the posted DKG output"
             ));
@@ -157,13 +157,8 @@ impl<C: Context> Trustee<C> {
             ));
         }
 
-        let wrapped: Vec<DkgCiphertext<C, W, T>> = mix
-            .ciphertexts
-            .iter()
-            .map(|c| DkgCiphertext(c.clone()))
-            .collect();
         let partial_decryption = recipient
-            .partial_decrypt(&wrapped, &label)
+            .partial_decrypt(&mix.ciphertexts, &label)
             .map_err(|e| anyhow!("failed to compute decryption factors: {:?}", e))?;
 
         let message = ProtocolMessage::<C>::partial_decryptions(
@@ -232,9 +227,7 @@ impl<C: Context> Trustee<C> {
         decryptions_hashes: &[PartialDecryptionHash],
         dkg_pk: &DkgPublicKey<C>,
     ) -> Result<Vec<ProtocolMessage<C>>> {
-        use cryptography::dkgd::recipient::{
-            combine, AttributedDecryption, DkgCiphertext, ParticipantPosition,
-        };
+        use cryptography::dkgd::recipient::{combine, AttributedDecryption, ParticipantPosition};
 
         let tally_id = view
             .tally_id()
@@ -267,18 +260,12 @@ impl<C: Context> Trustee<C> {
             ));
         }
 
-        let wrapped: Vec<DkgCiphertext<C, W, T>> = mix
-            .ciphertexts
-            .iter()
-            .map(|c| DkgCiphertext(c.clone()))
-            .collect();
-
         let contributions: [AttributedDecryption<C, W, P>; T] =
             contributions.try_into().map_err(|v: Vec<_>| {
                 anyhow!("expected {} partial decryptions, got {}", T, v.len())
             })?;
 
-        let plaintexts = combine(&wrapped, &contributions, &label)
+        let plaintexts = combine::<C, T, P, W>(&mix.ciphertexts, &contributions, &label)
             .map_err(|e| anyhow!("failed to combine decryption factors: {:?}", e))?;
 
         let plaintexts = Plaintexts::<C, W>(plaintexts);

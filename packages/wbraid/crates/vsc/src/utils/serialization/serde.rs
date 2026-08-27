@@ -7,7 +7,7 @@
 use crate::context::{Context, P256Ctx, RistrettoCtx};
 use crate::cryptosystem::{elgamal, naoryung};
 use crate::dkgd::dealer::{DealerShares, VerifiableShare};
-use crate::dkgd::recipient::{DkgCiphertext, DkgPublicKey, PartialDecryption};
+use crate::dkgd::recipient::PartialDecryption;
 use crate::utils::serialization::{FDeserializable, FSerializable};
 use crate::utils::serialization::{VDeserializable, VSerializable};
 use crate::zkp::{
@@ -90,12 +90,6 @@ implement_serde_f!(PlEqProof<C, N>, const N: usize);
 // SchnorrProof
 implement_serde_f!(SchnorrProof<C>);
 
-// DkgPublicKey
-implement_serde_f!(DkgPublicKey<C, T>, const T: usize);
-
-// DkgCiphertext
-implement_serde_f!(DkgCiphertext<C, W, T>, const W: usize, const T: usize);
-
 // VerifiableShare
 implement_serde_f!(VerifiableShare<C, T>, const T: usize);
 
@@ -160,7 +154,6 @@ mod tests {
 
     use crate::context::{Context, P256Ctx, RistrettoCtx as RCtx};
     use crate::cryptosystem::{elgamal, naoryung};
-    use crate::dkgd::{DkgCiphertext, DkgPublicKey};
     use crate::traits::groups::CryptographicGroup;
     use crate::traits::groups::DistGroupOps;
     use crate::traits::groups::GroupElement;
@@ -308,25 +301,4 @@ mod tests {
         assert_eq!(proof, deserialized);
     }
 
-    #[test]
-    fn test_serde_dkg_public_key() {
-        let keypair = elgamal::KeyPair::<P256Ctx>::generate();
-        let pk = DkgPublicKey::<P256Ctx, 2>::from_keypair(&keypair);
-        let serialized = bincode::serde::encode_to_vec(&pk, bincode::config::standard()).unwrap();
-        let (deserialized, _): (DkgPublicKey<P256Ctx, 2>, _) =
-            bincode::serde::decode_from_slice(&serialized, bincode::config::standard()).unwrap();
-        assert_eq!(pk, deserialized);
-    }
-
-    #[test]
-    fn test_serde_dkg_ciphertext() {
-        let keypair = elgamal::KeyPair::<P256Ctx>::generate();
-        let pk = DkgPublicKey::<P256Ctx, 2>::from_keypair(&keypair);
-        let m = [P256Ctx::random_element(), P256Ctx::random_element()];
-        let ct: DkgCiphertext<P256Ctx, 2, 2> = pk.encrypt(&m);
-        let serialized = bincode::serde::encode_to_vec(&ct, bincode::config::standard()).unwrap();
-        let (deserialized, _): (DkgCiphertext<P256Ctx, 2, 2>, _) =
-            bincode::serde::decode_from_slice(&serialized, bincode::config::standard()).unwrap();
-        assert_eq!(ct, deserialized);
-    }
 }

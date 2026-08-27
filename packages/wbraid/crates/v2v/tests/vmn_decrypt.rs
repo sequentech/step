@@ -50,7 +50,7 @@ fn run_dkg() -> (Vec<Vec<P256Element>>, P256Element) {
         Recipient::<P256Ctx, T, P>::from_shares(position, &shares_for_first, TEST_DKG_CTX)
             .expect("shares must verify");
 
-    (commitments, joint_pk.inner.y)
+    (commitments, joint_pk.y)
 }
 
 /// Γ_0 must be the joint public key. This is Algorithm 24's cross-check, and the

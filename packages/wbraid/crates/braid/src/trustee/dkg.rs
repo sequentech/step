@@ -128,8 +128,7 @@ impl<C: Context> Trustee<C> {
                 Recipient::<C, T, P>::from_shares(position, &shares_array, &proof_context)
                     .map_err(|e| anyhow!("dealing verification failed: {:?}", e))?;
 
-            let public_key =
-                DkgPublicKey::<C>::new(joint_pk.inner.y, verification_keys.to_vec());
+            let public_key = DkgPublicKey::<C>::new(joint_pk.y, verification_keys.to_vec());
             let message = ProtocolMessage::<C>::public_key(self, WIRE_DATE, *cfg_hash, &public_key);
             Ok(vec![message])
         })

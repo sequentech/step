@@ -317,7 +317,7 @@ pub fn mixing<const W: usize, const K: usize, const T: usize>(
             CORPUS_DKG_CTX,
         )
         .map_err(|e| anyhow!("share verification failed for party {party}: {e:?}"))?;
-        joint_key = Some(joint_pk.inner.y);
+        joint_key = Some(joint_pk.y);
         secrets.push(*recipient.get_secret_share());
     }
     let y = joint_key.ok_or_else(|| anyhow!("a session needs at least one party"))?;

@@ -4,11 +4,11 @@
 
 //! Distributed key generation and decryption module tests
 
-use crate::cryptosystem::elgamal::Ciphertext;
+use crate::cryptosystem::elgamal::{Ciphertext, PublicKey};
 use crate::dkgd::dealer::{CheckingValue, Dealer, VerifiableShare};
 use crate::dkgd::recipient::combine;
 use crate::dkgd::recipient::{
-    AttributedDecryption, DkgPublicKey, ParticipantPosition, PartialDecryption, Recipient,
+    AttributedDecryption, ParticipantPosition, PartialDecryption, Recipient,
 };
 use crate::traits::groups::DistGroupOps;
 use crate::traits::groups::GroupElement;
@@ -78,7 +78,7 @@ fn test_dkgd<C: Context, const T: usize, const P: usize, const W: usize>() {
 
     let dealers: [Dealer<C, T, P>; P] = array::from_fn(|_| Dealer::generate());
 
-    let mut recipients: [(Recipient<C, T, P>, DkgPublicKey<C, T>); P] = array::from_fn(|i| {
+    let mut recipients: [(Recipient<C, T, P>, PublicKey<C>); P] = array::from_fn(|i| {
         let position = ParticipantPosition::from_usize(i + 1);
 
         let verifiable_shares: [VerifiableShare<C, T>; P] = dealers
@@ -109,7 +109,7 @@ fn test_dkgd<C: Context, const T: usize, const P: usize, const W: usize>() {
     let mut rng = C::get_rng();
     recipients.shuffle(&mut rng);
 
-    let pk: &DkgPublicKey<C, T> = &recipients[0].1;
+    let pk: &PublicKey<C> = &recipients[0].1;
 
     let message: [C::Element; W] = array::from_fn(|_| C::random_element());
     let encrypted = vec![pk.encrypt(&message)];
@@ -137,7 +137,7 @@ fn test_dkgd_all_participants<C: Context, const T: usize, const P: usize, const 
 
     let dealers: [Dealer<C, T, P>; P] = array::from_fn(|_| Dealer::generate());
 
-    let recipients: [(Recipient<C, T, P>, DkgPublicKey<C, T>); P] = array::from_fn(|i| {
+    let recipients: [(Recipient<C, T, P>, PublicKey<C>); P] = array::from_fn(|i| {
         let position = ParticipantPosition::from_usize(i + 1);
 
         let verifiable_shares: [VerifiableShare<C, T>; P] = dealers
@@ -149,7 +149,7 @@ fn test_dkgd_all_participants<C: Context, const T: usize, const P: usize, const 
         (recipient, joint_pk)
     });
 
-    let pk: &DkgPublicKey<C, T> = &recipients[0].1;
+    let pk: &PublicKey<C> = &recipients[0].1;
 
     let message: [C::Element; W] = array::from_fn(|_| C::random_element());
     let encrypted = vec![pk.encrypt(&message)];
@@ -165,7 +165,6 @@ fn test_dkgd_all_participants<C: Context, const T: usize, const P: usize, const 
     // using all participants, not just T of them
     assert_eq!(dfactors.len(), P);
 
-    let encrypted: Vec<Ciphertext<C, W>> = encrypted.iter().map(|e| e.0.clone()).collect();
     let decrypted = untyped_combine(&encrypted, &dfactors);
     assert!(message == decrypted[0]);
 }
@@ -175,7 +174,7 @@ fn test_joint_pkey<C: Context, const T: usize, const P: usize, const W: usize>()
 
     let dealers: [Dealer<C, T, P>; P] = array::from_fn(|_| Dealer::generate());
 
-    let recipients: [(Recipient<C, T, P>, DkgPublicKey<C, T>); P] = array::from_fn(|i| {
+    let recipients: [(Recipient<C, T, P>, PublicKey<C>); P] = array::from_fn(|i| {
         let position = ParticipantPosition::from_usize(i + 1);
 
         let verifiable_shares: [VerifiableShare<C, T>; P] = dealers
@@ -197,7 +196,7 @@ fn test_joint_pkey<C: Context, const T: usize, const P: usize, const W: usize>()
             .checking_values
             .map(|cv| cv.value)
     }));
-    let rhs: DkgPublicKey<C, T> = recipients[0].1.clone();
+    let rhs: PublicKey<C> = recipients[0].1.clone();
 
     assert_eq!(lhs, rhs);
 }
@@ -286,7 +285,7 @@ fn test_batched_proof_rejects<C: Context, const T: usize, const P: usize, const 
     const N: usize = 4;
 
     let dealers: [Dealer<C, T, P>; P] = array::from_fn(|_| Dealer::generate());
-    let recipients: [(Recipient<C, T, P>, DkgPublicKey<C, T>); P] = array::from_fn(|i| {
+    let recipients: [(Recipient<C, T, P>, PublicKey<C>); P] = array::from_fn(|i| {
         let position = ParticipantPosition::from_usize(i + 1);
         let verifiable_shares: [VerifiableShare<C, T>; P] = dealers
             .clone()
@@ -296,7 +295,7 @@ fn test_batched_proof_rejects<C: Context, const T: usize, const P: usize, const 
         (recipient, joint_pk)
     });
 
-    let pk: &DkgPublicKey<C, T> = &recipients[0].1;
+    let pk: &PublicKey<C> = &recipients[0].1;
     let encrypted: Vec<_> = (0..N)
         .map(|_| {
             let message: [C::Element; W] = array::from_fn(|_| C::random_element());
@@ -470,7 +469,7 @@ fn test_batched_proof_is_bound_to_its_author() {
     const W: usize = 2;
 
     let dealers: [Dealer<RCtx, T, P>; P] = array::from_fn(|_| Dealer::generate());
-    let recipients: [(Recipient<RCtx, T, P>, DkgPublicKey<RCtx, T>); P] = array::from_fn(|i| {
+    let recipients: [(Recipient<RCtx, T, P>, PublicKey<RCtx>); P] = array::from_fn(|i| {
         let position = ParticipantPosition::from_usize(i + 1);
         let verifiable_shares: [VerifiableShare<RCtx, T>; P] = dealers
             .clone()

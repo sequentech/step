@@ -50,7 +50,8 @@ use vser_derive::VSerializable;
  * use cryptography::context::RistrettoCtx as RCtx;
  * use cryptography::groups::ristretto255::RistrettoElement;
  * use cryptography::dkgd::dealer::{VerifiableShare, Dealer};
- * use cryptography::dkgd::recipient::{combine, Recipient, DkgPublicKey, ParticipantPosition, AttributedDecryption};
+ * use cryptography::dkgd::recipient::{combine, Recipient, ParticipantPosition, AttributedDecryption};
+ * use cryptography::cryptosystem::elgamal::PublicKey;
  *
  * const P: usize = 3;
  * const T: usize = 2;
@@ -60,7 +61,7 @@ use vser_derive::VSerializable;
  *
  * let dealers: [Dealer<RCtx, T, P>; P] = array::from_fn(|_| Dealer::generate());
  *
- * let recipients: [(Recipient<RCtx, T, P>, DkgPublicKey<RCtx, T>); P] = array::from_fn(|i| {
+ * let recipients: [(Recipient<RCtx, T, P>, PublicKey<RCtx>); P] = array::from_fn(|i| {
  *     let position = ParticipantPosition::from_usize(i + 1);
  *
  *     let verifiable_shares: [VerifiableShare<RCtx, T>; P] = dealers
@@ -211,14 +212,14 @@ impl<C: Context, const T: usize, const P: usize> Dealer<C, T, P> {
  * of type `C::Scalar`, as are its arguments `x` and values `f(x)`.
  */
 #[derive(Clone)]
-pub struct Polynomial<C: Context, const T: usize>(pub(crate) [C::Scalar; T]);
+pub(crate) struct Polynomial<C: Context, const T: usize>(pub(crate) [C::Scalar; T]);
 
 impl<C: Context, const T: usize> Polynomial<C, T> {
     /// Generate a random polynomial of degree `T - 1` with `T` coefficients.
     ///
     /// Returns a new [`Polynomial`] instance, with inner type `[C::Scalar; T]`.
     #[must_use]
-    pub fn generate() -> Self {
+    pub(crate) fn generate() -> Self {
         let coefficients: [C::Scalar; T] = array::from_fn(|_| C::random_scalar());
 
         Self(coefficients)
@@ -227,7 +228,7 @@ impl<C: Context, const T: usize> Polynomial<C, T> {
     /// Evaluate the polynomial at a given point `x`.
     ///
     /// Returns the scalar `k`, where `k = f(x)`.
-    pub fn eval(&self, x: &C::Scalar) -> C::Scalar {
+    pub(crate) fn eval(&self, x: &C::Scalar) -> C::Scalar {
         let mut sum: C::Scalar = self.0[0].clone();
         let mut power = C::Scalar::one();
 
@@ -290,6 +291,13 @@ impl<C: Context, const T: usize, const P: usize> DealerShares<C, T, P> {
     ///
     /// This method will select the shares assigned to the required recipient from the set
     /// of all shares computed by the [`Dealer`].
+    ///
+    /// **Simulation convenience**: in a deployed protocol, shares reach their
+    /// recipients encrypted over a message board (the caller encrypts
+    /// `DealerShares::shares[i]` to recipient `i`, who decrypts it and builds
+    /// its own [`VerifiableShare`]) — no production code hands a recipient its
+    /// share in memory. This method exists for tests and examples that
+    /// simulate the full ceremony in one process.
     ///
     /// # Panics
     ///
@@ -363,7 +371,7 @@ impl<C: Context> CheckingValue<C> {
  * let dealer: Dealer<RCtx, T, P> = Dealer::generate();
  * let shares = dealer.get_verifiable_shares(b"dkg proof context").unwrap();
  * // Get the shares for participant 1
- * let position = ParticipantPosition(1);
+ * let position = ParticipantPosition::from_usize(1);
  * let shares: VerifiableShare<RCtx, T> = shares.for_recipient(&position);
  * ```
  */
