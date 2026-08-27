@@ -141,7 +141,11 @@ const SupportMaterialsScreen: React.FC = () => {
                                     "-")}
                         </Box>
                     </StyledTitle>
-                    <Typography variant="body1" sx={{color: theme.palette.customGrey.contrastText}}>
+                    <Typography
+                        variant="body1"
+                        component="div"
+                        sx={{color: theme.palette.customGrey.contrastText}}
+                    >
                         {stringToHtml(
                             materialsTitles
                                 ? (translateFromPresentation(

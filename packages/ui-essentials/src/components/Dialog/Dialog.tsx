@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {PropsWithChildren, useEffect, useRef} from "react"
+import React, {PropsWithChildren, useEffect, useId, useRef} from "react"
 import DialogTitle from "@mui/material/DialogTitle"
 import MaterialDialog from "@mui/material/Dialog"
 import {Backdrop, Box, Button, Breakpoint} from "@mui/material"
@@ -11,6 +11,7 @@ import {faTimesCircle, faInfoCircle, faExclamationTriangle} from "@fortawesome/f
 import {styled} from "@mui/material/styles"
 import Icon from "../Icon/Icon"
 import IconButton from "../IconButton/IconButton"
+import {useTranslation} from "react-i18next"
 
 const StyledBackdrop = styled(Backdrop)`
     opacity: 0.5 !important;
@@ -77,6 +78,12 @@ const Dialog: React.FC<DialogProps> = ({
     }
 
     const okButtonRef = useRef<boolean>(false)
+    const {t} = useTranslation()
+    // Ties the modal to its visible title (and to the error text, when shown) so
+    // screen readers announce what the dialog is about when it opens.
+    const generatedId = useId()
+    const titleId = `${generatedId}-title`
+    const errorId = `${generatedId}-error`
 
     useEffect(() => {
         okButtonRef.current = false
@@ -92,6 +99,8 @@ const Dialog: React.FC<DialogProps> = ({
             fullWidth={fullWidth}
             maxWidth={maxWidth}
             className={fullClass}
+            aria-labelledby={titleId}
+            aria-describedby={errorMessage ? errorId : undefined}
         >
             <DialogTitle className="dialog-title">
                 <Icon
@@ -102,6 +111,7 @@ const Dialog: React.FC<DialogProps> = ({
                 />
                 <Box
                     component="span"
+                    id={titleId}
                     flexGrow={2}
                     pt="3px"
                     fontWeight="bold"
@@ -115,11 +125,12 @@ const Dialog: React.FC<DialogProps> = ({
                         variant="primary"
                         onClick={closeDialog}
                         className="dialog-icon-close"
+                        ariaLabel={t("a11y.closeDialog")}
                     />
                 ) : null}
             </DialogTitle>
             <DialogContent className="dialog-content"> {children} </DialogContent>
-            <StyledDialogErrorContent className="dialog-content">
+            <StyledDialogErrorContent className="dialog-content" id={errorId} role="alert">
                 {errorMessage}
             </StyledDialogErrorContent>
             <StyledDialogActions className={middleActions ? "has-middle" : "no-middle"}>

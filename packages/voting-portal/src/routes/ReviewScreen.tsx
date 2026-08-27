@@ -21,6 +21,7 @@ import {
     BallotHash,
     Dialog,
     WarnBox,
+    EWarnBoxAnnouncement,
 } from "@sequentech/ui-essentials"
 import {
     stringToHtml,
@@ -87,7 +88,7 @@ const StyledLink = styled(RouterLink)`
     text-decoration: none;
 `
 
-const StyledTitle = styled(Typography)`
+const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     margin-top: 25.5px;
     display: flex;
     flex-direction: row;
@@ -767,7 +768,11 @@ export const ReviewScreen: React.FC = () => {
     if (!ballotStyle || !auditableBallot) {
         return errorMsg ? (
             <Box sx={{margin: "auto 0"}}>
-                <WarnBox variant="error">{errorMsg}</WarnBox>
+                {/* The only message on the screen, and it blocks the voter from
+                    casting, so it interrupts rather than waiting for a pause. */}
+                <WarnBox variant="error" announcement={EWarnBoxAnnouncement.ASSERTIVE}>
+                    {errorMsg}
+                </WarnBox>
                 <Box
                     sx={{
                         display: "flex",
@@ -785,7 +790,7 @@ export const ReviewScreen: React.FC = () => {
                 </Box>
             </Box>
         ) : (
-            <CircularProgress />
+            <CircularProgress aria-label={t("a11y.loading")} />
         )
     }
 
@@ -838,13 +843,22 @@ export const ReviewScreen: React.FC = () => {
             <Box marginTop="48px">
                 <Stepper selected={2} />
             </Box>
-            <StyledTitle variant="h4" fontSize="24px" fontWeight="bold" sx={{margin: 0}}>
+            <StyledTitle
+                variant="h4"
+                component="h1"
+                fontSize="24px"
+                fontWeight="bold"
+                sx={{margin: 0}}
+            >
                 <Box>{t("reviewScreen.title")}</Box>
                 <IconButton
                     icon={faCircleQuestion}
                     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
                     fontSize="16px"
                     onClick={() => setReviewScreenHelp(true)}
+                    ariaLabel={t("a11y.helpAbout", {
+                        topic: t("reviewScreen.reviewScreenHelpDialog.title"),
+                    })}
                 />
                 <Dialog
                     handleClose={() => setReviewScreenHelp(false)}
@@ -856,8 +870,12 @@ export const ReviewScreen: React.FC = () => {
                     {stringToHtml(t("reviewScreen.reviewScreenHelpDialog.content"))}
                 </Dialog>
             </StyledTitle>
-            {errorMsg && <WarnBox variant="error">{errorMsg}</WarnBox>}
-            <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+            {errorMsg && (
+                <WarnBox variant="error" announcement={EWarnBoxAnnouncement.ASSERTIVE}>
+                    {errorMsg}
+                </WarnBox>
+            )}
+            <Typography variant="body2" component="div" sx={{color: theme.palette.customGrey.main}}>
                 {stringToHtml(
                     auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW ||
                         auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP

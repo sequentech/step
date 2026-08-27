@@ -6,6 +6,7 @@ import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useLocation, useNavigate, useParams} from "react-router-dom"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {Box, CircularProgress} from "@mui/material"
+import {useTranslation} from "react-i18next"
 import {PreviewPublicationEventType} from ".."
 import {
     Sequent_Backend_Document,
@@ -110,6 +111,7 @@ export const updateBallotStyleAndSelection = (
 }
 
 export const PreviewPublicationEvent: React.FC = () => {
+    const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
     const navigate = useNavigate()
     const {tenantId, documentId, areaId, publicationId} = useParams<PreviewPublicationEventType>()
@@ -163,7 +165,7 @@ export const PreviewPublicationEvent: React.FC = () => {
 
     return (
         <Box sx={{flex: 1, display: "flex", justifyContent: "center", alignItems: "center"}}>
-            <CircularProgress />
+            <CircularProgress aria-label={t("a11y.loading")} />
         </Box>
     )
 }

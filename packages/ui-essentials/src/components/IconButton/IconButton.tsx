@@ -17,10 +17,24 @@ const StyledButton = styled(MuiIconButton)`
 `
 
 export interface IIconButtonProps
-    extends Omit<FontAwesomeIconProps, "onClick">, Pick<IconButtonProps, "onClick"> {
+    extends
+        Omit<FontAwesomeIconProps, "onClick" | "aria-label" | "aria-labelledby">,
+        Pick<IconButtonProps, "onClick" | "disabled"> {
     variant?: "inherit" | "primary" | "info" | "warning" | "error" | "success"
     sx?: SxProps<Theme>
+    // An icon conveys no text to assistive technology, so every icon button
+    // needs an explicit name: either `ariaLabel` (or the `title` tooltip, which
+    // is used as a fallback) or `ariaLabelledby` pointing at visible text. These
+    // are separate props because everything else on this interface is spread
+    // onto the icon, where an accessible name would not reach the button.
+    ariaLabel?: string
+    ariaLabelledby?: string
 }
+
+// Callers outside the voting portal have not been given names yet, so this
+// placeholder is kept to avoid leaving those buttons with no name at all. It is
+// not an acceptable accessible name: pass ariaLabel or ariaLabelledby instead.
+const UNNAMED_FALLBACK = "icon button"
 
 const ColorMap = {
     primary: theme.palette.black,
@@ -31,13 +45,23 @@ const ColorMap = {
     inherit: "inherit",
 }
 
-const IconButton: React.FC<IIconButtonProps> = ({variant, sx, onClick, ...props}) => (
+const IconButton: React.FC<IIconButtonProps> = ({
+    variant,
+    sx,
+    onClick,
+    disabled,
+    ariaLabel,
+    ariaLabelledby,
+    ...iconProps
+}) => (
     <StyledButton
-        aria-label={props.title || (props as any)["aria-label"] || "icon button"}
+        aria-label={ariaLabelledby ? undefined : (ariaLabel ?? iconProps.title ?? UNNAMED_FALLBACK)}
+        aria-labelledby={ariaLabelledby}
+        disabled={disabled}
         sx={{color: ColorMap[variant || "inherit"], ...sx}}
         onClick={onClick}
     >
-        <FontAwesomeIcon {...props} />
+        <FontAwesomeIcon {...iconProps} />
     </StyledButton>
 )
 

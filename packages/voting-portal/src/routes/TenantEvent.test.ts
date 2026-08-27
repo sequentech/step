@@ -4,18 +4,9 @@
 
 import React, {useEffect} from "react"
 import {act, render} from "@testing-library/react"
-import {JSDOM} from "jsdom"
 import {createMemoryRouter, RouterProvider} from "react-router-dom"
 import useUpdateTranslation from "../hooks/useUpdateTranslation"
 import TenantEvent from "./TenantEvent"
-
-const dom = new JSDOM("<!doctype html><html><body></body></html>")
-Object.defineProperty(globalThis, "window", {value: dom.window, writable: true})
-Object.defineProperty(globalThis, "document", {value: dom.window.document, writable: true})
-Object.defineProperty(globalThis, "navigator", {value: dom.window.navigator, writable: true})
-;(globalThis as {IS_REACT_ACT_ENVIRONMENT?: boolean}).IS_REACT_ACT_ENVIRONMENT = true
-
-afterAll(() => dom.window.close())
 
 jest.mock("../store/hooks", () => ({
     useAppSelector: jest.fn(() => ({id: "event-a", presentation: {}})),

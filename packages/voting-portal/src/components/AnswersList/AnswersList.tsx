@@ -26,6 +26,27 @@ import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import {useTranslation} from "react-i18next"
 import {sortBy} from "lodash"
 import {sortCandidatesInContest, ECandidatesIconCheckboxPolicy} from "@sequentech/ui-core"
+import {styled} from "@mui/material/styles"
+import Typography from "@mui/material/Typography"
+
+const SubtypeItem = styled("li")`
+    list-style: none;
+`
+
+const SubtypeHeading = styled(Typography)<{component?: React.ElementType}>`
+    font-weight: bold;
+    margin: 12px 0 4px 0;
+`
+
+const SubtypeList = styled("ul")`
+    list-style: none;
+    margin: 0;
+    padding-inline-start: 0;
+
+    li + li {
+        margin-top: 12px;
+    }
+`
 
 export interface AnswersListProps {
     title: string
@@ -175,6 +196,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
             showCandidatesLabel={showCandidatesLabel}
             hideCandidatesLabel={hideCandidatesLabel}
             selectedCandidatesLabel={selectedCandidatesLabel}
+            titleComponent="h3"
             externalExpanded={!isReview && isCollapsible ? externalExpanded : undefined}
             onExpandedChange={!isReview && isCollapsible ? onExpandedChange : undefined}
         >
@@ -198,33 +220,41 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                 ) {
                     return null
                 }
+                const subtypeName = translate(subtypePresentation, "name", i18n.language)
+                // The subtype is a group of candidates inside the list, so it
+                // has to be a nested list with a heading rather than bold text
+                // sitting loose among the <li> candidates.
                 return (
-                    <>
-                        <b>{translate(subtypePresentation, "name", i18n.language)}</b>
-                        {subtypeCandidates.map((candidate, candidateIndex) => (
-                            <Answer
-                                ballotStyle={ballotStyle}
-                                answer={candidate}
-                                contestId={contestId}
-                                key={candidateIndex}
-                                index={candidateIndex}
-                                hasCategory={true}
-                                isSelectable={!isReview && checkableCandidates}
-                                isReview={isReview}
-                                isInvalidVote={false}
-                                isInvalidWriteIns={isInvalidWriteIns}
-                                contest={contest}
-                                selectedChoicesSum={selectedChoicesSum}
-                                setSelectedChoicesSum={setSelectedChoicesSum}
-                                disableSelect={disableSelect}
-                                iconCheckboxPolicy={iconCheckboxPolicy}
-                                explicitBlank={explicitBlank}
-                                setExplicitBlank={setExplicitBlank}
-                                setIsTouched={setIsTouched}
-                                showWhenListSelected={isListSelectedOnReview}
-                            />
-                        ))}
-                    </>
+                    <SubtypeItem key={subtypePresentation.name}>
+                        <SubtypeHeading variant="body1" component="h4">
+                            {subtypeName}
+                        </SubtypeHeading>
+                        <SubtypeList role="list">
+                            {subtypeCandidates.map((candidate, candidateIndex) => (
+                                <Answer
+                                    ballotStyle={ballotStyle}
+                                    answer={candidate}
+                                    contestId={contestId}
+                                    key={candidateIndex}
+                                    index={candidateIndex}
+                                    hasCategory={true}
+                                    isSelectable={!isReview && checkableCandidates}
+                                    isReview={isReview}
+                                    isInvalidVote={false}
+                                    isInvalidWriteIns={isInvalidWriteIns}
+                                    contest={contest}
+                                    selectedChoicesSum={selectedChoicesSum}
+                                    setSelectedChoicesSum={setSelectedChoicesSum}
+                                    disableSelect={disableSelect}
+                                    iconCheckboxPolicy={iconCheckboxPolicy}
+                                    explicitBlank={explicitBlank}
+                                    setExplicitBlank={setExplicitBlank}
+                                    setIsTouched={setIsTouched}
+                                    showWhenListSelected={isListSelectedOnReview}
+                                />
+                            ))}
+                        </SubtypeList>
+                    </SubtypeItem>
                 )
             })}
             {candidatesOrder

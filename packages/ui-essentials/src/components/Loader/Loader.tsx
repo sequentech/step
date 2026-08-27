@@ -5,6 +5,8 @@
 import React from "react"
 import {Box, CircularProgress} from "@mui/material"
 import {styled} from "@mui/material/styles"
+import {useTranslation} from "react-i18next"
+import VisuallyHidden from "../VisuallyHidden/VisuallyHidden"
 
 const StyledBox = styled(Box)`
     display: flex;
@@ -19,9 +21,12 @@ const StyledBox = styled(Box)`
 `
 
 const Loader = () => {
+    const {t} = useTranslation()
+
     return (
-        <StyledBox className="loader">
-            <CircularProgress />
+        <StyledBox className="loader" role="status">
+            <CircularProgress aria-hidden="true" />
+            <VisuallyHidden>{t("a11y.loading")}</VisuallyHidden>
         </StyledBox>
     )
 }
