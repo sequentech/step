@@ -590,8 +590,13 @@ Shamir evaluation point of trustee $i$ is the field element $i$.
    $$
    A_{d,j} = g^{a_{d,j}}, \qquad
    \sigma_{d,j} = \mathsf{SchnorrProve}\bigl(g,\, A_{d,j},\, a_{d,j},\,
-   \mathrm{ctx}(\texttt{"dkg\_checking\_value"})\bigr)
+   \mathrm{label}(\texttt{"dkg\_checking\_value"})\bigr)
    $$
+
+   The proof context is the domain label alone (Section 2.4): there is no
+   instance input at dealing time — the ceremony is bound to its execution
+   through $\mathsf{cfg}$, and the statement $(g, A_{d,j})$ is hashed by the
+   proof itself (Section 3.3).
 
 3. Compute one share per trustee: $s_{d,i} = p_d(i)$ for $i = 1..n$.
 
@@ -619,7 +624,7 @@ knowing the corresponding coefficients [BNP24].
 
 1. Verify every dealer's checking-value proofs, for all $d, j$:
    $\mathsf{SchnorrVerify}\bigl(g, A_{d,j}, \sigma_{d,j},
-   \mathrm{ctx}(\texttt{"dkg\_checking\_value"})\bigr)$. Any failure → **HALT**.
+   \mathrm{label}(\texttt{"dkg\_checking\_value"})\bigr)$. Any failure → **HALT**.
 
 2. Decrypt own shares, for all $d$:
    $s_{d,i} = \mathsf{DecodeScalar}\bigl(\mathsf{Dec}_{xk_i}(\mathit{ES}_{d,i})\bigr)$,

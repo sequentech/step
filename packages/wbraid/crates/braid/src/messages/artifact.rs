@@ -11,6 +11,7 @@ use super::newtypes::PROTOCOL_MANAGER_INDEX;
 use cryptography::context::Context;
 use cryptography::cryptosystem::elgamal::Ciphertext;
 
+use cryptography::dkgd::dealer::CheckingValue;
 use cryptography::utils::serialization::{VDeserializable, VSerializable};
 use cryptography::utils::signatures::SignatureScheme;
 use cryptography::zkp::shuffle::ShuffleProof;
@@ -94,8 +95,10 @@ impl<C: Context> Configuration<C> {
 
 #[derive(Debug, VSer)]
 pub struct Shares<C: Context> {
-    // Commitments to the coefficients of the generated polynomial, aka the checking values.
-    pub commitments: Vec<C::Element>,
+    // Commitments to the coefficients of the generated polynomial, aka the
+    // checking values, each carrying a Schnorr proof of knowledge of its
+    // exponent (§7). Recipients verify every proof; any failure halts.
+    pub commitments: Vec<CheckingValue<C>>,
     // One vector of bytes per trustee, including the share sent to
     // itself. The bytes are the serialization of the ElGamal
     // encryption of the share. See  CryptographicGroup::encrypt_scalar.

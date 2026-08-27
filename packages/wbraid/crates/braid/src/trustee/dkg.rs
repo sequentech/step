@@ -16,13 +16,19 @@ use crate::messages::wire::ProtocolMessage;
 
 use crate::board::store::MessageStore;
 
-use super::{Trustee, WIRE_DATE};
+use super::{domain_label, Trustee, WIRE_DATE};
+
+/// Purpose string of the domain label under which dealers prove knowledge of
+/// their checking-value exponents (§7; PROTOCOL.md §4.3).
+const DKG_CHECKING_VALUE_PURPOSE: &str = "dkg_checking_value";
 
 impl<C: Context> Trustee<C> {
     /// `ComputeShares` (§7): deal a fresh Pedersen sharing and post the encrypted
-    /// shares. Each trustee's share is ElGamal-encrypted directly to that
-    /// trustee's configured share-encryption public key (§9.4) — no channel,
-    /// symmetric wrapping, or PoK.
+    /// shares. Each checking value carries a Schnorr proof of knowledge of its
+    /// exponent, bound to this execution via `domain_label` (PROTOCOL.md §4.3).
+    /// Each trustee's share is ElGamal-encrypted directly to that trustee's
+    /// configured share-encryption public key (§9.4) — no channel, symmetric
+    /// wrapping, or PoK on the encryption itself.
     pub(super) fn compute_shares(
         &self,
         view: &MessageStore<C>,
@@ -44,8 +50,11 @@ impl<C: Context> Trustee<C> {
         }
 
         crate::dispatch_threshold_trustees!(threshold, num_trustees, {
+            let proof_context = domain_label(cfg_hash, DKG_CHECKING_VALUE_PURPOSE);
             let dealer = Dealer::<C, T, P>::generate();
-            let dealer_shares = dealer.get_verifiable_shares();
+            let dealer_shares = dealer
+                .get_verifiable_shares(&proof_context)
+                .map_err(|e| anyhow!("failed to prove checking values: {:?}", e))?;
 
             let mut encrypted_shares = Vec::with_capacity(num_trustees);
             for i in 0..num_trustees {
@@ -66,9 +75,10 @@ impl<C: Context> Trustee<C> {
         })
     }
 
-    /// `ComputePublicKey` (§7): decrypt this trustee's share from every dealer,
-    /// verify them against the commitments, and combine into this trustee's view
-    /// of the joint public key plus the per-trustee verification keys.
+    /// `ComputePublicKey` (§7): verify every dealer's checking-value proofs,
+    /// decrypt this trustee's share from every dealer, verify each share against
+    /// the commitments, and combine into this trustee's view of the joint public
+    /// key plus the per-trustee verification keys.
     ///
     /// `shares_hashes` arrives in dealer-index order (1..=P), contiguous, because
     /// the action only fires once all dealers' shares are accumulated (§7).
@@ -93,12 +103,36 @@ impl<C: Context> Trustee<C> {
                 Vec::with_capacity(num_trustees);
             let mut all_checking_values: Vec<[C::Element; T]> = Vec::with_capacity(num_trustees);
 
-            for shares_hash in shares_hashes {
+            let proof_context = domain_label(cfg_hash, DKG_CHECKING_VALUE_PURPOSE);
+            let g = C::generator();
+
+            for (dealer_slot, shares_hash) in shares_hashes.iter().enumerate() {
                 let body = view
                     .shares_body(shares_hash)
                     .ok_or_else(|| anyhow!("missing shares body for {:?}", shares_hash))?;
                 let shares = Shares::<C>::deser(body)
                     .map_err(|e| anyhow!("failed to deserialize shares: {:?}", e))?;
+
+                // Every dealer's every checking-value proof is verified before
+                // any share is used (§7); a failure here halts the trustee, the
+                // same as a share failing verification below.
+                for (j, cv) in shares.commitments.iter().enumerate() {
+                    let ok = cv.verify(&g, &proof_context).map_err(|e| {
+                        anyhow!(
+                            "checking-value proof {} of dealer {} failed to verify: {:?}",
+                            j,
+                            dealer_slot + 1,
+                            e
+                        )
+                    })?;
+                    if !ok {
+                        return Err(anyhow!(
+                            "invalid checking-value proof {} from dealer {}",
+                            j,
+                            dealer_slot + 1
+                        ));
+                    }
+                }
 
                 let encrypted_share = &shares.encrypted_shares[self_slot];
                 let share_scalar =
@@ -107,7 +141,9 @@ impl<C: Context> Trustee<C> {
 
                 let checking_values: [C::Element; T] = shares
                     .commitments
-                    .clone()
+                    .iter()
+                    .map(|cv| cv.value.clone())
+                    .collect::<Vec<_>>()
                     .try_into()
                     .map_err(|_| anyhow!("expected {} commitments", T))?;
 

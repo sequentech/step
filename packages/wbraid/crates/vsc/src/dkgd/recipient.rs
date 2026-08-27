@@ -72,7 +72,7 @@ use vser_derive::VSerializable;
  *
  *     let verifiable_shares: [VerifiableShare<RCtx, T>; P] = dealers
  *         .clone()
- *         .map(|d| d.get_verifiable_shares().for_recipient(&position));
+ *         .map(|d| d.get_verifiable_shares(b"dkg proof context").unwrap().for_recipient(&position));
  *
  *     Recipient::from_shares(position, &verifiable_shares).unwrap()
  * });
@@ -192,7 +192,7 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
     ///     // gather the shares for recipient at position from all dealers
     ///     let verifiable_shares: [VerifiableShare<RCtx, T>; P] = dealers
     ///         .clone()
-    ///         .map(|d| d.get_verifiable_shares().for_recipient(&position));
+    ///         .map(|d| d.get_verifiable_shares(b"dkg proof context").unwrap().for_recipient(&position));
     ///
     ///     // constructs the recipient, this includes verifying its shares
     ///     Recipient::from_shares(position, &verifiable_shares).unwrap()
@@ -327,7 +327,7 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
     ///
     ///    let verifiable_shares: [VerifiableShare<RCtx, T>; P] = dealers
     ///        .clone()
-    ///        .map(|d| d.get_verifiable_shares().for_recipient(&position));
+    ///        .map(|d| d.get_verifiable_shares(b"dkg proof context").unwrap().for_recipient(&position));
     ///
     ///    Recipient::from_shares(position, &verifiable_shares).unwrap()
     /// });

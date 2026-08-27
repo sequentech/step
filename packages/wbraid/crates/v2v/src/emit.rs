@@ -279,12 +279,23 @@ pub fn mixing<const W: usize, const K: usize, const T: usize>(
 
     // --- the distributed key generation -----------------------------------
     let dealers: Vec<Dealer<P256Ctx, T, K>> = (0..K).map(|_| Dealer::generate()).collect();
-    let dealt: Vec<_> = dealers.iter().map(|d| d.get_verifiable_shares()).collect();
+    // The checking-value proofs play no part in a VMN corpus (VMN has no
+    // counterpart to verify them); only the values are used below.
+    let dealt: Vec<_> = dealers
+        .iter()
+        .map(|d| d.get_verifiable_shares(b"v2v corpus dkg"))
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| anyhow!("dealing failed: {e:?}"))?;
 
     let gamma = decrypt::polynomial_in_exponent(
         &dealt
             .iter()
-            .map(|s| s.checking_values.to_vec())
+            .map(|s| {
+                s.checking_values
+                    .iter()
+                    .map(|cv| cv.value)
+                    .collect::<Vec<_>>()
+            })
             .collect::<Vec<_>>(),
     )
     .context("deriving the polynomial in the exponent")?;
@@ -296,7 +307,7 @@ pub fn mixing<const W: usize, const K: usize, const T: usize>(
         let shares: [VerifiableShare<P256Ctx, T>; K] = std::array::from_fn(|d| {
             VerifiableShare::new(
                 dealt[d].shares[party - 1].clone(),
-                dealt[d].checking_values.clone(),
+                dealt[d].checking_values.clone().map(|cv| cv.value),
             )
         });
         let (y, _vk, x_l) =

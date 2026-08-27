@@ -40,7 +40,7 @@ use vser_derive::VSerializable;
  * ```
  *
  */
-#[derive(Debug, VSerializable, PartialEq)]
+#[derive(Debug, Clone, VSerializable, PartialEq)]
 pub struct SchnorrProof<C: Context> {
     /// Prover commitment
     pub(crate) big_a: C::Element,

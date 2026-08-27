@@ -66,7 +66,7 @@ small description-precision fixes round out the list.
 
 | # | Item | Description | State | Task |
 |---|---|---|---|---|
-| B1 | DKG checking-value Schnorr proofs | §4.3 round 1 step 2 (prove), round 2 step 1 (verify); motivated by [BNP24] | vsc has the full machinery (`CheckingValue { value, proof }`, `get_checking_values_proofs`); braid's `Shares` artifact carries raw checking values, nothing verifies proofs | 0.6.3 task 1 |
+| B1 | DKG checking-value Schnorr proofs | §4.3 round 1 step 2 (prove), round 2 step 1 (verify); motivated by [BNP24] | **Implemented 2026-08-27**: `Shares.commitments` carries `Vec<CheckingValue>`; dealers prove and every recipient verifies every proof under `label("dkg_checking_value")` (the one-argument `ctx` of §4.3 was pinned to the label form — no instance input exists at dealing time); vsc's raw-value path removed | 0.6.3 task 1 ✓ |
 | B2 | Naor-Yung input ballots | §3.6, §5.5: tally input is NY ciphertexts; every trustee runs `NYVerify` and strips to ElGamal before mixing | vsc NY is complete (A11); braid's ballots are plain ElGamal today | 0.6.3 task 2 |
 | B3 | Per-tally domain identifier | §2.4 (marked TO BE CONFIRMED) | `domain_label` is keyed on `cfg` only | 0.6.3 task 2 rider |
 

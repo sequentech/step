@@ -26,11 +26,14 @@ const P: usize = 3;
 /// joint public key the recipients derive.
 fn run_dkg() -> (Vec<Vec<P256Element>>, P256Element) {
     let dealers: Vec<Dealer<P256Ctx, T, P>> = (0..P).map(|_| Dealer::generate()).collect();
-    let all_shares: Vec<_> = dealers.iter().map(|d| d.get_verifiable_shares()).collect();
+    let all_shares: Vec<_> = dealers
+        .iter()
+        .map(|d| d.get_verifiable_shares(b"vmn decrypt test dkg").expect("dealing must succeed"))
+        .collect();
 
     let commitments: Vec<Vec<P256Element>> = all_shares
         .iter()
-        .map(|s| s.checking_values.to_vec())
+        .map(|s| s.checking_values.iter().map(|cv| cv.value.clone()).collect())
         .collect();
 
     // Recipient 1 verifies its shares from every dealer and derives the joint key.
@@ -38,7 +41,7 @@ fn run_dkg() -> (Vec<Vec<P256Element>>, P256Element) {
     let shares_for_first: [VerifiableShare<P256Ctx, T>; P] = std::array::from_fn(|d| {
         VerifiableShare::new(
             all_shares[d].shares[0].clone(),
-            all_shares[d].checking_values.clone(),
+            all_shares[d].checking_values.clone().map(|cv| cv.value),
         )
     });
     let position = ParticipantPosition::from_usize(1);

@@ -191,7 +191,7 @@ impl<C: Context> Trustee<C> {
 /// the numeric `Configuration.id`. Mirrors the byte layout of the former
 /// `Configuration::label` — a length-delimited `suffix` — but keyed on `cfg_hash`,
 /// so two executions cannot share a proof transcript domain even if they reuse a
-/// configuration `id`. Shared by the [`mix`] and [`decrypt`] phases.
+/// configuration `id`. Shared by the [`dkg`], [`mix`] and [`decrypt`] phases.
 fn domain_label(cfg_hash: &ConfigurationHash, suffix: &str) -> Vec<u8> {
     let mut bytes = cfg_hash.ser();
     // platform-independent length (cannot use usize as it may differ);
