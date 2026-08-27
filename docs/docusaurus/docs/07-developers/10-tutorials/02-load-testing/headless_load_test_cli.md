@@ -1,6 +1,6 @@
 ---
-id: load_test_cli
-title: Headless Load Testing with `load-test`
+id: headless_load_test_cli
+title: The `headless-load-test` CLI
 ---
 
 <!--
@@ -8,25 +8,25 @@ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# Headless Load Testing with `load-test`
+# The `headless-load-test` CLI
 
 ## Introduction
 
-`load-test` is a Rust CLI, part of this repository's Cargo workspace
-(`packages/load-test`), that provisions election events across many tenants
+`headless-load-test` is a Rust CLI, part of this repository's Cargo workspace
+(`packages/headless-load-test`), that provisions election events across many tenants
 and then casts votes against them directly over the network — no browser, no
 WebDriver. Where [Load Testing](./load_testing.md) covers `vote-cast`
 (browser-driven, via headless Chrome) and `duplicate-votes` (DB-level,
-bypasses the API entirely), `load-test` exercises the real API path — login,
+bypasses the API entirely), `headless-load-test` exercises the real API path — login,
 ballot encryption, and the cast-vote endpoint — without the overhead of a
 browser.
 
-Use `load-test` when you want to know how the platform behaves under
+Use `headless-load-test` when you want to know how the platform behaves under
 concurrent voter traffic at the API/crypto layer. Use `vote-cast` when you
 specifically need to exercise the voting UI. Use `duplicate-votes` when you
 just need database rows and don't care about login or encryption.
 
-In a single run, `load-test`:
+In a single run, `headless-load-test`:
 
 1. Logs in once as an admin identity.
 2. Creates one or more tenants and, within each, one or more election
@@ -68,7 +68,7 @@ typo'd argument is a build error, not a runtime surprise.
 
 - This repository checked out, with the `devenv` Nix environment available
   (see the repo root `devenv.nix`).
-- Network access from wherever you run `load-test` to the target
+- Network access from wherever you run `headless-load-test` to the target
   environment's Hasura GraphQL endpoint and Keycloak.
 - An admin identity with permission to create tenants, import election
   events, publish, and open voting on the target environment — see
@@ -84,17 +84,17 @@ so don't skip `--release`:
 ```bash
 cd /workspaces/step && devenv shell bash -- -c '
   cd packages && \
-  CARGO_TARGET_DIR=/workspaces/step/packages/load-test/rust-local-target \
-  cargo build --release -p load-test
+  CARGO_TARGET_DIR=/workspaces/step/packages/headless-load-test/rust-local-target \
+  cargo build --release -p headless-load-test
 '
 ```
 
 The binary is then at
-`packages/load-test/rust-local-target/release/load-test`.
+`packages/headless-load-test/rust-local-target/release/headless-load-test`.
 
 ## Authentication
 
-There are two distinct identities in a `load-test` run, using two different
+There are two distinct identities in a `headless-load-test` run, using two different
 OAuth grants, because they need two different things from Keycloak.
 
 ### Voter login: password grant
@@ -114,7 +114,7 @@ it.
 Phase 1's privileged calls (`insertTenant`, `import_election_event`,
 `generate_ballot_publication`/`publish_ballot`, `update_event_voting_status`,
 `import_users`) all require the Hasura role `admin-user`
-(`hasura/metadata/actions.yaml`). `load-test` authenticates for these with
+(`hasura/metadata/actions.yaml`). `headless-load-test` authenticates for these with
 `grant_type=client_credentials` — a confidential OIDC client's own *service
 account*, not a human user.
 
@@ -154,7 +154,7 @@ one's dev seed:
    checks the caller's tenant against exactly that env var
    (`packages/sequent-core/src/services/authorization.rs:15-50`).
 
-None of this is `load-test`-specific — it's what any headless Hasura Action
+None of this is `headless-load-test`-specific — it's what any headless Hasura Action
 caller needs from a confidential client used for cross-tenant admin
 operations. `--admin-tenant-id` in the flag reference below is that
 super-admin tenant.
@@ -203,7 +203,7 @@ tenants:
 
 This is the same JSON shape `step-cli import-election --file-path` accepts
 — see [Import Election Event](../06-import-election-event.md) for the full
-format. `packages/load-test/data/election-event-template.json` is a
+format. `packages/headless-load-test/data/election-event-template.json` is a
 ready-made starting point. The same template is imported, unmodified, into
 every election event `layers.yaml` describes; per-event IDs are remapped on
 import, so no per-event authoring is needed.
@@ -213,12 +213,12 @@ It's a fork of `step-cli`'s own fixture
 directly: that fixture's `voting-portal` Keycloak client has no
 `authorized-elections-oidc-usermodel-attribute-mapper` configured, so a
 voter provisioned against it can never get an `authorized-election-ids`
-claim and Phase 2 casting would 401 regardless of voter setup. `load-test`'s
+claim and Phase 2 casting would 401 regardless of voter setup. `headless-load-test`'s
 copy adds that mapper pair (sourced from the working devcontainer realm
 export) to both `voting-portal` and `onsite-voting-portal`, so it's usable
 for a real end-to-end run out of the box.
 
-`load-test` uploads this file as-is — it doesn't locally re-validate it
+`headless-load-test` uploads this file as-is — it doesn't locally re-validate it
 against the full import schema, the same way `step-cli import-election`
 doesn't either. A malformed (not-valid-JSON) file is caught immediately with
 a clear error; anything else the server rejects surfaces as an import
@@ -227,27 +227,27 @@ failure for the affected election event, not a crash of the whole run.
 ## Command-line flags
 
 ```bash
-load-test \
+headless-load-test \
   --layers-file layers.yaml \
   --election-event-template election-event.json \
   --endpoint-url https://api.example.sequent.vote/v1/graphql \
   --keycloak-url https://keycloak.example.sequent.vote \
   --admin-tenant-id 90505c8a-23a9-4cdf-a26b-4e19f6a097d5 \
-  --admin-keycloak-client-id load-test-admin
+  --admin-keycloak-client-id headless-load-test-admin
 ```
 
 | Flag | Env var fallback | Required | Description |
 |---|---|---|---|
 | `--layers-file <PATH>` | — | yes | Path to `layers.yaml`. |
 | `--election-event-template <PATH>` | — | yes | Path to the election-event JSON template imported into every election event. |
-| `--endpoint-url <URL>` | `LOAD_TEST_ENDPOINT_URL` | yes | Hasura GraphQL endpoint on the target environment. |
-| `--keycloak-url <URL>` | `LOAD_TEST_KEYCLOAK_URL` | yes | Base Keycloak URL. Per-tenant, per-event realms (`tenant-{t}-event-{e}`) are resolved under this for both the admin login and every voter login. |
-| `--admin-tenant-id <ID>` | `LOAD_TEST_ADMIN_TENANT_ID` | yes | The super-admin tenant the admin client authenticates against — see [Authentication](#authentication). Not one of the tenants `layers.yaml` creates. |
-| `--admin-keycloak-client-id <ID>` | `LOAD_TEST_ADMIN_KEYCLOAK_CLIENT_ID` | yes | A confidential client in that tenant's realm whose service account carries the `admin-user` Hasura role. |
-| `--admin-keycloak-client-secret <SECRET>` | `LOAD_TEST_ADMIN_KEYCLOAK_CLIENT_SECRET` | yes | That client's secret. Prefer the environment variable over the flag — it keeps the secret out of shell history and `ps`. |
+| `--endpoint-url <URL>` | `HEADLESS_LOAD_TEST_ENDPOINT_URL` | yes | Hasura GraphQL endpoint on the target environment. |
+| `--keycloak-url <URL>` | `HEADLESS_LOAD_TEST_KEYCLOAK_URL` | yes | Base Keycloak URL. Per-tenant, per-event realms (`tenant-{t}-event-{e}`) are resolved under this for both the admin login and every voter login. |
+| `--admin-tenant-id <ID>` | `HEADLESS_LOAD_TEST_ADMIN_TENANT_ID` | yes | The super-admin tenant the admin client authenticates against — see [Authentication](#authentication). Not one of the tenants `layers.yaml` creates. |
+| `--admin-keycloak-client-id <ID>` | `HEADLESS_LOAD_TEST_ADMIN_KEYCLOAK_CLIENT_ID` | yes | A confidential client in that tenant's realm whose service account carries the `admin-user` Hasura role. |
+| `--admin-keycloak-client-secret <SECRET>` | `HEADLESS_LOAD_TEST_ADMIN_KEYCLOAK_CLIENT_SECRET` | yes | That client's secret. Prefer the environment variable over the flag — it keeps the secret out of shell history and `ps`. |
 | `--max-concurrent-tenants <N>` | — | no | Caps how many tenants are provisioned and run concurrently. Default: all tenants in `layers.yaml` at once. |
 
-`load-test` logs in once, in-memory, and reuses that admin token
+`headless-load-test` logs in once, in-memory, and reuses that admin token
 concurrently across every tenant it provisions — unlike `step-cli`'s own
 `config` subcommand, which writes a single-profile config file keyed by the
 binary's own directory and so isn't built for running several tenants at
@@ -258,11 +258,11 @@ once.
 Against the local dev environment (`devenv up`):
 
 ```bash
-export LOAD_TEST_ADMIN_KEYCLOAK_CLIENT_SECRET=<secret for the client you set up per Authentication>
+export HEADLESS_LOAD_TEST_ADMIN_KEYCLOAK_CLIENT_SECRET=<secret for the client you set up per Authentication>
 
-packages/load-test/rust-local-target/release/load-test \
+packages/headless-load-test/rust-local-target/release/headless-load-test \
   --layers-file layers.yaml \
-  --election-event-template packages/load-test/data/election-event-template.json \
+  --election-event-template packages/headless-load-test/data/election-event-template.json \
   --endpoint-url http://127.0.0.1:8080/v1/graphql \
   --keycloak-url http://127.0.0.1:8090 \
   --admin-tenant-id 90505c8a-23a9-4cdf-a26b-4e19f6a097d5 \
@@ -309,7 +309,7 @@ fix it locally.
 
 1. **Import** — `get_upload_url` → PUT the template JSON → `import_election_event`.
    This only *enqueues* the import; the mutation returns before it's done,
-   so `load-test` polls the `task_execution` it comes back with
+   so `headless-load-test` polls the `task_execution` it comes back with
    (`provision::tasks::poll_task_execution`, 120s timeout / 2s interval)
    before doing anything else with the new election event.
 2. **Publish** — `generate_ballot_publication` → poll
@@ -394,7 +394,7 @@ message text (`"The voter state is being updated; retry the vote"`).
 - **Within one election event, a voter pool, not a lock
   (`concurrency::run_rate_limited`).** Every provisioned voter starts in an
   `mpsc` channel. A `tokio::time::interval` ticks at the configured
-  `votes_per_second`; on each tick, `load-test` tries to take one voter out
+  `votes_per_second`; on each tick, `headless-load-test` tries to take one voter out
   of the channel (`try_recv`, non-blocking) and spawns a cast for it. The
   voter is only returned to the channel once that cast completes. A voter
   is therefore only ever in one of two places — idle in the channel, or
@@ -442,7 +442,7 @@ or never got provisioned. Check which error class dominates before
 re-running: login failures point at Keycloak throughput or bad voter
 credentials, cast conflicts should be ~0 by construction (see
 [Concurrency model](#concurrency-model)) and a nonzero count there means the
-pool guarantee broke, not ordinary load-test noise, and revote-limit
+pool guarantee broke, not ordinary headless-load-test noise, and revote-limit
 failures mean the election's revote policy is tighter than the configured
 vote rate implies.
 
@@ -478,11 +478,11 @@ vote rate implies.
 - **`VoterStateLocked` shows up under `cast conflicts`** — expected to be
   zero; the concurrency model structurally prevents two in-flight casts
   from sharing a voter. A nonzero count means that guarantee broke, which
-  is a bug worth reporting, not ordinary load-test noise.
+  is a bug worth reporting, not ordinary headless-load-test noise.
 
 ## Comparison with other load-testing tools
 
-| | `load-test` | `vote-cast` | `duplicate-votes` |
+| | `headless-load-test` | `vote-cast` | `duplicate-votes` |
 |---|---|---|---|
 | Exercises login | yes (Keycloak, password grant) | yes (real UI) | no |
 | Exercises ballot encryption | yes (native Rust, no WASM) | yes (browser WASM) | no |

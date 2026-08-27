@@ -18,7 +18,7 @@ members = [
     "windmill",
     "wrap-map-err",
     "step-cli",
-    "load-test",
+    "headless-load-test",
     "e2e/src/mock_server",
     "e2e",
     "orare",

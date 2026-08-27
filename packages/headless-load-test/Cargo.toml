@@ -3,10 +3,10 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 [package]
-name = "load-test"
+name = "headless-load-test"
 version = "0.1.0"
 edition = "2021"
-default-run = "load-test"
+default-run = "headless-load-test"
 
 [dependencies]
 anyhow = { workspace = true }
@@ -23,5 +23,5 @@ strand = { path = "../strand" }
 csv = "1.1"
 
 [[bin]]
-name = "load-test"
+name = "headless-load-test"
 path = "src/main.rs"

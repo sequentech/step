@@ -88,7 +88,7 @@ pub async fn login(
 /// service account rather than a human user. No password grant needs a
 /// password-capable human account to exist; this is what a confidential
 /// client's Keycloak service account (`service-account-<client_id>`) is
-/// for, and is the identity load-test's admin auth uses when the target
+/// for, and is the identity headless-load-test's admin auth uses when the target
 /// realm's privileged role isn't held by any password-grant-capable user.
 pub async fn login_client_credentials(
     http: &reqwest::Client,

@@ -19,7 +19,7 @@ use clap::Parser;
 
 #[derive(Parser)]
 #[command(
-    name = "load-test",
+    name = "headless-load-test",
     version,
     about = "Provisions election events across tenants and casts votes against them directly over the network"
 )]
@@ -35,31 +35,31 @@ struct Cli {
     election_event_template: PathBuf,
 
     /// Hasura GraphQL endpoint on the target environment
-    #[arg(long, env = "LOAD_TEST_ENDPOINT_URL")]
+    #[arg(long, env = "HEADLESS_LOAD_TEST_ENDPOINT_URL")]
     endpoint_url: String,
 
     /// Base Keycloak URL. Per-tenant, per-event realms
     /// (tenant-{t}-event-{e}) are resolved under this for both the admin
     /// login and every voter login
-    #[arg(long, env = "LOAD_TEST_KEYCLOAK_URL")]
+    #[arg(long, env = "HEADLESS_LOAD_TEST_KEYCLOAK_URL")]
     keycloak_url: String,
 
     /// Existing tenant whose realm the admin identity authenticates
     /// against — this identity needs cross-tenant permission to create
     /// tenants, import, publish, and open voting. Not one of the tenants
     /// being created
-    #[arg(long, env = "LOAD_TEST_ADMIN_TENANT_ID")]
+    #[arg(long, env = "HEADLESS_LOAD_TEST_ADMIN_TENANT_ID")]
     admin_tenant_id: String,
 
     /// A confidential OIDC client in the admin tenant's realm whose
     /// service account carries the `admin-user` Hasura role. Authenticates
     /// via client_credentials, not a human login — see the Architecture doc
-    #[arg(long, env = "LOAD_TEST_ADMIN_KEYCLOAK_CLIENT_ID")]
+    #[arg(long, env = "HEADLESS_LOAD_TEST_ADMIN_KEYCLOAK_CLIENT_ID")]
     admin_keycloak_client_id: String,
 
     /// That client's secret. Prefer the environment variable over the flag
     /// — it keeps the secret out of shell history and `ps`
-    #[arg(long, env = "LOAD_TEST_ADMIN_KEYCLOAK_CLIENT_SECRET")]
+    #[arg(long, env = "HEADLESS_LOAD_TEST_ADMIN_KEYCLOAK_CLIENT_SECRET")]
     admin_keycloak_client_secret: String,
 
     /// Caps how many tenants are provisioned and run concurrently. Default:

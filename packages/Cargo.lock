@@ -4585,6 +4585,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "headless-load-test"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "csv",
+ "graphql_client",
+ "reqwest",
+ "sequent-core",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "strand",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "headless_chrome"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5779,24 +5797,6 @@ name = "litemap"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6373607a59f0be73a39b6fe456b8192fcc3585f602af20751600e974dd455e77"
-
-[[package]]
-name = "load-test"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "csv",
- "graphql_client",
- "reqwest",
- "sequent-core",
- "serde",
- "serde_json",
- "serde_yaml",
- "strand",
- "tokio",
- "uuid",
-]
 
 [[package]]
 name = "lock_api"
