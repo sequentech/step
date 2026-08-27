@@ -22,6 +22,17 @@ use tracing::{info, instrument};
 use super::PubKeycloakAdmin;
 
 pub const MULTIVALUE_USER_ATTRIBUTE_SEPARATOR: &str = "|";
+
+fn take_single_builtin_attribute(
+    attributes: &mut Option<HashMap<String, Vec<String>>>,
+    name: &str,
+) -> Option<Option<String>> {
+    attributes
+        .as_mut()?
+        .remove(name)
+        .map(|values| values.into_iter().next())
+}
+
 #[derive(Debug)]
 pub struct GroupInfo {
     pub group_id: String,
@@ -398,6 +409,22 @@ impl KeycloakAdminClient {
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
 
+        // Keycloak exposes firstName and lastName as top-level user fields, not
+        // entries in the attributes map. The API uses their canonical
+        // snake_case names in user-profile payloads, so move encrypted values
+        // back to the fields Keycloak actually persists.
+        let mut attributes = attributes;
+        let encrypted_first_name = take_single_builtin_attribute(
+            &mut attributes,
+            FIRST_NAME_ATTRIBUTE,
+        );
+        let encrypted_last_name =
+            take_single_builtin_attribute(&mut attributes, LAST_NAME_ATTRIBUTE);
+        if let Some(current_attributes) = current_user.attributes.as_mut() {
+            current_attributes.remove(FIRST_NAME_ATTRIBUTE);
+            current_attributes.remove(LAST_NAME_ATTRIBUTE);
+        }
+
         current_user.enabled = match enabled {
             Some(val) => Some(val),
             None => current_user.enabled,
@@ -420,14 +447,20 @@ impl KeycloakAdminClient {
             None => current_user.email,
         };
 
-        current_user.first_name = match first_name {
-            Some(val) => Some(val),
-            None => current_user.first_name,
+        current_user.first_name = match encrypted_first_name {
+            Some(value) => value,
+            None => match first_name {
+                Some(val) => Some(val),
+                None => current_user.first_name,
+            },
         };
 
-        current_user.last_name = match last_name {
-            Some(val) => Some(val),
-            None => current_user.last_name,
+        current_user.last_name = match encrypted_last_name {
+            Some(value) => value,
+            None => match last_name {
+                Some(val) => Some(val),
+                None => current_user.last_name,
+            },
         };
 
         current_user.username = match username {
@@ -497,7 +530,7 @@ impl KeycloakAdminClient {
                 Some(false),
                 None,
                 None,
-                Some(true),
+                None,
                 Some(true),
                 None,
                 None,
@@ -574,8 +607,8 @@ impl KeycloakAdminClient {
 
     pub fn get_attribute_name(name: &Option<String>) -> Option<String> {
         match name.as_deref() {
-            Some(FIRST_NAME) => Some("first_name".to_string()),
-            Some(LAST_NAME) => Some("last_name".to_string()),
+            Some(FIRST_NAME) => Some(FIRST_NAME_ATTRIBUTE.to_string()),
+            Some(LAST_NAME) => Some(LAST_NAME_ATTRIBUTE.to_string()),
             Some(other) => Some(other.to_string()),
             None => None,
         }

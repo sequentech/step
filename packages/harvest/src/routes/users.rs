@@ -53,7 +53,7 @@ use windmill::services::users::{
 use windmill::services::users::{FilterOption, ListUsersFilter};
 use windmill::services::voter_secret_attributes::{
     decrypt_attribute_values, encrypt_secret_attribute_map, redact_user,
-    secret_attribute_names,
+    secret_attribute_names, user_attribute_values,
 };
 use windmill::tasks::delete_users::{
     self as delete_users_task, DeleteUsersOutput,
@@ -1148,8 +1148,7 @@ pub async fn edit_user(
         if has_secret_changes {
             return Err((
                 Status::BadRequest,
-                "Encrypted attributes are only supported for election-event voters"
-                    .to_string(),
+                "Encrypted attributes are only supported for election-event voters".to_string(),
             )
                 .into());
         }
@@ -1194,17 +1193,19 @@ pub async fn edit_user(
         input.election_event_id.as_deref(),
         input.password.as_deref(),
     ) {
-        let password_policy =
-            get_realm_password_policy(&input.tenant_id, election_event_id)
-                .await
-                .map_err(|error| {
-                    (
-                        Status::InternalServerError,
-                        format!(
+        let password_policy = get_realm_password_policy(
+            &input.tenant_id,
+            election_event_id,
+        )
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!(
                     "Failed to read election event Password Policy: {error:#}"
                 ),
-                    )
-                })?;
+            )
+        })?;
         password_policy
             .validate_password(password)
             .map_err(|violation| {
@@ -1478,9 +1479,7 @@ pub async fn edit_user(
         .map_err(|error| -> EditUserError {
             (
                 Status::InternalServerError,
-                format!(
-                    "Voter password changed, but its electoral-log entry failed: {error:#}"
-                ),
+                format!("Voter password changed, but its electoral-log entry failed: {error:#}"),
             )
                 .into()
         })?;
@@ -1606,12 +1605,7 @@ pub async fn reveal_voter_secret_attribute(
                 format!("Error reading voter from Keycloak: {error:?}"),
             )
         })?;
-    let encrypted_values = user
-        .attributes
-        .as_ref()
-        .and_then(|attributes| attributes.get(&input.attribute_name))
-        .cloned()
-        .unwrap_or_default();
+    let encrypted_values = user_attribute_values(&user, &input.attribute_name);
     let values = decrypt_attribute_values(
         &input.tenant_id,
         &input.election_event_id,

@@ -12,13 +12,13 @@ Authorized administrators can see whether a secret value is set, explicitly reve
 
 Voter-level communication and report templates can declare the secret attributes they need. At execution time, the worker decrypts only those attributes and injects them into the existing voter variable structure. A secret attribute named `customerReference`, for example, remains available as `{{user.customerReference}}` and `{{lookup user.attributes "customerReference"}}`. Aggregate reports never receive voter secrets.
 
-The first version is deliberately limited to custom, report-only voter attributes. Built-in identity and operational fields such as username, email, name, mobile number, area, date of birth used for authentication/reconciliation, authorization, vote weight, and voting status cannot be marked secret. A secret attribute also cannot be used by Keycloak authentication flows, registration, token mappers, uniqueness checks, filters, sorting, or voter self-service because Keycloak sees only ciphertext.
+The first version is deliberately limited to report-only voter attributes. Authentication and operational fields such as username, email, mobile number, area, date of birth used for authentication/reconciliation, authorization, vote weight, and voting status cannot be marked secret. First- and last-name attributes may be secret when the event treats them as report-only data and does not expose them through Keycloak token mappers or voter self-service. A secret attribute also cannot be used by Keycloak authentication flows, registration, token mappers, uniqueness checks, filters, sorting, or voter self-service because Keycloak sees only ciphertext.
 
 ### User-visible behavior
 
 | Area | Behavior |
 |---|---|
-| User-profile configuration | Add `"sequent.secret": "true"` to an eligible custom attribute's annotations. In v1 it must not use Keycloak `required` semantics or value validators, because Keycloak stores and validates the ciphertext envelope rather than the submitted plaintext. |
+| User-profile configuration | Add `"sequent.secret": "true"` to an eligible custom attribute's annotations. Keycloak `required` presence rules and the envelope-compatible `person-name-prohibited-characters` validator are supported. Other value validators are rejected because Keycloak would apply them to the ciphertext envelope rather than the submitted plaintext. |
 | Voter list | Do not return the value, ciphertext, a filter, a sort option, or a data column. It may show only a generic “secret set” indicator if useful. |
 | Voter create/edit | Show a masked secret input to users with write permission. Omitted means preserve, **Replace** sets a new value, and **Clear** removes it. |
 | Voter detail | Show only “value set” until a user with read permission chooses **Reveal**. Do not cache a revealed value. |
@@ -81,11 +81,11 @@ Add helpers in `sequent-core` that parse both JSON boolean `true` and string `"t
 Validate the configuration before accepting writes or running a migration:
 
 - Secret classification is supported only in an election-event realm, not a tenant/admin realm, in v1.
-- The attribute must be a custom `user_attribute`, not `username`, `email`, `firstName`, or `lastName`.
+- The attribute must be stored as a `user_attribute`, not as the Keycloak `username` or `email` identity property. Name attributes are eligible when they are report-only and are not consumed by token mappers or voter self-service.
 - Maintain a denylist of Step operational attributes: tenant/area identifiers, phone routing, authorized elections, vote weight, voted channel, disable reason, permission labels, OTP/enrollment fields, and any attribute referenced by reconciliation or login configuration.
 - The attribute must be admin-only in the Keycloak profile and must not be `hidden` from the Admin Portal.
 - It must not be used by a Keycloak authenticator, registration/update action, identity-provider linker, protocol/token mapper, uniqueness/search rule, or prefill/update flow. Add a realm configuration check for known Sequent extension settings such as `search-attributes`, `unique-attributes`, `update-attributes`, and `unset-attributes`.
-- Initially disallow value-dependent Keycloak validators and Keycloak-required semantics on secret attributes. Keycloak validates the stored ciphertext, not the submitted plaintext. If required/plaintext validation is needed later, implement it in Step with separate secret-specific metadata.
+- Allow Keycloak `required` presence rules on secret attributes. Create/import operations must provide a nonempty value whenever the rule applies to their context. Permit `person-name-prohibited-characters` because the fixed ciphertext alphabet is compatible with it; reject other value-dependent Keycloak validators because Keycloak validates the stored ciphertext rather than the submitted plaintext. If equivalent plaintext validation is needed, implement it in Step with separate secret-specific metadata.
 - Reject attempts to remove the annotation or rename the attribute while encrypted values exist. These operations require an explicit migration.
 
 Expose the classification to the Admin Portal through the already-returned `annotations`; do not add a second configuration database.

@@ -6,7 +6,9 @@ use crate::services::vault::vault::get_master_secret;
 use anyhow::{anyhow, Context, Result};
 use base64::prelude::{Engine as _, BASE64_URL_SAFE_NO_PAD};
 use ring::hkdf;
-use sequent_core::types::keycloak::{User, UserProfileAttribute};
+use sequent_core::types::keycloak::{
+    User, UserProfileAttribute, FIRST_NAME_ATTRIBUTE, LAST_NAME_ATTRIBUTE,
+};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use strand::serialization::{StrandDeserialize, StrandSerialize};
@@ -18,17 +20,14 @@ pub const REDACTED_SECRET_VALUE: &str = "<redacted>";
 
 const KEY_DERIVATION_DOMAIN: &[u8] = b"sequent-voter-secret-attribute-v1";
 const MAX_SECRET_VALUE_BYTES: usize = 4096;
-const FORBIDDEN_SECRET_ATTRIBUTES: [&str; 17] = [
+const CIPHERTEXT_COMPATIBLE_VALIDATORS: [&str; 1] = ["person-name-prohibited-characters"];
+const FORBIDDEN_SECRET_ATTRIBUTES: [&str; 13] = [
     "area-id",
     "authorized-election-ids",
     "authorized-to-election-alias",
     "dateOfBirth",
     "disable-comment",
     "email",
-    "firstName",
-    "first_name",
-    "lastName",
-    "last_name",
     "permission_labels",
     "sequent.read-only.id-card-number-validated",
     "sequent.read-only.mobile-number",
@@ -92,16 +91,11 @@ pub fn secret_attribute_names(attributes: &[UserProfileAttribute]) -> Result<Has
                     "User-profile attribute `{name}` cannot be configured as encrypted"
                 ));
             }
-            if attribute.required.is_some() {
-                return Err(anyhow!(
-                    "Encrypted user-profile attribute `{name}` cannot use Keycloak required semantics"
-                ));
-            }
-            if attribute
-                .validations
-                .as_ref()
-                .is_some_and(|validations| !validations.is_empty())
-            {
+            if attribute.validations.as_ref().is_some_and(|validations| {
+                validations
+                    .keys()
+                    .any(|name| !CIPHERTEXT_COMPATIBLE_VALIDATORS.contains(&name.as_str()))
+            }) {
                 return Err(anyhow!(
                     "Encrypted user-profile attribute `{name}` cannot use Keycloak value validators"
                 ));
@@ -217,14 +211,65 @@ pub async fn decrypt_attribute_values(
         .collect()
 }
 
+pub fn user_attribute_values(user: &User, name: &str) -> Vec<String> {
+    match name {
+        FIRST_NAME_ATTRIBUTE => user.first_name.clone().into_iter().collect(),
+        LAST_NAME_ATTRIBUTE => user.last_name.clone().into_iter().collect(),
+        _ => user
+            .attributes
+            .as_ref()
+            .and_then(|attributes| attributes.get(name))
+            .cloned()
+            .unwrap_or_default(),
+    }
+}
+
+fn set_user_attribute_values(user: &mut User, name: &str, values: Vec<String>) -> Result<()> {
+    match name {
+        FIRST_NAME_ATTRIBUTE => {
+            if values.len() > 1 {
+                return Err(anyhow!(
+                    "Built-in voter attribute `{name}` cannot be multivalued"
+                ));
+            }
+            user.first_name = values.into_iter().next();
+        }
+        LAST_NAME_ATTRIBUTE => {
+            if values.len() > 1 {
+                return Err(anyhow!(
+                    "Built-in voter attribute `{name}` cannot be multivalued"
+                ));
+            }
+            user.last_name = values.into_iter().next();
+        }
+        _ => {
+            user.attributes
+                .get_or_insert_with(HashMap::new)
+                .insert(name.to_string(), values);
+        }
+    }
+    Ok(())
+}
+
 pub fn redact_user(user: &mut User, secret_names: &HashSet<String>) {
-    let Some(attributes) = user.attributes.as_mut() else {
-        return;
-    };
     for name in secret_names {
-        if let Some(values) = attributes.get_mut(name) {
-            if !values.is_empty() {
-                *values = vec![REDACTED_SECRET_VALUE.to_string()];
+        match name.as_str() {
+            FIRST_NAME_ATTRIBUTE if user.first_name.is_some() => {
+                user.first_name = Some(REDACTED_SECRET_VALUE.to_string());
+            }
+            LAST_NAME_ATTRIBUTE if user.last_name.is_some() => {
+                user.last_name = Some(REDACTED_SECRET_VALUE.to_string());
+            }
+            _ => {
+                if let Some(values) = user
+                    .attributes
+                    .as_mut()
+                    .and_then(|attributes| attributes.get_mut(name))
+                {
+                    if !values.is_empty() {
+                        *values = vec![REDACTED_SECRET_VALUE.to_string()];
+                    }
+                }
             }
         }
     }
@@ -238,18 +283,16 @@ pub async fn decrypt_user_attributes(
 ) -> Result<()> {
     let user_id = user
         .id
-        .as_deref()
+        .clone()
         .ok_or_else(|| anyhow!("Cannot decrypt secret attributes for a user without an id"))?;
-    let Some(attributes) = user.attributes.as_mut() else {
-        return Ok(());
-    };
     for name in attribute_names {
-        let Some(values) = attributes.get(name) else {
+        let values = user_attribute_values(user, name);
+        if values.is_empty() {
             continue;
-        };
+        }
         let decrypted =
-            decrypt_attribute_values(tenant_id, election_event_id, user_id, name, values).await?;
-        attributes.insert(name.clone(), decrypted);
+            decrypt_attribute_values(tenant_id, election_event_id, &user_id, name, &values).await?;
+        set_user_attribute_values(user, name, decrypted)?;
     }
     Ok(())
 }
@@ -269,6 +312,11 @@ pub async fn encrypt_secret_attribute_map(
             ));
         }
         let values = values.unwrap_or_default();
+        if matches!(name.as_str(), FIRST_NAME_ATTRIBUTE | LAST_NAME_ATTRIBUTE) && values.len() > 1 {
+            return Err(anyhow!(
+                "Built-in voter attribute `{name}` cannot be multivalued"
+            ));
+        }
         encrypted.insert(
             name.clone(),
             encrypt_attribute_values(tenant_id, election_event_id, user_id, &name, &values).await?,
@@ -339,7 +387,34 @@ mod tests {
     }
 
     #[test]
-    fn encrypted_attributes_reject_keycloak_required_and_validation_rules() {
+    fn built_in_values_are_read_and_redacted_from_top_level_fields() {
+        let mut user = User {
+            first_name: Some("encrypted-first".to_string()),
+            last_name: Some("encrypted-last".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(
+            user_attribute_values(&user, FIRST_NAME_ATTRIBUTE),
+            vec!["encrypted-first"]
+        );
+        assert_eq!(
+            user_attribute_values(&user, LAST_NAME_ATTRIBUTE),
+            vec!["encrypted-last"]
+        );
+
+        redact_user(
+            &mut user,
+            &HashSet::from([
+                FIRST_NAME_ATTRIBUTE.to_string(),
+                LAST_NAME_ATTRIBUTE.to_string(),
+            ]),
+        );
+        assert_eq!(user.first_name.as_deref(), Some(REDACTED_SECRET_VALUE));
+        assert_eq!(user.last_name.as_deref(), Some(REDACTED_SECRET_VALUE));
+    }
+
+    #[test]
+    fn encrypted_attributes_allow_required_but_reject_value_validation_rules() {
         let encrypted_annotation = Some(HashMap::from([(
             SECRET_ATTRIBUTE_ANNOTATION.to_string(),
             Value::Bool(true),
@@ -354,13 +429,16 @@ mod tests {
                 roles: None,
                 scopes: None,
             }),
-            validations: None,
+            validations: Some(HashMap::from([(
+                "person-name-prohibited-characters".to_string(),
+                HashMap::new(),
+            )])),
             permissions: None,
             selector: None,
         };
-        assert!(secret_attribute_names(&[attribute.clone()]).is_err());
+        let names = secret_attribute_names(&[attribute.clone()]).unwrap();
+        assert!(names.contains("private-reference"));
 
-        attribute.required = None;
         attribute.validations = Some(HashMap::from([(
             "length".to_string(),
             HashMap::from([("max".to_string(), Value::from(255))]),
