@@ -175,6 +175,13 @@ impl<C: Context> MessageStore<C> {
             .map(|(_, body)| body.as_slice())
     }
 
+    /// The tally-execution identifier declared on this board's `Ballots`
+    /// message (single ballots slot per board). Feeds the tally-scoped
+    /// Fiat-Shamir labels of the mix and decrypt phases.
+    pub fn tally_id(&self) -> Option<u128> {
+        self.ballots.keys().next().map(|predicate| predicate.tally_id)
+    }
+
     /// The body bytes of the `Mix` message whose output out-hash is `output`.
     pub fn mix_body_by_output(&self, output: &CiphertextsHash) -> Option<&[u8]> {
         self.mix

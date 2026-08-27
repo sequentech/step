@@ -1375,6 +1375,7 @@ impl SymbolicModel {
                     self.configuration_hash,
                     pk_hash,
                     self.mixing_trustees.clone(),
+                    1, // tally_id: single tally in the model
                     &token,
                 );
                 // The manager keeps no own-post record (Transport::publish =
@@ -1402,6 +1403,7 @@ impl SymbolicModel {
                     self.configuration_hash,
                     pk_hash,
                     quorum,
+                    1, // tally_id: same head as the honest ballots
                     &token,
                 );
                 let (transport, staged, committed) = self.transport_for(state, Vec::new(), false);

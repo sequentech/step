@@ -258,11 +258,20 @@ where:
 A proof transcript therefore never verifies outside (a) its election execution, (b) its
 proof family, and (c) its concrete instance.
 
-> **TO BE CONFIRMED.**
-> Where several tallies (e.g. several contests) are executed under a single Configuration,
-> an additional per-tally identifier is included in the domain label. The default
-> deployment executes one key-generation and tally per contest (Section 4.1), in which case
-> the per-contest Configuration already separates the domains.
+Proofs within a **tally** — mixing (Section 6) and decryption (Section 7) — additionally
+bind the tally execution. Several tallies may run under a single Configuration (sibling
+contests over one key generation, or a re-run after a halt), sharing $\mathsf{cfg}$, the
+public key, and possibly the ciphertext lists; their transcript domains are separated by
+a **tally identifier** $\mathit{tid}$, a 128-bit big-endian integer declared in the
+signed tally input (Section 5.5), inserted after the configuration hash:
+
+$$
+\mathrm{label}(P) = \mathsf{cfg} \parallel \mathit{tid} \parallel \mathrm{len}(P) \parallel P
+\qquad\text{(tally-scoped proofs)}
+$$
+
+The key-generation proofs (Section 4.3) precede any tally and use the execution-scoped
+form above, without $\mathit{tid}$.
 
 ### 2.5 Independent generators
 
@@ -732,18 +741,28 @@ r \overset{\text{\textdollar}}{\leftarrow} \mathbb{Z}_q^W
 $$
 
 with the encryption context $\mathit{ctx}_{\mathrm{enc}}$ binding the ciphertext and its
-proof to the election execution and contest:
+proof to the election execution and its public key:
 
 $$
-\mathit{ctx}_{\mathrm{enc}} = (\text{election execution identifier},\
-\text{election/contest identifier})
+\mathit{ctx}_{\mathrm{enc}} = \mathit{id} \parallel y
 $$
 
-> **TO BE CONFIRMED.**
-> The exact component list of $\mathit{ctx}_{\mathrm{enc}}$ (e.g. inclusion of
-> $\mathsf{cfg}$ itself and of a voter-session binding) is to be finalized; it will at
-> minimum bind the election execution and the contest, so that ballot ciphertexts and
-> their proofs cannot be replayed across contests or elections.
+where $\mathit{id}$ is the election-execution identifier (the Configuration's numeric
+identifier, Section 4.1) encoded as a 128-bit big-endian integer, and $y$ is the
+fixed-width encoding of the election public key. Both components are published in the
+signed election configuration, and the trustees reconstruct them from their own
+Configuration and the DKG output — a tally input posted against a wrong execution or
+key yields a different $z$, so every well-formedness proof fails and the trustees halt.
+
+Contest binding is inherited rather than explicit: in a deployment with one key
+generation per contest, $y$ (and $\mathit{id}$) identifies the contest, so ciphertexts
+and their proofs cannot be replayed across contests or elections; in a deployment where
+all contests share one key, a ballot carries all contests' selections and has no
+per-contest identity to bind. $\mathit{ctx}_{\mathrm{enc}}$ is deliberately
+**tally-agnostic** (unlike the proof labels of Section 2.4): the same ballots may be
+processed by more than one tally execution — e.g. a re-run after a halt — without
+re-encryption. A design with a shared key **and** per-contest single-contest ballots
+would require revisiting this list to add an explicit contest binding.
 
 The vote encryption code executed by the browser is provided by the platform; the
 encryption itself takes place on the voter's device, so the plaintext vote never leaves
@@ -837,7 +856,8 @@ transition to the evaluation phase:
    contains ciphertexts only;
 3. the resulting list $B = (C_1, \dots, C_N)$ of Naor-Yung ciphertexts is submitted by
    the protocol manager to the trustee bulletin board, together with the ordered list of
-   the $t$ trustees forming the **tally quorum**, as the signed input to the tally.
+   the $t$ trustees forming the **tally quorum** and the tally identifier $\mathit{tid}$
+   (Section 2.4), as the signed input to the tally.
 
 Each trustee independently verifies every $C_i$ ($\mathsf{NYVerify}$) and strips it
 (Section 3.6), yielding the initial ElGamal list for mixing:
@@ -868,7 +888,14 @@ Every quorum trustee (not only the mixer) verifies every mix proof and **counter
 the mix (posting a signed statement naming the input and output list hashes). Mix $k$
 may only build on $L_{k-1}$ once $L_{k-1}$ carries valid counter-signatures from the
 whole quorum. The mixnet evidence therefore forms a hash-linked, fully cross-verified
-chain from $H(L_0)$ to $H(L_t)$.
+chain from the posted ballot list $B$ to the final mix.
+
+The links of that chain — and the instance inputs of the shuffle contexts below,
+written over $L_{k-1}$ — are hashes of the **posted messages**: the tally input $B$
+(Section 5.5) for the first mix, and mix message $k$, which carries $L_k$ together with
+its proof, thereafter. $L_0$ is a deterministic projection of $B$ and $L_k$ travels
+inside mix message $k$, so binding the posted message binds the list (and additionally
+the accompanying proofs).
 
 ### 6.2 Shuffle generation
 
@@ -1078,7 +1105,9 @@ f_{i,j} = u_j^{\,x_i} \qquad\text{for } j = 1..N
 $$
 
 and a **batched proof of correctness** — one proof for all $N$ ciphertexts, with
-$\mathit{ctx}_i = \mathrm{ctx}(\texttt{"decryption proof"}, L_t)$:
+$\mathit{ctx}_i = \mathrm{label}(\texttt{"decryption proof"})$ (the tally-scoped label
+of Section 2.4; it carries no instance input, because the ciphertext list and the
+factors are bound directly by the batching seed below):
 
 $$
 \begin{aligned}
@@ -1203,12 +1232,14 @@ factors and proofs; the plaintexts $m$; the published result.
    that there are no duplicate ciphertexts. Recompute
    $L_0 = (\mathsf{NYStrip}(C_1), \dots, \mathsf{NYStrip}(C_N))$.
 4. **Mix chain.** Check that $Q$ has exactly $t$ distinct members in the configured
-   order and that the chain $H(L_0) \to \dots \to H(L_t)$ is consecutive, complete and
-   counter-signed by all of $Q$. For $k = 1..t$: derive
+   order and that the chain from $B$ to the final mix is consecutive, complete and
+   counter-signed by all of $Q$ (the links are hashes of the posted messages,
+   Section 6.1). For $k = 1..t$: derive
    $h = \mathsf{IndGenerators}(N, \mathrm{ctx}(\texttt{"shuffle\_generators"},
    L_{k-1}))$ and run the shuffle verifier of Section 6.4 on
    $(L_{k-1}, L_k, \text{proof}_k)$ with
-   $\mathit{ctx} = \mathrm{ctx}(\texttt{"shuffle"}, L_{k-1})$. Reject on any failure.
+   $\mathit{ctx} = \mathrm{ctx}(\texttt{"shuffle"}, L_{k-1})$, in both contexts taking
+   the posted message as the instance input (Section 6.1). Reject on any failure.
 5. **Decryption.** For each trustee $i \in Q$: recompute $\mathit{seed}_i$, $e_j$,
    $A_i$, $B_i$ from the posted factors and run
    $\mathsf{DleqVerify}(g, vk_i, A_i, B_i, \sigma_i, \mathit{ctx}_i)$. Reject on any

@@ -68,13 +68,16 @@ pub struct PublicKey {
 }
 
 /// `Ballots`: the protocol manager published the input ciphertexts for the set
-/// of active mixing `trustees`.
+/// of active mixing `trustees`, under tally-execution identifier `tally_id`
+/// (consumed by the crypto layer's tally-scoped Fiat-Shamir labels; the
+/// datalog rules ignore it).
 #[derive(Clone, PartialEq, Eq, Debug, VSer)]
 pub struct Ballots {
     pub configuration: ConfigurationHash,
     pub public_key: PublicKeyHash,
     pub ciphertexts: CiphertextsHash,
     pub trustees: Vec<TrusteeIndex>,
+    pub tally_id: u128,
 }
 
 /// `Mix`: trustee `sender` shuffled the `input` ciphertexts into `output`.
@@ -324,6 +327,7 @@ mod tests {
                 public_key: pk,
                 ciphertexts: ct,
                 trustees: vec![1, 2, 3],
+                tally_id: 1,
             }),
             Predicate::Mix(Mix {
                 configuration: cfg,

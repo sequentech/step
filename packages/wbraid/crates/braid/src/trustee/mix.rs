@@ -18,7 +18,7 @@ use crate::messages::wire::ProtocolMessage;
 use crate::board::store::MessageStore;
 use crate::datalog::MixSource;
 
-use super::{domain_label, Trustee, WIRE_DATE};
+use super::{tally_label, Trustee, WIRE_DATE};
 
 impl<C: Context> Trustee<C> {
     /// The input ciphertexts of a mix, fetched directly from the store named by
@@ -26,12 +26,23 @@ impl<C: Context> Trustee<C> {
     /// content-addressed by `input_hash`, so if `source` and `input_hash`
     /// disagree the lookup returns nothing and this errors — the sanity check
     /// that replaces the old ballots-first fall-through.
+    ///
+    /// For `MixSource::Ballots` — the first mix — the posted ciphertexts are
+    /// Naor-Yung ballots (PROTOCOL.md §5.5): each is verified (well-formedness
+    /// proof, under `ctx_enc` derived from `joint_pk`) and stripped to its
+    /// ElGamal part. The stripped list `L_0` is derived locally by every
+    /// trustee — the mixer here in `ComputeMix`, every other trustee here in
+    /// `SignMix` — and an invalid ballot errors the action (halt). This is the
+    /// single location where a trustee accepts external ballots.
     pub(super) fn mix_input_ciphertexts<const W: usize>(
         &self,
         view: &MessageStore<C>,
         source: &MixSource,
         input_hash: &CiphertextsHash,
+        joint_pk: &C::Element,
     ) -> Result<Vec<Ciphertext<C, W>>> {
+        use cryptography::cryptosystem::{elgamal, naoryung};
+
         match source {
             MixSource::Ballots => {
                 let body = view.ballots_body(input_hash).ok_or_else(|| {
@@ -40,9 +51,25 @@ impl<C: Context> Trustee<C> {
                         input_hash
                     )
                 })?;
-                Ok(Ballots::<C, W>::deser(body)
-                    .map_err(|e| anyhow!("failed to deserialize ballots: {:?}", e))?
-                    .ciphertexts)
+                let ballots = Ballots::<C, W>::deser(body)
+                    .map_err(|e| anyhow!("failed to deserialize ballots: {:?}", e))?;
+
+                let cfg = view.configuration();
+                let ctx_enc = super::ballot_encryption_context::<C>(cfg.id, joint_pk);
+                let eg_pk = elgamal::PublicKey::new(joint_pk.clone());
+                let ny_pk = naoryung::PublicKey::augment(&eg_pk, &ctx_enc)
+                    .map_err(|e| anyhow!("failed to derive the ballot auxiliary key: {:?}", e))?;
+
+                ballots
+                    .ciphertexts
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, c)| {
+                        ny_pk.strip(c, &ctx_enc).map_err(|e| {
+                            anyhow!("ballot {} failed Naor-Yung verification: {:?}", i, e)
+                        })
+                    })
+                    .collect()
             }
             MixSource::PriorMix => {
                 let body = view.mix_body_by_output(input_hash).ok_or_else(|| {
@@ -85,7 +112,7 @@ impl<C: Context> Trustee<C> {
 
         crate::dispatch_ciphertext_width!(cfg.ciphertext_width, {
             let input_ciphertexts: Vec<Ciphertext<C, W>> =
-                self.mix_input_ciphertexts::<W>(view, source, input_hash)?;
+                self.mix_input_ciphertexts::<W>(view, source, input_hash, &dkg_pk.pk)?;
 
             // An empty input yields a null mix: no shuffle, no proof (§8).
             if input_ciphertexts.is_empty() {
@@ -95,12 +122,15 @@ impl<C: Context> Trustee<C> {
                 return Ok(vec![message]);
             }
 
+            let tally_id = view
+                .tally_id()
+                .ok_or_else(|| anyhow!("no ballots posted, tally id unknown"))?;
             let pk = PublicKey::new(dkg_pk.pk.clone());
-            let seed = shuffle_generators_seed(cfg_hash, input_hash);
+            let seed = shuffle_generators_seed(cfg_hash, tally_id, input_hash);
             let generators = C::G::ind_generators(input_ciphertexts.len(), &seed)
                 .map_err(|e| anyhow!("failed to derive shuffle generators: {:?}", e))?;
             let shuffler = Shuffler::new(generators, pk);
-            let label = shuffle_proof_label(cfg_hash, input_hash);
+            let label = shuffle_proof_label(cfg_hash, tally_id, input_hash);
             let (shuffled, proof) = shuffler
                 .shuffle(&input_ciphertexts, &label)
                 .map_err(|e| anyhow!("shuffle failed: {:?}", e))?;
@@ -141,7 +171,7 @@ impl<C: Context> Trustee<C> {
         crate::dispatch_ciphertext_width!(cfg.ciphertext_width, {
             // The mix's input, drawn from the store named by `source`.
             let source_ciphertexts: Vec<Ciphertext<C, W>> =
-                self.mix_input_ciphertexts::<W>(view, source, input_hash)?;
+                self.mix_input_ciphertexts::<W>(view, source, input_hash, &dkg_pk.pk)?;
 
             let mix_body = view
                 .mix_body(input_hash, output_hash)
@@ -168,12 +198,15 @@ impl<C: Context> Trustee<C> {
             let proof = mix
                 .proof
                 .ok_or_else(|| anyhow!("non-null mix is missing its shuffle proof"))?;
+            let tally_id = view
+                .tally_id()
+                .ok_or_else(|| anyhow!("no ballots posted, tally id unknown"))?;
             let pk = PublicKey::new(dkg_pk.pk.clone());
-            let seed = shuffle_generators_seed(cfg_hash, input_hash);
+            let seed = shuffle_generators_seed(cfg_hash, tally_id, input_hash);
             let generators = C::G::ind_generators(source_ciphertexts.len(), &seed)
                 .map_err(|e| anyhow!("failed to derive shuffle generators: {:?}", e))?;
             let shuffler = Shuffler::new(generators, pk);
-            let label = shuffle_proof_label(cfg_hash, input_hash);
+            let label = shuffle_proof_label(cfg_hash, tally_id, input_hash);
             let verified = shuffler
                 .verify(&source_ciphertexts, &mix.ciphertexts, &proof, &label)
                 .map_err(|e| anyhow!("mix verification errored: {:?}", e))?;
@@ -202,21 +235,30 @@ impl<C: Context> Trustee<C> {
 ///
 /// The old crypto keyed the shuffle's domain separation on the mixing position
 /// (`mix_no`). The datalog actions no longer carry the position, so the seed is
-/// bound to `cfg_hash` plus the mix's (unique) input ciphertexts hash instead:
-/// both are known to the mixer and every verifier before the proof is fixed, and
-/// the datalog errors on two mixes sharing an input, so this is a deterministic,
-/// agreed, per-instance domain separator.
-fn shuffle_generators_seed(cfg_hash: &ConfigurationHash, input: &CiphertextsHash) -> Vec<u8> {
-    let mut seed = domain_label(cfg_hash, "shuffle_generators");
+/// bound to the tally-scoped label (`cfg_hash` + `tally_id`) plus the mix's
+/// (unique) input ciphertexts hash instead: all are known to the mixer and
+/// every verifier before the proof is fixed, and the datalog errors on two
+/// mixes sharing an input, so this is a deterministic, agreed, per-instance
+/// domain separator.
+fn shuffle_generators_seed(
+    cfg_hash: &ConfigurationHash,
+    tally_id: u128,
+    input: &CiphertextsHash,
+) -> Vec<u8> {
+    let mut seed = tally_label(cfg_hash, tally_id, "shuffle_generators");
     seed.extend(input.ser());
     seed
 }
 
-/// Fiat–Shamir label for a shuffle proof, bound to `cfg_hash` and the input hash
-/// like the generator seed so the mixer and every verifier derive an identical
-/// context.
-fn shuffle_proof_label(cfg_hash: &ConfigurationHash, input: &CiphertextsHash) -> Vec<u8> {
-    let mut label = domain_label(cfg_hash, "shuffle");
+/// Fiat–Shamir label for a shuffle proof, bound to the tally-scoped label and
+/// the input hash like the generator seed so the mixer and every verifier
+/// derive an identical context.
+fn shuffle_proof_label(
+    cfg_hash: &ConfigurationHash,
+    tally_id: u128,
+    input: &CiphertextsHash,
+) -> Vec<u8> {
+    let mut label = tally_label(cfg_hash, tally_id, "shuffle");
     label.extend(input.ser());
     label
 }

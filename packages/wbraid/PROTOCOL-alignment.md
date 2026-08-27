@@ -59,7 +59,7 @@ small description-precision fixes round out the list.
 | A16 | DKG round 2 | §4.3: share check `g^s = ∏ A^{iʲ}`; derive `x_i`, `y = ∏A_{d,0}`, `vk_m`; post `(y, vk₁..vkₙ)`; all-identical completion | `Recipient::verify_share`/`from_shares`; braid `compute_public_key` posts joint pk **and** all verification keys; datalog `pk mismatch` halt rule | |
 | A17 | Mix chain rules | §6.5: counter-sign by all t before the next mix; own mix counts as signature; consecutive positions; length exactly t; halts on violations | datalog `mix.rs` rules and error relations | Model-checked |
 | A18 | Shuffle algebra | §6.2–6.4: permutation commitments, bridging commitments (B₀ = h₁), all proof commitments, all responses, verifier equations V1–V5, `e′ = π⁻¹(e)` | `zkp::shuffle` prover and verifier | Equation-for-equation match; the challenge *transcripts* are C1 |
-| A19 | Threshold decryption | §7: factors `u^{x_i}`; batched proof with `seed = H(vk, u-list, factor-list, ctx)`, `e_j = H2S(seed, j)`, `A = ∏u^e`, `B = ∏f^e`, DLEQ; position from the signed envelope, never from prover data; Lagrange `λ_i = ∏ k/(k−i)`; `m = v·F⁻¹` | `Recipient::partial_decrypt`, `batching_exponents`, `lagrange`, `combine` | Exact match including seed component order |
+| A19 | Threshold decryption | §7: factors `u^{x_i}`; batched proof with `seed = H(vk, u-list, factor-list, ctx)`, `e_j = H2S(seed, j)`, `A = ∏u^e`, `B = ∏f^e`, DLEQ; position from the signed envelope, never from prover data; Lagrange `λ_i = ∏ k/(k−i)`; `m = v·F⁻¹` | `Recipient::partial_decrypt`, `batching_exponents`, `lagrange`, `combine` | Exact match including seed component order — except the `ctx` form, glossed here and caught later: → D5 |
 | A20 | Decryption completion | §7.2: contributions from t distinct quorum members; all post identical plaintext lists, halt otherwise; plaintexts must cite the chain end | datalog: per-sender decryption slots; `plaintexts mismatch`, `unexpected input ciphertexts` error rules | |
 
 ## B — planned 0.6.3 work, confirmed
@@ -67,8 +67,8 @@ small description-precision fixes round out the list.
 | # | Item | Description | State | Task |
 |---|---|---|---|---|
 | B1 | DKG checking-value Schnorr proofs | §4.3 round 1 step 2 (prove), round 2 step 1 (verify); motivated by [BNP24] | **Implemented 2026-08-27**: `Shares.commitments` carries `Vec<CheckingValue>`; dealers prove and every recipient verifies every proof under `label("dkg_checking_value")` (the one-argument `ctx` of §4.3 was pinned to the label form — no instance input exists at dealing time); vsc's raw-value path removed | 0.6.3 task 1 ✓ |
-| B2 | Naor-Yung input ballots | §3.6, §5.5: tally input is NY ciphertexts; every trustee runs `NYVerify` and strips to ElGamal before mixing | vsc NY is complete (A11); braid's ballots are plain ElGamal today | 0.6.3 task 2 |
-| B3 | Per-tally domain identifier | §2.4 (marked TO BE CONFIRMED) | `domain_label` is keyed on `cfg` only | 0.6.3 task 2 rider |
+| B2 | Naor-Yung input ballots | §3.6, §5.5: tally input is NY ciphertexts; every trustee runs `NYVerify` and strips to ElGamal before mixing | **Implemented 2026-08-27**: `Ballots` carries `Vec<naoryung::Ciphertext>`; verify-and-strip at the single first-mix seam `Trustee::mix_input_ciphertexts` (mixer in `ComputeMix`, others in `SignMix`); `L_0` derived locally; end-to-end negative test (`test_protocol_memory_rejects_invalid_ballot`) | 0.6.3 task 2 ✓ |
+| B3 | Per-tally domain identifier | §2.4 (was TO BE CONFIRMED) | **Implemented 2026-08-27**: `BallotsHead.tally_id: u128` → tally-scoped label `cfg ‖ tid (BE) ‖ len(P) ‖ P` for mix/decrypt; DKG stays execution-scoped; §2.4 resolved | 0.6.3 task 2 rider ✓ |
 
 ## C — new gaps
 
@@ -150,6 +150,16 @@ co-owned with the platform (the voting client encrypts under it). Task 2
 cannot finish without this definition — schedule the decision as part of
 task 2's design.
 
+**Resolved 2026-08-27** (with task 2): `ctx_enc = Configuration.id (u128 BE)
+‖ y` — execution- and key-scoped, both components client-computable from the
+signed election configuration and trustee-computable from `Configuration` +
+`DkgPublicKey` (`braid::trustee::ballot_encryption_context`). Deliberately
+tally-agnostic (ballots survive re-runs) and contest-free: with one key per
+contest, `y` *is* the contest binding; with a shared key, ballots are
+multi-contest and carry no per-contest identity. A shared-key design with
+per-contest single-contest ballots would require revisiting this. §5.2's TBC
+is resolved accordingly.
+
 ### C3 — Integer power in share verification wraps for large committees (minor)
 
 `Recipient::vk_factor` computes the Shamir evaluation exponent `iʲ` in `u32`
@@ -166,6 +176,8 @@ convert to scalar arithmetic if the committee bound ever grows. No action for
 | D2 | §2.4 | State the byte encoding of `len(P)` in the domain label. **Reversed 2026-08-27 from a doc-only fix to a code change**: the little-endian encoding in `domain_label` (`trustee/mod.rs`) is the *only* little-endian integer entering any hash transcript in braid/vsc — VSer lengths/integers and both hash counters are all big-endian — an inherited anomaly, not a convention. Decided: normalize the code to big-endian, riding along with C1 (which already invalidates all transcripts; none shipped), so the documented rule becomes uniform: *every 64-bit integer entering a hash transcript is big-endian*. §2.4 gets that sentence when the code lands. Verificatum interop is unaffected: `VmnChallenges` ignores the braid `context` parameter entirely and salts with VMN's own `rho` prefix (`v2v/src/challenges.rs`, `session.rs`) — the two derivations share no bytes. **Implemented 2026-08-27** alongside C1: `domain_label` is big-endian and §2.4 states the uniform rule |
 | D3 | §2.2 | Specify the encode trial order: the implementation searches `j` (byte 31) outer, `i` (byte 0) inner |
 | D4 | §1.5/§2.1 (optional) | Note the implementation is group-generic and ristretto255 is the deployed instantiation |
+| D5 | §7.1 | **Found and fixed 2026-08-27** (a gloss in this evaluation's A19 row): the decryption proof context is the (now tally-scoped) label *alone* — braid never appended `H(L_t)`; instance binding comes from the u-list and factors hashed directly into the batching seed. The description said `ctx("decryption proof", L_t)`; corrected to `label(…)` with the explanation |
+| D6 | §6.1/§9.2 | **Found and fixed 2026-08-27**: the shuffle contexts' instance input (and the mix chain's links) are hashes of the **posted messages** — the ballot list `B` for the first mix, mix message `k` (output list + proof) thereafter — not the bare list `L_{k-1}`, of which they are a strict superset. §6.1 now defines this; §9.2 references it |
 
 ## E — out of braid scope (platform components)
 

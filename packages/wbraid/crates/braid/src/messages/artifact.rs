@@ -10,6 +10,7 @@ use super::newtypes::PROTOCOL_MANAGER_INDEX;
 
 use cryptography::context::Context;
 use cryptography::cryptosystem::elgamal::Ciphertext;
+use cryptography::cryptosystem::naoryung;
 
 use cryptography::dkgd::dealer::CheckingValue;
 use cryptography::utils::serialization::{VDeserializable, VSerializable};
@@ -120,13 +121,17 @@ impl<C: Context> DkgPublicKey<C> {
     }
 }
 
+/// The tally input: Naor-Yung ballot ciphertexts (PROTOCOL.md §3.6, §5.5).
+/// Every trustee independently verifies each ciphertext's well-formedness
+/// proof and strips it to its ElGamal part at first-mix engagement; the
+/// stripped list is derived locally and never posted.
 #[derive(Debug, VSer)]
 pub struct Ballots<C: Context, const W: usize> {
-    pub ciphertexts: Vec<Ciphertext<C, W>>,
+    pub ciphertexts: Vec<naoryung::Ciphertext<C, W>>,
 }
 
 impl<C: Context, const W: usize> Ballots<C, W> {
-    pub fn new(ciphertexts: Vec<Ciphertext<C, W>>) -> Ballots<C, W> {
+    pub fn new(ciphertexts: Vec<naoryung::Ciphertext<C, W>>) -> Ballots<C, W> {
         Ballots { ciphertexts }
     }
 }

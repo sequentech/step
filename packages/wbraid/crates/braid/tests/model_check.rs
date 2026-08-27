@@ -362,10 +362,21 @@ impl BraidModel {
                 next.trustees[i] = Self::durable_from(&persistence);
             }
             Turn::PostBallots => {
+                use cryptography::cryptosystem::naoryung;
                 let (dkg_pk, pk_hash) = self.public_key_on(state)?;
                 let pk = PublicKey::<C>::new(dkg_pk.pk.clone());
-                let encrypted: Vec<Ciphertext<C, W>> =
-                    self.plaintexts_in.iter().map(|p| pk.encrypt(p)).collect();
+                let ctx_enc = braid::trustee::ballot_encryption_context::<C>(
+                    self.configuration.id,
+                    &dkg_pk.pk,
+                );
+                let ny_pk = naoryung::PublicKey::augment(&pk, &ctx_enc)
+                    .expect("auxiliary key derivation cannot fail");
+                let encrypted: Vec<naoryung::Ciphertext<C, W>> = self
+                    .plaintexts_in
+                    .iter()
+                    .map(|p| ny_pk.encrypt(p, &ctx_enc))
+                    .collect::<Result<_, _>>()
+                    .expect("ballot encryption cannot fail");
                 let ballots = Ballots::<C, W>::new(encrypted);
                 board.push(ProtocolMessage::<C>::ballots(
                     &self.manager,
@@ -373,6 +384,7 @@ impl BraidModel {
                     self.configuration_hash,
                     pk_hash,
                     self.mixing_trustees.clone(),
+                    1, // tally_id: single tally in the model
                     &ballots,
                 ));
             }

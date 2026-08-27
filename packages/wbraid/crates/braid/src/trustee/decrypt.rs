@@ -20,7 +20,7 @@ use crate::messages::wire::ProtocolMessage;
 
 use crate::board::store::MessageStore;
 
-use super::{domain_label, Trustee, WIRE_DATE};
+use super::{tally_label, Trustee, WIRE_DATE};
 
 impl<C: Context> Trustee<C> {
     /// `ComputePartialDecryptions` (§7): decrypt this trustee's DKG share from
@@ -109,7 +109,10 @@ impl<C: Context> Trustee<C> {
     ) -> Result<Vec<ProtocolMessage<C>>> {
         use cryptography::dkgd::recipient::{DkgCiphertext, ParticipantPosition, Recipient};
 
-        let label = domain_label(cfg_hash, "decryption proof");
+        let tally_id = view
+            .tally_id()
+            .ok_or_else(|| anyhow!("no ballots posted, tally id unknown"))?;
+        let label = tally_label(cfg_hash, tally_id, "decryption proof");
 
         let mix_body = view
             .mix_body_by_output(ciphertexts_hash)
@@ -200,7 +203,10 @@ impl<C: Context> Trustee<C> {
             combine, AttributedDecryption, DkgCiphertext, ParticipantPosition,
         };
 
-        let label = domain_label(cfg_hash, "decryption proof");
+        let tally_id = view
+            .tally_id()
+            .ok_or_else(|| anyhow!("no ballots posted, tally id unknown"))?;
+        let label = tally_label(cfg_hash, tally_id, "decryption proof");
 
         let mix_body = view
             .mix_body_by_output(ciphertexts_hash)

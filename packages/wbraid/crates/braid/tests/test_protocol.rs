@@ -14,6 +14,15 @@ fn test_protocol_memory() {
     braid::native::test::protocol_test_memory::run::<RistrettoCtx>(1000, 1, 2); // W=2 (default)
 }
 
+// Negative control: one ballot with an invalid well-formedness proof must halt
+// the tally at first-mix engagement — no mixes, no plaintexts.
+#[test]
+fn test_protocol_memory_rejects_invalid_ballot() {
+    braid::native::logging::init_log(true);
+
+    braid::native::test::protocol_test_memory::run_rejects_invalid_ballot::<RistrettoCtx>();
+}
+
 // Board union (§8.2): one DKG, one tally over a child board unioned with it.
 #[test]
 fn test_protocol_memory_union() {

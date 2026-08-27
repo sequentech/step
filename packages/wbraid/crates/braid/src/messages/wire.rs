@@ -139,14 +139,18 @@ pub struct PublicKeyHead {
 }
 
 /// Head of a `Ballots` message (manager-authored). In: `configuration`,
-/// `public_key`; param: `trustees` (the active mixing set). Out: `H(body)` =
-/// ciphertexts hash. Ballots has no sender field (single manager slot).
+/// `public_key`; param: `trustees` (the active mixing set) and `tally_id`
+/// (manager-assigned identifier of this tally execution, separating the
+/// Fiat-Shamir transcript domains of sibling tallies over one DKG, §8.2).
+/// Out: `H(body)` = ciphertexts hash. Ballots has no sender field (single
+/// manager slot).
 #[derive(Clone, Debug, VSer)]
 pub struct BallotsHead {
     pub date: Timestamp,
     pub configuration: ConfigurationHash,
     pub public_key: PublicKeyHash,
     pub trustees: Vec<TrusteeIndex>,
+    pub tally_id: u128,
 }
 
 /// Head of a `Mix` message. In: `configuration`, `public_key`, `input` (the
@@ -399,13 +403,14 @@ impl<C: Context> ProtocolMessage<C> {
     }
 
     /// `Ballots` (manager-authored). In: `configuration`, `public_key`; param:
-    /// `trustees`. Out: `H(body)` = ciphertexts hash.
+    /// `trustees`, `tally_id`. Out: `H(body)` = ciphertexts hash.
     pub fn ballots<S: Signer<C>, B: VSerializable>(
         manager: &S,
         date: Timestamp,
         configuration: ConfigurationHash,
         public_key: PublicKeyHash,
         trustees: Vec<TrusteeIndex>,
+        tally_id: u128,
         body: &B,
     ) -> ProtocolMessage<C> {
         let body_bytes = body.ser();
@@ -415,6 +420,7 @@ impl<C: Context> ProtocolMessage<C> {
             configuration,
             public_key,
             trustees,
+            tally_id,
         };
         let signed = statement_bytes(&head, Some(&body_hash));
         Self::sign_wire(

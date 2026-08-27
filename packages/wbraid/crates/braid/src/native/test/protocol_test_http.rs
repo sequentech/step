@@ -21,7 +21,7 @@ use std::marker::PhantomData;
 use std::time::Instant;
 
 use cryptography::context::Context;
-use cryptography::cryptosystem::elgamal::{Ciphertext, KeyPair, PublicKey};
+use cryptography::cryptosystem::elgamal::{KeyPair, PublicKey};
 use cryptography::traits::groups::CryptographicGroup;
 use cryptography::utils::serialization::VDeserializable;
 use cryptography::utils::signatures::SignatureScheme;
@@ -145,14 +145,21 @@ async fn run_with_width<C: Context, const W: usize>(ciphertexts: u32) -> Result<
     let pk_hash = PublicKeyHash(hash_bytes(pk_body));
 
     // --- manager encrypts a batch of plaintexts and posts the ballots ---
+    use cryptography::cryptosystem::naoryung;
     let pk = PublicKey::<C>::new(dkg_pk.pk.clone());
+    let ctx_enc = crate::trustee::ballot_encryption_context::<C>(cfg.id, &dkg_pk.pk);
+    let ny_pk = naoryung::PublicKey::augment(&pk, &ctx_enc)
+        .map_err(|e| anyhow!("failed to derive the ballot auxiliary key: {:?}", e))?;
     let mut enc_rng = C::get_rng();
     info!("Encrypting {} ciphertexts (width {})", ciphertexts, W);
     let plaintexts_in: Vec<[C::Element; W]> = (0..ciphertexts)
         .map(|_| std::array::from_fn(|_| C::G::random_element(&mut enc_rng)))
         .collect();
-    let encrypted: Vec<Ciphertext<C, W>> =
-        plaintexts_in.par_iter().map(|p| pk.encrypt(p)).collect();
+    let encrypted: Vec<naoryung::Ciphertext<C, W>> = plaintexts_in
+        .par_iter()
+        .map(|p| ny_pk.encrypt(p, &ctx_enc))
+        .collect::<Result<_, _>>()
+        .map_err(|e| anyhow!("ballot encryption failed: {:?}", e))?;
     let ballots = Ballots::<C, W>::new(encrypted);
     let ballots_message = ProtocolMessage::<C>::ballots(
         &pm,
@@ -160,6 +167,7 @@ async fn run_with_width<C: Context, const W: usize>(ciphertexts: u32) -> Result<
         cfg_hash,
         pk_hash,
         mixing_trustees.clone(),
+        1, // tally_id: single tally in this harness
         &ballots,
     );
     Transport::<C>::publish(&manager_tx, &ballots_message).await?;

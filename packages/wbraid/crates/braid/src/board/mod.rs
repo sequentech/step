@@ -425,6 +425,7 @@ mod tests {
             cfg_hash,
             PublicKeyHash(zero_hash()),
             vec![1, 2],
+            1,
             &vec![9u8, 9, 9],
         ));
 
