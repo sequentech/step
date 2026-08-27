@@ -2,12 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect, useMemo, useState} from "react"
+import React, {useContext, useEffect, useMemo, useRef, useState} from "react"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {store} from "../store/store"
 import {Box} from "@mui/material"
-import {PageLimit, Icon, IconButton, theme, Dialog} from "@sequentech/ui-essentials"
+import {PageLimit, Icon, IconButton, theme, Dialog, VisuallyHidden} from "@sequentech/ui-essentials"
 import {
     check_voting_error_dialog_bool,
     check_voting_not_allowed_next_bool,
@@ -66,7 +66,7 @@ const StyledLink = styled(RouterLink)`
     }
 `
 
-const StyledTitle = styled(Typography)`
+const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     margin-top: 25.5px;
     display: flex;
     flex-direction: row;
@@ -210,8 +210,19 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
     const dispatch = useAppDispatch()
     const submit = useSubmit()
 
+    const {t} = useTranslation()
     const contestsOrderType = ballotStyle?.ballot_eml.election_presentation?.contests_order
     const [pageIndex, setPageIndex] = useState(0)
+    const pageAnnouncementRef = useRef<HTMLDivElement>(null)
+    const isFirstRender = useRef(true)
+
+    useEffect(() => {
+        if (isFirstRender.current) {
+            isFirstRender.current = false
+            return
+        }
+        pageAnnouncementRef.current?.focus()
+    }, [pageIndex])
     const sortedContests = sortContestList(contests[pageIndex], contestsOrderType)
     const ballotSelectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle.election_id)
@@ -279,6 +290,13 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
 
     return (
         <>
+            {/* Paging through a multi-page ballot swaps the contests in place
+                without a route change. Moving focus here both orients the voter
+                and gets the new page number read out, so this is deliberately
+                not also a live region — that would announce it twice. */}
+            <VisuallyHidden tabIndex={-1} ref={pageAnnouncementRef}>
+                {t("a11y.stepOf", {current: pageIndex + 1, total: contests.length})}
+            </VisuallyHidden>
             {sortedContests &&
                 sortedContests.map((contest, index) => (
                     <Box key={contest.id} className={`contest-${index}`}>
@@ -484,7 +502,7 @@ const VotingScreen: React.FC = () => {
     }, [selectionState, ballotStyle])
 
     if (!ballotStyle || !election) {
-        return <CircularProgress />
+        return <CircularProgress aria-label={t("a11y.loading")} />
     }
 
     const warnAllowContinue = (value: boolean) => {
@@ -499,7 +517,7 @@ const VotingScreen: React.FC = () => {
             <Box marginTop="48px" className="stepper-box">
                 <Stepper selected={1} />
             </Box>
-            <StyledTitle variant="h4" className="title-container">
+            <StyledTitle variant="h4" component="h1" className="title-container">
                 <Box className="selected-election-title">
                     {translateFromPresentation(election, "name", i18n.language, {
                         defaultLanguageCode,
@@ -511,6 +529,9 @@ const VotingScreen: React.FC = () => {
                     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
                     fontSize="16px"
                     onClick={() => setOpenBallotHelp(true)}
+                    ariaLabel={t("a11y.helpAbout", {
+                        topic: t("votingScreen.ballotHelpDialog.title"),
+                    })}
                 />
                 <Dialog
                     handleClose={() => setOpenBallotHelp(false)}
@@ -526,6 +547,7 @@ const VotingScreen: React.FC = () => {
                 <Typography
                     className="description"
                     variant="body2"
+                    component="div"
                     sx={{color: theme.palette.customGrey.main}}
                 >
                     {stringToHtml(
