@@ -352,6 +352,10 @@ const tagalogTranslation: TranslationType = {
                 electionEventNotPublished:
                     "Ang kaganapan ng halalan ay hindi pa nailathala. Mangyaring subukan muli mamaya o makipag-ugnayan sa helpdesk para sa tulong.",
             },
+            materialsGate: {
+                instructions:
+                    "Kailangan mong basahin ang <MaterialsLink>{{materialsTitle}}</MaterialsLink> bago ka makaboto.",
+            },
         },
         errors: {
             page: {
@@ -369,6 +373,12 @@ const tagalogTranslation: TranslationType = {
                 back: "Bumalik sa Listahan ng mga Balota",
                 close: "Isara",
                 preview: "Silipin",
+                download: "I-download",
+            },
+            mandatory: {
+                checkboxLabel: "Nabasa ko na ang Mga Pangsuportang Materyales",
+                continueButton: "Magpatuloy",
+                error: "Nagkaroon ng problema sa pagre-record ng iyong kumpirmasyon. Pakisubukan muli.",
             },
         },
         ballotLocator: {

@@ -352,6 +352,10 @@ const basqueTranslation: TranslationType = {
                 electionEventNotPublished:
                     "Hauteskunde gertaera ez da argitaratu oraindik. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
             },
+            materialsGate: {
+                instructions:
+                    "<MaterialsLink>{{materialsTitle}}</MaterialsLink> irakurri behar duzu bozkatu ahal izateko.",
+            },
         },
         errors: {
             page: {
@@ -369,6 +373,12 @@ const basqueTranslation: TranslationType = {
                 back: "Itzuli Bozketa Zerrendara",
                 close: "Itxi",
                 preview: "Aurrebista",
+                download: "Deskargatu",
+            },
+            mandatory: {
+                checkboxLabel: "Laguntza Materialak irakurri ditut",
+                continueButton: "Jarraitu",
+                error: "Arazoa izan da zure berrespena erregistratzean. Mesedez, saiatu berriro.",
             },
         },
         ballotLocator: {

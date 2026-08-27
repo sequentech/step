@@ -354,6 +354,10 @@ const spanishTranslation: TranslationType = {
                 electionEventNotPublished:
                     "El evento electoral aún no ha sido publicado. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
             },
+            materialsGate: {
+                instructions:
+                    "Debes leer <MaterialsLink>{{materialsTitle}}</MaterialsLink> antes de poder votar.",
+            },
         },
         errors: {
             page: {
@@ -371,6 +375,12 @@ const spanishTranslation: TranslationType = {
                 back: "Volver a la Lista de Votaciones",
                 close: "Cerrar",
                 preview: "Vista previa",
+                download: "Descargar",
+            },
+            mandatory: {
+                checkboxLabel: "He leído los Materiales de Soporte",
+                continueButton: "Continuar",
+                error: "Hubo un problema al registrar tu confirmación. Por favor, inténtalo de nuevo.",
             },
         },
         ballotLocator: {

@@ -352,6 +352,10 @@ const dutchTranslation: TranslationType = {
                 electionEventNotPublished:
                     "De kiesgebeurtenis is nog niet gepubliceerd. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
             },
+            materialsGate: {
+                instructions:
+                    "U moet <MaterialsLink>{{materialsTitle}}</MaterialsLink> lezen voordat u kunt stemmen.",
+            },
         },
         errors: {
             page: {
@@ -369,6 +373,12 @@ const dutchTranslation: TranslationType = {
                 back: "Terug naar Kieslijst",
                 close: "Sluiten",
                 preview: "Voorbeeld",
+                download: "Downloaden",
+            },
+            mandatory: {
+                checkboxLabel: "Ik heb het Ondersteunend Materiaal gelezen",
+                continueButton: "Doorgaan",
+                error: "Er was een probleem bij het registreren van uw bevestiging. Probeer het opnieuw.",
             },
         },
         ballotLocator: {

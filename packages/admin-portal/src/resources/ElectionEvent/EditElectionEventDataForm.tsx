@@ -73,6 +73,8 @@ import {
     ELanguageDetectionPolicy,
     getDefaultLanguageDetectionPolicy,
     REALM_ATTR_VOTER_CERTIFICATE_POLICY,
+    ESupportMaterialsPolicy,
+    getEffectiveSupportMaterialsPolicy,
 } from "@sequentech/ui-core"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
@@ -745,6 +747,13 @@ export const EditElectionEventDataForm: React.FC<{
         return Object.values(EElectionEventDecodedBallots).map((value) => ({
             id: value,
             name: t(`electionEventScreen.field.decodedBallots.options.${value}`),
+        }))
+    }
+
+    const supportMaterialsPolicyChoices = () => {
+        return Object.values(ESupportMaterialsPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.supportMaterialsPolicy.options.${value}`),
         }))
     }
 
@@ -1593,11 +1602,25 @@ export const EditElectionEventDataForm: React.FC<{
                         </ElectionHeaderStyles.Wrapper>
                     </AccordionSummary>
                     <AccordionDetails>
-                        <BooleanInput
+                        <SelectInput
                             disabled={!canEdit}
-                            source={`presentation.materials.activated`}
-                            label={String(t(`electionEventScreen.field.materialActivated`))}
+                            source={`presentation.materials.policy`}
+                            choices={supportMaterialsPolicyChoices()}
+                            label={String(
+                                t(`electionEventScreen.field.supportMaterialsPolicy.label`)
+                            )}
+                            defaultValue={getEffectiveSupportMaterialsPolicy(
+                                record?.presentation?.materials
+                            )}
+                            validate={required()}
                         />
+                        <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{display: "block"}}
+                        >
+                            {t("electionEventScreen.field.supportMaterialsPolicy.helperText")}
+                        </Typography>
                         <Tabs value={valueMaterials} onChange={handleChangeMaterials}>
                             {renderTabs(parsedValue, "materials")}
                         </Tabs>

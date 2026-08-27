@@ -560,6 +560,16 @@ const tagalogTranslation: TranslationType = {
                 language: "Wika",
                 votingChannels: "Mga Channel ng Pagboto",
                 materialActivated: "Mga Karagdagang Materyales na Gumagana",
+                supportMaterialsPolicy: {
+                    label: "Support Materials Policy",
+                    helperText:
+                        "Mandatory for Voting requires voters to open each Support Material and acknowledge that they have read them before they can vote.",
+                    options: {
+                        off: "Off",
+                        optional: "Optional",
+                        mandatory_for_voting: "Mandatory for Voting",
+                    },
+                },
                 materialTitle: "Pamagat",
                 materialSubTitle: "Subtitle",
                 logoUrl: "URL ng Logo",
@@ -1113,6 +1123,7 @@ const tagalogTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Nakaboto",
+                    "support_materials_viewed": "Support Materials Viewed",
                     "vote-weight": "Bigat ng Boto",
                     "voted-channel": "Channel ng pagboto",
                     "disable-comment": "Komento sa pag-disable",

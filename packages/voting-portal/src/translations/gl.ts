@@ -352,6 +352,10 @@ const galegoTranslation: TranslationType = {
                 electionEventNotPublished:
                     "O evento electoral aínda non foi publicado. Inténteo de novo máis tarde ou contacte co soporte para obter asistencia.",
             },
+            materialsGate: {
+                instructions:
+                    "Debes ler <MaterialsLink>{{materialsTitle}}</MaterialsLink> antes de poder votar.",
+            },
         },
         errors: {
             page: {
@@ -369,6 +373,12 @@ const galegoTranslation: TranslationType = {
                 back: "Voltar á Lista de Papeletas",
                 close: "Pechar",
                 preview: "Previsualizar",
+                download: "Descargar",
+            },
+            mandatory: {
+                checkboxLabel: "Lin os Materiais de apoio",
+                continueButton: "Continuar",
+                error: "Houbo un problema ao rexistrar a túa confirmación. Inténtao de novo.",
             },
         },
         ballotLocator: {

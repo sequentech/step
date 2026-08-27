@@ -555,6 +555,16 @@ const basqueTranslation: TranslationType = {
                 language: "Hizkuntza",
                 votingChannels: "Bozketa Kanalak",
                 materialActivated: "Laguntza Materialak Aktibatuta",
+                supportMaterialsPolicy: {
+                    label: "Support Materials Policy",
+                    helperText:
+                        "Mandatory for Voting requires voters to open each Support Material and acknowledge that they have read them before they can vote.",
+                    options: {
+                        off: "Off",
+                        optional: "Optional",
+                        mandatory_for_voting: "Mandatory for Voting",
+                    },
+                },
                 materialTitle: "Izenburua",
                 materialSubTitle: "Azpititulua",
                 logoUrl: "Logo URLa",
@@ -1110,6 +1120,7 @@ const basqueTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Bozkatu du",
+                    "support_materials_viewed": "Support Materials Viewed",
                     "vote-weight": "Botoaren pisua",
                     "voted-channel": "Boto-kanala",
                     "disable-comment": "Desgaitzeko iruzkina",

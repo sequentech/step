@@ -5,8 +5,21 @@
 import {IVotingPortalCountdownPolicy} from "./CoreTypes"
 import {ILanguageConf} from "./LanguageConf"
 
+export enum ESupportMaterialsPolicy {
+    OFF = "off",
+    OPTIONAL = "optional",
+    MANDATORY_FOR_VOTING = "mandatory_for_voting",
+}
+
 export interface IElectionEventMaterials {
-    activated?: boolean
+    policy?: ESupportMaterialsPolicy
+}
+
+/** Mirrors `ElectionEventMaterials::effective_policy` in `sequent-core`. */
+export const getEffectiveSupportMaterialsPolicy = (
+    materials?: IElectionEventMaterials
+): ESupportMaterialsPolicy => {
+    return materials?.policy ?? ESupportMaterialsPolicy.OFF
 }
 
 export interface ICustomUrls {
