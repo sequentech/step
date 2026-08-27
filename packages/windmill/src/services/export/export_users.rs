@@ -7,7 +7,9 @@ use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::election::{get_election_event_elections, ElectionHead};
 use crate::services::users::ListUsersFilter;
 use crate::services::users::{list_users, list_users_with_vote_info};
-use crate::services::voter_secret_attributes::{decrypt_user_attributes, secret_attribute_names};
+use crate::services::voter_secret_attributes::{
+    secret_attribute_names, VoterSecretAttributeDecryptor,
+};
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use deadpool_postgres::Transaction;
@@ -18,7 +20,7 @@ use sequent_core::types::keycloak::{User, UserProfileAttribute};
 use sequent_core::util::aws::get_max_upload_size;
 use sequent_core::util::temp_path::generate_temp_file;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::LazyLock;
 use tempfile::{NamedTempFile, TempPath};
 use tracing::{event, info, instrument, Level};
@@ -78,17 +80,22 @@ fn sanitize_name(name: &str) -> String {
 fn get_headers(
     elections: &Option<Vec<ElectionHead>>,
     user_attributes: &Vec<UserProfileAttribute>,
+    excluded_user_fields: &HashSet<String>,
 ) -> Vec<String> {
-    let mut user_headers: Vec<String> = vec![
-        "id".to_string(),
-        "email".to_string(),
-        "email_verified".to_string(),
-        "enabled".to_string(),
-        "first_name".to_string(),
-        "last_name".to_string(),
-        "username".to_string(),
-        "area_name".to_string(),
-    ];
+    let mut user_headers: Vec<String> = [
+        "id",
+        "email",
+        "email_verified",
+        "enabled",
+        "first_name",
+        "last_name",
+        "username",
+        "area_name",
+    ]
+    .into_iter()
+    .filter(|name| !excluded_user_fields.contains(*name))
+    .map(str::to_string)
+    .collect();
     for attr in user_attributes {
         match (&attr.name) {
             (Some(name)) => {
@@ -123,27 +130,39 @@ fn get_user_record(
     areas_by_id: &Option<HashMap<String, String>>,
     user: &User,
     user_attributes: &Vec<UserProfileAttribute>,
+    excluded_user_fields: &HashSet<String>,
 ) -> Vec<String> {
     let votes_info_map_opt = user.get_votes_info_by_election_id();
 
-    let mut user_info: Vec<String> = vec![
-        user.id.clone().unwrap_or_default(),
-        user.email.clone().unwrap_or_default(),
-        format!("{}", user.email_verified.unwrap_or_default()),
-        format!("{}", user.enabled.unwrap_or_default()),
-        user.first_name.clone().unwrap_or_default(),
-        user.last_name.clone().unwrap_or_default(),
-        user.username.clone().unwrap_or_default(),
-        match user.get_area_id() {
-            Some(ref area_id) => areas_by_id
-                .as_ref()
-                .unwrap_or(&HashMap::new())
-                .get(area_id)
-                .unwrap_or(area_id)
-                .to_string(),
-            None => "-".to_string(),
-        },
+    let fixed_user_values = [
+        ("id", user.id.clone().unwrap_or_default()),
+        ("email", user.email.clone().unwrap_or_default()),
+        (
+            "email_verified",
+            format!("{}", user.email_verified.unwrap_or_default()),
+        ),
+        ("enabled", format!("{}", user.enabled.unwrap_or_default())),
+        ("first_name", user.first_name.clone().unwrap_or_default()),
+        ("last_name", user.last_name.clone().unwrap_or_default()),
+        ("username", user.username.clone().unwrap_or_default()),
+        (
+            "area_name",
+            match user.get_area_id() {
+                Some(ref area_id) => areas_by_id
+                    .as_ref()
+                    .unwrap_or(&HashMap::new())
+                    .get(area_id)
+                    .unwrap_or(area_id)
+                    .to_string(),
+                None => "-".to_string(),
+            },
+        ),
     ];
+    let mut user_info: Vec<String> = fixed_user_values
+        .into_iter()
+        .filter(|(name, _)| !excluded_user_fields.contains(*name))
+        .map(|(_, value)| value)
+        .collect();
     for attr in user_attributes {
         match &attr.name {
             Some(name) => {
@@ -239,14 +258,34 @@ pub async fn export_users_file(
         .await
         .map_err(|e| anyhow!("Error obtaining Keycloak User Profile Attributes: {e:?}"))?;
     let configured_secret_names = secret_attribute_names(&profile_attributes)?;
-    let include_secret_attributes = matches!(
-        &body,
+    let secret_export_scope = match &body {
         ExportBody::Users {
+            tenant_id,
+            election_event_id: Some(election_event_id),
             include_secret_attributes: true,
-            election_event_id: Some(_),
             ..
-        }
-    );
+        } => Some((tenant_id.as_str(), election_event_id.as_str())),
+        _ => None,
+    };
+    let include_secret_attributes = secret_export_scope.is_some();
+    let secret_decryptor = if include_secret_attributes {
+        Some(
+            VoterSecretAttributeDecryptor::new()
+                .await
+                .with_context(|| "Error obtaining the voter secret-attribute master key")?,
+        )
+    } else {
+        None
+    };
+    let excluded_user_fields = if include_secret_attributes {
+        HashSet::new()
+    } else {
+        configured_secret_names
+            .iter()
+            .filter(|name| USER_FIELDS.contains(&name.as_str()))
+            .cloned()
+            .collect()
+    };
     let attributes = profile_attributes
         .into_iter()
         .filter(|attribute| {
@@ -257,7 +296,7 @@ pub async fn export_users_file(
                     .is_none_or(|name| !configured_secret_names.contains(name))
         })
         .collect::<Vec<_>>();
-    let headers = get_headers(&elections, &attributes);
+    let headers = get_headers(&elections, &attributes, &excluded_user_fields);
 
     // Pagination loop to export users in batches
     let batch_size = PgConfig::from_env()?.default_sql_batch_size;
@@ -328,30 +367,30 @@ pub async fn export_users_file(
 
         // Write each user record to the CSV file
         for mut user in users.clone() {
-            if include_secret_attributes {
-                let (tenant_id, election_event_id) = match &body {
-                    ExportBody::Users {
+            if let (Some(decryptor), Some((tenant_id, election_event_id))) =
+                (&secret_decryptor, secret_export_scope)
+            {
+                decryptor
+                    .decrypt_user_attributes(
+                        &mut user,
                         tenant_id,
-                        election_event_id: Some(election_event_id),
-                        ..
-                    } => (tenant_id, election_event_id),
-                    _ => unreachable!("secret export is restricted to event voters"),
-                };
-                decrypt_user_attributes(
-                    &mut user,
-                    tenant_id,
-                    election_event_id,
-                    &configured_secret_names,
-                )
-                .await
-                .with_context(|| {
-                    format!(
-                        "Error decrypting secret attributes for voter {}",
-                        user.id.as_deref().unwrap_or("unknown")
+                        election_event_id,
+                        &configured_secret_names,
                     )
-                })?;
+                    .with_context(|| {
+                        format!(
+                            "Error decrypting secret attributes for voter {}",
+                            user.id.as_deref().unwrap_or("unknown")
+                        )
+                    })?;
             }
-            let record = get_user_record(&elections, &areas_by_id, &user, &attributes);
+            let record = get_user_record(
+                &elections,
+                &areas_by_id,
+                &user,
+                &attributes,
+                &excluded_user_fields,
+            );
             writer
                 .write_record(&record)
                 .with_context(|| "Error writing record")?;
@@ -400,7 +439,8 @@ mod tests {
     #[test]
     fn area_name_profile_attribute_does_not_duplicate_or_shift_export_columns() {
         let attributes = vec![attribute("area_name"), attribute("custom_attribute")];
-        let headers = get_headers(&None, &attributes);
+        let excluded_user_fields = HashSet::new();
+        let headers = get_headers(&None, &attributes, &excluded_user_fields);
         let user = User {
             id: Some("id".to_string()),
             email: Some("email@example.com".to_string()),
@@ -422,7 +462,13 @@ mod tests {
             "area-1".to_string(),
             "Area One".to_string(),
         )]));
-        let record = get_user_record(&None, &areas_by_id, &user, &attributes);
+        let record = get_user_record(
+            &None,
+            &areas_by_id,
+            &user,
+            &attributes,
+            &excluded_user_fields,
+        );
 
         assert_eq!(
             1,
@@ -459,5 +505,51 @@ mod tests {
                     .unwrap()
             )
         );
+    }
+
+    #[test]
+    fn unchecked_export_omits_secret_columns_and_ciphertext() {
+        let configured_secret_names =
+            HashSet::from(["last_name".to_string(), "private-reference".to_string()]);
+        let attributes = vec![
+            attribute("private-reference"),
+            attribute("public-reference"),
+        ]
+        .into_iter()
+        .filter(|attribute| {
+            attribute
+                .name
+                .as_ref()
+                .is_none_or(|name| !configured_secret_names.contains(name))
+        })
+        .collect::<Vec<_>>();
+        let excluded_user_fields = configured_secret_names
+            .iter()
+            .filter(|name| USER_FIELDS.contains(&name.as_str()))
+            .cloned()
+            .collect::<HashSet<_>>();
+        let headers = get_headers(&None, &attributes, &excluded_user_fields);
+        let user = User {
+            last_name: Some("seqenc:v1:last-name-ciphertext".to_string()),
+            attributes: Some(HashMap::from([
+                (
+                    "private-reference".to_string(),
+                    vec!["seqenc:v1:private-reference-ciphertext".to_string()],
+                ),
+                (
+                    "public-reference".to_string(),
+                    vec!["public-value".to_string()],
+                ),
+            ])),
+            ..Default::default()
+        };
+        let record = get_user_record(&None, &None, &user, &attributes, &excluded_user_fields);
+
+        assert!(!headers.contains(&"last_name".to_string()));
+        assert!(!headers.contains(&"private-reference".to_string()));
+        assert!(headers.contains(&"public-reference".to_string()));
+        assert_eq!(headers.len(), record.len());
+        assert!(!record.iter().any(|value| value.starts_with("seqenc:v1:")));
+        assert!(record.contains(&"public-value".to_string()));
     }
 }

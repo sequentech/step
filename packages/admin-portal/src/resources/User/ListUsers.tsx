@@ -1700,22 +1700,24 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                             )}
                         </Box>
                     )}
-                <FormStyles.ReservedProgressSpace>
-                    {exporting ? <FormStyles.ShowProgress /> : null}
-                    {exporting && exportDocumentId ? (
-                        <DownloadDocument
-                            documentId={exportDocumentId}
-                            electionEventId={electionEventId ?? ""}
-                            fileName={`users-export.csv`}
-                            onDownload={() => {
-                                console.log("onDownload called")
-                                setExportDocumentId(undefined)
-                                setExporting(false)
-                                setOpenExport(false)
-                            }}
-                        />
-                    ) : null}
-                </FormStyles.ReservedProgressSpace>
+                {exporting ? (
+                    <FormStyles.ReservedProgressSpace>
+                        <FormStyles.ShowProgress />
+                        {exportDocumentId ? (
+                            <DownloadDocument
+                                documentId={exportDocumentId}
+                                electionEventId={electionEventId ?? ""}
+                                fileName={`users-export.csv`}
+                                onDownload={() => {
+                                    console.log("onDownload called")
+                                    setExportDocumentId(undefined)
+                                    setExporting(false)
+                                    setOpenExport(false)
+                                }}
+                            />
+                        ) : null}
+                    </FormStyles.ReservedProgressSpace>
+                ) : null}
             </Dialog>
 
             <Dialog

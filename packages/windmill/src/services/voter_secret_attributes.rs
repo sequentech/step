@@ -198,17 +198,80 @@ pub async fn decrypt_attribute_values(
     attribute_name: &str,
     values: &[String],
 ) -> Result<Vec<String>> {
-    let master_secret = get_master_secret().await?;
-    let scope = VoterSecretAttributeScope {
-        tenant_id,
-        election_event_id,
-        user_id,
-        attribute_name,
-    };
-    values
-        .iter()
-        .map(|value| decrypt_with_master_secret(&master_secret, &scope, value))
-        .collect()
+    VoterSecretAttributeDecryptor::new()
+        .await?
+        .decrypt_attribute_values(
+            tenant_id,
+            election_event_id,
+            user_id,
+            attribute_name,
+            values,
+        )
+}
+
+/// Reuses one master-secret lookup across a batch of voter decryptions.
+///
+/// A voter export can contain many voters and several secret fields per voter.
+/// Keeping the key in this short-lived service avoids re-entering the vault
+/// accessor for every value while still scoping the key to the export task.
+pub struct VoterSecretAttributeDecryptor {
+    master_secret: SymmetricKey,
+}
+
+impl VoterSecretAttributeDecryptor {
+    pub async fn new() -> Result<Self> {
+        Ok(Self {
+            master_secret: get_master_secret().await?,
+        })
+    }
+
+    pub fn decrypt_attribute_values(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        user_id: &str,
+        attribute_name: &str,
+        values: &[String],
+    ) -> Result<Vec<String>> {
+        let scope = VoterSecretAttributeScope {
+            tenant_id,
+            election_event_id,
+            user_id,
+            attribute_name,
+        };
+        values
+            .iter()
+            .map(|value| decrypt_with_master_secret(&self.master_secret, &scope, value))
+            .collect()
+    }
+
+    pub fn decrypt_user_attributes(
+        &self,
+        user: &mut User,
+        tenant_id: &str,
+        election_event_id: &str,
+        attribute_names: &HashSet<String>,
+    ) -> Result<()> {
+        let user_id = user
+            .id
+            .clone()
+            .ok_or_else(|| anyhow!("Cannot decrypt secret attributes for a user without an id"))?;
+        for name in attribute_names {
+            let values = user_attribute_values(user, name);
+            if values.is_empty() {
+                continue;
+            }
+            let decrypted = self.decrypt_attribute_values(
+                tenant_id,
+                election_event_id,
+                &user_id,
+                name,
+                &values,
+            )?;
+            set_user_attribute_values(user, name, decrypted)?;
+        }
+        Ok(())
+    }
 }
 
 pub fn user_attribute_values(user: &User, name: &str) -> Vec<String> {
@@ -281,20 +344,9 @@ pub async fn decrypt_user_attributes(
     election_event_id: &str,
     attribute_names: &HashSet<String>,
 ) -> Result<()> {
-    let user_id = user
-        .id
-        .clone()
-        .ok_or_else(|| anyhow!("Cannot decrypt secret attributes for a user without an id"))?;
-    for name in attribute_names {
-        let values = user_attribute_values(user, name);
-        if values.is_empty() {
-            continue;
-        }
-        let decrypted =
-            decrypt_attribute_values(tenant_id, election_event_id, &user_id, name, &values).await?;
-        set_user_attribute_values(user, name, decrypted)?;
-    }
-    Ok(())
+    VoterSecretAttributeDecryptor::new()
+        .await?
+        .decrypt_user_attributes(user, tenant_id, election_event_id, attribute_names)
 }
 
 pub async fn encrypt_secret_attribute_map(
