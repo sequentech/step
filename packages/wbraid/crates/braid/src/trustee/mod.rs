@@ -186,6 +186,12 @@ impl<C: Context> Trustee<C> {
     }
 }
 
+/// Purpose string of the domain label under which dealers prove knowledge of
+/// their checking-value exponents (§7; PROTOCOL.md §4.3). Used wherever
+/// dealings are verified: at key derivation ([`dkg`]) and at decrypt-time
+/// re-derivation ([`decrypt`]).
+pub(crate) const DKG_CHECKING_VALUE_PURPOSE: &str = "dkg_checking_value";
+
 /// Domain-separation prefix for an execution-scoped Fiat–Shamir transcript,
 /// bound to this execution's configuration hash (the per-execution domain,
 /// §3.3) rather than the numeric `Configuration.id`. Mirrors the byte layout

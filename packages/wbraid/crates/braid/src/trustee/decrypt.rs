@@ -8,7 +8,7 @@
 use anyhow::{anyhow, Result};
 
 use cryptography::context::Context;
-use cryptography::traits::groups::GroupScalar;
+use cryptography::dkgd::dealer::CheckingValue;
 use cryptography::utils::serialization::VDeserializable;
 
 use crate::messages::artifact::{DkgPublicKey, Mix, PartialDecryption, Plaintexts, Shares};
@@ -23,13 +23,14 @@ use crate::board::store::MessageStore;
 use super::{tally_label, Trustee, WIRE_DATE};
 
 impl<C: Context> Trustee<C> {
-    /// `ComputePartialDecryptions` (§7): decrypt this trustee's DKG share from
-    /// every dealer to rebuild its secret, then produce a decryption factor for
-    /// each of the final mixed ciphertexts, with a **single** proof covering all
-    /// of them. The dealer shares are named explicitly by `shares_hashes`
-    /// (carried in the action) — the action is a self-contained, hash-bound
-    /// description of its inputs, even though the shares are also held in the
-    /// store.
+    /// `ComputePartialDecryptions` (§7): re-derive this trustee's secret from
+    /// the dealings on the board — re-verifying every dealer's checking-value
+    /// proofs and every share exactly as at key derivation
+    /// (`Recipient::from_shares`) — then produce a decryption factor for each
+    /// of the final mixed ciphertexts, with a **single** proof covering all of
+    /// them. The dealer shares are named explicitly by `shares_hashes` (carried
+    /// in the action) — the action is a self-contained, hash-bound description
+    /// of its inputs, even though the shares are also held in the store.
     pub(super) fn compute_partial_decryptions(
         &self,
         view: &MessageStore<C>,
@@ -52,11 +53,12 @@ impl<C: Context> Trustee<C> {
             .ok_or_else(|| anyhow!("missing public key body for {:?}", pk_hash))?;
         let dkg_pk = DkgPublicKey::<C>::deser(pk_body)
             .map_err(|e| anyhow!("failed to deserialize public key: {:?}", e))?;
-        let verification_key = dkg_pk.verification_keys[self_slot].clone();
 
-        // Rebuild this trustee's secret by summing the share it decrypts from
-        // every dealer (§9.4): secret = Σ_d decrypt(shares_d[self_slot]).
-        let mut secret = C::Scalar::zero();
+        // This trustee's dealings (§9.4): from every dealer, the decrypted
+        // share and the proof-carrying checking values. Verification and
+        // secret derivation happen in the monomorphized helper.
+        let mut dealings: Vec<(C::Scalar, Vec<CheckingValue<C>>)> =
+            Vec::with_capacity(num_trustees);
         for shares_hash in shares_hashes {
             let body = view
                 .shares_body(shares_hash)
@@ -68,7 +70,7 @@ impl<C: Context> Trustee<C> {
                 &self.share_encryption.skey,
             )
             .map_err(|e| anyhow!("failed to decrypt share: {:?}", e))?;
-            secret = secret.add(&share);
+            dealings.push((share, shares.commitments));
         }
 
         // The width×threshold cryptography is lowered to const generics via a
@@ -84,8 +86,8 @@ impl<C: Context> Trustee<C> {
                     pk_hash,
                     ciphertexts_hash,
                     self_index,
-                    &secret,
-                    &verification_key,
+                    dealings,
+                    &dkg_pk,
                 )
             })
         })
@@ -104,9 +106,10 @@ impl<C: Context> Trustee<C> {
         pk_hash: &PublicKeyHash,
         ciphertexts_hash: &CiphertextsHash,
         self_index: TrusteeIndex,
-        secret: &C::Scalar,
-        verification_key: &C::Element,
+        dealings: Vec<(C::Scalar, Vec<CheckingValue<C>>)>,
+        dkg_pk: &DkgPublicKey<C>,
     ) -> Result<Vec<ProtocolMessage<C>>> {
+        use cryptography::dkgd::dealer::VerifiableShare;
         use cryptography::dkgd::recipient::{DkgCiphertext, ParticipantPosition, Recipient};
 
         let tally_id = view
@@ -120,9 +123,39 @@ impl<C: Context> Trustee<C> {
         let mix = Mix::<C, W>::deser(mix_body)
             .map_err(|e| anyhow!("failed to deserialize final mix: {:?}", e))?;
 
+        // Re-derive the secret exactly as at key derivation: verify every
+        // dealer's checking-value proofs and every share (§7 round 2, one
+        // call), then cross-check the re-derived outputs against the posted
+        // DKG public key.
+        let shares_array: [VerifiableShare<C, T>; P] = dealings
+            .into_iter()
+            .map(|(share, commitments)| {
+                let checking_values: [CheckingValue<C>; T] = commitments
+                    .try_into()
+                    .map_err(|_| anyhow!("expected {} commitments", T))?;
+                Ok(VerifiableShare::new(share, checking_values))
+            })
+            .collect::<Result<Vec<_>>>()?
+            .try_into()
+            .map_err(|v: Vec<_>| anyhow!("expected {} shares, got {}", P, v.len()))?;
+
+        let proof_context = super::domain_label(cfg_hash, super::DKG_CHECKING_VALUE_PURPOSE);
         let position = ParticipantPosition::from_usize(self_index);
-        let recipient =
-            Recipient::<C, T, P>::new(position, verification_key.clone(), secret.clone());
+        let (recipient, joint_pk, _verification_keys) =
+            Recipient::<C, T, P>::from_shares(position, &shares_array, &proof_context)
+                .map_err(|e| anyhow!("dealing verification failed: {:?}", e))?;
+
+        if joint_pk.inner.y != dkg_pk.pk {
+            return Err(anyhow!(
+                "re-derived joint public key does not match the posted DKG output"
+            ));
+        }
+        let self_slot = self_index - 1;
+        if recipient.get_verification_key() != &dkg_pk.verification_keys[self_slot] {
+            return Err(anyhow!(
+                "re-derived verification key does not match the posted DKG output"
+            ));
+        }
 
         let wrapped: Vec<DkgCiphertext<C, W, T>> = mix
             .ciphertexts

@@ -67,7 +67,9 @@ use vser_derive::VSerializable;
  *         .clone()
  *         .map(|d| d.get_verifiable_shares(b"dkg proof context").unwrap().for_recipient(&position));
  *
- *     Recipient::from_shares(position, &verifiable_shares).unwrap()
+ *     let (recipient, joint_pk, _vks) =
+ *         Recipient::from_shares(position, &verifiable_shares, b"dkg proof context").unwrap();
+ *     (recipient, joint_pk)
  * });
  *
  * // Simulates distributed decryption
@@ -299,10 +301,7 @@ impl<C: Context, const T: usize, const P: usize> DealerShares<C, T, P> {
             .try_into()
             .expect("ParticipantPosition(u32), u32 < usize::MAX");
 
-        // The share-consistency check (`Recipient`) needs only the values; the
-        // Schnorr proofs are verified separately, against all dealers.
-        let values = self.checking_values.clone().map(|cv| cv.value);
-        VerifiableShare::new(self.shares[index].clone(), values)
+        VerifiableShare::new(self.shares[index].clone(), self.checking_values.clone())
     }
 }
 
@@ -339,10 +338,13 @@ impl<C: Context> CheckingValue<C> {
 /**
  * One verifiable share distributed by one dealer to one recipient, in the DKG protocol.
  *
- * A [`VerifiableShare`] contains a secret scalar and the dealer's `T` checking values
- * necessary to verify the correctness of the share. The secret share of the joint public
- * key held by a recipient is the sum of the `P` secret scalars it receives from all
- * dealers (participants), including itself.
+ * A [`VerifiableShare`] contains a secret scalar and the dealer's `T` checking values —
+ * each carrying its Schnorr proof of knowledge — which together are everything needed
+ * to verify the dealing: the proofs (against the proof context) and the share (against
+ * the checking values), both performed by
+ * [`Recipient::from_shares`][`crate::dkgd::recipient::Recipient::from_shares`]. The
+ * secret share of the joint public key held by a recipient is the sum of the `P` secret
+ * scalars it receives from all dealers (participants), including itself.
  *
  * * # Examples
  *
@@ -369,8 +371,9 @@ impl<C: Context> CheckingValue<C> {
 pub struct VerifiableShare<C: Context, const T: usize> {
     /// the secret share as a raw scalar
     pub value: C::Scalar,
-    /// the checking values for the dealer's shares
-    pub checking_values: [C::Element; T],
+    /// the dealer's checking values, each carrying a Schnorr proof of
+    /// knowledge of its exponent
+    pub checking_values: [CheckingValue<C>; T],
 }
 
 impl<C: Context, const T: usize> VerifiableShare<C, T> {
@@ -379,7 +382,7 @@ impl<C: Context, const T: usize> VerifiableShare<C, T> {
     /// The standard way to obtain verifiable shares for some recipient `P` is through
     /// the [`Dealer::get_verifiable_shares`] method combined with the [`DealerShares::for_recipient`]
     /// method.
-    pub fn new(value: C::Scalar, checking_values: [C::Element; T]) -> Self {
+    pub fn new(value: C::Scalar, checking_values: [CheckingValue<C>; T]) -> Self {
         Self {
             value,
             checking_values,

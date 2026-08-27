@@ -16,11 +16,7 @@ use crate::messages::wire::ProtocolMessage;
 
 use crate::board::store::MessageStore;
 
-use super::{domain_label, Trustee, WIRE_DATE};
-
-/// Purpose string of the domain label under which dealers prove knowledge of
-/// their checking-value exponents (§7; PROTOCOL.md §4.3).
-const DKG_CHECKING_VALUE_PURPOSE: &str = "dkg_checking_value";
+use super::{domain_label, Trustee, DKG_CHECKING_VALUE_PURPOSE, WIRE_DATE};
 
 impl<C: Context> Trustee<C> {
     /// `ComputeShares` (§7): deal a fresh Pedersen sharing and post the encrypted
@@ -89,7 +85,7 @@ impl<C: Context> Trustee<C> {
         shares_hashes: &[SharesHash],
         self_index: TrusteeIndex,
     ) -> Result<Vec<ProtocolMessage<C>>> {
-        use cryptography::dkgd::dealer::VerifiableShare;
+        use cryptography::dkgd::dealer::{CheckingValue, VerifiableShare};
         use cryptography::dkgd::recipient::{ParticipantPosition, Recipient};
 
         let cfg = view.configuration();
@@ -101,76 +97,39 @@ impl<C: Context> Trustee<C> {
         crate::dispatch_threshold_trustees!(threshold, num_trustees, {
             let mut verifiable_shares: Vec<VerifiableShare<C, T>> =
                 Vec::with_capacity(num_trustees);
-            let mut all_checking_values: Vec<[C::Element; T]> = Vec::with_capacity(num_trustees);
-
-            let proof_context = domain_label(cfg_hash, DKG_CHECKING_VALUE_PURPOSE);
-            let g = C::generator();
-
-            for (dealer_slot, shares_hash) in shares_hashes.iter().enumerate() {
+            for shares_hash in shares_hashes {
                 let body = view
                     .shares_body(shares_hash)
                     .ok_or_else(|| anyhow!("missing shares body for {:?}", shares_hash))?;
                 let shares = Shares::<C>::deser(body)
                     .map_err(|e| anyhow!("failed to deserialize shares: {:?}", e))?;
 
-                // Every dealer's every checking-value proof is verified before
-                // any share is used (§7); a failure here halts the trustee, the
-                // same as a share failing verification below.
-                for (j, cv) in shares.commitments.iter().enumerate() {
-                    let ok = cv.verify(&g, &proof_context).map_err(|e| {
-                        anyhow!(
-                            "checking-value proof {} of dealer {} failed to verify: {:?}",
-                            j,
-                            dealer_slot + 1,
-                            e
-                        )
-                    })?;
-                    if !ok {
-                        return Err(anyhow!(
-                            "invalid checking-value proof {} from dealer {}",
-                            j,
-                            dealer_slot + 1
-                        ));
-                    }
-                }
-
                 let encrypted_share = &shares.encrypted_shares[self_slot];
                 let share_scalar =
                     C::G::decrypt_scalar(encrypted_share, &self.share_encryption.skey)
                         .map_err(|e| anyhow!("failed to decrypt share: {:?}", e))?;
 
-                let checking_values: [C::Element; T] = shares
+                let checking_values: [CheckingValue<C>; T] = shares
                     .commitments
-                    .iter()
-                    .map(|cv| cv.value.clone())
-                    .collect::<Vec<_>>()
                     .try_into()
                     .map_err(|_| anyhow!("expected {} commitments", T))?;
-
-                verifiable_shares.push(VerifiableShare::new(share_scalar, checking_values.clone()));
-                all_checking_values.push(checking_values);
+                verifiable_shares.push(VerifiableShare::new(share_scalar, checking_values));
             }
-
-            let all_cvs: [[C::Element; T]; P] =
-                all_checking_values.try_into().map_err(|v: Vec<_>| {
-                    anyhow!("expected {} checking-value sets, got {}", P, v.len())
-                })?;
             let shares_array: [VerifiableShare<C, T>; P] = verifiable_shares
                 .try_into()
                 .map_err(|v: Vec<_>| anyhow!("expected {} shares, got {}", P, v.len()))?;
 
+            // §7 round 2 in one call: every dealer's every checking-value proof
+            // and every share are verified, then the joint key and all
+            // verification keys derived. Any failure halts the trustee.
+            let proof_context = domain_label(cfg_hash, DKG_CHECKING_VALUE_PURPOSE);
             let position = ParticipantPosition::from_usize(self_index);
-            let (joint_pk, _verification_key, _sk) =
-                Recipient::<C, T, P>::verify_shares(&position, &shares_array)
-                    .map_err(|e| anyhow!("share verification failed: {:?}", e))?;
+            let (_recipient, joint_pk, verification_keys) =
+                Recipient::<C, T, P>::from_shares(position, &shares_array, &proof_context)
+                    .map_err(|e| anyhow!("dealing verification failed: {:?}", e))?;
 
-            let mut verification_keys = Vec::with_capacity(num_trustees);
-            for j in 0..num_trustees {
-                let pos_j = ParticipantPosition::from_usize(j + 1);
-                verification_keys.push(Recipient::<C, T, P>::verification_key(&pos_j, &all_cvs));
-            }
-
-            let public_key = DkgPublicKey::<C>::new(joint_pk, verification_keys);
+            let public_key =
+                DkgPublicKey::<C>::new(joint_pk.inner.y, verification_keys.to_vec());
             let message = ProtocolMessage::<C>::public_key(self, WIRE_DATE, *cfg_hash, &public_key);
             Ok(vec![message])
         })

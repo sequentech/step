@@ -278,12 +278,13 @@ pub fn mixing<const W: usize, const K: usize, const T: usize>(
     let rho = spec.prefix();
 
     // --- the distributed key generation -----------------------------------
+    // VMN has no counterpart to the checking-value proofs; they exist here
+    // because `from_shares` verifies complete dealings, and are not emitted.
+    const CORPUS_DKG_CTX: &[u8] = b"v2v corpus dkg";
     let dealers: Vec<Dealer<P256Ctx, T, K>> = (0..K).map(|_| Dealer::generate()).collect();
-    // The checking-value proofs play no part in a VMN corpus (VMN has no
-    // counterpart to verify them); only the values are used below.
     let dealt: Vec<_> = dealers
         .iter()
-        .map(|d| d.get_verifiable_shares(b"v2v corpus dkg"))
+        .map(|d| d.get_verifiable_shares(CORPUS_DKG_CTX))
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| anyhow!("dealing failed: {e:?}"))?;
 
@@ -307,14 +308,17 @@ pub fn mixing<const W: usize, const K: usize, const T: usize>(
         let shares: [VerifiableShare<P256Ctx, T>; K] = std::array::from_fn(|d| {
             VerifiableShare::new(
                 dealt[d].shares[party - 1].clone(),
-                dealt[d].checking_values.clone().map(|cv| cv.value),
+                dealt[d].checking_values.clone(),
             )
         });
-        let (y, _vk, x_l) =
-            Recipient::<P256Ctx, T, K>::verify_shares(&ParticipantPosition::from_usize(party), &shares)
-                .map_err(|e| anyhow!("share verification failed for party {party}: {e:?}"))?;
-        joint_key = Some(y);
-        secrets.push(x_l);
+        let (recipient, joint_pk, _vks) = Recipient::<P256Ctx, T, K>::from_shares(
+            ParticipantPosition::from_usize(party),
+            &shares,
+            CORPUS_DKG_CTX,
+        )
+        .map_err(|e| anyhow!("share verification failed for party {party}: {e:?}"))?;
+        joint_key = Some(joint_pk.inner.y);
+        secrets.push(*recipient.get_secret_share());
     }
     let y = joint_key.ok_or_else(|| anyhow!("a session needs at least one party"))?;
     if !gamma[0].equals(&y) {

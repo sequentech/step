@@ -85,7 +85,9 @@ fn test_dkgd<C: Context, const T: usize, const P: usize, const W: usize>() {
             .clone()
             .map(|d| d.get_verifiable_shares(DKG_PROOF_CTX).unwrap().for_recipient(&position));
 
-        Recipient::from_shares(position, &verifiable_shares).unwrap()
+        let (recipient, joint_pk, _vks) =
+            Recipient::from_shares(position, &verifiable_shares, DKG_PROOF_CTX).unwrap();
+        (recipient, joint_pk)
     });
 
     // check different ways of computing verification keys match
@@ -142,7 +144,9 @@ fn test_dkgd_all_participants<C: Context, const T: usize, const P: usize, const 
             .clone()
             .map(|d| d.get_verifiable_shares(DKG_PROOF_CTX).unwrap().for_recipient(&position));
 
-        Recipient::from_shares(position, &verifiable_shares).unwrap()
+        let (recipient, joint_pk, _vks) =
+            Recipient::from_shares(position, &verifiable_shares, DKG_PROOF_CTX).unwrap();
+        (recipient, joint_pk)
     });
 
     let pk: &DkgPublicKey<C, T> = &recipients[0].1;
@@ -178,7 +182,9 @@ fn test_joint_pkey<C: Context, const T: usize, const P: usize, const W: usize>()
             .clone()
             .map(|d| d.get_verifiable_shares(DKG_PROOF_CTX).unwrap().for_recipient(&position));
 
-        Recipient::from_shares(position, &verifiable_shares).unwrap()
+        let (recipient, joint_pk, _vks) =
+            Recipient::from_shares(position, &verifiable_shares, DKG_PROOF_CTX).unwrap();
+        (recipient, joint_pk)
     });
 
     // all computed joint public keys are equal
@@ -285,7 +291,9 @@ fn test_batched_proof_rejects<C: Context, const T: usize, const P: usize, const 
         let verifiable_shares: [VerifiableShare<C, T>; P] = dealers
             .clone()
             .map(|d| d.get_verifiable_shares(DKG_PROOF_CTX).unwrap().for_recipient(&position));
-        Recipient::from_shares(position, &verifiable_shares).unwrap()
+        let (recipient, joint_pk, _vks) =
+            Recipient::from_shares(position, &verifiable_shares, DKG_PROOF_CTX).unwrap();
+        (recipient, joint_pk)
     });
 
     let pk: &DkgPublicKey<C, T> = &recipients[0].1;
@@ -356,6 +364,64 @@ fn test_batched_proof_rejects<C: Context, const T: usize, const P: usize, const 
 }
 
 // -------------------------------------------------------------------------
+// from_shares is the single verification gate: both parts must reject
+// -------------------------------------------------------------------------
+
+/// `from_shares` performs round 2's complete verification — the
+/// checking-value proofs and the algebraic share check. Each part must
+/// reject on its own, and the error must name the dealer responsible.
+#[test]
+fn test_from_shares_rejects() {
+    const T: usize = 2;
+    const P: usize = 3;
+
+    let dealers: [Dealer<RCtx, T, P>; P] = array::from_fn(|_| Dealer::generate());
+    let position = ParticipantPosition::from_usize(1);
+    let shares: [VerifiableShare<RCtx, T>; P] = dealers
+        .clone()
+        .map(|d| d.get_verifiable_shares(DKG_PROOF_CTX).unwrap().for_recipient(&position));
+
+    // Untampered: verifies.
+    assert!(
+        Recipient::<RCtx, T, P>::from_shares(position.clone(), &shares, DKG_PROOF_CTX).is_ok()
+    );
+
+    // A swapped checking-value proof (valid, but for another dealer's value)
+    // must reject, naming dealer 2.
+    let mut tampered = dealers
+        .clone()
+        .map(|d| d.get_verifiable_shares(DKG_PROOF_CTX).unwrap().for_recipient(&position));
+    let foreign_proof = tampered[0].checking_values[0].proof.clone();
+    tampered[1].checking_values[0].proof = foreign_proof;
+    match Recipient::<RCtx, T, P>::from_shares(position.clone(), &tampered, DKG_PROOF_CTX) {
+        Err(Error::ShareVerificationFailed(msg)) => {
+            assert!(
+                msg.contains("checking-value proof") && msg.contains("dealer 2"),
+                "must name the failing part and dealer, got: {msg}"
+            );
+        }
+        Err(other) => panic!("expected ShareVerificationFailed, got {other:?}"),
+        Ok(_) => panic!("a swapped proof must reject"),
+    }
+
+    // A tampered share (proofs intact) must reject the algebraic check,
+    // naming dealer 3.
+    let mut tampered = dealers
+        .map(|d| d.get_verifiable_shares(DKG_PROOF_CTX).unwrap().for_recipient(&position));
+    tampered[2].value = tampered[2].value.add(&<RCtx as Context>::Scalar::one());
+    match Recipient::<RCtx, T, P>::from_shares(position, &tampered, DKG_PROOF_CTX) {
+        Err(Error::ShareVerificationFailed(msg)) => {
+            assert!(
+                msg.contains("share") && msg.contains("dealer 3"),
+                "must name the failing part and dealer, got: {msg}"
+            );
+        }
+        Err(other) => panic!("expected ShareVerificationFailed, got {other:?}"),
+        Ok(_) => panic!("a tampered share must reject"),
+    }
+}
+
+// -------------------------------------------------------------------------
 // The checking-value proofs must actually reject
 // -------------------------------------------------------------------------
 
@@ -409,7 +475,9 @@ fn test_batched_proof_is_bound_to_its_author() {
         let verifiable_shares: [VerifiableShare<RCtx, T>; P] = dealers
             .clone()
             .map(|d| d.get_verifiable_shares(DKG_PROOF_CTX).unwrap().for_recipient(&position));
-        Recipient::from_shares(position, &verifiable_shares).unwrap()
+        let (recipient, joint_pk, _vks) =
+            Recipient::from_shares(position, &verifiable_shares, DKG_PROOF_CTX).unwrap();
+        (recipient, joint_pk)
     });
 
     let pk = &recipients[0].1;
