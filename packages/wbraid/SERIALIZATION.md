@@ -305,3 +305,15 @@ problem — and being schemaless it needs a separate typed-conventions layer, pu
 the strictness obligation on two layers instead of one. What ByteTree does
 contribute: its two-constructor minimalism is the simplicity benchmark the mini-spec
 (§7 guardrail 1) should be measured against.
+
+The conclusion holds even under a stronger future requirement — *verifying real
+production proofs with Verificatum* (`VERIFICATUM.md`'s **convert** row). Convert
+constrains the **transcript**, not the wire format: it requires the production
+proofs' challenges to be VMN's (`VmnChallenges` in production, with ByteTree used
+*inside the prover at challenge time* — machinery v2v already has), while the
+"serializer" clause is a cryptographically inert boundary conversion of stored
+proofs, indifferent to the native format. The decision such a requirement would
+force is about transcripts — adopt VMN's Fiat-Shamir convention for production
+mixing (displacing the §6.3 native design now normative in PROTOCOL.md) or prove
+twice at mix time — and serialization is a bystander to it. The native-format
+choice remains free.
