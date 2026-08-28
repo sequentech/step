@@ -35,6 +35,7 @@ import {useTranslation} from "react-i18next"
 import {SettingsContext} from "../../providers/SettingsContextProvider"
 import {IDecodedVoteContest} from "sequent-core"
 import {provideBallotService} from "../../services/BallotService"
+import {writeInErrorId} from "../InvalidErrorsList/InvalidErrorsList"
 import {ECandidatesIconCheckboxPolicy} from "@sequentech/ui-core"
 
 export interface IAnswerProps {
@@ -276,6 +277,7 @@ export const Answer: React.FC<IAnswerProps> = ({
             setWriteInText={setWriteInText}
             isInvalidVote={isInvalidVote}
             isInvalidWriteIn={!!selectionState?.write_in_text && isInvalidWriteIns}
+            writeInErrorId={writeInErrorId(contestId)}
             shouldDisable={shouldDisable}
             iconCheckboxPolicy={iconCheckboxPolicy}
             selectedPosition={selectedPosition}

@@ -666,7 +666,8 @@ const ElectionSelectionScreen: React.FC = () => {
             ? t(`electionSelectionScreen.alerts.${alertMsg}`)
             : undefined
 
-    if (loadingElectionEvent || loadingElections || loadingBallotStyles) return <CircularProgress />
+    if (loadingElectionEvent || loadingElections || loadingBallotStyles)
+        return <CircularProgress aria-label={t("a11y.loading")} />
 
     return (
         <PageLimit maxWidth="lg" className="election-selection-screen screen">
@@ -683,6 +684,9 @@ const ElectionSelectionScreen: React.FC = () => {
                             sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
                             fontSize="16px"
                             onClick={() => setOpenChooserHelp(true)}
+                            ariaLabel={t("a11y.helpAbout", {
+                                topic: t("electionSelectionScreen.chooserHelpDialog.title"),
+                            })}
                         />
                         <Dialog
                             handleClose={() => setOpenChooserHelp(false)}
@@ -699,6 +703,7 @@ const ElectionSelectionScreen: React.FC = () => {
                     ) : (
                         <Typography
                             variant="body1"
+                            component="div"
                             sx={{color: theme.palette.customGrey.contrastText}}
                         >
                             {stringToHtml(t("electionSelectionScreen.description"))}
@@ -718,9 +723,14 @@ const ElectionSelectionScreen: React.FC = () => {
                             {t("electionSelectionScreen.resultsButton")}
                         </Button>
                     ) : null}
-                    {isMaterialsActivated ? (
+                    {isMaterialsActivated && electionEvent ? (
                         <Button onClick={handleNavigateMaterials}>
-                            {t("materials.common.label")}
+                            {translateFromPresentation(
+                                electionEvent,
+                                "materialsTitle",
+                                i18n.language,
+                                {defaultLanguageCode: eventDefaultLanguageCode}
+                            ) || t("materials.common.label")}
                         </Button>
                     ) : null}
                 </PageActions>

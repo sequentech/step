@@ -4,8 +4,12 @@
 
 /** @type {import('jest').Config} */
 module.exports = {
-    testEnvironment: "node",
-    testMatch: ["<rootDir>/src/**/*.test.ts"],
+    // Component tests assert on the accessibility tree (role, accessible name,
+    // focus), none of which exists without a DOM.
+    testEnvironment: "jsdom",
+    testMatch: ["<rootDir>/src/**/*.test.ts", "<rootDir>/src/**/*.test.tsx"],
+    setupFiles: ["<rootDir>/src/setupJestGlobals.ts"],
+    setupFilesAfterEnv: ["<rootDir>/src/setupTests.ts"],
     // @sequentech/ui-core resolves to its built dist/ bundle, which a clean
     // `yarn install` doesn't produce; see src/__mocks__/uiCoreTestEntry.ts.
     moduleNameMapper: {
@@ -18,6 +22,7 @@ module.exports = {
                 jsc: {
                     parser: {syntax: "typescript", tsx: true},
                     target: "es2022",
+                    transform: {react: {runtime: "automatic"}},
                 },
                 module: {type: "commonjs"},
             },

@@ -35,7 +35,7 @@ import {
 } from "@sequentech/ui-core"
 import Candidate from "../Candidate/Candidate"
 import BlankAnswer from "../BlankAnswer/BlankAnswer"
-import WarnBox from "../WarnBox/WarnBox"
+import WarnBox, {EWarnBoxAnnouncement} from "../WarnBox/WarnBox"
 import CandidatesList from "../CandidatesList/CandidatesList"
 
 const CandidatesWrapper = styled(Box)`
@@ -352,6 +352,11 @@ export const PlaintextVoteContest: React.FC<PlaintextVoteContestProps> = ({
                             <WarnBox
                                 variant="warning"
                                 key={index}
+                                // A decoded ballot is static: these boxes are rendered
+                                // once with the contest and read in document order, so
+                                // they must not turn into live regions in the portals
+                                // that render them.
+                                announcement={EWarnBoxAnnouncement.SILENT}
                                 warnId={error.message}
                                 warnType={error.error_type}
                             >

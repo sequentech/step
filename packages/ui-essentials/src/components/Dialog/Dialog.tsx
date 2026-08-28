@@ -1,16 +1,23 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {PropsWithChildren, useEffect, useRef} from "react"
+import React, {PropsWithChildren, useEffect, useId, useRef} from "react"
 import DialogTitle from "@mui/material/DialogTitle"
 import MaterialDialog from "@mui/material/Dialog"
 import {Backdrop, Box, Button, Breakpoint} from "@mui/material"
 import DialogContent from "@mui/material/DialogContent"
 import DialogActions from "@mui/material/DialogActions"
-import {faTimesCircle, faInfoCircle, faExclamationTriangle} from "@fortawesome/free-solid-svg-icons"
+import {
+    faTimesCircle,
+    faInfoCircle,
+    faExclamationTriangle,
+    faExpand,
+    faCompress,
+} from "@fortawesome/free-solid-svg-icons"
 import {styled} from "@mui/material/styles"
 import Icon from "../Icon/Icon"
 import IconButton from "../IconButton/IconButton"
+import {useTranslation} from "react-i18next"
 
 const StyledBackdrop = styled(Backdrop)`
     opacity: 0.5 !important;
@@ -45,6 +52,7 @@ export interface DialogProps extends PropsWithChildren {
     maxWidth?: Breakpoint | false
     errorMessage?: string
     hasCloseButton?: boolean
+    expandable?: boolean
     className?: string
 }
 
@@ -62,6 +70,7 @@ const Dialog: React.FC<DialogProps> = ({
     maxWidth = "xs",
     errorMessage,
     hasCloseButton,
+    expandable,
     className,
 }) => {
     const okVariant =
@@ -77,9 +86,17 @@ const Dialog: React.FC<DialogProps> = ({
     }
 
     const okButtonRef = useRef<boolean>(false)
+    const [isFullScreen, setIsFullScreen] = React.useState<boolean>(false)
+    const {t} = useTranslation()
+    // Ties the modal to its visible title (and to the error text, when shown) so
+    // screen readers announce what the dialog is about when it opens.
+    const generatedId = useId()
+    const titleId = `${generatedId}-title`
+    const errorId = `${generatedId}-error`
 
     useEffect(() => {
         okButtonRef.current = false
+        setIsFullScreen(false)
     }, [open])
 
     let fullClass = className ? `${className} dialog` : "dialog"
@@ -91,7 +108,10 @@ const Dialog: React.FC<DialogProps> = ({
             slots={{backdrop: StyledBackdrop}}
             fullWidth={fullWidth}
             maxWidth={maxWidth}
+            fullScreen={isFullScreen}
             className={fullClass}
+            aria-labelledby={titleId}
+            aria-describedby={errorMessage ? errorId : undefined}
         >
             <DialogTitle className="dialog-title">
                 <Icon
@@ -102,6 +122,7 @@ const Dialog: React.FC<DialogProps> = ({
                 />
                 <Box
                     component="span"
+                    id={titleId}
                     flexGrow={2}
                     pt="3px"
                     fontWeight="bold"
@@ -109,17 +130,26 @@ const Dialog: React.FC<DialogProps> = ({
                 >
                     {title}
                 </Box>
+                {expandable ? (
+                    <IconButton
+                        icon={isFullScreen ? faCompress : faExpand}
+                        variant="primary"
+                        onClick={() => setIsFullScreen((prev) => !prev)}
+                        className="dialog-icon-expand"
+                    />
+                ) : null}
                 {hasCloseButton ? (
                     <IconButton
                         icon={faTimesCircle}
                         variant="primary"
                         onClick={closeDialog}
                         className="dialog-icon-close"
+                        ariaLabel={t("a11y.closeDialog")}
                     />
                 ) : null}
             </DialogTitle>
             <DialogContent className="dialog-content"> {children} </DialogContent>
-            <StyledDialogErrorContent className="dialog-content">
+            <StyledDialogErrorContent className="dialog-content" id={errorId} role="alert">
                 {errorMessage}
             </StyledDialogErrorContent>
             <StyledDialogActions className={middleActions ? "has-middle" : "no-middle"}>
