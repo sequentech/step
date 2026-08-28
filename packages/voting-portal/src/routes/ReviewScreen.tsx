@@ -21,6 +21,7 @@ import {
     BallotHash,
     Dialog,
     WarnBox,
+    EWarnBoxAnnouncement,
 } from "@sequentech/ui-essentials"
 import {
     stringToHtml,
@@ -87,7 +88,7 @@ const StyledLink = styled(RouterLink)`
     text-decoration: none;
 `
 
-const StyledTitle = styled(Typography)`
+const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     margin-top: 25.5px;
     display: flex;
     flex-direction: row;
@@ -118,6 +119,17 @@ const StyledButton = styled(Button)`
 const StyledIcon = styled(Icon)`
     min-width: 14px;
     padding: 5px;
+`
+
+const BallotIdHelpDialog = styled(Dialog)`
+    @media (min-width: 601px) {
+        .MuiDialogActions-root.has-middle > .cancel-button,
+        .MuiDialogActions-root.has-middle > .audit-button {
+            flex: 1 1 0;
+            min-width: 0;
+            width: auto;
+        }
+    }
 `
 
 const StyledCircularProgress = styled(CircularProgress)`
@@ -307,6 +319,7 @@ interface ActionButtonProps {
     isGoldenPolicy: boolean
     isMultiContest: boolean
     isDeclineToVote: boolean
+    isBlankBallot: boolean
 }
 
 const ActionButtons: React.FC<ActionButtonProps> = ({
@@ -319,6 +332,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     isGoldenPolicy,
     isMultiContest,
     isDeclineToVote,
+    isBlankBallot,
 }) => {
     const {t} = useTranslation()
     const navigate = useNavigate()
@@ -491,12 +505,30 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             <Dialog
                 handleClose={handleCloseCastVoteDialog}
                 open={isConfirmCastVoteModal}
-                title={t("reviewScreen.confirmCastVoteDialog.title")}
-                ok={t("reviewScreen.confirmCastVoteDialog.ok")}
-                cancel={t("reviewScreen.confirmCastVoteDialog.cancel")}
+                title={t(
+                    isBlankBallot
+                        ? "reviewScreen.confirmCastBlankBallotDialog.title"
+                        : "reviewScreen.confirmCastVoteDialog.title"
+                )}
+                ok={t(
+                    isBlankBallot
+                        ? "reviewScreen.confirmCastBlankBallotDialog.ok"
+                        : "reviewScreen.confirmCastVoteDialog.ok"
+                )}
+                cancel={t(
+                    isBlankBallot
+                        ? "reviewScreen.confirmCastBlankBallotDialog.cancel"
+                        : "reviewScreen.confirmCastVoteDialog.cancel"
+                )}
                 variant="info"
             >
-                {stringToHtml(t("reviewScreen.confirmCastVoteDialog.content"))}
+                {stringToHtml(
+                    t(
+                        isBlankBallot
+                            ? "reviewScreen.confirmCastBlankBallotDialog.content"
+                            : "reviewScreen.confirmCastVoteDialog.content"
+                    )
+                )}
             </Dialog>
         </Box>
     )
@@ -588,6 +620,10 @@ export const ReviewScreen: React.FC = () => {
         selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")
     )
 
+    const isBlankBallot = Boolean(
+        selectionState?.length && selectionState.every((contest) => contest.is_blank_ballot)
+    )
+
     const errorSelectionState = useMemo(() => {
         if (!selectionState || !ballotStyle) {
             return []
@@ -615,18 +651,12 @@ export const ReviewScreen: React.FC = () => {
         }
     }
 
-    function handleCloseDialogIdHelp(val: boolean) {
+    // Dismiss only. Auditing is reached from AuditButton, which confirms through
+    // AuditBallotHelpDialog first; this dialog used to navigate there too, which
+    // is the duplicate audit trigger reported in META-12776. Matches how
+    // AuditScreen renders the same dialog.
+    function handleCloseDialogIdHelp() {
         setOpenBallotIdHelp(false)
-
-        if (val) {
-            if (ballotStyle && tenantId && eventId) {
-                navigate(
-                    `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/audit`
-                )
-            } else {
-                navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
-            }
-        }
     }
 
     const getBallotDataFromSessionStorage = () => {
@@ -738,7 +768,11 @@ export const ReviewScreen: React.FC = () => {
     if (!ballotStyle || !auditableBallot) {
         return errorMsg ? (
             <Box sx={{margin: "auto 0"}}>
-                <WarnBox variant="error">{errorMsg}</WarnBox>
+                {/* The only message on the screen, and it blocks the voter from
+                    casting, so it interrupts rather than waiting for a pause. */}
+                <WarnBox variant="error" announcement={EWarnBoxAnnouncement.ASSERTIVE}>
+                    {errorMsg}
+                </WarnBox>
                 <Box
                     sx={{
                         display: "flex",
@@ -756,7 +790,7 @@ export const ReviewScreen: React.FC = () => {
                 </Box>
             </Box>
         ) : (
-            <CircularProgress />
+            <CircularProgress aria-label={t("a11y.loading")} />
         )
     }
 
@@ -766,20 +800,31 @@ export const ReviewScreen: React.FC = () => {
     return (
         <PageLimit maxWidth="lg" className="review-screen screen">
             {auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW ? null : (
-                <BallotHash hash={ballotId || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />
+                <BallotHash
+                    hash={ballotId || ""}
+                    copyLabels={{
+                        copy: t("reviewScreen.copyBallotId"),
+                        copied: t("reviewScreen.ballotIdCopied"),
+                        error: t("reviewScreen.ballotIdCopyError"),
+                    }}
+                    helpButtonLabel={t("reviewScreen.ballotIdHelpDialog.title")}
+                    onHelpClick={() => setOpenBallotIdHelp(true)}
+                />
             )}
-            <Dialog
+            <BallotIdHelpDialog
                 handleClose={handleCloseDialogIdHelp}
                 open={openBallotIdHelp}
                 title={t("reviewScreen.ballotIdHelpDialog.title")}
-                ok={t("reviewScreen.ballotIdHelpDialog.ok")}
                 maxWidth="md"
                 middleActions={
                     auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP
                         ? [
                               <AuditButton
                                   key={"audit-button"}
-                                  onClick={() => setAuditBallotHelp(true)}
+                                  onClick={() => {
+                                      setOpenBallotIdHelp(false)
+                                      setAuditBallotHelp(true)
+                                  }}
                               />,
                           ]
                         : []
@@ -788,7 +833,7 @@ export const ReviewScreen: React.FC = () => {
                 variant="info"
             >
                 {stringToHtml(t("reviewScreen.ballotIdHelpDialog.content"))}
-            </Dialog>
+            </BallotIdHelpDialog>
             {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP ? (
                 <AuditBallotHelpDialog
                     auditBallotHelp={auditBallotHelp}
@@ -798,13 +843,22 @@ export const ReviewScreen: React.FC = () => {
             <Box marginTop="48px">
                 <Stepper selected={2} />
             </Box>
-            <StyledTitle variant="h4" fontSize="24px" fontWeight="bold" sx={{margin: 0}}>
+            <StyledTitle
+                variant="h4"
+                component="h1"
+                fontSize="24px"
+                fontWeight="bold"
+                sx={{margin: 0}}
+            >
                 <Box>{t("reviewScreen.title")}</Box>
                 <IconButton
                     icon={faCircleQuestion}
                     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
                     fontSize="16px"
                     onClick={() => setReviewScreenHelp(true)}
+                    ariaLabel={t("a11y.helpAbout", {
+                        topic: t("reviewScreen.reviewScreenHelpDialog.title"),
+                    })}
                 />
                 <Dialog
                     handleClose={() => setReviewScreenHelp(false)}
@@ -816,8 +870,12 @@ export const ReviewScreen: React.FC = () => {
                     {stringToHtml(t("reviewScreen.reviewScreenHelpDialog.content"))}
                 </Dialog>
             </StyledTitle>
-            {errorMsg && <WarnBox variant="error">{errorMsg}</WarnBox>}
-            <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+            {errorMsg && (
+                <WarnBox variant="error" announcement={EWarnBoxAnnouncement.ASSERTIVE}>
+                    {errorMsg}
+                </WarnBox>
+            )}
+            <Typography variant="body2" component="div" sx={{color: theme.palette.customGrey.main}}>
                 {stringToHtml(
                     auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW ||
                         auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP
@@ -834,6 +892,7 @@ export const ReviewScreen: React.FC = () => {
                         setDecodedContests={() => undefined}
                         errorSelectionState={errorSelectionState}
                         isDeclineToVote={isDeclineToVote}
+                        isBlankBallot={isBlankBallot}
                     />
                 </Box>
             ))}
@@ -848,6 +907,7 @@ export const ReviewScreen: React.FC = () => {
                     isGoldenPolicy={isGoldenPolicy ?? false}
                     isMultiContest={isMultiContest}
                     isDeclineToVote={isDeclineToVote}
+                    isBlankBallot={isBlankBallot}
                 />
             )}
         </PageLimit>

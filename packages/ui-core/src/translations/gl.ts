@@ -22,6 +22,21 @@ const galegoTranslation: TranslationType = {
             ended: "Finalizado",
             results: "Resultados",
         },
+        a11y: {
+            closeDialog: "Pechar o diálogo",
+            dismissMessage: "Descartar a mensaxe",
+            ballotIdHelp: "Sobre o seu ID de voto",
+            loading: "Cargando",
+            severity: {
+                error: "Erro",
+                warning: "Aviso",
+                success: "Correcto",
+                info: "Información",
+            },
+            selectList: "Seleccionar toda a lista",
+            preferenceLabel: "Preferencia",
+            writeInFor: "Nome do candidato escrito",
+        },
         candidate: {
             moreInformationLink: "Máis información",
             writeInsPlaceholder: "Escribe aquí o candidato escrito",

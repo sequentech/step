@@ -70,7 +70,6 @@ import Stepper from "../components/Stepper"
 import {clearIsVoted, selectBypassChooser, setBypassChooser} from "../store/extra/extraSlice"
 import {updateBallotStyleAndSelection} from "../services/BallotStyles"
 import {BallotStyleConfigurationError} from "../services/BallotStyles"
-import useUpdateTranslation from "../hooks/useUpdateTranslation"
 import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
 import {setSupportMaterial} from "../store/supportMaterials/supportMaterialsSlice"
 import {useElectionClassName} from "../hooks/useElectionClassName"
@@ -360,15 +359,12 @@ const ElectionSelectionScreen: React.FC = () => {
     const navigate = useNavigate()
     const location = useLocation()
 
-    const {globalSettings, defaultLanguageTouched, setDefaultLanguageTouched} =
-        useContext(SettingsContext)
+    const {globalSettings} = useContext(SettingsContext)
     const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const eventDefaultLanguageCode =
         electionEvent?.presentation?.language_conf?.default_language_code
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
-    //Handle both transalations from presentation and i18n language change.
-    useUpdateTranslation({electionEvent}, defaultLanguageTouched, setDefaultLanguageTouched) // Overwrite translations
     const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
     const electionIds = useAppSelector(selectElectionIds)
     const dispatch = useAppDispatch()
@@ -660,7 +656,8 @@ const ElectionSelectionScreen: React.FC = () => {
             ? t(`electionSelectionScreen.alerts.${alertMsg}`)
             : undefined
 
-    if (loadingElectionEvent || loadingElections || loadingBallotStyles) return <CircularProgress />
+    if (loadingElectionEvent || loadingElections || loadingBallotStyles)
+        return <CircularProgress aria-label={t("a11y.loading")} />
 
     return (
         <PageLimit maxWidth="lg" className="election-selection-screen screen">
@@ -677,6 +674,9 @@ const ElectionSelectionScreen: React.FC = () => {
                             sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
                             fontSize="16px"
                             onClick={() => setOpenChooserHelp(true)}
+                            ariaLabel={t("a11y.helpAbout", {
+                                topic: t("electionSelectionScreen.chooserHelpDialog.title"),
+                            })}
                         />
                         <Dialog
                             handleClose={() => setOpenChooserHelp(false)}
@@ -693,6 +693,7 @@ const ElectionSelectionScreen: React.FC = () => {
                     ) : (
                         <Typography
                             variant="body1"
+                            component="div"
                             sx={{color: theme.palette.customGrey.contrastText}}
                         >
                             {stringToHtml(t("electionSelectionScreen.description"))}

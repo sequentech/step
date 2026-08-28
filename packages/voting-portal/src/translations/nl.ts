@@ -10,6 +10,22 @@ const dutchTranslation: TranslationType = {
             showMore: "Toon meer",
             showLess: "Toon minder",
         },
+        a11y: {
+            skipToContent: "Ga naar hoofdinhoud",
+            helpAbout: "Hulp over {{topic}}",
+            copyToClipboard: "{{label}} naar klembord kopiëren",
+            previewMaterial: "Voorbeeld van {{title}}",
+            ballotsTable: "Stembiljetten",
+            ballotLocatorTabs: "Onderdelen van de stembiljetzoeker",
+            ballotIdLabel: "Stembiljet-ID",
+            votingProgress: "Voortgang van het stemmen",
+            stepOf: "Stap {{current}} van {{total}}",
+            selectUpTo_one: "Kies maximaal {{count}} optie",
+            selectUpTo_other: "Kies maximaal {{count}} opties",
+            selectExactly_one: "Kies {{count}} optie",
+            selectExactly_other: "Kies {{count}} opties",
+            selectBetween: "Kies tussen {{min}} en {{max}} opties",
+        },
         candidatesList: {
             collapseToggle: "Lijst {{listTitle}} in-/uitvouwen",
             showCandidates: "Kandidaten tonen",
@@ -55,6 +71,13 @@ const dutchTranslation: TranslationType = {
                 continue: "Doorgaan",
                 cancel: "Annuleren",
             },
+            blankBallotDialog: {
+                title: "U heeft geen kandidaten geselecteerd",
+                content:
+                    "U heeft geen selecties gemaakt. Uw stembiljet wordt uitgebracht als blanco stembiljet, wat een geldige, weloverwogen keuze is en als zodanig zal worden geteld.",
+                continue: "Doorgaan",
+                cancel: "Annuleren",
+            },
         },
         startScreen: {
             startButton: "Begin met stemmen",
@@ -87,6 +110,9 @@ const dutchTranslation: TranslationType = {
             backButton: "Stembiljet bewerken",
             castBallotButton: "Breng uw stem uit",
             auditButton: "Audit stembiljet",
+            copyBallotId: "Stembiljet-ID kopiëren",
+            ballotIdCopied: "Stembiljet-ID gekopieerd",
+            ballotIdCopyError: "Stembiljet-ID kon niet worden gekopieerd",
             reviewScreenHelpDialog: {
                 title: "Informatie: Controlescherm",
                 content:
@@ -111,6 +137,13 @@ const dutchTranslation: TranslationType = {
                 title: "Weet u zeker dat u uw stem wilt uitbrengen?",
                 content: "Uw stem kan niet meer worden bewerkt nadat deze is bevestigd.",
                 ok: "Ja, ik wil mijn stem UITBRENGEN",
+                cancel: "Annuleren",
+            },
+            confirmCastBlankBallotDialog: {
+                title: "Weet u zeker dat u een blanco stembiljet wilt uitbrengen?",
+                content:
+                    "U heeft geen kandidaten geselecteerd. Na bevestiging wordt uw stembiljet blanco uitgebracht.",
+                ok: "Ja, ik wil mijn blanco stembiljet uitbrengen",
                 cancel: "Annuleren",
             },
             error: {
@@ -204,11 +237,16 @@ const dutchTranslation: TranslationType = {
                     "Er is een interne fout opgetreden tijdens het uitbrengen van de stem. Probeer het later opnieuw of neem contact op met de ondersteuning voor hulp.",
             },
             declineToVote: "Afzien van stemmen",
+            blankBallot: "Blanco stembiljet",
         },
         confirmationScreen: {
             title: "Uw stem is uitgebracht",
             description:
                 "De onderstaande bevestigingscode verifieert dat <b>uw stembiljet succesvol is uitgebracht</b>. U kunt deze code gebruiken om te controleren of uw stembiljet is geteld.",
+            blankBallot: {
+                description:
+                    "Uw stembiljet is blanco uitgebracht, wat een geldige, weloverwogen keuze is.",
+            },
             ballotId: "Stembiljet ID",
             printButton: "Afdrukken",
             finishButton: "Voltooien",

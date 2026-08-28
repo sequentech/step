@@ -77,6 +77,33 @@ public class Utils {
 
   public static final String MATCH_POLICY_DEFAULT =
       MultiAttributeCredentialResolver.MatchPolicy.REJECT_AMBIGUOUS.name();
+
+  /**
+   * Opt-in: makes each configured {@code matchAttributes} entry's required-ness - both for the
+   * rendered form and for matching itself - come from the realm's User Profile {@code required}
+   * setting for that attribute, instead of every configured attribute being unconditionally
+   * mandatory.
+   *
+   * <p>Client-side: an attribute User Profile marks required gets the HTML5 {@code required}
+   * attribute (blocking submission before it reaches the server) and the register.ftl-style "*
+   * Required fields" note.
+   *
+   * <p>Server-side: an attribute User Profile does <em>not</em> mark required becomes optional for
+   * matching - handled entirely as a form-level concern in {@code
+   * MultiAttributePasswordAuthenticator} (see {@code optionalAttributes}/{@code
+   * effectiveMatchAttributes}), which simply omits a blank optional attribute from the list it
+   * hands to {@link MultiAttributeCredentialResolver#resolveAuthenticatedUser} - the resolver
+   * itself has no notion of "optional" and is unchanged. A voter may leave an optional attribute
+   * blank and still match on the remaining attributes, as long as at least one configured attribute
+   * has a value (an all-blank submission still fails generically, the same as today).
+   *
+   * <p>Disabled by default: every configured attribute stays unconditionally mandatory, exactly as
+   * before this setting existed.
+   */
+  public static final String HONOR_USER_PROFILE_REQUIRED = "honorUserProfileRequired";
+
+  public static final String HONOR_USER_PROFILE_REQUIRED_DEFAULT = "false";
+
   public final String ATTEMPTED_EMAIL = "ATTEMPTED_EMAIL";
   public final String DISABLE_PASSWORD_ATTRIBUTE = "disablePassword";
   public final String HIDE_USER_NOT_FOUND = "hideUserNotFound";
@@ -248,17 +275,23 @@ public class Utils {
    * field).
    */
   public String resolveHtml5InputType(List<UPAttribute> attributes, String attributeName) {
-    Object inputType =
+    String inputType = resolveAnnotation(attributes, attributeName, "inputType");
+    if (inputType == null || !inputType.startsWith("html5-")) {
+      return "text";
+    }
+    return inputType.substring("html5-".length());
+  }
+
+  private String resolveAnnotation(
+      List<UPAttribute> attributes, String attributeName, String annotationKey) {
+    Object value =
         attributes.stream()
             .filter(attribute -> attributeName.equals(attribute.getName()))
             .findFirst()
             .map(UPAttribute::getAnnotations)
-            .map(annotations -> annotations.get("inputType"))
+            .map(annotations -> annotations.get(annotationKey))
             .orElse(null);
-    if (!(inputType instanceof String) || !((String) inputType).startsWith("html5-")) {
-      return "text";
-    }
-    return ((String) inputType).substring("html5-".length());
+    return value instanceof String ? (String) value : null;
   }
 
   /**

@@ -60,9 +60,8 @@ export const customBuildQuery =
         let sort: ParamsSort | undefined | null = params.sort
         if (isString(resourceName) && raFetchType === "GET_LIST") {
             if (
-                sort?.field &&
-                COLUMNS_MAP[resourceName] &&
-                !COLUMNS_MAP[resourceName].includes(sort.field)
+                !sort?.field ||
+                (COLUMNS_MAP[resourceName] && !COLUMNS_MAP[resourceName].includes(sort.field))
             ) {
                 params.sort = undefined
             }
@@ -142,6 +141,7 @@ export const customBuildQuery =
                     "election_id",
                     "report_type",
                     "template_alias",
+                    "encryption_policy",
                 ]
                 ret.variables.order_by = Object.fromEntries(
                     Object.entries(ret?.variables?.order_by || {}).filter(([key]) =>

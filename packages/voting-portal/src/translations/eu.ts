@@ -10,6 +10,22 @@ const basqueTranslation: TranslationType = {
             showMore: "Erakutsi Gehiago",
             showLess: "Erakutsi Gutxiago",
         },
+        a11y: {
+            skipToContent: "Joan eduki nagusira",
+            helpAbout: "{{topic}} atalari buruzko laguntza",
+            copyToClipboard: "Kopiatu {{label}} arbelean",
+            previewMaterial: "{{title}} aurrebista",
+            ballotsTable: "Botoak",
+            ballotLocatorTabs: "Boto-bilatzailearen atalak",
+            ballotIdLabel: "Botoaren IDa",
+            votingProgress: "Bozketaren aurrerapena",
+            stepOf: "{{total}} urratsetik {{current}}. urratsa",
+            selectUpTo_one: "Hautatu gehienez aukera {{count}}",
+            selectUpTo_other: "Hautatu gehienez {{count}} aukera",
+            selectExactly_one: "Hautatu aukera {{count}}",
+            selectExactly_other: "Hautatu {{count}} aukera",
+            selectBetween: "Hautatu {{min}} eta {{max}} aukera artean",
+        },
         candidatesList: {
             collapseToggle: "{{listTitle}} zerrenda txandakatu",
             showCandidates: "Hautagaiak erakutsi",
@@ -55,6 +71,13 @@ const basqueTranslation: TranslationType = {
                 continue: "Jarraitu",
                 cancel: "Utzi",
             },
+            blankBallotDialog: {
+                title: "Ez duzu hautagairik hautatu",
+                content:
+                    "Ez duzu inolako hautaketarik egin. Zure boto-txartela zuri gisa aurkeztuko da, aukera baliozko eta nahitakoa da eta horrela zenbatuko da.",
+                continue: "Jarraitu",
+                cancel: "Utzi",
+            },
         },
         startScreen: {
             startButton: "Hasi Bozketa",
@@ -87,6 +110,9 @@ const basqueTranslation: TranslationType = {
             backButton: "Editatu bozketa",
             castBallotButton: "Eman zure bozketa",
             auditButton: "Auditatu bozketa",
+            copyBallotId: "Kopiatu bozketa IDa",
+            ballotIdCopied: "Bozketa IDa kopiatu da",
+            ballotIdCopyError: "Ezin izan da bozketa IDa kopiatu",
             reviewScreenHelpDialog: {
                 title: "Informazioa: Berrikuspena Pantaila",
                 content:
@@ -111,6 +137,13 @@ const basqueTranslation: TranslationType = {
                 title: "Ziur zaude zure botoa eman nahi duzula?",
                 content: "Zure botoa ez da editagarria izango behin berrestuta.",
                 ok: "Bai, nire botoa EMAN nahi dut",
+                cancel: "Ezeztatu",
+            },
+            confirmCastBlankBallotDialog: {
+                title: "Ziur zaude boto-txartel zuria aurkeztu nahi duzula?",
+                content:
+                    "Ez duzu hautagairik hautatu. Berretsi ondoren, zure boto-txartela zuri gisa aurkeztuko da.",
+                ok: "Bai, nire boto-txartel zuria aurkeztu nahi dut",
                 cancel: "Ezeztatu",
             },
             error: {
@@ -204,11 +237,16 @@ const basqueTranslation: TranslationType = {
                     "Barne-errore bat gertatu da botoa ematean. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin.",
             },
             declineToVote: "Bozkatzeari uko egin",
+            blankBallot: "Boto-txartel zuria",
         },
         confirmationScreen: {
             title: "Zure botoa eman da",
             description:
                 "Beheko berrespen kodeak egiaztatzen du <b>zure bozketa arrakastaz eman dela</b>. Kode hau erabil dezakezu zure bozketa kontatu dela egiaztatzeko.",
+            blankBallot: {
+                description:
+                    "Zure boto-txartela zuri gisa aurkeztu da, aukera baliozko eta nahitakoa da.",
+            },
             ballotId: "Bozketa IDa",
             printButton: "Inprimatu",
             finishButton: "Amaitu",

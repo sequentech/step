@@ -10,6 +10,22 @@ const tagalogTranslation: TranslationType = {
             showMore: "Lakihan ang nakikita",
             showLess: "Bawasan ang nakikita",
         },
+        a11y: {
+            skipToContent: "Lumaktaw sa pangunahing nilalaman",
+            helpAbout: "Tulong tungkol sa {{topic}}",
+            copyToClipboard: "Kopyahin ang {{label}} sa clipboard",
+            previewMaterial: "I-preview ang {{title}}",
+            ballotsTable: "Mga balota",
+            ballotLocatorTabs: "Mga seksyon ng ballot locator",
+            ballotIdLabel: "Ballot ID",
+            votingProgress: "Progreso ng pagboto",
+            stepOf: "Hakbang {{current}} ng {{total}}",
+            selectUpTo_one: "Pumili ng hanggang {{count}} opsyon",
+            selectUpTo_other: "Pumili ng hanggang {{count}} na opsyon",
+            selectExactly_one: "Pumili ng {{count}} opsyon",
+            selectExactly_other: "Pumili ng {{count}} na opsyon",
+            selectBetween: "Pumili sa pagitan ng {{min}} at {{max}} na opsyon",
+        },
         candidatesList: {
             collapseToggle: "I-toggle ang listahan {{listTitle}}",
             showCandidates: "Ipakita ang mga kandidato",
@@ -55,6 +71,13 @@ const tagalogTranslation: TranslationType = {
                 continue: "Magpatuloy",
                 cancel: "Kanselahin",
             },
+            blankBallotDialog: {
+                title: "Wala kang napiling kandidato",
+                content:
+                    "Wala kang ginawang pagpili. Ang iyong balota ay isusumite bilang blangkong balota, na isang wasto at sinasadyang pagpili at ibibilang bilang ganoon.",
+                continue: "Magpatuloy",
+                cancel: "Kanselahin",
+            },
         },
         startScreen: {
             startButton: "Simulan ang Pagboto",
@@ -87,6 +110,9 @@ const tagalogTranslation: TranslationType = {
             backButton: "I-edit ang balota",
             castBallotButton: "I-submit ang iyong balota",
             auditButton: "I-audit ang balota",
+            copyBallotId: "Kopyahin ang ballot ID",
+            ballotIdCopied: "Nakopya ang ballot ID",
+            ballotIdCopyError: "Hindi makopya ang ballot ID",
             reviewScreenHelpDialog: {
                 title: "Impormasyon: Screen ng Pagsusuri",
                 content:
@@ -111,6 +137,13 @@ const tagalogTranslation: TranslationType = {
                 title: "Sigurado ka bang nais mong i-submit ang iyong boto?",
                 content: "Ang iyong boto ay hindi na maaring baguhin kung ikaw ang magkumpirma.",
                 ok: "Oo, nais kong I-SUBMIT ang aking boto",
+                cancel: "Kanselahin",
+            },
+            confirmCastBlankBallotDialog: {
+                title: "Sigurado ka bang nais mong magsumite ng blangkong balota?",
+                content:
+                    "Wala kang napiling kandidato. Pagkatapos mong kumpirmahin, ang iyong balota ay isusumite bilang blangko.",
+                ok: "Oo, nais kong isumite ang aking blangkong balota",
                 cancel: "Kanselahin",
             },
             error: {
@@ -203,11 +236,16 @@ const tagalogTranslation: TranslationType = {
                     "Nagkaroon ng internal error habang nagboboto. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
             },
             declineToVote: "Tumangging bumoto",
+            blankBallot: "Blangkong balota",
         },
         confirmationScreen: {
             title: "Ang iyong boto ay nai-submit na",
             description:
                 "Ang code ng kumpirmasyon sa ibaba ay nagpapatunay na <b>ang iyong balota ay matagumpay na nai-submit</b>. Maaari mong gamitin ang code na ito upang tiyakin na ang iyong balota ay nabilang.",
+            blankBallot: {
+                description:
+                    "Ang iyong balota ay naisumite bilang blangko, na isang wasto at sinasadyang pagpili.",
+            },
             ballotId: "ID ng Balota",
             printButton: "I-print",
             finishButton: "Tapos na",

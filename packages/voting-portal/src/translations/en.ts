@@ -11,6 +11,22 @@ const englishTranslation = {
             showMore: "Show More",
             showLess: "Show Less",
         },
+        a11y: {
+            skipToContent: "Skip to main content",
+            helpAbout: "Help about {{topic}}",
+            copyToClipboard: "Copy {{label}} to clipboard",
+            previewMaterial: "Preview {{title}}",
+            ballotsTable: "Ballots",
+            ballotLocatorTabs: "Ballot locator sections",
+            ballotIdLabel: "Ballot ID",
+            votingProgress: "Voting progress",
+            stepOf: "Step {{current}} of {{total}}",
+            selectUpTo_one: "Select up to {{count}} option",
+            selectUpTo_other: "Select up to {{count}} options",
+            selectExactly_one: "Select {{count}} option",
+            selectExactly_other: "Select {{count}} options",
+            selectBetween: "Select between {{min}} and {{max}} options",
+        },
         candidatesList: {
             collapseToggle: "Toggle list {{listTitle}}",
             showCandidates: "Show candidates",
@@ -56,6 +72,13 @@ const englishTranslation = {
                 continue: "Continue",
                 cancel: "Cancel",
             },
+            blankBallotDialog: {
+                title: "You have not selected any candidates",
+                content:
+                    "You have not made any selections. Your ballot will be cast as a blank ballot, which is a valid, deliberate choice and will be counted as such.",
+                continue: "Continue",
+                cancel: "Cancel",
+            },
         },
         startScreen: {
             startButton: "Start Voting",
@@ -88,6 +111,9 @@ const englishTranslation = {
             backButton: "Edit ballot",
             castBallotButton: "Cast your ballot",
             auditButton: "Audit ballot",
+            copyBallotId: "Copy ballot ID",
+            ballotIdCopied: "Ballot ID copied",
+            ballotIdCopyError: "Could not copy ballot ID",
             reviewScreenHelpDialog: {
                 title: "Information: Review Screen",
                 content:
@@ -112,6 +138,13 @@ const englishTranslation = {
                 title: "Are you sure you want to cast your vote?",
                 content: "Your vote will no longer be editable once confirmed.",
                 ok: "Yes, I want to CAST my vote",
+                cancel: "Cancel",
+            },
+            confirmCastBlankBallotDialog: {
+                title: "Are you sure you want to cast a blank ballot?",
+                content:
+                    "You have not selected any candidates. After you confirm, your ballot will be cast as blank.",
+                ok: "Yes, cast my blank ballot",
                 cancel: "Cancel",
             },
             error: {
@@ -201,11 +234,15 @@ const englishTranslation = {
                     "There was an internal error while casting the vote. Please try again later or contact support for assistance.",
             },
             declineToVote: "Decline to vote",
+            blankBallot: "Blank ballot",
         },
         confirmationScreen: {
             title: "Your vote has been cast",
             description:
                 "The confirmation code below verifies that <b>your ballot has been cast successfully</b>. You can use this code to verify that your ballot has been counted.",
+            blankBallot: {
+                description: "Your ballot was cast blank, which is a valid, deliberate choice.",
+            },
             ballotId: "Ballot ID",
             printButton: "Print",
             finishButton: "Finish",

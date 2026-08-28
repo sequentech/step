@@ -11,6 +11,22 @@ const galegoTranslation: TranslationType = {
             showMore: "Mostrar Máis",
             showLess: "Mostrar Menos",
         },
+        a11y: {
+            skipToContent: "Ir ao contido principal",
+            helpAbout: "Axuda sobre {{topic}}",
+            copyToClipboard: "Copiar {{label}} ao portapapeis",
+            previewMaterial: "Vista previa de {{title}}",
+            ballotsTable: "Papeletas",
+            ballotLocatorTabs: "Seccións do localizador de papeletas",
+            ballotIdLabel: "ID de voto",
+            votingProgress: "Progreso da votación",
+            stepOf: "Paso {{current}} de {{total}}",
+            selectUpTo_one: "Seleccione ata {{count}} opción",
+            selectUpTo_other: "Seleccione ata {{count}} opcións",
+            selectExactly_one: "Seleccione {{count}} opción",
+            selectExactly_other: "Seleccione {{count}} opcións",
+            selectBetween: "Seleccione entre {{min}} e {{max}} opcións",
+        },
         candidatesList: {
             collapseToggle: "Alternar lista {{listTitle}}",
             showCandidates: "Mostrar candidatos",
@@ -56,6 +72,13 @@ const galegoTranslation: TranslationType = {
                 continue: "Continuar",
                 cancel: "Cancelar",
             },
+            blankBallotDialog: {
+                title: "Non seleccionou ningún candidato",
+                content:
+                    "Non fixo ningunha selección. A súa papeleta emitirase como papeleta en branco, o cal é unha elección válida e deliberada e contabilizarase como tal.",
+                continue: "Continuar",
+                cancel: "Cancelar",
+            },
         },
         startScreen: {
             startButton: "Comezar a votar",
@@ -88,6 +111,9 @@ const galegoTranslation: TranslationType = {
             backButton: "Editar papeleta",
             castBallotButton: "Emitir a túa papeleta",
             auditButton: "Auditar papeleta",
+            copyBallotId: "Copiar o ID da papeleta",
+            ballotIdCopied: "ID da papeleta copiado",
+            ballotIdCopyError: "Non se puido copiar o ID da papeleta",
             reviewScreenHelpDialog: {
                 title: "Información: Pantalla de Revisión",
                 content:
@@ -112,6 +138,13 @@ const galegoTranslation: TranslationType = {
                 title: "Estás seguro de que queres emitir o teu voto?",
                 content: "O teu voto non será editable unha vez confirmado.",
                 ok: "Si, quero EMITIR o meu voto",
+                cancel: "Cancelar",
+            },
+            confirmCastBlankBallotDialog: {
+                title: "Está seguro de que quere emitir unha papeleta en branco?",
+                content:
+                    "Non seleccionou ningún candidato. Unha vez confirme, a súa papeleta emitirase en branco.",
+                ok: "Si, quero emitir a miña papeleta en branco",
                 cancel: "Cancelar",
             },
             error: {
@@ -204,11 +237,16 @@ const galegoTranslation: TranslationType = {
                     "Houbo un erro interno ao emitir o voto. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
             },
             declineToVote: "Absterse de votar",
+            blankBallot: "Papeleta en branco",
         },
         confirmationScreen: {
             title: "O teu voto foi emitido",
             description:
                 "O código de confirmación abaixo verifica que <b>o teu voto foi emitido correctamente</b>. Podes usar este código para verificar que a túa papeleta foi contada.",
+            blankBallot: {
+                description:
+                    "A súa papeleta emitiuse en branco, o cal é unha elección válida e deliberada.",
+            },
             ballotId: "ID da Papeleta",
             printButton: "Imprimir",
             finishButton: "Rematar",
