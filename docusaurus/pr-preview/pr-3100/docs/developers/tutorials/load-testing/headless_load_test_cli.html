@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">The `headless-load-test` CLI | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3100/docs/developers/tutorials/load-testing/headless_load_test_cli"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="The `headless-load-test` CLI | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3100/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3100/docs/developers/tutorials/load-testing/headless_load_test_cli"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3100/docs/developers/tutorials/load-testing/headless_load_test_cli" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3100/docs/developers/tutorials/load-testing/headless_load_test_cli" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"The `headless-load-test` CLI","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3100/docs/developers/tutorials/load-testing/headless_load_test_cli"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3100/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/pr-preview/pr-3100/assets/js/runtime~main.d133b96a.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3100/assets/js/runtime~main.d64720aa.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3100/assets/js/main.16243496.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -395,6 +395,20 @@ quickest fix locally is to add the dynamic role mapper&#x27;s
 has one, e.g. <code>voting-portal</code>&#x27;s, onto the client you intend to use for
 admin auth) and grant that client&#x27;s service-account user the
 <code>admin-user</code> realm role via the Keycloak admin console.</li>
+<li class=""><strong>Provisioning fails uploading the template or voters CSV with <code>tcp connect error: Connection refused</code> to <code>127.0.0.1:9000</code></strong> — this is
+<code>get_upload_url</code>&#x27;s presigned MinIO PUT URL. It&#x27;s deliberately
+<code>127.0.0.1:9000</code> because that&#x27;s meant for a real browser on your actual
+machine (VS Code forwards that port there); it&#x27;s not reachable from
+<em>inside</em> the devcontainer, where <code>headless-load-test</code> itself runs — the
+devcontainer is a sibling of the <code>minio</code> container on the same compose
+network, and a sibling container can&#x27;t reach another through the Docker
+<em>host&#x27;s</em> published port, only by service name. Fix it locally with a
+one-off forward so <code>127.0.0.1:9000</code> inside the devcontainer actually
+reaches <code>minio:9000</code>:<!-- -->
+<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">socat TCP-LISTEN:9000,bind</span><span class="token operator" style="color:rgb(137, 221, 255)">=</span><span class="token number" style="color:rgb(247, 140, 108)">127.0</span><span class="token plain">.0.1,fork,reuseaddr TCP:minio:9000 </span><span class="token operator" style="color:rgb(137, 221, 255)">&amp;</span><br></span></code></pre></div></div>
+<!-- -->Run once per devcontainer session, before <code>headless-load-test</code>; the
+signed URL&#x27;s <code>Host</code> header is still <code>127.0.0.1:9000</code>, so the AWS SigV4
+signature stays valid through the forward.</li>
 <li class=""><strong>&quot;tenant already exists&quot; / import fails outright</strong> — tenant creation and
 election-event import are both non-idempotent. Re-running <code>layers.yaml</code>
 unchanged reuses the same slugs against state that already exists. Bump
