@@ -59,3 +59,70 @@ fn a_census_column_the_realm_never_declared_is_worth_saying() {
     // No realm in the export at all is ordinary: there is nothing to compare with.
     assert!(named(&serde_json::json!({})).is_empty());
 }
+
+/// An export with no identifier gets one derived from its name.
+///
+/// **Reported as an import that left the identifier blank.** An export without one
+/// is ordinary — the platform keys events by UUID and does not always write the
+/// external identifier — and `validate_plan` refuses a plan that has none, so the
+/// old warning told somebody to go and invent a slug for a plan that could not be
+/// built until they did. The wizard already derives one from the name for a plan
+/// started from nothing; this is the same rule at the other door.
+#[test]
+fn an_export_with_no_identifier_gets_one_from_its_name() {
+    let document = serde_json::json!({
+        "election_event": {
+            "presentation": {"i18n": {"en": {"name": "Union Election 2027"}}}
+        }
+    });
+
+    let read = plan_from_event(&document).expect("a readable export");
+    assert_eq!(read.plan.external_id, "union-election-2027");
+    // Said out loud, because the plan now carries a value the file did not — and
+    // it decides every generated identifier in the build.
+    assert!(read
+        .report
+        .problems
+        .iter()
+        .any(|problem| problem.message.contains("derived from its name")));
+}
+
+/// And an export that *does* name one keeps it, untouched.
+#[test]
+fn an_export_that_names_an_identifier_keeps_it() {
+    let document = serde_json::json!({
+        "election_event": {
+            "external_id": "theirs-2027",
+            "presentation": {"i18n": {"en": {"name": "Union Election 2027"}}}
+        }
+    });
+
+    let read = plan_from_event(&document).expect("a readable export");
+    assert_eq!(read.plan.external_id, "theirs-2027");
+}
+
+/// A name that slugifies to nothing still gets a usable identifier.
+#[test]
+fn an_export_with_no_name_either_gets_the_fallback() {
+    let document = serde_json::json!({"election_event": {}});
+
+    let read = plan_from_event(&document).expect("a readable export");
+    assert_eq!(read.plan.external_id, "election-event");
+}
+
+/// A plan built rather than deserialised starts at two trustees, not nought.
+///
+/// **`#[derive(Default)]` and `#[serde(default)]` disagreed.** The derive gave
+/// `trustee_threshold: 0` while the serde default gives 2, and every import path
+/// builds its plan with `..Blueprint::default()` — so an imported election event
+/// arrived asking for a trustee minimum of nought and warning about it on the same
+/// screen. `Default` is now defined as the serde defaults, so the two cannot drift.
+#[test]
+fn a_default_plan_asks_for_two_trustees() {
+    assert_eq!(Blueprint::default().trustee_threshold, 2);
+
+    // Through the import door, which is where it was seen.
+    let read = plan_from_event(&serde_json::json!({"election_event": {}}))
+        .expect("a readable export");
+    assert_eq!(read.plan.trustee_threshold, 2);
+}

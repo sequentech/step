@@ -138,11 +138,27 @@ pub fn plan_from_event(document: &Value) -> Result<ReadPlan, Report> {
     };
 
     if plan.external_id.is_empty() {
+        // **Derived rather than left blank.** An export without one is ordinary —
+        // the platform keys events by UUID and does not always write the external
+        // identifier — and a plan with no identifier is refused by
+        // `validate_plan`, so leaving it empty handed somebody a plan that could
+        // not be built and a warning that told them to go and invent a slug. The
+        // wizard already derives one from the name for a plan started from
+        // nothing; this is the same rule at the other door.
+        //
+        // Said out loud, because it is a value this plan now carries that the
+        // file did not: a rebuild will use it, and it decides every generated id.
+        plan.external_id =
+            super::build::slugify(plan.name.get("en").unwrap_or_default());
         report.push(Problem::warning(
             Code::MissingField,
             AT,
-            "the export names no identifier for the event, so this plan has none \
-             until you give it one.",
+            format!(
+                "the export names no identifier for the event, so one was \
+                 derived from its name: `{}`. Change it if the event already \
+                 has an identifier elsewhere.",
+                plan.external_id
+            ),
         ));
     }
     if plan.name.is_empty() {

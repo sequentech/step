@@ -1739,7 +1739,11 @@ fn value_as_text(value: &Value) -> String {
 }
 
 /// A filesystem-safe name derived from the event's `external_id`.
-fn slugify(value: &str) -> String {
+///
+/// Shared with the import door, which derives an *identifier* from the event's
+/// name when the export carries none. Same rules and the same fallback, because
+/// they are the same question asked twice: what is a safe short name for this.
+pub(super) fn slugify(value: &str) -> String {
     let mut slug = String::with_capacity(value.len());
     for character in value.trim().chars() {
         if character.is_ascii_alphanumeric() {

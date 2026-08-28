@@ -418,7 +418,7 @@ impl VotingChannelSet {
 /// has no field for (the trustee threshold, the ceremony dates, the points of
 /// contact) and breaks whenever the bundle's shape changes. Saving the plan is both
 /// simpler and lossless.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Blueprint {
     /// [`BLUEPRINT_VERSION`] at the time it was saved.
     pub version: u32,
@@ -730,6 +730,32 @@ pub struct Blueprint {
     /// the passwords it sent out — see [`super::password`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub passwords: Option<super::password::PasswordRecipe>,
+}
+
+impl Default for Blueprint {
+    /// **The serde defaults, so the two cannot disagree.**
+    ///
+    /// `#[derive(Default)]` gave `trustee_threshold: 0` while
+    /// `#[serde(default = "default_threshold")]` gives 2 — so a plan *read from a
+    /// document* started at two trustees and one built with
+    /// `..Blueprint::default()` started at zero. Every import takes the second
+    /// path, which is how an imported election event arrived asking for a
+    /// trustee minimum of nought and warning about it on the same screen.
+    ///
+    /// Written as "deserialise an empty document" rather than as a field list,
+    /// because a list is a second copy of thirty-six defaults and the copy is
+    /// exactly what drifted. `version` and `external_id` are the two fields a
+    /// plan must state rather than default, so they are stated.
+    ///
+    /// Not hot: this is called once per import and once per test fixture, never
+    /// per row.
+    fn default() -> Self {
+        serde_json::from_value(serde_json::json!({
+            "version": BLUEPRINT_VERSION,
+            "external_id": "",
+        }))
+        .expect("an empty plan is every serde default, which all exist")
+    }
 }
 
 fn default_threshold() -> u32 {
