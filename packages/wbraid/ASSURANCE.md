@@ -21,46 +21,23 @@ Status legend: **[IN PLACE]** works today · **[PLANNED]** decided, not yet done
 
 ---
 
-## 1. Model checking — `stateright` over the real implementation  [IN PLACE on `exp/braid-stateright/main`]
+## 1. Model checking — `stateright` over the real implementation  [IN PLACE]
 
-Explicit-state model checking exists as **two harnesses that drive the real
-implementation** — the real `datalog::composed::run`, the real `BoardClient`
-(committed set §6.2/§6.3, outgoing mailbox §6.4), real wire assembly and
-signatures — rather than a port of the vs_lift harnesses. Design record,
-measurements and roadmap: `STATERIGHT.md`. Currently on the experimental
-branch; not yet mainlined.
+Two harnesses under `crates/braid/tests/` model-check the **real
+implementation** — the real datalog, board client, wire assembly and
+signatures — rather than a separate model of it:
 
-- `crates/braid/tests/model_check.rs` — real crypto end to end
-  (`Trustee::step`). Explores interleavings as a tree (nondeterministic crypto
-  never dedupes); checks the honest-path axioms: no trustee halts, and some
-  interleaving publishes exactly the encrypted inputs. `#[ignore]`d — run
-  explicitly (real crypto per explored transition).
-- `crates/braid/tests/model_check_symbolic.rs` — the real datalog, wire
-  assembly and signatures over **deterministic token artifacts**; canonical
-  order-free state identity makes the exploration a graph, so completion is
-  checked as a strong `eventually` over ALL paths. The fault program lives
-  here: faults are budgeted actions with provenance in the state, and the
-  first result stands — §6.4's compute-once/send-until-acked verified over
-  every ≤ 2-dropped-commit pattern and interleaving at n=2 (no halts, every
-  path completes). Runs in the ordinary test suite (~1s, several committee
-  configurations).
+- `model_check_symbolic.rs` — deterministic token artifacts make the
+  exploration a graph; carries the fault program and the safety/liveness
+  property set. Runs in the ordinary test suite.
+- `model_check.rs` — real crypto end to end; checks the honest-path axioms
+  the symbolic harness assumes. `#[ignore]`d (real crypto per explored
+  transition); run on demand.
 
-The port plan this section previously carried is **retired**, deliberately:
-
-- *Tier 1* (per-phase ascent-logic models with re-added stub-hash `execute`
-  fragments and a `HashBoard` mock) would have created a second, test-only
-  rendering of the protocol's action layer next to the real one — a drift
-  surface. The harnesses above check the real thing instead, which is strictly
-  stronger and turned out no more expensive.
-- *Tier 2* (the vs_lift integration/actor model, ~2,970 lines) remains
-  unportable as-is (v0.6 replaced that architecture), but it was **mined**: its
-  fault/property catalog — budgeted fault actions, fault provenance in state,
-  fault-conditioned safety/liveness, non-vacuity guards, no-exemption
-  agreement properties — is adopted as the template for the fault program (see
-  `STATERIGHT.md`).
-
-The vs_lift source stays restored (read-only) under `crates/braid/vs_lift/`
-for reference.
+Everything else — design record, fault model, property catalog, how to run,
+and roadmap — is in `STATERIGHT.md` (per-commit measurement log:
+`STATERIGHT-log.md`). The retired vs_lift harnesses remain in-tree,
+read-only, under `crates/braid/vs_lift/` for reference.
 
 ---
 

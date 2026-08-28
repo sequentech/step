@@ -82,6 +82,16 @@ placeholders is cheap and repeatable but assumes the crypto works. We keep both.
 | What it checks | that the real crypto works on the honest path: honestly produced artifacts verify, and decryption recovers the inputs | everything the protocol builds *on top of* working crypto: interleavings, halting, privacy and integrity of what gets decrypted, and the whole fault program |
 | Cost | high (real crypto per step) — so it is marked `#[ignore]` and run on demand | low enough for the ordinary suite; most configurations run in seconds, the two 4-trustee split-view configurations dominate at tens of seconds each (~80s total) |
 
+How to run, from the workspace root:
+
+```sh
+cargo test --release -p braid --test model_check_symbolic      # part of the ordinary suite
+cargo test --release -p braid --test model_check -- --ignored  # crypto harness, on demand
+```
+
+`--release` matters: exploration is compute-bound, and the crypto harness
+especially so.
+
 The division of labor: the symbolic harness **assumes** two facts about the
 cryptography — that an honestly produced artifact passes verification, and that
 a forged one does not — and checks everything that rests on those facts. The
