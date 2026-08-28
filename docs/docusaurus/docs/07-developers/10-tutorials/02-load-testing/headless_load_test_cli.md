@@ -542,6 +542,23 @@ vote rate implies.
   has one, e.g. `voting-portal`'s, onto the client you intend to use for
   admin auth) and grant that client's service-account user the
   `admin-user` realm role via the Keycloak admin console.
+- **Provisioning fails uploading the template or voters CSV with `tcp
+  connect error: Connection refused` to `127.0.0.1:9000`** — this is
+  `get_upload_url`'s presigned MinIO PUT URL. It's deliberately
+  `127.0.0.1:9000` because that's meant for a real browser on your actual
+  machine (VS Code forwards that port there); it's not reachable from
+  *inside* the devcontainer, where `headless-load-test` itself runs — the
+  devcontainer is a sibling of the `minio` container on the same compose
+  network, and a sibling container can't reach another through the Docker
+  *host's* published port, only by service name. Fix it locally with a
+  one-off forward so `127.0.0.1:9000` inside the devcontainer actually
+  reaches `minio:9000`:
+  ```bash
+  socat TCP-LISTEN:9000,bind=127.0.0.1,fork,reuseaddr TCP:minio:9000 &
+  ```
+  Run once per devcontainer session, before `headless-load-test`; the
+  signed URL's `Host` header is still `127.0.0.1:9000`, so the AWS SigV4
+  signature stays valid through the forward.
 - **"tenant already exists" / import fails outright** — tenant creation and
   election-event import are both non-idempotent. Re-running `layers.yaml`
   unchanged reuses the same slugs against state that already exists. Bump
