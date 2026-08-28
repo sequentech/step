@@ -1705,14 +1705,14 @@ pub async fn import_users_f(
     Ok(Json(output))
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, input))]
 #[post("/export-users", format = "json", data = "<input>")]
 pub async fn export_users_f(
     claims: jwt::JwtClaims,
     input: Json<ExportUsersBody>,
 ) -> Result<Json<ExportUsersOutput>, (Status, String)> {
     let body = input.into_inner();
-    let tenant_id = claims.hasura_claims.tenant_id.clone();
+    let tenant_id = body.tenant_id.clone();
     let executer_name = claims
         .name
         .clone()
@@ -1723,30 +1723,6 @@ pub async fn export_users_f(
     } else {
         Permissions::USER_READ
     };
-
-    // Create task execution record only if election_event_id is present
-    let task_execution =
-        if let Some(ref election_event_id) = body.election_event_id {
-            Some(
-                post(
-                    &tenant_id,
-                    Some(election_event_id),
-                    ETasksExecution::EXPORT_VOTERS,
-                    &executer_name,
-                )
-                .await
-                .map_err(|error| {
-                    (
-                        Status::InternalServerError,
-                        format!(
-                            "Failed to insert task execution record: {error:?}"
-                        ),
-                    )
-                })?,
-            )
-        } else {
-            None
-        };
 
     authorize(
         &claims,
@@ -1775,6 +1751,36 @@ pub async fn export_users_f(
     };
 
     let document_id = Uuid::new_v4().to_string();
+
+    // Authorize before creating the task row, then persist a task-bound grant.
+    // The worker reloads this row and never trusts a broker-supplied boolean.
+    let task_execution =
+        if let Some(ref election_event_id) = body.election_event_id {
+            Some(
+                post_with_annotations(
+                    &tenant_id,
+                    Some(election_event_id),
+                    ETasksExecution::EXPORT_VOTERS,
+                    &executer_name,
+                    secret_export_task_annotations(
+                        &document_id,
+                        may_read_secret_attributes,
+                    ),
+                )
+                .await
+                .map_err(|error| {
+                    (
+                        Status::InternalServerError,
+                        format!(
+                            "Failed to insert task execution record: {error:?}"
+                        ),
+                    )
+                })?,
+            )
+        } else {
+            None
+        };
+
     let celery_app = get_celery_app().await;
 
     let celery_task = match celery_app
@@ -1785,7 +1791,6 @@ pub async fn export_users_f(
                 election_id: body.election_id,
                 include_secret_attributes: body.include_secret_attributes,
             },
-            may_read_secret_attributes,
             document_id.clone(),
             task_execution.clone(),
         ))
@@ -1793,6 +1798,21 @@ pub async fn export_users_f(
     {
         Ok(celery_task) => celery_task,
         Err(err) => {
+            if let Some(task_execution) = &task_execution {
+                update_fail(
+                    task_execution,
+                    &format!("Failed to enqueue voter export: {err:?}"),
+                )
+                .await
+                .map_err(|update_error| {
+                    (
+                        Status::InternalServerError,
+                        format!(
+                            "Failed to revoke voter export authorization: {update_error:?}"
+                        ),
+                    )
+                })?;
+            }
             return Ok(Json(ExportUsersOutput {
                 document_id,
                 error_msg: Some(format!(
@@ -1836,7 +1856,6 @@ pub async fn export_tenant_users_f(
             ExportBody::TenantUsers {
                 tenant_id: body.tenant_id,
             },
-            false,
             document_id.clone(),
             None,
         ))

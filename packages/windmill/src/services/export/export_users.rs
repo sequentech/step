@@ -124,7 +124,7 @@ fn get_headers(
     .concat()
 }
 
-#[instrument(skip(elections, areas_by_id, user_attributes), level = "trace")]
+#[instrument(skip(elections, areas_by_id, user, user_attributes), level = "trace")]
 fn get_user_record(
     elections: &Option<Vec<ElectionHead>>,
     areas_by_id: &Option<HashMap<String, String>>,

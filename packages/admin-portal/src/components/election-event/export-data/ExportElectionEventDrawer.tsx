@@ -104,8 +104,9 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
 
             const generatedPassword = exportElectionEventData?.export_election_event?.password
             generatedPassword && setPassword(generatedPassword)
-            //if encrypt with password false reset state immediately otherwise wait until after password dialog is closed
-            !encryptWithPassword && resetState()
+            // Keep state until the generated-password dialog closes for every
+            // export that is encrypted, including formats that require it.
+            !isEncrypted && resetState()
 
             const documentId = exportElectionEventData?.export_election_event?.document_id
 
@@ -129,18 +130,8 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
         }
     }
 
-    const toggleCheckBoxWithPassword = (setter: (val: boolean) => void, newValue: boolean) => {
-        setter(newValue)
-        if (newValue) {
-            setEncryptWithPassword(newValue)
-        }
-    }
-
     const toggleBulletinBoard = (newValue: boolean) => {
         setBulletinBoard(newValue)
-        if (newValue) {
-            toggleCheckBoxWithPassword(setBulletinBoard, newValue)
-        }
         // Tally has to be exported with bulletin board
         if (!newValue && tally) {
             setTally(false)
@@ -150,7 +141,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
     const toggleTallyCheckBox = (newValue: boolean) => {
         setTally(newValue)
         if (newValue) {
-            toggleCheckBoxWithPassword(setBulletinBoard, newValue)
+            setBulletinBoard(true)
         }
     }
 
@@ -176,7 +167,6 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                     <FormControlLabel
                         control={
                             <Checkbox
-                                disabled={bulletinBoard || reports || applications}
                                 checked={encryptWithPassword}
                                 onChange={() => setEncryptWithPassword(!encryptWithPassword)}
                             />
@@ -241,7 +231,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                         control={
                             <StyledCheckbox
                                 checked={reports}
-                                onChange={() => toggleCheckBoxWithPassword(setReports, !reports)}
+                                onChange={() => setReports(!reports)}
                             />
                         }
                         label={String(t("electionEventScreen.export.reports"))}
@@ -250,9 +240,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                         control={
                             <StyledCheckbox
                                 checked={applications}
-                                onChange={() =>
-                                    toggleCheckBoxWithPassword(setApplications, !applications)
-                                }
+                                onChange={() => setApplications(!applications)}
                             />
                         }
                         label={String(t("electionEventScreen.export.applications"))}

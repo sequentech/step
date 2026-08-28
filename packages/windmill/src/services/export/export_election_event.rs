@@ -39,7 +39,6 @@ use sequent_core::types::hasura::core::{
 };
 use sequent_core::util::version::{DEV_APP_VERSION, ENV_VAR_APP_VERSION};
 use std::collections::HashMap;
-use std::env;
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
@@ -61,7 +60,7 @@ use crate::services::documents::{
 };
 use crate::services::password;
 
-#[instrument(err, skip(transaction))]
+#[instrument(err, skip(transaction, export_config))]
 pub async fn read_export_data(
     transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -171,7 +170,7 @@ pub async fn read_export_data(
     Ok((import_election_event_schema, images_files_path))
 }
 
-#[instrument(err)]
+#[instrument(err, skip(password))]
 pub async fn generate_encrypted_zip(
     temp_path_string: String,
     encrypted_temp_file_string: String,
@@ -332,7 +331,21 @@ pub async fn process_event_images(
     Ok(s3_files)
 }
 
-#[instrument(err)]
+fn select_export_upload_path<'a>(
+    encryption_password: &str,
+    zip_path: &'a PathBuf,
+    encrypted_zip_path: &'a PathBuf,
+) -> Result<&'a PathBuf> {
+    if encryption_password.is_empty() {
+        return Ok(zip_path);
+    }
+    if encrypted_zip_path.exists() {
+        return Ok(encrypted_zip_path);
+    }
+    Err(anyhow!("Encrypted election-event archive was not created"))
+}
+
+#[instrument(err, skip(export_config))]
 pub async fn process_export_zip(
     tenant_id: &str,
     election_event_id: &str,
@@ -353,9 +366,12 @@ pub async fn process_export_zip(
         include_voters = export_config.include_voters,
         contains_voter_secrets, "exporting election event"
     );
-    // Temporary file path for the ZIP archive
+    // A task-private 0700 directory prevents same-event exports from racing
+    // over a predictable filename and removes plaintext on every return path.
+    let export_temp_dir =
+        tempfile::tempdir().context("Error creating temporary election-event export directory")?;
     let zip_filename = format!("export-election-event-{election_event_id}.zip");
-    let zip_path = env::temp_dir().join(&zip_filename);
+    let zip_path = export_temp_dir.path().join(&zip_filename);
 
     // Create a new ZIP file
     let zip_file =
@@ -778,12 +794,9 @@ pub async fn process_export_zip(
         .await?;
     }
 
-    // Use encrypted_zip_path if encryption is enabled, otherwise use zip_path
-    let upload_path = if encryption_password.len() > 0 && encrypted_zip_path.exists() {
-        &encrypted_zip_path
-    } else {
-        &zip_path
-    };
+    // Never fall back to the plaintext archive after encryption was requested.
+    let upload_path =
+        select_export_upload_path(&encryption_password, &zip_path, &encrypted_zip_path)?;
 
     let zip_size = std::fs::metadata(&upload_path)
         .map_err(|e| anyhow!("Error getting ZIP file metadata: {e:?}"))?
@@ -829,17 +842,37 @@ pub async fn process_export_zip(
         .await?
     };
 
-    // Clean up the ZIP files (optional)
-    std::fs::remove_file(&zip_path).map_err(|e| anyhow!("Error removing ZIP file: {e:?}"))?;
-    if encrypted_zip_path.exists() {
-        std::fs::remove_file(&encrypted_zip_path)
-            .map_err(|e| anyhow!("Error removing encrypted ZIP file: {e:?}"))?;
-    }
-
     hasura_transaction
         .commit()
         .await
         .map_err(|e| anyhow!("Commit failed: {e:?}"))?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn encryption_never_falls_back_to_plaintext() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let zip_path = temp_dir.path().join("export.zip");
+        let encrypted_zip_path = temp_dir.path().join("export.ezip");
+        File::create(&zip_path).unwrap();
+
+        assert!(select_export_upload_path("password", &zip_path, &encrypted_zip_path).is_err());
+        assert_eq!(
+            select_export_upload_path("", &zip_path, &encrypted_zip_path).unwrap(),
+            &zip_path
+        );
+    }
+
+    #[test]
+    fn temporary_directories_are_unique_for_concurrent_event_exports() {
+        let first = tempfile::tempdir().unwrap();
+        let second = tempfile::tempdir().unwrap();
+
+        assert_ne!(first.path(), second.path());
+    }
 }

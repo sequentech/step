@@ -25,4 +25,6 @@ An election-event archive includes decrypted secret voter fields only when all o
 2. **Encrypt with Password** is checked, so the resulting archive is password protected.
 3. The user starting the export has the `voter-secret-attribute-read` permission.
 
+The **Encrypt with Password** checkbox must be selected explicitly. Choosing another export option that requires archive encryption (such as reports, applications, or bulletin-board data) does not opt in to exporting voter secrets.
+
 If the user does not have that permission, the election-event export still includes the ordinary voter fields but omits all secret fields. Archives that contain decrypted voter secrets are marked as sensitive, so downloading them also requires the secret-read permission.

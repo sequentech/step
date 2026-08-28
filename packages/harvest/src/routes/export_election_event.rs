@@ -33,7 +33,7 @@ pub struct ExportElectionEventOutput {
     task_execution: TasksExecution,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, input))]
 #[post("/export-election-event", format = "json", data = "<input>")]
 pub async fn export_election_event_route(
     claims: jwt::JwtClaims,
@@ -56,7 +56,6 @@ pub async fn export_election_event_route(
     let mut export_config = body.export_configurations.clone();
     export_config.password = None;
     export_config.contains_voter_secrets = false;
-    export_config.may_read_voter_secrets = false;
     export_config.is_encrypted = export_config.is_encrypted
         || export_config.encrypt_with_password
         || export_config.bulletin_board
@@ -88,24 +87,28 @@ pub async fn export_election_event_route(
             .is_empty();
 
         if has_secret_attributes {
-            export_config.may_read_voter_secrets = authorize(
+            export_config.contains_voter_secrets = authorize(
                 &claims,
                 true,
                 Some(tenant_id.clone()),
                 vec![Permissions::VOTER_SECRET_ATTRIBUTE_READ],
             )
             .is_ok();
-            export_config.contains_voter_secrets =
-                export_config.may_read_voter_secrets;
         }
     }
 
+    let document_id = Uuid::new_v4().to_string();
+
     // Insert the task execution record
-    let task_execution = post(
+    let task_execution = post_with_annotations(
         &tenant_id,
         Some(&election_event_id),
         ETasksExecution::EXPORT_ELECTION_EVENT,
         &executer_name,
+        secret_export_task_annotations(
+            &document_id,
+            export_config.contains_voter_secrets,
+        ),
     )
     .await
     .map_err(|error| {
@@ -115,7 +118,6 @@ pub async fn export_election_event_route(
         )
     })?;
 
-    let document_id = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
 
     // todo: generarate only if encrypted
@@ -133,7 +135,7 @@ pub async fn export_election_event_route(
     };
     export_config.password = password.clone();
 
-    let celery_task = celery_app
+    let _celery_task = match celery_app
         .send_task(export_election_event::export_election_event::new(
             tenant_id,
             election_event_id,
@@ -142,12 +144,26 @@ pub async fn export_election_event_route(
             task_execution.clone(),
         ))
         .await
-        .map_err(|error| {
-            (
+    {
+        Ok(task) => task,
+        Err(error) => {
+            update_fail(
+                &task_execution,
+                &format!("Failed to enqueue export: {error:?}"),
+            )
+            .await
+            .map_err(|update_error| {
+                (
+                    Status::InternalServerError,
+                    format!("Failed to revoke export authorization: {update_error:?}"),
+                )
+            })?;
+            return Err((
                 Status::InternalServerError,
                 format!("Error sending export_election_event task: {error:?}"),
-            )
-        })?;
+            ));
+        }
+    };
 
     let output = ExportElectionEventOutput {
         document_id,
