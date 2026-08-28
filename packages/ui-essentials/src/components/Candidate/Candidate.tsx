@@ -292,6 +292,7 @@ const Candidate: React.FC<CandidateProps> = ({
                         </VisuallyHidden>
                         <Select
                             displayEmpty
+                            disabled={shouldDisable}
                             value={selectedPosition ?? 0}
                             onChange={handlePositionChange}
                             // Must be labelId, not aria-labelledby: MUI puts

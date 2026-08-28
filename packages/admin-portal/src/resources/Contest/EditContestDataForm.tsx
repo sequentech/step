@@ -741,7 +741,11 @@ export const ContestDataForm: React.FC = () => {
                                 </ContestStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <BooleanInput source="is_acclaimed" />
+                                <BooleanInput
+                                    source="is_acclaimed"
+                                    label={String(t("contestScreen.isAcclaimed.label"))}
+                                    helperText={String(t("contestScreen.isAcclaimed.helperText"))}
+                                />
                                 <BooleanInput
                                     source="presentation.allow_writeins"
                                     label={String(t(`contestScreen.allowWriteins.label`))}

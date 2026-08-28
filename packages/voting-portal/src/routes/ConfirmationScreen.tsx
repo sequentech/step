@@ -24,6 +24,7 @@ import {
     IAuditableSingleBallot,
     EElectionEventContestEncryptionPolicy,
     IElection,
+    areAllContestsAcclaimed,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {faPrint, faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-icons"
@@ -122,6 +123,7 @@ interface ActionButtonsProps {
     ballotTrackerUrl?: string
     ballotId: string
     isGoldenAuth: boolean
+    isFullyAcclaimed: boolean
 }
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({
@@ -129,6 +131,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
     electionId,
     ballotId,
     isGoldenAuth,
+    isFullyAcclaimed,
 }) => {
     const {logout} = useContext(AuthContext)
     const {t} = useTranslation()
@@ -291,22 +294,29 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
     return (
         <>
             <ActionsContainer>
-                <StyledButton
-                    onClick={printBallotReceiptReport}
-                    disabled={isHitPrint}
-                    variant="secondary"
-                    sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
-                >
-                    {isHitPrint ? (
-                        <StyledCircularProgress color="inherit" aria-hidden="true" />
-                    ) : (
-                        <StyledIcon icon={faPrint} size="sm" />
-                    )}
-                    <Box>{t("confirmationScreen.printButton")}</Box>
-                </StyledButton>
-                {/* Generating the receipt is an asynchronous poll, so the wait
-                    and its end are announced rather than shown only as a spinner. */}
-                <VisuallyHidden role="status">{isHitPrint ? t("a11y.loading") : ""}</VisuallyHidden>
+                {/* There is no ballot to receipt when nothing was cast. */}
+                {isFullyAcclaimed ? null : (
+                    <>
+                        <StyledButton
+                            onClick={printBallotReceiptReport}
+                            disabled={isHitPrint}
+                            variant="secondary"
+                            sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
+                        >
+                            {isHitPrint ? (
+                                <StyledCircularProgress color="inherit" aria-hidden="true" />
+                            ) : (
+                                <StyledIcon icon={faPrint} size="sm" />
+                            )}
+                            <Box>{t("confirmationScreen.printButton")}</Box>
+                        </StyledButton>
+                        {/* Generating the receipt is an asynchronous poll, so the wait
+                        and its end are announced rather than shown only as a spinner. */}
+                        <VisuallyHidden role="status">
+                            {isHitPrint ? t("a11y.loading") : ""}
+                        </VisuallyHidden>
+                    </>
+                )}
                 <StyledButton
                     className="finish-button"
                     onClick={onClickFinishButton}
@@ -350,6 +360,10 @@ const ConfirmationScreen: React.FC = () => {
     const [openDemoBallotUrlHelp, setDemoBallotUrlHelp] = useState(false)
     const {hashBallot, hashMultiBallot} = provideBallotService()
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
+    const electionBallotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
+    // Nothing was cast for a fully acclaimed election, so this screen confirms
+    // what was decided rather than a ballot, and shows no ballot id anywhere.
+    const isFullyAcclaimed = areAllContestsAcclaimed(electionBallotStyle?.ballot_eml.contests)
 
     const getBallotId = (): {
         ballotIdStored: string | undefined
@@ -398,6 +412,9 @@ const ConfirmationScreen: React.FC = () => {
     }
 
     useEffect(() => {
+        if (isFullyAcclaimed) {
+            return
+        }
         if (!gotData.current) {
             gotData.current = true
             const {ballotIdStored, isDemoStored} = getBallotId()
@@ -432,7 +449,13 @@ const ConfirmationScreen: React.FC = () => {
                 fontWeight="bold"
                 sx={{marginTop: "40px"}}
             >
-                <Box>{t("confirmationScreen.title")}</Box>
+                <Box>
+                    {t(
+                        isFullyAcclaimed
+                            ? "confirmationScreen.acclamation.title"
+                            : "confirmationScreen.title"
+                    )}
+                </Box>
                 <IconButton
                     icon={faCircleQuestion}
                     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
@@ -446,124 +469,157 @@ const ConfirmationScreen: React.FC = () => {
                 <Dialog
                     handleClose={() => setOpenConfirmationHelp(false)}
                     open={openConfirmationHelp}
-                    title={t("confirmationScreen.confirmationHelpDialog.title")}
-                    ok={t("confirmationScreen.confirmationHelpDialog.ok")}
+                    title={t(
+                        isFullyAcclaimed
+                            ? "confirmationScreen.acclamation.helpDialog.title"
+                            : "confirmationScreen.confirmationHelpDialog.title"
+                    )}
+                    ok={t(
+                        isFullyAcclaimed
+                            ? "confirmationScreen.acclamation.helpDialog.ok"
+                            : "confirmationScreen.confirmationHelpDialog.ok"
+                    )}
                     variant="info"
                 >
-                    {stringToHtml(t("confirmationScreen.confirmationHelpDialog.content"))}
+                    {stringToHtml(
+                        t(
+                            isFullyAcclaimed
+                                ? "confirmationScreen.acclamation.helpDialog.content"
+                                : "confirmationScreen.confirmationHelpDialog.content"
+                        )
+                    )}
                 </Dialog>
             </StyledTitle>
             <Typography variant="body2" component="div" sx={{color: theme.palette.customGrey.main}}>
-                {stringToHtml(t("confirmationScreen.description"))}
+                {stringToHtml(
+                    t(
+                        isFullyAcclaimed
+                            ? "confirmationScreen.acclamation.description"
+                            : "confirmationScreen.description"
+                    )
+                )}
             </Typography>
             {isBlankBallot ? (
                 <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                     {stringToHtml(t("confirmationScreen.blankBallot.description"))}
                 </Typography>
             ) : null}
-            <BallotIdContainer>
-                <Typography
-                    variant="h5"
-                    component="h2"
-                    fontSize="18px"
-                    fontWeight="bold"
-                    sx={{display: {xs: "none", sm: "block"}}}
-                >
-                    {t("confirmationScreen.ballotId")}
-                </Typography>
-                <BallotIdBorder>
-                    <DecorativeIconBox>
-                        <Icon
-                            icon={faCheck}
-                            style={{
-                                fontSize: "14px",
-                                lineHeight: "unset",
-                                paddingBottom: "2px",
-                            }}
-                            color={theme.palette.customGrey.contrastText}
+            {/* A fully acclaimed election casts no ballot, so it has no
+                ballot id, tracker link or QR code to show. */}
+            {isFullyAcclaimed ? null : (
+                <>
+                    <BallotIdContainer>
+                        <Typography
+                            variant="h5"
+                            component="h2"
+                            fontSize="18px"
+                            fontWeight="bold"
+                            sx={{display: {xs: "none", sm: "block"}}}
+                        >
+                            {t("confirmationScreen.ballotId")}
+                        </Typography>
+                        <BallotIdBorder>
+                            <DecorativeIconBox>
+                                <Icon
+                                    icon={faCheck}
+                                    style={{
+                                        fontSize: "14px",
+                                        lineHeight: "unset",
+                                        paddingBottom: "2px",
+                                    }}
+                                    color={theme.palette.customGrey.contrastText}
+                                />
+                            </DecorativeIconBox>
+                            <BallotIdLink
+                                href={!isDemo ? ballotTrackerUrl : undefined}
+                                target={!isDemo ? "_blank" : undefined}
+                                sx={{display: {xs: "none", sm: "block"}}}
+                                onClick={handleBallotIdLinkClick}
+                            >
+                                {ballotId.current}
+                            </BallotIdLink>
+                            <BallotIdLink
+                                href={!isDemo ? ballotTrackerUrl : undefined}
+                                target={!isDemo ? "_blank" : undefined}
+                                sx={{display: {xs: "block", sm: "none"}}}
+                                onClick={handleBallotIdLinkClick}
+                            >
+                                {t("ballotHash", {ballotId: ballotId.current})}
+                            </BallotIdLink>
+                            <IconButton
+                                icon={faCircleQuestion}
+                                sx={{
+                                    fontSize: "unset",
+                                    lineHeight: "unset",
+                                    marginLeft: "16px",
+                                }}
+                                fontSize="18px"
+                                onClick={() =>
+                                    isDemo ? setDemoBallotIdHelp(true) : setOpenBallotIdHelp(true)
+                                }
+                                ariaLabel={t("a11y.helpAbout", {
+                                    topic: t("confirmationScreen.ballotId"),
+                                })}
+                            />
+                            <Dialog
+                                handleClose={() => setOpenBallotIdHelp(false)}
+                                open={openBallotIdHelp}
+                                title={t("confirmationScreen.ballotIdHelpDialog.title")}
+                                ok={t("confirmationScreen.ballotIdHelpDialog.ok")}
+                                variant="info"
+                            >
+                                {stringToHtml(t("confirmationScreen.ballotIdHelpDialog.content"))}
+                            </Dialog>
+                            <Dialog
+                                handleClose={() => setDemoBallotUrlHelp(false)}
+                                open={openDemoBallotUrlHelp}
+                                title={t("confirmationScreen.demoBallotUrlDialog.title")}
+                                ok={t("confirmationScreen.demoBallotUrlDialog.ok")}
+                                variant="info"
+                            >
+                                {stringToHtml(t("confirmationScreen.demoBallotUrlDialog.content"))}
+                            </Dialog>
+                            <Dialog
+                                handleClose={() => setDemoBallotIdHelp(false)}
+                                open={demoBallotIdHelp}
+                                title={t("confirmationScreen.ballotIdDemoHelpDialog.title")}
+                                ok={t("confirmationScreen.ballotIdDemoHelpDialog.ok")}
+                                variant="info"
+                            >
+                                {stringToHtml(
+                                    t("confirmationScreen.ballotIdDemoHelpDialog.content")
+                                )}
+                            </Dialog>
+                        </BallotIdBorder>
+                    </BallotIdContainer>
+                    <Typography variant="h5" component="h2" fontSize="18px" fontWeight="bold">
+                        {t("confirmationScreen.verifyCastTitle")}
+                    </Typography>
+                    <Typography
+                        variant="body2"
+                        sx={{color: theme.palette.customGrey.main}}
+                        id="qr-code-description"
+                    >
+                        {stringToHtml(t("confirmationScreen.verifyCastDescription"))}
+                    </Typography>
+                    <QRContainer className="qr-container">
+                        <QRCode
+                            ariaLabelledby="qr-code-description"
+                            value={
+                                isDemo
+                                    ? t("confirmationScreen.demoQRText")
+                                    : (ballotTrackerUrl ?? "")
+                            }
                         />
-                    </DecorativeIconBox>
-                    <BallotIdLink
-                        href={!isDemo ? ballotTrackerUrl : undefined}
-                        target={!isDemo ? "_blank" : undefined}
-                        sx={{display: {xs: "none", sm: "block"}}}
-                        onClick={handleBallotIdLinkClick}
-                    >
-                        {ballotId.current}
-                    </BallotIdLink>
-                    <BallotIdLink
-                        href={!isDemo ? ballotTrackerUrl : undefined}
-                        target={!isDemo ? "_blank" : undefined}
-                        sx={{display: {xs: "block", sm: "none"}}}
-                        onClick={handleBallotIdLinkClick}
-                    >
-                        {t("ballotHash", {ballotId: ballotId.current})}
-                    </BallotIdLink>
-                    <IconButton
-                        icon={faCircleQuestion}
-                        sx={{
-                            fontSize: "unset",
-                            lineHeight: "unset",
-                            marginLeft: "16px",
-                        }}
-                        fontSize="18px"
-                        onClick={() =>
-                            isDemo ? setDemoBallotIdHelp(true) : setOpenBallotIdHelp(true)
-                        }
-                        ariaLabel={t("a11y.helpAbout", {
-                            topic: t("confirmationScreen.ballotId"),
-                        })}
-                    />
-                    <Dialog
-                        handleClose={() => setOpenBallotIdHelp(false)}
-                        open={openBallotIdHelp}
-                        title={t("confirmationScreen.ballotIdHelpDialog.title")}
-                        ok={t("confirmationScreen.ballotIdHelpDialog.ok")}
-                        variant="info"
-                    >
-                        {stringToHtml(t("confirmationScreen.ballotIdHelpDialog.content"))}
-                    </Dialog>
-                    <Dialog
-                        handleClose={() => setDemoBallotUrlHelp(false)}
-                        open={openDemoBallotUrlHelp}
-                        title={t("confirmationScreen.demoBallotUrlDialog.title")}
-                        ok={t("confirmationScreen.demoBallotUrlDialog.ok")}
-                        variant="info"
-                    >
-                        {stringToHtml(t("confirmationScreen.demoBallotUrlDialog.content"))}
-                    </Dialog>
-                    <Dialog
-                        handleClose={() => setDemoBallotIdHelp(false)}
-                        open={demoBallotIdHelp}
-                        title={t("confirmationScreen.ballotIdDemoHelpDialog.title")}
-                        ok={t("confirmationScreen.ballotIdDemoHelpDialog.ok")}
-                        variant="info"
-                    >
-                        {stringToHtml(t("confirmationScreen.ballotIdDemoHelpDialog.content"))}
-                    </Dialog>
-                </BallotIdBorder>
-            </BallotIdContainer>
-            <Typography variant="h5" component="h2" fontSize="18px" fontWeight="bold">
-                {t("confirmationScreen.verifyCastTitle")}
-            </Typography>
-            <Typography
-                variant="body2"
-                sx={{color: theme.palette.customGrey.main}}
-                id="qr-code-description"
-            >
-                {stringToHtml(t("confirmationScreen.verifyCastDescription"))}
-            </Typography>
-            <QRContainer className="qr-container">
-                <QRCode
-                    ariaLabelledby="qr-code-description"
-                    value={isDemo ? t("confirmationScreen.demoQRText") : (ballotTrackerUrl ?? "")}
-                />
-            </QRContainer>
+                    </QRContainer>
+                </>
+            )}
             <ActionButtons
                 ballotTrackerUrl={ballotTrackerUrl}
                 electionId={electionId}
                 ballotId={ballotId.current ?? ""}
                 isGoldenAuth={confirmationScreenData ? true : false}
+                isFullyAcclaimed={isFullyAcclaimed}
             />
         </PageLimit>
     )

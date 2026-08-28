@@ -76,6 +76,7 @@ use sequent_core::ballot::Contest;
 use sequent_core::ballot::ContestEncryptionPolicy;
 use sequent_core::ballot::Weight;
 use sequent_core::ballot::WeightedVotingPolicy;
+use sequent_core::ballot_codec::multi_ballot::votable_contests;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::area_tree::TreeNode;
@@ -919,7 +920,7 @@ async fn map_plaintext_data(
         let mut unsupported: Vec<String> = Vec::new();
         for contest in published_ballot_styles
             .iter()
-            .flat_map(|ballot_style| ballot_style.contests.iter())
+            .flat_map(|ballot_style| votable_contests(&ballot_style.contests))
         {
             if contest.get_counting_algorithm() != CountingAlgType::PluralityAtLarge
                 && !unsupported.contains(&contest.id)

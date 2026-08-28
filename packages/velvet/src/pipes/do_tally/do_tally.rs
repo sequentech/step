@@ -84,7 +84,15 @@ fn load_tally_sheet_results(
         return Ok(vec![]);
     }
 
-    list_tally_sheet_subfolders(tally_sheets_dir)
+    let tally_sheet_folders = list_tally_sheet_subfolders(tally_sheets_dir);
+    if contest.is_acclaimed() && !tally_sheet_folders.is_empty() {
+        return Err(Error::UnexpectedError(format!(
+            "Acclaimed contest {} cannot have tally sheets",
+            contest.id
+        )));
+    }
+
+    tally_sheet_folders
         .into_iter()
         .map(|tally_sheet_folder| {
             let tally_sheet_file_path = tally_sheet_folder.join(INPUT_TALLY_SHEET_FILE);
@@ -192,6 +200,11 @@ fn aggregate_area_votes_by_channel<'a>(
 }
 
 fn set_votes_by_channel(result: &mut ContestResult, counts: VotesByChannel) {
+    // Participation belongs to votes. An acclaimed result is canonical and
+    // must not inherit the surrounding election's channel counts.
+    if result.contest.is_acclaimed() {
+        return;
+    }
     result
         .extended_metrics
         .get_or_insert_with(ExtendedMetricsContest::default)
@@ -507,14 +520,16 @@ impl Pipe for DoTally {
                                 .map_err(|e| Error::UnexpectedError(e.to_string()))?;
 
                             let has_channel_input = area_input.area.votes_by_channel.is_some();
-                            {
+                            if !area_tally_results.contest.is_acclaimed() {
                                 let extended_metrics = area_tally_results
                                     .extended_metrics
                                     .get_or_insert_with(ExtendedMetricsContest::default);
                                 extended_metrics.weight = area_weight;
-                                extended_metrics.votes_by_channel =
-                                    area_input.area.votes_by_channel.clone().unwrap_or_default();
                             }
+                            set_votes_by_channel(
+                                &mut area_tally_results,
+                                area_input.area.votes_by_channel.clone().unwrap_or_default(),
+                            );
                             let has_complete_electronic_channels = if has_channel_input {
                                 validate_complete_votes_by_channel(&area_tally_results)?;
                                 true
@@ -985,6 +1000,47 @@ mod tests {
     use sequent_core::{
         ballot::VotingStatusChannel, types::tally_sheets::VotingChannel as TallySheetVotingChannel,
     };
+    use tempfile::tempdir;
+
+    #[test]
+    fn rejects_tally_sheet_artifacts_for_an_acclaimed_contest() {
+        let tally_sheets_dir = tempdir().expect("temporary tally sheet directory");
+        fs::create_dir(tally_sheets_dir.path().join("tally_sheet__unexpected"))
+            .expect("tally sheet folder");
+        let contest = Contest {
+            id: "acclaimed".to_string(),
+            is_acclaimed: Some(true),
+            ..Contest::default()
+        };
+
+        let error = load_tally_sheet_results(tally_sheets_dir.path(), &contest)
+            .expect_err("acclaimed tally sheets must be rejected");
+
+        assert!(error.to_string().contains("cannot have tally sheets"));
+    }
+
+    #[test]
+    fn acclaimed_result_cannot_inherit_election_channel_counts() {
+        let mut result = ContestResult {
+            contest: Contest {
+                is_acclaimed: Some(true),
+                ..Contest::default()
+            },
+            extended_metrics: Some(ExtendedMetricsContest::default()),
+            ..ContestResult::default()
+        };
+
+        set_votes_by_channel(
+            &mut result,
+            VotesByChannel::from([(VotingStatusChannel::ONLINE.into(), 12)]),
+        );
+
+        assert!(result
+            .extended_metrics
+            .expect("extended metrics")
+            .votes_by_channel
+            .is_empty());
+    }
 
     #[test]
     fn extended_metrics_aggregate_channel_counts() {

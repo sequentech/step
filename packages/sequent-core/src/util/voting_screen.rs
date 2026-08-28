@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::ballot::*;
+use crate::ballot_codec::multi_ballot::votable_contests;
 use crate::plaintext::*;
 use crate::types::ceremonies::CountingAlgType;
 use crate::util::console_log;
@@ -11,11 +12,15 @@ use std::collections::HashMap;
 
 // Function used to decide if the voter needs to change his/her ballot before
 // continuing
+//
+// Acclaimed contests are skipped: they have no selectable options, so a
+// selection policy such as a minimum number of votes could never be satisfied
+// and would block the voter for good.
 pub fn check_voting_not_allowed_next_util(
     contests: Vec<Contest>,
     decoded_contests: HashMap<String, DecodedVoteContest>,
 ) -> bool {
-    let voting_not_allowed = contests.iter().any(|contest| {
+    let voting_not_allowed = votable_contests(&contests).any(|contest| {
         let default_vote_policy = InvalidVotePolicy::default();
         let vote_policy = contest
             .presentation
@@ -138,7 +143,8 @@ pub fn check_voting_error_dialog_util(
     contests: Vec<Contest>,
     decoded_contests: HashMap<String, DecodedVoteContest>,
 ) -> bool {
-    let show_voting_alert = contests.iter().any(|contest| {
+    // Acclaimed contests cannot be voted on, so they never warrant a warning.
+    let show_voting_alert = votable_contests(&contests).any(|contest| {
         let invalid_vote_policy = contest
             .presentation
             .as_ref()
@@ -301,6 +307,7 @@ pub fn get_contest_plurality(
         voting_type: Some("first-past-the-post".into()),
         counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
         is_encrypted: true,
+        is_acclaimed: None,
         annotations: None,
         candidates: vec![
             Candidate {

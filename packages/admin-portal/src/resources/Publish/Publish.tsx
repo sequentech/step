@@ -56,6 +56,7 @@ import {convertToNumber} from "@/lib/helpers"
 import {EditPreview} from "./EditPreview"
 import FormDialog from "@/components/FormDialog"
 import {EPublishActions} from "@/types/publishActions"
+import {getGraphQLActionErrorMessage} from "@/services/graphqlActionError"
 
 enum ViewMode {
     Edit,
@@ -84,6 +85,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             null
         )
         const [taskId, setTaskId] = useState<string | null>(null)
+        const [publishError, setPublishError] = useState<string | null>(null)
         const {globalSettings} = useContext(SettingsContext)
         const authContext = useContext(AuthContext)
         const {isGoldUser} = authContext
@@ -139,6 +141,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                     return
                 }
 
+                setPublishError(null)
                 handleSetPublishStatus(PublishStatus.PublishedLoading)
 
                 const {data} = await publishBallot({
@@ -159,11 +162,16 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                     type: "success",
                 })
 
+                setPublishError(null)
                 handleSetPublishStatus(PublishStatus.Void)
             } catch (e) {
+                setPublishError(
+                    getGraphQLActionErrorMessage(e) ?? t("publish.dialog.error_publish")
+                )
                 notify(t("publish.dialog.error_publish"), {
                     type: "error",
                 })
+                refresh()
                 handleSetPublishStatus(PublishStatus.Void)
             }
         }
@@ -217,6 +225,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
         const onGenerate = async () => {
             try {
+                setPublishError(null)
                 setViewMode(ViewMode.Edit)
                 handleSetPublishStatus(PublishStatus.GeneratedLoading)
 
@@ -521,11 +530,14 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         changingStatus={changingStatus}
                         readOnly={viewMode === ViewMode.View}
                         data={generateData}
+                        publishError={publishError}
+                        onDismissPublishError={() => setPublishError(null)}
                         publishType={type}
                         onPublish={onPublish}
                         electionId={electionId}
                         onGenerate={onGenerate}
                         onBack={() => {
+                            setPublishError(null)
                             refetch()
                             setViewMode(ViewMode.List)
                             handleSetPublishStatus(PublishStatus.Generated)

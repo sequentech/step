@@ -47,6 +47,9 @@ const frenchTranslation: TranslationType = {
             version: "Version {{version}}",
             publicAccess: "Accès public",
             signedInAccess: "Accès connecté",
+            acclaimed: "Élu par acclamation",
+            acclamationNote:
+                "Élu par acclamation. Ce vote a été acquis sans scrutin : aucune voix n'a été enregistrée.",
             published: "Publié",
             notPublishedYet: "Pas encore publié",
             position: "{{count}} position",

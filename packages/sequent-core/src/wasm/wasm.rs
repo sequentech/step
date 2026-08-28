@@ -718,6 +718,17 @@ pub fn get_candidate_points_js(
         .into_json()
 }
 
+/// Exposes the canonical acclaimed-candidate policy to browser consumers.
+#[wasm_bindgen]
+pub fn is_eligible_acclaimed_candidate_js(
+    candidate_json: JsValue,
+) -> Result<bool, JsValue> {
+    let candidate: Candidate = serde_wasm_bindgen::from_value(candidate_json)
+        .map_err(|err| format!("Error parsing candidate: {err}"))
+        .into_json()?;
+    Ok(candidate.is_acclamation_eligible())
+}
+
 #[wasm_bindgen]
 pub fn is_preferential_js(
     counting_algorithm_js: JsValue,
@@ -766,6 +777,20 @@ pub fn test_contest_reencoding_js(
             )
         })
         .into_json()?;
+
+    // An acclaimed contest is never encoded, so there is no round trip to
+    // check and no selection policy to report on: the voting portal gets back
+    // exactly the (empty) selection it holds.
+    if contest.is_acclaimed() {
+        let serializer = Serializer::json_compatible();
+        return decoded_contest
+            .serialize(&serializer)
+            .map_err(|err| {
+                format!("Error converting decoded contest to json {:?}", err)
+            })
+            .into_json();
+    }
+
     let bigint = contest
         .encode_plaintext_contest_bigint(&decoded_contest)
         .into_json()?;

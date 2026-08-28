@@ -77,6 +77,8 @@ const spanishTranslation: TranslationType = {
             contestNotFound: "Pregunta no encontrada: {{contestId}}",
             declineToVote: "Se abstuvo de votar",
             blankBallot: "Papeleta en blanco",
+            acclamationDescription:
+                "Esta votación se ha resuelto por aclamación. Sus candidaturas resultan elegidas sin votación, por lo que no se puede seleccionar ninguna opción ni se registra ningún voto.",
         },
         footer: {
             poweredBy: "Funciona con <1></1>",

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {getGraphQLActionErrorReason} from "./graphqlActionError"
+import {getGraphQLActionErrorMessage, getGraphQLActionErrorReason} from "./graphqlActionError"
 
 describe("getGraphQLActionErrorReason", () => {
     it("reads the Harvest message Hasura forwarded", () => {
@@ -112,5 +112,44 @@ describe("getGraphQLActionErrorReason", () => {
     it("returns undefined when the error says nothing at all", () => {
         expect(getGraphQLActionErrorReason({graphQLErrors: []})).toBeUndefined()
         expect(getGraphQLActionErrorReason(undefined)).toBeUndefined()
+    })
+})
+
+describe("getGraphQLActionErrorMessage", () => {
+    it("preserves every line from a structured Harvest validation error", () => {
+        const message = [
+            "Ballot publication validation failed:",
+            "- Contest A changed after voting started.",
+            "- Contest B changed after voting started.",
+        ].join("\n")
+
+        expect(
+            getGraphQLActionErrorMessage({
+                graphQLErrors: [
+                    {
+                        message: "unexpected response from webhook",
+                        extensions: {
+                            internal: {
+                                response: {
+                                    body: JSON.stringify({
+                                        message,
+                                        extensions: {code: "BallotPublicationValidation"},
+                                    }),
+                                },
+                            },
+                        },
+                    },
+                ],
+            })
+        ).toBe(message)
+    })
+
+    it("bounds a multiline action response", () => {
+        const message = getGraphQLActionErrorMessage({
+            graphQLErrors: [{message: "x".repeat(5000)}],
+        })
+
+        expect(message).toHaveLength(4003)
+        expect(message?.endsWith("...")).toBe(true)
     })
 })

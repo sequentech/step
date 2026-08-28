@@ -47,6 +47,9 @@ const catalanTranslation: TranslationType = {
             version: "Versió {{version}}",
             publicAccess: "Accés públic",
             signedInAccess: "Accés amb sessió iniciada",
+            acclaimed: "Elegit per aclamació",
+            acclamationNote:
+                "Elegit per aclamació. Aquesta votació es va resoldre sense votació, per la qual cosa no es va registrar cap vot.",
             published: "Publicat",
             notPublishedYet: "Encara no publicat",
             position: "{{count}} posició",
