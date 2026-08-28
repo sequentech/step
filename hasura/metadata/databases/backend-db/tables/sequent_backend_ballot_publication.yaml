@@ -136,7 +136,9 @@ select_permissions:
               - tenant_id
           filter: {}
       role: service-account
-    - comment: Allow voters to identify only the active publication containing their authorized elections.
+    - comment: >-
+          Allow voters to identify only the active publication containing their
+          authorized elections.
       permission:
           columns:
               - deleted_at

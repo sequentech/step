@@ -2629,7 +2629,7 @@ const englishTranslation = {
             updateMaterialError: "Error updating support material",
             common: {
                 title: "Support Material",
-                subtitle: "Enter suppot material data.",
+                subtitle: "Enter support material data.",
             },
             error: {
                 title: "Title is required",
