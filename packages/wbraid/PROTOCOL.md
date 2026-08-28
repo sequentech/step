@@ -4,8 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 # Cryptographic Protocol Description
 
-*Status: draft. Items marked **TO BE CONFIRMED** are pending confirmation against
-the implementation.*
+*Status: draft.*
 
 ---
 
@@ -816,15 +815,13 @@ The **ballot tracker** is the hash of the hashable ballot:
 
 $$
 \tau = \mathsf{Tracker}(C) = \mathrm{Trunc}_{256}\Bigl(\mathrm{SHA3\text{-}512}\bigl(
-\text{version},\ \text{issue date},\ \text{contest id(s)},\ C\bigr)\Bigr)
+\text{issue date},\ \text{ballot style},\ C\bigr)\Bigr)
 $$
 
-hex-encoded.
-
-> **TO BE CONFIRMED.**
-> Final truncation length (256 bits shown here) and exact preimage field list to be
-> confirmed at implementation alignment; the preimage covers exactly the fields of the
-> cast ballot (ciphertext and proof), never the plaintext or randomness.
+hex-encoded. The **ballot style** identifies the ballot format presented to the voter —
+it subsumes the ballot-format version and the contest identifier(s). The preimage
+covers exactly the fields of the cast ballot (ciphertext and proof), never the
+plaintext or randomness.
 
 On casting, the ballot box:
 
