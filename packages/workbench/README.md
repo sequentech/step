@@ -441,18 +441,28 @@ which artifact ships, roughly by payoff:
    cell. Blocked on adding a `multi_ballot` encrypt/decrypt path (the
    decline bit does not exist in `raw_ballot`; see Known gaps above), so
    it is a feature lift, not a rule extension.
-4. **Distillation step 5 — an alternative, rationalized implementation.**
-   The long-term objective this whole investigation exists to serve, and
-   the next milestone's main task. The groundwork is in place: one
-   executable spec with exhaustive production evidence, its accidental
-   complexity enumerated as a named quirk registry, and a dependency
-   ledger saying what each effect actually depends on. What remains is
-   partly adjudication-gated — each quirk is one consultation verdict
-   away from being blessed into the spec or flipped into a fix, and an
-   implementation cannot rationalize what has not been adjudicated — but
-   the shape of the target is now describable without waiting: a thin
-   renderer over a total mapping, with the six-place duplication of the
-   validation rules (checker, both gates, filter, classifier) collapsed.
+4. **Distillation step 5 — the rationalized implementation: phases 1–3
+   are done.** [validation-spec/](validation-spec/) carries it alongside
+   the frozen oracle: the query-provider (one derivation of the
+   vote-state facts, every production site answered as a projection —
+   the six-place duplication collapsed), forked from the oracle and
+   measured against it by `characterization/fix-diff.md` — 83,424 of
+   345,600 cells differ, every one attributed to a named fix, zero
+   unexplained. The fix ledger (the `disposition` on each `quirks()`
+   entry) is settled: **fixed by construction** S6, S4 (both halves),
+   D3 (latent); **fixed by judgment** S1 — the inline mute removed,
+   restoring "informed but uninterrupted", which makes silent
+   discounting *unrepresentable* in `f_fixed` (asserted per cell in
+   fix-diff, 0 of 345,600 vs the oracle's 6,336); **kept** S5
+   (intentional per #2949); **deferred to consultation** S2 and S3 —
+   both move published counting categories, which is the pending
+   design-authority question, not this reference's call. Upstream
+   reviews the judgments at merge. What remains of step 5: the
+   **production-injection branch** (the `for_contest(&Contest)` /
+   `for_vote(&DecodedVoteContest)` adapters, kept out of this crate to
+   preserve its independence), and folding consultation verdicts back
+   into the ledger as they arrive (S2/S3 answers may add fixes;
+   fix-diff absorbs each as a new attributed bucket).
 
 Standing maintenance, as upstream moves:
 

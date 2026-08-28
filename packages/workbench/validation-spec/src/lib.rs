@@ -697,9 +697,22 @@ pub enum QuirkDisposition {
     /// rational rewrite simply does not contain it. The consequence is a bucket
     /// in `characterization/fix-diff.md` (or none, if the quirk was latent).
     FixedInRewrite,
-    /// A real rule the rewrite still encodes; whether the rule is itself
-    /// wrong is a deliberate judgment deferred to distillation step 5 phase 3.
+    /// Gone by phase-3 judgment — a real rule with a real history, judged
+    /// wrong on the held evidence and deliberately not carried into the
+    /// rewrite. The grounds live in the entry's description; the consequence
+    /// is a bucket in `characterization/fix-diff.md`; upstream reviews the
+    /// judgment at merge like any other fix.
+    FixedByJudgment,
+    /// The intake state: a rule the rewrite still encodes, awaiting its
+    /// phase-3 judgment. (Empty since phase 3 completed; a newly-found quirk
+    /// enters here.)
     PendingJudgment,
+    /// Phase-3 judgment made — and it is that the call is NOT this
+    /// reference's to make: changing the rule would move published counting
+    /// categories or adjudicate a pending design question the three-state
+    /// model reserves for consultation (characterization/README.md,
+    /// Conventions). Kept as-is until that consultation answers.
+    DeferredToConsultation,
     /// Judged intentional upstream and kept as a rule.
     Kept,
 }
@@ -732,31 +745,68 @@ pub fn quirks() -> &'static [QuirkInfo] {
         },
         QuirkInfo {
             id: "S1_ALLOWED_MUTES_IMPLICIT_ERRORS",
-            disposition: QuirkDisposition::PendingJudgment,
+            disposition: QuirkDisposition::FixedByJudgment,
             finding: "S1 (and INVALID_VOTE_POLICY_INTENT.md §5)",
-            site: "rendered_keys (master keep-list)",
-            description: "under invalid=allowed every error is hidden except \
-                          selectedMax (iff over≠allowed) and blankVote (iff \
+            site: "rendered_keys (master keep-list); fixed in \
+                   queries::derive_rendered_keys (no mute)",
+            description: "under invalid ∈ {allowed, allowed-with-exclusive-\
+                          explicit} every error is hidden except selectedMax \
+                          (iff over≠allowed) and blankVote (iff \
                           blank=not-allowed); composes with the gates into \
-                          the silent-discount cells",
+                          the silent-discount cells. JUDGMENT (phase 3): \
+                          fixed — every emitted error renders inline; gates \
+                          untouched (the allowed family still never dialogs \
+                          or blocks) and the explicit axis untouched (a null \
+                          ballot emits no error). Grounds: the mute is the \
+                          silence half of every silent-discount cell \
+                          (no-silent-discount.md — all 160 permitting \
+                          configs require the allowed family; min-vote fires \
+                          under factory defaults); its provenance is a \
+                          bug-fix commit whose ticket asked for MORE signal \
+                          (7b0a1c71e8 / meta#8235, read in full — \
+                          INVALID_VOTE_POLICY_INTENT.md §5), inverting the \
+                          documented 'informed but uninterrupted' posture \
+                          for min-vote; and it made an error's visibility \
+                          depend on an unrelated policy. Consequence: silent \
+                          discounts are unrepresentable in f_fixed (asserted \
+                          per cell in fix-diff.mjs).",
         },
         QuirkInfo {
             id: "S2_ERROR_OUTRANKS_BLANK_MARKER",
-            disposition: QuirkDisposition::PendingJudgment,
+            disposition: QuirkDisposition::DeferredToConsultation,
             finding: "S2",
-            site: "classify (invalid guard precedes marker guard)",
+            site: "classify (invalid guard precedes marker guard); reused \
+                   unchanged by queries::VoteValidator::tally",
             description: "a marker-only ballot with any error classifies \
                           ImplicitInvalid, never ExplicitBlank — a deliberate \
                           blank failing min_votes is booked as implicit \
-                          invalidity",
+                          invalidity. JUDGMENT (phase 3): deferred — changing \
+                          the precedence moves published counting categories \
+                          (total_valid_votes, blank_votes.explicit, \
+                          invalid_votes.implicit), which is exactly S2's \
+                          pending consultation question ('should a \
+                          failed-minimum blank still be REPORTED as blank?'), \
+                          and the classifier is upstream's own declarative, \
+                          unit-tested artifact. The S1 fix already removes \
+                          S2's sharpest facet: the min=2 marker-only voter \
+                          now sees selectedMin inline before casting.",
         },
         QuirkInfo {
             id: "S3_MARKER_COUNTS_AS_SELECTION",
-            disposition: QuirkDisposition::PendingJudgment,
+            disposition: QuirkDisposition::DeferredToConsultation,
             finding: "S3",
-            site: "selections_with_markers",
+            site: "selections_with_markers; reused semantics in \
+                   queries::selections",
             description: "the blank marker and the invalid flag each count as \
-                          one selection in the min/over/under/blank rules",
+                          one selection in the min/over/under/blank rules. \
+                          JUDGMENT (phase 3): deferred — this is the domain \
+                          question under S2 (should a deliberate blank be \
+                          inside the count rules at all?), it moves tally \
+                          classes at the min boundaries either way, and the \
+                          same count is what RESCUES the deliberate blank at \
+                          min=1 (plausibly intended). S3's own confidence \
+                          note is 'genuinely uncertain': no evidence trail \
+                          licenses either direction, unlike S1.",
         },
         QuirkInfo {
             id: "S4_GATE_REDERIVES_UNDERVOTE_AT_ZERO",

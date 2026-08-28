@@ -40,20 +40,31 @@
 //!     latent: the error copy is always present when the alert is, so this
 //!     changes no cell — but the rational code cannot reproduce the bug.)
 //!
-//! The surprising-but-intended rules are PRESERVED — they are real rules a
-//! rational implementation still encodes, not accidents: S3 (a marker counts
-//! as one selection — inside [`selections`]), S2 (a marker-only ballot with
-//! any error classifies invalid, not blank — inside the reused [`classify`]),
-//! S1 (invalid=allowed mutes inline errors — inside [`derive_rendered_keys`]),
-//! and S5 (the invalid marker preserves co-selected choices — the reused
-//! [`reachability`], intentional per upstream #2949). Whether any of those
-//! is itself wrong is a separate, deliberate judgment (distillation step 5,
-//! phase 3), recorded in the quirk ledger (lib.rs `quirks`).
+//! One more quirk is fixed BY JUDGMENT (phase 3, not by construction — it
+//! was a real rule with a real history, and the ledger records the grounds):
 //!
-//! Where oracle and fixed diverge (emissions, the gates, the inline dedup)
+//!   * S1 (invalid ∈ {allowed, allowed-with-exclusive-explicit} muted inline
+//!     errors) — [`derive_rendered_keys`] renders every emitted error,
+//!     restoring the documented original posture ("informed but
+//!     uninterrupted", INVALID_VOTE_POLICY_INTENT.md §5). Gates unchanged:
+//!     the allowed family still never dialogs and never blocks. Consequence:
+//!     a silent discount is unrepresentable — every discounting cell has an
+//!     error and every error renders (asserted in fix-diff.mjs).
+//!
+//! The remaining rules are PRESERVED, each with a recorded reason (the
+//! ledger, lib.rs `quirks`): S2 (a marker-only ballot with any error
+//! classifies invalid, not blank — the reused [`classify`]) and S3 (a marker
+//! counts as one selection — inside [`selections`]) are DEFERRED TO
+//! CONSULTATION: both move published counting categories, which is the
+//! pending S2/S3 design-authority question, not this reference's call. S5
+//! (the invalid marker preserves co-selected choices — the reused
+//! [`reachability`]) is KEPT, intentional per upstream #2949.
+//!
+//! Where oracle and fixed diverge (emissions, the gates, the inline filter)
 //! this module computes its own; the genuinely-unchanged pure classifiers
 //! (`classify`, `selection_class`) and `reachability` are reused, not copied
-//! — phase 3 forks those if and when it changes them.
+//! — phase 3 judged the shared pieces kept (S2/S3 deferred to consultation,
+//! S5 intentional), so the reuse stands.
 //!
 //! The acceptance artifact is therefore NOT the byte-identical sweep (which
 //! measures the oracle) but `characterization/fix-diff.md`: `f` vs `f_fixed`
@@ -66,8 +77,8 @@
 //! branch, and keeping them out preserves this crate's independence.
 
 use crate::{
-    classify, reachability, selection_class, BallotClass, BlankVotePolicy, Config, Dialog,
-    Effects, Emissions, Gate, InlineViews, InvalidVotePolicy, OverVotePolicy, Policies, RankPolicy,
+    classify, reachability, selection_class, BallotClass, BlankVotePolicy, Config, Dialog, Effects,
+    Emissions, Gate, InlineViews, InvalidVotePolicy, OverVotePolicy, Policies, RankPolicy,
     Reachability, UnderVotePolicy, VoteState, BLANK_VOTE, DUPLICATED_POSITION, EXPLICIT_ALERT,
     EXPLICIT_NOT_ALLOWED, EXPLICIT_OR_ENCODING, OVER_VOTE_DISABLED, PREFERENCE_ORDER_WITH_GAPS,
     SELECTED_MAX, SELECTED_MIN, UNDER_VOTE,
@@ -322,18 +333,19 @@ fn derive_rendered_keys(
         !((m.as_str() == UNDER_VOTE && blank_present)
             || errors.iter().any(|e| e.as_str() == m.as_str()))
     });
-    // The master keep-list: under invalid=allowed every error is hidden
-    // except the two carve-outs (S1 — a preserved rule).
-    let kept_errors = errors.iter().filter(|m| {
-        if p.invalid != InvalidVotePolicy::Allowed
-            && p.invalid != InvalidVotePolicy::AllowedWithExclusiveExplicit
-        {
-            return true;
-        }
-        (m.as_str() == SELECTED_MAX && p.over != OverVotePolicy::Allowed)
-            || (m.as_str() == BLANK_VOTE && p.blank == BlankVotePolicy::NotAllowed)
-    });
-    kept_errors
+    // No master mute (S1 — FIXED BY JUDGMENT, phase 3). The oracle hides
+    // every error under invalid ∈ {allowed, allowed-with-exclusive-explicit}
+    // except two carve-outs; here an emitted error always renders, restoring
+    // the documented original posture — "no dialog interruptions, but the
+    // voter is informed" (INVALID_VOTE_POLICY_INTENT.md §5) — and making
+    // inline display uniform in the invalid policy, whose remaining role is
+    // its dialog/gate ladder. The gates are untouched: the allowed family
+    // still never interrupts and never blocks; and the explicit (null-vote)
+    // axis is untouched because it emits no error under that family. This is
+    // what makes a silent discount unrepresentable: a discounting cell has an
+    // error, and every error renders (asserted per cell in fix-diff.mjs).
+    errors
+        .iter()
         .cloned()
         .chain(kept_alerts.into_iter().cloned())
         .collect()
@@ -391,11 +403,19 @@ mod tests {
 
     /// Off the fix cells, the fixed implementation still equals the oracle
     /// field-for-field — the fork changes only what the fixes touch. (A
-    /// min-vote cell: n = 0 with min = 1, so neither the S6 count nor the S4
-    /// zero-zone is in play.)
+    /// min-vote cell under invalid=warn: n = 0 with min = 1, so neither the
+    /// S6 count nor the S4 zero-zone is in play, and warn keeps the cell off
+    /// the S1 mute — the selectedMin error renders in BOTH implementations.)
     fn plain() -> (Config, VoteState) {
         (
-            cfg(1, 2),
+            Config {
+                min: 1,
+                max: 2,
+                policies: Policies {
+                    invalid: InvalidVotePolicy::Warn,
+                    ..Policies::default()
+                },
+            },
             VoteState {
                 regulars: 0,
                 ..VoteState::default()
@@ -456,6 +476,30 @@ mod tests {
         assert!(fixed.gate.hard);
     }
 
+    /// S1 fixed by judgment: the S2 cell (a deliberate blank under min = 2,
+    /// invalid at its default `allowed`). The oracle mutes the selectedMin
+    /// error — the voter is told nothing and the ballot is discarded — while
+    /// the fixed implementation renders it at both casting points. Gates and
+    /// tally are identical in both: the fix restores information, not
+    /// friction ("informed but uninterrupted").
+    #[test]
+    fn s1_muted_errors_now_render() {
+        let config = cfg(2, 3);
+        let vs = VoteState {
+            blank_marker: true,
+            ..VoteState::default()
+        };
+        let oracle = f(&config, &vs);
+        let fixed = f_fixed(&config, &vs);
+        assert!(oracle.emissions.errors.iter().any(|m| m == SELECTED_MIN));
+        assert!(oracle.inline.voting.is_empty() && oracle.inline.review.is_empty());
+        assert!(fixed.inline.voting.iter().any(|m| m == SELECTED_MIN));
+        assert!(fixed.inline.review.iter().any(|m| m == SELECTED_MIN));
+        assert_eq!(fixed.gate, oracle.gate);
+        assert_eq!(fixed.dialog, oracle.dialog);
+        assert_eq!(fixed.tally, oracle.tally);
+    }
+
     /// S4 fixed: the empty ballot is not an under-vote. With min = 0 the
     /// oracle checker emitted an under-vote alert on the empty ballot
     /// (overlapping the blank rule); the fixed checker does not.
@@ -473,7 +517,11 @@ mod tests {
             regulars: 0,
             ..VoteState::default()
         };
-        assert!(f(&config, &vs).emissions.alerts.iter().any(|m| m == UNDER_VOTE));
+        assert!(f(&config, &vs)
+            .emissions
+            .alerts
+            .iter()
+            .any(|m| m == UNDER_VOTE));
         assert!(!f_fixed(&config, &vs)
             .emissions
             .alerts

@@ -84,9 +84,9 @@ const DIMS: [(&str, usize); 14] = [
     ("under_vote_policy", 4),
     ("duplicated_rank_policy", 2),
     ("preference_gaps_policy", 2),
-    ("min_votes", 4),  // 0..=3
-    ("max_votes", 4),  // 0..=3; cells with min > max are excluded
-    ("regulars", 5),   // 0..=4
+    ("min_votes", 4), // 0..=3
+    ("max_votes", 4), // 0..=3; cells with min > max are excluded
+    ("regulars", 5),  // 0..=4
     ("blank_marker", 2),
     ("explicit_invalid", 2),
     ("decline", 2),
@@ -301,8 +301,9 @@ fn main() {
             if vals.len() >= 2 {
                 for c in 0..N_COMPONENTS {
                     let first = component_value(&vals[0].1, c);
-                    if let Some((y2, p2)) =
-                        vals[1..].iter().find(|(_, p)| component_value(p, c) != first)
+                    if let Some((y2, p2)) = vals[1..]
+                        .iter()
+                        .find(|(_, p)| component_value(p, c) != first)
                     {
                         sensitive[c][y] = true;
                         for z in 0..N_DIMS {

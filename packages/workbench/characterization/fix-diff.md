@@ -26,16 +26,29 @@ have moved:
 |---|---|---|
 | S6 | `firstPreferences ≠ regulars` (a ranked ballot) | gate, dialog |
 | S4 | `n = 0 ∧ min = 0 ∧ under ≠ allowed` (empty ballot, zero-zone) | emissions, inline |
+| S1 | the oracle muted an emitted error: `invalid ∈ {allowed, allowed-with-exclusive-explicit}` ∧ some error key absent from the oracle's review view | inline |
 | D3 | — | — (latent: changes no cell) |
 
-**Result: of 345600 certified cells, 14668 differ — 11068 S6, 3600 S4, 0 unexplained.**
+Signatures may overlap (a ranked over-vote under a double-allowed config
+is S6 ∧ S1); attribution is a **cover**: every moved field must be
+movable by a fix whose signature the cell matches, and a cell is counted
+under each fix that actually moved one of its fields.
+
+**Result: of 345600 certified cells, 83424 differ — 11068 S6, 3600 S4, 72832 S1 (4076 jointly S6+S1), 0 unexplained. Silent-discount cells on f_fixed: 0.**
 
 | fix | cells changed | what changes |
 |---|---|---|
 | S6 — one count for gate and checker | 11068 | a ranked ballot the checker flags is now gated too (or a spurious gate on first-preferences is gone): the gate and the dialog |
 | S4 — empty ballot is not an under-vote | 3600 | the checker no longer emits an under-vote alert on the empty ballot at min=0; the emissions, and the inline view where it rendered |
+| S1 — no master mute (phase-3 judgment; grounds in the lib.rs ledger) | 72832 | every emitted error renders inline under the allowed-family invalid policies — the voter is informed; gates, dialog and tally unchanged ("informed but uninterrupted") |
 | D3 — dedup against the error, not self | 0 | none — latent: the error copy is always present when the alert is, so the honest dedup drops the alert exactly as the buggy one did |
 | **unexplained** | **0** | must be zero |
+
+**The property the S1 fix establishes:** over the whole certified domain,
+f_fixed has **0 silent-discount cells** (tally = ImplicitInvalid ∧ no
+dialog ∧ nothing inline at either casting point ∧ reachable) — must be
+zero; the oracle has 6,336 (`no-silent-discount.md`). Silent discounting
+is unrepresentable in the rewrite, not merely absent.
 
 ## An S6 cell
 
@@ -53,6 +66,14 @@ min=0 max=1 regulars=0 firstPreferences=0 blankMarker=false explicitInvalid=fals
   changed: emissions, inline
     emissions: oracle={"alerts":["errors.implicit.underVote"],"errors":[]}  fixed={"alerts":[],"errors":[]}
     inline: oracle={"review":["errors.implicit.underVote"],"voting":["errors.implicit.underVote"],"votingUntouched":[]}  fixed={"review":[],"voting":[],"votingUntouched":[]}
+```
+
+## An S1 cell
+
+```
+min=0 max=1 regulars=1 firstPreferences=1 blankMarker=true explicitInvalid=false dup=false gap=false | invalid=allowed blank=allowed over=allowed under=allowed dup=allowed-warn-and-dialog gap=allowed-warn-and-dialog
+  changed: inline
+    inline: oracle={"review":[],"voting":[],"votingUntouched":[]}  fixed={"review":["errors.implicit.selectedMax"],"voting":["errors.implicit.selectedMax"],"votingUntouched":[]}
 ```
 
 **What is outside this analysis.** It decides what the two implementations

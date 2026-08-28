@@ -273,6 +273,19 @@ this finding reads `invalid = allowed`, read `invalid ∈ {allowed,
 allowed-with-exclusive-explicit}` — both are signal-free at the filter,
 so both discount silently. The consultation question stands for both.
 
+**Rationalized reference (phase 3, 2026-08-28): fixed by judgment.**
+The workbench's rationalized implementation
+(`validation-spec/src/queries.rs`) removes the mute — every emitted
+error renders inline; gates, dialogs and tally are unchanged, so the
+allowed family still never interrupts ("informed but uninterrupted",
+the documented pre-2025-09 posture). Consequence, asserted per cell in
+`characterization/fix-diff.md`: silent discounting is unrepresentable
+in `f_fixed` — 0 cells of 345,600, against the oracle's 6,336. The
+grounds are recorded in the fix ledger (`quirks()` in
+`validation-spec/src/lib.rs`); upstream reviews the judgment at merge.
+This does not adjudicate the suspect — production's intent question
+above still stands for consultation.
+
 ## S2. (S1 ∩ S3) A deliberate explicit-blank vote silently discarded when `min_votes ≥ 2`
 
 *This is the intersection of S1 (silent discounting) and S3 (a deliberate
@@ -327,6 +340,16 @@ rather than as implicit-invalid (a third lever, in the classifier)?
 **Reproduce:**
 [REPRODUCE.md](REPRODUCE.md) Part 1, Recipe 2, variant d.
 
+**Rationalized reference (phase 3, 2026-08-28): deferred to
+consultation.** The S1 fix removes this cell's *silence* — the min=2
+marker-only voter now sees `selectedMin` inline before casting — but
+the classification stands unchanged in `f_fixed`: re-booking a
+failed-minimum blank as `ExplicitBlank` would move published counting
+categories (`total_valid_votes`, `blank_votes.explicit`,
+`invalid_votes.implicit`), which is exactly this entry's third
+consultation lever and not the reference implementation's call
+(the fix ledger, `validation-spec/src/lib.rs`).
+
 ## S3. A deliberate blank is subject to the selection-count rules (the marker counting as one selection)
 
 **Observed** (`raw_ballot.rs` decode: `num_selected_with_markers`;
@@ -345,6 +368,14 @@ combination was not considered. **Confidence:** genuinely uncertain.
 inside the count rules' domain at all? (ii) if it is, is the
 marker-inclusive count intended semantics or an artifact of
 implementation convenience?
+
+**Rationalized reference (phase 3, 2026-08-28): deferred to
+consultation.** `f_fixed` keeps the marker-inclusive count unchanged:
+either answer to (i)/(ii) moves tally classes at the `min_votes`
+boundaries — including the marker's *rescue* of a deliberate blank at
+`min_votes: 1`, plausibly intended — and this entry's own confidence
+note is "genuinely uncertain", so there is no evidence trail licensing
+a fix (the fix ledger, `validation-spec/src/lib.rs`).
 
 ## S4. Under-vote alert/gate threshold discrepancy at `n = 0`
 

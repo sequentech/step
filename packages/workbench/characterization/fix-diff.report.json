@@ -1,13 +1,17 @@
 {
   "cells_evaluated": 345600,
-  "differ": 14668,
+  "differ": 83424,
   "by_fix": {
     "S6": 11068,
     "S4": 3600,
-    "both": 0,
+    "S1": 72832,
     "D3_latent": 0,
+    "combinations": {
+      "S6+S1": 4076
+    },
     "unexplained": 0
   },
+  "silent_discount_cells_on_fixed": 0,
   "examples": {
     "S6": {
       "cell": {
@@ -141,6 +145,77 @@
         },
         "reachability": "yes",
         "tally": "ImplicitBlank"
+      }
+    },
+    "S1": {
+      "cell": {
+        "config": {
+          "min": 0,
+          "max": 1,
+          "policies": {
+            "invalid": "allowed",
+            "blank": "allowed",
+            "over": "allowed",
+            "under": "allowed",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 0,
+          "blankMarker": true,
+          "explicitInvalid": true,
+          "duplicateRanks": false,
+          "rankGaps": false,
+          "firstPreferences": 0
+        }
+      },
+      "fields": [
+        "inline"
+      ],
+      "oracle": {
+        "dialog": "none",
+        "emissions": {
+          "alerts": [],
+          "errors": [
+            "errors.implicit.selectedMax"
+          ]
+        },
+        "gate": {
+          "hard": false,
+          "soft": false
+        },
+        "inline": {
+          "review": [],
+          "voting": [],
+          "votingUntouched": []
+        },
+        "reachability": "yes",
+        "tally": "ExplicitInvalid"
+      },
+      "fixed": {
+        "dialog": "none",
+        "emissions": {
+          "alerts": [],
+          "errors": [
+            "errors.implicit.selectedMax"
+          ]
+        },
+        "gate": {
+          "hard": false,
+          "soft": false
+        },
+        "inline": {
+          "review": [
+            "errors.implicit.selectedMax"
+          ],
+          "voting": [
+            "errors.implicit.selectedMax"
+          ],
+          "votingUntouched": []
+        },
+        "reachability": "yes",
+        "tally": "ExplicitInvalid"
       }
     }
   },

@@ -23,16 +23,26 @@
 //        checker's zone included n = 0 when min = 0). Bites where n = 0,
 //        min = 0, under ≠ allowed. Can change only the EMISSIONS (the
 //        under-vote alert) and, if it rendered, the INLINE view.
+//   S1 — no master mute (phase-3 judgment: every emitted error renders
+//        inline; the ledger entry in lib.rs carries the grounds). Bites
+//        where the ORACLE muted something: invalid ∈ {allowed,
+//        allowed-with-exclusive-explicit} and some emitted error is absent
+//        from the oracle's review view. Can change only the INLINE views.
 //   D3 — the selectedMax alert deduped against the error copy, not itself.
 //        Latent: the error copy is always present when the alert is, so this
 //        changes NO cell — it appears here as a zero-cell fix, proof the
 //        rewrite cannot reproduce the bug without changing behaviour.
 //
-// The two live signatures are disjoint (S4 needs n = 0, i.e. regulars = 0, so
-// firstPreferences = 0 = regulars, which is not S6). This runner does not
-// assume the diff is only these — it derives the diff and REQUIRES every
-// differing cell to match one signature, both in the cell predicate and in
-// which fields moved.
+// Signatures may overlap (a ranked over-vote under a double-allowed config is
+// S6 ∧ S1), so attribution is a COVER check: every differing cell must have
+// each moved field covered by a fix whose signature the cell matches. This
+// runner does not assume the diff is only these — it derives the diff and
+// requires the cover, both in the cell predicates and in which fields moved.
+//
+// One more acceptance, the property the S1 fix exists to establish: over the
+// whole certified domain, f_fixed has ZERO silent-discount cells (tally =
+// ImplicitInvalid ∧ no dialog ∧ nothing inline at either casting point ∧
+// reachable) — silent discounting is unrepresentable in the rewrite.
 //
 // Headless; needs cargo only. Writes fix-diff.md + .report.json; exits
 // nonzero on any unexplained difference, or if a known fix stops biting.
@@ -55,40 +65,86 @@ const FIELDS = ["emissions", "inline", "gate", "dialog", "reachability", "tally"
 const diffFields = (a, b) => FIELDS.filter((k) => JSON.stringify(a[k]) !== JSON.stringify(b[k]))
 
 const n = (vs) => vs.regulars + (vs.blankMarker ? 1 : 0) + (vs.explicitInvalid ? 1 : 0)
-// S6 bites where the gate count (first preferences) and the checker count
-// (all ranked) differ.
-const isS6 = (c) =>
-    c.voteState.firstPreferences !== undefined &&
-    c.voteState.firstPreferences !== c.voteState.regulars
-// S4 bites on the empty ballot in the zero-inclusive zone.
-const isS4 = (c) => n(c.voteState) === 0 && c.config.min === 0 && c.config.policies.under !== "allowed"
+const ALLOWED_FAMILY = new Set(["allowed", "allowed-with-exclusive-explicit"])
 
-// Which fields each fix is allowed to move — the second half of attribution.
-const S6_FIELDS = new Set(["gate", "dialog"])
-const S4_FIELDS = new Set(["emissions", "inline"])
-const subset = (fields, allowed) => fields.every((f) => allowed.has(f))
+// Each fix: its cell signature (S1's reads the ORACLE's own certified output
+// — did the mute bite here? — the others read the cell alone) and the fields
+// it is allowed to move.
+const FIXES = [
+    {
+        id: "S6",
+        // The gate count (first preferences) and the checker count differ.
+        matches: (c) =>
+            c.voteState.firstPreferences !== undefined &&
+            c.voteState.firstPreferences !== c.voteState.regulars,
+        fields: new Set(["gate", "dialog"]),
+    },
+    {
+        id: "S4",
+        // The empty ballot in the zero-inclusive under-vote zone.
+        matches: (c) =>
+            n(c.voteState) === 0 && c.config.min === 0 && c.config.policies.under !== "allowed",
+        fields: new Set(["emissions", "inline"]),
+    },
+    {
+        id: "S1",
+        // The oracle muted an emitted error: allowed-family invalid policy,
+        // and some error key is absent from the oracle's review view.
+        matches: (c, o) =>
+            ALLOWED_FAMILY.has(c.config.policies.invalid) &&
+            o.emissions.errors.some((e) => !o.inline.review.includes(e)),
+        fields: new Set(["inline"]),
+    },
+]
 
-const buckets = {S6: [], S4: [], both: [], unexplained: []}
+const buckets = Object.fromEntries(FIXES.map((f) => [f.id, []]))
+const combos = {}
+const unexplained = []
+let totalDiff = 0
 for (let i = 0; i < cells.length; i++) {
     const fields = diffFields(oracle[i], fixed[i])
     if (fields.length === 0) continue
+    totalDiff++
     const rec = {cell: cells[i], fields, oracle: oracle[i], fixed: fixed[i]}
-    const s6 = isS6(cells[i])
-    const s4 = isS4(cells[i])
-    if (s6 && s4) buckets.both.push(rec)
-    else if (s6 && subset(fields, S6_FIELDS)) buckets.S6.push(rec)
-    else if (s4 && subset(fields, S4_FIELDS)) buckets.S4.push(rec)
-    else buckets.unexplained.push(rec)
+    const matched = FIXES.filter((f) => f.matches(cells[i], oracle[i]))
+    // COVER: every moved field must be movable by some matching fix.
+    const covered = fields.every((fld) => matched.some((f) => f.fields.has(fld)))
+    if (!covered || matched.length === 0) {
+        unexplained.push(rec)
+        continue
+    }
+    // Charge each matching fix that actually moved one of its fields.
+    const charged = matched.filter((f) => fields.some((fld) => f.fields.has(fld)))
+    for (const f of charged) buckets[f.id].push(rec)
+    if (charged.length > 1) {
+        const key = charged.map((f) => f.id).join("+")
+        ;(combos[key] ??= []).push(rec)
+    }
 }
 
-const totalDiff = buckets.S6.length + buckets.S4.length + buckets.both.length + buckets.unexplained.length
+// The property the S1 fix establishes: silent discounting is unrepresentable
+// in f_fixed — no reachable cell is discarded with nothing on any casting
+// surface.
+const silentOnFixed = []
+for (let i = 0; i < cells.length; i++) {
+    const x = fixed[i]
+    if (
+        x.tally === "ImplicitInvalid" &&
+        x.dialog === "none" &&
+        x.inline.voting.length === 0 &&
+        x.inline.review.length === 0 &&
+        x.reachability === "yes"
+    ) {
+        silentOnFixed.push(cells[i])
+    }
+}
 
 console.log(`${cells.length} certified cells; ${totalDiff} differ between oracle and fixed`)
-console.log(`  S6 (gate/dialog on a ranked ballot) : ${buckets.S6.length}`)
-console.log(`  S4 (under-vote alert on empty, min=0): ${buckets.S4.length}`)
-console.log(`  both signatures                     : ${buckets.both.length}`)
-console.log(`  UNEXPLAINED                         : ${buckets.unexplained.length}`)
-for (const r of buckets.unexplained.slice(0, 10))
+for (const f of FIXES) console.log(`  ${f.id}: ${buckets[f.id].length} cells`)
+for (const [k, v] of Object.entries(combos)) console.log(`  (${k} jointly: ${v.length})`)
+console.log(`  UNEXPLAINED: ${unexplained.length}`)
+console.log(`  silent-discount cells on f_fixed: ${silentOnFixed.length} (must be 0)`)
+for (const r of unexplained.slice(0, 10))
     console.log("    ✗ " + JSON.stringify({cell: r.cell, fields: r.fields}))
 
 const fmtCell = (c) =>
@@ -117,14 +173,19 @@ const example = (rec) =>
           ]
         : ["(no cell in this bucket)", ""]
 
-// ACCEPTANCE. No unexplained difference; and each live fix must still bite
-// (a fix that stops producing any cell means the rewrite regressed or the
-// domain narrowed).
+// ACCEPTANCE. No unexplained difference; each live fix must still bite (a
+// fix that stops producing any cell means the rewrite regressed or the
+// domain narrowed); and f_fixed must have zero silent-discount cells.
 const ok =
-    buckets.unexplained.length === 0 && buckets.S6.length > 0 && buckets.S4.length > 0
-if (buckets.unexplained.length) console.log("\n! unexplained differences — the diff is not accounted for")
-if (!buckets.S6.length) console.log("\n! S6 no longer bites — domain narrowed or rewrite regressed")
-if (!buckets.S4.length) console.log("\n! S4 no longer bites — domain narrowed or rewrite regressed")
+    unexplained.length === 0 &&
+    FIXES.every((f) => buckets[f.id].length > 0) &&
+    silentOnFixed.length === 0
+if (unexplained.length) console.log("\n! unexplained differences — the diff is not accounted for")
+for (const f of FIXES)
+    if (!buckets[f.id].length)
+        console.log(`\n! ${f.id} no longer bites — domain narrowed or rewrite regressed`)
+if (silentOnFixed.length)
+    console.log("\n! f_fixed still has silent-discount cells — the S1 fix is not doing its job")
 
 const md = [
     "<!--",
@@ -155,17 +216,39 @@ const md = [
     "|---|---|---|",
     "| S6 | `firstPreferences ≠ regulars` (a ranked ballot) | gate, dialog |",
     "| S4 | `n = 0 ∧ min = 0 ∧ under ≠ allowed` (empty ballot, zero-zone) | emissions, inline |",
+    "| S1 | the oracle muted an emitted error: `invalid ∈ {allowed, allowed-with-exclusive-explicit}` ∧ some error key absent from the oracle's review view | inline |",
     "| D3 | — | — (latent: changes no cell) |",
     "",
+    "Signatures may overlap (a ranked over-vote under a double-allowed config",
+    "is S6 ∧ S1); attribution is a **cover**: every moved field must be",
+    "movable by a fix whose signature the cell matches, and a cell is counted",
+    "under each fix that actually moved one of its fields.",
+    "",
     `**Result: of ${cells.length} certified cells, ${totalDiff} differ — ` +
-        `${buckets.S6.length} S6, ${buckets.S4.length} S4, ${buckets.unexplained.length} unexplained.**`,
+        FIXES.map((f) => `${buckets[f.id].length} ${f.id}`).join(", ") +
+        `${
+            Object.keys(combos).length
+                ? " (" +
+                  Object.entries(combos)
+                      .map(([k, v]) => `${v.length} jointly ${k}`)
+                      .join(", ") +
+                  ")"
+                : ""
+        }, ${unexplained.length} unexplained. Silent-discount cells on f_fixed: ${silentOnFixed.length}.**`,
     "",
     "| fix | cells changed | what changes |",
     "|---|---|---|",
     `| S6 — one count for gate and checker | ${buckets.S6.length} | a ranked ballot the checker flags is now gated too (or a spurious gate on first-preferences is gone): the gate and the dialog |`,
     `| S4 — empty ballot is not an under-vote | ${buckets.S4.length} | the checker no longer emits an under-vote alert on the empty ballot at min=0; the emissions, and the inline view where it rendered |`,
+    `| S1 — no master mute (phase-3 judgment; grounds in the lib.rs ledger) | ${buckets.S1.length} | every emitted error renders inline under the allowed-family invalid policies — the voter is informed; gates, dialog and tally unchanged ("informed but uninterrupted") |`,
     `| D3 — dedup against the error, not self | 0 | none — latent: the error copy is always present when the alert is, so the honest dedup drops the alert exactly as the buggy one did |`,
-    `| **unexplained** | **${buckets.unexplained.length}** | must be zero |`,
+    `| **unexplained** | **${unexplained.length}** | must be zero |`,
+    "",
+    "**The property the S1 fix establishes:** over the whole certified domain,",
+    `f_fixed has **${silentOnFixed.length} silent-discount cells** (tally = ImplicitInvalid ∧ no`,
+    "dialog ∧ nothing inline at either casting point ∧ reachable) — must be",
+    "zero; the oracle has 6,336 (`no-silent-discount.md`). Silent discounting",
+    "is unrepresentable in the rewrite, not merely absent.",
     "",
     "## An S6 cell",
     "",
@@ -173,8 +256,11 @@ const md = [
     "## An S4 cell",
     "",
     ...example(buckets.S4[0]),
-    ...(buckets.unexplained.length
-        ? ["## UNEXPLAINED cells (this run FAILS)", "", ...buckets.unexplained.slice(0, 20).flatMap(example)]
+    "## An S1 cell",
+    "",
+    ...example(buckets.S1.find((r) => r.oracle.tally === "ImplicitInvalid" && r.oracle.dialog === "none") ?? buckets.S1[0]),
+    ...(unexplained.length
+        ? ["## UNEXPLAINED cells (this run FAILS)", "", ...unexplained.slice(0, 20).flatMap(example)]
         : []),
     "**What is outside this analysis.** It decides what the two implementations",
     "say, over the cells `headless-sweep.md` has compared production against the",
@@ -194,15 +280,20 @@ writeFileSync(
             by_fix: {
                 S6: buckets.S6.length,
                 S4: buckets.S4.length,
-                both: buckets.both.length,
+                S1: buckets.S1.length,
                 D3_latent: 0,
-                unexplained: buckets.unexplained.length,
+                combinations: Object.fromEntries(
+                    Object.entries(combos).map(([k, v]) => [k, v.length])
+                ),
+                unexplained: unexplained.length,
             },
+            silent_discount_cells_on_fixed: silentOnFixed.length,
             examples: {
                 S6: buckets.S6[0] ?? null,
                 S4: buckets.S4[0] ?? null,
+                S1: buckets.S1[0] ?? null,
             },
-            unexplained: buckets.unexplained.map((r) => ({cell: r.cell, fields: r.fields})),
+            unexplained: unexplained.map((r) => ({cell: r.cell, fields: r.fields})),
             accepted: ok,
         },
         null,
