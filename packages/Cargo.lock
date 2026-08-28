@@ -4585,6 +4585,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "headless-load-test"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "csv",
+ "graphql_client",
+ "reqwest",
+ "sequent-core",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "strand",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "headless_chrome"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"

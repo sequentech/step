@@ -1,0 +1,357 @@
+{
+  "id": "b31a5f63-6017-4c9c-9513-5782a14805d3",
+  "tenant_id": "7c9c23ce-c042-40e2-ae76-e6819edf6a89",
+  "election_event_id": "71fbf27a-3321-49e7-98e1-decab15cb5fc",
+  "election_id": "f3de573b-397c-47a7-975a-55e9771a59c9",
+  "num_allowed_revotes": 1,
+  "description": "",
+  "public_key": {
+    "public_key": "nv9p5KV8jLlSa2hiGHYEjXa0Vriicfh+emNdA8Nqyx4",
+    "is_demo": false
+  },
+  "area_id": "524d7ec8-dedf-4c5c-b476-d0dcf9edf8a3",
+  "area_presentation": {
+    "allow_early_voting": "no_early_voting"
+  },
+  "contests": [
+    {
+      "id": "b75abfbf-cb0b-44ba-a440-6d86beab7113",
+      "tenant_id": "7c9c23ce-c042-40e2-ae76-e6819edf6a89",
+      "election_event_id": "71fbf27a-3321-49e7-98e1-decab15cb5fc",
+      "election_id": "f3de573b-397c-47a7-975a-55e9771a59c9",
+      "name": "Mayor",
+      "name_i18n": {
+        "fr": "Mayor",
+        "en": "Mayor",
+        "gl": "Mayor",
+        "nl": "Mayor",
+        "eu": "Mayor",
+        "es": "Mayor",
+        "cat": "Mayor",
+        "tl": "Mayor"
+      },
+      "description": "",
+      "description_i18n": {},
+      "alias": null,
+      "alias_i18n": {},
+      "max_votes": 1,
+      "min_votes": 1,
+      "winning_candidates_num": 1,
+      "voting_type": "non-preferential",
+      "counting_algorithm": "plurality-at-large",
+      "is_encrypted": true,
+      "candidates": [
+        {
+          "id": "87aa745b-abf9-4299-83fc-f8118a901045",
+          "tenant_id": "7c9c23ce-c042-40e2-ae76-e6819edf6a89",
+          "election_event_id": "71fbf27a-3321-49e7-98e1-decab15cb5fc",
+          "election_id": "f3de573b-397c-47a7-975a-55e9771a59c9",
+          "contest_id": "b75abfbf-cb0b-44ba-a440-6d86beab7113",
+          "name": "James Wilson",
+          "name_i18n": {
+            "cat": "James Wilson",
+            "es": "James Wilson",
+            "eu": "James Wilson",
+            "gl": "James Wilson",
+            "fr": "James Wilson",
+            "tl": "James Wilson",
+            "nl": "James Wilson",
+            "en": "James Wilson"
+          },
+          "description": null,
+          "description_i18n": {},
+          "alias": null,
+          "alias_i18n": {},
+          "candidate_type": null,
+          "presentation": {
+            "i18n": {
+              "en": {
+                "name": "James Wilson"
+              },
+              "eu": {
+                "name": "James Wilson"
+              },
+              "cat": {
+                "name": "James Wilson"
+              },
+              "gl": {
+                "name": "James Wilson"
+              },
+              "nl": {
+                "name": "James Wilson"
+              },
+              "tl": {
+                "name": "James Wilson"
+              },
+              "es": {
+                "name": "James Wilson"
+              },
+              "fr": {
+                "name": "James Wilson"
+              }
+            },
+            "is_explicit_invalid": null,
+            "is_explicit_blank": null,
+            "is_disabled": null,
+            "is_category_list": null,
+            "invalid_vote_position": null,
+            "is_write_in": null,
+            "sort_order": null,
+            "urls": null,
+            "subtype": null
+          },
+          "annotations": null
+        },
+        {
+          "id": "ccd4ec84-5387-46bb-aa3c-9e34609b59f3",
+          "tenant_id": "7c9c23ce-c042-40e2-ae76-e6819edf6a89",
+          "election_event_id": "71fbf27a-3321-49e7-98e1-decab15cb5fc",
+          "election_id": "f3de573b-397c-47a7-975a-55e9771a59c9",
+          "contest_id": "b75abfbf-cb0b-44ba-a440-6d86beab7113",
+          "name": "Olivia Brown",
+          "name_i18n": {
+            "cat": "Olivia Brown",
+            "en": "Olivia Brown",
+            "gl": "Olivia Brown",
+            "nl": "Olivia Brown",
+            "tl": "Olivia Brown",
+            "es": "Olivia Brown",
+            "fr": "Olivia Brown",
+            "eu": "Olivia Brown"
+          },
+          "description": null,
+          "description_i18n": {},
+          "alias": null,
+          "alias_i18n": {},
+          "candidate_type": null,
+          "presentation": {
+            "i18n": {
+              "gl": {
+                "name": "Olivia Brown"
+              },
+              "cat": {
+                "name": "Olivia Brown"
+              },
+              "fr": {
+                "name": "Olivia Brown"
+              },
+              "nl": {
+                "name": "Olivia Brown"
+              },
+              "tl": {
+                "name": "Olivia Brown"
+              },
+              "en": {
+                "name": "Olivia Brown"
+              },
+              "es": {
+                "name": "Olivia Brown"
+              },
+              "eu": {
+                "name": "Olivia Brown"
+              }
+            },
+            "is_explicit_invalid": null,
+            "is_explicit_blank": null,
+            "is_disabled": null,
+            "is_category_list": null,
+            "invalid_vote_position": null,
+            "is_write_in": null,
+            "sort_order": null,
+            "urls": null,
+            "subtype": null
+          },
+          "annotations": null
+        }
+      ],
+      "presentation": {
+        "i18n": {
+          "es": {
+            "name": "Mayor"
+          },
+          "eu": {
+            "name": "Mayor"
+          },
+          "gl": {
+            "name": "Mayor"
+          },
+          "fr": {
+            "name": "Mayor"
+          },
+          "tl": {
+            "name": "Mayor"
+          },
+          "cat": {
+            "name": "Mayor"
+          },
+          "en": {
+            "name": "Mayor"
+          },
+          "nl": {
+            "name": "Mayor"
+          }
+        },
+        "allow_writeins": false,
+        "base32_writeins": null,
+        "invalid_vote_policy": "allowed",
+        "under_vote_policy": "allowed",
+        "blank_vote_policy": "allowed",
+        "over_vote_policy": "allowed",
+        "duplicated_rank_policy": "allowed-warn-and-dialog",
+        "preference_gaps_policy": "allowed-warn-and-dialog",
+        "pagination_policy": "",
+        "cumulative_number_of_checkboxes": null,
+        "shuffle_categories": null,
+        "shuffle_category_list": null,
+        "show_points": null,
+        "enable_checkable_lists": "allow-selecting-candidates-and-lists",
+        "collapsible_lists": "disabled",
+        "candidates_order": "alphabetical",
+        "candidates_selection_policy": null,
+        "candidates_icon_checkbox_policy": "square-checkbox",
+        "max_selections_per_type": null,
+        "types_presentation": null,
+        "sort_order": null,
+        "columns": null
+      },
+      "created_at": "2026-06-22T16:16:54.646860+00:00",
+      "annotations": null,
+      "tie_breaking_policy": "random"
+    }
+  ],
+  "election_event_presentation": {
+    "i18n": {
+      "es": {
+        "name": "IVR Demo"
+      },
+      "tl": {
+        "name": "IVR Demo"
+      },
+      "cat": {
+        "name": "IVR Demo"
+      },
+      "nl": {
+        "name": "IVR Demo"
+      },
+      "en": {
+        "name": "IVR Demo"
+      },
+      "fr": {
+        "name": "IVR Demo"
+      },
+      "gl": {
+        "name": "IVR Demo"
+      },
+      "eu": {
+        "name": "IVR Demo"
+      }
+    },
+    "materials": {
+      "activated": false
+    },
+    "language_conf": {
+      "enabled_language_codes": [
+        "en"
+      ],
+      "default_language_code": "en",
+      "language_detection_policy": "browser-detect"
+    },
+    "logo_url": null,
+    "redirect_finish_url": null,
+    "css": null,
+    "skip_election_list": false,
+    "show_user_profile": false,
+    "show_cast_vote_logs": "hide-logs-tab",
+    "elections_order": "alphabetical",
+    "voting_portal_countdown_policy": {
+      "policy": "NO_COUNTDOWN",
+      "countdown_anticipation_secs": null,
+      "countdown_alert_anticipation_secs": null
+    },
+    "custom_urls": {
+      "login": null,
+      "enrollment": null,
+      "saml": null
+    },
+    "keys_ceremony_policy": null,
+    "contest_encryption_policy": "single-contest",
+    "decoded_ballot_inclusion_policy": "not-included",
+    "locked_down": "not-locked-down",
+    "publish_policy": null,
+    "enrollment": null,
+    "otp": null,
+    "voter_signing_policy": "no-signature",
+    "voter_certificate_policy": "disabled",
+    "weighted_voting_policy": "disabled-weighted-voting",
+    "ceremonies_policy": "manual-ceremonies",
+    "delegated_voting_policy": "disabled"
+  },
+  "election_presentation": {
+    "i18n": {
+      "es": {
+        "name": "City Council District"
+      },
+      "eu": {
+        "name": "City Council District"
+      },
+      "tl": {
+        "name": "City Council District"
+      },
+      "cat": {
+        "name": "City Council District"
+      },
+      "en": {
+        "name": "City Council District",
+        "description": null
+      },
+      "fr": {
+        "name": "City Council District"
+      },
+      "nl": {
+        "name": "City Council District"
+      },
+      "gl": {
+        "name": "City Council District"
+      }
+    },
+    "dates": {
+      "start_date": null,
+      "end_date": null
+    },
+    "language_conf": {
+      "enabled_language_codes": [
+        "en"
+      ],
+      "default_language_code": "en",
+      "language_detection_policy": null
+    },
+    "contests_order": "alphabetical",
+    "audit_button_cfg": "show",
+    "sort_order": null,
+    "cast_vote_confirm": null,
+    "cast_vote_gold_level": "no-gold-level",
+    "start_screen_title_policy": "election",
+    "is_grace_priod": null,
+    "grace_period_policy": "no-grace-period",
+    "grace_period_secs": null,
+    "init_report": null,
+    "manual_start_voting_period": null,
+    "voting_period_end": null,
+    "tally": null,
+    "initialization_report_policy": "not-required",
+    "security_confirmation_policy": "none",
+    "consolidated_report_policy": "do-not-generate"
+  },
+  "election_dates": {
+    "first_started_at": null,
+    "last_started_at": null,
+    "first_paused_at": null,
+    "last_paused_at": null,
+    "first_stopped_at": null,
+    "last_stopped_at": null,
+    "scheduled_event_dates": {}
+  },
+  "election_event_annotations": {},
+  "election_annotations": {},
+  "area_annotations": null
+}

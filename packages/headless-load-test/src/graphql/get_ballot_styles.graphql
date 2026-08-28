@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+query GetBallotStyles {
+    sequent_backend_ballot_style(where: { deleted_at: { _is_null: true } }) {
+        id
+        election_id
+        election_event_id
+        area_id
+        status
+        ballot_eml
+    }
+}

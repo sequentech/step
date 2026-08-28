@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+mutation UpdateEventVotingStatus(
+    $electionEventId: uuid!
+    $votingStatus: VotingStatus!
+    $votingChannels: [VotingStatusChannel]
+) {
+    update_event_voting_status(
+        election_event_id: $electionEventId
+        voting_status: $votingStatus
+        voting_channels: $votingChannels
+    ) {
+        election_event_id
+    }
+}
