@@ -138,6 +138,10 @@ pub mod serde;
 #[allow(clippy::arithmetic_side_effects)]
 pub mod variable;
 
+/// The v2 encoding (rewrite spike — see `SERIALIZATION.md` §9); not yet wired
+/// to production types.
+pub mod v2;
+
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests;

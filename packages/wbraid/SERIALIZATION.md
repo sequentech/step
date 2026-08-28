@@ -383,6 +383,14 @@ entire `fixed` tier (`FSerializable`/`FDeserializable`, absorbed by rule 1 + rul
 `Marker`/`ConstMarker` infrastructure. Net-negative diff is expected, per §7
 guardrail 3.
 
+On `LargeVector`, the intent behind it survives the type: it existed as a
+placeholder for **parallel serialization of large collections**. In the v2
+encoding, a `Vec` of fixed-size elements has computable element boundaries, so
+parallel `write`/`read` can be added *behind the same wire encoding* if profiling
+ever demands it — an implementation strategy, not a wire type. (Under v1 this
+required a distinct, incompatible encoding; that is what forced the type to
+exist.)
+
 **What changes on the wire**: every composite encoding (prefixes disappear);
 therefore every hash identity and transcript. Leaf encodings are unchanged. No
 golden bytes pin the old format anywhere (§7); all suites regenerate
