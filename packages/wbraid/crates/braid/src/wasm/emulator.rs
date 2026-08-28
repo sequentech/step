@@ -60,7 +60,7 @@ use std::marker::PhantomData;
 use cryptography::context::{Context, RistrettoCtx};
 use cryptography::cryptosystem::elgamal::{Ciphertext, KeyPair, PublicKey};
 use cryptography::traits::groups::CryptographicGroup;
-use cryptography::utils::serialization::{VDeserializable, VSerializable};
+use cryptography::utils::serialization::{Deserializable, Serializable};
 use cryptography::utils::signatures::SignatureScheme;
 
 use crate::messages::artifact::{Ballots, Configuration, DkgPublicKey, Plaintexts};
@@ -390,7 +390,7 @@ struct SetupBlob {
     manager_sk: String,
     /// Trustee signing keys (base64), in index order.
     trustee_sks: Vec<String>,
-    /// Trustee share-decryption secret scalars (base64 `VSerializable`), in index
+    /// Trustee share-decryption secret scalars (base64 `Serializable`), in index
     /// order; the public side is recomputed as `g^sk`.
     share_sks: Vec<String>,
 }

@@ -12,8 +12,8 @@ use crate::traits::groups::GroupScalar;
 use crate::traits::groups::ReplGroupOps;
 use crate::traits::groups::ReplScalarOps;
 use crate::utils::error::Error;
-use crate::utils::serialization::VSerializable;
-use vser_derive::VSerializable as VSer;
+use crate::utils::serialization::Serializable;
+use canonical_derive::Canonical;
 
 /**
  * Proof of equality plaintexts.
@@ -73,7 +73,7 @@ use vser_derive::VSerializable as VSer;
  * assert!(ok);
  * ```
  */
-#[derive(Debug, Clone, VSer, PartialEq)]
+#[derive(Debug, Clone, Canonical, PartialEq)]
 pub struct PlEqProof<C: Context, const W: usize> {
     /// Prover commitment
     pub big_a: [[C::Element; W]; 2],
@@ -233,7 +233,7 @@ mod tests {
     use crate::context::RistrettoCtx as RCtx;
     use crate::cryptosystem::naoryung::KeyPair;
     use crate::traits::groups::DistScalarOps;
-    use crate::utils::serialization::{FDeserializable, FSerializable};
+    use crate::utils::serialization::{Deserializable, Serializable};
 
     #[test]
     fn test_pleq_proof_valid_ristretto() {
@@ -324,8 +324,8 @@ mod tests {
             &vec![],
         )
         .unwrap();
-        let bytes = proof.ser_f();
-        let proof_d = PlEqProof::<Ctx, 2>::deser_f(&bytes).unwrap();
+        let bytes = proof.ser();
+        let proof_d = PlEqProof::<Ctx, 2>::deser(&bytes).unwrap();
 
         let ok = proof_d
             .verify(

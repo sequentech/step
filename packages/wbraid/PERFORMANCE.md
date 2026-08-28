@@ -100,12 +100,26 @@ products (e.g. `A = ∏ uᵢ^{eᵢ}`) as per-item `exp` + fold rather than as a
 multiscalar multiplication at all; those sites are also public-input and would
 benefit from the same vartime multi-exp before any lower-level tuning.
 
+### 3. Parallel serialization of large collections
+
+Carried over from the serialization rewrite (`SERIALIZATION.md` §10, 2026-08-28),
+where the `LargeVector` placeholder type was deleted. Its intent survives the
+type: for very large collections (ciphertext lists in the tens of thousands),
+parallel `write`/`read` could pay. In the canonical encoding, a `Vec` of
+fixed-size elements has computable element boundaries, so parallelism is an
+**implementation strategy behind the existing wire encoding** — chunk the element
+region, serialize/deserialize chunks on rayon, concatenate — with no format
+change and no distinct type. (Under the old format this required an
+incompatible encoding, which is why `LargeVector` existed as a separate type.)
+Do this only when profiling shows serialization on the critical path; the
+encoding work per element is trivial next to the group operations that surround
+it.
+
 ## Benchmark inventory
 
 | Tool | What it measures | Notes |
 | --- | --- | --- |
 | `vsc` `benches/shuffle.rs` | shuffle prove/verify micro-benchmark | fixed `N = 100`, `W = 3`; Bencher auto-calibrated |
-| `vsc` `benches/large_vector.rs` | `LargeVector` vs serde+bincode serialization | `LargeVector` is currently unused in production paths |
 | `vsc` `examples/shuffle_scaling.rs` | one `(N, W)` cell, prove + verify wall-clock | fold-strategy A/B (item 1); CSV output for sweeps |
 
 ## Related, tracked elsewhere

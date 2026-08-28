@@ -11,7 +11,7 @@ use crate::groups::ristretto255::Ristretto255Group as RGroup;
 use crate::traits::groups::CryptographicGroup;
 use crate::traits::groups::GroupElement;
 use crate::traits::groups::GroupScalar;
-use crate::utils::serialization::{VDeserializable, VSerializable};
+use crate::utils::serialization::{Deserializable, Serializable};
 
 #[test]
 fn test_ristretto_scalar_from_u32() {

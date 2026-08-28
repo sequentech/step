@@ -64,21 +64,65 @@ for reference.
 
 ---
 
-## 2. Property-based testing  [CANDIDATE — not yet assessed]
+## 2. Property-based testing  [IN PLACE for serialization; broader candidates remain]
 
-Generative tests (e.g. `proptest`) over the platform-agnostic, deterministic
-cores: `collides()` totality/symmetry, predicate (de)serialization round-trips,
-the `AccumulatorSet` ordering invariants, and board-client admit/anti-rewrite
-behaviour under randomized message sets/orderings. Overlaps with Tier 1 model
-checking but is cheaper to stand up and complements it (random inputs vs.
-exhaustive small-state search).
+**In place — the serialization bijection properties.** The wire format
+(`SERIALIZATION.md`) requires `ser`/`deser` to be a bijection between values
+and accepted byte strings. Two proptest properties pin it:
 
-## 3. Fuzzing  [CANDIDATE — not yet assessed]
+- **P1 (round trip)**: `deser(ser(x)) == x` for arbitrary values;
+- **P2 (strictness)**: `deser(b) == Ok(v)` implies `ser(v) == b` for arbitrary
+  byte strings — exercised over mutations of valid encodings
+  (truncate/extend/edit, the distribution that catches trailing-byte and
+  length slack) and over raw random bytes.
 
-Highest-value target is the **untrusted boundary**: deserialization of
-`WireMessage` / bodies and the `verify` path (`cargo-fuzz`/libFuzzer on the
-`b4` → trustee inputs). b4 is untrusted (§8), so malformed/adversarial bytes must
-never panic or mis-verify — a natural fuzzing surface.
+Two suites carry them:
+
+- `vsc/src/utils/serialization/properties.rs` — a kitchen-sink type tree
+  covering every composition rule (fixed leaves, `String`, `Option`, `Vec`
+  including byte vectors, arrays, nesting, `PhantomData`, group
+  elements/scalars), both contexts, all-fixed and variable struct shapes.
+- `braid/tests/serialization_properties.rs` — the two braid-specific
+  boundaries: `ProtocolMessage` (untrusted-board bytes, pre-signature) and
+  `Predicate` (anti-rewrite persistence), over valid, mutated, and random
+  distributions.
+
+Run with the normal test suites; deepen with `PROPTEST_CASES=<n>` (default
+256). The properties are format-agnostic (they pin the bijection, not byte
+layouts), so they survive encoding changes as the acceptance suite.
+
+**Still candidates**: `collides()` totality/symmetry, the `AccumulatorSet`
+ordering invariants, and board-client admit/anti-rewrite behaviour under
+randomized message orderings.
+
+## 3. Fuzzing  [IN PLACE for serialization; broader candidates remain]
+
+**In place — bijection-oracle fuzz targets** (`cargo-fuzz`/libFuzzer). Every
+deserializer target embeds the strictness oracle — `if let Ok(v) =
+T::deser(data) { assert_eq!(v.ser(), data) }` — so coverage-guided fuzzing
+hunts panics *and* canonicality violations in one pass.
+
+- `crates/vsc/fuzz` (run `cargo fuzz run <target>` from `crates/vsc`):
+  deserializer oracles for ElGamal and Naor-Yung ciphertexts, shuffle proofs,
+  and DKG dealings (`VerifiableShare`, including checking-value proofs), plus
+  two verify-boundary targets — Naor-Yung verify-and-strip (the PlEq verifier)
+  and Schnorr verification — running accepted adversarial inputs against
+  fixed, deterministically derived keys, and the pre-existing
+  `encode_bytes`/`encode_scalar` targets.
+- `crates/braid/fuzz` (run `cargo fuzz build --fuzz-dir crates/braid/fuzz`
+  from the workspace root): oracles for `ProtocolMessage` and `Predicate`.
+  **Linux/CI only**: braid's wasm `cdylib` crate-type conflicts with
+  libFuzzer's `/include:main` on Windows/MSVC (and the opt-out flag removes
+  the fuzz binary's entry point). The braid property suite above provides the
+  same oracle host-side on Windows.
+
+Smoke baseline (2026-08-28, 40s/target): all eight vsc targets clean — ~7.9M
+executions, zero crashes, zero bijection violations. Deeper campaigns: raise
+`-max_total_time`.
+
+**Still candidates**: fuzzing the b4 server's own inputs, and the braid
+`verify` path end to end (signature + statement reconstruction) beyond the
+serialization layer.
 
 ## 4. Static analysis & linting  [CANDIDATE / hygiene]
 

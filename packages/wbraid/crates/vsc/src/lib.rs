@@ -45,13 +45,13 @@ pub mod utils;
 pub mod zkp;
 
 pub use custom_warning_macro::warning;
-pub use vser_derive::VSerializable;
+pub use canonical_derive::Canonical;
 
 /// Create the `cryptography` alias that points to `crate`
 ///
-/// This alias allows applying the vser_derive macro within this crate:
+/// This alias allows applying the `canonical_derive` macro within this crate:
 ///
-/// `vser_derive` refers to its target traits with `cryptography::`, but
+/// `canonical_derive` refers to its target traits with `cryptography::`, but
 /// _within_ this crate, that reference will not resolve to anything
 /// unless we add this alias. Other crates will resolve correctly
 /// as they will be importing `cryptography` as a dependency.

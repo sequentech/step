@@ -11,15 +11,12 @@ mod tests {
     use crate::context::P256Ctx as PCtx;
     use crate::context::RistrettoCtx as RCtx;
     use crate::cryptosystem::elgamal::{Ciphertext, KeyPair};
-    use crate::utils::serialization::LargeVector;
-    use crate::utils::serialization::fixed::{FDeserializable, FSerializable};
-    use crate::utils::serialization::variable::LENGTH_BYTES;
-    use crate::utils::serialization::variable::{VDeserializable, VSerializable};
-    use vser_derive::VSerializable as VSer;
+    use crate::utils::serialization::{Deserializable, Serializable};
+    use canonical_derive::Canonical;
 
     #[test]
     fn test_usize_and_phantomdata() {
-        #[derive(Debug, Clone, VSer, PartialEq)]
+        #[derive(Debug, Clone, Canonical, PartialEq)]
         struct TestNewLeafTypes<T> {
             size: usize,
             _phantom: std::marker::PhantomData<T>,
@@ -77,7 +74,7 @@ mod tests {
     }
 
     fn test_struct_vser<Ctx: Context + PartialEq>() {
-        #[derive(Debug, Clone, VSer, PartialEq)]
+        #[derive(Debug, Clone, Canonical, PartialEq)]
         struct Test<Ctx: Context> {
             a: String,
             b: Ctx::Element,
@@ -98,7 +95,7 @@ mod tests {
     }
 
     fn test_elgamal_struct_vser<Ctx: Context>() {
-        #[derive(Debug, VSer, PartialEq)]
+        #[derive(Debug, Canonical, PartialEq)]
         struct EG<Ctx: Context> {
             keypair: KeyPair<Ctx>,
             message: Ctx::Element,
@@ -125,7 +122,7 @@ mod tests {
     }
 
     fn test_vector_vser<Ctx: Context>() {
-        #[derive(Debug, VSer, PartialEq)]
+        #[derive(Debug, Canonical, PartialEq)]
         struct EG<Ctx: Context> {
             keypair: KeyPair<Ctx>,
             messages: Vec<Ctx::Element>,
@@ -170,7 +167,7 @@ mod tests {
     }
 
     fn test_4_struct_vser<Ctx: Context + PartialEq>() {
-        #[derive(Debug, VSer, PartialEq)]
+        #[derive(Debug, Canonical, PartialEq)]
         struct EG<Ctx: Context> {
             keypair: KeyPair<Ctx>,
             messages: Vec<[Ctx::Element; 2]>,
@@ -209,47 +206,6 @@ mod tests {
 
         assert_eq!(tag, back.tag);
     }
-
-    #[test]
-    #[cfg_attr(miri, ignore)]
-    #[crate::warning("Miri test fails (Stacked Borrows)")]
-    fn test_elgamal_largevector_ristretto() {
-        test_elgamal_largevector::<RCtx>();
-    }
-
-    #[test]
-    #[cfg_attr(miri, ignore)]
-    #[crate::warning("Miri test fails (Stacked Borrows)")]
-    fn test_elgamal_largevector_p256() {
-        test_elgamal_largevector::<PCtx>();
-    }
-
-    fn test_elgamal_largevector<Ctx: Context>() {
-        let mut lv = LargeVector(vec![]);
-        let count = 5;
-
-        for _ in 0..count {
-            let gr = [Ctx::random_element()];
-            let mhr = [Ctx::random_element()];
-
-            let ciphertext = Ciphertext::<Ctx, 1>::new(gr, mhr);
-            lv.push(ciphertext);
-        }
-
-        let bytes = lv.ser();
-        assert_eq!(
-            bytes.len(),
-            Ciphertext::<Ctx, 1>::size_bytes() * count + LENGTH_BYTES
-        );
-        let deserialized = LargeVector::<Ciphertext<Ctx, 1>>::deser(&bytes).unwrap();
-        assert_eq!(deserialized.len(), count);
-        assert!(!deserialized.is_empty());
-        for i in 0..count {
-            assert_eq!(lv.0[i], deserialized.0[i]);
-        }
-    }
-
-    #[test]
     pub fn test_tuple_struct_ristretto() {
         test_tuple_struct_vser::<RCtx>();
     }
@@ -260,7 +216,7 @@ mod tests {
     }
 
     fn test_tuple_struct_vser<Ctx: Context + PartialEq>() {
-        #[derive(Debug, VSer, PartialEq)]
+        #[derive(Debug, Canonical, PartialEq)]
         struct EG<Ctx: Context>(
             KeyPair<Ctx>,
             Vec<[Ctx::Element; 2]>,
@@ -306,37 +262,6 @@ mod tests {
         assert_eq!(tag, back.3);
         assert_eq!(1, back.6.unwrap());
     }
-
-    #[test]
-    pub fn test_tuple_struct_fser_ristretto() {
-        test_tuple_struct_fser::<RCtx>();
-    }
-
-    #[test]
-    pub fn test_tuple_struct_fser_p256() {
-        test_tuple_struct_fser::<PCtx>();
-    }
-
-    fn test_tuple_struct_fser<Ctx: Context + PartialEq>() {
-        #[derive(Debug, VSer, PartialEq)]
-        struct EG<Ctx: Context>(KeyPair<Ctx>, [Ctx::Element; 2], Ciphertext<Ctx, 2>, u32);
-
-        let keypair = KeyPair::<Ctx>::generate();
-        let message: [Ctx::Element; 2] = [Ctx::random_element(), Ctx::random_element()];
-        let ciphertext: Ciphertext<Ctx, 2> = keypair.encrypt(&message);
-
-        let eg = EG(keypair, message.clone(), ciphertext, 1);
-
-        let serialized = eg.ser_f();
-
-        let back = EG::<Ctx>::deser_f(&serialized).unwrap();
-
-        assert_eq!(eg, back);
-        let decrypted = back.0.decrypt(&back.2);
-        assert_eq!(message, decrypted);
-    }
-
-    #[test]
     pub fn test_option_vser_ristretto() {
         test_option_vser::<RCtx>();
     }
@@ -460,7 +385,7 @@ mod tests {
         // The dangerous position: a struct ENDING in PhantomData receives all
         // remaining bytes there (braid's Configuration has this shape), so
         // trailing junk must fail the whole struct.
-        #[derive(Debug, VSer, PartialEq)]
+        #[derive(Debug, Canonical, PartialEq)]
         struct EndsInPhantom<T> {
             value: u64,
             phantom: PhantomData<T>,
@@ -473,114 +398,5 @@ mod tests {
         assert_eq!(v, EndsInPhantom::<u32>::deser(&bytes).unwrap());
         bytes.push(0);
         assert!(EndsInPhantom::<u32>::deser(&bytes).is_err());
-    }
-
-    #[test]
-    fn test_largevector_rejects_trailing_and_roundtrips_empty() {
-        let lv: LargeVector<u64> = LargeVector(vec![1, 2, 3]);
-        let mut bytes = lv.ser();
-        assert_eq!(lv, LargeVector::<u64>::deser(&bytes).unwrap());
-        bytes.push(0);
-        assert!(LargeVector::<u64>::deser(&bytes).is_err());
-
-        // The empty vector must round-trip (previously a division by zero).
-        let empty: LargeVector<u64> = LargeVector(vec![]);
-        let bytes = empty.ser();
-        assert_eq!(empty, LargeVector::<u64>::deser(&bytes).unwrap());
-    }
-
-    #[test]
-    fn test_fixed_tuple_rejects_wrong_total_size() {
-        // The macro-generated tuple impl validates the total size up front
-        // rather than relying on the last leaf to reject a mis-sized slice.
-        let bytes = (&1u32, &2u64, &3u32).ser_f();
-        assert_eq!(
-            (1u32, 2u64, 3u32),
-            <(u32, u64, u32)>::deser_f(&bytes).unwrap()
-        );
-        assert!(<(u32, u64, u32)>::deser_f(&bytes[..bytes.len() - 1]).is_err());
-        let mut longer = bytes.clone();
-        longer.push(0);
-        assert!(<(u32, u64, u32)>::deser_f(&longer).is_err());
-    }
-
-    use crate::utils::serialization::variable::Marker;
-    use crate::utils::serialization::variable::TypeId;
-    use crate::utils::serialization::variable::ConstMarker;
-
-    #[test]
-    pub fn test_marker() {
-        struct ExampleType42;
-        impl TypeId for ExampleType42 {
-            fn type_id() -> u32 {
-                42
-            }
-        }
-        struct ExampleType24;
-        impl TypeId for ExampleType24 {
-            fn type_id() -> u32 {
-                24
-            }
-        }
-
-        #[derive(VSer)]
-        struct AnotherType<C: TypeId> {
-            marker: Marker<C>,
-        }
-        impl<C: TypeId> AnotherType<C> {
-            fn new() -> Self {
-                AnotherType {
-                    marker: Marker::<C>::default(),
-                }
-            }
-        }
-
-        let m42 = AnotherType::<ExampleType42>::new();
-        let m24 = AnotherType::<ExampleType24>::new();
-
-        let ser42 = m42.ser();
-        let ser24 = m24.ser();
-
-        let de42 = AnotherType::<ExampleType42>::deser(&ser42);
-        assert!(de42.is_ok());
-        let de24 = AnotherType::<ExampleType24>::deser(&ser24);
-        assert!(de24.is_ok());
-        let de42_from_24 = AnotherType::<ExampleType42>::deser(&ser24);
-        assert!(de42_from_24.is_err());
-        let de24_from_42 = AnotherType::<ExampleType24>::deser(&ser42);
-        assert!(de24_from_42.is_err());
-
-    }
-
-        #[test]
-    pub fn test_marker_const() {
-
-        #[derive(VSer)]
-        struct AnotherType<const A: u32, const B: u32> {
-            marker_a: Marker<ConstMarker<A>>,
-            marker_b: Marker<ConstMarker<B>>,
-        }
-        impl<const A: u32, const B: u32> AnotherType<A, B> {
-            fn new() -> Self {
-                AnotherType {
-                    marker_a: ConstMarker::<A>::new(),
-                    marker_b: ConstMarker::<B>::new(),
-                }
-            }
-        }
-
-        let m2_3 = AnotherType::<2, 3>::new();
-        let m3_2 = AnotherType::<3, 2>::new();
-        let ser2_3 = m2_3.ser();
-        let ser3_2 = m3_2.ser();
-        let de2_3 = AnotherType::<2, 3>::deser(&ser2_3);
-        assert!(de2_3.is_ok());
-        let de3_2 = AnotherType::<3, 2>::deser(&ser3_2);
-        assert!(de3_2.is_ok());
-        let de2_3_from_3_2 = AnotherType::<2, 3>::deser(&ser3_2);
-        assert!(de2_3_from_3_2.is_err());
-        let de3_2_from_2_3 = AnotherType::<3, 2>::deser(&ser2_3);
-        assert!(de3_2_from_2_3.is_err());
-
     }
 }

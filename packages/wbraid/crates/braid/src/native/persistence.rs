@@ -5,7 +5,7 @@
 //! SQLite-backed predicate persistence (§6.2, M2): the native implementation
 //! of the [`Persistence`] trait.
 //!
-//! Predicates are stored as their `VSer` bytes in a single-column table whose
+//! Predicates are stored as their `Canonical` bytes in a single-column table whose
 //! primary key is the bytes themselves, so `INSERT OR IGNORE` makes persistence
 //! idempotent for identical predicates while still recording distinct ones. The
 //! anti-rewrite decision lives in the board client's completeness gate (§6.3),
@@ -14,7 +14,7 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
-use cryptography::utils::serialization::{VDeserializable, VSerializable};
+use cryptography::utils::serialization::{Deserializable, Serializable};
 
 use crate::board::persistence::Persistence;
 use crate::board::transport::StagedRef;

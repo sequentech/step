@@ -12,7 +12,7 @@ use crate::traits::groups::GroupElement;
 use crate::traits::groups::GroupScalar;
 use crate::zkp::schnorr::SchnorrProof;
 use crate::utils::error::Error;
-use vser_derive::VSerializable;
+use canonical_derive::Canonical;
 
 /**
  * A dealer in the Joint-Feldman distributed key generation (DKG) protocol.
@@ -265,7 +265,7 @@ impl<C: Context, const T: usize> Polynomial<C, T> {
  * let shares = dealer.get_verifiable_shares(b"dkg proof context").unwrap();
  * ```
  */
-#[derive(Debug, Clone, VSerializable, PartialEq)]
+#[derive(Debug, Clone, Canonical, PartialEq)]
 pub struct DealerShares<C: Context, const T: usize, const P: usize> {
     /// The shares distributed to each participant, offset by -1.
     /// For example, the share for participant 1 is stored at index 0.
@@ -319,7 +319,7 @@ impl<C: Context, const T: usize, const P: usize> DealerShares<C, T, P> {
  * A [`CheckingValue`] contains an element `g^polynomial_coefficient` and a Schnorr proof of knowledge
  * of the exponent `polynomial_coefficient`.
  */
-#[derive(Debug, Clone, VSerializable, PartialEq)]
+#[derive(Debug, Clone, Canonical, PartialEq)]
 pub struct CheckingValue<C: Context> {
     /// The checking value `g^polynomial_coefficient`.
     pub value: C::Element,
@@ -375,7 +375,7 @@ impl<C: Context> CheckingValue<C> {
  * let shares: VerifiableShare<RCtx, T> = shares.for_recipient(&position);
  * ```
  */
-#[derive(Debug, VSerializable)]
+#[derive(Debug, Canonical)]
 pub struct VerifiableShare<C: Context, const T: usize> {
     /// the secret share as a raw scalar
     pub value: C::Scalar,

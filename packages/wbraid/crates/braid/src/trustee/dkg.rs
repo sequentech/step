@@ -8,7 +8,7 @@ use anyhow::{anyhow, Result};
 
 use cryptography::context::Context;
 use cryptography::traits::groups::CryptographicGroup;
-use cryptography::utils::serialization::VDeserializable;
+use cryptography::utils::serialization::Deserializable;
 
 use crate::messages::artifact::{DkgPublicKey, Shares};
 use crate::messages::newtypes::{ConfigurationHash, SharesHash, TrusteeIndex};

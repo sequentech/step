@@ -9,7 +9,7 @@ use anyhow::{anyhow, Result};
 use cryptography::context::Context;
 use cryptography::cryptosystem::elgamal::Ciphertext;
 use cryptography::traits::groups::CryptographicGroup;
-use cryptography::utils::serialization::{VDeserializable, VSerializable};
+use cryptography::utils::serialization::{Deserializable, Serializable};
 
 use crate::messages::artifact::{Ballots, DkgPublicKey, Mix};
 use crate::messages::newtypes::{CiphertextsHash, ConfigurationHash, PublicKeyHash, TrusteeIndex};

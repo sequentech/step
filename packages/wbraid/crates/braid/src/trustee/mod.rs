@@ -35,7 +35,7 @@ use anyhow::{anyhow, Result};
 
 use cryptography::context::Context;
 use cryptography::cryptosystem::elgamal::KeyPair;
-use cryptography::utils::serialization::VSerializable;
+use cryptography::utils::serialization::Serializable;
 use cryptography::utils::signatures::SignatureScheme;
 
 use crate::messages::artifact::Configuration;

@@ -54,9 +54,9 @@ use std::sync::Mutex;
 
 use common::MemoryPersistence;
 use cryptography::context::{Context, RistrettoCtx};
-use cryptography::cryptosystem::elgamal::{Ciphertext, KeyPair, PublicKey};
+use cryptography::cryptosystem::elgamal::{KeyPair, PublicKey};
 use cryptography::traits::groups::CryptographicGroup;
-use cryptography::utils::serialization::{VDeserializable, VSerializable};
+use cryptography::utils::serialization::{Deserializable, Serializable};
 use cryptography::utils::signatures::SignatureScheme;
 use stateright::{Checker, Model, Property};
 

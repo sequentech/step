@@ -23,7 +23,7 @@ use wasm_bindgen_futures::JsFuture;
 use web_sys::{Request, RequestInit, RequestMode, Response};
 
 use cryptography::context::Context;
-use cryptography::utils::serialization::{VDeserializable, VSerializable};
+use cryptography::utils::serialization::{Deserializable, Serializable};
 
 use crate::messages::wire::{schema_version, MessageType, ProtocolMessage};
 use b4::api_types::{

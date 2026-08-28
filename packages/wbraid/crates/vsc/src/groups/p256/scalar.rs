@@ -104,25 +104,21 @@ impl PartialEq for P256Scalar {
 }
 impl Eq for P256Scalar {}
 
-use crate::utils::serialization::{VDeserializable, VSerializable};
+use crate::utils::serialization::{Deserializable, Serializable, take};
 use p256::elliptic_curve::PrimeField;
 
-impl VSerializable for P256Scalar {
-    fn ser(&self) -> Vec<u8> {
-        let bytes = self.0.to_bytes();
-        bytes.to_vec()
+impl Serializable for P256Scalar {
+    fn write(&self, out: &mut Vec<u8>) {
+        out.extend_from_slice(&self.0.to_bytes());
     }
 }
 
-impl VDeserializable for P256Scalar {
-    fn deser(buffer: &[u8]) -> Result<Self, CryptographyError> {
-        let bytes = <[u8; 32]>::try_from(buffer).map_err(|_| {
-            CryptographyError::DeserializationError(
-                "Failed to convert Vec<u8> to [u8; 32]".to_string(),
-            )
-        })?;
+impl Deserializable for P256Scalar {
+    fn read(input: &mut &[u8]) -> Result<Self, CryptographyError> {
+        let bytes = take(input, 32)?;
+        let array: [u8; 32] = bytes.try_into().expect("take returns exactly 32 bytes");
 
-        let scalar = Scalar::from_repr(bytes.into()).map(P256Scalar);
+        let scalar = Scalar::from_repr(array.into()).map(P256Scalar);
 
         if scalar.is_some().into() {
             Ok(scalar.expect("scalar.is_some() == true"))
@@ -131,21 +127,5 @@ impl VDeserializable for P256Scalar {
                 "Failed to parse P256 scalar bytes".to_string(),
             ))
         }
-    }
-}
-
-use crate::utils::serialization::{FDeserializable, FSerializable};
-impl FSerializable for P256Scalar {
-    fn size_bytes() -> usize {
-        32
-    }
-    fn ser_into(&self, buffer: &mut Vec<u8>) {
-        let bytes = self.0.to_bytes();
-        buffer.extend(bytes);
-    }
-}
-impl FDeserializable for P256Scalar {
-    fn deser_f(buffer: &[u8]) -> Result<Self, CryptographyError> {
-        Self::deser(buffer)
     }
 }

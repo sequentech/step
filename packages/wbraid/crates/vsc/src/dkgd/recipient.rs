@@ -14,7 +14,7 @@ use crate::traits::groups::GroupScalar;
 use crate::utils::error::Error;
 use crate::zkp::dlogeq::DlogEqProof;
 use std::array;
-use vser_derive::VSerializable;
+use canonical_derive::Canonical;
 
 /**
  * A recipient in the Joint-Feldman distributed key generation (DKG) protocol.
@@ -530,7 +530,7 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
  * derived *after* the factors are fixed, which
  * the batching-exponent derivation enforces by hashing them.
  */
-#[derive(Debug, Clone, VSerializable, PartialEq)]
+#[derive(Debug, Clone, Canonical, PartialEq)]
 pub struct PartialDecryption<C: Context, const W: usize> {
     /// The partial decryption of each ciphertext, in the ciphertexts' order
     pub factors: Vec<[C::Element; W]>,
@@ -627,7 +627,7 @@ fn batching_exponents<C: Context, const W: usize>(
 ) -> Result<Vec<C::Scalar>, Error> {
     use crate::traits::groups::CryptographicGroup;
     use crate::utils::hash::{update_hasher, Hasher};
-    use crate::utils::serialization::VSerializable as _;
+    use crate::utils::serialization::Serializable as _;
     use sha3::Digest as _;
 
     if ciphertexts.len() != factors.len() {
@@ -670,7 +670,7 @@ fn batching_exponents<C: Context, const W: usize>(
  * and [Recipient][`Recipient`]. Each participant is assigned a 1-based index;
  * the first participant is assigned position 1, and so on up to participant `P`.
  */
-#[derive(Clone, Debug, VSerializable, PartialEq)]
+#[derive(Clone, Debug, Canonical, PartialEq)]
 pub struct ParticipantPosition<const P: usize>(pub(crate) u32);
 
 impl<const P: usize> ParticipantPosition<P> {
