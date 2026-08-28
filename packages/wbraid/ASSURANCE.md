@@ -87,8 +87,26 @@ Two suites carry them:
   `Predicate` (anti-rewrite persistence), over valid, mutated, and random
   distributions.
 
-Run with the normal test suites; deepen with `PROPTEST_CASES=<n>` (default
-256). The properties are format-agnostic (they pin the bijection, not byte
+**How to run.** Both suites run as part of the ordinary `cargo test` flow; to
+run just them, from the workspace root:
+
+```sh
+cargo test --release -p vsc serialization::properties
+cargo test --release -p braid --test serialization_properties
+```
+
+proptest generates 256 cases per property by default. Deepen a run with the
+`PROPTEST_CASES` environment variable (both suites use proptest's default
+configuration, so the variable is honored):
+
+```sh
+PROPTEST_CASES=65536 cargo test --release -p braid --test serialization_properties
+```
+
+(PowerShell: `$env:PROPTEST_CASES=65536` on its own line, then the `cargo
+test` command.)
+
+The properties are format-agnostic (they pin the bijection, not byte
 layouts), so they survive encoding changes as the acceptance suite.
 
 **Still candidates**: `collides()` totality/symmetry, the `AccumulatorSet`
@@ -102,23 +120,52 @@ deserializer target embeds the strictness oracle — `if let Ok(v) =
 T::deser(data) { assert_eq!(v.ser(), data) }` — so coverage-guided fuzzing
 hunts panics *and* canonicality violations in one pass.
 
-- `crates/vsc/fuzz` (run `cargo fuzz run <target>` from `crates/vsc`):
-  deserializer oracles for ElGamal and Naor-Yung ciphertexts, shuffle proofs,
-  and DKG dealings (`VerifiableShare`, including checking-value proofs), plus
-  two verify-boundary targets — Naor-Yung verify-and-strip (the PlEq verifier)
-  and Schnorr verification — running accepted adversarial inputs against
-  fixed, deterministically derived keys, and the pre-existing
-  `encode_bytes`/`encode_scalar` targets.
-- `crates/braid/fuzz` (run `cargo fuzz build --fuzz-dir crates/braid/fuzz`
-  from the workspace root): oracles for `ProtocolMessage` and `Predicate`.
-  **Linux/CI only**: braid's wasm `cdylib` crate-type conflicts with
-  libFuzzer's `/include:main` on Windows/MSVC (and the opt-out flag removes
-  the fuzz binary's entry point). The braid property suite above provides the
-  same oracle host-side on Windows.
+- `crates/vsc/fuzz`: deserializer oracles for ElGamal and Naor-Yung
+  ciphertexts, shuffle proofs, and DKG dealings (`VerifiableShare`, including
+  checking-value proofs), plus two verify-boundary targets — Naor-Yung
+  verify-and-strip (the PlEq verifier) and Schnorr verification — running
+  accepted adversarial inputs against fixed, deterministically derived keys,
+  and the pre-existing `encode_bytes`/`encode_scalar` targets.
+- `crates/braid/fuzz`: oracles for `ProtocolMessage` and `Predicate`.
 
-Smoke baseline (2026-08-28, 40s/target): all eight vsc targets clean — ~7.9M
-executions, zero crashes, zero bijection violations. Deeper campaigns: raise
-`-max_total_time`.
+**How to run — vsc** (any platform; `cargo fuzz` needs the nightly toolchain,
+which is this workspace's default). From `crates/vsc`:
+
+```sh
+cargo fuzz list                                        # enumerate the targets
+cargo fuzz run deser_ny_ciphertext_ristretto           # fuzz until Ctrl-C
+cargo fuzz run deser_ny_ciphertext_ristretto -- -max_total_time=300
+```
+
+libFuzzer options go after the `--` separator: `-max_total_time=<seconds>`
+bounds a run (deeper campaigns = raise it); `-help=1` lists the rest.
+
+**How to run — braid** (Linux only, see below). From the **workspace root**:
+
+```sh
+cargo fuzz run deser_predicate --fuzz-dir crates/braid/fuzz -- -max_total_time=300
+cargo fuzz run deser_protocol_message_ristretto --fuzz-dir crates/braid/fuzz -- -max_total_time=300
+```
+
+Two platform constraints, one of which shapes the command:
+
+- **Run from the workspace root, not `crates/braid`.**
+  `crates/braid/.cargo/config.toml` applies `[unstable] build-std` and wasm
+  linker flags (needed for wasm threading) to any cargo invocation started
+  inside that directory, which breaks the host-side fuzz build; invoking from
+  the root with `--fuzz-dir` keeps that config out of scope.
+- **Windows/MSVC cannot even link these targets**: braid's wasm `cdylib`
+  crate-type conflicts with libFuzzer's `/include:main` (and the
+  `--no-include-main-msvc` opt-out removes the fuzz binary's own entry
+  point), so both `cargo fuzz build` and `cargo fuzz run` fail at the link
+  step. The targets compile (the failure is in linking) but **have not yet
+  been executed — the first Linux/CI run is pending**. Until then, the braid
+  property suite above exercises the same bijection oracle host-side.
+
+Smoke baseline (2026-08-28, 40s/target, Windows host): eight vsc targets —
+the six serialization-campaign targets plus `encode_bytes_ristretto` and
+`encode_scalar_bytes_ristretto` — clean: ~7.9M executions, zero crashes, zero
+bijection violations.
 
 **Still candidates**: fuzzing the b4 server's own inputs, and the braid
 `verify` path end to end (signature + statement reconstruction) beyond the
