@@ -57,13 +57,15 @@ const DIGITS: &str = "0123456789";
 ///
 /// **A default rather than a rule.** It used to be three pairs of constants — each
 /// class split into safe and confusable — which meant the list was a fact about
-/// this file and not a thing a delivery could look at. It is the set most people
-/// mean by "no look-alikes": `O`/`0`, `I`/`l`/`1`/`i`, `S`/`5`, `Z`/`2`, `B`/`8`.
+/// this file and not a thing a delivery could look at. It leaves out every glyph
+/// that has a twin in some common font: `O`/`0`/`Q`/`D`, `I`/`l`/`1`/`i`, `S`/`5`,
+/// `Z`/`2`, `B`/`8`, `G`/`6`, `U`/`V`, and lower-case `o`. Forty-two characters
+/// remain with the classes a new recipe starts with, which is ample.
 ///
 /// A client whose members read their credentials off a screen in a good font may
 /// want fewer left out; one reading them down a telephone may want more. So the
 /// recipe carries the set, seeded with this.
-pub const DEFAULT_EXCLUDED: &str = "01258BILOSZilo";
+pub const DEFAULT_EXCLUDED: &str = "012568BDGILOQSUVZilo";
 
 /// Punctuation a phone keypad and a handwritten note both survive.
 ///

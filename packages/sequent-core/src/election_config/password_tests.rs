@@ -170,10 +170,21 @@ fn avoiding_confusable_characters_leaves_them_out() {
         );
     }
 
-    for character in "34679".chars() {
+    // The other half, derived rather than listed: every character of a chosen
+    // class that the default set does *not* name has to survive, or the exclusion
+    // is quietly wider than it says. Listing the survivors is what broke when the
+    // default set gained `6`.
+    for character in LOWERCASE
+        .chars()
+        .chain(UPPERCASE.chars())
+        .chain(DIGITS.chars())
+    {
+        if DEFAULT_EXCLUDED.contains(character) {
+            continue;
+        }
         assert!(
             alphabet.contains(&character),
-            "'{character}' is not confusable and should stay"
+            "'{character}' is not excluded and should stay"
         );
     }
 

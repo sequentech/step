@@ -270,16 +270,67 @@ fn areas(document: &Value, report: &mut Report) -> Vec<PlannedArea> {
     let mut named: BTreeMap<String, String> = BTreeMap::new();
 
     let mut areas: Vec<PlannedArea> = Vec::new();
-    for row in &rows {
+    // **Derived where the export gives none, and unique.** The platform keys areas
+    // by UUID and does not always write the external identifier, so an imported
+    // event arrived with every area's identifier blank — `check_areas` refuses
+    // that, the Census cannot resolve a voter to an area without it, and since the
+    // Areas screen started showing the identifier it is an empty box somebody has
+    // to fill in by hand. Same rule as the event's own identifier one screen up.
+    //
+    // Unique against the ones already taken, because two locals may legitimately
+    // share a name and two areas may not share an identifier —
+    // `check_unique_identifiers` refuses the build that would make.
+    let mut taken: std::collections::BTreeSet<String> = rows
+        .iter()
+        .filter_map(Value::as_object)
+        .map(|row| text(row, "external_id"))
+        .filter(|external| !external.is_empty())
+        .collect();
+    let mut derived = 0usize;
+    for (index, row) in rows.iter().enumerate() {
         let Some(row) = row.as_object() else { continue };
         let id = text(row, "id");
-        let external = text(row, "external_id");
+        let name = text(row, "name");
+        let mut external = text(row, "external_id");
+        if external.is_empty() {
+            // From the name where there is one, and from the position where there
+            // is not — `area-3` says which row it was, which `election-event` (the
+            // plan-wide fallback) would not.
+            let base = super::build::slugify(&name);
+            let base = if name.trim().is_empty() {
+                format!("area-{}", index + 1)
+            } else {
+                base
+            };
+            external = base.clone();
+            let mut suffix = 2;
+            while taken.contains(&external) {
+                external = format!("{base}-{suffix}");
+                suffix += 1;
+            }
+            taken.insert(external.clone());
+            derived += 1;
+        }
         named.insert(id, external.clone());
         areas.push(PlannedArea {
             external_id: external,
-            name: text(row, "name"),
+            name,
             ..PlannedArea::default()
         });
+    }
+
+    // Once, with a count, rather than once per area: an export of ninety locals
+    // that names none of them would otherwise be ninety identical warnings.
+    if derived > 0 {
+        report.push(Problem::warning(
+            Code::MissingField,
+            "areas",
+            format!(
+                "the export names no identifier for {derived} of its \
+                 {} areas, so one was derived from each area's name.",
+                rows.len()
+            ),
+        ));
     }
 
     // The parent, resolved from the identifier the export uses to the external id
