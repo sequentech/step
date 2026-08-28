@@ -10,7 +10,7 @@ use crate::traits::groups::GroupElement;
 use crate::traits::groups::GroupScalar;
 use crate::traits::groups::ReplGroupOps;
 use crate::utils::Error;
-use vser_derive::VSerializable;
+use canonical_derive::Canonical;
 
 /**
  * An `ElGamal` key pair.
@@ -37,7 +37,7 @@ use vser_derive::VSerializable;
  * ```
  */
 
-#[derive(Debug, PartialEq, Clone, VSerializable)]
+#[derive(Debug, PartialEq, Clone, Canonical)]
 pub struct KeyPair<C: Context> {
     /// the private key as a raw group scalar
     pub skey: C::Scalar,
@@ -196,7 +196,7 @@ impl<C: Context> KeyPair<C> {
  *
  * ```
  */
-#[derive(Debug, Clone, PartialEq, VSerializable)]
+#[derive(Debug, Clone, PartialEq, Canonical)]
 pub struct PublicKey<C: Context> {
     /// the public key as a raw group element
     pub y: C::Element,
@@ -362,7 +362,7 @@ pub fn decrypt<C: Context, const W: usize>(
  * assert_eq!(message, decrypted);
  * ```
  */
-#[derive(Debug, PartialEq, Clone, VSerializable)]
+#[derive(Debug, PartialEq, Clone, Canonical)]
 pub struct Ciphertext<C: Context, const W: usize>(pub [[C::Element; W]; 2]);
 impl<C: Context, const W: usize> Ciphertext<C, W> {
     /// Construct a ciphertext with given values `u` and `v`.
@@ -469,7 +469,7 @@ mod tests {
     use crate::traits::groups::GroupElement;
     use crate::traits::groups::GroupScalar;
     use crate::traits::groups::ReplGroupOps;
-    use crate::utils::serialization::{FDeserializable, FSerializable};
+    use crate::utils::serialization::{Deserializable, Serializable};
 
     #[test]
     fn test_keypair_serialization_ristretto() {
@@ -510,10 +510,9 @@ mod tests {
     fn test_keypair_serialization<Ctx: Context>() {
         let keypair = KeyPair::<Ctx>::generate();
 
-        let serialized = keypair.ser_f();
-        assert_eq!(serialized.len(), KeyPair::<Ctx>::size_bytes());
+        let serialized = keypair.ser();
 
-        let deserialized = KeyPair::<Ctx>::deser_f(&serialized).unwrap();
+        let deserialized = KeyPair::<Ctx>::deser(&serialized).unwrap();
         assert_eq!(keypair.pkey, deserialized.pkey);
         assert_eq!(keypair.skey, deserialized.skey);
     }
@@ -592,10 +591,9 @@ mod tests {
 
         let ciphertext: Ciphertext<Ctx, 2> = keypair.encrypt(&message);
 
-        let serialized_ct = ciphertext.ser_f();
-        assert_eq!(serialized_ct.len(), Ciphertext::<Ctx, 2>::size_bytes());
+        let serialized_ct = ciphertext.ser();
 
-        let deserialized_ct = Ciphertext::<Ctx, 2>::deser_f(&serialized_ct).unwrap();
+        let deserialized_ct = Ciphertext::<Ctx, 2>::deser(&serialized_ct).unwrap();
 
         assert_eq!(ciphertext, deserialized_ct);
 

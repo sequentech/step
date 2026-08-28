@@ -120,31 +120,32 @@ impl std::hash::Hash for P256Element {
     }
 }
 
-use crate::utils::serialization::{VDeserializable, VSerializable};
+use crate::utils::serialization::{Deserializable, Serializable, take};
 
-impl VSerializable for P256Element {
-    fn ser(&self) -> Vec<u8> {
-        let bytes = self.0.to_affine().to_sec1_point(true).to_bytes();
+impl Serializable for P256Element {
+    fn write(&self, out: &mut Vec<u8>) {
+        // SEC1 compressed (33 bytes). The identity has no 33-byte SEC1 form
+        // (SEC1 encodes it as a single zero byte), so it gets the custom,
+        // unique encoding [0u8; 33].
+        let point = self.0.to_affine().to_sec1_point(true);
+        let bytes = point.as_bytes();
         if bytes.len() == 33 {
-            bytes.to_vec()
+            out.extend_from_slice(bytes);
         } else {
-            [0u8; 33].to_vec()
+            out.extend_from_slice(&[0u8; 33]);
         }
     }
 }
 
-impl VDeserializable for P256Element {
-    fn deser(buffer: &[u8]) -> Result<Self, CryptographyError> {
-        let bytes = <[u8; 33]>::try_from(buffer).map_err(|_| {
-            CryptographyError::DeserializationError(
-                "Failed to convert Vec<u8> to [u8; 33]".to_string(),
-            )
-        })?;
-        if bytes == [0u8; 33] {
+impl Deserializable for P256Element {
+    fn read(input: &mut &[u8]) -> Result<Self, CryptographyError> {
+        let bytes = take(input, 33)?;
+        let array: [u8; 33] = bytes.try_into().expect("take returns exactly 33 bytes");
+        if array == [0u8; 33] {
             return Ok(P256Element::one());
         }
 
-        let point = Sec1Point::from_bytes(bytes).map_err(|_| {
+        let point = Sec1Point::from_bytes(array).map_err(|_| {
             CryptographyError::DeserializationError(
                 "Failed to parse P256 encoded point".to_string(),
             )
@@ -159,29 +160,5 @@ impl VDeserializable for P256Element {
                 "Failed to parse P256 point bytes".to_string(),
             ))
         }
-    }
-}
-
-use crate::utils::serialization::{FDeserializable, FSerializable};
-
-impl FSerializable for P256Element {
-    fn size_bytes() -> usize {
-        33
-    }
-
-    fn ser_into(&self, buffer: &mut Vec<u8>) {
-        let point = self.0.to_affine().to_sec1_point(true);
-        let bytes = point.as_bytes();
-        if bytes.len() == 33 {
-            buffer.extend_from_slice(bytes);
-        } else {
-            buffer.extend_from_slice(&[0u8; 33]);
-        }
-    }
-}
-
-impl FDeserializable for P256Element {
-    fn deser_f(buffer: &[u8]) -> Result<Self, CryptographyError> {
-        Self::deser(buffer)
     }
 }

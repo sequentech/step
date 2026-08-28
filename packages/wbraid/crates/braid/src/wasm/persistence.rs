@@ -6,7 +6,7 @@
 //! of the [`Persistence`] trait.
 //!
 //! Mirrors [`SqlitePersistence`](crate::native::persistence::SqlitePersistence):
-//! predicates are stored in an object store keyed by their `VSer` bytes (an
+//! predicates are stored in an object store keyed by their `Canonical` bytes (an
 //! out-of-line binary key), so `put` is idempotent for identical predicates.
 //! Anti-rewrite remains the board client's completeness gate (§6.3), not
 //! `collides()` (that stays the datalog's job alone, §5.3); this module only
@@ -17,7 +17,7 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
-use cryptography::utils::serialization::{VDeserializable, VSerializable};
+use cryptography::utils::serialization::{Deserializable, Serializable};
 
 use crate::board::persistence::Persistence;
 use crate::board::transport::StagedRef;
@@ -171,7 +171,7 @@ impl Persistence for IndexedDbPersistence {
 /// Encode an own-post entry as `[handle len: u32 LE][handle][predicate bytes]`.
 ///
 /// IndexedDB's `get_all` returns values without their keys, so the value carries
-/// both halves rather than relying on the key. Hand-rolled instead of `VSer`
+/// both halves rather than relying on the key. Hand-rolled instead of `Canonical`
 /// because the handle is a `String`, which the protocol serializer does not
 /// cover — and this encoding is local storage only, never on the wire, so it
 /// needs no canonicality guarantee.

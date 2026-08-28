@@ -2,7 +2,7 @@
 // Copyright 2026 Free & Fair
 // See LICENSE.md for details
 
-//! Property-based bijection tests for `VSer` (`SERIALIZATION.md`, phase 3).
+//! Property-based bijection tests for `Canonical` (`SERIALIZATION.md`, phase 3).
 //!
 //! Two properties together make `ser`/`deser` a bijection between values and
 //! accepted byte strings:
@@ -33,14 +33,13 @@ use proptest::prelude::*;
 
 use crate::context::{Context, P256Ctx, RistrettoCtx};
 use crate::traits::groups::CryptographicGroup;
-use crate::utils::serialization::fixed::{FDeserializable, FSerializable};
-use crate::utils::serialization::variable::{VDeserializable, VSerializable};
-use vser_derive::VSerializable as VSer;
+use crate::utils::serialization::{Deserializable, Serializable};
+use canonical_derive::Canonical;
 
 /// Variable-tier kitchen sink: every generic composition rule across a
 /// nested struct tree (the tuple impls compose up to arity 8, and production
 /// artifacts nest — so does this).
-#[derive(Debug, Clone, PartialEq, VSer)]
+#[derive(Debug, Clone, PartialEq, Canonical)]
 struct Sink<C: Context> {
     prims: Prims,
     vars: Vars,
@@ -50,7 +49,7 @@ struct Sink<C: Context> {
 }
 
 /// Primitive leaves.
-#[derive(Debug, Clone, PartialEq, VSer)]
+#[derive(Debug, Clone, PartialEq, Canonical)]
 struct Prims {
     a: u32,
     b: u64,
@@ -61,7 +60,7 @@ struct Prims {
 }
 
 /// Variable-size members, including the nested-variable cases.
-#[derive(Debug, Clone, PartialEq, VSer)]
+#[derive(Debug, Clone, PartialEq, Canonical)]
 struct Vars {
     o1: Option<u64>,
     o2: Option<Vec<u32>>,
@@ -71,16 +70,16 @@ struct Vars {
 }
 
 /// Nested struct with the cryptographic leaves.
-#[derive(Debug, Clone, PartialEq, VSer)]
+#[derive(Debug, Clone, PartialEq, Canonical)]
 struct Inner<C: Context> {
     g: C::Element,
     x: C::Scalar,
     cs: Vec<C::Element>,
 }
 
-/// Fixed-tier sink: only fixed-width members, exercised through
-/// `ser_f`/`deser_f` (the F-tier tuple composition of finding S6).
-#[derive(Debug, Clone, PartialEq, VSer)]
+/// All-fixed-width sink: a struct whose encoding is pure concatenation with
+/// zero framing (mini-spec rules 1 and 3).
+#[derive(Debug, Clone, PartialEq, Canonical)]
 struct FSink<C: Context> {
     a: u32,
     b: u64,
@@ -246,16 +245,17 @@ macro_rules! bijection_properties {
                     }
                 }
 
-                /// P1/P2 for the fixed tier (`ser_f`/`deser_f`, finding S6).
+                /// P1/P2 for an all-fixed-width struct (zero-framing
+                /// composition, mini-spec rules 1 and 3).
                 #[test]
                 #[cfg_attr(miri, ignore)]
                 fn fixed_p1_roundtrip_p2_strict(x in fsink::<$ctx>(), m in mutation()) {
-                    let bytes = x.ser_f();
-                    prop_assert_eq!(FSink::<$ctx>::deser_f(&bytes).unwrap(), x.clone());
+                    let bytes = x.ser();
+                    prop_assert_eq!(FSink::<$ctx>::deser(&bytes).unwrap(), x.clone());
 
-                    let mutated = apply(&m, x.ser_f());
-                    if let Ok(v) = FSink::<$ctx>::deser_f(&mutated) {
-                        prop_assert_eq!(v.ser_f(), mutated);
+                    let mutated = apply(&m, x.ser());
+                    if let Ok(v) = FSink::<$ctx>::deser(&mutated) {
+                        prop_assert_eq!(v.ser(), mutated);
                     }
                 }
             }

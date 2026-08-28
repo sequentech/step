@@ -16,7 +16,7 @@
 
 use anyhow::{anyhow, Result};
 use cryptography::context::Context;
-use cryptography::utils::serialization::VDeserializable;
+use cryptography::utils::serialization::Deserializable;
 
 use crate::messages::artifact::Configuration;
 use crate::messages::newtypes::{

@@ -8,7 +8,7 @@ use sha3::digest::FixedOutput;
 use sha3::{Digest, Sha3_256, Sha3_512};
 
 use crate::utils::error::Error;
-use crate::utils::serialization::{VDeserializable, VSerializable};
+use crate::utils::serialization::{Deserializable, Serializable, take};
 
 /**
  * Hashing cryptographic [group][`crate::traits::groups::CryptographicGroup`] dependency.
@@ -56,26 +56,24 @@ pub fn update_hasher(hasher: &mut impl Digest, data_slices: &[&[u8]], ds_tags: &
     }
 }
 
-/// Implement `VSerializable` for sha3 512-bit digests.
+/// Implement `Serializable` for sha3 512-bit digests.
 ///
 /// This is necessary to support serialization of messages
 /// that contain hash digests.
-impl VSerializable for sha3::digest::Output<Sha3_512> {
-    fn ser(&self) -> Vec<u8> {
-        self.to_vec()
+impl Serializable for sha3::digest::Output<Sha3_512> {
+    fn write(&self, out: &mut Vec<u8>) {
+        out.extend_from_slice(self);
     }
 }
 
-/// Implement `VDeserializable` for sha3 512-bit digests.
+/// Implement `Deserializable` for sha3 512-bit digests.
 ///
 /// This is necessary to support serialization of messages
 /// that contain hash digests.
-impl VDeserializable for sha3::digest::Output<Sha3_512> {
-    fn deser(bytes: &[u8]) -> Result<Self, Error> {
-        let bytes: [u8; 64] = bytes.try_into().map_err(|_| {
-            Error::DeserializationError("Invalid length for Sha3_512 digest".to_string())
-        })?;
-
-        Ok(bytes.into())
+impl Deserializable for sha3::digest::Output<Sha3_512> {
+    fn read(input: &mut &[u8]) -> Result<Self, Error> {
+        let bytes = take(input, 64)?;
+        let array: [u8; 64] = bytes.try_into().expect("take returns exactly 64 bytes");
+        Ok(array.into())
     }
 }

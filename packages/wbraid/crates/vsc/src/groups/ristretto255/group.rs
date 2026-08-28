@@ -136,7 +136,7 @@ impl CryptographicGroup for Ristretto255Group {
     fn encrypt_scalar(scalar: &Self::Scalar, public_key: &Self::Element) -> Result<Vec<u8>, Error> {
         use crate::context::RistrettoCtx;
         use crate::cryptosystem::elgamal::{PublicKey, Ciphertext};
-        use crate::utils::serialization::VSerializable;
+        use crate::utils::serialization::Serializable;
         
         // Encode scalar into 2 elements
         let elements = Self::encode_scalar(scalar)?;
@@ -158,7 +158,7 @@ impl CryptographicGroup for Ristretto255Group {
     fn decrypt_scalar(ciphertext: &[u8], secret_key: &Self::Scalar) -> Result<Self::Scalar, Error> {
         use crate::context::RistrettoCtx;
         use crate::cryptosystem::elgamal::{Ciphertext, KeyPair, PublicKey};
-        use crate::utils::serialization::VDeserializable;
+        use crate::utils::serialization::Deserializable;
         use crate::traits::groups::GroupElement;
         
         // Deserialize ciphertext

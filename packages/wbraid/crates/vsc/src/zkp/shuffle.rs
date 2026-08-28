@@ -16,11 +16,11 @@ use crate::traits::groups::ReplScalarOps;
 use crate::utils::error::Error;
 use crate::utils::error::ErrorContext;
 use crate::utils::hash;
-use crate::utils::serialization::VSerializable;
+use crate::utils::serialization::Serializable;
 
 use rand::RngExt;
 use sha3::Digest;
-use vser_derive::VSerializable as VSer;
+use canonical_derive::Canonical;
 
 use rayon::prelude::*;
 
@@ -925,7 +925,7 @@ impl<C: Context, const W: usize> PermutationData<C, W> {
  * See `EVS`: Protocol 12.3
  */
 #[crate::warning("Remove clone, only requried for sandbox/sr")]
-#[derive(Debug, VSer, PartialEq, Clone)]
+#[derive(Debug, Canonical, PartialEq, Clone)]
 pub struct ShuffleProof<C: Context, const W: usize> {
     /// Proof shuffle commitments
     pub commitments: ShuffleCommitments<C, W>,
@@ -949,7 +949,7 @@ impl<C: Context, const W: usize> ShuffleProof<C, W> {
 ///
 /// Includes bridging commitments, proof commitments and
 /// pedersen commitments.
-#[derive(Debug, VSer, PartialEq, Clone)]
+#[derive(Debug, Canonical, PartialEq, Clone)]
 pub struct ShuffleCommitments<C: Context, const W: usize> {
     /// Bridging commitments
     big_b_n: Vec<C::Element>,
@@ -1045,7 +1045,7 @@ impl<C: Context, const W: usize> ShuffleCommitments<C, W> {
 /**
  * Responses to the challenge in the shuffle proof
  */
-#[derive(Debug, VSer, PartialEq, Clone)]
+#[derive(Debug, Canonical, PartialEq, Clone)]
 pub struct Responses<C: Context, const W: usize> {
     /// Response `k_a`
     pub k_a: C::Scalar,
@@ -1244,7 +1244,7 @@ mod tests {
     use crate::cryptosystem::elgamal::Ciphertext;
     use crate::cryptosystem::elgamal::KeyPair;
     use crate::traits::groups::CryptographicGroup;
-    use crate::utils::serialization::{VDeserializable, VSerializable};
+    use crate::utils::serialization::{Deserializable, Serializable};
     use crate::zkp::shuffle::Permutation;
     use crate::zkp::shuffle::ShuffleProof;
     use crate::zkp::shuffle::Shuffler;

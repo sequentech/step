@@ -16,7 +16,7 @@ use anyhow::{anyhow, bail, Result};
 use async_trait::async_trait;
 
 use cryptography::context::Context;
-use cryptography::utils::serialization::{VDeserializable, VSerializable};
+use cryptography::utils::serialization::{Deserializable, Serializable};
 
 use crate::messages::wire::{schema_version, MessageType, ProtocolMessage};
 use b4::api_types::{

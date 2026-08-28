@@ -399,3 +399,36 @@ self-consistently, and the §7a property harness is the acceptance net.
 **Not in this format** (non-goals, §7 guardrail 4): versioning, schema evolution,
 derive support for enums, zero-copy, type-level size computation, runtime type
 tags.
+
+## 10. The flip (2026-08-28): v2 is the format
+
+Following the checkpoint review, the naming was settled — traits
+**`Serializable`/`Deserializable`** (the V/F prefixes died with the tiers; the
+adjective forms are distinct from serde's `Serialize`/`Deserialize` verbs), the
+derive **`#[derive(Canonical)]`** (it derives both traits plus `Hash`, and names
+the contract a type opts into), the macro crate **`canonical_derive`** — and the
+v2 encoding was flipped in as the only format:
+
+- `serialization/mod.rs` is now the entire implementation: **309 lines**
+  (including docs) replacing `variable.rs` + `fixed.rs` + the spike file
+  (~1,900 lines). The derive is **101 lines** replacing 177. Deleted with the
+  tiers: `TFTuple` and its GATs, both tuple macro towers, `LargeVector` (and
+  its benchmark), `Marker`/`ConstMarker`, and `serde.rs` — the §11-banked
+  retirement landed here of necessity (it sat on the v1 traits; its optional
+  feature was enabled by nothing in the workspace).
+- Leaf `write`/`read` impls moved beside their types (elements, scalars,
+  digests, keys, signatures), encoding-identical to v1. The three hand-written
+  impls became direct transcriptions of their rules: `Mix` (rule 3),
+  `MessageType` and `Predicate` (rule 7 — `Predicate` thereby lost its former
+  double-encoded `(u8, Vec<u8>)` envelope, so persisted predicate digests from
+  before the flip do not carry over; only dev/demo state existed).
+- Every suite passes under the new format: vsc (187 unit + doctests, including
+  the migrated property harness), v2v (VMN interop untouched, as designed — the
+  transcript path is separate), b4, and the braid release suite end-to-end on
+  both groups with all 17 symbolic model checks — which run measurably faster
+  (~33s vs ~47–55s), a first concrete return on S8.
+
+Outcome (2) is therefore realized. What remains of the investigation: phase 4
+(fuzzing — one pre-existing fuzz target under `vsc/fuzz` already updated) and
+the deeper property-campaign parameters, both now running against the final
+format.

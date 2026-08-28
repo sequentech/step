@@ -22,7 +22,7 @@
 //! assert_eq!(data.to_vec(), decrypted);
 //! ```
 
-use vser_derive::VSerializable as VSer;
+use canonical_derive::Canonical;
 use chacha20poly1305::{aead::Aead, aead::Generate, aead::KeyInit, ChaCha20Poly1305, Nonce};
 use chacha20poly1305::aead::Key;
 
@@ -34,7 +34,7 @@ use crate::utils::error::Error;
 pub type SymmetricKey = Key<ChaCha20Poly1305>;
 
 /// Encrypted data with associated nonce for ChaCha20-Poly1305 AEAD
-#[derive(VSer, Clone)]
+#[derive(Canonical, Clone)]
 pub struct EncryptionData {
     /// The encrypted ciphertext
     pub encrypted_bytes: Vec<u8>,

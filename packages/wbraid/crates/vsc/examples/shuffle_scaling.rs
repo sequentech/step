@@ -67,7 +67,7 @@ use cryptography::context::RistrettoCtx as RCtx;
 use cryptography::cryptosystem::elgamal::Ciphertext;
 use cryptography::cryptosystem::elgamal::KeyPair;
 use cryptography::traits::groups::CryptographicGroup;
-use cryptography::utils::serialization::FSerializable;
+use cryptography::utils::serialization::Serializable;
 use cryptography::zkp::shuffle::Shuffler;
 use rayon::prelude::*;
 
@@ -145,7 +145,12 @@ fn run<C: Context, const W: usize>(count: usize) -> (f64, f64, usize, usize) {
         prove_ms,
         verify_ms,
         std::mem::size_of::<Ciphertext<C, W>>(),
-        Ciphertext::<C, W>::size_bytes(),
+        Ciphertext::<C, W>::new(
+            std::array::from_fn(|_| C::generator()),
+            std::array::from_fn(|_| C::generator()),
+        )
+        .ser()
+        .len(),
     )
 }
 

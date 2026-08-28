@@ -9,7 +9,7 @@ use anyhow::{anyhow, Result};
 
 use cryptography::context::Context;
 use cryptography::dkgd::dealer::CheckingValue;
-use cryptography::utils::serialization::VDeserializable;
+use cryptography::utils::serialization::Deserializable;
 
 use crate::messages::artifact::{DkgPublicKey, Mix, PartialDecryption, Plaintexts, Shares};
 use crate::messages::newtypes::{

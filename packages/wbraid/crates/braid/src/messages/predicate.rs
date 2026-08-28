@@ -20,8 +20,8 @@
 use enum_dispatch::enum_dispatch;
 
 use cryptography::utils::error::Error;
-use cryptography::utils::serialization::{VDeserializable, VSerializable};
-use cryptography::VSerializable as VSer;
+use cryptography::utils::serialization::{Deserializable, Serializable};
+use cryptography::Canonical;
 
 use super::newtypes::{
     CiphertextsHash, ConfigurationHash, PartialDecryptionHash, PlaintextsHash, PublicKeyHash,
@@ -43,7 +43,7 @@ use super::newtypes::{
 /// client derives it once from its stored configuration and emits it via
 /// `get_predicates()` so the datalog always has the configuration facts
 /// (threshold, trustee count, and this trustee's own index).
-#[derive(Clone, PartialEq, Eq, Debug, VSer)]
+#[derive(Clone, PartialEq, Eq, Debug, Canonical)]
 pub struct ConfigurationValid {
     pub configuration: ConfigurationHash,
     pub threshold: Threshold,
@@ -52,7 +52,7 @@ pub struct ConfigurationValid {
 }
 
 /// `Shares`: trustee `sender` published its DKG shares (content hash `shares`).
-#[derive(Clone, PartialEq, Eq, Debug, VSer)]
+#[derive(Clone, PartialEq, Eq, Debug, Canonical)]
 pub struct Shares {
     pub configuration: ConfigurationHash,
     pub shares: SharesHash,
@@ -60,7 +60,7 @@ pub struct Shares {
 }
 
 /// `PublicKey`: trustee `sender` published its view of the joint public key.
-#[derive(Clone, PartialEq, Eq, Debug, VSer)]
+#[derive(Clone, PartialEq, Eq, Debug, Canonical)]
 pub struct PublicKey {
     pub configuration: ConfigurationHash,
     pub public_key: PublicKeyHash,
@@ -71,7 +71,7 @@ pub struct PublicKey {
 /// of active mixing `trustees`, under tally-execution identifier `tally_id`
 /// (consumed by the crypto layer's tally-scoped Fiat-Shamir labels; the
 /// datalog rules ignore it).
-#[derive(Clone, PartialEq, Eq, Debug, VSer)]
+#[derive(Clone, PartialEq, Eq, Debug, Canonical)]
 pub struct Ballots {
     pub configuration: ConfigurationHash,
     pub public_key: PublicKeyHash,
@@ -81,7 +81,7 @@ pub struct Ballots {
 }
 
 /// `Mix`: trustee `sender` shuffled the `input` ciphertexts into `output`.
-#[derive(Clone, PartialEq, Eq, Debug, VSer)]
+#[derive(Clone, PartialEq, Eq, Debug, Canonical)]
 pub struct Mix {
     pub configuration: ConfigurationHash,
     pub public_key: PublicKeyHash,
@@ -92,7 +92,7 @@ pub struct Mix {
 
 /// `MixSignature`: trustee `sender` signed a mix (`input` -> `output`). Same
 /// shape as [`Mix`] but a distinct — and bodyless (§4.4) — predicate.
-#[derive(Clone, PartialEq, Eq, Debug, VSer)]
+#[derive(Clone, PartialEq, Eq, Debug, Canonical)]
 pub struct MixSignature {
     pub configuration: ConfigurationHash,
     pub public_key: PublicKeyHash,
@@ -103,7 +103,7 @@ pub struct MixSignature {
 
 /// `PartialDecryptions`: trustee `sender` published its decryption factors for
 /// the `ciphertexts`.
-#[derive(Clone, PartialEq, Eq, Debug, VSer)]
+#[derive(Clone, PartialEq, Eq, Debug, Canonical)]
 pub struct PartialDecryptions {
     pub configuration: ConfigurationHash,
     pub public_key: PublicKeyHash,
@@ -114,7 +114,7 @@ pub struct PartialDecryptions {
 
 /// `Plaintexts`: trustee `sender` published the combined plaintexts for the
 /// `ciphertexts`.
-#[derive(Clone, PartialEq, Eq, Debug, VSer)]
+#[derive(Clone, PartialEq, Eq, Debug, Canonical)]
 pub struct Plaintexts {
     pub configuration: ConfigurationHash,
     pub public_key: PublicKeyHash,
@@ -252,40 +252,62 @@ impl Predicate {
 // Serialization
 //
 // Predicates are persisted (§6.2) to enforce anti-rewrite across restarts, so
-// the enum needs a stable wire form. `VSer` is derived per-struct above; the
-// enum's tag dispatch is written by hand (the derive supports structs only) as
-// a `(u8 discriminant, inner bytes)` tuple. The discriminant follows the enum
-// declaration order and must stay in sync with the `match` arms below.
+// the enum needs a stable wire form. `Canonical` is derived per-struct above;
+// the enum's tag dispatch is written by hand (mini-spec rule 7): a `u8`
+// discriminant following the enum declaration order, then the variant's
+// payload. The discriminant must stay in sync with the `match` arms below.
 ///////////////////////////////////////////////////////////////////////////
 
-impl VSerializable for Predicate {
-    fn ser(&self) -> Vec<u8> {
-        let (discriminant, inner): (u8, Vec<u8>) = match self {
-            Predicate::ConfigurationValid(p) => (0, p.ser()),
-            Predicate::Shares(p) => (1, p.ser()),
-            Predicate::PublicKey(p) => (2, p.ser()),
-            Predicate::Ballots(p) => (3, p.ser()),
-            Predicate::Mix(p) => (4, p.ser()),
-            Predicate::MixSignature(p) => (5, p.ser()),
-            Predicate::PartialDecryptions(p) => (6, p.ser()),
-            Predicate::Plaintexts(p) => (7, p.ser()),
-        };
-        (discriminant, inner).ser()
+impl Serializable for Predicate {
+    fn write(&self, out: &mut Vec<u8>) {
+        match self {
+            Predicate::ConfigurationValid(p) => {
+                0u8.write(out);
+                p.write(out);
+            }
+            Predicate::Shares(p) => {
+                1u8.write(out);
+                p.write(out);
+            }
+            Predicate::PublicKey(p) => {
+                2u8.write(out);
+                p.write(out);
+            }
+            Predicate::Ballots(p) => {
+                3u8.write(out);
+                p.write(out);
+            }
+            Predicate::Mix(p) => {
+                4u8.write(out);
+                p.write(out);
+            }
+            Predicate::MixSignature(p) => {
+                5u8.write(out);
+                p.write(out);
+            }
+            Predicate::PartialDecryptions(p) => {
+                6u8.write(out);
+                p.write(out);
+            }
+            Predicate::Plaintexts(p) => {
+                7u8.write(out);
+                p.write(out);
+            }
+        }
     }
 }
 
-impl VDeserializable for Predicate {
-    fn deser(buffer: &[u8]) -> Result<Self, Error> {
-        let (tag, inner): (u8, Vec<u8>) = <(u8, Vec<u8>)>::deser(buffer)?;
-        let predicate = match tag {
-            0 => Predicate::ConfigurationValid(ConfigurationValid::deser(&inner)?),
-            1 => Predicate::Shares(Shares::deser(&inner)?),
-            2 => Predicate::PublicKey(PublicKey::deser(&inner)?),
-            3 => Predicate::Ballots(Ballots::deser(&inner)?),
-            4 => Predicate::Mix(Mix::deser(&inner)?),
-            5 => Predicate::MixSignature(MixSignature::deser(&inner)?),
-            6 => Predicate::PartialDecryptions(PartialDecryptions::deser(&inner)?),
-            7 => Predicate::Plaintexts(Plaintexts::deser(&inner)?),
+impl Deserializable for Predicate {
+    fn read(input: &mut &[u8]) -> Result<Self, Error> {
+        let predicate = match u8::read(input)? {
+            0 => Predicate::ConfigurationValid(ConfigurationValid::read(input)?),
+            1 => Predicate::Shares(Shares::read(input)?),
+            2 => Predicate::PublicKey(PublicKey::read(input)?),
+            3 => Predicate::Ballots(Ballots::read(input)?),
+            4 => Predicate::Mix(Mix::read(input)?),
+            5 => Predicate::MixSignature(MixSignature::read(input)?),
+            6 => Predicate::PartialDecryptions(PartialDecryptions::read(input)?),
+            7 => Predicate::Plaintexts(Plaintexts::read(input)?),
             other => {
                 return Err(Error::DeserializationError(format!(
                     "unknown Predicate discriminant {other}"

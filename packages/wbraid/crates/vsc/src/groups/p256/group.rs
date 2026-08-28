@@ -130,7 +130,7 @@ impl CryptographicGroup for P256Group {
     fn encrypt_scalar(scalar: &Self::Scalar, public_key: &Self::Element) -> Result<Vec<u8>, Error> {
         use crate::context::P256Ctx;
         use crate::cryptosystem::elgamal::{Ciphertext, PublicKey};
-        use crate::utils::serialization::VSerializable;
+        use crate::utils::serialization::Serializable;
 
         let elements = Self::encode_scalar(scalar)?;
         let pk = PublicKey::new(*public_key);
@@ -148,7 +148,7 @@ impl CryptographicGroup for P256Group {
     fn decrypt_scalar(ciphertext: &[u8], secret_key: &Self::Scalar) -> Result<Self::Scalar, Error> {
         use crate::context::P256Ctx;
         use crate::cryptosystem::elgamal::{Ciphertext, KeyPair, PublicKey};
-        use crate::utils::serialization::VDeserializable;
+        use crate::utils::serialization::Deserializable;
 
         let ciphertext = Ciphertext::<P256Ctx, 2>::deser(ciphertext)?;
         let pk = PublicKey::new(Self::generator().exp(secret_key));
@@ -239,9 +239,9 @@ impl P256Group {
     ///
     /// - `EncodingError` if a point was not found, with negligible probability
     pub fn encode_scalar(scalar: &P256Scalar) -> Result<[P256Element; 2], Error> {
-        use crate::utils::serialization::FSerializable;
+        use crate::utils::serialization::Serializable;
         let mut bytes = Vec::with_capacity(32);
-        scalar.ser_into(&mut bytes);
+        scalar.write(&mut bytes);
         let bytes: [u8; 32] = bytes
             .try_into()
             .map_err(|_| Error::EncodingError("scalar is not 32 bytes".to_string()))?;
@@ -255,7 +255,7 @@ impl P256Group {
     ///
     /// - `ScalarDecodeError` if the bytes are not a canonical P-256 scalar
     pub fn decode_scalar(element: &[P256Element; 2]) -> Result<P256Scalar, Error> {
-        use crate::utils::serialization::VDeserializable;
+        use crate::utils::serialization::Deserializable;
         let bytes = Self::decode_bytes::<2, 32>(element)?;
         P256Scalar::deser(&bytes)
     }

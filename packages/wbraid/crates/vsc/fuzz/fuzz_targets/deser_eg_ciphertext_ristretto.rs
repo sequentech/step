@@ -8,7 +8,7 @@
 
 use cryptography::context::RistrettoCtx;
 use cryptography::cryptosystem::elgamal::Ciphertext;
-use cryptography::utils::serialization::VDeserializable;
+use cryptography::utils::serialization::Deserializable;
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
