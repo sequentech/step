@@ -86,6 +86,7 @@ const Dialog: React.FC<DialogProps> = ({
     }
 
     const okButtonRef = useRef<boolean>(false)
+    const [isFullScreen, setIsFullScreen] = React.useState<boolean>(false)
     const {t} = useTranslation()
     // Ties the modal to its visible title (and to the error text, when shown) so
     // screen readers announce what the dialog is about when it opens.
