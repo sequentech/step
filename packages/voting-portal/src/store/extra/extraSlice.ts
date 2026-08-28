@@ -11,12 +11,14 @@ export interface ExtraState {
     bypassChooser: boolean
     isVoted: ElectionVoteStepState
     declinedToVote: ElectionVoteStepState
+    completedAcclaimedElections: ElectionVoteStepState
 }
 
 const initialState: ExtraState = {
     bypassChooser: false,
     isVoted: {},
     declinedToVote: {},
+    completedAcclaimedElections: {},
 }
 
 export const extraSlice = createSlice({
@@ -42,6 +44,13 @@ export const extraSlice = createSlice({
             delete state.declinedToVote[action.payload]
             return state
         },
+        completeAcclaimedElection: (
+            state: ExtraState,
+            action: PayloadAction<string>
+        ): ExtraState => {
+            state.completedAcclaimedElections[action.payload] = true
+            return state
+        },
         clearIsVoted: (state: ExtraState): ExtraState => {
             state.isVoted = {}
             state.declinedToVote = {}
@@ -55,6 +64,7 @@ export const {
     setIsVoted,
     setDeclinedToVote,
     clearDeclinedToVoteForElection,
+    completeAcclaimedElection,
     clearIsVoted,
 } = extraSlice.actions
 
@@ -68,5 +78,9 @@ export const isDeclineToVoteByElectionId =
     (electionId: string | undefined) => (state: RootState) => {
         return electionId ? Boolean(state.extra.declinedToVote[electionId]) : false
     }
+
+export const isAcclaimedElectionCompleted =
+    (electionId: string | undefined) => (state: RootState) =>
+        electionId ? Boolean(state.extra.completedAcclaimedElections?.[electionId]) : false
 
 export default extraSlice.reducer
