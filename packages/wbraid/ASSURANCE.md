@@ -135,14 +135,22 @@ Two platform constraints, one of which shapes the command:
   crate-type conflicts with libFuzzer's `/include:main` (and the
   `--no-include-main-msvc` opt-out removes the fuzz binary's own entry
   point), so both `cargo fuzz build` and `cargo fuzz run` fail at the link
-  step. The targets compile (the failure is in linking) but **have not yet
-  been executed — the first Linux/CI run is pending**. Until then, the braid
-  property suite above exercises the same bijection oracle host-side.
+  step. On Windows the braid property suite above exercises the same
+  bijection oracle host-side.
 
-Smoke baseline (2026-08-28, 40s/target, Windows host): eight vsc targets —
-the six serialization-campaign targets plus `encode_bytes_ristretto` and
-`encode_scalar_bytes_ristretto` — clean: ~7.9M executions, zero crashes, zero
-bijection violations.
+Smoke baselines, all clean (zero crashes, zero bijection violations):
+
+- vsc (2026-08-28, Windows host, 40s/target): eight targets — the six
+  serialization-campaign targets plus `encode_bytes_ristretto` and
+  `encode_scalar_bytes_ristretto` — ~7.9M executions total.
+- braid (2026-08-28, Linux under WSL, `-max_total_time=300`): both targets;
+  `deser_protocol_message_ristretto` ran ~36.3M executions. The oracle's
+  accept path was genuinely exercised, not just rejection paths: replaying
+  the persisted corpora host-side, 31/80 protocol-message and 22/94 predicate
+  entries deserialize successfully and re-serialize byte-identically — the
+  fuzzer synthesized valid messages from an empty corpus. Those corpora
+  persist locally under `crates/braid/fuzz/corpus/` (gitignored) and seed
+  future runs.
 
 **Still candidates**: fuzzing the b4 server's own inputs, and the braid
 `verify` path end to end (signature + statement reconstruction) beyond the
