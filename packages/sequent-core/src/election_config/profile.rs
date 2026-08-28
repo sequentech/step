@@ -776,6 +776,10 @@ fn shape_of_a_plan() -> Value {
         .entry("en".to_string())
         .or_default()
         .insert("a.key".to_string(), "Some words".to_string());
+    // Filled, or every `passwords.*` path would "name nothing a plan has" — the
+    // trap every `Option` field on the plan falls into, and the reason this
+    // function is hand-written rather than derived.
+    plan.passwords = Some(Default::default());
     plan.trustees.push(Default::default());
     plan.areas.push(Default::default());
     plan.schedule.milestones.push(Default::default());

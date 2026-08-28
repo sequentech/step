@@ -133,6 +133,11 @@ calamine = { version = "0.36", features = ["dates"], optional = true }
 # specific and already pinned elsewhere in this workspace, and nothing here needs
 # randomness.
 sha1 = { version = "0.10", optional = true }
+# Deriving a voter's password from the plan's seed. RustCrypto siblings of `sha1`
+# above, already in the lockfile, pure Rust and safe in the WebAssembly build —
+# which is the reason this is a hash rather than a random number generator.
+sha2 = { version = "0.10", optional = true }
+hmac = { version = "0.12", optional = true }
 
 # Writing the importable archive; optional so a front end that only validates a
 # bundle carries no zip writer.
@@ -168,7 +173,7 @@ lambda_inplace = []
 lambda_openwhisk = []
 lambda_aws_lambda = []
 plugins_wit = ["dep:wasmtime", "dep:wasmtime-wasi"]
-default_features = ["dep:strand", "dep:num-bigint", "dep:tempfile", "dep:ammonia", "dep:sha1"]
+default_features = ["dep:strand", "dep:num-bigint", "dep:tempfile", "dep:ammonia", "dep:sha1", "dep:sha2", "dep:hmac"]
 # Reading .xlsx into an election_config::sheet::Workbook. Separate from
 # default_features because admin-portal and voting-portal have no workbook to
 # read and should not pay for a spreadsheet parser in their bundle.

@@ -41,6 +41,11 @@ pub mod architect;
 pub mod branding;
 pub mod census_csv;
 
+/// Passwords a delivery generates from a seed the plan carries. Shares the
+/// architect's feature, since a recipe is a field of a plan.
+#[cfg(feature = "election_config_templates")]
+pub mod password;
+
 /// How a ballot behaves, in the platform's own words. Ungated: the bundle
 /// validator needs the value space and carries no feature.
 pub mod policy;

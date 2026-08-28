@@ -717,6 +717,19 @@ pub struct Blueprint {
     /// existing.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub platform: Vec<Sheet>,
+
+    /// How this event's voter passwords are generated, when they are.
+    ///
+    /// `None` means the wizard generates none, which is what every plan written
+    /// before this field did and still the right answer for a client whose
+    /// members already have credentials. One field rather than a flag beside a
+    /// recipe, for the reason `shared` gives above: "on but with nothing in it"
+    /// is a state somebody would eventually produce and nobody could explain.
+    ///
+    /// The recipe carries the seed, and that is what makes a rebuild reproduce
+    /// the passwords it sent out — see [`super::password`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub passwords: Option<super::password::PasswordRecipe>,
 }
 
 fn default_threshold() -> u32 {
@@ -1649,6 +1662,7 @@ pub fn validate_plan(plan: &Blueprint, sources: &Sources) -> Report {
     check_trustees(plan, &mut report);
     check_schedule(plan, &mut report);
     check_areas(plan, &mut report);
+    check_passwords(plan, sources, &mut report);
     check_census(plan, sources, &mut report);
     check_ballot(plan, &mut report);
     check_unique_identifiers(plan, &mut report);
@@ -2270,6 +2284,66 @@ fn check_schedule(plan: &Blueprint, report: &mut Report) {
     }
 }
 
+/// Generated passwords: whether the recipe can produce any, and whether it should.
+///
+/// The recipe's own coherence is checked without touching the census — an
+/// alphabet of nothing and a seed of nothing are each answerable from the plan
+/// alone. The one question that needs the census is whether it already carries a
+/// `password` column, and that is asked of `columns()`, which every source can
+/// answer before a single row is read.
+fn check_passwords(plan: &Blueprint, sources: &Sources, report: &mut Report) {
+    let Some(recipe) = &plan.passwords else {
+        return;
+    };
+
+    if recipe.alphabet().is_empty() {
+        report.push(
+            Problem::error(
+                Code::InvalidValue,
+                "passwords.lowercase",
+                "generated passwords need at least one kind of character to be \
+                 made of",
+            )
+            .id("passwords.no-characters"),
+        );
+    }
+
+    if recipe.seed.trim().is_empty() {
+        report.push(
+            Problem::error(
+                Code::MissingField,
+                "passwords.seed",
+                "generated passwords need a seed; it is what makes a rebuild \
+                 produce the same passwords rather than new ones",
+            )
+            .id("passwords.no-seed"),
+        );
+    }
+
+    // **A census that already has the column, and a recipe that would write it.**
+    // Refused rather than resolved: the client's own value and a derived one are
+    // both credible, choosing between them silently would hand somebody the wrong
+    // credential, and the wizard can say which it is going to be.
+    if let Some(census) = &sources.census {
+        if census
+            .columns()
+            .iter()
+            .any(|column| column == super::password::COLUMN)
+        {
+            report.push(
+                Problem::error(
+                    Code::InvalidValue,
+                    "passwords",
+                    "this census already carries a `password` column, so \
+                     generated passwords would be two answers to one question. \
+                     Remove the column, or turn generating off.",
+                )
+                .id("passwords.column-already-there"),
+            );
+        }
+    }
+}
+
 /// Districting: the areas themselves, before any contest points at one.
 fn check_areas(plan: &Blueprint, report: &mut Report) {
     for (index, area) in plan.areas.iter().enumerate() {
@@ -2799,7 +2873,7 @@ pub fn to_workbook(
         area_contests_sheet(plan)?,
     ];
 
-    if let Some(voters) = voters_sheet(sources)? {
+    if let Some(voters) = voters_sheet(plan, sources)? {
         sheets.push(voters);
     }
 
@@ -3528,7 +3602,10 @@ fn candidates_sheet(
 /// order so two builds of one census diff cleanly. Everything unrecognised is
 /// passed through, which is how a reporting breakout column survives the round
 /// trip.
-fn voters_sheet(sources: &Sources) -> Result<Option<Sheet>, Problem> {
+fn voters_sheet(
+    plan: &Blueprint,
+    sources: &Sources,
+) -> Result<Option<Sheet>, Problem> {
     let Some(census) = &sources.census else {
         return Ok(None);
     };
@@ -3587,6 +3664,24 @@ fn voters_sheet(sources: &Sources) -> Result<Option<Sheet>, Problem> {
         NAMED.iter().map(|name| (*name).to_string()).collect();
     columns.extend(extra.iter().map(|key| (*key).to_string()));
 
+    // **The generated password, last, and only when there is one to write.**
+    // `get_copy_from_query` reads the presence of this header as "hash a password
+    // for each of these voters", so a column of blanks would issue every voter an
+    // empty credential — which is why this is appended by a recipe that is
+    // `ready()` rather than by the recipe merely existing.
+    //
+    // Not written when the census already carries its own `password` column:
+    // `check_passwords` reports that as a problem rather than this door quietly
+    // choosing a winner between the client's value and a derived one.
+    let generating = plan
+        .passwords
+        .as_ref()
+        .filter(|recipe| recipe.ready())
+        .filter(|_| !extra.contains(&super::password::COLUMN));
+    if generating.is_some() {
+        columns.push(super::password::COLUMN.to_string());
+    }
+
     census.rewind().map_err(unreadable_census)?;
 
     let mut rows: Vec<Vec<Cell>> = Vec::new();
@@ -3612,6 +3707,19 @@ fn voters_sheet(sources: &Sources) -> Result<Option<Sheet>, Problem> {
                     .map(|value| Cell::text(value.clone()))
                     .unwrap_or(Cell::Blank)
             }));
+            if let Some(recipe) = generating {
+                // Derived from the seed and this voter's username, so the same
+                // plan built twice gives the same password. `ready()` was checked
+                // above, so `None` here is unreachable — and `Cell::Blank` rather
+                // than an unwrap, because a panic in a census walk is a worse
+                // answer than a row the validator will complain about.
+                row.push(
+                    recipe
+                        .password_for(&voter.username)
+                        .map(Cell::text)
+                        .unwrap_or(Cell::Blank),
+                );
+            }
             row
         }));
     }

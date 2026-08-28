@@ -1824,6 +1824,169 @@ fn a_plan_may_carry_its_own_census() {
     assert_eq!(voters.rows.len(), 2);
 }
 
+/// The census, with the passwords a recipe generates.
+#[test]
+fn a_recipe_puts_a_password_beside_every_voter() {
+    let mut plan = sound();
+    plan.passwords = Some(crate::election_config::password::PasswordRecipe {
+        seed: "the-seed-the-wizard-minted".into(),
+        ..Default::default()
+    });
+    let voters = vec![
+        PlannedVoter {
+            username: "ada".into(),
+            area_external_id: "local-1".into(),
+            ..Default::default()
+        },
+        PlannedVoter {
+            username: "grace".into(),
+            area_external_id: "local-1".into(),
+            ..Default::default()
+        },
+    ];
+
+    let workbook = workbook_with(&plan, voters.clone()).expect("a sound plan");
+    let sheet = workbook.sheet("voters").expect("a census");
+    let at = sheet
+        .headers
+        .iter()
+        .position(|header| header == "password")
+        .expect("a password column");
+
+    // A `Row` is keyed by header rather than by position, so `at` above is only
+    // asserting the column exists; the values come out by name.
+    let _ = at;
+    let made: Vec<String> = sheet
+        .rows
+        .iter()
+        .map(|row| {
+            row.get("password")
+                .and_then(|value| value.as_str())
+                .expect("a password on every row")
+                .to_string()
+        })
+        .collect();
+
+    assert_eq!(made.len(), 2);
+    assert_eq!(made[0].chars().count(), 12);
+    // Two voters, two passwords — a column of one repeated value would be the
+    // failure a single-voter fixture cannot see.
+    assert_ne!(made[0], made[1]);
+
+    // And built again, the same two. This is the whole reason the seed is in the
+    // plan rather than minted per build.
+    let again = workbook_with(&plan, voters).expect("a sound plan");
+    let sheet_again = again.sheet("voters").expect("a census");
+    assert_eq!(sheet.rows, sheet_again.rows);
+}
+
+/// No recipe, no column — and the column is what instructs the platform to hash.
+#[test]
+fn a_plan_with_no_recipe_writes_no_password_column() {
+    let plan = sound();
+    let voters = vec![PlannedVoter {
+        username: "ada".into(),
+        area_external_id: "local-1".into(),
+        ..Default::default()
+    }];
+
+    let workbook = workbook_with(&plan, voters).expect("a sound plan");
+    let sheet = workbook.sheet("voters").expect("a census");
+    assert!(!sheet.headers.contains(&"password".to_string()));
+}
+
+/// A recipe that cannot produce anything writes no column either, and says why.
+///
+/// The column's *presence* is what tells the importer to hash a password for each
+/// of these voters, so a recipe with no seed must not leave a column of blanks
+/// behind — that would issue every voter an empty credential.
+#[test]
+fn a_recipe_with_no_seed_writes_nothing_and_is_reported() {
+    let mut plan = sound();
+    plan.passwords = Some(crate::election_config::password::PasswordRecipe {
+        seed: String::new(),
+        ..Default::default()
+    });
+    let voters = vec![PlannedVoter {
+        username: "ada".into(),
+        area_external_id: "local-1".into(),
+        ..Default::default()
+    }];
+
+    let workbook =
+        workbook_with(&plan, voters.clone()).expect("still a workbook");
+    let sheet = workbook.sheet("voters").expect("a census");
+    assert!(!sheet.headers.contains(&"password".to_string()));
+
+    let report = checked_with(&plan, voters);
+    assert!(says(&report, "generated passwords need a seed"));
+}
+
+/// A census that already carries the column is refused rather than resolved.
+#[test]
+fn a_census_that_already_has_passwords_refuses_generating_them() {
+    let mut plan = sound();
+    plan.passwords = Some(crate::election_config::password::PasswordRecipe {
+        seed: "the-seed".into(),
+        ..Default::default()
+    });
+    let voters = vec![PlannedVoter {
+        username: "ada".into(),
+        area_external_id: "local-1".into(),
+        extra: [("password".to_string(), "theirs".to_string())]
+            .into_iter()
+            .collect(),
+        ..Default::default()
+    }];
+
+    let report = checked_with(&plan, voters.clone());
+    assert!(says(&report, "already carries a `password` column"));
+
+    // And the client's own value is the one still in the sheet — the generated
+    // one does not quietly win while the problem is being reported.
+    let workbook = workbook_with(&plan, voters).expect("still a workbook");
+    let sheet = workbook.sheet("voters").expect("a census");
+    assert_eq!(
+        sheet.rows[0]
+            .get("password")
+            .and_then(|value| value.as_str()),
+        Some("theirs")
+    );
+    assert_eq!(
+        sheet
+            .headers
+            .iter()
+            .filter(|header| *header == "password")
+            .count(),
+        1,
+        "the column should not be written twice"
+    );
+}
+
+/// A recipe with every character class switched off is refused.
+#[test]
+fn a_recipe_with_no_characters_is_reported() {
+    let mut plan = sound();
+    plan.passwords = Some(crate::election_config::password::PasswordRecipe {
+        seed: "the-seed".into(),
+        lowercase: false,
+        uppercase: false,
+        digits: false,
+        symbols: false,
+        ..Default::default()
+    });
+
+    let report = checked_with(
+        &plan,
+        vec![PlannedVoter {
+            username: "ada".into(),
+            area_external_id: "local-1".into(),
+            ..Default::default()
+        }],
+    );
+    assert!(says(&report, "need at least one kind of character"));
+}
+
 /// A caller's own census and files reach the bundle, and the plan's are not consulted.
 ///
 /// `Compile::sources` is `None` at every call site today, so nothing would notice if
