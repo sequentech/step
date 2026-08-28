@@ -3,20 +3,24 @@ SPDX-FileCopyrightText: 2026 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# VSer serialization audit
+# The serialization audit and rewrite
 
-Working document of the `exp/vsc-serialization/main` investigation. **Goal: canonical
-serialization functionality with strong assurance.** Three outcomes are open: (1) the
-existing VSer implementation passes the audit, possibly after targeted fixes; (2) the
-findings motivate a rewrite; (3) the functionality is outsourced to a dependency (a
-prior search found none satisfactory). This document records what the audit finds and
-the evidence for choosing between those outcomes.
+Record of the `exp/vsc-serialization/main` investigation. **Goal: canonical
+serialization functionality with strong assurance.** Three outcomes were open: (1) the
+then-current implementation ("VSer") passes the audit, possibly after targeted fixes;
+(2) the findings motivate a rewrite; (3) the functionality is outsourced to a
+dependency (a prior search found none satisfactory). **Outcome (2) was chosen and is
+realized** — the current format is defined in §9 (the mini-spec) and the transition is
+recorded in §10; §§2–8 are the audit record of the replaced v1 format and of the
+decisions that led here. Findings S1–S6 were fixed in v1 first (and backported to
+`feat/braid-0.6.3/main`) before the rewrite superseded them structurally.
 
 ## 1. The required property
 
-VSer is the wire format of the trustee protocol: every posted artifact, every signed
-statement, and every hash identity is computed over VSer bytes. Three properties are
-required, and the braid spec (§3.3, §3.5, §3.6) already *assumes* the first two:
+The serialization module (`vsc::utils::serialization`) is the wire format of the
+trustee protocol: every posted artifact, every signed statement, and every hash
+identity is computed over its bytes. Three properties are required, and the braid
+spec (§3.3, §3.5, §3.6) already *assumes* the first two:
 
 - **Canonical**: `ser` is injective — every value has exactly one byte encoding.
 - **Strict**: `deser` accepts exactly the image of `ser` — every accepted byte string
@@ -27,7 +31,7 @@ required, and the braid spec (§3.3, §3.5, §3.6) already *assumes* the first t
   input length. Deserialization runs on bytes relayed by the untrusted board (before
   and after signature checks).
 
-## 2. Architecture (as found)
+## 2. Architecture (as found — the v1 format, replaced in §10)
 
 Two tiers in `vsc::utils::serialization`:
 
@@ -264,18 +268,20 @@ Guardrails:
 - **Done — phase-3 harness** (`utils/serialization/properties.rs`): proptest
   bijection properties P1 (`deser(ser(x)) == x`) and P2 (`deser(b) = Ok(v) ⟹
   ser(v) == b`) over a kitchen-sink type covering every composition rule, both
-  contexts, V- and F-tier, with random-byte and mutation distributions. The mutation
-  distribution reproduces the S1/S3 failure class, so the harness is a genuine
-  regression net and the rewrite's acceptance suite.
-- The rewrite attempt (per §7), then the outcome decision.
-- Phase 4 on the surviving format: fuzzing the deserializers and the `verify()`
-  boundary (also discharges the standing "pending fuzzing" module warnings), plus
+  contexts, both an all-fixed-width and a variable-size struct shape, with
+  random-byte and mutation distributions. The mutation distribution reproduces the
+  S1/S3 failure class, so the harness is a genuine regression net — it was built
+  against v1, served as the rewrite's acceptance suite, and now runs against the
+  final format (migrated in the flip, §10).
+- **Done — the rewrite** (per §7): see §10.
+- Phase 4, against the final format: fuzzing the deserializers and the `verify()`
+  boundary (one pre-existing fuzz target under `vsc/fuzz` is already migrated), plus
   deeper property-campaign parameters (case counts).
-- Open call: delete `LargeVector` (unused) or keep it — note it is *obsoleted
-  entirely* by the outcome-2 format, where `Vec<T: fixed>` gets its encoding for
-  free.
-- `vser_derive` note: unit structs derive a `()` tuple, which has no impl — they
-  simply fail to compile; acceptable.
+- **Resolved — `LargeVector`**: deleted in the flip; its parallel-serialization
+  intent is tracked as `PERFORMANCE.md` work item 3 (an implementation strategy
+  behind the unchanged `Vec` encoding).
+- Derive note: unit structs are supported (empty `write`, `Self` on `read`); enums
+  are implemented by hand per rule 7.
 
 ## 8. Early read on the three outcomes
 
@@ -331,12 +337,14 @@ choice remains free.
 required methods change:
 
 ```rust
-trait VSerializable   { fn write(&self, out: &mut Vec<u8>);
-                        fn ser(&self) -> Vec<u8> { /* provided: write into a Vec */ } }
-trait VDeserializable { fn read(input: &mut &[u8]) -> Result<Self, Error>;
-                        fn deser(b: &[u8]) -> Result<Self, Error>
-                        { /* provided: read, then error unless input is exhausted */ } }
+trait Serializable   { fn write(&self, out: &mut Vec<u8>);
+                       fn ser(&self) -> Vec<u8> { /* provided: write into a Vec */ } }
+trait Deserializable { fn read(input: &mut &[u8]) -> Result<Self, Error>;
+                       fn deser(b: &[u8]) -> Result<Self, Error>
+                       { /* provided: read, then error unless input is exhausted */ } }
 ```
+
+(Names as settled at the flip, §10; structs opt in with `#[derive(Canonical)]`.)
 
 `read` consumes exactly the bytes `write` produced, from the front of the slice
 (advancing it). `deser` adds the format's **single** top-level strictness check:
@@ -383,13 +391,9 @@ entire `fixed` tier (`FSerializable`/`FDeserializable`, absorbed by rule 1 + rul
 `Marker`/`ConstMarker` infrastructure. Net-negative diff is expected, per §7
 guardrail 3.
 
-On `LargeVector`, the intent behind it survives the type: it existed as a
-placeholder for **parallel serialization of large collections**. In the v2
-encoding, a `Vec` of fixed-size elements has computable element boundaries, so
-parallel `write`/`read` can be added *behind the same wire encoding* if profiling
-ever demands it — an implementation strategy, not a wire type. (Under v1 this
-required a distinct, incompatible encoding; that is what forced the type to
-exist.)
+On `LargeVector`, the intent behind it — parallel serialization of large
+collections — survives the type as a possible implementation strategy behind the
+same `Vec` encoding; it is tracked as `PERFORMANCE.md` work item 3.
 
 **What changes on the wire**: every composite encoding (prefixes disappear);
 therefore every hash identity and transcript. Leaf encodings are unchanged. No
