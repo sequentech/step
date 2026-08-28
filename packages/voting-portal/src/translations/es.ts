@@ -382,6 +382,7 @@ const spanishTranslation: TranslationType = {
                 back: "Volver a la lista de votaciones",
                 close: "Cerrar",
                 preview: "Vista previa",
+                download: "Descargar",
             },
         },
         ballotLocator: {

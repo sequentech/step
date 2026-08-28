@@ -380,6 +380,7 @@ const galegoTranslation: TranslationType = {
                 back: "Voltar á lista de papeletas",
                 close: "Pechar",
                 preview: "Previsualizar",
+                download: "Descargar",
             },
         },
         ballotLocator: {
