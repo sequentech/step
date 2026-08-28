@@ -34,10 +34,6 @@ The document has the following properties:
   protocol at the mathematical and cryptographic level, including reconstruction of an
   independent verifier.
 
-The description reflects the protocol as specified for the current platform, which
-includes a small number of planned implementation alignments; these are identified where
-relevant.
-
 ### 1.2 Audience
 
 The document is written for cryptographers, security evaluators, and implementors of
