@@ -394,6 +394,7 @@ const frenchTranslation: TranslationType = {
                 back: "Retour à la liste des élections",
                 close: "Fermer",
                 preview: "Aperçu",
+                download: "Télécharger",
             },
         },
         ballotLocator: {
