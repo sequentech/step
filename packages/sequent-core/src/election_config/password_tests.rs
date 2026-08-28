@@ -15,33 +15,54 @@ fn recipe() -> PasswordRecipe {
 }
 
 #[test]
-fn the_two_halves_of_each_class_are_the_whole_class() {
-    // The classes are spelled as "always safe" and "left out when avoiding
-    // confusable", and a character in neither half — or in both — is a typo that
-    // would quietly shrink or bias the alphabet.
-    for (safe, confusable, whole) in [
-        (
-            LOWERCASE,
-            LOWERCASE_CONFUSABLE,
-            "abcdefghijklmnopqrstuvwxyz",
-        ),
-        (
-            UPPERCASE,
-            UPPERCASE_CONFUSABLE,
-            "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-        ),
-        (DIGITS, DIGITS_CONFUSABLE, "0123456789"),
-    ] {
-        let halves: BTreeSet<char> =
-            safe.chars().chain(confusable.chars()).collect();
-        let expected: BTreeSet<char> = whole.chars().collect();
-        assert_eq!(halves, expected, "'{safe}' + '{confusable}'");
-        assert_eq!(
-            safe.chars().count() + confusable.chars().count(),
-            expected.len(),
-            "'{safe}' and '{confusable}' share a character"
+fn the_default_exclusions_are_all_characters_a_class_offers() {
+    // A character excluded by default that no class contains would be a typo
+    // nobody would ever see the effect of — the set is only subtracted, so a
+    // stray one is silent. Checked rather than trusted.
+    let classes: BTreeSet<char> = LOWERCASE
+        .chars()
+        .chain(UPPERCASE.chars())
+        .chain(DIGITS.chars())
+        .collect();
+    for character in DEFAULT_EXCLUDED.chars() {
+        assert!(
+            classes.contains(&character),
+            "'{character}' is excluded by default and is in no class"
         );
     }
+    // And no duplicates, for the same reason: a repeat says nothing and hides a
+    // missing character.
+    let unique: BTreeSet<char> = DEFAULT_EXCLUDED.chars().collect();
+    assert_eq!(unique.len(), DEFAULT_EXCLUDED.chars().count());
+}
+
+#[test]
+fn the_excluded_set_is_editable_and_is_what_is_left_out() {
+    // The point of it being data rather than three pairs of constants: what looks
+    // alike depends on where a credential is read.
+    let recipe = PasswordRecipe {
+        excluded: "aeiou".to_string(),
+        symbols: false,
+        ..recipe()
+    };
+    let alphabet: BTreeSet<char> = recipe.alphabet().into_iter().collect();
+    for vowel in "aeiou".chars() {
+        assert!(!alphabet.contains(&vowel), "'{vowel}' should be left out");
+    }
+    // And what the default left out is back, because this recipe does not name it.
+    for character in "0O1l".chars() {
+        assert!(
+            alphabet.contains(&character),
+            "'{character}' should be offered"
+        );
+    }
+
+    // Excluding a character no class offers costs nothing.
+    let odd = PasswordRecipe {
+        excluded: "\u{e9}\u{fc}".to_string(),
+        ..recipe
+    };
+    assert_eq!(odd.alphabet().len(), 26 + 26 + 10);
 }
 
 #[test]
@@ -141,8 +162,8 @@ fn avoiding_confusable_characters_leaves_them_out() {
         ..recipe()
     };
     let alphabet: BTreeSet<char> = recipe.alphabet().into_iter().collect();
-    // Every confusable character, and only those: 3, 4, 6, 7 and 9 stay.
-    for character in "0Oo1lIi258SZB".chars() {
+    // The default set, and only those: 3, 4, 6, 7 and 9 stay.
+    for character in DEFAULT_EXCLUDED.chars() {
         assert!(
             !alphabet.contains(&character),
             "'{character}' should be left out"
