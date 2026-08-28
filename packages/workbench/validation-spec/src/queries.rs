@@ -51,8 +51,7 @@
 //!     a silent discount is unrepresentable — every discounting cell has an
 //!     error and every error renders (asserted in fix-diff.mjs).
 //!
-//! One more is fixed BY CONSULTATION VERDICT — the three-state model's end
-//! state, adjudicated 2026-08-28:
+//! Two more are fixed by the same kind of judgment (2026-08-28):
 //!
 //!   * S2/S3 — explicit blank votes are not subject to the min-vote rule.
 //!     [`is_deliberate_blank`] exempts a marker-only ballot from the
@@ -232,13 +231,12 @@ fn is_undervote(config: &Config, n: u32) -> bool {
 }
 
 /// A deliberate blank: the ballot's content is the explicit-blank marker and
-/// nothing else. ADJUDICATED (2026-08-28, verdict delivered by the operator —
-/// the S2/S3 consultation outcome): explicit blank votes are not subject to
-/// the min-vote rule, so this predicate exempts them from it. Scope is
-/// verdict-shaped: the marker-plus-flag shape is a null vote, not an explicit
-/// blank, and stays inside the rule; the marker still counts as a selection
-/// for the blank/over/under rules (which is what keeps `blankVote` from ever
-/// firing on a deliberate blank).
+/// nothing else. The S2/S3 judgment (2026-08-28): explicit blank votes are
+/// not subject to the min-vote rule, so this predicate exempts them from it.
+/// Scope is judgment-shaped: the marker-plus-flag shape is a null vote, not
+/// an explicit blank, and stays inside the rule; the marker still counts as
+/// a selection for the blank/over/under rules (which is what keeps
+/// `blankVote` from ever firing on a deliberate blank).
 fn is_deliberate_blank(vs: &VoteState) -> bool {
     vs.blank_marker && vs.regulars == 0 && !vs.explicit_invalid
 }
@@ -267,10 +265,10 @@ fn derive_emissions(config: &Config, vs: &VoteState, n: u32) -> Emissions {
     } else if n == config.max && p.over == OverVotePolicy::NotAllowedWithMsgAndDisable {
         alerts.push(OVER_VOTE_DISABLED.into());
     }
-    // Min-vote — with the adjudicated exemption: a deliberate blank is not
-    // subject to the rule (S2/S3 verdict; see is_deliberate_blank). No error
-    // means the classifier's marker guard is reached, so the ballot reports
-    // ExplicitBlank at every min_votes instead of ImplicitInvalid at min ≥ 2.
+    // Min-vote — with the S2/S3 exemption: a deliberate blank is not subject
+    // to the rule (see is_deliberate_blank). No error means the classifier's
+    // marker guard is reached, so the ballot reports ExplicitBlank at every
+    // min_votes instead of ImplicitInvalid at min ≥ 2.
     if n < config.min && !is_deliberate_blank(vs) {
         errors.push(SELECTED_MIN.into());
     }
@@ -525,10 +523,10 @@ mod tests {
         assert_eq!(fixed.tally, oracle.tally);
     }
 
-    /// S2/S3 fixed by consultation verdict (2026-08-28): a deliberate blank
-    /// is not subject to the min-vote rule. The oracle books the min=2
-    /// marker-only ballot ImplicitInvalid (with the selectedMin error muted
-    /// under the default invalid=allowed — the original S2 cell); the fixed
+    /// S2/S3 fixed by judgment (2026-08-28): a deliberate blank is not
+    /// subject to the min-vote rule. The oracle books the min=2 marker-only
+    /// ballot ImplicitInvalid (with the selectedMin error muted under the
+    /// default invalid=allowed — the original S2 cell); the fixed
     /// implementation emits no error at all and reports it as what the voter
     /// declared: ExplicitBlank. No gates in either (nothing to warn about).
     #[test]

@@ -27,7 +27,7 @@ have moved:
 | S6 | `firstPreferences ≠ regulars` (a ranked ballot) | gate, dialog |
 | S4 | `n = 0 ∧ min = 0 ∧ under ≠ allowed` (empty ballot, zero-zone) | emissions, inline |
 | S1 | the oracle muted an emitted error: `invalid ∈ {allowed, allowed-with-exclusive-explicit}` ∧ some error key absent from the oracle's review view | inline |
-| S2S3 | the adjudicated deliberate blank (verdict 2026-08-28): `blankMarker ∧ regulars = 0 ∧ ¬explicitInvalid ∧ min ≥ 2` | emissions, inline, gate, dialog, tally |
+| S2S3 | the deliberate blank exempted from the min-vote rule (judgment 2026-08-28): `blankMarker ∧ regulars = 0 ∧ ¬explicitInvalid ∧ min ≥ 2` | emissions, inline, gate, dialog, tally |
 | D3 | — | — (latent: changes no cell) |
 
 Signatures may overlap (a ranked over-vote under a double-allowed config
@@ -42,7 +42,7 @@ under each fix that actually moved one of its fields.
 | S6 — one count for gate and checker | 11068 | a ranked ballot the checker flags is now gated too (or a spurious gate on first-preferences is gone): the gate and the dialog |
 | S4 — empty ballot is not an under-vote | 3600 | the checker no longer emits an under-vote alert on the empty ballot at min=0; the emissions, and the inline view where it rendered |
 | S1 — no master mute (phase-3 judgment; grounds in the lib.rs ledger) | 70912 | every emitted error renders inline under the allowed-family invalid policies — the voter is informed; gates, dialog and tally unchanged ("informed but uninterrupted") |
-| S2S3 — a deliberate blank is not subject to the min-vote rule (consultation verdict, 2026-08-28) | 4800 | the marker-only ballot at min ≥ 2 emits no selectedMin, so it is reported as what the voter declared — ExplicitBlank instead of ImplicitInvalid — and the errors-present gates no longer fire on it |
+| S2S3 — a deliberate blank is not subject to the min-vote rule (judgment, 2026-08-28) | 4800 | the marker-only ballot at min ≥ 2 emits no selectedMin, so it is reported as what the voter declared — ExplicitBlank instead of ImplicitInvalid — and the errors-present gates no longer fire on it |
 | D3 — dedup against the error, not self | 0 | none — latent: the error copy is always present when the alert is, so the honest dedup drops the alert exactly as the buggy one did |
 | **unexplained** | **0** | must be zero |
 

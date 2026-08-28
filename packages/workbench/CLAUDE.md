@@ -74,10 +74,17 @@ purpose.
   lists. It was previously written six times and one copy silently
   disagreed, so a runner claimed certification over cells the sweep never
   visited. Never re-enumerate it locally; import it.
-- **Adjudication is nobody's alone.** Surprising behaviour is recorded as
-  a *suspect* and escalated for consultation; neither the agent nor the
-  operator blesses or dismisses one unilaterally (the three-state model —
-  characterization/README.md, Conventions).
+- **Adjudication is nobody's alone — but fix decisions are ours to make.**
+  Two tracks, don't conflate them (clarified by the operator, 2026-08-28).
+  *Characterization track:* surprising production behaviour is recorded as
+  a *suspect*; whether it is intended is documented as an open question
+  (the three-state model — characterization/README.md, Conventions).
+  *Fix track:* what the rationalized reference (`validation-spec/`) does
+  about each quirk is decided **autonomously** here and recorded in the
+  fix ledger; the upstream pull-request review is where those judgments
+  are finally adjudicated. A fix decision stands until overturned there —
+  do not defer it to a consultation, and do not act on it again except
+  reactively, if the review rejects it.
 
 ## Working practices that fit this project
 

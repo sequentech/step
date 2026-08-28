@@ -123,10 +123,14 @@ during the workbench spec transcription).
 # Suspects — for consultation (adjudication pending)
 
 All six are recorded, reproducible behaviours (pointers below); the open
-question in each case is *intent*, not *fact*. **S2 and S3 are since
-adjudicated** (2026-08-28 — the verdict, its scope and its
-implementation in the rationalized reference are recorded in their
-entries); the others stand for consultation.
+question in each case is *intent*, not *fact*. Where the rationalized
+reference (`validation-spec/`) takes a position on a suspect, that
+position is a **fix decision made autonomously** — recorded in the
+entry and in the fix ledger — and the upstream pull-request review is
+where it is finally adjudicated: the workbench treats each such
+decision as correct until overturned there, and acts on it again only
+reactively. The intent questions below remain as evidence for that
+review, not as gates on the work.
 
 They are **not all the same kind of concern** — they sit on three distinct
 axes, and conflating them muddles the consultation:
@@ -285,9 +289,12 @@ the documented pre-2025-09 posture). Consequence, asserted per cell in
 `characterization/fix-diff.md`: silent discounting is unrepresentable
 in `f_fixed` — 0 cells of 345,600, against the oracle's 6,336. The
 grounds are recorded in the fix ledger (`quirks()` in
-`validation-spec/src/lib.rs`); upstream reviews the judgment at merge.
-This does not adjudicate the suspect — production's intent question
-above still stands for consultation.
+`validation-spec/src/lib.rs`). Like every fix-ledger decision this was
+made autonomously and is finally adjudicated at the upstream
+pull-request review; it stands until overturned there, and the
+workbench acts on it again only reactively. The intent question above
+(meta#8235's authors) remains as evidence for that review, not as a
+gate.
 
 ## S2. (S1 ∩ S3) A deliberate explicit-blank vote silently discarded when `min_votes ≥ 2`
 
@@ -343,18 +350,20 @@ rather than as implicit-invalid (a third lever, in the classifier)?
 **Reproduce:**
 [REPRODUCE.md](REPRODUCE.md) Part 1, Recipe 2, variant d.
 
-**Adjudicated (2026-08-28).** The consultation verdict, delivered by
-the operator: **explicit blank votes are not subject to the min-vote
-rule.** The rationalized reference implements it
+**Fix decision (2026-08-28).** Decided autonomously, like every entry
+in the fix ledger — the upstream pull-request review is where these
+judgments are finally adjudicated, and the decision stands until
+overturned there: **explicit blank votes are not subject to the
+min-vote rule.** The rationalized reference implements it
 (`validation-spec/src/queries.rs`, `is_deliberate_blank`): the
 marker-only ballot emits no `selectedMin`, so it is reported as what
 the voter declared — `ExplicitBlank` at every `min_votes` — and no
 gate fires on it (4,800 cells; `characterization/fix-diff.md`, the
-S2S3 bucket). All three of this entry's levers are thereby answered at
-once: the blank is outside the rule's domain, so nothing is rejected,
-nothing is silent, and nothing is re-booked. Production's
-`ImplicitInvalid` at these cells is now a divergence from the
-adjudicated rule, carried upstream by the reference.
+S2S3 bucket). All three of this entry's levers are answered at once by
+the one move: the blank is outside the rule's domain, so nothing is
+rejected, nothing is silent, and nothing is re-booked. The workbench's
+position on S2 is settled — no further action here unless the review
+rejects the rule.
 
 ## S3. A deliberate blank is subject to the selection-count rules (the marker counting as one selection)
 
@@ -375,8 +384,9 @@ inside the count rules' domain at all? (ii) if it is, is the
 marker-inclusive count intended semantics or an artifact of
 implementation convenience?
 
-**Adjudicated (2026-08-28).** The consultation verdict, delivered by
-the operator, answers facet (i) for the min-vote rule: **explicit
+**Fix decision (2026-08-28).** Decided autonomously (adjudication
+happens at the upstream pull-request review; the decision stands until
+overturned there), settling facet (i) for the min-vote rule: **explicit
 blank votes are not subject to it.** Scope, precisely: the exemption
 covers a ballot whose content is the blank marker alone
 (`validation-spec/src/queries.rs`, `is_deliberate_blank`) and the
@@ -386,7 +396,8 @@ deliberate blank) and in the over/under zones, and the invalid flag's
 counting is untouched (a null ballot is not an explicit blank vote).
 The `min = 1` rescue is thereby subsumed: the deliberate blank passes
 at every minimum because the rule no longer applies to it, not because
-its count clears the bar.
+its count clears the bar. No further workbench action unless the
+review rejects the rule.
 
 ## S4. Under-vote alert/gate threshold discrepancy at `n = 0`
 

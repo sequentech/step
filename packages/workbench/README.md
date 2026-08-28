@@ -409,9 +409,9 @@ is collected in [characterization/README.md](characterization/README.md)
 which artifact ships, roughly by payoff:
 
 1. **Consultation on the findings.** S1 (silent discounting) and S5
-   (null-vote choice preservation) are documented — S2 and S3 are since
-   adjudicated (2026-08-28: explicit blanks are not subject to the
-   min-vote rule; docs/UPSTREAM_FINDINGS.md) —
+   (null-vote choice preservation) are documented — S1/S2/S3 also carry
+   autonomous fix decisions in the rationalized reference, adjudicated
+   at the upstream pull-request review (docs/UPSTREAM_FINDINGS.md) —
    ([docs/UPSTREAM_FINDINGS.md](docs/UPSTREAM_FINDINGS.md)), reproducible
    click-by-click ([docs/REPRODUCE.md](docs/REPRODUCE.md)) and in one
    command (`node characterization/reproduce-verify.mjs`), with
@@ -455,18 +455,18 @@ which artifact ships, roughly by payoff:
    D3 (latent); **fixed by judgment** S1 — the inline mute removed,
    restoring "informed but uninterrupted", which makes silent
    discounting *unrepresentable* in `f_fixed` (asserted per cell in
-   fix-diff, 0 of 345,600 vs the oracle's 6,336); **kept** S5
-   (intentional per #2949); **fixed by consultation verdict** S2 and S3
-   (adjudicated 2026-08-28: explicit blank votes are not subject to the
-   min-vote rule — the marker-only ballot reports `ExplicitBlank` at
-   every `min_votes` instead of `ImplicitInvalid` at min ≥ 2; 4,800
-   cells, the fix-diff S2S3 bucket). Upstream reviews the judgments at
-   merge. What remains of step 5: the **production-injection branch**
-   (the `for_contest(&Contest)` / `for_vote(&DecodedVoteContest)`
-   adapters, kept out of this crate to preserve its independence), and
-   folding further consultation verdicts into the ledger as they arrive
-   (the S2/S3 verdict was the first; S1's production-intent question and
-   S6 still stand — fix-diff absorbs each as a new attributed bucket).
+   fix-diff, 0 of 345,600 vs the oracle's 6,336); **fixed by judgment**
+   also S2 and S3 (2026-08-28: explicit blank votes are not subject to
+   the min-vote rule — the marker-only ballot reports `ExplicitBlank`
+   at every `min_votes` instead of `ImplicitInvalid` at min ≥ 2; 4,800
+   cells, the fix-diff S2S3 bucket); **kept** S5 (intentional per
+   #2949). Every fix-ledger judgment is made **autonomously**: the
+   upstream pull-request review is where it is finally adjudicated, the
+   decision stands until overturned there, and the workbench acts on it
+   again only reactively — if the review rejects it. The ledger is
+   complete; what remains of step 5 is the **production-injection
+   branch** (the `for_contest(&Contest)` / `for_vote(&DecodedVoteContest)`
+   adapters, kept out of this crate to preserve its independence).
 
 Standing maintenance, as upstream moves:
 
