@@ -565,6 +565,7 @@ const catalanTranslation: TranslationType = {
                 userVerification:
                     "Podeu introduir una plantilla personalitzada que s'utilitzarà per verificar manualment els votants",
                 redirectFinishUrl: "URL de redirecció en finalitzar",
+                kioskRedirectFinishUrl: "URL de redirecció en finalitzar del quiosc",
                 css: "CSS personalitzat",
                 skipElectionList: "Saltar pantalla per escollir elecció",
                 showUserProfile: "Mostra el perfil de l'usuari",

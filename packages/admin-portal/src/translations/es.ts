@@ -564,6 +564,7 @@ const spanishTranslation: TranslationType = {
                 userVerification:
                     "Puede introducir una plantilla personalizada que se utilizará para verificar manualmente a los votantes",
                 redirectFinishUrl: "URL de redirección al finalizar",
+                kioskRedirectFinishUrl: "URL de redirección al finalizar del quiosco",
                 css: "CSS personalizado",
                 skipElectionList: "Saltar pantalla para escoger elección",
                 showUserProfile: "Mostrar perfil de usuario",

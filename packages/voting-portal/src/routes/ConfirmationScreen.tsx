@@ -130,7 +130,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
     ballotId,
     isGoldenAuth,
 }) => {
-    const {logout} = useContext(AuthContext)
+    const {isKiosk, logout} = useContext(AuthContext)
     const {t} = useTranslation()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const canVote = useAppSelector(canVoteSomeElection())
@@ -215,7 +215,10 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
         if ((isAnyVotingStatusOpen && isAllowedToCastVote()) || globalSettings.DISABLE_AUTH) {
             navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser${location.search}`)
         } else {
-            logout(presentation?.redirect_finish_url ?? undefined)
+            const redirectUrl = isKiosk()
+                ? presentation?.kiosk_redirect_finish_url
+                : presentation?.redirect_finish_url
+            logout(redirectUrl)
         }
     }, [isAnyVotingStatusOpen, canVote])
 
