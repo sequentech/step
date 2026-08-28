@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+[package]
+name = "validation-adapters"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0-only"
+description = "Production-type adapters for the rationalized vote-validation query-provider (the injection layer)"
+
+[dependencies]
+validation-spec = { path = "../validation-spec" }
+sequent-core = { path = "../../sequent-core", default-features = false, features = ["default_features"] }
+
+[dev-dependencies]
+serde_json = { workspace = true }

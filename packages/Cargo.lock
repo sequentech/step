@@ -11045,6 +11045,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "validation-adapters"
+version = "0.1.0"
+dependencies = [
+ "sequent-core",
+ "serde_json",
+ "validation-spec",
+]
+
+[[package]]
 name = "validation-spec"
 version = "0.1.0"
 dependencies = [

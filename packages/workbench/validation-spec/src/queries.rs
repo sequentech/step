@@ -78,8 +78,10 @@
 //!
 //! ABSTRACT ONLY, on purpose. These take `Config` / `VoteState`, never
 //! production's `Contest` / `DecodedVoteContest` — the adapters that derive
-//! the abstract shapes from the wire types belong to the production-injection
-//! branch, and keeping them out preserves this crate's independence.
+//! the abstract shapes from the wire types live in the sibling crate
+//! `../validation-adapters` (the injection layer), which owns the
+//! sequent-core dependency; keeping them out of THIS crate preserves the
+//! independence that makes the sweep meaningful.
 
 use crate::{
     classify, reachability, selection_class, BallotClass, BlankVotePolicy, Config, Dialog, Effects,

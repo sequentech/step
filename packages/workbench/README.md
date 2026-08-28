@@ -188,6 +188,11 @@ workbench/
 │                        compatible, its accidental complexity enumerated as
 │                        a quirk registry. Production is checked against it
 │                        exhaustively by characterization/headless-sweep.mjs
+├── validation-adapters/ The injection layer: adapters from production's
+│                        Contest / DecodedVoteContest to the rationalized
+│                        query-provider, with a native conformance test
+│                        (production codec + gates ≡ oracle ∘ adapters,
+│                        cargo test -p validation-adapters)
 ├── docs/                Vote-validation deep dives (VOTE_VALIDATION.md,
 │                        VALIDATION_LOGIC_DISTILLATION.md, FIXTURE_VARIANCE.md);
 │                        findings (UPSTREAM_FINDINGS.md), reviewer
@@ -448,7 +453,7 @@ which artifact ships, roughly by payoff:
    the frozen oracle: the query-provider (one derivation of the
    vote-state facts, every production site answered as a projection —
    the six-place duplication collapsed), forked from the oracle and
-   measured against it by `characterization/fix-diff.md` — 83,424 of
+   measured against it by `characterization/fix-diff.md` — 86,304 of
    345,600 cells differ, every one attributed to a named fix, zero
    unexplained. The fix ledger (the `disposition` on each `quirks()`
    entry) is settled: **fixed by construction** S6, S4 (both halves),
@@ -464,9 +469,18 @@ which artifact ships, roughly by payoff:
    upstream pull-request review is where it is finally adjudicated, the
    decision stands until overturned there, and the workbench acts on it
    again only reactively — if the review rejects it. The ledger is
-   complete; what remains of step 5 is the **production-injection
-   branch** (the `for_contest(&Contest)` / `for_vote(&DecodedVoteContest)`
-   adapters, kept out of this crate to preserve its independence).
+   complete, and the **production-injection branch**
+   (`feat/workbench-rationalized-injection/main`) carries its first
+   deliverable: [validation-adapters/](validation-adapters/) — the
+   production-typed layer (`for_contest(&Contest)` /
+   `for_vote(&DecodedVoteContest)` / `for_ballot(…)`), kept out of the
+   spec crate to preserve its independence, with a native conformance
+   test proving production's own codec and gate functions ≡ the frozen
+   oracle through the adapters across the seven grids' matrices (~310
+   cells, `cargo test -p validation-adapters`). What remains: the
+   call-site injection itself — production consuming the provider —
+   the upstream-PR-shaped work the fix ledger and fix-diff were built
+   to carry.
 
 Standing maintenance, as upstream moves:
 
