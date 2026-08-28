@@ -123,7 +123,10 @@ during the workbench spec transcription).
 # Suspects — for consultation (adjudication pending)
 
 All six are recorded, reproducible behaviours (pointers below); the open
-question in each case is *intent*, not *fact*.
+question in each case is *intent*, not *fact*. **S2 and S3 are since
+adjudicated** (2026-08-28 — the verdict, its scope and its
+implementation in the rationalized reference are recorded in their
+entries); the others stand for consultation.
 
 They are **not all the same kind of concern** — they sit on three distinct
 axes, and conflating them muddles the consultation:
@@ -340,15 +343,18 @@ rather than as implicit-invalid (a third lever, in the classifier)?
 **Reproduce:**
 [REPRODUCE.md](REPRODUCE.md) Part 1, Recipe 2, variant d.
 
-**Rationalized reference (phase 3, 2026-08-28): deferred to
-consultation.** The S1 fix removes this cell's *silence* — the min=2
-marker-only voter now sees `selectedMin` inline before casting — but
-the classification stands unchanged in `f_fixed`: re-booking a
-failed-minimum blank as `ExplicitBlank` would move published counting
-categories (`total_valid_votes`, `blank_votes.explicit`,
-`invalid_votes.implicit`), which is exactly this entry's third
-consultation lever and not the reference implementation's call
-(the fix ledger, `validation-spec/src/lib.rs`).
+**Adjudicated (2026-08-28).** The consultation verdict, delivered by
+the operator: **explicit blank votes are not subject to the min-vote
+rule.** The rationalized reference implements it
+(`validation-spec/src/queries.rs`, `is_deliberate_blank`): the
+marker-only ballot emits no `selectedMin`, so it is reported as what
+the voter declared — `ExplicitBlank` at every `min_votes` — and no
+gate fires on it (4,800 cells; `characterization/fix-diff.md`, the
+S2S3 bucket). All three of this entry's levers are thereby answered at
+once: the blank is outside the rule's domain, so nothing is rejected,
+nothing is silent, and nothing is re-booked. Production's
+`ImplicitInvalid` at these cells is now a divergence from the
+adjudicated rule, carried upstream by the reference.
 
 ## S3. A deliberate blank is subject to the selection-count rules (the marker counting as one selection)
 
@@ -369,13 +375,18 @@ inside the count rules' domain at all? (ii) if it is, is the
 marker-inclusive count intended semantics or an artifact of
 implementation convenience?
 
-**Rationalized reference (phase 3, 2026-08-28): deferred to
-consultation.** `f_fixed` keeps the marker-inclusive count unchanged:
-either answer to (i)/(ii) moves tally classes at the `min_votes`
-boundaries — including the marker's *rescue* of a deliberate blank at
-`min_votes: 1`, plausibly intended — and this entry's own confidence
-note is "genuinely uncertain", so there is no evidence trail licensing
-a fix (the fix ledger, `validation-spec/src/lib.rs`).
+**Adjudicated (2026-08-28).** The consultation verdict, delivered by
+the operator, answers facet (i) for the min-vote rule: **explicit
+blank votes are not subject to it.** Scope, precisely: the exemption
+covers a ballot whose content is the blank marker alone
+(`validation-spec/src/queries.rs`, `is_deliberate_blank`) and the
+min-vote rule only — the marker still counts as a selection in the
+blank rule (which is what keeps `blankVote` from ever firing on a
+deliberate blank) and in the over/under zones, and the invalid flag's
+counting is untouched (a null ballot is not an explicit blank vote).
+The `min = 1` rescue is thereby subsumed: the deliberate blank passes
+at every minimum because the rule no longer applies to it, not because
+its count clears the bar.
 
 ## S4. Under-vote alert/gate threshold discrepancy at `n = 0`
 

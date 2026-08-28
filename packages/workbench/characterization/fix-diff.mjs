@@ -95,6 +95,22 @@ const FIXES = [
             o.emissions.errors.some((e) => !o.inline.review.includes(e)),
         fields: new Set(["inline"]),
     },
+    {
+        id: "S2S3",
+        // The adjudicated exemption (verdict 2026-08-28): a deliberate blank
+        // — the marker alone, no flag — is not subject to the min-vote rule.
+        // Bites where the oracle's selectedMin fired on that shape: marker
+        // alone with min ≥ 2 (its count is 1). Everything downstream of the
+        // vanished error may move: the record, its rendering, the generic
+        // errors-present gates, their dialog, and the tally class
+        // (ImplicitInvalid → ExplicitBlank).
+        matches: (c) =>
+            c.voteState.blankMarker &&
+            c.voteState.regulars === 0 &&
+            !c.voteState.explicitInvalid &&
+            c.config.min >= 2,
+        fields: new Set(["emissions", "inline", "gate", "dialog", "tally"]),
+    },
 ]
 
 const buckets = Object.fromEntries(FIXES.map((f) => [f.id, []]))
@@ -217,6 +233,7 @@ const md = [
     "| S6 | `firstPreferences ≠ regulars` (a ranked ballot) | gate, dialog |",
     "| S4 | `n = 0 ∧ min = 0 ∧ under ≠ allowed` (empty ballot, zero-zone) | emissions, inline |",
     "| S1 | the oracle muted an emitted error: `invalid ∈ {allowed, allowed-with-exclusive-explicit}` ∧ some error key absent from the oracle's review view | inline |",
+    "| S2S3 | the adjudicated deliberate blank (verdict 2026-08-28): `blankMarker ∧ regulars = 0 ∧ ¬explicitInvalid ∧ min ≥ 2` | emissions, inline, gate, dialog, tally |",
     "| D3 | — | — (latent: changes no cell) |",
     "",
     "Signatures may overlap (a ranked over-vote under a double-allowed config",
@@ -241,6 +258,7 @@ const md = [
     `| S6 — one count for gate and checker | ${buckets.S6.length} | a ranked ballot the checker flags is now gated too (or a spurious gate on first-preferences is gone): the gate and the dialog |`,
     `| S4 — empty ballot is not an under-vote | ${buckets.S4.length} | the checker no longer emits an under-vote alert on the empty ballot at min=0; the emissions, and the inline view where it rendered |`,
     `| S1 — no master mute (phase-3 judgment; grounds in the lib.rs ledger) | ${buckets.S1.length} | every emitted error renders inline under the allowed-family invalid policies — the voter is informed; gates, dialog and tally unchanged ("informed but uninterrupted") |`,
+    `| S2S3 — a deliberate blank is not subject to the min-vote rule (consultation verdict, 2026-08-28) | ${buckets.S2S3.length} | the marker-only ballot at min ≥ 2 emits no selectedMin, so it is reported as what the voter declared — ExplicitBlank instead of ImplicitInvalid — and the errors-present gates no longer fire on it |`,
     `| D3 — dedup against the error, not self | 0 | none — latent: the error copy is always present when the alert is, so the honest dedup drops the alert exactly as the buggy one did |`,
     `| **unexplained** | **${unexplained.length}** | must be zero |`,
     "",
@@ -259,6 +277,9 @@ const md = [
     "## An S1 cell",
     "",
     ...example(buckets.S1.find((r) => r.oracle.tally === "ImplicitInvalid" && r.oracle.dialog === "none") ?? buckets.S1[0]),
+    "## An S2S3 cell",
+    "",
+    ...example(buckets.S2S3.find((r) => r.fixed.tally === "ExplicitBlank") ?? buckets.S2S3[0]),
     ...(unexplained.length
         ? ["## UNEXPLAINED cells (this run FAILS)", "", ...unexplained.slice(0, 20).flatMap(example)]
         : []),
@@ -281,6 +302,7 @@ writeFileSync(
                 S6: buckets.S6.length,
                 S4: buckets.S4.length,
                 S1: buckets.S1.length,
+                S2S3: buckets.S2S3.length,
                 D3_latent: 0,
                 combinations: Object.fromEntries(
                     Object.entries(combos).map(([k, v]) => [k, v.length])
@@ -292,6 +314,7 @@ writeFileSync(
                 S6: buckets.S6[0] ?? null,
                 S4: buckets.S4[0] ?? null,
                 S1: buckets.S1[0] ?? null,
+                S2S3: buckets.S2S3[0] ?? null,
             },
             unexplained: unexplained.map((r) => ({cell: r.cell, fields: r.fields})),
             accepted: ok,

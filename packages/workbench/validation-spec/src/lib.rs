@@ -703,6 +703,12 @@ pub enum QuirkDisposition {
     /// is a bucket in `characterization/fix-diff.md`; upstream reviews the
     /// judgment at merge like any other fix.
     FixedByJudgment,
+    /// Adjudicated — the three-state model's end state: consultation
+    /// delivered a design verdict and the rewrite implements it. Production's
+    /// behaviour at the affected cells is now a divergence from the
+    /// adjudicated rule, carried upstream by this reference. The verdict,
+    /// its date and its provenance live in the entry's description.
+    FixedByConsultation,
     /// The intake state: a rule the rewrite still encodes, awaiting its
     /// phase-3 judgment. (Empty since phase 3 completed; a newly-found quirk
     /// enters here.)
@@ -773,40 +779,50 @@ pub fn quirks() -> &'static [QuirkInfo] {
         },
         QuirkInfo {
             id: "S2_ERROR_OUTRANKS_BLANK_MARKER",
-            disposition: QuirkDisposition::DeferredToConsultation,
+            disposition: QuirkDisposition::FixedByConsultation,
             finding: "S2",
-            site: "classify (invalid guard precedes marker guard); reused \
-                   unchanged by queries::VoteValidator::tally",
+            site: "classify (invalid guard precedes marker guard); resolved \
+                   upstream of it by queries::is_deliberate_blank exempting \
+                   the deliberate blank from the min-vote rule",
             description: "a marker-only ballot with any error classifies \
                           ImplicitInvalid, never ExplicitBlank — a deliberate \
-                          blank failing min_votes is booked as implicit \
-                          invalidity. JUDGMENT (phase 3): deferred — changing \
-                          the precedence moves published counting categories \
-                          (total_valid_votes, blank_votes.explicit, \
-                          invalid_votes.implicit), which is exactly S2's \
-                          pending consultation question ('should a \
-                          failed-minimum blank still be REPORTED as blank?'), \
-                          and the classifier is upstream's own declarative, \
-                          unit-tested artifact. The S1 fix already removes \
-                          S2's sharpest facet: the min=2 marker-only voter \
-                          now sees selectedMin inline before casting.",
+                          blank failing min_votes was booked as implicit \
+                          invalidity. ADJUDICATED (2026-08-28, verdict \
+                          delivered by the operator): explicit blank votes \
+                          are not subject to the min-vote rule. Implemented \
+                          in derive_emissions via is_deliberate_blank — the \
+                          exempted ballot emits no selectedMin, so it reaches \
+                          the classifier's marker guard and reports \
+                          ExplicitBlank at every min_votes. The classifier's \
+                          precedence itself is untouched (a genuinely-invalid \
+                          marker ballot still classifies invalid); within the \
+                          certified domain no other error can reach a \
+                          marker-only ballot, so the S2 cell family is gone. \
+                          Production's ImplicitInvalid at those cells is now \
+                          a divergence from the adjudicated rule \
+                          (fix-diff.md).",
         },
         QuirkInfo {
             id: "S3_MARKER_COUNTS_AS_SELECTION",
-            disposition: QuirkDisposition::DeferredToConsultation,
+            disposition: QuirkDisposition::FixedByConsultation,
             finding: "S3",
-            site: "selections_with_markers; reused semantics in \
-                   queries::selections",
+            site: "selections_with_markers; queries::selections + \
+                   queries::is_deliberate_blank",
             description: "the blank marker and the invalid flag each count as \
                           one selection in the min/over/under/blank rules. \
-                          JUDGMENT (phase 3): deferred — this is the domain \
-                          question under S2 (should a deliberate blank be \
-                          inside the count rules at all?), it moves tally \
-                          classes at the min boundaries either way, and the \
-                          same count is what RESCUES the deliberate blank at \
-                          min=1 (plausibly intended). S3's own confidence \
-                          note is 'genuinely uncertain': no evidence trail \
-                          licenses either direction, unlike S1.",
+                          ADJUDICATED (2026-08-28, verdict delivered by the \
+                          operator): explicit blank votes are not subject to \
+                          the min-vote rule — answering S3's domain question \
+                          (facet i) for the min-vote rule. Scope, precisely: \
+                          the exemption is the min-vote rule only, for a \
+                          ballot whose content is the blank marker alone \
+                          (queries::is_deliberate_blank). The marker still \
+                          counts as a selection elsewhere — in the blank rule \
+                          (a marker-only ballot is deliberately NOT blank, so \
+                          blankVote never fires on it) and the over/under \
+                          zones — and the invalid flag's counting is \
+                          untouched (a null ballot is not an explicit blank \
+                          vote; the verdict does not speak to it).",
         },
         QuirkInfo {
             id: "S4_GATE_REDERIVES_UNDERVOTE_AT_ZERO",

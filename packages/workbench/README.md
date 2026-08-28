@@ -408,8 +408,10 @@ is collected in [characterization/README.md](characterization/README.md)
 ("Open work"); what follows here is what needs a decision or changes
 which artifact ships, roughly by payoff:
 
-1. **Consultation on the findings.** S1/S2 (silent discounting) and S5
-   (null-vote choice preservation) are documented
+1. **Consultation on the findings.** S1 (silent discounting) and S5
+   (null-vote choice preservation) are documented — S2 and S3 are since
+   adjudicated (2026-08-28: explicit blanks are not subject to the
+   min-vote rule; docs/UPSTREAM_FINDINGS.md) —
    ([docs/UPSTREAM_FINDINGS.md](docs/UPSTREAM_FINDINGS.md)), reproducible
    click-by-click ([docs/REPRODUCE.md](docs/REPRODUCE.md)) and in one
    command (`node characterization/reproduce-verify.mjs`), with
@@ -454,15 +456,17 @@ which artifact ships, roughly by payoff:
    restoring "informed but uninterrupted", which makes silent
    discounting *unrepresentable* in `f_fixed` (asserted per cell in
    fix-diff, 0 of 345,600 vs the oracle's 6,336); **kept** S5
-   (intentional per #2949); **deferred to consultation** S2 and S3 —
-   both move published counting categories, which is the pending
-   design-authority question, not this reference's call. Upstream
-   reviews the judgments at merge. What remains of step 5: the
-   **production-injection branch** (the `for_contest(&Contest)` /
-   `for_vote(&DecodedVoteContest)` adapters, kept out of this crate to
-   preserve its independence), and folding consultation verdicts back
-   into the ledger as they arrive (S2/S3 answers may add fixes;
-   fix-diff absorbs each as a new attributed bucket).
+   (intentional per #2949); **fixed by consultation verdict** S2 and S3
+   (adjudicated 2026-08-28: explicit blank votes are not subject to the
+   min-vote rule — the marker-only ballot reports `ExplicitBlank` at
+   every `min_votes` instead of `ImplicitInvalid` at min ≥ 2; 4,800
+   cells, the fix-diff S2S3 bucket). Upstream reviews the judgments at
+   merge. What remains of step 5: the **production-injection branch**
+   (the `for_contest(&Contest)` / `for_vote(&DecodedVoteContest)`
+   adapters, kept out of this crate to preserve its independence), and
+   folding further consultation verdicts into the ledger as they arrive
+   (the S2/S3 verdict was the first; S1's production-intent question and
+   S6 still stand — fix-diff absorbs each as a new attributed bucket).
 
 Standing maintenance, as upstream moves:
 

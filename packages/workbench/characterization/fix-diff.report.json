@@ -1,10 +1,11 @@
 {
   "cells_evaluated": 345600,
-  "differ": 83424,
+  "differ": 86304,
   "by_fix": {
     "S6": 11068,
     "S4": 3600,
-    "S1": 72832,
+    "S1": 70912,
+    "S2S3": 4800,
     "D3_latent": 0,
     "combinations": {
       "S6+S1": 4076
@@ -216,6 +217,72 @@
         },
         "reachability": "yes",
         "tally": "ExplicitInvalid"
+      }
+    },
+    "S2S3": {
+      "cell": {
+        "config": {
+          "min": 2,
+          "max": 2,
+          "policies": {
+            "invalid": "allowed",
+            "blank": "allowed",
+            "over": "allowed",
+            "under": "allowed",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 0,
+          "blankMarker": true,
+          "explicitInvalid": false,
+          "duplicateRanks": false,
+          "rankGaps": false,
+          "firstPreferences": 0
+        }
+      },
+      "fields": [
+        "emissions",
+        "tally"
+      ],
+      "oracle": {
+        "dialog": "none",
+        "emissions": {
+          "alerts": [],
+          "errors": [
+            "errors.implicit.selectedMin"
+          ]
+        },
+        "gate": {
+          "hard": false,
+          "soft": false
+        },
+        "inline": {
+          "review": [],
+          "voting": [],
+          "votingUntouched": []
+        },
+        "reachability": "yes",
+        "tally": "ImplicitInvalid"
+      },
+      "fixed": {
+        "dialog": "none",
+        "emissions": {
+          "alerts": [],
+          "errors": []
+        },
+        "gate": {
+          "hard": false,
+          "soft": false
+        },
+        "inline": {
+          "review": [],
+          "voting": [],
+          "votingUntouched": []
+        },
+        "reachability": "yes",
+        "tally": "ExplicitBlank"
       }
     }
   },
