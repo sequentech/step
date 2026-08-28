@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {PropsWithChildren, useEffect, useRef} from "react"
+import React, {PropsWithChildren, useEffect, useId, useRef} from "react"
 import DialogTitle from "@mui/material/DialogTitle"
 import MaterialDialog from "@mui/material/Dialog"
 import {Backdrop, Box, Button, Breakpoint} from "@mui/material"
@@ -17,6 +17,7 @@ import {
 import {styled} from "@mui/material/styles"
 import Icon from "../Icon/Icon"
 import IconButton from "../IconButton/IconButton"
+import {useTranslation} from "react-i18next"
 
 const StyledBackdrop = styled(Backdrop)`
     opacity: 0.5 !important;
@@ -44,7 +45,7 @@ export interface DialogProps extends PropsWithChildren {
     title: string
     cancel?: string
     middleActions?: React.ReactElement[]
-    ok: string
+    ok?: string
     okEnabled?: () => boolean
     variant?: "warning" | "info" | "action" | "softwarning"
     fullWidth?: boolean
@@ -85,6 +86,12 @@ const Dialog: React.FC<DialogProps> = ({
     }
 
     const okButtonRef = useRef<boolean>(false)
+    const {t} = useTranslation()
+    // Ties the modal to its visible title (and to the error text, when shown) so
+    // screen readers announce what the dialog is about when it opens.
+    const generatedId = useId()
+    const titleId = `${generatedId}-title`
+    const errorId = `${generatedId}-error`
     const [isFullScreen, setIsFullScreen] = React.useState<boolean>(false)
 
     useEffect(() => {
@@ -103,6 +110,8 @@ const Dialog: React.FC<DialogProps> = ({
             maxWidth={maxWidth}
             fullScreen={isFullScreen}
             className={fullClass}
+            aria-labelledby={titleId}
+            aria-describedby={errorMessage ? errorId : undefined}
         >
             <DialogTitle className="dialog-title">
                 <Icon
@@ -113,6 +122,7 @@ const Dialog: React.FC<DialogProps> = ({
                 />
                 <Box
                     component="span"
+                    id={titleId}
                     flexGrow={2}
                     pt="3px"
                     fontWeight="bold"
@@ -134,11 +144,12 @@ const Dialog: React.FC<DialogProps> = ({
                         variant="primary"
                         onClick={closeDialog}
                         className="dialog-icon-close"
+                        ariaLabel={t("a11y.closeDialog")}
                     />
                 ) : null}
             </DialogTitle>
             <DialogContent className="dialog-content"> {children} </DialogContent>
-            <StyledDialogErrorContent className="dialog-content">
+            <StyledDialogErrorContent className="dialog-content" id={errorId} role="alert">
                 {errorMessage}
             </StyledDialogErrorContent>
             <StyledDialogActions className={middleActions ? "has-middle" : "no-middle"}>
@@ -156,15 +167,17 @@ const Dialog: React.FC<DialogProps> = ({
                     middleActions.map((action, index) => (
                         <React.Fragment key={index}>{action}</React.Fragment>
                     ))}
-                <Button
-                    className="ok-button"
-                    disabled={okButtonRef.current || (okEnabled ? !okEnabled() : undefined)}
-                    variant={okVariant as any}
-                    onClick={clickOk}
-                    sx={{minWidth: "unset", flexGrow: 2}}
-                >
-                    {ok}
-                </Button>
+                {ok ? (
+                    <Button
+                        className="ok-button"
+                        disabled={okButtonRef.current || (okEnabled ? !okEnabled() : undefined)}
+                        variant={okVariant as any}
+                        onClick={clickOk}
+                        sx={{minWidth: "unset", flexGrow: 2}}
+                    >
+                        {ok}
+                    </Button>
+                ) : null}
             </StyledDialogActions>
         </MaterialDialog>
     )

@@ -5,6 +5,8 @@ import {Box} from "@mui/material"
 import React, {useEffect, useState} from "react"
 import {styled} from "@mui/material/styles"
 import IconButton from "../IconButton/IconButton"
+import Icon from "../Icon/Icon"
+import DecorativeIconBox from "../Icon/DecorativeIconBox"
 import {useTranslation} from "react-i18next"
 import {
     faCheck,
@@ -126,11 +128,12 @@ const BallotHash: React.FC<BallotHashProps> = ({
 
     return (
         <HashContainer className="hash-container">
-            <IconButton
-                icon={faCheck}
-                sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
-                fontSize="14px"
-            />
+            <DecorativeIconBox className="hash-check">
+                <Icon
+                    icon={faCheck}
+                    style={{fontSize: "14px", lineHeight: "unset", paddingBottom: "2px"}}
+                />
+            </DecorativeIconBox>
             <BallotHashText className="hash-text">
                 {t("ballotHash", {ballotId: hash})}
             </BallotHashText>

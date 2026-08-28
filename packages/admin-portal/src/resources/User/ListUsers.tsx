@@ -275,10 +275,9 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         userProfileConfiguration?.get_user_profile_configuration.groups ?? []
 
     const visibleUserAttributes = useMemo(() => {
-        // An attribute marked hidden is kept off the voter-facing forms by the
-        // login theme; it is kept out of here for the same reason, which covers
-        // the voter columns and filters and the edit and create forms at once,
-        // since they are all handed this same list.
+        // Attributes hidden from the voter-facing forms are also kept out of
+        // the admin columns, filters, and forms. Username is the exception: it
+        // remains visible to administrators as Keycloak's built-in identifier.
         const attributes = userAttributes?.get_user_profile_attributes?.filter(
             (attribute) => !isHiddenAttribute(attribute)
         )

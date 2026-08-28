@@ -725,7 +725,8 @@ const ElectionSelectionScreen: React.FC = () => {
     const showMaterialsGateBanner =
         isMaterialsMandatory && hasAcknowledgmentLoaded && !hasAcknowledgedSupportMaterials
 
-    if (loadingElectionEvent || loadingElections || loadingBallotStyles) return <CircularProgress />
+    if (loadingElectionEvent || loadingElections || loadingBallotStyles)
+        return <CircularProgress aria-label={t("a11y.loading")} />
 
     return (
         <PageLimit maxWidth="lg" className="election-selection-screen screen">
@@ -742,6 +743,9 @@ const ElectionSelectionScreen: React.FC = () => {
                             sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
                             fontSize="16px"
                             onClick={() => setOpenChooserHelp(true)}
+                            ariaLabel={t("a11y.helpAbout", {
+                                topic: t("electionSelectionScreen.chooserHelpDialog.title"),
+                            })}
                         />
                         <Dialog
                             handleClose={() => setOpenChooserHelp(false)}
@@ -758,6 +762,7 @@ const ElectionSelectionScreen: React.FC = () => {
                     ) : (
                         <Typography
                             variant="body1"
+                            component="div"
                             sx={{color: theme.palette.customGrey.contrastText}}
                         >
                             {stringToHtml(t("electionSelectionScreen.description"))}

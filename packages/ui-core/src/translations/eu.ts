@@ -21,6 +21,21 @@ const basqueTranslation: TranslationType = {
             ended: "Amaituta",
             results: "Emaitzak",
         },
+        a11y: {
+            closeDialog: "Itxi elkarrizketa-koadroa",
+            dismissMessage: "Baztertu mezua",
+            ballotIdHelp: "Zure botoaren IDari buruz",
+            loading: "Kargatzen",
+            severity: {
+                error: "Errorea",
+                warning: "Abisua",
+                success: "Ondo",
+                info: "Informazioa",
+            },
+            selectList: "Hautatu zerrenda osoa",
+            preferenceLabel: "Lehentasuna",
+            writeInFor: "Idatzitako hautagaiaren izena",
+        },
         candidate: {
             moreInformationLink: "Informazio gehiago",
             writeInsPlaceholder: "Idatzi hautagaia hemen",
