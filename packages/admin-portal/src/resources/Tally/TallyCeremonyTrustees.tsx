@@ -241,6 +241,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
 
                             <TallyElectionsList
                                 elections={elections}
+                                electionEventPresentation={record?.presentation}
                                 electionEventId={record?.id}
                                 disabled={true}
                                 update={(elections) => setSelectedElections(elections)}
@@ -281,6 +282,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
 
                             <TallyElectionsList
                                 elections={elections}
+                                electionEventPresentation={record?.presentation}
                                 electionEventId={record?.id}
                                 disabled={true}
                                 update={(elections) => setSelectedElections(elections)}

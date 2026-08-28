@@ -48,10 +48,19 @@ export const electionEventSlice = createSlice({
             state[action.payload.id] = action.payload
             return state
         },
+        seedElectionEvent: (
+            state: ElectionEventState,
+            action: PayloadAction<IElectionEvent>
+        ): ElectionEventState => {
+            if (!state[action.payload.id]) {
+                state[action.payload.id] = action.payload
+            }
+            return state
+        },
     },
 })
 
-export const {setElectionEvent} = electionEventSlice.actions
+export const {seedElectionEvent, setElectionEvent} = electionEventSlice.actions
 
 export const selectElectionEventById =
     (electionEventId: string | undefined) => (state: RootState) => {

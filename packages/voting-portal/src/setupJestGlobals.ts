@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import "cross-fetch/polyfill"
 import {TextDecoder, TextEncoder} from "node:util"
 import {deserialize, serialize} from "node:v8"
 

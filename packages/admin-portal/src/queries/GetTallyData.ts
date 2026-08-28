@@ -156,6 +156,8 @@ export const GET_TALLY_DATA = gql`
             documents
             created_at
             annotations
+            blank_ballots
+            blank_ballots_percent
         }
         sequent_backend_results_contest_candidate(
             where: {
