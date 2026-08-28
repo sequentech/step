@@ -166,11 +166,10 @@ fn check_ballot_contests_match_style(
     Ok(())
 }
 
-fn sorted_ids(ids: &HashSet<&str>) -> Vec<String> {
-    let mut sorted: Vec<String> =
-        ids.iter().map(|id| (*id).to_string()).collect();
-    sorted.sort();
-    sorted
+fn sorted_ids<'a>(ids: &HashSet<&'a str>) -> Vec<&'a str> {
+    let mut ids: Vec<_> = ids.iter().copied().collect();
+    ids.sort_unstable();
+    ids
 }
 
 pub fn map_to_decoded_contest<C: Ctx<P = [u8; 30]>>(

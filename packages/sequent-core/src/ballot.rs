@@ -556,7 +556,7 @@ impl Candidate {
     ///
     /// Blank/invalid markers, withdrawn candidates, and empty write-in slots
     /// are ballot configuration artefacts rather than elected candidates.
-    pub fn is_eligible_acclaimed_candidate(&self) -> bool {
+    pub fn is_acclamation_eligible(&self) -> bool {
         !self.is_explicit_blank()
             && !self.is_explicit_invalid()
             && !self.is_disabled()
@@ -3066,23 +3066,23 @@ mod acclaimed_candidate_tests {
 
     #[test]
     fn eligibility_excludes_only_non_candidate_configuration_entries() {
-        assert!(candidate(|_| {}).is_eligible_acclaimed_candidate());
+        assert!(candidate(|_| {}).is_acclamation_eligible());
         assert!(!candidate(|presentation| {
             presentation.is_explicit_blank = Some(true);
         })
-        .is_eligible_acclaimed_candidate());
+        .is_acclamation_eligible());
         assert!(!candidate(|presentation| {
             presentation.is_explicit_invalid = Some(true);
         })
-        .is_eligible_acclaimed_candidate());
+        .is_acclamation_eligible());
         assert!(!candidate(|presentation| {
             presentation.is_disabled = Some(true);
         })
-        .is_eligible_acclaimed_candidate());
+        .is_acclamation_eligible());
         assert!(!candidate(|presentation| {
             presentation.is_write_in = Some(true);
         })
-        .is_eligible_acclaimed_candidate());
+        .is_acclamation_eligible());
     }
 
     #[test]
@@ -3090,7 +3090,7 @@ mod acclaimed_candidate_tests {
         assert!(candidate(|presentation| {
             presentation.is_category_list = Some(true);
         })
-        .is_eligible_acclaimed_candidate());
+        .is_acclamation_eligible());
     }
 }
 

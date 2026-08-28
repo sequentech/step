@@ -44,7 +44,7 @@ impl MarkWinners {
             return contest_result
                 .candidate_result
                 .iter()
-                .filter(|result| result.candidate.is_eligible_acclaimed_candidate())
+                .filter(|result| result.candidate.is_acclamation_eligible())
                 .enumerate()
                 .map(|(index, result)| WinnerResult {
                     candidate: result.candidate.clone(),

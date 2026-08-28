@@ -31,7 +31,7 @@ impl CountingAlgorithm for Acclaimed {
             .contest
             .candidates
             .iter()
-            .filter(|candidate| candidate.is_eligible_acclaimed_candidate())
+            .filter(|candidate| candidate.is_acclamation_eligible())
             .cloned()
             .map(|candidate| CandidateResult {
                 candidate,

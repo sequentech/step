@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useMemo, useState} from "react"
-import {Box, Button} from "@mui/material"
+import {Alert, Box, Button} from "@mui/material"
 import {
     stringToHtml,
     splitList,
@@ -340,7 +340,7 @@ export const Question: React.FC<IQuestionProps> = ({
                 </Typography>
             ) : null}
             {isAcclaimed ? (
-                <Typography variant="body2" className="contest-acclamation">
+                <Alert severity="info" className="contest-acclamation">
                     {stringToHtml(
                         translateFromPresentation(
                             question,
@@ -349,7 +349,7 @@ export const Question: React.FC<IQuestionProps> = ({
                             {defaultLanguageCode}
                         ) || t("contest.acclamation.description")
                     )}
-                </Typography>
+                </Alert>
             ) : null}
             {showDeclineToVote ? (
                 <InvalidBlankWrapper className="candidates-review-decline" columnCount={1}>

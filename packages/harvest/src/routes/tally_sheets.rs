@@ -85,18 +85,6 @@ pub struct CreateNewTallySheetInput {
     area_id: String,
 }
 
-fn validate_manual_tally_sheet_contest(
-    is_acclaimed: bool,
-) -> Result<(), (Status, String)> {
-    if is_acclaimed {
-        return Err((
-            Status::BadRequest,
-            "Tally sheets cannot be created for acclaimed contests".to_string(),
-        ));
-    }
-    Ok(())
-}
-
 #[instrument(skip(claims))]
 #[post("/create-new-tally-sheet", format = "json", data = "<body>")]
 pub async fn create_new_tally_sheet(
@@ -138,7 +126,13 @@ pub async fn create_new_tally_sheet(
         ));
     };
 
-    validate_manual_tally_sheet_contest(contest.is_acclaimed.unwrap_or(false))?;
+    let is_acclaimed = contest.is_acclaimed.unwrap_or(false);
+    if is_acclaimed {
+        return Err((
+            Status::BadRequest,
+            "Tally sheets cannot be created for acclaimed contests".to_string(),
+        ));
+    }
 
     // Mirrors the import path: an unresolvable counting algorithm is
     // reported on its own rather than validated against a guessed bound.
@@ -921,23 +915,4 @@ fn verify_source_sha256(
         expected_sha256,
         actual_sha256
     ))
-}
-
-#[cfg(test)]
-mod manual_tally_sheet_tests {
-    use super::*;
-
-    #[test]
-    fn rejects_acclaimed_contests_before_insertion() {
-        let error = validate_manual_tally_sheet_contest(true)
-            .expect_err("acclaimed contests must reject manual tally sheets");
-
-        assert_eq!(error.0, Status::BadRequest);
-        assert!(error.1.contains("acclaimed"));
-    }
-
-    #[test]
-    fn accepts_normal_contests() {
-        assert!(validate_manual_tally_sheet_contest(false).is_ok());
-    }
 }

@@ -98,6 +98,7 @@ describe("PlaintextVoteContest", () => {
 
         expect(markup).toContain("Acclaimed contest")
         expect(markup).toContain("Custom acclamation description")
+        expect(markup).toContain('role="alert"')
         expect(markup).toContain("Candidate A")
         expect(markup).toContain("Candidate B")
     })

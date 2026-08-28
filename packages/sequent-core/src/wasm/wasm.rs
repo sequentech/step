@@ -726,7 +726,7 @@ pub fn is_eligible_acclaimed_candidate_js(
     let candidate: Candidate = serde_wasm_bindgen::from_value(candidate_json)
         .map_err(|err| format!("Error parsing candidate: {err}"))
         .into_json()?;
-    Ok(candidate.is_eligible_acclaimed_candidate())
+    Ok(candidate.is_acclamation_eligible())
 }
 
 #[wasm_bindgen]

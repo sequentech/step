@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {Box, Typography} from "@mui/material"
+import {Alert, Box, Typography} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import {useTranslation} from "react-i18next"
 import Image from "mui-image"
@@ -336,9 +336,9 @@ export const PlaintextVoteContest: React.FC<PlaintextVoteContestProps> = ({
                 {translate(question, "name", i18n.language) || ""}
             </Typography>
             {displayedAcclamationDescription ? (
-                <Typography variant="body2" className="contest-acclamation">
+                <Alert severity="info" className="contest-acclamation">
                     {stringToHtml(displayedAcclamationDescription)}
-                </Typography>
+                </Alert>
             ) : null}
             {isWholeBallotBlank ? (
                 <BlankAnswer title={blankBallotLabel} />

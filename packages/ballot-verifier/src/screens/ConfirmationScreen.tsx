@@ -38,6 +38,7 @@ import {
     EBlankBallotsPolicy,
 } from "@sequentech/ui-core"
 import {getConfirmationContests} from "../services/confirmationContests"
+import {getBallotStyleDefaultLanguageCode} from "../services/defaultLanguageCode"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -267,11 +268,9 @@ const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = ({
         return getConfirmationContests(sortedContests, plaintextVoteQuestions)
     }, [confirmationBallot?.election_config.contests, contestsOrderType, plaintextVoteQuestions])
     const {globalSettings} = useContext(SettingsContext)
-    const defaultLanguageCode =
-        confirmationBallot?.election_config.election_presentation?.language_conf
-            ?.default_language_code ??
-        confirmationBallot?.election_config.election_event_presentation?.language_conf
-            ?.default_language_code
+    const defaultLanguageCode = getBallotStyleDefaultLanguageCode(
+        confirmationBallot?.election_config
+    )
 
     const isDeclineToVotePolicyEnabled =
         confirmationBallot?.election_config?.election_presentation?.decline_to_vote_policy ===
