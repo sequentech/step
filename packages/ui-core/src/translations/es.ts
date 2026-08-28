@@ -21,6 +21,21 @@ const spanishTranslation: TranslationType = {
             ended: "Finalizado",
             results: "Resultados",
         },
+        a11y: {
+            closeDialog: "Cerrar diálogo",
+            dismissMessage: "Descartar mensaje",
+            ballotIdHelp: "Acerca de su ID de voto",
+            loading: "Cargando",
+            severity: {
+                error: "Error",
+                warning: "Advertencia",
+                success: "Correcto",
+                info: "Información",
+            },
+            selectList: "Seleccionar toda la lista",
+            preferenceLabel: "Preferencia",
+            writeInFor: "Nombre del candidato por escrito",
+        },
         candidate: {
             moreInformationLink: "Más información",
             writeInsPlaceholder: "Teclee aquí el candidato por escrito",

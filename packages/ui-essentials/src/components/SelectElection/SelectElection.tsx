@@ -307,8 +307,6 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                 onClick={handleClickToVote}
                 isopen={String(!!isOpen)}
                 isactive={String(!!isActive)}
-                role="button"
-                tabIndex={0}
                 className={className ? `election-item ${className}` : "election-item"}
                 is-start={String(!!isStarted)}
             >
