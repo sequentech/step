@@ -26,14 +26,36 @@ pub struct AdminAuth {
     /// an existing tenant with cross-tenant permission to create the
     /// tenants `layers.yaml` describes, not one of those tenants itself.
     pub tenant_id: String,
-    /// A confidential client in that tenant's realm whose *service
-    /// account* (not a human user) carries the `admin-user` Hasura role —
-    /// `TENANT_CREATE` and friends aren't necessarily held by any
-    /// password-grant-capable user, but every confidential client gets a
-    /// service account for free, authenticated via
-    /// `grant_type=client_credentials`.
+    /// A confidential client in that tenant's realm. Its *service
+    /// account* carries the `admin-user` Hasura role for the default
+    /// `client_credentials` login — see `resolve_admin_login_mode`.
     pub keycloak_client_id: String,
     pub keycloak_client_secret: String,
+    /// A human username to log in with `grant_type=password` instead of
+    /// `client_credentials` — set together with `password`. Needed on
+    /// realms where a privileged action requires step-up ("gold" ACR): a
+    /// service account's client_credentials grant never runs an
+    /// interactive authentication flow, so it can never reach that,
+    /// regardless of which roles it holds.
+    pub username: Option<String>,
+    pub password: Option<String>,
+}
+
+/// Which OAuth grant the admin identity logs in with. Password grant when
+/// both `username` and `password` are configured; otherwise the client's
+/// own service account via `client_credentials` — the original default,
+/// still right for realms with no step-up requirement.
+#[derive(Debug, PartialEq, Eq)]
+enum AdminLoginMode {
+    Password,
+    ClientCredentials,
+}
+
+fn resolve_admin_login_mode(admin: &AdminAuth) -> AdminLoginMode {
+    match (&admin.username, &admin.password) {
+        (Some(_), Some(_)) => AdminLoginMode::Password,
+        _ => AdminLoginMode::ClientCredentials,
+    }
 }
 
 pub struct RunOptions {
@@ -45,6 +67,11 @@ pub struct RunOptions {
     /// already-provisioning tenant are not further throttled by this —
     /// see the module doc comment.
     pub max_concurrent_tenants: Option<usize>,
+    /// An existing tenant to provision every election event into, skipping
+    /// tenant creation entirely. When set, every `tenants[]` entry in
+    /// layers.yaml imports into this same tenant — see
+    /// `resolved_tenant`.
+    pub target_tenant_id: Option<String>,
 }
 
 pub async fn run(
@@ -55,14 +82,33 @@ pub async fn run(
     let http = reqwest::Client::new();
 
     let admin_realm = format!("tenant-{}", options.admin.tenant_id);
-    let admin_token = crate::auth::login_client_credentials(
-        &http,
-        &options.keycloak_url,
-        &admin_realm,
-        &options.admin.keycloak_client_id,
-        &options.admin.keycloak_client_secret,
-    )
-    .await
+    let admin_token = match resolve_admin_login_mode(&options.admin) {
+        AdminLoginMode::Password => {
+            // Presence checked by resolve_admin_login_mode.
+            let username = options.admin.username.as_deref().unwrap();
+            let password = options.admin.password.as_deref().unwrap();
+            crate::auth::login(
+                &http,
+                &options.keycloak_url,
+                &admin_realm,
+                &options.admin.keycloak_client_id,
+                Some(&options.admin.keycloak_client_secret),
+                username,
+                password,
+            )
+            .await
+        }
+        AdminLoginMode::ClientCredentials => {
+            crate::auth::login_client_credentials(
+                &http,
+                &options.keycloak_url,
+                &admin_realm,
+                &options.admin.keycloak_client_id,
+                &options.admin.keycloak_client_secret,
+            )
+            .await
+        }
+    }
     .map_err(|err| anyhow::anyhow!("admin login failed: {err}"))?;
 
     let template_bytes =
@@ -81,6 +127,7 @@ pub async fn run(
         let keycloak_url = options.keycloak_url.clone();
         let admin_bearer_token = admin_token.access_token.clone();
         let template_bytes = template_bytes.clone();
+        let target_tenant_id = options.target_tenant_id.clone();
 
         tenant_tasks.spawn(async move {
             let _permit = semaphore
@@ -94,6 +141,7 @@ pub async fn run(
                 keycloak_url,
                 tenant_layer,
                 template_bytes,
+                target_tenant_id,
             )
             .await
         });
@@ -119,10 +167,20 @@ pub async fn run(
     Ok(run_report)
 }
 
-/// Creates one tenant, then runs every one of its election events
-/// concurrently against it. A tenant-creation failure fails every election
-/// event configured for it, since none of them have anywhere to import
-/// into.
+/// Either the tenant to reuse (`target_tenant_id` was set — no network
+/// call, `slug` becomes just the report label) or `None`, meaning the
+/// caller must create a fresh tenant itself.
+fn resolved_tenant(target_tenant_id: Option<&str>, slug: &str) -> Option<provision::CreatedTenant> {
+    target_tenant_id.map(|id| provision::CreatedTenant {
+        id: id.to_string(),
+        slug: slug.to_string(),
+    })
+}
+
+/// Creates one tenant (or reuses `target_tenant_id`, if set), then runs
+/// every one of its election events concurrently against it. A
+/// tenant-creation failure fails every election event configured for it,
+/// since none of them have anywhere to import into.
 async fn run_tenant(
     http: reqwest::Client,
     endpoint_url: String,
@@ -130,25 +188,29 @@ async fn run_tenant(
     keycloak_url: String,
     tenant_layer: TenantLayer,
     template_bytes: Vec<u8>,
+    target_tenant_id: Option<String>,
 ) -> Vec<Result<ElectionEventReport>> {
     let admin_client = HasuraClient::new(http.clone(), endpoint_url.clone(), admin_bearer_token);
 
-    let created_tenant = match provision::create_tenant(&admin_client, &tenant_layer.slug).await {
-        Ok(tenant) => tenant,
-        Err(err) => {
-            return tenant_layer
-                .election_events
-                .iter()
-                .map(|_| {
-                    Err(anyhow::anyhow!(
-                        "tenant `{}` creation failed: {err:#} (tenant creation \
-                         isn't idempotent — layers.yaml slugs must be unique \
-                         per run)",
-                        tenant_layer.slug
-                    ))
-                })
-                .collect();
-        }
+    let created_tenant = match resolved_tenant(target_tenant_id.as_deref(), &tenant_layer.slug) {
+        Some(tenant) => tenant,
+        None => match provision::create_tenant(&admin_client, &tenant_layer.slug).await {
+            Ok(tenant) => tenant,
+            Err(err) => {
+                return tenant_layer
+                    .election_events
+                    .iter()
+                    .map(|_| {
+                        Err(anyhow::anyhow!(
+                            "tenant `{}` creation failed: {err:#} (tenant creation \
+                             isn't idempotent — layers.yaml slugs must be unique \
+                             per run)",
+                            tenant_layer.slug
+                        ))
+                    })
+                    .collect();
+            }
+        },
     };
 
     let mut event_tasks = JoinSet::new();
@@ -266,4 +328,59 @@ async fn run_election_event(
     }
 
     Ok(report)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resolved_tenant_reuses_the_target_id_with_the_layer_slug_as_label() {
+        let tenant = resolved_tenant(Some("90505c8a-23a9-4cdf-a26b-4e19f6a097d5"), "loadtest-a")
+            .expect("a target tenant id should resolve to a reused tenant");
+        assert_eq!(tenant.id, "90505c8a-23a9-4cdf-a26b-4e19f6a097d5");
+        assert_eq!(tenant.slug, "loadtest-a");
+    }
+
+    #[test]
+    fn resolved_tenant_is_none_when_no_target_id_is_given() {
+        assert!(resolved_tenant(None, "loadtest-a").is_none());
+    }
+
+    fn admin_auth(username: Option<&str>, password: Option<&str>) -> AdminAuth {
+        AdminAuth {
+            tenant_id: "90505c8a-23a9-4cdf-a26b-4e19f6a097d5".to_string(),
+            keycloak_client_id: "api-key-client".to_string(),
+            keycloak_client_secret: "secret".to_string(),
+            username: username.map(str::to_string),
+            password: password.map(str::to_string),
+        }
+    }
+
+    #[test]
+    fn admin_login_mode_is_password_when_both_username_and_password_are_set() {
+        let admin = admin_auth(Some("api-user"), Some("anything"));
+        assert_eq!(resolve_admin_login_mode(&admin), AdminLoginMode::Password);
+    }
+
+    #[test]
+    fn admin_login_mode_is_client_credentials_when_neither_is_set() {
+        let admin = admin_auth(None, None);
+        assert_eq!(
+            resolve_admin_login_mode(&admin),
+            AdminLoginMode::ClientCredentials
+        );
+    }
+
+    #[test]
+    fn admin_login_mode_falls_back_to_client_credentials_when_only_one_is_set() {
+        assert_eq!(
+            resolve_admin_login_mode(&admin_auth(Some("api-user"), None)),
+            AdminLoginMode::ClientCredentials
+        );
+        assert_eq!(
+            resolve_admin_login_mode(&admin_auth(None, Some("anything"))),
+            AdminLoginMode::ClientCredentials
+        );
+    }
 }

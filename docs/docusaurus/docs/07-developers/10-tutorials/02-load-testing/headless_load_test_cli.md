@@ -159,6 +159,52 @@ caller needs from a confidential client used for cross-tenant admin
 operations. `--admin-tenant-id` in the flag reference below is that
 super-admin tenant.
 
+### Admin login: password grant, when a target requires step-up ("gold") auth
+
+Some of the same privileged calls above — specifically
+`generate_ballot_publication`/`publish_ballot` and
+`update_event_voting_status` — additionally require `has_gold_permission`
+(`packages/sequent-core/src/services/jwt.rs`), which checks the token's
+`acr` claim against `Permissions::GOLD` ("gold") and a 60-second freshness
+window. This is a Keycloak Level-of-Authentication (LoA/ACR) step-up, and
+step-up is fundamentally an *interactive authentication flow* concept: a
+`client_credentials` grant never runs one, so a service account's token can
+**never** carry `acr: gold`, no matter which realm roles it holds. If the
+target realm gates these actions behind gold, plain `client_credentials`
+admin auth will fail those two calls specifically with `403 Forbidden` /
+`Insufficient privileges`, even though every earlier step (tenant creation,
+import, voter provisioning) succeeds fine under it.
+
+`headless-load-test` supports a second admin login mode for exactly this
+case: `grant_type=password`, via `--admin-keycloak-username` /
+`--admin-keycloak-password` (both required together; the client id/secret
+flags above are still required too — password grant for a confidential
+client still authenticates the client itself, not just the user). This is
+the same mechanism `step-cli config` has always used
+(`packages/step-cli/src/utils/keycloak.rs::generate_keycloak_token`) — the
+admin login didn't start as `client_credentials`; it moved there
+specifically because tenant creation needed a role no password-grant user
+held (see above). Now that a *different* privileged action needs step-up
+that only a real, interactive-shaped login can provide, going back to
+`step-cli`'s original approach — for admin auth specifically, not for
+tenant creation — is the fix.
+
+Whether a given username can actually reach `acr: gold` this way is a
+target-realm authentication-flow question, not something
+`headless-load-test` controls: it depends on the realm's `direct_grant`
+flow (and any client-level `authenticationFlowBindingOverrides`) actually
+granting LoA level 2 for that grant type. In this repository's own dev
+tenant, the confidential client `api-key-client` is bound to a custom
+`direct_grant` flow (alias `gold direct grant`) that unconditionally grants
+gold once the username validates — password itself isn't checked in that
+flow (`direct-grant-validate-password` is `DISABLED`), so *any* password
+value works for a user that flow accepts. The existing tenant user
+`api-user` already holds every permission this tool's Phase 1 needs
+(`admin-user`, `document-upload`, `voter-create`, `election-state-write`,
+`publish-write`, `tenant-create`, ...) — pass `--admin-keycloak-username
+api-user` with `--admin-keycloak-client-id api-key-client` and any
+non-empty `--admin-keycloak-password` to use it.
+
 ## Configuring a run
 
 Every run needs two files: `layers.yaml`, which describes what to
@@ -189,7 +235,8 @@ tenants:
   election-event import — see [Troubleshooting](#troubleshooting)), so
   reusing a slug from a previous run fails fast rather than silently
   reusing the old tenant. Bake something unique into it, e.g. a date or run
-  id, as in the example above.
+  id, as in the example above. Ignored (used only as the report label) when
+  `--target-tenant-id` is set — see below.
 - `tenants[].election_events[]` — one entry per election event to create
   inside that tenant, each importing the same `--election-event-template`.
 - `voters` — how many voters to provision for that election event.
@@ -245,13 +292,44 @@ headless-load-test \
 | `--admin-tenant-id <ID>` | `HEADLESS_LOAD_TEST_ADMIN_TENANT_ID` | yes | The super-admin tenant the admin client authenticates against — see [Authentication](#authentication). Not one of the tenants `layers.yaml` creates. |
 | `--admin-keycloak-client-id <ID>` | `HEADLESS_LOAD_TEST_ADMIN_KEYCLOAK_CLIENT_ID` | yes | A confidential client in that tenant's realm whose service account carries the `admin-user` Hasura role. |
 | `--admin-keycloak-client-secret <SECRET>` | `HEADLESS_LOAD_TEST_ADMIN_KEYCLOAK_CLIENT_SECRET` | yes | That client's secret. Prefer the environment variable over the flag — it keeps the secret out of shell history and `ps`. |
+| `--admin-keycloak-username <NAME>` | `HEADLESS_LOAD_TEST_ADMIN_KEYCLOAK_USERNAME` | no | Switches admin login to `grant_type=password`. Set together with `--admin-keycloak-password` — see [Admin login: password grant](#admin-login-password-grant-when-a-target-requires-step-up-gold-auth). |
+| `--admin-keycloak-password <PASSWORD>` | `HEADLESS_LOAD_TEST_ADMIN_KEYCLOAK_PASSWORD` | no | That user's password-grant credential. Prefer the environment variable over the flag, same reasoning as the client secret. |
 | `--max-concurrent-tenants <N>` | — | no | Caps how many tenants are provisioned and run concurrently. Default: all tenants in `layers.yaml` at once. |
+| `--target-tenant-id <ID>` | `HEADLESS_LOAD_TEST_TARGET_TENANT_ID` | no | An *existing* tenant to provision every election event into, instead of creating a fresh tenant per `tenants[].slug`. See [Targeting an existing tenant](#targeting-an-existing-tenant) below. |
 
 `headless-load-test` logs in once, in-memory, and reuses that admin token
 concurrently across every tenant it provisions — unlike `step-cli`'s own
 `config` subcommand, which writes a single-profile config file keyed by the
 binary's own directory and so isn't built for running several tenants at
 once.
+
+### Targeting an existing tenant
+
+By default `headless-load-test` creates a brand-new tenant for every
+`tenants[]` entry in `layers.yaml` (`insertTenant`, non-idempotent — see
+[Troubleshooting](#troubleshooting)). Pass `--target-tenant-id <ID>` to skip
+tenant creation entirely and import every election event straight into an
+*existing* tenant instead — useful for a quick run against a tenant you
+already have set up (e.g. this repository's own dev tenant,
+`90505c8a-23a9-4cdf-a26b-4e19f6a097d5`), without burning a fresh slug each
+time.
+
+When set, `tenants[].slug` is no longer used to create anything — it's kept
+only as the label election-event reports are grouped under. If `layers.yaml`
+lists more than one `tenants[]` entry, all of them import into that same
+target tenant; for genuine multi-tenant load, omit the flag and let each
+entry create its own tenant as usual.
+
+Note that this only skips *tenant* creation — election-event import itself
+is still not idempotent, so re-running the same `layers.yaml` and
+`--election-event-template` against the same `--target-tenant-id` still
+creates a brand-new election event inside it each time, not an update to a
+previous run's.
+
+`--target-tenant-id` and `--admin-tenant-id` are independent and commonly
+point at the same tenant in a local dev run, but they don't have to: the
+former is where election events get provisioned, the latter is only the
+realm the admin service account itself logs into.
 
 ## Running a load test
 
@@ -479,6 +557,29 @@ vote rate implies.
   zero; the concurrency model structurally prevents two in-flight casts
   from sharing a voter. A nonzero count means that guarantee broke, which
   is a bug worth reporting, not ordinary headless-load-test noise.
+- **Every cast fails with `Rejected` /
+  `CheckStatusFailed("auth_time is not a valid integer")`** — Keycloak only
+  sets the `AUTH_TIME` session note (and so the `auth_time` claim) for the
+  `authorization_code`/browser login flow, never for `grant_type=password`.
+  Harvest's `check_status`
+  (`packages/windmill/src/services/insert_cast_vote.rs`) requires
+  `auth_time` for the `ONLINE` channel, so every voter login
+  `headless-load-test` does (`grant_type=password`, no browser) hits this
+  by construction, on any target environment. There's a dev-only escape
+  hatch: set `HARVEST_ALLOW_ONLINE_AUTH_TIME_IAT_FALLBACK=true` on the
+  target's Harvest process to fall back to `iat`, the same fallback the
+  `TELEPHONE` channel and `has_gold_permission` already use elsewhere. In
+  this repository's own dev environment it's wired through
+  `.devcontainer/docker-compose-base.yml` and set in
+  `.devcontainer/.env.development` — **not** `.devcontainer/.env`, which is
+  gitignored and gets unconditionally overwritten from `.env.development`
+  by `.devcontainer/scripts/initialize-command.sh` on every devcontainer
+  init/rebuild, so an edit there alone doesn't survive one. After changing
+  it, recreate the `harvest` container — a source edit alone doesn't pick
+  up new env vars either
+  (`docker compose -p step_devcontainer -f .devcontainer/docker-compose.yml
+  up -d --no-deps harvest`). It's deliberately absent from every real
+  deployment's config — do not set it there.
 
 ## Comparison with other load-testing tools
 

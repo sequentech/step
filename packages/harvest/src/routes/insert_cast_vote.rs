@@ -52,10 +52,9 @@ pub async fn insert_cast_vote(
             ErrorCode::Unauthorized,
         )
     })?;
-    let auth_time = &claims.auth_time.or_else(|| {
-        matches!(voting_channel, VotingStatusChannel::TELEPHONE)
-            .then_some(claims.iat)
-    });
+    let auth_time = &claims
+        .auth_time
+        .or_else(|| auth_time_iat_fallback_allowed(voting_channel).then_some(claims.iat));
 
     info!("insert-cast-vote: starting");
 
@@ -318,4 +317,60 @@ pub async fn insert_cast_vote(
     }
 
     Ok(Json(inserted_cast_vote))
+}
+
+/// Whether a missing `auth_time` claim may fall back to `iat` for the
+/// given voting channel.
+///
+/// Always allowed for `TELEPHONE`: that channel already has no
+/// browser-derived `auth_time` to rely on. `ONLINE` real voters always go
+/// through a browser and get a genuine `auth_time` for free — Keycloak
+/// only ever sets the `AUTH_TIME` session note on the `authorization_code`
+/// flow, never on `grant_type=password` — so requiring it there doubles
+/// as an implicit "this came from a browser" check. This fallback is an
+/// explicit, env-gated escape hatch from that for non-browser tooling
+/// (e.g. `headless-load-test`'s password-grant voter login,
+/// `packages/headless-load-test/src/vote/cast.rs`) against environments
+/// that opt in via `HARVEST_ALLOW_ONLINE_AUTH_TIME_IAT_FALLBACK=true` —
+/// unset (the default) preserves the strict, browser-only requirement, and
+/// no real deployment's config sets it.
+fn auth_time_iat_fallback_allowed(voting_channel: VotingStatusChannel) -> bool {
+    match voting_channel {
+        VotingStatusChannel::TELEPHONE => true,
+        VotingStatusChannel::ONLINE => {
+            std::env::var("HARVEST_ALLOW_ONLINE_AUTH_TIME_IAT_FALLBACK")
+                .map(|value| value == "true")
+                .unwrap_or(false)
+        }
+        VotingStatusChannel::KIOSK | VotingStatusChannel::EARLY_VOTING => false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const ENV_VAR: &str = "HARVEST_ALLOW_ONLINE_AUTH_TIME_IAT_FALLBACK";
+
+    // One test, run sequentially, so concurrent `cargo test` threads don't
+    // race on this shared process-global env var.
+    #[test]
+    fn auth_time_iat_fallback_is_gated_per_channel_and_env_var() {
+        std::env::remove_var(ENV_VAR);
+        assert!(auth_time_iat_fallback_allowed(VotingStatusChannel::TELEPHONE));
+        assert!(!auth_time_iat_fallback_allowed(VotingStatusChannel::ONLINE));
+        assert!(!auth_time_iat_fallback_allowed(VotingStatusChannel::KIOSK));
+        assert!(!auth_time_iat_fallback_allowed(
+            VotingStatusChannel::EARLY_VOTING
+        ));
+
+        std::env::set_var(ENV_VAR, "true");
+        assert!(auth_time_iat_fallback_allowed(VotingStatusChannel::ONLINE));
+        assert!(auth_time_iat_fallback_allowed(VotingStatusChannel::TELEPHONE));
+
+        std::env::set_var(ENV_VAR, "false");
+        assert!(!auth_time_iat_fallback_allowed(VotingStatusChannel::ONLINE));
+
+        std::env::remove_var(ENV_VAR);
+    }
 }

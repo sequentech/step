@@ -96,6 +96,44 @@ mod tests {
     }
 
     #[test]
+    fn the_bundled_template_gives_voters_a_top_level_auth_time_claim() {
+        // Without this mapper a password-grant voter token has no
+        // top-level `auth_time` claim (unlike a browser/authorization-code
+        // login, which gets one from Keycloak automatically). Harvest's
+        // `check_status` (packages/windmill/src/services/insert_cast_vote.rs)
+        // requires `auth_time` for the ONLINE channel and rejects the cast
+        // with `CheckStatusFailed("auth_time is not a valid integer")`
+        // otherwise — every ONLINE cast in a headless-load-test run would
+        // fail. Guards against that regressing silently if the bundled
+        // template is ever swapped out.
+        let contents = std::fs::read_to_string("data/election-event-template.json").unwrap();
+        let template = parse_template_str(&contents).unwrap();
+
+        let clients = template["keycloak_event_realm"]["clients"]
+            .as_array()
+            .expect("keycloak_event_realm.clients should be an array");
+        for client_id in ["voting-portal", "onsite-voting-portal"] {
+            let client = clients
+                .iter()
+                .find(|client| client["clientId"] == client_id)
+                .unwrap_or_else(|| panic!("template should have a {client_id} client"));
+            let has_auth_time_mapper = client["protocolMappers"]
+                .as_array()
+                .unwrap_or_else(|| panic!("{client_id} should have protocolMappers"))
+                .iter()
+                .any(|mapper| {
+                    mapper["protocolMapper"] == "oidc-usersessionmodel-note-mapper"
+                        && mapper["config"]["user.session.note"] == "AUTH_TIME"
+                        && mapper["config"]["claim.name"] == "auth_time"
+                });
+            assert!(
+                has_auth_time_mapper,
+                "{client_id} should carry a top-level auth_time claim mapper"
+            );
+        }
+    }
+
+    #[test]
     fn malformed_json_is_rejected() {
         assert!(parse_template_str("{ not json").is_err());
     }

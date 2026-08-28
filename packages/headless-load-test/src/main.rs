@@ -62,10 +62,40 @@ struct Cli {
     #[arg(long, env = "HEADLESS_LOAD_TEST_ADMIN_KEYCLOAK_CLIENT_SECRET")]
     admin_keycloak_client_secret: String,
 
+    /// A human username to log the admin identity in with
+    /// `grant_type=password` instead of `client_credentials`. Set together
+    /// with --admin-keycloak-password. Needed on target realms where a
+    /// privileged action requires step-up ("gold" ACR/LoA) — a service
+    /// account's client_credentials grant never goes through an
+    /// interactive authentication flow, so it can never satisfy that,
+    /// regardless of which roles it holds
+    #[arg(
+        long,
+        env = "HEADLESS_LOAD_TEST_ADMIN_KEYCLOAK_USERNAME",
+        requires = "admin_keycloak_password"
+    )]
+    admin_keycloak_username: Option<String>,
+
+    /// Password for --admin-keycloak-username's password-grant login
+    #[arg(
+        long,
+        env = "HEADLESS_LOAD_TEST_ADMIN_KEYCLOAK_PASSWORD",
+        requires = "admin_keycloak_username"
+    )]
+    admin_keycloak_password: Option<String>,
+
     /// Caps how many tenants are provisioned and run concurrently. Default:
     /// all tenants in layers.yaml at once
     #[arg(long)]
     max_concurrent_tenants: Option<usize>,
+
+    /// An existing tenant to provision every election event into, instead of
+    /// creating a fresh tenant per `tenants[].slug`. When set, every
+    /// `tenants[]` entry in layers.yaml imports into this same tenant and
+    /// `slug` is used only as a report label. Omit to create a new tenant
+    /// per entry (the default)
+    #[arg(long, env = "HEADLESS_LOAD_TEST_TARGET_TENANT_ID")]
+    target_tenant_id: Option<String>,
 }
 
 #[tokio::main]
@@ -92,8 +122,11 @@ async fn main() -> Result<()> {
             tenant_id: cli.admin_tenant_id,
             keycloak_client_id: cli.admin_keycloak_client_id,
             keycloak_client_secret: cli.admin_keycloak_client_secret,
+            username: cli.admin_keycloak_username,
+            password: cli.admin_keycloak_password,
         },
         max_concurrent_tenants: cli.max_concurrent_tenants,
+        target_tenant_id: cli.target_tenant_id,
     };
 
     let report = run::run(layers, template, options).await?;

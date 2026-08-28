@@ -1899,6 +1899,20 @@
                             "claim.name": "https://hasura\\.io/jwt/claims.authorized-election-ids",
                             "jsonType.label": "String"
                         }
+                    },
+                    {
+                        "id": "a1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d5e",
+                        "name": "auth_time",
+                        "protocol": "openid-connect",
+                        "protocolMapper": "oidc-usersessionmodel-note-mapper",
+                        "consentRequired": false,
+                        "config": {
+                            "user.session.note": "AUTH_TIME",
+                            "id.token.claim": "true",
+                            "access.token.claim": "true",
+                            "claim.name": "auth_time",
+                            "jsonType.label": "long"
+                        }
                     }
                 ],
                 "publicClient": true,
@@ -2174,6 +2188,20 @@
                             "access.token.claim": "true",
                             "claim.name": "https://hasura\\.io/jwt/claims.authorized-election-ids",
                             "jsonType.label": "String"
+                        }
+                    },
+                    {
+                        "id": "b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e",
+                        "name": "auth_time",
+                        "protocol": "openid-connect",
+                        "protocolMapper": "oidc-usersessionmodel-note-mapper",
+                        "consentRequired": false,
+                        "config": {
+                            "user.session.note": "AUTH_TIME",
+                            "id.token.claim": "true",
+                            "access.token.claim": "true",
+                            "claim.name": "auth_time",
+                            "jsonType.label": "long"
                         }
                     }
                 ],

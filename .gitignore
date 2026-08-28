@@ -61,3 +61,6 @@ packages/ballot-verifier/logs
 
 # ignore artifacts for airgapped environments
 airgapped-artifacts
+
+# local headless-load-test run data (real exports, tuned layers.yaml — not fixtures)
+packages/headless-load-test/data/local/
