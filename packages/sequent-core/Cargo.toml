@@ -60,6 +60,9 @@ base64 = "0.22"
 schemars = { version = "0.8", features = ["chrono"]}
 # strand
 strand = { path="../strand", features = [], optional = true}
+# The rationalized vote-validation spec (the query-provider) — the injected
+# gate implementation routes through it; see src/validation_provider.rs.
+validation-spec = { path = "../workbench/validation-spec", optional = true }
 
 num-bigint = { version = "0.4", features = ["rand"], optional = true }
 num-traits = "0.2"
@@ -150,7 +153,7 @@ lambda_inplace = []
 lambda_openwhisk = []
 lambda_aws_lambda = []
 plugins_wit = ["dep:wasmtime", "dep:wasmtime-wasi"]
-default_features = ["dep:strand", "dep:num-bigint", "dep:tempfile", "dep:ammonia"]
+default_features = ["dep:strand", "dep:num-bigint", "dep:tempfile", "dep:ammonia", "dep:validation-spec"]
 
 sqlite = ["dep:tokio", "dep:rusqlite"]
 time = ["dep:time"]

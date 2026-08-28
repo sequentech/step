@@ -3,18 +3,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! Adapter conformance — the native analogue of the wasm sweep, with the
-//! adapters in the loop:
+//! adapters in the loop, expectations split by injection status:
 //!
-//!   production decode + gates  ≡  oracle `f` ∘ (contest_config, vote_state)
+//!   production decode  ≡  ORACLE `f` ∘ (contest_config, vote_state)
+//!       — decode is NOT injected: it must still match the bug-compatible
+//!         oracle's emissions;
+//!   production gates   ≡  RATIONALIZED `f_fixed` ∘ (…)
+//!       — the gates ARE injected (voting_screen.rs routes through the
+//!         query-provider), so production now carries the ledger's gate
+//!         fixes and must match `f_fixed`.
 //!
 //! For every cell of a policy × vote-state matrix mirroring the seven
 //! characterization grids (on the real bundled-fixture contests), the wire
 //! selection is round-tripped through production's own codec
 //! (`encode_plaintext_contest_bigint` → `decode_plaintext_contest_bigint`)
-//! and production's own gate functions, and the result must equal the frozen
-//! oracle fed through this crate's adapters. The comparison target is `f`,
-//! not `f_fixed` — the fixed implementation diverges from production by the
-//! fix ledger, so adapter faithfulness must be measured against the oracle.
+//! and production's own gate functions, and compared per the split above.
 //!
 //! Also asserted per cell: deriving the `VoteState` from the PRE-decode wire
 //! selection and from the POST-decode record gives the same answer (the
@@ -34,7 +37,7 @@ use sequent_core::util::voting_screen::{
     check_voting_error_dialog_util, check_voting_not_allowed_next_util,
 };
 use validation_adapters::{contest_config, for_ballot, vote_state, AdapterError};
-use validation_spec::f;
+use validation_spec::{f, f_fixed};
 
 // ---------------------------------------------------------------------------
 // Fixture loading — the same bundled snapshots the characterization uses
@@ -168,6 +171,7 @@ fn assert_cell(contest: &Contest, input: &DecodedVoteContest, label: &str) {
         "{label}: pre-decode and post-decode derivations disagree"
     );
 
+    // Decode is not injected: emissions match the bug-compatible oracle.
     let oracle = f(&config, &vs);
     assert_eq!(
         oracle.emissions.errors,
@@ -179,8 +183,10 @@ fn assert_cell(contest: &Contest, input: &DecodedVoteContest, label: &str) {
         keys(&decoded.invalid_alerts),
         "{label}: alerts disagree"
     );
-    assert_eq!(oracle.gate.hard, prod_hard, "{label}: hard gate disagrees");
-    assert_eq!(oracle.gate.soft, prod_soft, "{label}: soft gate disagrees");
+    // The gates are injected: production matches the rationalized f_fixed.
+    let fixed = f_fixed(&config, &vs);
+    assert_eq!(fixed.gate.hard, prod_hard, "{label}: hard gate disagrees");
+    assert_eq!(fixed.gate.soft, prod_soft, "{label}: soft gate disagrees");
 }
 
 fn with_policies(

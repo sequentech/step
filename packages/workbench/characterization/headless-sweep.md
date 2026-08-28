@@ -14,7 +14,16 @@ driven through the REAL WASM (checker → gates → tally, the same entry
 points the rule runners record) and compared against the typed Rust
 spec (`../validation-spec`) on every
 headless effect: checker errors and alerts (as key sets), both gates,
-the dialog projection, and the tally class. The subdomain: all values
+the dialog projection, and the tally class.
+
+**Injection status (the per-component expectation).** Production is a
+hybrid while the rationalized implementation is injected site by site:
+the GATES are injected (`voting_screen.rs` routes through the
+query-provider), so production's gates and dialog are compared against
+the rationalized `f_fixed` — they now carry the fix ledger's gate
+changes (S6, S4's gate half, S1-none, S2S3's gate movements; see
+`fix-diff.md`) — while EMISSIONS (decode) and TALLY are not injected
+and are compared against the frozen oracle `f`. The subdomain: all values
 of all six policies (dup/gap included — their inertness on plurality
 states is thereby production-confirmed, not assumed), bounds min 0..3 ×
 max 1..3 with min ≤ max (max = 0 stays out — the config-sanity scope

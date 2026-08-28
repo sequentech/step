@@ -303,7 +303,7 @@ against the spec.
 
 | command (`node characterization/…`) | produces |
 |---|---|
-| `headless-sweep.mjs` | `headless-sweep.md` + `.recorded.json` — production (real WASM checker/gates/tally) vs the Rust spec on **every** cell of the representable headless domain: all six policies × sane bounds × plurality states × the reachable preferential states; **345,600 cells, ~1 min**. This is the exhaustive fidelity check, and it emits the quotient inventory the browser stage consumes |
+| `headless-sweep.mjs` | `headless-sweep.md` + `.recorded.json` — production (real WASM checker/gates/tally) vs the Rust spec on **every** cell of the representable headless domain: all six policies × sane bounds × plurality states × the reachable preferential states; **345,600 cells, ~1 min**. Expectations are split by **injection status** (the table in the runner's header): the gates are injected, so production's gates/dialog are compared against the rationalized `f_fixed`; emissions and tally are not, and compare against the frozen oracle `f`. This is the exhaustive fidelity check, and it emits the quotient inventory the browser stage consumes |
 | `classifier-table.mjs` | `classifier-table.recorded.json` + `.md` — velvet-wasm's real tally vs the spec's `classify` on the classifier's own 32-cell cross-product, including the decline inputs the decode cannot reach |
 | `ballot-gate-composition.mjs` | `ballot-gate-composition.recorded.json` + `.md` — the real wasm gates' cross-contest OR vs `BallotValidator` over two contests × {no-gate, hard, soft}; closes the gate-composition scope boundary |
 
@@ -488,6 +488,15 @@ Every residue below is already labelled in the artifact that carries it;
 this is the one place they are collected, ordered by how much each would
 unblock.
 
+- **Browser lane rerun against the injected booth.** The gate injection
+  changed the booth wasm's dialogs on the fix cells (S6's gate/dialog
+  movements; S2S3's marker-only min ≥ 2 cells no longer gate), so
+  `dom-validate`'s recorded gate/dialog expectations are a
+  **pre-injection baseline** on exactly those cells until the browser
+  lane is re-run with expectations split by injection status the way
+  `headless-sweep.mjs` now splits them (its header carries the
+  component → expectation table). Until that rerun, trust the sweep for
+  gates/dialog and the recorded tables for everything else.
 - **A both-markers fixture.** Purely a *booth* gap: no bundled contest
   gives a voter a route to both markers at once — the explicit-invalid
   flag needs the Council contest's null-vote marker, the blank marker

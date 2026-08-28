@@ -5,6 +5,14 @@
 // Ballot-gate composition — EVIDENCE that `BallotValidator`'s cross-contest
 // gate OR matches production's whole-ballot gate.
 //
+// POST-INJECTION NOTE (gates injected into voting_screen.rs): production's
+// per-contest gate now IS the query-provider, so this runner's independent
+// leg is the ORACLE free functions' OR (emit-grid's `ballot` kind). Its
+// combinations sit off the fix cells (fixed ≡ oracle there), so it still
+// checks that production composes per-contest gates by OR — but it no
+// longer checks the per-contest predicate itself against anything
+// independent; the sweep's per-component expectations own that.
+//
 // The per-contest gate predicate is already validated exhaustively (the
 // sweep, headless; dom-validate, in the booth). What neither reaches is the
 // COMPOSITION: production's gates iterate every contest and fire if ANY

@@ -477,10 +477,20 @@ which artifact ships, roughly by payoff:
    spec crate to preserve its independence, with a native conformance
    test proving production's own codec and gate functions ≡ the frozen
    oracle through the adapters across the seven grids' matrices (~310
-   cells, `cargo test -p validation-adapters`). What remains: the
-   call-site injection itself — production consuming the provider —
-   the upstream-PR-shaped work the fix ledger and fix-diff were built
-   to carry.
+   cells, `cargo test -p validation-adapters`). **The first call site is
+   injected**: `sequent-core`'s submission gates
+   (`util/voting_screen.rs`) now route through the query-provider via
+   `sequent_core::validation_provider` (the derivations moved into
+   production; `validation-adapters` delegates to them), keeping only a
+   record-driven path for the encoding-error class the vote state
+   cannot express. Verified exhaustively with per-component
+   expectations: the sweep compares production's gates/dialog against
+   `f_fixed` and everything uninjected against the oracle — 345,600
+   cells, 0 disagreements — and the native conformance run agrees
+   (6/6). What remains: the decode site (emissions — carries the
+   S4-checker and S2S3 tally changes), the browser-lane rerun against
+   the injected booth (characterization/README.md, Open work), and
+   eventually the TypeScript filter (S1's display fix).
 
 Standing maintenance, as upstream moves:
 

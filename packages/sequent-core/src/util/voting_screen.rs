@@ -5,9 +5,65 @@
 use crate::ballot::*;
 use crate::plaintext::*;
 use crate::types::ceremonies::CountingAlgType;
-use crate::util::console_log;
+use crate::validation_provider::{contest_config, vote_state};
+use validation_spec::ContestValidator;
 
 use std::collections::HashMap;
+
+/// Per-contest submission gates, computed by the rationalized
+/// query-provider (`validation-spec`) through the wire-type derivations in
+/// `crate::validation_provider`. Returns `(hard, soft)`.
+///
+/// The provider derives everything from the contest configuration and the
+/// vote state, so the pre-injection re-derivations that drifted are gone:
+/// gate and checker share one selection count (a ranked ballot is gated
+/// from the same number the checker flags it by) and one under-vote
+/// predicate.
+///
+/// Two record-driven behaviours are kept verbatim, because they concern
+/// errors the vote state cannot express (encoding/configuration failures —
+/// write-in overflow, malformed bounds — which decode stamps on the record):
+/// any `Explicit`/`EncodingError`-typed entry still hard-blocks (the old
+/// fast path), and an `EncodingError` entry still raises the dismissible
+/// dialog under a non-allowed invalid policy. For a contest whose bounds
+/// are not representable, only those record-driven behaviours apply — the
+/// decode of such a contest emits the corresponding encoding errors.
+fn contest_gates(
+    contest: &Contest,
+    decoded_contest: &DecodedVoteContest,
+) -> (bool, bool) {
+    let invalid_errors = &decoded_contest.invalid_errors;
+    // The record-driven fast path: explicit or encoding errors hard-block.
+    let exogenous_hard = invalid_errors.iter().any(|error| {
+        matches!(
+            error.error_type,
+            InvalidPlaintextErrorType::Explicit
+                | InvalidPlaintextErrorType::EncodingError
+        )
+    });
+    // An encoding error also counts as "an invalid error" for the
+    // dismissible dialog's generic condition.
+    let encoding_error_present = invalid_errors.iter().any(|error| {
+        matches!(error.error_type, InvalidPlaintextErrorType::EncodingError)
+    });
+    let invalid_vote_policy = contest.get_invalid_vote_policy();
+    let exogenous_soft = encoding_error_present
+        && invalid_vote_policy != InvalidVotePolicy::ALLOWED
+        && invalid_vote_policy
+            != InvalidVotePolicy::ALLOWED_WITH_EXCLUSIVE_EXPLICIT;
+
+    match contest_config(contest) {
+        Ok(config) => {
+            let validator = ContestValidator::from_config(config)
+                .for_vote_state(vote_state(contest, decoded_contest));
+            (
+                exogenous_hard || validator.hard_gate(),
+                exogenous_soft || validator.soft_gate(),
+            )
+        }
+        Err(_) => (exogenous_hard, exogenous_soft),
+    }
+}
 
 // Function used to decide if the voter needs to change his/her ballot before
 // continuing
@@ -15,119 +71,12 @@ pub fn check_voting_not_allowed_next_util(
     contests: Vec<Contest>,
     decoded_contests: HashMap<String, DecodedVoteContest>,
 ) -> bool {
-    let voting_not_allowed = contests.iter().any(|contest| {
-        let default_vote_policy = InvalidVotePolicy::default();
-        let vote_policy = contest
-            .presentation
-            .as_ref()
-            .and_then(|p| p.invalid_vote_policy.as_ref())
-            .unwrap_or(&default_vote_policy);
-
-        let default_blank_policy = EBlankVotePolicy::default();
-        let blank_policy = contest
-            .presentation
-            .as_ref()
-            .and_then(|p| p.blank_vote_policy.as_ref())
-            .unwrap_or(&default_blank_policy);
-
-        let over_vote_policy = contest
-            .presentation
-            .as_ref()
-            .and_then(|p| p.over_vote_policy)
-            .unwrap_or_default();
-
-        let default_duplicated_rank_policy = EDuplicatedRankPolicy::default();
-        let duplicated_rank_policy = contest
-            .presentation
-            .as_ref()
-            .and_then(|p| p.duplicated_rank_policy.as_ref())
-            .unwrap_or(&default_duplicated_rank_policy);
-
-        let default_preference_gaps_policy = EPreferenceGapsPolicy::default();
-        let preference_gaps_policy = contest
-            .presentation
-            .as_ref()
-            .and_then(|p| p.preference_gaps_policy.as_ref())
-            .unwrap_or(&default_preference_gaps_policy);
-
-        let max = contest.max_votes;
-
-        if let Some(decoded_contest) = decoded_contests.get(&contest.id) {
-            let choices_selected = decoded_contest
-                .choices
-                .iter()
-                .filter(|choice| choice.selected == 0)
-                .count();
-
-            let invalid_errors: &Vec<InvalidPlaintextError> =
-                &decoded_contest.invalid_errors;
-
-            // Selected explicit invalid/blank marker candidates count as
-            // selections. Marker candidates present in the decoded choices
-            // are already counted in choices_selected; the explicit invalid
-            // flag is only added when the marker candidate is not part of
-            // the decoded choices (single-contest encoding).
-            let explicit_invalid_marker_selected =
-                decoded_contest.choices.iter().any(|choice| {
-                    choice.selected == 0
-                        && contest.candidates.iter().any(|candidate| {
-                            candidate.id == choice.id
-                                && candidate.is_explicit_invalid()
-                        })
-                });
-            let selections_with_markers = choices_selected
-                + usize::from(
-                    decoded_contest.is_explicit_invalid
-                        && !explicit_invalid_marker_selected,
-                );
-
-            // Show the modal dialog that forces user to change his selection
-            // if:
-            // - There's any explicit invalid plaintext or an encoding error
-            invalid_errors.iter().any(|error| {
-                matches!(
-                    error.error_type,
-                    InvalidPlaintextErrorType::Explicit
-                        | InvalidPlaintextErrorType::EncodingError
-                )
-            // - there's an invalid error and invalid vote policy is NOT_ALLOWED
-            }) || (!invalid_errors.is_empty()
-                && *vote_policy == InvalidVotePolicy::NOT_ALLOWED)
-            // - there's an blank vote because selection is empty and blank vote
-            //   policy is NOT_ALLOWED
-                || (selections_with_markers == 0
-                    && *blank_policy == EBlankVotePolicy::NOT_ALLOWED)
-            // - selection is more than maximum and over vote policy is
-            //   NOT_ALLOWED_WITH_MSG_AND_ALERT
-                || (selections_with_markers as i64 > max
-                    && over_vote_policy
-                        == EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_ALERT)
-            // - duplicated rank policy is NOT_ALLOWED and there's a
-            //   duplicated position error
-                || (*duplicated_rank_policy == EDuplicatedRankPolicy::NOT_ALLOWED_WARN_AND_DIALOG
-                    && invalid_errors.iter().any(|e| {
-                        e.message
-                            == Some(
-                                "errors.implicit.duplicatedPosition"
-                                    .to_string(),
-                            )
-                    }))
-            // - preference gaps policy is NOT_ALLOWED and there's a
-            //   preference order with gaps error
-                || (*preference_gaps_policy == EPreferenceGapsPolicy::NOT_ALLOWED_WARN_AND_DIALOG
-                    && invalid_errors.iter().any(|e| {
-                        e.message
-                            == Some(
-                                "errors.implicit.preferenceOrderWithGaps"
-                                    .to_string(),
-                            )
-                    }))
-        } else {
-            false
-        }
-    });
-
-    voting_not_allowed
+    contests.iter().any(|contest| {
+        decoded_contests
+            .get(&contest.id)
+            .map(|decoded_contest| contest_gates(contest, decoded_contest).0)
+            .unwrap_or(false)
+    })
 }
 
 /// if returns true, when the user click next, there will be a dialog that
@@ -136,138 +85,12 @@ pub fn check_voting_error_dialog_util(
     contests: Vec<Contest>,
     decoded_contests: HashMap<String, DecodedVoteContest>,
 ) -> bool {
-    let show_voting_alert = contests.iter().any(|contest| {
-        let invalid_vote_policy = contest
-            .presentation
-            .as_ref()
-            .and_then(|p| p.invalid_vote_policy.clone())
-            .unwrap_or_default();
-
-        let default_blank_policy = EBlankVotePolicy::default();
-        let blank_policy = contest
-            .presentation
-            .as_ref()
-            .and_then(|p| p.blank_vote_policy.as_ref())
-            .unwrap_or(&default_blank_policy);
-
-        let over_vote_policy = contest
-            .presentation
-            .as_ref()
-            .and_then(|p| p.over_vote_policy)
-            .unwrap_or_default();
-
-        let under_vote_policy = contest
-            .presentation
-            .as_ref()
-            .and_then(|p| p.under_vote_policy)
-            .unwrap_or_default();
-
-        let default_duplicated_rank_policy = EDuplicatedRankPolicy::default();
-        let duplicated_rank_policy = contest
-            .presentation
-            .as_ref()
-            .and_then(|p| p.duplicated_rank_policy.as_ref())
-            .unwrap_or(&default_duplicated_rank_policy);
-
-        let default_preference_gaps_policy = EPreferenceGapsPolicy::default();
-        let preference_gaps_policy = contest
-            .presentation
-            .as_ref()
-            .and_then(|p| p.preference_gaps_policy.as_ref())
-            .unwrap_or(&default_preference_gaps_policy);
-
-        let max = contest.max_votes;
-        let min = contest.min_votes;
-
-        console_log!("max={min:?}, min={min:?}, blank_policy={blank_policy:?}, under_vote_policy={under_vote_policy:?}");
-
-        if let Some(decoded_contest) = decoded_contests.get(&contest.id) {
-            let choices_selected = decoded_contest
-                .choices
-                .iter()
-                .filter(|choice| choice.selected == 0)
-                .count();
-            let invalid_errors: &Vec<InvalidPlaintextError> =
-                &decoded_contest.invalid_errors;
-            let explicit_invalid = decoded_contest.is_explicit_invalid;
-
-            console_log!("choices_selected={choices_selected:?}, explicit_invalid={explicit_invalid:?}");
-
-            // Selected explicit invalid/blank marker candidates count as
-            // selections. Marker candidates present in the decoded choices
-            // are already counted in choices_selected; the explicit invalid
-            // flag is only added when the marker candidate is not part of
-            // the decoded choices (single-contest encoding).
-            let explicit_invalid_marker_selected =
-                decoded_contest.choices.iter().any(|choice| {
-                    choice.selected == 0
-                        && contest.candidates.iter().any(|candidate| {
-                            candidate.id == choice.id
-                                && candidate.is_explicit_invalid()
-                        })
-                });
-            let selections_with_markers = choices_selected
-                + usize::from(
-                    explicit_invalid && !explicit_invalid_marker_selected,
-                );
-
-            // Show Alert dialog if:
-            // - there are invalid error and it's not allowed. ALLOWED_WITH_EXCLUSIVE_EXPLICIT
-            //   behaves like ALLOWED here: it only changes how the explicit-invalid
-            //   marker interacts with other selections, not whether unrelated
-            //   invalid_errors trigger this dialog.
-            (!invalid_errors.is_empty()
-                && invalid_vote_policy != InvalidVotePolicy::ALLOWED
-                && invalid_vote_policy
-                    != InvalidVotePolicy::ALLOWED_WITH_EXCLUSIVE_EXPLICIT)
-            // - invalid vote policy is WARN_INVALID_IMPLICIT_AND_EXPLICIT and
-            //   there's an explicit invalid ballot
-                || (invalid_vote_policy
-                    == InvalidVotePolicy::WARN_INVALID_IMPLICIT_AND_EXPLICIT
-                    && explicit_invalid)
-            // - blank vote policy is WARN and contest has no selection
-                || (*blank_policy == EBlankVotePolicy::WARN
-                    && selections_with_markers == 0)
-            // - more than max choices were selected and over vote policy is
-            //   ALLOWED_WITH_MSG_AND_ALERT
-                || (selections_with_markers as i64 > max
-                    && over_vote_policy
-                        == EOverVotePolicy::ALLOWED_WITH_MSG_AND_ALERT)
-            // - it's not a blank vote because there is at least one selection,
-            //   the selection is less than the maximum (i.e. undervote) and
-            //   undervote policy is WARN_AND_ALERT
-                || ((selections_with_markers > 0
-                    && (selections_with_markers as i64) >= min
-                    && (selections_with_markers as i64) < max)
-                    && under_vote_policy == EUnderVotePolicy::WARN_AND_ALERT)
-            // - duplicated rank policy is WARN_AND_ALERT and there's a
-            //   duplicated position error
-                || (*duplicated_rank_policy
-                    == EDuplicatedRankPolicy::ALLOWED_WARN_AND_DIALOG
-                    && invalid_errors.iter().any(|e| {
-                        e.message
-                            == Some(
-                                "errors.implicit.duplicatedPosition"
-                                    .to_string(),
-                            )
-                    }))
-            // - preference gaps policy is WARN_AND_ALERT and there's a
-            //   preference order with gaps error
-                || (*preference_gaps_policy
-                    == EPreferenceGapsPolicy::ALLOWED_WARN_AND_DIALOG
-                    && invalid_errors.iter().any(|e| {
-                        e.message
-                            == Some(
-                                "errors.implicit.preferenceOrderWithGaps"
-                                    .to_string(),
-                            )
-                    }))
-        } else {
-            false
-        }
-    });
-
-    show_voting_alert
+    contests.iter().any(|contest| {
+        decoded_contests
+            .get(&contest.id)
+            .map(|decoded_contest| contest_gates(contest, decoded_contest).1)
+            .unwrap_or(false)
+    })
 }
 
 pub fn get_contest_plurality(
