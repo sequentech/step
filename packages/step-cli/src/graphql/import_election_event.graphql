@@ -7,5 +7,9 @@ mutation ImportElectionEvent($tenantId: String!, $documentId: String!, $checkOnl
             id
             message
             error
+            task_execution {
+                id
+                execution_status
+            }
         }
 }

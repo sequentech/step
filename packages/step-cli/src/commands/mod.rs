@@ -23,6 +23,7 @@ pub mod generate_preview;
 pub mod generate_voters;
 pub mod hash_passwords;
 pub mod import_election_event;
+pub mod import_voters;
 pub mod publish_changes;
 pub mod refresh_token;
 pub mod render_template;
