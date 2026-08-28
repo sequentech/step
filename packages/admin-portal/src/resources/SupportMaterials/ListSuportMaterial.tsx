@@ -226,7 +226,13 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
                 open={openCreate}
                 onClose={handleCloseCreateDrawer}
                 PaperProps={{
-                    sx: {width: "40%"},
+                    sx: {
+                        "width": "40%",
+                        "scrollbarWidth": "thin",
+                        "&::-webkit-scrollbar": {
+                            width: "6px",
+                        },
+                    },
                 }}
             >
                 <CreateSupportMaterial record={record} close={handleCloseCreateDrawer} />
@@ -236,7 +242,13 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
                 open={open}
                 onClose={handleCloseEditDrawer}
                 PaperProps={{
-                    sx: {width: "40%"},
+                    sx: {
+                        "width": "40%",
+                        "scrollbarWidth": "thin",
+                        "&::-webkit-scrollbar": {
+                            width: "6px",
+                        },
+                    },
                 }}
             >
                 <EditSupportMaterial
