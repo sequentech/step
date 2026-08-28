@@ -87,7 +87,33 @@ Configurations that violate either rule are invalid and must be rejected before
 the voter is allowed to proceed. An implementation must not silently choose one
 marker and ignore the others.
 
-### 3.3 Mixed-radix representation
+### 3.3 Acclaimed contests
+
+A contest with `is_acclaimed: true` is part of the displayed ballot
+configuration but is not part of the encoded ballot. Encoders and decoders must
+exclude acclaimed contests before ordering contests, constructing mixed-radix
+bases, validating selections, or comparing decoded contests.
+
+Consequently:
+
+- an acclaimed contest contributes no choice, radix position, ciphertext, or
+  decoded contest;
+- adding or removing an acclaimed contest does not change the encoded value of
+  the remaining votable contests;
+- a selection-state entry for an acclaimed contest is ignored at the encoding
+  boundary; and
+- a missing or false `is_acclaimed` value means the contest is votable, which
+  preserves ballot styles created before this field existed.
+
+Applications may merge acclaimed contests from the embedded ballot
+configuration into review or verification screens, but these entries are
+presentation-only and must never be added to decoded ballot data.
+
+The ballot configuration is still embedded in the auditable ballot and covered
+by its hash. Changing an acclaimed contest after publication can therefore
+change or invalidate Ballot IDs even though the contest has no plaintext slot.
+
+### 3.4 Mixed-radix representation
 
 The codec produces two aligned vectors:
 
