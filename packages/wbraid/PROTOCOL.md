@@ -206,7 +206,8 @@ all modeled as random oracles:
   $$
 
   Components that are group elements or scalars contribute their canonical encodings;
-  components that are lists contribute their length-prefixed concatenation. In the
+  components that are lists contribute their count-prefixed concatenation: a 64-bit
+  big-endian element count, then each element's canonical encoding in order. In the
   remainder of this document the tags are implied by the listed component names.
 - $\mathsf{H2S}(x_1,\dots,x_m) \to \mathbb{Z}_q$: hash-to-scalar. The SHA3-512 digest
   (64 bytes) of the transcript is reduced modulo $q$ ("wide reduction"); the 512-bit
@@ -247,8 +248,9 @@ where:
   the threshold $t$, and the ciphertext width $W$ — so binding $\mathsf{cfg}$ binds
   every proof to one specific election execution and parameter set.
 - $\mathrm{len}(P)$ is the byte length of $P$, encoded as a 64-bit big-endian integer.
-  (Every 64-bit integer entering a hash transcript in this protocol — this length and
-  the counters of Sections 2.3 and 2.5 — is encoded big-endian.)
+  (Every 64-bit integer entering a hash transcript in this protocol — this length, the
+  list count prefixes of Section 2.3, and the counters of Sections 2.3 and 2.5 — is
+  encoded big-endian.)
 - $P$ is a fixed ASCII purpose string naming the proof family (e.g. `"shuffle"`,
   `"decryption proof"`, `"shuffle_generators"`).
 - $H(\mathit{input})$ is the hash of the instance input (e.g. the list of ciphertexts
