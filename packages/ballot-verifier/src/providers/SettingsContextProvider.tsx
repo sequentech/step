@@ -35,7 +35,7 @@ const defaultSettingsValues: SettingsContextValues = {
         HASURA_URL: "http://localhost:8080/v1/graphql",
         APP_VERSION: "-",
         APP_HASH: "-",
-        PUBLIC_BUCKET_URL: "http://127.0.0.1:9002/public/",
+        PUBLIC_BUCKET_URL: "http://localhost:9002/public/",
     },
 }
 

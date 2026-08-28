@@ -341,6 +341,7 @@ const spanishTranslation: TranslationType = {
                 back: "Volver a la Lista de Votaciones",
                 close: "Cerrar",
                 preview: "Vista previa",
+                download: "Descargar",
             },
         },
         ballotLocator: {
