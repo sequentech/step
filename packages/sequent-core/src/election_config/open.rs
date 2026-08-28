@@ -405,33 +405,51 @@ fn open_delivery(bytes: &[u8], names: &[String]) -> Result<Opened, Report> {
         }
     };
 
+    // A password this plan's own recipe generated is regenerated on the next
+    // build, so reading it back would leave the reopened plan carrying two answers
+    // to one question — and `check_passwords` refuses that, which made a delivery
+    // of generated passwords the one kind that could not be re-imported. A
+    // password a client *typed* has no recipe behind it and is kept.
+    let ours: &[&str] =
+        if plan.passwords.as_ref().is_some_and(|recipe| recipe.ready()) {
+            &[super::password::COLUMN]
+        } else {
+            &[]
+        };
+
     let census = match census_text {
-        Some(text) => match super::sources::CsvCensus::new(&text, by_area_name)
-        {
-            Ok(census) => {
-                for note in census.notes() {
-                    report.push(
-                        Problem::warning(Code::InvalidValue, "voters", note)
+        Some(text) => {
+            match super::sources::CsvCensus::ignoring(&text, by_area_name, ours)
+            {
+                Ok(census) => {
+                    for note in census.notes() {
+                        report.push(
+                            Problem::warning(
+                                Code::InvalidValue,
+                                "voters",
+                                note,
+                            )
                             .id("census.note"),
-                    );
+                        );
+                    }
+                    Some(std::sync::Arc::new(census)
+                        as std::sync::Arc<dyn super::sources::CensusSource>)
                 }
-                Some(std::sync::Arc::new(census)
-                    as std::sync::Arc<dyn super::sources::CensusSource>)
-            }
-            Err(why) => {
-                report.push(
-                    Problem::warning(
-                        Code::InvalidValue,
-                        "voters",
-                        format!(
+                Err(why) => {
+                    report.push(
+                        Problem::warning(
+                            Code::InvalidValue,
+                            "voters",
+                            format!(
                             "the census in this zip could not be read: {why}"
                         ),
-                    )
-                    .id("census.unreadable-member"),
-                );
-                None
+                        )
+                        .id("census.unreadable-member"),
+                    );
+                    None
+                }
             }
-        },
+        }
         None => None,
     };
 

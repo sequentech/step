@@ -249,6 +249,18 @@ impl RowShape {
     }
 
     /// The columns a voter built from this shape will carry.
+    /// Forget a column: it is neither advertised nor read.
+    ///
+    /// The recorded positions of the other columns are absolute into the raw row,
+    /// so dropping one from the *lists* leaves every other cell where it was. Used
+    /// for a column the reader knows it is about to regenerate — a password this
+    /// plan's own recipe wrote — which is data on the way out and noise on the way
+    /// back in.
+    pub fn ignoring(&mut self, name: &str) {
+        self.columns.retain(|column| column != name);
+        self.extra.retain(|(_, column)| column != name);
+    }
+
     pub fn columns(&self) -> &[String] {
         &self.columns
     }
@@ -419,10 +431,28 @@ impl CsvCensus {
         text: &str,
         by_area_name: BTreeMap<String, String>,
     ) -> Result<Self, String> {
+        CsvCensus::ignoring(text, by_area_name, &[])
+    }
+
+    /// The same, minus columns the caller is about to write itself.
+    ///
+    /// One caller and one column: a delivery whose plan generates passwords wrote
+    /// them into the census it exported, and reading them back would make the
+    /// reopened plan carry two answers to one question — which
+    /// `check_passwords` refuses, so its own delivery could not be rebuilt.
+    pub fn ignoring(
+        text: &str,
+        by_area_name: BTreeMap<String, String>,
+        ignored: &[&str],
+    ) -> Result<Self, String> {
         let reader = CensusCsv::new(text)?;
         let header = reader.header();
+        let mut shape = RowShape::of(&header.columns);
+        for name in ignored {
+            shape.ignoring(name);
+        }
         Ok(CsvCensus {
-            shape: RowShape::of(&header.columns),
+            shape,
             notes: header.notes.clone(),
             by_area_name,
             text: text.to_owned(),

@@ -777,6 +777,21 @@ fn voters_from_csv(
         "authorized-election-ids",
     ];
 
+    // **A password this plan generated is not a password this plan was given.**
+    //
+    // The build writes a `password` column into the census it exports, and that
+    // export is what comes back through this door. Read as an ordinary
+    // passthrough column it would land in `extra`, the reopened census would carry
+    // it, and `check_passwords` would then refuse the very rebuild this feature
+    // exists for: *"this census already carries a `password` column"*. Reported by
+    // the wizard as a delivery that could not be re-imported.
+    //
+    // So a column the recipe would have written is dropped on the way in and
+    // derived again on the way out — the same rule `census_csv::DERIVED` follows
+    // for `id` and the two flags the platform sets itself. A password a client
+    // *typed* is untouched, because a plan with no recipe drops nothing.
+    let ours = plan.passwords.as_ref().is_some_and(|recipe| recipe.ready());
+
     // The export's CSV names a voter's area by its *name*, because that is the
     // column the platform's own importer reads. A plan keys it by `external_id`
     // (version 3), so this resolves one to the other through the areas the
@@ -819,6 +834,9 @@ fn voters_from_csv(
             let mut extra = BTreeMap::new();
             for (index, column) in columns.iter().enumerate() {
                 if known.contains(&column.as_str()) {
+                    continue;
+                }
+                if ours && column == super::password::COLUMN {
                     continue;
                 }
                 let Some(value) = row.get(index) else {

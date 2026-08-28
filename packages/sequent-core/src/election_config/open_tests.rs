@@ -279,6 +279,107 @@ fn a_delivery_brings_its_census_and_its_files_back() {
     assert_eq!(back[0].area_external_id, "north");
 }
 
+/// A delivery whose passwords were generated can be re-imported and rebuilt.
+///
+/// **The failure this pins was reported by the wizard itself.** The build writes a
+/// `password` column into the census it exports; reopening that export read the
+/// column back as an ordinary passthrough, so the reopened census carried one — and
+/// `check_passwords` then refused the rebuild with *"this census already carries a
+/// `password` column"*. Generate, export, reopen, rebuild is the whole point of
+/// deriving from a seed, and it was the one path that did not work.
+#[test]
+fn a_delivery_of_generated_passwords_can_be_rebuilt() {
+    let (mut plan, sources) = with_a_census();
+    plan.passwords = Some(crate::election_config::password::PasswordRecipe {
+        seed: "the-seed-the-wizard-minted".into(),
+        ..Default::default()
+    });
+    let built = |plan: &Blueprint, sources: &Sources| -> Vec<u8> {
+        let compiled = compile_plan(Compile {
+            plan,
+            templates: &TemplateSet::builtin().unwrap(),
+            options: &BuildOptions::default(),
+            profile: None,
+            sources: Some(sources),
+        })
+        .expect("a plan with generated passwords compiles");
+        super::super::archive::delivery(&compiled.layout)
+            .expect("and packs")
+            .bytes
+    };
+
+    /// The password column of the census a build exported.
+    ///
+    /// The passwords rather than the zip's bytes: two archives of one plan differ
+    /// in ways that say nothing — this is the thing the seed is supposed to make
+    /// reproducible.
+    let passwords = |plan: &Blueprint, sources: &Sources| -> Vec<String> {
+        let compiled = compile_plan(Compile {
+            plan,
+            templates: &TemplateSet::builtin().unwrap(),
+            options: &BuildOptions::default(),
+            profile: None,
+            sources: Some(sources),
+        })
+        .expect("compiles");
+        let voters = compiled
+            .layout
+            .importable
+            .iter()
+            .find(|artifact| artifact.name.starts_with("export_voters"))
+            .expect("a voters CSV");
+        let text = String::from_utf8(voters.bytes.clone()).expect("utf-8");
+        let mut lines = text.lines();
+        let at = lines
+            .next()
+            .expect("a header")
+            .split(',')
+            .position(|column| column == "password")
+            .expect("a password column");
+        lines
+            .map(|line| line.split(',').nth(at).unwrap_or_default().to_string())
+            .collect()
+    };
+
+    let opened = open(&built(&plan, &sources)).expect("a delivery is a plan");
+    let back = opened.plan;
+
+    // The recipe came back, seed and all — which is what makes the rebuild below
+    // reproduce rather than reissue.
+    assert_eq!(back.passwords, plan.passwords);
+
+    // The census came back *without* the column the build had written, so nothing
+    // is holding two answers to one question.
+    let census = opened.sources.census.as_ref().expect("its census");
+    assert!(
+        !census.columns().iter().any(|column| column == "password"),
+        "a generated password should not read back as census data: {:?}",
+        census.columns()
+    );
+
+    // And the rebuild is clean, and gives the same passwords.
+    let report = crate::election_config::architect::validate_plan(
+        &back,
+        &opened.sources,
+    );
+    assert!(
+        !report.problems.iter().any(|problem| {
+            problem.severity == crate::election_config::problem::Severity::Error
+        }),
+        "reopening should not refuse its own delivery: {report}"
+    );
+    let before = passwords(&plan, &sources);
+    let after = passwords(&back, &opened.sources);
+    assert_eq!(before.len(), 2);
+    assert_ne!(before[0], before[1], "two voters, two passwords");
+    assert_eq!(
+        before, after,
+        "reopening a delivery and rebuilding it should reissue nobody"
+    );
+    // And the delivery still packs, which is what `built` is here to say.
+    assert!(!built(&back, &opened.sources).is_empty());
+}
+
 /// Opening an old plan migrates it. It did not.
 ///
 /// **`read_plan` documented itself as the only way a plan should be deserialized
