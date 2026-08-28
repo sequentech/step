@@ -6,10 +6,10 @@ schema {
 
 """whether this query should be cached (Hasura Cloud only)"""
 directive @cached(
-  """measured in seconds"""
-  ttl: Int! = 60
   """refresh the cache entry"""
   refresh: Boolean! = false
+  """measured in seconds"""
+  ttl: Int! = 60
 ) on QUERY
 
 type Aggregate {
@@ -342,6 +342,7 @@ input ExportOptions {
   activity_logs: Boolean
   applications: Boolean
   bulletin_board: Boolean
+  encrypt_with_password: Boolean
   include_certificates: Boolean
   include_voters: Boolean
   is_encrypted: Boolean
