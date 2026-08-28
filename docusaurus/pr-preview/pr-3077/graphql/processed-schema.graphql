@@ -208,7 +208,9 @@ type DeleteUserOutput {
 }
 
 type DeleteUsersOutput {
+  error_msg: String
   ids: String
+  task_execution: tasks_execution_type
 }
 
 type DocumentPasswordOutput {
@@ -1038,6 +1040,18 @@ type UserProfileAttribute {
   validations: jsonb
 }
 
+type UserProfileAttributeGroup {
+  annotations: jsonb
+  display_description: String
+  display_header: String
+  name: String
+}
+
+type UserProfileConfiguration {
+  attributes: [UserProfileAttribute!]!
+  groups: [UserProfileAttributeGroup!]!
+}
+
 type VoterInformationLetterOutput {
   document_id: String!
   pdf_password: String!
@@ -1710,7 +1724,7 @@ type mutation_root {
   delete_user(election_event_id: String, tenant_id: String!, user_id: String!): DeleteUserOutput
   delete_user_role(role_id: String!, tenant_id: String!, user_id: String!): SetUserRoleOutput
   """delete users"""
-  delete_users(election_event_id: String, tenant_id: String!, users_id: [String!]!): DeleteUsersOutput
+  delete_users(attributes: json, authorized_to_election_alias: String, election_event_id: String, election_id: String, email: json, email_verified: Boolean, enabled: Boolean, first_name: json, has_voted: Boolean, last_name: json, select_all: Boolean, tenant_id: String!, username: json, users_id: [String!]): DeleteUsersOutput
   edit_user(body: EditUsersInput!): EditUserOutput!
   encrypt_report(election_event_id: String!, password: String!, report_id: String): EncryptReportOutput
   exportTrustees(password: String!): ExportTrusteesOutput
@@ -3945,6 +3959,8 @@ type mutation_root {
     delete key/value pair or string element. key/value pairs are matched based on their key value
     """
     _delete_key: results_election_area_delete_key_input
+    """increments the numeric columns with given value of the filtered values"""
+    _inc: results_election_area_inc_input
     """prepend existing jsonb value of filtered columns with new jsonb value"""
     _prepend: results_election_area_prepend_input
     """sets the columns of the filtered rows to the given values"""
@@ -3970,6 +3986,8 @@ type mutation_root {
     delete key/value pair or string element. key/value pairs are matched based on their key value
     """
     _delete_key: results_election_area_delete_key_input
+    """increments the numeric columns with given value of the filtered values"""
+    _inc: results_election_area_inc_input
     """prepend existing jsonb value of filtered columns with new jsonb value"""
     _prepend: results_election_area_prepend_input
     """sets the columns of the filtered rows to the given values"""
@@ -4998,6 +5016,7 @@ type query_root {
   get_roles(body: GetRolesInput!): GetRolesOutput!
   get_top_votes_by_ip(body: GetTopCastVotesByIpInput!): GetTopCastVotesByIpOutput
   get_user_profile_attributes(election_event_id: String, tenant_id: String!): [UserProfileAttribute!]!
+  get_user_profile_configuration(election_event_id: String, tenant_id: String!): UserProfileConfiguration!
   get_users(body: GetUsersInput!): GetUsersOutput!
   """List Electoral Log"""
   listElectoralLog(election_event_id: String, filter: ElectoralLogFilter, limit: Int, offset: Int, order_by: ElectoralLogOrderBy): DataListElectoralLog
@@ -16735,6 +16754,8 @@ type results_election {
     """JSON select path"""
     path: String
   ): jsonb
+  blank_ballots: Int
+  blank_ballots_percent: numeric
   created_at: timestamptz
   documents(
     """JSON select path"""
@@ -16793,6 +16814,8 @@ columns and relationships of "sequent_backend.results_election_area"
 """
 type results_election_area {
   area_id: uuid!
+  blank_ballots: Int
+  blank_ballots_percent: numeric
   created_at: timestamptz!
   documents(
     """JSON select path"""
@@ -16819,14 +16842,28 @@ type results_election_area_aggregate {
 aggregate fields of "sequent_backend.results_election_area"
 """
 type results_election_area_aggregate_fields {
+  avg: results_election_area_avg_fields
   count(columns: [results_election_area_select_column!], distinct: Boolean): Int!
   max: results_election_area_max_fields
   min: results_election_area_min_fields
+  stddev: results_election_area_stddev_fields
+  stddev_pop: results_election_area_stddev_pop_fields
+  stddev_samp: results_election_area_stddev_samp_fields
+  sum: results_election_area_sum_fields
+  var_pop: results_election_area_var_pop_fields
+  var_samp: results_election_area_var_samp_fields
+  variance: results_election_area_variance_fields
 }
 
 """append existing jsonb value of filtered columns with new jsonb value"""
 input results_election_area_append_input {
   documents: jsonb
+}
+
+"""aggregate avg on columns"""
+type results_election_area_avg_fields {
+  blank_ballots: Float
+  blank_ballots_percent: Float
 }
 
 """
@@ -16837,6 +16874,8 @@ input results_election_area_bool_exp {
   _not: results_election_area_bool_exp
   _or: [results_election_area_bool_exp!]
   area_id: uuid_comparison_exp
+  blank_ballots: Int_comparison_exp
+  blank_ballots_percent: numeric_comparison_exp
   created_at: timestamptz_comparison_exp
   documents: jsonb_comparison_exp
   election_event_id: uuid_comparison_exp
@@ -16884,10 +16923,20 @@ input results_election_area_delete_key_input {
 }
 
 """
+input type for incrementing numeric columns in table "sequent_backend.results_election_area"
+"""
+input results_election_area_inc_input {
+  blank_ballots: Int
+  blank_ballots_percent: numeric
+}
+
+"""
 input type for inserting data into table "sequent_backend.results_election_area"
 """
 input results_election_area_insert_input {
   area_id: uuid
+  blank_ballots: Int
+  blank_ballots_percent: numeric
   created_at: timestamptz
   documents: jsonb
   election_event_id: uuid
@@ -16902,6 +16951,8 @@ input results_election_area_insert_input {
 """aggregate max on columns"""
 type results_election_area_max_fields {
   area_id: uuid
+  blank_ballots: Int
+  blank_ballots_percent: numeric
   created_at: timestamptz
   election_event_id: uuid
   election_id: uuid
@@ -16915,6 +16966,8 @@ type results_election_area_max_fields {
 """aggregate min on columns"""
 type results_election_area_min_fields {
   area_id: uuid
+  blank_ballots: Int
+  blank_ballots_percent: numeric
   created_at: timestamptz
   election_event_id: uuid
   election_id: uuid
@@ -16949,6 +17002,8 @@ Ordering options when selecting data from "sequent_backend.results_election_area
 """
 input results_election_area_order_by {
   area_id: order_by
+  blank_ballots: order_by
+  blank_ballots_percent: order_by
   created_at: order_by
   documents: order_by
   election_event_id: order_by
@@ -16982,6 +17037,10 @@ enum results_election_area_select_column {
   """column name"""
   area_id
   """column name"""
+  blank_ballots
+  """column name"""
+  blank_ballots_percent
+  """column name"""
   created_at
   """column name"""
   documents
@@ -17006,6 +17065,8 @@ input type for updating data in table "sequent_backend.results_election_area"
 """
 input results_election_area_set_input {
   area_id: uuid
+  blank_ballots: Int
+  blank_ballots_percent: numeric
   created_at: timestamptz
   documents: jsonb
   election_event_id: uuid
@@ -17015,6 +17076,24 @@ input results_election_area_set_input {
   name: String
   results_event_id: uuid
   tenant_id: uuid
+}
+
+"""aggregate stddev on columns"""
+type results_election_area_stddev_fields {
+  blank_ballots: Float
+  blank_ballots_percent: Float
+}
+
+"""aggregate stddev_pop on columns"""
+type results_election_area_stddev_pop_fields {
+  blank_ballots: Float
+  blank_ballots_percent: Float
+}
+
+"""aggregate stddev_samp on columns"""
+type results_election_area_stddev_samp_fields {
+  blank_ballots: Float
+  blank_ballots_percent: Float
 }
 
 """
@@ -17030,6 +17109,8 @@ input results_election_area_stream_cursor_input {
 """Initial value of the column from where the streaming should start"""
 input results_election_area_stream_cursor_value_input {
   area_id: uuid
+  blank_ballots: Int
+  blank_ballots_percent: numeric
   created_at: timestamptz
   documents: jsonb
   election_event_id: uuid
@@ -17041,12 +17122,22 @@ input results_election_area_stream_cursor_value_input {
   tenant_id: uuid
 }
 
+"""aggregate sum on columns"""
+type results_election_area_sum_fields {
+  blank_ballots: Int
+  blank_ballots_percent: numeric
+}
+
 """
 update columns of table "sequent_backend.results_election_area"
 """
 enum results_election_area_update_column {
   """column name"""
   area_id
+  """column name"""
+  blank_ballots
+  """column name"""
+  blank_ballots_percent
   """column name"""
   created_at
   """column name"""
@@ -17082,6 +17173,8 @@ input results_election_area_updates {
   delete key/value pair or string element. key/value pairs are matched based on their key value
   """
   _delete_key: results_election_area_delete_key_input
+  """increments the numeric columns with given value of the filtered values"""
+  _inc: results_election_area_inc_input
   """prepend existing jsonb value of filtered columns with new jsonb value"""
   _prepend: results_election_area_prepend_input
   """sets the columns of the filtered rows to the given values"""
@@ -17090,8 +17183,28 @@ input results_election_area_updates {
   where: results_election_area_bool_exp!
 }
 
+"""aggregate var_pop on columns"""
+type results_election_area_var_pop_fields {
+  blank_ballots: Float
+  blank_ballots_percent: Float
+}
+
+"""aggregate var_samp on columns"""
+type results_election_area_var_samp_fields {
+  blank_ballots: Float
+  blank_ballots_percent: Float
+}
+
+"""aggregate variance on columns"""
+type results_election_area_variance_fields {
+  blank_ballots: Float
+  blank_ballots_percent: Float
+}
+
 """aggregate avg on columns"""
 type results_election_avg_fields {
+  blank_ballots: Float
+  blank_ballots_percent: Float
   elegible_census: Float
   total_voters: Float
   total_voters_percent: Float
@@ -17105,6 +17218,8 @@ input results_election_bool_exp {
   _not: results_election_bool_exp
   _or: [results_election_bool_exp!]
   annotations: jsonb_comparison_exp
+  blank_ballots: Int_comparison_exp
+  blank_ballots_percent: numeric_comparison_exp
   created_at: timestamptz_comparison_exp
   documents: jsonb_comparison_exp
   election_event_id: uuid_comparison_exp
@@ -17161,6 +17276,8 @@ input results_election_delete_key_input {
 input type for incrementing numeric columns in table "sequent_backend.results_election"
 """
 input results_election_inc_input {
+  blank_ballots: Int
+  blank_ballots_percent: numeric
   elegible_census: Int
   total_voters: Int
   total_voters_percent: numeric
@@ -17171,6 +17288,8 @@ input type for inserting data into table "sequent_backend.results_election"
 """
 input results_election_insert_input {
   annotations: jsonb
+  blank_ballots: Int
+  blank_ballots_percent: numeric
   created_at: timestamptz
   documents: jsonb
   election_event_id: uuid
@@ -17188,6 +17307,8 @@ input results_election_insert_input {
 
 """aggregate max on columns"""
 type results_election_max_fields {
+  blank_ballots: Int
+  blank_ballots_percent: numeric
   created_at: timestamptz
   election_event_id: uuid
   election_id: uuid
@@ -17203,6 +17324,8 @@ type results_election_max_fields {
 
 """aggregate min on columns"""
 type results_election_min_fields {
+  blank_ballots: Int
+  blank_ballots_percent: numeric
   created_at: timestamptz
   election_event_id: uuid
   election_id: uuid
@@ -17240,6 +17363,8 @@ Ordering options when selecting data from "sequent_backend.results_election".
 """
 input results_election_order_by {
   annotations: order_by
+  blank_ballots: order_by
+  blank_ballots_percent: order_by
   created_at: order_by
   documents: order_by
   election_event_id: order_by
@@ -17277,6 +17402,10 @@ enum results_election_select_column {
   """column name"""
   annotations
   """column name"""
+  blank_ballots
+  """column name"""
+  blank_ballots_percent
+  """column name"""
   created_at
   """column name"""
   documents
@@ -17309,6 +17438,8 @@ input type for updating data in table "sequent_backend.results_election"
 """
 input results_election_set_input {
   annotations: jsonb
+  blank_ballots: Int
+  blank_ballots_percent: numeric
   created_at: timestamptz
   documents: jsonb
   election_event_id: uuid
@@ -17326,6 +17457,8 @@ input results_election_set_input {
 
 """aggregate stddev on columns"""
 type results_election_stddev_fields {
+  blank_ballots: Float
+  blank_ballots_percent: Float
   elegible_census: Float
   total_voters: Float
   total_voters_percent: Float
@@ -17333,6 +17466,8 @@ type results_election_stddev_fields {
 
 """aggregate stddev_pop on columns"""
 type results_election_stddev_pop_fields {
+  blank_ballots: Float
+  blank_ballots_percent: Float
   elegible_census: Float
   total_voters: Float
   total_voters_percent: Float
@@ -17340,6 +17475,8 @@ type results_election_stddev_pop_fields {
 
 """aggregate stddev_samp on columns"""
 type results_election_stddev_samp_fields {
+  blank_ballots: Float
+  blank_ballots_percent: Float
   elegible_census: Float
   total_voters: Float
   total_voters_percent: Float
@@ -17358,6 +17495,8 @@ input results_election_stream_cursor_input {
 """Initial value of the column from where the streaming should start"""
 input results_election_stream_cursor_value_input {
   annotations: jsonb
+  blank_ballots: Int
+  blank_ballots_percent: numeric
   created_at: timestamptz
   documents: jsonb
   election_event_id: uuid
@@ -17375,6 +17514,8 @@ input results_election_stream_cursor_value_input {
 
 """aggregate sum on columns"""
 type results_election_sum_fields {
+  blank_ballots: Int
+  blank_ballots_percent: numeric
   elegible_census: Int
   total_voters: Int
   total_voters_percent: numeric
@@ -17386,6 +17527,10 @@ update columns of table "sequent_backend.results_election"
 enum results_election_update_column {
   """column name"""
   annotations
+  """column name"""
+  blank_ballots
+  """column name"""
+  blank_ballots_percent
   """column name"""
   created_at
   """column name"""
@@ -17441,6 +17586,8 @@ input results_election_updates {
 
 """aggregate var_pop on columns"""
 type results_election_var_pop_fields {
+  blank_ballots: Float
+  blank_ballots_percent: Float
   elegible_census: Float
   total_voters: Float
   total_voters_percent: Float
@@ -17448,6 +17595,8 @@ type results_election_var_pop_fields {
 
 """aggregate var_samp on columns"""
 type results_election_var_samp_fields {
+  blank_ballots: Float
+  blank_ballots_percent: Float
   elegible_census: Float
   total_voters: Float
   total_voters_percent: Float
@@ -17455,6 +17604,8 @@ type results_election_var_samp_fields {
 
 """aggregate variance on columns"""
 type results_election_variance_fields {
+  blank_ballots: Float
+  blank_ballots_percent: Float
   elegible_census: Float
   total_voters: Float
   total_voters_percent: Float
