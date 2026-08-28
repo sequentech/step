@@ -13,18 +13,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 ### 1.1 Purpose and scope
 
 This document is a self-contained description of an online voting protocol. It
-presents all cryptographic algorithms and the complete
-protocol flow at the mathematical level, so that the security properties of the
-protocol — in particular **end-to-end verifiability** and **ballot secrecy** — can be
-assessed without consulting the academic papers on which the protocol is based.
+presents all cryptographic algorithms and the complete protocol flow at the mathematical level.
 
 The document has the following properties:
 
-- **Self-contained.** Every algorithm used by the protocol is stated in full (key
-  generation, encryption, zero-knowledge proofs, shuffling, threshold decryption,
-  verification), including all prover computations, all verifier equations, and all
-  Fiat-Shamir challenge derivations. No step requires reading an external reference;
-  references are provided for attribution only.
 - **Not an interoperability specification.** Concrete message formats, serializations and
   byte-level encodings are out of scope, with one deliberate exception: wherever a hash
   function is applied, the *components* of its input and their order are stated
@@ -32,6 +24,10 @@ The document has the following properties:
 - **Mathematically verifiable.** The description is intended to allow verification of the
   protocol at the mathematical and cryptographic level, including reconstruction of an
   independent verifier.
+- **Self-contained.** Every algorithm used by the protocol is stated in full (key
+  generation, encryption, zero-knowledge proofs, shuffling, threshold decryption,
+  verification), including all prover computations, all verifier equations, and all
+  Fiat-Shamir challenge derivations. References to relevant publications are provided.
 
 ### 1.2 Audience
 
@@ -819,7 +815,7 @@ $$
 $$
 
 hex-encoded. The **ballot style** identifies the ballot format presented to the voter —
-it subsumes the ballot-format version and the contest identifier(s). The preimage
+and includes the ballot-format version and references to contests. The preimage
 covers exactly the fields of the cast ballot (ciphertext and proof), never the
 plaintext or randomness.
 
