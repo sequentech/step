@@ -93,7 +93,6 @@ const Dialog: React.FC<DialogProps> = ({
     const generatedId = useId()
     const titleId = `${generatedId}-title`
     const errorId = `${generatedId}-error`
-    const [isFullScreen, setIsFullScreen] = React.useState<boolean>(false)
 
     useEffect(() => {
         okButtonRef.current = false
