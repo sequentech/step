@@ -7,6 +7,7 @@ import React, {useContext} from "react"
 import {styled} from "@mui/material/styles"
 import {useTranslation} from "react-i18next"
 import {Dialog, theme} from "@sequentech/ui-essentials"
+import {downloadBlob} from "@sequentech/ui-core"
 import VisibilityIcon from "@mui/icons-material/Visibility"
 import {GET_DOCUMENT} from "../../queries/GetDocument"
 import {useQuery} from "@apollo/client"
@@ -105,6 +106,19 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
     let documentName = imageData?.name
     const documentUrl = documentName ? getDocumentUrl(documentId, documentName) : ""
 
+    const handleDownload = async () => {
+        if (!documentUrl || !documentName) {
+            return
+        }
+        try {
+            const response = await fetch(documentUrl)
+            const blob = await response.blob()
+            await downloadBlob(blob, documentName)
+        } catch (error) {
+            console.error("Error downloading document:", error)
+        }
+    }
+
     return (
         <>
             <BorderBox role="button" tabIndex={0}>
@@ -145,6 +159,8 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
                     openPreviewSet(false)
                 }}
                 fullWidth
+                maxWidth="lg"
+                expandable
             >
                 <Box
                     sx={{
@@ -163,15 +179,16 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
                             flexDirection: "column",
                             justifyContent: "center",
                             alignItems: "center",
+                            width: "100%",
+                            height: "100%",
                         }}
                     >
                         {kind.includes("image") ? (
-                            <>
-                                <img
-                                    src={documentUrl}
-                                    alt={`tenant-${tenantId}/document-${documentId}/${documentName}`}
-                                />
-                            </>
+                            <img
+                                src={documentUrl}
+                                alt={`tenant-${tenantId}/document-${documentId}/${documentName}`}
+                                style={{maxWidth: "100%", maxHeight: "100%", objectFit: "contain"}}
+                            />
                         ) : kind.includes("pdf") ? (
                             <Box
                                 sx={{
@@ -180,13 +197,15 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
                                     justifyContent: "center",
                                     alignItems: "center",
                                     width: "100%",
+                                    height: "100%",
                                 }}
                             >
                                 <iframe
                                     src={documentUrl}
                                     title={`tenant-${tenantId}/document-${documentId}/${documentName}`}
-                                    width="1400"
-                                    height="800"
+                                    width="100%"
+                                    height="100%"
+                                    style={{border: "none"}}
                                 ></iframe>
                             </Box>
                         ) : kind.includes("video") ? (
@@ -197,17 +216,19 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
                                     justifyContent: "center",
                                     alignItems: "center",
                                     width: "100%",
+                                    height: "100%",
                                 }}
                             >
                                 <iframe
                                     ref={videoRef}
-                                    width="800"
-                                    height="500"
+                                    width="100%"
+                                    height="100%"
                                     src={documentUrl}
                                     title={`tenant-${tenantId}/document-${documentId}/${documentName}`}
                                     referrerPolicy="origin"
                                     sandbox="allow-scripts allow-same-origin"
                                     allow="autoplay;"
+                                    style={{border: "none"}}
                                 ></iframe>
                             </Box>
                         ) : kind.includes("audio") ? (
@@ -222,14 +243,34 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
                             >
                                 <iframe
                                     loading="lazy"
-                                    width="800"
+                                    width="100%"
                                     height="120"
                                     src={documentUrl}
                                     title={`tenant-${tenantId}/document-${documentId}/${documentName}`}
                                     allow="autoplay"
+                                    style={{border: "none"}}
                                 ></iframe>
                             </Box>
-                        ) : null}
+                        ) : (
+                            <Box
+                                sx={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    justifyContent: "center",
+                                    alignItems: "center",
+                                    gap: "16px",
+                                }}
+                            >
+                                <DescriptionIcon sx={{fontSize: "80px"}} />
+                                <Button
+                                    sx={{padding: "10px 24px", minWidth: "unset"}}
+                                    variant="secondary"
+                                    onClick={handleDownload}
+                                >
+                                    {t("materials.common.download")}
+                                </Button>
+                            </Box>
+                        )}
                     </Box>
                 </Box>
             </Dialog>

@@ -25,8 +25,13 @@ const TabStyles = {
 }
 
 export const Tabs: React.FC<{
-    elements: {label: string; component: React.FC; action?: (index: number) => void}[]
-}> = ({elements, ...props}) => {
+    elements: {
+        label: string
+        component: React.FC<any>
+        props?: Record<string, any>
+        action?: (index: number) => void
+    }[]
+}> = ({elements}) => {
     const baseUrl = new URL(window.location.href)
     const [selectedTab, setSelectedTab] = React.useState(
         Number.parseInt(baseUrl?.searchParams?.get("tabIndex") ?? "0")
@@ -35,6 +40,9 @@ export const Tabs: React.FC<{
     const handleChange = (event: SyntheticEvent<Element, Event>, newValue: number) => {
         setSelectedTab(newValue)
     }
+
+    const SelectedComponent = elements[selectedTab]?.component
+    const selectedProps = elements[selectedTab]?.props ?? {}
 
     return (
         <TabStyles.Wrapper>
@@ -67,7 +75,9 @@ export const Tabs: React.FC<{
                 </MuiTabs>
             </Box>
 
-            <TabStyles.Content>{elements[selectedTab]?.component(props)}</TabStyles.Content>
+            <TabStyles.Content>
+                {SelectedComponent ? <SelectedComponent {...selectedProps} /> : null}
+            </TabStyles.Content>
         </TabStyles.Wrapper>
     )
 }

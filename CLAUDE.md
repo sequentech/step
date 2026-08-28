@@ -201,3 +201,5 @@ Dev service URLs (inside dev container):
 - RabbitMQ: http://127.0.0.1:15672
 
 **Dev container tips**: When editing Rust code in harvest, windmill, or sequent-core, check the pod logs to see if it compiles successfully — the services auto-rebuild on changes inside the dev container.
+
+Before running `yarn start:voting-portal` or `yarn start:admin-portal`, check whether that dev server is already running (e.g. `ss -tlnp | grep -E ':3000|:3002'` or `curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:<port>/`) instead of starting a new one blind — avoids stacking duplicate/conflicting processes on the same port.

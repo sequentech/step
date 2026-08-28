@@ -1,14 +1,13 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useEffect, useState} from "react"
+import React, {useContext, useEffect, useRef, useState} from "react"
 import {
     SimpleForm,
     useRefresh,
     useNotify,
     Toolbar,
     SaveButton,
-    useUpdate,
     Identifier,
     EditBase,
     RecordContext,
@@ -39,6 +38,7 @@ import AudioFileIcon from "@mui/icons-material/AudioFile"
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf"
 import ImageIcon from "@mui/icons-material/Image"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {MaterialLanguageFields} from "./MaterialLanguageFields"
 
 export type Sequent_Backend_Support_Material_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -99,12 +99,11 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
     const {t} = useTranslation()
     const [valueMaterials, setValueMaterials] = useState<I18n | null>(null)
     const [imageType, setImageType] = useState<string | undefined>()
-    const [imageId, setImageId] = useState<string | undefined>()
     const [renderUI, setRenderUI] = useState(false)
+    const pendingUploadRef = useRef<Promise<string | undefined> | undefined>(undefined)
 
     const [tenantId] = useTenantStore()
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
-    const [updateImage] = useUpdate()
 
     const {data: record} = useGetOne<Sequent_Backend_Election_Event>(
         "sequent_backend_election_event",
@@ -121,15 +120,6 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
     }, [record])
 
     const onSuccess = () => {
-        if (imageId) {
-            updateImage("sequent_backend_support_material", {
-                id,
-                data: {
-                    document_id: imageId,
-                },
-            })
-        }
-
         refresh()
         notify(t("materials.updateMaterialSuccess"), {type: "success"})
         if (close) {
@@ -169,35 +159,23 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
             // if (parsedValue?.enabled_languages[lang]) {
             tabNodes.push({
                 label: t(`common.language.${lang}`),
-                component: () => (
-                    <>
-                        <TextField
-                            label={t("electionEventScreen.field.materialTitle")}
-                            size="small"
-                            value={valueMaterials?.title_i18n[lang] || ""}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                                setValueMaterials((prev) => ({
-                                    ...prev,
-                                    title_i18n: {...prev?.title_i18n, [lang]: e.target.value},
-                                }))
-                            }
-                        />
-                        <TextField
-                            label={t("electionEventScreen.field.materialSubTitle")}
-                            size="small"
-                            value={valueMaterials?.subtitle_i18n[lang] || ""}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                                setValueMaterials((prev) => ({
-                                    ...prev,
-                                    subtitle_i18n: {
-                                        ...prev?.subtitle_i18n,
-                                        [lang]: e.target.value,
-                                    },
-                                }))
-                            }
-                        />
-                    </>
-                ),
+                component: MaterialLanguageFields,
+                props: {
+                    titleLabel: String(t("electionEventScreen.field.materialTitle")),
+                    subtitleLabel: String(t("electionEventScreen.field.materialSubTitle")),
+                    titleValue: valueMaterials?.title_i18n[lang] || "",
+                    subtitleValue: valueMaterials?.subtitle_i18n[lang] || "",
+                    onTitleChange: (value: string) =>
+                        setValueMaterials((prev) => ({
+                            ...prev,
+                            title_i18n: {...prev?.title_i18n, [lang]: value},
+                        })),
+                    onSubtitleChange: (value: string) =>
+                        setValueMaterials((prev) => ({
+                            ...prev,
+                            subtitle_i18n: {...prev?.subtitle_i18n, [lang]: value},
+                        })),
+                },
             })
             // }
         }
@@ -210,43 +188,55 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
 
         const theFile = files?.[0]
 
-        setImageType(theFile?.type)
+        if (!theFile) {
+            return
+        }
 
-        if (theFile) {
+        setImageType(theFile.type)
+
+        const uploadPromise = (async (): Promise<string | undefined> => {
             let {data, errors} = await getUploadUrl({
                 variables: {
                     name: theFile.name,
                     media_type: theFile.type,
                     size: theFile.size,
+                    election_event_id: electionEventId,
                 },
             })
-            if (data?.get_upload_url?.document_id) {
-                try {
-                    await fetch(data.get_upload_url.url, {
-                        method: "PUT",
-                        headers: {
-                            "Content-Type": theFile.type,
-                        },
-                        body: theFile,
-                    })
-                    notify(t("electionScreen.common.fileLoaded"), {type: "success"})
-
-                    setImageId(data.get_upload_url.document_id)
-                } catch (e) {
-                    console.log("error :>> ", e)
-                    notify(t("electionScreen.error.fileError"), {type: "error"})
-                }
-            } else {
+            if (!data?.get_upload_url?.document_id) {
                 console.log("error :>> ", errors)
                 notify(t("electionScreen.error.fileError"), {type: "error"})
+                return undefined
             }
-        }
+            try {
+                await fetch(data.get_upload_url.url, {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": theFile.type,
+                    },
+                    body: theFile,
+                })
+                notify(t("electionScreen.common.fileLoaded"), {type: "success"})
+                return data.get_upload_url.document_id
+            } catch (e) {
+                console.log("error :>> ", e)
+                notify(t("electionScreen.error.fileError"), {type: "error"})
+                return undefined
+            }
+        })()
+
+        pendingUploadRef.current = uploadPromise
+        await uploadPromise
     }
 
-    const transform = (data: Sequent_Backend_Support_Material_Extended) => {
+    const transform = async (data: Sequent_Backend_Support_Material_Extended) => {
         data.data = {...valueMaterials}
         if (imageType) {
             data.kind = imageType
+        }
+        const uploadedDocumentId = await pendingUploadRef.current
+        if (uploadedDocumentId) {
+            data.document_id = uploadedDocumentId
         }
         return data
     }
