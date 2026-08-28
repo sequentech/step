@@ -436,3 +436,41 @@ Outcome (2) is therefore realized. What remains of the investigation: phase 4
 (fuzzing — one pre-existing fuzz target under `vsc/fuzz` already updated) and
 the deeper property-campaign parameters, both now running against the final
 format.
+
+## 11. Phase 4: fuzzing (against the final format)
+
+**Design.** Every deserializer target is a **bijection oracle**: `if let Ok(v) =
+T::deser(data) { assert_eq!(v.ser(), data) }` — so coverage-guided fuzzing hunts
+panics *and* canonicality violations in one pass. Two additional targets exercise
+the verify boundary on adversarial bytes under fixed, deterministically derived
+keys (only panics are findings there).
+
+**Targets.** In `crates/vsc/fuzz` (run with `cargo fuzz run <target>` from
+`crates/vsc`): `deser_eg_ciphertext_ristretto`, `deser_ny_ciphertext_ristretto`,
+`deser_shuffle_proof_ristretto`, `deser_verifiable_share_ristretto` (a DKG
+dealing including proof-carrying checking values), `verify_ny_strip_ristretto`
+(the PlEq well-formedness verifier), `verify_schnorr_ristretto`, plus the
+pre-existing `encode_bytes`/`encode_scalar` targets. In `crates/braid/fuzz`
+(new): `deser_protocol_message_ristretto` (the outermost adversarial boundary)
+and `deser_predicate` (the anti-rewrite persistence boundary).
+
+**Platform note.** The braid fuzz targets do not link on Windows/MSVC: braid's
+wasm `cdylib` crate-type conflicts with libFuzzer's `/include:main` (and
+`--no-include-main-msvc` removes the fuzz binary's own entry point — a genuine
+catch-22). They build and run as-is on Linux. Host-side coverage for those two
+boundaries is provided instead by `crates/braid/tests/serialization_properties.rs`
+— the same oracle through proptest over valid, mutated, and random byte
+distributions (braid gained a minimal `fuzzing` cargo feature exposing just the
+message layer's cryptography dependency for the fuzz build).
+
+**Smoke results (2026-08-28, this host, 40s/target).** All eight vsc targets
+clean — ~7.9M executions total, zero crashes, zero bijection violations —
+including 2.19M runs through the Schnorr verifier, 677k through the NY
+verify-and-strip, and 1.4M/838k/431k/1.03M through the four deserializer
+oracles. The braid property tests (6) pass. Deeper campaigns: raise
+`-max_total_time`, and for the proptest side set `PROPTEST_CASES` (default 256).
+
+The v1 modules' standing `#[crate::warning]`s ("arithmetic side effects …
+pending fuzzing") were deleted with those modules; the new module uses checked
+arithmetic throughout and needs no such allowance — the fuzzing debt those
+warnings tracked is discharged.
