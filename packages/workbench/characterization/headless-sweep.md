@@ -18,12 +18,15 @@ the dialog projection, and the tally class.
 
 **Injection status (the per-component expectation).** Production is a
 hybrid while the rationalized implementation is injected site by site:
-the GATES are injected (`voting_screen.rs` routes through the
-query-provider), so production's gates and dialog are compared against
-the rationalized `f_fixed` — they now carry the fix ledger's gate
-changes (S6, S4's gate half, S1-none, S2S3's gate movements; see
-`fix-diff.md`) — while EMISSIONS (decode) and TALLY are not injected
-and are compared against the frozen oracle `f`. The subdomain: all values
+the GATES (`voting_screen.rs`) and DECODE (`raw_ballot.rs`) both route
+through the query-provider, and the TALLY classifies from the decoded
+record, so gates, dialog, emissions and tally are all compared against
+the rationalized `f_fixed` — production now carries the fix ledger's
+gate and decode changes (S6, both S4 halves, S2S3's emission/gate/tally
+movements; see `fix-diff.md`). Only the INLINE views (the TypeScript
+filter) are uninjected; the quotient inventory's per-class inline
+prediction is therefore the oracle filter applied to the fixed
+emissions (emit-grid's `hybrid` kind). The subdomain: all values
 of all six policies (dup/gap included — their inertness on plurality
 states is thereby production-confirmed, not assumed), bounds min 0..3 ×
 max 1..3 with min ≤ max (max = 0 stays out — the config-sanity scope
@@ -54,7 +57,7 @@ source read at the browser stage. Under it, the inline behaviour of
 every cell of this subdomain is covered by one booth run per
 **reachable class** of (emissions × consulted policies):
 
-**7848 reachable classes** (each with a representative cell and
+**7908 reachable classes** (each with a representative cell and
 the spec's predicted inline views, in `headless-sweep.recorded.json`) —
 versus 345,600 cells: the browser cost collapse the
 quotient buys. Driving each representative through the real booth and

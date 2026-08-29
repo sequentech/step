@@ -5,6 +5,7 @@ use crate::ballot::*;
 use crate::ballot_codec::*;
 use crate::plaintext::*;
 use crate::types::ceremonies::CountingAlgType;
+use crate::validation_provider::policy_emissions;
 use num_traits::ToPrimitive;
 use std::collections::HashMap;
 
@@ -373,84 +374,102 @@ impl RawBallotCodec for Contest {
             });
         }
 
-        let presentation = self.presentation.clone().unwrap_or_default();
+        // Policy-driven errors and alerts — the validation rules, evaluated
+        // from the contest configuration and the decoded selections
+        // (validation_provider). Encoding errors are recorded above.
+        match policy_emissions(self, &decoded_contest) {
+            Ok(policy_checks) => decoded_contest.update(policy_checks),
+            // min_votes/max_votes cannot be interpreted as counts: keep the
+            // per-bound checks — each runs with only the bounds it needs,
+            // and the invalid bounds are reported as encoding errors.
+            Err(_) => {
+                let presentation =
+                    self.presentation.clone().unwrap_or_default();
 
-        let invalid_vote_policy_errors =
-            check_invalid_vote_policy(&presentation, is_explicit_invalid);
-        decoded_contest.update(invalid_vote_policy_errors);
+                let invalid_vote_policy_errors = check_invalid_vote_policy(
+                    &presentation,
+                    is_explicit_invalid,
+                );
+                decoded_contest.update(invalid_vote_policy_errors);
 
-        // implicit invalid errors
-        let num_selected_candidates = decoded_contest
-            .choices
-            .iter()
-            .filter(|choice| {
-                choice.selected > -1
-                    && self
-                        .candidates
-                        .iter()
-                        .find(|candidate| candidate.id == choice.id)
-                        .map(|candidate| !candidate.is_explicit_blank())
-                        .unwrap_or(true)
-            })
-            .count();
+                // implicit invalid errors
+                let num_selected_candidates = decoded_contest
+                    .choices
+                    .iter()
+                    .filter(|choice| {
+                        choice.selected > -1
+                            && self
+                                .candidates
+                                .iter()
+                                .find(|candidate| candidate.id == choice.id)
+                                .map(|candidate| !candidate.is_explicit_blank())
+                                .unwrap_or(true)
+                    })
+                    .count();
 
-        let (max_votes, min_votes, maxmin_errors) =
-            check_max_min_votes_policy(self.max_votes, self.min_votes);
-        decoded_contest.update(maxmin_errors);
+                let (max_votes, min_votes, maxmin_errors) =
+                    check_max_min_votes_policy(self.max_votes, self.min_votes);
+                decoded_contest.update(maxmin_errors);
 
-        // Explicit invalid and explicit blank flags count as selections
-        // for the min_votes, max_votes, undervote and blank-vote rules.
-        let num_selected_with_markers = num_selected_candidates
-            + usize::from(is_explicit_invalid)
-            + usize::from(is_explicit_blank);
+                // Explicit invalid and explicit blank flags count as selections
+                // for the min_votes, max_votes, undervote and blank-vote rules.
+                let num_selected_with_markers = num_selected_candidates
+                    + usize::from(is_explicit_invalid)
+                    + usize::from(is_explicit_blank);
 
-        if let Some(max_votes) = max_votes.clone() {
-            let overvote_check = check_over_vote_policy(
-                &presentation,
-                num_selected_with_markers,
-                max_votes,
-            );
-            decoded_contest.update(overvote_check);
-        }
+                if let Some(max_votes) = max_votes.clone() {
+                    let overvote_check = check_over_vote_policy(
+                        &presentation,
+                        num_selected_with_markers,
+                        max_votes,
+                    );
+                    decoded_contest.update(overvote_check);
+                }
 
-        if let Some(min_votes) = min_votes.clone() {
-            let min_check =
-                check_min_vote_policy(num_selected_with_markers, min_votes);
-            decoded_contest.update(min_check);
-        }
+                if let Some(min_votes) = min_votes.clone() {
+                    let min_check = check_min_vote_policy(
+                        num_selected_with_markers,
+                        min_votes,
+                    );
+                    decoded_contest.update(min_check);
+                }
 
-        let under_vote_check = check_under_vote_policy(
-            &presentation,
-            num_selected_with_markers,
-            max_votes.clone(),
-            min_votes.clone(),
-        );
-        decoded_contest.update(under_vote_check);
+                let under_vote_check = check_under_vote_policy(
+                    &presentation,
+                    num_selected_with_markers,
+                    max_votes.clone(),
+                    min_votes.clone(),
+                );
+                decoded_contest.update(under_vote_check);
 
-        // handle blank vote policy. A selected explicit blank or explicit
-        // invalid marker counts as a selection, so it is not a blank vote.
-        let blank_vote_check = check_blank_vote_policy(
-            &presentation,
-            num_selected_with_markers,
-            is_explicit_invalid,
-        );
-        decoded_contest.update(blank_vote_check);
+                // handle blank vote policy. A selected explicit blank or explicit
+                // invalid marker counts as a selection, so it is not a blank vote.
+                let blank_vote_check = check_blank_vote_policy(
+                    &presentation,
+                    num_selected_with_markers,
+                    is_explicit_invalid,
+                );
+                decoded_contest.update(blank_vote_check);
 
-        if self.get_counting_algorithm().is_preferential() {
-            match decoded_contest.validate_preferencial_order() {
-                Ok(()) => {}
-                Err(errors) => {
-                    for error in errors {
-                        match error {
-                            PreferencialOrderErrorType::PreferenceOrderWithGaps => {
-                                let check =
-                                    check_preference_gaps_policy(&presentation);
-                                decoded_contest.update(check);
-                            }
-                            PreferencialOrderErrorType::DuplicatedPosition => {
-                                let check =
-                                    check_duplicated_rank_policy(&presentation);
-                                decoded_contest.update(check);
+                if self.get_counting_algorithm().is_preferential() {
+                    match decoded_contest.validate_preferencial_order() {
+                        Ok(()) => {}
+                        Err(errors) => {
+                            for error in errors {
+                                match error {
+                                    PreferencialOrderErrorType::PreferenceOrderWithGaps => {
+                                        let check = check_preference_gaps_policy(
+                                            &presentation,
+                                        );
+                                        decoded_contest.update(check);
+                                    }
+                                    PreferencialOrderErrorType::DuplicatedPosition => {
+                                        let check = check_duplicated_rank_policy(
+                                            &presentation,
+                                        );
+                                        decoded_contest.update(check);
+                                    }
+                                }
                             }
                         }
                     }

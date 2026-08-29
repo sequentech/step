@@ -2175,7 +2175,11 @@ mod tests {
 
     #[test]
     fn test_check_voting_not_allowed_next() {
-        // Case 1: InvalidVotePolicy::NOT_ALLOWED but there aren't any invalid_errors -> false
+        // Case 1: InvalidVotePolicy::NOT_ALLOWED with an explicitly-invalid
+        // ballot -> true. The gate evaluates the validation rules from the
+        // contest configuration and the ballot state, so the explicit-invalid
+        // flag blocks under NOT_ALLOWED whether or not the record already
+        // carries the corresponding error entry.
         let contest1 = get_contest_plurality(
             EOverVotePolicy::ALLOWED,
             EBlankVotePolicy::ALLOWED,
@@ -2187,6 +2191,21 @@ mod tests {
         decoded_contests1.insert(contest1.id.clone(), decoded_contest);
 
         let result = check_voting_not_allowed_next_util(vec![contest1], decoded_contests1);
+        assert_eq!(result, true);
+
+        // Case 1b: InvalidVotePolicy::NOT_ALLOWED alone does not block a
+        // clean ballot (empty, min_votes = 0, blank allowed) -> false
+        let contest1b = get_contest_plurality(
+            EOverVotePolicy::ALLOWED,
+            EBlankVotePolicy::ALLOWED,
+            InvalidVotePolicy::NOT_ALLOWED,
+            Some(0),
+        );
+        let mut decoded_contests1b: HashMap<String, DecodedVoteContest> = HashMap::new();
+        let decoded_contest = get_blank_decoded_contest_plurality(&contest1b);
+        decoded_contests1b.insert(contest1b.id.clone(), decoded_contest);
+
+        let result = check_voting_not_allowed_next_util(vec![contest1b], decoded_contests1b);
         assert_eq!(result, false);
 
         // Case 2: EBlankVotePolicy::NOT_ALLOWED and there aren't any votes cast -> true

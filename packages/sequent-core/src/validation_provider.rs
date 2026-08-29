@@ -27,11 +27,17 @@
 //! `DecodedVoteContest::is_blank_ballot` is not consulted: the rules
 //! derive blankness from the selections themselves.
 
+use std::collections::HashMap;
+
 use crate::ballot::{
     Contest, EBlankVotePolicy, EDuplicatedRankPolicy, EOverVotePolicy,
     EPreferenceGapsPolicy, EUnderVotePolicy, InvalidVotePolicy,
 };
-use crate::plaintext::{DecodedVoteContest, PreferencialOrderErrorType};
+use crate::ballot_codec::CheckerResult;
+use crate::plaintext::{
+    DecodedVoteContest, InvalidPlaintextError, InvalidPlaintextErrorType,
+    PreferencialOrderErrorType,
+};
 use validation_spec as spec;
 
 /// A contest configuration that cannot be converted for validation.
@@ -176,6 +182,102 @@ pub fn contest_config(
                     .unwrap_or_default(),
             ),
         },
+    })
+}
+
+/// One checker record for a validation-rule message key. The `error_type`
+/// and `message_map` parameters mirror `ballot_codec/checker.rs` field for
+/// field: `numSelected` is the marker-inclusive selection count, `min`/`max`
+/// the contest bounds, and the alert-style entries carry `type: "alert"`.
+fn plaintext_error(
+    key: &str,
+    n: u32,
+    min: u32,
+    max: u32,
+) -> InvalidPlaintextError {
+    let num_selected = || ("numSelected".to_string(), n.to_string());
+    let alert_type = || ("type".to_string(), "alert".to_string());
+    let (error_type, message_map) = match key {
+        spec::EXPLICIT_NOT_ALLOWED | spec::EXPLICIT_ALERT => {
+            (InvalidPlaintextErrorType::Explicit, HashMap::new())
+        }
+        spec::SELECTED_MAX => (
+            InvalidPlaintextErrorType::Implicit,
+            HashMap::from([
+                num_selected(),
+                ("max".to_string(), max.to_string()),
+            ]),
+        ),
+        spec::OVER_VOTE_DISABLED => (
+            InvalidPlaintextErrorType::Implicit,
+            HashMap::from([
+                alert_type(),
+                num_selected(),
+                ("max".to_string(), max.to_string()),
+            ]),
+        ),
+        spec::SELECTED_MIN => (
+            InvalidPlaintextErrorType::Implicit,
+            HashMap::from([
+                num_selected(),
+                ("min".to_string(), min.to_string()),
+            ]),
+        ),
+        spec::UNDER_VOTE => (
+            InvalidPlaintextErrorType::Implicit,
+            HashMap::from([
+                alert_type(),
+                num_selected(),
+                ("min".to_string(), min.to_string()),
+                ("max".to_string(), max.to_string()),
+            ]),
+        ),
+        spec::BLANK_VOTE => (
+            InvalidPlaintextErrorType::Implicit,
+            HashMap::from([alert_type(), num_selected()]),
+        ),
+        // duplicatedPosition and preferenceOrderWithGaps carry no
+        // parameters; the arm also covers any future key conservatively
+        // (an Implicit record with the key and no parameters).
+        _ => (InvalidPlaintextErrorType::Implicit, HashMap::new()),
+    };
+    InvalidPlaintextError {
+        error_type,
+        candidate_id: None,
+        message: Some(key.to_string()),
+        message_map,
+    }
+}
+
+/// The policy-driven checker record for one contest — the errors and alerts
+/// the validation rules produce from the contest configuration and the
+/// decoded selections, in the order ballot decoding appends them. Encoding
+/// and configuration errors are not produced here; decoding stamps those on
+/// the record itself. Fails when `min_votes`/`max_votes` cannot be
+/// interpreted as counts — the caller keeps the per-bound checks for that
+/// case (each check runs with only the bounds it needs).
+pub fn policy_emissions(
+    contest: &Contest,
+    decoded: &DecodedVoteContest,
+) -> Result<CheckerResult, ValidationProviderError> {
+    let config = contest_config(contest)?;
+    let (min, max) = (config.min, config.max);
+    let vs = vote_state(contest, decoded);
+    let n = spec::selections_with_markers(&vs);
+    let validator =
+        spec::ContestValidator::from_config(config).for_vote_state(vs);
+    let emissions = validator.emissions();
+    Ok(CheckerResult {
+        invalid_errors: emissions
+            .errors
+            .iter()
+            .map(|key| plaintext_error(key, n, min, max))
+            .collect(),
+        invalid_alerts: emissions
+            .alerts
+            .iter()
+            .map(|key| plaintext_error(key, n, min, max))
+            .collect(),
     })
 }
 

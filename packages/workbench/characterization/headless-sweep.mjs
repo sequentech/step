@@ -55,18 +55,23 @@ import {performance} from "node:perf_hooks"
 import {loadWasm, loadVelvetWasm} from "./harness.mjs"
 import {observeHeadless, shortKey} from "./cell.mjs"
 import {POLICY_VALUES, DOMAIN_DESCRIPTION, certifiedCells} from "./domain.mjs"
-import {specF, specFixed} from "./rust-spec.mjs"
+import {specHybrid} from "./rust-spec.mjs"
 
 // INJECTION STATUS — the per-component expectation. Production is a hybrid
 // while the injection proceeds: an injected component must match the
 // RATIONALIZED implementation (f_fixed — it now carries the fix ledger's
 // changes), an uninjected one must still match the FROZEN ORACLE (f).
-//   gates (hard/soft/dialog)  → INJECTED (voting_screen.rs routes through
-//                               the query-provider)   → compared vs f_fixed
-//   emissions (decode)        → not injected           → compared vs f
-//   tally (velvet classify)   → not injected           → compared vs f
-// When a component flips, update this table and the comparison below — an
-// expectation that lags the injection reads as disagreements, not silence.
+//   gates (hard/soft/dialog)  → INJECTED (voting_screen.rs)  → vs f_fixed
+//   emissions (decode)        → INJECTED (raw_ballot.rs)     → vs f_fixed
+//   tally (velvet classify)   → classifies from the decoded record, so it
+//                               moves with decode             → vs f_fixed
+//   inline (the TS filter)    → NOT injected — the oracle filter over the
+//                               now-fixed emissions
+// That composition is emit-grid's "hybrid" kind (specHybrid), which this
+// runner therefore compares against for every headless effect; the quotient
+// inventory's per-class inline prediction is the hybrid's too. When the
+// filter is injected, hybrid collapses into f_fixed. An expectation that
+// lags the injection reads as disagreements, not silence.
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
@@ -102,8 +107,7 @@ for (const invalid of INVALID) {
         const blockCells = ALL.filter(
             (c) => c.config.policies.invalid === invalid && c.config.policies.blank === blank
         )
-        const blockSpecs = specF(blockCells)
-        const blockFixed = specFixed(blockCells)
+        const blockSpecs = specHybrid(blockCells)
 
         for (let ci = 0; ci < blockCells.length; ci++) {
             const cell = blockCells[ci]
@@ -111,12 +115,9 @@ for (const invalid of INVALID) {
             cells++
             const prod = observeHeadless(cell)
             const spec = blockSpecs[ci]
-            // The injected component's expectation (see INJECTION STATUS):
-            // gates come from the rationalized implementation.
-            const fixedGate = blockFixed[ci].gate
-            const specDialog = fixedGate.hard
+            const specDialog = spec.gate.hard
                 ? "blocking"
-                : fixedGate.soft
+                : spec.gate.soft
                   ? "dismissible"
                   : "none"
             const prodDialog = prod.hard
@@ -129,8 +130,8 @@ for (const invalid of INVALID) {
             const bad =
                 !eq(sortedUniq(prod.errors), sortedUniq(specErrors)) ||
                 !eq(sortedUniq(prod.alerts), sortedUniq(specAlerts)) ||
-                prod.hard !== fixedGate.hard ||
-                prod.soft !== fixedGate.soft ||
+                prod.hard !== spec.gate.hard ||
+                prod.soft !== spec.gate.soft ||
                 prodDialog !== specDialog ||
                 prod.tally !== spec.tally
             if (bad) {
@@ -140,8 +141,8 @@ for (const invalid of INVALID) {
                     spec: {
                         errors: specErrors,
                         alerts: specAlerts,
-                        hard: fixedGate.hard,
-                        soft: fixedGate.soft,
+                        hard: spec.gate.hard,
+                        soft: spec.gate.soft,
                         tally: spec.tally,
                     },
                 })
@@ -243,12 +244,15 @@ const md = [
     "",
     "**Injection status (the per-component expectation).** Production is a",
     "hybrid while the rationalized implementation is injected site by site:",
-    "the GATES are injected (`voting_screen.rs` routes through the",
-    "query-provider), so production's gates and dialog are compared against",
-    "the rationalized `f_fixed` — they now carry the fix ledger's gate",
-    "changes (S6, S4's gate half, S1-none, S2S3's gate movements; see",
-    "`fix-diff.md`) — while EMISSIONS (decode) and TALLY are not injected",
-    "and are compared against the frozen oracle `f`. The subdomain: all values",
+    "the GATES (`voting_screen.rs`) and DECODE (`raw_ballot.rs`) both route",
+    "through the query-provider, and the TALLY classifies from the decoded",
+    "record, so gates, dialog, emissions and tally are all compared against",
+    "the rationalized `f_fixed` — production now carries the fix ledger's",
+    "gate and decode changes (S6, both S4 halves, S2S3's emission/gate/tally",
+    "movements; see `fix-diff.md`). Only the INLINE views (the TypeScript",
+    "filter) are uninjected; the quotient inventory's per-class inline",
+    "prediction is therefore the oracle filter applied to the fixed",
+    "emissions (emit-grid's `hybrid` kind). The subdomain: all values",
     "of all six policies (dup/gap included — their inertness on plurality",
     "states is thereby production-confirmed, not assumed), bounds min 0..3 ×",
     "max 1..3 with min ≤ max (max = 0 stays out — the config-sanity scope",

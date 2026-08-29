@@ -3,25 +3,30 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! Adapter conformance — the native analogue of the wasm sweep, with the
-//! adapters in the loop, expectations split by injection status:
-//!
-//!   production decode  ≡  ORACLE `f` ∘ (contest_config, vote_state)
-//!       — decode is NOT injected: it must still match the bug-compatible
-//!         oracle's emissions;
-//!   production gates   ≡  RATIONALIZED `f_fixed` ∘ (…)
-//!       — the gates ARE injected (voting_screen.rs routes through the
-//!         query-provider), so production now carries the ledger's gate
-//!         fixes and must match `f_fixed`.
+//! adapters in the loop. Decode and the gates are both injected
+//! (raw_ballot.rs and voting_screen.rs route through the query-provider),
+//! so production's emissions AND gates must match the RATIONALIZED
+//! `f_fixed` ∘ (contest_config, vote_state).
 //!
 //! For every cell of a policy × vote-state matrix mirroring the seven
 //! characterization grids (on the real bundled-fixture contests), the wire
 //! selection is round-tripped through production's own codec
 //! (`encode_plaintext_contest_bigint` → `decode_plaintext_contest_bigint`)
-//! and production's own gate functions, and compared per the split above.
+//! and production's own gate functions, and compared against `f_fixed`.
 //!
-//! Also asserted per cell: deriving the `VoteState` from the PRE-decode wire
-//! selection and from the POST-decode record gives the same answer (the
-//! marker/flag route convergence the adapter mirrors).
+//! Also asserted per cell:
+//!
+//!   * route convergence — deriving the `VoteState` from the PRE-decode
+//!     wire selection and from the POST-decode record gives the same
+//!     answer;
+//!   * record fidelity — the PRE-injection checker sequence (the checker
+//!     functions in their raw_ballot.rs call order, reproduced verbatim in
+//!     [`legacy_policy_checks`]), transformed by EXACTLY the fix ledger's
+//!     two decode movements (S2S3: no `selectedMin` for a deliberate
+//!     blank; S4: no `underVote` alert on the empty ballot), equals the
+//!     provider's `policy_emissions` record for record — `error_type`,
+//!     message key, `message_map`, order. The behaviour change at the
+//!     decode site is those two movements and nothing else.
 
 use std::collections::HashMap;
 use std::fs;
@@ -31,13 +36,18 @@ use sequent_core::ballot::{
     Contest, EBlankVotePolicy, EDuplicatedRankPolicy, EOverVotePolicy, EPreferenceGapsPolicy,
     EUnderVotePolicy, InvalidVotePolicy,
 };
-use sequent_core::ballot_codec::BigUIntCodec;
-use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
+use sequent_core::ballot_codec::{
+    check_blank_vote_policy, check_duplicated_rank_policy, check_invalid_vote_policy,
+    check_max_min_votes_policy, check_min_vote_policy, check_over_vote_policy,
+    check_preference_gaps_policy, check_under_vote_policy, BigUIntCodec, CheckerResult,
+};
+use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest, PreferencialOrderErrorType};
 use sequent_core::util::voting_screen::{
     check_voting_error_dialog_util, check_voting_not_allowed_next_util,
 };
+use sequent_core::validation_provider::policy_emissions;
 use validation_adapters::{contest_config, for_ballot, vote_state, AdapterError};
-use validation_spec::{f, f_fixed};
+use validation_spec::{f_fixed, selections_with_markers, SELECTED_MIN, UNDER_VOTE};
 
 // ---------------------------------------------------------------------------
 // Fixture loading — the same bundled snapshots the characterization uses
@@ -142,8 +152,90 @@ fn keys(errors: &[sequent_core::plaintext::InvalidPlaintextError]) -> Vec<String
         .collect()
 }
 
+/// The PRE-injection policy-check sequence of `raw_ballot.rs::decode`,
+/// verbatim (the checker functions in their original call order, fed the
+/// same marker-inclusive count) — the "before" leg of the record-fidelity
+/// assertion. Bounds are assumed representable (every grid cell's are).
+fn legacy_policy_checks(contest: &Contest, decoded: &DecodedVoteContest) -> CheckerResult {
+    let presentation = contest.presentation.clone().unwrap_or_default();
+    let is_explicit_invalid = decoded.is_explicit_invalid;
+    let is_explicit_blank = decoded.choices.iter().any(|choice| {
+        choice.selected > -1
+            && contest
+                .candidates
+                .iter()
+                .any(|c| c.id == choice.id && c.is_explicit_blank())
+    });
+
+    let mut result = CheckerResult::default();
+    let mut push = |r: CheckerResult| {
+        result.invalid_errors.extend(r.invalid_errors);
+        result.invalid_alerts.extend(r.invalid_alerts);
+    };
+
+    push(check_invalid_vote_policy(
+        &presentation,
+        is_explicit_invalid,
+    ));
+
+    let num_selected_candidates = decoded
+        .choices
+        .iter()
+        .filter(|choice| {
+            choice.selected > -1
+                && contest
+                    .candidates
+                    .iter()
+                    .find(|candidate| candidate.id == choice.id)
+                    .map(|candidate| !candidate.is_explicit_blank())
+                    .unwrap_or(true)
+        })
+        .count();
+    let (max_votes, min_votes, maxmin_errors) =
+        check_max_min_votes_policy(contest.max_votes, contest.min_votes);
+    push(maxmin_errors);
+    let num_selected_with_markers =
+        num_selected_candidates + usize::from(is_explicit_invalid) + usize::from(is_explicit_blank);
+    if let Some(max_votes) = max_votes {
+        push(check_over_vote_policy(
+            &presentation,
+            num_selected_with_markers,
+            max_votes,
+        ));
+    }
+    if let Some(min_votes) = min_votes {
+        push(check_min_vote_policy(num_selected_with_markers, min_votes));
+    }
+    push(check_under_vote_policy(
+        &presentation,
+        num_selected_with_markers,
+        max_votes,
+        min_votes,
+    ));
+    push(check_blank_vote_policy(
+        &presentation,
+        num_selected_with_markers,
+        is_explicit_invalid,
+    ));
+    if contest.get_counting_algorithm().is_preferential() {
+        if let Err(errors) = decoded.validate_preferencial_order() {
+            for error in errors {
+                match error {
+                    PreferencialOrderErrorType::PreferenceOrderWithGaps => {
+                        push(check_preference_gaps_policy(&presentation))
+                    }
+                    PreferencialOrderErrorType::DuplicatedPosition => {
+                        push(check_duplicated_rank_policy(&presentation))
+                    }
+                }
+            }
+        }
+    }
+    result
+}
+
 /// Round-trip through production's codec, evaluate production's gates, and
-/// compare everything against the oracle through the adapters.
+/// compare everything against `f_fixed` through the adapters.
 fn assert_cell(contest: &Contest, input: &DecodedVoteContest, label: &str) {
     let bigint = contest
         .encode_plaintext_contest_bigint(input)
@@ -171,22 +263,45 @@ fn assert_cell(contest: &Contest, input: &DecodedVoteContest, label: &str) {
         "{label}: pre-decode and post-decode derivations disagree"
     );
 
-    // Decode is not injected: emissions match the bug-compatible oracle.
-    let oracle = f(&config, &vs);
+    // Decode and the gates are injected: production matches f_fixed.
+    let fixed = f_fixed(&config, &vs);
     assert_eq!(
-        oracle.emissions.errors,
+        fixed.emissions.errors,
         keys(&decoded.invalid_errors),
         "{label}: errors disagree"
     );
     assert_eq!(
-        oracle.emissions.alerts,
+        fixed.emissions.alerts,
         keys(&decoded.invalid_alerts),
         "{label}: alerts disagree"
     );
-    // The gates are injected: production matches the rationalized f_fixed.
-    let fixed = f_fixed(&config, &vs);
     assert_eq!(fixed.gate.hard, prod_hard, "{label}: hard gate disagrees");
     assert_eq!(fixed.gate.soft, prod_soft, "{label}: soft gate disagrees");
+
+    // Record fidelity: the legacy checker sequence, transformed by EXACTLY
+    // the fix ledger's two decode movements, equals the provider's record —
+    // error_type, key, message_map and order included.
+    let mut expected = legacy_policy_checks(contest, &decoded);
+    let n = selections_with_markers(&vs);
+    let deliberate_blank = vs.blank_marker && vs.regulars == 0 && !vs.explicit_invalid;
+    if deliberate_blank {
+        // S2S3: a deliberate blank is not subject to the min-vote rule.
+        expected
+            .invalid_errors
+            .retain(|e| e.message.as_deref() != Some(SELECTED_MIN));
+    }
+    if n == 0 {
+        // S4: the empty ballot is not an under-vote (the blank rule's domain).
+        expected
+            .invalid_alerts
+            .retain(|a| a.message.as_deref() != Some(UNDER_VOTE));
+    }
+    let provider = policy_emissions(contest, &decoded)
+        .unwrap_or_else(|e| panic!("{label}: provider rejected the config: {e}"));
+    assert_eq!(
+        expected, provider,
+        "{label}: provider record differs from legacy beyond the two named fixes"
+    );
 }
 
 fn with_policies(
