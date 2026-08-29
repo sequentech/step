@@ -1132,6 +1132,7 @@ pub struct ElectionEventPresentation {
     pub language_conf: Option<ElectionEventLanguageConf>,
     pub logo_url: Option<String>,
     pub redirect_finish_url: Option<String>,
+    pub kiosk_redirect_finish_url: Option<String>,
     pub css: Option<String>,
     pub skip_election_list: Option<bool>,
     pub show_user_profile: Option<bool>, // default is true
