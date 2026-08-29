@@ -22,9 +22,14 @@ use std::collections::HashMap;
 /// honoured directly: an `Explicit` or `EncodingError` entry in
 /// `invalid_errors` blocks Next, and an `EncodingError` entry also
 /// requires confirmation unless the invalid-vote policy allows invalid
-/// ballots. A contest whose `min_votes`/`max_votes` cannot be interpreted
-/// as counts is gated by those recorded errors alone (decoding reports
-/// such bounds as encoding errors).
+/// ballots.
+///
+/// If the contest's `min_votes`/`max_votes` are invalid (negative or out
+/// of range), no
+/// rules can be evaluated — [`contest_config`] fails — and the recorded
+/// errors decide the outcome by themselves. Such a contest still blocks
+/// Next, because decoding reports invalid bounds as `EncodingError`
+/// entries.
 fn contest_gates(
     contest: &Contest,
     decoded_contest: &DecodedVoteContest,

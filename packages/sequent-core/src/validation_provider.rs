@@ -18,7 +18,7 @@
 //!   choices at rank 0, and `duplicate_ranks` / `rank_gaps` come from
 //!   [`DecodedVoteContest::validate_preferencial_order`]; on
 //!   non-preferential contests all three are absent.
-//! - `min_votes` / `max_votes` that cannot be interpreted as counts are
+//! - Invalid (negative or out-of-range) `min_votes` / `max_votes` are
 //!   rejected as [`ValidationProviderError::UnrepresentableBounds`].
 //!   Ballot decoding reports such bounds as encoding errors
 //!   (`errors.encoding.invalidMinVotes` / `invalidMaxVotes`), which
