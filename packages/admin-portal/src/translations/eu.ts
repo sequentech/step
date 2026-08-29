@@ -572,6 +572,7 @@ const basqueTranslation: TranslationType = {
                 userVerification:
                     "Bozkatzaileak eskuz egiaztatzeko erabiliko den txantiloi pertsonalizatu bat sar dezakezu",
                 redirectFinishUrl: "Berbideratu Amaiera URLa",
+                kioskRedirectFinishUrl: "Kioskoaren amaierako berbideratze URLa",
                 css: "CSS Pertsonalizatua",
                 skipElectionList: "Saltatu Hauteskunde Zerrenda Pantaila",
                 showUserProfile: "Erakutsi Erabiltzaile Profila",

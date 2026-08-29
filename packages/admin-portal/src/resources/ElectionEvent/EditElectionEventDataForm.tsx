@@ -1344,6 +1344,11 @@ export const EditElectionEventDataForm: React.FC<{
                         />
                         <TextInput
                             resettable={true}
+                            source={"presentation.kiosk_redirect_finish_url"}
+                            label={String(t("electionEventScreen.field.kioskRedirectFinishUrl"))}
+                        />
+                        <TextInput
+                            resettable={true}
                             multiline={true}
                             source={"presentation.css"}
                             label={String(t("electionEventScreen.field.css"))}
