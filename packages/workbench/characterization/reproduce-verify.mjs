@@ -38,7 +38,9 @@ const RUNNERS = [
         confirmed: (d) => d.confirmed_end_to_end === true,
     },
     {
-        finding: "S2 — deliberate blank below min_votes silently discarded",
+        finding:
+            "S1 min-vote family — three standing silent discounts, plus the " +
+            "injected S2/S3 fix (deliberate blank now counted explicit-blank)",
         script: "minvote-e2e-pipeline.mjs",
         recorded: "minvote-e2e-pipeline.recorded.json",
         confirmed: (d) => d.all_confirmed === true,

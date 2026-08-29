@@ -38,7 +38,7 @@ import {performance} from "node:perf_hooks"
 import {fileURLToPath} from "node:url"
 import path from "node:path"
 import {loadSnapshot} from "./browser-harness.mjs"
-import {specF, specFixed} from "./rust-spec.mjs"
+import {specHybrid} from "./rust-spec.mjs"
 import {inCertifiedDomain} from "./domain.mjs"
 import {RULE_SPECS, RULE_ROWS, contestAndVoter, observeBooth, isReached} from "./rule-specs.mjs"
 
@@ -70,24 +70,20 @@ const uniq = (xs) => [...new Set(xs)].sort()
 // before the browser work starts and looked up by the runner as it goes.
 //
 // INJECTION STATUS — the per-component expectation (mirrors
-// headless-sweep.mjs). Production is a hybrid while the rationalized
-// implementation is injected site by site, so each prediction comes from
-// the implementation production actually runs for that component:
-//   dialog + gate columns → INJECTED (voting_screen.rs routes through the
-//                           query-provider)      → predicted from f_fixed
-//   inline views (the TS message filter),
-//   reachability (the booth's disable/clear),
-//   emissions + tally     → not injected          → predicted from f
-// When a component flips, move its prediction — an expectation that lags
-// the injection reads as DOM disagreements, not silence.
+// headless-sweep.mjs). The gates AND decode are injected, and the tally
+// classifies from the decoded record, so gates, dialog, emissions and
+// tally come from the rationalized f_fixed; only the TypeScript message
+// filter is uninjected, so inline is the oracle filter applied to the
+// fixed emissions. That composition is emit-grid's "hybrid" kind
+// (specHybrid) — every prediction here comes from it. When the filter is
+// injected, hybrid collapses into f_fixed. An expectation that lags the
+// injection reads as DOM disagreements, not silence.
 //
 // This compares the DOM against the artifact the project ships, rather than
 // against inline re-derived from each cell's own recorded emissions. The two
-// coincide wherever the sweep certifies production ≡ spec per component
-// (emissions/tally vs f, gates/dialog vs f_fixed), which is checked below
-// (`outsideSweptDomain`) rather than assumed.
+// coincide wherever the sweep certifies production ≡ hybrid per component,
+// which is checked below (`outsideSweptDomain`) rather than assumed.
 const predictions = new Map()
-const predictionsFixed = new Map()
 const predKey = (ruleName, i) => `${ruleName}#${i}`
 const outsideSweptDomain = []
 
@@ -231,10 +227,8 @@ const t0 = performance.now()
             if (why)
                 outsideSweptDomain.push({rule: rule.name, cell: rule.label(r), reason: why})
         }
-    const outs = specF(batch)
+    const outs = specHybrid(batch)
     outs.forEach((o, i) => predictions.set(keys[i], o))
-    const outsFixed = specFixed(batch)
-    outsFixed.forEach((o, i) => predictionsFixed.set(keys[i], o))
     console.log(
         `predicted ${outs.length} cells from the Rust spec; ` +
             `${outsideSweptDomain.length} outside the swept domain`
@@ -271,12 +265,9 @@ for (const rule of RULES) {
         // ("marker_cleared"). Either way the cell is `constrained`. Computed
         // uniformly from the same cell definitions the runners feed spec.f.
         const pred = predictions.get(predKey(rule.name, ri))
-        const predFixed = predictionsFixed.get(predKey(rule.name, ri))
         // Effect columns come from the state that forms; reachability from
         // the state that was requested.
         const eff = predictions.get(predKey(rule.name, ri) + "@effects") ?? pred
-        const effFixed =
-            predictionsFixed.get(predKey(rule.name, ri) + "@effects") ?? predFixed
         const reach = pred.reachability
         const constraintPred = reach === "yes" ? null : reach
         const constrained = constraintPred !== null
@@ -300,8 +291,7 @@ for (const rule of RULES) {
             !inlineComparable ||
             JSON.stringify(uniq(obs.inlineAtReview ?? [])) ===
                 JSON.stringify(uniq(pred.inline.review))
-        // The dialog is an injected component (see INJECTION STATUS).
-        const dialogOk = constrained || obs.dialog === predFixed.dialog
+        const dialogOk = constrained || obs.dialog === pred.dialog
         // Direct DOM evidence for the constraint — a second signal beyond
         // behavioural non-reachability, specific to the mechanism: the disable
         // policy's (max+1)th control must carry `disabled` (obs.constraintProbe),
@@ -333,8 +323,8 @@ for (const rule of RULES) {
             alerts: eff.emissions.alerts,
             inlineVoting: short(obs.inlineAtVote),
             inlineReview: obs.dialog === "blocking" ? "(blocked)" : short(obs.inlineAtReview),
-            hard: effFixed.gate.hard,
-            soft: effFixed.gate.soft,
+            hard: eff.gate.hard,
+            soft: eff.gate.soft,
             reachable: domReachable,
             constraintKind: constraintPred,
             constraintProbe: obs.constraintProbe,
@@ -350,7 +340,7 @@ for (const rule of RULES) {
                     `predV=${JSON.stringify(uniq(pred.inline.voting))} ` +
                     `inline@review=${JSON.stringify(uniq(obs.inlineAtReview ?? []))} ` +
                     `predR=${JSON.stringify(uniq(pred.inline.review))} ` +
-                    `dialog=${obs.dialog}/${predFixed.dialog} reachable=${domReachable}/${!constrained} ` +
+                    `dialog=${obs.dialog}/${pred.dialog} reachable=${domReachable}/${!constrained} ` +
                     `constraint=${constraintPred} probe=${obs.constraintProbe} selected=${JSON.stringify(obs.selected)}`
             )
         }
@@ -415,11 +405,12 @@ const md = [
     "*matches spec?* column subsumes the partial's `pred?` and extends it to the",
     "browser observations (including the observed dialog vs the gates): ✗ = spec and",
     "DOM disagree. Predictions follow the injection status (`headless-sweep.md`):",
-    "production's gates are injected, so the *hard/soft gate* columns and the",
-    "dialog expectation come from the RATIONALIZED implementation (`f_fixed`);",
-    "*errors*, *alerts*, *tally*, the inline predictions and reachability come",
-    "from the FROZEN ORACLE (`f`) — decode, tally and the booth's TypeScript",
-    "are not injected. `(blocked)` inline means a blocking dialog preempts review —",
+    "the gates and decode are injected and the tally classifies from the",
+    "decoded record, so *errors*, *alerts*, the *hard/soft gate* columns, the",
+    "dialog expectation and *tally* come from the RATIONALIZED implementation",
+    "(`f_fixed`); only the TypeScript message filter is uninjected, so the",
+    "inline predictions are the ORACLE filter applied to the fixed emissions",
+    "(emit-grid's `hybrid` kind). `(blocked)` inline means a blocking dialog preempts review —",
     "the dialog is the signal there. For an unreachable state both inline",
     "columns show what the state that ACTUALLY formed renders (the *reachable*",
     "column qualifies it); they are compared against the spec only for",

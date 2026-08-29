@@ -263,11 +263,11 @@ preference-gaps) on the IRV fixture with ranked selection — observing inline
 visibility at the touched voting screen and at the review screen, and
 reachability (the input constraint), and
 emits the **complete** tables in [`dom-validate.md`](dom-validate.md) —
-**233/233 matching the spec**, each prediction drawn from the
-implementation production actually runs for that component (the observed
-dialog and the gate columns from the injected, rationalized `f_fixed`;
-inline, reachability, emissions and tally from the frozen oracle `f` —
-the same split as `headless-sweep.mjs`) (see the e2e-cost note in
+**233/233 matching the spec**, every prediction drawn from the
+implementation production actually runs (emit-grid's **hybrid** kind,
+the same expectation as `headless-sweep.mjs`: everything from the
+injected, rationalized `f_fixed` except inline, which is the uninjected
+TypeScript filter modelled over the fixed emissions) (see the e2e-cost note in
 [`../docs/VALIDATION_LOGIC_DISTILLATION.md`](../docs/VALIDATION_LOGIC_DISTILLATION.md)
 §5.3).
 
@@ -288,7 +288,7 @@ witnesses; `quotient-validate.mjs` discharges the browser-side
 independence claims by **sufficiency** — the filter reads the inputs only
 through a computed summary, so cells sharing that summary must behave
 alike and one booth run settles the whole class (one run per reachable
-emissions × consulted-policies class — 195,520 cells covered via 2,616
+emissions × consulted-policies class — 195,520 cells covered via 2,676
 classes). Zero disagreements on every stage; everything unreachable is
 labelled with its unblocking condition.
 
@@ -307,7 +307,7 @@ against the spec.
 
 | command (`node characterization/…`) | produces |
 |---|---|
-| `headless-sweep.mjs` | `headless-sweep.md` + `.recorded.json` — production (real WASM checker/gates/tally) vs the Rust spec on **every** cell of the representable headless domain: all six policies × sane bounds × plurality states × the reachable preferential states; **345,600 cells, ~1 min**. Expectations are split by **injection status** (the table in the runner's header): the gates are injected, so production's gates/dialog are compared against the rationalized `f_fixed`; emissions and tally are not, and compare against the frozen oracle `f`. This is the exhaustive fidelity check, and it emits the quotient inventory the browser stage consumes |
+| `headless-sweep.mjs` | `headless-sweep.md` + `.recorded.json` — production (real WASM checker/gates/tally) vs the Rust spec on **every** cell of the representable headless domain: all six policies × sane bounds × plurality states × the reachable preferential states; **345,600 cells, ~1 min**. Compared against emit-grid's **hybrid** kind — production as currently injected (the table in the runner's header): the gates AND decode are injected and the tally classifies from the decoded record, so gates, dialog, emissions and tally are the rationalized `f_fixed`'s; only the inline views (the TypeScript filter) are uninjected, so the quotient inventory's per-class inline predictions are the oracle filter applied to the fixed emissions. This is the exhaustive fidelity check, and it emits the quotient inventory the browser stage consumes |
 | `classifier-table.mjs` | `classifier-table.recorded.json` + `.md` — velvet-wasm's real tally vs the spec's `classify` on the classifier's own 32-cell cross-product, including the decline inputs the decode cannot reach |
 | `ballot-gate-composition.mjs` | `ballot-gate-composition.recorded.json` + `.md` — the real wasm gates' cross-contest OR vs `BallotValidator` over two contests × {no-gate, hard, soft}; closes the gate-composition scope boundary |
 
@@ -321,9 +321,9 @@ corepack yarn workspace "@sequentech/workbench-app" dev
 
 | command (`node characterization/…`) | produces | what it does |
 |---|---|---|
-| `dom-validate.mjs` | `dom-validate.md` + `.recorded.json` | the **complete** tables — the Rust spec's predictions vs the real DOM across every cell of all seven rules: inline visibility at **both** observation points (touched voting screen and review), reachability, and the untouched view asserted empty per cell; predictions split by injection status (dialog + gate columns from `f_fixed`, the rest from the oracle); 233/233, ~8 min |
-| `quotient-validate.mjs` | `quotient-validate.md` + `.recorded.json` | the browser-side *independence* claims discharged by sufficiency — one booth-formable member per quotient class from `headless-sweep.md`, inline compared at both observation points, re-observed up to 3× on mismatch (the 2026-08-19 run needed it on 8 classes, which would otherwise have been recorded as disagreements); whether review renders is decided by the chosen member's **production** gate — the injected `f_fixed`, member-determined, not class-determined (the deliberate-blank exemption reads past the emissions); the license (the filter's props boundary) is source-verified and stated with its re-entry condition; classes with no formable member labelled. ~1 h |
-| `browser-witnesses.mjs` | `browser-witnesses.md` + `.recorded.json` | every browser-pending dependence witness from `effect-dependencies.md` (inline-view and reachability components) driven through the real booth on a generic per-cell recipe, both cells compared against the spec; unobservable witnesses labelled. Review-observability is pre-filtered by the **injected** gate (`f_fixed`); the comparisons themselves are against the oracle (inline and reachability are not injected) |
+| `dom-validate.mjs` | `dom-validate.md` + `.recorded.json` | the **complete** tables — the Rust spec's predictions vs the real DOM across every cell of all seven rules: inline visibility at **both** observation points (touched voting screen and review), reachability, and the untouched view asserted empty per cell; every prediction from emit-grid's **hybrid** kind (production as currently injected — everything `f_fixed` except inline, which is the oracle filter over the fixed emissions); 233/233, ~8 min |
+| `quotient-validate.mjs` | `quotient-validate.md` + `.recorded.json` | the browser-side *independence* claims discharged by sufficiency — one booth-formable member per quotient class from `headless-sweep.md`, inline compared at both observation points, re-observed up to 3× on mismatch (the 2026-08-19 run needed it on 8 classes, which would otherwise have been recorded as disagreements); member selection matches the class key on the **hybrid**'s emissions (production's — decode is injected), and whether review renders is decided by the chosen member's production gate — the injected implementation's, member-determined, not class-determined (the deliberate-blank exemption reads past the emissions); the license (the filter's props boundary) is source-verified and stated with its re-entry condition; classes with no formable member labelled. ~1 h |
+| `browser-witnesses.mjs` | `browser-witnesses.md` + `.recorded.json` | every browser-pending dependence witness from `effect-dependencies.md` (inline-view and reachability components) driven through the real booth on a generic per-cell recipe, both cells compared against the spec; unobservable witnesses labelled. Every spec value is the **hybrid**'s: review-observability and reachability from the injected implementation, inline from the one uninjected component — the oracle filter — over the injected decode's emissions |
 
 ### Evidence — the findings' end-to-end chain (dev server)
 
@@ -331,7 +331,7 @@ corepack yarn workspace "@sequentech/workbench-app" dev
 |---|---|---|
 | `reproduce-verify.mjs` | `reproduce-verify.recorded.json` | runs the three runners below in sequence and aggregates one pass/fail |
 | `overvote-e2e-pipeline.mjs` | `overvote-e2e-pipeline.recorded.json` | S1 over-vote: booth → cast → decrypt → decode → tally in one continuous run |
-| `minvote-e2e-pipeline.mjs` | `minvote-e2e-pipeline.recorded.json` | S2 below-min (all four cells), same full pipeline |
+| `minvote-e2e-pipeline.mjs` | `minvote-e2e-pipeline.recorded.json` | the min-vote family, same full pipeline, per-cell expectations: the three standing S1 silent discounts (the display half awaits the filter injection), plus the S2 cell confirming the **injected** S2/S3 fix — the deliberate blank is counted (`blank_votes.explicit`), not discarded |
 | `invalid-latent-choices-e2e.mjs` | `invalid-latent-choices-e2e.recorded.json` | S5 null-vote choice leakage, same full pipeline |
 
 ### Analysis (needs `cargo` only — no wasm, no browser)
@@ -342,8 +342,8 @@ These consume the certified spec. None of them observes production.
 |---|---|
 | `effect-dependencies.mjs` | `effect-dependencies.md` + `.recorded.json` — the effect-first decomposition: per effect component, its support, its conditional-independence restrictions, and one executable witness per dependence, computed exhaustively over the full modelled domain (~29M evaluations). Each witness is checked for membership of the swept domain, so its production backing is inherited from the sweep rather than re-observed; anything outside is reported and fails the run. ~2 min |
 | `effect-map.mjs` | `effect-map.md` — the human projection of the dependency ledger: the mapping as a causal diagram (Mermaid; topology checked against the ledger on every run), the functional-cancellations table, and per-knob cards. Pure JSON → markdown; instant |
-| `no-silent-discount.mjs` | `no-silent-discount.md` + `.report.json` — the no-silent-discount property, evaluated over every cell the sweep certifies. Fails if a violation already escalated as S1/S2 stops being found |
-| `gate-count-agreement.mjs` | `gate-count-agreement.md` + `.report.json` — the gate/checker count-agreement property (quirk S6). For every cell where the two counts differ it evaluates the mapping twice — as production behaves, and with the gates handed the checker's count — so the consequence is the *difference* in what the voter meets, derived rather than asserted. Reports its own domain limit |
+| `no-silent-discount.mjs` | `no-silent-discount.md` + `.report.json` — the no-silent-discount property, evaluated over the FROZEN ORACLE across every certified cell: the derivation of the escalated S1/S2 findings, i.e. the pre-fix behaviour. Fails if a violation already escalated as S1/S2 stops being found. (On this branch the injected S2/S3 fix has already removed the S2 cell from production — `minvote-e2e-pipeline` confirms — while the S1 family stands until the filter is injected) |
+| `gate-count-agreement.mjs` | `gate-count-agreement.md` + `.report.json` — the gate/checker count-agreement property (quirk S6), evaluated over the FROZEN ORACLE: the S6 derivation, i.e. the pre-fix behaviour (production's injected gates now share the checker's one count). For every cell where the two counts differ it evaluates the mapping twice — as the oracle behaves, and with the gates handed the checker's count — so the consequence is the *difference* in what the voter meets, derived rather than asserted. Reports its own domain limit |
 | `fix-diff.mjs` | `fix-diff.md` + `.report.json` — the rationalized implementation (`f_fixed`, the query-provider) against the frozen oracle (`f`) over the certified domain, every differing cell attributed to one intended fix (S6, S4 by construction; S1 and S2S3 by judgment — a deliberate blank is not subject to the min-vote rule; D3 is latent). Signatures may overlap, so attribution is a cover check (every moved field covered by a matching fix). This is the fork's acceptance check and the review artifact — **it fails on any unexplained difference**, if a known fix stops biting, or if `f_fixed` has even one silent-discount cell (the property the S1 fix establishes: silent discounting is unrepresentable in the rewrite) |
 
 ### Documentation
@@ -376,7 +376,7 @@ preference:
    class instead. The inline filter reads its inputs only through
    (emissions, the four consulted policies, observation point), so one
    booth run settles every cell sharing that summary: **195,520** cells
-   via **2,616** runs, on a license that is source-verified and carries a
+   via **2,676** runs, on a license that is source-verified and carries a
    re-entry condition.
 3. **Cell by cell.** For what neither reaches — chiefly the booth-side
    effects on specific cells: [`dom-validate.md`](dom-validate.md) drives
@@ -401,7 +401,7 @@ artifact's own legend carries its labels and residues.
 |---|---|---|
 | Checkers | exhaustion | production ≡ spec on every swept cell (`headless-sweep.md`, **345,600**, plurality and preferential). One sweep serves **both** bands: the tally decode runs the identical function, so this is also the tally-side checker characterization |
 | Gates | exhaustion | both gates **and** the dialog projection on all 345,600 swept cells (`headless-sweep.md`) |
-| Filter | per-cell, then sufficiency | `dom-validate.md`: every grid cell through the real booth via the reviewer path, inline observed at both observation points, the untouched view asserted empty per cell — **233/233**. Beyond the grids, the independence claims are discharged by sufficiency (`quotient-validate.md`, 2,616 classes / 195,520 cells) |
+| Filter | per-cell, then sufficiency | `dom-validate.md`: every grid cell through the real booth via the reviewer path, inline observed at both observation points, the untouched view asserted empty per cell — **233/233**. Beyond the grids, the independence claims are discharged by sufficiency (`quotient-validate.md`, 2,676 classes / 195,520 cells) |
 | Input constraint | per-cell | the `reachable` column of `dom-validate.md` across every rule cell (the state forms or it does not), **plus** direct evidence for both prevention mechanisms: the over-vote `disable` policy (`no (disabled)`, from probing the (max+1)th control's `disabled` attribute) and blank-marker exclusivity (`no (cleared)`, the marker collapsing a co-selected regular) |
 | Marker exclusivity (prevention) | per-cell, plus the crypto chain | characterized by *attempting* each state through the UI and recording whether it forms. Both directions recorded in `dom-validate`: the invalid marker does **not** clear (`marker_plus` forms — reachable `yes`, confirmed end-to-end by `invalid-latent-choices-e2e.mjs`), the blank marker **does** (`regular_then_marker` collapses to {marker only} — `no (cleared)`). Open: the decline booth flow |
 | Tally classifier | exhaustion, plus a direct decision table | the `tally` column on every swept cell, plus the standalone 32-cell six-class table (`classifier-table.md`, 32/32 matching the documented precedence — and the only production evidence for decline) |

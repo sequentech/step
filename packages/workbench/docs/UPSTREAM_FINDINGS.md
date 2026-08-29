@@ -296,6 +296,15 @@ workbench acts on it again only reactively. The intent question above
 (meta#8235's authors) remains as evidence for that review, not as a
 gate.
 
+**Injection status (2026-08-29): still standing in production.** The
+mute lives in the TypeScript filter (`InvalidErrorsList.tsx`), the one
+validation site not yet injected — the gates and decode injections
+change nothing here. The over-vote cell and the three remaining
+min-vote cells are still silently discounted end-to-end
+(`minvote-e2e-pipeline` re-confirmed them 2026-08-29; the S2
+marker-only cell has left the family via the S2/S3 decode fix). The
+display fix lands with the filter injection.
+
 ## S2. (S1 ∩ S3) A deliberate explicit-blank vote silently discarded when `min_votes ≥ 2`
 
 *This is the intersection of S1 (silent discounting) and S3 (a deliberate
@@ -365,6 +374,15 @@ rejected, nothing is silent, and nothing is re-booked. The workbench's
 position on S2 is settled — no further action here unless the review
 rejects the rule.
 
+**Injected (2026-08-29).** The rule is live in production on this
+branch: the decode site routes through the query-provider
+(`sequent-core/src/ballot_codec/raw_ballot.rs` →
+`validation_provider::policy_emissions`), and the tally moved with it
+(velvet classifies from the decoded record). Confirmed booth-to-tally
+through real crypto: `characterization/minvote-e2e-pipeline.mjs` casts
+the marker-only ballot at `min_votes = 2` and the contest result books
+it `blank_votes.explicit = 1`, `invalid_implicit = 0`.
+
 ## S3. A deliberate blank is subject to the selection-count rules (the marker counting as one selection)
 
 **Observed** (`raw_ballot.rs` decode: `num_selected_with_markers`;
@@ -397,7 +415,8 @@ counting is untouched (a null ballot is not an explicit blank vote).
 The `min = 1` rescue is thereby subsumed: the deliberate blank passes
 at every minimum because the rule no longer applies to it, not because
 its count clears the bar. No further workbench action unless the
-review rejects the rule.
+review rejects the rule. Injected at the decode site 2026-08-29 — see
+the note under S2.
 
 ## S4. Under-vote alert/gate threshold discrepancy at `n = 0`
 
@@ -438,6 +457,14 @@ ballot, which the blank policy usually covers), but the duplicated predicate
 is a real latent-defect smell. **Consultation question:** is the `n = 0`
 hand-off to the blank rule intended — and if so, should the checker and gate
 share one predicate so they cannot drift again?
+
+**Fix status (2026-08-29).** Fixed in the rewrite by construction — one
+shared under-vote predicate excluding the empty ballot (the blank
+rule's domain) — and both halves are now injected: the gate half with
+the submission gates, the checker half with the decode site, so
+production here no longer alerts `underVote` on an empty ballot
+(`characterization/fix-diff.md`, the S4 bucket, 3,600 cells;
+re-observed in the real booth by `dom-validate.md`'s under-vote rows).
 
 ## S5. A null vote preserves the voter's candidate selections in the ciphertext
 
@@ -605,4 +632,14 @@ ballots today. Giving the gates a min-vote clause while the count is
 wrong would import this defect into the one rule currently free of it.
 
 **Reproduce:** `node characterization/gate-count-agreement.mjs` derives
-the whole table from the certified spec, headlessly, in about a minute.
+the whole table from the certified spec, headlessly, in about a minute
+(the frozen oracle — the pre-fix behaviour this finding characterizes).
+
+**Fix status (2026-08-29).** Fixed in the rewrite by construction — one
+selection count for the checker and the gates — and injected with the
+submission gates (`voting_screen.rs` routes through the query-provider),
+so the 8,576 wrong-dialog cells above are corrected in production on
+this branch (`characterization/fix-diff.md`, the S6 bucket). The
+caution paragraph is answered the same way: the rationalized min-vote
+rule still gates only through the errors-present clause, now fed by the
+correct count.

@@ -149,20 +149,24 @@ blank)** → Policy overrides:
 | a | 1 | *(select nothing)* | 0 < 1 |
 | b | 2 | *(select nothing)* | 0 < 2 |
 | c | 2 | tick **Yes** only | 1 < 2 |
-| d | 2 | tick **only** *Blank vote (explicit blank)* | the blank marker counts as 1 selection, and 1 < 2 — **this is S2** |
+| d | 2 | tick **only** *Blank vote (explicit blank)* | upstream: the marker counts as 1 selection, and 1 < 2 — **this was S2** |
 
-Variant **d** is the sharpest: it is not voter inattention but a clearly
-expressed *blank vote*, silently dropped. See
-[UPSTREAM_FINDINGS.md §S2](UPSTREAM_FINDINGS.md) and §S3 for why the marker
-counts as a selection.
-
-**Verify — the finding holds iff both:**
+**Verify a–c — the finding holds iff both:**
 
 1. **No signal** — no warning box appeared under the Referendum question,
    and clicking **Next** opened no dialog.
 2. **Not counted** — Referendum contest page → **Open in tally** →
    **Run tally** → `total_valid_votes` = `0` and `invalid_votes.implicit`
    ≥ `1`.
+
+Variant **d** was the sharpest of the family — not voter inattention but
+a clearly expressed *blank vote*, silently dropped (see
+[UPSTREAM_FINDINGS.md §S2](UPSTREAM_FINDINGS.md) and §S3 for why the
+marker counts as a selection). **On this branch it now demonstrates the
+injected S2/S3 fix instead**: same steps, still no warning and no dialog
+(correct — nothing is wrong with a deliberate blank), and the tally
+books `blank_votes.explicit` = `1` with `invalid_votes.implicit` = `0`.
+Upstream, without the fix, variant d still verifies like a–c.
 
 **Reset** — reload the page between variants to drop the overrides.
 

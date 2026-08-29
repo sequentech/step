@@ -5,12 +5,14 @@
       "min": 1,
       "state": "none",
       "labels": [],
+      "expect": "discarded",
       "decodedBigInt": "0",
       "boothSilent": true,
       "summary": {
         "total_votes": 1,
         "total_valid_votes": 0,
-        "invalid_implicit": 1
+        "invalid_implicit": 1,
+        "blank_explicit": 0
       },
       "confirmed": true
     },
@@ -18,12 +20,14 @@
       "min": 2,
       "state": "none",
       "labels": [],
+      "expect": "discarded",
       "decodedBigInt": "0",
       "boothSilent": true,
       "summary": {
         "total_votes": 1,
         "total_valid_votes": 0,
-        "invalid_implicit": 1
+        "invalid_implicit": 1,
+        "blank_explicit": 0
       },
       "confirmed": true
     },
@@ -33,12 +37,14 @@
       "labels": [
         "Yes"
       ],
+      "expect": "discarded",
       "decodedBigInt": "4",
       "boothSilent": true,
       "summary": {
         "total_votes": 1,
         "total_valid_votes": 0,
-        "invalid_implicit": 1
+        "invalid_implicit": 1,
+        "blank_explicit": 0
       },
       "confirmed": true
     },
@@ -48,12 +54,14 @@
       "labels": [
         "Blank vote (explicit blank)"
       ],
+      "expect": "explicit_blank",
       "decodedBigInt": "2",
       "boothSilent": true,
       "summary": {
         "total_votes": 1,
-        "total_valid_votes": 0,
-        "invalid_implicit": 1
+        "total_valid_votes": 1,
+        "invalid_implicit": 0,
+        "blank_explicit": 1
       },
       "confirmed": true
     }

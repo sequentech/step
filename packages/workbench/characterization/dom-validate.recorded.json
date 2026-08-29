@@ -1428,9 +1428,7 @@
       "rule": "min-vote",
       "config": "min=2 × allowed",
       "state": "marker_only",
-      "errors": [
-        "errors.implicit.selectedMin"
-      ],
+      "errors": [],
       "alerts": [],
       "inlineVoting": "—",
       "inlineReview": "—",
@@ -1440,8 +1438,8 @@
       "constraintKind": null,
       "constraintProbe": null,
       "dialog": "none",
-      "tally": "ImplicitInvalid",
-      "silent": true,
+      "tally": "ExplicitBlank",
+      "silent": false,
       "ok": true
     },
     {
@@ -1488,19 +1486,17 @@
       "rule": "min-vote",
       "config": "min=2 × warn",
       "state": "marker_only",
-      "errors": [
-        "errors.implicit.selectedMin"
-      ],
+      "errors": [],
       "alerts": [],
-      "inlineVoting": "selectedMin",
-      "inlineReview": "selectedMin",
+      "inlineVoting": "—",
+      "inlineReview": "—",
       "hard": false,
       "soft": false,
       "reachable": true,
       "constraintKind": null,
       "constraintProbe": null,
       "dialog": "none",
-      "tally": "ImplicitInvalid",
+      "tally": "ExplicitBlank",
       "silent": false,
       "ok": true
     },
@@ -1548,19 +1544,17 @@
       "rule": "min-vote",
       "config": "min=2 × warn-invalid-implicit-and-explicit",
       "state": "marker_only",
-      "errors": [
-        "errors.implicit.selectedMin"
-      ],
+      "errors": [],
       "alerts": [],
-      "inlineVoting": "selectedMin",
-      "inlineReview": "selectedMin",
+      "inlineVoting": "—",
+      "inlineReview": "—",
       "hard": false,
       "soft": false,
       "reachable": true,
       "constraintKind": null,
       "constraintProbe": null,
       "dialog": "none",
-      "tally": "ImplicitInvalid",
+      "tally": "ExplicitBlank",
       "silent": false,
       "ok": true
     },
@@ -1608,19 +1602,17 @@
       "rule": "min-vote",
       "config": "min=2 × not-allowed",
       "state": "marker_only",
-      "errors": [
-        "errors.implicit.selectedMin"
-      ],
+      "errors": [],
       "alerts": [],
-      "inlineVoting": "selectedMin",
-      "inlineReview": "selectedMin",
+      "inlineVoting": "—",
+      "inlineReview": "—",
       "hard": false,
       "soft": false,
       "reachable": true,
       "constraintKind": null,
       "constraintProbe": null,
       "dialog": "none",
-      "tally": "ImplicitInvalid",
+      "tally": "ExplicitBlank",
       "silent": false,
       "ok": true
     },
@@ -2751,11 +2743,9 @@
       "config": "warn × allowed",
       "state": "empty",
       "errors": [],
-      "alerts": [
-        "errors.implicit.underVote"
-      ],
-      "inlineVoting": "underVote",
-      "inlineReview": "underVote",
+      "alerts": [],
+      "inlineVoting": "—",
+      "inlineReview": "—",
       "hard": false,
       "soft": false,
       "reachable": true,
@@ -2809,11 +2799,9 @@
       "config": "warn × warn",
       "state": "empty",
       "errors": [],
-      "alerts": [
-        "errors.implicit.underVote"
-      ],
-      "inlineVoting": "underVote",
-      "inlineReview": "underVote",
+      "alerts": [],
+      "inlineVoting": "—",
+      "inlineReview": "—",
       "hard": false,
       "soft": false,
       "reachable": true,
@@ -2867,11 +2855,9 @@
       "config": "warn × warn-invalid-implicit-and-explicit",
       "state": "empty",
       "errors": [],
-      "alerts": [
-        "errors.implicit.underVote"
-      ],
-      "inlineVoting": "underVote",
-      "inlineReview": "underVote",
+      "alerts": [],
+      "inlineVoting": "—",
+      "inlineReview": "—",
       "hard": false,
       "soft": false,
       "reachable": true,
@@ -2925,11 +2911,9 @@
       "config": "warn × not-allowed",
       "state": "empty",
       "errors": [],
-      "alerts": [
-        "errors.implicit.underVote"
-      ],
-      "inlineVoting": "underVote",
-      "inlineReview": "underVote",
+      "alerts": [],
+      "inlineVoting": "—",
+      "inlineReview": "—",
       "hard": false,
       "soft": false,
       "reachable": true,
@@ -2983,11 +2967,9 @@
       "config": "warn-only-in-review × allowed",
       "state": "empty",
       "errors": [],
-      "alerts": [
-        "errors.implicit.underVote"
-      ],
+      "alerts": [],
       "inlineVoting": "—",
-      "inlineReview": "underVote",
+      "inlineReview": "—",
       "hard": false,
       "soft": false,
       "reachable": true,
@@ -3041,11 +3023,9 @@
       "config": "warn-only-in-review × warn",
       "state": "empty",
       "errors": [],
-      "alerts": [
-        "errors.implicit.underVote"
-      ],
+      "alerts": [],
       "inlineVoting": "—",
-      "inlineReview": "underVote",
+      "inlineReview": "—",
       "hard": false,
       "soft": false,
       "reachable": true,
@@ -3099,11 +3079,9 @@
       "config": "warn-only-in-review × warn-invalid-implicit-and-explicit",
       "state": "empty",
       "errors": [],
-      "alerts": [
-        "errors.implicit.underVote"
-      ],
+      "alerts": [],
       "inlineVoting": "—",
-      "inlineReview": "underVote",
+      "inlineReview": "—",
       "hard": false,
       "soft": false,
       "reachable": true,
@@ -3157,11 +3135,9 @@
       "config": "warn-only-in-review × not-allowed",
       "state": "empty",
       "errors": [],
-      "alerts": [
-        "errors.implicit.underVote"
-      ],
+      "alerts": [],
       "inlineVoting": "—",
-      "inlineReview": "underVote",
+      "inlineReview": "—",
       "hard": false,
       "soft": false,
       "reachable": true,
@@ -3215,11 +3191,9 @@
       "config": "warn-and-alert × allowed",
       "state": "empty",
       "errors": [],
-      "alerts": [
-        "errors.implicit.underVote"
-      ],
-      "inlineVoting": "underVote",
-      "inlineReview": "underVote",
+      "alerts": [],
+      "inlineVoting": "—",
+      "inlineReview": "—",
       "hard": false,
       "soft": false,
       "reachable": true,
@@ -3273,11 +3247,9 @@
       "config": "warn-and-alert × warn",
       "state": "empty",
       "errors": [],
-      "alerts": [
-        "errors.implicit.underVote"
-      ],
-      "inlineVoting": "underVote",
-      "inlineReview": "underVote",
+      "alerts": [],
+      "inlineVoting": "—",
+      "inlineReview": "—",
       "hard": false,
       "soft": false,
       "reachable": true,
@@ -3331,11 +3303,9 @@
       "config": "warn-and-alert × warn-invalid-implicit-and-explicit",
       "state": "empty",
       "errors": [],
-      "alerts": [
-        "errors.implicit.underVote"
-      ],
-      "inlineVoting": "underVote",
-      "inlineReview": "underVote",
+      "alerts": [],
+      "inlineVoting": "—",
+      "inlineReview": "—",
       "hard": false,
       "soft": false,
       "reachable": true,
@@ -3389,11 +3359,9 @@
       "config": "warn-and-alert × not-allowed",
       "state": "empty",
       "errors": [],
-      "alerts": [
-        "errors.implicit.underVote"
-      ],
-      "inlineVoting": "underVote",
-      "inlineReview": "underVote",
+      "alerts": [],
+      "inlineVoting": "—",
+      "inlineReview": "—",
       "hard": false,
       "soft": false,
       "reachable": true,

@@ -2,27 +2,31 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// Full-pipeline confirmation of the FOUR remaining no-silent-discount
-// violations — the min-vote family — bringing S1/S2 to the same strength
-// as the over-vote case (overvote-e2e-pipeline.mjs).
-//
-// Same continuous chain, driven through the workbench UI:
+// Full-pipeline confirmation of the min-vote family, booth to tally
+// through real crypto — the same continuous chain for every cell:
 //   booth below-min ballot (invalid=allowed → no signal)
-//     → encrypt + cast → bridge decrypt → decode (selectedMin error)
-//     → /tally → ContestResult
+//     → encrypt + cast → bridge decrypt → decode → /tally → ContestResult
 //
 // Run over the Referendum contest (Yes / No / Blank-marker), overriding
 // min_votes per cell. min_votes does not affect the encoding (plurality
 // bases are per-candidate, independent of min), so the cast bigint is
-// unchanged; the override only changes what the decode-time
-// check_min_vote_policy sees — exactly the point.
+// unchanged; the override only changes what the decode-time min-vote rule
+// sees — exactly the point.
 //
-// The four cells (all invalid_vote_policy = allowed):
-//   min=1, none          — empty ballot, below min 1
-//   min=2, none          — empty ballot, below min 2
-//   min=2, one           — one regular candidate, below min 2
-//   min=2, marker_only   — the Blank marker alone (S2: a deliberate blank,
-//                          counts as 1 < 2, silently discarded)
+// The four cells (all invalid_vote_policy = allowed) carry PER-CELL
+// expectations, because the decode injection split them:
+//   min=1, none          — empty ballot, below min 1     → still DISCARDED
+//   min=2, none          — empty ballot, below min 2     → still DISCARDED
+//   min=2, one           — one regular, below min 2      → still DISCARDED
+//     (the three S1 silent-discount cells: decode still emits selectedMin,
+//      the tally still books ImplicitInvalid, and the booth still shows
+//      nothing — the display half of S1 lives in the UNINJECTED TypeScript
+//      filter, so these remain standing violations until it is injected)
+//   min=2, marker_only   — the Blank marker alone: the S2 cell. The S2/S3
+//      fix is injected at decode ("explicit blank votes are not subject to
+//      min_vote rules"), so this chain now confirms the FIX end-to-end:
+//      no error, no signal to dismiss (correct — nothing is wrong), and
+//      the tally books it blank_votes.explicit, not invalid.
 //
 // Requires the dev server on :5173.
 
@@ -42,10 +46,15 @@ const ELECTION = "44444444-4444-4444-4444-444444444003"
 const booth = `${base}/tenant/${TENANT}/event/${EVENT}/election/${ELECTION}`
 
 const CELLS = [
-    {min: 1, state: "none", labels: []},
-    {min: 2, state: "none", labels: []},
-    {min: 2, state: "one", labels: ["Yes"]},
-    {min: 2, state: "marker_only", labels: ["Blank vote (explicit blank)"]},
+    {min: 1, state: "none", labels: [], expect: "discarded"},
+    {min: 2, state: "none", labels: [], expect: "discarded"},
+    {min: 2, state: "one", labels: ["Yes"], expect: "discarded"},
+    {
+        min: 2,
+        state: "marker_only",
+        labels: ["Blank vote (explicit blank)"],
+        expect: "explicit_blank",
+    },
 ]
 
 const browser = await chromium.launch({channel: "chrome", headless: true})
@@ -206,24 +215,33 @@ for (const cell of CELLS) {
               total_votes: result.total_votes,
               total_valid_votes: result.total_valid_votes,
               invalid_implicit: result.invalid_votes?.implicit,
+              blank_explicit: result.blank_votes?.explicit,
           }
         : null
     const boothSilent =
         inlineAtVote.length === 0 && inlineAtReview.length === 0 && transitionDialog === "none"
+    // Per-cell expectation (see the header): the three S1 cells are still
+    // silently discarded; the S2 cell is fixed at decode — counted as an
+    // explicit blank, with nothing to warn about.
     const discarded =
         summary != null && summary.total_valid_votes === 0 && summary.invalid_implicit >= 1
-    const confirmed = boothSilent && discarded
+    const countedExplicitBlank =
+        summary != null && summary.invalid_implicit === 0 && summary.blank_explicit >= 1
+    const confirmed =
+        boothSilent && (cell.expect === "discarded" ? discarded : countedExplicitBlank)
     results.push({...cell, decodedBigInt, boothSilent, summary, confirmed})
     console.log(
         `min=${cell.min} ${cell.state}: silent=${boothSilent} ` +
-            `bigint=${decodedBigInt} tally(valid=${summary?.total_valid_votes},impl=${summary?.invalid_implicit}) ` +
-            `→ CONFIRMED=${confirmed}`
+            `bigint=${decodedBigInt} tally(valid=${summary?.total_valid_votes},impl=${summary?.invalid_implicit},blankExpl=${summary?.blank_explicit}) ` +
+            `expect=${cell.expect} → CONFIRMED=${confirmed}`
     )
 }
 
 await browser.close()
 const allConfirmed = results.every((r) => r.confirmed)
-console.log(`\nall four min-vote violations confirmed end-to-end: ${allConfirmed}`)
+console.log(
+    `\nall four min-vote cells confirmed end-to-end (three standing S1 discounts + the injected S2 fix): ${allConfirmed}`
+)
 writeFileSync(
     path.join(here, "minvote-e2e-pipeline.recorded.json"),
     JSON.stringify({invalid_vote_policy: "allowed", cells: results, all_confirmed: allConfirmed}, null, 2) + "\n"

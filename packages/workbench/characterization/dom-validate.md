@@ -26,11 +26,12 @@ state) — plus the observation-derived **⚠**
 *matches spec?* column subsumes the partial's `pred?` and extends it to the
 browser observations (including the observed dialog vs the gates): ✗ = spec and
 DOM disagree. Predictions follow the injection status (`headless-sweep.md`):
-production's gates are injected, so the *hard/soft gate* columns and the
-dialog expectation come from the RATIONALIZED implementation (`f_fixed`);
-*errors*, *alerts*, *tally*, the inline predictions and reachability come
-from the FROZEN ORACLE (`f`) — decode, tally and the booth's TypeScript
-are not injected. `(blocked)` inline means a blocking dialog preempts review —
+the gates and decode are injected and the tally classifies from the
+decoded record, so *errors*, *alerts*, the *hard/soft gate* columns, the
+dialog expectation and *tally* come from the RATIONALIZED implementation
+(`f_fixed`); only the TypeScript message filter is uninjected, so the
+inline predictions are the ORACLE filter applied to the fixed emissions
+(emit-grid's `hybrid` kind). `(blocked)` inline means a blocking dialog preempts review —
 the dialog is the signal there. For an unreachable state both inline
 columns show what the state that ACTUALLY formed renders (the *reachable*
 column qualifies it); they are compared against the spec only for
@@ -125,16 +126,16 @@ its meaning is noted under each rule heading below.
 | min=1 × not-allowed | marker_only | — | — | — | — | — | — | yes | ExplicitBlank | ✓ |
 | **⚠** min=2 × allowed | none | selectedMin | — | — | — | — | — | yes | ImplicitInvalid | ✓ |
 | **⚠** min=2 × allowed | one | selectedMin | — | — | — | — | — | yes | ImplicitInvalid | ✓ |
-| **⚠** min=2 × allowed | marker_only | selectedMin | — | — | — | — | — | yes | ImplicitInvalid | ✓ |
+| min=2 × allowed | marker_only | — | — | — | — | — | — | yes | ExplicitBlank | ✓ |
 | min=2 × warn | none | selectedMin | — | selectedMin | selectedMin | — | dialog | yes | ImplicitInvalid | ✓ |
 | min=2 × warn | one | selectedMin | — | selectedMin | selectedMin | — | dialog | yes | ImplicitInvalid | ✓ |
-| min=2 × warn | marker_only | selectedMin | — | selectedMin | selectedMin | — | — | yes | ImplicitInvalid | ✓ |
+| min=2 × warn | marker_only | — | — | — | — | — | — | yes | ExplicitBlank | ✓ |
 | min=2 × warn-invalid-implicit-and-explicit | none | selectedMin | — | selectedMin | selectedMin | — | dialog | yes | ImplicitInvalid | ✓ |
 | min=2 × warn-invalid-implicit-and-explicit | one | selectedMin | — | selectedMin | selectedMin | — | dialog | yes | ImplicitInvalid | ✓ |
-| min=2 × warn-invalid-implicit-and-explicit | marker_only | selectedMin | — | selectedMin | selectedMin | — | — | yes | ImplicitInvalid | ✓ |
+| min=2 × warn-invalid-implicit-and-explicit | marker_only | — | — | — | — | — | — | yes | ExplicitBlank | ✓ |
 | min=2 × not-allowed | none | selectedMin | — | selectedMin | (blocked) | **block** | dialog | yes | ImplicitInvalid | ✓ |
 | min=2 × not-allowed | one | selectedMin | — | selectedMin | (blocked) | **block** | dialog | yes | ImplicitInvalid | ✓ |
-| min=2 × not-allowed | marker_only | selectedMin | — | selectedMin | selectedMin | — | — | yes | ImplicitInvalid | ✓ |
+| min=2 × not-allowed | marker_only | — | — | — | — | — | — | yes | ExplicitBlank | ✓ |
 
 ## blank
 
@@ -210,40 +211,40 @@ its meaning is noted under each rule heading below.
 | allowed × not-allowed | empty | — | — | — | — | — | — | yes | ImplicitBlank | ✓ |
 | allowed × not-allowed | under | — | — | — | — | — | — | yes | Valid | ✓ |
 | allowed × not-allowed | full | — | — | — | — | — | — | yes | Valid | ✓ |
-| warn × allowed | empty | — | underVote | underVote | underVote | — | — | yes | ImplicitBlank | ✓ |
+| warn × allowed | empty | — | — | — | — | — | — | yes | ImplicitBlank | ✓ |
 | warn × allowed | under | — | underVote | underVote | underVote | — | — | yes | Valid | ✓ |
 | warn × allowed | full | — | — | — | — | — | — | yes | Valid | ✓ |
-| warn × warn | empty | — | underVote | underVote | underVote | — | — | yes | ImplicitBlank | ✓ |
+| warn × warn | empty | — | — | — | — | — | — | yes | ImplicitBlank | ✓ |
 | warn × warn | under | — | underVote | underVote | underVote | — | — | yes | Valid | ✓ |
 | warn × warn | full | — | — | — | — | — | — | yes | Valid | ✓ |
-| warn × warn-invalid-implicit-and-explicit | empty | — | underVote | underVote | underVote | — | — | yes | ImplicitBlank | ✓ |
+| warn × warn-invalid-implicit-and-explicit | empty | — | — | — | — | — | — | yes | ImplicitBlank | ✓ |
 | warn × warn-invalid-implicit-and-explicit | under | — | underVote | underVote | underVote | — | — | yes | Valid | ✓ |
 | warn × warn-invalid-implicit-and-explicit | full | — | — | — | — | — | — | yes | Valid | ✓ |
-| warn × not-allowed | empty | — | underVote | underVote | underVote | — | — | yes | ImplicitBlank | ✓ |
+| warn × not-allowed | empty | — | — | — | — | — | — | yes | ImplicitBlank | ✓ |
 | warn × not-allowed | under | — | underVote | underVote | underVote | — | — | yes | Valid | ✓ |
 | warn × not-allowed | full | — | — | — | — | — | — | yes | Valid | ✓ |
-| warn-only-in-review × allowed | empty | — | underVote | — | underVote | — | — | yes | ImplicitBlank | ✓ |
+| warn-only-in-review × allowed | empty | — | — | — | — | — | — | yes | ImplicitBlank | ✓ |
 | warn-only-in-review × allowed | under | — | underVote | — | underVote | — | — | yes | Valid | ✓ |
 | warn-only-in-review × allowed | full | — | — | — | — | — | — | yes | Valid | ✓ |
-| warn-only-in-review × warn | empty | — | underVote | — | underVote | — | — | yes | ImplicitBlank | ✓ |
+| warn-only-in-review × warn | empty | — | — | — | — | — | — | yes | ImplicitBlank | ✓ |
 | warn-only-in-review × warn | under | — | underVote | — | underVote | — | — | yes | Valid | ✓ |
 | warn-only-in-review × warn | full | — | — | — | — | — | — | yes | Valid | ✓ |
-| warn-only-in-review × warn-invalid-implicit-and-explicit | empty | — | underVote | — | underVote | — | — | yes | ImplicitBlank | ✓ |
+| warn-only-in-review × warn-invalid-implicit-and-explicit | empty | — | — | — | — | — | — | yes | ImplicitBlank | ✓ |
 | warn-only-in-review × warn-invalid-implicit-and-explicit | under | — | underVote | — | underVote | — | — | yes | Valid | ✓ |
 | warn-only-in-review × warn-invalid-implicit-and-explicit | full | — | — | — | — | — | — | yes | Valid | ✓ |
-| warn-only-in-review × not-allowed | empty | — | underVote | — | underVote | — | — | yes | ImplicitBlank | ✓ |
+| warn-only-in-review × not-allowed | empty | — | — | — | — | — | — | yes | ImplicitBlank | ✓ |
 | warn-only-in-review × not-allowed | under | — | underVote | — | underVote | — | — | yes | Valid | ✓ |
 | warn-only-in-review × not-allowed | full | — | — | — | — | — | — | yes | Valid | ✓ |
-| warn-and-alert × allowed | empty | — | underVote | underVote | underVote | — | — | yes | ImplicitBlank | ✓ |
+| warn-and-alert × allowed | empty | — | — | — | — | — | — | yes | ImplicitBlank | ✓ |
 | warn-and-alert × allowed | under | — | underVote | underVote | underVote | — | dialog | yes | Valid | ✓ |
 | warn-and-alert × allowed | full | — | — | — | — | — | — | yes | Valid | ✓ |
-| warn-and-alert × warn | empty | — | underVote | underVote | underVote | — | — | yes | ImplicitBlank | ✓ |
+| warn-and-alert × warn | empty | — | — | — | — | — | — | yes | ImplicitBlank | ✓ |
 | warn-and-alert × warn | under | — | underVote | underVote | underVote | — | dialog | yes | Valid | ✓ |
 | warn-and-alert × warn | full | — | — | — | — | — | — | yes | Valid | ✓ |
-| warn-and-alert × warn-invalid-implicit-and-explicit | empty | — | underVote | underVote | underVote | — | — | yes | ImplicitBlank | ✓ |
+| warn-and-alert × warn-invalid-implicit-and-explicit | empty | — | — | — | — | — | — | yes | ImplicitBlank | ✓ |
 | warn-and-alert × warn-invalid-implicit-and-explicit | under | — | underVote | underVote | underVote | — | dialog | yes | Valid | ✓ |
 | warn-and-alert × warn-invalid-implicit-and-explicit | full | — | — | — | — | — | — | yes | Valid | ✓ |
-| warn-and-alert × not-allowed | empty | — | underVote | underVote | underVote | — | — | yes | ImplicitBlank | ✓ |
+| warn-and-alert × not-allowed | empty | — | — | — | — | — | — | yes | ImplicitBlank | ✓ |
 | warn-and-alert × not-allowed | under | — | underVote | underVote | underVote | — | dialog | yes | Valid | ✓ |
 | warn-and-alert × not-allowed | full | — | — | — | — | — | — | yes | Valid | ✓ |
 

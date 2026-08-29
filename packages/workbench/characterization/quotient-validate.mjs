@@ -32,18 +32,18 @@
 // headlessly and may be unformable — flag+marker, marker-clear collapse,
 // disable-prevented, max = 0): search bounds × formable vote states for
 // one whose spec emissions under the class's policies match the class key
-// (sound — emissions ≡ production on this subdomain by the sweep). Drive
-// it, compare inline at the touched voting screen and at review against
-// the class's spec inline views. Whether review renders is decided by
-// production's ACTUAL hard gate — the injected, rationalized one
-// (`f_fixed`; certified against production by headless-sweep) — and it is
-// MEMBER-determined, not class-determined: the rationalized gate reads the
-// vote state past the emissions (the deliberate-blank exemption), so two
-// members of one class can gate differently. Review is compared exactly
-// when the chosen member does not hard-gate; otherwise the dialog is the
-// signal, and it is certified headlessly. The inline comparisons stay
-// against the frozen oracle's inventory — the booth's message filter is
-// not injected.
+// (sound — emissions ≡ production on this subdomain by the sweep; with
+// decode injected, both sides of that match are the hybrid's emissions).
+// Drive it, compare inline at the touched voting screen and at review
+// against the class's spec inline views (the sweep records the HYBRID's:
+// the uninjected message filter over the injected decode's emissions).
+// Whether review renders is decided by production's ACTUAL hard gate —
+// the injected, rationalized one (certified against production by
+// headless-sweep) — and it is MEMBER-determined, not class-determined:
+// the rationalized gate reads the vote state past the emissions (the
+// deliberate-blank exemption), so two members of one class can gate
+// differently. Review is compared exactly when the chosen member does not
+// hard-gate; otherwise the dialog is the signal, certified headlessly.
 //
 // Classes with no booth-formable member are LABELLED, never dropped.
 //
@@ -60,7 +60,7 @@ import path from "node:path"
 import {performance} from "node:perf_hooks"
 import {loadSnapshot} from "./browser-harness.mjs"
 import {boothContext, observeCell, boothFormable, shortKey} from "./booth-cell.mjs"
-import {specF, specFixed} from "./rust-spec.mjs"
+import {specHybrid} from "./rust-spec.mjs"
 import {BOUNDS} from "./domain.mjs"
 
 const require = createRequire("C:/work/projects/step/packages/")
@@ -113,34 +113,33 @@ for (let ci = 0; ci < classes.length; ci++) {
             candidates.push({ci, cell})
         }
 }
-const candidateSpecs = specF(candidates.map((c) => c.cell))
-// The member's hard gate comes from the RATIONALIZED implementation — the
-// one production's injected gates run (see the header).
-const candidateFixed = specFixed(candidates.map((c) => c.cell))
+// The hybrid (emit-grid) is production as currently injected: its emissions
+// are what decode now stamps (the class keys), its gates what the injected
+// voting_screen runs — one evaluation answers both member selection and the
+// review-reachability pre-filter.
+const candidateSpecs = specHybrid(candidates.map((c) => c.cell))
 const byClass = new Map()
 candidates.forEach((c, k) => {
     if (!byClass.has(c.ci)) byClass.set(c.ci, [])
-    byClass
-        .get(c.ci)
-        .push({cell: c.cell, e: candidateSpecs[k], hardFixed: candidateFixed[k].gate.hard})
+    byClass.get(c.ci).push({cell: c.cell, e: candidateSpecs[k]})
 })
 console.log(
     `pre-evaluated ${candidates.length} candidate members for ${classes.length} classes`
 )
 
 /** Find a booth-formable, booth-reachable member of a class, or null.
- *  Selection keys off the ORACLE (the class key is oracle emissions —
- *  decode is not injected); the returned `hard` is the member's
- *  production gate, i.e. the rationalized implementation's. */
+ *  Both the emission matching (the class key is production's emissions,
+ *  i.e. the injected decode's) and the returned `hard` (the injected
+ *  gate) read the hybrid evaluation. */
 function formableMember(ci, cls) {
     const [errors, alerts] = cls.key
-    for (const {cell, e, hardFixed} of byClass.get(ci) ?? []) {
+    for (const {cell, e} of byClass.get(ci) ?? []) {
         if (e.reachability !== "yes") continue
         if (
             eq(sortedUniq(e.emissions.errors.map(shortKey)), errors) &&
             eq(sortedUniq(e.emissions.alerts.map(shortKey)), alerts)
         ) {
-            return {cell, hard: hardFixed}
+            return {cell, hard: e.gate.hard}
         }
     }
     return null

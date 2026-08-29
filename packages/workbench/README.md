@@ -385,7 +385,7 @@ Production is compared against one executable spec
 **exhaustively** on the headless domain — 345,600 cells, plurality and
 preferential, zero disagreements — and **per cell** in the real booth
 (229/229), with the browser-side independence claims discharged by
-sufficiency (195,520 cells via 2,616 quotient classes)
+sufficiency (195,520 cells via 2,676 quotient classes)
 ([characterization/README.md](characterization/README.md)). The findings
 are no longer things somebody noticed: each is a **property derived from
 the certified spec**, with an acceptance test so the derivation cannot
@@ -477,23 +477,27 @@ which artifact ships, roughly by payoff:
    spec crate to preserve its independence, with a native conformance
    test proving production's own codec and gate functions ≡ the frozen
    oracle through the adapters across the seven grids' matrices (~310
-   cells, `cargo test -p validation-adapters`). **The first call site is
-   injected**: `sequent-core`'s submission gates
-   (`util/voting_screen.rs`) now route through the query-provider via
-   `sequent_core::validation_provider` (the derivations moved into
-   production; `validation-adapters` delegates to them), keeping only a
-   record-driven path for the encoding-error class the vote state
-   cannot express. Verified exhaustively with per-component
-   expectations: the sweep compares production's gates/dialog against
-   `f_fixed` and everything uninjected against the oracle — 345,600
-   cells, 0 disagreements — the native conformance run agrees (6/6),
-   and the browser lane is re-run against the injected booth on the
-   same split (`dom-validate` 233/233 — exactly the three S2S3
-   marker-only min ≥ 2 cells moved, the not-allowed one now reaching
-   review; `browser-witnesses` and `quotient-validate` decide
-   review-reachability by the injected gate). What remains: the decode
-   site (emissions — carries the S4-checker and S2S3 tally changes)
-   and eventually the TypeScript filter (S1's display fix).
+   cells, `cargo test -p validation-adapters`). **Two of the three call
+   sites are injected**: `sequent-core`'s submission gates
+   (`util/voting_screen.rs`) and the decode-time policy checks
+   (`ballot_codec/raw_ballot.rs`) both route through the query-provider
+   via `sequent_core::validation_provider` (the derivations moved into
+   production; `validation-adapters` delegates to them), keeping only
+   the encoding/configuration handling the vote state cannot express —
+   and the tally moved with decode for free, since velvet classifies
+   from the decoded record's fields. So the S6/S4 constructions and the
+   S2S3 judgment are live in production here: a deliberate blank below
+   `min_votes` emits nothing, gates nothing, and is counted
+   `blank_votes.explicit` — confirmed booth-to-tally through real
+   crypto by `minvote-e2e-pipeline`. Verified exhaustively against
+   emit-grid's **hybrid** expectation (everything `f_fixed` except
+   inline — the uninjected TypeScript filter over the fixed emissions):
+   the sweep at 345,600 cells / 0 disagreements, native conformance 6/6
+   including a record-for-record proof that the decode change is
+   exactly the two named movements, and the browser lane re-run green
+   (`dom-validate` 233/233). What remains is the TypeScript filter
+   (S1's display fix — the three standing min-vote silent discounts and
+   the over-vote one become visible when it lands).
 
 Standing maintenance, as upstream moves:
 

@@ -7,7 +7,8 @@
 // `effect-dependencies.recorded.json` (inline-view and reachability
 // components — the effects only a real booth can observe) and drives each
 // witness's two cells through the booth, comparing the observed value
-// against `spec.f` on both. A dependence claim is existential, so the
+// against the spec (the hybrid — see below) on both. A dependence claim
+// is existential, so the
 // witness pair settles it: both cells matching the spec confirms the
 // dependence exists in production with the predicted values.
 //
@@ -29,12 +30,12 @@
 // Labels (never silently dropped): cells the booth cannot represent
 // (marker+flag, regulars > candidates, max = 0), inline observations on
 // states prevention keeps from forming, and review observations behind a
-// hard gate. Production's gates are INJECTED (voting_screen.rs routes
-// through the query-provider), so whether review is reachable is decided
-// by the RATIONALIZED implementation's hard gate (f_fixed — certified
-// against production by headless-sweep); the witness comparisons
-// themselves (inline views, reachability) stay against the frozen oracle
-// `f`, whose components are not injected.
+// hard gate. Every spec value here is the HYBRID's (emit-grid's "hybrid"
+// kind — production as currently injected, certified against it by
+// headless-sweep): the gates and decode are injected, so the
+// review-reachability pre-filter and the emissions behind the inline
+// values are the rationalized implementation's, while the inline filter
+// itself is still the oracle's (the TypeScript filter is not injected).
 //
 // Requires the dev server on :5173. Writes browser-witnesses.md +
 // .recorded.json; exits nonzero if any observed cell disagrees with the
@@ -50,9 +51,8 @@ import {loadSnapshot} from "./browser-harness.mjs"
 import {boothContext, observeCell, boothFormable, shortKey} from "./booth-cell.mjs"
 // One-cell batches: this runner evaluates a couple of hundred cells in
 // total, so the per-call subprocess cost is irrelevant here.
-import {specF as specBatch, specFixed as specFixedBatch} from "./rust-spec.mjs"
-const specF = (config, voteState) => specBatch([{config, voteState}])[0]
-const specFixed = (config, voteState) => specFixedBatch([{config, voteState}])[0]
+import {specHybrid as specBatch} from "./rust-spec.mjs"
+const spec = (config, voteState) => specBatch([{config, voteState}])[0]
 
 const require = createRequire("C:/work/projects/step/packages/")
 const {chromium} = require("playwright")
@@ -101,15 +101,12 @@ function boothDefer(component, cells) {
         const formable = boothFormable(parsed)
         if (formable) return formable
         if (parsed.config.max === 0) return "max_votes = 0 (config-sanity scope boundary)"
-        const spec = specF(parsed.config, parsed.voteState)
-        if (component.includes("inline") && spec.reachability !== "yes")
+        const e = spec(parsed.config, parsed.voteState)
+        if (component.includes("inline") && e.reachability !== "yes")
             return "state prevented in the booth (inline unobservable there)"
         // Review reachability is decided by production's ACTUAL gate — the
         // injected, rationalized one (see the header).
-        if (
-            component.endsWith("inline.review") &&
-            specFixed(parsed.config, parsed.voteState).gate.hard
-        )
+        if (component.endsWith("inline.review") && e.gate.hard)
             return "unobservable by construction (hard gate precludes review; the dialog is the signal)"
     }
     return null
@@ -148,7 +145,7 @@ function observedValue(component, cell, obs) {
 }
 
 function specValue(component, {config, voteState}) {
-    const e = specF(config, voteState)
+    const e = spec(config, voteState)
     if (component.endsWith("∈ inline.voting"))
         return e.inline.voting.map(shortKey).includes(component.split(" ")[0])
     if (component.endsWith("∈ inline.review"))
@@ -221,7 +218,9 @@ const md = [
     "inline-view or reachability component depends on an input dimension —",
     "is driven through the real booth (panel-configured, touch-armed,",
     "regulars before markers) and the observed component value is compared",
-    "against `spec.f` on both cells. A dependence claim is existential, so",
+    "against the spec on both cells — the HYBRID of `headless-sweep.md`'s",
+    "injection-status table: the injected decode's emissions under the",
+    "still-uninjected inline filter. A dependence claim is existential, so",
     "the pair settles it. Witnesses the booth cannot observe are labelled",
     "below, never dropped.",
     "",

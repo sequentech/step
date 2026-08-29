@@ -559,7 +559,7 @@ This is not a rewrite proposal. The path is incremental:
 >   cells, plurality and preferential, zero disagreements
 >   (`headless-sweep.md`); per cell in the real booth (233/233,
 >   `dom-validate.md`); by sufficiency for the browser-side independence
->   claims (2,616 quotient classes covering 195,520 cells,
+>   claims (2,676 quotient classes covering 195,520 cells,
 >   `quotient-validate.md`, under the source-verified props-boundary
 >   license and its re-entry condition); and by witness for the
 >   browser-side dependence claims (`browser-witnesses.md`).

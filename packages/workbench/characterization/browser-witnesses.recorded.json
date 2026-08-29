@@ -491,8 +491,8 @@
             "regulars": "0",
             "under_vote_policy": "warn"
           },
-          "spec": "true",
-          "production": "true"
+          "spec": "false",
+          "production": "false"
         },
         {
           "cell": {
@@ -558,8 +558,8 @@
             "regulars": "0",
             "under_vote_policy": "warn"
           },
-          "spec": "true",
-          "production": "true"
+          "spec": "false",
+          "production": "false"
         }
       ],
       "ok": true
@@ -585,8 +585,8 @@
             "regulars": "0",
             "under_vote_policy": "warn"
           },
-          "spec": "true",
-          "production": "true"
+          "spec": "false",
+          "production": "false"
         },
         {
           "cell": {
@@ -679,8 +679,8 @@
             "regulars": "0",
             "under_vote_policy": "warn"
           },
-          "spec": "true",
-          "production": "true"
+          "spec": "false",
+          "production": "false"
         },
         {
           "cell": {
@@ -726,8 +726,8 @@
             "regulars": "0",
             "under_vote_policy": "warn"
           },
-          "spec": "true",
-          "production": "true"
+          "spec": "false",
+          "production": "false"
         },
         {
           "cell": {
@@ -773,8 +773,8 @@
             "regulars": "0",
             "under_vote_policy": "warn"
           },
-          "spec": "true",
-          "production": "true"
+          "spec": "false",
+          "production": "false"
         },
         {
           "cell": {
@@ -1713,8 +1713,8 @@
             "regulars": "0",
             "under_vote_policy": "warn"
           },
-          "spec": "true",
-          "production": "true"
+          "spec": "false",
+          "production": "false"
         },
         {
           "cell": {
@@ -1780,8 +1780,8 @@
             "regulars": "0",
             "under_vote_policy": "warn"
           },
-          "spec": "true",
-          "production": "true"
+          "spec": "false",
+          "production": "false"
         }
       ],
       "ok": true
@@ -1807,8 +1807,8 @@
             "regulars": "0",
             "under_vote_policy": "warn"
           },
-          "spec": "true",
-          "production": "true"
+          "spec": "false",
+          "production": "false"
         },
         {
           "cell": {
@@ -1901,8 +1901,8 @@
             "regulars": "0",
             "under_vote_policy": "warn"
           },
-          "spec": "true",
-          "production": "true"
+          "spec": "false",
+          "production": "false"
         },
         {
           "cell": {
@@ -1948,8 +1948,8 @@
             "regulars": "0",
             "under_vote_policy": "warn"
           },
-          "spec": "true",
-          "production": "true"
+          "spec": "false",
+          "production": "false"
         },
         {
           "cell": {
@@ -1995,8 +1995,8 @@
             "regulars": "0",
             "under_vote_policy": "warn"
           },
-          "spec": "true",
-          "production": "true"
+          "spec": "false",
+          "production": "false"
         },
         {
           "cell": {

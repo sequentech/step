@@ -46,13 +46,13 @@ dialog); *tally* is the per-ballot class the classifier assigns.
 | 1 | not-allowed | marker_only | — | — | — | — | ExplicitBlank |
 | 2 | allowed | none | selectedMin | — | — | — | ImplicitInvalid |
 | 2 | allowed | one | selectedMin | — | — | — | ImplicitInvalid |
-| 2 | allowed | marker_only | selectedMin | — | — | — | ImplicitInvalid |
+| 2 | allowed | marker_only | — | — | — | — | ExplicitBlank |
 | 2 | warn | none | selectedMin | — | — | dialog | ImplicitInvalid |
 | 2 | warn | one | selectedMin | — | — | dialog | ImplicitInvalid |
-| 2 | warn | marker_only | selectedMin | — | — | dialog | ImplicitInvalid |
+| 2 | warn | marker_only | — | — | — | — | ExplicitBlank |
 | 2 | warn-invalid-implicit-and-explicit | none | selectedMin | — | — | dialog | ImplicitInvalid |
 | 2 | warn-invalid-implicit-and-explicit | one | selectedMin | — | — | dialog | ImplicitInvalid |
-| 2 | warn-invalid-implicit-and-explicit | marker_only | selectedMin | — | — | dialog | ImplicitInvalid |
+| 2 | warn-invalid-implicit-and-explicit | marker_only | — | — | — | — | ExplicitBlank |
 | 2 | not-allowed | none | selectedMin | — | **block** | dialog | ImplicitInvalid |
 | 2 | not-allowed | one | selectedMin | — | **block** | dialog | ImplicitInvalid |
-| 2 | not-allowed | marker_only | selectedMin | — | **block** | dialog | ImplicitInvalid |
+| 2 | not-allowed | marker_only | — | — | — | — | ExplicitBlank |
