@@ -60,8 +60,7 @@ base64 = "0.22"
 schemars = { version = "0.8", features = ["chrono"]}
 # strand
 strand = { path="../strand", features = [], optional = true}
-# The rationalized vote-validation spec (the query-provider) — the injected
-# gate implementation routes through it; see src/validation_provider.rs.
+# vote-validation rules (see src/validation_provider.rs)
 validation-spec = { path = "../workbench/validation-spec", optional = true }
 
 num-bigint = { version = "0.4", features = ["rand"], optional = true }

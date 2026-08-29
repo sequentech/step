@@ -2,36 +2,30 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Derivations from the wire types (`Contest`, `DecodedVoteContest`) to the
-//! rationalized vote-validation spec's abstract shapes (`validation-spec`:
-//! `Config`, `VoteState`) — the injection point through which production
-//! call sites consult the query-provider instead of re-deriving validation
-//! facts locally. The first injected site is the submission gates
-//! (`util/voting_screen.rs`).
+//! Conversion from the ballot types (`Contest`, `DecodedVoteContest`) to
+//! the inputs of the `validation-spec` crate — `Config` (bounds and
+//! policies) and `VoteState` (a summary of the voter's selections) — from
+//! which that crate evaluates the vote-validation rules.
 //!
-//! Every derivation rule mirrors a named production behaviour:
+//! - An unset policy resolves to the enum's default, matching how the
+//!   ballot checkers resolve unset policies.
+//! - `regulars` counts selected choices (`selected > -1`), excluding the
+//!   explicit-blank and explicit-invalid marker candidates.
+//! - `explicit_invalid` is set by the decoded contest's
+//!   `is_explicit_invalid` flag or by a selected explicit-invalid marker
+//!   candidate — the two ways a ballot is marked invalid.
+//! - On preferential contests, `first_preferences` counts the regular
+//!   choices at rank 0, and `duplicate_ranks` / `rank_gaps` come from
+//!   [`DecodedVoteContest::validate_preferencial_order`]; on
+//!   non-preferential contests all three are absent.
+//! - `min_votes` / `max_votes` that cannot be interpreted as counts are
+//!   rejected as [`ValidationProviderError::UnrepresentableBounds`].
+//!   Ballot decoding reports such bounds as encoding errors
+//!   (`errors.encoding.invalidMinVotes` / `invalidMaxVotes`), which
+//!   callers handle from `invalid_errors` (see `util/voting_screen.rs`).
 //!
-//! - policy resolution is the per-field `unwrap_or_default()` the checkers
-//!   and gates already apply — an unset policy is the enum's default;
-//! - `regulars` counts selected (`selected > -1`) choices excluding both
-//!   marker kinds; `explicit_invalid` ORs the ballot flag with a selected
-//!   explicit-invalid marker choice (the two routes to explicit invalidity
-//!   converge at decode, and the old gates carried a double-count guard for
-//!   exactly this — both are subsumed by deriving once here);
-//! - `first_preferences` (preferential contests only) is the count of
-//!   regular choices at rank 0 — the number the pre-injection gates counted;
-//! - `duplicate_ranks` / `rank_gaps` call
-//!   [`DecodedVoteContest::validate_preferencial_order`] — the same
-//!   function `ballot_codec/raw_ballot.rs` uses — gated on
-//!   `is_preferential()` exactly as decode gates it;
-//! - unrepresentable `min_votes` / `max_votes` are a configuration
-//!   rejection (`check_max_min_votes_policy`'s sanity class), not a
-//!   vote-state effect: the caller keeps its record-driven handling for
-//!   the encoding-error class (see the gates).
-//!
-//! `DecodedVoteContest::is_blank_ballot` (the multi-contest blank-ballots
-//! feature) has no `VoteState` counterpart; the multi-contest codec lane is
-//! outside the spec's certified domain.
+//! `DecodedVoteContest::is_blank_ballot` is not consulted: the rules
+//! derive blankness from the selections themselves.
 
 use crate::ballot::{
     Contest, EBlankVotePolicy, EDuplicatedRankPolicy, EOverVotePolicy,
@@ -40,8 +34,7 @@ use crate::ballot::{
 use crate::plaintext::{DecodedVoteContest, PreferencialOrderErrorType};
 use validation_spec as spec;
 
-/// The contest configuration itself is unusable — outside the validation
-/// mapping's domain.
+/// A contest configuration that cannot be converted for validation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ValidationProviderError {
     /// `min_votes` / `max_votes` not representable as a count (negative or
@@ -142,7 +135,7 @@ fn map_gap(p: EPreferenceGapsPolicy) -> spec::RankPolicy {
     }
 }
 
-/// Derive the spec's `Config` from a `Contest`.
+/// Convert a `Contest`'s bounds and policies to a [`spec::Config`].
 pub fn contest_config(
     contest: &Contest,
 ) -> Result<spec::Config, ValidationProviderError> {
@@ -186,8 +179,8 @@ pub fn contest_config(
     })
 }
 
-/// Derive the spec's `VoteState` from a `DecodedVoteContest` against its
-/// `Contest`. See the module doc for the production rule each field mirrors.
+/// Summarize the voter's selections on one decoded contest as a
+/// [`spec::VoteState`]; see the module doc for the field-by-field rules.
 pub fn vote_state(
     contest: &Contest,
     decoded: &DecodedVoteContest,

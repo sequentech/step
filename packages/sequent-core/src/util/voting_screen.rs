@@ -10,44 +10,40 @@ use validation_spec::ContestValidator;
 
 use std::collections::HashMap;
 
-/// Per-contest submission gates, computed by the rationalized
-/// query-provider (`validation-spec`) through the wire-type derivations in
-/// `crate::validation_provider`. Returns `(hard, soft)`.
+/// Validation outcome of one contest for the voting screen's Next action:
+/// `(blocks_next, needs_confirmation)`.
 ///
-/// The provider derives everything from the contest configuration and the
-/// vote state, so the pre-injection re-derivations that drifted are gone:
-/// gate and checker share one selection count (a ranked ballot is gated
-/// from the same number the checker flags it by) and one under-vote
-/// predicate.
+/// The policy-driven rules — blank, invalid, over-vote, under-vote and
+/// preferential-order handling — are evaluated by [`ContestValidator`]
+/// from the contest configuration ([`contest_config`]) and a summary of
+/// the voter's selections ([`vote_state`]).
 ///
-/// Two record-driven behaviours are kept verbatim, because they concern
-/// errors the vote state cannot express (encoding/configuration failures —
-/// write-in overflow, malformed bounds — which decode stamps on the record):
-/// any `Explicit`/`EncodingError`-typed entry still hard-blocks (the old
-/// fast path), and an `EncodingError` entry still raises the dismissible
-/// dialog under a non-allowed invalid policy. For a contest whose bounds
-/// are not representable, only those record-driven behaviours apply — the
-/// decode of such a contest emits the corresponding encoding errors.
+/// Errors that ballot decoding recorded on the decoded contest are
+/// honoured directly: an `Explicit` or `EncodingError` entry in
+/// `invalid_errors` blocks Next, and an `EncodingError` entry also
+/// requires confirmation unless the invalid-vote policy allows invalid
+/// ballots. A contest whose `min_votes`/`max_votes` cannot be interpreted
+/// as counts is gated by those recorded errors alone (decoding reports
+/// such bounds as encoding errors).
 fn contest_gates(
     contest: &Contest,
     decoded_contest: &DecodedVoteContest,
 ) -> (bool, bool) {
     let invalid_errors = &decoded_contest.invalid_errors;
-    // The record-driven fast path: explicit or encoding errors hard-block.
-    let exogenous_hard = invalid_errors.iter().any(|error| {
+    let errors_block_next = invalid_errors.iter().any(|error| {
         matches!(
             error.error_type,
             InvalidPlaintextErrorType::Explicit
                 | InvalidPlaintextErrorType::EncodingError
         )
     });
-    // An encoding error also counts as "an invalid error" for the
-    // dismissible dialog's generic condition.
     let encoding_error_present = invalid_errors.iter().any(|error| {
         matches!(error.error_type, InvalidPlaintextErrorType::EncodingError)
     });
     let invalid_vote_policy = contest.get_invalid_vote_policy();
-    let exogenous_soft = encoding_error_present
+    // An encoding error counts as an invalid ballot for the confirmation
+    // dialog, so the invalid-vote policy's allowing values exempt it.
+    let errors_need_dialog = encoding_error_present
         && invalid_vote_policy != InvalidVotePolicy::ALLOWED
         && invalid_vote_policy
             != InvalidVotePolicy::ALLOWED_WITH_EXCLUSIVE_EXPLICIT;
@@ -57,11 +53,11 @@ fn contest_gates(
             let validator = ContestValidator::from_config(config)
                 .for_vote_state(vote_state(contest, decoded_contest));
             (
-                exogenous_hard || validator.hard_gate(),
-                exogenous_soft || validator.soft_gate(),
+                errors_block_next || validator.hard_gate(),
+                errors_need_dialog || validator.soft_gate(),
             )
         }
-        Err(_) => (exogenous_hard, exogenous_soft),
+        Err(_) => (errors_block_next, errors_need_dialog),
     }
 }
 
