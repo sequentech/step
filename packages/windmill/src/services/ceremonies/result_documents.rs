@@ -1020,6 +1020,7 @@ mod tests {
             channel_type: None,
             election_results: None,
             participation_by_channel: vec![],
+            show_candidate_results: false,
         };
         ElectionReportDataComputed {
             election_id: election_id.to_string(),

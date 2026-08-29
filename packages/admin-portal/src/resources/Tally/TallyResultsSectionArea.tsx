@@ -214,6 +214,7 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
             empty: t("common.label.noResult"),
             participationByChannel: t("tally.table.participation_by_channel"),
             channel: t("tally.table.channel"),
+            acclamationNote: t("tally.table.acclamation_note"),
             channelNames: {
                 [VotingStatusChannel.Online]: t("tally.table.channel_online"),
                 [VotingStatusChannel.Kiosk]: t("tally.table.channel_kiosk"),
@@ -287,6 +288,7 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
                             : null
                     }
                     preferential={counting_algorithm === ICountingAlgorithm.INSTANT_RUNOFF}
+                    acclaimed={Boolean(contest?.is_acclaimed)}
                 />
             )}
         </>

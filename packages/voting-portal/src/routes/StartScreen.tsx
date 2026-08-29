@@ -11,6 +11,7 @@ import {
     EStartScreenTitlePolicy,
     EElectionEventContestEncryptionPolicy,
     EDeclineToVotePolicy,
+    areAllContestsAcclaimed,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {useLocation, useNavigate, useParams} from "react-router-dom"
@@ -96,8 +97,12 @@ const StartScreen: React.FC = () => {
     const isMultiContest =
         ballotStyle?.ballot_eml.election_event_presentation?.contest_encryption_policy ===
         EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
+    // Declining is casting a ballot, and a fully acclaimed election has no
+    // ballot to cast.
     const isDeclineToVotePolicyEnabled =
-        declineToVotePolicy === EDeclineToVotePolicy.ENABLED && isMultiContest
+        declineToVotePolicy === EDeclineToVotePolicy.ENABLED &&
+        isMultiContest &&
+        !areAllContestsAcclaimed(ballotStyle?.ballot_eml.contests)
 
     const confirmDeclineToVote = () => {
         if (!ballotStyle || !election) {

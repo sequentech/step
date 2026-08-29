@@ -45,6 +45,12 @@ const dutchTranslation: TranslationType = {
         footer: {
             poweredBy: "Aangedreven door <1></1>",
         },
+        contest: {
+            acclamation: {
+                description:
+                    "Deze stemming is bij acclamatie beslist. De kandidaten worden zonder stemming gekozen, dus er kan niets worden geselecteerd en er wordt geen stem geregistreerd.",
+            },
+        },
         votingScreen: {
             backButton: "Terug",
             reviewButton: "Volgende",
@@ -102,6 +108,18 @@ const dutchTranslation: TranslationType = {
                 "Breng uw stem uit zodat deze correct wordt geregistreerd, of kies voor audit om te bevestigen dat het stembiljet correct is versleuteld.",
         },
         reviewScreen: {
+            acclamation: {
+                title: "Bij acclamatie beslist",
+                helpDialog: {
+                    title: "Informatie: Acclamatie",
+                    content:
+                        "Dit scherm toont wat bij acclamatie is beslist. Omdat er niets kon worden geselecteerd, wordt er geen stem uitgebracht en valt er achteraf niets te verifiëren.",
+                    ok: "OK",
+                },
+                description:
+                    "Bekijk wat bij acclamatie is beslist in deze verkiezing. Er wordt geen stem uitgebracht.",
+                finishButton: "Afronden",
+            },
             title: "Controleer uw stembiljet",
             description:
                 "Klik op “<b>Stembiljet bewerken</b>” voor wijzigingen, “<b>Stem uitbrengen</b>” om te bevestigen, of “<b>Controleer stembiljet</b>” voor audit.",
@@ -240,6 +258,17 @@ const dutchTranslation: TranslationType = {
             blankBallot: "Blanco stembiljet",
         },
         confirmationScreen: {
+            acclamation: {
+                title: "Bij acclamatie beslist",
+                description:
+                    "Alle stemmingen in deze verkiezing zijn bij acclamatie beslist, dus er is geen stem uitgebracht en er is geen stembiljet-ID om te volgen.",
+                helpDialog: {
+                    title: "Informatie: Acclamatie",
+                    content:
+                        "Alle stemmingen in deze verkiezing zijn bij acclamatie beslist: de kandidaten worden zonder stemming gekozen. Omdat er geen stem is uitgebracht, is er geen stembiljet-ID, ontvangstbewijs of QR-code om te verifiëren.",
+                    ok: "OK",
+                },
+            },
             title: "Uw stem is uitgebracht",
             description:
                 "De onderstaande bevestigingscode verifieert dat <b>uw stembiljet succesvol is uitgebracht</b>. U kunt deze code gebruiken om te controleren of uw stembiljet is geteld.",
