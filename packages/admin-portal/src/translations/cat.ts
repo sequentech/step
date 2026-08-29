@@ -222,6 +222,7 @@ const catalanTranslation: TranslationType = {
                 logs: "Registres",
             },
             tasksExecution: {
+                PUBLISH_BALLOT: "Publicar papereta",
                 VOTER_INFORMATION_LETTER: "Carta d'informació per al votant",
                 EXPORT_ELECTION_EVENT: "Exportar esdeveniment electoral",
                 CREATE_ELECTION_EVENT: "Crear Esdeveniment Electoral",
@@ -1933,6 +1934,11 @@ const catalanTranslation: TranslationType = {
             paginationPolicy: {
                 label: "Nom de la pàgina",
             },
+            isAcclaimed: {
+                label: "Resolt per aclamació",
+                helperText:
+                    "Els votants veuen aquesta votació però no poden seleccionar res, no es registra res i totes les candidatures es declaren guanyadores amb zero vots. Configureu-ho abans de publicar les paperetes: canviar-ho després invalida les paperetes ja emeses.",
+            },
             allowWriteins: {
                 label: "Permetre candidatures manuals",
             },
@@ -2311,6 +2317,8 @@ const catalanTranslation: TranslationType = {
                 channel_paper: "Paper",
                 channel_postal: "Postal",
                 channel_in_person: "Presencial",
+                acclamation_note:
+                    "Elegit per aclamació. Aquesta votació es va resoldre sense votació, per la qual cosa no es va registrar cap vot.",
             },
             pendingResolutions: {
                 round: "Ronda {{round}}",

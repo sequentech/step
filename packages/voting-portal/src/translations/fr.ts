@@ -45,6 +45,12 @@ const frenchTranslation: TranslationType = {
         footer: {
             poweredBy: "Développé par <1></1>",
         },
+        contest: {
+            acclamation: {
+                description:
+                    "Ce vote a été acquis par acclamation. Ses candidat(e)s sont élu(e)s sans scrutin : aucune option ne peut être sélectionnée et aucune voix n'est enregistrée.",
+            },
+        },
         votingScreen: {
             backButton: "Retour",
             reviewButton: "Suivant",
@@ -102,6 +108,18 @@ const frenchTranslation: TranslationType = {
                 "Soumettez votre bulletin pour qu'il soit enregistré, ou lancez un audit afin de vérifier qu'il a été correctement chiffré.",
         },
         reviewScreen: {
+            acclamation: {
+                title: "Acquis par acclamation",
+                helpDialog: {
+                    title: "Information : Acclamation",
+                    content:
+                        "Cet écran présente ce qui a été acquis par acclamation. Aucune option ne pouvant être sélectionnée, aucun bulletin n'est déposé et il n'y a rien à vérifier ensuite.",
+                    ok: "OK",
+                },
+                description:
+                    "Vérifiez ce qui a été acquis par acclamation lors de cette élection. Aucun bulletin ne sera déposé.",
+                finishButton: "Terminer",
+            },
             title: "Révisez votre vote",
             description:
                 "Cliquez sur “<b>Modifier votre vote</b>” pour changer vos sélections, “<b>Envoyer le vote</b>” pour confirmer, ou “<b>Vérifier le bulletin</b>” pour l'auditer.",
@@ -240,6 +258,17 @@ const frenchTranslation: TranslationType = {
             blankBallot: "Bulletin blanc",
         },
         confirmationScreen: {
+            acclamation: {
+                title: "Acquis par acclamation",
+                description:
+                    "Tous les votes de cette élection ont été acquis par acclamation : aucun bulletin n'a été déposé et il n'y a pas d'identifiant de bulletin à suivre.",
+                helpDialog: {
+                    title: "Information : Acclamation",
+                    content:
+                        "Tous les votes de cette élection ont été acquis par acclamation : leurs candidat(e)s sont élu(e)s sans scrutin. Comme aucun bulletin n'a été déposé, il n'y a ni identifiant de bulletin, ni reçu, ni code QR à vérifier.",
+                    ok: "OK",
+                },
+            },
             title: "Votre vote a été émis",
             description:
                 "Le code de confirmation ci-dessous vérifie que <b>votre vote a été émis correctement</b>. Vous pouvez utiliser ce code pour vérifier que votre vote a été comptabilisé.",

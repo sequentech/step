@@ -254,6 +254,7 @@ const spanishTranslation: TranslationType = {
                 logs: "Registros",
             },
             tasksExecution: {
+                PUBLISH_BALLOT: "Publicar papeleta",
                 VOTER_INFORMATION_LETTER: "Carta de información para el votante",
                 EXPORT_ELECTION_EVENT: "Exportar evento electoral",
                 CREATE_ELECTION_EVENT: "Crear Evento Electoral",
@@ -1923,6 +1924,11 @@ const spanishTranslation: TranslationType = {
             paginationPolicy: {
                 label: "Nombre de la página",
             },
+            isAcclaimed: {
+                label: "Resuelto por aclamación",
+                helperText:
+                    "Los votantes ven esta votación pero no pueden seleccionar nada, no se registra nada y todas las candidaturas se declaran ganadoras con cero votos. Configúrelo antes de publicar las papeletas: cambiarlo después invalida las papeletas ya emitidas.",
+            },
             allowWriteins: {
                 label: "Permitir candidaturas manuales",
             },
@@ -2301,6 +2307,8 @@ const spanishTranslation: TranslationType = {
                 channel_paper: "Papel",
                 channel_postal: "Postal",
                 channel_in_person: "Presencial",
+                acclamation_note:
+                    "Elegido por aclamación. Esta votación se resolvió sin votación, por lo que no se registró ningún voto.",
             },
             pendingResolutions: {
                 round: "Ronda {{round}}",
