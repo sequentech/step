@@ -655,7 +655,9 @@ pub struct Effects {
 pub fn f(config: &Config, vs: &VoteState) -> Effects {
     // `f` is the FROZEN ORACLE. It composes the bug-compatible free functions
     // directly (emissions → gates → inline/reachability/tally), reproducing
-    // production byte-identically, and is deliberately pinned here: it does
+    // production cell for cell at the granularity the sweep certifies
+    // (emissions as message-key sets; every other effect exactly), and is
+    // deliberately pinned here: it does
     // NOT route through the query-provider. The provider is the rationalized
     // (fixed) implementation, and `f` is the "before" leg the diff report
     // (characterization/fix-diff.md) measures the fix against — so the two

@@ -509,7 +509,17 @@ fn preferential_grids_match_production() {
                 p.duplicated_rank_policy = Some(dup.clone());
                 p.invalid_vote_policy = Some(invalid.clone());
             });
-            for (state, ranks) in [("valid_full", [0, 1, 2]), ("duplicate", [0, 0, -1])] {
+            // both_defects (two candidates at rank 0, one at rank 2 — a
+            // duplicate AND a gap) pins the EMISSION ORDER of the
+            // preferential pair: duplicates before gaps, the order
+            // validate_preferencial_order returns and decoding emits. The
+            // record-fidelity assertion compares full ordered records, so
+            // this is the one cell where that order is instrument-checked.
+            for (state, ranks) in [
+                ("valid_full", [0, 1, 2]),
+                ("duplicate", [0, 0, -1]),
+                ("both_defects", [0, 0, 2]),
+            ] {
                 let picked: Vec<(&str, i64)> = ids
                     .iter()
                     .zip(ranks)
