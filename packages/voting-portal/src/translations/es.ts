@@ -10,6 +10,22 @@ const spanishTranslation: TranslationType = {
             showMore: "Mostrar más",
             showLess: "Mostrar menos",
         },
+        a11y: {
+            skipToContent: "Saltar al contenido principal",
+            helpAbout: "Ayuda sobre {{topic}}",
+            copyToClipboard: "Copiar {{label}} al portapapeles",
+            previewMaterial: "Vista previa de {{title}}",
+            ballotsTable: "Papeletas",
+            ballotLocatorTabs: "Secciones del localizador de papeletas",
+            ballotIdLabel: "ID de voto",
+            votingProgress: "Progreso de la votación",
+            stepOf: "Paso {{current}} de {{total}}",
+            selectUpTo_one: "Seleccione hasta {{count}} opción",
+            selectUpTo_other: "Seleccione hasta {{count}} opciones",
+            selectExactly_one: "Seleccione {{count}} opción",
+            selectExactly_other: "Seleccione {{count}} opciones",
+            selectBetween: "Seleccione entre {{min}} y {{max}} opciones",
+        },
         candidatesList: {
             collapseToggle: "Alternar lista {{listTitle}}",
             showCandidates: "Mostrar candidatos",
@@ -28,6 +44,12 @@ const spanishTranslation: TranslationType = {
         },
         footer: {
             poweredBy: "Funciona con <1></1>",
+        },
+        contest: {
+            acclamation: {
+                description:
+                    "Esta votación se ha resuelto por aclamación. Sus candidaturas resultan elegidas sin votación, por lo que no se puede seleccionar ninguna opción ni se registra ningún voto.",
+            },
         },
         votingScreen: {
             backButton: "Atrás",
@@ -86,6 +108,18 @@ const spanishTranslation: TranslationType = {
                 "Cuando esté listo, emita su papeleta para que quede registrada oficialmente. O elija auditar primero para confirmar que fue correctamente capturada y cifrada",
         },
         reviewScreen: {
+            acclamation: {
+                title: "Resuelto por aclamación",
+                helpDialog: {
+                    title: "Información: Aclamación",
+                    content:
+                        "Esta pantalla muestra lo que se ha resuelto por aclamación. Como no se ha podido seleccionar ninguna opción, no se emite ninguna papeleta y no hay nada que verificar después.",
+                    ok: "OK",
+                },
+                description:
+                    "Revise lo que se ha resuelto por aclamación en esta elección. No se emitirá ninguna papeleta.",
+                finishButton: "Finalizar",
+            },
             title: "Revisa tu voto",
             description:
                 "Para realizar cambios en sus selecciones, haga clic en el botón “<b>Editar selección</b>”, para confirmar sus selecciones, haga clic en el botón “<b>Enviar tu voto</b>” debajo, y para auditar su papeleta haga clic en el botón “<b>Auditar papeleta</b>” debajo.",
@@ -225,6 +259,17 @@ const spanishTranslation: TranslationType = {
             blankBallot: "Papeleta en blanco",
         },
         confirmationScreen: {
+            acclamation: {
+                title: "Resuelto por aclamación",
+                description:
+                    "Todas las votaciones de esta elección se han resuelto por aclamación, por lo que no se ha emitido ninguna papeleta y no hay identificador de papeleta que consultar.",
+                helpDialog: {
+                    title: "Información: Aclamación",
+                    content:
+                        "Todas las votaciones de esta elección se han resuelto por aclamación: sus candidaturas resultan elegidas sin votación. Como no se ha emitido ninguna papeleta, no hay identificador de papeleta, comprobante ni código QR que verificar.",
+                    ok: "OK",
+                },
+            },
             title: "Su voto ha sido emitido",
             description:
                 "Su papeleta fue emitida correctamente. Use el código a continuación para verificar que fue contabilizada",
@@ -382,6 +427,7 @@ const spanishTranslation: TranslationType = {
                 back: "Volver a la lista de votaciones",
                 close: "Cerrar",
                 preview: "Vista previa",
+                download: "Descargar",
             },
         },
         ballotLocator: {

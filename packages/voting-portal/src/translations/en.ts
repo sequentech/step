@@ -8,6 +8,22 @@ const englishTranslation = {
             showMore: "Show more",
             showLess: "Show less",
         },
+        a11y: {
+            skipToContent: "Skip to main content",
+            helpAbout: "Help about {{topic}}",
+            copyToClipboard: "Copy {{label}} to clipboard",
+            previewMaterial: "Preview {{title}}",
+            ballotsTable: "Ballots",
+            ballotLocatorTabs: "Ballot locator sections",
+            ballotIdLabel: "Ballot ID",
+            votingProgress: "Voting progress",
+            stepOf: "Step {{current}} of {{total}}",
+            selectUpTo_one: "Select up to {{count}} option",
+            selectUpTo_other: "Select up to {{count}} options",
+            selectExactly_one: "Select {{count}} option",
+            selectExactly_other: "Select {{count}} options",
+            selectBetween: "Select between {{min}} and {{max}} options",
+        },
         candidatesList: {
             collapseToggle: "Toggle list {{listTitle}}",
             showCandidates: "Show candidates",
@@ -26,6 +42,12 @@ const englishTranslation = {
         },
         footer: {
             poweredBy: "Powered by <1></1>",
+        },
+        contest: {
+            acclamation: {
+                description:
+                    "This contest was decided by acclamation. Its candidates are elected without a vote, so no option can be selected and no vote is recorded for it.",
+            },
         },
         votingScreen: {
             backButton: "Back",
@@ -84,6 +106,18 @@ const englishTranslation = {
                 "When you’re ready, cast your ballot so it’s officially recorded. Or choose to audit first to confirm it was correctly captured and encrypted",
         },
         reviewScreen: {
+            acclamation: {
+                title: "Decided by acclamation",
+                helpDialog: {
+                    title: "Information: Acclamation",
+                    content:
+                        "This screen shows what was decided by acclamation. Because no option could be selected, no ballot is cast and there is nothing to verify afterwards.",
+                    ok: "OK",
+                },
+                description:
+                    "Review what was decided by acclamation in this election. No ballot will be cast.",
+                finishButton: "Finish",
+            },
             title: "Review your ballot",
             description:
                 "To make changes in your selections, click “<b>Edit ballot</b>” button, to confirm your selections, click “<b>Cast your ballot</b>” button below, and to audit your ballot click the “<b>Audit Ballot</b>” button below.",
@@ -216,6 +250,17 @@ const englishTranslation = {
             blankBallot: "Blank ballot",
         },
         confirmationScreen: {
+            acclamation: {
+                title: "Decided by acclamation",
+                description:
+                    "Every contest in this election was decided by acclamation, so no ballot was cast and there is no ballot ID to track.",
+                helpDialog: {
+                    title: "Information: Acclamation",
+                    content:
+                        "Every contest in this election was decided by acclamation: its candidates are elected without a vote. Because no ballot was cast, there is no ballot ID, receipt or QR code to verify.",
+                    ok: "OK",
+                },
+            },
             title: "Your vote has been cast",
             description:
                 "Your ballot was cast successfully. Use the code below to verify that it was counted",
@@ -374,6 +419,7 @@ const englishTranslation = {
                 back: "Back to ballot list",
                 close: "Close",
                 preview: "Preview",
+                download: "Download",
             },
         },
         ballotLocator: {

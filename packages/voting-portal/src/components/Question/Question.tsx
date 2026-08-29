@@ -2,12 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useMemo, useState} from "react"
-import {Box, Button} from "@mui/material"
+import {Alert, Box, Button} from "@mui/material"
 import {
     stringToHtml,
     splitList,
     keyBy,
     translate,
+    translateFromPresentation,
+    isAcclaimedContest,
     IContest,
     CandidatesOrder,
     EOverVotePolicy,
@@ -15,7 +17,7 @@ import {
     BallotSelection,
     ECollapsibleLists,
 } from "@sequentech/ui-core"
-import {theme, BlankAnswer} from "@sequentech/ui-essentials"
+import {theme, BlankAnswer, VisuallyHidden} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
 import {Answer} from "../Answer/Answer"
@@ -37,7 +39,7 @@ import {
     getShuffledCategories,
 } from "../../services/CategoryService"
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
-import {InvalidErrorsList} from "../InvalidErrorsList/InvalidErrorsList"
+import {InvalidErrorsList, contestErrorsId} from "../InvalidErrorsList/InvalidErrorsList"
 import {useTranslation} from "react-i18next"
 import {IDecodedVoteContest, IInvalidPlaintextError} from "@sequentech/ui-core"
 import {useAppSelector} from "../../store/hooks"
@@ -47,7 +49,7 @@ import {provideBallotService} from "../../services/BallotService"
 import {faAngleDown, faAngleRight} from "@fortawesome/free-solid-svg-icons"
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 
-const StyledTitle = styled(Typography)`
+const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     margin-top: 25.5px;
     display: flex;
     flex-direction: row;
@@ -148,6 +150,16 @@ export const Question: React.FC<IQuestionProps> = ({
     let [disableSelect, setDisableSelect] = useState(false)
     let {invalidOrBlankCandidates, noCategoryCandidates, categoriesMap} =
         categorizeCandidates(question)
+    // An acclaimed contest is display-only: nothing can be selected, so it
+    // offers no explicit blank or invalid options, reports no selection
+    // errors, and is not part of a declined or blank ballot either.
+    const isAcclaimed = isAcclaimedContest(question)
+    const markerCandidates = isAcclaimed ? [] : invalidOrBlankCandidates
+    const defaultLanguageCode =
+        ballotStyle.ballot_eml.election_presentation?.language_conf?.default_language_code ??
+        ballotStyle.ballot_eml.election_event_presentation?.language_conf?.default_language_code
+    const showDeclineToVote = !!isDeclineToVote && !isAcclaimed
+    const showBlankBallot = !!isBlankBallot && !isAcclaimed
     const [isTouched, setIsTouched] = useState(isReview)
     const contestState = useAppSelector(
         selectBallotSelectionQuestion(ballotStyle.election_id, question.id)
@@ -191,7 +203,7 @@ export const Question: React.FC<IQuestionProps> = ({
     const candidatesOrderType = question.presentation?.candidates_order
 
     let [invalidBottomCandidatesUnsorted, invalidTopCandidatesUnsorted] = splitList(
-        invalidOrBlankCandidates,
+        markerCandidates,
         checkPositionIsTop
     )
 
@@ -290,13 +302,34 @@ export const Question: React.FC<IQuestionProps> = ({
     // when isRadioChecked is true, clicking on another option works as a radio button:
     // it deselects the previously selected option to select the new one
     const isRadioSelection = checkIsRadioSelection(question)
-    const isBlank = isReview && contestState && checkIsBlank(contestState)
+    const isBlank = !isAcclaimed && isReview && contestState && checkIsBlank(contestState)
+
+    // How many choices the voter may make is otherwise only exposed through the
+    // data-min/data-max attributes, which assistive technology cannot read. It
+    // goes in the group's legend so it is announced along with every option.
+    // The review screen shows the same contests read-only, so there the limit
+    // would be announced for options the voter can no longer change.
+    const selectionInstruction = useMemo(() => {
+        if (isReview) {
+            return ""
+        }
+        const min = question.min_votes
+        const max = question.max_votes
+        if (min === max) {
+            return t("a11y.selectExactly", {count: max})
+        }
+        if (min > 0) {
+            return t("a11y.selectBetween", {min, max})
+        }
+        return t("a11y.selectUpTo", {count: max})
+    }, [question.min_votes, question.max_votes, isReview, t])
 
     return (
         <Box component="section" aria-labelledby={`contest-${question.id}-title`}>
             <StyledTitle
                 className="contest-title"
                 variant="h5"
+                component="h2"
                 data-min={question.min_votes}
                 data-max={question.max_votes}
                 id={`contest-${question.id}-title`}
@@ -315,6 +348,7 @@ export const Question: React.FC<IQuestionProps> = ({
                             <FontAwesomeIcon icon={allCollapsed ? faAngleRight : faAngleDown} />
                         }
                         onClick={handleToggleAll}
+                        aria-expanded={!allCollapsed}
                     >
                         {allCollapsed
                             ? t("candidatesList.expandAll")
@@ -323,55 +357,77 @@ export const Question: React.FC<IQuestionProps> = ({
                 ) : null}
             </StyledTitle>
             {question.description || question.description_i18n?.[i18n.language] ? (
-                <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+                <Typography
+                    variant="body2"
+                    component="div"
+                    sx={{color: theme.palette.customGrey.main}}
+                >
                     {stringToHtml(translate(question, "description", i18n.language) || "")}
                 </Typography>
             ) : null}
+            {isAcclaimed ? (
+                <Alert severity="info" className="contest-acclamation">
+                    {stringToHtml(
+                        translateFromPresentation(
+                            question,
+                            "acclamation_description",
+                            i18n.language,
+                            {defaultLanguageCode}
+                        ) || t("contest.acclamation.description")
+                    )}
+                </Alert>
+            ) : null}
             {isDeclineToVote ? (
-                <InvalidBlankWrapper className="candidates-review-decline" columnCount={1}>
+                <InvalidBlankWrapper
+                    className="candidates-review-decline"
+                    columnCount={1}
+                    role="list"
+                >
                     <BlankAnswer title={t("reviewScreen.declineToVote")} />
                 </InvalidBlankWrapper>
-            ) : isBlankBallot ? (
+            ) : showBlankBallot ? (
                 <InvalidBlankWrapper className="candidates-review-blank-ballot" columnCount={1}>
                     <BlankAnswer title={t("reviewScreen.blankBallot")} />
                 </InvalidBlankWrapper>
             ) : (
                 <>
-                    <InvalidErrorsList
-                        ballotStyle={ballotStyle}
-                        question={question}
-                        hasWriteIns={hasWriteIns}
-                        isInvalidWriteIns={isInvalidWriteIns}
-                        setIsInvalidWriteIns={onSetIsInvalidWriteIns}
-                        setDecodedContests={setDecodedContests}
-                        isReview={isReview}
-                        errorSelectionState={errorSelectionState}
-                        isTouched={isTouched}
-                        setIsTouched={setIsTouched}
-                    />
+                    {isAcclaimed ? null : (
+                        <InvalidErrorsList
+                            ballotStyle={ballotStyle}
+                            question={question}
+                            hasWriteIns={hasWriteIns}
+                            isInvalidWriteIns={isInvalidWriteIns}
+                            setIsInvalidWriteIns={onSetIsInvalidWriteIns}
+                            setDecodedContests={setDecodedContests}
+                            isReview={isReview}
+                            errorSelectionState={errorSelectionState}
+                            isTouched={isTouched}
+                            setIsTouched={setIsTouched}
+                        />
+                    )}
                     {isBlank ? (
-                        <InvalidBlankWrapper className="candidates-review-blank" columnCount={1}>
+                        <InvalidBlankWrapper
+                            className="candidates-review-blank"
+                            columnCount={1}
+                            role="list"
+                        >
                             <BlankAnswer />{" "}
                         </InvalidBlankWrapper>
                     ) : null}
-                    <CandidatesWrapper className="candidates-container">
-                        <Box
-                            className="candidates-legend"
-                            component="legend"
-                            sx={{
-                                position: "absolute",
-                                width: 0,
-                                height: 0,
-                                overflow: "hidden",
-                                clip: "rect(0 0 0 0)",
-                            }}
-                        >
-                            {translate(question, "name", i18n.language) || ""}
-                        </Box>
+                    <CandidatesWrapper
+                        className="candidates-container"
+                        aria-describedby={contestErrorsId(question.id)}
+                    >
+                        <VisuallyHidden className="candidates-legend" component="legend">
+                            {[translate(question, "name", i18n.language), selectionInstruction]
+                                .filter(Boolean)
+                                .join(" ")}
+                        </VisuallyHidden>
                         {invalidTopCandidates.length ? (
                             <InvalidBlankWrapper
                                 className="candidates-top-blank-invalid"
                                 columnCount={1}
+                                role="list"
                             >
                                 {invalidTopCandidates.map((answer, answerIndex) => (
                                     <Answer
@@ -439,6 +495,7 @@ export const Question: React.FC<IQuestionProps> = ({
                             <CandidatesSingleWrapper
                                 className="candidates-singles-container"
                                 columnCount={columnCount}
+                                role="list"
                             >
                                 {candidatesOrder
                                     ?.map((id) => noCategoryCandidatesMap[id])
@@ -470,6 +527,7 @@ export const Question: React.FC<IQuestionProps> = ({
                             <InvalidBlankWrapper
                                 className="candidates-bottom-blank-invalid"
                                 columnCount={1}
+                                role="list"
                             >
                                 {invalidBottomCandidates.map((answer, answerIndex) => (
                                     <Answer

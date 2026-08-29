@@ -255,6 +255,7 @@ const frenchTranslation: TranslationType = {
                 logs: "Journaux",
             },
             tasksExecution: {
+                PUBLISH_BALLOT: "Publier le bulletin",
                 VOTER_INFORMATION_LETTER: "Lettre d'information de l'électeur",
                 EXPORT_ELECTION_EVENT: "Exporter l'événement électoral",
                 CREATE_ELECTION_EVENT: "Créer Événement Électoral",
@@ -496,6 +497,7 @@ const frenchTranslation: TranslationType = {
                 notify: {
                     success: "Localisation mise à jour avec succès",
                     error: "Échec de la mise à jour de la localisation",
+                    duplicateKey: "Un remplacement avec cette clé et cette portée existe déjà.",
                     invalidDateTimeFormat:
                         "Format de date/heure non valide. Utilisez les jetons yyyy, MM, dd, HH, mm, ss (ex. dd/MM/yyyy HH:mm).",
                 },
@@ -505,7 +507,16 @@ const frenchTranslation: TranslationType = {
                 },
                 labels: {
                     key: "Clé",
+                    scope: "Portée du portail",
                     value: "Valeur",
+                },
+                scopes: {
+                    legacy: "Hérité ({{portal}})",
+                    global: "Global",
+                    votingPortal: "Portail de vote",
+                    ballotVerifier: "Vérificateur de bulletins",
+                    resultsPortal: "Portail des résultats",
+                    adminPortal: "Portail d'administration",
                 },
             },
             field: {
@@ -554,6 +565,7 @@ const frenchTranslation: TranslationType = {
                 userVerification:
                     "Vous pouvez introduire un modèle personnalisé qui sera utilisé pour vérifier manuellement les électeurs",
                 redirectFinishUrl: "URL de redirection à la fin",
+                kioskRedirectFinishUrl: "URL de redirection à la fin du vote en kiosque",
                 css: "CSS personnalisé",
                 skipElectionList: "Passer l'écran pour choisir l'élection",
                 showUserProfile: "Afficher le profil utilisateur",
@@ -1194,9 +1206,32 @@ const frenchTranslation: TranslationType = {
                 },
                 errors: {
                     editError: "Erreur lors de l'édition de l'électeur",
+                    editErrorReason: "Erreur lors de l'édition de l'électeur : {{reason}}",
                     editSuccess: "Électeur édité",
                     createError: "Erreur lors de la création de l'électeur",
+                    createErrorReason: "Erreur lors de la création de l'électeur : {{reason}}",
                     createSuccess: "Électeur créé",
+                    attribute: {
+                        invalidNamed: '"{{field}}" a été refusé : {{constraint}}',
+                        fieldsToCorrect:
+                            "Certains champs doivent être corrigés avant d'enregistrer",
+                        hintBetween: "Entre {{min}} et {{max}} caractères",
+                        hintMin: "Au moins {{min}} caractères",
+                        hintMax: "Au maximum {{max}} caractères",
+                        andMore: "et {{count}} de plus",
+                        invalidLength:
+                            '"{{field}}" doit contenir entre {{min}} et {{max}} caractères',
+                        tooShort: '"{{field}}" doit contenir au moins {{min}} caractères',
+                        tooLong: '"{{field}}" doit contenir au maximum {{max}} caractères',
+                        required: '"{{field}}" est obligatoire',
+                        invalidEmail: '"{{field}}" doit être une adresse e-mail valide',
+                        invalidFormat: '"{{field}}" n\'a pas le format attendu',
+                        invalid: '"{{field}}" a une valeur non valide',
+                    },
+                    createPasswordError:
+                        "Électeur créé, mais son mot de passe n'a pas pu être défini",
+                    createPasswordErrorReason:
+                        "Électeur créé, mais son mot de passe n'a pas pu être défini : {{reason}}",
                 },
                 delete: {
                     body: "Êtes-vous sûr de vouloir supprimer cet électeur ?",
@@ -1891,6 +1926,11 @@ const frenchTranslation: TranslationType = {
             paginationPolicy: {
                 label: "Nom de la page",
             },
+            isAcclaimed: {
+                label: "Acquis par acclamation",
+                helperText:
+                    "Les électeurs voient ce vote mais ne peuvent rien sélectionner, rien n'est enregistré et tous les candidats sont déclarés élus avec zéro voix. À définir avant la publication des bulletins : le modifier ensuite invalide les bulletins déjà déposés.",
+            },
             allowWriteins: {
                 label: "Autoriser les candidatures manuscrites",
             },
@@ -2271,6 +2311,8 @@ const frenchTranslation: TranslationType = {
                 channel_paper: "Papier",
                 channel_postal: "Postal",
                 channel_in_person: "En personne",
+                acclamation_note:
+                    "Élu par acclamation. Ce vote a été acquis sans scrutin : aucune voix n'a été enregistrée.",
             },
             pendingResolutions: {
                 round: "Tour {{round}}",

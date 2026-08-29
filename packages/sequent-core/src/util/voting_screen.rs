@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::ballot::*;
+use crate::ballot_codec::multi_ballot::votable_contests;
 use crate::plaintext::*;
 use crate::types::ceremonies::CountingAlgType;
 use crate::validation_provider::{contest_config, vote_state};
@@ -68,15 +69,21 @@ fn contest_gates(
 
 // Function used to decide if the voter needs to change his/her ballot before
 // continuing
+//
+// Acclaimed contests are skipped: they have no selectable options, so a
+// selection policy such as a minimum number of votes could never be satisfied
+// and would block the voter for good.
 pub fn check_voting_not_allowed_next_util(
     contests: Vec<Contest>,
     decoded_contests: HashMap<String, DecodedVoteContest>,
 ) -> bool {
-    contests.iter().any(|contest| {
+    votable_contests(&contests).any(|contest| {
         decoded_contests
             .get(&contest.id)
             .map(|decoded_contest| contest_gates(contest, decoded_contest).0)
-            .unwrap_or(false)
+            // An incomplete validation map is not proof that the contest is
+            // valid. Fail closed until its decoded state is available.
+            .unwrap_or(true)
     })
 }
 
@@ -86,7 +93,8 @@ pub fn check_voting_error_dialog_util(
     contests: Vec<Contest>,
     decoded_contests: HashMap<String, DecodedVoteContest>,
 ) -> bool {
-    contests.iter().any(|contest| {
+    // Acclaimed contests cannot be voted on, so they never warrant a warning.
+    votable_contests(&contests).any(|contest| {
         decoded_contests
             .get(&contest.id)
             .map(|decoded_contest| contest_gates(contest, decoded_contest).1)
@@ -123,6 +131,7 @@ pub fn get_contest_plurality(
         voting_type: Some("first-past-the-post".into()),
         counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
         is_encrypted: true,
+        is_acclaimed: None,
         annotations: None,
         candidates: vec![
             Candidate {

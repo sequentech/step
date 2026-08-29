@@ -254,6 +254,7 @@ const galegoTranslation: TranslationType = {
                 logs: "Rexistros",
             },
             tasksExecution: {
+                PUBLISH_BALLOT: "Publicar papeleta",
                 VOTER_INFORMATION_LETTER: "Carta de información para o votante",
                 EXPORT_ELECTION_EVENT: "Exportar evento electoral",
                 CREATE_ELECTION_EVENT: "Crear Evento Electoral",
@@ -496,6 +497,7 @@ const galegoTranslation: TranslationType = {
                 notify: {
                     success: "Localización actualizada correctamente",
                     error: "Fallou a actualización da localización",
+                    duplicateKey: "Xa existe unha substitución con esta clave e ámbito do portal.",
                     invalidDateTimeFormat:
                         "Formato de data/hora non válido. Usa os tokens yyyy, MM, dd, HH, mm, ss (p. ex. dd/MM/yyyy HH:mm).",
                 },
@@ -505,7 +507,16 @@ const galegoTranslation: TranslationType = {
                 },
                 labels: {
                     key: "Clave",
+                    scope: "Ámbito do portal",
                     value: "Valor",
+                },
+                scopes: {
+                    legacy: "Herdado ({{portal}})",
+                    global: "Global",
+                    votingPortal: "Portal de votación",
+                    ballotVerifier: "Verificador de papeletas",
+                    resultsPortal: "Portal de resultados",
+                    adminPortal: "Portal de administración",
                 },
             },
             field: {
@@ -554,6 +565,7 @@ const galegoTranslation: TranslationType = {
                 userVerification:
                     "Pode introducir un modelo personalizado que se utilizará para verificar manualmente os votantes",
                 redirectFinishUrl: "URL de Redirección ao Finalizar",
+                kioskRedirectFinishUrl: "URL de Redirección ao Finalizar do Quiosco",
                 css: "CSS Personalizado",
                 skipElectionList: "Omitir Pantalla de Lista de Eleccións",
                 showUserProfile: "Mostrar Perfil do Usuario",
@@ -1191,9 +1203,31 @@ const galegoTranslation: TranslationType = {
                 askCreate: "¿Queres crear un?",
                 errors: {
                     editError: "Erro ao editar o votante",
+                    editErrorReason: "Erro ao editar o votante: {{reason}}",
                     editSuccess: "Votante editado",
                     createError: "Erro ao crear o votante",
+                    createErrorReason: "Erro ao crear o votante: {{reason}}",
                     createSuccess: "Votante creado",
+                    attribute: {
+                        invalidNamed: 'Rexeitouse "{{field}}": {{constraint}}',
+                        fieldsToCorrect: "Algúns campos deben corrixirse antes de gardar",
+                        hintBetween: "Entre {{min}} e {{max}} caracteres",
+                        hintMin: "Polo menos {{min}} caracteres",
+                        hintMax: "Como máximo {{max}} caracteres",
+                        andMore: "e {{count}} máis",
+                        invalidLength: '"{{field}}" debe ter entre {{min}} e {{max}} caracteres',
+                        tooShort: '"{{field}}" debe ter polo menos {{min}} caracteres',
+                        tooLong: '"{{field}}" debe ter como máximo {{max}} caracteres',
+                        required: '"{{field}}" é obrigatorio',
+                        invalidEmail:
+                            '"{{field}}" debe ser un enderezo de correo electrónico válido',
+                        invalidFormat: '"{{field}}" non ten o formato esperado',
+                        invalid: '"{{field}}" ten un valor non válido',
+                    },
+                    createPasswordError:
+                        "Votante creado, pero non se puido establecer o seu contrasinal",
+                    createPasswordErrorReason:
+                        "Votante creado, pero non se puido establecer o seu contrasinal: {{reason}}",
                 },
                 delete: {
                     body: "¿Estás seguro de que queres eliminar este votante?",
@@ -1879,6 +1913,11 @@ const galegoTranslation: TranslationType = {
             paginationPolicy: {
                 label: "Nome da Páxina",
             },
+            isAcclaimed: {
+                label: "Resolto por aclamación",
+                helperText:
+                    "Os votantes ven este concurso pero non poden seleccionar nada, non se rexistra nada e todas as candidaturas se declaran gañadoras con cero votos. Configúreo antes de publicar as papeletas: cambialo despois invalida as papeletas xa emitidas.",
+            },
             allowWriteins: {
                 label: "Permitir candidaturas manuais",
             },
@@ -2257,6 +2296,8 @@ const galegoTranslation: TranslationType = {
                 channel_paper: "Papel",
                 channel_postal: "Postal",
                 channel_in_person: "Presencial",
+                acclamation_note:
+                    "Elixido por aclamación. Este concurso resolveuse sen votación, polo que non se rexistrou ningún voto.",
             },
             pendingResolutions: {
                 round: "Rolda {{round}}",

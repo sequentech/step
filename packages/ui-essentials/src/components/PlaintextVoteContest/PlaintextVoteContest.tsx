@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {Box, Typography} from "@mui/material"
+import {Alert, Box, Typography} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import {useTranslation} from "react-i18next"
 import Image from "mui-image"
@@ -27,11 +27,15 @@ import {
     isChoiceSelected,
     isCategoryListSelected,
     shouldShowCategoryCandidateOnReview,
+    isAcclaimedContest,
+    isEligibleAcclaimedCandidate,
+    translateFromPresentation,
+    stringToHtml,
     type ICategory,
 } from "@sequentech/ui-core"
 import Candidate from "../Candidate/Candidate"
 import BlankAnswer from "../BlankAnswer/BlankAnswer"
-import WarnBox from "../WarnBox/WarnBox"
+import WarnBox, {EWarnBoxAnnouncement} from "../WarnBox/WarnBox"
 import CandidatesList from "../CandidatesList/CandidatesList"
 
 const CandidatesWrapper = styled(Box)`
@@ -102,6 +106,7 @@ interface CandidateChoiceProps {
     isPreferentialVote?: boolean
     hasCategory?: boolean
     publicBucketUrl: string
+    shouldDisable?: boolean
 }
 
 const CandidateChoice: React.FC<CandidateChoiceProps> = ({
@@ -111,6 +116,7 @@ const CandidateChoice: React.FC<CandidateChoiceProps> = ({
     isPreferentialVote,
     hasCategory,
     publicBucketUrl,
+    shouldDisable,
 }) => {
     const imageUrl = getImageUrl(answer)
 
@@ -118,9 +124,9 @@ const CandidateChoice: React.FC<CandidateChoiceProps> = ({
         <Candidate
             title={answer.name || ""}
             description={answer.description}
-            isWriteIn={isWriteIn}
+            isWriteIn={isWriteIn && !shouldDisable}
             writeInValue={choice?.write_in_text}
-            shouldDisable={false}
+            shouldDisable={shouldDisable}
             isSelectable={false}
             hasCategory={hasCategory}
             isPreferentialVote={isPreferentialVote}
@@ -140,6 +146,7 @@ interface CategoryVoteListProps {
     isPreferentialVote: boolean
     publicBucketUrl: string
     language: string
+    isAcclaimed: boolean
 }
 
 const CategoryVoteList: React.FC<CategoryVoteListProps> = ({
@@ -151,8 +158,9 @@ const CategoryVoteList: React.FC<CategoryVoteListProps> = ({
     isPreferentialVote,
     publicBucketUrl,
     language,
+    isAcclaimed,
 }) => {
-    if (!showCategoryOnReview(category, questionPlaintext)) {
+    if (!isAcclaimed && !showCategoryOnReview(category, questionPlaintext)) {
         return null
     }
 
@@ -175,7 +183,10 @@ const CategoryVoteList: React.FC<CategoryVoteListProps> = ({
     const sortedSubtypes = sortBy(subtypesPresentation, ["sort_order"])
 
     const renderCandidate = (candidate: ICandidate, hasCategory = true) => {
-        if (!shouldShowCategoryCandidateOnReview(category, candidate.id, choicesById)) {
+        if (
+            !isAcclaimed &&
+            !shouldShowCategoryCandidateOnReview(category, candidate.id, choicesById)
+        ) {
             return null
         }
 
@@ -188,6 +199,7 @@ const CategoryVoteList: React.FC<CategoryVoteListProps> = ({
                 isPreferentialVote={isPreferentialVote}
                 hasCategory={hasCategory}
                 publicBucketUrl={publicBucketUrl}
+                shouldDisable={isAcclaimed}
             />
         )
     }
@@ -198,6 +210,7 @@ const CategoryVoteList: React.FC<CategoryVoteListProps> = ({
             isActive={false}
             isCheckable={!!category.header}
             checked={isListSelected}
+            shouldDisable={isAcclaimed}
         >
             {sortedSubtypes.map((subtypePresentation) => {
                 const subtypeCandidates = sortedCandidates.filter(
@@ -208,7 +221,10 @@ const CategoryVoteList: React.FC<CategoryVoteListProps> = ({
                     isChoiceSelected(choicesById, candidateId)
                 )
 
-                if (subtypeCandidates.length === 0 || (!hasSelectedAnswer && !isListSelected)) {
+                if (
+                    subtypeCandidates.length === 0 ||
+                    (!isAcclaimed && !hasSelectedAnswer && !isListSelected)
+                ) {
                     return null
                 }
 
@@ -237,6 +253,8 @@ export interface PlaintextVoteContestProps {
     declineToVoteLabel?: string
     isBlankBallotsPolicyEnabled?: boolean
     blankBallotLabel?: string
+    acclamationDescription?: string
+    defaultLanguageCode?: string
 }
 
 export const PlaintextVoteContest: React.FC<PlaintextVoteContestProps> = ({
@@ -250,6 +268,8 @@ export const PlaintextVoteContest: React.FC<PlaintextVoteContestProps> = ({
     declineToVoteLabel,
     isBlankBallotsPolicyEnabled,
     blankBallotLabel,
+    acclamationDescription,
+    defaultLanguageCode,
 }) => {
     const {t, i18n} = useTranslation()
 
@@ -258,7 +278,14 @@ export const PlaintextVoteContest: React.FC<PlaintextVoteContestProps> = ({
     }
 
     const isPreferentialVote = isPreferential(question.counting_algorithm)
+    const isAcclaimed = isAcclaimedContest(question)
     const choicesById = keyBy(questionPlaintext.choices, "id")
+    const displayedQuestion = isAcclaimed
+        ? {
+              ...question,
+              candidates: question.candidates.filter(isEligibleAcclaimedCandidate),
+          }
+        : question
 
     const explicitInvalidAnswer =
         (questionPlaintext.is_explicit_invalid &&
@@ -266,16 +293,16 @@ export const PlaintextVoteContest: React.FC<PlaintextVoteContestProps> = ({
             question.candidates.find((answer) => checkIsInvalidVote(answer))) ||
         null
     const properties = getLayoutProperties(question)
-    const isBlank = checkIsBlank(questionPlaintext)
+    const isBlank = !isAcclaimed && checkIsBlank(questionPlaintext)
 
     const isBallotDeclineToVote =
-        isDeclineToVotePolicyEnabled && questionPlaintext.is_decline_to_vote
+        !isAcclaimed && isDeclineToVotePolicyEnabled && questionPlaintext.is_decline_to_vote
 
     const isWholeBallotBlank = Boolean(
-        isBlankBallotsPolicyEnabled && questionPlaintext.is_blank_ballot
+        !isAcclaimed && isBlankBallotsPolicyEnabled && questionPlaintext.is_blank_ballot
     )
 
-    const {noCategoryCandidates, categoriesMap} = categorizeCandidates(question)
+    const {noCategoryCandidates, categoriesMap} = categorizeCandidates(displayedQuestion)
     const sortedCategoryEntries = sortCategoryEntries(
         categoriesMap,
         question.presentation?.types_presentation
@@ -294,12 +321,25 @@ export const PlaintextVoteContest: React.FC<PlaintextVoteContestProps> = ({
             }
             return (choicesById[a.id]?.selected ?? -1) - (choicesById[b.id]?.selected ?? -1)
         })
+    const displayedNoCategoryCandidates = isAcclaimed
+        ? sortedNoCategoryCandidates
+        : selectedNoCategoryCandidates
+    const displayedAcclamationDescription = isAcclaimed
+        ? translateFromPresentation(question, "acclamation_description", i18n.language, {
+              defaultLanguageCode,
+          }) || acclamationDescription
+        : undefined
 
     return (
         <>
             <Typography variant="body2" fontWeight={"bold"}>
                 {translate(question, "name", i18n.language) || ""}
             </Typography>
+            {displayedAcclamationDescription ? (
+                <Alert severity="info" className="contest-acclamation">
+                    {stringToHtml(displayedAcclamationDescription)}
+                </Alert>
+            ) : null}
             {isWholeBallotBlank ? (
                 <BlankAnswer title={blankBallotLabel} />
             ) : isBlank || isBallotDeclineToVote ? (
@@ -307,17 +347,23 @@ export const PlaintextVoteContest: React.FC<PlaintextVoteContestProps> = ({
             ) : null}
             {!isBallotDeclineToVote && !isWholeBallotBlank && (
                 <>
-                    {questionPlaintext.invalid_errors.map((error, index) => (
-                        <WarnBox
-                            variant="warning"
-                            key={index}
-                            warnId={error.message}
-                            warnType={error.error_type}
-                        >
-                            {t(error.message || "", normalizeMessageMap(error.message_map))}
-                        </WarnBox>
-                    ))}
-                    {questionPlaintext.is_explicit_invalid ? (
+                    {!isAcclaimed &&
+                        questionPlaintext.invalid_errors.map((error, index) => (
+                            <WarnBox
+                                variant="warning"
+                                key={index}
+                                // A decoded ballot is static: these boxes are rendered
+                                // once with the contest and read in document order, so
+                                // they must not turn into live regions in the portals
+                                // that render them.
+                                announcement={EWarnBoxAnnouncement.SILENT}
+                                warnId={error.message}
+                                warnType={error.error_type}
+                            >
+                                {t(error.message || "", normalizeMessageMap(error.message_map))}
+                            </WarnBox>
+                        ))}
+                    {!isAcclaimed && questionPlaintext.is_explicit_invalid ? (
                         <VoteChoice
                             text={explicitInvalidAnswer?.name || markedInvalidLabel}
                             points={null}
@@ -332,19 +378,20 @@ export const PlaintextVoteContest: React.FC<PlaintextVoteContestProps> = ({
                                     key={categoryName}
                                     categoryName={categoryName}
                                     category={category}
-                                    question={question}
+                                    question={displayedQuestion}
                                     questionPlaintext={questionPlaintext}
                                     choicesById={choicesById}
                                     isPreferentialVote={isPreferentialVote}
                                     publicBucketUrl={publicBucketUrl}
                                     language={i18n.language}
+                                    isAcclaimed={isAcclaimed}
                                 />
                             ))}
                         </CategoryListsWrapper>
                     ) : null}
-                    {selectedNoCategoryCandidates.length > 0 ? (
+                    {displayedNoCategoryCandidates.length > 0 ? (
                         <CandidatesWrapper>
-                            {selectedNoCategoryCandidates.map((candidate) => (
+                            {displayedNoCategoryCandidates.map((candidate) => (
                                 <CandidateChoice
                                     key={candidate.id}
                                     answer={candidate}
@@ -352,6 +399,7 @@ export const PlaintextVoteContest: React.FC<PlaintextVoteContestProps> = ({
                                     isWriteIn={checkIsWriteIn(candidate)}
                                     isPreferentialVote={isPreferentialVote}
                                     publicBucketUrl={publicBucketUrl}
+                                    shouldDisable={isAcclaimed}
                                 />
                             ))}
                         </CandidatesWrapper>

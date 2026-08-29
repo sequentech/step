@@ -21,6 +21,7 @@ import {
     BallotHash,
     Dialog,
     WarnBox,
+    EWarnBoxAnnouncement,
 } from "@sequentech/ui-essentials"
 import {
     stringToHtml,
@@ -34,6 +35,7 @@ import {
     ECastVoteGoldLevelPolicy,
     EElectionEventContestEncryptionPolicy,
     IHashableBallot,
+    areAllContestsAcclaimed,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -80,14 +82,14 @@ import {
 } from "../store/castVotes/sessionBallotData"
 import {setConfirmationScreenData} from "../store/castVotes/confirmationScreenDataSlice"
 import {selectElectionById} from "../store/elections/electionsSlice"
-import {isDeclineToVoteByElectionId} from "../store/extra/extraSlice"
+import {completeAcclaimedElection, isDeclineToVoteByElectionId} from "../store/extra/extraSlice"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
     text-decoration: none;
 `
 
-const StyledTitle = styled(Typography)`
+const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     margin-top: 25.5px;
     display: flex;
     flex-direction: row;
@@ -118,6 +120,17 @@ const StyledButton = styled(Button)`
 const StyledIcon = styled(Icon)`
     min-width: 14px;
     padding: 5px;
+`
+
+const BallotIdHelpDialog = styled(Dialog)`
+    @media (min-width: 601px) {
+        .MuiDialogActions-root.has-middle > .cancel-button,
+        .MuiDialogActions-root.has-middle > .audit-button {
+            flex: 1 1 0;
+            min-width: 0;
+            width: auto;
+        }
+    }
 `
 
 const StyledCircularProgress = styled(CircularProgress)`
@@ -175,12 +188,14 @@ interface LoadingOrCastButtonProps {
     onClick: () => void
     className?: string
     isCastingBallot: boolean
+    isFullyAcclaimed: boolean
 }
 
 const LoadingOrCastButton: React.FC<LoadingOrCastButtonProps> = ({
     onClick,
     isCastingBallot,
     className,
+    isFullyAcclaimed,
 }) => {
     const {t} = useTranslation()
 
@@ -191,7 +206,13 @@ const LoadingOrCastButton: React.FC<LoadingOrCastButtonProps> = ({
             disabled={isCastingBallot}
             onClick={onClick}
         >
-            <Box>{t("reviewScreen.castBallotButton")}</Box>
+            <Box>
+                {t(
+                    isFullyAcclaimed
+                        ? "reviewScreen.acclamation.finishButton"
+                        : "reviewScreen.castBallotButton"
+                )}
+            </Box>
             {isCastingBallot ? (
                 <StyledCircularProgress color="inherit" />
             ) : (
@@ -320,7 +341,7 @@ const useTryInsertCastVote = () => {
 
 interface ActionButtonProps {
     ballotStyle: IBallotStyle
-    auditableBallot: IAuditableBallot
+    auditableBallot?: IAuditableBallot
     auditButtonCfg: EVotingPortalAuditButtonCfg
     castVoteConfirmModal: boolean
     ballotId: string
@@ -329,6 +350,7 @@ interface ActionButtonProps {
     isMultiContest: boolean
     isDeclineToVote: boolean
     isBlankBallot: boolean
+    isFullyAcclaimed: boolean
 }
 
 const ActionButtons: React.FC<ActionButtonProps> = ({
@@ -342,6 +364,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     isMultiContest,
     isDeclineToVote,
     isBlankBallot,
+    isFullyAcclaimed,
 }) => {
     const {t} = useTranslation()
     const navigate = useNavigate()
@@ -358,6 +381,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const {isGoldUser, reauthWithGold} = authContext
     const addFakeCastVote = useAddFakeCastVote(tenantId, eventId)
     const tryInsertCastVote = useTryInsertCastVote()
+    const dispatch = useAppDispatch()
 
     const handleClose = (value: boolean) => {
         setAuditBallotHelp(false)
@@ -407,6 +431,13 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const castBallotAction = async () => {
         if (isCastingBallot.current) {
             return
+        }
+        // A fully acclaimed election produces no ballot, so there is nothing
+        // to encrypt, hash or cast: the voter goes straight to confirmation.
+        if (isFullyAcclaimed) {
+            isCastingBallot.current = true
+            dispatch(completeAcclaimedElection(ballotStyle.election_id))
+            return submit(null, {method: "post"})
         }
         const errorType = VotingPortalErrorType.UNABLE_TO_CAST_BALLOT
         isCastingBallot.current = true
@@ -515,14 +546,17 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                         <Box>{t("reviewScreen.backButton")}</Box>
                     </StyledButton>
                 </StyledLink>
-                {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW ? (
+                {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW && !isFullyAcclaimed ? (
                     <AuditButton onClick={() => setAuditBallotHelp(true)} />
                 ) : null}
                 <LoadingOrCastButton
                     className="cast-ballot-button"
                     isCastingBallot={isCastingBallot.current}
+                    isFullyAcclaimed={isFullyAcclaimed}
                     onClick={() =>
-                        castVoteConfirmModal ? setConfirmCastVoteModal(true) : castBallotAction()
+                        castVoteConfirmModal && !isFullyAcclaimed
+                            ? setConfirmCastVoteModal(true)
+                            : castBallotAction()
                     }
                 />
             </ActionsContainer>
@@ -561,6 +595,9 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
 export const ReviewScreen: React.FC = () => {
     const {electionId} = useParams<{electionId?: string}>()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
+    // When every contest is acclaimed there is no ballot at all: no
+    // encryption, no cast vote and no ballot id to show or audit.
+    const isFullyAcclaimed = areAllContestsAcclaimed(ballotStyle?.ballot_eml.contests)
     const location = useLocation()
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
     const [auditBallotHelp, setAuditBallotHelp] = useState<boolean>(false)
@@ -649,7 +686,7 @@ export const ReviewScreen: React.FC = () => {
     )
 
     const errorSelectionState = useMemo(() => {
-        if (!selectionState || !ballotStyle) {
+        if (!selectionState || !ballotStyle || isFullyAcclaimed) {
             return []
         }
         return isMultiContest
@@ -778,7 +815,11 @@ export const ReviewScreen: React.FC = () => {
     }, [])
 
     useEffect(() => {
-        if ((!ballotStyle || !auditableBallot || !selectionState) && isGoldenPolicy) {
+        if (
+            (!ballotStyle || !auditableBallot || !selectionState) &&
+            isGoldenPolicy &&
+            !isFullyAcclaimed
+        ) {
             if (isGoldUser()) {
                 if (!isCastingBallot.current) {
                     goldenUserCastBallotAction()
@@ -791,12 +832,16 @@ export const ReviewScreen: React.FC = () => {
         } else {
             console.log("Normal flow")
         }
-    }, [ballotStyle, selectionState, auditableBallot, isGoldenPolicy])
+    }, [ballotStyle, selectionState, auditableBallot, isGoldenPolicy, isFullyAcclaimed])
 
-    if (!ballotStyle || !auditableBallot) {
+    if (!ballotStyle || (!auditableBallot && !isFullyAcclaimed)) {
         return errorMsg ? (
             <Box sx={{margin: "auto 0"}}>
-                <WarnBox variant="error">{errorMsg}</WarnBox>
+                {/* The only message on the screen, and it blocks the voter from
+                    casting, so it interrupts rather than waiting for a pause. */}
+                <WarnBox variant="error" announcement={EWarnBoxAnnouncement.ASSERTIVE}>
+                    {errorMsg}
+                </WarnBox>
                 <Box
                     sx={{
                         display: "flex",
@@ -814,7 +859,7 @@ export const ReviewScreen: React.FC = () => {
                 </Box>
             </Box>
         ) : (
-            <CircularProgress />
+            <CircularProgress aria-label={t("a11y.loading")} />
         )
     }
 
@@ -823,7 +868,7 @@ export const ReviewScreen: React.FC = () => {
 
     return (
         <PageLimit maxWidth="lg" className="review-screen screen">
-            {auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW ? null : (
+            {auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW || isFullyAcclaimed ? null : (
                 <BallotHash
                     hash={ballotId || ""}
                     copyLabels={{
@@ -835,11 +880,10 @@ export const ReviewScreen: React.FC = () => {
                     onHelpClick={() => setOpenBallotIdHelp(true)}
                 />
             )}
-            <Dialog
+            <BallotIdHelpDialog
                 handleClose={handleCloseDialogIdHelp}
                 open={openBallotIdHelp}
                 title={t("reviewScreen.ballotIdHelpDialog.title")}
-                ok={t("reviewScreen.ballotIdHelpDialog.ok")}
                 maxWidth="md"
                 middleActions={
                     auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP
@@ -858,8 +902,8 @@ export const ReviewScreen: React.FC = () => {
                 variant="info"
             >
                 {stringToHtml(t("reviewScreen.ballotIdHelpDialog.content"))}
-            </Dialog>
-            {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP ? (
+            </BallotIdHelpDialog>
+            {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP && !isFullyAcclaimed ? (
                 <AuditBallotHelpDialog
                     auditBallotHelp={auditBallotHelp}
                     handleClose={handleCloseDialogAuditHelp}
@@ -868,31 +912,62 @@ export const ReviewScreen: React.FC = () => {
             <Box marginTop="48px">
                 <Stepper selected={2} />
             </Box>
-            <StyledTitle variant="h4" fontSize="24px" fontWeight="bold" sx={{margin: 0}}>
-                <Box>{t("reviewScreen.title")}</Box>
+            <StyledTitle
+                variant="h4"
+                component="h1"
+                fontSize="24px"
+                fontWeight="bold"
+                sx={{margin: 0}}
+            >
+                <Box>
+                    {t(isFullyAcclaimed ? "reviewScreen.acclamation.title" : "reviewScreen.title")}
+                </Box>
                 <IconButton
                     icon={faCircleQuestion}
                     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
                     fontSize="16px"
                     onClick={() => setReviewScreenHelp(true)}
+                    ariaLabel={t("a11y.helpAbout", {
+                        topic: t("reviewScreen.reviewScreenHelpDialog.title"),
+                    })}
                 />
                 <Dialog
                     handleClose={() => setReviewScreenHelp(false)}
                     open={openReviewScreenHelp}
-                    title={t("reviewScreen.reviewScreenHelpDialog.title")}
-                    ok={t("reviewScreen.reviewScreenHelpDialog.ok")}
+                    title={t(
+                        isFullyAcclaimed
+                            ? "reviewScreen.acclamation.helpDialog.title"
+                            : "reviewScreen.reviewScreenHelpDialog.title"
+                    )}
+                    ok={t(
+                        isFullyAcclaimed
+                            ? "reviewScreen.acclamation.helpDialog.ok"
+                            : "reviewScreen.reviewScreenHelpDialog.ok"
+                    )}
                     variant="info"
                 >
-                    {stringToHtml(t("reviewScreen.reviewScreenHelpDialog.content"))}
+                    {stringToHtml(
+                        t(
+                            isFullyAcclaimed
+                                ? "reviewScreen.acclamation.helpDialog.content"
+                                : "reviewScreen.reviewScreenHelpDialog.content"
+                        )
+                    )}
                 </Dialog>
             </StyledTitle>
-            {errorMsg && <WarnBox variant="error">{errorMsg}</WarnBox>}
-            <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+            {errorMsg && (
+                <WarnBox variant="error" announcement={EWarnBoxAnnouncement.ASSERTIVE}>
+                    {errorMsg}
+                </WarnBox>
+            )}
+            <Typography variant="body2" component="div" sx={{color: theme.palette.customGrey.main}}>
                 {stringToHtml(
-                    auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW ||
-                        auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP
-                        ? t("reviewScreen.descriptionNoAudit")
-                        : t("reviewScreen.description")
+                    isFullyAcclaimed
+                        ? t("reviewScreen.acclamation.description")
+                        : auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW ||
+                            auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP
+                          ? t("reviewScreen.descriptionNoAudit")
+                          : t("reviewScreen.description")
                 )}
             </Typography>
             {contests.map((question, index) => (
@@ -920,6 +995,7 @@ export const ReviewScreen: React.FC = () => {
                     isMultiContest={isMultiContest}
                     isDeclineToVote={isDeclineToVote}
                     isBlankBallot={isBlankBallot}
+                    isFullyAcclaimed={isFullyAcclaimed}
                 />
             )}
         </PageLimit>

@@ -21,6 +21,21 @@ const frenchTranslation: TranslationType = {
             ended: "Terminé",
             results: "Résultats",
         },
+        a11y: {
+            closeDialog: "Fermer la boîte de dialogue",
+            dismissMessage: "Masquer le message",
+            ballotIdHelp: "À propos de votre identifiant de vote",
+            loading: "Chargement",
+            severity: {
+                error: "Erreur",
+                warning: "Avertissement",
+                success: "Succès",
+                info: "Information",
+            },
+            selectList: "Sélectionner toute la liste",
+            preferenceLabel: "Préférence",
+            writeInFor: "Nom du candidat écrit",
+        },
         candidate: {
             moreInformationLink: "Plus d'informations",
             writeInsPlaceholder: "Tapez ici le candidat par écrit",

@@ -136,6 +136,28 @@ select_permissions:
               - tenant_id
           filter: {}
       role: service-account
+    - comment: >-
+          Allow voters to identify only the active publication containing their
+          authorized elections.
+      permission:
+          columns:
+              - deleted_at
+              - id
+              - published_at
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - deleted_at:
+                        _is_null: true
+                  - published_at:
+                        _is_null: false
+                  - _or:
+                        - election_id:
+                              _in: X-Hasura-Authorized-Election-Ids
+                        - election_ids:
+                              _contains: X-Hasura-Authorized-Election-Ids
+      role: user
 update_permissions:
     - comment: ""
       permission:

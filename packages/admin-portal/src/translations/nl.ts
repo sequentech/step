@@ -255,6 +255,7 @@ const dutchTranslation: TranslationType = {
                 logs: "Logs",
             },
             tasksExecution: {
+                PUBLISH_BALLOT: "Stembiljet publiceren",
                 VOTER_INFORMATION_LETTER: "Kiezersinformatiebrief",
                 EXPORT_ELECTION_EVENT: "Verkiezingsevenement Exporteren",
                 CREATE_ELECTION_EVENT: "Verkiezingsevenement Aanmaken",
@@ -497,6 +498,8 @@ const dutchTranslation: TranslationType = {
                 notify: {
                     success: "Localisatie succesvol bijgewerkt",
                     error: "Bijwerken lokalisatie mislukt",
+                    duplicateKey:
+                        "Er bestaat al een overschrijving met deze sleutel en dit bereik.",
                     invalidDateTimeFormat:
                         "Ongeldige datum-/tijdnotatie. Gebruik de tokens yyyy, MM, dd, HH, mm, ss (bijv. dd/MM/yyyy HH:mm).",
                 },
@@ -506,7 +509,16 @@ const dutchTranslation: TranslationType = {
                 },
                 labels: {
                     key: "Sleutel",
+                    scope: "Portalbereik",
                     value: "Waarde",
+                },
+                scopes: {
+                    legacy: "Verouderd ({{portal}})",
+                    global: "Globaal",
+                    votingPortal: "Stemportaal",
+                    ballotVerifier: "Stembiljetverificatie",
+                    resultsPortal: "Resultatenportaal",
+                    adminPortal: "Beheerportaal",
                 },
             },
             field: {
@@ -555,6 +567,7 @@ const dutchTranslation: TranslationType = {
                 userVerification:
                     "U kunt een aangepast sjabloon invoeren dat zal worden gebruikt om kiezers handmatig te verifiëren",
                 redirectFinishUrl: "Doorschakel-URL na voltooiing",
+                kioskRedirectFinishUrl: "Doorstuur-URL na afronding van kioskstemmen",
                 css: "Aangepaste CSS",
                 skipElectionList: "Scherm verkiezingslijst overslaan",
                 showUserProfile: "Gebruikersprofiel tonen",
@@ -1190,9 +1203,31 @@ const dutchTranslation: TranslationType = {
                 askCreate: "Wilt u er een aanmaken?",
                 errors: {
                     editError: "Fout bij bewerken kiezer",
+                    editErrorReason: "Fout bij bewerken kiezer: {{reason}}",
                     editSuccess: "Kiezer bewerkt",
                     createError: "Fout bij aanmaken kiezer",
+                    createErrorReason: "Fout bij aanmaken kiezer: {{reason}}",
                     createSuccess: "Kiezer aangemaakt",
+                    attribute: {
+                        invalidNamed: '"{{field}}" is geweigerd: {{constraint}}',
+                        fieldsToCorrect:
+                            "Sommige velden moeten worden gecorrigeerd voordat u opslaat",
+                        hintBetween: "Tussen {{min}} en {{max}} tekens",
+                        hintMin: "Minimaal {{min}} tekens",
+                        hintMax: "Maximaal {{max}} tekens",
+                        andMore: "en nog {{count}}",
+                        invalidLength: '"{{field}}" moet tussen {{min}} en {{max}} tekens bevatten',
+                        tooShort: '"{{field}}" moet minimaal {{min}} tekens bevatten',
+                        tooLong: '"{{field}}" mag maximaal {{max}} tekens bevatten',
+                        required: '"{{field}}" is verplicht',
+                        invalidEmail: '"{{field}}" moet een geldig e-mailadres zijn',
+                        invalidFormat: '"{{field}}" heeft niet de verwachte indeling',
+                        invalid: '"{{field}}" heeft een ongeldige waarde',
+                    },
+                    createPasswordError:
+                        "Kiezer aangemaakt, maar het wachtwoord kon niet worden ingesteld",
+                    createPasswordErrorReason:
+                        "Kiezer aangemaakt, maar het wachtwoord kon niet worden ingesteld: {{reason}}",
                 },
                 delete: {
                     body: "Weet u zeker dat u deze kiezer wilt verwijderen?",
@@ -1877,6 +1912,11 @@ const dutchTranslation: TranslationType = {
             paginationPolicy: {
                 label: "Paginanaam",
             },
+            isAcclaimed: {
+                label: "Bij acclamatie beslist",
+                helperText:
+                    "Kiezers zien deze stemming maar kunnen niets selecteren, er wordt niets geregistreerd en alle kandidaten worden als winnaar met nul stemmen gerapporteerd. Stel dit in voordat stembiljetten worden gepubliceerd: het later wijzigen maakt reeds uitgebrachte stemmen ongeldig.",
+            },
             allowWriteins: {
                 label: "Handgeschreven kandidaten toestaan",
             },
@@ -2253,6 +2293,8 @@ const dutchTranslation: TranslationType = {
                 channel_paper: "Papier",
                 channel_postal: "Post",
                 channel_in_person: "Persoonlijk",
+                acclamation_note:
+                    "Bij acclamatie gekozen. Deze stemming is zonder stemming beslist, dus er zijn geen stemmen geregistreerd.",
             },
             pendingResolutions: {
                 round: "Ronde {{round}}",

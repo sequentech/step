@@ -38,7 +38,9 @@ second identifying attribute is available.
   [Adding User Attributes to Keycloak](./99-admin_portal_tutorials_add-user-attributes-to-keycloak.md).
   If an attribute is configured there with **Input type** `html5-date` (e.g. a date of birth
   field), the login form automatically renders it as a native date picker too, matching what
-  voters already see at registration.
+  voters already see at registration. Most other User Profile annotations apply the same way; the
+  page-specific exceptions are listed in
+  [Configuring Login and Registration Fields](../02-reference/10-user-profile-login-registration-fields.md).
 - **Date-valued attributes must be stored as `YYYY-MM-DD`** (e.g. `1990-01-05` for January 5,
   1990) - the same format the browser's native date picker always submits, so no reformatting is
   needed on the browser path.
@@ -71,11 +73,15 @@ second identifying attribute is available.
    - **Max failures per attribute-value combination** (default `10`)
    - **Failure window (seconds)** (default `60`)
    - **Max user-store rows per attribute lookup** (default `5000`)
-5. Leave **Multiple-candidate match policy** at its default, `REJECT_AMBIGUOUS`, unless you have
+5. Leave **Honor User Profile required attributes** off to keep every attribute listed above
+   mandatory. Enabling it makes each field follow its User Profile **Required field** setting -
+   see
+   [Required fields](../02-reference/10-user-profile-login-registration-fields.md#required-fields).
+6. Leave **Multiple-candidate match policy** at its default, `REJECT_AMBIGUOUS`, unless you have
    read and understood [Multiple-Candidate Match Policy](#multiple-candidate-match-policy) below -
    the alternative, `FIRST_MATCH`, is only safe when password uniqueness across every possible
    candidate is guaranteed.
-6. Click **Save**.
+7. Click **Save**.
 
 ---
 
@@ -89,6 +95,23 @@ second identifying attribute is available.
 
 This keeps the change scoped to the client(s) you explicitly bind it to - every other client
 keeps using the realm's default browser flow unchanged.
+
+---
+
+## Step 4 – Optional Page-Level Settings
+
+Two realm attributes change how the login page this flow renders behaves. Both are set on the
+election event realm rather than on the authenticator, and neither is required:
+
+| Realm attribute | Default | Effect on this login page |
+|---|---|---|
+| `credential-field-position` | `LAST` | `FIRST` moves the password or PIN box above the attribute fields and gives it the page's initial focus - useful when a PIN from a voter letter is the main thing being entered. |
+| `login-validation-policy` | `BROWSER` | `SERVER_ONLY` stops the browser from rejecting badly formatted values, so every submission reaches this authenticator and gets its generic message instead. |
+
+Configuring Login and Registration Fields covers them in
+[Putting the credential first](../02-reference/10-user-profile-login-registration-fields.md#putting-the-credential-first) and
+[Who reports invalid formats on the login page](../02-reference/10-user-profile-login-registration-fields.md#who-reports-invalid-formats-on-the-login-page),
+and explains where realm attributes are edited.
 
 ---
 

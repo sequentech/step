@@ -255,6 +255,7 @@ const basqueTranslation: TranslationType = {
                 logs: "Egunkariak",
             },
             tasksExecution: {
+                PUBLISH_BALLOT: "Boto-papera argitaratu",
                 VOTER_INFORMATION_LETTER: "Hauteslearen informazio-gutuna",
                 EXPORT_ELECTION_EVENT: "Esportatu Hauteskunde Gertaera",
                 CREATE_ELECTION_EVENT: "Sortu Hauteskunde Gertaera",
@@ -497,6 +498,7 @@ const basqueTranslation: TranslationType = {
                 notify: {
                     success: "Lokalizazioa arrakastaz eguneratua",
                     error: "Lokalizazio eguneraketa huts egin du",
+                    duplicateKey: "Giltza eta atari-esparru hori dituen ordezkapen bat badago.",
                     invalidDateTimeFormat:
                         "Data/orduaren formatu baliogabea. Erabili yyyy, MM, dd, HH, mm, ss tokenak (adib. dd/MM/yyyy HH:mm).",
                 },
@@ -506,7 +508,16 @@ const basqueTranslation: TranslationType = {
                 },
                 labels: {
                     key: "Giltza",
+                    scope: "Atariaren esparrua",
                     value: "Balioa",
+                },
+                scopes: {
+                    legacy: "Legatua ({{portal}})",
+                    global: "Globala",
+                    votingPortal: "Bozketa-ataria",
+                    ballotVerifier: "Boto-paperen egiaztatzailea",
+                    resultsPortal: "Emaitzen ataria",
+                    adminPortal: "Administrazio-ataria",
                 },
             },
             field: {
@@ -551,6 +562,7 @@ const basqueTranslation: TranslationType = {
                 userVerification:
                     "Bozkatzaileak eskuz egiaztatzeko erabiliko den txantiloi pertsonalizatu bat sar dezakezu",
                 redirectFinishUrl: "Berbideratu Amaiera URLa",
+                kioskRedirectFinishUrl: "Kioskoaren amaierako berbideratze URLa",
                 css: "CSS Pertsonalizatua",
                 skipElectionList: "Saltatu Hauteskunde Zerrenda Pantaila",
                 showUserProfile: "Erakutsi Erabiltzaile Profila",
@@ -1186,9 +1198,31 @@ const basqueTranslation: TranslationType = {
                 askCreate: "Bat sortu nahi duzu?",
                 errors: {
                     editError: "Errorea bozkatzailea editatzerakoan",
+                    editErrorReason: "Errorea bozkatzailea editatzerakoan: {{reason}}",
                     editSuccess: "Bozkatzailea editatua",
                     createError: "Errorea bozkatzailea sortzerakoan",
+                    createErrorReason: "Errorea bozkatzailea sortzerakoan: {{reason}}",
                     createSuccess: "Bozkatzailea sortua",
+                    attribute: {
+                        invalidNamed: '"{{field}}" baztertu da: {{constraint}}',
+                        fieldsToCorrect: "Eremu batzuk zuzendu behar dira gorde aurretik",
+                        hintBetween: "{{min}} eta {{max}} karaktere artean",
+                        hintMin: "Gutxienez {{min}} karaktere",
+                        hintMax: "Gehienez {{max}} karaktere",
+                        andMore: "eta beste {{count}}",
+                        invalidLength:
+                            '"{{field}}" eremuak {{min}} eta {{max}} karaktere artean izan behar ditu',
+                        tooShort: '"{{field}}" eremuak gutxienez {{min}} karaktere izan behar ditu',
+                        tooLong: '"{{field}}" eremuak gehienez {{max}} karaktere izan behar ditu',
+                        required: '"{{field}}" nahitaezkoa da',
+                        invalidEmail: '"{{field}}" baliozko helbide elektronikoa izan behar da',
+                        invalidFormat: '"{{field}}" ez dauka espero den formatua',
+                        invalid: '"{{field}}" balio baliogabea dauka',
+                    },
+                    createPasswordError:
+                        "Bozkatzailea sortua, baina ezin izan da bere pasahitza ezarri",
+                    createPasswordErrorReason:
+                        "Bozkatzailea sortua, baina ezin izan da bere pasahitza ezarri: {{reason}}",
                 },
                 delete: {
                     body: "Ziur zaude bozkatzaile hau ezabatu nahi duzula?",
@@ -1873,6 +1907,11 @@ const basqueTranslation: TranslationType = {
             paginationPolicy: {
                 label: "Orri Izena",
             },
+            isAcclaimed: {
+                label: "Aklamazioz erabakia",
+                helperText:
+                    "Botoemaileek lehiaketa hau ikusten dute baina ezin dute ezer hautatu, ez da ezer erregistratzen eta hautagai guztiak irabazle gisa jasotzen dira zero bozkarekin. Ezarri hau boto-txartelak argitaratu aurretik: ondoren aldatzeak dagoeneko emandako boto-txartelak baliogabetzen ditu.",
+            },
             allowWriteins: {
                 label: "Eskuzko hautagaitzak baimendu",
             },
@@ -2250,6 +2289,8 @@ const basqueTranslation: TranslationType = {
                 channel_paper: "Papera",
                 channel_postal: "Posta",
                 channel_in_person: "Aurrez aurre",
+                acclamation_note:
+                    "Aklamazioz hautatua. Lehiaketa hau bozketarik gabe erabaki zen, beraz, ez zen bozkarik erregistratu.",
             },
             pendingResolutions: {
                 round: "Txanda {{round}}",

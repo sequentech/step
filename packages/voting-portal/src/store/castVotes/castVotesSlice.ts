@@ -102,6 +102,10 @@ export const canVoteSomeElection =
             .filter((election) => !!election)
 
         return elections.some((election) => {
+            if (state.extra.completedAcclaimedElections?.[election.id]) {
+                return false
+            }
+
             let electionCastVotes = (election?.id && state.castVotes[election.id]) || []
             let numAllowedRevotes = election?.num_allowed_revotes ?? 1
 

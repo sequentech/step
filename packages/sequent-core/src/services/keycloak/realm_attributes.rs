@@ -4,12 +4,14 @@
 use crate::ballot::VoterCertificatePolicy;
 use crate::services::keycloak::{get_event_realm, KeycloakAdminClient};
 use crate::types::keycloak::{
-    CredentialInputPolicy, MAX_CREDENTIAL_PATTERN_GROUPS,
-    MAX_CREDENTIAL_PATTERN_GROUP_SIZE, MAX_CREDENTIAL_PATTERN_TOTAL_SIZE,
+    CredentialFieldPosition, CredentialInputPolicy, LoginValidationPolicy,
+    MAX_CREDENTIAL_PATTERN_GROUPS, MAX_CREDENTIAL_PATTERN_GROUP_SIZE,
+    MAX_CREDENTIAL_PATTERN_TOTAL_SIZE, REALM_ATTR_CREDENTIAL_FIELD_POSITION,
     REALM_ATTR_CREDENTIAL_INPUT_PATTERN,
     REALM_ATTR_CREDENTIAL_INPUT_PLACEHOLDER,
-    REALM_ATTR_CREDENTIAL_INPUT_POLICY, REALM_ATTR_SMARTLINK_CLOCK_SKEW_SECS,
-    REALM_ATTR_SMARTLINK_ENABLED, REALM_ATTR_SMARTLINK_REQUIRED_ATTRIBUTES,
+    REALM_ATTR_CREDENTIAL_INPUT_POLICY, REALM_ATTR_LOGIN_VALIDATION_POLICY,
+    REALM_ATTR_SMARTLINK_CLOCK_SKEW_SECS, REALM_ATTR_SMARTLINK_ENABLED,
+    REALM_ATTR_SMARTLINK_REQUIRED_ATTRIBUTES,
     REALM_ATTR_SMARTLINK_SHARED_SECRET, REALM_ATTR_SMARTLINK_TIMEOUT_SECS,
     REALM_ATTR_VOTER_CERTIFICATE_POLICY, SMARTLINK_REQUIRED_ATTRIBUTES_MAX_LEN,
     SMARTLINK_SHARED_SECRET_MAX_LEN,
@@ -156,6 +158,16 @@ fn validate_realm_attribute_value(key: &str, value: &str) -> Result<()> {
                 );
             }
         }
+        REALM_ATTR_LOGIN_VALIDATION_POLICY => {
+            if LoginValidationPolicy::from_str(value).is_err() {
+                bail!("Invalid value {value:?} for realm attribute {key}");
+            }
+        }
+        REALM_ATTR_CREDENTIAL_FIELD_POSITION => {
+            if CredentialFieldPosition::from_str(value).is_err() {
+                bail!("Invalid value {value:?} for realm attribute {key}");
+            }
+        }
         REALM_ATTR_CREDENTIAL_INPUT_PLACEHOLDER => {
             if !is_valid_credential_input_placeholder(value) {
                 bail!(
@@ -282,6 +294,7 @@ mod tests {
             ("credential-input-policy", "structured"),
             ("credential-input-pattern", "dddd-dddd-dddd-dddd"),
             ("credential-input-placeholder", "#"),
+            ("credential-field-position", "FIRST"),
             ("smart-link-enabled", "true"),
             ("smart-link-timeout-secs", "90"),
             ("smart-link-clock-skew-secs", "5"),
@@ -318,6 +331,57 @@ mod tests {
                 )]))
                 .is_ok(),
                 "expected credential-input-placeholder={placeholder:?} to be accepted"
+            );
+        }
+    }
+
+    #[test]
+    fn validate_realm_attributes_validates_login_validation_policy() {
+        for value in ["BROWSER", "SERVER_ONLY"] {
+            assert!(
+                validate_realm_attributes(&attributes(&[(
+                    "login-validation-policy",
+                    value,
+                )]))
+                .is_ok(),
+                "expected login-validation-policy={value:?} to be accepted"
+            );
+        }
+
+        for value in ["browser", "server_only", "SERVER-ONLY", "true", "NONE"] {
+            assert!(
+                validate_realm_attributes(&attributes(&[(
+                    "login-validation-policy",
+                    value,
+                )]))
+                .is_err(),
+                "expected login-validation-policy={value:?} to be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn validate_realm_attributes_validates_credential_field_position() {
+        for value in ["LAST", "FIRST"] {
+            assert!(
+                validate_realm_attributes(&attributes(&[(
+                    "credential-field-position",
+                    value,
+                )]))
+                .is_ok(),
+                "expected credential-field-position={value:?} to be accepted"
+            );
+        }
+
+        // A misspelling would otherwise be stored and silently fall back to LAST.
+        for value in ["first", "last", "FRIST", "true", "TOP"] {
+            assert!(
+                validate_realm_attributes(&attributes(&[(
+                    "credential-field-position",
+                    value,
+                )]))
+                .is_err(),
+                "expected credential-field-position={value:?} to be rejected"
             );
         }
     }

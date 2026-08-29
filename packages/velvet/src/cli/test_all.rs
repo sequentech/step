@@ -2249,6 +2249,17 @@ mod tests {
 
         let result = check_voting_not_allowed_next_util(vec![contest4], decoded_contests4);
         assert_eq!(result, true);
+
+        // Case 5: Missing decoded state means validation is not ready, so fail closed
+        let contest5 = get_contest_plurality(
+            EOverVotePolicy::ALLOWED,
+            EBlankVotePolicy::ALLOWED,
+            InvalidVotePolicy::NOT_ALLOWED,
+            None,
+        );
+
+        let result = check_voting_not_allowed_next_util(vec![contest5], HashMap::new());
+        assert_eq!(result, true);
     }
 
     #[test]

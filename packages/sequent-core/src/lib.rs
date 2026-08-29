@@ -9,6 +9,13 @@ extern crate cfg_if;
 pub mod ballot;
 #[cfg(feature = "default_features")]
 pub mod ballot_style;
+
+// Gated like types::hasura, whose entities the bundle schema is built from. The
+// WASM build enables default_features (see build_wasm.yml), so this module is
+// present in the browser.
+#[cfg(feature = "default_features")]
+pub mod election_config;
+
 #[cfg(feature = "default_features")]
 pub mod error;
 #[cfg(feature = "default_features")]

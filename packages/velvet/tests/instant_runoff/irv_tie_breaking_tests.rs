@@ -28,6 +28,7 @@ fn create_test_contest_3_candidates() -> Contest {
         voting_type: Some("instant-runoff".to_string()),
         counting_algorithm: Some(CountingAlgType::InstantRunoff),
         is_encrypted: false,
+        is_acclaimed: None,
         candidates: vec![
             Candidate {
                 id: "candidate_a".to_string(),
