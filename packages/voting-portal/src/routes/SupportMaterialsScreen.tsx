@@ -102,6 +102,7 @@ const SupportMaterialsScreen: React.FC = () => {
     }, [materials])
 
     const [materialsTitles, setMaterialsTitles] = useState<IElectionEvent | undefined>()
+    const defaultLanguageCode = materialsTitles?.presentation?.language_conf?.default_language_code
 
     useEffect(() => {
         if (electionEvent) {
@@ -134,7 +135,8 @@ const SupportMaterialsScreen: React.FC = () => {
                                 (translateFromPresentation(
                                     materialsTitles,
                                     "materialsTitle",
-                                    i18n.language
+                                    i18n.language,
+                                    {defaultLanguageCode}
                                 ) ??
                                     "-")}
                         </Box>
@@ -145,7 +147,8 @@ const SupportMaterialsScreen: React.FC = () => {
                                 ? (translateFromPresentation(
                                       materialsTitles,
                                       "materialsSubtitle",
-                                      i18n.language
+                                      i18n.language,
+                                      {defaultLanguageCode}
                                   ) ?? "-")
                                 : ""
                         )}
