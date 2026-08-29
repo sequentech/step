@@ -244,7 +244,7 @@ fn is_deliberate_blank(vs: &VoteState) -> bool {
 }
 
 /// The checker record — the invalid → over → min → under → blank →
-/// preference-gap → duplicated-rank calls of `raw_ballot.rs::decode`, reading
+/// duplicated-rank → preference-gap calls of `raw_ballot.rs::decode`, reading
 /// the single count `n` and the single under-vote predicate.
 fn derive_emissions(config: &Config, vs: &VoteState, n: u32) -> Emissions {
     let p = &config.policies;
@@ -284,11 +284,12 @@ fn derive_emissions(config: &Config, vs: &VoteState, n: u32) -> Emissions {
             alerts.push(BLANK_VOTE.into());
         }
     }
-    if vs.rank_gaps {
-        errors.push(PREFERENCE_ORDER_WITH_GAPS.into());
-    }
+    // Duplicates before gaps — `validate_preferencial_order`'s error order.
     if vs.duplicate_ranks {
         errors.push(DUPLICATED_POSITION.into());
+    }
+    if vs.rank_gaps {
+        errors.push(PREFERENCE_ORDER_WITH_GAPS.into());
     }
     Emissions { errors, alerts }
 }

@@ -13,6 +13,17 @@
 //!       → the full Effects record from `f_fixed` — the RATIONALIZED
 //!         implementation (the query-provider); the "after" leg, for
 //!         fix-diff.mjs
+//!   {"kind": "hybrid", "config": {...}, "voteState": {...}}
+//!       → the full Effects record of PRODUCTION AS CURRENTLY INJECTED —
+//!         the per-component expectation the runners compare against while
+//!         the injection proceeds site by site: emissions, gates, dialog
+//!         and tally from `f_fixed` (decode and the gates are injected;
+//!         the tally classifies from the decoded record, so it moves with
+//!         decode), inline from the UNINJECTED TypeScript filter — the
+//!         oracle's `inline_views` — applied to the FIXED emissions;
+//!         reachability is shared (no fix touches it). When the filter is
+//!         injected (S1's display fix) this collapses into `f_fixed` and
+//!         the kind can retire.
 //!   {"kind": "classify", "decline": b, "flag": b, "hasErrors": b,
 //!    "selection": "none|regular|marker|mixed"}
 //!       → {"tally": "<BallotClass>"} — probes the classifier with
@@ -27,7 +38,8 @@
 use serde::Deserialize;
 use std::io::Read;
 use validation_spec::{
-    classify, emissions, f, f_fixed, hard_gate, soft_gate, Config, SelectionClass, VoteState,
+    classify, emissions, f, f_fixed, hard_gate, inline_views, soft_gate, Config, SelectionClass,
+    VoteState,
 };
 
 #[derive(Deserialize)]
@@ -60,6 +72,12 @@ enum Cell {
         #[serde(rename = "voteState")]
         vote_state: VoteState,
     },
+    #[serde(rename = "hybrid")]
+    Hybrid {
+        config: Config,
+        #[serde(rename = "voteState")]
+        vote_state: VoteState,
+    },
     #[serde(rename = "ballot")]
     Ballot { contests: Vec<ContestCell> },
 }
@@ -88,6 +106,18 @@ fn main() {
             }
             Cell::Fixed { config, vote_state } => {
                 serde_json::to_value(f_fixed(config, vote_state)).expect("serialize Effects")
+            }
+            Cell::Hybrid { config, vote_state } => {
+                // Production as currently injected (see the module doc):
+                // everything from f_fixed except inline, which is the
+                // uninjected oracle filter over the FIXED emissions.
+                let mut effects = f_fixed(config, vote_state);
+                effects.inline = inline_views(
+                    &config.policies,
+                    &effects.emissions.errors,
+                    &effects.emissions.alerts,
+                );
+                serde_json::to_value(effects).expect("serialize Effects")
             }
             Cell::Ballot { contests } => {
                 // The ORACLE gates' cross-contest OR (free functions): this

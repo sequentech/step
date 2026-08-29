@@ -299,10 +299,11 @@ pub struct Emissions {
 }
 
 /// Transcription of the checker calls in `raw_ballot.rs::decode`, in call
-/// order: invalid → over → min → under → blank → preference-gaps →
-/// duplicated-rank. The config-sanity and encoding-error emissions are not
-/// modelled (no grid exercises them — characterization/README.md, "Scope
-/// boundaries").
+/// order: invalid → over → min → under → blank → duplicated-rank →
+/// preference-gaps (the preferential pair in `validate_preferencial_order`'s
+/// push order — duplicates first). The config-sanity and encoding-error
+/// emissions are not modelled (no grid exercises them —
+/// characterization/README.md, "Scope boundaries").
 pub fn emissions(config: &Config, vs: &VoteState) -> Emissions {
     let p = &config.policies;
     let n = selections_with_markers(vs);
@@ -353,12 +354,14 @@ pub fn emissions(config: &Config, vs: &VoteState) -> Emissions {
         }
     }
     // preferential rules — both policy variants emit identically; the
-    // policy decides only which gate reacts
-    if vs.rank_gaps {
-        errors.push(PREFERENCE_ORDER_WITH_GAPS.into());
-    }
+    // policy decides only which gate reacts. Duplicates before gaps:
+    // production emits per `validate_preferencial_order`'s error order,
+    // which pushes DuplicatedPosition first.
     if vs.duplicate_ranks {
         errors.push(DUPLICATED_POSITION.into());
+    }
+    if vs.rank_gaps {
+        errors.push(PREFERENCE_ORDER_WITH_GAPS.into());
     }
     Emissions { errors, alerts }
 }
