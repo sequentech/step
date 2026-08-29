@@ -14,19 +14,20 @@
 // sees — exactly the point.
 //
 // The four cells (all invalid_vote_policy = allowed) carry PER-CELL
-// expectations, because the decode injection split them:
-//   min=1, none          — empty ballot, below min 1     → still DISCARDED
-//   min=2, none          — empty ballot, below min 2     → still DISCARDED
-//   min=2, one           — one regular, below min 2      → still DISCARDED
-//     (the three S1 silent-discount cells: decode still emits selectedMin,
-//      the tally still books ImplicitInvalid, and the booth still shows
-//      nothing — the display half of S1 lives in the UNINJECTED TypeScript
-//      filter, so these remain standing violations until it is injected)
-//   min=2, marker_only   — the Blank marker alone: the S2 cell. The S2/S3
-//      fix is injected at decode ("explicit blank votes are not subject to
-//      min_vote rules"), so this chain now confirms the FIX end-to-end:
-//      no error, no signal to dismiss (correct — nothing is wrong), and
-//      the tally books it blank_votes.explicit, not invalid.
+// expectations. The whole fix ledger is injected, so every cell now
+// confirms fixed behaviour end-to-end:
+//   min=1, none / min=2, none / min=2, one — below-min ballots. The S1
+//      display fix (the booth filter renders every emitted error) makes
+//      these INFORMED, UNINTERRUPTED discounts: selectedMin renders at
+//      review (and on the voting screen once the contest is touched —
+//      the two empty cells never touch it, so the untouched-clear keeps
+//      their voting screen empty), no dialog interrupts, and the tally
+//      still books ImplicitInvalid.
+//   min=2, marker_only — the S2 cell. The S2/S3 fix ("explicit blank
+//      votes are not subject to min_vote rules") is injected at decode,
+//      so this chain confirms it end-to-end: no error, no signal at all
+//      (correct — nothing is wrong), and the tally books it
+//      blank_votes.explicit, not invalid.
 //
 // Requires the dev server on :5173.
 
@@ -46,9 +47,9 @@ const ELECTION = "44444444-4444-4444-4444-444444444003"
 const booth = `${base}/tenant/${TENANT}/event/${EVENT}/election/${ELECTION}`
 
 const CELLS = [
-    {min: 1, state: "none", labels: [], expect: "discarded"},
-    {min: 2, state: "none", labels: [], expect: "discarded"},
-    {min: 2, state: "one", labels: ["Yes"], expect: "discarded"},
+    {min: 1, state: "none", labels: [], expect: "informed_discarded"},
+    {min: 2, state: "none", labels: [], expect: "informed_discarded"},
+    {min: 2, state: "one", labels: ["Yes"], expect: "informed_discarded"},
     {
         min: 2,
         state: "marker_only",
@@ -220,18 +221,28 @@ for (const cell of CELLS) {
         : null
     const boothSilent =
         inlineAtVote.length === 0 && inlineAtReview.length === 0 && transitionDialog === "none"
-    // Per-cell expectation (see the header): the three S1 cells are still
-    // silently discarded; the S2 cell is fixed at decode — counted as an
-    // explicit blank, with nothing to warn about.
+    // Per-cell expectation (see the header): the three below-min cells are
+    // informed, uninterrupted discounts — selectedMin renders at review
+    // (and at voting once touched; the empty cells stay untouched), no
+    // dialog — while the S2 cell is counted as an explicit blank with
+    // nothing to warn about.
+    const touched = cell.labels.length > 0
+    const informedUninterrupted =
+        inlineAtReview.includes("errors.implicit.selectedMin") &&
+        (!touched || inlineAtVote.includes("errors.implicit.selectedMin")) &&
+        (touched || inlineAtVote.length === 0) &&
+        transitionDialog === "none"
     const discarded =
         summary != null && summary.total_valid_votes === 0 && summary.invalid_implicit >= 1
     const countedExplicitBlank =
         summary != null && summary.invalid_implicit === 0 && summary.blank_explicit >= 1
     const confirmed =
-        boothSilent && (cell.expect === "discarded" ? discarded : countedExplicitBlank)
-    results.push({...cell, decodedBigInt, boothSilent, summary, confirmed})
+        cell.expect === "informed_discarded"
+            ? informedUninterrupted && discarded
+            : boothSilent && countedExplicitBlank
+    results.push({...cell, decodedBigInt, boothSilent, informedUninterrupted, summary, confirmed})
     console.log(
-        `min=${cell.min} ${cell.state}: silent=${boothSilent} ` +
+        `min=${cell.min} ${cell.state}: silent=${boothSilent} informed=${informedUninterrupted} ` +
             `bigint=${decodedBigInt} tally(valid=${summary?.total_valid_votes},impl=${summary?.invalid_implicit},blankExpl=${summary?.blank_explicit}) ` +
             `expect=${cell.expect} → CONFIRMED=${confirmed}`
     )
@@ -240,7 +251,7 @@ for (const cell of CELLS) {
 await browser.close()
 const allConfirmed = results.every((r) => r.confirmed)
 console.log(
-    `\nall four min-vote cells confirmed end-to-end (three standing S1 discounts + the injected S2 fix): ${allConfirmed}`
+    `\nall four min-vote cells confirmed end-to-end (three informed discounts + the S2 explicit blank): ${allConfirmed}`
 )
 writeFileSync(
     path.join(here, "minvote-e2e-pipeline.recorded.json"),

@@ -25,13 +25,10 @@ state) — plus the observation-derived **⚠**
 (discarded ∧ reachable ∧ no signal at either casting point). The single
 *matches spec?* column subsumes the partial's `pred?` and extends it to the
 browser observations (including the observed dialog vs the gates): ✗ = spec and
-DOM disagree. Predictions follow the injection status (`headless-sweep.md`):
-the gates and decode are injected and the tally classifies from the
-decoded record, so *errors*, *alerts*, the *hard/soft gate* columns, the
-dialog expectation and *tally* come from the RATIONALIZED implementation
-(`f_fixed`); only the TypeScript message filter is uninjected, so the
-inline predictions are the ORACLE filter applied to the fixed emissions
-(emit-grid's `hybrid` kind). `(blocked)` inline means a blocking dialog preempts review —
+DOM disagree. The injection is complete (`headless-sweep.md`): the gates,
+decode and the booth's message filter all run the rationalized
+implementation, so every prediction comes from `f_fixed`.
+`(blocked)` inline means a blocking dialog preempts review —
 the dialog is the signal there. For an unreachable state both inline
 columns show what the state that ACTUALLY formed renders (the *reachable*
 column qualifies it); they are compared against the spec only for
@@ -47,7 +44,7 @@ its meaning is noted under each rule heading below.
 |---|---|---|---|---|---|---|---|---|---|---|
 | allowed × allowed | empty | — | — | — | — | — | — | yes | ImplicitBlank | ✓ |
 | allowed × allowed | at_max | — | — | — | — | — | — | yes | Valid | ✓ |
-| **⚠** allowed × allowed | over_max | selectedMax | — | — | — | — | — | yes | ImplicitInvalid | ✓ |
+| allowed × allowed | over_max | selectedMax | — | selectedMax | selectedMax | — | — | yes | ImplicitInvalid | ✓ |
 | allowed × warn | empty | — | — | — | — | — | — | yes | ImplicitBlank | ✓ |
 | allowed × warn | at_max | — | — | — | — | — | — | yes | Valid | ✓ |
 | allowed × warn | over_max | selectedMax | — | selectedMax | selectedMax | — | dialog | yes | ImplicitInvalid | ✓ |
@@ -112,7 +109,7 @@ its meaning is noted under each rule heading below.
 
 | config | state | errors | alerts | inline (voting) | inline (review) | hard gate | soft gate | reachable | tally | matches spec? |
 |---|---|---|---|---|---|---|---|---|---|---|
-| **⚠** min=1 × allowed | none | selectedMin | — | — | — | — | — | yes | ImplicitInvalid | ✓ |
+| min=1 × allowed | none | selectedMin | — | selectedMin | selectedMin | — | — | yes | ImplicitInvalid | ✓ |
 | min=1 × allowed | one | — | — | — | — | — | — | yes | Valid | ✓ |
 | min=1 × allowed | marker_only | — | — | — | — | — | — | yes | ExplicitBlank | ✓ |
 | min=1 × warn | none | selectedMin | — | selectedMin | selectedMin | — | dialog | yes | ImplicitInvalid | ✓ |
@@ -124,8 +121,8 @@ its meaning is noted under each rule heading below.
 | min=1 × not-allowed | none | selectedMin | — | selectedMin | (blocked) | **block** | dialog | yes | ImplicitInvalid | ✓ |
 | min=1 × not-allowed | one | — | — | — | — | — | — | yes | Valid | ✓ |
 | min=1 × not-allowed | marker_only | — | — | — | — | — | — | yes | ExplicitBlank | ✓ |
-| **⚠** min=2 × allowed | none | selectedMin | — | — | — | — | — | yes | ImplicitInvalid | ✓ |
-| **⚠** min=2 × allowed | one | selectedMin | — | — | — | — | — | yes | ImplicitInvalid | ✓ |
+| min=2 × allowed | none | selectedMin | — | selectedMin | selectedMin | — | — | yes | ImplicitInvalid | ✓ |
+| min=2 × allowed | one | selectedMin | — | selectedMin | selectedMin | — | — | yes | ImplicitInvalid | ✓ |
 | min=2 × allowed | marker_only | — | — | — | — | — | — | yes | ExplicitBlank | ✓ |
 | min=2 × warn | none | selectedMin | — | selectedMin | selectedMin | — | dialog | yes | ImplicitInvalid | ✓ |
 | min=2 × warn | one | selectedMin | — | selectedMin | selectedMin | — | dialog | yes | ImplicitInvalid | ✓ |
@@ -282,7 +279,7 @@ its meaning is noted under each rule heading below.
 | config | state | errors | alerts | inline (voting) | inline (review) | hard gate | soft gate | reachable | tally | matches spec? |
 |---|---|---|---|---|---|---|---|---|---|---|
 | allowed-warn-and-dialog × allowed | valid_full | — | — | — | — | — | — | yes | Valid | ✓ |
-| allowed-warn-and-dialog × allowed | duplicate | duplicatedPosition | — | — | — | — | dialog | yes | ImplicitInvalid | ✓ |
+| allowed-warn-and-dialog × allowed | duplicate | duplicatedPosition | — | duplicatedPosition | duplicatedPosition | — | dialog | yes | ImplicitInvalid | ✓ |
 | allowed-warn-and-dialog × warn | valid_full | — | — | — | — | — | — | yes | Valid | ✓ |
 | allowed-warn-and-dialog × warn | duplicate | duplicatedPosition | — | duplicatedPosition | duplicatedPosition | — | dialog | yes | ImplicitInvalid | ✓ |
 | allowed-warn-and-dialog × warn-invalid-implicit-and-explicit | valid_full | — | — | — | — | — | — | yes | Valid | ✓ |
@@ -290,7 +287,7 @@ its meaning is noted under each rule heading below.
 | allowed-warn-and-dialog × not-allowed | valid_full | — | — | — | — | — | — | yes | Valid | ✓ |
 | allowed-warn-and-dialog × not-allowed | duplicate | duplicatedPosition | — | duplicatedPosition | (blocked) | **block** | dialog | yes | ImplicitInvalid | ✓ |
 | not-allowed-warn-and-dialog × allowed | valid_full | — | — | — | — | — | — | yes | Valid | ✓ |
-| not-allowed-warn-and-dialog × allowed | duplicate | duplicatedPosition | — | — | (blocked) | **block** | — | yes | ImplicitInvalid | ✓ |
+| not-allowed-warn-and-dialog × allowed | duplicate | duplicatedPosition | — | duplicatedPosition | (blocked) | **block** | — | yes | ImplicitInvalid | ✓ |
 | not-allowed-warn-and-dialog × warn | valid_full | — | — | — | — | — | — | yes | Valid | ✓ |
 | not-allowed-warn-and-dialog × warn | duplicate | duplicatedPosition | — | duplicatedPosition | (blocked) | **block** | dialog | yes | ImplicitInvalid | ✓ |
 | not-allowed-warn-and-dialog × warn-invalid-implicit-and-explicit | valid_full | — | — | — | — | — | — | yes | Valid | ✓ |
@@ -305,7 +302,7 @@ its meaning is noted under each rule heading below.
 | config | state | errors | alerts | inline (voting) | inline (review) | hard gate | soft gate | reachable | tally | matches spec? |
 |---|---|---|---|---|---|---|---|---|---|---|
 | allowed-warn-and-dialog × allowed | valid_full | — | — | — | — | — | — | yes | Valid | ✓ |
-| allowed-warn-and-dialog × allowed | gap | preferenceOrderWithGaps | — | — | — | — | dialog | yes | ImplicitInvalid | ✓ |
+| allowed-warn-and-dialog × allowed | gap | preferenceOrderWithGaps | — | preferenceOrderWithGaps | preferenceOrderWithGaps | — | dialog | yes | ImplicitInvalid | ✓ |
 | allowed-warn-and-dialog × warn | valid_full | — | — | — | — | — | — | yes | Valid | ✓ |
 | allowed-warn-and-dialog × warn | gap | preferenceOrderWithGaps | — | preferenceOrderWithGaps | preferenceOrderWithGaps | — | dialog | yes | ImplicitInvalid | ✓ |
 | allowed-warn-and-dialog × warn-invalid-implicit-and-explicit | valid_full | — | — | — | — | — | — | yes | Valid | ✓ |
@@ -313,7 +310,7 @@ its meaning is noted under each rule heading below.
 | allowed-warn-and-dialog × not-allowed | valid_full | — | — | — | — | — | — | yes | Valid | ✓ |
 | allowed-warn-and-dialog × not-allowed | gap | preferenceOrderWithGaps | — | preferenceOrderWithGaps | (blocked) | **block** | dialog | yes | ImplicitInvalid | ✓ |
 | not-allowed-warn-and-dialog × allowed | valid_full | — | — | — | — | — | — | yes | Valid | ✓ |
-| not-allowed-warn-and-dialog × allowed | gap | preferenceOrderWithGaps | — | — | (blocked) | **block** | — | yes | ImplicitInvalid | ✓ |
+| not-allowed-warn-and-dialog × allowed | gap | preferenceOrderWithGaps | — | preferenceOrderWithGaps | (blocked) | **block** | — | yes | ImplicitInvalid | ✓ |
 | not-allowed-warn-and-dialog × warn | valid_full | — | — | — | — | — | — | yes | Valid | ✓ |
 | not-allowed-warn-and-dialog × warn | gap | preferenceOrderWithGaps | — | preferenceOrderWithGaps | (blocked) | **block** | dialog | yes | ImplicitInvalid | ✓ |
 | not-allowed-warn-and-dialog × warn-invalid-implicit-and-explicit | valid_full | — | — | — | — | — | — | yes | Valid | ✓ |

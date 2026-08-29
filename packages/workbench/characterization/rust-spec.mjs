@@ -90,23 +90,6 @@ export function specFixed(cells) {
 }
 
 /**
- * PRODUCTION AS CURRENTLY INJECTED — the per-component expectation while the
- * injection proceeds site by site: emissions/gates/dialog/tally from
- * `f_fixed` (decode and the gates are injected; the tally classifies from
- * the decoded record), inline from the UNINJECTED TypeScript filter (the
- * oracle's `inline_views`) applied to the fixed emissions; reachability
- * shared. Same cell shape as {@link specF}. Collapses into {@link specFixed}
- * once the filter is injected.
- * @param {{config: object, voteState: object}[]} cells
- * @returns {object[]} one `Effects` record per cell, in order
- */
-export function specHybrid(cells) {
-    return run(
-        cells.map((c) => ({kind: "hybrid", config: c.config, voteState: c.voteState}))
-    )
-}
-
-/**
  * Probe the classifier directly on a batch of hand-shaped decoded ballots —
  * the inputs decode cannot reach (decline; see `classifier-table.mjs`).
  * @param {{decline: boolean, flag: boolean, hasErrors: boolean, selection: string}[]} cells

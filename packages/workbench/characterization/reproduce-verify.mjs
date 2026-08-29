@@ -32,15 +32,17 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 // (a single cell vs a set), so each names how to read its verdict.
 const RUNNERS = [
     {
-        finding: "S1 — over-vote silently discarded",
+        finding:
+            "S1 over-vote — informed, uninterrupted discount (the injected " +
+            "display fix: selectedMax renders, no dialog, ballot excluded)",
         script: "overvote-e2e-pipeline.mjs",
         recorded: "overvote-e2e-pipeline.recorded.json",
         confirmed: (d) => d.confirmed_end_to_end === true,
     },
     {
         finding:
-            "S1 min-vote family — three standing silent discounts, plus the " +
-            "injected S2/S3 fix (deliberate blank now counted explicit-blank)",
+            "S1 min-vote family — three informed, uninterrupted discounts, " +
+            "plus the injected S2/S3 fix (deliberate blank counted explicit-blank)",
         script: "minvote-e2e-pipeline.mjs",
         recorded: "minvote-e2e-pipeline.recorded.json",
         confirmed: (d) => d.all_confirmed === true,

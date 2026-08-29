@@ -68,8 +68,8 @@
             "regulars": "0",
             "under_vote_policy": "allowed"
           },
-          "spec": "false",
-          "production": "false"
+          "spec": "true",
+          "production": "true"
         },
         {
           "cell": {
@@ -1290,8 +1290,8 @@
             "regulars": "0",
             "under_vote_policy": "allowed"
           },
-          "spec": "false",
-          "production": "false"
+          "spec": "true",
+          "production": "true"
         },
         {
           "cell": {

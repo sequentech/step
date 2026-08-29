@@ -38,7 +38,7 @@ import {performance} from "node:perf_hooks"
 import {fileURLToPath} from "node:url"
 import path from "node:path"
 import {loadSnapshot} from "./browser-harness.mjs"
-import {specHybrid} from "./rust-spec.mjs"
+import {specFixed} from "./rust-spec.mjs"
 import {inCertifiedDomain} from "./domain.mjs"
 import {RULE_SPECS, RULE_ROWS, contestAndVoter, observeBooth, isReached} from "./rule-specs.mjs"
 
@@ -69,19 +69,13 @@ const uniq = (xs) => [...new Set(xs)].sort()
 // points, the dialog, and reachability. Cells are evaluated in one batch
 // before the browser work starts and looked up by the runner as it goes.
 //
-// INJECTION STATUS — the per-component expectation (mirrors
-// headless-sweep.mjs). The gates AND decode are injected, and the tally
-// classifies from the decoded record, so gates, dialog, emissions and
-// tally come from the rationalized f_fixed; only the TypeScript message
-// filter is uninjected, so inline is the oracle filter applied to the
-// fixed emissions. That composition is emit-grid's "hybrid" kind
-// (specHybrid) — every prediction here comes from it. When the filter is
-// injected, hybrid collapses into f_fixed. An expectation that lags the
-// injection reads as DOM disagreements, not silence.
+// INJECTION STATUS: COMPLETE (mirrors headless-sweep.mjs) — the gates,
+// decode, and the booth's message filter all run the rationalized
+// implementation, so every prediction here comes from f_fixed.
 //
 // This compares the DOM against the artifact the project ships, rather than
 // against inline re-derived from each cell's own recorded emissions. The two
-// coincide wherever the sweep certifies production ≡ hybrid per component,
+// coincide wherever the sweep certifies production ≡ f_fixed per component,
 // which is checked below (`outsideSweptDomain`) rather than assumed.
 const predictions = new Map()
 const predKey = (ruleName, i) => `${ruleName}#${i}`
@@ -227,7 +221,7 @@ const t0 = performance.now()
             if (why)
                 outsideSweptDomain.push({rule: rule.name, cell: rule.label(r), reason: why})
         }
-    const outs = specHybrid(batch)
+    const outs = specFixed(batch)
     outs.forEach((o, i) => predictions.set(keys[i], o))
     console.log(
         `predicted ${outs.length} cells from the Rust spec; ` +
@@ -404,13 +398,10 @@ const md = [
     "(discarded ∧ reachable ∧ no signal at either casting point). The single",
     "*matches spec?* column subsumes the partial's `pred?` and extends it to the",
     "browser observations (including the observed dialog vs the gates): ✗ = spec and",
-    "DOM disagree. Predictions follow the injection status (`headless-sweep.md`):",
-    "the gates and decode are injected and the tally classifies from the",
-    "decoded record, so *errors*, *alerts*, the *hard/soft gate* columns, the",
-    "dialog expectation and *tally* come from the RATIONALIZED implementation",
-    "(`f_fixed`); only the TypeScript message filter is uninjected, so the",
-    "inline predictions are the ORACLE filter applied to the fixed emissions",
-    "(emit-grid's `hybrid` kind). `(blocked)` inline means a blocking dialog preempts review —",
+    "DOM disagree. The injection is complete (`headless-sweep.md`): the gates,",
+    "decode and the booth's message filter all run the rationalized",
+    "implementation, so every prediction comes from `f_fixed`.",
+    "`(blocked)` inline means a blocking dialog preempts review —",
     "the dialog is the signal there. For an unreachable state both inline",
     "columns show what the state that ACTUALLY formed renders (the *reachable*",
     "column qualifies it); they are compared against the spec only for",

@@ -30,12 +30,10 @@
 // Labels (never silently dropped): cells the booth cannot represent
 // (marker+flag, regulars > candidates, max = 0), inline observations on
 // states prevention keeps from forming, and review observations behind a
-// hard gate. Every spec value here is the HYBRID's (emit-grid's "hybrid"
-// kind — production as currently injected, certified against it by
-// headless-sweep): the gates and decode are injected, so the
-// review-reachability pre-filter and the emissions behind the inline
-// values are the rationalized implementation's, while the inline filter
-// itself is still the oracle's (the TypeScript filter is not injected).
+// hard gate. Every spec value here is `f_fixed`'s — the injection is
+// complete (gates, decode, and the booth's message filter all run the
+// rationalized implementation; headless-sweep certifies it against
+// production).
 //
 // Requires the dev server on :5173. Writes browser-witnesses.md +
 // .recorded.json; exits nonzero if any observed cell disagrees with the
@@ -51,7 +49,7 @@ import {loadSnapshot} from "./browser-harness.mjs"
 import {boothContext, observeCell, boothFormable, shortKey} from "./booth-cell.mjs"
 // One-cell batches: this runner evaluates a couple of hundred cells in
 // total, so the per-call subprocess cost is irrelevant here.
-import {specHybrid as specBatch} from "./rust-spec.mjs"
+import {specFixed as specBatch} from "./rust-spec.mjs"
 const spec = (config, voteState) => specBatch([{config, voteState}])[0]
 
 const require = createRequire("C:/work/projects/step/packages/")
@@ -218,9 +216,9 @@ const md = [
     "inline-view or reachability component depends on an input dimension —",
     "is driven through the real booth (panel-configured, touch-armed,",
     "regulars before markers) and the observed component value is compared",
-    "against the spec on both cells — the HYBRID of `headless-sweep.md`'s",
-    "injection-status table: the injected decode's emissions under the",
-    "still-uninjected inline filter. A dependence claim is existential, so",
+    "against the spec on both cells — `f_fixed`, which the completed",
+    "injection makes production's own implementation",
+    "(`headless-sweep.md`). A dependence claim is existential, so",
     "the pair settles it. Witnesses the booth cannot observe are labelled",
     "below, never dropped.",
     "",

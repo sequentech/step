@@ -4,12 +4,11 @@
 
 // Per-rule tables — DOCUMENTATION, not evidence.
 //
-// This renders what the certified spec (`../validation-spec`, via
-// `emit-grid`'s "hybrid" kind — production as currently injected; see
-// headless-sweep.mjs, INJECTION STATUS) says each rule does across its
-// grid. Nothing here observes production, compares anything, or can fail:
-// it is a reading aid, the per-rule view of a mapping whose fidelity is
-// established elsewhere.
+// This renders what the certified spec (`../validation-spec`'s `f_fixed`,
+// via `emit-grid` — production's implementation, now that the injection
+// is complete) says each rule does across its grid. Nothing here observes
+// production, compares anything, or can fail: it is a reading aid, the
+// per-rule view of a mapping whose fidelity is established elsewhere.
 //
 // WHERE THE EVIDENCE IS. That these tables describe production is the
 // sweep's claim, not theirs: `headless-sweep.md` compares production
@@ -31,7 +30,7 @@ import {writeFileSync} from "node:fs"
 import {fileURLToPath} from "node:url"
 import path from "node:path"
 import {RULE_SPECS, RULE_ROWS} from "./rule-specs.mjs"
-import {specHybrid} from "./rust-spec.mjs"
+import {specFixed} from "./rust-spec.mjs"
 import {representable} from "./cell.mjs"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -102,7 +101,7 @@ for (const [rule, legend] of Object.entries(LEGENDS)) {
     const rows = RULE_ROWS[rule]
     const cells = rows.map((r) => ({config: spec.specConfig(r), voteState: spec.voteState(r)}))
     for (const c of cells) if (representable(c)) outside++
-    const out = specHybrid(cells)
+    const out = specFixed(cells)
 
     const knobOf = (r) =>
         Object.entries(r).find(([k]) => k !== "invalid_vote_policy" && k !== "state")?.[1]

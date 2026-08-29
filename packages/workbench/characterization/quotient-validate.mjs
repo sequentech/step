@@ -7,17 +7,20 @@
 // representable subdomain by sufficiency (conditional independence given a
 // computed mediator) instead of by brute force.
 //
-// THE LICENSE (re-verified by source read, 2026-08-17, of
-// voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx):
-// `filterErrorList` is a closure whose body references NOTHING beyond its
-// explicit parameters — the decoded record (checker errors/alerts), the
-// four consulted policies (read raw from `question.presentation`, no
-// default resolution), `isReview`, `isTouched`, and the dead
-// `isVotedState` (console.log only — UPSTREAM_FINDINGS.md Defect 4). No
-// store reads, no globals. The inline effect therefore depends on the
-// inputs ONLY THROUGH (emissions, invalid, blank, over, under, point) —
-// so one booth run per reachable class of that tuple covers the inline
-// behaviour of EVERY cell in the class. RE-ENTRY CONDITION: any future
+// THE LICENSE (re-verified by source read, 2026-08-29, of
+// voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx —
+// the filter rewritten by the S1 injection): `filterErrorList` is a
+// closure whose body references NOTHING beyond its explicit parameters —
+// the decoded record (checker errors/alerts), the under and blank
+// policies (read raw from `question.presentation`, no default
+// resolution), `isReview` and `isTouched`. The rewrite REMOVED the
+// invalid/over policy reads (they served only the S1 mute) and the dead
+// `isVotedState` (Defect 4). No store reads, no globals. The inline
+// effect therefore depends on the inputs only through
+// (emissions, blank, under, point) — the class key
+// (emissions, invalid, blank, over, under) partitions FINER than the
+// filter needs, which is still sound for sufficiency: one booth run per
+// class covers every cell in it. RE-ENTRY CONDITION: any future
 // reference inside filterErrorList beyond its parameter list, or a new
 // consulted policy/prop, breaks this license — re-verify it on every
 // portal refresh (LIFTING.md runbook) before trusting this artifact.
@@ -32,15 +35,13 @@
 // headlessly and may be unformable — flag+marker, marker-clear collapse,
 // disable-prevented, max = 0): search bounds × formable vote states for
 // one whose spec emissions under the class's policies match the class key
-// (sound — emissions ≡ production on this subdomain by the sweep; with
-// decode injected, both sides of that match are the hybrid's emissions).
+// (sound — emissions ≡ production on this subdomain by the sweep; the
+// injection is complete, so both sides of that match are f_fixed's).
 // Drive it, compare inline at the touched voting screen and at review
-// against the class's spec inline views (the sweep records the HYBRID's:
-// the uninjected message filter over the injected decode's emissions).
-// Whether review renders is decided by production's ACTUAL hard gate —
-// the injected, rationalized one (certified against production by
-// headless-sweep) — and it is MEMBER-determined, not class-determined:
-// the rationalized gate reads the vote state past the emissions (the
+// against the class's spec inline views (f_fixed's — the rewritten booth
+// filter runs the same semantics). Whether review renders is decided by
+// production's hard gate — MEMBER-determined, not class-determined: the
+// rationalized gate reads the vote state past the emissions (the
 // deliberate-blank exemption), so two members of one class can gate
 // differently. Review is compared exactly when the chosen member does not
 // hard-gate; otherwise the dialog is the signal, certified headlessly.
@@ -60,7 +61,7 @@ import path from "node:path"
 import {performance} from "node:perf_hooks"
 import {loadSnapshot} from "./browser-harness.mjs"
 import {boothContext, observeCell, boothFormable, shortKey} from "./booth-cell.mjs"
-import {specHybrid} from "./rust-spec.mjs"
+import {specFixed} from "./rust-spec.mjs"
 import {BOUNDS} from "./domain.mjs"
 
 const require = createRequire("C:/work/projects/step/packages/")
@@ -113,11 +114,11 @@ for (let ci = 0; ci < classes.length; ci++) {
             candidates.push({ci, cell})
         }
 }
-// The hybrid (emit-grid) is production as currently injected: its emissions
-// are what decode now stamps (the class keys), its gates what the injected
-// voting_screen runs — one evaluation answers both member selection and the
-// review-reachability pre-filter.
-const candidateSpecs = specHybrid(candidates.map((c) => c.cell))
+// The injection is complete, so f_fixed IS production: its emissions are
+// what decode stamps (the class keys), its gates what voting_screen runs —
+// one evaluation answers both member selection and the review-reachability
+// pre-filter.
+const candidateSpecs = specFixed(candidates.map((c) => c.cell))
 const byClass = new Map()
 candidates.forEach((c, k) => {
     if (!byClass.has(c.ci)) byClass.set(c.ci, [])
@@ -231,8 +232,10 @@ writeFileSync(
     JSON.stringify(
         {
             license:
-                "filterErrorList reads only (record, invalid, blank, over, under, isReview, isTouched); " +
-                "isVotedState dead (Defect 4). Source-verified 2026-08-17. Re-verify on portal refresh.",
+                "filterErrorList reads only (record, blank, under, isReview, isTouched) — the S1 " +
+                "rewrite removed the invalid/over reads and the dead isVotedState (Defect 4); the " +
+                "class key partitions finer than needed, still sound. Source-verified 2026-08-29. " +
+                "Re-verify on portal refresh.",
             classes_total: classes.length,
             retried,
             checked,
@@ -273,10 +276,12 @@ const md = [
     "a hard-gated member's review is the dialog, certified headlessly.",
     "",
     "**The license** (what makes one-per-class sound), source-verified",
-    "2026-08-17: `filterErrorList` is a closure referencing nothing beyond",
-    "its parameters — the record, the four policies (read raw from",
-    "`question.presentation`), `isReview`, `isTouched`, and the dead",
-    "`isVotedState` (Defect 4). No store reads, no globals. Spec-side, the",
+    "2026-08-29 against the S1-rewritten filter: `filterErrorList` is a",
+    "closure referencing nothing beyond its parameters — the record, the",
+    "under and blank policies (read raw from `question.presentation`),",
+    "`isReview`, `isTouched`. The class key partitions finer than the",
+    "filter needs (it also carries invalid and over), which is still",
+    "sound. No store reads, no globals. Spec-side, the",
     `same factorization was checked extensionally over all ${sweptCells}`,
     "swept cells. **Re-entry condition:** any reference inside `filterErrorList`",
     "beyond its parameter list, or a new consulted policy, voids this",

@@ -1,5 +1,5 @@
 {
-  "license": "filterErrorList reads only (record, invalid, blank, over, under, isReview, isTouched); isVotedState dead (Defect 4). Source-verified 2026-08-17. Re-verify on portal refresh.",
+  "license": "filterErrorList reads only (record, blank, under, isReview, isTouched) — the S1 rewrite removed the invalid/over reads and the dead isVotedState (Defect 4); the class key partitions finer than needed, still sound. Source-verified 2026-08-29. Re-verify on portal refresh.",
   "classes_total": 7908,
   "retried": [],
   "checked": [
@@ -74,12 +74,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "ok": true
     },
@@ -115,12 +123,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -195,12 +211,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "ok": true
     },
@@ -285,12 +309,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -365,12 +397,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "ok": true
     },
@@ -451,12 +491,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -531,12 +579,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "ok": true
     },
@@ -621,588 +677,19 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
-      },
-      "review": {
-        "want": [],
-        "got": []
-      },
-      "ok": true
-    },
-    {
-      "key": [
-        [],
-        [],
-        "allowed",
-        "allowed",
-        "allowed-with-msg",
-        "allowed"
-      ],
-      "cells": 296,
-      "member": {
-        "config": {
-          "min": 0,
-          "max": 1,
-          "policies": {
-            "invalid": "allowed",
-            "blank": "allowed",
-            "over": "allowed-with-msg",
-            "under": "allowed",
-            "dup": "allowed-warn-and-dialog",
-            "gap": "allowed-warn-and-dialog"
-          }
-        },
-        "voteState": {
-          "regulars": 0,
-          "blankMarker": false,
-          "explicitInvalid": false
-        }
-      },
-      "voting": {
-        "want": [],
-        "got": []
-      },
-      "review": {
-        "want": [],
-        "got": []
-      },
-      "ok": true
-    },
-    {
-      "key": [
-        [
-          "selectedMax"
-        ],
-        [
-          "selectedMax"
-        ],
-        "allowed",
-        "allowed",
-        "allowed-with-msg",
-        "allowed"
-      ],
-      "cells": 156,
-      "member": {
-        "config": {
-          "min": 0,
-          "max": 1,
-          "policies": {
-            "invalid": "allowed",
-            "blank": "allowed",
-            "over": "allowed-with-msg",
-            "under": "allowed",
-            "dup": "allowed-warn-and-dialog",
-            "gap": "allowed-warn-and-dialog"
-          }
-        },
-        "voteState": {
-          "regulars": 1,
-          "blankMarker": false,
-          "explicitInvalid": true
-        }
-      },
-      "voting": {
         "want": [
-          "selectedMax"
-        ],
-        "got": [
-          "selectedMax"
-        ]
-      },
-      "review": {
-        "want": [
-          "selectedMax"
-        ],
-        "got": [
-          "selectedMax"
-        ]
-      },
-      "ok": true
-    },
-    {
-      "key": [
-        [
           "selectedMin"
         ],
-        [],
-        "allowed",
-        "allowed",
-        "allowed-with-msg",
-        "allowed"
-      ],
-      "cells": 68,
-      "member": {
-        "config": {
-          "min": 1,
-          "max": 1,
-          "policies": {
-            "invalid": "allowed",
-            "blank": "allowed",
-            "over": "allowed-with-msg",
-            "under": "allowed",
-            "dup": "allowed-warn-and-dialog",
-            "gap": "allowed-warn-and-dialog"
-          }
-        },
-        "voteState": {
-          "regulars": 0,
-          "blankMarker": false,
-          "explicitInvalid": false
-        }
-      },
-      "voting": {
-        "want": [],
-        "got": []
-      },
-      "review": {
-        "want": [],
-        "got": []
-      },
-      "ok": true
-    },
-    {
-      "key": [
-        [],
-        [],
-        "allowed",
-        "allowed",
-        "allowed-with-msg",
-        "warn"
-      ],
-      "cells": 188,
-      "member": {
-        "config": {
-          "min": 0,
-          "max": 1,
-          "policies": {
-            "invalid": "allowed",
-            "blank": "allowed",
-            "over": "allowed-with-msg",
-            "under": "warn",
-            "dup": "allowed-warn-and-dialog",
-            "gap": "allowed-warn-and-dialog"
-          }
-        },
-        "voteState": {
-          "regulars": 0,
-          "blankMarker": false,
-          "explicitInvalid": false
-        }
-      },
-      "voting": {
-        "want": [],
-        "got": []
-      },
-      "review": {
-        "want": [],
-        "got": []
-      },
-      "ok": true
-    },
-    {
-      "key": [
-        [
-          "selectedMax"
-        ],
-        [
-          "selectedMax"
-        ],
-        "allowed",
-        "allowed",
-        "allowed-with-msg",
-        "warn"
-      ],
-      "cells": 156,
-      "member": {
-        "config": {
-          "min": 0,
-          "max": 1,
-          "policies": {
-            "invalid": "allowed",
-            "blank": "allowed",
-            "over": "allowed-with-msg",
-            "under": "warn",
-            "dup": "allowed-warn-and-dialog",
-            "gap": "allowed-warn-and-dialog"
-          }
-        },
-        "voteState": {
-          "regulars": 1,
-          "blankMarker": false,
-          "explicitInvalid": true
-        }
-      },
-      "voting": {
-        "want": [
-          "selectedMax"
-        ],
         "got": [
-          "selectedMax"
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "selectedMax"
-        ],
-        "got": [
-          "selectedMax"
-        ]
-      },
-      "ok": true
-    },
-    {
-      "key": [
-        [],
-        [
-          "underVote"
-        ],
-        "allowed",
-        "allowed",
-        "allowed-with-msg",
-        "warn"
-      ],
-      "cells": 108,
-      "member": {
-        "config": {
-          "min": 0,
-          "max": 2,
-          "policies": {
-            "invalid": "allowed",
-            "blank": "allowed",
-            "over": "allowed-with-msg",
-            "under": "warn",
-            "dup": "allowed-warn-and-dialog",
-            "gap": "allowed-warn-and-dialog"
-          }
-        },
-        "voteState": {
-          "regulars": 0,
-          "blankMarker": false,
-          "explicitInvalid": true
-        }
-      },
-      "voting": {
-        "want": [
-          "underVote"
-        ],
-        "got": [
-          "underVote"
-        ]
-      },
-      "review": {
-        "want": [
-          "underVote"
-        ],
-        "got": [
-          "underVote"
-        ]
-      },
-      "ok": true
-    },
-    {
-      "key": [
-        [
           "selectedMin"
         ],
-        [],
-        "allowed",
-        "allowed",
-        "allowed-with-msg",
-        "warn"
-      ],
-      "cells": 68,
-      "member": {
-        "config": {
-          "min": 1,
-          "max": 1,
-          "policies": {
-            "invalid": "allowed",
-            "blank": "allowed",
-            "over": "allowed-with-msg",
-            "under": "warn",
-            "dup": "allowed-warn-and-dialog",
-            "gap": "allowed-warn-and-dialog"
-          }
-        },
-        "voteState": {
-          "regulars": 0,
-          "blankMarker": false,
-          "explicitInvalid": false
-        }
-      },
-      "voting": {
-        "want": [],
-        "got": []
-      },
-      "review": {
-        "want": [],
-        "got": []
-      },
-      "ok": true
-    },
-    {
-      "key": [
-        [],
-        [],
-        "allowed",
-        "allowed",
-        "allowed-with-msg",
-        "warn-only-in-review"
-      ],
-      "cells": 188,
-      "member": {
-        "config": {
-          "min": 0,
-          "max": 1,
-          "policies": {
-            "invalid": "allowed",
-            "blank": "allowed",
-            "over": "allowed-with-msg",
-            "under": "warn-only-in-review",
-            "dup": "allowed-warn-and-dialog",
-            "gap": "allowed-warn-and-dialog"
-          }
-        },
-        "voteState": {
-          "regulars": 0,
-          "blankMarker": false,
-          "explicitInvalid": false
-        }
-      },
-      "voting": {
-        "want": [],
-        "got": []
-      },
-      "review": {
-        "want": [],
-        "got": []
-      },
-      "ok": true
-    },
-    {
-      "key": [
-        [
-          "selectedMax"
-        ],
-        [
-          "selectedMax"
-        ],
-        "allowed",
-        "allowed",
-        "allowed-with-msg",
-        "warn-only-in-review"
-      ],
-      "cells": 156,
-      "member": {
-        "config": {
-          "min": 0,
-          "max": 1,
-          "policies": {
-            "invalid": "allowed",
-            "blank": "allowed",
-            "over": "allowed-with-msg",
-            "under": "warn-only-in-review",
-            "dup": "allowed-warn-and-dialog",
-            "gap": "allowed-warn-and-dialog"
-          }
-        },
-        "voteState": {
-          "regulars": 1,
-          "blankMarker": false,
-          "explicitInvalid": true
-        }
-      },
-      "voting": {
-        "want": [
-          "selectedMax"
-        ],
         "got": [
-          "selectedMax"
-        ]
-      },
-      "review": {
-        "want": [
-          "selectedMax"
-        ],
-        "got": [
-          "selectedMax"
-        ]
-      },
-      "ok": true
-    },
-    {
-      "key": [
-        [],
-        [
-          "underVote"
-        ],
-        "allowed",
-        "allowed",
-        "allowed-with-msg",
-        "warn-only-in-review"
-      ],
-      "cells": 108,
-      "member": {
-        "config": {
-          "min": 0,
-          "max": 2,
-          "policies": {
-            "invalid": "allowed",
-            "blank": "allowed",
-            "over": "allowed-with-msg",
-            "under": "warn-only-in-review",
-            "dup": "allowed-warn-and-dialog",
-            "gap": "allowed-warn-and-dialog"
-          }
-        },
-        "voteState": {
-          "regulars": 0,
-          "blankMarker": false,
-          "explicitInvalid": true
-        }
-      },
-      "voting": {
-        "want": [],
-        "got": []
-      },
-      "review": {
-        "want": [
-          "underVote"
-        ],
-        "got": [
-          "underVote"
-        ]
-      },
-      "ok": true
-    },
-    {
-      "key": [
-        [
           "selectedMin"
-        ],
-        [],
-        "allowed",
-        "allowed",
-        "allowed-with-msg",
-        "warn-only-in-review"
-      ],
-      "cells": 68,
-      "member": {
-        "config": {
-          "min": 1,
-          "max": 1,
-          "policies": {
-            "invalid": "allowed",
-            "blank": "allowed",
-            "over": "allowed-with-msg",
-            "under": "warn-only-in-review",
-            "dup": "allowed-warn-and-dialog",
-            "gap": "allowed-warn-and-dialog"
-          }
-        },
-        "voteState": {
-          "regulars": 0,
-          "blankMarker": false,
-          "explicitInvalid": false
-        }
-      },
-      "voting": {
-        "want": [],
-        "got": []
-      },
-      "review": {
-        "want": [],
-        "got": []
-      },
-      "ok": true
-    },
-    {
-      "key": [
-        [],
-        [],
-        "allowed",
-        "allowed",
-        "allowed-with-msg",
-        "warn-and-alert"
-      ],
-      "cells": 188,
-      "member": {
-        "config": {
-          "min": 0,
-          "max": 1,
-          "policies": {
-            "invalid": "allowed",
-            "blank": "allowed",
-            "over": "allowed-with-msg",
-            "under": "warn-and-alert",
-            "dup": "allowed-warn-and-dialog",
-            "gap": "allowed-warn-and-dialog"
-          }
-        },
-        "voteState": {
-          "regulars": 0,
-          "blankMarker": false,
-          "explicitInvalid": false
-        }
-      },
-      "voting": {
-        "want": [],
-        "got": []
-      },
-      "review": {
-        "want": [],
-        "got": []
-      },
-      "ok": true
-    },
-    {
-      "key": [
-        [
-          "selectedMax"
-        ],
-        [
-          "selectedMax"
-        ],
-        "allowed",
-        "allowed",
-        "allowed-with-msg",
-        "warn-and-alert"
-      ],
-      "cells": 156,
-      "member": {
-        "config": {
-          "min": 0,
-          "max": 1,
-          "policies": {
-            "invalid": "allowed",
-            "blank": "allowed",
-            "over": "allowed-with-msg",
-            "under": "warn-and-alert",
-            "dup": "allowed-warn-and-dialog",
-            "gap": "allowed-warn-and-dialog"
-          }
-        },
-        "voteState": {
-          "regulars": 1,
-          "blankMarker": false,
-          "explicitInvalid": true
-        }
-      },
-      "voting": {
-        "want": [
-          "selectedMax"
-        ],
-        "got": [
-          "selectedMax"
-        ]
-      },
-      "review": {
-        "want": [
-          "selectedMax"
-        ],
-        "got": [
-          "selectedMax"
         ]
       },
       "ok": true
@@ -1210,100 +697,10 @@
     {
       "key": [
         [],
-        [
-          "underVote"
-        ],
-        "allowed",
-        "allowed",
-        "allowed-with-msg",
-        "warn-and-alert"
-      ],
-      "cells": 108,
-      "member": {
-        "config": {
-          "min": 0,
-          "max": 2,
-          "policies": {
-            "invalid": "allowed",
-            "blank": "allowed",
-            "over": "allowed-with-msg",
-            "under": "warn-and-alert",
-            "dup": "allowed-warn-and-dialog",
-            "gap": "allowed-warn-and-dialog"
-          }
-        },
-        "voteState": {
-          "regulars": 0,
-          "blankMarker": false,
-          "explicitInvalid": true
-        }
-      },
-      "voting": {
-        "want": [
-          "underVote"
-        ],
-        "got": [
-          "underVote"
-        ]
-      },
-      "review": {
-        "want": [
-          "underVote"
-        ],
-        "got": [
-          "underVote"
-        ]
-      },
-      "ok": true
-    },
-    {
-      "key": [
-        [
-          "selectedMin"
-        ],
         [],
         "allowed",
         "allowed",
         "allowed-with-msg",
-        "warn-and-alert"
-      ],
-      "cells": 68,
-      "member": {
-        "config": {
-          "min": 1,
-          "max": 1,
-          "policies": {
-            "invalid": "allowed",
-            "blank": "allowed",
-            "over": "allowed-with-msg",
-            "under": "warn-and-alert",
-            "dup": "allowed-warn-and-dialog",
-            "gap": "allowed-warn-and-dialog"
-          }
-        },
-        "voteState": {
-          "regulars": 0,
-          "blankMarker": false,
-          "explicitInvalid": false
-        }
-      },
-      "voting": {
-        "want": [],
-        "got": []
-      },
-      "review": {
-        "want": [],
-        "got": []
-      },
-      "ok": true
-    },
-    {
-      "key": [
-        [],
-        [],
-        "allowed",
-        "allowed",
-        "allowed-with-msg-and-alert",
         "allowed"
       ],
       "cells": 296,
@@ -1314,6 +711,705 @@
           "policies": {
             "invalid": "allowed",
             "blank": "allowed",
+            "over": "allowed-with-msg",
+            "under": "allowed",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 0,
+          "blankMarker": false,
+          "explicitInvalid": false
+        }
+      },
+      "voting": {
+        "want": [],
+        "got": []
+      },
+      "review": {
+        "want": [],
+        "got": []
+      },
+      "ok": true
+    },
+    {
+      "key": [
+        [
+          "selectedMax"
+        ],
+        [
+          "selectedMax"
+        ],
+        "allowed",
+        "allowed",
+        "allowed-with-msg",
+        "allowed"
+      ],
+      "cells": 156,
+      "member": {
+        "config": {
+          "min": 0,
+          "max": 1,
+          "policies": {
+            "invalid": "allowed",
+            "blank": "allowed",
+            "over": "allowed-with-msg",
+            "under": "allowed",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 1,
+          "blankMarker": false,
+          "explicitInvalid": true
+        }
+      },
+      "voting": {
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
+      },
+      "review": {
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
+      },
+      "ok": true
+    },
+    {
+      "key": [
+        [
+          "selectedMin"
+        ],
+        [],
+        "allowed",
+        "allowed",
+        "allowed-with-msg",
+        "allowed"
+      ],
+      "cells": 68,
+      "member": {
+        "config": {
+          "min": 1,
+          "max": 1,
+          "policies": {
+            "invalid": "allowed",
+            "blank": "allowed",
+            "over": "allowed-with-msg",
+            "under": "allowed",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 0,
+          "blankMarker": false,
+          "explicitInvalid": false
+        }
+      },
+      "voting": {
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
+      },
+      "review": {
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
+      },
+      "ok": true
+    },
+    {
+      "key": [
+        [],
+        [],
+        "allowed",
+        "allowed",
+        "allowed-with-msg",
+        "warn"
+      ],
+      "cells": 188,
+      "member": {
+        "config": {
+          "min": 0,
+          "max": 1,
+          "policies": {
+            "invalid": "allowed",
+            "blank": "allowed",
+            "over": "allowed-with-msg",
+            "under": "warn",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 0,
+          "blankMarker": false,
+          "explicitInvalid": false
+        }
+      },
+      "voting": {
+        "want": [],
+        "got": []
+      },
+      "review": {
+        "want": [],
+        "got": []
+      },
+      "ok": true
+    },
+    {
+      "key": [
+        [
+          "selectedMax"
+        ],
+        [
+          "selectedMax"
+        ],
+        "allowed",
+        "allowed",
+        "allowed-with-msg",
+        "warn"
+      ],
+      "cells": 156,
+      "member": {
+        "config": {
+          "min": 0,
+          "max": 1,
+          "policies": {
+            "invalid": "allowed",
+            "blank": "allowed",
+            "over": "allowed-with-msg",
+            "under": "warn",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 1,
+          "blankMarker": false,
+          "explicitInvalid": true
+        }
+      },
+      "voting": {
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
+      },
+      "review": {
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
+      },
+      "ok": true
+    },
+    {
+      "key": [
+        [],
+        [
+          "underVote"
+        ],
+        "allowed",
+        "allowed",
+        "allowed-with-msg",
+        "warn"
+      ],
+      "cells": 108,
+      "member": {
+        "config": {
+          "min": 0,
+          "max": 2,
+          "policies": {
+            "invalid": "allowed",
+            "blank": "allowed",
+            "over": "allowed-with-msg",
+            "under": "warn",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 0,
+          "blankMarker": false,
+          "explicitInvalid": true
+        }
+      },
+      "voting": {
+        "want": [
+          "underVote"
+        ],
+        "got": [
+          "underVote"
+        ]
+      },
+      "review": {
+        "want": [
+          "underVote"
+        ],
+        "got": [
+          "underVote"
+        ]
+      },
+      "ok": true
+    },
+    {
+      "key": [
+        [
+          "selectedMin"
+        ],
+        [],
+        "allowed",
+        "allowed",
+        "allowed-with-msg",
+        "warn"
+      ],
+      "cells": 68,
+      "member": {
+        "config": {
+          "min": 1,
+          "max": 1,
+          "policies": {
+            "invalid": "allowed",
+            "blank": "allowed",
+            "over": "allowed-with-msg",
+            "under": "warn",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 0,
+          "blankMarker": false,
+          "explicitInvalid": false
+        }
+      },
+      "voting": {
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
+      },
+      "review": {
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
+      },
+      "ok": true
+    },
+    {
+      "key": [
+        [],
+        [],
+        "allowed",
+        "allowed",
+        "allowed-with-msg",
+        "warn-only-in-review"
+      ],
+      "cells": 188,
+      "member": {
+        "config": {
+          "min": 0,
+          "max": 1,
+          "policies": {
+            "invalid": "allowed",
+            "blank": "allowed",
+            "over": "allowed-with-msg",
+            "under": "warn-only-in-review",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 0,
+          "blankMarker": false,
+          "explicitInvalid": false
+        }
+      },
+      "voting": {
+        "want": [],
+        "got": []
+      },
+      "review": {
+        "want": [],
+        "got": []
+      },
+      "ok": true
+    },
+    {
+      "key": [
+        [
+          "selectedMax"
+        ],
+        [
+          "selectedMax"
+        ],
+        "allowed",
+        "allowed",
+        "allowed-with-msg",
+        "warn-only-in-review"
+      ],
+      "cells": 156,
+      "member": {
+        "config": {
+          "min": 0,
+          "max": 1,
+          "policies": {
+            "invalid": "allowed",
+            "blank": "allowed",
+            "over": "allowed-with-msg",
+            "under": "warn-only-in-review",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 1,
+          "blankMarker": false,
+          "explicitInvalid": true
+        }
+      },
+      "voting": {
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
+      },
+      "review": {
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
+      },
+      "ok": true
+    },
+    {
+      "key": [
+        [],
+        [
+          "underVote"
+        ],
+        "allowed",
+        "allowed",
+        "allowed-with-msg",
+        "warn-only-in-review"
+      ],
+      "cells": 108,
+      "member": {
+        "config": {
+          "min": 0,
+          "max": 2,
+          "policies": {
+            "invalid": "allowed",
+            "blank": "allowed",
+            "over": "allowed-with-msg",
+            "under": "warn-only-in-review",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 0,
+          "blankMarker": false,
+          "explicitInvalid": true
+        }
+      },
+      "voting": {
+        "want": [],
+        "got": []
+      },
+      "review": {
+        "want": [
+          "underVote"
+        ],
+        "got": [
+          "underVote"
+        ]
+      },
+      "ok": true
+    },
+    {
+      "key": [
+        [
+          "selectedMin"
+        ],
+        [],
+        "allowed",
+        "allowed",
+        "allowed-with-msg",
+        "warn-only-in-review"
+      ],
+      "cells": 68,
+      "member": {
+        "config": {
+          "min": 1,
+          "max": 1,
+          "policies": {
+            "invalid": "allowed",
+            "blank": "allowed",
+            "over": "allowed-with-msg",
+            "under": "warn-only-in-review",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 0,
+          "blankMarker": false,
+          "explicitInvalid": false
+        }
+      },
+      "voting": {
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
+      },
+      "review": {
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
+      },
+      "ok": true
+    },
+    {
+      "key": [
+        [],
+        [],
+        "allowed",
+        "allowed",
+        "allowed-with-msg",
+        "warn-and-alert"
+      ],
+      "cells": 188,
+      "member": {
+        "config": {
+          "min": 0,
+          "max": 1,
+          "policies": {
+            "invalid": "allowed",
+            "blank": "allowed",
+            "over": "allowed-with-msg",
+            "under": "warn-and-alert",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 0,
+          "blankMarker": false,
+          "explicitInvalid": false
+        }
+      },
+      "voting": {
+        "want": [],
+        "got": []
+      },
+      "review": {
+        "want": [],
+        "got": []
+      },
+      "ok": true
+    },
+    {
+      "key": [
+        [
+          "selectedMax"
+        ],
+        [
+          "selectedMax"
+        ],
+        "allowed",
+        "allowed",
+        "allowed-with-msg",
+        "warn-and-alert"
+      ],
+      "cells": 156,
+      "member": {
+        "config": {
+          "min": 0,
+          "max": 1,
+          "policies": {
+            "invalid": "allowed",
+            "blank": "allowed",
+            "over": "allowed-with-msg",
+            "under": "warn-and-alert",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 1,
+          "blankMarker": false,
+          "explicitInvalid": true
+        }
+      },
+      "voting": {
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
+      },
+      "review": {
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
+      },
+      "ok": true
+    },
+    {
+      "key": [
+        [],
+        [
+          "underVote"
+        ],
+        "allowed",
+        "allowed",
+        "allowed-with-msg",
+        "warn-and-alert"
+      ],
+      "cells": 108,
+      "member": {
+        "config": {
+          "min": 0,
+          "max": 2,
+          "policies": {
+            "invalid": "allowed",
+            "blank": "allowed",
+            "over": "allowed-with-msg",
+            "under": "warn-and-alert",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 0,
+          "blankMarker": false,
+          "explicitInvalid": true
+        }
+      },
+      "voting": {
+        "want": [
+          "underVote"
+        ],
+        "got": [
+          "underVote"
+        ]
+      },
+      "review": {
+        "want": [
+          "underVote"
+        ],
+        "got": [
+          "underVote"
+        ]
+      },
+      "ok": true
+    },
+    {
+      "key": [
+        [
+          "selectedMin"
+        ],
+        [],
+        "allowed",
+        "allowed",
+        "allowed-with-msg",
+        "warn-and-alert"
+      ],
+      "cells": 68,
+      "member": {
+        "config": {
+          "min": 1,
+          "max": 1,
+          "policies": {
+            "invalid": "allowed",
+            "blank": "allowed",
+            "over": "allowed-with-msg",
+            "under": "warn-and-alert",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 0,
+          "blankMarker": false,
+          "explicitInvalid": false
+        }
+      },
+      "voting": {
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
+      },
+      "review": {
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
+      },
+      "ok": true
+    },
+    {
+      "key": [
+        [],
+        [],
+        "allowed",
+        "allowed",
+        "allowed-with-msg-and-alert",
+        "allowed"
+      ],
+      "cells": 296,
+      "member": {
+        "config": {
+          "min": 0,
+          "max": 1,
+          "policies": {
+            "invalid": "allowed",
+            "blank": "allowed",
             "over": "allowed-with-msg-and-alert",
             "under": "allowed",
             "dup": "allowed-warn-and-dialog",
@@ -1419,12 +1515,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -1599,12 +1703,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -1775,12 +1887,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -1955,12 +2075,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -2079,12 +2207,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -2252,12 +2388,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -2421,12 +2565,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -2594,12 +2746,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -2719,12 +2879,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -2893,12 +3061,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -3063,12 +3239,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -3237,12 +3421,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -3366,12 +3558,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "ok": true
     },
@@ -3410,18 +3610,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -3458,12 +3662,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -3587,12 +3799,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "ok": true
     },
@@ -3680,18 +3900,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -3728,12 +3952,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -3857,12 +4089,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "ok": true
     },
@@ -3946,18 +4186,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -3994,12 +4238,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -4123,12 +4375,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "ok": true
     },
@@ -4216,18 +4476,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -4264,12 +4528,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -4447,18 +4719,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -4495,12 +4771,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -4727,18 +5011,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -4775,12 +5063,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -5003,18 +5299,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -5051,12 +5351,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -5283,18 +5591,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -5331,12 +5643,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -5514,18 +5834,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -5562,12 +5886,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -5794,18 +6126,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -5842,12 +6178,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -6070,18 +6414,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -6118,12 +6466,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -6350,18 +6706,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -6398,12 +6758,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -6574,18 +6942,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -6622,12 +6994,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -6847,18 +7227,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -6895,12 +7279,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -7116,18 +7508,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -7164,12 +7560,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -7389,18 +7793,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -7437,12 +7845,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -7614,18 +8030,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -7662,12 +8082,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -7849,18 +8277,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -7897,12 +8329,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -8119,18 +8559,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -8167,12 +8611,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -8393,18 +8845,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -8441,12 +8897,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -8605,12 +9069,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "ok": true
     },
@@ -8648,15 +9120,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -8693,12 +9171,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -8818,12 +9304,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "ok": true
     },
@@ -8910,15 +9404,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -8955,12 +9455,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -9080,12 +9588,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "ok": true
     },
@@ -9168,15 +9684,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -9213,12 +9735,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -9338,12 +9868,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "ok": true
     },
@@ -9430,15 +9968,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -9475,12 +10019,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -9653,15 +10205,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -9698,12 +10256,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -9925,15 +10491,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -9970,12 +10542,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -10193,15 +10773,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -10238,12 +10824,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -10465,15 +11059,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -10510,12 +11110,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -10688,15 +11296,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -10733,12 +11347,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -10960,15 +11582,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -11005,12 +11633,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -11228,15 +11864,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -11273,12 +11915,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -11500,15 +12150,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -11545,12 +12201,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -11716,15 +12380,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -11761,12 +12431,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -11981,15 +12659,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -12026,12 +12710,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -12242,15 +12934,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -12287,12 +12985,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -12507,15 +13213,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -12552,12 +13264,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -12724,15 +13444,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -12769,12 +13495,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -12951,15 +13685,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -12996,12 +13736,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -13213,15 +13961,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -13258,12 +14012,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -13479,15 +14241,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -13524,12 +14292,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -13685,12 +14461,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "ok": true
     },
@@ -13728,10 +14512,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -13769,12 +14555,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -13891,12 +14685,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "ok": true
     },
@@ -13983,10 +14785,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -14024,12 +14828,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -14146,12 +14958,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "ok": true
     },
@@ -14234,10 +15054,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -14275,12 +15097,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -14397,12 +15227,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "ok": true
     },
@@ -14489,10 +15327,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -14530,12 +15370,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -14705,10 +15553,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -14746,12 +15596,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -14970,10 +15828,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -15011,12 +15871,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -15231,10 +16099,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -15272,12 +16142,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -15496,10 +16374,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -15537,12 +16417,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -15712,10 +16600,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -15753,12 +16643,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -15977,10 +16875,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -16018,12 +16918,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -16238,10 +17146,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -16279,12 +17189,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -16503,10 +17421,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -16544,12 +17464,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -16712,10 +17640,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -16753,12 +17683,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -16970,10 +17908,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -17011,12 +17951,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -17224,10 +18172,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -17265,12 +18215,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -17482,10 +18440,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -17523,12 +18483,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -17692,10 +18660,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -17733,12 +18703,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -17912,10 +18890,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -17953,12 +18933,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -18167,10 +19155,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -18208,12 +19198,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -18426,10 +19424,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -18467,12 +19467,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -103966,12 +104974,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "ok": true
     },
@@ -104007,12 +105023,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -104087,12 +105111,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "ok": true
     },
@@ -104177,12 +105209,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -104257,12 +105297,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "ok": true
     },
@@ -104343,12 +105391,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -104423,12 +105479,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "ok": true
     },
@@ -104513,588 +105577,19 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
-      },
-      "review": {
-        "want": [],
-        "got": []
-      },
-      "ok": true
-    },
-    {
-      "key": [
-        [],
-        [],
-        "allowed-with-exclusive-explicit",
-        "allowed",
-        "allowed-with-msg",
-        "allowed"
-      ],
-      "cells": 296,
-      "member": {
-        "config": {
-          "min": 0,
-          "max": 1,
-          "policies": {
-            "invalid": "allowed-with-exclusive-explicit",
-            "blank": "allowed",
-            "over": "allowed-with-msg",
-            "under": "allowed",
-            "dup": "allowed-warn-and-dialog",
-            "gap": "allowed-warn-and-dialog"
-          }
-        },
-        "voteState": {
-          "regulars": 0,
-          "blankMarker": false,
-          "explicitInvalid": false
-        }
-      },
-      "voting": {
-        "want": [],
-        "got": []
-      },
-      "review": {
-        "want": [],
-        "got": []
-      },
-      "ok": true
-    },
-    {
-      "key": [
-        [
-          "selectedMax"
-        ],
-        [
-          "selectedMax"
-        ],
-        "allowed-with-exclusive-explicit",
-        "allowed",
-        "allowed-with-msg",
-        "allowed"
-      ],
-      "cells": 156,
-      "member": {
-        "config": {
-          "min": 0,
-          "max": 1,
-          "policies": {
-            "invalid": "allowed-with-exclusive-explicit",
-            "blank": "allowed",
-            "over": "allowed-with-msg",
-            "under": "allowed",
-            "dup": "allowed-warn-and-dialog",
-            "gap": "allowed-warn-and-dialog"
-          }
-        },
-        "voteState": {
-          "regulars": 2,
-          "blankMarker": false,
-          "explicitInvalid": false
-        }
-      },
-      "voting": {
         "want": [
-          "selectedMax"
-        ],
-        "got": [
-          "selectedMax"
-        ]
-      },
-      "review": {
-        "want": [
-          "selectedMax"
-        ],
-        "got": [
-          "selectedMax"
-        ]
-      },
-      "ok": true
-    },
-    {
-      "key": [
-        [
           "selectedMin"
         ],
-        [],
-        "allowed-with-exclusive-explicit",
-        "allowed",
-        "allowed-with-msg",
-        "allowed"
-      ],
-      "cells": 68,
-      "member": {
-        "config": {
-          "min": 1,
-          "max": 1,
-          "policies": {
-            "invalid": "allowed-with-exclusive-explicit",
-            "blank": "allowed",
-            "over": "allowed-with-msg",
-            "under": "allowed",
-            "dup": "allowed-warn-and-dialog",
-            "gap": "allowed-warn-and-dialog"
-          }
-        },
-        "voteState": {
-          "regulars": 0,
-          "blankMarker": false,
-          "explicitInvalid": false
-        }
-      },
-      "voting": {
-        "want": [],
-        "got": []
-      },
-      "review": {
-        "want": [],
-        "got": []
-      },
-      "ok": true
-    },
-    {
-      "key": [
-        [],
-        [],
-        "allowed-with-exclusive-explicit",
-        "allowed",
-        "allowed-with-msg",
-        "warn"
-      ],
-      "cells": 188,
-      "member": {
-        "config": {
-          "min": 0,
-          "max": 1,
-          "policies": {
-            "invalid": "allowed-with-exclusive-explicit",
-            "blank": "allowed",
-            "over": "allowed-with-msg",
-            "under": "warn",
-            "dup": "allowed-warn-and-dialog",
-            "gap": "allowed-warn-and-dialog"
-          }
-        },
-        "voteState": {
-          "regulars": 0,
-          "blankMarker": false,
-          "explicitInvalid": false
-        }
-      },
-      "voting": {
-        "want": [],
-        "got": []
-      },
-      "review": {
-        "want": [],
-        "got": []
-      },
-      "ok": true
-    },
-    {
-      "key": [
-        [
-          "selectedMax"
-        ],
-        [
-          "selectedMax"
-        ],
-        "allowed-with-exclusive-explicit",
-        "allowed",
-        "allowed-with-msg",
-        "warn"
-      ],
-      "cells": 156,
-      "member": {
-        "config": {
-          "min": 0,
-          "max": 1,
-          "policies": {
-            "invalid": "allowed-with-exclusive-explicit",
-            "blank": "allowed",
-            "over": "allowed-with-msg",
-            "under": "warn",
-            "dup": "allowed-warn-and-dialog",
-            "gap": "allowed-warn-and-dialog"
-          }
-        },
-        "voteState": {
-          "regulars": 2,
-          "blankMarker": false,
-          "explicitInvalid": false
-        }
-      },
-      "voting": {
-        "want": [
-          "selectedMax"
-        ],
         "got": [
-          "selectedMax"
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "selectedMax"
-        ],
-        "got": [
-          "selectedMax"
-        ]
-      },
-      "ok": true
-    },
-    {
-      "key": [
-        [],
-        [
-          "underVote"
-        ],
-        "allowed-with-exclusive-explicit",
-        "allowed",
-        "allowed-with-msg",
-        "warn"
-      ],
-      "cells": 108,
-      "member": {
-        "config": {
-          "min": 0,
-          "max": 2,
-          "policies": {
-            "invalid": "allowed-with-exclusive-explicit",
-            "blank": "allowed",
-            "over": "allowed-with-msg",
-            "under": "warn",
-            "dup": "allowed-warn-and-dialog",
-            "gap": "allowed-warn-and-dialog"
-          }
-        },
-        "voteState": {
-          "regulars": 0,
-          "blankMarker": false,
-          "explicitInvalid": true
-        }
-      },
-      "voting": {
-        "want": [
-          "underVote"
-        ],
-        "got": [
-          "underVote"
-        ]
-      },
-      "review": {
-        "want": [
-          "underVote"
-        ],
-        "got": [
-          "underVote"
-        ]
-      },
-      "ok": true
-    },
-    {
-      "key": [
-        [
           "selectedMin"
         ],
-        [],
-        "allowed-with-exclusive-explicit",
-        "allowed",
-        "allowed-with-msg",
-        "warn"
-      ],
-      "cells": 68,
-      "member": {
-        "config": {
-          "min": 1,
-          "max": 1,
-          "policies": {
-            "invalid": "allowed-with-exclusive-explicit",
-            "blank": "allowed",
-            "over": "allowed-with-msg",
-            "under": "warn",
-            "dup": "allowed-warn-and-dialog",
-            "gap": "allowed-warn-and-dialog"
-          }
-        },
-        "voteState": {
-          "regulars": 0,
-          "blankMarker": false,
-          "explicitInvalid": false
-        }
-      },
-      "voting": {
-        "want": [],
-        "got": []
-      },
-      "review": {
-        "want": [],
-        "got": []
-      },
-      "ok": true
-    },
-    {
-      "key": [
-        [],
-        [],
-        "allowed-with-exclusive-explicit",
-        "allowed",
-        "allowed-with-msg",
-        "warn-only-in-review"
-      ],
-      "cells": 188,
-      "member": {
-        "config": {
-          "min": 0,
-          "max": 1,
-          "policies": {
-            "invalid": "allowed-with-exclusive-explicit",
-            "blank": "allowed",
-            "over": "allowed-with-msg",
-            "under": "warn-only-in-review",
-            "dup": "allowed-warn-and-dialog",
-            "gap": "allowed-warn-and-dialog"
-          }
-        },
-        "voteState": {
-          "regulars": 0,
-          "blankMarker": false,
-          "explicitInvalid": false
-        }
-      },
-      "voting": {
-        "want": [],
-        "got": []
-      },
-      "review": {
-        "want": [],
-        "got": []
-      },
-      "ok": true
-    },
-    {
-      "key": [
-        [
-          "selectedMax"
-        ],
-        [
-          "selectedMax"
-        ],
-        "allowed-with-exclusive-explicit",
-        "allowed",
-        "allowed-with-msg",
-        "warn-only-in-review"
-      ],
-      "cells": 156,
-      "member": {
-        "config": {
-          "min": 0,
-          "max": 1,
-          "policies": {
-            "invalid": "allowed-with-exclusive-explicit",
-            "blank": "allowed",
-            "over": "allowed-with-msg",
-            "under": "warn-only-in-review",
-            "dup": "allowed-warn-and-dialog",
-            "gap": "allowed-warn-and-dialog"
-          }
-        },
-        "voteState": {
-          "regulars": 2,
-          "blankMarker": false,
-          "explicitInvalid": false
-        }
-      },
-      "voting": {
-        "want": [
-          "selectedMax"
-        ],
         "got": [
-          "selectedMax"
-        ]
-      },
-      "review": {
-        "want": [
-          "selectedMax"
-        ],
-        "got": [
-          "selectedMax"
-        ]
-      },
-      "ok": true
-    },
-    {
-      "key": [
-        [],
-        [
-          "underVote"
-        ],
-        "allowed-with-exclusive-explicit",
-        "allowed",
-        "allowed-with-msg",
-        "warn-only-in-review"
-      ],
-      "cells": 108,
-      "member": {
-        "config": {
-          "min": 0,
-          "max": 2,
-          "policies": {
-            "invalid": "allowed-with-exclusive-explicit",
-            "blank": "allowed",
-            "over": "allowed-with-msg",
-            "under": "warn-only-in-review",
-            "dup": "allowed-warn-and-dialog",
-            "gap": "allowed-warn-and-dialog"
-          }
-        },
-        "voteState": {
-          "regulars": 0,
-          "blankMarker": false,
-          "explicitInvalid": true
-        }
-      },
-      "voting": {
-        "want": [],
-        "got": []
-      },
-      "review": {
-        "want": [
-          "underVote"
-        ],
-        "got": [
-          "underVote"
-        ]
-      },
-      "ok": true
-    },
-    {
-      "key": [
-        [
           "selectedMin"
-        ],
-        [],
-        "allowed-with-exclusive-explicit",
-        "allowed",
-        "allowed-with-msg",
-        "warn-only-in-review"
-      ],
-      "cells": 68,
-      "member": {
-        "config": {
-          "min": 1,
-          "max": 1,
-          "policies": {
-            "invalid": "allowed-with-exclusive-explicit",
-            "blank": "allowed",
-            "over": "allowed-with-msg",
-            "under": "warn-only-in-review",
-            "dup": "allowed-warn-and-dialog",
-            "gap": "allowed-warn-and-dialog"
-          }
-        },
-        "voteState": {
-          "regulars": 0,
-          "blankMarker": false,
-          "explicitInvalid": false
-        }
-      },
-      "voting": {
-        "want": [],
-        "got": []
-      },
-      "review": {
-        "want": [],
-        "got": []
-      },
-      "ok": true
-    },
-    {
-      "key": [
-        [],
-        [],
-        "allowed-with-exclusive-explicit",
-        "allowed",
-        "allowed-with-msg",
-        "warn-and-alert"
-      ],
-      "cells": 188,
-      "member": {
-        "config": {
-          "min": 0,
-          "max": 1,
-          "policies": {
-            "invalid": "allowed-with-exclusive-explicit",
-            "blank": "allowed",
-            "over": "allowed-with-msg",
-            "under": "warn-and-alert",
-            "dup": "allowed-warn-and-dialog",
-            "gap": "allowed-warn-and-dialog"
-          }
-        },
-        "voteState": {
-          "regulars": 0,
-          "blankMarker": false,
-          "explicitInvalid": false
-        }
-      },
-      "voting": {
-        "want": [],
-        "got": []
-      },
-      "review": {
-        "want": [],
-        "got": []
-      },
-      "ok": true
-    },
-    {
-      "key": [
-        [
-          "selectedMax"
-        ],
-        [
-          "selectedMax"
-        ],
-        "allowed-with-exclusive-explicit",
-        "allowed",
-        "allowed-with-msg",
-        "warn-and-alert"
-      ],
-      "cells": 156,
-      "member": {
-        "config": {
-          "min": 0,
-          "max": 1,
-          "policies": {
-            "invalid": "allowed-with-exclusive-explicit",
-            "blank": "allowed",
-            "over": "allowed-with-msg",
-            "under": "warn-and-alert",
-            "dup": "allowed-warn-and-dialog",
-            "gap": "allowed-warn-and-dialog"
-          }
-        },
-        "voteState": {
-          "regulars": 2,
-          "blankMarker": false,
-          "explicitInvalid": false
-        }
-      },
-      "voting": {
-        "want": [
-          "selectedMax"
-        ],
-        "got": [
-          "selectedMax"
-        ]
-      },
-      "review": {
-        "want": [
-          "selectedMax"
-        ],
-        "got": [
-          "selectedMax"
         ]
       },
       "ok": true
@@ -105102,100 +105597,10 @@
     {
       "key": [
         [],
-        [
-          "underVote"
-        ],
-        "allowed-with-exclusive-explicit",
-        "allowed",
-        "allowed-with-msg",
-        "warn-and-alert"
-      ],
-      "cells": 108,
-      "member": {
-        "config": {
-          "min": 0,
-          "max": 2,
-          "policies": {
-            "invalid": "allowed-with-exclusive-explicit",
-            "blank": "allowed",
-            "over": "allowed-with-msg",
-            "under": "warn-and-alert",
-            "dup": "allowed-warn-and-dialog",
-            "gap": "allowed-warn-and-dialog"
-          }
-        },
-        "voteState": {
-          "regulars": 0,
-          "blankMarker": false,
-          "explicitInvalid": true
-        }
-      },
-      "voting": {
-        "want": [
-          "underVote"
-        ],
-        "got": [
-          "underVote"
-        ]
-      },
-      "review": {
-        "want": [
-          "underVote"
-        ],
-        "got": [
-          "underVote"
-        ]
-      },
-      "ok": true
-    },
-    {
-      "key": [
-        [
-          "selectedMin"
-        ],
         [],
         "allowed-with-exclusive-explicit",
         "allowed",
         "allowed-with-msg",
-        "warn-and-alert"
-      ],
-      "cells": 68,
-      "member": {
-        "config": {
-          "min": 1,
-          "max": 1,
-          "policies": {
-            "invalid": "allowed-with-exclusive-explicit",
-            "blank": "allowed",
-            "over": "allowed-with-msg",
-            "under": "warn-and-alert",
-            "dup": "allowed-warn-and-dialog",
-            "gap": "allowed-warn-and-dialog"
-          }
-        },
-        "voteState": {
-          "regulars": 0,
-          "blankMarker": false,
-          "explicitInvalid": false
-        }
-      },
-      "voting": {
-        "want": [],
-        "got": []
-      },
-      "review": {
-        "want": [],
-        "got": []
-      },
-      "ok": true
-    },
-    {
-      "key": [
-        [],
-        [],
-        "allowed-with-exclusive-explicit",
-        "allowed",
-        "allowed-with-msg-and-alert",
         "allowed"
       ],
       "cells": 296,
@@ -105206,6 +105611,705 @@
           "policies": {
             "invalid": "allowed-with-exclusive-explicit",
             "blank": "allowed",
+            "over": "allowed-with-msg",
+            "under": "allowed",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 0,
+          "blankMarker": false,
+          "explicitInvalid": false
+        }
+      },
+      "voting": {
+        "want": [],
+        "got": []
+      },
+      "review": {
+        "want": [],
+        "got": []
+      },
+      "ok": true
+    },
+    {
+      "key": [
+        [
+          "selectedMax"
+        ],
+        [
+          "selectedMax"
+        ],
+        "allowed-with-exclusive-explicit",
+        "allowed",
+        "allowed-with-msg",
+        "allowed"
+      ],
+      "cells": 156,
+      "member": {
+        "config": {
+          "min": 0,
+          "max": 1,
+          "policies": {
+            "invalid": "allowed-with-exclusive-explicit",
+            "blank": "allowed",
+            "over": "allowed-with-msg",
+            "under": "allowed",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 2,
+          "blankMarker": false,
+          "explicitInvalid": false
+        }
+      },
+      "voting": {
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
+      },
+      "review": {
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
+      },
+      "ok": true
+    },
+    {
+      "key": [
+        [
+          "selectedMin"
+        ],
+        [],
+        "allowed-with-exclusive-explicit",
+        "allowed",
+        "allowed-with-msg",
+        "allowed"
+      ],
+      "cells": 68,
+      "member": {
+        "config": {
+          "min": 1,
+          "max": 1,
+          "policies": {
+            "invalid": "allowed-with-exclusive-explicit",
+            "blank": "allowed",
+            "over": "allowed-with-msg",
+            "under": "allowed",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 0,
+          "blankMarker": false,
+          "explicitInvalid": false
+        }
+      },
+      "voting": {
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
+      },
+      "review": {
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
+      },
+      "ok": true
+    },
+    {
+      "key": [
+        [],
+        [],
+        "allowed-with-exclusive-explicit",
+        "allowed",
+        "allowed-with-msg",
+        "warn"
+      ],
+      "cells": 188,
+      "member": {
+        "config": {
+          "min": 0,
+          "max": 1,
+          "policies": {
+            "invalid": "allowed-with-exclusive-explicit",
+            "blank": "allowed",
+            "over": "allowed-with-msg",
+            "under": "warn",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 0,
+          "blankMarker": false,
+          "explicitInvalid": false
+        }
+      },
+      "voting": {
+        "want": [],
+        "got": []
+      },
+      "review": {
+        "want": [],
+        "got": []
+      },
+      "ok": true
+    },
+    {
+      "key": [
+        [
+          "selectedMax"
+        ],
+        [
+          "selectedMax"
+        ],
+        "allowed-with-exclusive-explicit",
+        "allowed",
+        "allowed-with-msg",
+        "warn"
+      ],
+      "cells": 156,
+      "member": {
+        "config": {
+          "min": 0,
+          "max": 1,
+          "policies": {
+            "invalid": "allowed-with-exclusive-explicit",
+            "blank": "allowed",
+            "over": "allowed-with-msg",
+            "under": "warn",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 2,
+          "blankMarker": false,
+          "explicitInvalid": false
+        }
+      },
+      "voting": {
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
+      },
+      "review": {
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
+      },
+      "ok": true
+    },
+    {
+      "key": [
+        [],
+        [
+          "underVote"
+        ],
+        "allowed-with-exclusive-explicit",
+        "allowed",
+        "allowed-with-msg",
+        "warn"
+      ],
+      "cells": 108,
+      "member": {
+        "config": {
+          "min": 0,
+          "max": 2,
+          "policies": {
+            "invalid": "allowed-with-exclusive-explicit",
+            "blank": "allowed",
+            "over": "allowed-with-msg",
+            "under": "warn",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 0,
+          "blankMarker": false,
+          "explicitInvalid": true
+        }
+      },
+      "voting": {
+        "want": [
+          "underVote"
+        ],
+        "got": [
+          "underVote"
+        ]
+      },
+      "review": {
+        "want": [
+          "underVote"
+        ],
+        "got": [
+          "underVote"
+        ]
+      },
+      "ok": true
+    },
+    {
+      "key": [
+        [
+          "selectedMin"
+        ],
+        [],
+        "allowed-with-exclusive-explicit",
+        "allowed",
+        "allowed-with-msg",
+        "warn"
+      ],
+      "cells": 68,
+      "member": {
+        "config": {
+          "min": 1,
+          "max": 1,
+          "policies": {
+            "invalid": "allowed-with-exclusive-explicit",
+            "blank": "allowed",
+            "over": "allowed-with-msg",
+            "under": "warn",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 0,
+          "blankMarker": false,
+          "explicitInvalid": false
+        }
+      },
+      "voting": {
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
+      },
+      "review": {
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
+      },
+      "ok": true
+    },
+    {
+      "key": [
+        [],
+        [],
+        "allowed-with-exclusive-explicit",
+        "allowed",
+        "allowed-with-msg",
+        "warn-only-in-review"
+      ],
+      "cells": 188,
+      "member": {
+        "config": {
+          "min": 0,
+          "max": 1,
+          "policies": {
+            "invalid": "allowed-with-exclusive-explicit",
+            "blank": "allowed",
+            "over": "allowed-with-msg",
+            "under": "warn-only-in-review",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 0,
+          "blankMarker": false,
+          "explicitInvalid": false
+        }
+      },
+      "voting": {
+        "want": [],
+        "got": []
+      },
+      "review": {
+        "want": [],
+        "got": []
+      },
+      "ok": true
+    },
+    {
+      "key": [
+        [
+          "selectedMax"
+        ],
+        [
+          "selectedMax"
+        ],
+        "allowed-with-exclusive-explicit",
+        "allowed",
+        "allowed-with-msg",
+        "warn-only-in-review"
+      ],
+      "cells": 156,
+      "member": {
+        "config": {
+          "min": 0,
+          "max": 1,
+          "policies": {
+            "invalid": "allowed-with-exclusive-explicit",
+            "blank": "allowed",
+            "over": "allowed-with-msg",
+            "under": "warn-only-in-review",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 2,
+          "blankMarker": false,
+          "explicitInvalid": false
+        }
+      },
+      "voting": {
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
+      },
+      "review": {
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
+      },
+      "ok": true
+    },
+    {
+      "key": [
+        [],
+        [
+          "underVote"
+        ],
+        "allowed-with-exclusive-explicit",
+        "allowed",
+        "allowed-with-msg",
+        "warn-only-in-review"
+      ],
+      "cells": 108,
+      "member": {
+        "config": {
+          "min": 0,
+          "max": 2,
+          "policies": {
+            "invalid": "allowed-with-exclusive-explicit",
+            "blank": "allowed",
+            "over": "allowed-with-msg",
+            "under": "warn-only-in-review",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 0,
+          "blankMarker": false,
+          "explicitInvalid": true
+        }
+      },
+      "voting": {
+        "want": [],
+        "got": []
+      },
+      "review": {
+        "want": [
+          "underVote"
+        ],
+        "got": [
+          "underVote"
+        ]
+      },
+      "ok": true
+    },
+    {
+      "key": [
+        [
+          "selectedMin"
+        ],
+        [],
+        "allowed-with-exclusive-explicit",
+        "allowed",
+        "allowed-with-msg",
+        "warn-only-in-review"
+      ],
+      "cells": 68,
+      "member": {
+        "config": {
+          "min": 1,
+          "max": 1,
+          "policies": {
+            "invalid": "allowed-with-exclusive-explicit",
+            "blank": "allowed",
+            "over": "allowed-with-msg",
+            "under": "warn-only-in-review",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 0,
+          "blankMarker": false,
+          "explicitInvalid": false
+        }
+      },
+      "voting": {
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
+      },
+      "review": {
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
+      },
+      "ok": true
+    },
+    {
+      "key": [
+        [],
+        [],
+        "allowed-with-exclusive-explicit",
+        "allowed",
+        "allowed-with-msg",
+        "warn-and-alert"
+      ],
+      "cells": 188,
+      "member": {
+        "config": {
+          "min": 0,
+          "max": 1,
+          "policies": {
+            "invalid": "allowed-with-exclusive-explicit",
+            "blank": "allowed",
+            "over": "allowed-with-msg",
+            "under": "warn-and-alert",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 0,
+          "blankMarker": false,
+          "explicitInvalid": false
+        }
+      },
+      "voting": {
+        "want": [],
+        "got": []
+      },
+      "review": {
+        "want": [],
+        "got": []
+      },
+      "ok": true
+    },
+    {
+      "key": [
+        [
+          "selectedMax"
+        ],
+        [
+          "selectedMax"
+        ],
+        "allowed-with-exclusive-explicit",
+        "allowed",
+        "allowed-with-msg",
+        "warn-and-alert"
+      ],
+      "cells": 156,
+      "member": {
+        "config": {
+          "min": 0,
+          "max": 1,
+          "policies": {
+            "invalid": "allowed-with-exclusive-explicit",
+            "blank": "allowed",
+            "over": "allowed-with-msg",
+            "under": "warn-and-alert",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 2,
+          "blankMarker": false,
+          "explicitInvalid": false
+        }
+      },
+      "voting": {
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
+      },
+      "review": {
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
+      },
+      "ok": true
+    },
+    {
+      "key": [
+        [],
+        [
+          "underVote"
+        ],
+        "allowed-with-exclusive-explicit",
+        "allowed",
+        "allowed-with-msg",
+        "warn-and-alert"
+      ],
+      "cells": 108,
+      "member": {
+        "config": {
+          "min": 0,
+          "max": 2,
+          "policies": {
+            "invalid": "allowed-with-exclusive-explicit",
+            "blank": "allowed",
+            "over": "allowed-with-msg",
+            "under": "warn-and-alert",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 0,
+          "blankMarker": false,
+          "explicitInvalid": true
+        }
+      },
+      "voting": {
+        "want": [
+          "underVote"
+        ],
+        "got": [
+          "underVote"
+        ]
+      },
+      "review": {
+        "want": [
+          "underVote"
+        ],
+        "got": [
+          "underVote"
+        ]
+      },
+      "ok": true
+    },
+    {
+      "key": [
+        [
+          "selectedMin"
+        ],
+        [],
+        "allowed-with-exclusive-explicit",
+        "allowed",
+        "allowed-with-msg",
+        "warn-and-alert"
+      ],
+      "cells": 68,
+      "member": {
+        "config": {
+          "min": 1,
+          "max": 1,
+          "policies": {
+            "invalid": "allowed-with-exclusive-explicit",
+            "blank": "allowed",
+            "over": "allowed-with-msg",
+            "under": "warn-and-alert",
+            "dup": "allowed-warn-and-dialog",
+            "gap": "allowed-warn-and-dialog"
+          }
+        },
+        "voteState": {
+          "regulars": 0,
+          "blankMarker": false,
+          "explicitInvalid": false
+        }
+      },
+      "voting": {
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
+      },
+      "review": {
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
+      },
+      "ok": true
+    },
+    {
+      "key": [
+        [],
+        [],
+        "allowed-with-exclusive-explicit",
+        "allowed",
+        "allowed-with-msg-and-alert",
+        "allowed"
+      ],
+      "cells": 296,
+      "member": {
+        "config": {
+          "min": 0,
+          "max": 1,
+          "policies": {
+            "invalid": "allowed-with-exclusive-explicit",
+            "blank": "allowed",
             "over": "allowed-with-msg-and-alert",
             "under": "allowed",
             "dup": "allowed-warn-and-dialog",
@@ -105311,12 +106415,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -105491,12 +106603,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -105667,12 +106787,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -105847,12 +106975,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -105971,12 +107107,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -106144,12 +107288,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -106313,12 +107465,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -106486,12 +107646,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -106611,12 +107779,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -106785,12 +107961,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -106955,12 +108139,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -107129,12 +108321,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -107258,12 +108458,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "ok": true
     },
@@ -107302,18 +108510,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -107350,12 +108562,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -107479,12 +108699,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "ok": true
     },
@@ -107572,18 +108800,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -107620,12 +108852,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -107749,12 +108989,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "ok": true
     },
@@ -107838,18 +109086,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -107886,12 +109138,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -108015,12 +109275,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "ok": true
     },
@@ -108108,18 +109376,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -108156,12 +109428,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -108339,18 +109619,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -108387,12 +109671,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -108619,18 +109911,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -108667,12 +109963,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -108895,18 +110199,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -108943,12 +110251,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -109175,18 +110491,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -109223,12 +110543,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -109406,18 +110734,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -109454,12 +110786,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -109686,18 +111026,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -109734,12 +111078,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -109962,18 +111314,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -110010,12 +111366,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -110242,18 +111606,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -110290,12 +111658,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -110466,18 +111842,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -110514,12 +111894,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -110739,18 +112127,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -110787,12 +112179,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -111008,18 +112408,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -111056,12 +112460,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -111281,18 +112693,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -111329,12 +112745,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -111506,18 +112930,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -111554,12 +112982,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -111741,18 +113177,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -111789,12 +113229,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -112011,18 +113459,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -112059,12 +113511,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -112285,18 +113745,22 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -112333,12 +113797,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -112497,12 +113969,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "ok": true
     },
@@ -112540,15 +114020,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -112585,12 +114071,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -112710,12 +114204,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "ok": true
     },
@@ -112802,15 +114304,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -112847,12 +114355,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -112972,12 +114488,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "ok": true
     },
@@ -113060,15 +114584,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -113105,12 +114635,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -113230,12 +114768,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "ok": true
     },
@@ -113322,15 +114868,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -113367,12 +114919,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -113545,15 +115105,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -113590,12 +115156,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -113817,15 +115391,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -113862,12 +115442,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -114085,15 +115673,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -114130,12 +115724,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -114357,15 +115959,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -114402,12 +116010,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -114580,15 +116196,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -114625,12 +116247,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -114852,15 +116482,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -114897,12 +116533,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -115120,15 +116764,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -115165,12 +116815,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -115392,15 +117050,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -115437,12 +117101,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -115608,15 +117280,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -115653,12 +117331,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -115873,15 +117559,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -115918,12 +117610,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -116134,15 +117834,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -116179,12 +117885,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -116399,15 +118113,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -116444,12 +118164,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -116616,15 +118344,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -116661,12 +118395,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -116843,15 +118585,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -116888,12 +118636,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -117105,15 +118861,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -117150,12 +118912,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -117371,15 +119141,21 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "ok": true
@@ -117416,12 +119192,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -117577,12 +119361,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "ok": true
     },
@@ -117620,10 +119412,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -117661,12 +119455,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -117783,12 +119585,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "ok": true
     },
@@ -117875,10 +119685,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -117916,12 +119728,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -118038,12 +119858,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "ok": true
     },
@@ -118126,10 +119954,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -118167,12 +119997,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -118289,12 +120127,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMax"
+        ],
+        "got": [
+          "selectedMax"
+        ]
       },
       "ok": true
     },
@@ -118381,10 +120227,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -118422,12 +120270,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -118597,10 +120453,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -118638,12 +120496,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -118862,10 +120728,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -118903,12 +120771,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -119123,10 +120999,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -119164,12 +121042,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -119388,10 +121274,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -119429,12 +121317,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -119604,10 +121500,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -119645,12 +121543,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -119869,10 +121775,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -119910,12 +121818,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -120130,10 +122046,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -120171,12 +122089,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -120395,10 +122321,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -120436,12 +122364,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -120604,10 +122540,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -120645,12 +122583,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -120862,10 +122808,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -120903,12 +122851,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -121116,10 +123072,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -121157,12 +123115,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -121374,10 +123340,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -121415,12 +123383,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -121584,10 +123560,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -121625,12 +123603,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -121804,10 +123790,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -121845,12 +123833,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -122059,10 +124055,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -122100,12 +124098,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },
@@ -122318,10 +124324,12 @@
       },
       "voting": {
         "want": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ],
         "got": [
-          "blankVote"
+          "blankVote",
+          "selectedMin"
         ]
       },
       "review": "hard-gated (dialog is the signal)",
@@ -122359,12 +124367,20 @@
         }
       },
       "voting": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "review": {
-        "want": [],
-        "got": []
+        "want": [
+          "selectedMin"
+        ],
+        "got": [
+          "selectedMin"
+        ]
       },
       "ok": true
     },

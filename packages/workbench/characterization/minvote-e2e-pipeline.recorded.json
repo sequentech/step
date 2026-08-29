@@ -5,9 +5,10 @@
       "min": 1,
       "state": "none",
       "labels": [],
-      "expect": "discarded",
+      "expect": "informed_discarded",
       "decodedBigInt": "0",
-      "boothSilent": true,
+      "boothSilent": false,
+      "informedUninterrupted": true,
       "summary": {
         "total_votes": 1,
         "total_valid_votes": 0,
@@ -20,9 +21,10 @@
       "min": 2,
       "state": "none",
       "labels": [],
-      "expect": "discarded",
+      "expect": "informed_discarded",
       "decodedBigInt": "0",
-      "boothSilent": true,
+      "boothSilent": false,
+      "informedUninterrupted": true,
       "summary": {
         "total_votes": 1,
         "total_valid_votes": 0,
@@ -37,9 +39,10 @@
       "labels": [
         "Yes"
       ],
-      "expect": "discarded",
+      "expect": "informed_discarded",
       "decodedBigInt": "4",
-      "boothSilent": true,
+      "boothSilent": false,
+      "informedUninterrupted": true,
       "summary": {
         "total_votes": 1,
         "total_valid_votes": 0,
@@ -57,6 +60,7 @@
       "expect": "explicit_blank",
       "decodedBigInt": "2",
       "boothSilent": true,
+      "informedUninterrupted": false,
       "summary": {
         "total_votes": 1,
         "total_valid_votes": 1,

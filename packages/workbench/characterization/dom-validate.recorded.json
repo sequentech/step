@@ -44,8 +44,8 @@
         "errors.implicit.selectedMax"
       ],
       "alerts": [],
-      "inlineVoting": "—",
-      "inlineReview": "—",
+      "inlineVoting": "selectedMax",
+      "inlineReview": "selectedMax",
       "hard": false,
       "soft": false,
       "reachable": true,
@@ -53,7 +53,7 @@
       "constraintProbe": null,
       "dialog": "none",
       "tally": "ImplicitInvalid",
-      "silent": true,
+      "silent": false,
       "ok": true
     },
     {
@@ -1168,8 +1168,8 @@
         "errors.implicit.selectedMin"
       ],
       "alerts": [],
-      "inlineVoting": "—",
-      "inlineReview": "—",
+      "inlineVoting": "selectedMin",
+      "inlineReview": "selectedMin",
       "hard": false,
       "soft": false,
       "reachable": true,
@@ -1177,7 +1177,7 @@
       "constraintProbe": null,
       "dialog": "none",
       "tally": "ImplicitInvalid",
-      "silent": true,
+      "silent": false,
       "ok": true
     },
     {
@@ -1392,8 +1392,8 @@
         "errors.implicit.selectedMin"
       ],
       "alerts": [],
-      "inlineVoting": "—",
-      "inlineReview": "—",
+      "inlineVoting": "selectedMin",
+      "inlineReview": "selectedMin",
       "hard": false,
       "soft": false,
       "reachable": true,
@@ -1401,7 +1401,7 @@
       "constraintProbe": null,
       "dialog": "none",
       "tally": "ImplicitInvalid",
-      "silent": true,
+      "silent": false,
       "ok": true
     },
     {
@@ -1412,8 +1412,8 @@
         "errors.implicit.selectedMin"
       ],
       "alerts": [],
-      "inlineVoting": "—",
-      "inlineReview": "—",
+      "inlineVoting": "selectedMin",
+      "inlineReview": "selectedMin",
       "hard": false,
       "soft": false,
       "reachable": true,
@@ -1421,7 +1421,7 @@
       "constraintProbe": null,
       "dialog": "none",
       "tally": "ImplicitInvalid",
-      "silent": true,
+      "silent": false,
       "ok": true
     },
     {
@@ -3804,8 +3804,8 @@
         "errors.implicit.duplicatedPosition"
       ],
       "alerts": [],
-      "inlineVoting": "—",
-      "inlineReview": "—",
+      "inlineVoting": "duplicatedPosition",
+      "inlineReview": "duplicatedPosition",
       "hard": false,
       "soft": true,
       "reachable": true,
@@ -3956,7 +3956,7 @@
         "errors.implicit.duplicatedPosition"
       ],
       "alerts": [],
-      "inlineVoting": "—",
+      "inlineVoting": "duplicatedPosition",
       "inlineReview": "(blocked)",
       "hard": true,
       "soft": false,
@@ -4108,8 +4108,8 @@
         "errors.implicit.preferenceOrderWithGaps"
       ],
       "alerts": [],
-      "inlineVoting": "—",
-      "inlineReview": "—",
+      "inlineVoting": "preferenceOrderWithGaps",
+      "inlineReview": "preferenceOrderWithGaps",
       "hard": false,
       "soft": true,
       "reachable": true,
@@ -4260,7 +4260,7 @@
         "errors.implicit.preferenceOrderWithGaps"
       ],
       "alerts": [],
-      "inlineVoting": "—",
+      "inlineVoting": "preferenceOrderWithGaps",
       "inlineReview": "(blocked)",
       "hard": true,
       "soft": false,

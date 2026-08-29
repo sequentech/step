@@ -16,17 +16,14 @@ spec (`../validation-spec`) on every
 headless effect: checker errors and alerts (as key sets), both gates,
 the dialog projection, and the tally class.
 
-**Injection status (the per-component expectation).** Production is a
-hybrid while the rationalized implementation is injected site by site:
-the GATES (`voting_screen.rs`) and DECODE (`raw_ballot.rs`) both route
-through the query-provider, and the TALLY classifies from the decoded
-record, so gates, dialog, emissions and tally are all compared against
-the rationalized `f_fixed` — production now carries the fix ledger's
-gate and decode changes (S6, both S4 halves, S2S3's emission/gate/tally
-movements; see `fix-diff.md`). Only the INLINE views (the TypeScript
-filter) are uninjected; the quotient inventory's per-class inline
-prediction is therefore the oracle filter applied to the fixed
-emissions (emit-grid's `hybrid` kind). The subdomain: all values
+**Injection status: complete.** All three validation sites route
+through the rationalized implementation — the gates
+(`voting_screen.rs`), decode (`raw_ballot.rs`) and the booth's message
+filter (`InvalidErrorsList.tsx`) — and the tally classifies from the
+decoded record, so every effect here is compared against `f_fixed`:
+production carries the whole fix ledger (S6, both S4 halves, S1's
+display fix, S2S3's emission/gate/tally movements; see `fix-diff.md`).
+The subdomain: all values
 of all six policies (dup/gap included — their inertness on plurality
 states is thereby production-confirmed, not assumed), bounds min 0..3 ×
 max 1..3 with min ≤ max (max = 0 stays out — the config-sanity scope

@@ -477,27 +477,29 @@ which artifact ships, roughly by payoff:
    spec crate to preserve its independence, with a native conformance
    test proving production's own codec and gate functions ≡ the frozen
    oracle through the adapters across the seven grids' matrices (~310
-   cells, `cargo test -p validation-adapters`). **Two of the three call
-   sites are injected**: `sequent-core`'s submission gates
-   (`util/voting_screen.rs`) and the decode-time policy checks
-   (`ballot_codec/raw_ballot.rs`) both route through the query-provider
-   via `sequent_core::validation_provider` (the derivations moved into
-   production; `validation-adapters` delegates to them), keeping only
-   the encoding/configuration handling the vote state cannot express —
-   and the tally moved with decode for free, since velvet classifies
-   from the decoded record's fields. So the S6/S4 constructions and the
-   S2S3 judgment are live in production here: a deliberate blank below
-   `min_votes` emits nothing, gates nothing, and is counted
-   `blank_votes.explicit` — confirmed booth-to-tally through real
-   crypto by `minvote-e2e-pipeline`. Verified exhaustively against
-   emit-grid's **hybrid** expectation (everything `f_fixed` except
-   inline — the uninjected TypeScript filter over the fixed emissions):
-   the sweep at 345,600 cells / 0 disagreements, native conformance 6/6
-   including a record-for-record proof that the decode change is
-   exactly the two named movements, and the browser lane re-run green
-   (`dom-validate` 233/233). What remains is the TypeScript filter
-   (S1's display fix — the three standing min-vote silent discounts and
-   the over-vote one become visible when it lands).
+   cells, `cargo test -p validation-adapters`). **The injection is
+   COMPLETE — production runs `f_fixed` at every validation site**:
+   `sequent-core`'s submission gates (`util/voting_screen.rs`) and the
+   decode-time policy checks (`ballot_codec/raw_ballot.rs`) route
+   through the query-provider via `sequent_core::validation_provider`
+   (the derivations moved into production; `validation-adapters`
+   delegates to them), keeping only the encoding/configuration handling
+   the vote state cannot express; the tally moved with decode for free
+   (velvet classifies from the decoded record's fields); and the
+   booth's message filter (`InvalidErrorsList.tsx`) is rewritten to the
+   rationalized semantics — the S1 mute is gone, so every emitted error
+   renders ("informed but uninterrupted"), which also removed Defects
+   3 and 4 at the root. The whole fix ledger is live: silent
+   discounting is gone from production here (the former cells are
+   informed discounts, or — the deliberate blank — counted
+   `blank_votes.explicit`), all confirmed booth-to-tally through real
+   crypto by the e2e pipelines. Verified exhaustively against
+   `f_fixed`: the sweep at 345,600 cells / 0 disagreements, native
+   conformance 6/6 (including the record-for-record proof that the
+   decode change is exactly the two named movements), and the browser
+   lane green (`dom-validate` 233/233). What remains is assembling the
+   upstream pull request, where the fix-ledger judgments are finally
+   adjudicated.
 
 Standing maintenance, as upstream moves:
 

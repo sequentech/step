@@ -5,10 +5,14 @@
   },
   "booth": {
     "formed": 2,
-    "inlineAtVote": [],
-    "inlineAtReview": [],
+    "inlineAtVote": [
+      "errors.implicit.selectedMax"
+    ],
+    "inlineAtReview": [
+      "errors.implicit.selectedMax"
+    ],
     "transitionDialog": "none",
-    "boothSilent": true
+    "boothInformedUninterrupted": true
   },
   "bridge": {
     "council_biguint": "6"

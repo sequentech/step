@@ -101,6 +101,10 @@ that pairing changes.
 **How found:** `invalid_vote_policy` intent investigation
 (`INVALID_VOTE_POLICY_INTENT.md`, 2026-08-12).
 
+**Fixed (2026-08-29):** the filter rewrite (the S1 injection) dedups an
+alert against its error copy, so the self-referential shape is no
+longer writable.
+
 ## 4. `InvalidErrorsList.tsx`: stale `useMemo` — policy arguments missing from deps
 
 **Where:** same file, ~L173-193: `filterErrorList` takes
@@ -117,6 +121,12 @@ conditions while keeping it in the signature (verified 2026-08-15
 during the workbench spec transcription).
 
 **How found:** same investigation.
+
+**Fixed (2026-08-29):** the filter rewrite (the S1 injection) removed
+both halves at the root — the filter no longer takes the invalid/over
+policies (they served only the S1 mute), so the memo's dependency list
+matches its reads exactly, and the dead `isVotedState` is gone from the
+signature and the component.
 
 ---
 
@@ -296,14 +306,18 @@ workbench acts on it again only reactively. The intent question above
 (meta#8235's authors) remains as evidence for that review, not as a
 gate.
 
-**Injection status (2026-08-29): still standing in production.** The
-mute lives in the TypeScript filter (`InvalidErrorsList.tsx`), the one
-validation site not yet injected — the gates and decode injections
-change nothing here. The over-vote cell and the three remaining
-min-vote cells are still silently discounted end-to-end
-(`minvote-e2e-pipeline` re-confirmed them 2026-08-29; the S2
-marker-only cell has left the family via the S2/S3 decode fix). The
-display fix lands with the filter injection.
+**Injected (2026-08-29).** The display fix is live in production on
+this branch: `InvalidErrorsList.tsx`'s `filterErrorList` is rewritten
+to the rationalized semantics — the master mute is gone (every emitted
+error renders; the filter no longer reads the invalid or over policies
+at all), the alert-visibility and dedup rules kept (the dedup now
+against the error copy — Defect 3's shape is unwritable). The former
+silent-discount cells are now informed, uninterrupted discounts,
+re-confirmed booth-to-tally through real crypto: the over-vote cell and
+the three min-vote cells render their error inline with no dialog, and
+the tally still books ImplicitInvalid
+(`overvote-e2e-pipeline` / `minvote-e2e-pipeline`, 2026-08-29; the S2
+marker-only cell left the family via the S2/S3 decode fix).
 
 ## S2. (S1 ∩ S3) A deliberate explicit-blank vote silently discarded when `min_votes ≥ 2`
 

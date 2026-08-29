@@ -55,23 +55,15 @@ import {performance} from "node:perf_hooks"
 import {loadWasm, loadVelvetWasm} from "./harness.mjs"
 import {observeHeadless, shortKey} from "./cell.mjs"
 import {POLICY_VALUES, DOMAIN_DESCRIPTION, certifiedCells} from "./domain.mjs"
-import {specHybrid} from "./rust-spec.mjs"
+import {specFixed} from "./rust-spec.mjs"
 
-// INJECTION STATUS — the per-component expectation. Production is a hybrid
-// while the injection proceeds: an injected component must match the
-// RATIONALIZED implementation (f_fixed — it now carries the fix ledger's
-// changes), an uninjected one must still match the FROZEN ORACLE (f).
-//   gates (hard/soft/dialog)  → INJECTED (voting_screen.rs)  → vs f_fixed
-//   emissions (decode)        → INJECTED (raw_ballot.rs)     → vs f_fixed
-//   tally (velvet classify)   → classifies from the decoded record, so it
-//                               moves with decode             → vs f_fixed
-//   inline (the TS filter)    → NOT injected — the oracle filter over the
-//                               now-fixed emissions
-// That composition is emit-grid's "hybrid" kind (specHybrid), which this
-// runner therefore compares against for every headless effect; the quotient
-// inventory's per-class inline prediction is the hybrid's too. When the
-// filter is injected, hybrid collapses into f_fixed. An expectation that
-// lags the injection reads as disagreements, not silence.
+// INJECTION STATUS: COMPLETE. All three validation sites route through the
+// rationalized implementation — the gates (voting_screen.rs), decode
+// (raw_ballot.rs), and the booth's message filter (InvalidErrorsList.tsx,
+// rewritten to the same semantics) — and the tally classifies from the
+// decoded record, so production ≡ f_fixed on every component. The frozen
+// oracle f remains the record of PRE-fix production (the findings'
+// derivations read it); this runner compares production against f_fixed.
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
@@ -107,7 +99,7 @@ for (const invalid of INVALID) {
         const blockCells = ALL.filter(
             (c) => c.config.policies.invalid === invalid && c.config.policies.blank === blank
         )
-        const blockSpecs = specHybrid(blockCells)
+        const blockSpecs = specFixed(blockCells)
 
         for (let ci = 0; ci < blockCells.length; ci++) {
             const cell = blockCells[ci]
@@ -242,17 +234,14 @@ const md = [
     "headless effect: checker errors and alerts (as key sets), both gates,",
     "the dialog projection, and the tally class.",
     "",
-    "**Injection status (the per-component expectation).** Production is a",
-    "hybrid while the rationalized implementation is injected site by site:",
-    "the GATES (`voting_screen.rs`) and DECODE (`raw_ballot.rs`) both route",
-    "through the query-provider, and the TALLY classifies from the decoded",
-    "record, so gates, dialog, emissions and tally are all compared against",
-    "the rationalized `f_fixed` — production now carries the fix ledger's",
-    "gate and decode changes (S6, both S4 halves, S2S3's emission/gate/tally",
-    "movements; see `fix-diff.md`). Only the INLINE views (the TypeScript",
-    "filter) are uninjected; the quotient inventory's per-class inline",
-    "prediction is therefore the oracle filter applied to the fixed",
-    "emissions (emit-grid's `hybrid` kind). The subdomain: all values",
+    "**Injection status: complete.** All three validation sites route",
+    "through the rationalized implementation — the gates",
+    "(`voting_screen.rs`), decode (`raw_ballot.rs`) and the booth's message",
+    "filter (`InvalidErrorsList.tsx`) — and the tally classifies from the",
+    "decoded record, so every effect here is compared against `f_fixed`:",
+    "production carries the whole fix ledger (S6, both S4 halves, S1's",
+    "display fix, S2S3's emission/gate/tally movements; see `fix-diff.md`).",
+    "The subdomain: all values",
     "of all six policies (dup/gap included — their inertness on plurality",
     "states is thereby production-confirmed, not assumed), bounds min 0..3 ×",
     "max 1..3 with min ≤ max (max = 0 stays out — the config-sanity scope",

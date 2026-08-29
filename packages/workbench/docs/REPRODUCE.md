@@ -100,6 +100,14 @@ this is possible, and which rules are structurally prone to it, is in
 [UPSTREAM_FINDINGS.md §S1](UPSTREAM_FINDINGS.md) and
 [VALIDATION_LOGIC_DISTILLATION.md §4.5](VALIDATION_LOGIC_DISTILLATION.md).
 
+> **On this branch the display half is fixed.** The S1 fix is injected
+> (the booth's message filter renders every emitted error), so each
+> "No signal" verify step below now observes the *informed* posture
+> instead: the inline message renders (at review always; on the voting
+> screen once the contest is touched), no dialog interrupts, and the
+> "Not counted" half is unchanged. The recipes verify as written against
+> **upstream**; on this branch they demonstrate the fix.
+
 ### Recipe 1 — over-vote silently discarded
 
 *The voter selects more candidates than allowed and is neither warned nor

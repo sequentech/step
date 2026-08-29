@@ -2,22 +2,25 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// End-to-end crypto-chaining check: confirms the S1 over-vote silent-discount
-// through ONE continuous flow of the real workbench pipeline, not two
-// input-sharing halves.
+// End-to-end crypto-chaining check on the S1 over-vote cell, through ONE
+// continuous flow of the real workbench pipeline, not two input-sharing
+// halves.
 //
 // The chain, all driven through the workbench UI:
-//   booth over-vote (over=allowed, invalid=allowed → no signal)
+//   booth over-vote (over=allowed, invalid=allowed)
 //     → encrypt + cast              (BoothSpike, workbench keypair)
 //     → bridge decrypt              (repairedCastVotes[cv].decodedBigInts)
 //     → decode BigUint → contest    (checkers run, invalid_errors populated)
 //     → /tally → tally_decoded_ballots → ContestResult
 //
 // Nothing is hand-fed: the ballot that reaches the tally is the one the
-// booth encrypted, carried by the contest page's "Open in tally" seed. If
-// the booth showed the voter nothing AND the ContestResult puts this ballot
-// in invalid_votes.implicit (excluded from valid), the silent discount is
-// real end-to-end, tally included.
+// booth encrypted, carried by the contest page's "Open in tally" seed.
+// This cell originally confirmed the S1 SILENT discount (no signal, ballot
+// excluded). The S1 display fix is injected (the booth's message filter
+// renders every emitted error), so the same chain now confirms the
+// INFORMED discount — "informed but uninterrupted": selectedMax renders
+// inline at both casting points, no dialog interrupts, and the
+// ContestResult still puts the ballot in invalid_votes.implicit.
 //
 // Requires the dev server on :5173.
 
@@ -213,16 +216,19 @@ const summary = result
 log("\n=== tally of the cast over-vote (full pipeline) ===")
 log(JSON.stringify(summary, null, 2))
 
-const boothSilent =
-    formed > 1 && inlineAtVote.length === 0 && inlineAtReview.length === 0 && transitionDialog === "none"
+const boothInformedUninterrupted =
+    formed > 1 &&
+    inlineAtVote.includes("errors.implicit.selectedMax") &&
+    inlineAtReview.includes("errors.implicit.selectedMax") &&
+    transitionDialog === "none"
 const discardedImplicit =
     summary != null &&
     summary.total_valid_votes === 0 &&
     summary.invalid_implicit >= 1
-const confirmed = boothSilent && discardedImplicit
+const confirmed = boothInformedUninterrupted && discardedImplicit
 
 log("\n=== S1 end-to-end (single continuous pipeline) ===")
-log(`  booth over-vote reachable & silent: ${boothSilent}`)
+log(`  booth over-vote reachable, informed inline, uninterrupted: ${boothInformedUninterrupted}`)
 log(`  cast → decrypt → decode → tally → discarded ImplicitInvalid, 0 valid: ${discardedImplicit}`)
 log(`  CONFIRMED END-TO-END: ${confirmed}`)
 
@@ -232,7 +238,7 @@ writeFileSync(
     JSON.stringify(
         {
             config: {over_vote_policy: "allowed", invalid_vote_policy: "allowed"},
-            booth: {formed, inlineAtVote, inlineAtReview, transitionDialog, boothSilent},
+            booth: {formed, inlineAtVote, inlineAtReview, transitionDialog, boothInformedUninterrupted},
             bridge: {council_biguint: decodedBigInt},
             tally: summary,
             confirmed_end_to_end: confirmed,
