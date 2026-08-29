@@ -263,7 +263,11 @@ preference-gaps) on the IRV fixture with ranked selection — observing inline
 visibility at the touched voting screen and at the review screen, and
 reachability (the input constraint), and
 emits the **complete** tables in [`dom-validate.md`](dom-validate.md) —
-**229/229 matching the spec** (see the e2e-cost note in
+**233/233 matching the spec**, each prediction drawn from the
+implementation production actually runs for that component (the observed
+dialog and the gate columns from the injected, rationalized `f_fixed`;
+inline, reachability, emissions and tally from the frozen oracle `f` —
+the same split as `headless-sweep.mjs`) (see the e2e-cost note in
 [`../docs/VALIDATION_LOGIC_DISTILLATION.md`](../docs/VALIDATION_LOGIC_DISTILLATION.md)
 §5.3).
 
@@ -317,9 +321,9 @@ corepack yarn workspace "@sequentech/workbench-app" dev
 
 | command (`node characterization/…`) | produces | what it does |
 |---|---|---|
-| `dom-validate.mjs` | `dom-validate.md` + `.recorded.json` | the **complete** tables — the Rust spec's predictions vs the real DOM across every cell of all seven rules: inline visibility at **both** observation points (touched voting screen and review), reachability, and the untouched view asserted empty per cell; 229/229, ~9 min |
-| `quotient-validate.mjs` | `quotient-validate.md` + `.recorded.json` | the browser-side *independence* claims discharged by sufficiency — one booth-formable member per quotient class from `headless-sweep.md`, inline compared at both observation points, re-observed up to 3× on mismatch (the 2026-08-19 run needed it on 8 classes, which would otherwise have been recorded as disagreements); the license (the filter's props boundary) is source-verified and stated with its re-entry condition; classes with no formable member labelled. ~1 h |
-| `browser-witnesses.mjs` | `browser-witnesses.md` + `.recorded.json` | every browser-pending dependence witness from `effect-dependencies.md` (inline-view and reachability components) driven through the real booth on a generic per-cell recipe, both cells compared against the spec; unobservable witnesses labelled |
+| `dom-validate.mjs` | `dom-validate.md` + `.recorded.json` | the **complete** tables — the Rust spec's predictions vs the real DOM across every cell of all seven rules: inline visibility at **both** observation points (touched voting screen and review), reachability, and the untouched view asserted empty per cell; predictions split by injection status (dialog + gate columns from `f_fixed`, the rest from the oracle); 233/233, ~8 min |
+| `quotient-validate.mjs` | `quotient-validate.md` + `.recorded.json` | the browser-side *independence* claims discharged by sufficiency — one booth-formable member per quotient class from `headless-sweep.md`, inline compared at both observation points, re-observed up to 3× on mismatch (the 2026-08-19 run needed it on 8 classes, which would otherwise have been recorded as disagreements); whether review renders is decided by the chosen member's **production** gate — the injected `f_fixed`, member-determined, not class-determined (the deliberate-blank exemption reads past the emissions); the license (the filter's props boundary) is source-verified and stated with its re-entry condition; classes with no formable member labelled. ~1 h |
+| `browser-witnesses.mjs` | `browser-witnesses.md` + `.recorded.json` | every browser-pending dependence witness from `effect-dependencies.md` (inline-view and reachability components) driven through the real booth on a generic per-cell recipe, both cells compared against the spec; unobservable witnesses labelled. Review-observability is pre-filtered by the **injected** gate (`f_fixed`); the comparisons themselves are against the oracle (inline and reachability are not injected) |
 
 ### Evidence — the findings' end-to-end chain (dev server)
 
@@ -397,7 +401,7 @@ artifact's own legend carries its labels and residues.
 |---|---|---|
 | Checkers | exhaustion | production ≡ spec on every swept cell (`headless-sweep.md`, **345,600**, plurality and preferential). One sweep serves **both** bands: the tally decode runs the identical function, so this is also the tally-side checker characterization |
 | Gates | exhaustion | both gates **and** the dialog projection on all 345,600 swept cells (`headless-sweep.md`) |
-| Filter | per-cell, then sufficiency | `dom-validate.md`: every grid cell through the real booth via the reviewer path, inline observed at both observation points, the untouched view asserted empty per cell — **229/229**. Beyond the grids, the independence claims are discharged by sufficiency (`quotient-validate.md`, 2,616 classes / 195,520 cells) |
+| Filter | per-cell, then sufficiency | `dom-validate.md`: every grid cell through the real booth via the reviewer path, inline observed at both observation points, the untouched view asserted empty per cell — **233/233**. Beyond the grids, the independence claims are discharged by sufficiency (`quotient-validate.md`, 2,616 classes / 195,520 cells) |
 | Input constraint | per-cell | the `reachable` column of `dom-validate.md` across every rule cell (the state forms or it does not), **plus** direct evidence for both prevention mechanisms: the over-vote `disable` policy (`no (disabled)`, from probing the (max+1)th control's `disabled` attribute) and blank-marker exclusivity (`no (cleared)`, the marker collapsing a co-selected regular) |
 | Marker exclusivity (prevention) | per-cell, plus the crypto chain | characterized by *attempting* each state through the UI and recording whether it forms. Both directions recorded in `dom-validate`: the invalid marker does **not** clear (`marker_plus` forms — reachable `yes`, confirmed end-to-end by `invalid-latent-choices-e2e.mjs`), the blank marker **does** (`regular_then_marker` collapses to {marker only} — `no (cleared)`). Open: the decline booth flow |
 | Tally classifier | exhaustion, plus a direct decision table | the `tally` column on every swept cell, plus the standalone 32-cell six-class table (`classifier-table.md`, 32/32 matching the documented precedence — and the only production evidence for decline) |
@@ -488,21 +492,12 @@ Every residue below is already labelled in the artifact that carries it;
 this is the one place they are collected, ordered by how much each would
 unblock.
 
-- **Browser lane rerun against the injected booth.** The gate injection
-  changed the booth wasm's dialogs on the fix cells (S6's gate/dialog
-  movements; S2S3's marker-only min ≥ 2 cells no longer gate), so
-  `dom-validate`'s recorded gate/dialog expectations are a
-  **pre-injection baseline** on exactly those cells until the browser
-  lane is re-run with expectations split by injection status the way
-  `headless-sweep.mjs` now splits them (its header carries the
-  component → expectation table). Until that rerun, trust the sweep for
-  gates/dialog and the recorded tables for everything else.
 - **A both-markers fixture.** Purely a *booth* gap: no bundled contest
   gives a voter a route to both markers at once — the explicit-invalid
   flag needs the Council contest's null-vote marker, the blank marker
   needs Referendum — so cells needing both cannot be formed by clicking.
   That defers 13 dependence witnesses
-  ([`browser-witnesses.md`](browser-witnesses.md)) and part of the 4,384
+  ([`browser-witnesses.md`](browser-witnesses.md)) and part of the 5,232
   deferred quotient classes
   ([`quotient-validate.md`](quotient-validate.md); most of those are
   preferential, awaiting the IRV booth recipe below). Headlessly the

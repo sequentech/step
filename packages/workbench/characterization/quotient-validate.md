@@ -19,9 +19,11 @@ so one booth run per reachable class of that tuple covers the inline
 behaviour of every cell in the class. One booth-formable member of each
 class from `headless-sweep.md`'s quotient inventory is driven through
 the real booth and its inline content at the touched voting screen and
-at review is compared against the class's spec prediction. The hard
-gate is class-determined, so review is compared exactly where it
-renders; hard-gated classes' review is the dialog, certified headlessly.
+at review is compared against the class's spec prediction. Whether
+review renders is decided by the chosen member's PRODUCTION hard gate —
+the injected, rationalized implementation's (`headless-sweep.md`
+certifies it) — so review is compared exactly where it renders;
+a hard-gated member's review is the dialog, certified headlessly.
 
 **The license** (what makes one-per-class sound), source-verified
 2026-08-17: `filterErrorList` is a closure referencing nothing beyond

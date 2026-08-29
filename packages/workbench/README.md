@@ -486,11 +486,14 @@ which artifact ships, roughly by payoff:
    cannot express. Verified exhaustively with per-component
    expectations: the sweep compares production's gates/dialog against
    `f_fixed` and everything uninjected against the oracle — 345,600
-   cells, 0 disagreements — and the native conformance run agrees
-   (6/6). What remains: the decode site (emissions — carries the
-   S4-checker and S2S3 tally changes), the browser-lane rerun against
-   the injected booth (characterization/README.md, Open work), and
-   eventually the TypeScript filter (S1's display fix).
+   cells, 0 disagreements — the native conformance run agrees (6/6),
+   and the browser lane is re-run against the injected booth on the
+   same split (`dom-validate` 233/233 — exactly the three S2S3
+   marker-only min ≥ 2 cells moved, the not-allowed one now reaching
+   review; `browser-witnesses` and `quotient-validate` decide
+   review-reachability by the injected gate). What remains: the decode
+   site (emissions — carries the S4-checker and S2S3 tally changes)
+   and eventually the TypeScript filter (S1's display fix).
 
 Standing maintenance, as upstream moves:
 

@@ -29,8 +29,12 @@
 // Labels (never silently dropped): cells the booth cannot represent
 // (marker+flag, regulars > candidates, max = 0), inline observations on
 // states prevention keeps from forming, and review observations behind a
-// hard gate (the gate values on this subdomain are production-certified
-// by headless-sweep, so the spec's gate is a sound pre-filter).
+// hard gate. Production's gates are INJECTED (voting_screen.rs routes
+// through the query-provider), so whether review is reachable is decided
+// by the RATIONALIZED implementation's hard gate (f_fixed — certified
+// against production by headless-sweep); the witness comparisons
+// themselves (inline views, reachability) stay against the frozen oracle
+// `f`, whose components are not injected.
 //
 // Requires the dev server on :5173. Writes browser-witnesses.md +
 // .recorded.json; exits nonzero if any observed cell disagrees with the
@@ -46,8 +50,9 @@ import {loadSnapshot} from "./browser-harness.mjs"
 import {boothContext, observeCell, boothFormable, shortKey} from "./booth-cell.mjs"
 // One-cell batches: this runner evaluates a couple of hundred cells in
 // total, so the per-call subprocess cost is irrelevant here.
-import {specF as specBatch} from "./rust-spec.mjs"
+import {specF as specBatch, specFixed as specFixedBatch} from "./rust-spec.mjs"
 const specF = (config, voteState) => specBatch([{config, voteState}])[0]
+const specFixed = (config, voteState) => specFixedBatch([{config, voteState}])[0]
 
 const require = createRequire("C:/work/projects/step/packages/")
 const {chromium} = require("playwright")
@@ -99,7 +104,12 @@ function boothDefer(component, cells) {
         const spec = specF(parsed.config, parsed.voteState)
         if (component.includes("inline") && spec.reachability !== "yes")
             return "state prevented in the booth (inline unobservable there)"
-        if (component.endsWith("inline.review") && spec.gate.hard)
+        // Review reachability is decided by production's ACTUAL gate — the
+        // injected, rationalized one (see the header).
+        if (
+            component.endsWith("inline.review") &&
+            specFixed(parsed.config, parsed.voteState).gate.hard
+        )
             return "unobservable by construction (hard gate precludes review; the dialog is the signal)"
     }
     return null

@@ -34,10 +34,16 @@
 // one whose spec emissions under the class's policies match the class key
 // (sound — emissions ≡ production on this subdomain by the sweep). Drive
 // it, compare inline at the touched voting screen and at review against
-// the class's spec inline views. The hard gate is class-determined (its
-// clauses key off emissions-visible facts and policies), so review is
-// compared exactly when the class does not hard-gate — otherwise the
-// dialog is the signal, and it is certified headlessly.
+// the class's spec inline views. Whether review renders is decided by
+// production's ACTUAL hard gate — the injected, rationalized one
+// (`f_fixed`; certified against production by headless-sweep) — and it is
+// MEMBER-determined, not class-determined: the rationalized gate reads the
+// vote state past the emissions (the deliberate-blank exemption), so two
+// members of one class can gate differently. Review is compared exactly
+// when the chosen member does not hard-gate; otherwise the dialog is the
+// signal, and it is certified headlessly. The inline comparisons stay
+// against the frozen oracle's inventory — the booth's message filter is
+// not injected.
 //
 // Classes with no booth-formable member are LABELLED, never dropped.
 //
@@ -54,7 +60,7 @@ import path from "node:path"
 import {performance} from "node:perf_hooks"
 import {loadSnapshot} from "./browser-harness.mjs"
 import {boothContext, observeCell, boothFormable, shortKey} from "./booth-cell.mjs"
-import {specF} from "./rust-spec.mjs"
+import {specF, specFixed} from "./rust-spec.mjs"
 import {BOUNDS} from "./domain.mjs"
 
 const require = createRequire("C:/work/projects/step/packages/")
@@ -108,25 +114,33 @@ for (let ci = 0; ci < classes.length; ci++) {
         }
 }
 const candidateSpecs = specF(candidates.map((c) => c.cell))
+// The member's hard gate comes from the RATIONALIZED implementation — the
+// one production's injected gates run (see the header).
+const candidateFixed = specFixed(candidates.map((c) => c.cell))
 const byClass = new Map()
 candidates.forEach((c, k) => {
     if (!byClass.has(c.ci)) byClass.set(c.ci, [])
-    byClass.get(c.ci).push({cell: c.cell, e: candidateSpecs[k]})
+    byClass
+        .get(c.ci)
+        .push({cell: c.cell, e: candidateSpecs[k], hardFixed: candidateFixed[k].gate.hard})
 })
 console.log(
     `pre-evaluated ${candidates.length} candidate members for ${classes.length} classes`
 )
 
-/** Find a booth-formable, booth-reachable member of a class, or null. */
+/** Find a booth-formable, booth-reachable member of a class, or null.
+ *  Selection keys off the ORACLE (the class key is oracle emissions —
+ *  decode is not injected); the returned `hard` is the member's
+ *  production gate, i.e. the rationalized implementation's. */
 function formableMember(ci, cls) {
     const [errors, alerts] = cls.key
-    for (const {cell, e} of byClass.get(ci) ?? []) {
+    for (const {cell, e, hardFixed} of byClass.get(ci) ?? []) {
         if (e.reachability !== "yes") continue
         if (
             eq(sortedUniq(e.emissions.errors.map(shortKey)), errors) &&
             eq(sortedUniq(e.emissions.alerts.map(shortKey)), alerts)
         ) {
-            return {cell, hard: e.gate.hard}
+            return {cell, hard: hardFixed}
         }
     }
     return null
@@ -253,9 +267,11 @@ const md = [
     "behaviour of every cell in the class. One booth-formable member of each",
     "class from `headless-sweep.md`'s quotient inventory is driven through",
     "the real booth and its inline content at the touched voting screen and",
-    "at review is compared against the class's spec prediction. The hard",
-    "gate is class-determined, so review is compared exactly where it",
-    "renders; hard-gated classes' review is the dialog, certified headlessly.",
+    "at review is compared against the class's spec prediction. Whether",
+    "review renders is decided by the chosen member's PRODUCTION hard gate —",
+    "the injected, rationalized implementation's (`headless-sweep.md`",
+    "certifies it) — so review is compared exactly where it renders;",
+    "a hard-gated member's review is the dialog, certified headlessly.",
     "",
     "**The license** (what makes one-per-class sound), source-verified",
     "2026-08-17: `filterErrorList` is a closure referencing nothing beyond",

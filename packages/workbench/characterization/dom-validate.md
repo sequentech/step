@@ -25,7 +25,12 @@ state) — plus the observation-derived **⚠**
 (discarded ∧ reachable ∧ no signal at either casting point). The single
 *matches spec?* column subsumes the partial's `pred?` and extends it to the
 browser observations (including the observed dialog vs the gates): ✗ = spec and
-DOM disagree. `(blocked)` inline means a blocking dialog preempts review —
+DOM disagree. Predictions follow the injection status (`headless-sweep.md`):
+production's gates are injected, so the *hard/soft gate* columns and the
+dialog expectation come from the RATIONALIZED implementation (`f_fixed`);
+*errors*, *alerts*, *tally*, the inline predictions and reachability come
+from the FROZEN ORACLE (`f`) — decode, tally and the booth's TypeScript
+are not injected. `(blocked)` inline means a blocking dialog preempts review —
 the dialog is the signal there. For an unreachable state both inline
 columns show what the state that ACTUALLY formed renders (the *reachable*
 column qualifies it); they are compared against the spec only for
@@ -123,13 +128,13 @@ its meaning is noted under each rule heading below.
 | **⚠** min=2 × allowed | marker_only | selectedMin | — | — | — | — | — | yes | ImplicitInvalid | ✓ |
 | min=2 × warn | none | selectedMin | — | selectedMin | selectedMin | — | dialog | yes | ImplicitInvalid | ✓ |
 | min=2 × warn | one | selectedMin | — | selectedMin | selectedMin | — | dialog | yes | ImplicitInvalid | ✓ |
-| min=2 × warn | marker_only | selectedMin | — | selectedMin | selectedMin | — | dialog | yes | ImplicitInvalid | ✓ |
+| min=2 × warn | marker_only | selectedMin | — | selectedMin | selectedMin | — | — | yes | ImplicitInvalid | ✓ |
 | min=2 × warn-invalid-implicit-and-explicit | none | selectedMin | — | selectedMin | selectedMin | — | dialog | yes | ImplicitInvalid | ✓ |
 | min=2 × warn-invalid-implicit-and-explicit | one | selectedMin | — | selectedMin | selectedMin | — | dialog | yes | ImplicitInvalid | ✓ |
-| min=2 × warn-invalid-implicit-and-explicit | marker_only | selectedMin | — | selectedMin | selectedMin | — | dialog | yes | ImplicitInvalid | ✓ |
+| min=2 × warn-invalid-implicit-and-explicit | marker_only | selectedMin | — | selectedMin | selectedMin | — | — | yes | ImplicitInvalid | ✓ |
 | min=2 × not-allowed | none | selectedMin | — | selectedMin | (blocked) | **block** | dialog | yes | ImplicitInvalid | ✓ |
 | min=2 × not-allowed | one | selectedMin | — | selectedMin | (blocked) | **block** | dialog | yes | ImplicitInvalid | ✓ |
-| min=2 × not-allowed | marker_only | selectedMin | — | selectedMin | (blocked) | **block** | dialog | yes | ImplicitInvalid | ✓ |
+| min=2 × not-allowed | marker_only | selectedMin | — | selectedMin | selectedMin | — | — | yes | ImplicitInvalid | ✓ |
 
 ## blank
 

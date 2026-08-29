@@ -557,7 +557,7 @@ This is not a rewrite proposal. The path is incremental:
 > - **Validation (the evidence layer).** Production ≡ the spec
 >   **exhaustively** on the representable headless domain — 345,600
 >   cells, plurality and preferential, zero disagreements
->   (`headless-sweep.md`); per cell in the real booth (229/229,
+>   (`headless-sweep.md`); per cell in the real booth (233/233,
 >   `dom-validate.md`); by sufficiency for the browser-side independence
 >   claims (2,616 quotient classes covering 195,520 cells,
 >   `quotient-validate.md`, under the source-verified props-boundary

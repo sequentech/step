@@ -226,7 +226,7 @@ re-runnable in one command via `characterization/reproduce-verify.mjs`).
 The booth-signal half (nothing inline at review, no dialog, reachable) is
 additionally observed across every recorded (configuration ×
 vote-state) cell of all seven rules in
-`characterization/dom-validate.md` (229/229 matching the spec).
+`characterization/dom-validate.md` (233/233 matching the spec).
 
 **Provenance of the silence** — the two families have different
 histories, both pinned against the pre-image of `7b0a1c71e8` ("🐞

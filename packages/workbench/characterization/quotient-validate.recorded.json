@@ -1,50 +1,7 @@
 {
   "license": "filterErrorList reads only (record, invalid, blank, over, under, isReview, isTouched); isVotedState dead (Defect 4). Source-verified 2026-08-17. Re-verify on portal refresh.",
   "classes_total": 7848,
-  "retried": [
-    {
-      "key": [
-        [
-          "selectedMin"
-        ],
-        [
-          "alert"
-        ],
-        "warn-invalid-implicit-and-explicit",
-        "not-allowed",
-        "not-allowed-with-msg-and-alert",
-        "warn"
-      ],
-      "attempts": 2
-    },
-    {
-      "key": [
-        [
-          "selectedMin"
-        ],
-        [],
-        "not-allowed",
-        "allowed",
-        "allowed-with-msg-and-alert",
-        "warn-only-in-review"
-      ],
-      "attempts": 2
-    },
-    {
-      "key": [
-        [
-          "notAllowed",
-          "selectedMin"
-        ],
-        [],
-        "not-allowed",
-        "allowed",
-        "not-allowed-with-msg-and-disable",
-        "warn"
-      ],
-      "attempts": 2
-    }
-  ],
+  "retried": [],
   "checked": [
     {
       "key": [
@@ -69138,8 +69095,7 @@
           "selectedMin"
         ]
       },
-      "ok": true,
-      "attempts": 2
+      "ok": true
     },
     {
       "key": [
@@ -75211,8 +75167,7 @@
         ]
       },
       "review": "hard-gated (dialog is the signal)",
-      "ok": true,
-      "attempts": 2
+      "ok": true
     },
     {
       "key": [
@@ -77458,8 +77413,7 @@
         ]
       },
       "review": "hard-gated (dialog is the signal)",
-      "ok": true,
-      "attempts": 2
+      "ok": true
     },
     {
       "key": [
