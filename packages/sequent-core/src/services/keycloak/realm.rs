@@ -27,6 +27,7 @@ use uuid::Uuid;
 use super::PubKeycloakAdmin;
 
 const VOTING_PORTAL_CLIENT_ID: &str = "voting-portal";
+const KIOSK_VOTING_PORTAL_CLIENT_ID: &str = "voting-portal-kiosk";
 const ONSITE_VOTING_PORTAL_CLIENT_ID: &str = "onsite-voting-portal";
 const RESULTS_PORTAL_CLIENT_ID: &str = "results-portal";
 const CONDITIONAL_CLIENT_ID: &str = "conditional-client";
@@ -657,6 +658,9 @@ impl KeycloakAdminClient {
         } else {
             None
         };
+        let kiosk_login_url = login_url
+            .as_ref()
+            .map(|login_url| format!("{login_url}?kiosk"));
         let ballot_verifier_url = env::var("BALLOT_VERIFIER_URL")
             .with_context(|| "Error fetching BALLOT_VERIFIER_URL env var")?;
         let results_portal_url = env::var("RESULTS_PORTAL_URL").ok();
@@ -674,6 +678,12 @@ impl KeycloakAdminClient {
                 | Some(ONSITE_VOTING_PORTAL_CLIENT_ID) => {
                     client.root_url = Some(voting_portal_url_env.clone());
                     client.base_url = login_url.clone();
+                    client.redirect_uris =
+                        Some(voting_portal_redirect_uris(&ballot_verifier_url));
+                }
+                Some(KIOSK_VOTING_PORTAL_CLIENT_ID) => {
+                    client.root_url = Some(voting_portal_url_env.clone());
+                    client.base_url = kiosk_login_url.clone();
                     client.redirect_uris =
                         Some(voting_portal_redirect_uris(&ballot_verifier_url));
                 }

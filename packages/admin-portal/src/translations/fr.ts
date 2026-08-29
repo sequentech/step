@@ -565,6 +565,7 @@ const frenchTranslation: TranslationType = {
                 userVerification:
                     "Vous pouvez introduire un modèle personnalisé qui sera utilisé pour vérifier manuellement les électeurs",
                 redirectFinishUrl: "URL de redirection à la fin",
+                kioskRedirectFinishUrl: "URL de redirection à la fin du vote en kiosque",
                 css: "CSS personnalisé",
                 skipElectionList: "Passer l'écran pour choisir l'élection",
                 showUserProfile: "Afficher le profil utilisateur",
