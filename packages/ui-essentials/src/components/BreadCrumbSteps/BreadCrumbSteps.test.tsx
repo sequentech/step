@@ -43,7 +43,19 @@ describe("BreadCrumbSteps", () => {
         const markup = renderSteps(<BreadCrumbSteps labels={LABELS} selected={0} />)
 
         // One separator per step except the last.
-        expect(markup.match(/aria-hidden="true"/g)).toHaveLength(LABELS.length - 1)
+        expect(
+            markup.match(
+                /<div(?=[^>]*class="[^"]*step-separator)(?=[^>]*aria-hidden="true")[^>]*>/g
+            )
+        ).toHaveLength(LABELS.length - 1)
+    })
+
+    it("hides the decorative step numbers from assistive technology", () => {
+        const markup = renderSteps(<BreadCrumbSteps labels={LABELS} selected={0} />)
+
+        expect(
+            markup.match(/<div(?=[^>]*class="[^"]*step-number)(?=[^>]*aria-hidden="true")[^>]*>/g)
+        ).toHaveLength(LABELS.length)
     })
 
     it("omits the label when the consumer supplies none", () => {

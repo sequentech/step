@@ -1428,14 +1428,20 @@ class MultiAttributePasswordAuthenticatorTest {
       Response challengeResponse = mock(Response.class);
       java.util.concurrent.atomic.AtomicReference<String> renderedError =
           new java.util.concurrent.atomic.AtomicReference<>();
+      java.util.concurrent.atomic.AtomicReference<String> renderedErrorField =
+          new java.util.concurrent.atomic.AtomicReference<>();
       MultiAttributePasswordAuthenticator actionAuthenticator =
           actionAuthenticator(
-              Resolution.lockedOut(attributableUser, state), challengeResponse, renderedError);
+              Resolution.lockedOut(attributableUser, state),
+              challengeResponse,
+              renderedError,
+              renderedErrorField);
 
       actionAuthenticator.action(context);
 
       assertEquals(
           MultiAttributePasswordAuthenticator.INVALID_CREDENTIALS_MESSAGE, renderedError.get());
+      assertEquals(MultiAttributePasswordAuthenticator.FIELD_PASSWORD, renderedErrorField.get());
       verify(event)
           .error(
               state == LockoutState.PERMANENT
@@ -1524,6 +1530,14 @@ class MultiAttributePasswordAuthenticatorTest {
       Resolution resolution,
       Response challengeResponse,
       java.util.concurrent.atomic.AtomicReference<String> renderedError) {
+    return actionAuthenticator(resolution, challengeResponse, renderedError, null);
+  }
+
+  private MultiAttributePasswordAuthenticator actionAuthenticator(
+      Resolution resolution,
+      Response challengeResponse,
+      java.util.concurrent.atomic.AtomicReference<String> renderedError,
+      java.util.concurrent.atomic.AtomicReference<String> renderedErrorField) {
     return new MultiAttributePasswordAuthenticator() {
       @Override
       protected Map<String, String> collectSubmittedValues(
@@ -1553,6 +1567,9 @@ class MultiAttributePasswordAuthenticatorTest {
           String errorField) {
         if (renderedError != null) {
           renderedError.set(error);
+        }
+        if (renderedErrorField != null) {
+          renderedErrorField.set(errorField);
         }
         return challengeResponse;
       }

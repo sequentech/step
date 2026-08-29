@@ -810,15 +810,18 @@ export const ReviewScreen: React.FC = () => {
 
     // Built from the same redux ballot-selection state (selectionState) that
     // Question/Answer already render from, using the same predicates
-    // (is_explicit_invalid, checkIsBlank) Question.tsx uses to decide between
-    // an invalid-vote row, a blank-vote row, and the selected candidates - so
-    // this can never describe a selection differently than what's visibly
-    // shown right below it.
+    // (isDeclineToVote, isBlankBallot, is_explicit_invalid, checkIsBlank)
+    // Question.tsx uses to decide between an invalid-vote row, a blank-vote
+    // row, and the selected candidates - so this can never describe a
+    // selection differently than what's visibly shown right below it.
     const ballotSummary = contests
         .map((question) => {
             const contestName = translate(question, "name", i18n.language) || ""
             if (isDeclineToVote) {
                 return `${contestName}: ${t("reviewScreen.declineToVote")}`
+            }
+            if (isBlankBallot) {
+                return `${contestName}: ${t("reviewScreen.blankBallot")}`
             }
             const contestState = selectionState?.find(
                 (contest) => contest.contest_id === question.id

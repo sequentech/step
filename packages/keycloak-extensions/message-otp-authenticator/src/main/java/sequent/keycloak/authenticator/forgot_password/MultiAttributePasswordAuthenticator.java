@@ -137,9 +137,8 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
     // that messagesPerField.existsError('username', 'password') is true in login.ftl - that's
     // what gates structuredCredentialHasError, which in turn is what the structured-credential.js
     // accessibility fix (deterministic focus + announcement on a real error) is keyed off of.
-    // Without
-    // a field, this fell back to the theme's generic, un-enhanced alert banner, which never got the
-    // reliable-announcement treatment.
+    // Without a field, this fell back to the theme's generic, un-enhanced alert banner, which never
+    // got the reliable-announcement treatment.
     Response challengeResponse =
         challenge(context, formData, INVALID_CREDENTIALS_MESSAGE, FIELD_PASSWORD);
     context.failureChallenge(AuthenticationFlowError.INVALID_CREDENTIALS, challengeResponse);
@@ -157,7 +156,8 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
       MultiAttributeCredentialResolver.LockoutState state) {
     boolean permanent = state == MultiAttributeCredentialResolver.LockoutState.PERMANENT;
     context.getEvent().error(permanent ? Errors.USER_DISABLED : Errors.USER_TEMPORARILY_DISABLED);
-    Response challengeResponse = challenge(context, formData, INVALID_CREDENTIALS_MESSAGE);
+    Response challengeResponse =
+        challenge(context, formData, INVALID_CREDENTIALS_MESSAGE, FIELD_PASSWORD);
     context.forceChallenge(challengeResponse);
     context.clearUser();
   }

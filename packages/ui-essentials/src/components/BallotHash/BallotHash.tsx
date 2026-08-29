@@ -163,7 +163,7 @@ const BallotHash: React.FC<BallotHashProps> = ({
                     }}
                     fontSize="18px"
                     onClick={onHelpClick}
-                    ariaLabel={t("a11y.ballotIdHelp")}
+                    ariaLabel={helpButtonLabel || t("a11y.ballotIdHelp")}
                 />
             </HashActions>
             <CopyStatus role="status" aria-live="polite" aria-atomic="true">
