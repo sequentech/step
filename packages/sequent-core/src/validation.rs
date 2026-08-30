@@ -514,6 +514,11 @@ impl ContestValidator {
         let blank_marker = decoded.choices.iter().any(|ch| {
             selected(ch.selected) && self.shape.blank_markers.contains(&ch.id)
         });
+        // A contest may present the explicit-invalid marker as a candidate.
+        // Both codecs fold that candidate into the flag when encoding and
+        // drop it when decoding, and the booth sets the flag directly, so a
+        // record normally carries the flag alone; reading both forms keeps
+        // the rules agreeing with whichever one reaches them.
         let explicit_invalid = decoded.is_explicit_invalid
             || decoded.choices.iter().any(|ch| {
                 selected(ch.selected)

@@ -183,6 +183,24 @@ varies one input at a time and records which effects move.
 | blank marker | • | • | • | • | • |
 | explicit invalid | • | • | • | • | • |
 
+The last three rows are the ballot rather than the contest's
+configuration, and together they are the count the bounds read: the
+regular selections, plus one if the explicit-blank marker is set, plus one
+if the ballot is marked invalid. `selections` is the regular candidates
+alone — how many are picked on the plurality contest, and which of the
+three rankings on the preferential one.
+
+The two markers are named differently because they are different things.
+The explicit blank is a candidate: the voter selects it as they would any
+other, and it travels in the record as a selected choice. Explicit invalid
+is a field on the record; a contest may render a candidate for it, but
+clicking that candidate sets the field rather than selecting the
+candidate, and encoding drops the candidate from the choices. So "blank
+marker" names a selection and "explicit invalid" names a flag — which is
+also why they reach the tally by different arguments to `classify`: the
+blank marker through the selection class, the invalid flag through a
+parameter of its own.
+
 The blanks are the point, and they are stronger claims than the dots: an
 input that moves an effect somewhere is a fact about one case, while an
 input that moves it nowhere in an exhaustive domain is a fact about the
