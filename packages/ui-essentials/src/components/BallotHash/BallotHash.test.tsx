@@ -10,8 +10,8 @@ import theme from "../../services/theme"
 
 jest.mock("react-i18next", () => ({
     useTranslation: () => ({
-        t: (_key: string, values: {ballotId: string}): string =>
-            `Your Ballot ID: ${values.ballotId}`,
+        t: (key: string, values?: {ballotId: string}): string =>
+            key === "ballotHash" ? `Your Ballot ID: ${values?.ballotId}` : "About your Ballot ID",
     }),
 }))
 
@@ -54,5 +54,15 @@ describe("BallotHash", () => {
         expect(markup).toContain('aria-label="Copy ballot ID"')
         expect(markup).toContain('aria-label="About ballot ID"')
         expect(markup).toContain('role="status"')
+    })
+
+    it("uses the translated fallback when no help label is supplied", () => {
+        const markup = renderToStaticMarkup(
+            <ThemeProvider theme={theme}>
+                <BallotHash hash="abc123" />
+            </ThemeProvider>
+        )
+
+        expect(markup).toContain('aria-label="About your Ballot ID"')
     })
 })
