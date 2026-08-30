@@ -167,8 +167,15 @@ earns its keep because policies do not always do what their names suggest.
 The over-vote policy, for instance, governs alerts and one gate clause, but
 never whether the over-vote error is recorded, which is unconditional.
 
-A generated map covering every effect and policy is kept with the
-characterization work, at
-`packages/workbench/characterization/effect-map.md`. Reproducing it against
-this module is an exercise in the technique above rather than a separate
-tool.
+A generated map of this kind exists in the characterization work, at
+`packages/workbench/characterization/effect-map.md` — but read it for what
+it is. It was produced by evaluating the *frozen record of the previous
+behaviour*, not these rules, and several of the corrections in section 4
+changed precisely the dependencies it charts. It is a description of what
+the behaviour was, useful for comparison and not as documentation of this
+module.
+
+No such map has been produced for the rules as they now stand. Doing so is
+an application of the technique above rather than a separate tool: vary one
+input at a time across the enumeration, and record for each effect which
+inputs ever change it.
