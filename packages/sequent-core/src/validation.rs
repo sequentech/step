@@ -70,8 +70,8 @@ use crate::ballot::{
 use crate::ballot_codec::multi_ballot::votable_contests;
 use crate::ballot_codec::CheckerResult;
 use crate::plaintext::{
-    DecodedVoteContest, InvalidPlaintextError, InvalidPlaintextErrorType,
-    PreferencialOrderErrorType,
+    DecodedVoteChoice, DecodedVoteContest, InvalidPlaintextError,
+    InvalidPlaintextErrorType, PreferencialOrderErrorType,
 };
 
 pub const SELECTED_MAX: &str = "errors.implicit.selectedMax";
@@ -233,6 +233,16 @@ fn contest_bounds(contest: &Contest) -> Result<(u32, u32), ValidationError> {
             max_votes: contest.max_votes,
         }),
     }
+}
+
+/// One edit a voter can make to a contest's selections.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SelectionEdit {
+    /// Select, deselect or rank one candidate — including a marker, which
+    /// is an ordinary choice as far as the wire format is concerned.
+    Choice(DecodedVoteChoice),
+    /// Mark the contest explicitly invalid, or stop doing so.
+    ExplicitInvalid(bool),
 }
 
 /// What a ballot's selections look like to the tally: the explicit-blank
@@ -862,6 +872,80 @@ impl ContestValidator {
         )
     }
 
+    /// Applies one edit to a contest's selections, enforcing the marker
+    /// rules: a marker states something about the ballot as a whole, so it
+    /// cannot stand beside the selections it contradicts.
+    ///
+    /// The explicit-blank marker means "I am leaving this contest blank",
+    /// so selecting it clears everything else, and selecting anything else
+    /// clears it. The explicit-invalid marker means "count this ballot as
+    /// invalid", which the platform lets a voter combine with selections —
+    /// they are recorded but not counted — EXCEPT under the invalid-vote
+    /// policy that makes it exclusive, where it behaves like the blank
+    /// marker in both directions.
+    ///
+    /// Returns the edited selections; nothing else about the ballot is
+    /// touched, including the ballot-level blank and decline flags, which
+    /// are the whole ballot's business rather than this contest's.
+    pub fn apply(
+        &self,
+        selection: &DecodedVoteContest,
+        edit: SelectionEdit,
+    ) -> DecodedVoteContest {
+        let mut edited = selection.clone();
+        let exclusive_invalid = self.policies.invalid
+            == InvalidVotePolicy::ALLOWED_WITH_EXCLUSIVE_EXPLICIT;
+
+        match edit {
+            SelectionEdit::Choice(choice) => {
+                let selecting = choice.selected > -1;
+                let is_blank_marker =
+                    self.shape.blank_markers.contains(&choice.id);
+                if let Some(existing) =
+                    edited.choices.iter_mut().find(|c| c.id == choice.id)
+                {
+                    *existing = choice;
+                } else {
+                    return edited;
+                }
+                if selecting {
+                    if is_blank_marker {
+                        // The declared blank stands alone.
+                        let marker = edited
+                            .choices
+                            .iter()
+                            .find(|c| self.shape.blank_markers.contains(&c.id))
+                            .map(|c| c.id.clone());
+                        for other in edited.choices.iter_mut() {
+                            if Some(&other.id) != marker.as_ref() {
+                                other.selected = -1;
+                            }
+                        }
+                        edited.is_explicit_invalid = false;
+                    } else {
+                        for other in edited.choices.iter_mut() {
+                            if self.shape.blank_markers.contains(&other.id) {
+                                other.selected = -1;
+                            }
+                        }
+                        if exclusive_invalid {
+                            edited.is_explicit_invalid = false;
+                        }
+                    }
+                }
+            }
+            SelectionEdit::ExplicitInvalid(marked) => {
+                edited.is_explicit_invalid = marked;
+                if marked && exclusive_invalid {
+                    for choice in edited.choices.iter_mut() {
+                        choice.selected = -1;
+                    }
+                }
+            }
+        }
+        edited
+    }
+
     /// Reports whether this contest has taken all the selections it will
     /// accept, so the booth should stop offering more.
     ///
@@ -1202,6 +1286,140 @@ mod tests {
         declined_invalid.is_decline_to_vote = true;
         declined_invalid.is_explicit_invalid = true;
         assert_eq!(class(&declined_invalid), BallotClass::ImplicitInvalid);
+    }
+
+    /// A contest carrying both markers, so the two can be told apart.
+    fn both_markers_contest(invalid: InvalidVotePolicy) -> Contest {
+        let candidate = |id: &str, blank: bool, inv: bool| Candidate {
+            id: id.to_string(),
+            presentation: Some(CandidatePresentation {
+                is_explicit_blank: Some(blank),
+                is_explicit_invalid: Some(inv),
+                ..CandidatePresentation::default()
+            }),
+            ..Candidate::default()
+        };
+        Contest {
+            max_votes: 2,
+            presentation: Some(ContestPresentation {
+                invalid_vote_policy: Some(invalid),
+                ..ContestPresentation::default()
+            }),
+            candidates: vec![
+                candidate("normal", false, false),
+                candidate("other", false, false),
+                candidate("blank", true, false),
+                candidate("null", false, true),
+            ],
+            ..Contest::default()
+        }
+    }
+
+    fn selections(ids: &[&str]) -> DecodedVoteContest {
+        DecodedVoteContest {
+            contest_id: "contest".to_string(),
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            is_blank_ballot: false,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: ["normal", "other", "blank", "null"]
+                .iter()
+                .map(|id| DecodedVoteChoice {
+                    id: id.to_string(),
+                    selected: if ids.contains(id) { 0 } else { -1 },
+                    write_in_text: None,
+                })
+                .collect(),
+        }
+    }
+
+    fn picked(selection: &DecodedVoteContest) -> Vec<&str> {
+        selection
+            .choices
+            .iter()
+            .filter(|c| c.selected > -1)
+            .map(|c| c.id.as_str())
+            .collect()
+    }
+
+    fn choose(id: &str, selected: bool) -> SelectionEdit {
+        SelectionEdit::Choice(DecodedVoteChoice {
+            id: id.to_string(),
+            selected: if selected { 0 } else { -1 },
+            write_in_text: None,
+        })
+    }
+
+    #[test]
+    fn the_declared_blank_stands_alone() {
+        let v = ContestValidator::for_contest(&both_markers_contest(
+            InvalidVotePolicy::ALLOWED,
+        ));
+        // Choosing the marker clears the selections it contradicts.
+        let after =
+            v.apply(&selections(&["normal", "other"]), choose("blank", true));
+        assert_eq!(picked(&after), vec!["blank"]);
+        // And choosing a candidate clears the marker.
+        let after = v.apply(&selections(&["blank"]), choose("normal", true));
+        assert_eq!(picked(&after), vec!["normal"]);
+        // Deselecting clears nothing.
+        let after =
+            v.apply(&selections(&["normal", "other"]), choose("other", false));
+        assert_eq!(picked(&after), vec!["normal"]);
+    }
+
+    #[test]
+    fn the_invalid_marker_keeps_company_unless_the_policy_forbids_it() {
+        // S5, kept per upstream #2949: under the ordinary policies a voter
+        // may mark the ballot invalid AND leave selections standing.
+        let permissive = ContestValidator::for_contest(&both_markers_contest(
+            InvalidVotePolicy::ALLOWED,
+        ));
+        let after = permissive.apply(
+            &selections(&["normal"]),
+            SelectionEdit::ExplicitInvalid(true),
+        );
+        assert!(after.is_explicit_invalid);
+        assert_eq!(picked(&after), vec!["normal"]);
+        // And choosing a candidate afterwards does not unmark it.
+        let after = permissive.apply(&after, choose("other", true));
+        assert!(after.is_explicit_invalid);
+
+        // Under the exclusive policy it behaves like the blank marker,
+        // in both directions.
+        let exclusive = ContestValidator::for_contest(&both_markers_contest(
+            InvalidVotePolicy::ALLOWED_WITH_EXCLUSIVE_EXPLICIT,
+        ));
+        let after = exclusive.apply(
+            &selections(&["normal", "other"]),
+            SelectionEdit::ExplicitInvalid(true),
+        );
+        assert!(after.is_explicit_invalid);
+        assert!(picked(&after).is_empty());
+
+        let mut marked = selections(&[]);
+        marked.is_explicit_invalid = true;
+        let after = exclusive.apply(&marked, choose("normal", true));
+        assert!(!after.is_explicit_invalid);
+        assert_eq!(picked(&after), vec!["normal"]);
+    }
+
+    #[test]
+    fn an_edit_touches_only_this_contests_selections() {
+        let v = ContestValidator::for_contest(&both_markers_contest(
+            InvalidVotePolicy::ALLOWED,
+        ));
+        let mut before = selections(&["normal"]);
+        before.is_blank_ballot = true;
+        before.is_decline_to_vote = true;
+        let after = v.apply(&before, choose("other", true));
+        // The ballot-level flags are the whole ballot's business.
+        assert!(after.is_blank_ballot);
+        assert!(after.is_decline_to_vote);
+        // An unknown candidate is not invented.
+        let after = v.apply(&before, choose("nobody", true));
+        assert_eq!(picked(&after), vec!["normal"]);
     }
 
     #[test]

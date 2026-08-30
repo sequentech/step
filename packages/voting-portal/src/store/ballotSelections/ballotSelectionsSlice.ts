@@ -1,14 +1,14 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {createSlice, PayloadAction} from "@reduxjs/toolkit"
+import {createSlice, current, PayloadAction} from "@reduxjs/toolkit"
 import {RootState} from "../store"
 import {
     isUndefined,
     IDecodedVoteContest,
     IDecodedVoteChoice,
     BallotSelection,
-    EInvalidVotePolicy,
+    applySelection,
 } from "@sequentech/ui-core"
 import {IBallotStyle} from "../ballotStyles/ballotStylesSlice"
 
@@ -136,22 +136,15 @@ export const ballotSelectionsSlice = createSlice({
             )
             // update state
             if (!isUndefined(currentQuestion)) {
-                currentQuestion.is_explicit_invalid = action.payload.isExplicitInvalid
-
-                // Under ALLOWED_WITH_EXCLUSIVE_EXPLICIT, marking the ballot
-                // explicit-invalid is mutually exclusive with any other
-                // selection in the contest, mirroring how blank vote already
-                // clears everything else when selected.
-                if (
-                    action.payload.isExplicitInvalid &&
-                    ballotEmlContest.presentation?.invalid_vote_policy ===
-                        EInvalidVotePolicy.ALLOWED_WITH_EXCLUSIVE_EXPLICIT
-                ) {
-                    currentQuestion.choices = currentQuestion.choices.map((choice) => ({
-                        ...choice,
-                        selected: -1,
-                    }))
-                }
+                // The marker rules live with the other validation rules.
+                const edited = applySelection(
+                    ballotEmlContest,
+                    current(currentQuestion),
+                    null,
+                    action.payload.isExplicitInvalid
+                )
+                currentQuestion.is_explicit_invalid = edited.is_explicit_invalid
+                currentQuestion.choices = edited.choices
 
                 if (!isUndefined(currentElection)) {
                     clearBlankBallotFlag(currentElection)
@@ -181,13 +174,20 @@ export const ballotSelectionsSlice = createSlice({
             )
             // update state
             if (!isUndefined(currentQuestion)) {
-                currentQuestion.is_explicit_invalid = false
-                currentQuestion.choices = currentQuestion.choices.map((choice) => {
-                    return {
-                        ...choice,
-                        selected: choice.id === action.payload.candidateId ? 0 : -1,
-                    }
-                })
+                const edited = applySelection(
+                    ballotEmlContest,
+                    current(currentQuestion),
+                    {
+                        id: action.payload.candidateId,
+                        selected: 0,
+                        write_in_text: currentQuestion.choices.find(
+                            (choice) => choice.id === action.payload.candidateId
+                        )?.write_in_text,
+                    },
+                    currentQuestion.is_explicit_invalid
+                )
+                currentQuestion.is_explicit_invalid = edited.is_explicit_invalid
+                currentQuestion.choices = edited.choices
                 if (!isUndefined(currentElection)) {
                     clearBlankBallotFlag(currentElection)
                 }
@@ -230,33 +230,14 @@ export const ballotSelectionsSlice = createSlice({
 
             // modify
             if (currentQuestion && !isUndefined(currentChoiceIndex)) {
-                currentQuestion.choices[currentChoiceIndex] = action.payload.voteChoice
-
-                const explicitBlankCandidateIds = new Set(
-                    ballotEmlContest.candidates
-                        .filter((candidate) => candidate.presentation?.is_explicit_blank)
-                        .map((candidate) => candidate.id)
+                const edited = applySelection(
+                    ballotEmlContest,
+                    current(currentQuestion),
+                    action.payload.voteChoice,
+                    currentQuestion.is_explicit_invalid
                 )
-                const isSelectingExplicitBlank =
-                    explicitBlankCandidateIds.has(action.payload.voteChoice.id) &&
-                    action.payload.voteChoice.selected > -1
-
-                if (action.payload.voteChoice.selected > -1 && !isSelectingExplicitBlank) {
-                    currentQuestion.choices = currentQuestion.choices.map((choice) =>
-                        explicitBlankCandidateIds.has(choice.id)
-                            ? {...choice, selected: -1}
-                            : choice
-                    )
-
-                    // Under ALLOWED_WITH_EXCLUSIVE_EXPLICIT, selecting a real
-                    // candidate is mutually exclusive with explicit invalid.
-                    if (
-                        ballotEmlContest.presentation?.invalid_vote_policy ===
-                        EInvalidVotePolicy.ALLOWED_WITH_EXCLUSIVE_EXPLICIT
-                    ) {
-                        currentQuestion.is_explicit_invalid = false
-                    }
-                }
+                currentQuestion.is_explicit_invalid = edited.is_explicit_invalid
+                currentQuestion.choices = edited.choices
 
                 clearBlankBallotFlag(currentElection)
             }

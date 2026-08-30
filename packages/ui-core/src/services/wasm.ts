@@ -42,6 +42,7 @@ import {
     check_voting_error_dialog,
     filter_visible_messages_js,
     selection_capped_js,
+    apply_selection_js,
     verify_ballot_signature_js,
     verify_multi_ballot_signature_js,
     get_default_duplicated_rank_policy_js,
@@ -415,6 +416,26 @@ export const selectionCapped = (
 ): boolean => {
     try {
         return selection_capped_js(contest, contestSelection)
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+/*
+ * Applies one edit to a contest's selections, enforcing the marker rules
+ * in sequent-core: pass a vote choice to select/deselect/rank a candidate,
+ * or null plus explicitInvalid to mark the contest invalid. Returns the
+ * edited selections; ballot-level flags are untouched.
+ */
+export const applySelection = (
+    contest: IContest,
+    selection: IDecodedVoteContest,
+    choice: IDecodedVoteChoice | null,
+    explicitInvalid: boolean
+): IDecodedVoteContest => {
+    try {
+        return apply_selection_js(contest, selection, choice, explicitInvalid)
     } catch (error) {
         console.log(error)
         throw error
