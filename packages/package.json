@@ -3,13 +3,14 @@
   "name": "sequentech",
   "version": "0.0.1",
   "license": "AGPL-3.0-only",
-  "workspaces": {
+    "workspaces": {
     "packages": [
       "ui-core",
       "ui-essentials",
       "voting-portal",
       "admin-portal",
-      "ballot-verifier"
+      "ballot-verifier",
+      "voting-portal-loc-studio"
     ],
     "nohoist": ["**/node_modules/@storybook", "**/storybook"]
   },
@@ -76,6 +77,8 @@
   },
   "scripts": {
     "start:voting-portal": "yarn --cwd ./voting-portal start",
+    "start:loc-studio": "yarn --cwd ./voting-portal-loc-studio start",
+    "build:loc-studio": "yarn --cwd ./voting-portal-loc-studio build",
     "start:admin-portal": "yarn --cwd ./admin-portal start",
     "start:ballot-verifier": "yarn --cwd ./ballot-verifier start",
     "storybook:ui-essentials": "yarn --cwd ./ui-essentials storybook",

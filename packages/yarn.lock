@@ -17498,6 +17498,11 @@ sentence-case@^3.0.4:
   version "0.1.0"
   resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#e89cbc9fe9ee8381b08c12a4891b42580c9086ae"
 
+"sequent-core@file:voting-portal/rust/sequent-core-0.1.0.tgz":
+  version "0.1.0"
+  uid e89cbc9fe9ee8381b08c12a4891b42580c9086ae
+  resolved "file:voting-portal/rust/sequent-core-0.1.0.tgz#e89cbc9fe9ee8381b08c12a4891b42580c9086ae"
+
 serialize-javascript@^6.0.0, serialize-javascript@^6.0.2:
   version "6.0.2"
   resolved "https://registry.yarnpkg.com/serialize-javascript/-/serialize-javascript-6.0.2.tgz#defa1e055c83bf6d59ea805d8da862254eb6a6c2"
