@@ -951,6 +951,28 @@ pub fn check_is_blank_js(
         .into_json()
 }
 
+/// Reports whether the contest has taken all the selections it will
+/// accept, so the booth should stop offering more (see
+/// `validation::ContestValidator::selection_capped`).
+#[wasm_bindgen]
+pub fn selection_capped_js(
+    contest_json: JsValue,
+    decoded_contest_json: JsValue,
+) -> Result<JsValue, JsValue> {
+    let contest: Contest = serde_wasm_bindgen::from_value(contest_json)
+        .map_err(|err| format!("Error parsing contest: {}", err))
+        .into_json()?;
+    let decoded_contest: DecodedVoteContest =
+        serde_wasm_bindgen::from_value(decoded_contest_json)
+            .map_err(|err| format!("Error parsing decoded contest: {}", err))
+            .into_json()?;
+
+    Ok(JsValue::from_bool(
+        ContestValidator::for_contest(&contest)
+            .selection_capped(&decoded_contest),
+    ))
+}
+
 /// Returns the decoded contest reduced to the messages the voter should
 /// see on the screen being rendered: the same record with `invalid_errors` and
 /// `invalid_alerts` filtered by the validation rules (see

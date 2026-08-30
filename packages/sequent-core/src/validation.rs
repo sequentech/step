@@ -862,6 +862,25 @@ impl ContestValidator {
         )
     }
 
+    /// Reports whether this contest has taken all the selections it will
+    /// accept, so the booth should stop offering more.
+    ///
+    /// Only the over-vote policy that disables inputs asks for this; every
+    /// other policy lets the voter select past the maximum and says so
+    /// afterwards, through a message or a gate. The count is the same one
+    /// the rules use, markers included, so the controls close exactly when
+    /// the rules consider the ballot full.
+    ///
+    /// A contest whose bounds cannot be read as counts has no maximum to
+    /// reach, so nothing is capped and decoding reports the bounds instead.
+    pub fn selection_capped(&self, decoded: &DecodedVoteContest) -> bool {
+        let Ok((_, max)) = self.bounds else {
+            return false;
+        };
+        self.policies.over == EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_DISABLE
+            && selections(&self.vote_state(decoded)) >= max
+    }
+
     /// Returns both gates for one decoded contest:
     /// `(blocks_next, needs_confirmation)`.
     ///
@@ -941,7 +960,9 @@ impl ContestValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ballot::{Candidate, CandidatePresentation};
+    use crate::ballot::{
+        Candidate, CandidatePresentation, ContestPresentation,
+    };
     use crate::plaintext::DecodedVoteChoice;
 
     fn config(min: u32, max: u32) -> Config {
@@ -1181,6 +1202,43 @@ mod tests {
         declined_invalid.is_decline_to_vote = true;
         declined_invalid.is_explicit_invalid = true;
         assert_eq!(class(&declined_invalid), BallotClass::ImplicitInvalid);
+    }
+
+    #[test]
+    fn selections_are_capped_only_by_the_disabling_policy() {
+        let contest = |over: EOverVotePolicy| {
+            let mut c = marker_contest();
+            c.max_votes = 1;
+            c.presentation = Some(ContestPresentation {
+                over_vote_policy: Some(over),
+                ..ContestPresentation::default()
+            });
+            c
+        };
+        let disabling =
+            contest(EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_DISABLE);
+        let warning = contest(EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_ALERT);
+
+        // At the maximum the disabling policy closes the controls; the
+        // policy that only warns leaves them open.
+        let full = ballot(true, false);
+        assert!(
+            ContestValidator::for_contest(&disabling).selection_capped(&full)
+        );
+        assert!(
+            !ContestValidator::for_contest(&warning).selection_capped(&full)
+        );
+
+        // Below the maximum nothing is capped.
+        let empty = ballot(false, false);
+        assert!(
+            !ContestValidator::for_contest(&disabling).selection_capped(&empty)
+        );
+
+        // The marker counts towards the maximum, as it does for the rules.
+        let marker_only = ballot(false, true);
+        assert!(ContestValidator::for_contest(&disabling)
+            .selection_capped(&marker_only));
     }
 
     #[test]

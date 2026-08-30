@@ -41,6 +41,7 @@ import {
     check_voting_not_allowed_next,
     check_voting_error_dialog,
     filter_visible_messages_js,
+    selection_capped_js,
     verify_ballot_signature_js,
     verify_multi_ballot_signature_js,
     get_default_duplicated_rank_policy_js,
@@ -397,6 +398,23 @@ export const filterVisibleMessages = (
 ): IDecodedVoteContest => {
     try {
         return filter_visible_messages_js(contest, decodedContest, isReview, isTouched)
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+/*
+ * Whether the contest has taken all the selections it will accept, so the
+ * booth should stop offering more. Decided by the validation rules in
+ * sequent-core, from the same selection count they use.
+ */
+export const selectionCapped = (
+    contest: IContest,
+    contestSelection: IDecodedVoteContest
+): boolean => {
+    try {
+        return selection_capped_js(contest, contestSelection)
     } catch (error) {
         console.log(error)
         throw error

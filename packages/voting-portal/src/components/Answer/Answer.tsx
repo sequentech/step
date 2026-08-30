@@ -52,8 +52,6 @@ export interface IAnswerProps {
     isInvalidWriteIns?: boolean
     isRadioSelection?: boolean
     contest: IContest
-    selectedChoicesSum: number
-    setSelectedChoicesSum: (num: number) => void
     disableSelect: boolean
     explicitBlank: boolean
     setExplicitBlank: (value: boolean) => void
@@ -74,8 +72,6 @@ export const Answer: React.FC<IAnswerProps> = ({
     isInvalidWriteIns,
     isRadioSelection,
     contest,
-    selectedChoicesSum,
-    setSelectedChoicesSum,
     disableSelect,
     explicitBlank,
     setExplicitBlank,
