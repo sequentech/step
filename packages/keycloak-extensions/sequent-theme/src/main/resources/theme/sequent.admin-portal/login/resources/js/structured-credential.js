@@ -149,11 +149,6 @@ if (container) {
     const hadServerError = Boolean(error && !error.hidden);
     const defaultErrorMessage = error?.textContent || "";
     const originalTabIndex = realInput.tabIndex;
-    // The browser applies the HTML autofocus attribute to realInput before this
-    // script hides it, so that focus is lost rather than transferred. Reading it
-    // here and re-applying it to displayInput below keeps "start focused here"
-    // working across the swap.
-    const hadAutofocus = realInput.autofocus;
     const displayInput = document.createElement("input");
     const status = document.createElement("span");
     const digits = Array(pattern.totalSize).fill(null);
@@ -671,15 +666,6 @@ if (container) {
     render();
     if (hadServerError) {
       showError();
-      // role="alert" on a span that's already present in the very first
-      // paint of a fresh (non-AJAX) page load is unreliable across screen
-      // readers — some announce it immediately regardless of what the user
-      // just did, others never announce it at all. Moving focus here is
-      // deterministic: it reads the label, the error via aria-describedby,
-      // and nothing else, exactly when the error actually applies.
-      displayInput.focus();
-    } else if (hadAutofocus) {
-      displayInput.focus();
     }
 
     // The template puts autofocus on the real input, which this widget hides - a hidden field

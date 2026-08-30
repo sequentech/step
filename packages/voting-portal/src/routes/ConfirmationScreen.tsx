@@ -381,7 +381,6 @@ const ConfirmationScreen: React.FC = () => {
 
     const ballotId = useRef<string | undefined>(undefined)
     const gotData = useRef<boolean | undefined>(false)
-    const screenAnnouncementRef = useRef<HTMLDivElement>(null)
     const navigate = useNavigate()
     const [demoBallotIdHelp, setDemoBallotIdHelp] = useState<boolean>(false)
     const [isDemo, setIsDemo] = useState<boolean>(false)
@@ -414,10 +413,6 @@ const ConfirmationScreen: React.FC = () => {
         }
     }, [])
 
-    useEffect(() => {
-        screenAnnouncementRef.current?.focus()
-    }, [])
-
     const handleBallotIdLinkClick = (event: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => {
         if (isDemo) {
             event.preventDefault()
@@ -427,13 +422,6 @@ const ConfirmationScreen: React.FC = () => {
 
     return (
         <PageLimit maxWidth="lg" className="confirmation-screen screen">
-            {/* Client-side route entry doesn't trigger a native page load, so
-                "Your vote has been cast" wouldn't otherwise be announced. */}
-            <VisuallyHidden tabIndex={-1} ref={screenAnnouncementRef}>
-                {t("confirmationScreen.title")}
-                {". "}
-                {t("confirmationScreen.description")}
-            </VisuallyHidden>
             <Box marginTop="24px">
                 <Stepper selected={3} />
             </Box>
