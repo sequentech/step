@@ -187,10 +187,23 @@ if (container) {
     status.setAttribute("role", "status");
     status.setAttribute("aria-live", "polite");
 
-    const describedBy = [hintId, errorId, status.id].filter(Boolean).join(" ");
-    if (describedBy) {
-      displayInput.setAttribute("aria-describedby", describedBy);
-    }
+    // errorId is only added to aria-describedby while an error is actually
+    // showing (via setErrorDescribed below). Per the ARIA accessible-description
+    // computation, a node with the `hidden` attribute is still read out if it is
+    // explicitly referenced by aria-describedby - so including errorId
+    // unconditionally here would announce the (static, always-rendered) error
+    // text on every focus, even on a fresh load with no error.
+    const setErrorDescribed = (described) => {
+      const describedBy = [hintId, described ? errorId : null, status.id]
+        .filter(Boolean)
+        .join(" ");
+      if (describedBy) {
+        displayInput.setAttribute("aria-describedby", describedBy);
+      } else {
+        displayInput.removeAttribute("aria-describedby");
+      }
+    };
+    setErrorDescribed(false);
 
     const groupEnd = (group) => group.digitStart + group.length;
 
@@ -273,6 +286,7 @@ if (container) {
         error.textContent = defaultErrorMessage;
       }
       displayInput.removeAttribute("aria-invalid");
+      setErrorDescribed(false);
       if (usernameInput) {
         usernameInput.removeAttribute("aria-invalid");
       }
@@ -283,6 +297,7 @@ if (container) {
       if (error) {
         error.textContent = message;
         error.hidden = false;
+        setErrorDescribed(true);
       } else {
         status.textContent = message;
       }
