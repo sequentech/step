@@ -13,10 +13,11 @@
 //!
 //! - the CONVERSIONS between the spec's abstract types and production's
 //!   ([`wire`] — through the shared serde wire strings, loud on mismatch);
-//! - the shared pure projections reused from the oracle where oracle and
-//!   fixed genuinely agree, because no fix touched them: `classify` /
-//!   `selection_class` (velvet's tally classifier) and `reachability`
-//!   (the booth reducer, S5 kept).
+//! - `reachability`, reused from the oracle because production decides it
+//!   in the booth's React layer — the one effect Rust cannot ask
+//!   production for. Everything else here, the tally class included, is
+//!   production's own rule; what remains is converting between the
+//!   oracle's frozen enums and production's.
 //!
 //! `f` (the oracle) and `f_fixed` share their composition shape and differ
 //! ONLY by the fix ledger's changes; that difference, swept over the
@@ -30,8 +31,7 @@ use sequent_core::plaintext::DecodedVoteContest;
 use sequent_core::validation as native;
 use validation_spec as spec;
 use validation_spec::{
-    classify, reachability, selection_class, Dialog, Effects, Emissions, Gate, InlineViews,
-    Policies,
+    reachability, selection_class, Dialog, Effects, Emissions, Gate, InlineViews, Policies,
 };
 
 /// Converts a policy enum between the spec's and production's types through
@@ -87,6 +87,31 @@ fn shown(validator: &native::VoteValidator, is_review: bool, is_touched: bool) -
     shown.errors.into_iter().chain(shown.alerts).collect()
 }
 
+/// Converts the oracle's view of a ballot's selections to production's.
+fn selections_of(vs: &spec::VoteState) -> native::SelectionClass {
+    match selection_class(vs) {
+        spec::SelectionClass::None => native::SelectionClass::None,
+        spec::SelectionClass::Regular => native::SelectionClass::Regular,
+        spec::SelectionClass::Marker => native::SelectionClass::Marker,
+        spec::SelectionClass::Mixed => native::SelectionClass::Mixed,
+    }
+}
+
+/// Converts production's tally class to the oracle's, so the two can be
+/// compared cell by cell. The oracle keeps its own enum on purpose: it is
+/// the frozen record of pre-fix behaviour and must not depend on the code
+/// it measures.
+fn tally_class(class: native::BallotClass) -> spec::BallotClass {
+    match class {
+        native::BallotClass::ExplicitInvalid => spec::BallotClass::ExplicitInvalid,
+        native::BallotClass::ImplicitInvalid => spec::BallotClass::ImplicitInvalid,
+        native::BallotClass::ExplicitBlank => spec::BallotClass::ExplicitBlank,
+        native::BallotClass::ImplicitBlank => spec::BallotClass::ImplicitBlank,
+        native::BallotClass::Declined => spec::BallotClass::Declined,
+        native::BallotClass::Valid => spec::BallotClass::Valid,
+    }
+}
+
 /// Computes the fixed mapping — the exact analog of the oracle's `f`, from
 /// production's own rules.
 pub fn f_fixed(config: &spec::Config, vs: &spec::VoteState) -> Effects {
@@ -115,13 +140,15 @@ pub fn f_fixed(config: &spec::Config, vs: &spec::VoteState) -> Effects {
         } else {
             Dialog::None
         },
+        // Reachability is the one leg still modelled: production decides
+        // it in the booth's React layer, which Rust cannot call.
         reachability: reachability(config, vs),
-        tally: classify(
+        tally: tally_class(native::classify(
             vs.decline,
             vs.explicit_invalid,
             !em.errors.is_empty(),
-            selection_class(vs),
-        ),
+            selections_of(vs),
+        )),
         emissions: em,
     }
 }
