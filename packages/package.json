@@ -9,8 +9,7 @@
       "ui-essentials",
       "voting-portal",
       "admin-portal",
-      "ballot-verifier",
-      "voting-portal-loc-studio"
+      "ballot-verifier"
     ],
     "nohoist": ["**/node_modules/@storybook", "**/storybook"]
   },
@@ -77,8 +76,8 @@
   },
   "scripts": {
     "start:voting-portal": "yarn --cwd ./voting-portal start",
-    "start:loc-studio": "yarn --cwd ./voting-portal-loc-studio start",
-    "build:loc-studio": "yarn --cwd ./voting-portal-loc-studio build",
+    "start:loc-studio": "yarn --cwd ../beyond/packages/voting-portal-loc-studio start",
+    "build:loc-studio": "yarn --cwd ../beyond/packages/voting-portal-loc-studio build",
     "start:admin-portal": "yarn --cwd ./admin-portal start",
     "start:ballot-verifier": "yarn --cwd ./ballot-verifier start",
     "storybook:ui-essentials": "yarn --cwd ./ui-essentials storybook",

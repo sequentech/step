@@ -4,7 +4,7 @@
 
 const path = require("path")
 
-const locStudioRoot = path.resolve(__dirname, "../voting-portal-loc-studio")
+const locStudioRoot = path.resolve(__dirname, "../../../beyond/packages/voting-portal-loc-studio")
 const locStudioWebpack = require(path.join(locStudioRoot, "webpack.config.cjs"))
 
 module.exports = function (env, argv) {

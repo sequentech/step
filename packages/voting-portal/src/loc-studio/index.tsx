@@ -2,4 +2,4 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import "../../../voting-portal-loc-studio/src/standalone/index.tsx"
+import "../../../../beyond/packages/voting-portal-loc-studio/src/standalone/index.tsx"
